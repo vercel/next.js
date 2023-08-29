@@ -45,15 +45,15 @@ pub async fn create_page_ssr_entry_module(
     let template_file = match (&reference_type, runtime) {
         (ReferenceType::Entry(EntryReferenceSubType::Page), _) => {
             // Load the Page entry file.
-            "build/webpack/loaders/next-route-loader/templates/pages.js"
+            "build/templates/pages.js"
         }
         (ReferenceType::Entry(EntryReferenceSubType::PagesApi), NextRuntime::NodeJs) => {
             // Load the Pages API entry file.
-            "build/webpack/loaders/next-route-loader/templates/pages-api.js"
+            "build/templates/pages-api.js"
         }
         (ReferenceType::Entry(EntryReferenceSubType::PagesApi), NextRuntime::Edge) => {
             // Load the Pages API entry file.
-            "build/webpack/loaders/next-route-loader/templates/pages-edge-api.js"
+            "build/templates/pages-edge-api.js"
         }
         _ => bail!("Invalid path type"),
     };
@@ -125,7 +125,7 @@ pub async fn create_page_ssr_entry_module(
             ssr_module_context,
             project_root,
             ssr_module,
-            definition_page.to_string(),
+            definition_pathname.to_string(),
         );
     }
 
@@ -143,7 +143,7 @@ pub async fn wrap_edge_entry(
     context: Vc<Box<dyn AssetContext>>,
     project_root: Vc<FileSystemPath>,
     entry: Vc<Box<dyn Module>>,
-    original_name: String,
+    pathname: String,
 ) -> Result<Vc<Box<dyn Module>>> {
     let mut source = RopeBuilder::default();
     writedoc!(
@@ -154,7 +154,7 @@ pub async fn wrap_edge_entry(
             self._ENTRIES ||= {{}}
             self._ENTRIES[{}] = module
         "#,
-        StringifyJs(&format_args!("middleware_{}", original_name))
+        StringifyJs(&format_args!("middleware_{}", pathname))
     )?;
     let file = File::from(source.build());
     // TODO(alexkirsz) Figure out how to name this virtual asset.

@@ -14,9 +14,6 @@ import { generateETag } from './lib/etag'
 import { addRequestMeta } from './request-meta'
 import WebResponseCache from './response-cache/web'
 import { isAPIRoute } from '../lib/is-api-route'
-import { getPathMatch } from '../shared/lib/router/utils/path-match'
-import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
-import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { interpolateDynamicPath, normalizeVercelUrl } from './server-utils'
@@ -167,86 +164,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
 
   protected getNextFontManifest() {
     return this.serverOptions.webServerConfig.extendRenderOpts.nextFontManifest
-  }
-
-  protected async normalizeNextData(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
-    parsedUrl: NextUrlWithParsedQuery
-  ): Promise<{ finished: boolean }> {
-    const middleware = this.getMiddleware()
-    const params = getPathMatch('/_next/data/:path*')(parsedUrl.pathname)
-
-    // Make sure to 404 for /_next/data/ itself and
-    // we also want to 404 if the buildId isn't correct
-    if (!params || !params.path || params.path[0] !== this.buildId) {
-      await this.render404(req, res, parsedUrl)
-      return {
-        finished: true,
-      }
-    }
-    // remove buildId from URL
-    params.path.shift()
-
-    const lastParam = params.path[params.path.length - 1]
-
-    // show 404 if it doesn't end with .json
-    if (typeof lastParam !== 'string' || !lastParam.endsWith('.json')) {
-      await this.render404(req, res, parsedUrl)
-      return {
-        finished: true,
-      }
-    }
-
-    // re-create page's pathname
-    let pathname = `/${params.path.join('/')}`
-    pathname = getRouteFromAssetPath(pathname, '.json')
-
-    // ensure trailing slash is normalized per config
-    if (middleware) {
-      if (this.nextConfig.trailingSlash && !pathname.endsWith('/')) {
-        pathname += '/'
-      }
-      if (
-        !this.nextConfig.trailingSlash &&
-        pathname.length > 1 &&
-        pathname.endsWith('/')
-      ) {
-        pathname = pathname.substring(0, pathname.length - 1)
-      }
-    }
-
-    if (this.nextConfig.i18n) {
-      const { host } = req?.headers || {}
-      // remove port from host and remove port if present
-      const hostname = host?.split(':')[0].toLowerCase()
-      const localePathResult = normalizeLocalePath(
-        pathname,
-        this.nextConfig.i18n.locales
-      )
-      const domainLocale = this.i18nProvider?.detectDomainLocale(hostname)
-
-      let detectedLocale = ''
-
-      if (localePathResult.detectedLocale) {
-        pathname = localePathResult.pathname
-        detectedLocale = localePathResult.detectedLocale
-      }
-
-      parsedUrl.query.__nextLocale = detectedLocale
-      parsedUrl.query.__nextDefaultLocale =
-        domainLocale?.defaultLocale || this.nextConfig.i18n.defaultLocale
-
-      if (!detectedLocale && !middleware) {
-        parsedUrl.query.__nextLocale = parsedUrl.query.__nextDefaultLocale
-        await this.render404(req, res, parsedUrl)
-        return { finished: true }
-      }
-    }
-    parsedUrl.pathname = pathname
-    parsedUrl.query.__nextDataReq = '1'
-
-    return { finished: false }
   }
 
   protected async handleCatchallRenderRequest(

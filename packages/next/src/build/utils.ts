@@ -1999,6 +1999,12 @@ export function isReservedPage(page: string) {
   return RESERVED_PAGE.test(page)
 }
 
+export function isAppBuiltinNotFoundPage(page: string) {
+  return /next[\\/]dist[\\/]client[\\/]components[\\/]not-found-error/.test(
+    page
+  )
+}
+
 export function isCustomErrorPage(page: string) {
   return page === '/404' || page === '/500'
 }
