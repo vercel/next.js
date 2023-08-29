@@ -92,10 +92,6 @@ function assignDefaults(
             }
           }
         }
-
-        // if (!silent && enabledExperiments.length > 0) {
-        //   experimentalWarning(enabledExperiments)
-        // }
       }
 
       if (key === 'distDir') {

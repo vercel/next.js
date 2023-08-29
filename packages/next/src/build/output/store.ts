@@ -66,7 +66,6 @@ store.subscribe((state) => {
     if (state.trigger) {
       if (state.trigger !== 'initial') {
         lastTrigger = state.trigger
-        // Log.wait(`compiling ${state.trigger}...`)
       }
     } else {
       // not aware of the original trigger, just saying compiling

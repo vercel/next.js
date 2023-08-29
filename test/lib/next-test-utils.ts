@@ -30,6 +30,7 @@ import {
   shouldRunExperimentalTurboDevTest,
   shouldRunTurboDevTest,
 } from './turbo'
+import stripAnsi from 'strip-ansi'
 
 export { shouldRunTurboDevTest }
 
@@ -362,12 +363,13 @@ export function runNextCommandDev(
     let didResolve = false
 
     function handleStdout(data) {
-      const message = data.toString()
+      // TODO: tune the typing for the promise resolved value
+      const message = stripAnsi(data.toString()) as any
       const bootupMarkers = {
-        dev: /compiled .*successfully/i,
+        dev: /▲ Next.js/i,
         turbo: /started server/i,
-        experimentalTurbo: /started server/i,
-        start: /started server/i,
+        experimentalTurbo: /▲ Next.js/i,
+        start: /▲ Next.js/i,
       }
       if (
         (opts.bootupMarker && opts.bootupMarker.test(message)) ||

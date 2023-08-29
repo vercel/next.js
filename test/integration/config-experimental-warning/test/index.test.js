@@ -24,8 +24,8 @@ describe('Config Experimental Warning', () => {
       }
     `)
 
-    const { stderr } = await nextBuild(appDir, [], { stderr: true })
-    expect(stderr).not.toMatch('You have enabled experimental feature')
+    const { stdout } = await nextBuild(appDir, [], { stdout: true })
+    expect(stdout).not.toMatch(' - Experiments (use at your own risk):')
   })
 
   it('should not show warning with config from object', async () => {
@@ -34,8 +34,8 @@ describe('Config Experimental Warning', () => {
         images: {},
       }
     `)
-    const { stderr } = await nextBuild(appDir, [], { stderr: true })
-    expect(stderr).not.toMatch('You have enabled experimental feature')
+    const { stdout } = await nextBuild(appDir, [], { stdout: true })
+    expect(stdout).not.toMatch(' - Experiments (use at your own risk):')
   })
 
   it('should show warning with config from object with experimental', async () => {
@@ -46,10 +46,9 @@ describe('Config Experimental Warning', () => {
         }
       }
     `)
-    const { stderr } = await nextBuild(appDir, [], { stderr: true })
-    expect(stderr).toMatch(
-      'You have enabled experimental feature (workerThreads) in next.config.js.'
-    )
+    const { stdout } = await nextBuild(appDir, [], { stdout: true })
+    expect(stdout).toMatch(' - Experiments (use at your own risk):')
+    expect(stdout).toMatch(' · workerThreads')
   })
 
   it('should show warning with config from function with experimental', async () => {
@@ -60,10 +59,9 @@ describe('Config Experimental Warning', () => {
         }
       })
     `)
-    const { stderr } = await nextBuild(appDir, [], { stderr: true })
-    expect(stderr).toMatch(
-      'You have enabled experimental feature (workerThreads) in next.config.js.'
-    )
+    const { stdout } = await nextBuild(appDir, [], { stdout: true })
+    expect(stdout).toMatch(' - Experiments (use at your own risk):')
+    expect(stdout).toMatch(' · workerThreads')
   })
 
   it('should not show warning with default value', async () => {
@@ -74,10 +72,9 @@ describe('Config Experimental Warning', () => {
         }
       })
     `)
-    const { stderr } = await nextBuild(appDir, [], { stderr: true })
-    expect(stderr).not.toMatch(
-      'You have enabled experimental feature (workerThreads) in next.config.js.'
-    )
+    const { stdout } = await nextBuild(appDir, [], { stdout: true })
+    expect(stdout).not.toMatch(' - Experiments (use at your own risk):')
+    expect(stdout).not.toMatch(' · workerThreads')
   })
 
   it('should show warning with config from object with experimental and multiple keys', async () => {
@@ -89,24 +86,9 @@ describe('Config Experimental Warning', () => {
         }
       }
     `)
-    const { stderr } = await nextBuild(appDir, [], { stderr: true })
-    expect(stderr).toMatch(
-      'You have enabled experimental features (urlImports, workerThreads) in next.config.js.'
-    )
-  })
-
-  it('should show warning with next.config.mjs from object with experimental', async () => {
-    configFileMjs.write(`
-      const config = {
-        experimental: {
-          workerThreads: true,
-        }
-      }
-      export default config
-    `)
-    const { stderr } = await nextBuild(appDir, [], { stderr: true })
-    expect(stderr).toMatch(
-      'You have enabled experimental feature (workerThreads) in next.config.mjs.'
-    )
+    const { stdout } = await nextBuild(appDir, [], { stdout: true })
+    expect(stdout).not.toMatch(' - Experiments (use at your own risk):')
+    expect(stdout).not.toMatch(' · urlImports')
+    expect(stdout).not.toMatch(' · workerThreads')
   })
 })
