@@ -67,7 +67,9 @@ pub enum RouteHas {
 #[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct MiddlewareMatcher {
-    pub regexp: String,
+    // When skipped next.js with fill that during merging.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub regexp: Option<String>,
     #[serde(skip_serializing_if = "bool_is_true")]
     pub locale: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -107,7 +109,7 @@ pub enum Regions {
 #[derive(Serialize, Default, Debug)]
 pub struct MiddlewaresManifestV2 {
     pub sorted_middleware: Vec<String>,
-    pub middleware: HashMap<String, ()>,
+    pub middleware: HashMap<String, EdgeFunctionDefinition>,
     pub functions: HashMap<String, EdgeFunctionDefinition>,
 }
 

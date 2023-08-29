@@ -286,8 +286,9 @@ async function tryToReadFile(filePath: string, shouldThrow: boolean) {
     return await fs.readFile(filePath, {
       encoding: 'utf8',
     })
-  } catch (error) {
+  } catch (error: any) {
     if (shouldThrow) {
+      error.message = `Next.js ERROR: Failed to read file ${filePath}:\n${error.message}`
       throw error
     }
   }

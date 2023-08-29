@@ -18,6 +18,7 @@ mod emit;
 pub mod env;
 mod fallback;
 pub mod loader_tree;
+pub mod middleware;
 pub mod mode;
 pub mod next_app;
 mod next_build;

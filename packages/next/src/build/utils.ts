@@ -1999,6 +1999,12 @@ export function isReservedPage(page: string) {
   return RESERVED_PAGE.test(page)
 }
 
+export function isAppBuiltinNotFoundPage(page: string) {
+  return /next[\\/]dist[\\/]client[\\/]components[\\/]not-found-error/.test(
+    page
+  )
+}
+
 export function isCustomErrorPage(page: string) {
   return page === '/404' || page === '/500'
 }
@@ -2061,8 +2067,7 @@ export class NestedMiddlewareError extends Error {
 
 export function getSupportedBrowsers(
   dir: string,
-  isDevelopment: boolean,
-  config: NextConfigComplete
+  isDevelopment: boolean
 ): string[] | undefined {
   let browsers: any
   try {
@@ -2081,10 +2086,6 @@ export function getSupportedBrowsers(
     return browsers
   }
 
-  // When the user sets `legacyBrowsers: true`, we pass undefined
-  // to SWC which is basically ES5 and matches the default behavior
-  // prior to Next.js 13
-  return config.experimental.legacyBrowsers
-    ? undefined
-    : MODERN_BROWSERSLIST_TARGET
+  // Uses modern browsers as the default.
+  return MODERN_BROWSERSLIST_TARGET
 }

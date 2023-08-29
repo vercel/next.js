@@ -23,10 +23,7 @@ function generateComponent(thirdParty) {
     let props = ''
 
     if (stylesheets?.length > 0) {
-      // TODO: Remove ts-ignore after new <Script> component is published
-      // New <Script> accepts stylesheet as a param. Otherwise it throws error
       props += `
-      // @ts-ignore
       stylesheets={${JSON.stringify(stylesheets)}}`
     }
 
