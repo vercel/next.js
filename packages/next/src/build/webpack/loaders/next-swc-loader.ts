@@ -133,11 +133,9 @@ const EXCLUDED_PATHS =
 export function pitch(this: any) {
   const callback = this.async()
   ;(async () => {
-    let loaderOptions = this.getOptions() || {}
     if (
       // TODO: investigate swc file reading in PnP mode?
       !process.versions.pnp &&
-      loaderOptions.fileReading &&
       !EXCLUDED_PATHS.test(this.resourcePath) &&
       this.loaders.length - 1 === this.loaderIndex &&
       isAbsolute(this.resourcePath) &&

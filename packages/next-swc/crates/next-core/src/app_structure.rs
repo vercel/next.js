@@ -788,36 +788,36 @@ async fn directory_tree_to_entrypoints_internal(
                 dev_not_found_tree,
             )
             .await?;
-        }
-    } else {
-        // Create default not-found page for production if there's no customized
-        // not-found
-        let prod_not_found_tree = LoaderTree {
-            segment: directory_name.to_string(),
-            parallel_routes: indexmap! {
-                "children".to_string() => LoaderTree {
-                    segment: "__PAGE__".to_string(),
-                    parallel_routes: IndexMap::new(),
-                    components: Components {
-                        page: Some(get_next_package(app_dir).join("dist/client/components/not-found-error.js".to_string())),
-                        ..Default::default()
+        } else {
+            // Create default not-found page for production if there's no customized
+            // not-found
+            let prod_not_found_tree = LoaderTree {
+                segment: directory_name.to_string(),
+                parallel_routes: indexmap! {
+                    "children".to_string() => LoaderTree {
+                        segment: "__PAGE__".to_string(),
+                        parallel_routes: IndexMap::new(),
+                        components: Components {
+                            page: Some(get_next_package(app_dir).join("dist/client/components/not-found-error.js".to_string())),
+                            ..Default::default()
+                        }
+                        .cell(),
                     }
                     .cell(),
-                }
-                .cell(),
-            },
-            components: components.without_leafs().cell(),
-        }
-        .cell();
+                },
+                components: components.without_leafs().cell(),
+            }
+            .cell();
 
-        add_app_page(
-            app_dir,
-            &mut result,
-            "/_not-found".to_string(),
-            "/_not-found".to_string(),
-            prod_not_found_tree,
-        )
-        .await?;
+            add_app_page(
+                app_dir,
+                &mut result,
+                "/_not-found".to_string(),
+                "/_not-found".to_string(),
+                prod_not_found_tree,
+            )
+            .await?;
+        }
     }
 
     for (subdir_name, &subdirectory) in subdirectories.iter() {
