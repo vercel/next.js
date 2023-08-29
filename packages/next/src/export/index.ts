@@ -124,8 +124,11 @@ const createProgress = (total: number, label: string) => {
       lastProgressOutput = Date.now()
     }
 
-    // Use \r to reset current line with spinner
-    const newText = `\r${leadingPrefix} ${label} (${curProgress}/${total})\n`
+    // Use \r to reset current line with spinner.
+    // If it's 100% progressed, then we don't need to break a new line to avoid logging from routes while building.
+    const newText = `\r${leadingPrefix} ${label} (${curProgress}/${total})${
+      curProgress === total ? '' : '\n'
+    }`
     if (progressSpinner) {
       progressSpinner.text = newText
     } else {

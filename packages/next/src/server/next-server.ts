@@ -102,19 +102,6 @@ import { loadManifest } from './load-manifest'
 export * from './base-server'
 
 function writeStdoutLine(text: string) {
-  // const maxLength = 160
-  // let output = ''
-  // let remainingText = text
-  // let index = 0
-  // const indent = (' '.repeat(13))
-  // while (remainingText.length > maxLength) {
-  //   output += ((index === 0 ? '' : indent) + remainingText.slice(0, maxLength - 1) + '\n')
-  //   remainingText = remainingText.slice(maxLength)
-  //   index++
-  // }
-
-  // if (text.length > maxLength) output += indent
-  // output += remainingText
   process.stdout.write(Log.now() + ' ' + text + '\n')
 }
 
@@ -1079,13 +1066,11 @@ export default class NextNodeServer extends BaseServer {
                 }
               }
 
-              // return `${'───'.repeat(nestedLevel + 1)}`
               return `${'  │ '.repeat(nestedLevel)}`
             }
 
             for (let i = 0; i < fetchMetrics.length; i++) {
               const metric = fetchMetrics[i]
-              // const lastItem = i === fetchMetrics.length - 1
               let { cacheStatus, cacheReason } = metric
               let cacheReasonStr = ''
 
@@ -1129,9 +1114,7 @@ export default class NextNodeServer extends BaseServer {
               }
 
               if (enabledVerboseLogging) {
-                // const newLineLeadingChar = lastItem ? '└' : '├'
                 const newLineLeadingChar = '│'
-                // process.stdout.write
                 const nestedIndent = calcNestedLevel(
                   fetchMetrics.slice(0, i),
                   metric.start

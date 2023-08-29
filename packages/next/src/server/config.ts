@@ -5,7 +5,6 @@ import findUp from 'next/dist/compiled/find-up'
 import chalk from '../lib/chalk'
 import * as Log from '../build/output/log'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
-// import { execOnce } from '../shared/lib/utils'
 import {
   defaultConfig,
   normalizeConfig,
@@ -22,14 +21,6 @@ import { findRootDir } from '../lib/find-root'
 import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
-
-// const experimentalWarning = execOnce((features: string[]) => {
-//   const s = features.length > 1 ? 's' : ''
-//   Log.bootstrap(
-//     `- Experimental feature${s} (use at your own risk): ` +
-//       chalk.bold(`${features.join(', ')}`)
-//   )
-// })
 
 export function warnOptionHasBeenMovedOutOfExperimental(
   config: NextConfig,
