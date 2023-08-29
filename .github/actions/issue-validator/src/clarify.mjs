@@ -13,7 +13,7 @@ const addReproductionLabel = 'please add a complete reproduction'
 const addMimimalReproductionLabel = 'please simplify reproduction'
 // const bugLabel = 'template: bug'
 const __dirname =
-  '/home/runner/work/next.js/next.js/.github/actions/issue-validator'
+  '/home/runner/work/next.js/next.js/.github/actions/issue-validator/clarify'
 
 /**
  * @typedef {{
