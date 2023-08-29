@@ -424,9 +424,6 @@ const configSchema = {
         strictNextHead: {
           type: 'boolean',
         },
-        swcFileReading: {
-          type: 'boolean',
-        },
         swcMinify: {
           type: 'boolean',
         },
