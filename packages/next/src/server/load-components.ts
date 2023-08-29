@@ -25,6 +25,7 @@ import { interopDefault } from '../lib/interop-default'
 import { getTracer } from './lib/trace/tracer'
 import { LoadComponentsSpan } from './lib/trace/constants'
 import { loadManifest } from './load-manifest'
+import { wait } from '../lib/wait'
 export type ManifestItem = {
   id: number | string
   files: string[]
@@ -51,6 +52,41 @@ export type LoadComponentsReturnType = {
   pathname: string
 }
 
+/**
+ * Load manifest file with retries, defaults to 3 attempts.
+ */
+async function loadManifestWithRetries<T>(
+  manifestPath: string,
+  attempts = 3
+): Promise<T> {
+  while (true) {
+    try {
+      return loadManifest(manifestPath)
+    } catch (err) {
+      attempts--
+      if (attempts <= 0) throw err
+
+      await wait(100)
+    }
+  }
+}
+
+async function loadJSManifest<T>(
+  manifestPath: string,
+  name: string,
+  entryName: string
+): Promise<T | undefined> {
+  process.env.NEXT_MINIMAL
+    ? // @ts-ignore
+      __non_webpack_require__(manifestPath)
+    : require(manifestPath)
+  try {
+    return JSON.parse((globalThis as any)[name][entryName]) as T
+  } catch (err) {
+    return undefined
+  }
+}
+
 async function loadDefaultErrorComponentsImpl(
   distDir: string
 ): Promise<LoadComponentsReturnType> {
@@ -69,45 +105,13 @@ async function loadDefaultErrorComponentsImpl(
     Document,
     Component,
     pageConfig: {},
-    buildManifest: require(join(distDir, `fallback-${BUILD_MANIFEST}`)),
+    buildManifest: await loadManifestWithRetries(
+      join(distDir, `fallback-${BUILD_MANIFEST}`)
+    ),
     reactLoadableManifest: {},
     ComponentMod,
     pathname: '/_error',
     routeModule: ComponentMod.routeModule,
-  }
-}
-
-/**
- * Load manifest file with retries, defaults to 3 attempts.
- */
-async function loadManifestWithRetries<T>(
-  manifestPath: string,
-  attempts = 3
-): Promise<T> {
-  while (true) {
-    try {
-      return loadManifest(manifestPath)
-    } catch (err) {
-      attempts--
-      if (attempts <= 0) throw err
-      await new Promise((resolve) => setTimeout(resolve, 100))
-    }
-  }
-}
-
-async function loadJSManifest<T>(
-  manifestPath: string,
-  name: string,
-  entryname: string
-): Promise<T | undefined> {
-  process.env.NEXT_MINIMAL
-    ? // @ts-ignore
-      __non_webpack_require__(manifestPath)
-    : require(manifestPath)
-  try {
-    return JSON.parse((globalThis as any)[name][entryname]) as T
-  } catch (err) {
-    return undefined
   }
 }
 

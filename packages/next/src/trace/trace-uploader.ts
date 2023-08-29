@@ -80,7 +80,7 @@ interface TraceMetadata {
 
   const commit = child_process
     .spawnSync(
-      os.platform() === 'win32' ? 'git.cmd' : 'git',
+      os.platform() === 'win32' ? 'git.exe' : 'git',
       ['rev-parse', 'HEAD'],
       { shell: true }
     )

@@ -2,13 +2,13 @@ import type { NextConfigComplete } from '../config-shared'
 import type { CustomRoutes } from '../../lib/load-custom-routes'
 import type { Duplex } from 'stream'
 import type { Telemetry } from '../../telemetry/storage'
+import type { IncomingMessage, ServerResponse } from 'http'
+import type { UrlObject } from 'url'
 
 import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
 import { getOverlayMiddleware } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
-import { IncomingMessage, ServerResponse } from 'http'
 import { WebpackHotMiddleware } from './hot-middleware'
 import { join, relative, isAbsolute, posix } from 'path'
-import { UrlObject } from 'url'
 import {
   createEntrypoints,
   createPagesMapping,
@@ -67,6 +67,7 @@ import { isAPIRoute } from '../../lib/is-api-route'
 import { getRouteLoaderEntry } from '../../build/webpack/loaders/next-route-loader'
 import { isInternalComponent } from '../../lib/is-internal-component'
 import { RouteKind } from '../future/route-kind'
+import { NextJsHotReloaderInterface } from './hot-reloader-types'
 
 const MILLISECONDS_IN_NANOSECOND = 1_000_000
 
@@ -174,7 +175,7 @@ function erroredPages(compilation: webpack.Compilation) {
   return failedPages
 }
 
-export default class HotReloader {
+export default class HotReloader implements NextJsHotReloaderInterface {
   private hasAmpEntrypoints: boolean
   private hasAppRouterEntrypoints: boolean
   private hasPagesRouterEntrypoints: boolean
@@ -185,10 +186,7 @@ export default class HotReloader {
   private distDir: string
   private webpackHotMiddleware?: WebpackHotMiddleware
   private config: NextConfigComplete
-  public hasServerComponents: boolean
-  public clientStats: webpack.Stats | null
-  public serverStats: webpack.Stats | null
-  public edgeServerStats: webpack.Stats | null
+  private clientStats: webpack.Stats | null
   private clientError: Error | null = null
   private serverError: Error | null = null
   private hmrServerError: Error | null = null
@@ -209,8 +207,11 @@ export default class HotReloader {
     installed: '0.0.0',
   }
   private reloadAfterInvalidation: boolean = false
+
+  public serverStats: webpack.Stats | null
+  public edgeServerStats: webpack.Stats | null
   public multiCompiler?: webpack.MultiCompiler
-  public activeConfigs?: Array<
+  public activeWebpackConfigs?: Array<
     UnwrapPromise<ReturnType<typeof getBaseWebpackConfig>>
   >
 
@@ -252,7 +253,6 @@ export default class HotReloader {
     this.telemetry = telemetry
 
     this.config = config
-    this.hasServerComponents = !!this.appDir
     this.previewProps = previewProps
     this.rewrites = rewrites
     this.hotReloaderSpan = trace('hot-reloader', undefined, {
@@ -346,7 +346,7 @@ export default class HotReloader {
     }
   }
 
-  public async refreshServerComponents(): Promise<void> {
+  protected async refreshServerComponents(): Promise<void> {
     this.send({
       action: 'serverComponentChanges',
       // TODO: granular reloading of changes
@@ -721,9 +721,9 @@ export default class HotReloader {
     // Files outside of the distDir can be "type": "module"
     await fs.writeFile(distPackageJsonPath, '{"type": "commonjs"}')
 
-    this.activeConfigs = await this.getWebpackConfig(startSpan)
+    this.activeWebpackConfigs = await this.getWebpackConfig(startSpan)
 
-    for (const config of this.activeConfigs) {
+    for (const config of this.activeWebpackConfigs) {
       const defaultEntry = config.entry
       config.entry = async (...args) => {
         const outputPath = this.multiCompiler?.outputPath || ''
@@ -995,10 +995,10 @@ export default class HotReloader {
 
     // Enable building of client compilation before server compilation in development
     // @ts-ignore webpack 5
-    this.activeConfigs.parallelism = 1
+    this.activeWebpackConfigs.parallelism = 1
 
     this.multiCompiler = webpack(
-      this.activeConfigs
+      this.activeWebpackConfigs
     ) as unknown as webpack.MultiCompiler
 
     // Copy over the filesystem so that it is shared between all compilers.
@@ -1359,7 +1359,7 @@ export default class HotReloader {
     this.watcher = await new Promise((resolve) => {
       const watcher = this.multiCompiler?.watch(
         // @ts-ignore webpack supports an array of watchOptions when using a multiCompiler
-        this.activeConfigs.map((config) => config.watchOptions!),
+        this.activeWebpackConfigs.map((config) => config.watchOptions!),
         // Errors are handled separately
         (_err: any) => {
           if (!booted) {
