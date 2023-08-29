@@ -1,7 +1,9 @@
+/**
+ * This action will comment on issues that have incorrect/missing/outdated reproductions.
+ */
+
 // @ts-check
-// @ts-expect-error
 import * as github from '@actions/github'
-// @ts-expect-error
 import * as core from '@actions/core'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -38,7 +40,6 @@ const __dirname =
 
 async function run() {
   try {
-    /** @type {Context} */
     const { payload, repo } = github.context
     const {
       issue,
