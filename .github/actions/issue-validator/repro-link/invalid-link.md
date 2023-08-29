@@ -18,6 +18,8 @@ Depending on the reason the issue was closed, you can do the following:
 - If you provided a link to a private repository, please open a new issue with a link to a public repository.
 - If you provided a link to a repository but not in the correct section, please open a new issue with a link to a reproduction in the correct section.
 
+**In general, assume that we should not go through a lengthy onboarding process at your company code only to be able to verify an issue.**
+
 ### **My repository is private and cannot make it public**
 
 If you cannot make your repository public, you can create a new repository with the reproduction code. The most common use case we hear for not being able to comply with a public repository is that the repository contains sensitive information/company code. In most cases, this would not be a sufficient **minimal reproduction** anyway, as this codebase might contain a lot of unrelated parts that would make our investigation take longer. Strive for debugging your own code and remove anything unrelated to the issue. Common things to look out for:
@@ -28,8 +30,6 @@ If you cannot make your repository public, you can create a new repository with 
 - Remove any environment variables that are not related to the issue.
 - Remove private packages that we do not have access to.
 - If the issue is not related to a monorepo specifically, try to reproduce the issue without a complex monorepo setup
-
-**In general, assume that we should not go through a lengthy onboarding process at your company code only to be able to verify a an issue.**
 
 ### **I did not open this issue, but it is relevant to me, what can I do to help?**
 
