@@ -1,3 +1,5 @@
+import type { RouteMatch } from './future/route-matches/route-match'
+
 import { join } from 'path'
 import {
   FONT_MANIFEST,
@@ -113,9 +115,16 @@ export function getPagePath(
 export function requirePage(
   page: string,
   distDir: string,
-  isAppPath: boolean
+  isAppPath: boolean,
+  match?: RouteMatch
 ): any {
-  const pagePath = getPagePath(page, distDir, undefined, isAppPath)
+  let pagePath: string
+  if (match) {
+    pagePath = match.definition.filename
+  } else {
+    pagePath = getPagePath(page, distDir, undefined, isAppPath)
+  }
+
   if (pagePath.endsWith('.html')) {
     return promises.readFile(pagePath, 'utf8').catch((err) => {
       throw new MissingStaticPage(page, err.message)

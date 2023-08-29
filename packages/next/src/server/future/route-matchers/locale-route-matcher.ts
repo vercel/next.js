@@ -44,6 +44,7 @@ export class LocaleRouteMatcher<
     return {
       definition: this.definition,
       params: result.params,
+      supportsLocales: true,
       detectedLocale:
         // If the options have a detected locale, then use that, otherwise use
         // the route's locale.

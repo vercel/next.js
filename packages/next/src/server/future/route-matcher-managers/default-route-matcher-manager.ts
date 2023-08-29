@@ -1,17 +1,17 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+import type { RouteMatcherProvider } from '../route-matcher-providers/route-matcher-provider'
+import type { RouteMatch } from '../route-matches/route-match'
+import type { RouteMatcher } from '../route-matchers/route-matcher'
+import type { MatchOptions, RouteMatcherManager } from './route-matcher-manager'
+import type { RouteDefinition } from '../route-definitions/route-definition'
 
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
 import { RouteKind } from '../route-kind'
-import { RouteMatch } from '../route-matches/route-match'
-import { RouteDefinition } from '../route-definitions/route-definition'
-import { RouteMatcherProvider } from '../route-matcher-providers/route-matcher-provider'
-import { RouteMatcher } from '../route-matchers/route-matcher'
-import { MatchOptions, RouteMatcherManager } from './route-matcher-manager'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { LocaleRouteMatcher } from '../route-matchers/locale-route-matcher'
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
 
 interface RouteMatchers {
+  all: ReadonlyMap<string, RouteMatcher>
   static: ReadonlyArray<RouteMatcher>
   dynamic: ReadonlyArray<RouteMatcher>
   duplicates: Record<string, ReadonlyArray<RouteMatcher>>
@@ -20,6 +20,7 @@ interface RouteMatchers {
 export class DefaultRouteMatcherManager implements RouteMatcherManager {
   private readonly providers: Array<RouteMatcherProvider> = []
   protected readonly matchers: RouteMatchers = {
+    all: new Map(),
     static: [],
     dynamic: [],
     duplicates: {},
@@ -42,12 +43,22 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
     }
   }
 
+  private reloadHasBeenCalled = false
+  public async load(): Promise<void> {
+    // If the matchers have already been loaded, and we're not forcing a reload,
+    // exit now.
+    if (this.reloadHasBeenCalled) return
+
+    await this.forceReload()
+  }
+
   private previousMatchers: ReadonlyArray<RouteMatcher> = []
-  public async reload() {
+  public async forceReload(): Promise<void> {
     let callbacks: { resolve: Function; reject: Function }
     this.waitTillReadyPromise = new Promise((resolve, reject) => {
       callbacks = { resolve, reject }
     })
+    this.reloadHasBeenCalled = true
 
     // Grab the compilation ID for this run, we'll verify it at the end to
     // ensure that if any routes were added before reloading is finished that
@@ -107,6 +118,7 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
       // Update the duplicate matchers. This is used in the development manager
       // to warn about duplicates.
       this.matchers.duplicates = duplicates
+      this.matchers.all = all
 
       // If the cache is the same as what we just parsed, we can exit now. We
       // can tell by using the `===` which compares object identity, which for
@@ -190,24 +202,14 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
     }
   }
 
-  public push(provider: RouteMatcherProvider): void {
-    this.providers.push(provider)
-  }
-
-  public async test(pathname: string, options: MatchOptions): Promise<boolean> {
-    // See if there's a match for the pathname...
-    const match = await this.match(pathname, options)
-
-    // This default implementation only needs to check to see if there _was_ a
-    // match. The development matcher actually changes it's behavior by not
-    // recompiling the routes.
-    return match !== null
+  public push(...providers: RouteMatcherProvider[]): void {
+    this.providers.push(...providers)
   }
 
   public async match(
     pathname: string,
     options: MatchOptions
-  ): Promise<RouteMatch<RouteDefinition<RouteKind>> | null> {
+  ): Promise<RouteMatch | null> {
     // "Iterate" over the match options. Once we found a single match, exit with
     // it, otherwise return null below. If no match is found, the inner block
     // won't be called.
@@ -264,6 +266,20 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
     // Ensure that path matching is done with a leading slash.
     pathname = ensureLeadingSlash(pathname)
 
+    // If a definition pathname was provided, get the match for it, and only it.
+    if (options.definitionPathname) {
+      // Get the matcher for the definition pathname.
+      const matcher = this.matchers.all.get(options.definitionPathname)
+      if (!matcher) return null
+
+      // Validate the pathname against the matcher.`
+      const match = this.validate(pathname, matcher, options)
+
+      // If we got a match, yield it. Then finish.
+      if (match) yield match
+      return null
+    }
+
     // If this pathname doesn't look like a dynamic route, and this pathname is
     // listed in the normalized list of routes, then return it. This ensures
     // that when a route like `/user/[id]` is encountered, it doesn't just match
@@ -276,9 +292,6 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
         yield match
       }
     }
-
-    // If we should skip handling dynamic routes, exit now.
-    if (options?.skipDynamic) return null
 
     // Loop over the dynamic matchers, yielding each match.
     for (const matcher of this.matchers.dynamic) {

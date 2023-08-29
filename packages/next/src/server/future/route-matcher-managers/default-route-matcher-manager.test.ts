@@ -16,7 +16,7 @@ describe('DefaultRouteMatcherManager', () => {
     )
     manager.push({ matchers: jest.fn(async () => []) })
     await expect(manager.match('/some/not/real/path', {})).rejects.toThrow()
-    await manager.reload()
+    await manager.load()
     await expect(manager.match('/some/not/real/path', {})).resolves.toEqual(
       null
     )
@@ -24,7 +24,7 @@ describe('DefaultRouteMatcherManager', () => {
 
   it('will not error and not match when no matchers are provided', async () => {
     const manager = new DefaultRouteMatcherManager()
-    await manager.reload()
+    await manager.load()
     await expect(manager.match('/some/not/real/path', {})).resolves.toEqual(
       null
     )
@@ -104,7 +104,7 @@ describe('DefaultRouteMatcherManager', () => {
         matchers: jest.fn(async () => [matcher]),
       }
       manager.push(provider)
-      await manager.reload()
+      await manager.load()
 
       const match = await manager.match(pathname, options)
       expect(match?.definition).toBe(definition)
@@ -128,7 +128,7 @@ describe('DefaultRouteMatcherManager', () => {
       matchers: jest.fn(async () => [matcher]),
     }
     manager.push(provider)
-    await manager.reload()
+    await manager.load()
 
     const options: MatchOptions = {
       i18n: {
@@ -156,7 +156,7 @@ describe('DefaultRouteMatcherManager', () => {
       matchers: jest.fn(async () => [matcher]),
     }
     manager.push(provider)
-    await manager.reload()
+    await manager.load()
 
     const options: MatchOptions = {
       i18n: {

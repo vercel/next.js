@@ -1,16 +1,21 @@
-import { RouteMatch } from '../route-matches/route-match'
-import { RouteMatcherProvider } from '../route-matcher-providers/route-matcher-provider'
 import type { LocaleAnalysisResult } from '../helpers/i18n-provider'
 
-export type MatchOptions = {
-  skipDynamic?: boolean
+import { RouteMatch } from '../route-matches/route-match'
+import { RouteMatcherProvider } from '../route-matcher-providers/route-matcher-provider'
 
+export type MatchOptions = {
   /**
    * If defined, this indicates to the matcher that the request should be
    * treated as locale-aware. If this is undefined, it means that this
    * application was not configured for additional locales.
    */
   i18n?: LocaleAnalysisResult | undefined
+
+  /**
+   * The pathname of the route definition to match against. If this is provided
+   * then the matcher will only match against this route definition.
+   */
+  definitionPathname?: string
 }
 
 export interface RouteMatcherManager {
@@ -26,22 +31,24 @@ export interface RouteMatcherManager {
    *
    * @param provider the provider for this manager to also manage
    */
-  push(provider: RouteMatcherProvider): void
+  push(...provider: RouteMatcherProvider[]): void
 
   /**
-   * Reloads the matchers from the providers. This should be done after all the
-   * providers have been added or the underlying providers should be refreshed.
+   * Loads the matchers from the providers. This should be done after all the
+   * providers have been added.
    */
-  reload(): Promise<void>
+  load(): Promise<void>
 
   /**
-   * Tests the underlying matchers to find a match. It does not return the
-   * match.
+   * Forces a reload of the matchers from the providers. This should be done
+   * after all the providers have been added or the underlying providers should
+   * be refreshed. This should only be used in development or testing
+   * environments.
    *
-   * @param pathname the pathname to test for matches
-   * @param options the options for the testing
+   * This will not force a reload of the underlying providers, their internal
+   * cache will be used if they have already been loaded.
    */
-  test(pathname: string, options: MatchOptions): Promise<boolean>
+  forceReload(): Promise<void>
 
   /**
    * Returns the first match for a given request.

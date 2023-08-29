@@ -67,7 +67,7 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
   ): AsyncGenerator<RouteMatch<RouteDefinition<RouteKind>>, null, undefined> {
     // Compile the development routes.
     // TODO: we may want to only run this during testing, users won't be fast enough to require this many dir scans
-    await super.reload()
+    await super.forceReload()
 
     // Iterate over the development matches to see if one of them match the
     // request path.
@@ -75,7 +75,7 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
       // We're here, which means that we haven't seen this match yet, so we
       // should try to ensure it and recompile the production matcher.
       await this.ensurer.ensure(development)
-      await this.production.reload()
+      await this.production.forceReload()
 
       // Iterate over the production matches again, this time we should be able
       // to match it against the production matcher unless there's an error.
@@ -92,12 +92,14 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
     return null
   }
 
-  public async reload(): Promise<void> {
-    // Compile the production routes again.
-    await this.production.reload()
+  public async load(): Promise<void> {
+    // Load both the production and development routes.
+    await Promise.all([this.production.load(), super.load()])
+  }
 
-    // Compile the development routes.
-    await super.reload()
+  public async forceReload(): Promise<void> {
+    // Load both the production and development routes.
+    await Promise.all([this.production.forceReload(), super.forceReload()])
 
     // Check for and warn of any duplicates.
     for (const [pathname, matchers] of Object.entries(
