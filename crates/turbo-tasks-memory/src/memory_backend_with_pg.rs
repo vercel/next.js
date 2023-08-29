@@ -1030,10 +1030,20 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
 
     fn invalidate_tasks(
         &self,
-        tasks: Vec<TaskId>,
+        tasks: &[TaskId],
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) {
-        for task in tasks {
+        for &task in tasks {
+            self.invalidate_task(task, turbo_tasks);
+        }
+    }
+
+    fn invalidate_tasks_set(
+        &self,
+        tasks: &AutoSet<TaskId, BuildNoHashHasher<TaskId>>,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
+    ) {
+        for &task in tasks {
             self.invalidate_task(task, turbo_tasks);
         }
     }

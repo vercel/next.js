@@ -806,7 +806,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             let tasks = take(tasks_to_notify);
             if !tasks.is_empty() {
                 let _guard = trace_span!("finish_current_task_state").entered();
-                self.backend.invalidate_tasks(tasks, self);
+                self.backend.invalidate_tasks(&tasks, self);
             }
             *stateful
         })
@@ -903,7 +903,7 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
             if tasks.is_empty() {
                 return;
             }
-            self.backend.invalidate_tasks(tasks, self);
+            self.backend.invalidate_tasks(&tasks, self);
         });
     }
 
@@ -1096,7 +1096,7 @@ impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
         });
         if result.is_err() {
             let _guard = trace_span!("schedule_notify_tasks", count = tasks.len()).entered();
-            self.backend.invalidate_tasks(tasks.to_vec(), self);
+            self.backend.invalidate_tasks(tasks, self);
         }
     }
 
@@ -1111,8 +1111,7 @@ impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
         });
         if result.is_err() {
             let _guard = trace_span!("schedule_notify_tasks_set", count = tasks.len()).entered();
-            self.backend
-                .invalidate_tasks(tasks.iter().copied().collect(), self);
+            self.backend.invalidate_tasks_set(tasks, self);
         };
     }
 
