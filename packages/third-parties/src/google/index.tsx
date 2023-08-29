@@ -30,7 +30,6 @@ export function YoutubeEmbed(args: Types.YoutubeEmbed) {
       <Script
         src={`https://cdn.jsdelivr.net/gh/paulirish/lite-youtube-embed@master/src/lite-yt-embed.js`}
         strategy="lazyOnload"
-        // @ts-ignore
         stylesheets={[
           'https://cdn.jsdelivr.net/gh/paulirish/lite-youtube-embed@master/src/lite-yt-embed.css',
         ]}
