@@ -67,6 +67,7 @@ import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integr
 import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plugin'
 import { getSupportedBrowsers } from './utils'
 import { MemoryWithGcCachePlugin } from './webpack/plugins/memory-with-gc-cache-plugin'
+import { getBabelConfigFile } from './get-babel-config-file'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
