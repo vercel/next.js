@@ -225,11 +225,13 @@ export async function startServer({
             )
         )
         Log.bootstrap(` - Local:        ${appUrl}`)
-        Log.bootstrap(
-          ` - Network:      ${actualHostname}${
-            (port + '').startsWith(':') ? '' : ':'
-          }${port}`
-        )
+        if (hostname) {
+          Log.bootstrap(
+            ` - Network:      ${actualHostname}${
+              (port + '').startsWith(':') ? '' : ':'
+            }${port}`
+          )
+        }
         if (envInfo?.length)
           Log.bootstrap(` - Environments: ${envInfo.join(', ')}`)
 

@@ -204,7 +204,7 @@ export async function validateTurboNextConfig({
   )}\n`
 
   if (!hasWarningOrError) {
-    feedbackMessage = chalk.dim(feedbackMessage)
+    feedbackMessage = feedbackMessage
   }
 
   if (hasWebpack && !hasTurbo) {
@@ -212,27 +212,21 @@ export async function validateTurboNextConfig({
       `\n${chalk.yellow(
         'Warning:'
       )} Webpack is configured while Turbopack is not, which may cause problems.\n
-  ${chalk.dim(
-    `See instructions if you need to configure Turbopack:\n  https://turbo.build/pack/docs/features/customizing-turbopack\n`
-  )}`
+  ${`See instructions if you need to configure Turbopack:\n  https://turbo.build/pack/docs/features/customizing-turbopack\n`}`
     )
   }
 
   if (babelrc) {
     unsupportedParts += `\n- Babel detected (${chalk.cyan(
       babelrc
-    )})\n  ${chalk.dim(
-      `Babel is not yet supported. To use Turbopack at the moment,\n  you'll need to remove your usage of Babel.`
-    )}`
+    )})\n  ${`Babel is not yet supported. To use Turbopack at the moment,\n  you'll need to remove your usage of Babel.`}`
   }
   if (unsupportedConfig.length) {
     unsupportedParts += `\n\n- Unsupported Next.js configuration option(s) (${chalk.cyan(
       'next.config.js'
-    )})\n  ${chalk.dim(
-      `To use Turbopack, remove the following configuration options:\n${unsupportedConfig
-        .map((name) => `    - ${chalk.red(name)}\n`)
-        .join('')}  `
-    )}   `
+    )})\n  ${`To use Turbopack, remove the following configuration options:\n${unsupportedConfig
+      .map((name) => `    - ${chalk.red(name)}\n`)
+      .join('')}  `}   `
   }
 
   if (unsupportedParts && !isCustomTurbopack) {
