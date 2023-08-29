@@ -27,12 +27,14 @@ impl Display for ResourceIdentifier {
 }
 
 #[derive(Deserialize)]
-#[serde(tag = "type", rename_all = "camelCase")]
+#[serde(tag = "type")]
 pub enum ClientMessage {
+    #[serde(rename = "turbopack-subscribe")]
     Subscribe {
         #[serde(flatten)]
         resource: ResourceIdentifier,
     },
+    #[serde(rename = "turbopack-unsubscribe")]
     Unsubscribe {
         #[serde(flatten)]
         resource: ResourceIdentifier,
