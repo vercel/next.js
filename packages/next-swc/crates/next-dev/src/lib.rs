@@ -576,9 +576,8 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
     {
         let index_uri = ServerAddr::new(server.addr).to_string()?;
         println!(
-            " ".repeat(10),
-            "- Local: {}, url: {}",
-            "▲".green(),
+            "{} - started server on {}, url: {}",
+            "ready".green(),
             server.addr,
             index_uri
         );

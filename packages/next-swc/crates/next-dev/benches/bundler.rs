@@ -5,6 +5,7 @@ use std::{
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
 };
+
 use anyhow::{anyhow, Context, Result};
 use regex::Regex;
 use turbopack_binding::turbopack::bench::{
