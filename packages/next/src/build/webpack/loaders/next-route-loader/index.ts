@@ -103,9 +103,6 @@ type RouteLoaderOptions = RouteLoaderPagesOptions | RouteLoaderPagesAPIOptions
  * @returns the encoded loader entry
  */
 export function getRouteLoaderEntry(options: RouteLoaderOptionsInput): string {
-  if (['/_app', '/_document'].includes(options.page)) {
-    return options.absolutePagePath
-  }
   switch (options.kind) {
     case RouteKind.PAGES: {
       const query: RouteLoaderPagesOptions = {

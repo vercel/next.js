@@ -65,7 +65,10 @@ import { RouteMatch } from '../future/route-matches/route-match'
 import { parseVersionInfo, VersionInfo } from './parse-version-info'
 import { isAPIRoute } from '../../lib/is-api-route'
 import { getRouteLoaderEntry } from '../../build/webpack/loaders/next-route-loader'
-import { isInternalComponent } from '../../lib/is-internal-component'
+import {
+  isInternalComponent,
+  isNonRoutePagesPage,
+} from '../../lib/is-internal-component'
 import { RouteKind } from '../future/route-kind'
 import { NextJsHotReloaderInterface } from './hot-reloader-types'
 
@@ -947,14 +950,19 @@ export default class HotReloader implements NextJsHotReloaderInterface {
                   !isMiddlewareFile(page) &&
                   !isInternalComponent(relativeRequest)
                 ) {
-                  value = getRouteLoaderEntry({
-                    kind: RouteKind.PAGES,
-                    page,
-                    pages: this.pagesMapping,
-                    absolutePagePath: relativeRequest,
-                    preferredRegion: staticInfo.preferredRegion,
-                    middlewareConfig: staticInfo.middleware ?? {},
-                  })
+                  // /_app and _document don't need to be transformed
+                  if (isNonRoutePagesPage(page)) {
+                    value = relativeRequest
+                  } else {
+                    value = getRouteLoaderEntry({
+                      kind: RouteKind.PAGES,
+                      page,
+                      pages: this.pagesMapping,
+                      absolutePagePath: relativeRequest,
+                      preferredRegion: staticInfo.preferredRegion,
+                      middlewareConfig: staticInfo.middleware ?? {},
+                    })
+                  }
                 } else {
                   value = relativeRequest
                 }
@@ -1238,16 +1246,16 @@ export default class HotReloader implements NextJsHotReloaderInterface {
         )
 
         if (
-          diffChunkNames.length === 0 ||
+          diffChunkNames.length > 0 &&
           diffChunkNames.every((chunkName) => chunkName.startsWith('app/'))
         ) {
           return
         }
         this.serverChunkNames = chunkNames
+        this.serverPrevDocumentHash = documentChunk.hash || null
 
         // Notify reload to reload the page, as _document.js was changed (different hash)
         this.send('reloadPage')
-        this.serverPrevDocumentHash = documentChunk.hash || null
       }
     )
 

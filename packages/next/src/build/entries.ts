@@ -53,7 +53,10 @@ import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { normalizeMetadataRoute } from '../lib/metadata/get-metadata-route'
 import { fileExists } from '../lib/file-exists'
 import { getRouteLoaderEntry } from './webpack/loaders/next-route-loader'
-import { isInternalComponent } from '../lib/is-internal-component'
+import {
+  isInternalComponent,
+  isNonRoutePagesPage,
+} from '../lib/is-internal-component'
 import { isStaticMetadataRouteFile } from '../lib/metadata/is-metadata-route'
 import { RouteKind } from '../server/future/route-kind'
 import { encodeToBase64 } from './webpack/loaders/utils'
@@ -647,16 +650,21 @@ export async function createEntrypoints(
             !isMiddlewareFile(page) &&
             !isInternalComponent(absolutePagePath)
           ) {
-            server[serverBundlePath] = [
-              getRouteLoaderEntry({
-                kind: RouteKind.PAGES,
-                page,
-                pages,
-                absolutePagePath,
-                preferredRegion: staticInfo.preferredRegion,
-                middlewareConfig: staticInfo.middleware ?? {},
-              }),
-            ]
+            // /_app and _document don't need to be transformed
+            if (isNonRoutePagesPage(page)) {
+              server[serverBundlePath] = absolutePagePath
+            } else {
+              server[serverBundlePath] = [
+                getRouteLoaderEntry({
+                  kind: RouteKind.PAGES,
+                  page,
+                  pages,
+                  absolutePagePath,
+                  preferredRegion: staticInfo.preferredRegion,
+                  middlewareConfig: staticInfo.middleware ?? {},
+                }),
+              ]
+            }
           } else {
             server[serverBundlePath] = [absolutePagePath]
           }
