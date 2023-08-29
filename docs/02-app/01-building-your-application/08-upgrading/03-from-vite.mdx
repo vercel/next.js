@@ -132,7 +132,7 @@ You can find more information about configuring TypeScript on the
 
 A Next.js [App Router](/docs/app) application must include a
 [root layout](/docs/app/building-your-application/routing/pages-and-layouts#root-layout-required)
-file, which is a [React Server Component](https://nextjs.org/docs/getting-started/react-essentials#server-components)
+file, which is a [React Server Component](/docs/app/building-your-application/rendering/server-components)
 that will wrap all pages in your application. This file is defined at the top level of the `app`
 directory.
 
@@ -394,13 +394,12 @@ export default function Page() {
 > **Good to know**: `.js`, `.jsx`, or `.tsx` extensions can be used for Page files.
 
 This file contains a `<Page>` component which is marked as a
-[Client Component](/docs/getting-started/react-essentials#client-components) by the `'use client'`
+[Client Component](/docs/app/building-your-application/rendering/client-components) by the `'use client'`
 directive. Without that directive, the component would have been a
-[Server Component](/getting-started/react-essentials#server-components).
+[Server Component](/docs/app/building-your-application/rendering/server-components).
 
-In Next.js, Components are prerendered
-([SSR](/docs/app/building-your-application/rendering#component-level-client-and-server-rendering))
-by default before being sent to the client, but since we want to first have a purely client-side
+In Next.js, Client Components are [prerendered to HTML](/docs/app/building-your-application/rendering/client-components#how-are-client-components-rendered)
+on the server before being sent to the client, but since we want to first have a purely client-side
 application, you need to tell Next.js to disable the prerendering for the `<App>` component by
 dynamically importing it with the `ssr` option set to `false`:
 
@@ -554,7 +553,7 @@ do next:
 - Migrate from React Router to the [Next.js App Router](/docs/app/building-your-application/routing) to get:
   - Automatic code splitting
   - [Streaming Server-Rendering](/docs/app/building-your-application/routing/loading-ui-and-streaming)
-  - [React Server Components](/docs/getting-started/react-essentials#server-components)
+  - [React Server Components](/docs/app/building-your-application/rendering/server-components)
 - [Optimize images with the `<Image>` component](/docs/app/building-your-application/optimizing/images)
 - [Optimize fonts with `next/font`](/docs/app/building-your-application/optimizing/fonts)
 - [Optimize third-party scripts with the `<Script>` component](/docs/app/building-your-application/optimizing/scripts)
