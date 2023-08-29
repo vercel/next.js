@@ -61,10 +61,7 @@ impl Fold for NamedImportTransform {
 
             if !skip_transform {
                 let names = specifier_names.join(",");
-                let new_src = format!(
-                    "__barrel_optimize__?names={}!=!{}",
-                    names, src_value,
-                );
+                let new_src = format!("__barrel_optimize__?names={}!=!{}", names, src_value);
 
                 // Create a new import declaration, keep everything the same except the source
                 let mut new_decl = decl.clone();

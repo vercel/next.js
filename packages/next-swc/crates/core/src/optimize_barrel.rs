@@ -60,7 +60,10 @@ impl Fold for OptimizeBarrel {
                                 .insert(s.local.sym.to_string(), (src.clone(), "*".to_string()));
                         }
                         ImportSpecifier::Default(s) => {
-                            local_idents.insert(s.local.sym.to_string(), (src.clone(), "default".to_string()));
+                            local_idents.insert(
+                                s.local.sym.to_string(),
+                                (src.clone(), "default".to_string()),
+                            );
                         }
                         _ => {}
                     }
@@ -83,8 +86,7 @@ impl Fold for OptimizeBarrel {
             match item {
                 ModuleItem::ModuleDecl(decl) => {
                     match decl {
-                        ModuleDecl::Import(_) => {
-                        }
+                        ModuleDecl::Import(_) => {}
                         // export { foo } from './foo';
                         ModuleDecl::ExportNamed(export_named) => {
                             for spec in &export_named.specifiers {
@@ -193,8 +195,7 @@ impl Fold for OptimizeBarrel {
                                         export_map.push((id, "".into(), "".into()));
                                     }
                                 }
-                                _ => {
-                                }
+                                _ => {}
                             }
                         }
                         _ => {
