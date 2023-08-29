@@ -164,7 +164,6 @@ export interface ExperimentalConfig {
   fetchCacheKeyPrefix?: string
   optimisticClientCache?: boolean
   middlewarePrefetch?: 'strict' | 'flexible'
-  legacyBrowsers?: boolean
   manualClientBasePath?: boolean
   newNextLinkBehavior?: boolean
   // custom path to a cache handler to use
@@ -711,7 +710,6 @@ export const defaultConfig: NextConfig = {
     middlewarePrefetch: 'flexible',
     optimisticClientCache: true,
     manualClientBasePath: false,
-    legacyBrowsers: false,
     newNextLinkBehavior: true,
     cpus: Math.max(
       1,

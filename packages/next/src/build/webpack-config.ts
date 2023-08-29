@@ -735,7 +735,7 @@ export async function loadProjectInfo({
   dev: boolean
 }) {
   const { jsConfig, resolvedBaseUrl } = await loadJsConfig(dir, config)
-  const supportedBrowsers = await getSupportedBrowsers(dir, dev, config)
+  const supportedBrowsers = await getSupportedBrowsers(dir, dev)
   return {
     jsConfig,
     resolvedBaseUrl,
@@ -2736,7 +2736,6 @@ export default async function getBaseWebpackConfig(
     relay: config.compiler?.relay,
     emotion: config.compiler?.emotion,
     modularizeImports: config.modularizeImports,
-    legacyBrowsers: config.experimental?.legacyBrowsers,
     imageLoaderFile: config.images.loaderFile,
   })
 
