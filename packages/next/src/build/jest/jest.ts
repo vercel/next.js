@@ -34,8 +34,6 @@ function loadClosestPackageJson(dir: string, attempts = 1): any {
 function setUpEnv(dir: string) {
   const dev = false
   loadEnvConfig(dir, dev, Log)
-
-  process.env.__NEXT_NEW_LINK_BEHAVIOR = 'true'
 }
 
 /*
