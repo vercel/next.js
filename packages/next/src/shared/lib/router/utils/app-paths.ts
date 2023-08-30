@@ -1,4 +1,5 @@
 import { ensureLeadingSlash } from '../../page-path/ensure-leading-slash'
+import { isGroupSegment } from '../../segment'
 
 /**
  * Normalizes an app route so it represents the actual request path. Essentially
@@ -28,7 +29,7 @@ export function normalizeAppPath(route: string) {
       }
 
       // Groups are ignored.
-      if (segment[0] === '(' && segment.endsWith(')')) {
+      if (isGroupSegment(segment)) {
         return pathname
       }
 
