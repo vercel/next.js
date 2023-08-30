@@ -891,7 +891,7 @@ async function startWatcher(opts: SetupOpts) {
               await route.htmlEndpoint.writeToDisk()
             )
             changeSubscription(page, route.dataEndpoint, (pageName, change) => {
-              switch (change.change) {
+              switch (change) {
                 case ServerClientChangeType.Server:
                 case ServerClientChangeType.Both:
                   return { event: 'serverOnlyChanges', pages: [pageName] }
@@ -944,7 +944,7 @@ async function startWatcher(opts: SetupOpts) {
           case 'app-page': {
             await processResult(page, await route.htmlEndpoint.writeToDisk())
             changeSubscription(page, route.rscEndpoint, (_page, change) => {
-              switch (change.change) {
+              switch (change) {
                 case ServerClientChangeType.Server:
                 case ServerClientChangeType.Both:
                   return { action: 'serverComponentChanges' }
