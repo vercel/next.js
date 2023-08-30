@@ -586,7 +586,7 @@ impl Project {
         Ok(self
             .await?
             .versioned_content_map
-            .get(self.client_root().join(identifier)))
+            .get(self.client_relative_path().join(identifier)))
     }
 
     #[turbo_tasks::function]
@@ -635,7 +635,7 @@ impl Project {
         Ok(self
             .await?
             .versioned_content_map
-            .keys_in_path(self.client_root()))
+            .keys_in_path(self.client_relative_path()))
     }
 }
 

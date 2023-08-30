@@ -179,7 +179,8 @@ async function loadComponentsImpl({
   const Document = interopDefault(DocumentMod)
   const App = interopDefault(AppMod)
 
-  const { getServerSideProps, getStaticProps, getStaticPaths } = ComponentMod
+  const { getServerSideProps, getStaticProps, getStaticPaths, routeModule } =
+    ComponentMod
 
   return {
     App,
@@ -196,7 +197,7 @@ async function loadComponentsImpl({
     serverActionsManifest,
     isAppPath,
     pathname,
-    routeModule: ComponentMod.routeModule,
+    routeModule,
   }
 }
 

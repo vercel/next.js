@@ -58,6 +58,13 @@ async function loaderTransform(
   const isPageFile = filename.startsWith(pagesDir)
   const relativeFilePathFromRoot = path.relative(rootDir, filename)
 
+  // For testing purposes
+  if (process.env.NEXT_TEST_MODE) {
+    if (loaderOptions.optimizeBarrelExports) {
+      console.log('optimizeBarrelExports:', filename)
+    }
+  }
+
   const swcOptions = getLoaderSWCOptions({
     pagesDir,
     appDir,
@@ -133,11 +140,9 @@ const EXCLUDED_PATHS =
 export function pitch(this: any) {
   const callback = this.async()
   ;(async () => {
-    let loaderOptions = this.getOptions() || {}
     if (
       // TODO: investigate swc file reading in PnP mode?
       !process.versions.pnp &&
-      loaderOptions.fileReading &&
       !EXCLUDED_PATHS.test(this.resourcePath) &&
       this.loaders.length - 1 === this.loaderIndex &&
       isAbsolute(this.resourcePath) &&
