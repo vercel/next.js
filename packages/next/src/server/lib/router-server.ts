@@ -390,12 +390,12 @@ export async function initialize(opts: {
           return
         }
 
-        if (
-          !res.getHeader('cache-control') &&
-          matchedOutput.type === 'nextStaticFolder'
-        ) {
+        if (matchedOutput.type === 'nextStaticFolder') {
           if (opts.dev) {
-            res.setHeader('Cache-Control', 'no-store, must-revalidate')
+            res.setHeader(
+              'Cache-Control',
+              'no-cache, no-store, max-age=0, must-revalidate'
+            )
           } else {
             res.setHeader(
               'Cache-Control',
