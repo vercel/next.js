@@ -635,7 +635,7 @@ impl Project {
         Ok(self
             .await?
             .versioned_content_map
-            .keys_in_path(self.client_root()))
+            .keys_in_path(self.client_relative_path()))
     }
 }
 
