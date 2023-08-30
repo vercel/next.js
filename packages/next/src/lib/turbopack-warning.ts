@@ -20,7 +20,6 @@ const supportedTurbopackNextConfigOptions = [
   'swcMinify',
   'transpilePackages',
   'sassOptions.includePaths',
-  'experimental.appDir',
   'experimental.serverComponentsExternalPackages',
   'experimental.turbo',
   'experimental.mdxRs',
