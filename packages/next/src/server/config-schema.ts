@@ -298,9 +298,6 @@ const configSchema = {
             },
           ] as any,
         },
-        appDir: {
-          type: 'boolean',
-        },
         serverActions: {
           type: 'boolean',
         },

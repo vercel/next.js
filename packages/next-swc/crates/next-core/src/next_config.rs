@@ -403,7 +403,6 @@ pub enum LoaderItem {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct ExperimentalConfig {
-    pub app_dir: Option<bool>,
     pub server_components_external_packages: Option<Vec<String>>,
     pub turbo: Option<ExperimentalTurboConfig>,
     pub allowed_revalidate_header_keys: Option<Vec<String>>,
@@ -521,18 +520,6 @@ impl NextConfig {
             self.await?
                 .experimental
                 .server_components_external_packages
-                .as_ref()
-                .cloned()
-                .unwrap_or_default(),
-        ))
-    }
-
-    #[turbo_tasks::function]
-    pub async fn app_dir(self: Vc<Self>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(
-            self.await?
-                .experimental
-                .app_dir
                 .as_ref()
                 .cloned()
                 .unwrap_or_default(),

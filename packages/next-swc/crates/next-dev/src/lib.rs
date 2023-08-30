@@ -388,7 +388,7 @@ async fn source(
         next_config,
         server_addr,
     );
-    let app_dir = find_app_dir_if_enabled(project_path, next_config);
+    let app_dir = find_app_dir_if_enabled(project_path);
     let app_source = create_app_source(
         app_dir,
         project_path,
