@@ -55,6 +55,13 @@ async function run() {
     issue_number: issue.number,
     body: readFileSync(join(__dirname, 'invalid-link.md'), 'utf8'),
   })
+
+  // Lock to avoid piling up comments/reactions we do not monitor
+  await client.issues.lock({
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    issue_number: issue.number,
+  })
 }
 
 run().catch(setFailed)
