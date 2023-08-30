@@ -30,7 +30,7 @@ All supported third-party libraries from Google can be imported from `@next/thir
 
 ### Google Maps Embed
 
-The `GoogleMapsEmbed` component can be used to add a Google Maps Embed to your page. By default, it
+The `GoogleMapsEmbed` component can be used to add a [Google Maps Embed](https://developers.google.com/maps/documentation/embed/embedding-map) to your page. By default, it
 uses the `loading` attribute to lazy-load the embed below the fold.
 
 <AppOnly>
@@ -73,27 +73,39 @@ export default function Page() {
 
 </PagesOnly>
 
+#### Options
+
+Options to pass to the Google Maps Embed. For full list of option read [Google Map Embed docs](https://developers.google.com/maps/documentation/embed/embedding-map)
+
+| Name              | Type     | Description                                                                                         |
+| ----------------- | -------- | --------------------------------------------------------------------------------------------------- |
+| `apiKey`          | Required | Your api key.                                                                                       |
+| `mode`            | Required | [Map mode](https://developers.google.com/maps/documentation/embed/embedding-map#choosing_map_modes) |
+| `height`          | Optional | Height of the embed. Defaults to `auto`.                                                            |
+| `width`           | Optional | Width of the embed. Defaults to `auto`.                                                             |
+| `style`           | Optional | Pass styles to the iframe.                                                                          |
+| `allowfullscreen` | Optional | Property to allow certain map parts to go full screen.                                              |
+| `loading`         | Optional | Defaults to lazy.                                                                                   |
+| `q`               | Optional | Defines map marker location. _This maybe required depending on the map mode_.                       |
+| `center`          | Optional | Defines center of the map view.                                                                     |
+| `zoom`            | Optional | Sets initial zoom level of the map.                                                                 |
+| `maptype`         | Optional | Defines type of map tiles to load.                                                                  |
+| `language`        | Optional | Defines the language to use for UI elements and for the display of labels on map tiles.             |
+| `region`          | Optional | Defines the appropriate borders and labels to display, based on geo-political sensitivities.        |
+
 ### YouTube Embed
 
-The `YoutubeEmbed` component can be used to load and display a YouTube embed. This component loads
+The `YouTubeEmbed` component can be used to load and display a YouTube embed. This component loads
 faster by using [`lite-youtube-embed`](https://github.com/paulirish/lite-youtube-embed) under the
 hood.
 
 <AppOnly>
 
 ```jsx filename="app/page.js"
-import { GoogleMapsEmbed } from '@next/third-parties/google'
+import { YouTubeEmbed } from '@next/third-parties/google'
 
 export default function Page() {
-  return (
-    <GoogleMapsEmbed
-      apiKey="XYZ"
-      height={200}
-      width="100%"
-      mapMode="place"
-      parameters="q=Brooklyn+Bridge,New+York,NY"
-    />
-  )
+  return <YouTubeEmbed videoid="ogfYd705cRs" height={400} />
 }
 ```
 
@@ -102,19 +114,22 @@ export default function Page() {
 <PagesOnly>
 
 ```jsx filename="pages/index.js"
-import { GoogleMapsEmbed } from '@next/third-parties/google'
+import { YouTubeEmbed } from '@next/third-parties/google'
 
 export default function Page() {
-  return (
-    <YoutubeEmbed
-      videoid="ogfYd705cRs"
-      height={400}
-      width="100%"
-      mapMode="place"
-      parameters="q=Brooklyn+Bridge,New+York,NY"
-    />
-  )
+  return <YouTubeEmbed videoid="ogfYd705cRs" height={400} />
 }
 ```
 
 </PagesOnly>
+
+#### Options
+
+| Name        | Type     | Description                                                                                                                                                                                                |
+| ----------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `videoid`   | Required | YouTube video id.                                                                                                                                                                                          |
+| `width`     | Optional | Width of the video container. Defaults to `auto`                                                                                                                                                           |
+| `height`    | Optional | Height of the video container. Defaults to `auto`                                                                                                                                                          |
+| `playlabel` | Optional | A visually hidden label for the play button for accessability.                                                                                                                                             |
+| `params`    | Optional | The video player params defined [here](https://developers.google.com/youtube/player_parameters#Parameters). <br> Params are passed as a query param string. <br> Eg: `params="controls=0&start=10&end=30"` |
+| `style`     | Optional | Used to apply styles to the video container.                                                                                                                                                               |
