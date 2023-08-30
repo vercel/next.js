@@ -169,35 +169,35 @@ function isResourceInPackages(
 }
 
 export function getDefineEnv({
-  dev,
+  allowedRevalidateHeaderKeys,
+  clientRouterFilters,
   config,
+  dev,
   distDir,
-  isClient,
+  fetchCacheKeyPrefix,
   hasRewrites,
-  isNodeServer,
+  isClient,
   isEdgeServer,
   isNodeOrEdgeCompilation,
+  isNodeServer,
   middlewareMatchers,
-  clientRouterFilters,
   previewModeId,
-  fetchCacheKeyPrefix,
-  allowedRevalidateHeaderKeys,
 }: {
-  dev: boolean
-  distDir: string
-  isClient: boolean
-  hasRewrites: boolean
-  isNodeServer: boolean
-  isEdgeServer: boolean
-  isNodeOrEdgeCompilation: boolean
-  middlewareMatchers?: MiddlewareMatcher[]
-  config: NextConfigComplete
+  allowedRevalidateHeaderKeys?: string[]
   clientRouterFilters: Parameters<
     typeof getBaseWebpackConfig
   >[1]['clientRouterFilters']
-  previewModeId?: string
+  config: NextConfigComplete
+  dev: boolean
+  distDir: string
   fetchCacheKeyPrefix?: string
-  allowedRevalidateHeaderKeys?: string[]
+  hasRewrites: boolean
+  isClient: boolean
+  isEdgeServer: boolean
+  isNodeOrEdgeCompilation: boolean
+  isNodeServer: boolean
+  middlewareMatchers?: MiddlewareMatcher[]
+  previewModeId?: string
 }) {
   return {
     // internal field to identify the plugin config
@@ -2413,19 +2413,19 @@ export default async function getBaseWebpackConfig(
         }),
       new webpack.DefinePlugin(
         getDefineEnv({
-          dev,
+          allowedRevalidateHeaderKeys,
+          clientRouterFilters,
           config,
+          dev,
           distDir,
-          isClient,
+          fetchCacheKeyPrefix,
           hasRewrites,
-          isNodeServer,
+          isClient,
           isEdgeServer,
           isNodeOrEdgeCompilation,
+          isNodeServer,
           middlewareMatchers,
-          clientRouterFilters,
           previewModeId,
-          fetchCacheKeyPrefix,
-          allowedRevalidateHeaderKeys,
         })
       ),
       isClient &&
