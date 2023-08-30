@@ -78,7 +78,7 @@ export async function validateTurboNextConfig({
   const { getPkgManager } =
     require('../lib/helpers/get-pkg-manager') as typeof import('../lib/helpers/get-pkg-manager')
   const { getBabelConfigFile } =
-    require('../build/webpack-config') as typeof import('../build/webpack-config')
+    require('../build/get-babel-config-file') as typeof import('../build/get-babel-config-file')
   const { defaultConfig } =
     require('../server/config-shared') as typeof import('../server/config-shared')
   const chalk =

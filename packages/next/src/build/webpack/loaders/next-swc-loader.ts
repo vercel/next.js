@@ -58,6 +58,13 @@ async function loaderTransform(
   const isPageFile = filename.startsWith(pagesDir)
   const relativeFilePathFromRoot = path.relative(rootDir, filename)
 
+  // For testing purposes
+  if (process.env.NEXT_TEST_MODE) {
+    if (loaderOptions.optimizeBarrelExports) {
+      console.log('optimizeBarrelExports:', filename)
+    }
+  }
+
   const swcOptions = getLoaderSWCOptions({
     pagesDir,
     appDir,
