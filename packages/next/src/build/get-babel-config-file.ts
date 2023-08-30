@@ -16,15 +16,12 @@ const BABEL_CONFIG_FILES = [
 export async function getBabelConfigFile(
   dir: string
 ): Promise<string | undefined> {
-  const babelConfigFile = await BABEL_CONFIG_FILES.reduce(
-    async (memo: Promise<string | undefined>, filename) => {
-      const configFilePath = join(dir, filename)
-      return (
-        (await memo) ||
-        ((await fileExists(configFilePath)) ? configFilePath : undefined)
-      )
-    },
-    Promise.resolve(undefined)
-  )
-  return babelConfigFile
+  for (const filename of BABEL_CONFIG_FILES) {
+    const configFilePath = join(dir, filename)
+    const exists = await fileExists(configFilePath)
+    if (!exists) {
+      continue
+    }
+    return configFilePath
+  }
 }
