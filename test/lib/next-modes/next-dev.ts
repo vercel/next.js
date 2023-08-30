@@ -2,6 +2,7 @@ import spawn from 'cross-spawn'
 import { Span } from 'next/src/trace'
 import { NextInstance } from './base'
 import { getTurbopackFlag } from '../turbo'
+import stripAnsi from 'strip-ansi'
 
 export class NextDevInstance extends NextInstance {
   private _cliOutput: string = ''
@@ -79,10 +80,14 @@ export class NextDevInstance extends NextInstance {
           }
         })
         const readyCb = (msg) => {
-          if (msg.includes('started server on') && msg.includes('url:')) {
+          const colorStrippedMsg = stripAnsi(msg)
+          if (colorStrippedMsg.includes('- Local:')) {
             // turbo devserver emits stdout in rust directly, can contain unexpected chars with color codes
             // strip out again for the safety
-            this._url = msg.split('url: ').pop().split(/\s/)[0].trim()
+            this._url = msg
+              .split(/\s*- Local:/)
+              .pop()
+              .trim()
             try {
               this._parsedUrl = new URL(this._url)
             } catch (err) {
