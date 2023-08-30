@@ -51,7 +51,7 @@ export default async function loadJsConfig(
       },
     ])
     typeScriptPath = deps.resolved.get('typescript')
-  } catch (_) {}
+  } catch {}
   const tsConfigPath = path.join(dir, config.typescript.tsconfigPath)
   const useTypeScript = Boolean(
     typeScriptPath && (await fileExists(tsConfigPath))

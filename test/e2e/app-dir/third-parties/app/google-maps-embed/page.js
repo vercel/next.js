@@ -8,8 +8,9 @@ const Page = () => {
         apiKey="XYZ"
         height={200}
         width="100%"
-        mapMode="place"
-        parameters="q=Brooklyn+Bridge,New+York,NY"
+        mode="place"
+        id="maps-embed"
+        q="Brooklyn+Bridge,New+York,NY"
       />
     </div>
   )

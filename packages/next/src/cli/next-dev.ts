@@ -193,6 +193,12 @@ async function createRouterWorker(fullConfig: NextConfigComplete): Promise<{
   return {
     worker,
     cleanup: async () => {
+      // Remove process listeners for childprocess too.
+      for (const curWorker of ((worker as any)._workerPool?._workers || []) as {
+        _child?: ChildProcess
+      }[]) {
+        curWorker._child?.off('exit', cleanup)
+      }
       process.off('exit', cleanup)
       process.off('SIGINT', cleanup)
       process.off('SIGTERM', cleanup)

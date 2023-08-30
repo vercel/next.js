@@ -14,7 +14,7 @@ import Watchpack from 'watchpack'
 import { loadEnvConfig } from '@next/env'
 import isError from '../../../lib/is-error'
 import findUp from 'next/dist/compiled/find-up'
-import { buildCustomRoute } from './filesystem'
+import { FilesystemDynamicRoute, buildCustomRoute } from './filesystem'
 import * as Log from '../../../build/output/log'
 import HotReloader, {
   matchNextPageBundleRequest,
@@ -1249,14 +1249,19 @@ async function startWatcher(opts: SetupOpts) {
                 plugin.definitions.__NEXT_DEFINE_ENV
               ) {
                 const newDefine = getDefineEnv({
-                  dev: true,
-                  config: nextConfig,
-                  distDir,
-                  isClient,
-                  hasRewrites,
-                  isNodeServer,
-                  isEdgeServer,
+                  allowedRevalidateHeaderKeys: undefined,
                   clientRouterFilters,
+                  config: nextConfig,
+                  dev: true,
+                  distDir,
+                  fetchCacheKeyPrefix: undefined,
+                  hasRewrites,
+                  isClient,
+                  isEdgeServer,
+                  isNodeOrEdgeCompilation: isNodeServer || isEdgeServer,
+                  isNodeServer,
+                  middlewareMatchers: undefined,
+                  previewModeId: undefined,
                 })
 
                 Object.keys(plugin.definitions).forEach((key) => {
@@ -1353,17 +1358,16 @@ async function startWatcher(opts: SetupOpts) {
         // before it has been built and is populated in the _buildManifest
         const sortedRoutes = getSortedRoutes(routedPages)
 
-        opts.fsChecker.dynamicRoutes = sortedRoutes
-          .map((page) => {
+        opts.fsChecker.dynamicRoutes = sortedRoutes.map(
+          (page): FilesystemDynamicRoute => {
             const regex = getRouteRegex(page)
             return {
+              regex: regex.re.toString(),
               match: getRouteMatcher(regex),
               page,
-              re: regex.re,
-              groups: regex.groups,
             }
-          })
-          .filter(Boolean) as any
+          }
+        )
 
         const dataRoutes: typeof opts.fsChecker.dynamicRoutes = []
 
