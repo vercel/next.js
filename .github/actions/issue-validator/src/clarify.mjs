@@ -13,6 +13,22 @@ const addReproductionLabel = 'please add a complete reproduction'
 const addMimimalReproductionLabel = 'please simplify reproduction'
 const __dirname = `${process.env.GITHUB_WORKSPACE}/.github/actions/issue-validator/clarify`
 
+const labelActions = {
+  [addReproductionLabel]: {
+    file: 'repro.md',
+    comment:
+      'Commented on issue, because it did not have a sufficient reproduction.',
+  },
+  [addMimimalReproductionLabel]: {
+    file: 'simplify-repro.md',
+    comment: 'Commented on issue, because it had a complex reproduction.',
+  },
+  [verifyCanaryLabel]: {
+    file: 'canary.md',
+    comment: 'Commented on issue, because it was not verified against canary.',
+  },
+}
+
 /**
  * @typedef {{
  *  id :number
@@ -46,71 +62,28 @@ async function run() {
 
   if (pull_request || !issue?.body || !process.env.GITHUB_TOKEN) return
 
+  /** @type {string[]} */
   const labels = issue.labels.map((l) => l.name)
 
+  const labelActionKeys = Object.keys(labelActions)
   if (
-    ![
-      verifyCanaryLabel,
-      addReproductionLabel,
-      addMimimalReproductionLabel,
-    ].includes(newLabel) &&
-    !(
-      labels.includes(verifyCanaryLabel) ||
-      labels.includes(addReproductionLabel) ||
-      labels.includes(addReproductionLabel)
-    )
+    !labelActionKeys.includes(newLabel) &&
+    !labels.some((label) => labelActionKeys.includes(label))
   ) {
-    return info('Not a bug report or not manually labeled or already labeled.')
+    return info('Not manually labeled or already labeled.')
   }
 
   const client = getOctokit(process.env.GITHUB_TOKEN).rest
   const issueCommon = { ...repo, issue_number: issue.number }
 
-  if (newLabel === addReproductionLabel) {
-    await Promise.all([
-      client.issues.addLabels({
-        ...issueCommon,
-        labels: [addReproductionLabel],
-      }),
-      client.issues.createComment({
-        ...issueCommon,
-        body: readFileSync(join(__dirname, 'repro.md'), 'utf8'),
-      }),
-    ])
-    return info(
-      'Commented on issue, because it did not have a sufficient reproduction.'
-    )
-  }
+  const { file, comment } = labelActions[newLabel]
 
-  if (newLabel === addMimimalReproductionLabel) {
-    await Promise.all([
-      client.issues.addLabels({
-        ...issueCommon,
-        labels: [addMimimalReproductionLabel],
-      }),
-      client.issues.createComment({
-        ...issueCommon,
-        body: readFileSync(join(__dirname, 'simplify-repro.md'), 'utf8'),
-      }),
-    ])
-    return info('Commented on issue, because it had a complex reproduction.')
-  }
+  await client.issues.addLabels({ ...issueCommon, labels: [newLabel] })
 
-  if (newLabel === verifyCanaryLabel) {
-    await Promise.all([
-      client.issues.addLabels({
-        ...issueCommon,
-        labels: [verifyCanaryLabel],
-      }),
-      client.issues.createComment({
-        ...issueCommon,
-        body: readFileSync(join(__dirname, 'canary.md'), 'utf8'),
-      }),
-    ])
-    return info(
-      'Commented on issue, because it was not verified against canary.'
-    )
-  }
+  const body = readFileSync(join(__dirname, file), 'utf8')
+  await client.issues.createComment({ ...issueCommon, body })
+
+  info(comment)
 }
 
 run().catch(setFailed)
