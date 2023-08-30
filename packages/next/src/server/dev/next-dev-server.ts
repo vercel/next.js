@@ -1,4 +1,3 @@
-import type { CustomRoutes } from '../../lib/load-custom-routes'
 import type { FindComponentsResult } from '../next-server'
 import type { LoadComponentsReturnType } from '../load-components'
 import type { Options as ServerOptions } from '../next-server'
@@ -7,9 +6,14 @@ import type { ParsedUrl } from '../../shared/lib/router/utils/parse-url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
-import type { MiddlewareRoutingItem } from '../base-server'
+import type { FallbackMode, MiddlewareRoutingItem } from '../base-server'
 import type { FunctionComponent } from 'react'
 import type { RouteMatch } from '../future/route-matches/route-match'
+import type { RouteMatcherManager } from '../future/route-matcher-managers/route-matcher-manager'
+import type {
+  NextParsedUrlQuery,
+  NextUrlWithParsedQuery,
+} from '../request-meta'
 
 import { Worker } from 'next/dist/compiled/jest-worker'
 import { join as pathJoin } from 'path'
@@ -54,12 +58,11 @@ import { DevAppPageRouteMatcherProvider } from '../future/route-matcher-provider
 import { DevAppRouteRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-app-route-route-matcher-provider'
 import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
 import { NodeManifestLoader } from '../future/route-matcher-providers/helpers/manifest-loaders/node-manifest-loader'
-import { CachedFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/cached-file-reader'
+import { BatchedFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/batched-file-reader'
 import { DefaultFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/default-file-reader'
 import { NextBuildContext } from '../../build/build-context'
 import { IncrementalCache } from '../lib/incremental-cache'
 import LRUCache from 'next/dist/compiled/lru-cache'
-import { NextUrlWithParsedQuery } from '../request-meta'
 import { errorToJSON } from '../render'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import {
@@ -177,19 +180,13 @@ export default class DevServer extends Server {
       })
     }
 
-    const { pagesDir, appDir } = findPagesDir(
-      this.dir,
-      !!this.nextConfig.experimental.appDir
-    )
+    const { pagesDir, appDir } = findPagesDir(this.dir, true)
     this.pagesDir = pagesDir
     this.appDir = appDir
   }
 
-  protected getRoutes() {
-    const { pagesDir, appDir } = findPagesDir(
-      this.dir,
-      !!this.nextConfig.experimental.appDir
-    )
+  protected getRouteMatchers(): RouteMatcherManager {
+    const { pagesDir, appDir } = findPagesDir(this.dir, true)
 
     const ensurer: RouteEnsurer = {
       ensure: async (match) => {
@@ -201,17 +198,23 @@ export default class DevServer extends Server {
       },
     }
 
-    const routes = super.getRoutes()
     const matchers = new DevRouteMatcherManager(
-      routes.matchers,
+      super.getRouteMatchers(),
       ensurer,
       this.dir
     )
     const extensions = this.nextConfig.pageExtensions
-    const fileReader = new CachedFileReader(new DefaultFileReader())
+    const extensionsExpression = new RegExp(`\\.(?:${extensions.join('|')})$`)
 
     // If the pages directory is available, then configure those matchers.
     if (pagesDir) {
+      const fileReader = new BatchedFileReader(
+        new DefaultFileReader({
+          // Only allow files that have the correct extensions.
+          pathnameFilter: (pathname) => extensionsExpression.test(pathname),
+        })
+      )
+
       matchers.push(
         new DevPagesRouteMatcherProvider(
           pagesDir,
@@ -231,6 +234,17 @@ export default class DevServer extends Server {
     }
 
     if (appDir) {
+      // We create a new file reader for the app directory because we don't want
+      // to include any folders or files starting with an underscore. This will
+      // prevent the reader from wasting time reading files that we know we
+      // don't care about.
+      const fileReader = new BatchedFileReader(
+        new DefaultFileReader({
+          // Ignore any directory prefixed with an underscore.
+          ignorePartFilter: (part) => part.startsWith('_'),
+        })
+      )
+
       matchers.push(
         new DevAppPageRouteMatcherProvider(appDir, extensions, fileReader)
       )
@@ -239,7 +253,7 @@ export default class DevServer extends Server {
       )
     }
 
-    return { matchers }
+    return matchers
   }
 
   protected getBuildId(): string {
@@ -473,7 +487,7 @@ export default class DevServer extends Server {
   protected async logErrorWithOriginalStack(
     err?: unknown,
     type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
-  ) {
+  ): Promise<void> {
     if (this.isRenderWorker) {
       await invokeIpcMethod({
         fetchHostname: this.fetchHostname,
@@ -487,16 +501,6 @@ export default class DevServer extends Server {
     throw new Error(
       'Invariant logErrorWithOriginalStack called outside render worker'
     )
-  }
-
-  // override production loading of routes-manifest
-  protected getCustomRoutes(): CustomRoutes {
-    // actual routes will be loaded asynchronously during .prepare()
-    return {
-      redirects: [],
-      rewrites: { beforeFiles: [], afterFiles: [], fallback: [] },
-      headers: [],
-    }
   }
 
   protected getPagesManifest(): PagesManifest | undefined {
@@ -694,7 +698,7 @@ export default class DevServer extends Server {
         }
         const value: {
           staticPaths: string[]
-          fallbackMode: 'blocking' | 'static' | false | undefined
+          fallbackMode: FallbackMode
         } = {
           staticPaths,
           fallbackMode:
@@ -727,20 +731,20 @@ export default class DevServer extends Server {
   protected async ensurePage(opts: {
     page: string
     clientOnly: boolean
-    appPaths?: string[] | null
+    appPaths?: ReadonlyArray<string> | null
     match?: RouteMatch
-  }) {
-    if (this.isRenderWorker) {
-      await invokeIpcMethod({
-        fetchHostname: this.fetchHostname,
-        method: 'ensurePage',
-        args: [opts],
-        ipcPort: process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT,
-        ipcKey: process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY,
-      })
-      return
+  }): Promise<void> {
+    if (!this.isRenderWorker) {
+      throw new Error('Invariant ensurePage called outside render worker')
     }
-    throw new Error('Invariant ensurePage called outside render worker')
+
+    await invokeIpcMethod({
+      fetchHostname: this.fetchHostname,
+      method: 'ensurePage',
+      args: [opts],
+      ipcPort: process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT,
+      ipcKey: process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY,
+    })
   }
 
   protected async findPageComponents({
@@ -752,10 +756,11 @@ export default class DevServer extends Server {
     shouldEnsure,
   }: {
     pathname: string
-    query: ParsedUrlQuery
+    query: NextParsedUrlQuery
     params: Params
     isAppPath: boolean
-    appPaths?: string[] | null
+    sriEnabled?: boolean
+    appPaths?: ReadonlyArray<string> | null
     shouldEnsure: boolean
   }): Promise<FindComponentsResult | null> {
     await this.devReady
@@ -785,6 +790,7 @@ export default class DevServer extends Server {
         query,
         params,
         isAppPath,
+        shouldEnsure,
       })
     } catch (err) {
       if ((err as any).code !== 'ENOENT') {

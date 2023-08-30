@@ -99,15 +99,8 @@ async function writeToCacheDir(
 ) {
   const filename = join(dir, `${maxAge}.${expireAt}.${etag}.${extension}`)
 
-  // Added in: v14.14.0 https://nodejs.org/api/fs.html#fspromisesrmpath-options
-  // attempt cleaning up existing stale cache
-  if ((promises as any).rm) {
-    await (promises as any)
-      .rm(dir, { force: true, recursive: true })
-      .catch(() => {})
-  } else {
-    await promises.rmdir(dir, { recursive: true }).catch(() => {})
-  }
+  await promises.rm(dir, { recursive: true, force: true }).catch(() => {})
+
   await promises.mkdir(dir, { recursive: true })
   await promises.writeFile(filename, buffer)
 }

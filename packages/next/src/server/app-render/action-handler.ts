@@ -385,7 +385,7 @@ export async function handleAction({
                 // Exceeded the size limit
                 e.message =
                   e.message +
-                  '\nTo configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions#size-limitation'
+                  '\nTo configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/server-actions#size-limitation'
               }
               throw e
             }
@@ -481,7 +481,7 @@ export async function handleAction({
           const promise = Promise.reject(err)
           try {
             await promise
-          } catch (_) {}
+          } catch {}
           return generateFlight({
             skipFlight: false,
             actionResult: promise,
@@ -497,7 +497,7 @@ export async function handleAction({
         const promise = Promise.reject(err)
         try {
           await promise
-        } catch (_) {}
+        } catch {}
 
         return generateFlight({
           actionResult: promise,

@@ -7,14 +7,8 @@ const addComment = require('./add-comment')
 const actionInfo = require('./prepare/action-info')()
 const { mainRepoDir, diffRepoDir } = require('./constants')
 const loadStatsConfig = require('./prepare/load-stats-config')
-const {
-  cloneRepo,
-  checkoutRef,
-  mergeBranch,
-  getCommitId,
-  linkPackages,
-  getLastStable,
-} = require('./prepare/repo-setup')(actionInfo)
+const { cloneRepo, mergeBranch, getCommitId, linkPackages, getLastStable } =
+  require('./prepare/repo-setup')(actionInfo)
 
 const allowedActions = new Set(['synchronize', 'opened'])
 
@@ -108,22 +102,22 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
       if (!actionInfo.skipClone) {
         const usePnpm = await fs.pathExists(path.join(dir, 'pnpm-lock.yaml'))
 
-        let buildCommand = `cd ${dir}${
-          !statsConfig.skipInitialInstall
-            ? usePnpm
-              ? // --no-frozen-lockfile is used here to tolerate lockfile
-                // changes from merging latest changes
-                ` && pnpm install --no-frozen-lockfile && pnpm run build`
-              : ' && yarn install --network-timeout 1000000'
-            : ''
-        }`
+        if (!statsConfig.skipInitialInstall) {
+          await exec.spawnPromise(
+            `cd ${dir}${
+              usePnpm
+                ? // --no-frozen-lockfile is used here to tolerate lockfile
+                  // changes from merging latest changes
+                  ` && pnpm install --no-frozen-lockfile`
+                : ' && yarn install --network-timeout 1000000'
+            }`
+          )
 
-        if (statsConfig.initialBuildCommand) {
-          buildCommand += ` && ${statsConfig.initialBuildCommand}`
+          await exec.spawnPromise(
+            statsConfig.initialBuildCommand ||
+              `cd ${dir} && ${usePnpm ? 'pnpm build' : 'echo built'}`
+          )
         }
-        // allow 5 minutes node_modules install + building all packages
-        // in case of noisy environment slowing down initial repo build
-        await exec(buildCommand, false, { timeout: 5 * 60 * 1000 })
       }
 
       await fs

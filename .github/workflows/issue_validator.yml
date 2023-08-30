@@ -1,17 +1,34 @@
 name: Validate issue
+
 on:
   issues:
-    types: [labeled]
+    types: [opened, labeled]
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
-  validate:
+  issue-opened:
+    if: "${{ contains(github.event.issue.labels.*.name, 'template: bug') && github.event.action == 'opened' }}"
+    name: Issue opened
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
         with:
           node-version: 18
-      - name: 'Run issue validator'
-        run: node ./.github/actions/issue-validator/index.mjs
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: 'Autolabel based on affected areas'
+        run: node ./.github/actions/issue-validator/autolabel/index.mjs
+      - name: 'Close without valid reproduction link'
+        run: node ./.github/actions/issue-validator/repro-link/index.mjs
+  issue-labeled:
+    if: "${{ contains(github.event.issue.labels.*.name, 'template: bug') && github.event.action == 'labeled' }}"
+    name: Issue labeled
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - name: 'Clarify reproduction steps'
+        run: node ./.github/actions/issue-validator/clarify/index.mjs

@@ -475,10 +475,8 @@ export type TurbopackResult<T = {}> = T & {
   diagnostics: Diagnostics[]
 }
 
-interface Middleware {
+export interface Middleware {
   endpoint: Endpoint
-  runtime: 'nodejs' | 'edge'
-  matcher?: string[]
 }
 
 export interface Entrypoints {
@@ -502,7 +500,7 @@ export interface UpdateInfo {
   tasks: number
 }
 
-enum ServerClientChangeType {
+export enum ServerClientChangeType {
   Server = 'Server',
   Client = 'Client',
   Both = 'Both',
@@ -552,7 +550,7 @@ export interface Endpoint {
    * After changed() has been awaited it will listen to changes.
    * The async iterator will yield for each change.
    */
-  changed(): Promise<AsyncIterableIterator<TurbopackResult>>
+  changed(): Promise<AsyncIterableIterator<TurbopackResult<ServerClientChange>>>
 }
 
 interface EndpointConfig {
@@ -594,6 +592,8 @@ function bindingToApi(binding: any, _wasm: boolean) {
   type NativeFunction<T> = (
     callback: (err: Error, value: T) => void
   ) => Promise<{ __napiType: 'RootTask' }>
+
+  const cancel = new (class Cancel extends Error {})()
 
   /**
    * Utility function to ensure all variants of an enum are handled.
@@ -637,6 +637,7 @@ function bindingToApi(binding: any, _wasm: boolean) {
           reject: (error: Error) => void
         }
       | undefined
+    let canceled = false
 
     // The native function will call this every time it emits a new result. We
     // either need to notify a waiting consumer, or buffer the new result until
@@ -654,10 +655,10 @@ function bindingToApi(binding: any, _wasm: boolean) {
       }
     }
 
-    return (async function* () {
+    const iterator = (async function* () {
       const task = await withErrorCause(() => nativeFunction(emitResult))
       try {
-        while (true) {
+        while (!canceled) {
           if (buffer.length > 0) {
             const item = buffer.shift()!
             if (item.err) throw item.err
@@ -669,10 +670,19 @@ function bindingToApi(binding: any, _wasm: boolean) {
             })
           }
         }
+      } catch (e) {
+        if (e === cancel) return
+        throw e
       } finally {
         binding.rootTaskDispose(task)
       }
     })()
+    iterator.return = async () => {
+      canceled = true
+      if (waiting) waiting.reject(cancel)
+      return { value: undefined, done: true } as IteratorReturnResult<never>
+    }
+    return iterator
   }
 
   /**
@@ -782,7 +792,8 @@ function bindingToApi(binding: any, _wasm: boolean) {
           const routes = new Map()
           for (const { pathname, ...nativeRoute } of entrypoints.routes) {
             let route: Route
-            switch (nativeRoute.type) {
+            const routeType = nativeRoute.type
+            switch (routeType) {
               case 'page':
                 route = {
                   type: 'page',
@@ -815,11 +826,11 @@ function bindingToApi(binding: any, _wasm: boolean) {
                 }
                 break
               default:
+                const _exhaustiveCheck: never = routeType
                 invariant(
                   nativeRoute,
-                  () => `Unknown route type: ${(nativeRoute as any).type}`
+                  () => `Unknown route type: ${_exhaustiveCheck}`
                 )
-                break
             }
             routes.set(pathname, route)
           }
@@ -908,6 +919,10 @@ function bindingToApi(binding: any, _wasm: boolean) {
             callback
           )
       )
+
+      // The subscriptions will emit always emit once, which is the initial
+      // computation. This is not a change, so swallow it.
+      await Promise.all([serverSubscription.next(), clientSubscription.next()])
 
       return (async function* () {
         try {
@@ -1135,9 +1150,9 @@ async function loadWasm(importPath = '', isCustomTurbopack: boolean) {
         },
         mdx: {
           compile: (src: string, options: any) =>
-            bindings.mdxCompile(src, options),
+            bindings.mdxCompile(src, getMdxOptions(options)),
           compileSync: (src: string, options: any) =>
-            bindings.mdxCompileSync(src, options),
+            bindings.mdxCompileSync(src, getMdxOptions(options)),
         },
       }
       return wasmBindings
@@ -1409,15 +1424,31 @@ function loadNative(isCustomTurbopack = false, importPath?: string) {
       },
       mdx: {
         compile: (src: string, options: any) =>
-          bindings.mdxCompile(src, toBuffer(options ?? {})),
+          bindings.mdxCompile(src, toBuffer(getMdxOptions(options))),
         compileSync: (src: string, options: any) =>
-          bindings.mdxCompileSync(src, toBuffer(options ?? {})),
+          bindings.mdxCompileSync(src, toBuffer(getMdxOptions(options))),
       },
     }
     return nativeBindings
   }
 
   throw attempts
+}
+
+/// Build a mdx options object contains default values that
+/// can be parsed with serde_wasm_bindgen.
+function getMdxOptions(options: any = {}) {
+  const ret = {
+    ...options,
+    development: options.development ?? false,
+    jsx: options.jsx ?? false,
+    parse: options.parse ?? {
+      gfmStrikethroughSingleTilde: true,
+      mathTextSingleDollar: true,
+    },
+  }
+
+  return ret
 }
 
 function toBuffer(t: any) {

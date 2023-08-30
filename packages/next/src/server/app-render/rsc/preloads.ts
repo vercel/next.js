@@ -6,9 +6,8 @@ Files in the rsc directory are meant to be packaged as part of the RSC graph usi
 
 import ReactDOM from 'react-dom'
 
-const stylePreloadOptions = { as: 'style' }
 export function preloadStyle(href: string) {
-  ;(ReactDOM as any).preload(href, stylePreloadOptions)
+  ReactDOM.preload(href, { as: 'style' })
 }
 
 export function preloadFont(href: string, type: string) {

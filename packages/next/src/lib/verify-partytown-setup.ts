@@ -8,7 +8,6 @@ import {
 } from './has-necessary-dependencies'
 import { fileExists, FileType } from './file-exists'
 import { FatalError } from './fatal-error'
-import { recursiveDelete } from './recursive-delete'
 import * as Log from '../build/output/log'
 import { getPkgManager } from './helpers/get-pkg-manager'
 
@@ -50,8 +49,7 @@ async function copyPartytownStaticFiles(
   )
 
   if (hasPartytownLibDir) {
-    await recursiveDelete(partytownLibDir)
-    await promises.rmdir(partytownLibDir)
+    await promises.rm(partytownLibDir, { recursive: true, force: true })
   }
 
   const { copyLibFiles } = await Promise.resolve(
