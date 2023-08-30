@@ -384,9 +384,7 @@ export function getLoaderSWCOptions({
     }
   }
   if (optimizeBarrelExports) {
-    baseOptions.optimizeBarrelExports = {
-      names: optimizeBarrelExports,
-    }
+    baseOptions.optimizeBarrelExports = optimizeBarrelExports
   }
 
   const isNextDist = nextDistPath.test(filename)
