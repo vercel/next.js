@@ -1,59 +1,63 @@
+use std::collections::HashMap;
+
 use serde::Deserialize;
 use turbopack_binding::swc::core::{
-    common::{FileName, DUMMY_SP},
-    ecma::{
-        ast::*,
-        utils::{private_ident, quote_str},
-        visit::Fold,
-    },
+    common::DUMMY_SP,
+    ecma::{ast::*, utils::private_ident, visit::Fold},
 };
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Config {
-    pub names: Vec<String>,
+    pub wildcard: bool,
 }
 
-pub fn optimize_barrel(filename: FileName, config: Config) -> impl Fold {
+pub fn optimize_barrel(config: Config) -> impl Fold {
     OptimizeBarrel {
-        filepath: filename.to_string(),
-        names: config.names,
+        wildcard: config.wildcard,
     }
 }
 
 #[derive(Debug, Default)]
 struct OptimizeBarrel {
-    filepath: String,
-    names: Vec<String>,
+    wildcard: bool,
 }
 
 impl Fold for OptimizeBarrel {
     fn fold_module_items(&mut self, items: Vec<ModuleItem>) -> Vec<ModuleItem> {
-        // One pre-pass to find all the local idents that we are referencing.
-        let mut local_idents = vec![];
-        for item in &items {
-            if let ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(export_named)) = item {
-                if export_named.src.is_none() {
-                    for spec in &export_named.specifiers {
-                        if let ExportSpecifier::Named(s) = spec {
-                            let str_name;
-                            if let Some(name) = &s.exported {
-                                str_name = match &name {
-                                    ModuleExportName::Ident(n) => n.sym.to_string(),
-                                    ModuleExportName::Str(n) => n.value.to_string(),
-                                };
-                            } else {
-                                str_name = match &s.orig {
-                                    ModuleExportName::Ident(n) => n.sym.to_string(),
-                                    ModuleExportName::Str(n) => n.value.to_string(),
-                                };
-                            }
+        // One pre-pass to find all the local idents that we are referencing, so we can
+        // handle the case of `import foo from 'a'; export { foo };` correctly.
 
-                            // If the exported name needs to be kept, track the local ident.
-                            if self.names.contains(&str_name) {
-                                if let ModuleExportName::Ident(i) = &s.orig {
-                                    local_idents.push(i.sym.clone());
-                                }
-                            }
+        // Map of "local ident" -> ("source module", "orig ident")
+        let mut local_idents = HashMap::new();
+        for item in &items {
+            if let ModuleItem::ModuleDecl(ModuleDecl::Import(import_decl)) = item {
+                for spec in &import_decl.specifiers {
+                    let src = import_decl.src.value.to_string();
+                    match spec {
+                        ImportSpecifier::Named(s) => {
+                            local_idents.insert(
+                                s.local.sym.to_string(),
+                                (
+                                    src.clone(),
+                                    match &s.imported {
+                                        Some(n) => match &n {
+                                            ModuleExportName::Ident(n) => n.sym.to_string(),
+                                            ModuleExportName::Str(n) => n.value.to_string(),
+                                        },
+                                        None => s.local.sym.to_string(),
+                                    },
+                                ),
+                            );
+                        }
+                        ImportSpecifier::Namespace(s) => {
+                            local_idents
+                                .insert(s.local.sym.to_string(), (src.clone(), "*".to_string()));
+                        }
+                        ImportSpecifier::Default(s) => {
+                            local_idents.insert(
+                                s.local.sym.to_string(),
+                                (src.clone(), "default".to_string()),
+                            );
                         }
                     }
                 }
@@ -63,6 +67,10 @@ impl Fold for OptimizeBarrel {
         // The second pass to rebuild the module items.
         let mut new_items = vec![];
 
+        // Exported meta information.
+        let mut export_map = vec![];
+        let mut export_wildcards = vec![];
+
         // We only apply this optimization to barrel files. Here we consider
         // a barrel file to be a file that only exports from other modules.
         // Besides that, lit expressions are allowed as well ("use client", etc.).
@@ -71,6 +79,7 @@ impl Fold for OptimizeBarrel {
             match item {
                 ModuleItem::ModuleDecl(decl) => {
                     match decl {
+                        ModuleDecl::Import(_) => {}
                         // export { foo } from './foo';
                         ModuleDecl::ExportNamed(export_named) => {
                             for spec in &export_named.specifiers {
@@ -80,142 +89,110 @@ impl Fold for OptimizeBarrel {
                                             ModuleExportName::Ident(n) => n.sym.to_string(),
                                             ModuleExportName::Str(n) => n.value.to_string(),
                                         };
-                                        if self.names.contains(&name_str) {
-                                            new_items.push(item.clone());
+                                        if let Some(src) = &export_named.src {
+                                            export_map.push((
+                                                name_str.clone(),
+                                                src.value.to_string(),
+                                                "*".to_string(),
+                                            ));
+                                        } else if self.wildcard {
+                                            export_map.push((
+                                                name_str.clone(),
+                                                "".into(),
+                                                "*".to_string(),
+                                            ));
+                                        } else {
+                                            is_barrel = false;
+                                            break;
                                         }
                                     }
                                     ExportSpecifier::Named(s) => {
-                                        if let Some(name) = &s.exported {
-                                            let name_str = match &name {
+                                        let orig_str = match &s.orig {
+                                            ModuleExportName::Ident(n) => n.sym.to_string(),
+                                            ModuleExportName::Str(n) => n.value.to_string(),
+                                        };
+                                        let name_str = match &s.exported {
+                                            Some(n) => match &n {
                                                 ModuleExportName::Ident(n) => n.sym.to_string(),
                                                 ModuleExportName::Str(n) => n.value.to_string(),
-                                            };
+                                            },
+                                            None => orig_str.clone(),
+                                        };
 
-                                            if self.names.contains(&name_str) {
-                                                new_items.push(ModuleItem::ModuleDecl(
-                                                    ModuleDecl::ExportNamed(NamedExport {
-                                                        span: DUMMY_SP,
-                                                        specifiers: vec![ExportSpecifier::Named(
-                                                            ExportNamedSpecifier {
-                                                                span: DUMMY_SP,
-                                                                orig: s.orig.clone(),
-                                                                exported: Some(
-                                                                    ModuleExportName::Ident(
-                                                                        Ident::new(
-                                                                            name_str.into(),
-                                                                            DUMMY_SP,
-                                                                        ),
-                                                                    ),
-                                                                ),
-                                                                is_type_only: false,
-                                                            },
-                                                        )],
-                                                        src: export_named.src.clone(),
-                                                        type_only: false,
-                                                        asserts: None,
-                                                    }),
-                                                ));
-                                            }
+                                        if let Some(src) = &export_named.src {
+                                            export_map.push((
+                                                name_str.clone(),
+                                                src.value.to_string(),
+                                                orig_str.clone(),
+                                            ));
+                                        } else if let Some((src, orig)) =
+                                            local_idents.get(&orig_str)
+                                        {
+                                            export_map.push((
+                                                name_str.clone(),
+                                                src.clone(),
+                                                orig.clone(),
+                                            ));
+                                        } else if self.wildcard {
+                                            export_map.push((
+                                                name_str.clone(),
+                                                "".into(),
+                                                orig_str.clone(),
+                                            ));
                                         } else {
-                                            let name_str = match &s.orig {
-                                                ModuleExportName::Ident(n) => n.sym.to_string(),
-                                                ModuleExportName::Str(n) => n.value.to_string(),
-                                            };
-
-                                            if self.names.contains(&name_str) {
-                                                new_items.push(ModuleItem::ModuleDecl(
-                                                    ModuleDecl::ExportNamed(NamedExport {
-                                                        span: DUMMY_SP,
-                                                        specifiers: vec![ExportSpecifier::Named(
-                                                            ExportNamedSpecifier {
-                                                                span: DUMMY_SP,
-                                                                orig: s.orig.clone(),
-                                                                exported: None,
-                                                                is_type_only: false,
-                                                            },
-                                                        )],
-                                                        src: export_named.src.clone(),
-                                                        type_only: false,
-                                                        asserts: None,
-                                                    }),
-                                                ));
-                                            }
+                                            is_barrel = false;
+                                            break;
                                         }
                                     }
                                     _ => {
-                                        is_barrel = false;
-                                        break;
+                                        if !self.wildcard {
+                                            is_barrel = false;
+                                            break;
+                                        }
                                     }
                                 }
                             }
                         }
-                        // Keep import statements that create the local idents we need.
-                        ModuleDecl::Import(import_decl) => {
-                            for spec in &import_decl.specifiers {
-                                match spec {
-                                    ImportSpecifier::Named(s) => {
-                                        if local_idents.contains(&s.local.sym) {
-                                            new_items.push(ModuleItem::ModuleDecl(
-                                                ModuleDecl::Import(ImportDecl {
-                                                    span: DUMMY_SP,
-                                                    specifiers: vec![ImportSpecifier::Named(
-                                                        ImportNamedSpecifier {
-                                                            span: DUMMY_SP,
-                                                            local: s.local.clone(),
-                                                            imported: s.imported.clone(),
-                                                            is_type_only: false,
-                                                        },
-                                                    )],
-                                                    src: import_decl.src.clone(),
-                                                    type_only: false,
-                                                    asserts: None,
-                                                }),
-                                            ));
-                                        }
-                                    }
-                                    ImportSpecifier::Default(s) => {
-                                        if local_idents.contains(&s.local.sym) {
-                                            new_items.push(ModuleItem::ModuleDecl(
-                                                ModuleDecl::Import(ImportDecl {
-                                                    span: DUMMY_SP,
-                                                    specifiers: vec![ImportSpecifier::Default(
-                                                        ImportDefaultSpecifier {
-                                                            span: DUMMY_SP,
-                                                            local: s.local.clone(),
-                                                        },
-                                                    )],
-                                                    src: import_decl.src.clone(),
-                                                    type_only: false,
-                                                    asserts: None,
-                                                }),
-                                            ));
-                                        }
-                                    }
-                                    ImportSpecifier::Namespace(s) => {
-                                        if local_idents.contains(&s.local.sym) {
-                                            new_items.push(ModuleItem::ModuleDecl(
-                                                ModuleDecl::Import(ImportDecl {
-                                                    span: DUMMY_SP,
-                                                    specifiers: vec![ImportSpecifier::Namespace(
-                                                        ImportStarAsSpecifier {
-                                                            span: DUMMY_SP,
-                                                            local: s.local.clone(),
-                                                        },
-                                                    )],
-                                                    src: import_decl.src.clone(),
-                                                    type_only: false,
-                                                    asserts: None,
-                                                }),
-                                            ));
-                                        }
+                        ModuleDecl::ExportAll(export_all) => {
+                            export_wildcards.push(export_all.src.value.to_string());
+                        }
+                        ModuleDecl::ExportDecl(export_decl) => {
+                            // Export declarations are not allowed in barrel files.
+                            if !self.wildcard {
+                                is_barrel = false;
+                                break;
+                            }
+
+                            match &export_decl.decl {
+                                Decl::Class(class) => {
+                                    export_map.push((
+                                        class.ident.sym.to_string(),
+                                        "".into(),
+                                        "".into(),
+                                    ));
+                                }
+                                Decl::Fn(func) => {
+                                    export_map.push((
+                                        func.ident.sym.to_string(),
+                                        "".into(),
+                                        "".into(),
+                                    ));
+                                }
+                                Decl::Var(var) => {
+                                    let ids = collect_idents_in_var_decls(&var.decls);
+                                    for id in ids {
+                                        export_map.push((id, "".into(), "".into()));
                                     }
                                 }
+                                _ => {}
                             }
                         }
                         _ => {
-                            // Export expressions are not allowed in barrel files.
-                            is_barrel = false;
-                            break;
+                            if !self.wildcard {
+                                // Other expressions are not allowed in barrel files.
+                                is_barrel = false;
+                                break;
+                            }
                         }
                     }
                 }
@@ -225,44 +202,149 @@ impl Fold for OptimizeBarrel {
                             new_items.push(item.clone());
                         }
                         _ => {
-                            is_barrel = false;
-                            break;
+                            if !self.wildcard {
+                                is_barrel = false;
+                                break;
+                            }
                         }
                     },
                     _ => {
-                        is_barrel = false;
-                        break;
+                        if !self.wildcard {
+                            is_barrel = false;
+                            break;
+                        }
                     }
                 },
             }
         }
 
-        // If the file is not a barrel file, we need to create a new module that
-        // re-exports from the original file.
-        // This is to avoid creating multiple instances of the original module.
+        // If the file is not a barrel file, we export nothing.
         if !is_barrel {
-            new_items = vec![ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(
-                NamedExport {
+            new_items = vec![];
+        } else {
+            // Otherwise we export the meta information.
+            new_items.push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
+                span: DUMMY_SP,
+                decl: Decl::Var(Box::new(VarDecl {
                     span: DUMMY_SP,
-                    specifiers: self
-                        .names
-                        .iter()
-                        .map(|name| {
-                            ExportSpecifier::Named(ExportNamedSpecifier {
-                                span: DUMMY_SP,
-                                orig: ModuleExportName::Ident(private_ident!(name.clone())),
-                                exported: None,
-                                is_type_only: false,
-                            })
-                        })
-                        .collect(),
-                    src: Some(Box::new(quote_str!(self.filepath.to_string()))),
-                    type_only: false,
+                    kind: VarDeclKind::Const,
+                    declare: false,
+                    decls: vec![VarDeclarator {
+                        span: DUMMY_SP,
+                        name: Pat::Ident(BindingIdent {
+                            id: private_ident!("__next_private_export_map__"),
+                            type_ann: None,
+                        }),
+                        init: Some(Box::new(Expr::Lit(Lit::Str(Str {
+                            span: DUMMY_SP,
+                            value: serde_json::to_string(&export_map).unwrap().into(),
+                            raw: None,
+                        })))),
+                        definite: false,
+                    }],
+                })),
+            })));
+
+            // Push "export *" statements for each wildcard export.
+            for src in export_wildcards {
+                new_items.push(ModuleItem::ModuleDecl(ModuleDecl::ExportAll(ExportAll {
+                    span: DUMMY_SP,
+                    src: Box::new(Str {
+                        span: DUMMY_SP,
+                        value: format!("__barrel_optimize__?names=__PLACEHOLDER__!=!{}", src)
+                            .into(),
+                        raw: None,
+                    }),
                     asserts: None,
-                },
-            ))];
+                    type_only: false,
+                })));
+            }
         }
 
         new_items
     }
+}
+
+fn collect_idents_in_array_pat(elems: &[Option<Pat>]) -> Vec<String> {
+    let mut ids = Vec::new();
+
+    for elem in elems.iter().flatten() {
+        match elem {
+            Pat::Ident(ident) => {
+                ids.push(ident.sym.to_string());
+            }
+            Pat::Array(array) => {
+                ids.extend(collect_idents_in_array_pat(&array.elems));
+            }
+            Pat::Object(object) => {
+                ids.extend(collect_idents_in_object_pat(&object.props));
+            }
+            Pat::Rest(rest) => {
+                if let Pat::Ident(ident) = &*rest.arg {
+                    ids.push(ident.sym.to_string());
+                }
+            }
+            _ => {}
+        }
+    }
+
+    ids
+}
+
+fn collect_idents_in_object_pat(props: &[ObjectPatProp]) -> Vec<String> {
+    let mut ids = Vec::new();
+
+    for prop in props {
+        match prop {
+            ObjectPatProp::KeyValue(KeyValuePatProp { key, value }) => {
+                if let PropName::Ident(ident) = key {
+                    ids.push(ident.sym.to_string());
+                }
+
+                match &**value {
+                    Pat::Ident(ident) => {
+                        ids.push(ident.sym.to_string());
+                    }
+                    Pat::Array(array) => {
+                        ids.extend(collect_idents_in_array_pat(&array.elems));
+                    }
+                    Pat::Object(object) => {
+                        ids.extend(collect_idents_in_object_pat(&object.props));
+                    }
+                    _ => {}
+                }
+            }
+            ObjectPatProp::Assign(AssignPatProp { key, .. }) => {
+                ids.push(key.to_string());
+            }
+            ObjectPatProp::Rest(RestPat { arg, .. }) => {
+                if let Pat::Ident(ident) = &**arg {
+                    ids.push(ident.sym.to_string());
+                }
+            }
+        }
+    }
+
+    ids
+}
+
+fn collect_idents_in_var_decls(decls: &[VarDeclarator]) -> Vec<String> {
+    let mut ids = Vec::new();
+
+    for decl in decls {
+        match &decl.name {
+            Pat::Ident(ident) => {
+                ids.push(ident.sym.to_string());
+            }
+            Pat::Array(array) => {
+                ids.extend(collect_idents_in_array_pat(&array.elems));
+            }
+            Pat::Object(object) => {
+                ids.extend(collect_idents_in_object_pat(&object.props));
+            }
+            _ => {}
+        }
+    }
+
+    ids
 }

@@ -25,8 +25,6 @@ globalThis.__next_require__ = (data) => {
 }
 globalThis.__next_chunk_load__ = __turbopack_load__
 
-process.env.__NEXT_NEW_LINK_BEHAVIOR = 'true'
-
 const appElement = document
 
 const getCacheKey = () => {
