@@ -61,7 +61,7 @@ describe('AMP Usage', () => {
     })
 
     it('should not contain missing files warning', async () => {
-      expect(output).toContain('Compiled successfully')
+      expect(output).toContain('✓ Compiled')
       expect(output).not.toContain('Could not find files for')
     })
 

@@ -30,7 +30,6 @@ import {
   shouldRunExperimentalTurboDevTest,
   shouldRunTurboDevTest,
 } from './turbo'
-import stripAnsi from 'strip-ansi'
 
 export { shouldRunTurboDevTest }
 
@@ -343,6 +342,10 @@ export function runNextCommandDev(
     ...opts.env,
   }
 
+  if (opts.nextStart) {
+    console.log('runNextCommandDev')
+  }
+
   const nodeArgs = opts.nodeArgs || []
   return new Promise((resolve, reject) => {
     const instance = spawn(
@@ -361,11 +364,9 @@ export function runNextCommandDev(
       }
     )
     let didResolve = false
-
     function handleStdout(data) {
       // TODO: tune the typing for the promise resolved value
-      const message = stripAnsi(data.toString()) as any
-      console.log('message', message)
+      const message = data.toString()
       const bootupMarkers = {
         dev: /▲ Next.js/i,
         turbo: /started server/i,
@@ -373,20 +374,6 @@ export function runNextCommandDev(
         start: /▲ Next.js/i,
       }
 
-      const label =
-        opts.nextStart || stdOut
-          ? 'start'
-          : opts?.experimentalTurbo
-          ? 'experimentalTurbo'
-          : opts?.turbo
-          ? 'turbo'
-          : 'dev'
-      console.log(
-        `bootupMarkers`,
-        bootupMarkers[label].test(message),
-        'label',
-        label
-      )
       if (
         (opts.bootupMarker && opts.bootupMarker.test(message)) ||
         bootupMarkers[

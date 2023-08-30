@@ -1081,7 +1081,7 @@ export default class NextNodeServer extends BaseServer {
               } else if (cacheStatus === 'skip') {
                 cacheStatus = `${chalk.yellow('SKIP')}`
                 cacheReasonStr = `${chalk.grey(
-                  `Cache miss reason: (${chalk.white(cacheReason)})`
+                  `Cache missed reason: (${chalk.white(cacheReason)})`
                 )}`
               } else {
                 cacheStatus = chalk.yellow('MISS')

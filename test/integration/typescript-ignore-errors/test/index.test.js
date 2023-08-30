@@ -52,11 +52,11 @@ describe('TypeScript with error handling options', () => {
             })
 
             if (ignoreBuildErrors) {
-              expect(stdout).toContain('Compiled successfully')
+              expect(stdout).toContain('✓ Compiled')
               expect(stderr).not.toContain('Failed to compile.')
               expect(stderr).not.toContain("not assignable to type 'boolean'")
             } else {
-              expect(stdout).not.toContain('Compiled successfully')
+              expect(stdout).not.toContain('✓ Compiled')
               expect(stderr).toContain('Failed to compile.')
               expect(stderr).toContain('./pages/index.tsx:2:31')
               expect(stderr).toContain("not assignable to type 'boolean'")

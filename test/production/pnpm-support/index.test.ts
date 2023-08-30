@@ -39,7 +39,7 @@ describe('pnpm support', () => {
 
     expect(await next.readFile('pnpm-lock.yaml')).toBeTruthy()
 
-    expect(next.cliOutput).toMatch(/Compiled successfully/)
+    expect(next.cliOutput).toMatch(/✓ Compiled/)
 
     const html = await renderViaHTTP(next.url, '/')
     expect(html).toContain('Hello World')
@@ -81,7 +81,7 @@ describe('pnpm support', () => {
       installCommand: '',
     })
     await next.stop()
-    expect(next.cliOutput).toMatch(/Compiled successfully/)
+    expect(next.cliOutput).toMatch(/✓ Compiled/)
 
     let appPort
     let server

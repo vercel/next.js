@@ -7,7 +7,7 @@ export const prefixes = {
   ready: chalk.bold('▲'), // no color
   info: chalk.white(chalk.bold(' ')),
   event: chalk.green(chalk.bold('✓')),
-  trace: chalk.magenta(chalk.bold(' ')),
+  trace: chalk.magenta(chalk.bold('»')),
 } as const
 
 const LOGGING_METHOD = {
@@ -36,7 +36,8 @@ function prefixedLog(prefixType: keyof typeof prefixes, ...message: any[]) {
 }
 
 export function createPrefix(prefixType: keyof typeof prefixes) {
-  return now() + ' ' + prefixes[prefixType]
+  // now() +
+  return ' ' + prefixes[prefixType]
 }
 
 export function now() {

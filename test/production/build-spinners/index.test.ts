@@ -146,7 +146,7 @@ describe('build-spinners', () => {
     for (let i = output.length - 1; i--; i >= 0) {
       const line = output[i]
 
-      if (compiledIdx === -1 && line.includes('Compiled successfully')) {
+      if (compiledIdx === -1 && line.includes('✓ Compiled')) {
         compiledIdx = i
       }
 
