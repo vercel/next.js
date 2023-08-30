@@ -167,13 +167,6 @@ async function createRouterWorker(fullConfig: NextConfigComplete): Promise<{
     process.exit(0)
   }
 
-  // If the child routing worker exits we need to exit the entire process
-  for (const curWorker of ((worker as any)._workerPool?._workers || []) as {
-    _child?: ChildProcess
-  }[]) {
-    curWorker._child?.on('exit', cleanup)
-  }
-
   process.on('exit', cleanup)
   process.on('SIGINT', cleanup)
   process.on('SIGTERM', cleanup)
