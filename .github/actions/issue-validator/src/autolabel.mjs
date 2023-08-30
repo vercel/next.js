@@ -1,7 +1,12 @@
+/**
+ * This action will automatically add labels to issues based on the area(s) of Next.js that are affected.
+ */
+
+// @ts-check
 import { setFailed, debug } from '@actions/core'
 import { context, getOctokit } from '@actions/github'
 
-type GitHubClient = ReturnType<typeof getOctokit>['rest']
+/** @typedef {ReturnType<typeof getOctokit>['rest']} GitHubClient */
 
 async function run() {
   const token = process.env.GITHUB_TOKEN
@@ -23,8 +28,11 @@ async function run() {
 
   debug(`Loaded labels: ${Array.from(labels.keys()).join(', ')}`)
 
-  /** List of labels to add */
-  const toAdd: string[] = []
+  /**
+   * List of labels to add
+   * @type {string[]}
+   */
+  const toAdd = []
 
   // https://github.com/vercel/next.js/blame/canary/.github/ISSUE_TEMPLATE/1.bug_report.yml
 
@@ -56,8 +64,10 @@ async function run() {
   debug(`Added labels to issue #${issue_number}: ${toAdd.join(', ')}`)
 }
 
-/** Load label descriptions from the repo. */
-async function loadAreaLabels(client: GitHubClient) {
+/** Load label descriptions from the repo.
+ * @param {GitHubClient} client
+ */
+async function loadAreaLabels(client) {
   try {
     const { data } = await client.issues.listLabelsForRepo({
       owner: context.repo.owner,
@@ -65,7 +75,8 @@ async function loadAreaLabels(client: GitHubClient) {
       per_page: 100,
     })
 
-    const labels = new Map<string, string>()
+    /** @type {Map<string, string>}*/
+    const labels = new Map()
     // Only load labels that start with `area:` and have a description
     for (const label of data) {
       if (label.name.startsWith('area:') && label.description) {
@@ -79,11 +90,12 @@ async function loadAreaLabels(client: GitHubClient) {
   }
 }
 
-async function addLabels(
-  client: GitHubClient,
-  issue_number: number,
-  labels: string[]
-) {
+/**
+ * @param {GitHubClient} client
+ * @param {number} issue_number
+ * @param {string[]} labels
+ */
+async function addLabels(client, issue_number, labels) {
   try {
     const formatted = labels.map((l) => `"${l}"`).join(', ')
     debug(`Adding label(s) (${formatted}) to issue #${issue_number}`)
