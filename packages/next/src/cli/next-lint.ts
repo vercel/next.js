@@ -195,8 +195,8 @@ const nextLint: CliCommand = async (argv) => {
     typeCheckPreflight: false,
     tsconfigPath: nextConfig.typescript.tsconfigPath,
     disableStaticImages: nextConfig.images.disableStaticImages,
-    hasAppDir: Boolean(appDir),
-    hasPagesDir: Boolean(pagesDir),
+    hasAppDir: !!appDir,
+    hasPagesDir: !!pagesDir,
   })
 
   runLintCheck(baseDir, pathsToLint, hasAppDir, {
