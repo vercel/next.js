@@ -3,15 +3,14 @@
  */
 
 // @ts-check
-import * as github from '@actions/github'
-import * as core from '@actions/core'
+import { context, getOctokit } from '@actions/github'
+import { setFailed, info, debug } from '@actions/core'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const verifyCanaryLabel = 'please verify canary'
 const addReproductionLabel = 'please add a complete reproduction'
 const addMimimalReproductionLabel = 'please simplify reproduction'
-// const bugLabel = 'template: bug'
 const __dirname = `${process.env.GITHUB_WORKSPACE}/.github/actions/issue-validator/clarify`
 
 /**
@@ -38,126 +37,83 @@ const __dirname = `${process.env.GITHUB_WORKSPACE}/.github/actions/issue-validat
  */
 
 async function run() {
-  try {
-    const { payload, repo } = github.context
-    const {
-      issue,
-      pull_request,
-      label: { name: newLabel },
-    } = payload
+  const { payload, repo } = context
+  const {
+    issue,
+    pull_request,
+    label: { name: newLabel },
+  } = payload
 
-    if (pull_request || !issue?.body || !process.env.GITHUB_TOKEN) return
+  if (pull_request || !issue?.body || !process.env.GITHUB_TOKEN) return
 
-    const labels = issue.labels.map((l) => l.name)
-    // const isBugReport =
-    //   labels.includes(bugLabel) || newLabel === bugLabel || !labels.length
+  const labels = issue.labels.map((l) => l.name)
 
-    if (
-      // !(isBugReport && issue.number > 43554) &&
-      ![
-        verifyCanaryLabel,
-        addReproductionLabel,
-        addMimimalReproductionLabel,
-      ].includes(newLabel) &&
-      !(
-        labels.includes(verifyCanaryLabel) ||
-        labels.includes(addReproductionLabel) ||
-        labels.includes(addReproductionLabel)
-      )
-    ) {
-      return core.info(
-        'Not a bug report or not manually labeled or already labeled.'
-      )
-    }
+  if (
+    ![
+      verifyCanaryLabel,
+      addReproductionLabel,
+      addMimimalReproductionLabel,
+    ].includes(newLabel) &&
+    !(
+      labels.includes(verifyCanaryLabel) ||
+      labels.includes(addReproductionLabel) ||
+      labels.includes(addReproductionLabel)
+    )
+  ) {
+    return info('Not a bug report or not manually labeled or already labeled.')
+  }
 
-    // /** @param {string|null|undefined} link */
-    // async function hasRepro(link) {
-    //   if (!link) return false
-    //   try {
-    //     const url = new URL(link)
-    //     if (['example.com'].includes(url.hostname)) {
-    //       return false
-    //     }
-    //   } catch {
-    //     return false
-    //   }
-    //   const response = await fetch(link)
-    //   return response.ok
-    // }
+  const client = getOctokit(process.env.GITHUB_TOKEN).rest
+  const issueCommon = { ...repo, issue_number: issue.number }
 
-    // const hasValidRepro =
-    //   isBugReport &&
-    //   (await hasRepro(
-    //     issue.body.match(
-    //       /will be addressed faster\n\n(.*)\n\n### To Reproduce/i
-    //     )?.[1]
-    //   ))
+  if (
+    newLabel === addReproductionLabel
+    // || !hasValidRepro
+  ) {
+    await Promise.all([
+      client.issues.addLabels({
+        ...issueCommon,
+        labels: [addReproductionLabel],
+      }),
+      client.issues.createComment({
+        ...issueCommon,
+        body: readFileSync(join(__dirname, 'repro.md'), 'utf8'),
+      }),
+    ])
+    return info(
+      'Commented on issue, because it did not have a sufficient reproduction.'
+    )
+  }
 
-    const client = github.getOctokit(process.env.GITHUB_TOKEN).rest
-    const issueCommon = { ...repo, issue_number: issue.number }
+  if (newLabel === addMimimalReproductionLabel) {
+    await Promise.all([
+      client.issues.addLabels({
+        ...issueCommon,
+        labels: [addMimimalReproductionLabel],
+      }),
+      client.issues.createComment({
+        ...issueCommon,
+        body: readFileSync(join(__dirname, 'simplify-repro.md'), 'utf8'),
+      }),
+    ])
+    return info('Commented on issue, because it had a complex reproduction.')
+  }
 
-    if (
-      newLabel === addReproductionLabel
-      // || !hasValidRepro
-    ) {
-      await Promise.all([
-        client.issues.addLabels({
-          ...issueCommon,
-          labels: [addReproductionLabel],
-        }),
-        client.issues.createComment({
-          ...issueCommon,
-          body: readFileSync(join(__dirname, 'repro.md'), 'utf8'),
-        }),
-      ])
-      return core.info(
-        'Commented on issue, because it did not have a sufficient reproduction.'
-      )
-    }
-
-    if (newLabel === addMimimalReproductionLabel) {
-      await Promise.all([
-        client.issues.addLabels({
-          ...issueCommon,
-          labels: [addMimimalReproductionLabel],
-        }),
-        client.issues.createComment({
-          ...issueCommon,
-          body: readFileSync(join(__dirname, 'simplify-repro.md'), 'utf8'),
-        }),
-      ])
-      return core.info(
-        'Commented on issue, because it had a complex reproduction.'
-      )
-    }
-
-    // const isVerifyCanaryChecked =
-    //   isBugReport &&
-    //   issue.body.match(
-    //     /- \[x\] I verified that the issue exists in the latest Next.js canary release/i
-    //   )
-
-    if (
-      newLabel === verifyCanaryLabel
-      // || !isVerifyCanaryChecked
-    ) {
-      await Promise.all([
-        client.issues.addLabels({
-          ...issueCommon,
-          labels: [verifyCanaryLabel],
-        }),
-        client.issues.createComment({
-          ...issueCommon,
-          body: readFileSync(join(__dirname, 'canary.md'), 'utf8'),
-        }),
-      ])
-      return core.info(
-        'Commented on issue, because it was not verified against canary.'
-      )
-    }
-  } catch (error) {
-    core.setFailed(error.message)
+  if (newLabel === verifyCanaryLabel) {
+    await Promise.all([
+      client.issues.addLabels({
+        ...issueCommon,
+        labels: [verifyCanaryLabel],
+      }),
+      client.issues.createComment({
+        ...issueCommon,
+        body: readFileSync(join(__dirname, 'canary.md'), 'utf8'),
+      }),
+    ])
+    return info(
+      'Commented on issue, because it was not verified against canary.'
+    )
   }
 }
 
-run()
+run().catch(setFailed)
