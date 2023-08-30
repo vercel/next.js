@@ -69,7 +69,10 @@ async function hasRepro(link) {
   if (!link) return false
   try {
     const url = new URL(link)
-    if (!['github.com', 'codesandbox.io'].includes(url.hostname)) return false
+    if (
+      !['github.com', 'codesandbox.io', 'app.replay.io'].includes(url.hostname)
+    )
+      return false
     const { status } = await fetch(link)
     // Verify that it's not a private repo/sandbox
     // We allow 500, in case it's downtime on one of the services
