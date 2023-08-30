@@ -456,6 +456,16 @@ async function findPagePathData(
     }
   }
 
+  if (page === '/not-found' && appDir) {
+    return {
+      absolutePagePath: require.resolve(
+        'next/dist/client/components/not-found-error'
+      ),
+      bundlePath: 'app/not-found',
+      page: '/not-found',
+    }
+  }
+
   if (page === '/_error') {
     return {
       absolutePagePath: require.resolve('next/dist/pages/_error'),
@@ -666,9 +676,6 @@ export function onDemandEntryHandler({
         continue
       }
 
-      // 404 is an on demand entry but when a new page is added we have to refresh the page
-      toSend = page === '/_error' ? { invalid: true } : { success: true }
-
       // We don't need to maintain active state of anything other than BUILT entries
       if (entryInfo.status !== BUILT) continue
 
@@ -683,6 +690,7 @@ export function onDemandEntryHandler({
       }
       entryInfo.lastActiveTime = Date.now()
       entryInfo.dispose = false
+      toSend = { success: true }
     }
     return toSend
   }

@@ -67,6 +67,7 @@ import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plu
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
 import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plugin'
 import { getSupportedBrowsers } from './utils'
+import { MemoryWithGcCachePlugin } from './webpack/plugins/memory-with-gc-cache-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -114,12 +115,7 @@ const edgeConditionNames = [
 const mainFieldsPerCompiler: Record<CompilerNameValues, string[]> = {
   [COMPILER_NAMES.server]: ['main', 'module'],
   [COMPILER_NAMES.client]: ['browser', 'module', 'main'],
-  [COMPILER_NAMES.edgeServer]: [
-    'edge-light',
-    'worker',
-    // inherits the default conditions
-    '...',
-  ],
+  [COMPILER_NAMES.edgeServer]: edgeConditionNames,
 }
 
 const BABEL_CONFIG_FILES = [
@@ -283,9 +279,6 @@ export function getDefineEnv({
     ),
     'process.env.__NEXT_MANUAL_CLIENT_BASE_PATH': JSON.stringify(
       config.experimental.manualClientBasePath
-    ),
-    'process.env.__NEXT_NEW_LINK_BEHAVIOR': JSON.stringify(
-      config.experimental.newNextLinkBehavior
     ),
     'process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED': JSON.stringify(
       config.experimental.clientRouterFilter
@@ -531,6 +524,31 @@ function getOptimizedAliases(): { [pkg: string]: string } {
   )
 }
 
+// Alias these modules to be resolved with "module" if possible.
+function getModularizeImportAliases(packages: string[]) {
+  const aliases: { [pkg: string]: string } = {}
+  const mainFields = ['module', 'main']
+
+  for (const pkg of packages) {
+    try {
+      const descriptionFileData = require(`${pkg}/package.json`)
+      const descriptionFilePath = require.resolve(`${pkg}/package.json`)
+
+      for (const field of mainFields) {
+        if (descriptionFileData.hasOwnProperty(field)) {
+          aliases[pkg] = path.join(
+            path.dirname(descriptionFilePath),
+            descriptionFileData[field]
+          )
+          break
+        }
+      }
+    } catch {}
+  }
+
+  return aliases
+}
+
 export function attachReactRefresh(
   webpackConfig: webpack.Configuration,
   targetLoader: webpack.RuleSetUseItem
@@ -718,7 +736,7 @@ export async function loadProjectInfo({
   dev: boolean
 }) {
   const { jsConfig, resolvedBaseUrl } = await loadJsConfig(dir, config)
-  const supportedBrowsers = await getSupportedBrowsers(dir, dev, config)
+  const supportedBrowsers = await getSupportedBrowsers(dir, dev)
   return {
     jsConfig,
     resolvedBaseUrl,
@@ -890,7 +908,6 @@ export default async function getBaseWebpackConfig(
         appDir,
         hasReactRefresh: dev && isClient,
         hasServerComponents: true,
-        fileReading: config.experimental.swcFileReading,
         nextConfig: config,
         jsConfig,
         supportedBrowsers,
@@ -1164,6 +1181,14 @@ export default async function getBaseWebpackConfig(
       ...(isClient || isEdgeServer ? getOptimizedAliases() : {}),
       ...(reactProductionProfiling ? getReactProfilingInProduction() : {}),
 
+      // For Node server, we need to re-alias the package imports to prefer to
+      // resolve to the ESM export.
+      ...(isNodeServer
+        ? getModularizeImportAliases(
+            config.experimental.optimizePackageImports || []
+          )
+        : {}),
+
       [RSC_ACTION_VALIDATE_ALIAS]:
         'next/dist/build/webpack/loaders/next-flight-loader/action-validate',
 
@@ -1393,6 +1418,12 @@ export default async function getBaseWebpackConfig(
     // @swc/helpers should not be external as it would
     // require hoisting the package which we can't rely on
     if (request.includes('@swc/helpers')) {
+      return
+    }
+
+    // __barrel_optimize__ is a special marker that tells Next.js to
+    // optimize the import by removing unused exports. This has to be compiled.
+    if (request.startsWith('__barrel_optimize__')) {
       return
     }
 
@@ -1935,6 +1966,7 @@ export default async function getBaseWebpackConfig(
         'next-invalid-import-error-loader',
         'next-metadata-route-loader',
         'modularize-import-loader',
+        'next-barrel-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
@@ -1949,6 +1981,52 @@ export default async function getBaseWebpackConfig(
     },
     module: {
       rules: [
+        {
+          // This loader rule passes the resource to the SWC loader with
+          // `optimizeBarrelExports` enabled. This option makes the SWC to
+          // transform the original code to be a JSON of its export map, so
+          // the barrel loader can analyze it and only keep the needed ones.
+          test: /__barrel_transform__/,
+          use: ({ resourceQuery }: { resourceQuery: string }) => {
+            const isFromWildcardExport = /[&?]wildcard/.test(resourceQuery)
+
+            return [
+              getSwcLoader({
+                hasServerComponents: false,
+                optimizeBarrelExports: {
+                  wildcard: isFromWildcardExport,
+                },
+              }),
+            ]
+          },
+        },
+        {
+          // This loader rule works like a bridge between user's import and
+          // the target module behind a package's barrel file. It reads SWC's
+          // analysis result from the previous loader, and directly returns the
+          // code that only exports values that are asked by the user.
+          test: /__barrel_optimize__/,
+          use: ({ resourceQuery }: { resourceQuery: string }) => {
+            const names = (
+              resourceQuery.match(/\?names=([^&]+)/)?.[1] || ''
+            ).split(',')
+            const isFromWildcardExport = /[&?]wildcard/.test(resourceQuery)
+
+            return [
+              {
+                loader: 'next-barrel-loader',
+                options: {
+                  names,
+                  wildcard: isFromWildcardExport,
+                },
+                // This is part of the request value to serve as the module key.
+                // The barrel loader are no-op re-exported modules keyed by
+                // export names.
+                ident: 'next-barrel-loader:' + resourceQuery,
+              },
+            ]
+          },
+        },
         ...(hasAppDir
           ? [
               {
@@ -2004,9 +2082,7 @@ export default async function getBaseWebpackConfig(
         ...(hasAppDir && !isClient
           ? [
               {
-                issuerLayer: {
-                  or: [isWebpackServerLayer],
-                },
+                issuerLayer: isWebpackServerLayer,
                 test: {
                   // Resolve it if it is a source code file, and it has NOT been
                   // opted out of bundling.
@@ -2142,9 +2218,7 @@ export default async function getBaseWebpackConfig(
               ? [
                   {
                     test: codeCondition.test,
-                    issuerLayer: {
-                      or: [isWebpackServerLayer],
-                    },
+                    issuerLayer: isWebpackServerLayer,
                     exclude: [asyncStoragesRegex],
                     use: swcLoaderForServerLayer,
                   },
@@ -2351,6 +2425,7 @@ export default async function getBaseWebpackConfig(
       ].filter(Boolean),
     },
     plugins: [
+      dev && new MemoryWithGcCachePlugin({ maxGenerations: 5 }),
       dev && isClient && new ReactRefreshWebpackPlugin(webpack),
       // Makes sure `Buffer` and `process` are polyfilled in client and flight bundles (same behavior as webpack 4)
       (isClient || isEdgeServer) &&
@@ -2689,12 +2764,13 @@ export default async function getBaseWebpackConfig(
     relay: config.compiler?.relay,
     emotion: config.compiler?.emotion,
     modularizeImports: config.modularizeImports,
-    legacyBrowsers: config.experimental?.legacyBrowsers,
     imageLoaderFile: config.images.loaderFile,
   })
 
   const cache: any = {
     type: 'filesystem',
+    // Disable memory cache in development in favor of our own MemoryWithGcCachePlugin.
+    maxMemoryGenerations: dev ? 0 : Infinity, // Infinity is default value for production in webpack currently.
     // Includes:
     //  - Next.js version
     //  - next.config.js keys that affect compilation
@@ -3062,98 +3138,6 @@ export default async function getBaseWebpackConfig(
         `\n@zeit/next-typescript is no longer needed since Next.js has built-in support for TypeScript now. Please remove it from your ${config.configFileName} and your .babelrc\n`
       )
     }
-  }
-
-  // Patch `@zeit/next-sass`, `@zeit/next-less`, `@zeit/next-stylus` for compatibility
-  if (webpackConfig.module && Array.isArray(webpackConfig.module.rules)) {
-    ;[].forEach.call(
-      webpackConfig.module.rules,
-      function (rule: webpack.RuleSetRule) {
-        if (!(rule.test instanceof RegExp && Array.isArray(rule.use))) {
-          return
-        }
-
-        const isSass =
-          rule.test.source === '\\.scss$' || rule.test.source === '\\.sass$'
-        const isLess = rule.test.source === '\\.less$'
-        const isCss = rule.test.source === '\\.css$'
-        const isStylus = rule.test.source === '\\.styl$'
-
-        // Check if the rule we're iterating over applies to Sass, Less, or CSS
-        if (!(isSass || isLess || isCss || isStylus)) {
-          return
-        }
-
-        ;[].forEach.call(rule.use, function (use: webpack.RuleSetUseItem) {
-          if (
-            !(
-              use &&
-              typeof use === 'object' &&
-              // Identify use statements only pertaining to `css-loader`
-              (use.loader === 'css-loader' ||
-                use.loader === 'css-loader/locals') &&
-              use.options &&
-              typeof use.options === 'object' &&
-              // The `minimize` property is a good heuristic that we need to
-              // perform this hack. The `minimize` property was only valid on
-              // old `css-loader` versions. Custom setups (that aren't next-sass,
-              // next-less or next-stylus) likely have the newer version.
-              // We still handle this gracefully below.
-              (Object.prototype.hasOwnProperty.call(use.options, 'minimize') ||
-                Object.prototype.hasOwnProperty.call(
-                  use.options,
-                  'exportOnlyLocals'
-                ))
-            )
-          ) {
-            return
-          }
-
-          // Try to monkey patch within a try-catch. We shouldn't fail the build
-          // if we cannot pull this off.
-          // The user may not even be using the `next-sass` or `next-less` or
-          // `next-stylus` plugins.
-          // If it does work, great!
-          try {
-            // Resolve the version of `@zeit/next-css` as depended on by the Sass,
-            // Less or Stylus plugin.
-            const correctNextCss = require.resolve('@zeit/next-css', {
-              paths: [
-                isCss
-                  ? // Resolve `@zeit/next-css` from the base directory
-                    dir
-                  : // Else, resolve it from the specific plugins
-                    require.resolve(
-                      isSass
-                        ? '@zeit/next-sass'
-                        : isLess
-                        ? '@zeit/next-less'
-                        : isStylus
-                        ? '@zeit/next-stylus'
-                        : 'next'
-                    ),
-              ],
-            })
-
-            // If we found `@zeit/next-css` ...
-            if (correctNextCss) {
-              // ... resolve the version of `css-loader` shipped with that
-              // package instead of whichever was hoisted highest in your
-              // `node_modules` tree.
-              const correctCssLoader = require.resolve(use.loader, {
-                paths: [correctNextCss],
-              })
-              if (correctCssLoader) {
-                // We saved the user from a failed build!
-                use.loader = correctCssLoader
-              }
-            }
-          } catch (_) {
-            // The error is not required to be handled.
-          }
-        })
-      }
-    )
   }
 
   // Backwards compat for `main.js` entry key

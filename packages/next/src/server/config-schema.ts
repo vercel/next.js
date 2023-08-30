@@ -350,9 +350,6 @@ const configSchema = {
         largePageDataBytes: {
           type: 'number',
         },
-        legacyBrowsers: {
-          type: 'boolean',
-        },
         manualClientBasePath: {
           type: 'boolean',
         },
@@ -360,9 +357,6 @@ const configSchema = {
           // automatic typing doesn't like enum
           enum: ['strict', 'flexible'] as any,
           type: 'string',
-        },
-        newNextLinkBehavior: {
-          type: 'boolean',
         },
         nextScriptWorkers: {
           type: 'boolean',
@@ -424,9 +418,6 @@ const configSchema = {
         strictNextHead: {
           type: 'boolean',
         },
-        swcFileReading: {
-          type: 'boolean',
-        },
         swcMinify: {
           type: 'boolean',
         },
@@ -472,6 +463,9 @@ const configSchema = {
               type: 'object',
             },
           },
+        },
+        optimizePackageImports: {
+          type: 'array',
         },
         instrumentationHook: {
           type: 'boolean',
@@ -748,6 +742,7 @@ const configSchema = {
     },
     reactStrictMode: {
       type: 'boolean',
+      nullable: true,
     },
     redirects: {
       isFunction: true,

@@ -85,6 +85,8 @@ import {
   RSC_VARY_HEADER,
   FLIGHT_PARAMETERS,
   NEXT_RSC_UNION_QUERY,
+  NEXT_ROUTER_PREFETCH,
+  RSC_CONTENT_TYPE_HEADER,
 } from '../client/components/app-router-headers'
 import {
   MatchOptions,
@@ -113,6 +115,8 @@ import {
   NextRequestAdapter,
   signalFromNodeResponse,
 } from './web/spec-extension/adapters/next-request'
+import { matchNextDataPathname } from './lib/match-next-data-pathname'
+import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -324,6 +328,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     renderOpts: RenderOpts
   ): Promise<RenderResult>
 
+  protected async getPrefetchRsc(_pathname: string): Promise<string | null> {
+    return null
+  }
+
   protected abstract getIncrementalCache(options: {
     requestHeaders: Record<string, undefined | string | string[]>
     requestProtocol: 'http' | 'https'
@@ -477,11 +485,102 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     return this.matchers.reload()
   }
 
-  protected async normalizeNextData(
-    _req: BaseNextRequest,
-    _res: BaseNextResponse,
-    _parsedUrl: NextUrlWithParsedQuery
+  protected async handleNextDataRequest(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    parsedUrl: NextUrlWithParsedQuery
   ): Promise<{ finished: boolean }> {
+    const middleware = this.getMiddleware()
+    const params = matchNextDataPathname(parsedUrl.pathname)
+
+    // ignore for non-next data URLs
+    if (!params || !params.path) {
+      return { finished: false }
+    }
+
+    if (params.path[0] !== this.buildId) {
+      // Ignore if its a middleware request when we aren't on edge.
+      if (
+        process.env.NEXT_RUNTIME !== 'edge' &&
+        req.headers['x-middleware-invoke']
+      ) {
+        return { finished: false }
+      }
+
+      // Make sure to 404 if the buildId isn't correct
+      await this.render404(req, res, parsedUrl)
+      return { finished: true }
+    }
+
+    // remove buildId from URL
+    params.path.shift()
+
+    const lastParam = params.path[params.path.length - 1]
+
+    // show 404 if it doesn't end with .json
+    if (typeof lastParam !== 'string' || !lastParam.endsWith('.json')) {
+      await this.render404(req, res, parsedUrl)
+      return {
+        finished: true,
+      }
+    }
+
+    // re-create page's pathname
+    let pathname = `/${params.path.join('/')}`
+    pathname = getRouteFromAssetPath(pathname, '.json')
+
+    // ensure trailing slash is normalized per config
+    if (middleware) {
+      if (this.nextConfig.trailingSlash && !pathname.endsWith('/')) {
+        pathname += '/'
+      }
+      if (
+        !this.nextConfig.trailingSlash &&
+        pathname.length > 1 &&
+        pathname.endsWith('/')
+      ) {
+        pathname = pathname.substring(0, pathname.length - 1)
+      }
+    }
+
+    if (this.i18nProvider) {
+      // Remove the port from the hostname if present.
+      const hostname = req?.headers.host?.split(':')[0].toLowerCase()
+
+      const domainLocale = this.i18nProvider.detectDomainLocale(hostname)
+      const defaultLocale =
+        domainLocale?.defaultLocale ?? this.i18nProvider.config.defaultLocale
+
+      const localePathResult = this.i18nProvider.analyze(pathname)
+
+      // If the locale is detected from the path, we need to remove it
+      // from the pathname.
+      if (localePathResult.detectedLocale) {
+        pathname = localePathResult.pathname
+      }
+
+      // Update the query with the detected locale and default locale.
+      parsedUrl.query.__nextLocale = localePathResult.detectedLocale
+      parsedUrl.query.__nextDefaultLocale = defaultLocale
+
+      // If the locale is not detected from the path, we need to mark that
+      // it was not inferred from default.
+      if (!localePathResult.detectedLocale) {
+        delete parsedUrl.query.__nextInferredLocaleFromDefault
+      }
+
+      // If no locale was detected and we don't have middleware, we need
+      // to render a 404 page.
+      if (!localePathResult.detectedLocale && !middleware) {
+        parsedUrl.query.__nextLocale = defaultLocale
+        await this.render404(req, res, parsedUrl)
+        return { finished: true }
+      }
+    }
+
+    parsedUrl.pathname = pathname
+    parsedUrl.query.__nextDataReq = '1'
+
     return { finished: false }
   }
 
@@ -936,7 +1035,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           parsedUrl.pathname = matchedPath
           url.pathname = parsedUrl.pathname
 
-          const normalizeResult = await this.normalizeNextData(
+          const normalizeResult = await this.handleNextDataRequest(
             req,
             res,
             parsedUrl
@@ -1040,7 +1139,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const useInvokePath =
         !useMatchedPathHeader &&
         process.env.NEXT_RUNTIME !== 'edge' &&
-        process.env.__NEXT_PRIVATE_RENDER_WORKER &&
         invokePath
 
       if (useInvokePath) {
@@ -1120,7 +1218,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             return
           }
         }
-        const nextDataResult = await this.normalizeNextData(req, res, parsedUrl)
+        const nextDataResult = await this.handleNextDataRequest(
+          req,
+          res,
+          parsedUrl
+        )
 
         if (nextDataResult.finished) {
           return
@@ -1131,10 +1233,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       if (
         process.env.NEXT_RUNTIME !== 'edge' &&
-        process.env.__NEXT_PRIVATE_RENDER_WORKER &&
         req.headers['x-middleware-invoke']
       ) {
-        const nextDataResult = await this.normalizeNextData(req, res, parsedUrl)
+        const nextDataResult = await this.handleNextDataRequest(
+          req,
+          res,
+          parsedUrl
+        )
 
         if (nextDataResult.finished) {
           return
@@ -1443,8 +1548,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     let staticPaths: string[] | undefined
 
     let fallbackMode: FallbackMode
+    let hasFallback = false
+    const isDynamic = isDynamicRoute(components.pathname)
 
-    if (isAppPath) {
+    if (isAppPath && isDynamic) {
       const pathsResult = await this.getStaticPaths({
         pathname,
         originalAppPath: components.pathname,
@@ -1453,26 +1560,40 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       staticPaths = pathsResult.staticPaths
       fallbackMode = pathsResult.fallbackMode
+      hasFallback = typeof fallbackMode !== 'undefined'
 
-      const hasFallback = typeof fallbackMode !== 'undefined'
+      if (this.nextConfig.output === 'export') {
+        const page = components.pathname
+
+        if (fallbackMode !== 'static') {
+          throw new Error(
+            `Page "${page}" is missing exported function "generateStaticParams()", which is required with "output: export" config.`
+          )
+        }
+        const resolvedWithoutSlash = removeTrailingSlash(resolvedUrlPathname)
+        if (!staticPaths?.includes(resolvedWithoutSlash)) {
+          throw new Error(
+            `Page "${page}" is missing param "${resolvedWithoutSlash}" in "generateStaticParams()", which is required with "output: export" config.`
+          )
+        }
+      }
 
       if (hasFallback) {
         hasStaticPaths = true
       }
+    }
 
-      if (
-        hasFallback ||
-        staticPaths?.includes(resolvedUrlPathname) ||
-        // this signals revalidation in deploy environments
-        // TODO: make this more generic
-        req.headers['x-now-route-matches']
-      ) {
-        isSSG = true
-      } else if (!this.renderOpts.dev) {
-        const manifest = this.getPrerenderManifest()
-        isSSG =
-          isSSG || !!manifest.routes[pathname === '/index' ? '/' : pathname]
-      }
+    if (
+      hasFallback ||
+      staticPaths?.includes(resolvedUrlPathname) ||
+      // this signals revalidation in deploy environments
+      // TODO: make this more generic
+      req.headers['x-now-route-matches']
+    ) {
+      isSSG = true
+    } else if (!this.renderOpts.dev) {
+      const manifest = this.getPrerenderManifest()
+      isSSG = isSSG || !!manifest.routes[pathname === '/index' ? '/' : pathname]
     }
 
     // Toggle whether or not this is a Data request
@@ -1493,6 +1614,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       !(is404Page || pathname === '/_error')
     ) {
       res.setHeader('x-middleware-skip', '1')
+      res.setHeader(
+        'cache-control',
+        'private, no-cache, no-store, max-age=0, must-revalidate'
+      )
       res.body('{}').send()
       return null
     }
@@ -1921,6 +2046,31 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       } else if (
         components.routeModule?.definition.kind === RouteKind.APP_PAGE
       ) {
+        const isAppPrefetch = req.headers[NEXT_ROUTER_PREFETCH.toLowerCase()]
+
+        if (
+          isAppPrefetch &&
+          ssgCacheKey &&
+          process.env.NODE_ENV === 'production'
+        ) {
+          try {
+            const prefetchRsc = await this.getPrefetchRsc(ssgCacheKey)
+
+            if (prefetchRsc) {
+              res.setHeader(
+                'cache-control',
+                'private, no-cache, no-store, max-age=0, must-revalidate'
+              )
+              res.setHeader('content-type', RSC_CONTENT_TYPE_HEADER)
+              res.body(prefetchRsc).send()
+              return null
+            }
+          } catch (_) {
+            // we fallback to invoking the function if prefetch
+            // data is not available
+          }
+        }
+
         const module = components.routeModule as AppPageRouteModule
 
         // Due to the way we pass data by mutating `renderOpts`, we can't extend the

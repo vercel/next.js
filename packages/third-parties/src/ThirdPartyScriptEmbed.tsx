@@ -1,7 +1,7 @@
 import React from 'react'
 
 export type ScriptEmbed = {
-  content?: string
+  html?: string | null
   height?: number | null
   width?: number | null
   children?: React.ReactElement | React.ReactElement[]
@@ -9,7 +9,7 @@ export type ScriptEmbed = {
 }
 
 export default function ThirdPartyScriptEmbed({
-  content,
+  html,
   height = null,
   width = null,
   children,
@@ -19,17 +19,17 @@ export default function ThirdPartyScriptEmbed({
     <>
       {/* insert script children */}
       {children}
-      {/* insert content */}
-      {content && (
+      {/* insert html */}
+      {html ? (
         <div
           style={{
             height: height != null ? `${height}px` : 'auto',
             width: width != null ? `${width}px` : 'auto',
           }}
           data-ntpc={dataNtpc}
-          dangerouslySetInnerHTML={{ __html: content }}
+          dangerouslySetInnerHTML={{ __html: html }}
         />
-      )}
+      ) : null}
     </>
   )
 }
