@@ -5,10 +5,7 @@ import { join } from 'path'
 import chalk from 'next/dist/compiled/chalk'
 
 import { CliCommand } from '../lib/commands'
-import {
-  ESLINT_DEFAULT_DIRS,
-  ESLINT_DEFAULT_DIRS_WITH_APP,
-} from '../lib/constants'
+import { ESLINT_DEFAULT_DIRS_WITH_APP } from '../lib/constants'
 import { runLintCheck } from '../lib/eslint/runLintCheck'
 import { printAndExit } from '../server/lib/utils'
 import { Telemetry } from '../telemetry/storage'
