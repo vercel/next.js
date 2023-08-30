@@ -53,7 +53,10 @@ import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { normalizeMetadataRoute } from '../lib/metadata/get-metadata-route'
 import { fileExists } from '../lib/file-exists'
 import { getRouteLoaderEntry } from './webpack/loaders/next-route-loader'
-import { isInternalComponent } from '../lib/is-internal-component'
+import {
+  isInternalComponent,
+  isNonRoutePagesPage,
+} from '../lib/is-internal-component'
 import { isStaticMetadataRouteFile } from '../lib/metadata/is-metadata-route'
 import { RouteKind } from '../server/future/route-kind'
 import { encodeToBase64 } from './webpack/loaders/utils'
@@ -645,7 +648,8 @@ export async function createEntrypoints(
             ]
           } else if (
             !isMiddlewareFile(page) &&
-            !isInternalComponent(absolutePagePath)
+            !isInternalComponent(absolutePagePath) &&
+            !isNonRoutePagesPage(page)
           ) {
             server[serverBundlePath] = [
               getRouteLoaderEntry({
