@@ -25,7 +25,7 @@ For usage, review [Google Fonts](/docs/app/building-your-application/optimizing/
 | [`adjustFontFallback`](#adjustfontfallback) | <Check size={18} /> | <Check size={18} /> | Boolean or String          | -                 |
 | [`variable`](#variable)                     | <Check size={18} /> | <Check size={18} /> | String                     | -                 |
 | [`declarations`](#declarations)             | <Cross size={18} /> | <Check size={18} /> | Array of Objects           | -                 |
-| [`usedFontFamilyName`](#usedfontfamilyname) | <Check size={18} /> | <Check size={18} /> | String                     | -                 |
+| [`fixedFontFamily`](#fixedFontFamily)       | <Check size={18} /> | <Check size={18} /> | String                     | -                 |
 
 ### `src`
 
@@ -175,7 +175,7 @@ Examples:
 
 - `declarations: [{ prop: 'ascent-override', value: '90%' }]`
 
-### `usedFontFamilyName`
+### `fixedFontFamily`
 
 A predefined font-family name used in @font-face and style declarations instead of the default hashed name.
 This argument is useful when the font-family name is already defined in a 3rd party library and you need the loaded font to match it.
@@ -186,7 +186,7 @@ Used in `next/font/google` and `next/font/local`
 
 Examples:
 
-- `usedFontFamilyName: "Inter"`
+- `fixedFontFamily: "Inter"`
 
 ## Applying Styles
 

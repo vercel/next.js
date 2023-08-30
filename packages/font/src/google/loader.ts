@@ -34,7 +34,7 @@ const nextFontGoogleFontLoader: FontLoader = async ({
 }) => {
   const {
     fontFamily,
-    usedFontFamilyName,
+    fixedFontFamily,
     weights,
     styles,
     display,
@@ -70,7 +70,7 @@ const nextFontGoogleFontLoader: FontLoader = async ({
     style: styles.length === 1 ? styles[0] : undefined,
     variable,
     adjustFontFallback: adjustFontFallbackMetrics,
-    usedFontFamilyName,
+    fixedFontFamily,
   }
 
   try {

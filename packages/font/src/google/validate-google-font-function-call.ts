@@ -5,7 +5,7 @@ import { googleFontsMetadata } from './google-fonts-metadata'
 
 type FontOptions = {
   fontFamily: string
-  usedFontFamilyName?: string
+  fixedFontFamily?: string
   weights: string[]
   styles: string[]
   display: string
@@ -33,7 +33,7 @@ export function validateGoogleFontFunctionCall(
     adjustFontFallback = true,
     variable,
     subsets,
-    usedFontFamilyName,
+    fixedFontFamily,
   } = fontFunctionArgument || ({} as any)
   if (functionName === '') {
     nextFontError(`next/font/google has no default export`)
@@ -143,7 +143,7 @@ export function validateGoogleFontFunctionCall(
 
   return {
     fontFamily,
-    usedFontFamilyName,
+    fixedFontFamily,
     weights,
     styles,
     display,

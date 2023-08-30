@@ -81,7 +81,7 @@ const fetch = require('node-fetch')
     ${hasPreloadableSubsets ? 'preload?:boolean' : ''}
     fallback?: string[]
     adjustFontFallback?: boolean
-    usedFontFamilyName?: string
+    fixedFontFamily?: string
     ${hasPreloadableSubsets ? `subsets?: Array<${formatUnion(subsets)}>` : ''}
     ${
       optionalAxes
