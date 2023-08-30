@@ -532,10 +532,14 @@ function getModularizeImportAliases(packages: string[]) {
   for (const pkg of packages) {
     try {
       const descriptionFileData = require(`${pkg}/package.json`)
+      const descriptionFilePath = require.resolve(`${pkg}/package.json`)
 
       for (const field of mainFields) {
         if (descriptionFileData.hasOwnProperty(field)) {
-          aliases[pkg] = `${pkg}/${descriptionFileData[field]}`
+          aliases[pkg] = path.join(
+            path.dirname(descriptionFilePath),
+            descriptionFileData[field]
+          )
           break
         }
       }
@@ -1178,7 +1182,7 @@ export default async function getBaseWebpackConfig(
       ...(reactProductionProfiling ? getReactProfilingInProduction() : {}),
 
       // For Node server, we need to re-alias the package imports to prefer to
-      // resolve to the module export.
+      // resolve to the ESM export.
       ...(isNodeServer
         ? getModularizeImportAliases(
             config.experimental.optimizePackageImports || []
@@ -1962,6 +1966,7 @@ export default async function getBaseWebpackConfig(
         'next-invalid-import-error-loader',
         'next-metadata-route-loader',
         'modularize-import-loader',
+        'next-barrel-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
@@ -1977,21 +1982,48 @@ export default async function getBaseWebpackConfig(
     module: {
       rules: [
         {
-          test: /__barrel_optimize__/,
-          use: ({
-            resourceQuery,
-            issuerLayer,
-          }: {
-            resourceQuery: string
-            issuerLayer: string
-          }) => {
-            const names = resourceQuery.slice('?names='.length).split(',')
+          // This loader rule passes the resource to the SWC loader with
+          // `optimizeBarrelExports` enabled. This option makes the SWC to
+          // transform the original code to be a JSON of its export map, so
+          // the barrel loader can analyze it and only keep the needed ones.
+          test: /__barrel_transform__/,
+          use: ({ resourceQuery }: { resourceQuery: string }) => {
+            const isFromWildcardExport = /[&?]wildcard/.test(resourceQuery)
+
             return [
               getSwcLoader({
-                isServerLayer:
-                  issuerLayer === WEBPACK_LAYERS.reactServerComponents,
-                optimizeBarrelExports: names,
+                hasServerComponents: false,
+                optimizeBarrelExports: {
+                  wildcard: isFromWildcardExport,
+                },
               }),
+            ]
+          },
+        },
+        {
+          // This loader rule works like a bridge between user's import and
+          // the target module behind a package's barrel file. It reads SWC's
+          // analysis result from the previous loader, and directly returns the
+          // code that only exports values that are asked by the user.
+          test: /__barrel_optimize__/,
+          use: ({ resourceQuery }: { resourceQuery: string }) => {
+            const names = (
+              resourceQuery.match(/\?names=([^&]+)/)?.[1] || ''
+            ).split(',')
+            const isFromWildcardExport = /[&?]wildcard/.test(resourceQuery)
+
+            return [
+              {
+                loader: 'next-barrel-loader',
+                options: {
+                  names,
+                  wildcard: isFromWildcardExport,
+                },
+                // This is part of the request value to serve as the module key.
+                // The barrel loader are no-op re-exported modules keyed by
+                // export names.
+                ident: 'next-barrel-loader:' + resourceQuery,
+              },
             ]
           },
         },
