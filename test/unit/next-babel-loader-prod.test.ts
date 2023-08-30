@@ -41,7 +41,6 @@ const babel = async (code: string, queryOpts = {} as any) => {
       callback,
       emitWarning() {},
       query: options,
-      // @ts-ignore exists
       getOptions: function () {
         return options
       },

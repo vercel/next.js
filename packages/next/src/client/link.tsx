@@ -276,8 +276,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       onClick,
       onMouseEnter: onMouseEnterProp,
       onTouchStart: onTouchStartProp,
-      // @ts-expect-error this is inlined as a literal boolean not a string
-      legacyBehavior = process.env.__NEXT_NEW_LINK_BEHAVIOR === false,
+      legacyBehavior = false,
       ...restProps
     } = props
 
