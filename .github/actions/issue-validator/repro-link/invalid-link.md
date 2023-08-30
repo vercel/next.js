@@ -1,4 +1,4 @@
-We could not detect a valid reproduction link. **Make sure to follow the bug report tempalte carefully.**
+We could not detect a valid reproduction link. **Make sure to follow the bug report template carefully.**
 
 ### Why was this issue closed?
 
@@ -6,9 +6,9 @@ To be able to investigate, we need access to a reproduction to identify what tri
 
 The bug template that you filled out has a section called "Link to the code that reproduces this issue or a replay of the bug", which is where you should provide the link to the reproduction.
 
-- If you did not provide a link, or the link you provided is not valid, we will close the issue.
-- If you provided a link to a private repository, we will close the issue.
-- If you provided a link to a repository but not in the correct section, we will close the issue.
+- If you did not provide a link or the link you provided is not valid, we will close the issue.
+- If you provide a link to a private repository, we will close the issue.
+- If you provide a link to a repository but not in the correct section, we will close the issue.
 
 ### What should I do?
 
@@ -24,7 +24,7 @@ Depending on the reason the issue was closed, you can do the following:
 
 If you cannot make your repository public, you can create a new repository with the reproduction code. The most common use case we hear for not being able to comply with a public repository is that the repository contains sensitive information/company code. In most cases, this would not be a sufficient **minimal reproduction** anyway, as this codebase might contain a lot of unrelated parts that would make our investigation take longer. Strive for debugging your own code and remove anything unrelated to the issue. Common things to look out for:
 
-- Remove any code that is not related to the issue. (pages, api routes, components, etc.)
+- Remove any code that is not related to the issue. (pages, API routes, components, etc.)
 - Remove any dependencies that are not related to the issue.
 - Remove any third-party service that would require us to sign up for an account to reproduce the issue.
 - Remove any environment variables that are not related to the issue.
@@ -33,9 +33,9 @@ If you cannot make your repository public, you can create a new repository with 
 
 ### I did not open this issue, but it is relevant to me, what can I do to help?
 
-Anyone experiencing the same issue is welcome to provide a minimal reproduction following the above steps in by opening a new issue.
+Anyone experiencing the same issue is welcome to provide a minimal reproduction following the above steps by opening a new issue.
 
-### I think my reproduction is good enough, why aren't you looking into it quicker?
+### I think my reproduction is good enough, why aren't you looking into it quickly?
 
 We look into every Next.js issue and constantly monitor open issues for new comments.
 
