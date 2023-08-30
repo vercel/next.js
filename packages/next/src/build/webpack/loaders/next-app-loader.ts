@@ -23,6 +23,7 @@ import { MiddlewareConfig } from '../../analysis/get-page-static-info'
 import { getFilenameAndExtension } from './next-metadata-route-loader'
 import { isAppBuiltinNotFoundPage } from '../../utils'
 import { loadEntrypoint } from '../../load-entrypoint'
+import { isGroupSegment } from '../../../shared/lib/segment'
 
 export type AppLoaderOptions = {
   name: string
@@ -74,10 +75,6 @@ export type ComponentsType = {
   readonly metadata?: CollectedMetadata
 } & {
   readonly defaultPage?: ModuleReference
-}
-
-function isGroupSegment(segment: string) {
-  return segment.startsWith('(') && segment.endsWith(')')
 }
 
 async function createAppRouteCode({

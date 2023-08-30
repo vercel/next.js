@@ -258,9 +258,8 @@ where
             None => Either::Right(noop()),
         },
         match &opts.optimize_barrel_exports {
-            Some(config) => Either::Left(optimize_barrel::optimize_barrel(
-                file.name.clone(),config.clone())),
-            None => Either::Right(noop()),
+            Some(config) => Either::Left(optimize_barrel::optimize_barrel(config.clone())),
+            _ => Either::Right(noop()),
         },
         opts.emotion
             .as_ref()

@@ -1614,6 +1614,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       !(is404Page || pathname === '/_error')
     ) {
       res.setHeader('x-middleware-skip', '1')
+      res.setHeader(
+        'cache-control',
+        'private, no-cache, no-store, max-age=0, must-revalidate'
+      )
       res.body('{}').send()
       return null
     }
