@@ -18,7 +18,6 @@ import {
   RSC_ACTION_VALIDATE_ALIAS,
   WEBPACK_RESOURCE_QUERIES,
 } from '../lib/constants'
-import { fileExists } from '../lib/file-exists'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import {
@@ -68,6 +67,7 @@ import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integr
 import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plugin'
 import { getSupportedBrowsers } from './utils'
 import { MemoryWithGcCachePlugin } from './webpack/plugins/memory-with-gc-cache-plugin'
+import { getBabelConfigFile } from './get-babel-config-file'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -116,32 +116,6 @@ const mainFieldsPerCompiler: Record<CompilerNameValues, string[]> = {
   [COMPILER_NAMES.server]: ['main', 'module'],
   [COMPILER_NAMES.client]: ['browser', 'module', 'main'],
   [COMPILER_NAMES.edgeServer]: edgeConditionNames,
-}
-
-const BABEL_CONFIG_FILES = [
-  '.babelrc',
-  '.babelrc.json',
-  '.babelrc.js',
-  '.babelrc.mjs',
-  '.babelrc.cjs',
-  'babel.config.js',
-  'babel.config.json',
-  'babel.config.mjs',
-  'babel.config.cjs',
-]
-
-export const getBabelConfigFile = async (dir: string) => {
-  const babelConfigFile = await BABEL_CONFIG_FILES.reduce(
-    async (memo: Promise<string | undefined>, filename) => {
-      const configFilePath = path.join(dir, filename)
-      return (
-        (await memo) ||
-        ((await fileExists(configFilePath)) ? configFilePath : undefined)
-      )
-    },
-    Promise.resolve(undefined)
-  )
-  return babelConfigFile
 }
 
 // Support for NODE_PATH
