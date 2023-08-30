@@ -340,6 +340,29 @@ async function startWatcher(opts: SetupOpts) {
       )
     }
 
+    const buildingReported = new Set<string>()
+    const initialBuildReported = new Set<string>()
+
+    let start = 0
+    function timeStart() {
+      start = Date.now()
+    }
+    function timeEnd(msg: string, startTime = start) {
+      const end = Date.now()
+      const duration = end - startTime
+      const forceReport = !initialBuildReported.has(msg)
+      initialBuildReported.add(msg)
+      if (duration > 2000) {
+        console.log(`🐌 ${msg}: ${Math.round(duration / 100) / 10}s`)
+      } else if (duration > 1000) {
+        console.log(`🐌 ${msg}: ${duration}ms`)
+      } else if (duration > 500) {
+        console.log(`🚀 ${msg}: ${duration}ms`)
+      } else if (forceReport) {
+        console.log(`🚀 ${msg}: ${duration}ms`)
+      }
+    }
+
     async function changeSubscription(
       page: string,
       endpoint: Endpoint | undefined,
@@ -415,10 +438,13 @@ async function startWatcher(opts: SetupOpts) {
             hotReloader.send({ event: 'middlewareChanges' })
           }
           if (middleware) {
+            console.log('⏳ building middleware...')
+            const start = Date.now()
             await processResult(
               'middleware',
               await middleware.endpoint.writeToDisk()
             )
+            timeEnd('middleware', start)
             await loadMiddlewareManifest('middleware', 'middleware')
             serverFields.actualMiddlewareFile = 'middleware'
             serverFields.middleware = {
@@ -775,7 +801,11 @@ async function startWatcher(opts: SetupOpts) {
                 break
 
               default:
-                throw new Error(`unrecognized Turbopack HMR message "${data}"`)
+                if (!parsedData.event) {
+                  throw new Error(
+                    `unrecognized Turbopack HMR message "${data}"`
+                  )
+                }
             }
           })
 
@@ -861,6 +891,11 @@ async function startWatcher(opts: SetupOpts) {
           throw new PageNotFoundError(`route not found ${page}`)
         }
 
+        if (!buildingReported.has(page)) {
+          buildingReported.add(page)
+          console.log(`⏳ building ${page}...`)
+        }
+
         switch (route.type) {
           case 'page': {
             if (isApp) {
@@ -869,23 +904,32 @@ async function startWatcher(opts: SetupOpts) {
               )
             }
 
+            timeStart()
             await processResult('_app', await globalEntries.app?.writeToDisk())
+            timeEnd(`_app (${page})`)
+
             await loadBuildManifest('_app')
             await loadPagesManifest('_app')
 
+            timeStart()
             await processResult(
               '_document',
               await globalEntries.document?.writeToDisk()
             )
+            timeEnd(`_document (${page})`)
+
             changeSubscription('_document', globalEntries?.document, () => {
               return { action: 'reloadPage' }
             })
             await loadPagesManifest('_document')
 
+            timeStart()
             const writtenEndpoint = await processResult(
               page,
               await route.htmlEndpoint.writeToDisk()
             )
+            timeEnd(page)
+
             changeSubscription(page, route.htmlEndpoint, (pageName, change) => {
               switch (change) {
                 case ServerClientChangeType.Server:
@@ -917,10 +961,12 @@ async function startWatcher(opts: SetupOpts) {
             // since this can happen when app pages make
             // api requests to page API routes.
 
+            timeStart()
             const writtenEndpoint = await processResult(
               page,
               await route.endpoint.writeToDisk()
             )
+            timeEnd(page)
 
             const type = writtenEndpoint?.type
 
@@ -938,7 +984,10 @@ async function startWatcher(opts: SetupOpts) {
             break
           }
           case 'app-page': {
+            timeStart()
             await processResult(page, await route.htmlEndpoint.writeToDisk())
+            timeEnd(page)
+
             changeSubscription(page, route.htmlEndpoint, (_page, change) => {
               switch (change) {
                 case ServerClientChangeType.Server:
@@ -961,9 +1010,11 @@ async function startWatcher(opts: SetupOpts) {
             break
           }
           case 'app-route': {
+            timeStart()
             const type = (
               await processResult(page, await route.endpoint.writeToDisk())
             )?.type
+            timeEnd(page)
 
             await loadAppPathManifest(page, 'app-route')
             if (type === 'edge') {
