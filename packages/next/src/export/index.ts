@@ -269,7 +269,7 @@ export default async function exportApp(
     let prerenderManifest: PrerenderManifest | undefined = undefined
     try {
       prerenderManifest = require(join(distDir, PRERENDER_MANIFEST))
-    } catch (_) {}
+    } catch {}
 
     let appRoutePathManifest: Record<string, string> | undefined = undefined
     try {
@@ -589,7 +589,7 @@ export default async function exportApp(
         )) as MiddlewareManifest
 
         hasMiddleware = Object.keys(middlewareManifest.middleware).length > 0
-      } catch (_) {}
+      } catch {}
 
       // Warn if the user defines a path for an API page
       if (hasApiRoutes || hasMiddleware) {
@@ -721,7 +721,7 @@ export default async function exportApp(
             httpAgentOptions: nextConfig.httpAgentOptions,
             debugOutput: options.debugOutput,
             isrMemoryCacheSize: nextConfig.experimental.isrMemoryCacheSize,
-            fetchCache: nextConfig.experimental.appDir,
+            fetchCache: true,
             fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
             incrementalCacheHandlerPath:
               nextConfig.experimental.incrementalCacheHandlerPath,

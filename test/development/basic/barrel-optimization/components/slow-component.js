@@ -21,11 +21,14 @@ import {
   Edit2,
   LucideEdit3,
   TextSelection,
+  createLucideIcon,
 } from 'lucide-react'
 
 import { Tab, RadioGroup, Transition } from '@headlessui/react'
 
-export default function Page() {
+export function Comp() {
+  // eslint-disable-next-line no-undef
+  globalThis.__noop__ = createLucideIcon
   return (
     <>
       <IceCream />

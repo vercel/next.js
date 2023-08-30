@@ -1,5 +1,7 @@
+type WebSocketMessage = Record<string, any>
+
 let source: WebSocket
-const eventCallbacks: ((event: any) => void)[] = []
+const eventCallbacks: ((msg: WebSocketMessage) => void)[] = []
 let lastActivity = Date.now()
 
 function getSocketProtocol(assetPrefix: string): string {
@@ -8,12 +10,12 @@ function getSocketProtocol(assetPrefix: string): string {
   try {
     // assetPrefix is a url
     protocol = new URL(assetPrefix).protocol
-  } catch (_) {}
+  } catch {}
 
   return protocol === 'http:' ? 'ws' : 'wss'
 }
 
-export function addMessageListener(cb: (event: any) => void) {
+export function addMessageListener(cb: (msg: WebSocketMessage) => void) {
   eventCallbacks.push(cb)
 }
 
@@ -39,11 +41,17 @@ export function connectHMR(options: {
       lastActivity = Date.now()
     }
 
-    function handleMessage(event: any) {
+    function handleMessage(event: MessageEvent<string>) {
       lastActivity = Date.now()
 
+      // webpack's heartbeat event.
+      if (event.data === '\uD83D\uDC93') {
+        return
+      }
+
+      const msg = JSON.parse(event.data)
       eventCallbacks.forEach((cb) => {
-        cb(event)
+        cb(msg)
       })
     }
 
