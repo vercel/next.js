@@ -31,7 +31,12 @@ jobs:
   stats:
     name: PR Stats
     needs: build
-    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    runs-on:
+      - 'self-hosted'
+      - 'linux'
+      - 'x64'
+      - 'metal'
     steps:
       - uses: actions/checkout@v3
         with:

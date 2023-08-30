@@ -85,7 +85,7 @@ const item = await getItem() // cache HIT
   height="742"
 />
 
-- While rendering a route, the first time a particular request is called, it's result will not be in memory and it'll be a cache `MISS`.
+- While rendering a route, the first time a particular request is called, its result will not be in memory and it'll be a cache `MISS`.
 - Therefore, the function will be executed, and the data will be fetched from the external source, and the result will be stored in memory.
 - Subsequent function calls of the request in the same render pass will be a cache `HIT`, and the data will be returned from memory without executing the function.
 - Once the route has been rendered and the rendering pass is complete, memory is "reset" and all request memoization entries are cleared.
@@ -255,7 +255,7 @@ This means we don't have to wait for everything to render before caching the wor
 > - Placeholders for where Client Components should be rendered and references to their JavaScript files
 > - Any props passed from a Server Component to a Client Component
 >
-> To learn more, see the [React Rendering](/docs/app/building-your-application/rendering/server-and-client-components) documentation.
+> To learn more, see the [Server Components](/docs/app/building-your-application/rendering/server-components) documentation.
 
 ### 2. Next.js Caching on the Server (Full Route Cache)
 
@@ -301,7 +301,7 @@ This diagram shows the difference between statically and dynamically rendered ro
   height="1314"
 />
 
-Learn more about [static and dynamic rendering](/docs/app/building-your-application/rendering/static-and-dynamic).
+Learn more about [static and dynamic rendering](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies).
 
 ### Duration
 
@@ -341,7 +341,7 @@ Next.js has an in-memory client-side cache that stores the React Server Componen
   height="1375"
 />
 
-As users navigates between routes, Next.js caches visited route segments and [prefetches](/docs/app/building-your-application/routing/linking-and-navigating#1-prefetching) the routes the user is likely to navigate to (based on `<Link>` components in their viewport).
+As users navigate between routes, Next.js caches visited route segments and [prefetches](/docs/app/building-your-application/routing/linking-and-navigating#1-prefetching) the routes the user is likely to navigate to (based on `<Link>` components in their viewport).
 
 This results in an improved navigation experience for the user:
 
@@ -359,7 +359,7 @@ This results in an improved navigation experience for the user:
 The cache is stored in the browser's temporary memory. Two factors determine how long the router cache lasts:
 
 - **Session**: The cache persists across navigation. However, it's cleared on page refresh.
-- **Automatic Invalidation Period**: The cache of an individual segment is automatically invalidated after a specific time. The duration depends on whether the route is [statically](/docs/app/building-your-application/rendering/static-and-dynamic#static-rendering-default) or [dynamically](/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering) rendered:
+- **Automatic Invalidation Period**: The cache of an individual segment is automatically invalidated after a specific time. The duration depends on whether the route is [statically](/docs/app/building-your-application/rendering/server-components#static-rendering-default) or [dynamically](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) rendered:
   - **Dynamically Rendered**: 30 seconds
   - **Statically Rendered**: 5 minutes
 
@@ -394,7 +394,7 @@ When configuring the different caching mechanisms, it's important to understand 
 ### Data Cache and Client-side Router cache
 
 - Revalidating the Data Cache in a [Route Handler](/docs/app/building-your-application/routing/route-handlers) **will not** immediately invalidate the Router Cache as the Router Handler isn't tied to a specific route. This means Router Cache will continue to serve the previous payload until a hard refresh, or the automatic invalidation period has elapsed.
-- To immediately invalidate the Data Cache and Router cache, you can use [`revalidatePath`](#revalidatepath) or [`revalidateTag`](#fetch-optionsnexttag-and-revalidatetag) in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions).
+- To immediately invalidate the Data Cache and Router cache, you can use [`revalidatePath`](#revalidatepath) or [`revalidateTag`](#fetch-optionsnexttag-and-revalidatetag) in a [Server Action](/docs/app/building-your-application/data-fetching/forms-and-mutations).
 
 ## APIs
 
@@ -490,7 +490,7 @@ For example, you can set a tag when fetching data:
 fetch(`https://...`, { next: { tags: ['a', 'b', 'c'] } })
 ```
 
-Then, then call `revalidateTag` with a tag to purge the cache entry:
+Then, call `revalidateTag` with a tag to purge the cache entry:
 
 ```jsx
 // Revalidate entries with a specific tag
@@ -500,7 +500,7 @@ revalidateTag('a')
 There are two places you can use `revalidateTag`, depending on what you're trying to achieve:
 
 1. [Route Handlers](/docs/app/building-your-application/routing/route-handlers) - to revalidate data in response of a third party event (e.g. webhook). This will not invalidate the Router Cache immediately as the Router Handler isn't tied to a specific route.
-2. [Server Actions](/docs/app/building-your-application/data-fetching/server-actions) - to revalidate data after a user action (e.g. form submission). This will invalidate the Router Cache for the associated route.
+2. [Server Actions](/docs/app/building-your-application/data-fetching/forms-and-mutations) - to revalidate data after a user action (e.g. form submission). This will invalidate the Router Cache for the associated route.
 
 ### `revalidatePath`
 
@@ -513,7 +513,7 @@ revalidatePath('/')
 There are two places you can use `revalidatePath`, depending on what you're trying to achieve:
 
 1. [Route Handlers](/docs/app/building-your-application/routing/route-handlers) - to revalidate data in response to a third party event (e.g. webhook).
-2. [Server Actions](/docs/app/building-your-application/data-fetching/server-actions) - to revalidate data after a user interaction (e.g. form submission, clicking a button).
+2. [Server Actions](/docs/app/building-your-application/data-fetching/forms-and-mutations) - to revalidate data after a user interaction (e.g. form submission, clicking a button).
 
 See the [`revalidatePath` API reference](/docs/app/api-reference/functions/revalidatePath) for more information.
 
@@ -535,7 +535,7 @@ See the [`cookies`](/docs/app/api-reference/functions/cookies) API reference.
 
 ### Segment Config Options
 
-The Route Segment Config options can be used override the route segment defaults or when you're not able to use the `fetch` API (e.g. database client or 3rd party libraries).
+The Route Segment Config options can be used to override the route segment defaults or when you're not able to use the `fetch` API (e.g. database client or 3rd party libraries).
 
 The following Route Segment Config options will opt out of the Data Cache and Full Route Cache:
 

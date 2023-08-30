@@ -423,6 +423,16 @@ createNextDescribe(
         })
       })
 
+      describe('cookies().has()', () => {
+        it('gets the correct values', async () => {
+          const res = await next.fetch(bathPath + '/hooks/cookies/has')
+
+          expect(res.status).toEqual(200)
+
+          expect(await res.json()).toEqual({ hasCookie: true })
+        })
+      })
+
       describe('redirect', () => {
         it('can respond correctly', async () => {
           const res = await next.fetch(bathPath + '/hooks/redirect', {
