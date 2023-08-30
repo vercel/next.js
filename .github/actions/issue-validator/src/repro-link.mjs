@@ -66,8 +66,10 @@ async function hasRepro(link) {
   try {
     const url = new URL(link)
     if (!['github.com', 'codesandbox.io'].includes(url.hostname)) return false
+    const { status } = await fetch(link)
     // Verify that it's not a private repo/sandbox
-    return (await fetch(link)).ok
+    // We allow 500, in case it's downtime on one of the services
+    return status < 400 || status >= 500
   } catch {
     return false
   }
