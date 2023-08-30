@@ -247,9 +247,6 @@ pub async fn find_app_dir_if_enabled(
     project_path: Vc<FileSystemPath>,
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<OptionAppDir>> {
-    if !*next_config.app_dir().await? {
-        return Ok(Vc::cell(None));
-    }
     Ok(find_app_dir(project_path))
 }
 
