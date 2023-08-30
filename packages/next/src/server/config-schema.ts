@@ -387,9 +387,6 @@ const configSchema = {
         outputFileTracingIncludes: {
           type: 'object',
         },
-        pageEnv: {
-          type: 'boolean',
-        },
         proxyTimeout: {
           minimum: 0,
           type: 'number',
