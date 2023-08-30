@@ -1,6 +1,6 @@
 We could not detect a valid reproduction link. **Make sure to follow the bug report tempalte carefully.**
 
-### **Why was this issue closed?**
+### Why was this issue closed?
 
 To be able to investigate, we need access to a reproduction to identify what triggered the issue. We need a link to a **public** GitHub repository ([template for App Router](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template), [template for Pages Router](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template-pages)), but you can also use these templates: [CodeSandbox: App Router](https://codesandbox.io/s/github/vercel/next.js/tree/canary/examples/reproduction-template) or [CodeSandbox: Pages Router](https://codesandbox.io/s/github/vercel/next.js/tree/canary/examples/reproduction-template-pages).
 
@@ -10,7 +10,7 @@ The bug template that you filled out has a section called "Link to the code that
 - If you provided a link to a private repository, we will close the issue.
 - If you provided a link to a repository but not in the correct section, we will close the issue.
 
-### **What should I do?**
+### What should I do?
 
 Depending on the reason the issue was closed, you can do the following:
 
@@ -20,7 +20,7 @@ Depending on the reason the issue was closed, you can do the following:
 
 **In general, assume that we should not go through a lengthy onboarding process at your company code only to be able to verify an issue.**
 
-### **My repository is private and cannot make it public**
+### My repository is private and cannot make it public
 
 If you cannot make your repository public, you can create a new repository with the reproduction code. The most common use case we hear for not being able to comply with a public repository is that the repository contains sensitive information/company code. In most cases, this would not be a sufficient **minimal reproduction** anyway, as this codebase might contain a lot of unrelated parts that would make our investigation take longer. Strive for debugging your own code and remove anything unrelated to the issue. Common things to look out for:
 
@@ -31,11 +31,11 @@ If you cannot make your repository public, you can create a new repository with 
 - Remove private packages that we do not have access to.
 - If the issue is not related to a monorepo specifically, try to reproduce the issue without a complex monorepo setup
 
-### **I did not open this issue, but it is relevant to me, what can I do to help?**
+### I did not open this issue, but it is relevant to me, what can I do to help?
 
 Anyone experiencing the same issue is welcome to provide a minimal reproduction following the above steps in by opening a new issue.
 
-### **I think my reproduction is good enough, why aren't you looking into it quicker?**
+### I think my reproduction is good enough, why aren't you looking into it quicker?
 
 We look into every Next.js issue and constantly monitor open issues for new comments.
 
@@ -43,7 +43,7 @@ However, sometimes we might miss one or two due to the popularity/high traffic o
 
 Upvoting issues to show your interest will help us prioritize and address them as quickly as possible. That said, every issue is important to us, and if an issue gets closed by accident, we encourage you to open a new one linking to the old issue and we will look into it.
 
-### **Useful Resources**
+### Useful Resources
 
 - [How to Contribute to Open Source (Next.js)](https://www.youtube.com/watch?v=cuoNzXFLitc)
 - [How to create a Minimal, Complete, and Verifiable example](https://stackoverflow.com/help/mcve)
