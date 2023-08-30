@@ -63,7 +63,7 @@ describe('minimal-mode-response-cache', () => {
     appPort = await findPort()
     server = await initNextServerScript(
       testServer,
-      /ready started server on/,
+      /- Local:/,
       {
         ...process.env,
         HOSTNAME: '',
@@ -142,7 +142,7 @@ describe('minimal-mode-response-cache', () => {
   })
 
   it('should have correct "Started server on" log', async () => {
-    expect(output).toContain(`started server on`)
+    expect(output).toContain(`- Local:`)
     let pattern = new RegExp(
       `url: http://localhost:${appPort}|url: http://127.0.0.1:${appPort}|url: http://\\[::1\\]:${appPort}`
     )

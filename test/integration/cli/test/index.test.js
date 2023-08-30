@@ -67,7 +67,7 @@ describe('CLI Usage', () => {
       await testExitSignal(
         'SIGINT',
         ['start', dirBasic, '-p', port],
-        /started server on/
+        /- Local:/
       )
     })
     test('should exit when SIGTERM is signalled', async () => {
@@ -84,7 +84,7 @@ describe('CLI Usage', () => {
       await testExitSignal(
         'SIGTERM',
         ['start', dirBasic, '-p', port],
-        /started server on/
+        /- Local:/
       )
     })
 
@@ -344,7 +344,7 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(() => output, /started server/i)
+        await check(() => output, /- Local:/i)
       } finally {
         await killApp(app)
       }
@@ -630,19 +630,11 @@ describe('CLI Usage', () => {
 
     test('should exit when SIGINT is signalled', async () => {
       const port = await findPort()
-      await testExitSignal(
-        'SIGINT',
-        ['dev', dirBasic, '-p', port],
-        /started server on/
-      )
+      await testExitSignal('SIGINT', ['dev', dirBasic, '-p', port], /- Local:/)
     })
     test('should exit when SIGTERM is signalled', async () => {
       const port = await findPort()
-      await testExitSignal(
-        'SIGTERM',
-        ['dev', dirBasic, '-p', port],
-        /started server on/
-      )
+      await testExitSignal('SIGTERM', ['dev', dirBasic, '-p', port], /- Local:/)
     })
 
     test('invalid directory', async () => {

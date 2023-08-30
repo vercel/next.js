@@ -380,10 +380,10 @@ export function runNextCommandDev(
         start: /▲ Next.js/i,
       }
 
-      const messageWithoutColor = stripAnsi(message)
+      const strippedMessage = stripAnsi(message)
       if (
-        (opts.bootupMarker && opts.bootupMarker.test(messageWithoutColor)) ||
-        bootupMarkers[bootType].test(messageWithoutColor)
+        (opts.bootupMarker && opts.bootupMarker.test(strippedMessage)) ||
+        bootupMarkers[bootType].test(strippedMessage)
       ) {
         if (!didResolve) {
           didResolve = true
