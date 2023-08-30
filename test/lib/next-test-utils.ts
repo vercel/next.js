@@ -30,6 +30,7 @@ import {
   shouldRunExperimentalTurboDevTest,
   shouldRunTurboDevTest,
 } from './turbo'
+import stripAnsi from 'strip-ansi'
 
 export { shouldRunTurboDevTest }
 
@@ -342,10 +343,6 @@ export function runNextCommandDev(
     ...opts.env,
   }
 
-  if (opts.nextStart) {
-    console.log('runNextCommandDev')
-  }
-
   const nodeArgs = opts.nodeArgs || []
   return new Promise((resolve, reject) => {
     const instance = spawn(
@@ -364,8 +361,17 @@ export function runNextCommandDev(
       }
     )
     let didResolve = false
+
+    const bootType =
+      opts.nextStart || stdOut
+        ? 'start'
+        : opts?.experimentalTurbo
+        ? 'experimentalTurbo'
+        : opts?.turbo
+        ? 'turbo'
+        : 'dev'
+
     function handleStdout(data) {
-      // TODO: tune the typing for the promise resolved value
       const message = data.toString()
       const bootupMarkers = {
         dev: /▲ Next.js/i,
@@ -374,20 +380,14 @@ export function runNextCommandDev(
         start: /▲ Next.js/i,
       }
 
+      const messageWithoutColor = stripAnsi(message)
       if (
-        (opts.bootupMarker && opts.bootupMarker.test(message)) ||
-        bootupMarkers[
-          opts.nextStart || stdOut
-            ? 'start'
-            : opts?.experimentalTurbo
-            ? 'experimentalTurbo'
-            : opts?.turbo
-            ? 'turbo'
-            : 'dev'
-        ].test(message)
+        (opts.bootupMarker && opts.bootupMarker.test(messageWithoutColor)) ||
+        bootupMarkers[bootType].test(messageWithoutColor)
       ) {
         if (!didResolve) {
           didResolve = true
+          // Pass down the original message
           resolve(stdOut ? message : instance)
         }
       }
