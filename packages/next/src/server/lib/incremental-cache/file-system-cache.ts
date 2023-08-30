@@ -212,7 +212,7 @@ export default class FileSystemCache implements CacheHandler {
                   await this.fs.readFile(filePath.replace(/\.html$/, '.meta'))
                 ).toString('utf-8')
               )
-            } catch (_) {}
+            } catch {}
           }
 
           data = {
