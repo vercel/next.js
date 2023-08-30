@@ -26,7 +26,7 @@ async function run() {
     '### Link to the code that reproduces this issue or a replay of the bug'
   const end = '### To Reproduce'
   const linkRe = new RegExp(`${start}(.*)${end}`, 'is')
-  const match = issue_body.match(linkRe)?.[0].trim()
+  const match = issue_body.match(linkRe)?.[1]?.trim()
 
   if (await hasRepro(match)) {
     console.log(`Issue #${issue.number} contains a valid reproduction link`)
