@@ -471,12 +471,14 @@ impl AppEndpoint {
     async fn output(self: Vc<Self>) -> Result<Vc<AppEndpointOutput>> {
         let this = self.await?;
 
-        let app_entry = match this.ty {
-            AppEndpointType::Page { ty: _, loader_tree } => self.app_page_entry(loader_tree),
+        let (app_entry, ty) = match this.ty {
+            AppEndpointType::Page { ty: _, loader_tree } => {
+                (self.app_page_entry(loader_tree), "page")
+            }
             // NOTE(alexkirsz) For routes, technically, a lot of the following code is not needed,
             // as we know we won't have any client references. However, for now, for simplicity's
             // sake, we just do the same thing as for pages.
-            AppEndpointType::Route { path } => self.app_route_entry(path),
+            AppEndpointType::Route { path } => (self.app_route_entry(path), "route"),
         };
 
         let node_root = this.app_project.project().node_root();
@@ -589,7 +591,7 @@ impl AppEndpoint {
         let manifest_path_prefix = get_asset_prefix_from_pathname(&app_entry.pathname);
         let app_build_manifest_output = Vc::upcast(VirtualOutputAsset::new(
             node_root.join(format!(
-                "server/app{manifest_path_prefix}/page/app-build-manifest.json",
+                "server/app{manifest_path_prefix}/{ty}/app-build-manifest.json",
             )),
             AssetContent::file(
                 File::from(serde_json::to_string_pretty(&app_build_manifest)?).into(),
@@ -603,7 +605,7 @@ impl AppEndpoint {
         };
         let build_manifest_output = Vc::upcast(VirtualOutputAsset::new(
             node_root.join(format!(
-                "server/app{manifest_path_prefix}/page/build-manifest.json",
+                "server/app{manifest_path_prefix}/{ty}/build-manifest.json",
             )),
             AssetContent::file(File::from(serde_json::to_string_pretty(&build_manifest)?).into()),
         ));
@@ -622,13 +624,14 @@ impl AppEndpoint {
 
         fn create_app_paths_manifest(
             node_root: Vc<FileSystemPath>,
+            ty: &'static str,
             pathname: &str,
             original_name: &str,
             filename: String,
         ) -> Result<Vc<Box<dyn OutputAsset>>> {
             let manifest_path_prefix = get_asset_prefix_from_pathname(pathname);
             let path = node_root.join(format!(
-                "server/app{manifest_path_prefix}/page/app-paths-manifest.json",
+                "server/app{manifest_path_prefix}/{ty}/app-paths-manifest.json",
             ));
             let app_paths_manifest = AppPathsManifest {
                 node_server_app_paths: PagesManifest {
@@ -720,16 +723,16 @@ impl AppEndpoint {
                     ..Default::default()
                 };
                 let middleware_manifest_v2 = MiddlewaresManifestV2 {
-                    sorted_middleware: vec![app_entry.pathname.clone()],
+                    sorted_middleware: vec![app_entry.original_name.clone()],
                     middleware: Default::default(),
-                    functions: [(app_entry.pathname.clone(), edge_function_definition)]
+                    functions: [(app_entry.original_name.clone(), edge_function_definition)]
                         .into_iter()
                         .collect(),
                 };
                 let manifest_path_prefix = get_asset_prefix_from_pathname(&app_entry.pathname);
                 let middleware_manifest_v2 = Vc::upcast(VirtualOutputAsset::new(
                     node_root.join(format!(
-                        "server/app{manifest_path_prefix}/page/middleware-manifest.json",
+                        "server/app{manifest_path_prefix}/{ty}/middleware-manifest.json",
                     )),
                     AssetContent::file(
                         FileContent::Content(File::from(serde_json::to_string_pretty(
@@ -743,6 +746,7 @@ impl AppEndpoint {
                 // create app paths manifest
                 let app_paths_manifest_output = create_app_paths_manifest(
                     node_root,
+                    ty,
                     &app_entry.pathname,
                     &app_entry.original_name,
                     base_file,
@@ -772,6 +776,7 @@ impl AppEndpoint {
 
                 let app_paths_manifest_output = create_app_paths_manifest(
                     node_root,
+                    ty,
                     &app_entry.pathname,
                     &app_entry.original_name,
                     server_path
