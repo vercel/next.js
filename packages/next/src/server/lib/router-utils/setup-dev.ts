@@ -1249,15 +1249,19 @@ async function startWatcher(opts: SetupOpts) {
                 plugin.definitions.__NEXT_DEFINE_ENV
               ) {
                 const newDefine = getDefineEnv({
+                  allowedRevalidateHeaderKeys: undefined,
                   clientRouterFilters,
                   config: nextConfig,
                   dev: true,
                   distDir,
+                  fetchCacheKeyPrefix: undefined,
                   hasRewrites,
                   isClient,
                   isEdgeServer,
                   isNodeOrEdgeCompilation: isNodeServer || isEdgeServer,
                   isNodeServer,
+                  middlewareMatchers: undefined,
+                  previewModeId: undefined,
                 })
 
                 Object.keys(plugin.definitions).forEach((key) => {

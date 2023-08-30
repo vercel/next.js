@@ -183,21 +183,21 @@ export function getDefineEnv({
   middlewareMatchers,
   previewModeId,
 }: {
-  allowedRevalidateHeaderKeys?: string[]
+  allowedRevalidateHeaderKeys: string[] | undefined
   clientRouterFilters: Parameters<
     typeof getBaseWebpackConfig
   >[1]['clientRouterFilters']
   config: NextConfigComplete
   dev: boolean
   distDir: string
-  fetchCacheKeyPrefix?: string
+  fetchCacheKeyPrefix: string | undefined
   hasRewrites: boolean
   isClient: boolean
   isEdgeServer: boolean
   isNodeOrEdgeCompilation: boolean
   isNodeServer: boolean
-  middlewareMatchers?: MiddlewareMatcher[]
-  previewModeId?: string
+  middlewareMatchers: MiddlewareMatcher[] | undefined
+  previewModeId: string | undefined
 }) {
   return {
     // internal field to identify the plugin config
