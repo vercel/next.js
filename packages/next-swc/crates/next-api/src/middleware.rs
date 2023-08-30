@@ -214,6 +214,6 @@ impl Endpoint for MiddlewareEndpoint {
 
     #[turbo_tasks::function]
     fn client_changed(self: Vc<Self>) -> Vc<Completion> {
-        Completion::new()
+        Completion::immutable()
     }
 }
