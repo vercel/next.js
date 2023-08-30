@@ -169,9 +169,7 @@ const nextLint: CliCommand = async (argv) => {
   const filesToLint = [...(dirs ?? []), ...files]
 
   // Remove that when the `appDir` will be stable.
-  const directoriesToLint = !!nextConfig.experimental.appDir
-    ? ESLINT_DEFAULT_DIRS_WITH_APP
-    : ESLINT_DEFAULT_DIRS
+  const directoriesToLint = ESLINT_DEFAULT_DIRS_WITH_APP
 
   const pathsToLint = (
     filesToLint.length ? filesToLint : directoriesToLint
@@ -190,11 +188,8 @@ const nextLint: CliCommand = async (argv) => {
 
   const distDir = join(baseDir, nextConfig.distDir)
   const defaultCacheLocation = join(distDir, 'cache', 'eslint/')
-  const hasAppDir = !!nextConfig.experimental.appDir
-  const { pagesDir, appDir } = findPagesDir(
-    baseDir,
-    !!nextConfig.experimental.appDir
-  )
+  const hasAppDir = true
+  const { pagesDir, appDir } = findPagesDir(baseDir, hasAppDir)
 
   await verifyTypeScriptSetup({
     dir: baseDir,
@@ -203,8 +198,8 @@ const nextLint: CliCommand = async (argv) => {
     typeCheckPreflight: false,
     tsconfigPath: nextConfig.typescript.tsconfigPath,
     disableStaticImages: nextConfig.images.disableStaticImages,
-    hasAppDir: !!appDir,
-    hasPagesDir: !!pagesDir,
+    hasAppDir: Boolean(appDir),
+    hasPagesDir: Boolean(pagesDir),
   })
 
   runLintCheck(baseDir, pathsToLint, hasAppDir, {

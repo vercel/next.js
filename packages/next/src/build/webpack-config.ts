@@ -293,12 +293,8 @@ export function getDefineEnv({
       config.reactStrictMode === null ? false : config.reactStrictMode
     ),
     'process.env.__NEXT_STRICT_MODE_APP': JSON.stringify(
-      // When next.config.js does not have reactStrictMode enabling appDir will enable it.
-      config.reactStrictMode === null
-        ? config.experimental.appDir
-          ? true
-          : false
-        : config.reactStrictMode
+      // When next.config.js does not have reactStrictMode it's enabled by default.
+      config.reactStrictMode === null ? true : config.reactStrictMode
     ),
     'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
       !dev && config.optimizeFonts
@@ -791,7 +787,7 @@ export default async function getBaseWebpackConfig(
     rewrites.afterFiles.length > 0 ||
     rewrites.fallback.length > 0
 
-  const hasAppDir = !!config.experimental.appDir && !!appDir
+  const hasAppDir = Boolean(appDir)
   const hasServerComponents = hasAppDir
   const disableOptimizedLoading = true
   const enableTypedRoutes = !!config.experimental.typedRoutes && hasAppDir
@@ -2710,7 +2706,6 @@ export default async function getBaseWebpackConfig(
   }
 
   const configVars = JSON.stringify({
-    appDir: config.experimental.appDir,
     crossOrigin: config.crossOrigin,
     pageExtensions: pageExtensions,
     trailingSlash: config.trailingSlash,
