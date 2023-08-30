@@ -175,7 +175,6 @@ export interface ExperimentalConfig {
   proxyTimeout?: number
   isrFlushToDisk?: boolean
   workerThreads?: boolean
-  pageEnv?: boolean
   // optimizeCss can be boolean or critters' option object
   // Use Record<string, unknown> as critters doesn't export its Option type
   // https://github.com/GoogleChromeLabs/critters/blob/a590c05f9197b656d2aeaae9369df2483c26b072/packages/critters/src/index.d.ts
@@ -712,7 +711,6 @@ export const defaultConfig: NextConfig = {
     sharedPool: true,
     isrFlushToDisk: true,
     workerThreads: false,
-    pageEnv: false,
     proxyTimeout: undefined,
     optimizeCss: false,
     nextScriptWorkers: false,

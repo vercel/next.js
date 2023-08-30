@@ -33,7 +33,6 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.proxyTimeout',
   'experimental.isrFlushToDisk',
   'experimental.workerThreads',
-  'experimenatl.pageEnv',
   'experimental.caseSensitiveRoutes',
 ]
 
