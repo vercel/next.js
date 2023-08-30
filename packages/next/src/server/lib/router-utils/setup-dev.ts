@@ -273,13 +273,7 @@ async function startWatcher(opts: SetupOpts) {
           : pageName === '/index' || pageName.startsWith('/index/')
           ? `/index${pageName}`
           : pageName,
-        pageName === '/_not-found' || pageName === '/not-found'
-          ? ''
-          : type === 'app'
-          ? 'page'
-          : type === 'app-route'
-          ? 'route'
-          : '',
+        type === 'app' ? 'page' : type === 'app-route' ? 'route' : '',
         name
       )
       return JSON.parse(
