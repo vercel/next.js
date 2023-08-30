@@ -340,6 +340,25 @@ async function startWatcher(opts: SetupOpts) {
       )
     }
 
+    async function changeSubscription(
+      page: string,
+      endpoint: Endpoint | undefined,
+      makePayload: (
+        page: string,
+        change: ServerClientChangeType
+      ) => object | void
+    ) {
+      if (!endpoint || changeSubscriptions.has(page)) return
+
+      const changed = await endpoint.changed()
+      changeSubscriptions.set(page, changed)
+
+      for await (const change of changed) {
+        const payload = makePayload(page, change.change)
+        if (payload) hotReloader.send(payload)
+      }
+    }
+
     try {
       async function handleEntries() {
         for await (const entrypoints of iter) {
@@ -652,25 +671,6 @@ async function startWatcher(opts: SetupOpts) {
       subscription?.return!()
     }
 
-    async function changeSubscription(
-      page: string,
-      endpoint: Endpoint | undefined,
-      makePayload: (
-        page: string,
-        change: ServerClientChangeType
-      ) => object | void
-    ) {
-      if (!endpoint || changeSubscriptions.has(page)) return
-
-      const changed = await endpoint.changed()
-      changeSubscriptions.set(page, changed)
-
-      for await (const change of changed) {
-        const payload = makePayload(page, change.change)
-        if (payload) hotReloader.send(payload)
-      }
-    }
-
     // Write empty manifests
     await mkdir(path.join(distDir, 'server'), { recursive: true })
     await mkdir(path.join(distDir, 'static/development'), { recursive: true })
@@ -754,6 +754,14 @@ async function startWatcher(opts: SetupOpts) {
               case 'server-component-reload-page': // { clientId }
               case 'client-reload-page': // { clientId }
               case 'client-full-reload': // { stackTrace, hadRuntimeError }
+                // TODO
+                break
+
+              default:
+                // Might be a Turbopack message...
+                if (!parsedData.type) {
+                  throw new Error(`unrecognized HMR message "${data}"`)
+                }
             }
 
             // Turbopack messages
@@ -765,6 +773,9 @@ async function startWatcher(opts: SetupOpts) {
               case 'turbopack-unsubscribe':
                 unsubscribeToHmrEvents(parsedData.path, client)
                 break
+
+              default:
+                throw new Error(`unrecognized Turbopack HMR message "${data}"`)
             }
           })
 
@@ -875,12 +886,12 @@ async function startWatcher(opts: SetupOpts) {
               page,
               await route.htmlEndpoint.writeToDisk()
             )
-            changeSubscription(page, route.htmlEndpoint, (page, change) => {
+            changeSubscription(page, route.htmlEndpoint, (pageName, change) => {
               switch (change) {
                 case ServerClientChangeType.Server:
                 case ServerClientChangeType.Both:
-                  return { event: 'serverOnlyChanges', pages: [page] }
-                case ServerClientChangeType.Client:
+                  return { event: 'serverOnlyChanges', pages: [pageName] }
+                default:
               }
             })
 
@@ -933,7 +944,7 @@ async function startWatcher(opts: SetupOpts) {
                 case ServerClientChangeType.Server:
                 case ServerClientChangeType.Both:
                   return { action: 'serverComponentChanges' }
-                case ServerClientChangeType.Client:
+                default:
               }
             })
 
