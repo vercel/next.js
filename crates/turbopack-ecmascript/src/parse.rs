@@ -254,11 +254,11 @@ async fn parse_content(
                             decorators: true,
                             decorators_before_export: true,
                             export_default_from: true,
-                            import_assertions: true,
+                            import_attributes: true,
                             allow_super_outside_method: true,
                             allow_return_outside_function: true,
                             auto_accessors: true,
-                            using_decl: true,
+                            explicit_resource_management: true,
                         }),
                         EcmascriptModuleAssetType::Typescript
                         | EcmascriptModuleAssetType::TypescriptWithTypes => {
