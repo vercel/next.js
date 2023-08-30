@@ -24,7 +24,10 @@ describe('Config Experimental Warning', () => {
       }
     `)
 
-    const { stdout } = await nextBuild(appDir, [], { stdout: true })
+    await nextBuild(appDir, [])
+    const { stdout } = await nextStart(appDir, await findPort(), {
+      stdout: true,
+    })
     expect(stdout).not.toMatch(' - Experiments (use at your own risk):')
   })
 
@@ -34,7 +37,10 @@ describe('Config Experimental Warning', () => {
         images: {},
       }
     `)
-    const { stdout } = await nextBuild(appDir, [], { stdout: true })
+    await nextBuild(appDir, [])
+    const { stdout } = await nextStart(appDir, await findPort(), {
+      stdout: true,
+    })
     expect(stdout).not.toMatch(' - Experiments (use at your own risk):')
   })
 
@@ -46,7 +52,10 @@ describe('Config Experimental Warning', () => {
         }
       }
     `)
-    const { stdout } = await nextBuild(appDir, [], { stdout: true })
+    await nextBuild(appDir, [])
+    const { stdout } = await nextStart(appDir, await findPort(), {
+      stdout: true,
+    })
     expect(stdout).toMatch(' - Experiments (use at your own risk):')
     expect(stdout).toMatch(' · workerThreads')
   })

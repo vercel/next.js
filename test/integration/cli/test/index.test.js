@@ -110,7 +110,9 @@ describe('CLI Usage', () => {
           stdout: true,
         }
       )
-      expect(output.stdout).toMatch(new RegExp(`on \\[::\\]:${port}`))
+      expect(output.stdout).toMatch(
+        new RegExp(`- Network:\\s*\\[::\\]:${port}`)
+      )
       expect(output.stdout).toMatch(new RegExp(`http://\\[::1\\]:${port}`))
     })
 
@@ -363,7 +365,7 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(() => output, new RegExp(`on \\[::\\]:${port}`))
+        await check(() => output, new RegExp(`- Network:\\s*\\[::\\]:${port}`))
         await check(() => output, new RegExp(`http://localhost:${port}`))
       } finally {
         await killApp(app)
@@ -383,7 +385,7 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(() => output, new RegExp(`on \\[::\\]:${port}`))
+        await check(() => output, new RegExp(`- Network:\\s*\\[::\\]:${port}`))
         await check(() => output, new RegExp(`http://localhost:${port}`))
       } finally {
         await killApp(app)
@@ -434,7 +436,7 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(() => output, new RegExp(`on \\[::\\]:${port}`))
+        await check(() => output, new RegExp(`- Network:\\s*\\[::\\]:${port}`))
         await check(() => output, new RegExp(`http://localhost:${port}`))
       } finally {
         await killApp(app)
@@ -451,7 +453,7 @@ describe('CLI Usage', () => {
         env: { NODE_OPTIONS: '--inspect' },
       })
       try {
-        await check(() => output, new RegExp(`on \\[::\\]:${port}`))
+        await check(() => output, new RegExp(`- Network:\\s*\\[::\\]:${port}`))
         await check(() => output, new RegExp(`http://localhost:${port}`))
       } finally {
         await killApp(app)
@@ -608,7 +610,7 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(() => output, new RegExp(`on \\[::\\]:${port}`))
+        await check(() => output, new RegExp(`- Network:\\s*\\[::\\]:${port}`))
         await check(() => output, new RegExp(`http://\\[::1\\]:${port}`))
       } finally {
         await killApp(app).catch(() => {})
