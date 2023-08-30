@@ -66,10 +66,7 @@ async function run() {
   const client = getOctokit(process.env.GITHUB_TOKEN).rest
   const issueCommon = { ...repo, issue_number: issue.number }
 
-  if (
-    newLabel === addReproductionLabel
-    // || !hasValidRepro
-  ) {
+  if (newLabel === addReproductionLabel) {
     await Promise.all([
       client.issues.addLabels({
         ...issueCommon,
