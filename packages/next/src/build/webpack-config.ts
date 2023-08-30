@@ -176,18 +176,20 @@ export function getDefineEnv({
   hasRewrites,
   isNodeServer,
   isEdgeServer,
+  isNodeOrEdgeCompilation,
   middlewareMatchers,
   clientRouterFilters,
   previewModeId,
   fetchCacheKeyPrefix,
   allowedRevalidateHeaderKeys,
 }: {
-  dev?: boolean
+  dev: boolean
   distDir: string
-  isClient?: boolean
-  hasRewrites?: boolean
-  isNodeServer?: boolean
-  isEdgeServer?: boolean
+  isClient: boolean
+  hasRewrites: boolean
+  isNodeServer: boolean
+  isEdgeServer: boolean
+  isNodeOrEdgeCompilation: boolean
   middlewareMatchers?: MiddlewareMatcher[]
   config: NextConfigComplete
   clientRouterFilters: Parameters<
@@ -352,7 +354,7 @@ export function getDefineEnv({
       config.experimental.webVitalsAttribution
     ),
     'process.env.__NEXT_ASSET_PREFIX': JSON.stringify(config.assetPrefix),
-    ...(isNodeServer || isEdgeServer
+    ...(isNodeOrEdgeCompilation
       ? {
           // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
           // This is typically found in unmaintained modules from the
@@ -781,6 +783,9 @@ export default async function getBaseWebpackConfig(
   const isEdgeServer = compilerType === COMPILER_NAMES.edgeServer
   const isNodeServer = compilerType === COMPILER_NAMES.server
 
+  // If the current compilation is aimed at server-side code instead of client-side code.
+  const isNodeOrEdgeCompilation = isNodeServer || isEdgeServer
+
   const hasRewrites =
     rewrites.beforeFiles.length > 0 ||
     rewrites.afterFiles.length > 0 ||
@@ -845,7 +850,7 @@ export default async function getBaseWebpackConfig(
       loader: require.resolve('./babel/loader/index'),
       options: {
         configFile: babelConfigFile,
-        isServer: isNodeServer || isEdgeServer,
+        isServer: isNodeOrEdgeCompilation,
         distDir,
         pagesDir,
         cwd: dir,
@@ -876,7 +881,7 @@ export default async function getBaseWebpackConfig(
     return {
       loader: 'next-swc-loader',
       options: {
-        isServer: isNodeServer || isEdgeServer,
+        isServer: isNodeOrEdgeCompilation,
         rootDir: dir,
         pagesDir,
         appDir,
@@ -937,10 +942,9 @@ export default async function getBaseWebpackConfig(
 
   const pageExtensions = config.pageExtensions
 
-  const outputPath =
-    isNodeServer || isEdgeServer
-      ? path.join(distDir, SERVER_DIRECTORY)
-      : distDir
+  const outputPath = isNodeOrEdgeCompilation
+    ? path.join(distDir, SERVER_DIRECTORY)
+    : distDir
 
   const reactServerCondition = [
     'react-server',
@@ -1886,26 +1890,24 @@ export default async function getBaseWebpackConfig(
       }/_next/`,
       path: !dev && isNodeServer ? path.join(outputPath, 'chunks') : outputPath,
       // On the server we don't use hashes
-      filename:
-        isNodeServer || isEdgeServer
-          ? dev || isEdgeServer
-            ? `[name].js`
-            : `../[name].js`
-          : `static/chunks/${isDevFallback ? 'fallback/' : ''}[name]${
-              dev ? '' : appDir ? '-[chunkhash]' : '-[contenthash]'
-            }.js`,
+      filename: isNodeOrEdgeCompilation
+        ? dev || isEdgeServer
+          ? `[name].js`
+          : `../[name].js`
+        : `static/chunks/${isDevFallback ? 'fallback/' : ''}[name]${
+            dev ? '' : appDir ? '-[chunkhash]' : '-[contenthash]'
+          }.js`,
       library: isClient || isEdgeServer ? '_N_E' : undefined,
       libraryTarget: isClient || isEdgeServer ? 'assign' : 'commonjs2',
       hotUpdateChunkFilename: 'static/webpack/[id].[fullhash].hot-update.js',
       hotUpdateMainFilename:
         'static/webpack/[fullhash].[runtime].hot-update.json',
       // This saves chunks with the name given via `import()`
-      chunkFilename:
-        isNodeServer || isEdgeServer
-          ? '[name].js'
-          : `static/chunks/${isDevFallback ? 'fallback/' : ''}${
-              dev ? '[name]' : '[name].[contenthash]'
-            }.js`,
+      chunkFilename: isNodeOrEdgeCompilation
+        ? '[name].js'
+        : `static/chunks/${isDevFallback ? 'fallback/' : ''}${
+            dev ? '[name]' : '[name].[contenthash]'
+          }.js`,
       strictModuleExceptionHandling: true,
       crossOriginLoading: crossOrigin,
       webassemblyModuleFilename: 'static/wasm/[modulehash].wasm',
@@ -2418,6 +2420,7 @@ export default async function getBaseWebpackConfig(
           hasRewrites,
           isNodeServer,
           isEdgeServer,
+          isNodeOrEdgeCompilation,
           middlewareMatchers,
           clientRouterFilters,
           previewModeId,
@@ -2483,7 +2486,7 @@ export default async function getBaseWebpackConfig(
           resourceRegExp: /react-is/,
           contextRegExp: /next[\\/]dist[\\/]/,
         }),
-      (isNodeServer || isEdgeServer) &&
+      isNodeOrEdgeCompilation &&
         new PagesManifestPlugin({
           dev,
           isEdgeRuntime: isEdgeServer,
@@ -2778,11 +2781,9 @@ export default async function getBaseWebpackConfig(
       process.env.NEXT_WEBPACK_LOGGING.includes('summary-server')
 
     const profile =
-      (profileClient && isClient) ||
-      (profileServer && (isNodeServer || isEdgeServer))
+      (profileClient && isClient) || (profileServer && isNodeOrEdgeCompilation)
     const summary =
-      (summaryClient && isClient) ||
-      (summaryServer && (isNodeServer || isEdgeServer))
+      (summaryClient && isClient) || (summaryServer && isNodeOrEdgeCompilation)
 
     const logDefault = !infra && !profile && !summary
 
@@ -2838,7 +2839,7 @@ export default async function getBaseWebpackConfig(
       : undefined,
     hasAppDir,
     isDevelopment: dev,
-    isServer: isNodeServer || isEdgeServer,
+    isServer: isNodeOrEdgeCompilation,
     isEdgeRuntime: isEdgeServer,
     targetWeb: isClient || isEdgeServer,
     assetPrefix: config.assetPrefix || '',
@@ -2872,13 +2873,13 @@ export default async function getBaseWebpackConfig(
     webpackConfig = config.webpack(webpackConfig, {
       dir,
       dev,
-      isServer: isNodeServer || isEdgeServer,
+      isServer: isNodeOrEdgeCompilation,
       buildId,
       config,
       defaultLoaders,
       totalPages: Object.keys(entrypoints).length,
       webpack,
-      ...(isNodeServer || isEdgeServer
+      ...(isNodeOrEdgeCompilation
         ? {
             nextRuntime: isEdgeServer ? 'edge' : 'nodejs',
           }
@@ -3045,7 +3046,7 @@ export default async function getBaseWebpackConfig(
 
   if (hasUserCssConfig) {
     // only show warning for one build
-    if (isNodeServer || isEdgeServer) {
+    if (isNodeOrEdgeCompilation) {
       console.warn(
         chalk.yellow.bold('Warning: ') +
           chalk.bold(
@@ -3088,7 +3089,7 @@ export default async function getBaseWebpackConfig(
 
   // check if using @zeit/next-typescript and show warning
   if (
-    (isNodeServer || isEdgeServer) &&
+    isNodeOrEdgeCompilation &&
     webpackConfig.module &&
     Array.isArray(webpackConfig.module.rules)
   ) {

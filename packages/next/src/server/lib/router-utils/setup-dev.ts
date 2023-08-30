@@ -1256,6 +1256,7 @@ async function startWatcher(opts: SetupOpts) {
                   hasRewrites,
                   isNodeServer,
                   isEdgeServer,
+                  isNodeOrEdgeCompilation: isNodeServer || isEdgeServer,
                   clientRouterFilters,
                 })
 
