@@ -70,7 +70,7 @@ async function run() {
     return info('Not manually labeled or already labeled.')
   }
 
-  const client = getOctokit(process.env.GITHUB_TOKEN).rest
+  const { rest: client } = getOctokit(process.env.GITHUB_TOKEN)
   const issueCommon = { ...repo, issue_number: issue.number }
 
   const { file, comment } = labelActions[newLabel]

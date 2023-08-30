@@ -10,8 +10,6 @@ import { join } from 'node:path'
 
 const __dirname = `${process.env.GITHUB_WORKSPACE}/.github/actions/issue-validator/repro-link`
 
-/** @typedef {ReturnType<typeof getOctokit>['rest']} GitHubClient */
-
 async function run() {
   const token = process.env.GITHUB_TOKEN
   if (!token) throw new Error('No GITHUB_TOKEN provided')
