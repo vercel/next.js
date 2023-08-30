@@ -4,26 +4,23 @@
 
 // @ts-check
 import { context, getOctokit } from '@actions/github'
-import { setFailed, info, debug } from '@actions/core'
+import { setFailed, info } from '@actions/core'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-const verifyCanaryLabel = 'please verify canary'
-const addReproductionLabel = 'please add a complete reproduction'
-const addMimimalReproductionLabel = 'please simplify reproduction'
 const __dirname = `${process.env.GITHUB_WORKSPACE}/.github/actions/issue-validator/clarify`
 
 const labelActions = {
-  [addReproductionLabel]: {
+  'please add a complete reproduction': {
     file: 'repro.md',
     comment:
       'Commented on issue, because it did not have a sufficient reproduction.',
   },
-  [addMimimalReproductionLabel]: {
+  'please simplify reproduction': {
     file: 'simplify-repro.md',
     comment: 'Commented on issue, because it had a complex reproduction.',
   },
-  [verifyCanaryLabel]: {
+  'please verify canary': {
     file: 'canary.md',
     comment: 'Commented on issue, because it was not verified against canary.',
   },
