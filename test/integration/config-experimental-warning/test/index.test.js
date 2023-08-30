@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import { nextBuild, File } from 'next-test-utils'
+import { nextBuild, nextStart, findPort, File } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
 const configFile = new File(join(appDir, '/next.config.js'))
@@ -59,7 +59,10 @@ describe('Config Experimental Warning', () => {
         }
       })
     `)
-    const { stdout } = await nextBuild(appDir, [], { stdout: true })
+    await nextBuild(appDir, [])
+    const { stdout } = await nextStart(appDir, await findPort(), {
+      stdout: true,
+    })
     expect(stdout).toMatch(' - Experiments (use at your own risk):')
     expect(stdout).toMatch(' · workerThreads')
   })
@@ -72,7 +75,10 @@ describe('Config Experimental Warning', () => {
         }
       })
     `)
-    const { stdout } = await nextBuild(appDir, [], { stdout: true })
+    await nextBuild(appDir, [])
+    const { stdout } = await nextStart(appDir, await findPort(), {
+      stdout: true,
+    })
     expect(stdout).not.toMatch(' - Experiments (use at your own risk):')
     expect(stdout).not.toMatch(' · workerThreads')
   })

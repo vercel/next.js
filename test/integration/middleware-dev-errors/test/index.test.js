@@ -59,7 +59,7 @@ describe('Middleware development errors', () => {
       await check(
         () => stripAnsi(context.logs.output),
         new RegExp(
-          `- error middleware.js \\(\\d+:\\d+\\) @ Object.default \\[as handler\\]\n- error boom`,
+          `middleware.js \\(\\d+:\\d+\\) @ Object.default \\[as handler\\]\nboom`,
           'm'
         )
       )
@@ -93,7 +93,7 @@ describe('Middleware development errors', () => {
       await fetchViaHTTP(context.appPort, '/')
       await check(
         () => stripAnsi(context.logs.output),
-        new RegExp(`- error unhandledRejection: Error: async boom!`, 'm')
+        new RegExp(`unhandledRejection: Error: async boom!`, 'm')
       )
       // expect(output).not.toContain(
       //   'webpack-internal:///(middleware)/./middleware.js'
@@ -123,7 +123,7 @@ describe('Middleware development errors', () => {
       await check(
         () => stripAnsi(context.logs.output),
         new RegExp(
-          `- error middleware.js \\(\\d+:\\d+\\) @ eval\n- error test is not defined`,
+          `middleware.js \\(\\d+:\\d+\\) @ eval\ntest is not defined`,
           'm'
         )
       )
@@ -156,10 +156,7 @@ describe('Middleware development errors', () => {
       const output = stripAnsi(context.logs.output)
       await check(
         () => stripAnsi(context.logs.output),
-        new RegExp(
-          `- error middleware.js \\(\\d+:\\d+\\) @ <unknown>\n- error booooom!`,
-          'm'
-        )
+        new RegExp(`middleware.js \\(\\d+:\\d+\\) @ <unknown>\nbooooom!`, 'm')
       )
       expect(output).not.toContain(
         'webpack-internal:///(middleware)/./middleware.js'
@@ -194,7 +191,7 @@ describe('Middleware development errors', () => {
       await fetchViaHTTP(context.appPort, '/')
       await check(
         () => stripAnsi(context.logs.output),
-        new RegExp(`- error unhandledRejection: Error: you shall see me`, 'm')
+        new RegExp(`unhandledRejection: Error: you shall see me`, 'm')
       )
       // expect(output).not.toContain(
       //   'webpack-internal:///(middleware)/./middleware.js'

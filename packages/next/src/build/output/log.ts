@@ -31,36 +31,35 @@ function prefixedLog(prefixType: keyof typeof prefixes, ...message: any[]) {
   if (message.length === 0) {
     console[consoleMethod]('')
   } else {
-    console[consoleMethod](now() + ' ' + prefix, ...message)
+    console[consoleMethod](prefix, ...message)
   }
 }
 
 export function createPrefix(prefixType: keyof typeof prefixes) {
-  // now() +
   return ' ' + prefixes[prefixType]
 }
 
-export function now() {
-  let date = new Date()
-  let hour = date.getHours()
-  let min = date.getMinutes()
-  let sec = date.getSeconds()
-  let mil = date.getMilliseconds()
+// export function now() {
+//   let date = new Date()
+//   let hour = date.getHours()
+//   let min = date.getMinutes()
+//   let sec = date.getSeconds()
+//   let mil = date.getMilliseconds()
 
-  // pad start with 0 for single digit numbers
-  const hourStr = hour < 10 ? '0' + hour : hour
-  const minStr = min < 10 ? '0' + min : min
-  const secStr = sec < 10 ? '0' + sec : sec
+//   // pad start with 0 for single digit numbers
+//   const hourStr = hour < 10 ? '0' + hour : hour
+//   const minStr = min < 10 ? '0' + min : min
+//   const secStr = sec < 10 ? '0' + sec : sec
 
-  // pad start with 0 for milliseconds to always show 3 digits
-  const milStr = mil < 100 ? (mil < 10 ? '00' + mil : '0' + mil) : mil
+//   // pad start with 0 for milliseconds to always show 3 digits
+//   const milStr = mil < 100 ? (mil < 10 ? '00' + mil : '0' + mil) : mil
 
-  return `${hourStr}:${minStr}:${secStr}:${milStr}`
-}
+//   return `${hourStr}:${minStr}:${secStr}:${milStr}`
+// }
 
-const timestampPrefixLength = now().length
+// const timestampPrefixLength = now().length
 export function bootstrap(...message: any[]) {
-  console.log(' '.repeat(timestampPrefixLength) + ' ', ...message)
+  console.log(' ', ...message)
 }
 
 export function wait(...message: any[]) {

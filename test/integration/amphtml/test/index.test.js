@@ -16,6 +16,7 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
+import stripAnsi from 'strip-ansi'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -36,7 +37,8 @@ describe('AMP Usage', () => {
         stdout: true,
         stderr: true,
       })
-      output = result.stdout + result.stderr
+
+      output = stripAnsi(result.stdout + result.stderr)
 
       appPort = context.appPort = await findPort()
       app = await nextStart(appDir, context.appPort)

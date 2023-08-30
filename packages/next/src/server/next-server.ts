@@ -102,7 +102,7 @@ import { loadManifest } from './load-manifest'
 export * from './base-server'
 
 function writeStdoutLine(text: string) {
-  process.stdout.write(Log.now() + ' ' + text + '\n')
+  process.stdout.write(' ' + text + '\n')
 }
 
 export interface NodeRequestHandler {
