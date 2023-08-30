@@ -22,7 +22,7 @@ Depending on the reason the issue was closed, you can do the following:
 
 ### My repository is private and cannot make it public
 
-If you cannot make your repository public, you can create a new repository with the reproduction code. The most common use case we hear for not being able to comply with a public repository is that the repository contains sensitive information/company code. In most cases, this would not be a sufficient **minimal reproduction** anyway, as this codebase might contain a lot of unrelated parts that would make our investigation take longer. Strive for debugging your own code and remove anything unrelated to the issue. Common things to look out for:
+In most cases, a private repo will not be a sufficient **minimal reproduction**, as this codebase might contain a lot of unrelated parts that would make our investigation take longer. Please do **not** make it public. Instead, create a new repository using the templates above, adding the relevant code to reproduce the issue. Common things to look out for:
 
 - Remove any code that is not related to the issue. (pages, API routes, components, etc.)
 - Remove any dependencies that are not related to the issue.
