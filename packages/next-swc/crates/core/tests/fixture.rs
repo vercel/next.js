@@ -482,7 +482,7 @@ fn named_import_transform_fixture(input: PathBuf) {
     );
 }
 
-#[fixture("tests/fixture/optimize-barrel/**/input.js")]
+#[fixture("tests/fixture/optimize-barrel/normal/**/input.js")]
 fn optimize_barrel_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
@@ -493,16 +493,39 @@ fn optimize_barrel_fixture(input: PathBuf) {
 
             chain!(
                 resolver(unresolved_mark, top_level_mark, false),
-                optimize_barrel(
-                    FileName::Real(PathBuf::from("/some-project/node_modules/foo/file.js")),
-                    json(
-                        r#"
+                optimize_barrel(json(
+                    r#"
                         {
-                            "names": ["x", "y", "z"]
+                            "wildcard": false
                         }
-                        "#
-                    )
-                )
+                    "#
+                ))
+            )
+        },
+        &input,
+        &output,
+        Default::default(),
+    );
+}
+
+#[fixture("tests/fixture/optimize-barrel/wildcard/**/input.js")]
+fn optimize_barrel_wildcard_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            let unresolved_mark = Mark::new();
+            let top_level_mark = Mark::new();
+
+            chain!(
+                resolver(unresolved_mark, top_level_mark, false),
+                optimize_barrel(json(
+                    r#"
+                        {
+                            "wildcard": true
+                        }
+                    "#
+                ))
             )
         },
         &input,
