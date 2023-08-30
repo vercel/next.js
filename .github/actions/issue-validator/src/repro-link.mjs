@@ -8,8 +8,7 @@ import { context, getOctokit } from '@actions/github'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-const __dirname =
-  '/home/runner/work/next.js/next.js/.github/actions/issue-validator/repro-link'
+const __dirname = `${process.env.GITHUB_WORKSPACE}/.github/actions/issue-validator/repro-link`
 
 /** @typedef {ReturnType<typeof getOctokit>['rest']} GitHubClient */
 

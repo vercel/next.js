@@ -12,8 +12,7 @@ const verifyCanaryLabel = 'please verify canary'
 const addReproductionLabel = 'please add a complete reproduction'
 const addMimimalReproductionLabel = 'please simplify reproduction'
 // const bugLabel = 'template: bug'
-const __dirname =
-  '/home/runner/work/next.js/next.js/.github/actions/issue-validator/clarify'
+const __dirname = `${process.env.GITHUB_WORKSPACE}/.github/actions/issue-validator/clarify`
 
 /**
  * @typedef {{
