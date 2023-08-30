@@ -227,7 +227,7 @@ function createDeferredSuffixStream(
           // NOTE: streaming flush
           // Enqueue suffix part before the major chunks are enqueued so that
           // suffix won't be flushed too early to interrupt the data stream
-          setTimeout(() => {
+          queueTask(() => {
             controller.enqueue(encodeText(suffix))
             res()
           })
