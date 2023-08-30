@@ -676,6 +676,13 @@ export async function initialize(opts: {
         'no-cache, no-store, max-age=0, must-revalidate'
       )
 
+      // Short-circuit favicon.ico serving so that the 404 page doesn't get built as favicon is requested by the browser when loading any route.
+      if (opts.dev && !matchedOutput && parsedUrl.pathname === '/favicon.ico') {
+        res.statusCode = 404
+        res.end('')
+        return null
+      }
+
       const appNotFound = opts.dev
         ? devInstance?.serverFields.hasAppNotFound
         : await fsChecker.getItem('/_not-found')
