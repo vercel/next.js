@@ -375,6 +375,20 @@ function SubmitButton() {
 }
 ```
 
+```jsx filename="app/page.jsx" switcher
+'use client'
+
+import { experimental_useFormStatus as useFormStatus } from 'react-dom'
+
+function SubmitButton() {
+  const { pending } = useFormStatus()
+
+  return (
+    <button disabled={pending}>{pending ? 'Submitting...' : 'Submit'}</button>
+  )
+}
+```
+
 > **Good to know:**
 >
 > - Displaying loading or error states currently requires using Client Components. We are exploring options for server-side functions to retrieve these values as we move forward in stability for Server Actions.
@@ -829,7 +843,7 @@ You can read cookies inside a Server Action using the [`cookies`](/docs/app/api-
 
 import { cookies } from 'next/headers'
 
-export async function create() {
+export async function read() {
   const auth = cookies().get('authorization')?.value
   // ...
 }
@@ -840,7 +854,7 @@ export async function create() {
 
 import { cookies } from 'next/headers'
 
-export async function create() {
+export async function read() {
   const auth = cookies().get('authorization')?.value
   // ...
 }
@@ -884,7 +898,7 @@ You can delete cookies inside a Server Action using the [`cookies`](/docs/app/ap
 
 import { cookies } from 'next/headers'
 
-export async function create() {
+export async function delete() {
   cookies().delete('name')
   // ...
 }
@@ -895,7 +909,7 @@ export async function create() {
 
 import { cookies } from 'next/headers'
 
-export async function create() {
+export async function delete() {
   cookies().delete('name')
   // ...
 }
