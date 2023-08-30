@@ -24,7 +24,6 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.serverComponentsExternalPackages',
   'experimental.turbo',
   'experimental.mdxRs',
-  'experimental.swcFileReading',
   'experimental.forceSwcTransforms',
   // options below are not really supported, but ignored
   'webpack',
