@@ -30,9 +30,7 @@ describe('modularize-imports', () => {
     expect(html).toContain('<svg xmlns="http://www.w3.org/2000/svg"')
 
     const modules = [
-      ...logs.matchAll(
-        /compiled client and server successfully in \d+(\.\d+)?(s| ms) \((\d+) modules\)/g
-      ),
+      ...logs.matchAll(/compiled in \d+(\.\d+)?(s| ms) \((\d+) modules\)/g),
     ]
 
     expect(modules.length).toBeGreaterThanOrEqual(1)
