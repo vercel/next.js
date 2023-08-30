@@ -38,6 +38,7 @@ describe('optimizePackageImports', () => {
         'lucide-react': '0.264.0',
         '@headlessui/react': '1.7.17',
         '@heroicons/react': '2.0.18',
+        '@visx/visx': '3.3.0',
       },
     })
   })
@@ -116,5 +117,10 @@ describe('optimizePackageImports', () => {
   it('should handle recursive wildcard exports', async () => {
     const html = await next.render('/recursive')
     expect(html).toContain('<h1>42</h1>')
+  })
+
+  it('should support visx', async () => {
+    const html = await next.render('/visx')
+    expect(html).toContain('<linearGradient')
   })
 })
