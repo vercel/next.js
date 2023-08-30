@@ -34,8 +34,7 @@ import {
   RSC_MODULE_TYPES,
 } from '../../shared/lib/constants'
 import { RouteMatch } from '../future/route-matches/route-match'
-import { RouteKind } from '../future/route-kind'
-import { AppPageRouteMatch } from '../future/route-matches/app-page-route-match'
+import { isAppPageRouteMatch } from '../future/route-matches/app-page-route-match'
 
 const debug = origDebug('next:on-demand-entry-handler')
 
@@ -717,9 +716,8 @@ export function onDemandEntryHandler({
 
     // If the route is actually an app page route, then we should have access
     // to the app route match, and therefore, the appPaths from it.
-    if (match?.definition.kind === RouteKind.APP_PAGE) {
-      const { definition: route } = match as AppPageRouteMatch
-      appPaths = route.appPaths
+    if (!appPaths && match && isAppPageRouteMatch(match)) {
+      appPaths = match.definition.appPaths
     }
 
     try {
@@ -974,7 +972,7 @@ export function onDemandEntryHandler({
               })
             )
           }
-        } catch (_) {}
+        } catch {}
       })
     },
   }

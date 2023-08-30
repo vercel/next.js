@@ -58,7 +58,7 @@ function resolveUrl(
     // If we can construct a URL instance from url, ignore metadataBase
     const parsedUrl = new URL(url)
     return parsedUrl
-  } catch (_) {}
+  } catch {}
 
   if (!metadataBase) {
     metadataBase = createLocalMetadataBase()
