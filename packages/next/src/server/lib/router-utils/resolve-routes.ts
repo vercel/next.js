@@ -197,10 +197,7 @@ export function getResolveRoutes(
         initialLocaleResult.detectedLocale || defaultLocale
 
       // ensure locale is present for resolving routes
-      if (
-        !initialLocaleResult.detectedLocale &&
-        !initialLocaleResult.pathname.startsWith('/_next/')
-      ) {
+      if (!initialLocaleResult.detectedLocale) {
         parsedUrl.pathname = addPathPrefix(
           initialLocaleResult.pathname === '/'
             ? `/${defaultLocale}`
