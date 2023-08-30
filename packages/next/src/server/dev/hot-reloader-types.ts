@@ -37,7 +37,7 @@ export interface NextJsHotReloaderInterface {
   }: {
     page: string
     clientOnly: boolean
-    appPaths?: string[] | null
+    appPaths?: ReadonlyArray<string> | null
     isApp?: boolean
     match?: RouteMatch
   }): Promise<void>
