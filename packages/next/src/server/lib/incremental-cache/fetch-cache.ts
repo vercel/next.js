@@ -19,7 +19,6 @@ interface NextFetchCacheParams {
 const CACHE_TAGS_HEADER = 'x-vercel-cache-tags' as const
 const CACHE_HEADERS_HEADER = 'x-vercel-sc-headers' as const
 const CACHE_STATE_HEADER = 'x-vercel-cache-state' as const
-const CACHE_VERSION_HEADER = 'x-data-cache-version' as const
 const CACHE_REVALIDATE_HEADER = 'x-vercel-revalidate' as const
 const CACHE_FETCH_URL_HEADER = 'x-vercel-cache-item-name' as const
 const CACHE_CONTROL_VALUE_HEADER = 'x-vercel-cache-control' as const
@@ -40,7 +39,6 @@ export default class FetchCache implements CacheHandler {
   constructor(ctx: CacheHandlerContext) {
     this.debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
     this.headers = {}
-    this.headers[CACHE_VERSION_HEADER] = '2'
     this.headers['Content-Type'] = 'application/json'
 
     if (CACHE_HEADERS_HEADER in ctx._requestHeaders) {
