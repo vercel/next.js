@@ -18,7 +18,7 @@ export type OutputState =
       | {
           loading: false
           typeChecking: boolean
-          partial: 'client and server' | undefined
+          partial: string | undefined
           totalModulesCount: number
           errors: string[] | null
           warnings: string[] | null
@@ -66,8 +66,8 @@ store.subscribe((state) => {
       lastTrigger = state.trigger
     } else {
       // not aware of the original trigger, just saying compiling
-      if (Date.now() - lastTime > 3 * 1000) {
-        Log.wait('compiling...', lastTrigger)
+      if (Date.now() - lastTime > 3 * 1000 && lastTrigger !== 'initial') {
+        Log.wait('compiling ' + lastTrigger + ' ...')
       }
       lastTrigger = ''
     }
@@ -108,17 +108,12 @@ store.subscribe((state) => {
     startTime = 0
 
     timeMessage =
-      time > 2000 ? ` in ${Math.round(time / 100) / 10}s` : ` in ${time} ms`
+      time > 2000 ? `in ${Math.round(time / 100) / 10}s` : `in ${time} ms`
   }
 
   let modulesMessage = ''
   if (state.totalModulesCount) {
-    modulesMessage = ` (${state.totalModulesCount} modules)`
-  }
-
-  let partialMessage = ''
-  if (state.partial) {
-    partialMessage = ` ${state.partial}`
+    modulesMessage = `(${state.totalModulesCount} modules)`
   }
 
   if (state.warnings) {
@@ -132,16 +127,14 @@ store.subscribe((state) => {
   }
 
   if (state.typeChecking) {
-    Log.info(
-      `bundled${partialMessage} ${timeMessage}${modulesMessage}, type checking...`
-    )
+    Log.info(`bundled ${timeMessage} ${modulesMessage}, type checking...`)
     return
   }
 
   if (lastTrigger === 'initial') {
     Log.event('ready')
   } else if (lastTrigger) {
-    Log.event(`compiled ${lastTrigger} ${timeMessage}${modulesMessage}`)
+    Log.event(`compiled ${lastTrigger} ${timeMessage} ${modulesMessage}`)
   }
 
   // Ensure traces are flushed after each compile in development mode

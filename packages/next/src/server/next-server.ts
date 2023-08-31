@@ -1143,9 +1143,9 @@ export default class NextNodeServer extends BaseServer {
                   writeStdoutLine(
                     newLineLeadingChar +
                       nextNestedIndent +
-                      (i > 1 ? ' ' : '  ') +
+                      (i > 0 ? ' ' : '  ') +
                       newLineLeadingChar +
-                      ' '.repeat(2) +
+                      '  ' +
                       cacheReasonStr
                   )
                 }

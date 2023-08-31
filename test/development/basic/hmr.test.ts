@@ -118,13 +118,10 @@ describe.each([[''], ['/docs']])(
               /This is the contact page/
             )
 
-            expect(next.cliOutput.slice(start)).toContain('compiling...')
             expect(next.cliOutput.slice(start)).toContain(
-              'compiling /hmr/contact (client and server)...'
+              'compiling /hmr/contact ...'
             )
-            expect(next.cliOutput).toContain(
-              'compiling /_error (client and server)...'
-            )
+            expect(next.cliOutput).toContain('compiled /_error ...')
           } finally {
             if (browser) {
               await browser.close()
@@ -396,11 +393,9 @@ describe.each([[''], ['/docs']])(
           )
 
           expect(next.cliOutput.slice(start)).toContain(
-            'compiling /hmr/new-page (client and server)...'
+            'compiling /hmr/new-page ...'
           )
-          expect(next.cliOutput).toContain(
-            'compiling /_error (client and server)...'
-          )
+          expect(next.cliOutput).toContain('compiled /_error ...')
         } catch (err) {
           await next.deleteFile(newPage)
           throw err
@@ -439,11 +434,9 @@ describe.each([[''], ['/docs']])(
           )
 
           expect(next.cliOutput.slice(start)).toContain(
-            'compiling /hmr/[foo]/page (client and server)...'
+            'compiling /hmr/[foo]/page ...'
           )
-          expect(next.cliOutput).toContain(
-            'compiling /_error (client and server)...'
-          )
+          expect(next.cliOutput).toContain('compiled /_error ...')
         } catch (err) {
           await next.deleteFile(newPage)
           throw err
@@ -467,7 +460,7 @@ describe.each([[''], ['/docs']])(
               </div>
             )
           }
-          
+
           Error.getInitialProps = async ({ res, err }) => {
             const statusCode = res ? res.statusCode : err ? err.statusCode : 404
             console.log('getInitialProps called');
@@ -476,8 +469,8 @@ describe.each([[''], ['/docs']])(
               message: err ? err.message : 'Oops...',
             }
           }
-          
-          export default Error          
+
+          export default Error
         `
         )
 
@@ -527,11 +520,9 @@ describe.each([[''], ['/docs']])(
             /This is the about page/
           )
           expect(next.cliOutput.slice(start)).toContain(
-            'compiling /hmr/about2 (client and server)...'
+            'compiling /hmr/about2 ...'
           )
-          expect(next.cliOutput).toContain(
-            'compiling /_error (client and server)...'
-          )
+          expect(next.cliOutput).toContain('compiled /_error ...')
         } catch (err) {
           await next.patchFile(aboutPage, aboutContent)
           if (browser) {
@@ -925,7 +916,7 @@ describe.each([[''], ['/docs']])(
           ).toMatchInlineSnapshot(
             next.normalizeSnapshot(`
               "./components/parse-error.js
-              Error: 
+              Error:
                 x Expression expected
                  ,-[./components/parse-error.js:1:1]
                1 | This

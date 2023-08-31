@@ -138,10 +138,7 @@ buildStore.subscribe((state) => {
     appUrl: appUrl!,
     loading: false,
     typeChecking: false,
-    partial:
-      clientWasLoading && (serverWasLoading || edgeServerWasLoading)
-        ? 'client and server'
-        : undefined,
+    partial: undefined,
     totalModulesCount:
       (clientWasLoading ? client.totalModulesCount : 0) +
       (serverWasLoading ? server.totalModulesCount : 0) +

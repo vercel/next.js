@@ -2,6 +2,14 @@ import { join } from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 
+function matchModules(logs: string) {
+  return [
+    ...logs.matchAll(
+      /compiled (\/[\w-]+)*\s*in \d+(\.\d+)? (s|ms) \((\d+) modules\)/g
+    ),
+  ]
+}
+
 describe('optimizePackageImports', () => {
   let next: NextInstance
 
@@ -55,12 +63,10 @@ describe('optimizePackageImports', () => {
     // Ensure the icons are rendered
     expect(html).toContain('<svg xmlns="http://www.w3.org/2000/svg"')
 
-    const modules = [
-      ...logs.matchAll(/compiled \/ in \d+(\.\d+)?(s| ms) \((\d+) modules\)/g),
-    ]
+    const modules = matchModules(logs)
 
     expect(modules.length).toBeGreaterThanOrEqual(1)
-    for (const [, , , moduleCount] of modules) {
+    for (const [, , , , moduleCount] of modules) {
       // Ensure that the number of modules is less than 1000 - otherwise we're
       // importing the entire library.
       expect(parseInt(moduleCount)).toBeLessThan(1000)
@@ -78,12 +84,10 @@ describe('optimizePackageImports', () => {
     // Ensure the icons are rendered
     expect(html).toContain('<svg xmlns="http://www.w3.org/2000/svg"')
 
-    const modules = [
-      ...logs.matchAll(/compiled \/ in \d+(\.\d+)?(s| ms) \((\d+) modules\)/g),
-    ]
+    const modules = matchModules(logs)
 
     expect(modules.length).toBeGreaterThanOrEqual(1)
-    for (const [, , , moduleCount] of modules) {
+    for (const [, , , , moduleCount] of modules) {
       // Ensure that the number of modules is less than 1000 - otherwise we're
       // importing the entire library.
       expect(parseInt(moduleCount)).toBeLessThan(1000)
@@ -103,7 +107,7 @@ describe('optimizePackageImports', () => {
 
     const swcOptimizeBarrelExports = [
       ...logs.matchAll(
-        /optimizeBarrelExports: .+\/dist\/esm\/lucide-preact\.js/g
+        /optimizeBarrelExports: .+\/dist\/esm\/lucide-react\.js/g
       ),
     ]
 
