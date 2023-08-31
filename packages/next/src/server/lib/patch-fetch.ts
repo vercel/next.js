@@ -145,7 +145,7 @@ export function patchFetch({
         }
 
         let revalidate: number | undefined | false = undefined
-        const getNextField = (field: 'revalidate' | 'tags') => {
+        const getNextField = (field: keyof NextFetchRequestConfig) => {
           return typeof init?.next?.[field] !== 'undefined'
             ? init?.next?.[field]
             : isRequestInput
@@ -156,6 +156,7 @@ export function patchFetch({
         // only available if init is used separate
         let curRevalidate = getNextField('revalidate')
         const tags: string[] = getNextField('tags') || []
+        const forceFreshOnStale = getNextField('forceFreshOnStale') || false
 
         if (Array.isArray(tags)) {
           if (!staticGenerationStore.tags) {
@@ -460,16 +461,18 @@ export function patchFetch({
                   staticGenerationStore.pendingRevalidates.push(
                     Promise.resolve(originalFetchResponse)
                   )
-                  // if the request is stale and it's the first request that will miss the cache
-                  // this ensure the response will come with the new data requested
-                  const responseBodyArrayBuffer =
-                    await originalFetchResponse.arrayBuffer()
-                  const base64String = btoa(
-                    String.fromCharCode(
-                      ...new Uint8Array(responseBodyArrayBuffer)
+                  if (forceFreshOnStale) {
+                    // if the request is stale and it's the first request that will miss the cache
+                    // this ensure the response will come with the new data requested
+                    const responseBodyArrayBuffer =
+                      await originalFetchResponse.arrayBuffer()
+                    const base64String = btoa(
+                      String.fromCharCode(
+                        ...new Uint8Array(responseBodyArrayBuffer)
+                      )
                     )
-                  )
-                  entry.value.data.body = base64String
+                    entry.value.data.body = base64String
+                  }
                 } catch {
                   return console.error
                 }
