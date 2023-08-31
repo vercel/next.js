@@ -6,6 +6,7 @@ import {
   WrittenEndpoint,
   ServerClientChange,
   ServerClientChangeType,
+  Issue,
 } from '../../../build/swc'
 import type { Socket } from 'net'
 import ws from 'next/dist/compiled/ws'
@@ -94,6 +95,7 @@ import { devPageFiles } from '../../../build/webpack/plugins/next-types-plugin/s
 import type { RenderWorkers } from '../router-server'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
+import { debounce } from '../../utils'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -202,8 +204,43 @@ async function startWatcher(opts: SetupOpts) {
     let currentEntriesHandling = new Promise(
       (resolve) => (currentEntriesHandlingResolve = resolve)
     )
+    const hmrPayloads = new Map<string, object>()
+    let hmrBuilding = false
 
-    const issues = new Map<string, Set<string>>()
+    const issues = new Map<string, Map<string, Issue>>()
+
+    function issueKey(issue: Issue): string {
+      return `${issue.severity} - ${issue.filePath} - ${issue.title}\n${issue.description}\n\n`
+    }
+    function processIssues(key: string, result: TurbopackResult) {
+      const oldSet = issues.get(key) ?? new Map()
+      const newSet = new Map<string, Issue>()
+
+      for (const issue of result.issues) {
+        // TODO better formatting
+        if (issue.severity !== 'error' && issue.severity !== 'fatal') continue
+        const key = issueKey(issue)
+        if (!oldSet.has(key)) {
+          console.error(
+            `  ⚠ ${key} ${issue.severity} - ${
+              issue.filePath
+            }\n    ${issue.title.replace(
+              /\n/g,
+              '\n    '
+            )}\n    ${issue.description.replace(/\n/g, '\n    ')}\n\n`
+          )
+        }
+        newSet.set(key, issue)
+      }
+
+      for (const issue of oldSet.keys()) {
+        if (!newSet.has(issue)) {
+          console.error(`✅ ${key} fixed ${issue}`)
+        }
+      }
+
+      issues.set(key, newSet)
+    }
 
     async function processResult(
       key: string,
@@ -225,34 +262,57 @@ async function startWatcher(opts: SetupOpts) {
             ])
         )
 
-        const oldSet = issues.get(key) ?? new Set()
-        const newSet = new Set<string>()
-
-        for (const issue of result.issues) {
-          // TODO better formatting
-          if (issue.severity !== 'error' && issue.severity !== 'fatal') continue
-          const issueKey = `${issue.severity} - ${issue.filePath} - ${issue.title}\n${issue.description}\n\n`
-          if (!oldSet.has(issueKey)) {
-            console.error(
-              `  ⚠ ${key} ${issue.severity} - ${
-                issue.filePath
-              }\n    ${issue.title.replace(
-                /\n/g,
-                '\n    '
-              )}\n    ${issue.description.replace(/\n/g, '\n    ')}\n\n`
-            )
-          }
-          newSet.add(issueKey)
-        }
-        for (const issue of oldSet) {
-          if (!newSet.has(issue)) {
-            console.error(`✅ ${key} fixed ${issue}`)
-          }
-        }
-
-        issues.set(key, newSet)
+        processIssues(key, result)
       }
       return result
+    }
+
+    let hmrHash = 0
+    const sendHmrDebounce = debounce(() => {
+      interface HmrError {
+        message: string
+        moduleName: string
+        moduleTrace: Array<{ moduleName: string }>
+      }
+      const errors = new Map<string, HmrError>()
+      for (const [_path, issueMap] of issues) {
+        for (const [key, issue] of issueMap) {
+          if (errors.has(key)) continue
+
+          errors.set(key, {
+            message: issue.description,
+            moduleName: issue.filePath,
+            moduleTrace: [],
+          })
+        }
+      }
+
+      hotReloader.send({
+        action: 'built',
+        hash: String(++hmrHash),
+        errors: [...errors.values()],
+        warnings: [],
+      })
+      hmrBuilding = false
+
+      if (errors.size === 0) {
+        for (const payload of hmrPayloads.values()) {
+          hotReloader.send(payload)
+        }
+        hmrPayloads.clear()
+      }
+    }, 2)
+
+    function sendHmr(key: string, id: string, payload: object) {
+      // We've detected a change in some part of the graph. If nothing has
+      // been inserted into building yet, then this is the first change
+      // emitted, but their may be many more coming.
+      if (!hmrBuilding) {
+        hotReloader.send('building')
+        hmrBuilding = true
+      }
+      hmrPayloads.set(`${key}:${id}`, payload)
+      sendHmrDebounce()
     }
 
     const clearCache = (filePath: string) =>
@@ -351,9 +411,18 @@ async function startWatcher(opts: SetupOpts) {
       changeSubscriptions.set(page, changed)
 
       for await (const change of changed) {
-        if (payload) hotReloader.send(payload)
+        processIssues(page, change)
         const payload = makePayload(page, change)
+        if (payload) sendHmr('endpoint-change', page, payload)
       }
+    }
+    function clearChangeSubscription(page: string) {
+      const subscription = changeSubscriptions.get(page)
+      if (subscription) {
+        subscription.return?.()
+        changeSubscriptions.delete(page)
+      }
+      issues.delete(page)
     }
 
     try {
@@ -404,12 +473,15 @@ async function startWatcher(opts: SetupOpts) {
           // unnecessary during the first serve)
           if (prevMiddleware === true && !middleware) {
             // Went from middleware to no middleware
-            hotReloader.send({ event: 'middlewareChanges' })
-            changeSubscriptions.get('')?.return?.()
-            changeSubscriptions.delete('')
+            clearChangeSubscription('middleware')
+            sendHmr('entrypoint-change', 'middleware', {
+              event: 'middlewareChanges',
+            })
           } else if (prevMiddleware === false && middleware) {
             // Went from no middleware to middleware
-            hotReloader.send({ event: 'middlewareChanges' })
+            sendHmr('endpoint-change', 'middleware', {
+              event: 'middlewareChanges',
+            })
           }
           if (middleware) {
             await processResult(
@@ -425,7 +497,7 @@ async function startWatcher(opts: SetupOpts) {
                 middlewareManifests.get('middleware')?.middleware['/'].matchers,
             }
 
-            changeSubscription('', middleware.endpoint, () => {
+            changeSubscription('middleware', middleware.endpoint, () => {
               return { event: 'middlewareChanges' }
             })
             prevMiddleware = true
@@ -658,7 +730,8 @@ async function startWatcher(opts: SetupOpts) {
       const subscription = project.hmrEvents(id)
       mapping.set(id, subscription)
       for await (const data of subscription) {
-        hotReloader.send({ type: 'turbopack-message', data })
+        processIssues(id, data)
+        sendHmr('hrm-event', id, { type: 'turbopack-message', data })
       }
     }
 
@@ -719,12 +792,6 @@ async function startWatcher(opts: SetupOpts) {
         wsServer.handleUpgrade(req, socket, head, (client) => {
           clients.add(client)
           client.on('close', () => clients.delete(client))
-
-          // server sends:
-          //   - Middleware HMR:
-          //     - { action: 'building' }
-          //     - { action: 'sync', hash, errors, warnings, versionInfo }
-          //     - { action: 'built', hash }
 
           client.addEventListener('message', ({ data }) => {
             const parsedData = JSON.parse(
