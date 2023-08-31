@@ -24,10 +24,7 @@ use crate::{
     next_config::NextConfig,
     next_import_map::get_next_edge_import_map,
     next_server::context::ServerContextType,
-    next_shared::resolve::{
-        ModuleFeatureReportResolvePlugin, NextExternalResolvePlugin,
-        UnsupportedModulesResolvePlugin,
-    },
+    next_shared::resolve::{ModuleFeatureReportResolvePlugin, UnsupportedModulesResolvePlugin},
     util::foreign_code_context_condition,
 };
 
@@ -117,7 +114,6 @@ pub async fn get_edge_resolve_options_context(
         plugins: vec![
             Vc::upcast(ModuleFeatureReportResolvePlugin::new(project_path)),
             Vc::upcast(UnsupportedModulesResolvePlugin::new(project_path)),
-            Vc::upcast(NextExternalResolvePlugin::new(project_path)),
         ],
         ..Default::default()
     };
