@@ -454,23 +454,24 @@ export function patchFetch({
                 if (!staticGenerationStore.pendingRevalidates) {
                   staticGenerationStore.pendingRevalidates = []
                 }
-                staticGenerationStore.pendingRevalidates.push(
-                  doOriginalFetch(true).catch(console.error)
-                )
 
-                // if the request is stale and it's the first request that will miss the cache
-                // this ensure the response will come with the new data requested
-                const res: Response[] = await Promise.all(
-                  staticGenerationStore.pendingRevalidates
-                )
-                if (res && res.length > 0) {
-                  const responseBodyArrayBuffer = await res[0].arrayBuffer()
+                try {
+                  const originalFetchResponse = await doOriginalFetch(true)
+                  staticGenerationStore.pendingRevalidates.push(
+                    Promise.resolve(originalFetchResponse)
+                  )
+                  // if the request is stale and it's the first request that will miss the cache
+                  // this ensure the response will come with the new data requested
+                  const responseBodyArrayBuffer =
+                    await originalFetchResponse.arrayBuffer()
                   const base64String = btoa(
                     String.fromCharCode(
                       ...new Uint8Array(responseBodyArrayBuffer)
                     )
                   )
                   entry.value.data.body = base64String
+                } catch {
+                  return console.error
                 }
               } else if (
                 tags &&
