@@ -24,7 +24,7 @@ body:
       placeholder: 'https://github.com/user/my-minimal-nextjs-issue-reproduction'
     validations:
       required: true
-   - type: dropdown
+  - type: dropdown
     attributes:
       label: Which Next.js environments are affected? (Select all that apply)
       multiple: true
