@@ -446,12 +446,12 @@ export function getResolveRoutes(
             }
 
             const invokeHeaders: typeof req.headers = {
-              ...req.headers,
               'x-invoke-path': '',
               'x-invoke-query': '',
               'x-invoke-output': '',
               'x-middleware-invoke': '1',
             }
+            Object.assign(req.headers, invokeHeaders)
 
             debug('invoking middleware', req.url, invokeHeaders)
 
@@ -459,20 +459,15 @@ export function getResolveRoutes(
             let bodyStream: ReadableStream | undefined = undefined
             try {
               let readableController: ReadableStreamController<Buffer>
-              const { req: mockedReq, res: mockedRes } =
-                await createRequestResponseMocks({
-                  url: req.url || '/',
-                  method: req.method || 'GET',
-                  headers: filterReqHeaders(invokeHeaders, ipcForbiddenHeaders),
-                  bodyReadable: getRequestMeta(
-                    req,
-                    '__NEXT_CLONABLE_BODY'
-                  )?.cloneBodyStream(),
-                  resWriter(chunk) {
-                    readableController.enqueue(Buffer.from(chunk))
-                    return true
-                  },
-                })
+              const { res: mockedRes } = await createRequestResponseMocks({
+                url: req.url || '/',
+                method: req.method || 'GET',
+                headers: filterReqHeaders(invokeHeaders, ipcForbiddenHeaders),
+                resWriter(chunk) {
+                  readableController.enqueue(Buffer.from(chunk))
+                  return true
+                },
+              })
 
               bodyStream = new ReadableStream({
                 start(controller) {
@@ -487,7 +482,7 @@ export function getResolveRoutes(
               mockedRes.on('close', () => {
                 readableController.close()
               })
-              initResult?.requestHandler(mockedReq, mockedRes)
+              initResult?.requestHandler(req, mockedRes)
               await mockedRes.headPromise
               middlewareRes = mockedRes
             } catch (e) {

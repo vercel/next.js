@@ -185,6 +185,10 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
       ? fromNodeOutgoingHttpHeaders(res.headers)
       : new Headers()
 
+    this.headPromise = new Promise<void>((resolve) => {
+      this.headPromiseResolve = resolve
+    })
+
     // Attach listeners for the `finish`, `end`, and `error` events to the
     // `MockedResponse` instance.
     this.hasStreamed = new Promise<boolean>((resolve, reject) => {
@@ -194,10 +198,6 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
     }).then((val) => {
       this.headPromiseResolve?.()
       return val
-    })
-
-    this.headPromise = new Promise((resolve) => {
-      this.headPromiseResolve = resolve
     })
 
     if (res.resWriter) {
