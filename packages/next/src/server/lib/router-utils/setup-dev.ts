@@ -268,16 +268,12 @@ async function startWatcher(opts: SetupOpts) {
         type === 'app-route' ? 'app' : type,
         type === 'middleware'
           ? ''
-          : pageName === '/' && type === 'pages'
+          : pageName === '/'
           ? 'index'
+          : pageName === '/index' || pageName.startsWith('/index/')
+          ? `/index${pageName}`
           : pageName,
-        pageName === '/_not-found' || pageName === '/not-found'
-          ? ''
-          : type === 'app'
-          ? 'page'
-          : type === 'app-route'
-          ? 'route'
-          : '',
+        type === 'app' ? 'page' : type === 'app-route' ? 'route' : '',
         name
       )
       return JSON.parse(
