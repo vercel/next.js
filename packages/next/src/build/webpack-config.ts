@@ -358,22 +358,6 @@ export function getDefineEnv({
           'global.GENTLY': JSON.stringify(false),
         }
       : undefined),
-    // stub process.env with proxy to warn a missing value is
-    // being accessed in development mode
-    ...(config.experimental.pageEnv && dev
-      ? {
-          'process.env': `
-            new Proxy(${isNodeServer ? 'process.env' : '{}'}, {
-              get(target, prop) {
-                if (typeof target[prop] === 'undefined') {
-                  console.warn(\`An environment variable (\${prop}) that was not provided in the environment was accessed.\nSee more info here: https://nextjs.org/docs/messages/missing-env-value\`)
-                }
-                return target[prop]
-              }
-            })
-          `,
-        }
-      : {}),
   }
 }
 
@@ -2720,7 +2704,6 @@ export default async function getBaseWebpackConfig(
     serverActions: config.experimental.serverActions,
     typedRoutes: config.experimental.typedRoutes,
     basePath: config.basePath,
-    pageEnv: config.experimental.pageEnv,
     excludeDefaultMomentLocales: config.excludeDefaultMomentLocales,
     assetPrefix: config.assetPrefix,
     disableOptimizedLoading,
