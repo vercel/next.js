@@ -1,4 +1,7 @@
-import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
+import type {
+  StaticGenerationAsyncStorage,
+  StaticGenerationStore,
+} from '../../client/components/static-generation-async-storage'
 import type * as ServerHooks from '../../client/components/hooks-server-context'
 
 import { AppRenderSpan, NextNodeServerSpan } from './trace/constants'
@@ -117,7 +120,7 @@ export function patchFetch({
         },
       },
       async () => {
-        const staticGenerationStore =
+        const staticGenerationStore: StaticGenerationStore =
           staticGenerationAsyncStorage.getStore() ||
           (fetch as any).__nextGetStaticStore?.()
         const isRequestInput =
@@ -142,7 +145,7 @@ export function patchFetch({
         }
 
         let revalidate: number | undefined | false = undefined
-        const getNextField = (field: 'revalidate' | 'tags') => {
+        const getNextField = (field: keyof NextFetchRequestConfig) => {
           return typeof init?.next?.[field] !== 'undefined'
             ? init?.next?.[field]
             : isRequestInput
@@ -153,6 +156,7 @@ export function patchFetch({
         // only available if init is used separate
         let curRevalidate = getNextField('revalidate')
         const tags: string[] = getNextField('tags') || []
+        const forceFreshOnStale = getNextField('forceFreshOnStale') || false
 
         if (Array.isArray(tags)) {
           if (!staticGenerationStore.tags) {
@@ -451,9 +455,27 @@ export function patchFetch({
                 if (!staticGenerationStore.pendingRevalidates) {
                   staticGenerationStore.pendingRevalidates = []
                 }
-                staticGenerationStore.pendingRevalidates.push(
-                  doOriginalFetch(true).catch(console.error)
-                )
+
+                try {
+                  const originalFetchResponse = await doOriginalFetch(true)
+                  staticGenerationStore.pendingRevalidates.push(
+                    Promise.resolve(originalFetchResponse)
+                  )
+                  if (forceFreshOnStale) {
+                    // if the request is stale and it's the first request that will miss the cache
+                    // this ensure the response will come with the new data requested
+                    const responseBodyArrayBuffer =
+                      await originalFetchResponse.arrayBuffer()
+                    const base64String = btoa(
+                      String.fromCharCode(
+                        ...new Uint8Array(responseBodyArrayBuffer)
+                      )
+                    )
+                    entry.value.data.body = base64String
+                  }
+                } catch {
+                  return console.error
+                }
               } else if (
                 tags &&
                 !tags.every((tag) => currentTags?.includes(tag))

@@ -50,6 +50,7 @@ interface Window {
 interface NextFetchRequestConfig {
   revalidate?: number | false
   tags?: string[]
+  forceFreshOnStale?: boolean
 }
 
 interface RequestInit {
