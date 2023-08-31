@@ -509,8 +509,7 @@ export async function getPageStaticInfo(params: {
       // `export config` doesn't exist, or other unknown error throw by swc, silence them
     }
 
-    let extraConfig: Record<string, any> | undefined
-    extraConfig = {}
+    let extraConfig: Record<string, any> = {}
 
     if (extraProperties && pageType === 'app') {
       for (const prop of extraProperties) {
