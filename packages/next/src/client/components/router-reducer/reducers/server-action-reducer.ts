@@ -89,7 +89,11 @@ async function fetchServerAction(
   }
 
   const redirectLocation = location
-    ? new URL(addBasePath(location), window.location.origin)
+    ? new URL(
+        addBasePath(location),
+        // Ensure relative redirects in Server Actions work, e.g. redirect('./somewhere-else')
+        new URL(state.canonicalUrl, window.location.href)
+      )
     : undefined
 
   let isFlightResponse =
@@ -184,6 +188,13 @@ export function serverActionReducer(
     } = readRecordValue(
       action.mutable.inFlightServerAction!
     ) as Awaited<FetchServerActionResult>
+
+    // Make sure the redirection is a push instead of a replace.
+    // Issue: https://github.com/vercel/next.js/issues/53911
+    if (redirectLocation) {
+      state.pushRef.pendingPush = true
+      mutable.pendingPush = true
+    }
 
     mutable.previousTree = state.tree
 

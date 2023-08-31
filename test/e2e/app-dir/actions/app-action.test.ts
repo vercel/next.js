@@ -74,6 +74,24 @@ createNextDescribe(
       }, 'same')
     })
 
+    it('should push new route when redirecting', async () => {
+      const browser = await next.browser('/header')
+
+      await browser.elementByCss('#setCookieAndRedirect').click()
+      await check(async () => {
+        return (await browser.elementByCss('#redirected').text()) || ''
+      }, 'redirected')
+
+      // Ensure we can navigate back
+      await browser.back()
+
+      await check(async () => {
+        return (
+          (await browser.elementByCss('#setCookieAndRedirect').text()) || ''
+        )
+      }, 'setCookieAndRedirect')
+    })
+
     it('should support headers in client imported actions', async () => {
       const logs: string[] = []
       next.on('stdout', (log) => {
