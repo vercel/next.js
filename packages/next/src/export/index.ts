@@ -79,7 +79,7 @@ const createProgress = (total: number, label: string) => {
   let curProgress = 0
   let progressSpinner = createSpinner(
     // Leave a trailing space between prefix and spinner
-    { prefixText: `${leadingPrefix} ${label} (${curProgress}/${total}) ` },
+    { prefixText: ` ${leadingPrefix} ${label} (${curProgress}/${total}) ` },
     {
       spinner: {
         frames: [
@@ -126,7 +126,7 @@ const createProgress = (total: number, label: string) => {
 
     // Use \r to reset current line with spinner.
     // If it's 100% progressed, then we don't need to break a new line to avoid logging from routes while building.
-    const newText = `\r${leadingPrefix} ${label} (${curProgress}/${total})${
+    const newText = `\r ${leadingPrefix} ${label} (${curProgress}/${total})${
       curProgress === total ? '' : '\n'
     }`
     if (progressSpinner) {

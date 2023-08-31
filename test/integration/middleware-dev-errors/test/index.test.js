@@ -59,7 +59,7 @@ describe('Middleware development errors', () => {
       await check(
         () => stripAnsi(context.logs.output),
         new RegExp(
-          `middleware.js \\(\\d+:\\d+\\) @ Object.default \\[as handler\\]\\s*\\w+\\s*+boom`,
+          `middleware.js \\(\\d+:\\d+\\) @ Object.default \\[as handler\\]\\s*\\w+\\s*boom`,
           'm'
         )
       )

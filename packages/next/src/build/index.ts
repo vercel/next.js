@@ -484,7 +484,7 @@ export default async function build(
 
       if (!isGenerate) {
         buildSpinner = createSpinner({
-          prefixText: `${Log.createPrefix(
+          prefixText: ` ${Log.createPrefix(
             'info'
           )} Creating an optimized production build`,
         })
@@ -1130,7 +1130,7 @@ export default async function build(
       }
 
       const postCompileSpinner = createSpinner({
-        prefixText: `${Log.createPrefix('info')} Collecting page data`,
+        prefixText: ` ${Log.createPrefix('info')} Collecting page data`,
       })
 
       const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
