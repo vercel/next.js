@@ -17,14 +17,14 @@ declare const code: {
     readonly devanagari: RegExp;
     readonly kannada: RegExp;
 };
-declare type Locale = keyof typeof code;
+type Locale = keyof typeof code;
 
 /**
  * This class handles everything related to fonts.
  */
 
-declare type Weight = 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900;
-declare type Style$1 = 'normal' | 'italic';
+type Weight = 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900;
+type Style$1 = 'normal' | 'italic';
 interface FontOptions {
     data: Buffer | ArrayBuffer;
     name: string;
@@ -151,7 +151,7 @@ interface SatoriNode {
 
 declare function init(yoga: Yoga): void;
 
-declare type SatoriOptions = ({
+type SatoriOptions = ({
     width: number;
     height: number;
 } | {
