@@ -459,7 +459,12 @@ let reactRoot: any = null
 let shouldHydrate: boolean = true
 
 function clearMarks(): void {
-  Object.keys(performanceMarks).forEach((mark) => performance.clearMarks(mark))
+  ;[
+    performanceMarks.beforeRender,
+    performanceMarks.afterHydrate,
+    performanceMarks.afterRender,
+    performanceMarks.routeChange,
+  ].forEach((mark) => performance.clearMarks(mark))
 }
 
 function markHydrateComplete(): void {
@@ -473,7 +478,7 @@ function markHydrateComplete(): void {
   ).length
   if (hasBeforeRenderMark) {
     const beforeHydrationMeasure = performance.measure(
-      performanceMeasures.hydration,
+      performanceMeasures.beforeHydration,
       performanceMarks.navigationStart,
       performanceMarks.beforeRender
     )
