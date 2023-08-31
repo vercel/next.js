@@ -426,8 +426,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.buildId = this.getBuildId()
     this.minimalMode = minimalMode || !!process.env.NEXT_PRIVATE_MINIMAL_MODE
 
-    this.hasAppDir =
-      !!this.nextConfig.experimental.appDir && this.getHasAppDir(dev)
+    this.hasAppDir = this.getHasAppDir(dev)
     const serverComponents = this.hasAppDir
 
     this.nextFontManifest = this.getNextFontManifest()
@@ -1925,7 +1924,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const renderOpts: RenderOpts = {
         ...components,
         ...opts,
-        ...(isAppPath && this.nextConfig.experimental.appDir
+        ...(isAppPath
           ? {
               incrementalCache,
               isRevalidate: isSSG,
