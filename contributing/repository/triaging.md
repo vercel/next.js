@@ -10,7 +10,11 @@ Issues are opened with one of these labels:
 - `template: documentation` - feedback for improvement or an unverified issue with the Next.js documentation
 - `area: examples` - an issue with one of the examples in the [`examples`](https://github.com/vercel/next.js/tree/canary/examples) folder
 
+## Bug reports
+
 In the case of a bug report, **if the reproduction is missing or insufficient, the issue is automatically closed**, and a comment is added with a correct course of action. The issue will receive [this comment](https://github.com/vercel/next.js/blob/canary/.github/actions/issue-validator/repro-link/invalid-link.md). We also add an `invalid link` label to mark the issue. To avoid your issue being closed, please follow the [bug report template](https://github.com/vercel/next.js/blob/canary/.github/ISSUE_TEMPLATE/1.bug_report.yml) carefully.
+
+If the issue is specific to the project and not to Next.js itself, it will be converted to a [🎓️ Help discussion](https://github.com/vercel/next.js/discussions/categories/help)
 
 A maintainer can also manually label an issue with one of the following labels, which will also add a comment with a correct course of action:
 
@@ -31,10 +35,12 @@ The issue will receive [this comment](https://github.com/vercel/next.js/blob/can
 The provided reproduction is too complex or requires too many steps to reproduce. If a simplified reproduction is not provided for more than 30 days, the issue becomes stale and will be automatically closed. If a reproduction is provided within 30 days, a `needs triage` label is added, indicating that the issue needs another look from a maintainer.
 The issue will receive [this comment](https://github.com/vercel/next.js/blob/canary/.github/actions/issue-validator/clarify/simplify-repro.md)
 
-If the issue is specific to the project and not to Next.js itself, it will be converted to a [🎓️ Help discussion](https://github.com/vercel/next.js/discussions/categories/help)
+## Verified issues
 
-If the bug is verified, it will receive the `linear: next` label and will be tracked by the maintainers. Additionally, one or many `area:` label(s) can be added to indicate which part of Next.js is affected.
+If an is verified, it will receive the `linear: next`, `linear: dx` or `linear: web` label and will be tracked by the maintainers. Additionally, one or many `area:` label(s) can be added to indicate which part of Next.js is affected.
 
 Confirmed issues never become stale or are closed before resolution.
 
-All **closed** PRs and Issues will be locked after 2 weeks of inactivity (eg.: comment, referencing from elsewhere).
+## Closed issues
+
+All **closed** PRs and Issues will be locked after 2 weeks of inactivity (eg.: comment, referencing from elsewhere). if you think the issue is still relevant, please open a new issue and reference the old one.
