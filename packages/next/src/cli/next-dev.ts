@@ -14,7 +14,7 @@ import path from 'path'
 import { NextConfigComplete } from '../server/config-shared'
 import { traceGlobals } from '../trace/shared'
 import { Telemetry } from '../telemetry/storage'
-import loadConfig from '../server/config'
+import loadConfig, { getEnabledExperimentalFeatures } from '../server/config'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { findRootDir } from '../lib/find-root'
 import { fileExists, FileType } from '../lib/file-exists'
@@ -320,7 +320,10 @@ const nextDev: CliCommand = async (argv) => {
     undefined,
     undefined,
     (userConfig) => {
-      expFeatureInfo = Object.keys(userConfig.experimental || {}).sort(
+      const userNextConfigExperimental = getEnabledExperimentalFeatures(
+        userConfig.experimental
+      )
+      expFeatureInfo = userNextConfigExperimental.sort(
         (a, b) => a.length - b.length
       )
     }

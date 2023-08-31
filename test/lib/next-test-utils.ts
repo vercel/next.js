@@ -380,7 +380,7 @@ export function runNextCommandDev(
         start: /▲ Next.js/i,
       }
 
-      const strippedMessage = stripAnsi(message)
+      const strippedMessage = stripAnsi(message) as any
       if (
         (opts.bootupMarker && opts.bootupMarker.test(strippedMessage)) ||
         bootupMarkers[bootType].test(strippedMessage)
@@ -388,7 +388,7 @@ export function runNextCommandDev(
         if (!didResolve) {
           didResolve = true
           // Pass down the original message
-          resolve(stdOut ? message : instance)
+          resolve(stdOut ? strippedMessage : instance)
         }
       }
 
@@ -402,7 +402,7 @@ export function runNextCommandDev(
     }
 
     function handleStderr(data) {
-      const message = data.toString()
+      const message = stripAnsi(data.toString()) as any
       if (typeof opts.onStderr === 'function') {
         opts.onStderr(message)
       }

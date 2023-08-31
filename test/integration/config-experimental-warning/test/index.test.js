@@ -1,11 +1,30 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import { nextBuild, nextStart, findPort, File } from 'next-test-utils'
+import {
+  killApp,
+  launchApp,
+  findPort,
+  File,
+  fetchViaHTTP,
+} from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
 const configFile = new File(join(appDir, '/next.config.js'))
 const configFileMjs = new File(join(appDir, '/next.config.mjs'))
+
+let app
+async function collectStdout(appDir) {
+  let stdout = ''
+  const port = await findPort()
+  app = await launchApp(appDir, port, {
+    onStdout(msg) {
+      stdout += msg
+    },
+  })
+  await fetchViaHTTP(port, '/')
+  return stdout
+}
 
 describe('Config Experimental Warning', () => {
   afterEach(() => {
@@ -13,6 +32,10 @@ describe('Config Experimental Warning', () => {
     configFile.delete()
     configFileMjs.write('')
     configFileMjs.delete()
+    if (app) {
+      killApp(app)
+      app = undefined
+    }
   })
 
   it('should not show warning with default config from function', async () => {
@@ -24,10 +47,11 @@ describe('Config Experimental Warning', () => {
       }
     `)
 
-    await nextBuild(appDir, [])
-    const { stdout } = await nextStart(appDir, await findPort(), {
-      stdout: true,
-    })
+    // await nextBuild(appDir, [])
+    // const { stdout } = await nextStart(appDir, await findPort(), {
+    //   stdout: true,
+    // })
+    const stdout = await collectStdout(appDir)
     expect(stdout).not.toMatch(' - Experiments (use at your own risk):')
   })
 
@@ -37,10 +61,11 @@ describe('Config Experimental Warning', () => {
         images: {},
       }
     `)
-    await nextBuild(appDir, [])
-    const { stdout } = await nextStart(appDir, await findPort(), {
-      stdout: true,
-    })
+    // await nextBuild(appDir, [])
+    // const { stdout } = await nextStart(appDir, await findPort(), {
+    //   stdout: true,
+    // })
+    const stdout = await collectStdout(appDir)
     expect(stdout).not.toMatch(' - Experiments (use at your own risk):')
   })
 
@@ -52,10 +77,11 @@ describe('Config Experimental Warning', () => {
         }
       }
     `)
-    await nextBuild(appDir, [])
-    const { stdout } = await nextStart(appDir, await findPort(), {
-      stdout: true,
-    })
+    // await nextBuild(appDir, [])
+    // const { stdout } = await nextStart(appDir, await findPort(), {
+    //   stdout: true,
+    // })
+    const stdout = await collectStdout(appDir)
     expect(stdout).toMatch(' - Experiments (use at your own risk):')
     expect(stdout).toMatch(' · workerThreads')
   })
@@ -68,10 +94,11 @@ describe('Config Experimental Warning', () => {
         }
       })
     `)
-    await nextBuild(appDir, [])
-    const { stdout } = await nextStart(appDir, await findPort(), {
-      stdout: true,
-    })
+    // await nextBuild(appDir, [])
+    // const { stdout } = await nextStart(appDir, await findPort(), {
+    //   stdout: true,
+    // })
+    const stdout = await collectStdout(appDir)
     expect(stdout).toMatch(' - Experiments (use at your own risk):')
     expect(stdout).toMatch(' · workerThreads')
   })
@@ -84,10 +111,11 @@ describe('Config Experimental Warning', () => {
         }
       })
     `)
-    await nextBuild(appDir, [])
-    const { stdout } = await nextStart(appDir, await findPort(), {
-      stdout: true,
-    })
+    // await nextBuild(appDir, [])
+    // const { stdout } = await nextStart(appDir, await findPort(), {
+    //   stdout: true,
+    // })
+    const stdout = await collectStdout(appDir)
     expect(stdout).not.toMatch(' - Experiments (use at your own risk):')
     expect(stdout).not.toMatch(' · workerThreads')
   })
@@ -96,14 +124,15 @@ describe('Config Experimental Warning', () => {
     configFile.write(`
       module.exports = {
         experimental: {
-          urlImports: true,
           workerThreads: true,
+          scrollRestoration: true,
         }
       }
     `)
-    const { stdout } = await nextBuild(appDir, [], { stdout: true })
-    expect(stdout).not.toMatch(' - Experiments (use at your own risk):')
-    expect(stdout).not.toMatch(' · urlImports')
-    expect(stdout).not.toMatch(' · workerThreads')
+    // const { stdout } = await nextBuild(appDir, [], { stdout: true })
+    const stdout = await collectStdout(appDir)
+    expect(stdout).toMatch(' - Experiments (use at your own risk):')
+    expect(stdout).toMatch(' · workerThreads')
+    expect(stdout).toMatch(' · scrollRestoration')
   })
 })

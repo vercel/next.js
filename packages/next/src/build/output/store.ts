@@ -7,7 +7,6 @@ import {
   teardownTraceSubscriber,
 } from '../swc'
 import * as Log from './log'
-import chalk from '../../lib/chalk'
 
 export type OutputState =
   | { bootstrap: true; appUrl: string | null; bindAddr: string | null }
@@ -141,15 +140,13 @@ store.subscribe((state) => {
     return
   }
 
-  if (lastTrigger)
+  if (lastTrigger) {
     Log.event(`compiled ${lastTrigger} ${timeMessage}${modulesMessage}`)
+  }
+
   // Ensure traces are flushed after each compile in development mode
   flushAllTraces()
   teardownTraceSubscriber()
   teardownHeapProfiler()
   teardownCrashReporter()
-})
-
-store.subscribe((state) => {
-  lastTime = Date.now()
 })

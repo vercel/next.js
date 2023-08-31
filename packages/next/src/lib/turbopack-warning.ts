@@ -258,7 +258,7 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
   }
 
   if (!isCustomTurbopack) {
-    console.info(feedbackMessage)
+    console.log(feedbackMessage)
   }
 
   return rawNextConfig

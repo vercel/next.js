@@ -76,24 +76,6 @@ function assignDefaults(
         return currentConfig
       }
 
-      if (key === 'experimental' && typeof value === 'object') {
-        const enabledExperiments: (keyof ExperimentalConfig)[] = []
-
-        // defaultConfig.experimental is predefined and will never be undefined
-        // This is only a type guard for the typescript
-        if (defaultConfig.experimental) {
-          for (const featureName of Object.keys(
-            value
-          ) as (keyof ExperimentalConfig)[]) {
-            if (
-              value[featureName] !== defaultConfig.experimental[featureName]
-            ) {
-              enabledExperiments.push(featureName)
-            }
-          }
-        }
-      }
-
       if (key === 'distDir') {
         if (typeof value !== 'string') {
           throw new Error(
@@ -904,4 +886,28 @@ export default async function loadConfig(
   completeConfig.configFileName = configFileName
   setHttpClientAndAgentOptions(completeConfig)
   return completeConfig
+}
+
+export function getEnabledExperimentalFeatures(
+  userNextConfigExperimental: NextConfig['experimental']
+) {
+  const enabledExperiments: (keyof ExperimentalConfig)[] = []
+
+  if (!userNextConfigExperimental) return enabledExperiments
+
+  // defaultConfig.experimental is predefined and will never be undefined
+  // This is only a type guard for the typescript
+  if (defaultConfig.experimental) {
+    for (const featureName of Object.keys(
+      userNextConfigExperimental
+    ) as (keyof ExperimentalConfig)[]) {
+      if (
+        userNextConfigExperimental[featureName] !==
+        defaultConfig.experimental[featureName]
+      ) {
+        enabledExperiments.push(featureName)
+      }
+    }
+  }
+  return enabledExperiments
 }
