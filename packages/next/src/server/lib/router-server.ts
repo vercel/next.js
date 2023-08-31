@@ -209,56 +209,6 @@ export async function initialize(opts: {
     pages: await renderWorkers.pages?.initialize(renderWorkerOpts),
   }
 
-  if (devInstance) {
-    const originalNextDeleteCache = (global as any)._nextDeleteCache
-    ;(global as any)._nextDeleteCache = async (filePaths: string[]) => {
-      // Multiple instances of Next.js can be instantiated, since this is a global we have to call the original if it exists.
-      if (originalNextDeleteCache) {
-        await originalNextDeleteCache(filePaths)
-      }
-      try {
-        await Promise.all([
-          renderWorkers.pages?.deleteCache(filePaths),
-          renderWorkers.app?.deleteCache(filePaths),
-        ])
-      } catch (err) {
-        console.error(err)
-      }
-    }
-    const originalNextDeleteAppClientCache = (global as any)
-      ._nextDeleteAppClientCache
-    ;(global as any)._nextDeleteAppClientCache = async () => {
-      // Multiple instances of Next.js can be instantiated, since this is a global we have to call the original if it exists.
-      if (originalNextDeleteAppClientCache) {
-        await originalNextDeleteAppClientCache()
-      }
-      try {
-        await Promise.all([
-          renderWorkers.pages?.deleteAppClientCache(),
-          renderWorkers.app?.deleteAppClientCache(),
-        ])
-      } catch (err) {
-        console.error(err)
-      }
-    }
-    const originalNextClearModuleContext = (global as any)
-      ._nextClearModuleContext
-    ;(global as any)._nextClearModuleContext = async (targetPath: string) => {
-      // Multiple instances of Next.js can be instantiated, since this is a global we have to call the original if it exists.
-      if (originalNextClearModuleContext) {
-        await originalNextClearModuleContext()
-      }
-      try {
-        await Promise.all([
-          renderWorkers.pages?.clearModuleContext(targetPath),
-          renderWorkers.app?.clearModuleContext(targetPath),
-        ])
-      } catch (err) {
-        console.error(err)
-      }
-    }
-  }
-
   const logError = async (
     type: 'uncaughtException' | 'unhandledRejection',
     err: Error | undefined

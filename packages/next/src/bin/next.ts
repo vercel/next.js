@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import '../server/require-hook'
 import * as log from '../build/output/log'
 import arg from 'next/dist/compiled/arg/index.js'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
@@ -127,22 +128,32 @@ async function main() {
   const dir = getProjectDir(
     process.env.NEXT_PRIVATE_DEV_DIR || validatedArgs._[0]
   )
+  const origEnv = Object.assign({}, process.env)
+
+  // TODO: set config to env variable to be re-used so we don't reload
+  // un-necessarily
   const config = await loadConfig(
     command === 'dev' ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_BUILD,
     dir
   )
-  // TODO: set config to env variable to be re-used so we don't reload
-  // un-necessarily
-  const dirsResult = findPagesDir(dir, true)
+  let dirsResult: ReturnType<typeof findPagesDir> | undefined = undefined
 
-  if (dirsResult.appDir) {
+  try {
+    dirsResult = findPagesDir(dir, true)
+  } catch (_) {
+    // handle this error further down
+  }
+
+  if (dirsResult?.appDir) {
+    // we need to reset env if we are going to create
+    // the worker process with the esm loader so that the
+    // initial env state is correct
+    process.env = origEnv
     process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = config.experimental
       .serverActions
       ? 'experimental'
       : 'next'
   }
-
-  require('../server/require-hook')
 
   for (const dependency of ['react', 'react-dom']) {
     try {

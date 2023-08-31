@@ -78,7 +78,6 @@ addHookAliases(toResolveMap(defaultOverrides))
 export function overrideReact() {
   if (process.env.__NEXT_PRIVATE_PREBUNDLED_REACT && !aliasedPrebundledReact) {
     aliasedPrebundledReact = true
-    console.log('aliased react to', process.env.__NEXT_PRIVATE_PREBUNDLED_REACT)
 
     // Require these modules with static paths to make sure they are tracked by
     // NFT when building the app in standalone mode, as we are now conditionally
