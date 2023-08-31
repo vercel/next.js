@@ -1208,11 +1208,7 @@ export default async function build(
           )
         : config.experimental.cpus || 4
 
-      function createStaticWorker(
-        type: 'app' | 'pages',
-        ipcPort: number,
-        ipcValidationKey: string
-      ) {
+      function createStaticWorker(ipcPort: number, ipcValidationKey: string) {
         let infoPrinted = false
 
         return new Worker(staticWorkerPath, {
@@ -1315,13 +1311,9 @@ export default async function build(
           config.experimental.allowedRevalidateHeaderKeys,
       })
 
-      const pagesStaticWorkers = createStaticWorker(
-        'pages',
-        ipcPort,
-        ipcValidationKey
-      )
+      const pagesStaticWorkers = createStaticWorker(ipcPort, ipcValidationKey)
       const appStaticWorkers = isAppDirEnabled
-        ? createStaticWorker('app', ipcPort, ipcValidationKey)
+        ? createStaticWorker(ipcPort, ipcValidationKey)
         : undefined
 
       const analysisBegin = process.hrtime()
@@ -3301,12 +3293,8 @@ export default async function build(
         const exportApp: typeof import('../export').default =
           require('../export').default
 
-        const pagesWorker = createStaticWorker(
-          'pages',
-          ipcPort,
-          ipcValidationKey
-        )
-        const appWorker = createStaticWorker('app', ipcPort, ipcValidationKey)
+        const pagesWorker = createStaticWorker(ipcPort, ipcValidationKey)
+        const appWorker = createStaticWorker(ipcPort, ipcValidationKey)
 
         const options: ExportOptions = {
           isInvokedFromCli: false,
