@@ -268,16 +268,12 @@ async function startWatcher(opts: SetupOpts) {
         type === 'app-route' ? 'app' : type,
         type === 'middleware'
           ? ''
-          : pageName === '/' && type === 'pages'
+          : pageName === '/'
           ? 'index'
+          : pageName === '/index' || pageName.startsWith('/index/')
+          ? `/index${pageName}`
           : pageName,
-        pageName === '/_not-found' || pageName === '/not-found'
-          ? ''
-          : type === 'app'
-          ? 'page'
-          : type === 'app-route'
-          ? 'route'
-          : '',
+        type === 'app' ? 'page' : type === 'app-route' ? 'route' : '',
         name
       )
       return JSON.parse(
@@ -754,6 +750,7 @@ async function startWatcher(opts: SetupOpts) {
               case 'server-component-reload-page': // { clientId }
               case 'client-reload-page': // { clientId }
               case 'client-full-reload': // { stackTrace, hadRuntimeError }
+              case 'span-end': // { startTime, endTime, spanName, attributes }
                 // TODO
                 break
 
@@ -775,7 +772,10 @@ async function startWatcher(opts: SetupOpts) {
                 break
 
               default:
-                throw new Error(`unrecognized Turbopack HMR message "${data}"`)
+                // Might have been a Next.js message...
+                if (!parsedData.event) {
+                  throw new Error(`unrecognized Turbopack message "${data}"`)
+                }
             }
           })
 
@@ -886,7 +886,7 @@ async function startWatcher(opts: SetupOpts) {
               page,
               await route.htmlEndpoint.writeToDisk()
             )
-            changeSubscription(page, route.htmlEndpoint, (pageName, change) => {
+            changeSubscription(page, route.dataEndpoint, (pageName, change) => {
               switch (change) {
                 case ServerClientChangeType.Server:
                 case ServerClientChangeType.Both:
@@ -939,7 +939,7 @@ async function startWatcher(opts: SetupOpts) {
           }
           case 'app-page': {
             await processResult(page, await route.htmlEndpoint.writeToDisk())
-            changeSubscription(page, route.htmlEndpoint, (_page, change) => {
+            changeSubscription(page, route.rscEndpoint, (_page, change) => {
               switch (change) {
                 case ServerClientChangeType.Server:
                 case ServerClientChangeType.Both:

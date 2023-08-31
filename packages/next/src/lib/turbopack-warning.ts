@@ -20,7 +20,6 @@ const supportedTurbopackNextConfigOptions = [
   'swcMinify',
   'transpilePackages',
   'sassOptions.includePaths',
-  'experimental.appDir',
   'experimental.serverComponentsExternalPackages',
   'experimental.turbo',
   'experimental.mdxRs',
@@ -34,7 +33,6 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.proxyTimeout',
   'experimental.isrFlushToDisk',
   'experimental.workerThreads',
-  'experimenatl.pageEnv',
   'experimental.caseSensitiveRoutes',
 ]
 

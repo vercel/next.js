@@ -1,6 +1,6 @@
-# Example app with analytics
+# With Segment Analytics
 
-This example shows how to use Next.js along with [Segment Analytics](https://segment.com). A [custom app](https://nextjs.org/docs/advanced-features/custom-app) is used to inject the [Segment Analytics.js snippet](https://github.com/segmentio/snippet). The server and client-side call the [Page API](https://segment.com/docs/connections/spec/page/), while components call the [Track API](https://segment.com/docs/connections/spec/track/) on user actions (Refer to [`contact.js`](https://github.com/vercel/next.js/blob/canary/examples/with-segment-analytics/pages/contact.js)).
+This example shows how to use Next.js along with [Segment Analytics](https://segment.com) using [segmentio/analytics-next](https://github.com/segmentio/analytics-next). The main app [layout](https://github.com/vercel/next.js/blob/canary/examples/with-segment-analytics/app/layout.tsx) includes a client component (analytics.tsx)[(https://github.com/vercel/next.js/blob/canary/examples/with-segment-analytics/components/analytics.tsx)] which loads Segment and also exports the `analytics` object which can be imported and used to call the [Track API](https://segment.com/docs/connections/spec/track/) on user actions (Refer to [`contact.tsx`](https://github.com/vercel/next.js/blob/canary/examples/with-segment-analytics/app/contact/page.tsx)).
 
 ## Deploy your own
 

@@ -11,7 +11,7 @@ import { CliCommand } from '../lib/commands'
 import { getProjectDir } from '../lib/get-project-dir'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import path from 'path'
-import { defaultConfig, NextConfigComplete } from '../server/config-shared'
+import { NextConfigComplete } from '../server/config-shared'
 import { traceGlobals } from '../trace/shared'
 import { Telemetry } from '../telemetry/storage'
 import loadConfig from '../server/config'
@@ -352,12 +352,7 @@ const nextDev: CliCommand = async (argv) => {
     })
 
     const distDir = path.join(dir, rawNextConfig.distDir || '.next')
-    const { pagesDir, appDir } = findPagesDir(
-      dir,
-      typeof rawNextConfig?.experimental?.appDir === 'undefined'
-        ? !!defaultConfig.experimental?.appDir
-        : !!rawNextConfig.experimental?.appDir
-    )
+    const { pagesDir, appDir } = findPagesDir(dir, true)
     const telemetry = new Telemetry({
       distDir,
     })

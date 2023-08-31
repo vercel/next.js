@@ -426,13 +426,6 @@ function assignDefaults(
   )
 
   if (
-    typeof userConfig.experimental?.clientRouterFilter === 'undefined' &&
-    result.experimental?.appDir
-  ) {
-    result.experimental.clientRouterFilter = true
-  }
-
-  if (
     result.experimental?.outputFileTracingRoot &&
     !isAbsolute(result.experimental.outputFileTracingRoot)
   ) {
