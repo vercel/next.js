@@ -26,7 +26,7 @@ body:
       required: true
   - type: dropdown
     attributes:
-      label: Which Next.js environments are affected? (Select all that apply)
+      label: Which environments are affected? (Select all that apply)
       multiple: true
       options:
         - 'Not sure'
@@ -62,7 +62,7 @@ body:
       required: true
   - type: dropdown
     attributes:
-      label: Which area(s) of Next.js are affected? (Select all that apply)
+      label: Which area(s) are affected? (Select all that apply)
       multiple: true
       options:
         - 'Not sure'
