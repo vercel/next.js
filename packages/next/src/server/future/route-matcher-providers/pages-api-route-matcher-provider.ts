@@ -23,9 +23,11 @@ export class PagesAPIRouteMatcherProvider extends ManifestRouteMatcherProvider<P
     manifest: Manifest
   ): Promise<ReadonlyArray<PagesAPIRouteMatcher>> {
     // This matcher is only for Pages API routes.
-    const pathnames = Object.keys(manifest).filter((pathname) =>
-      isAPIRoute(pathname)
-    )
+    const pathnames = Object.keys(manifest)
+      .filter((pathname) => isAPIRoute(pathname))
+      // Sort the pathnames to ensure that the order of the matchers is
+      // deterministic.
+      .sort()
 
     const matchers: Array<PagesAPIRouteMatcher> = []
 

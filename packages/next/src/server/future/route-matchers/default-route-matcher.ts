@@ -6,11 +6,11 @@ import { RouteMatcher, type RouteMatcherOptions } from './route-matcher'
 import { DynamicPathnameMatcher } from './helpers/dynamic-pathname-matcher'
 import { createPathnameMatcher } from './helpers/create-pathname-matcher'
 
-type DefaultMatcherMatchOptions = RouteMatcherOptions
+export type DefaultRouteMatchOptions = RouteMatcherOptions
 
 export class DefaultRouteMatcher<
   D extends RouteDefinition = RouteDefinition,
-  M extends DefaultMatcherMatchOptions = DefaultMatcherMatchOptions
+  M extends DefaultRouteMatchOptions = DefaultRouteMatchOptions
 > extends RouteMatcher<D, M> {
   private readonly matcher: PathnameMatcher
 

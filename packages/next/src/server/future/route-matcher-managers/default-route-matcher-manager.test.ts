@@ -14,6 +14,7 @@ describe('DefaultRouteMatcherManager', () => {
     const manager = new DefaultRouteMatcherManager()
     await expect(
       manager.match('/some/not/real/path', {
+        amp: undefined,
         i18n: undefined,
         matchedOutputPathname: undefined,
       })
@@ -21,6 +22,7 @@ describe('DefaultRouteMatcherManager', () => {
     manager.push({ matchers: jest.fn(async () => []) })
     await expect(
       manager.match('/some/not/real/path', {
+        amp: undefined,
         i18n: undefined,
         matchedOutputPathname: undefined,
       })
@@ -28,6 +30,7 @@ describe('DefaultRouteMatcherManager', () => {
     await manager.load()
     await expect(
       manager.match('/some/not/real/path', {
+        amp: undefined,
         i18n: undefined,
         matchedOutputPathname: undefined,
       })
@@ -39,6 +42,7 @@ describe('DefaultRouteMatcherManager', () => {
     await manager.load()
     await expect(
       manager.match('/some/not/real/path', {
+        amp: undefined,
         i18n: undefined,
         matchedOutputPathname: undefined,
       })
@@ -59,13 +63,21 @@ describe('DefaultRouteMatcherManager', () => {
     }>([
       {
         pathname: '/some/[slug]/path',
-        options: { i18n: undefined, matchedOutputPathname: undefined },
+        options: {
+          amp: undefined,
+          i18n: undefined,
+          matchedOutputPathname: undefined,
+        },
         definitions: [],
         expected: undefined,
       },
       {
         pathname: '/some/[slug]/path',
-        options: { i18n: undefined, matchedOutputPathname: undefined },
+        options: {
+          amp: undefined,
+          i18n: undefined,
+          matchedOutputPathname: undefined,
+        },
         definitions: [
           {
             kind: RouteKind.APP_PAGE,
@@ -107,6 +119,7 @@ describe('DefaultRouteMatcherManager', () => {
     {
       pathname: '/nl-NL/some/path',
       options: {
+        amp: undefined,
         i18n: {
           detectedLocale: 'nl-NL',
           pathname: '/some/path',
@@ -129,6 +142,7 @@ describe('DefaultRouteMatcherManager', () => {
     {
       pathname: '/en-US/some/path',
       options: {
+        amp: undefined,
         i18n: {
           detectedLocale: 'en-US',
           pathname: '/some/path',
@@ -151,6 +165,7 @@ describe('DefaultRouteMatcherManager', () => {
     {
       pathname: '/some/path',
       options: {
+        amp: undefined,
         i18n: {
           detectedLocale: undefined,
           pathname: '/some/path',
@@ -208,6 +223,7 @@ describe('DefaultRouteMatcherManager', () => {
     await manager.load()
 
     const options: MatchOptions = {
+      amp: undefined,
       i18n: {
         detectedLocale: undefined,
         pathname: '/some/path',
@@ -237,6 +253,7 @@ describe('DefaultRouteMatcherManager', () => {
     await manager.load()
 
     const options: MatchOptions = {
+      amp: undefined,
       i18n: {
         detectedLocale: 'en-US',
         pathname: '/some/path',

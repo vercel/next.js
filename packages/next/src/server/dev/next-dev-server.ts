@@ -31,8 +31,6 @@ import {
 } from '../../shared/lib/constants'
 import Server, { WrappedBuildError } from '../next-server'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
-import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
-import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import { Telemetry } from '../../telemetry/storage'
 import { setGlobal } from '../../trace'
 import { findPageFile } from '../lib/find-page-file'
@@ -435,30 +433,18 @@ export default class DevServer extends Server {
   ): Promise<void> {
     await this.devReady
 
-    const { basePath } = this.nextConfig
-    let originalPathname: string | null = null
-
-    // TODO: see if we can remove this in the future
-    if (basePath && pathHasPrefix(parsedUrl.pathname || '/', basePath)) {
-      // strip basePath before handling dev bundles
-      // If replace ends up replacing the full url it'll be `undefined`, meaning we have to default it to `/`
-      originalPathname = parsedUrl.pathname
-      parsedUrl.pathname = removePathPrefix(parsedUrl.pathname || '/', basePath)
+    let pathname = parsedUrl.pathname || '/'
+    if (this.basePathNormalizer) {
+      pathname = this.basePathNormalizer.normalize(pathname)
     }
 
-    const { pathname } = parsedUrl
-
-    if (pathname!.startsWith('/_next')) {
-      if (await fileExists(pathJoin(this.publicDir, '_next'))) {
-        throw new Error(PUBLIC_DIR_MIDDLEWARE_CONFLICT)
-      }
+    if (
+      pathname.startsWith('/_next') &&
+      (await fileExists(pathJoin(this.publicDir, '_next')))
+    ) {
+      throw new Error(PUBLIC_DIR_MIDDLEWARE_CONFLICT)
     }
 
-    if (originalPathname) {
-      // restore the path before continuing so that custom-routes can accurately determine
-      // if they should match against the basePath or not
-      parsedUrl.pathname = originalPathname
-    }
     try {
       return await super.run(req, res, parsedUrl)
     } catch (error) {
@@ -468,8 +454,8 @@ export default class DevServer extends Server {
       if (!res.sent) {
         res.statusCode = 500
         try {
-          return await this.renderError(err, req, res, pathname!, {
-            __NEXT_PAGE: (isError(err) && err.page) || pathname || '',
+          return await this.renderError(err, req, res, pathname, {
+            __NEXT_PAGE: (isError(err) && err.page) || pathname,
           })
         } catch (internalErr) {
           console.error(internalErr)
@@ -727,7 +713,7 @@ export default class DevServer extends Server {
     page: string
     clientOnly: boolean
     appPaths?: ReadonlyArray<string> | null
-    match?: RouteMatch
+    match?: RouteMatch | null
   }): Promise<void> {
     if (!this.isRenderWorker) {
       throw new Error('Invariant ensurePage called outside render worker')
@@ -749,6 +735,7 @@ export default class DevServer extends Server {
     isAppPath,
     appPaths = null,
     shouldEnsure,
+    match,
   }: {
     pathname: string
     query: NextParsedUrlQuery
@@ -757,6 +744,7 @@ export default class DevServer extends Server {
     sriEnabled?: boolean
     appPaths?: ReadonlyArray<string> | null
     shouldEnsure: boolean
+    match: RouteMatch | null
   }): Promise<FindComponentsResult | null> {
     await this.devReady
     const compilationErr = await this.getCompilationError(pathname)
@@ -770,6 +758,7 @@ export default class DevServer extends Server {
           page: pathname,
           appPaths,
           clientOnly: false,
+          match,
         })
       }
 
@@ -786,6 +775,7 @@ export default class DevServer extends Server {
         params,
         isAppPath,
         shouldEnsure,
+        match,
       })
     } catch (err) {
       if ((err as any).code !== 'ENOENT') {

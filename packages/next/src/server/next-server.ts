@@ -101,6 +101,7 @@ import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 import { signalFromNodeResponse } from './web/spec-extension/adapters/next-request'
 import { RouteModuleLoader } from './future/helpers/module-loader/route-module-loader'
 import { loadManifest } from './load-manifest'
+import { isAMPRouteDefinition } from './future/route-definitions/amp-route-definition'
 
 export * from './base-server'
 
@@ -557,7 +558,8 @@ export default class NextNodeServer extends BaseServer {
 
   protected async renderPageComponent(
     ctx: RequestContext,
-    bubbleNoFallback: boolean
+    bubbleNoFallback: boolean,
+    match: RouteMatch | null
   ) {
     const edgeFunctionsPages = this.getEdgeFunctionsPages() || []
     if (edgeFunctionsPages.length) {
@@ -585,7 +587,7 @@ export default class NextNodeServer extends BaseServer {
       }
     }
 
-    return super.renderPageComponent(ctx, bubbleNoFallback)
+    return super.renderPageComponent(ctx, bubbleNoFallback, match)
   }
 
   protected async findPageComponents({
@@ -593,6 +595,7 @@ export default class NextNodeServer extends BaseServer {
     query,
     params,
     isAppPath,
+    match,
   }: {
     pathname: string
     query: NextParsedUrlQuery
@@ -603,6 +606,7 @@ export default class NextNodeServer extends BaseServer {
     sriEnabled?: boolean
     appPaths?: ReadonlyArray<string> | null
     shouldEnsure: boolean
+    match: RouteMatch | null
   }): Promise<FindComponentsResult | null> {
     return getTracer().trace(
       NextNodeServerSpan.findPageComponents,
@@ -618,6 +622,7 @@ export default class NextNodeServer extends BaseServer {
           query,
           params,
           isAppPath,
+          match,
         })
     )
   }
@@ -627,70 +632,113 @@ export default class NextNodeServer extends BaseServer {
     query,
     params,
     isAppPath,
+    match,
   }: {
     pathname: string
     query: NextParsedUrlQuery
     params: Params
     isAppPath: boolean
+    match: RouteMatch | null
   }): Promise<FindComponentsResult | null> {
-    const paths: string[] = [pathname]
-    if (query.amp) {
-      // try serving a static AMP version first
-      paths.unshift(
-        (isAppPath ? normalizeAppPath(pathname) : normalizePagePath(pathname)) +
-          '.amp'
-      )
+    // Get the match definition (if we have one).
+    let definition = match?.definition
+    if (definition) {
+      // If the user requested an AMP page, and we have a match that supports AMP,
+      // then we should use the AMP definition.
+      if (query.amp && isAMPRouteDefinition(definition) && definition.amp) {
+        definition = definition.amp
+      }
+
+      // Update the pathname to the definition's pathname.
+      pathname = definition.pathname
     }
 
-    if (query.__nextLocale) {
-      paths.unshift(
-        ...paths.map(
-          (path) => `/${query.__nextLocale}${path === '/' ? '' : path}`
-        )
-      )
-    }
+    // If we don't have a match, then we'll need to try multiple pathsnames.
+    const pathnames: string[] = [pathname]
 
-    for (const pagePath of paths) {
-      try {
-        const components = await loadComponents({
-          distDir: this.distDir,
-          pathname: pagePath,
-          isAppPath,
-        })
+    // If we don't have a definition and this isn't an app path, then we should
+    // check to see if there's any other files we should be trying first.
+    if (!definition && !isAppPath) {
+      // If the page is a pages path that supports AMP, then if the user requested
+      // the AMP version of the page, we should try to load the AMP version of the
+      // page.
+      if (query.amp) {
+        pathnames.unshift(normalizePagePath(pathname) + '.amp')
+      }
 
-        if (
-          query.__nextLocale &&
-          typeof components.Component === 'string' &&
-          !pagePath.startsWith(`/${query.__nextLocale}`)
-        ) {
-          // if loading an static HTML file the locale is required
-          // to be present since all HTML files are output under their locale
-          continue
-        }
-
-        return {
-          components,
-          query: {
-            ...(components.getStaticProps
-              ? ({
-                  amp: query.amp,
-                  __nextDataReq: query.__nextDataReq,
-                  __nextLocale: query.__nextLocale,
-                  __nextDefaultLocale: query.__nextDefaultLocale,
-                } as NextParsedUrlQuery)
-              : query),
-            // For appDir params is excluded.
-            ...((isAppPath ? {} : params) || {}),
-          },
-        }
-      } catch (err) {
-        // we should only not throw if we failed to find the page
-        // in the pages-manifest
-        if (!(err instanceof PageNotFoundError)) {
-          throw err
-        }
+      // If there's a locale on the query, then we may need to try prefixing the
+      // locale to the page path. If this isn't for a match, which means we
+      // haven't performed locale matching already, and this isn't an app path,
+      // then we just have to prefix the pathnames with the locale and try to
+      // load the components.
+      if (query.__nextLocale) {
+        pathnames.unshift(...pathnames.map((p) => `/${query.__nextLocale}${p}`))
       }
     }
+
+    // Loop over all the pathnames and try to load the components. Return with the
+    // first successful result.
+    for (const pagePathname of pathnames) {
+      let components: LoadComponentsReturnType
+      try {
+        components = await loadComponents({
+          pathname: pagePathname,
+          definition,
+          distDir: this.distDir,
+          isAppPath,
+        })
+      } catch (err) {
+        // If the error is a page not found error, then we should continue
+        // trying to load the page.
+        if (err instanceof PageNotFoundError) continue
+
+        throw err
+      }
+
+      // Ensure that if we're trying to load a locale-specific page, we
+      // don't accidentally load the default locale's page. All HTML files
+      // that are locale aware are output in a subfolder under their locale.
+      // This only really applies to those pages that haven't been loaded via
+      // a route definition, as we don't test files.
+      if (
+        !definition &&
+        !isAppPath &&
+        query.__nextLocale &&
+        typeof components.Component === 'string' &&
+        !pagePathname.startsWith(`/${query.__nextLocale}`)
+      ) {
+        continue
+      }
+
+      // We're ready to return a response, collect the result.
+      const result: FindComponentsResult = {
+        components,
+        query: {},
+      }
+
+      // If this is a component exporting `getStaticProps`, then we should
+      // only provide the Next.js specific query values.
+      if (components.getStaticProps) {
+        Object.assign(result.query, {
+          amp: query.amp,
+          __nextDataReq: query.__nextDataReq,
+          __nextLocale: query.__nextLocale,
+          __nextDefaultLocale: query.__nextDefaultLocale,
+        })
+      } else {
+        // Otherwise, we should provide all query values.
+        Object.assign(result.query, query)
+      }
+
+      // If this isn't an app path, then we should provide the params.
+      if (!isAppPath) {
+        Object.assign(result.query, params)
+      }
+
+      return result
+    }
+
+    // If we didn't find any components, then we should return null.
     return null
   }
 
@@ -817,7 +865,8 @@ export default class NextNodeServer extends BaseServer {
   protected async handleCatchallRenderRequest(
     req: BaseNextRequest,
     res: BaseNextResponse,
-    parsedUrl: NextUrlWithParsedQuery
+    parsedUrl: NextUrlWithParsedQuery,
+    match: RouteMatch | null
   ) {
     let { pathname, query } = parsedUrl
     if (!pathname) {
@@ -832,17 +881,19 @@ export default class NextNodeServer extends BaseServer {
       // next.js core assumes page path without trailing slash
       pathname = removeTrailingSlash(pathname)
 
-      const options: MatchOptions = {
-        i18n: this.i18nProvider?.fromQuery(pathname, query),
-        matchedOutputPathname: undefined,
-      }
-      const match = await this.matchers.match(pathname, options)
-
-      // If we don't have a match, try to render it anyways.
       if (!match) {
-        await this.render(req, res, pathname, query, parsedUrl, true)
+        const options: MatchOptions = {
+          i18n: this.i18nProvider?.fromQuery(pathname, query),
+          matchedOutputPathname: undefined,
+          amp: query.amp === '1',
+        }
+        match = await this.matchers.match(pathname, options)
 
-        return { finished: true }
+        // If we don't have a match, try to render it anyways.
+        if (!match) {
+          await this.render(req, res, pathname, query, parsedUrl, true)
+          return { finished: true }
+        }
       }
 
       // Add the match to the request so we don't have to re-run the matcher
@@ -859,6 +910,7 @@ export default class NextNodeServer extends BaseServer {
           await this.render404(req, res, parsedUrl)
           return { finished: true }
         }
+
         delete query._nextBubbleNoFallback
         delete query[NEXT_RSC_UNION_QUERY]
 

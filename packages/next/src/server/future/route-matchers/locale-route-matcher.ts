@@ -1,13 +1,12 @@
-import type { LocaleInfo } from '../helpers/i18n-provider'
 import type { LocaleRouteDefinition } from '../route-definitions/locale-route-definition'
 import type { LocaleRouteMatch } from '../route-matches/locale-route-match'
 import type { PathnameMatcher } from './helpers/pathname-matcher'
 
 import { createPathnameMatcher } from './helpers/create-pathname-matcher'
 import { DynamicPathnameMatcher } from './helpers/dynamic-pathname-matcher'
-import { RouteMatcher } from './route-matcher'
+import { RouteMatcher, RouteMatcherOptions } from './route-matcher'
 
-type LocaleMatcherMatchOptions = LocaleInfo
+type LocaleMatcherMatchOptions = RouteMatcherOptions
 
 export class LocaleRouteMatcher<
   D extends LocaleRouteDefinition = LocaleRouteDefinition,
@@ -55,33 +54,50 @@ export class LocaleRouteMatcher<
    * @param options The options to use when matching.
    * @returns The match result, or `null` if there was no match.
    */
-  public match(options: M): LocaleRouteMatch<D> | null {
+  public match({ options: { i18n } }: M): LocaleRouteMatch<D> | null {
+    // If we don't have any locale information, then this isn't a match! This
+    // only happens when the matcher is used when locale matching information
+    // was not provided.
+    if (!i18n) {
+      throw new Error(
+        'Invariant: expected i18n to be provided to a locale route matcher'
+      )
+    }
+
+    const { detectedLocale, inferredFromDefault = false, pathname } = i18n
+
     // If we have detected a locale and it does not match this route's locale,
     // then this isn't a match!
     if (
       this.definition.i18n.detectedLocale &&
-      options.detectedLocale &&
-      this.definition.i18n.detectedLocale !== options.detectedLocale
+      detectedLocale &&
+      this.definition.i18n.detectedLocale !== detectedLocale
     ) {
       return null
     }
 
-    const result = this.matcher.match(options.pathname)
+    const result = this.matcher.match(pathname)
     if (!result) return null
 
-    let inferredFromDefinition = false
-    let detectedLocale = options.detectedLocale
-    if (!detectedLocale) {
-      detectedLocale = this.definition.i18n.detectedLocale
-      inferredFromDefinition = true
+    if (detectedLocale) {
+      return {
+        definition: this.definition,
+        params: result.params,
+        i18n: {
+          detectedLocale,
+          inferredFromDefault,
+          inferredFromDefinition: false,
+        },
+      }
     }
 
     return {
       definition: this.definition,
       params: result.params,
       i18n: {
-        detectedLocale,
-        inferredFromDefinition: inferredFromDefinition,
+        detectedLocale: this.definition.i18n.detectedLocale,
+        inferredFromDefault: false,
+        inferredFromDefinition: true,
       },
     }
   }

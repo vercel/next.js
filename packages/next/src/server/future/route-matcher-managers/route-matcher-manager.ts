@@ -5,6 +5,12 @@ import { RouteMatcherProvider } from '../route-matcher-providers/route-matcher-p
 
 export type MatchOptions = {
   /**
+   * If true, this indicates to the matcher that the request should be treated
+   * as an AMP request.
+   */
+  amp: boolean | undefined
+
+  /**
    * If defined, this indicates to the matcher that the request should be
    * treated as locale-aware. If this is undefined, it means that this
    * application was not configured for additional locales.

@@ -7,7 +7,6 @@ import type { Normalizer } from '../normalizers/normalizer'
 
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
 import { RouteKind } from '../route-kind'
-import { LocaleRouteMatcher } from '../route-matchers/locale-route-matcher'
 import {
   MatchOptionsNormalizer,
   NormalizedMatchOptions,
@@ -39,7 +38,7 @@ type RouteMatchers = {
    * is used to match against a specific definition pathname when a specific
    * output is requested.
    */
-  all: ReadonlyMap<string, ReadonlyArray<RouteMatcher>>
+  byPathname: ReadonlyMap<string, ReadonlyArray<RouteMatcher>>
 }
 
 export class DefaultRouteMatcherManager implements RouteMatcherManager {
@@ -55,7 +54,7 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
     static: [],
     dynamic: [],
     duplicates: new Map(),
-    all: new Map(),
+    byPathname: new Map(),
   }
 
   /**
@@ -135,7 +134,7 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
       }, [])
 
       // Group the matchers and find any duplicates.
-      const { all, duplicates } = groupMatcherResults(matchers)
+      const { byPathname, duplicates } = groupMatcherResults(matchers)
 
       // Update the duplicate matchers. This is used in the development manager
       // to warn about duplicates.
@@ -155,7 +154,7 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
       this.previousMatchers = matchers
 
       // Update the matcher outputs reference.
-      this.matchers.all = all
+      this.matchers.byPathname = byPathname
 
       // For matchers that are for static routes, filter them now.
       this.matchers.static = matchers.filter((matcher) => !matcher.isDynamic)
@@ -197,23 +196,6 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
     matcher: RouteMatcher,
     normalized: NormalizedMatchOptions
   ): RouteMatch | null {
-    if (LocaleRouteMatcher.is(matcher)) {
-      if (!normalized.options.i18n) {
-        throw new Error(
-          'Invariant: expected locale matcher to have locale information for matching'
-        )
-      }
-
-      return matcher.match(normalized.options.i18n)
-    }
-
-    // If the locale was inferred from the default locale, then it will have
-    // already added a locale to the pathname. We need to remove it before
-    // matching because this matcher is not locale aware.
-    if (normalized.options.i18n?.inferredFromDefault) {
-      return matcher.match({ pathname: normalized.options.i18n.pathname })
-    }
-
     return matcher.match(normalized)
   }
 
@@ -253,7 +235,7 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
     // If a definition pathname was provided, get the match for it, and only it.
     if (normalized.options.matchedOutputPathname) {
       // Get the matcher for the definition pathname.
-      const matchers = this.matchers.all.get(
+      const matchers = this.matchers.byPathname.get(
         normalized.options.matchedOutputPathname
       )
 
@@ -279,7 +261,7 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
     // If this pathname looks like a dynamic route, then we couldn't have a
     // static match for it because you can't escape the dynamic route parameters
     // when creating the page. So we can skip the static matchers.
-    if (!isDynamicRoute(pathname)) {
+    if (!isDynamicRoute(normalized.pathname)) {
       for (const matcher of this.matchers.static) {
         const match = this.validate(matcher, normalized)
         if (!match) continue

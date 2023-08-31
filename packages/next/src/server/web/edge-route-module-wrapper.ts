@@ -77,7 +77,14 @@ export class EdgeRouteModuleWrapper {
     }
 
     // Get the match for this request.
-    const match = this.matcher.match({ pathname })
+    const match = this.matcher.match({
+      pathname,
+      options: {
+        i18n: undefined,
+        matchedOutputPathname: undefined,
+        amp: undefined,
+      },
+    })
     if (!match) {
       throw new Error(
         `Invariant: no match found for request. Pathname '${pathname}' should have matched '${this.matcher.definition.pathname}'`

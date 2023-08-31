@@ -17,6 +17,12 @@ export interface LocaleRouteMatch<R extends LocaleRouteDefinition>
      * wasn't explicitly provided.
      */
     readonly inferredFromDefinition: boolean
+
+    /**
+     * Whether the detected locale was inferred from the default locale as it
+     * wasn't explicitly provided.
+     */
+    readonly inferredFromDefault: boolean
   }
 }
 

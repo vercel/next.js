@@ -6,7 +6,7 @@ type GroupedMatcherResults = {
    * multiple matchers for the same pathname, so the value is an array of
    * matchers.
    */
-  readonly all: ReadonlyMap<string, ReadonlyArray<RouteMatcher>>
+  readonly byPathname: ReadonlyMap<string, ReadonlyArray<RouteMatcher>>
 
   /**
    * duplicates is a map of all the duplicate matchers, keyed by their
@@ -25,7 +25,7 @@ type GroupedMatcherResults = {
 export function groupMatcherResults(
   matchers: ReadonlyArray<RouteMatcher>
 ): GroupedMatcherResults {
-  const all = new Map<string, RouteMatcher[]>()
+  const byPathname = new Map<string, RouteMatcher[]>()
   const duplicates = new Map<string, RouteMatcher[]>()
 
   for (const matcher of matchers) {
@@ -33,13 +33,13 @@ export function groupMatcherResults(
     if (matcher.duplicated) delete matcher.duplicated
 
     // Test to see if the matcher being added is a duplicate.
-    let matched = all.get(matcher.definition.pathname)
-    if (matched && matched.length > 0) {
+    let byThisPathname = byPathname.get(matcher.definition.pathname)
+    if (byThisPathname && byThisPathname.length > 0) {
       // We got a duplicate! This means that along with the current
       // matcher, there is already a matcher for the same pathname. Let's
       // grab the first one, as all the matchers will share the same
       // array reference anyways.
-      const [other] = matched
+      const [other] = byThisPathname
 
       // Check to see if this there is already a duplicate array for this
       // pathname. If there is, then we can just push the matcher into it.
@@ -63,13 +63,14 @@ export function groupMatcherResults(
       // been duplicated.
       others.push(matcher)
       matcher.duplicated = others
+      byThisPathname.push(matcher)
     } else {
       // There was no match, so create a new array with the matcher in it.
       // Then add this array reference to the all map.
-      matched = [matcher]
-      all.set(matcher.definition.pathname, matched)
+      byThisPathname = [matcher]
+      byPathname.set(matcher.definition.pathname, byThisPathname)
     }
   }
 
-  return { all, duplicates }
+  return { byPathname, duplicates }
 }

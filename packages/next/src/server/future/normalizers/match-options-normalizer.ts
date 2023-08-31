@@ -35,10 +35,16 @@ export class MatchOptionsNormalizer
         ...i18n,
         pathname: MatchOptionsNormalizer.pathname.normalize(i18n.pathname),
       }
-    }
 
-    // Create a new options object so we don't mutate the original.
-    options = { ...options, i18n }
+      // Create a new options object so we don't mutate the original.
+      options = { ...options, i18n }
+
+      // If the locale was inferred from the default locale (i.e. the user did
+      // not navigate to a locale prefixed path), then we need to remove the
+      // locale from the pathname so that it can be matched correctly. Any
+      // matcher that is not i18n aware will use this pathname for matching.
+      if (i18n.inferredFromDefault) pathname = i18n.pathname
+    }
 
     return { pathname, options }
   }

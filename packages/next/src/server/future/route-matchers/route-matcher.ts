@@ -1,4 +1,5 @@
 import type { RouteDefinition } from '../route-definitions/route-definition'
+import type { MatchOptions } from '../route-matcher-managers/route-matcher-manager'
 import type { RouteMatch } from '../route-matches/route-match'
 
 export interface RouteMatcherOptions {
@@ -6,6 +7,11 @@ export interface RouteMatcherOptions {
    * The pathname to match against.
    */
   pathname: string
+
+  /**
+   * The options to match against.
+   */
+  options: MatchOptions
 }
 
 export abstract class RouteMatcher<

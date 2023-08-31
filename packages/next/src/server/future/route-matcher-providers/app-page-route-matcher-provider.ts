@@ -23,7 +23,11 @@ export class AppPageRouteMatcherProvider extends ManifestRouteMatcherProvider<Ap
     manifest: Manifest
   ): Promise<ReadonlyArray<AppPageRouteMatcher>> {
     // This matcher only matches app pages.
-    const pages = Object.keys(manifest).filter((page) => isAppPageRoute(page))
+    const pages = Object.keys(manifest)
+      .filter((page) => isAppPageRoute(page))
+      // Sort the pathnames to ensure that the order of the matchers is
+      // deterministic.
+      .sort()
 
     // Collect all the app paths for each page. This could include any parallel
     // routes.
