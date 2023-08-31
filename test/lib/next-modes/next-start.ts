@@ -127,7 +127,7 @@ export class NextStartInstance extends NextInstance {
           if (colorStrippedMsg.includes('- Local:')) {
             this._url = msg
               .split('\n')
-              .filter((line) => line.includes('- Local:'))
+              .find((line) => line.includes('- Local:'))
               .split(/\s*- Local:/)
               .pop()
               .trim()

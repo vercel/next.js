@@ -86,7 +86,7 @@ export class NextDevInstance extends NextInstance {
             // strip out again for the safety
             this._url = msg
               .split('\n')
-              .filter((line) => line.includes('- Local:'))
+              .find((line) => line.includes('- Local:'))
               .split(/\s*- Local:/)
               .pop()
               .trim()

@@ -377,7 +377,7 @@ export function runNextCommandDev(
         dev: /✓ ready/i,
         turbo: /started server/i,
         experimentalTurbo: /✓ ready/i,
-        start: /✓ ready/i,
+        start: /▲ Next.js/i,
       }
 
       const strippedMessage = stripAnsi(message) as any
