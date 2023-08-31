@@ -33,6 +33,7 @@ const minimalExternals = [
   'next/dist/compiled/compression',
   'next/dist/compiled/jsonwebtoken',
   'next/dist/compiled/@opentelemetry/api',
+  'next/dist/compiled/@mswjs/interceptors/ClientRequest',
 ]
 
 const externalsMap = {

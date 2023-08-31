@@ -18,6 +18,7 @@ import { BuildManifest } from './get-page-files'
 import { interopDefault } from '../lib/interop-default'
 import { getTracer } from './lib/trace/tracer'
 import { LoadComponentsSpan } from './lib/trace/constants'
+import { loadManifestWithRetries } from './load-components'
 export type ManifestItem = {
   id: number | string
   files: string[]
@@ -62,14 +63,15 @@ async function loadDefaultErrorComponentsImpl(
     Document,
     Component,
     pageConfig: {},
-    buildManifest: require(join(distDir, `fallback-${BUILD_MANIFEST}`)),
+    buildManifest: await loadManifestWithRetries(
+      join(distDir, `fallback-${BUILD_MANIFEST}`)
+    ),
     reactLoadableManifest: {},
     ComponentMod,
     pathname: '/_error',
     routeModule: ComponentMod.routeModule,
   }
 }
-
 export const loadDefaultErrorComponents = getTracer().wrap(
   LoadComponentsSpan.loadDefaultErrorComponents,
   loadDefaultErrorComponentsImpl
