@@ -126,6 +126,8 @@ export class NextStartInstance extends NextInstance {
           const colorStrippedMsg = stripAnsi(msg)
           if (colorStrippedMsg.includes('- Local:')) {
             this._url = msg
+              .split('\n')
+              .filter((line) => line.includes('- Local:'))
               .split(/\s*- Local:/)
               .pop()
               .trim()

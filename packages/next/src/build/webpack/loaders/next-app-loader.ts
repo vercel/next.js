@@ -406,7 +406,7 @@ async function createTreeCodeFromPath(
           adjacentParallelSegment === 'children' ? '' : adjacentParallelSegment
         const defaultPath =
           (await resolver(
-            `${appDirPrefix}${segmentPath}/${actualSegment}/default`
+            `${appDirPrefix}${segmentPath}/${actualSegment}/not-found`
           )) ?? 'next/dist/client/components/parallel-route-default'
 
         props[normalizeParallelKey(adjacentParallelSegment)] = `[

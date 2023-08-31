@@ -85,6 +85,8 @@ export class NextDevInstance extends NextInstance {
             // turbo devserver emits stdout in rust directly, can contain unexpected chars with color codes
             // strip out again for the safety
             this._url = msg
+              .split('\n')
+              .filter((line) => line.includes('- Local:'))
               .split(/\s*- Local:/)
               .pop()
               .trim()
