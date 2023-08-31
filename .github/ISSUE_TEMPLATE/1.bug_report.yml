@@ -124,7 +124,7 @@ body:
     attributes:
       label: Additional context
       description: |
-        Any extra information that might help us investigate. For example, where are you deploying your application (Vercel, Docker, other platform)? Is it only reproducible on that platform, or locally too? Is the issue only happening in a specific browser? etc.'
+        Any extra information that might help us investigate. For example, where are you deploying your application (Vercel, Docker, other platform)? Is it only reproducible on that platform, or locally too? Is the issue only happening in a specific browser? etc.
       placeholder: | 
         I tested my reproduction against different canary releases, and the first one that introduced the bug was "13.4.20-canary.13", since reverting to "13.4.20-canary.12" works.
 
