@@ -329,19 +329,6 @@ export async function initialize(opts: {
       invokePath: string,
       additionalInvokeHeaders: Record<string, string> = {}
     ) {
-      // invokeRender expects /api routes to not be locale prefixed
-      // so normalize here before continuing
-      if (
-        config.i18n &&
-        removePathPrefix(invokePath, config.basePath).startsWith(
-          `/${parsedUrl.query.__nextLocale}/api`
-        )
-      ) {
-        invokePath = fsChecker.handleLocale(
-          removePathPrefix(invokePath, config.basePath)
-        ).pathname
-      }
-
       if (
         req.headers['x-nextjs-data'] &&
         fsChecker.getMiddlewareMatchers()?.length &&

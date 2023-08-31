@@ -16,7 +16,6 @@ import { modifyRouteRegex } from '../../../lib/redirect-status'
 import { UnwrapPromise } from '../../../lib/coalesced-function'
 import { FileType, fileExists } from '../../../lib/file-exists'
 import { recursiveReadDir } from '../../../lib/recursive-readdir'
-import { isDynamicRoute } from '../../../shared/lib/router/utils'
 import { escapeStringRegexp } from '../../../shared/lib/escape-regexp'
 import {
   PatchMatcher,
@@ -26,13 +25,10 @@ import { getRouteRegex } from '../../../shared/lib/router/utils/route-regex'
 import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
 import { pathHasPrefix } from '../../../shared/lib/router/utils/path-has-prefix'
 import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-path'
-import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-prefix'
-
 import {
   MiddlewareRouteMatch,
   getMiddlewareRouteMatcher,
 } from '../../../shared/lib/router/utils/middleware-route-matcher'
-
 import {
   APP_PATH_ROUTES_MANIFEST,
   BUILD_ID_FILE,
@@ -42,6 +38,11 @@ import {
   ROUTES_MANIFEST,
 } from '../../../shared/lib/constants'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
+import { I18NProvider } from '../../future/helpers/i18n-provider'
+import { isAPIRoute } from '../../../lib/is-api-route'
+import { isDynamicRoute } from '../../../shared/lib/router/utils'
+import { removeTrailingSlash } from '../../../shared/lib/router/utils/remove-trailing-slash'
+import { BasePathNormalizer } from '../../future/normalizers/base-path-normalizer'
 
 export type FsOutput = {
   type:
@@ -66,6 +67,12 @@ export type FilesystemDynamicRoute = ManifestRoute & {
    * The path matcher that can be used to match paths against this route.
    */
   match: PatchMatcher
+
+  /**
+   * If the route supports locales then requests should have their locale
+   * information stripped before routing occurs.
+   */
+  supportsLocales: boolean
 }
 
 export const buildCustomRoute = <T>(
@@ -126,8 +133,21 @@ export async function setupFsCheck(opts: {
   const nextStaticFolderItems = new Set<string>()
   const legacyStaticFolderItems = new Set<string>()
 
+  // TODO: (wyattjoh) maybe this isn't updated fast enough, we may need the directory scan from the dev matchers
+  const appPaths = new Map<string, string[]>()
+
+  /**
+   * Map of app pathnames to their page representation. For example:
+   *
+   * - `/` -> `/page` (App Page)
+   * - `/about` -> `/about/page` (App Page)
+   * - `/api/hello` -> `/api/hello/route` (App Route)
+   */
+  const appPages = new Map<string, string>()
+
   const appFiles = new Set<string>()
   const pageFiles = new Set<string>()
+
   let dynamicRoutes: FilesystemDynamicRoute[] = []
 
   let middlewareMatcher:
@@ -138,6 +158,13 @@ export async function setupFsCheck(opts: {
   const publicFolderPath = path.join(opts.dir, 'public')
   const nextStaticFolderPath = path.join(distDir, 'static')
   const legacyStaticFolderPath = path.join(opts.dir, 'static')
+
+  const roots = {
+    publicFolder: path.join(opts.dir, 'public'),
+    nextStaticFolder: path.join(distDir, 'static'),
+    legacyStaticFolder: path.join(opts.dir, 'static'),
+  }
+
   let customRoutes: UnwrapPromise<ReturnType<typeof loadCustomRoutes>> = {
     redirects: [],
     rewrites: {
@@ -149,6 +176,29 @@ export async function setupFsCheck(opts: {
   }
   let buildId = 'development'
   let prerenderManifest: PrerenderManifest
+
+  const i18n = opts.config.i18n ? new I18NProvider(opts.config.i18n) : undefined
+  const basePath =
+    opts.config.basePath &&
+    opts.config.basePath.length > 1 &&
+    opts.config.basePath.startsWith('/')
+      ? new BasePathNormalizer(opts.config.basePath)
+      : undefined
+
+  const supportsLocales = (page: string) => {
+    // If i18n is not enabled, then we can skip this check.
+    if (!i18n) return false
+
+    // If the page is not in the `pages/` directory, then we can skip this
+    // check.
+    if (!pageFiles.has(page)) return false
+
+    // If the page is an API route, then we can skip this check.
+    if (isAPIRoute(page)) return false
+
+    // Otherwise, this route supports locales.
+    return true
+  }
 
   if (!opts.dev) {
     const buildIdPath = path.join(opts.dir, opts.config.distDir, BUILD_ID_FILE)
@@ -236,33 +286,44 @@ export async function setupFsCheck(opts: {
     const escapedBuildId = escapeStringRegexp(buildId)
 
     for (const route of routesManifest.dataRoutes) {
-      if (isDynamicRoute(route.page)) {
-        const routeRegex = getRouteRegex(route.page)
-        dynamicRoutes.push({
-          ...route,
-          regex: routeRegex.re.toString(),
-          match: getRouteMatcher({
-            // TODO: fix this in the manifest itself, must also be fixed in
-            // upstream builder that relies on this
-            re: opts.config.i18n
-              ? new RegExp(
-                  route.dataRouteRegex.replace(
-                    `/${escapedBuildId}/`,
-                    `/${escapedBuildId}/(?<nextLocale>.+?)/`
-                  )
-                )
-              : new RegExp(route.dataRouteRegex),
-            groups: routeRegex.groups,
-          }),
-        })
-      }
       nextDataRoutes.add(route.page)
+
+      // If the page is not dynamic and there is no i18n config (that would
+      // have added a locale to the route), then we can skip this.
+      if (!isDynamicRoute(route.page) && !i18n) continue
+
+      const routeRegex = getRouteRegex(route.page)
+      dynamicRoutes.push({
+        ...route,
+        regex: routeRegex.re.toString(),
+        match: getRouteMatcher({
+          // TODO: fix this in the manifest itself, must also be fixed in
+          // upstream builder that relies on this
+          re: i18n
+            ? new RegExp(
+                route.dataRouteRegex.replace(
+                  `/${escapedBuildId}/`,
+                  `/${escapedBuildId}/(?<nextLocale>.+?)/`
+                )
+              )
+            : new RegExp(route.dataRouteRegex),
+          groups: routeRegex.groups,
+        }),
+        // If the page is in the `pages/` directory, it can support locales
+        // and therefore should have its locale prefix stripped during
+        // routing.
+        supportsLocales: true,
+      })
     }
 
     for (const route of routesManifest.dynamicRoutes) {
       dynamicRoutes.push({
         ...route,
         match: getRouteMatcher(getRouteRegex(route.page)),
+        // If the page is in the `pages/` directory, it can support locales
+        // and therefore should have its locale prefix stripped during
+        // routing.
+        supportsLocales: supportsLocales(route.page),
       })
     }
 
@@ -349,20 +410,6 @@ export async function setupFsCheck(opts: {
     ),
   }
 
-  const { i18n } = opts.config
-
-  const handleLocale = (pathname: string, locales?: string[]) => {
-    let locale: string | undefined
-
-    if (i18n) {
-      const i18nResult = normalizeLocalePath(pathname, locales || i18n.locales)
-
-      pathname = i18nResult.pathname
-      locale = i18nResult.detectedLocale
-    }
-    return { locale, pathname }
-  }
-
   debug('nextDataRoutes', nextDataRoutes)
   debug('dynamicRoutes', dynamicRoutes)
   debug('pageFiles', pageFiles)
@@ -376,8 +423,10 @@ export async function setupFsCheck(opts: {
     redirects,
 
     buildId,
-    handleLocale,
+    supportsLocales,
 
+    appPaths,
+    appPages,
     appFiles,
     pageFiles,
     dynamicRoutes,
@@ -411,15 +460,12 @@ export async function setupFsCheck(opts: {
         itemPath = itemPath.substring(0, itemPath.length - '.rsc'.length)
       }
 
-      const { basePath } = opts.config
+      // Strip any trailing slash.
+      itemPath = removeTrailingSlash(itemPath)
 
-      if (basePath && !pathHasPrefix(itemPath, basePath)) {
-        return null
-      }
-      itemPath = removePathPrefix(itemPath, basePath) || '/'
-
-      if (itemPath !== '/' && itemPath.endsWith('/')) {
-        itemPath = itemPath.substring(0, itemPath.length - 1)
+      // Strip any baseBase prefix.
+      if (basePath) {
+        itemPath = basePath.normalize(itemPath)
       }
 
       let decodedItemPath = itemPath
@@ -435,8 +481,14 @@ export async function setupFsCheck(opts: {
         }
       }
 
-      const itemsToCheck: Array<[Set<string>, FsOutput['type']]> = [
-        [this.devVirtualFsItems, 'devVirtualFsItem'],
+      const itemsToCheck: Array<
+        [
+          Set<string>,
+          // We filtered out all the `nextImage` types above, so we can safely
+          // exclude that type from the union.
+          Exclude<FsOutput['type'], 'nextImage'>
+        ]
+      > = [
         [nextStaticFolderItems, 'nextStaticFolder'],
         [legacyStaticFolderItems, 'legacyStaticFolder'],
         [publicFolderItems, 'publicFolder'],
@@ -444,24 +496,39 @@ export async function setupFsCheck(opts: {
         [pageFiles, 'pageFile'],
       ]
 
-      for (let [items, type] of itemsToCheck) {
+      // If we're in development, then we need to check the virtual filesystem
+      // first.
+      if (opts.dev) {
+        itemsToCheck.unshift([this.devVirtualFsItems, 'devVirtualFsItem'])
+      }
+
+      for (const check of itemsToCheck) {
+        let items = check[0]
+        const type = check[1]
         let locale: string | undefined
         let curItemPath = itemPath
         let curDecodedItemPath = decodedItemPath
 
         const isDynamicOutput = type === 'pageFile' || type === 'appFile'
+        const isStaticAsset =
+          type === 'nextStaticFolder' ||
+          type === 'publicFolder' ||
+          type === 'legacyStaticFolder'
 
-        if (i18n) {
-          const localeResult = handleLocale(
-            itemPath,
-            // legacy behavior allows visiting static assets under
-            // default locale but no other locale
-            isDynamicOutput ? undefined : [i18n?.defaultLocale]
-          )
-
-          if (localeResult.pathname !== curItemPath) {
-            curItemPath = localeResult.pathname
-            locale = localeResult.locale
+        // i18n locales are not supported on app files, so if it's enabled and
+        // we're looking at an app file, we can skip the locale handling. If the
+        // route is for an API route, we can also skip the locale handling.
+        if (type !== 'appFile' && i18n) {
+          // If a locale was detected on the pathname, then we need to strip it
+          // unless it's static assets under a non-default locale.
+          const info = i18n.analyze(curItemPath)
+          if (
+            info.pathname !== curItemPath &&
+            (isDynamicOutput ||
+              info.detectedLocale === i18n.config.defaultLocale)
+          ) {
+            curItemPath = info.pathname
+            locale = info.detectedLocale
 
             try {
               curDecodedItemPath = decodeURIComponent(curItemPath)
@@ -469,10 +536,16 @@ export async function setupFsCheck(opts: {
           }
         }
 
+        // If the pathname is an api route, then we should bail out as we
+        // don't support locales on api routes.
+        if (type === 'pageFile' && locale && isAPIRoute(curItemPath)) {
+          continue
+        }
+
         if (type === 'legacyStaticFolder') {
-          if (!pathHasPrefix(curItemPath, '/static')) {
-            continue
-          }
+          if (!pathHasPrefix(curItemPath, '/static')) continue
+
+          // Trim the prefix from the pathname.
           curItemPath = curItemPath.substring('/static'.length)
 
           try {
@@ -480,6 +553,8 @@ export async function setupFsCheck(opts: {
           } catch {}
         }
 
+        // If the item path does not have the static prefix then it can't match
+        // the static folder type.
         if (
           type === 'nextStaticFolder' &&
           !pathHasPrefix(curItemPath, '/_next/static')
@@ -503,111 +578,101 @@ export async function setupFsCheck(opts: {
             0,
             curItemPath.length - '.json'.length
           )
-          const curLocaleResult = handleLocale(curItemPath)
-          curItemPath =
-            curLocaleResult.pathname === '/index'
-              ? '/'
-              : curLocaleResult.pathname
 
-          locale = curLocaleResult.locale
+          // If locales were enabled, then we need to strip the locale prefix
+          // from the pathname.
+          if (i18n) {
+            const curLocaleResult = i18n.analyze(curItemPath)
+            locale = curLocaleResult.detectedLocale
+            if (curLocaleResult.pathname === '/index') {
+              curItemPath = '/'
+            } else {
+              curItemPath = curLocaleResult.pathname
+            }
+          }
 
           try {
             curDecodedItemPath = decodeURIComponent(curItemPath)
           } catch {}
         }
 
-        // check decoded variant as well
-        if (!items.has(curItemPath) && !opts.dev) {
+        let matchedItem = items.has(curItemPath)
+        if (!matchedItem && !opts.dev) {
           curItemPath = curDecodedItemPath
+          matchedItem = items.has(curItemPath)
         }
-        const matchedItem = items.has(curItemPath)
 
-        if (matchedItem || opts.dev) {
-          let fsPath: string | undefined
-          let itemsRoot: string | undefined
+        // If we haven't matched anything and we're not in development, then
+        // we can skip this item.
+        if (!matchedItem && !opts.dev) continue
 
-          switch (type) {
-            case 'nextStaticFolder': {
-              itemsRoot = nextStaticFolderPath
-              curItemPath = curItemPath.substring('/_next/static'.length)
-              break
-            }
-            case 'legacyStaticFolder': {
-              itemsRoot = legacyStaticFolderPath
-              break
-            }
-            case 'publicFolder': {
-              itemsRoot = publicFolderPath
-              break
-            }
-            default: {
-              break
-            }
-          }
+        // If we're matching the virtual filesystem, we haven't matched,
+        // and we're in development, then we don't have a match!
+        if (type === 'devVirtualFsItem' && !matchedItem && opts.dev) continue
 
-          if (itemsRoot && curItemPath) {
-            fsPath = path.posix.join(itemsRoot, curItemPath)
-          }
-
-          // dynamically check fs in development so we don't
-          // have to wait on the watcher
-          if (!matchedItem && opts.dev) {
-            const isStaticAsset = (
-              [
-                'nextStaticFolder',
-                'publicFolder',
-                'legacyStaticFolder',
-              ] as (typeof type)[]
-            ).includes(type)
-
-            if (isStaticAsset && itemsRoot) {
-              let found = fsPath && (await fileExists(fsPath, FileType.File))
-
-              if (!found) {
-                try {
-                  // In dev, we ensure encoded paths match
-                  // decoded paths on the filesystem so check
-                  // that variation as well
-                  const tempItemPath = decodeURIComponent(curItemPath)
-                  fsPath = path.posix.join(itemsRoot, tempItemPath)
-                  found = await fileExists(fsPath, FileType.File)
-                } catch {}
-
-                if (!found) {
-                  continue
-                }
-              }
-            } else if (type === 'pageFile' || type === 'appFile') {
-              if (
-                ensureFn &&
-                (await ensureFn({
-                  type,
-                  itemPath: curItemPath,
-                })?.catch(() => 'ENSURE_FAILED')) === 'ENSURE_FAILED'
-              ) {
-                continue
-              }
-            } else {
-              continue
-            }
-          }
-
-          // i18n locales aren't matched for app dir
-          if (type === 'appFile' && locale && locale !== i18n?.defaultLocale) {
+        // If this is for dynamic output, then we need to ensure the route to
+        // ensure that it's built.
+        if (isDynamicOutput && opts.dev && ensureFn) {
+          try {
+            // Ensure the route to build it.
+            await ensureFn({ type, itemPath: curItemPath })
+          } catch {
             continue
           }
+        }
 
-          const itemResult = {
-            type,
-            fsPath,
-            locale,
-            itemsRoot,
-            itemPath: curItemPath,
+        // If there is no item path, then we can't find the file!
+        if (!curItemPath) continue
+
+        // If we're dealing with a static asset, we'll have a file system path.
+        // Otherwise it'll be undefined.
+        let fsPath: string | undefined
+
+        if (isStaticAsset) {
+          // Trim the prefix from the pathname.
+          if (type === 'nextStaticFolder') {
+            curItemPath = curItemPath.substring('/_next/static'.length)
           }
 
-          getItemsLru?.set(itemKey, itemResult)
-          return itemResult
+          // Prefix the route with the root if it's a static asset.
+          fsPath = path.posix.join(roots[type], curItemPath)
+
+          // If we're matching a static asset, we haven't matched anything, and
+          // we're in development, then we may be ahead of the watcher. Let's try
+          // to find the file on the filesystem.
+          if (!matchedItem && opts.dev) {
+            // Try the file path as is...
+            let found = await fileExists(fsPath, FileType.File)
+
+            // If we couldn't find it, try the decoded path as well as in dev
+            // we ensure encoded paths match decoded paths on the filesystem.
+            if (!found) {
+              try {
+                fsPath = path.posix.join(
+                  roots[type],
+                  decodeURIComponent(curItemPath)
+                )
+                found = await fileExists(fsPath, FileType.File)
+              } catch {
+                continue
+              }
+
+              // If we still couldn't find it, then we can't find the file!
+              if (!found) continue
+            }
+          }
         }
+
+        const itemResult: FsOutput = {
+          type,
+          fsPath,
+          locale,
+          itemsRoot: isStaticAsset ? roots[type] : undefined,
+          itemPath: curItemPath,
+        }
+
+        getItemsLru?.set(itemKey, itemResult)
+        return itemResult
       }
 
       getItemsLru?.set(itemKey, null)

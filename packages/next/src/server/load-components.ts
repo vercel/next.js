@@ -27,7 +27,6 @@ import { getTracer } from './lib/trace/tracer'
 import { LoadComponentsSpan } from './lib/trace/constants'
 import { loadManifest } from './load-manifest'
 import { wait } from '../lib/wait'
-
 import { RouteKind } from './future/route-kind'
 
 export type ManifestItem = {

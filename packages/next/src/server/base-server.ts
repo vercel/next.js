@@ -126,6 +126,7 @@ import { matchNextDataPathname } from './lib/match-next-data-pathname'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
 import { InvokedRequest } from './lib/invoked-request'
 import { isLocaleRouteMatch } from './future/route-matches/locale-route-match'
+import { TrailingSlashNormalizer } from './future/normalizers/trailing-slash-normalizer'
 import { BasePathNormalizer } from './future/normalizers/base-path-normalizer'
 import { isAppPageRouteMatch } from './future/route-matches/app-page-route-match'
 
@@ -373,6 +374,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
   // TODO-APP: (wyattjoh): Make protected again. Used for turbopack in route-resolver.ts right now.
   public readonly matchers: RouteMatcherManager
+
+  /**
+   * The trailing slash normalizer that's used to remove and add back in the
+   * trailing slash on pathnames.
+   */
+  protected readonly trailingSlashNormalizer: TrailingSlashNormalizer
+
   protected readonly i18nProvider?: I18NProvider
   protected readonly localeNormalizer?: LocaleRouteNormalizer
   protected readonly isRenderWorker?: boolean
@@ -421,7 +429,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.hasStaticDir = !minimalMode && this.getHasStaticDir()
 
     // Configure the locale normalizer, it's used for routes inside `pages/`.
-    if (this.nextConfig.i18n?.locales) {
+    if (
+      this.nextConfig.i18n?.locales &&
+      this.nextConfig.i18n.locales.length > 0
+    ) {
       this.i18nProvider = new I18NProvider(this.nextConfig.i18n)
       this.localeNormalizer = new LocaleRouteNormalizer(this.i18nProvider)
     }
@@ -431,6 +442,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     if (this.nextConfig.basePath && this.nextConfig.basePath !== '/') {
       this.basePathNormalizer = new BasePathNormalizer(this.nextConfig.basePath)
     }
+
+    // Configure the trailing slash normalizer. If the trailing slash is
+    // disabled, then we don't need to normalize it.
+    this.trailingSlashNormalizer = new TrailingSlashNormalizer(
+      this.nextConfig.trailingSlash
+    )
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
@@ -565,16 +582,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     // ensure trailing slash is normalized per config
     if (middleware) {
-      if (this.nextConfig.trailingSlash && !pathname.endsWith('/')) {
-        pathname += '/'
-      }
-      if (
-        !this.nextConfig.trailingSlash &&
-        pathname.length > 1 &&
-        pathname.endsWith('/')
-      ) {
-        pathname = pathname.substring(0, pathname.length - 1)
-      }
+      pathname = this.trailingSlashNormalizer.normalize(pathname)
     }
 
     if (this.i18nProvider) {
@@ -1064,15 +1072,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           parsedUrl.pathname = matchedPath
           url.pathname = parsedUrl.pathname
 
-          const normalizeResult = await this.handleNextDataRequest(
+          const { finished } = await this.handleNextDataRequest(
             req,
             res,
             parsedUrl
           )
+          if (finished) return
 
-          if (normalizeResult.finished) {
-            return
-          }
+          // Otherwise we need to continue...
         } catch (err) {
           if (err instanceof DecodeError || err instanceof NormalizeError) {
             res.statusCode = 400
@@ -1082,6 +1089,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
       }
 
+      // Redirect user based on their `Accept-Language` header to the correct
+      // locale if they're hitting the root.
       if (
         // Edge runtime always has minimal mode enabled.
         process.env.NEXT_RUNTIME !== 'edge' &&
@@ -1287,16 +1296,20 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         if (nextDataResult.finished) {
           return
         }
-        const result = await this.handleCatchallMiddlewareRequest(
+        const { finished } = await this.handleCatchallMiddlewareRequest(
           req,
           res,
           parsedUrl
         )
-        if (!result.finished) {
+
+        // If the previous request did not finish, we should terminate the
+        // request with the following.
+        if (!finished) {
           res.setHeader('x-middleware-next', '1')
           res.body('')
           res.send()
         }
+
         return
       }
 
@@ -2534,6 +2547,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       isAppPath =
         match.definition.kind === RouteKind.APP_PAGE ||
         match.definition.kind === RouteKind.APP_ROUTE
+
       if (isAppPageRouteMatch(match)) {
         appPaths = match.definition.appPaths
       }
@@ -2541,6 +2555,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       appPaths = this.getOriginalAppPaths(pathname)
       if (Array.isArray(appPaths)) {
         isAppPath = true
+
+        // The last item in the array is the root page, if there are parallel
+        // routes.
+        page = appPaths[appPaths.length - 1]
       }
     }
 
@@ -2555,18 +2573,21 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       shouldEnsure: false,
       match,
     })
-    if (result) {
-      try {
-        return await this.renderToResponseWithComponents(ctx, result)
-      } catch (err) {
-        const isNoFallbackError = err instanceof NoFallbackError
 
-        if (!isNoFallbackError || (isNoFallbackError && bubbleNoFallback)) {
-          throw err
-        }
-      }
+    // If we didn't find a page component, we should return.
+    if (!result) return false
+
+    try {
+      return await this.renderToResponseWithComponents(ctx, result)
+    } catch (err) {
+      // If this isn't a no fallback error, we should re-throw it.
+      if (!(err instanceof NoFallbackError)) throw err
+
+      // If we are bubbling the no fallback error, we should re-throw it.
+      if (bubbleNoFallback) throw err
+
+      return false
     }
-    return false
   }
 
   private async renderToResponse(
@@ -2594,7 +2615,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     ctx: RequestContext
   ): Promise<ResponsePayload | null> {
     const { res, query, pathname } = ctx
-    let page = pathname
     const bubbleNoFallback = !!query._nextBubbleNoFallback
     delete query[NEXT_RSC_UNION_QUERY]
     delete query._nextBubbleNoFallback
@@ -2632,7 +2652,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           bubbleNoFallback,
           match
         )
-        if (result !== false) return result
+
+        // If we couldn't render the page component, we should continue.
+        if (result === false) continue
+
+        return result
       }
 
       // currently edge functions aren't receiving the x-matched-path
@@ -2660,7 +2684,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           'Invariant: failed to load static page',
           JSON.stringify(
             {
-              page,
+              page: pathname,
               url: ctx.req.url,
               matchedPath: ctx.req.headers['x-matched-path'],
               initUrl: getRequestMeta(ctx.req, '__NEXT_INIT_URL'),
@@ -2699,7 +2723,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           (this.minimalMode && process.env.NEXT_RUNTIME !== 'edge') ||
           this.renderOpts.dev
         ) {
-          if (isError(err)) err.page = page
+          if (isError(err)) err.page = pathname
           throw err
         }
         this.logError(getProperError(err))
