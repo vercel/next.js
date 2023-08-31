@@ -33,6 +33,7 @@ import {
   PHASE_DEVELOPMENT_SERVER,
   PERMANENT_REDIRECT_STATUS,
 } from '../../shared/lib/constants'
+import { toNodeOutgoingHttpHeaders } from '../web/utils'
 
 const debug = setupDebug('next:router-server:main')
 
@@ -350,8 +351,28 @@ export async function initialize(opts: {
           return
         }
 
-        for (const key in Object.entries(mockedRes.headers)) {
-          res.setHeader(key, mockedRes.getHeader(key) as string)
+        for (const [key, value] of Object.entries({
+          ...filterReqHeaders(
+            toNodeOutgoingHttpHeaders(mockedRes.headers),
+            ipcForbiddenHeaders
+          ),
+        })) {
+          if (
+            [
+              'content-length',
+              'x-middleware-rewrite',
+              'x-middleware-redirect',
+              'x-middleware-refresh',
+              'x-middleware-invoke',
+              'x-invoke-path',
+              'x-invoke-query',
+            ].includes(key)
+          ) {
+            continue
+          }
+          if (value) {
+            res.setHeader(key, value)
+          }
         }
         res.statusCode = mockedRes.statusCode
         res.statusMessage = mockedRes.statusMessage
