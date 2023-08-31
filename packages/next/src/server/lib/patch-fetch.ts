@@ -1,4 +1,7 @@
-import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
+import type {
+  StaticGenerationAsyncStorage,
+  StaticGenerationStore,
+} from '../../client/components/static-generation-async-storage'
 import type * as ServerHooks from '../../client/components/hooks-server-context'
 
 import { AppRenderSpan, NextNodeServerSpan } from './trace/constants'
@@ -117,7 +120,7 @@ export function patchFetch({
         },
       },
       async () => {
-        const staticGenerationStore =
+        const staticGenerationStore: StaticGenerationStore =
           staticGenerationAsyncStorage.getStore() ||
           (fetch as any).__nextGetStaticStore?.()
         const isRequestInput =
@@ -454,6 +457,21 @@ export function patchFetch({
                 staticGenerationStore.pendingRevalidates.push(
                   doOriginalFetch(true).catch(console.error)
                 )
+
+                // if the request is stale and it's the first request that will miss the cache
+                // this ensure the response will come with the new data requested
+                const res: Response[] = await Promise.all(
+                  staticGenerationStore.pendingRevalidates
+                )
+                if (res && res.length > 0) {
+                  const responseBodyArrayBuffer = await res[0].arrayBuffer()
+                  const base64String = btoa(
+                    String.fromCharCode(
+                      ...new Uint8Array(responseBodyArrayBuffer)
+                    )
+                  )
+                  entry.value.data.body = base64String
+                }
               } else if (
                 tags &&
                 !tags.every((tag) => currentTags?.includes(tag))
