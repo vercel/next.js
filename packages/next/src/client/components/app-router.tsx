@@ -38,6 +38,7 @@ import {
   RouterChangeByServerResponse,
   RouterNavigate,
   ServerActionDispatcher,
+  ServerActionMutable,
 } from './router-reducer/router-reducer-types'
 import { createHrefFromUrl } from './router-reducer/create-href-from-url'
 import {
@@ -59,7 +60,6 @@ import { createInfinitePromise } from './infinite-promise'
 import { NEXT_RSC_UNION_QUERY } from './app-router-headers'
 import { removeBasePath } from '../remove-base-path'
 import { hasBasePath } from '../has-base-path'
-
 const isServer = typeof window === 'undefined'
 
 // Ensure the initialParallelRoutes are not combined because of double-rendering in the browser with Strict Mode.
@@ -71,6 +71,10 @@ let globalServerActionDispatcher = null as ServerActionDispatcher | null
 
 export function getServerActionDispatcher() {
   return globalServerActionDispatcher
+}
+
+let globalServerActionMutable: ServerActionMutable['globalMutable'] = {
+  refresh: () => {}, // noop until the router is initialized
 }
 
 export function urlToUrlWithoutFlightMarker(url: string): URL {
@@ -141,7 +145,7 @@ function useServerActionDispatcher(dispatch: React.Dispatch<ReducerActions>) {
         dispatch({
           ...actionPayload,
           type: ACTION_SERVER_ACTION,
-          mutable: {},
+          mutable: { globalMutable: globalServerActionMutable },
           cache: createEmptyCacheNode(),
         })
       })
@@ -182,6 +186,7 @@ function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
   return useCallback(
     (href, navigateType, forceOptimisticNavigation, shouldScroll) => {
       const url = new URL(addBasePath(href), location.href)
+      globalServerActionMutable.pendingNavigatePath = href
 
       return dispatch({
         type: ACTION_NAVIGATE,
@@ -351,6 +356,10 @@ function Router({
     }
   }, [appRouter])
 
+  useEffect(() => {
+    globalServerActionMutable.refresh = appRouter.refresh
+  }, [appRouter.refresh])
+
   if (process.env.NODE_ENV !== 'production') {
     // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
     // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -366,6 +375,28 @@ function Router({
       }
     }, [appRouter, cache, prefetchCache, tree])
   }
+
+  useEffect(() => {
+    // If the app is restored from bfcache, it's possible that
+    // pushRef.mpaNavigation is true, which would mean that any re-render of this component
+    // would trigger the mpa navigation logic again from the lines below.
+    // This will restore the router to the initial state in the event that the app is restored from bfcache.
+    function handlePageShow(event: PageTransitionEvent) {
+      if (!event.persisted || !window.history.state?.tree) return
+
+      dispatch({
+        type: ACTION_RESTORE,
+        url: new URL(window.location.href),
+        tree: window.history.state.tree,
+      })
+    }
+
+    window.addEventListener('pageshow', handlePageShow)
+
+    return () => {
+      window.removeEventListener('pageshow', handlePageShow)
+    }
+  }, [dispatch])
 
   // When mpaNavigation flag is set do a hard navigation to the new url.
   // Infinitely suspend because we don't actually want to rerender any child

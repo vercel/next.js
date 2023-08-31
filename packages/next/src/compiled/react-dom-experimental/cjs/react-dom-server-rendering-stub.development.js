@@ -16,7 +16,7 @@ if (process.env.NODE_ENV !== "production") {
 
 var React = require("next/dist/compiled/react-experimental");
 
-var ReactVersion = '18.3.0-experimental-cb3404a0c-20230807';
+var ReactVersion = '18.3.0-experimental-dd480ef92-20230822';
 
 var Internals = {
   usingClientEntryPoint: false,

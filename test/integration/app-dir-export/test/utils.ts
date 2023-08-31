@@ -41,6 +41,8 @@ export const expectedWhenTrailingSlashTrue = [
   'another/second/index.txt',
   'api/json',
   'api/txt',
+  'client/index.html',
+  'client/index.txt',
   'favicon.ico',
   'image-import/index.html',
   'image-import/index.txt',
@@ -62,6 +64,8 @@ const expectedWhenTrailingSlashFalse = [
   'another/second.txt',
   'api/json',
   'api/txt',
+  'client.html',
+  'client.txt',
   'favicon.ico',
   'image-import.html',
   'image-import.txt',
@@ -87,12 +91,14 @@ export async function runTests({
   trailingSlash = true,
   dynamicPage,
   dynamicApiRoute,
+  generateStaticParamsOpt,
   expectedErrMsg,
 }: {
   isDev?: boolean
   trailingSlash?: boolean
   dynamicPage?: string
   dynamicApiRoute?: string
+  generateStaticParamsOpt?: 'set noop' | 'set client'
   expectedErrMsg?: string
 }) {
   if (trailingSlash !== undefined) {
@@ -112,6 +118,11 @@ export async function runTests({
       `const dynamic = 'force-static'`,
       `const dynamic = ${dynamicApiRoute}`
     )
+  }
+  if (generateStaticParamsOpt === 'set noop') {
+    slugPage.replace('export function generateStaticParams', 'function noop')
+  } else if (generateStaticParamsOpt === 'set client') {
+    slugPage.prepend('"use client"\n')
   }
   await fs.remove(distDir)
   await fs.remove(exportDir)

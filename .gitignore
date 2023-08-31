@@ -17,6 +17,7 @@ test/node_modules
 *.log
 pids
 *.cpuprofile
+*.heapsnapshot
 
 # coverage
 .nyc_output

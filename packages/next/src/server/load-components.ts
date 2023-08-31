@@ -25,6 +25,7 @@ import { interopDefault } from '../lib/interop-default'
 import { getTracer } from './lib/trace/tracer'
 import { LoadComponentsSpan } from './lib/trace/constants'
 import { loadManifest } from './load-manifest'
+import { wait } from '../lib/wait'
 export type ManifestItem = {
   id: number | string
   files: string[]
@@ -54,7 +55,7 @@ export type LoadComponentsReturnType = {
 /**
  * Load manifest file with retries, defaults to 3 attempts.
  */
-async function loadManifestWithRetries<T>(
+export async function loadManifestWithRetries<T>(
   manifestPath: string,
   attempts = 3
 ): Promise<T> {
@@ -64,7 +65,8 @@ async function loadManifestWithRetries<T>(
     } catch (err) {
       attempts--
       if (attempts <= 0) throw err
-      await new Promise((resolve) => setTimeout(resolve, 100))
+
+      await wait(100)
     }
   }
 }
@@ -72,14 +74,14 @@ async function loadManifestWithRetries<T>(
 async function loadJSManifest<T>(
   manifestPath: string,
   name: string,
-  entryname: string
+  entryName: string
 ): Promise<T | undefined> {
   process.env.NEXT_MINIMAL
     ? // @ts-ignore
       __non_webpack_require__(manifestPath)
     : require(manifestPath)
   try {
-    return JSON.parse((globalThis as any)[name][entryname]) as T
+    return JSON.parse((globalThis as any)[name][entryName]) as T
   } catch (err) {
     return undefined
   }
@@ -149,7 +151,8 @@ async function loadComponentsImpl({
   const Document = interopDefault(DocumentMod)
   const App = interopDefault(AppMod)
 
-  const { getServerSideProps, getStaticProps, getStaticPaths } = ComponentMod
+  const { getServerSideProps, getStaticProps, getStaticPaths, routeModule } =
+    ComponentMod
 
   return {
     App,
@@ -166,7 +169,7 @@ async function loadComponentsImpl({
     serverActionsManifest,
     isAppPath,
     pathname,
-    routeModule: ComponentMod.routeModule,
+    routeModule,
   }
 }
 

@@ -22,6 +22,9 @@ import {
   preconnect,
 } from '../../server/app-render/rsc/preloads'
 
+const { NotFoundBoundary } =
+  require('next/dist/client/components/not-found-boundary') as typeof import('../../client/components/not-found-boundary')
+
 export {
   AppRouter,
   LayoutRouter,
@@ -39,4 +42,5 @@ export {
   preloadFont,
   preconnect,
   StaticGenerationSearchParamsBailoutProvider,
+  NotFoundBoundary,
 }

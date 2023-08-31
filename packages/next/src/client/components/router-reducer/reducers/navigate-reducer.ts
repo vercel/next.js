@@ -199,7 +199,7 @@ export function navigateReducer(
       mutable.canonicalUrl = href
 
       state.prefetchCache.set(createHrefFromUrl(url, false), {
-        data: Promise.resolve(data),
+        data: createRecordFromThenable(Promise.resolve(data)),
         // this will make sure that the entry will be discarded after 30s
         kind: PrefetchKind.TEMPORARY,
         prefetchTime: Date.now(),
@@ -226,7 +226,7 @@ export function navigateReducer(
     )
 
     const newPrefetchValue = {
-      data: Promise.resolve(data),
+      data: createRecordFromThenable(Promise.resolve(data)),
       // this will make sure that the entry will be discarded after 30s
       kind:
         process.env.NODE_ENV === 'development'
@@ -251,8 +251,11 @@ export function navigateReducer(
   // Unwrap cache data with `use` to suspend here (in the reducer) until the fetch resolves.
   const [flightData, canonicalUrlOverride] = readRecordValue(data!)
 
-  // important: we should only mark the cache node as dirty after we unsuspend from the call above
-  prefetchValues.lastUsedTime = Date.now()
+  // we only want to mark this once
+  if (!prefetchValues.lastUsedTime) {
+    // important: we should only mark the cache node as dirty after we unsuspend from the call above
+    prefetchValues.lastUsedTime = Date.now()
+  }
 
   // Handle case when navigating to page in `pages` from `app`
   if (typeof flightData === 'string') {
