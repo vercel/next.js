@@ -299,6 +299,7 @@ export async function initialize(opts: {
       }
 
       const invokeHeaders: typeof req.headers = {
+        ...req.headers,
         'x-middleware-invoke': '',
         'x-invoke-path': invokePath,
         'x-invoke-query': encodeURIComponent(JSON.stringify(parsedUrl.query)),
