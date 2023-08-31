@@ -96,7 +96,7 @@ body:
       placeholder: 'Following the steps from the previous section, I expected X to happen, but I observed Y instead'
     validations:
       required: true
-  - type: input
+  - type: textarea
     attributes:
       label: Additional context
       description: |
