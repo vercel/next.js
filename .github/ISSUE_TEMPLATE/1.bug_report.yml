@@ -5,7 +5,6 @@ body:
   - type: markdown
     attributes:
       value: |
-        **Note:**
         This template is to report Next.js bugs. If you need help with your project, you can:
         - Start a discussion in the ["Help" section](https://github.com/vercel/next.js/discussions/categories/help)
         - Ask a question on the [Next.js Discord](https://discord.com/invite/nextjs) server
