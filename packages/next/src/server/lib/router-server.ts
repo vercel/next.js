@@ -26,6 +26,7 @@ import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import setupCompression from 'next/dist/compiled/compression'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
+import { filterReqHeaders, ipcForbiddenHeaders } from './server-ipc/utils'
 
 import {
   PHASE_PRODUCTION_SERVER,
@@ -263,6 +264,7 @@ export async function initialize(opts: {
       parsedUrl: NextUrlWithParsedQuery,
       type: keyof typeof renderWorkers,
       invokePath: string,
+      handleIndex: number,
       additionalInvokeHeaders: Record<string, string> = {}
     ) {
       // invokeRender expects /api routes to not be locale prefixed
@@ -310,7 +312,49 @@ export async function initialize(opts: {
         const initResult = await renderWorkers.pages?.initialize(
           renderWorkerOpts
         )
-        await initResult?.requestHandler(req, res)
+
+        let bodyStream: ReadableStream | undefined = undefined
+        let readableController: ReadableStreamController<Buffer>
+        const { req: mockedReq, res: mockedRes } =
+          await createRequestResponseMocks({
+            url: req.url || '/',
+            method: req.method || 'GET',
+            headers: filterReqHeaders(invokeHeaders, ipcForbiddenHeaders),
+            bodyReadable: getRequestMeta(
+              req,
+              '__NEXT_CLONABLE_BODY'
+            )?.cloneBodyStream(),
+            resWriter(chunk) {
+              readableController.enqueue(Buffer.from(chunk))
+              return true
+            },
+          })
+
+        bodyStream = new ReadableStream({
+          start(controller) {
+            readableController = controller
+          },
+        })
+
+        mockedRes.on('close', () => {
+          readableController.close()
+        })
+        initResult?.requestHandler(mockedReq, mockedRes)
+        await mockedRes.headPromise
+
+        // when we receive x-no-fallback we restart
+        if (mockedRes.getHeader('x-no-fallback')) {
+          // eslint-disable-next-line
+          await handleRequest(handleIndex + 1)
+          return
+        }
+
+        for (const key in Object.entries(mockedRes.headers)) {
+          res.setHeader(key, mockedRes.getHeader(key) as string)
+        }
+        res.statusCode = mockedRes.statusCode
+        res.statusMessage = mockedRes.statusMessage
+        await pipeReadable(bodyStream, res)
         return
       } catch (e) {
         // If the client aborts before we can receive a response object (when
@@ -437,7 +481,7 @@ export async function initialize(opts: {
             fsChecker.pageFiles.has(matchedOutput.itemPath))
         ) {
           res.statusCode = 500
-          await invokeRender(parsedUrl, 'pages', '/_error', {
+          await invokeRender(parsedUrl, 'pages', '/_error', handleIndex, {
             'x-invoke-status': '500',
             'x-invoke-error': JSON.stringify({
               message: `A conflicting public file and page file was found for path ${matchedOutput.itemPath} https://nextjs.org/docs/messages/conflicting-public-file-page`,
@@ -462,9 +506,15 @@ export async function initialize(opts: {
         if (!(req.method === 'GET' || req.method === 'HEAD')) {
           res.setHeader('Allow', ['GET', 'HEAD'])
           res.statusCode = 405
-          return await invokeRender(url.parse('/405', true), 'pages', '/405', {
-            'x-invoke-status': '405',
-          })
+          return await invokeRender(
+            url.parse('/405', true),
+            'pages',
+            '/405',
+            handleIndex,
+            {
+              'x-invoke-status': '405',
+            }
+          )
         }
 
         try {
@@ -524,6 +574,7 @@ export async function initialize(opts: {
               url.parse(invokePath, true),
               'pages',
               invokePath,
+              handleIndex,
               {
                 'x-invoke-status': invokeStatus,
               }
@@ -540,6 +591,7 @@ export async function initialize(opts: {
           parsedUrl,
           matchedOutput.type === 'appFile' ? 'app' : 'pages',
           parsedUrl.pathname || '/',
+          handleIndex,
           {
             'x-invoke-output': matchedOutput.itemPath,
           }
@@ -570,13 +622,14 @@ export async function initialize(opts: {
           parsedUrl,
           'app',
           opts.dev ? '/not-found' : '/_not-found',
+          handleIndex,
           {
             'x-invoke-status': '404',
           }
         )
       }
 
-      await invokeRender(parsedUrl, 'pages', '/404', {
+      await invokeRender(parsedUrl, 'pages', '/404', handleIndex, {
         'x-invoke-status': '404',
       })
     }
@@ -599,6 +652,7 @@ export async function initialize(opts: {
           url.parse(invokePath, true),
           'pages',
           invokePath,
+          0,
           {
             'x-invoke-status': invokeStatus,
           }
