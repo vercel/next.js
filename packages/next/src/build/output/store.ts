@@ -141,7 +141,7 @@ store.subscribe((state) => {
   if (lastTrigger) {
     Log.event(`compiled ${lastTrigger} ${timeMessage}${modulesMessage}`)
   } else {
-    Log.ready(`ready`)
+    Log.event('ready')
   }
 
   // Ensure traces are flushed after each compile in development mode

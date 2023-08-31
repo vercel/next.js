@@ -100,7 +100,7 @@ export async function validateTurboNextConfig({
       `We appreciate your ongoing support as we work to make it ready`,
       `for everyone.`,
     ]
-      .map((line, index) => `${line}`)
+      .map((line) => `${line}`)
       .join('\n') + '\n\n'
 
   let unsupportedParts = ''
@@ -199,10 +199,6 @@ export async function validateTurboNextConfig({
   )}\nPlease direct feedback to: ${chalk.underline(
     'https://nextjs.link/turbopack-feedback'
   )}\n`
-
-  if (!hasWarningOrError) {
-    feedbackMessage = feedbackMessage
-  }
 
   if (hasWebpack && !hasTurbo) {
     console.warn(
