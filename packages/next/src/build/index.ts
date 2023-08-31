@@ -1244,6 +1244,11 @@ export default async function build(
           },
           numWorkers,
           forkOptions: {
+            execArgv: [
+              '--experimental-loader',
+              'next/dist/esm/server/esm-loader.mjs',
+              '--no-warnings',
+            ],
             env: {
               ...process.env,
               __NEXT_INCREMENTAL_CACHE_IPC_PORT: ipcPort + '',
