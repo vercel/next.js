@@ -4,6 +4,7 @@ import {
   Route,
   TurbopackResult,
   WrittenEndpoint,
+  ServerClientChange,
   ServerClientChangeType,
 } from '../../../build/swc'
 import type { Socket } from 'net'
@@ -186,7 +187,7 @@ async function startWatcher(opts: SetupOpts) {
     })
     const iter = project.entrypointsSubscribe()
     const curEntries: Map<string, Route> = new Map()
-    let changeSubscriptions: Map<string, AsyncIterator<any>> = new Map()
+    const changeSubscriptions: Map<string, AsyncIterator<any>> = new Map()
     let prevMiddleware: boolean | undefined = undefined
     const globalEntries: {
       app: Endpoint | undefined
@@ -341,7 +342,7 @@ async function startWatcher(opts: SetupOpts) {
       endpoint: Endpoint | undefined,
       makePayload: (
         page: string,
-        change: ServerClientChangeType
+        change: TurbopackResult<ServerClientChange>
       ) => object | void
     ) {
       if (!endpoint || changeSubscriptions.has(page)) return
@@ -350,8 +351,8 @@ async function startWatcher(opts: SetupOpts) {
       changeSubscriptions.set(page, changed)
 
       for await (const change of changed) {
-        const payload = makePayload(page, change.change)
         if (payload) hotReloader.send(payload)
+        const payload = makePayload(page, change)
       }
     }
 
@@ -887,7 +888,7 @@ async function startWatcher(opts: SetupOpts) {
               await route.htmlEndpoint.writeToDisk()
             )
             changeSubscription(page, route.dataEndpoint, (pageName, change) => {
-              switch (change) {
+              switch (change.type) {
                 case ServerClientChangeType.Server:
                 case ServerClientChangeType.Both:
                   return { event: 'serverOnlyChanges', pages: [pageName] }
@@ -940,7 +941,7 @@ async function startWatcher(opts: SetupOpts) {
           case 'app-page': {
             await processResult(page, await route.htmlEndpoint.writeToDisk())
             changeSubscription(page, route.rscEndpoint, (_page, change) => {
-              switch (change) {
+              switch (change.type) {
                 case ServerClientChangeType.Server:
                 case ServerClientChangeType.Both:
                   return { action: 'serverComponentChanges' }

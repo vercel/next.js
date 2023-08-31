@@ -506,7 +506,7 @@ export enum ServerClientChangeType {
   Both = 'Both',
 }
 export interface ServerClientChange {
-  change: ServerClientChangeType
+  type: ServerClientChangeType
 }
 
 export interface Project {
@@ -943,17 +943,17 @@ function bindingToApi(binding: any, _wasm: boolean) {
                 diagnostics: server.value.diagnostics.concat(
                   client.value.diagnostics
                 ),
-                change: ServerClientChangeType.Both,
+                type: ServerClientChangeType.Both,
               }
             } else if (server) {
               yield {
                 ...server.value,
-                change: ServerClientChangeType.Server,
+                type: ServerClientChangeType.Server,
               }
             } else {
               yield {
                 ...client!.value,
-                change: ServerClientChangeType.Client,
+                type: ServerClientChangeType.Client,
               }
             }
           }
