@@ -18,7 +18,6 @@ import {
   RSC_ACTION_VALIDATE_ALIAS,
   WEBPACK_RESOURCE_QUERIES,
 } from '../lib/constants'
-import { fileExists } from '../lib/file-exists'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import {
@@ -68,6 +67,7 @@ import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integr
 import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plugin'
 import { getSupportedBrowsers } from './utils'
 import { MemoryWithGcCachePlugin } from './webpack/plugins/memory-with-gc-cache-plugin'
+import { getBabelConfigFile } from './get-babel-config-file'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -116,32 +116,6 @@ const mainFieldsPerCompiler: Record<CompilerNameValues, string[]> = {
   [COMPILER_NAMES.server]: ['main', 'module'],
   [COMPILER_NAMES.client]: ['browser', 'module', 'main'],
   [COMPILER_NAMES.edgeServer]: edgeConditionNames,
-}
-
-const BABEL_CONFIG_FILES = [
-  '.babelrc',
-  '.babelrc.json',
-  '.babelrc.js',
-  '.babelrc.mjs',
-  '.babelrc.cjs',
-  'babel.config.js',
-  'babel.config.json',
-  'babel.config.mjs',
-  'babel.config.cjs',
-]
-
-export const getBabelConfigFile = async (dir: string) => {
-  const babelConfigFile = await BABEL_CONFIG_FILES.reduce(
-    async (memo: Promise<string | undefined>, filename) => {
-      const configFilePath = path.join(dir, filename)
-      return (
-        (await memo) ||
-        ((await fileExists(configFilePath)) ? configFilePath : undefined)
-      )
-    },
-    Promise.resolve(undefined)
-  )
-  return babelConfigFile
 }
 
 // Support for NODE_PATH
@@ -195,33 +169,35 @@ function isResourceInPackages(
 }
 
 export function getDefineEnv({
-  dev,
-  config,
-  distDir,
-  isClient,
-  hasRewrites,
-  isNodeServer,
-  isEdgeServer,
-  middlewareMatchers,
-  clientRouterFilters,
-  previewModeId,
-  fetchCacheKeyPrefix,
   allowedRevalidateHeaderKeys,
+  clientRouterFilters,
+  config,
+  dev,
+  distDir,
+  fetchCacheKeyPrefix,
+  hasRewrites,
+  isClient,
+  isEdgeServer,
+  isNodeOrEdgeCompilation,
+  isNodeServer,
+  middlewareMatchers,
+  previewModeId,
 }: {
-  dev?: boolean
-  distDir: string
-  isClient?: boolean
-  hasRewrites?: boolean
-  isNodeServer?: boolean
-  isEdgeServer?: boolean
-  middlewareMatchers?: MiddlewareMatcher[]
-  config: NextConfigComplete
+  allowedRevalidateHeaderKeys: string[] | undefined
   clientRouterFilters: Parameters<
     typeof getBaseWebpackConfig
   >[1]['clientRouterFilters']
-  previewModeId?: string
-  fetchCacheKeyPrefix?: string
-  allowedRevalidateHeaderKeys?: string[]
+  config: NextConfigComplete
+  dev: boolean
+  distDir: string
+  fetchCacheKeyPrefix: string | undefined
+  hasRewrites: boolean
+  isClient: boolean
+  isEdgeServer: boolean
+  isNodeOrEdgeCompilation: boolean
+  isNodeServer: boolean
+  middlewareMatchers: MiddlewareMatcher[] | undefined
+  previewModeId: string | undefined
 }) {
   return {
     // internal field to identify the plugin config
@@ -317,12 +293,8 @@ export function getDefineEnv({
       config.reactStrictMode === null ? false : config.reactStrictMode
     ),
     'process.env.__NEXT_STRICT_MODE_APP': JSON.stringify(
-      // When next.config.js does not have reactStrictMode enabling appDir will enable it.
-      config.reactStrictMode === null
-        ? config.experimental.appDir
-          ? true
-          : false
-        : config.reactStrictMode
+      // When next.config.js does not have reactStrictMode it's enabled by default.
+      config.reactStrictMode === null ? true : config.reactStrictMode
     ),
     'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
       !dev && config.optimizeFonts
@@ -378,7 +350,7 @@ export function getDefineEnv({
       config.experimental.webVitalsAttribution
     ),
     'process.env.__NEXT_ASSET_PREFIX': JSON.stringify(config.assetPrefix),
-    ...(isNodeServer || isEdgeServer
+    ...(isNodeOrEdgeCompilation
       ? {
           // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
           // This is typically found in unmaintained modules from the
@@ -386,22 +358,6 @@ export function getDefineEnv({
           'global.GENTLY': JSON.stringify(false),
         }
       : undefined),
-    // stub process.env with proxy to warn a missing value is
-    // being accessed in development mode
-    ...(config.experimental.pageEnv && dev
-      ? {
-          'process.env': `
-            new Proxy(${isNodeServer ? 'process.env' : '{}'}, {
-              get(target, prop) {
-                if (typeof target[prop] === 'undefined') {
-                  console.warn(\`An environment variable (\${prop}) that was not provided in the environment was accessed.\nSee more info here: https://nextjs.org/docs/messages/missing-env-value\`)
-                }
-                return target[prop]
-              }
-            })
-          `,
-        }
-      : {}),
   }
 }
 
@@ -807,12 +763,15 @@ export default async function getBaseWebpackConfig(
   const isEdgeServer = compilerType === COMPILER_NAMES.edgeServer
   const isNodeServer = compilerType === COMPILER_NAMES.server
 
+  // If the current compilation is aimed at server-side code instead of client-side code.
+  const isNodeOrEdgeCompilation = isNodeServer || isEdgeServer
+
   const hasRewrites =
     rewrites.beforeFiles.length > 0 ||
     rewrites.afterFiles.length > 0 ||
     rewrites.fallback.length > 0
 
-  const hasAppDir = !!config.experimental.appDir && !!appDir
+  const hasAppDir = !!appDir
   const hasServerComponents = hasAppDir
   const disableOptimizedLoading = true
   const enableTypedRoutes = !!config.experimental.typedRoutes && hasAppDir
@@ -871,7 +830,7 @@ export default async function getBaseWebpackConfig(
       loader: require.resolve('./babel/loader/index'),
       options: {
         configFile: babelConfigFile,
-        isServer: isNodeServer || isEdgeServer,
+        isServer: isNodeOrEdgeCompilation,
         distDir,
         pagesDir,
         cwd: dir,
@@ -902,7 +861,7 @@ export default async function getBaseWebpackConfig(
     return {
       loader: 'next-swc-loader',
       options: {
-        isServer: isNodeServer || isEdgeServer,
+        isServer: isNodeOrEdgeCompilation,
         rootDir: dir,
         pagesDir,
         appDir,
@@ -963,10 +922,9 @@ export default async function getBaseWebpackConfig(
 
   const pageExtensions = config.pageExtensions
 
-  const outputPath =
-    isNodeServer || isEdgeServer
-      ? path.join(distDir, SERVER_DIRECTORY)
-      : distDir
+  const outputPath = isNodeOrEdgeCompilation
+    ? path.join(distDir, SERVER_DIRECTORY)
+    : distDir
 
   const reactServerCondition = [
     'react-server',
@@ -1912,26 +1870,24 @@ export default async function getBaseWebpackConfig(
       }/_next/`,
       path: !dev && isNodeServer ? path.join(outputPath, 'chunks') : outputPath,
       // On the server we don't use hashes
-      filename:
-        isNodeServer || isEdgeServer
-          ? dev || isEdgeServer
-            ? `[name].js`
-            : `../[name].js`
-          : `static/chunks/${isDevFallback ? 'fallback/' : ''}[name]${
-              dev ? '' : appDir ? '-[chunkhash]' : '-[contenthash]'
-            }.js`,
+      filename: isNodeOrEdgeCompilation
+        ? dev || isEdgeServer
+          ? `[name].js`
+          : `../[name].js`
+        : `static/chunks/${isDevFallback ? 'fallback/' : ''}[name]${
+            dev ? '' : appDir ? '-[chunkhash]' : '-[contenthash]'
+          }.js`,
       library: isClient || isEdgeServer ? '_N_E' : undefined,
       libraryTarget: isClient || isEdgeServer ? 'assign' : 'commonjs2',
       hotUpdateChunkFilename: 'static/webpack/[id].[fullhash].hot-update.js',
       hotUpdateMainFilename:
         'static/webpack/[fullhash].[runtime].hot-update.json',
       // This saves chunks with the name given via `import()`
-      chunkFilename:
-        isNodeServer || isEdgeServer
-          ? '[name].js'
-          : `static/chunks/${isDevFallback ? 'fallback/' : ''}${
-              dev ? '[name]' : '[name].[contenthash]'
-            }.js`,
+      chunkFilename: isNodeOrEdgeCompilation
+        ? '[name].js'
+        : `static/chunks/${isDevFallback ? 'fallback/' : ''}${
+            dev ? '[name]' : '[name].[contenthash]'
+          }.js`,
       strictModuleExceptionHandling: true,
       crossOriginLoading: crossOrigin,
       webassemblyModuleFilename: 'static/wasm/[modulehash].wasm',
@@ -2437,18 +2393,19 @@ export default async function getBaseWebpackConfig(
         }),
       new webpack.DefinePlugin(
         getDefineEnv({
-          dev,
-          config,
-          distDir,
-          isClient,
-          hasRewrites,
-          isNodeServer,
-          isEdgeServer,
-          middlewareMatchers,
-          clientRouterFilters,
-          previewModeId,
-          fetchCacheKeyPrefix,
           allowedRevalidateHeaderKeys,
+          clientRouterFilters,
+          config,
+          dev,
+          distDir,
+          fetchCacheKeyPrefix,
+          hasRewrites,
+          isClient,
+          isEdgeServer,
+          isNodeOrEdgeCompilation,
+          isNodeServer,
+          middlewareMatchers,
+          previewModeId,
         })
       ),
       isClient &&
@@ -2509,7 +2466,7 @@ export default async function getBaseWebpackConfig(
           resourceRegExp: /react-is/,
           contextRegExp: /next[\\/]dist[\\/]/,
         }),
-      (isNodeServer || isEdgeServer) &&
+      isNodeOrEdgeCompilation &&
         new PagesManifestPlugin({
           dev,
           isEdgeRuntime: isEdgeServer,
@@ -2733,7 +2690,6 @@ export default async function getBaseWebpackConfig(
   }
 
   const configVars = JSON.stringify({
-    appDir: config.experimental.appDir,
     crossOrigin: config.crossOrigin,
     pageExtensions: pageExtensions,
     trailingSlash: config.trailingSlash,
@@ -2748,7 +2704,6 @@ export default async function getBaseWebpackConfig(
     serverActions: config.experimental.serverActions,
     typedRoutes: config.experimental.typedRoutes,
     basePath: config.basePath,
-    pageEnv: config.experimental.pageEnv,
     excludeDefaultMomentLocales: config.excludeDefaultMomentLocales,
     assetPrefix: config.assetPrefix,
     disableOptimizedLoading,
@@ -2804,11 +2759,9 @@ export default async function getBaseWebpackConfig(
       process.env.NEXT_WEBPACK_LOGGING.includes('summary-server')
 
     const profile =
-      (profileClient && isClient) ||
-      (profileServer && (isNodeServer || isEdgeServer))
+      (profileClient && isClient) || (profileServer && isNodeOrEdgeCompilation)
     const summary =
-      (summaryClient && isClient) ||
-      (summaryServer && (isNodeServer || isEdgeServer))
+      (summaryClient && isClient) || (summaryServer && isNodeOrEdgeCompilation)
 
     const logDefault = !infra && !profile && !summary
 
@@ -2864,7 +2817,7 @@ export default async function getBaseWebpackConfig(
       : undefined,
     hasAppDir,
     isDevelopment: dev,
-    isServer: isNodeServer || isEdgeServer,
+    isServer: isNodeOrEdgeCompilation,
     isEdgeRuntime: isEdgeServer,
     targetWeb: isClient || isEdgeServer,
     assetPrefix: config.assetPrefix || '',
@@ -2898,13 +2851,13 @@ export default async function getBaseWebpackConfig(
     webpackConfig = config.webpack(webpackConfig, {
       dir,
       dev,
-      isServer: isNodeServer || isEdgeServer,
+      isServer: isNodeOrEdgeCompilation,
       buildId,
       config,
       defaultLoaders,
       totalPages: Object.keys(entrypoints).length,
       webpack,
-      ...(isNodeServer || isEdgeServer
+      ...(isNodeOrEdgeCompilation
         ? {
             nextRuntime: isEdgeServer ? 'edge' : 'nodejs',
           }
@@ -3049,7 +3002,7 @@ export default async function getBaseWebpackConfig(
             if (rule(input)) {
               return true
             }
-          } catch (_) {}
+          } catch {}
           return false
         })
       ) {
@@ -3071,7 +3024,7 @@ export default async function getBaseWebpackConfig(
 
   if (hasUserCssConfig) {
     // only show warning for one build
-    if (isNodeServer || isEdgeServer) {
+    if (isNodeOrEdgeCompilation) {
       console.warn(
         chalk.yellow.bold('Warning: ') +
           chalk.bold(
@@ -3114,7 +3067,7 @@ export default async function getBaseWebpackConfig(
 
   // check if using @zeit/next-typescript and show warning
   if (
-    (isNodeServer || isEdgeServer) &&
+    isNodeOrEdgeCompilation &&
     webpackConfig.module &&
     Array.isArray(webpackConfig.module.rules)
   ) {

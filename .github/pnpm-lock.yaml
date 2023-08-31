@@ -6,27 +6,6 @@ settings:
 
 importers:
 
-  .: {}
-
-  actions/issue-labeler:
-    dependencies:
-      '@actions/core':
-        specifier: ^1.10.0
-        version: 1.10.0
-      '@actions/github':
-        specifier: ^5.1.1
-        version: 5.1.1
-    devDependencies:
-      '@types/node':
-        specifier: ^18.15.3
-        version: 18.16.19
-      '@vercel/ncc':
-        specifier: 0.36.1
-        version: 0.36.1
-      typescript:
-        specifier: 5.1.6
-        version: 5.1.6
-
   actions/issue-validator:
     dependencies:
       '@actions/core':
@@ -393,11 +372,6 @@ packages:
 
   /@vercel/ncc@0.34.0:
     resolution: {integrity: sha512-G9h5ZLBJ/V57Ou9vz5hI8pda/YQX5HQszCs3AmIus3XzsmRn/0Ptic5otD3xVST8QLKk7AMk7AqpsyQGN7MZ9A==}
-    hasBin: true
-    dev: true
-
-  /@vercel/ncc@0.36.1:
-    resolution: {integrity: sha512-S4cL7Taa9yb5qbv+6wLgiKVZ03Qfkc4jGRuiUQMQ8HGBD5pcNRnHeYM33zBvJE4/zJGjJJ8GScB+WmTsn9mORw==}
     hasBin: true
     dev: true
 

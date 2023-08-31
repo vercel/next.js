@@ -66,10 +66,7 @@ export async function makeResolver(
     minimalMode: false,
     config: nextConfig,
   })
-  const { appDir, pagesDir } = findPagesDir(
-    dir,
-    !!nextConfig.experimental.appDir
-  )
+  const { appDir, pagesDir } = findPagesDir(dir, true)
   // we format the hostname so that it can be fetched
   const fetchHostname = formatHostname(hostname)
 

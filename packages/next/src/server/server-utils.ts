@@ -1,4 +1,4 @@
-import type { IncomingMessage, ServerResponse } from 'http'
+import type { IncomingMessage } from 'http'
 import type { Rewrite } from '../lib/load-custom-routes'
 import type { RouteMatchFn } from '../shared/lib/router/utils/route-matcher'
 import type { NextConfig } from './config'
@@ -14,13 +14,6 @@ import {
   matchHas,
   prepareDestination,
 } from '../shared/lib/router/utils/prepare-destination'
-import { acceptLanguage } from './accept-header'
-import { detectLocaleCookie } from '../shared/lib/i18n/detect-locale-cookie'
-import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
-import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
-import cookie from 'next/dist/compiled/cookie'
-import { TEMPORARY_REDIRECT_STATUS } from '../shared/lib/constants'
-import { addRequestMeta } from './request-meta'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { normalizeRscPath } from '../shared/lib/router/utils/app-paths'
 import { NEXT_QUERY_PARAM_PREFIX } from '../lib/constants'
@@ -103,9 +96,9 @@ export function getUtils({
   i18n?: NextConfig['i18n']
   basePath: string
   rewrites: {
-    fallback?: Rewrite[]
-    afterFiles?: Rewrite[]
-    beforeFiles?: Rewrite[]
+    fallback?: ReadonlyArray<Rewrite>
+    afterFiles?: ReadonlyArray<Rewrite>
+    beforeFiles?: ReadonlyArray<Rewrite>
   }
   pageIsDynamic: boolean
   trailingSlash?: boolean
@@ -426,152 +419,7 @@ export function getUtils({
     }
   }
 
-  function handleLocale(
-    req: IncomingMessage,
-    res: ServerResponse,
-    parsedUrl: UrlWithParsedQuery,
-    routeNoAssetPath: string,
-    shouldNotRedirect: boolean
-  ) {
-    if (!i18n) return
-    const pathname = parsedUrl.pathname || '/'
-
-    let defaultLocale = i18n.defaultLocale
-    let detectedLocale = detectLocaleCookie(req, i18n.locales)
-    let acceptPreferredLocale
-    try {
-      acceptPreferredLocale =
-        i18n.localeDetection !== false
-          ? acceptLanguage(req.headers['accept-language'], i18n.locales)
-          : detectedLocale
-    } catch (_) {
-      acceptPreferredLocale = detectedLocale
-    }
-
-    const { host } = req.headers || {}
-    // remove port from host and remove port if present
-    const hostname = host && host.split(':')[0].toLowerCase()
-
-    const detectedDomain = detectDomainLocale(i18n.domains, hostname)
-    if (detectedDomain) {
-      defaultLocale = detectedDomain.defaultLocale
-      detectedLocale = defaultLocale
-      addRequestMeta(req as any, '__nextIsLocaleDomain', true)
-    }
-
-    // if not domain specific locale use accept-language preferred
-    detectedLocale = detectedLocale || acceptPreferredLocale
-
-    let localeDomainRedirect
-    const localePathResult = normalizeLocalePath(pathname, i18n.locales)
-
-    routeNoAssetPath = normalizeLocalePath(
-      routeNoAssetPath,
-      i18n.locales
-    ).pathname
-
-    if (localePathResult.detectedLocale) {
-      detectedLocale = localePathResult.detectedLocale
-      req.url = formatUrl({
-        ...parsedUrl,
-        pathname: localePathResult.pathname,
-      })
-      addRequestMeta(req as any, '__nextStrippedLocale', true)
-      parsedUrl.pathname = localePathResult.pathname
-    }
-
-    // If a detected locale is a domain specific locale and we aren't already
-    // on that domain and path prefix redirect to it to prevent duplicate
-    // content from multiple domains
-    if (detectedDomain) {
-      const localeToCheck = localePathResult.detectedLocale
-        ? detectedLocale
-        : acceptPreferredLocale
-
-      const matchedDomain = detectDomainLocale(
-        i18n.domains,
-        undefined,
-        localeToCheck
-      )
-
-      if (matchedDomain && matchedDomain.domain !== detectedDomain.domain) {
-        localeDomainRedirect = `http${matchedDomain.http ? '' : 's'}://${
-          matchedDomain.domain
-        }/${localeToCheck === matchedDomain.defaultLocale ? '' : localeToCheck}`
-      }
-    }
-
-    const denormalizedPagePath = denormalizePagePath(pathname)
-    const detectedDefaultLocale =
-      !detectedLocale ||
-      detectedLocale.toLowerCase() === defaultLocale.toLowerCase()
-    const shouldStripDefaultLocale = false
-    // detectedDefaultLocale &&
-    // denormalizedPagePath.toLowerCase() === \`/\${i18n.defaultLocale.toLowerCase()}\`
-
-    const shouldAddLocalePrefix =
-      !detectedDefaultLocale && denormalizedPagePath === '/'
-
-    detectedLocale = detectedLocale || i18n.defaultLocale
-
-    if (
-      !shouldNotRedirect &&
-      !req.headers['x-vercel-id'] &&
-      i18n.localeDetection !== false &&
-      (localeDomainRedirect ||
-        shouldAddLocalePrefix ||
-        shouldStripDefaultLocale)
-    ) {
-      // set the NEXT_LOCALE cookie when a user visits the default locale
-      // with the locale prefix so that they aren't redirected back to
-      // their accept-language preferred locale
-      if (shouldStripDefaultLocale && acceptPreferredLocale !== defaultLocale) {
-        const previous = res.getHeader('set-cookie')
-
-        res.setHeader('set-cookie', [
-          ...(typeof previous === 'string'
-            ? [previous]
-            : Array.isArray(previous)
-            ? previous
-            : []),
-          cookie.serialize('NEXT_LOCALE', defaultLocale, {
-            httpOnly: true,
-            path: '/',
-          }),
-        ])
-      }
-
-      res.setHeader(
-        'Location',
-        formatUrl({
-          // make sure to include any query values when redirecting
-          ...parsedUrl,
-          pathname: localeDomainRedirect
-            ? localeDomainRedirect
-            : shouldStripDefaultLocale
-            ? basePath || '/'
-            : `${basePath}/${detectedLocale}`,
-        })
-      )
-      res.statusCode = TEMPORARY_REDIRECT_STATUS
-      res.end()
-      return
-    }
-
-    detectedLocale =
-      localePathResult.detectedLocale ||
-      (detectedDomain && detectedDomain.defaultLocale) ||
-      defaultLocale
-
-    return {
-      defaultLocale,
-      detectedLocale,
-      routeNoAssetPath,
-    }
-  }
-
   return {
-    handleLocale,
     handleRewrites,
     handleBasePath,
     defaultRouteRegex,
