@@ -51,7 +51,7 @@ body:
     attributes:
       label: Current vs. Expected behavior
       description: A clear and concise description of what the bug is, and what you expected to happen.
-      placeholder: 'Following the steps from the previous section, I expected X to happen, but I observed Y instead'
+      placeholder: 'Following the steps from the previous section, I expected A to happen, but I observed B instead'
     validations:
       required: true
   - type: checkboxes
