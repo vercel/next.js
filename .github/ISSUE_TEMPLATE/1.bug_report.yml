@@ -5,12 +5,9 @@ body:
   - type: markdown
     attributes:
       value: |
-        This template is to report Next.js bugs.
+        This template is to report Next.js bugs. Before opening a new issue, please do a [search](https://github.com/vercel/next.js/issues) of existing issues and :+1: upvote the existing issue instead. This will result in a quicker resolution.
         
-        _Before opening a new issue, please do a [search](https://github.com/vercel/next.js/issues) of existing issues and :+1: upvote the existing issue instead. This will result in a quicker resolution._
-        
-        
-        If you need help with your project, you can:
+        If you need help with your own project, you can:
         - Start a discussion in the ["Help" section](https://github.com/vercel/next.js/discussions/categories/help)
         - Ask a question on the [Next.js Discord](https://discord.com/invite/nextjs) server
         
