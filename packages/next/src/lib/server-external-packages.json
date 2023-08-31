@@ -43,5 +43,6 @@
   "ts-node",
   "typescript",
   "vscode-oniguruma",
-  "webpack"
+  "webpack",
+  "@zenstackhq/runtime"
 ]
