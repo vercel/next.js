@@ -37,7 +37,7 @@ The issue will receive [this comment](https://github.com/vercel/next.js/blob/can
 
 ## Verified issues
 
-If an is verified, it will receive the `linear: next`, `linear: dx` or `linear: web` label and will be tracked by the maintainers. Additionally, one or many `area:` label(s) can be added to indicate which part of Next.js is affected.
+If an issue is verified, it will receive the `linear: next`, `linear: dx` or `linear: web` label and will be tracked by the maintainers. Additionally, one or many `area:` label(s) can be added to indicate which part of Next.js is affected.
 
 Confirmed issues never become stale or are closed before resolution.
 
