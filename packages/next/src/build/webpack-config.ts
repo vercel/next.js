@@ -1113,6 +1113,14 @@ export default async function getBaseWebpackConfig(
         '@opentelemetry/api': 'next/dist/compiled/@opentelemetry/api',
       }),
 
+      ...(hasAppDir
+        ? createRSCAliases(bundledReactChannel, {
+            reactSharedSubset: false,
+            reactDomServerRenderingStub: false,
+            reactProductionProfiling,
+          })
+        : {}),
+
       ...(config.images.loaderFile
         ? {
             'next/dist/shared/lib/image-loader': config.images.loaderFile,
@@ -2025,11 +2033,6 @@ export default async function getBaseWebpackConfig(
                     [require.resolve('next/dynamic')]: require.resolve(
                       'next/dist/shared/lib/app-dynamic'
                     ),
-                    ...createRSCAliases(bundledReactChannel, {
-                      reactSharedSubset: false,
-                      reactDomServerRenderingStub: false,
-                      reactProductionProfiling,
-                    }),
                   },
                 },
               },
