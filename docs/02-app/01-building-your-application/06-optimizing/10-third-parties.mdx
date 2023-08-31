@@ -75,7 +75,7 @@ export default function Page() {
 
 #### Options
 
-Options to pass to the Google Maps Embed. For full list of option read [Google Map Embed docs](https://developers.google.com/maps/documentation/embed/embedding-map)
+Options to pass to the Google Maps Embed. For a full list of options, read the [Google Map Embed docs](https://developers.google.com/maps/documentation/embed/embedding-map).
 
 | Name              | Type     | Description                                                                                         |
 | ----------------- | -------- | --------------------------------------------------------------------------------------------------- |
@@ -85,7 +85,7 @@ Options to pass to the Google Maps Embed. For full list of option read [Google M
 | `width`           | Optional | Width of the embed. Defaults to `auto`.                                                             |
 | `style`           | Optional | Pass styles to the iframe.                                                                          |
 | `allowfullscreen` | Optional | Property to allow certain map parts to go full screen.                                              |
-| `loading`         | Optional | Defaults to lazy.                                                                                   |
+| `loading`         | Optional | Defaults to lazy. Consider changing if you know your embed will be above-the-fold.                  |
 | `q`               | Optional | Defines map marker location. _This maybe required depending on the map mode_.                       |
 | `center`          | Optional | Defines center of the map view.                                                                     |
 | `zoom`            | Optional | Sets initial zoom level of the map.                                                                 |
@@ -130,6 +130,6 @@ export default function Page() {
 | `videoid`   | Required | YouTube video id.                                                                                                                                                                                          |
 | `width`     | Optional | Width of the video container. Defaults to `auto`                                                                                                                                                           |
 | `height`    | Optional | Height of the video container. Defaults to `auto`                                                                                                                                                          |
-| `playlabel` | Optional | A visually hidden label for the play button for accessability.                                                                                                                                             |
+| `playlabel` | Optional | A visually hidden label for the play button for accessibility.                                                                                                                                             |
 | `params`    | Optional | The video player params defined [here](https://developers.google.com/youtube/player_parameters#Parameters). <br> Params are passed as a query param string. <br> Eg: `params="controls=0&start=10&end=30"` |
 | `style`     | Optional | Used to apply styles to the video container.                                                                                                                                                               |
