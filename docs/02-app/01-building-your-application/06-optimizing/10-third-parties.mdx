@@ -44,8 +44,8 @@ export default function Page() {
       apiKey="XYZ"
       height={200}
       width="100%"
-      mapMode="place"
-      parameters="q=Brooklyn+Bridge,New+York,NY"
+      mode="place"
+      q="Brooklyn+Bridge,New+York,NY"
     />
   )
 }
@@ -64,8 +64,8 @@ export default function Page() {
       apiKey="XYZ"
       height={200}
       width="100%"
-      mapMode="place"
-      parameters="q=Brooklyn+Bridge,New+York,NY"
+      mode="place"
+      q="Brooklyn+Bridge,New+York,NY"
     />
   )
 }
@@ -105,7 +105,7 @@ hood.
 import { YouTubeEmbed } from '@next/third-parties/google'
 
 export default function Page() {
-  return <YouTubeEmbed videoid="ogfYd705cRs" height={400} />
+  return <YouTubeEmbed videoid="ogfYd705cRs" height={400} params="controls=0" />
 }
 ```
 
@@ -117,7 +117,7 @@ export default function Page() {
 import { YouTubeEmbed } from '@next/third-parties/google'
 
 export default function Page() {
-  return <YouTubeEmbed videoid="ogfYd705cRs" height={400} />
+  return <YouTubeEmbed videoid="ogfYd705cRs" height={400} params="controls=0" />
 }
 ```
 
