@@ -124,6 +124,7 @@ module.exports = ({ dev, turbo }) => {
     plugins: [
       new webpack.DefinePlugin({
         'process.env.NEXT_MINIMAL': JSON.stringify('true'),
+        'this.serverOptions.experimentalTestProxy': JSON.stringify(false),
         'this.minimalMode': JSON.stringify(true),
         'this.renderOpts.dev': JSON.stringify(dev),
         'process.env.NODE_ENV': JSON.stringify(
