@@ -895,7 +895,7 @@ createNextDescribe(
             initialHeaders: {
               'content-type': 'application/json',
               'x-next-cache-tags':
-                'thankyounext,/route-handler/revalidate-360-isr/route',
+                'thankyounext,_N_T_/layout,_N_T_/route-handler/layout,_N_T_/route-handler/revalidate-360-isr/layout,_N_T_/route-handler/revalidate-360-isr/route,_N_T_/route-handler/revalidate-360-isr',
             },
             initialRevalidateSeconds: 10,
             srcRoute: '/route-handler/revalidate-360-isr',
@@ -904,7 +904,8 @@ createNextDescribe(
             dataRoute: null,
             initialHeaders: {
               'set-cookie': 'theme=light; Path=/,my_company=ACME; Path=/',
-              'x-next-cache-tags': '/route-handler/static-cookies/route',
+              'x-next-cache-tags':
+                '_N_T_/layout,_N_T_/route-handler/layout,_N_T_/route-handler/static-cookies/layout,_N_T_/route-handler/static-cookies/route,_N_T_/route-handler/static-cookies',
             },
             initialRevalidateSeconds: false,
             srcRoute: '/route-handler/static-cookies',

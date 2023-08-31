@@ -46,6 +46,13 @@ async function run() {
     state: 'closed',
   })
 
+  await client.issues.addLabels({
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    issue_number: issue.number,
+    labels: ['invalid link'],
+  })
+
   // Comment on the issue
   await client.issues.createComment({
     owner: context.repo.owner,
