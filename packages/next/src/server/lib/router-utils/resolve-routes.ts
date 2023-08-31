@@ -27,11 +27,7 @@ import { detectDomainLocale } from '../../../shared/lib/i18n/detect-domain-local
 import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-path'
 import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-prefix'
 
-import {
-  NextUrlWithParsedQuery,
-  addRequestMeta,
-  getRequestMeta,
-} from '../../request-meta'
+import { NextUrlWithParsedQuery, addRequestMeta } from '../../request-meta'
 import {
   compileNonPath,
   matchHas,
