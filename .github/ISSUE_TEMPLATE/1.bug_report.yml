@@ -25,24 +25,12 @@ body:
       placeholder: 'https://github.com/user/my-minimal-nextjs-issue-reproduction'
     validations:
       required: true
-  - type: dropdown
-    attributes:
-      label: Which environments are affected? (Select all that apply)
-      multiple: true
-      options:
-        - 'Not sure'
-        - 'Development (`next dev`)'
-        - 'Production (`next build && next start`)'
-        - 'Custom server/`output: "standalone"`'
-        - 'Deployed (please specify in "Additional information")'
-    validations:
-      required: true
   - type: textarea
     attributes:
       label: To Reproduce
       description: A step-by-step description of how to reproduce the issue, based on the linked reproduction. Screenshots can be provided in the issue body below. If using code blocks, make sure that [syntax highlighting is correct](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-and-highlighting-code-blocks#syntax-highlighting) and double check that the rendered preview is not broken.
       placeholder: |
-        1. Start the application in the environment described in the previous section
+        1. Start the application in development (next dev)
         2. Click X
         3. Y will happen
     validations:
