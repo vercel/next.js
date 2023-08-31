@@ -7,6 +7,5 @@ module.exports = {
       artifactDirectory: './__generated__',
       language: relay.projects['project-b'].language,
     },
-    externalDir: true,
   },
 }
