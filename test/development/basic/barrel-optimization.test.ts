@@ -103,7 +103,7 @@ describe('optimizePackageImports', () => {
 
     const swcOptimizeBarrelExports = [
       ...logs.matchAll(
-        /optimizeBarrelExports: .+\/dist\/esm\/lucide-react\.js/g
+        /optimizeBarrelExports: .+\/dist\/esm\/lucide-preact\.js/g
       ),
     ]
 
