@@ -181,7 +181,6 @@ export interface ExperimentalConfig {
   optimizeCss?: boolean | Record<string, unknown>
   nextScriptWorkers?: boolean
   scrollRestoration?: boolean
-  externalDir?: boolean
   amp?: {
     optimizer?: any
     validator?: string
@@ -715,7 +714,6 @@ export const defaultConfig: NextConfig = {
     optimizeCss: false,
     nextScriptWorkers: false,
     scrollRestoration: false,
-    externalDir: false,
     disableOptimizedLoading: false,
     gzipSize: true,
     craCompat: false,

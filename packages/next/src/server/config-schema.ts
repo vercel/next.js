@@ -314,9 +314,6 @@ const configSchema = {
         extensionAlias: {
           type: 'object',
         },
-        externalDir: {
-          type: 'boolean',
-        },
         externalMiddlewareRewritesResolve: {
           type: 'boolean',
         },

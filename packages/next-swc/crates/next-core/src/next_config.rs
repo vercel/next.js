@@ -422,7 +422,6 @@ pub struct ExperimentalConfig {
     disable_optimized_loading: Option<bool>,
     disable_postcss_preset_env: Option<bool>,
     esm_externals: Option<serde_json::Value>,
-    external_dir: Option<bool>,
     fallback_node_polyfills: Option<bool>,
     font_loaders: Option<serde_json::Value>,
     force_swc_transforms: Option<bool>,
