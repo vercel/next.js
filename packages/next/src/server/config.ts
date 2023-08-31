@@ -426,13 +426,6 @@ function assignDefaults(
   )
 
   if (
-    typeof userConfig.experimental?.clientRouterFilter === 'undefined' &&
-    result.experimental?.appDir
-  ) {
-    result.experimental.clientRouterFilter = true
-  }
-
-  if (
     result.experimental?.outputFileTracingRoot &&
     !isAbsolute(result.experimental.outputFileTracingRoot)
   ) {
@@ -678,24 +671,6 @@ function assignDefaults(
     'lodash-es': {
       transform: 'lodash-es/{{member}}',
     },
-    '@headlessui/react': {
-      transform: {
-        Transition:
-          'modularize-import-loader?name={{member}}&join=./components/transitions/transition!@headlessui/react',
-        Tab: 'modularize-import-loader?name={{member}}&join=./components/tabs/tabs!@headlessui/react',
-        '*': 'modularize-import-loader?name={{member}}&join=./components/{{ kebabCase member }}/{{ kebabCase member }}!@headlessui/react',
-      },
-      skipDefaultConversion: true,
-    },
-    '@heroicons/react/20/solid': {
-      transform: '@heroicons/react/20/solid/esm/{{member}}',
-    },
-    '@heroicons/react/24/solid': {
-      transform: '@heroicons/react/24/solid/esm/{{member}}',
-    },
-    '@heroicons/react/24/outline': {
-      transform: '@heroicons/react/24/outline/esm/{{member}}',
-    },
     ramda: {
       transform: 'ramda/es/{{member}}',
     },
@@ -739,7 +714,19 @@ function assignDefaults(
     result.experimental = {}
   }
   result.experimental.optimizePackageImports = [
-    ...new Set([...userProvidedOptimizePackageImports, 'lucide-react']),
+    ...new Set([
+      ...userProvidedOptimizePackageImports,
+      'lucide-react',
+      '@headlessui/react',
+      '@fortawesome/fontawesome-svg-core',
+      '@fortawesome/free-solid-svg-icons',
+      '@headlessui-float/react',
+      'react-hot-toast',
+      '@heroicons/react/20/solid',
+      '@heroicons/react/24/solid',
+      '@heroicons/react/24/outline',
+      '@visx/visx',
+    ]),
   ]
 
   return result

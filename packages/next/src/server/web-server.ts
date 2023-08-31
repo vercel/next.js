@@ -6,10 +6,14 @@ import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { PayloadOptions } from './send-payload'
 import type { LoadComponentsReturnType } from './load-components'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
-import type { UrlWithParsedQuery } from 'url'
 
 import { byteLength } from './api-utils/web'
-import BaseServer, { NoFallbackError, Options } from './base-server'
+import BaseServer, {
+  MiddlewareRoutingItem,
+  NoFallbackError,
+  NormalizedRouteManifest,
+  Options,
+} from './base-server'
 import { generateETag } from './lib/etag'
 import { addRequestMeta } from './request-meta'
 import WebResponseCache from './response-cache/web'
@@ -47,10 +51,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     Object.assign(this.renderOpts, options.webServerConfig.extendRenderOpts)
   }
 
-  protected handleCompression() {
-    // For the web server layer, compression is automatically handled by the
-    // upstream proxy (edge runtime or node server) and we can simply skip here.
-  }
   protected getIncrementalCache({
     requestHeaders,
   }: {
@@ -68,7 +68,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       allowedRevalidateHeaderKeys:
         this.nextConfig.experimental.allowedRevalidateHeaderKeys,
       minimalMode: this.minimalMode,
-      fetchCache: this.nextConfig.experimental.appDir,
+      fetchCache: true,
       fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
       maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
       flushToDisk: false,
@@ -80,50 +80,19 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   protected getResponseCache() {
     return new WebResponseCache(this.minimalMode)
   }
-  protected getCustomRoutes() {
-    return {
-      headers: [],
-      rewrites: {
-        fallback: [],
-        afterFiles: [],
-        beforeFiles: [],
-      },
-      redirects: [],
-    }
-  }
-  protected async run(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
-    parsedUrl: UrlWithParsedQuery
-  ): Promise<void> {
-    super.run(req, res, parsedUrl)
-  }
+
   protected async hasPage(page: string) {
     return page === this.serverOptions.webServerConfig.page
   }
-  protected getPublicDir() {
-    // Public files are not handled by the web server.
-    return ''
-  }
+
   protected getBuildId() {
     return this.serverOptions.webServerConfig.extendRenderOpts.buildId
   }
-  protected loadEnvConfig() {
-    // The web server does not need to load the env config. This is done by the
-    // runtime already.
-  }
+
   protected getHasAppDir() {
     return this.serverOptions.webServerConfig.pagesType === 'app'
   }
-  protected getHasStaticDir() {
-    return false
-  }
-  protected async getFallback() {
-    return ''
-  }
-  protected getFontManifest() {
-    return undefined
-  }
+
   protected getPagesManifest() {
     return {
       // keep same theme but server path doesn't need to be accurate
@@ -131,21 +100,21 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
         .normalizedPage]: `server${this.serverOptions.webServerConfig.page}.js`,
     }
   }
+
   protected getAppPathsManifest() {
     const page = this.serverOptions.webServerConfig.page
     return {
       [this.serverOptions.webServerConfig.page]: `app${page}.js`,
     }
   }
-  protected getFilesystemPaths() {
-    return new Set<string>()
-  }
+
   protected attachRequestMeta(
     req: WebNextRequest,
     parsedUrl: NextUrlWithParsedQuery
   ) {
     addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
   }
+
   protected getPrerenderManifest() {
     const { prerenderManifest } = this.serverOptions.webServerConfig
     if (this.renderOpts?.dev || !prerenderManifest) {
@@ -226,11 +195,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       }
       throw err
     }
-  }
-
-  // Edge API requests are handled separately in minimal mode.
-  protected async handleApiRequest() {
-    return false
   }
 
   protected renderHTML(
@@ -328,10 +292,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
 
     res.send()
   }
-  protected async runApi() {
-    // @TODO
-    return true
-  }
 
   protected async findPageComponents({
     pathname,
@@ -355,5 +315,74 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       },
       components: result,
     }
+  }
+
+  // Below are methods that are not implemented by the web server as they are
+  // handled by the upstream proxy (edge runtime or node server).
+
+  protected async runApi() {
+    // This web server does not need to handle API requests.
+    return true
+  }
+
+  protected async handleApiRequest() {
+    // Edge API requests are handled separately in minimal mode.
+    return false
+  }
+
+  protected loadEnvConfig() {
+    // The web server does not need to load the env config. This is done by the
+    // runtime already.
+  }
+
+  protected getPublicDir() {
+    // Public files are not handled by the web server.
+    return ''
+  }
+
+  protected getHasStaticDir() {
+    return false
+  }
+
+  protected async getFallback() {
+    return ''
+  }
+
+  protected getFontManifest() {
+    return undefined
+  }
+
+  protected handleCompression() {
+    // For the web server layer, compression is automatically handled by the
+    // upstream proxy (edge runtime or node server) and we can simply skip here.
+  }
+
+  protected async handleUpgrade(): Promise<void> {
+    // The web server does not support web sockets.
+  }
+
+  protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
+    // The web server does not need to handle fallback errors in production.
+    return null
+  }
+
+  protected getRoutesManifest(): NormalizedRouteManifest | undefined {
+    // The web server does not need to handle rewrite rules. This is done by the
+    // upstream proxy (edge runtime or node server).
+    return undefined
+  }
+
+  protected getMiddleware(): MiddlewareRoutingItem | undefined {
+    // The web server does not need to handle middleware. This is done by the
+    // upstream proxy (edge runtime or node server).
+    return undefined
+  }
+
+  protected getFilesystemPaths() {
+    return new Set<string>()
+  }
+
+  protected async getPrefetchRsc(): Promise<string | null> {
+    return null
   }
 }
