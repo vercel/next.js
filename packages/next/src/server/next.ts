@@ -21,7 +21,6 @@ if (typeof jest === 'undefined' && !process.env.NEXT_PRIVATE_WORKER) {
   ]
   function startWorker() {
     try {
-      console.log(process.argv[0], newArgs)
       const result = spawnSync(nodePath, newArgs, {
         stdio: 'inherit',
         env: {
@@ -29,11 +28,14 @@ if (typeof jest === 'undefined' && !process.env.NEXT_PRIVATE_WORKER) {
           NEXT_PRIVATE_WORKER: '1',
         },
       })
-      console.log('got result', result)
 
-      if (!(result.signal || result.status)) {
+      if (
+        !(result.signal || result.status) &&
+        process.env.NODE_ENV === 'development'
+      ) {
         startWorker()
       }
+      process.exit(0)
     } catch (err) {
       console.error(err)
       process.exit(1)

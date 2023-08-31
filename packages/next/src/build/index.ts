@@ -1252,12 +1252,11 @@ export default async function build(
               ...process.env,
               __NEXT_INCREMENTAL_CACHE_IPC_PORT: ipcPort + '',
               __NEXT_INCREMENTAL_CACHE_IPC_KEY: ipcValidationKey,
-              __NEXT_PRIVATE_PREBUNDLED_REACT:
-                type === 'app'
-                  ? config.experimental.serverActions
-                    ? 'experimental'
-                    : 'next'
-                  : '',
+              __NEXT_PRIVATE_PREBUNDLED_REACT: hasAppDir
+                ? config.experimental.serverActions
+                  ? 'experimental'
+                  : 'next'
+                : '',
             },
           },
           enableWorkerThreads: config.experimental.workerThreads,
