@@ -870,10 +870,10 @@ async function startWatcher(opts: SetupOpts) {
           let suffix
           switch (route.type) {
             case 'app-page':
-              suffix = '/page'
+              suffix = 'page'
               break
             case 'app-route':
-              suffix = '/route'
+              suffix = 'route'
               break
             case 'page':
             case 'page-api':
@@ -886,10 +886,9 @@ async function startWatcher(opts: SetupOpts) {
           consoleStore.setState(
             {
               loading: true,
-              trigger: `${page.replace(
-                /\/$/,
-                ''
-              )}${suffix} (client and server)`,
+              trigger: `${page}${
+                !page.endsWith('/') && suffix.length > 0 ? '/' : ''
+              }${suffix} (client and server)`,
             } as OutputState,
             true
           )
