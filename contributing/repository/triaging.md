@@ -49,4 +49,4 @@ Confirmed issues never become stale or are closed before resolution.
 
 ## Closed issues
 
-All **closed** PRs and Issues will be locked after 2 weeks of inactivity (eg.: comment, referencing from elsewhere). if you think the issue is still relevant, please open a new issue and reference the old one.
+All **closed** PRs and Issues will be locked after 2 weeks of inactivity (eg.: comment, referencing from elsewhere). If you think the issue is still relevant, please open a new issue and reference the old one.
