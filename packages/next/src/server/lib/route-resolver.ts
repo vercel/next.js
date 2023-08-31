@@ -228,9 +228,9 @@ export async function makeResolver(
             async upgradeHandler() {},
           }
         },
+        deleteAppClientCache() {},
         async deleteCache() {},
         async clearModuleContext() {},
-        async deleteAppClientCache() {},
         async propagateServerField() {},
       } as Partial<RenderWorker> as any,
     },
