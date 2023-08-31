@@ -6,7 +6,10 @@ import type {
   NextComponentType,
   PageConfig,
 } from '../../../../../types'
-import type { PagesRouteDefinition } from '../../route-definitions/pages-route-definition'
+import type {
+  PagesLocaleRouteDefinition,
+  PagesRouteDefinition,
+} from '../../route-definitions/pages-route-definition'
 import type { NextParsedUrlQuery } from '../../../request-meta'
 import type { RenderOpts } from '../../../render'
 import type RenderResult from '../../../render-result'
@@ -71,7 +74,10 @@ type PagesComponents = {
 }
 
 export interface PagesRouteModuleOptions
-  extends RouteModuleOptions<PagesRouteDefinition, PagesUserlandModule> {
+  extends RouteModuleOptions<
+    PagesRouteDefinition | PagesLocaleRouteDefinition,
+    PagesUserlandModule
+  > {
   readonly components: PagesComponents
 }
 
@@ -99,7 +105,7 @@ export interface PagesRouteHandlerContext extends RouteModuleHandleContext {
 }
 
 export class PagesRouteModule extends RouteModule<
-  PagesRouteDefinition,
+  PagesRouteDefinition | PagesLocaleRouteDefinition,
   PagesUserlandModule
 > {
   private readonly components: PagesComponents

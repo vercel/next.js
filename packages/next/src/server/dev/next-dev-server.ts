@@ -224,12 +224,7 @@ export default class DevServer extends Server {
         )
       )
       matchers.push(
-        new DevPagesAPIRouteMatcherProvider(
-          pagesDir,
-          extensions,
-          fileReader,
-          this.localeNormalizer
-        )
+        new DevPagesAPIRouteMatcherProvider(pagesDir, extensions, fileReader)
       )
     }
 
@@ -268,7 +263,7 @@ export default class DevServer extends Server {
 
     await super.prepareImpl()
     await this.runInstrumentationHookIfAvailable()
-    await this.matchers.reload()
+    await this.matchers.load()
     this.setDevReady!()
 
     // This is required by the tracing subsystem.

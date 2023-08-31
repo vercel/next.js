@@ -1,5 +1,5 @@
 import { RouteKind } from '../route-kind'
-import { LocaleRouteDefinition } from './locale-route-definition'
+import { RouteDefinition } from './route-definition'
 
 export interface PagesAPIRouteDefinition
-  extends LocaleRouteDefinition<RouteKind.PAGES_API> {}
+  extends RouteDefinition<RouteKind.PAGES_API> {}

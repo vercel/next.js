@@ -1,12 +1,14 @@
+import type { NormalizedMatchOptions } from '../normalizers/match-options-normalizer'
+import type { RouteMatch } from '../route-matches/route-match'
+import type { MatchOptions, RouteMatcherManager } from './route-matcher-manager'
+import type { RouteDefinition } from '../route-definitions/route-definition'
+import type { RouteMatcher } from '../route-matchers/route-matcher'
+
 import { RouteKind } from '../route-kind'
-import { RouteMatch } from '../route-matches/route-match'
-import { RouteDefinition } from '../route-definitions/route-definition'
 import { DefaultRouteMatcherManager } from './default-route-matcher-manager'
-import { MatchOptions, RouteMatcherManager } from './route-matcher-manager'
 import path from '../../../shared/lib/isomorphic/path'
 import * as Log from '../../../build/output/log'
 import chalk from 'next/dist/compiled/chalk'
-import { RouteMatcher } from '../route-matchers/route-matcher'
 
 export interface RouteEnsurer {
   ensure(match: RouteMatch): Promise<void>
@@ -32,11 +34,10 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
   }
 
   protected validate(
-    pathname: string,
     matcher: RouteMatcher,
-    options: MatchOptions
+    options: NormalizedMatchOptions
   ): RouteMatch | null {
-    const match = super.validate(pathname, matcher, options)
+    const match = super.validate(matcher, options)
 
     // If a match was found, check to see if there were any conflicting app or
     // pages files.
@@ -67,7 +68,7 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
   ): AsyncGenerator<RouteMatch<RouteDefinition<RouteKind>>, null, undefined> {
     // Compile the development routes.
     // TODO: we may want to only run this during testing, users won't be fast enough to require this many dir scans
-    await super.reload()
+    await super.forceReload()
 
     // Iterate over the development matches to see if one of them match the
     // request path.
@@ -75,7 +76,7 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
       // We're here, which means that we haven't seen this match yet, so we
       // should try to ensure it and recompile the production matcher.
       await this.ensurer.ensure(development)
-      await this.production.reload()
+      await this.production.forceReload()
 
       // Iterate over the production matches again, this time we should be able
       // to match it against the production matcher unless there's an error.
@@ -92,17 +93,17 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
     return null
   }
 
-  public async reload(): Promise<void> {
-    // Compile the production routes again.
-    await this.production.reload()
+  public async load(): Promise<void> {
+    // Load both the production and development routes.
+    await Promise.all([this.production.load(), super.load()])
+  }
 
-    // Compile the development routes.
-    await super.reload()
+  public async forceReload(): Promise<void> {
+    // Load both the production and development routes.
+    await Promise.all([this.production.forceReload(), super.forceReload()])
 
     // Check for and warn of any duplicates.
-    for (const [pathname, matchers] of Object.entries(
-      this.matchers.duplicates
-    )) {
+    for (const [pathname, matchers] of this.matchers.duplicates.entries()) {
       // We only want to warn about matchers resolving to the same path if their
       // identities are different.
       const identity = matchers[0].identity

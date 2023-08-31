@@ -23,47 +23,53 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
     this.expression = new RegExp(`[/\\\\]page\\.(?:${extensions.join('|')})$`)
   }
 
-  protected async transform(
-    files: ReadonlyArray<string>
-  ): Promise<ReadonlyArray<AppPageRouteMatcher>> {
-    // Collect all the app paths for each page. This could include any parallel
-    // routes.
-    const cache = new Map<
-      string,
-      { page: string; pathname: string; bundlePath: string }
-    >()
-    const routeFilenames = new Array<string>()
-    const appPaths: Record<string, string[]> = {}
+  private prepare(files: ReadonlyArray<string>) {
+    const routeAppPaths = new Map<string, Array<string>>()
+    const routable = new Array<{
+      filename: string
+      page: string
+      pathname: string
+      appPaths: Array<string>
+    }>()
     for (const filename of files) {
       // If the file isn't a match for this matcher, then skip it.
       if (!this.expression.test(filename)) continue
 
       const page = this.normalizers.page.normalize(filename)
 
-      // Validate that this is not an ignored page.
+      // Validate that this is not an ignored page, and skip it if it is.
       if (page.includes('/_')) continue
 
-      // This is a valid file that we want to create a matcher for.
-      routeFilenames.push(filename)
-
       const pathname = this.normalizers.pathname.normalize(filename)
-      const bundlePath = this.normalizers.bundlePath.normalize(filename)
 
-      // Save the normalization results.
-      cache.set(filename, { page, pathname, bundlePath })
+      // Collect all the app paths for this page.
+      let appPaths = routeAppPaths.get(pathname)
+      if (!appPaths) {
+        appPaths = [page]
+        routeAppPaths.set(pathname, appPaths)
+      } else {
+        appPaths.push(page)
 
-      if (pathname in appPaths) appPaths[pathname].push(page)
-      else appPaths[pathname] = [page]
+        // Sort the app paths so that we can compare them with other app paths,
+        // the order must be deterministic.
+        appPaths.sort()
+      }
+
+      // This is a valid file that we want to create a matcher for. We're using
+      // the reference to the appPaths array that we created above, so that we
+      // can re-use the memory for it.
+      routable.push({ filename, page, pathname, appPaths })
     }
 
+    return routable
+  }
+
+  protected async transform(
+    files: ReadonlyArray<string>
+  ): Promise<ReadonlyArray<AppPageRouteMatcher>> {
     const matchers: Array<AppPageRouteMatcher> = []
-    for (const filename of routeFilenames) {
-      // Grab the cached values (and the appPaths).
-      const cached = cache.get(filename)
-      if (!cached) {
-        throw new Error('Invariant: expected filename to exist in cache')
-      }
-      const { pathname, page, bundlePath } = cached
+    for (const { filename, page, pathname, appPaths } of this.prepare(files)) {
+      const bundlePath = this.normalizers.bundlePath.normalize(filename)
 
       matchers.push(
         new AppPageRouteMatcher({
@@ -72,10 +78,11 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
           page,
           bundlePath,
           filename,
-          appPaths: appPaths[pathname],
+          appPaths,
         })
       )
     }
+
     return matchers
   }
 }

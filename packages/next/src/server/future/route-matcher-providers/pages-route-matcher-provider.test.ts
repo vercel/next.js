@@ -1,6 +1,9 @@
 import { PAGES_MANIFEST, SERVER_DIRECTORY } from '../../../shared/lib/constants'
 import { I18NProvider } from '../helpers/i18n-provider'
-import { PagesRouteDefinition } from '../route-definitions/pages-route-definition'
+import {
+  PagesLocaleRouteDefinition,
+  PagesRouteDefinition,
+} from '../route-definitions/pages-route-definition'
 import { RouteKind } from '../route-kind'
 import { ManifestLoader } from './helpers/manifest-loaders/manifest-loader'
 import { PagesRouteMatcherProvider } from './pages-route-matcher-provider'
@@ -16,7 +19,7 @@ describe('PagesRouteMatcherProvider', () => {
   describe('locale matching', () => {
     describe.each<{
       manifest: Record<string, string>
-      routes: ReadonlyArray<PagesRouteDefinition>
+      routes: ReadonlyArray<PagesLocaleRouteDefinition>
       i18n: { locales: Array<string>; defaultLocale: string }
     }>([
       {
@@ -40,7 +43,10 @@ describe('PagesRouteMatcherProvider', () => {
             filename: `<root>/${SERVER_DIRECTORY}/pages/blog/[slug].js`,
             page: '/blog/[slug]',
             bundlePath: 'pages/blog/[slug]',
-            i18n: {},
+            i18n: {
+              detectedLocale: undefined,
+              pathname: '/blog/[slug]',
+            },
           },
           {
             kind: RouteKind.PAGES,
@@ -49,7 +55,8 @@ describe('PagesRouteMatcherProvider', () => {
             page: '/en-US',
             bundlePath: 'pages/en-US',
             i18n: {
-              locale: 'en-US',
+              detectedLocale: 'en-US',
+              pathname: '/',
             },
           },
           {
@@ -59,7 +66,8 @@ describe('PagesRouteMatcherProvider', () => {
             page: '/fr',
             bundlePath: 'pages/fr',
             i18n: {
-              locale: 'fr',
+              detectedLocale: 'fr',
+              pathname: '/',
             },
           },
           {
@@ -69,7 +77,8 @@ describe('PagesRouteMatcherProvider', () => {
             page: '/nl-NL',
             bundlePath: 'pages/nl-NL',
             i18n: {
-              locale: 'nl-NL',
+              detectedLocale: 'nl-NL',
+              pathname: '/',
             },
           },
           {
@@ -79,7 +88,8 @@ describe('PagesRouteMatcherProvider', () => {
             page: '/en-US/404',
             bundlePath: 'pages/en-US/404',
             i18n: {
-              locale: 'en-US',
+              detectedLocale: 'en-US',
+              pathname: '/404',
             },
           },
           {
@@ -89,7 +99,8 @@ describe('PagesRouteMatcherProvider', () => {
             page: '/fr/404',
             bundlePath: 'pages/fr/404',
             i18n: {
-              locale: 'fr',
+              detectedLocale: 'fr',
+              pathname: '/404',
             },
           },
           {
@@ -99,7 +110,8 @@ describe('PagesRouteMatcherProvider', () => {
             page: '/nl-NL/404',
             bundlePath: 'pages/nl-NL/404',
             i18n: {
-              locale: 'nl-NL',
+              detectedLocale: 'nl-NL',
+              pathname: '/404',
             },
           },
         ],
@@ -122,8 +134,8 @@ describe('PagesRouteMatcherProvider', () => {
 
         expect(loader.load).toBeCalledWith(PAGES_MANIFEST)
         const routes = matchers.map((matcher) => matcher.definition)
-        expect(routes).toContainEqual(route)
         expect(routes).toHaveLength(expected.length)
+        expect(routes).toContainEqual(route)
       })
     })
   })

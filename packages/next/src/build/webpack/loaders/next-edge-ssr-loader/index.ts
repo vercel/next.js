@@ -42,6 +42,7 @@ function swapDistFolderWithEsmDistFolder(path: string) {
 }
 
 function getRouteModuleOptions(page: string) {
+  // TODO: see if we need to support the locale aware definition as well
   const options: Omit<PagesRouteModuleOptions, 'userland' | 'components'> = {
     definition: {
       kind: RouteKind.PAGES,

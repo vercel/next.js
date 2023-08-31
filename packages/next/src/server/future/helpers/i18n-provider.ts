@@ -4,7 +4,7 @@ import type { NextParsedUrlQuery } from '../../request-meta'
 /**
  * The result of matching a locale aware route.
  */
-export interface LocaleAnalysisResult {
+export interface LocaleInfo {
   /**
    * The pathname without the locale prefix (if any).
    */
@@ -13,12 +13,13 @@ export interface LocaleAnalysisResult {
   /**
    * The detected locale. If no locale was detected, this will be `undefined`.
    */
-  detectedLocale?: string
+  detectedLocale: string | undefined
 
   /**
-   * True if the locale was inferred from the default locale.
+   * True if the locale was inferred from the default locale. `undefined` if the
+   * analysis did not include a default locale.
    */
-  inferredFromDefault: boolean
+  inferredFromDefault?: boolean
 }
 
 type LocaleAnalysisOptions = {
@@ -103,10 +104,7 @@ export class I18NProvider {
    * @param query the query object
    * @returns the locale analysis result
    */
-  public fromQuery(
-    pathname: string,
-    query: NextParsedUrlQuery
-  ): LocaleAnalysisResult {
+  public fromQuery(pathname: string, query: NextParsedUrlQuery): LocaleInfo {
     const detectedLocale = query.__nextLocale
 
     // If a locale was detected on the query, analyze the pathname to ensure
@@ -145,22 +143,22 @@ export class I18NProvider {
   public analyze(
     pathname: string,
     options: LocaleAnalysisOptions = {}
-  ): LocaleAnalysisResult {
-    let detectedLocale: string | undefined = options.defaultLocale
+  ): LocaleInfo {
+    const info: LocaleInfo = {
+      pathname,
+      detectedLocale: options.defaultLocale,
+    }
 
     // By default, we assume that the default locale was inferred if there was
     // no detected locale.
-    let inferredFromDefault = typeof detectedLocale === 'string'
+    if (typeof options.defaultLocale === 'string') {
+      info.inferredFromDefault = true
+    }
 
     // The first segment will be empty, because it has a leading `/`. If
     // there is no further segment, there is no locale (or it's the default).
     const segments = pathname.split('/')
-    if (!segments[1])
-      return {
-        detectedLocale,
-        pathname,
-        inferredFromDefault,
-      }
+    if (!segments[1]) return info
 
     // The second segment will contain the locale part if any.
     const segment = segments[1].toLowerCase()
@@ -168,24 +166,20 @@ export class I18NProvider {
     // See if the segment matches one of the locales. If it doesn't, there is
     // no locale (or it's the default).
     const index = this.lowerCaseLocales.indexOf(segment)
-    if (index < 0)
-      return {
-        detectedLocale,
-        pathname,
-        inferredFromDefault,
-      }
+    if (index < 0) return info
 
     // Return the case-sensitive locale.
-    detectedLocale = this.config.locales[index]
-    inferredFromDefault = false
+    info.detectedLocale = this.config.locales[index]
+
+    // If the locale was detected from the pathname, then it can't be inferred
+    // from the default locale.
+    if (typeof options.defaultLocale === 'string') {
+      info.inferredFromDefault = false
+    }
 
     // Remove the `/${locale}` part of the pathname.
-    pathname = pathname.slice(detectedLocale.length + 1) || '/'
+    info.pathname = pathname.slice(info.detectedLocale.length + 1) || '/'
 
-    return {
-      detectedLocale,
-      pathname,
-      inferredFromDefault,
-    }
+    return info
   }
 }

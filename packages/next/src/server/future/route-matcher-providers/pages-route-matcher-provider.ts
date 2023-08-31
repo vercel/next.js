@@ -13,7 +13,9 @@ import { ManifestRouteMatcherProvider } from './manifest-route-matcher-provider'
 import { I18NProvider } from '../helpers/i18n-provider'
 import { PagesNormalizers } from '../normalizers/built/pages'
 
-export class PagesRouteMatcherProvider extends ManifestRouteMatcherProvider<PagesRouteMatcher> {
+export class PagesRouteMatcherProvider extends ManifestRouteMatcherProvider<
+  PagesRouteMatcher | PagesLocaleRouteMatcher
+> {
   private readonly normalizers: PagesNormalizers
 
   constructor(
@@ -28,7 +30,7 @@ export class PagesRouteMatcherProvider extends ManifestRouteMatcherProvider<Page
 
   protected async transform(
     manifest: Manifest
-  ): Promise<ReadonlyArray<PagesRouteMatcher>> {
+  ): Promise<ReadonlyArray<PagesRouteMatcher | PagesLocaleRouteMatcher>> {
     // This matcher is only for Pages routes, not Pages API routes which are
     // included in this manifest.
     const pathnames = Object.keys(manifest)
@@ -45,29 +47,28 @@ export class PagesRouteMatcherProvider extends ManifestRouteMatcherProvider<Page
         return true
       })
 
-    const matchers: Array<PagesRouteMatcher> = []
+    const matchers: Array<PagesRouteMatcher | PagesLocaleRouteMatcher> = []
     for (const page of pathnames) {
+      // In pages, the page is the same as the pathname.
+      const pathname = page
       if (this.i18nProvider) {
-        // Match the locale on the page name, or default to the default locale.
-        const { detectedLocale, pathname } = this.i18nProvider.analyze(page)
+        const i18n = this.i18nProvider.analyze(pathname)
 
         matchers.push(
           new PagesLocaleRouteMatcher({
             kind: RouteKind.PAGES,
-            pathname,
+            pathname: i18n.pathname,
             page,
             bundlePath: this.normalizers.bundlePath.normalize(page),
             filename: this.normalizers.filename.normalize(manifest[page]),
-            i18n: {
-              locale: detectedLocale,
-            },
+            i18n,
           })
         )
       } else {
         matchers.push(
           new PagesRouteMatcher({
             kind: RouteKind.PAGES,
-            pathname: page,
+            pathname,
             page,
             bundlePath: this.normalizers.bundlePath.normalize(page),
             filename: this.normalizers.filename.normalize(manifest[page]),

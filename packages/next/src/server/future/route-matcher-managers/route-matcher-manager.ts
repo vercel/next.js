@@ -1,16 +1,23 @@
+import type { LocaleInfo } from '../helpers/i18n-provider'
+
 import { RouteMatch } from '../route-matches/route-match'
 import { RouteMatcherProvider } from '../route-matcher-providers/route-matcher-provider'
-import type { LocaleAnalysisResult } from '../helpers/i18n-provider'
 
 export type MatchOptions = {
-  skipDynamic?: boolean
-
   /**
    * If defined, this indicates to the matcher that the request should be
    * treated as locale-aware. If this is undefined, it means that this
    * application was not configured for additional locales.
    */
-  i18n?: LocaleAnalysisResult | undefined
+  i18n: Readonly<LocaleInfo> | undefined
+
+  /**
+   * The output of the matcher that should be used for matching. When defined,
+   * it will only match with the matchers that share the same output. Variants
+   * like different locales will be matched in order to match the correct
+   * output.
+   */
+  matchedOutputPathname: string | undefined
 }
 
 export interface RouteMatcherManager {
@@ -26,22 +33,24 @@ export interface RouteMatcherManager {
    *
    * @param provider the provider for this manager to also manage
    */
-  push(provider: RouteMatcherProvider): void
+  push(...provider: ReadonlyArray<RouteMatcherProvider>): void
 
   /**
-   * Reloads the matchers from the providers. This should be done after all the
-   * providers have been added or the underlying providers should be refreshed.
+   * Loads the matchers from the providers. This should be done after all the
+   * providers have been added. Calls after the first call will be ignored.
    */
-  reload(): Promise<void>
+  load(): Promise<void>
 
   /**
-   * Tests the underlying matchers to find a match. It does not return the
-   * match.
+   * Forces a reload of the matchers from the providers. This should be done
+   * after all the providers have been added or the underlying providers should
+   * be refreshed. This should only be used in development or testing
+   * environments.
    *
-   * @param pathname the pathname to test for matches
-   * @param options the options for the testing
+   * This will not force a reload of the underlying providers, their internal
+   * cache will be used if they have already been loaded.
    */
-  test(pathname: string, options: MatchOptions): Promise<boolean>
+  forceReload(): Promise<void>
 
   /**
    * Returns the first match for a given request.
@@ -49,7 +58,10 @@ export interface RouteMatcherManager {
    * @param pathname the pathname to match against
    * @param options the options for the matching
    */
-  match(pathname: string, options: MatchOptions): Promise<RouteMatch | null>
+  match(
+    pathname: string,
+    options: MatchOptions
+  ): Promise<Readonly<RouteMatch> | null>
 
   /**
    * Returns a generator for each match for a given request. This should be
@@ -62,5 +74,5 @@ export interface RouteMatcherManager {
   matchAll(
     pathname: string,
     options: MatchOptions
-  ): AsyncGenerator<RouteMatch, null, undefined>
+  ): AsyncGenerator<Readonly<RouteMatch>, null, undefined>
 }

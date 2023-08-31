@@ -1,30 +1,75 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+import type { RouteMatcherProvider } from '../route-matcher-providers/route-matcher-provider'
+import type { RouteMatch } from '../route-matches/route-match'
+import type { RouteMatcher } from '../route-matchers/route-matcher'
+import type { MatchOptions, RouteMatcherManager } from './route-matcher-manager'
+import type { RouteDefinition } from '../route-definitions/route-definition'
+import type { Normalizer } from '../normalizers/normalizer'
 
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
 import { RouteKind } from '../route-kind'
-import { RouteMatch } from '../route-matches/route-match'
-import { RouteDefinition } from '../route-definitions/route-definition'
-import { RouteMatcherProvider } from '../route-matcher-providers/route-matcher-provider'
-import { RouteMatcher } from '../route-matchers/route-matcher'
-import { MatchOptions, RouteMatcherManager } from './route-matcher-manager'
-import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { LocaleRouteMatcher } from '../route-matchers/locale-route-matcher'
-import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
+import {
+  MatchOptionsNormalizer,
+  NormalizedMatchOptions,
+} from '../normalizers/match-options-normalizer'
+import { groupMatcherResults } from './helpers/group-matcher-results'
+import { sortDynamicMatchers } from './helpers/sort-dynamic-matchers'
 
-interface RouteMatchers {
+type RouteMatchers = {
+  /**
+   * The static matchers. These are not dynamic, and therefore are not sorted.
+   * We can't rely on a map lookup because these routes may have other matching
+   * characteristics (like the locale) that is considered.
+   */
   static: ReadonlyArray<RouteMatcher>
+
+  /**
+   * The dynamic matchers, sorted by the order they should be matched in.
+   */
   dynamic: ReadonlyArray<RouteMatcher>
-  duplicates: Record<string, ReadonlyArray<RouteMatcher>>
+
+  /**
+   * A map of all the duplicate matchers, keyed by the pathname of the
+   * definition. This is used to warn about duplicate matchers in development.
+   */
+  duplicates: ReadonlyMap<string, ReadonlyArray<RouteMatcher>>
+
+  /**
+   * A map of all the matchers, keyed by the pathname of the definition. This
+   * is used to match against a specific definition pathname when a specific
+   * output is requested.
+   */
+  all: ReadonlyMap<string, ReadonlyArray<RouteMatcher>>
 }
 
 export class DefaultRouteMatcherManager implements RouteMatcherManager {
+  /**
+   * The providers that will be used to get the matchers.
+   */
   private readonly providers: Array<RouteMatcherProvider> = []
+
+  /**
+   * The matchers that have been loaded.
+   */
   protected readonly matchers: RouteMatchers = {
     static: [],
     dynamic: [],
-    duplicates: {},
+    duplicates: new Map(),
+    all: new Map(),
   }
+
+  /**
+   * The last compilation ID that was used to compile the matchers. This is used
+   * to ensure that the matchers are compiled before they are used.
+   */
   private lastCompilationID = this.compilationID
+
+  /**
+   * The normalizer to use for normalizing the match options. In the future this
+   * may be injected rather than hard coded.
+   */
+  private readonly normalizer: Normalizer<NormalizedMatchOptions> =
+    new MatchOptionsNormalizer()
 
   /**
    * When this value changes, it indicates that a change has been introduced
@@ -42,12 +87,34 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
     }
   }
 
+  /**
+   * Indicates if the matchers have been loaded. This is to prevent the load
+   * method from being called multiple times.
+   */
+  private reloadHasBeenCalled = false
+
+  public async load(): Promise<void> {
+    // If the matchers have already been loaded, and we're not forcing a reload,
+    // exit now.
+    if (this.reloadHasBeenCalled) return
+    this.reloadHasBeenCalled = true
+
+    await this.forceReload()
+  }
+
+  /**
+   * The reference to the previous matchers. This is used to determine if the
+   * matchers have changed between reloads (i.e., if a matcher doesn't exactly
+   * match the previous matcher, it's considered a new matcher).
+   */
   private previousMatchers: ReadonlyArray<RouteMatcher> = []
-  public async reload() {
+
+  public async forceReload(): Promise<void> {
     let callbacks: { resolve: Function; reject: Function }
     this.waitTillReadyPromise = new Promise((resolve, reject) => {
       callbacks = { resolve, reject }
     })
+    this.reloadHasBeenCalled = true
 
     // Grab the compilation ID for this run, we'll verify it at the end to
     // ensure that if any routes were added before reloading is finished that
@@ -55,54 +122,20 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
     const compilationID = this.compilationID
 
     try {
-      // Collect all the matchers from each provider.
-      const matchers: Array<RouteMatcher> = []
-
       // Get all the providers matchers.
       const providersMatchers: ReadonlyArray<ReadonlyArray<RouteMatcher>> =
         await Promise.all(this.providers.map((provider) => provider.matchers()))
 
-      // Use this to detect duplicate pathnames.
-      const all = new Map<string, RouteMatcher>()
-      const duplicates: Record<string, RouteMatcher[]> = {}
-      for (const providerMatchers of providersMatchers) {
-        for (const matcher of providerMatchers) {
-          // Reset duplicated matches when reloading from pages conflicting state.
-          if (matcher.duplicated) delete matcher.duplicated
-          // Test to see if the matcher being added is a duplicate.
-          const duplicate = all.get(matcher.definition.pathname)
-          if (duplicate) {
-            // This looks a little weird, but essentially if the pathname
-            // already exists in the duplicates map, then we got that array
-            // reference. Otherwise, we create a new array with the original
-            // duplicate first. Then we push the new matcher into the duplicate
-            // array, and reset it to the duplicates object (which may be a
-            // no-op if the pathname already existed in the duplicates object).
-            // Then we set the array of duplicates on both the original
-            // duplicate object and the new one, so we can keep them in sync.
-            // If a new duplicate is found, and it matches an existing pathname,
-            // the retrieval of the `other` will actually return the array
-            // reference used by all other duplicates. This is why ReadonlyArray
-            // is so important! Array's are always references!
-            const others = duplicates[matcher.definition.pathname] ?? [
-              duplicate,
-            ]
-            others.push(matcher)
-            duplicates[matcher.definition.pathname] = others
+      // Flatten the matchers into a single array.
+      const matchers: ReadonlyArray<RouteMatcher> = providersMatchers.reduce<
+        Array<RouteMatcher>
+      >((a, m) => {
+        a.push(...m)
+        return a
+      }, [])
 
-            // Add duplicated details to each route.
-            duplicate.duplicated = others
-            matcher.duplicated = others
-
-            // TODO: see if we should error for duplicates in production?
-          }
-
-          matchers.push(matcher)
-
-          // Add the matcher's pathname to the set.
-          all.set(matcher.definition.pathname, matcher)
-        }
-      }
+      // Group the matchers and find any duplicates.
+      const { all, duplicates } = groupMatcherResults(matchers)
 
       // Update the duplicate matchers. This is used in the development manager
       // to warn about duplicates.
@@ -121,59 +154,17 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
       }
       this.previousMatchers = matchers
 
+      // Update the matcher outputs reference.
+      this.matchers.all = all
+
       // For matchers that are for static routes, filter them now.
       this.matchers.static = matchers.filter((matcher) => !matcher.isDynamic)
 
-      // For matchers that are for dynamic routes, filter them and sort them now.
-      const dynamic = matchers.filter((matcher) => matcher.isDynamic)
-
-      // As `getSortedRoutes` only takes an array of strings, we need to create
-      // a map of the pathnames (used for sorting) and the matchers. When we
-      // have locales, there may be multiple matches for the same pathname. To
-      // handle this, we keep a map of all the indexes (in `reference`) and
-      // merge them in later.
-
-      const reference = new Map<string, number[]>()
-      const pathnames = new Array<string>()
-      for (let index = 0; index < dynamic.length; index++) {
-        // Grab the pathname from the definition.
-        const pathname = dynamic[index].definition.pathname
-
-        // Grab the index in the dynamic array, push it into the reference.
-        const indexes = reference.get(pathname) ?? []
-        indexes.push(index)
-
-        // If this is the first one set it. If it isn't, we don't need to
-        // because pushing above on the array will mutate the array already
-        // stored there because array's are always a reference!
-        if (indexes.length === 1) reference.set(pathname, indexes)
-        // Otherwise, continue, we've already added this pathname before.
-        else continue
-
-        pathnames.push(pathname)
-      }
-
-      // Sort the array of pathnames.
-      const sorted = getSortedRoutes(pathnames)
-
-      // For each of the sorted pathnames, iterate over them, grabbing the list
-      // of indexes and merging them back into the new `sortedDynamicMatchers`
-      // array. The order of the same matching pathname doesn't matter because
-      // they will have other matching characteristics (like the locale) that
-      // is considered.
-      const sortedDynamicMatchers: Array<RouteMatcher> = []
-      for (const pathname of sorted) {
-        const indexes = reference.get(pathname)
-        if (!Array.isArray(indexes)) {
-          throw new Error('Invariant: expected to find identity in indexes map')
-        }
-
-        const dynamicMatches = indexes.map((index) => dynamic[index])
-
-        sortedDynamicMatchers.push(...dynamicMatches)
-      }
-
-      this.matchers.dynamic = sortedDynamicMatchers
+      // For matchers that are for dynamic routes, filter them and sort them
+      // now.
+      this.matchers.dynamic = sortDynamicMatchers(
+        matchers.filter((matcher) => matcher.isDynamic)
+      )
 
       // This means that there was a new matcher pushed while we were waiting
       if (this.compilationID !== compilationID) {
@@ -190,32 +181,8 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
     }
   }
 
-  public push(provider: RouteMatcherProvider): void {
-    this.providers.push(provider)
-  }
-
-  public async test(pathname: string, options: MatchOptions): Promise<boolean> {
-    // See if there's a match for the pathname...
-    const match = await this.match(pathname, options)
-
-    // This default implementation only needs to check to see if there _was_ a
-    // match. The development matcher actually changes it's behavior by not
-    // recompiling the routes.
-    return match !== null
-  }
-
-  public async match(
-    pathname: string,
-    options: MatchOptions
-  ): Promise<RouteMatch<RouteDefinition<RouteKind>> | null> {
-    // "Iterate" over the match options. Once we found a single match, exit with
-    // it, otherwise return null below. If no match is found, the inner block
-    // won't be called.
-    for await (const match of this.matchAll(pathname, options)) {
-      return match
-    }
-
-    return null
+  public push(...providers: ReadonlyArray<RouteMatcherProvider>): void {
+    this.providers.push(...providers)
   }
 
   /**
@@ -227,22 +194,41 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
    * @returns the match if found
    */
   protected validate(
-    pathname: string,
     matcher: RouteMatcher,
-    options: MatchOptions
+    normalized: NormalizedMatchOptions
   ): RouteMatch | null {
-    if (matcher instanceof LocaleRouteMatcher) {
-      return matcher.match(pathname, options)
+    if (LocaleRouteMatcher.is(matcher)) {
+      if (!normalized.options.i18n) {
+        throw new Error(
+          'Invariant: expected locale matcher to have locale information for matching'
+        )
+      }
+
+      return matcher.match(normalized.options.i18n)
     }
 
     // If the locale was inferred from the default locale, then it will have
     // already added a locale to the pathname. We need to remove it before
     // matching because this matcher is not locale aware.
-    if (options.i18n?.inferredFromDefault) {
-      return matcher.match(options.i18n.pathname)
+    if (normalized.options.i18n?.inferredFromDefault) {
+      return matcher.match({ pathname: normalized.options.i18n.pathname })
     }
 
-    return matcher.match(pathname)
+    return matcher.match(normalized)
+  }
+
+  public async match(
+    pathname: string,
+    info: MatchOptions
+  ): Promise<RouteMatch | null> {
+    // "Iterate" over the match options. Once we found a single match, exit with
+    // it, otherwise return null below. If no match is found, the inner block
+    // won't be called.
+    for await (const match of this.matchAll(pathname, info)) {
+      return match
+    }
+
+    return null
   }
 
   public async *matchAll(
@@ -261,35 +247,55 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
       )
     }
 
-    // Ensure that path matching is done with a leading slash.
-    pathname = ensureLeadingSlash(pathname)
+    // Normalize the pathname and options.
+    const normalized = this.normalizer.normalize({ pathname, options })
 
-    // If this pathname doesn't look like a dynamic route, and this pathname is
-    // listed in the normalized list of routes, then return it. This ensures
-    // that when a route like `/user/[id]` is encountered, it doesn't just match
-    // with the list of normalized routes.
+    // If a definition pathname was provided, get the match for it, and only it.
+    if (normalized.options.matchedOutputPathname) {
+      // Get the matcher for the definition pathname.
+      const matchers = this.matchers.all.get(
+        normalized.options.matchedOutputPathname
+      )
+
+      // There was no matchers for this output.
+      if (!matchers) return null
+
+      // Loop over the matchers, yielding the first match, it should only match
+      // once.
+      for (const matcher of matchers) {
+        const match = this.validate(matcher, normalized)
+        if (!match) continue
+
+        // We found a match, so yield it and exit.
+        yield match
+
+        return null
+      }
+
+      // We didn't find a match, so exit.
+      return null
+    }
+
+    // If this pathname looks like a dynamic route, then we couldn't have a
+    // static match for it because you can't escape the dynamic route parameters
+    // when creating the page. So we can skip the static matchers.
     if (!isDynamicRoute(pathname)) {
       for (const matcher of this.matchers.static) {
-        const match = this.validate(pathname, matcher, options)
+        const match = this.validate(matcher, normalized)
         if (!match) continue
 
         yield match
       }
     }
 
-    // If we should skip handling dynamic routes, exit now.
-    if (options?.skipDynamic) return null
-
     // Loop over the dynamic matchers, yielding each match.
     for (const matcher of this.matchers.dynamic) {
-      const match = this.validate(pathname, matcher, options)
+      const match = this.validate(matcher, normalized)
       if (!match) continue
 
       yield match
     }
 
-    // We tried direct matching against the pathname and against all the dynamic
-    // paths, so there was no match.
     return null
   }
 }

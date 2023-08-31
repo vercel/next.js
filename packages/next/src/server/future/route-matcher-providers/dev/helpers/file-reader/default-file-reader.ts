@@ -12,7 +12,7 @@ export type DefaultFileReaderOptions = Pick<
 
 /**
  * Reads all the files in the directory and its subdirectories following any
- * symbolic links.
+ * symbolic links and returns a sorted list of the files.
  */
 export class DefaultFileReader implements FileReader {
   /**
@@ -45,9 +45,9 @@ export class DefaultFileReader implements FileReader {
       ignoreFilter: this.options.ignoreFilter,
       ignorePartFilter: this.options.ignorePartFilter,
 
-      // We don't need to sort the results because we're not depending on the
-      // order of the results.
-      sortPathnames: false,
+      // We want to sort the pathnames so that we can compare them with other
+      // pathnames.
+      sortPathnames: true,
 
       // We want absolute pathnames because we're going to be comparing them
       // with other absolute pathnames.

@@ -567,7 +567,7 @@ export default class NextNodeServer extends BaseServer {
       let page = ctx.pathname
       if (isAppPath) {
         // When it's an array, we need to pass all parallel routes to the loader.
-        page = appPaths[0]
+        page = appPaths[appPaths.length - 1]
       }
 
       for (const edgeFunctionsPage of edgeFunctionsPages) {
@@ -834,6 +834,7 @@ export default class NextNodeServer extends BaseServer {
 
       const options: MatchOptions = {
         i18n: this.i18nProvider?.fromQuery(pathname, query),
+        matchedOutputPathname: undefined,
       }
       const match = await this.matchers.match(pathname, options)
 
@@ -1416,7 +1417,7 @@ export default class NextNodeServer extends BaseServer {
   protected async ensureMiddleware() {}
   protected async ensureEdgeFunction(_params: {
     page: string
-    appPaths: string[] | null
+    appPaths: ReadonlyArray<string> | null
   }) {}
 
   /**
@@ -1732,7 +1733,7 @@ export default class NextNodeServer extends BaseServer {
     query: ParsedUrlQuery
     params: Params | undefined
     page: string
-    appPaths: string[] | null
+    appPaths: ReadonlyArray<string> | null
     match?: RouteMatch
     onWarning?: (warning: Error) => void
   }): Promise<FetchEventResult | null> {
