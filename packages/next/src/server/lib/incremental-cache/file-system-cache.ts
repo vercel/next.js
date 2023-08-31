@@ -212,7 +212,7 @@ export default class FileSystemCache implements CacheHandler {
                   await this.fs.readFile(filePath.replace(/\.html$/, '.meta'))
                 ).toString('utf-8')
               )
-            } catch (_) {}
+            } catch {}
           }
 
           data = {
@@ -255,8 +255,12 @@ export default class FileSystemCache implements CacheHandler {
             (data?.lastModified || Date.now())
         )
       })
+
+      // we trigger a blocking validation if an ISR page
+      // had a tag revalidated, if we want to be a background
+      // revalidation instead we return data.lastModified = -1
       if (isStale) {
-        data.lastModified = -1
+        data = undefined
       }
     }
 

@@ -3,6 +3,7 @@ use indexmap::{indexmap, IndexMap};
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use turbo_tasks::{trace::TraceRawVcs, Value, Vc};
+use turbo_tasks_fs::FileSystemPathOption;
 use turbopack_binding::{
     turbo::{
         tasks_env::{CustomProcessEnv, EnvMap, ProcessEnv},
@@ -278,7 +279,7 @@ pub async fn create_page_source(
             Vc::upcast(NextExactMatcher::new(Vc::cell("_next/404".to_string()))),
             render_data,
         )
-        .issue_context(pages_dir, "Next.js pages directory not found".to_string()),
+        .issue_file_path(pages_dir, "Next.js pages directory not found".to_string()),
         create_page_source_for_root_directory(
             pages_structure,
             project_root,
@@ -297,7 +298,7 @@ pub async fn create_page_source(
             client_root,
             Vc::upcast(fallback_page),
         ))
-        .issue_context(pages_dir, "Next.js pages directory fallback".to_string()),
+        .issue_file_path(pages_dir, "Next.js pages directory fallback".to_string()),
         create_not_found_page_source(
             project_root,
             env,
@@ -315,7 +316,7 @@ pub async fn create_page_source(
             Vc::upcast(NextFallbackMatcher::new()),
             render_data,
         )
-        .issue_context(
+        .issue_file_path(
             pages_dir,
             "Next.js pages directory not found fallback".to_string(),
         ),
@@ -482,6 +483,7 @@ async fn create_page_source_for_file(
                 Vc::upcast(client_chunking_context),
                 page_asset,
                 pathname,
+                FileSystemPathOption::none(),
             ),
         ]))
     })
@@ -566,6 +568,7 @@ async fn create_not_found_page_source(
         client_chunking_context,
         page_asset,
         pathname,
+        FileSystemPathOption::none(),
     );
 
     Ok(Vc::upcast(CombinedContentSource::new(vec![
@@ -701,7 +704,7 @@ async fn create_page_source_for_directory(
             node_root,
             render_data,
         )
-        .issue_context(
+        .issue_file_path(
             project_path,
             if is_api_path {
                 "Next.js page API file"

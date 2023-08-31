@@ -17,7 +17,9 @@ use next_core::{
     pages_structure::{
         find_pages_structure, PagesDirectoryStructure, PagesStructure, PagesStructureItem,
     },
-    pathname_for_path, PathType,
+    pathname_for_path,
+    util::NextRuntime,
+    PathType,
 };
 use turbo_tasks::Vc;
 use turbopack_binding::{
@@ -156,6 +158,7 @@ pub async fn get_page_entries(
         ssr_module_context,
         client_module_context,
         pages_structure,
+        project_root,
         next_router_root,
     )
     .await?;
@@ -172,6 +175,7 @@ async fn get_page_entries_for_root_directory(
     ssr_module_context: Vc<Box<dyn AssetContext>>,
     client_module_context: Vc<Box<dyn AssetContext>>,
     pages_structure: Vc<PagesStructure>,
+    project_root: Vc<FileSystemPath>,
     next_router_root: Vc<FileSystemPath>,
 ) -> Result<Vec<Vc<PageEntry>>> {
     let PagesStructure {
@@ -190,6 +194,7 @@ async fn get_page_entries_for_root_directory(
         ssr_module_context,
         client_module_context,
         Vc::upcast(FileSource::new(app.project_path)),
+        project_root,
         next_router_root,
         app.next_router_path,
         app.original_path,
@@ -202,6 +207,7 @@ async fn get_page_entries_for_root_directory(
         ssr_module_context,
         client_module_context,
         Vc::upcast(FileSource::new(document.project_path)),
+        project_root,
         next_router_root,
         document.next_router_path,
         document.original_path,
@@ -215,6 +221,7 @@ async fn get_page_entries_for_root_directory(
         ssr_module_context,
         client_module_context,
         Vc::upcast(FileSource::new(error.project_path)),
+        project_root,
         next_router_root,
         error.next_router_path,
         error.original_path,
@@ -226,6 +233,7 @@ async fn get_page_entries_for_root_directory(
             ssr_module_context,
             client_module_context,
             api,
+            project_root,
             next_router_root,
             &mut entries,
             PathType::PagesApi,
@@ -238,6 +246,7 @@ async fn get_page_entries_for_root_directory(
             ssr_module_context,
             client_module_context,
             pages,
+            project_root,
             next_router_root,
             &mut entries,
             PathType::PagesPage,
@@ -253,6 +262,7 @@ async fn get_page_entries_for_directory(
     ssr_module_context: Vc<Box<dyn AssetContext>>,
     client_module_context: Vc<Box<dyn AssetContext>>,
     pages_structure: Vc<PagesDirectoryStructure>,
+    project_root: Vc<FileSystemPath>,
     next_router_root: Vc<FileSystemPath>,
     entries: &mut Vec<Vc<PageEntry>>,
     path_type: PathType,
@@ -273,6 +283,7 @@ async fn get_page_entries_for_directory(
             ssr_module_context,
             client_module_context,
             Vc::upcast(FileSource::new(project_path)),
+            project_root,
             next_router_root,
             next_router_path,
             original_path,
@@ -285,6 +296,7 @@ async fn get_page_entries_for_directory(
             ssr_module_context,
             client_module_context,
             *child,
+            project_root,
             next_router_root,
             entries,
             path_type,
@@ -311,6 +323,7 @@ async fn get_page_entry_for_file(
     ssr_module_context: Vc<Box<dyn AssetContext>>,
     client_module_context: Vc<Box<dyn AssetContext>>,
     source: Vc<Box<dyn Source>>,
+    project_root: Vc<FileSystemPath>,
     next_router_root: Vc<FileSystemPath>,
     next_router_path: Vc<FileSystemPath>,
     next_original_path: Vc<FileSystemPath>,
@@ -328,9 +341,11 @@ async fn get_page_entry_for_file(
     let ssr_module = create_page_ssr_entry_module(
         pathname,
         reference_type,
+        project_root,
         ssr_module_context,
         source,
         Vc::cell(original_name),
+        NextRuntime::NodeJs,
     );
 
     let client_module = create_page_loader_entry_module(client_module_context, source, pathname);

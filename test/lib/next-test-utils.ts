@@ -8,7 +8,6 @@ import {
 } from 'fs'
 import { promisify } from 'util'
 import http from 'http'
-import https from 'https'
 import path from 'path'
 
 import spawn from 'cross-spawn'
@@ -26,7 +25,11 @@ import type { RequestInit, Response } from 'node-fetch'
 import type { NextServer } from 'next/dist/server/next'
 import type { BrowserInterface } from './browsers/base'
 
-import { shouldRunTurboDevTest } from './turbo'
+import {
+  getTurbopackFlag,
+  shouldRunExperimentalTurboDevTest,
+  shouldRunTurboDevTest,
+} from './turbo'
 
 export { shouldRunTurboDevTest }
 
@@ -158,19 +161,7 @@ export function fetchViaHTTP(
   opts?: RequestInit
 ): Promise<Response> {
   const url = query ? withQuery(pathname, query) : pathname
-  return fetch(getFullUrl(appPort, url), {
-    // in node.js v17 fetch favors IPv6 but Next.js is
-    // listening on IPv4 by default so force IPv4 DNS resolving
-    agent: (parsedUrl) => {
-      if (parsedUrl.protocol === 'https:') {
-        return new https.Agent({ family: 4 })
-      }
-      if (parsedUrl.protocol === 'http:') {
-        return new http.Agent({ family: 4 })
-      }
-    },
-    ...opts,
-  })
+  return fetch(getFullUrl(appPort, url), opts)
 }
 
 export function renderViaHTTP(
@@ -327,6 +318,7 @@ export interface NextDevOptions {
   bootupMarker?: RegExp
   nextStart?: boolean
   turbo?: boolean
+  experimentalTurbo?: boolean
 
   stderr?: false
   stdout?: false
@@ -374,12 +366,19 @@ export function runNextCommandDev(
       const bootupMarkers = {
         dev: /compiled .*successfully/i,
         turbo: /started server/i,
+        experimentalTurbo: /started server/i,
         start: /started server/i,
       }
       if (
         (opts.bootupMarker && opts.bootupMarker.test(message)) ||
         bootupMarkers[
-          opts.nextStart || stdOut ? 'start' : opts?.turbo ? 'turbo' : 'dev'
+          opts.nextStart || stdOut
+            ? 'start'
+            : opts?.experimentalTurbo
+            ? 'experimentalTurbo'
+            : opts?.turbo
+            ? 'turbo'
+            : 'dev'
         ].test(message)
       ) {
         if (!didResolve) {
@@ -434,15 +433,20 @@ export function launchApp(
 ) {
   const options = opts ?? {}
   const useTurbo = shouldRunTurboDevTest()
+  const useExperimentalTurbo = shouldRunExperimentalTurboDevTest()
 
   return runNextCommandDev(
-    [useTurbo ? '--turbo' : undefined, dir, '-p', port as string].filter(
-      Boolean
-    ),
+    [
+      useTurbo || useExperimentalTurbo ? getTurbopackFlag() : undefined,
+      dir,
+      '-p',
+      port as string,
+    ].filter(Boolean),
     undefined,
     {
       ...options,
       turbo: useTurbo,
+      experimentalTurbo: useExperimentalTurbo,
     }
   )
 }
@@ -682,6 +686,11 @@ export class File {
 
     const newContent = currentContent.replace(pattern, newValue)
     this.write(newContent)
+  }
+
+  prepend(str: string) {
+    const content = readFileSync(this.path, 'utf8')
+    this.write(str + content)
   }
 
   delete() {
@@ -1008,23 +1017,30 @@ export function findAllTelemetryEvents(output: string, eventName: string) {
   return events.filter((e) => e.eventName === eventName).map((e) => e.payload)
 }
 
-type TestVariants = 'default' | 'turbo'
+type TestVariants = 'default' | 'turbo' | 'experimentalTurbo'
 
 // WEB-168: There are some differences / incompletes in turbopack implementation enforces jest requires to update
 // test snapshot when run against turbo. This fn returns describe, or describe.skip dependes on the running context
 // to avoid force-snapshot update per each runs until turbopack update includes all the changes.
 export function getSnapshotTestDescribe(variant: TestVariants) {
   const runningEnv = variant ?? 'default'
-  if (runningEnv !== 'default' && runningEnv !== 'turbo') {
+  if (
+    runningEnv !== 'default' &&
+    runningEnv !== 'turbo' &&
+    runningEnv !== 'experimentalTurbo'
+  ) {
     throw new Error(
-      `An invalid test env was passed: ${variant} (only "default" and "turbo" are valid options)`
+      `An invalid test env was passed: ${variant} (only "default", "turbo" and "experimentalTurbo" are valid options)`
     )
   }
 
   const shouldRunTurboDev = shouldRunTurboDevTest()
+  const shouldRunExperimentalTurboDev = shouldRunExperimentalTurboDevTest()
   const shouldSkip =
     (runningEnv === 'turbo' && !shouldRunTurboDev) ||
-    (runningEnv === 'default' && shouldRunTurboDev)
+    (runningEnv === 'experimentalTurbo' && !shouldRunExperimentalTurboDev) ||
+    (runningEnv === 'default' &&
+      (shouldRunTurboDev || shouldRunExperimentalTurboDev))
 
   return shouldSkip ? describe.skip : describe
 }

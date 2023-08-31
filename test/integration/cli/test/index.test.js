@@ -10,7 +10,7 @@ import {
   runNextCommandDev,
 } from 'next-test-utils'
 import fs from 'fs-extra'
-import { join } from 'path'
+import path, { join } from 'path'
 import pkg from 'next/package'
 import http from 'http'
 import stripAnsi from 'strip-ansi'
@@ -363,7 +363,7 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(() => output, new RegExp(`on 0.0.0.0:${port}`))
+        await check(() => output, new RegExp(`on \\[::\\]:${port}`))
         await check(() => output, new RegExp(`http://localhost:${port}`))
       } finally {
         await killApp(app)
@@ -383,12 +383,12 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(() => output, new RegExp(`on 0.0.0.0:${port}`))
+        await check(() => output, new RegExp(`on \\[::\\]:${port}`))
         await check(() => output, new RegExp(`http://localhost:${port}`))
       } finally {
         await killApp(app)
       }
-      const matches = /on 0.0.0.0:(\d+)/.exec(output)
+      const matches = /on \[::\]:(\d+)/.exec(output)
       expect(matches).not.toBe(null)
 
       const _port = parseInt(matches[1])
@@ -408,8 +408,8 @@ describe('CLI Usage', () => {
         },
       })
       try {
-        await check(() => output, /on 0.0.0.0:(\d+)/)
-        const matches = /on 0.0.0.0:(\d+)/.exec(output)
+        await check(() => output, /on \[::\]:(\d+)/)
+        const matches = /on \[::\]:(\d+)/.exec(output)
         const _port = parseInt(matches[1])
         expect(matches).not.toBe(null)
         // Regression test: port 0 was interpreted as if no port had been
@@ -434,7 +434,7 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(() => output, new RegExp(`on 0.0.0.0:${port}`))
+        await check(() => output, new RegExp(`on \\[::\\]:${port}`))
         await check(() => output, new RegExp(`http://localhost:${port}`))
       } finally {
         await killApp(app)
@@ -451,7 +451,7 @@ describe('CLI Usage', () => {
         env: { NODE_OPTIONS: '--inspect' },
       })
       try {
-        await check(() => output, new RegExp(`on 0.0.0.0:${port}`))
+        await check(() => output, new RegExp(`on \\[::\\]:${port}`))
         await check(() => output, new RegExp(`http://localhost:${port}`))
       } finally {
         await killApp(app)
@@ -526,6 +526,70 @@ describe('CLI Usage', () => {
       try {
         await check(() => output, new RegExp(`on 0.0.0.0:${port}`))
         await check(() => output, new RegExp(`http://localhost:${port}`))
+      } finally {
+        await killApp(app)
+      }
+    })
+
+    // only runs on CI as it requires administrator privileges
+    test('--experimental-https', async () => {
+      if (!process.env.CI) {
+        console.warn(
+          '--experimental-https only runs on CI as it requires administrator privileges'
+        )
+
+        return
+      }
+
+      const port = await findPort()
+      let output = ''
+      const app = await runNextCommandDev(
+        [dirBasic, '--experimental-https', '--port', port],
+        undefined,
+        {
+          onStdout(msg) {
+            output += stripAnsi(msg)
+          },
+        }
+      )
+      try {
+        await check(() => output, /on \[::\]:(\d+)/)
+        await check(() => output, /https:\/\/localhost:(\d+)/)
+        await check(() => output, /Certificates created in/)
+      } finally {
+        await killApp(app)
+      }
+    })
+
+    test('--experimental-https with provided key/cert', async () => {
+      const keyFile = path.resolve(
+        __dirname,
+        '../certificates/localhost-key.pem'
+      )
+      const certFile = path.resolve(__dirname, '../certificates/localhost.pem')
+      const port = await findPort()
+      let output = ''
+      const app = await runNextCommandDev(
+        [
+          dirBasic,
+          '--experimental-https',
+          '--experimental-https-key',
+          keyFile,
+          '--experimental-https-cert',
+          certFile,
+          '--port',
+          port,
+        ],
+        undefined,
+        {
+          onStdout(msg) {
+            output += stripAnsi(msg)
+          },
+        }
+      )
+      try {
+        await check(() => output, /on \[::\]:(\d+)/)
+        await check(() => output, /https:\/\/localhost:(\d+)/)
       } finally {
         await killApp(app)
       }

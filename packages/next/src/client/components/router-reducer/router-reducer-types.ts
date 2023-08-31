@@ -40,12 +40,10 @@ export interface Mutable {
   shouldScroll?: boolean
 }
 
-export interface ServerActionMutable {
+export interface ServerActionMutable extends Mutable {
   inFlightServerAction?: Promise<any> | null
-  serverActionApplied?: boolean
-  previousTree?: FlightRouterState
-  previousUrl?: string
-  prefetchCache?: AppRouterState['prefetchCache']
+  globalMutable: { pendingNavigatePath?: string; refresh: () => void }
+  actionResultResolved?: boolean
 }
 
 /**
@@ -70,7 +68,7 @@ export interface FastRefreshAction {
 export type ServerActionDispatcher = (
   args: Omit<
     ServerActionAction,
-    'type' | 'mutable' | 'navigate' | 'changeByServerResponse'
+    'type' | 'mutable' | 'navigate' | 'changeByServerResponse' | 'cache'
   >
 ) => void
 
@@ -80,9 +78,8 @@ export interface ServerActionAction {
   actionArgs: any[]
   resolve: (value: any) => void
   reject: (reason?: any) => void
+  cache: CacheNode
   mutable: ServerActionMutable
-  navigate: RouterNavigate
-  changeByServerResponse: RouterChangeByServerResponse
 }
 
 /**

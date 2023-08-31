@@ -26,8 +26,12 @@ type Log = {
 
 function replaceProcessEnv(sourceEnv: Env) {
   Object.keys(process.env).forEach((key) => {
-    if (sourceEnv[key] === undefined || sourceEnv[key] === '') {
-      delete process.env[key]
+    // Allow mutating internal Next.js env variables after the server has initiated.
+    // This is necessary for dynamic things like the IPC server port.
+    if (!key.startsWith('__NEXT_PRIVATE')) {
+      if (sourceEnv[key] === undefined || sourceEnv[key] === '') {
+        delete process.env[key]
+      }
     }
   })
 
@@ -80,6 +84,8 @@ export function processEnv(
           typeof parsed[key] === 'undefined' &&
           typeof origEnv[key] === 'undefined'
         ) {
+          // We're being imprecise in the type system - assume parsed[key] can be undefined
+          // eslint-disable-next-line @typescript-eslint/no-non-null-asserted-optional-chain
           parsed[key] = result.parsed?.[key]!
         }
       }

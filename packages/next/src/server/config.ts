@@ -335,7 +335,6 @@ function assignDefaults(
           `Specified images.loaderFile does not exist at "${absolutePath}".`
         )
       }
-      images.loader = 'custom'
       images.loaderFile = absolutePath
     }
   }
@@ -399,7 +398,7 @@ function assignDefaults(
     )
     if (isNaN(value) || value < 1) {
       throw new Error(
-        'Server Actions Size Limit must be a valid number or filesize format lager than 1MB: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions'
+        'Server Actions Size Limit must be a valid number or filesize format lager than 1MB: https://nextjs.org/docs/app/api-reference/server-actions#size-limitation'
       )
     }
   }
@@ -425,13 +424,6 @@ function assignDefaults(
     configFileName,
     silent
   )
-
-  if (
-    typeof userConfig.experimental?.clientRouterFilter === 'undefined' &&
-    result.experimental?.appDir
-  ) {
-    result.experimental.clientRouterFilter = true
-  }
 
   if (
     result.experimental?.outputFileTracingRoot &&
@@ -679,18 +671,6 @@ function assignDefaults(
     'lodash-es': {
       transform: 'lodash-es/{{member}}',
     },
-    'lucide-react': {
-      // Note that we need to first resolve to the base path (`lucide-react`) and join the subpath,
-      // instead of just resolving `lucide-react/esm/icons/{{kebabCase member}}` because this package
-      // doesn't have proper `exports` fields for individual icons in its package.json.
-      transform: {
-        'Lucide(.*)':
-          'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/{{ kebabCase memberMatches.[1] }}!lucide-react',
-        '(.*)Icon':
-          'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/{{ kebabCase memberMatches.[1] }}!lucide-react',
-        '*': 'modularize-import-loader?name={{ member }}&from=default&as=default&join=./icons/{{ kebabCase member }}!lucide-react',
-      },
-    },
     ramda: {
       transform: 'ramda/es/{{member}}',
     },
@@ -727,6 +707,27 @@ function assignDefaults(
       transform: 'next/dist/server/web/exports/{{ kebabCase member }}',
     },
   }
+
+  const userProvidedOptimizePackageImports =
+    result.experimental?.optimizePackageImports || []
+  if (!result.experimental) {
+    result.experimental = {}
+  }
+  result.experimental.optimizePackageImports = [
+    ...new Set([
+      ...userProvidedOptimizePackageImports,
+      'lucide-react',
+      '@headlessui/react',
+      '@fortawesome/fontawesome-svg-core',
+      '@fortawesome/free-solid-svg-icons',
+      '@headlessui-float/react',
+      'react-hot-toast',
+      '@heroicons/react/20/solid',
+      '@heroicons/react/24/solid',
+      '@heroicons/react/24/outline',
+      '@visx/visx',
+    ]),
+  ]
 
   return result
 }

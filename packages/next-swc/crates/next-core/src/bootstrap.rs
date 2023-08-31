@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use indexmap::{indexmap, IndexMap};
+use indexmap::IndexMap;
 use turbo_tasks::{Value, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_binding::turbopack::{
@@ -7,14 +7,12 @@ use turbopack_binding::turbopack::{
         asset::AssetContent,
         chunk::EvaluatableAsset,
         context::AssetContext,
-        issue::{IssueSeverity, OptionIssueSource},
         module::Module,
-        reference_type::{EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType},
-        resolve::parse::Request,
+        reference_type::{InnerAssets, ReferenceType},
         source::Source,
         virtual_source::VirtualSource,
     },
-    ecmascript::{resolve::esm_resolve, utils::StringifyJs, EcmascriptModuleAsset},
+    ecmascript::utils::StringifyJs,
 };
 
 #[turbo_tasks::function]
@@ -25,39 +23,12 @@ pub async fn route_bootstrap(
     bootstrap_asset: Vc<Box<dyn Source>>,
     config: Vc<BootstrapConfig>,
 ) -> Result<Vc<Box<dyn EvaluatableAsset>>> {
-    let resolve_origin =
-        if let Some(m) = Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(asset).await? {
-            Vc::upcast(m)
-        } else {
-            bail!("asset does not represent an ecmascript module");
-        };
-
-    // TODO: this is where you'd switch the route kind to the one you need
-    let route_module_kind = "app-route";
-
-    let resolved_route_module = esm_resolve(
-        resolve_origin,
-        Request::parse_string(format!(
-            "next/dist/server/future/route-modules/{}/module",
-            route_module_kind
-        )),
-        Value::new(EcmaScriptModulesReferenceSubType::Undefined),
-        OptionIssueSource::none(),
-        IssueSeverity::Error.cell(),
-    );
-    let route_module = match *resolved_route_module.first_module().await? {
-        Some(module) => module,
-        None => bail!("could not find app asset"),
-    };
-
     Ok(bootstrap(
         asset,
         context,
         base_path,
         bootstrap_asset,
-        Vc::cell(indexmap! {
-            "ROUTE_MODULE".to_string() => route_module,
-        }),
+        Vc::cell(IndexMap::new()),
         config,
     ))
 }
@@ -105,7 +76,6 @@ pub async fn bootstrap(
     let mut config = config.await?.clone_value();
     config.insert("PAGE".to_string(), path.to_string());
     config.insert("PATHNAME".to_string(), pathname);
-    config.insert("KIND".to_string(), "APP_ROUTE".to_string());
 
     let config_asset = context.process(
         Vc::upcast(VirtualSource::new(
