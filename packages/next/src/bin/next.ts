@@ -126,7 +126,10 @@ async function main() {
   const currentArgsSpec = commandArgs[command]()
   const validatedArgs = getValidatedArgs(currentArgsSpec, forwardedArgs)
 
-  if (command === 'start' || command === 'dev') {
+  if (
+    (command === 'start' || command === 'dev') &&
+    !process.env.NEXT_PRIVATE_WORKER
+  ) {
     const dir = getProjectDir(
       process.env.NEXT_PRIVATE_DEV_DIR || validatedArgs._[0]
     )
@@ -148,7 +151,10 @@ async function main() {
     } catch (_) {
       // handle this error further down
     }
-    process.env = origEnv
+
+    if (dirsResult?.appDir || process.env.NODE_ENV === 'development') {
+      process.env = origEnv
+    }
 
     if (dirsResult?.appDir) {
       // we need to reset env if we are going to create

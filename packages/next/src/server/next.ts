@@ -11,7 +11,12 @@ import { spawnSync } from 'child_process'
 // worker we need to re-spawn with correct args
 // we can't do this if imported in jest test file otherwise
 // it duplicates tests
-if (typeof jest === 'undefined' && !process.env.NEXT_PRIVATE_WORKER) {
+if (
+  typeof jest === 'undefined' &&
+  !process.env.NEXT_PRIVATE_WORKER &&
+  (process.env.__NEXT_PRIVATE_PREBUNDLED_REACT ||
+    process.env.NODE_ENV === 'development')
+) {
   const nodePath = process.argv0
   const newArgs = [
     '--experimental-loader',
