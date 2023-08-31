@@ -470,7 +470,7 @@ function clearMarks(): void {
 function markHydrateComplete(): void {
   if (!ST) return
 
-  performance.mark(performanceMarks.afterRender) // mark end of hydration
+  performance.mark(performanceMarks.afterHydrate) // mark end of hydration
 
   const hasBeforeRenderMark = performance.getEntriesByName(
     performanceMarks.beforeRender,
@@ -486,7 +486,7 @@ function markHydrateComplete(): void {
     const hydrationMeasure = performance.measure(
       performanceMeasures.hydration,
       performanceMarks.beforeRender,
-      performanceMarks.afterRender
+      performanceMarks.afterHydrate
     )
 
     if (
