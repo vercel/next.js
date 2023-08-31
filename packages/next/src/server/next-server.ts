@@ -894,11 +894,7 @@ export default class NextNodeServer extends BaseServer {
     } catch (err: any) {
       if (err instanceof NoFallbackError) {
         if (this.isRenderWorker) {
-          res.setHeader('x-no-fallback', '1')
-          res.send()
-          return {
-            finished: true,
-          }
+          throw err
         }
 
         return {

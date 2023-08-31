@@ -12,8 +12,8 @@ import { spawnSync } from 'child_process'
 // we can't do this if imported in jest test file otherwise
 // it duplicates tests
 if (
-  !process.env.NEXT_PRIVATE_WORKER &&
   typeof jest === 'undefined' &&
+  !process.env.NEXT_PRIVATE_WORKER &&
   process.env.__NEXT_PRIVATE_PREBUNDLED_REACT
 ) {
   for (let i = 0; i < 1; i++) {

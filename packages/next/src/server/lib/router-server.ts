@@ -25,15 +25,14 @@ import { NextUrlWithParsedQuery, getRequestMeta } from '../request-meta'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import setupCompression from 'next/dist/compiled/compression'
+import { NoFallbackError } from '../base-server'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
-import { filterReqHeaders, ipcForbiddenHeaders } from './server-ipc/utils'
 
 import {
   PHASE_PRODUCTION_SERVER,
   PHASE_DEVELOPMENT_SERVER,
   PERMANENT_REDIRECT_STATUS,
 } from '../../shared/lib/constants'
-import { toNodeOutgoingHttpHeaders } from '../web/utils'
 
 const debug = setupDebug('next:router-server:main')
 
@@ -315,68 +314,16 @@ export async function initialize(opts: {
           renderWorkerOpts
         )
 
-        let bodyStream: ReadableStream | undefined = undefined
-        let readableController: ReadableStreamController<Buffer>
-        const { req: mockedReq, res: mockedRes } =
-          await createRequestResponseMocks({
-            url: req.url || '/',
-            method: req.method || 'GET',
-            headers: filterReqHeaders(invokeHeaders, ipcForbiddenHeaders),
-            bodyReadable: getRequestMeta(
-              req,
-              '__NEXT_CLONABLE_BODY'
-            )?.cloneBodyStream(),
-            resWriter(chunk) {
-              readableController.enqueue(Buffer.from(chunk))
-              return true
-            },
-          })
-
-        bodyStream = new ReadableStream({
-          start(controller) {
-            readableController = controller
-          },
-        })
-
-        mockedRes.on('close', () => {
-          readableController.close()
-        })
-        initResult?.requestHandler(mockedReq, mockedRes)
-        await mockedRes.headPromise
-
-        // when we receive x-no-fallback we restart
-        if (mockedRes.getHeader('x-no-fallback')) {
-          // eslint-disable-next-line
-          await handleRequest(handleIndex + 1)
-          return
-        }
-
-        for (const [key, value] of Object.entries({
-          ...filterReqHeaders(
-            toNodeOutgoingHttpHeaders(mockedRes.headers),
-            ipcForbiddenHeaders
-          ),
-        })) {
-          if (
-            [
-              'content-length',
-              'x-middleware-rewrite',
-              'x-middleware-redirect',
-              'x-middleware-refresh',
-              'x-middleware-invoke',
-              'x-invoke-path',
-              'x-invoke-query',
-            ].includes(key)
-          ) {
-            continue
+        try {
+          await initResult?.requestHandler(req, res)
+        } catch (err) {
+          if (err instanceof NoFallbackError) {
+            // eslint-disable-next-line
+            await handleRequest(handleIndex + 1)
+            return
           }
-          if (value) {
-            res.setHeader(key, value)
-          }
+          throw err
         }
-        res.statusCode = mockedRes.statusCode
-        res.statusMessage = mockedRes.statusMessage
-        await pipeReadable(bodyStream, res)
         return
       } catch (e) {
         // If the client aborts before we can receive a response object (when

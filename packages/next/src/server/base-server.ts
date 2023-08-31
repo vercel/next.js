@@ -1283,6 +1283,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       res.statusCode = 200
       return await this.run(req, res, parsedUrl)
     } catch (err: any) {
+      if (err instanceof NoFallbackError) {
+        throw err
+      }
+
       if (
         (err && typeof err === 'object' && err.code === 'ERR_INVALID_URL') ||
         err instanceof DecodeError ||
