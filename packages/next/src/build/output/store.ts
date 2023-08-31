@@ -63,9 +63,7 @@ store.subscribe((state) => {
 
   if (state.loading) {
     if (state.trigger) {
-      if (state.trigger !== 'initial') {
-        lastTrigger = state.trigger
-      }
+      lastTrigger = state.trigger
     } else {
       // not aware of the original trigger, just saying compiling
       if (Date.now() - lastTime > 3 * 1000) {
@@ -142,6 +140,8 @@ store.subscribe((state) => {
 
   if (lastTrigger) {
     Log.event(`compiled ${lastTrigger} ${timeMessage}${modulesMessage}`)
+  } else {
+    Log.ready(`ready`)
   }
 
   // Ensure traces are flushed after each compile in development mode

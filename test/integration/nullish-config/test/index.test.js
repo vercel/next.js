@@ -27,7 +27,7 @@ const runTests = () => {
 
     const stdout = await getStdout()
 
-    expect(stdout).toMatch(/ ▲ Next.js/i)
+    expect(stdout).toMatch(/- Local:/i)
   })
 
   it('should ignore configs set to `null` in next.config.js', async () => {
@@ -48,7 +48,7 @@ const runTests = () => {
 
     const stdout = await getStdout()
 
-    expect(stdout).toMatch(/ ▲ Next.js/i)
+    expect(stdout).toMatch(/- Local:/i)
   })
 }
 

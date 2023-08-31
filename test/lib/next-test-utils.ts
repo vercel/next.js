@@ -374,10 +374,10 @@ export function runNextCommandDev(
     function handleStdout(data) {
       const message = data.toString()
       const bootupMarkers = {
-        dev: /▲ Next.js/i,
+        dev: /✓ ready/i,
         turbo: /started server/i,
-        experimentalTurbo: /▲ Next.js/i,
-        start: /▲ Next.js/i,
+        experimentalTurbo: /✓ ready/i,
+        start: /✓ ready/i,
       }
 
       const strippedMessage = stripAnsi(message) as any
@@ -388,7 +388,7 @@ export function runNextCommandDev(
         if (!didResolve) {
           didResolve = true
           // Pass down the original message
-          resolve(stdOut ? strippedMessage : instance)
+          resolve(stdOut ? message : instance)
         }
       }
 
@@ -412,12 +412,12 @@ export function runNextCommandDev(
       }
     }
 
-    instance.stdout.on('data', handleStdout)
     instance.stderr.on('data', handleStderr)
+    instance.stdout.on('data', handleStdout)
 
     instance.on('close', () => {
-      instance.stdout.removeListener('data', handleStdout)
       instance.stderr.removeListener('data', handleStderr)
+      instance.stdout.removeListener('data', handleStdout)
       if (!didResolve) {
         didResolve = true
         resolve(undefined)

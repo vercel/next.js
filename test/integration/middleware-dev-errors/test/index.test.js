@@ -59,7 +59,7 @@ describe('Middleware development errors', () => {
       await check(
         () => stripAnsi(context.logs.output),
         new RegExp(
-          `middleware.js \\(\\d+:\\d+\\) @ Object.default \\[as handler\\]\nboom`,
+          `middleware.js \\(\\d+:\\d+\\) @ Object.default \\[as handler\\]\\s*\\w+\\s*+boom`,
           'm'
         )
       )
@@ -123,7 +123,7 @@ describe('Middleware development errors', () => {
       await check(
         () => stripAnsi(context.logs.output),
         new RegExp(
-          `middleware.js \\(\\d+:\\d+\\) @ eval\ntest is not defined`,
+          `middleware.js \\(\\d+:\\d+\\) @ eval\\s*\\w+\\s*test is not defined`,
           'm'
         )
       )
@@ -156,7 +156,10 @@ describe('Middleware development errors', () => {
       const output = stripAnsi(context.logs.output)
       await check(
         () => stripAnsi(context.logs.output),
-        new RegExp(`middleware.js \\(\\d+:\\d+\\) @ <unknown>\nbooooom!`, 'm')
+        new RegExp(
+          `middleware.js \\(\\d+:\\d+\\) @ <unknown>\\s*\\w+\\s*booooom!`,
+          'm'
+        )
       )
       expect(output).not.toContain(
         'webpack-internal:///(middleware)/./middleware.js'
