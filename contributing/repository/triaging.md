@@ -12,7 +12,13 @@ Issues are opened with one of these labels:
 
 ## Bug reports
 
-In the case of a bug report, **if the reproduction is missing or insufficient, the issue is automatically closed**, and a comment is added with a correct course of action. The issue will receive [this comment](https://github.com/vercel/next.js/blob/canary/.github/actions/issue-validator/repro-link/invalid-link.md). We also add an `invalid link` label to mark the issue. To avoid your issue being closed, please follow the [bug report template](https://github.com/vercel/next.js/blob/canary/.github/ISSUE_TEMPLATE/1.bug_report.yml) carefully.
+### Automated triaging
+
+In case of a bug report, **if the reproduction is missing or insufficient, the issue is automatically closed**, and a comment is added with a correct course of action. The issue will receive [this comment](https://github.com/vercel/next.js/blob/canary/.github/actions/issue-validator/repro-link/invalid-link.md). We also add an `invalid link` label to mark the issue. To avoid your issue being closed, please follow the [bug report template](https://github.com/vercel/next.js/blob/canary/.github/ISSUE_TEMPLATE/1.bug_report.yml) carefully.
+
+If you filled out the "Which area(s) are affected? (Select all that apply)" section of the bug report template, we will add the corresponding `area:` label(s).
+
+### Manual triaging
 
 If the issue is specific to the project and not to Next.js itself, it will be converted to a [🎓️ Help discussion](https://github.com/vercel/next.js/discussions/categories/help)
 
@@ -37,7 +43,7 @@ The issue will receive [this comment](https://github.com/vercel/next.js/blob/can
 
 ## Verified issues
 
-If an issue is verified, it will receive the `linear: next`, `linear: dx` or `linear: web` label and will be tracked by the maintainers. Additionally, one or many `area:` label(s) can be added to indicate which part of Next.js is affected.
+If an issue is verified, it will receive the `linear: next`, `linear: dx` or `linear: web` label and will be tracked by the maintainers. Additionally, one or more `area:` label(s) can be added to indicate which part of Next.js is affected.
 
 Confirmed issues never become stale or are closed before resolution.
 
