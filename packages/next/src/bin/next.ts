@@ -7,8 +7,8 @@ import { commands } from '../lib/commands'
 import { commandArgs } from '../lib/command-args'
 import loadConfig from '../server/config'
 import {
+  PHASE_PRODUCTION_SERVER,
   PHASE_DEVELOPMENT_SERVER,
-  PHASE_PRODUCTION_BUILD,
 } from '../shared/lib/constants'
 import { getProjectDir } from '../lib/get-project-dir'
 import { getValidatedArgs } from '../lib/get-validated-args'
@@ -126,7 +126,7 @@ async function main() {
   const currentArgsSpec = commandArgs[command]()
   const validatedArgs = getValidatedArgs(currentArgsSpec, forwardedArgs)
 
-  if (command !== 'telemetry') {
+  if (command === 'start' || command === 'dev') {
     const dir = getProjectDir(
       process.env.NEXT_PRIVATE_DEV_DIR || validatedArgs._[0]
     )
@@ -135,7 +135,7 @@ async function main() {
     // TODO: set config to env variable to be re-used so we don't reload
     // un-necessarily
     const config = await loadConfig(
-      command === 'dev' ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_BUILD,
+      command === 'dev' ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
       dir
     )
     let dirsResult: ReturnType<typeof findPagesDir> | undefined = undefined
