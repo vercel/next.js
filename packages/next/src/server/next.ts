@@ -11,30 +11,35 @@ import { spawnSync } from 'child_process'
 // worker we need to re-spawn with correct args
 // we can't do this if imported in jest test file otherwise
 // it duplicates tests
-if (
-  typeof jest === 'undefined' &&
-  !process.env.NEXT_PRIVATE_WORKER &&
-  process.env.__NEXT_PRIVATE_PREBUNDLED_REACT
-) {
-  for (let i = 0; i < 1; i++) {
+if (typeof jest === 'undefined' && !process.env.NEXT_PRIVATE_WORKER) {
+  const nodePath = process.argv0
+  const newArgs = [
+    '--experimental-loader',
+    'next/dist/esm/server/esm-loader.mjs',
+    '--no-warnings',
+    ...process.argv.splice(1),
+  ]
+  function startWorker() {
     try {
-      const newArgs = [
-        '--experimental-loader',
-        'next/dist/esm/server/esm-loader.mjs',
-        '--no-warnings',
-        ...process.argv.splice(1),
-      ]
-      spawnSync(process.argv[0], newArgs, {
+      console.log(process.argv[0], newArgs)
+      const result = spawnSync(nodePath, newArgs, {
         stdio: 'inherit',
         env: {
           ...process.env,
           NEXT_PRIVATE_WORKER: '1',
         },
       })
+      console.log('got result', result)
+
+      if (!(result.signal || result.status)) {
+        startWorker()
+      }
     } catch (err) {
-      console.error(`spawn failed retrying`, err)
+      console.error(err)
+      process.exit(1)
     }
   }
+  startWorker()
 }
 
 import './require-hook'

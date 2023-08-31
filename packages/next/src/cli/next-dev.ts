@@ -4,7 +4,7 @@ import { getPort, printAndExit } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { CliCommand } from '../lib/commands'
 import { getProjectDir } from '../lib/get-project-dir'
-import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
+import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import path from 'path'
 import { NextConfigComplete } from '../server/config-shared'
 import { traceGlobals } from '../trace/shared'
@@ -14,7 +14,6 @@ import { findPagesDir } from '../lib/find-pages-dir'
 import { findRootDir } from '../lib/find-root'
 import { fileExists, FileType } from '../lib/file-exists'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
-import Watchpack from 'watchpack'
 import { resetEnv } from '@next/env'
 import { createSelfSignedCertificate } from '../lib/mkcert'
 import uploadTrace from '../trace/upload-trace'
@@ -106,15 +105,6 @@ const handleSessionStop = async () => {
 
 process.on('SIGINT', handleSessionStop)
 process.on('SIGTERM', handleSessionStop)
-
-function watchConfigFiles(
-  dirToWatch: string,
-  onChange: (filename: string) => void
-) {
-  const wp = new Watchpack()
-  wp.watch({ files: CONFIG_FILES.map((file) => path.join(dirToWatch, file)) })
-  wp.on('change', onChange)
-}
 
 const nextDev: CliCommand = async (args) => {
   if (args['--help']) {
@@ -321,21 +311,6 @@ const nextDev: CliCommand = async (args) => {
         process.exit(1)
       }
     }
-
-    // TODO: move config file watching to inner process
-    watchConfigFiles(devServerOptions.dir, async (filename) => {
-      if (process.env.__NEXT_DISABLE_MEMORY_WATCHER) {
-        Log.info(
-          `Detected change, manual restart required due to '__NEXT_DISABLE_MEMORY_WATCHER' usage`
-        )
-        return
-      }
-      Log.warn(
-        `\n> Found a change in ${path.basename(
-          filename
-        )}. Restarting the server to apply the changes...`
-      )
-    })
 
     await runDevServer(false)
   }
