@@ -61,7 +61,7 @@ pub async fn get_app_entries(
     server_compile_time_info: Vc<CompileTimeInfo>,
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<AppEntries>> {
-    let app_dir = find_app_dir_if_enabled(project_root, next_config);
+    let app_dir = find_app_dir_if_enabled(project_root);
 
     let Some(&app_dir) = app_dir.await?.as_ref() else {
         return Ok(AppEntries::cell(AppEntries {
