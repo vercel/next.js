@@ -148,12 +148,12 @@ async function main() {
     } catch (_) {
       // handle this error further down
     }
+    process.env = origEnv
 
     if (dirsResult?.appDir) {
       // we need to reset env if we are going to create
       // the worker process with the esm loader so that the
       // initial env state is correct
-      process.env = origEnv
       process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = config.experimental
         .serverActions
         ? 'experimental'
