@@ -227,7 +227,7 @@ createNextDescribe(
         await next.fetch('/')
         expect(
           stripAnsi(next.cliOutput).match(
-            /Experiments (use at your own risk):/g
+            /Experiments \(use at your own risk\):/g
           ).length
         ).toBe(1)
       })
