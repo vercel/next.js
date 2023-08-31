@@ -18,7 +18,7 @@ createNextDescribe(
   ({ next }) => {
     it('should warn if @next/font is in deps', async () => {
       await next.start()
-      await check(() => next.cliOutput, /compiled client and server/)
+      await check(() => next.cliOutput, /✓ ready/)
       await check(
         () => next.cliOutput,
         new RegExp('please use the built-in `next/font` instead')
