@@ -189,7 +189,7 @@ This is similar to [**stale-while-revalidate**](https://web.dev/stale-while-reva
 
 #### On-demand Revalidation
 
-Data can be revalidated on-demand by path ([`revalidatePath`](#revalidatepath)) or by cache tag ([`revalidateTag`](#fetch-optionsnexttag-and-revalidatetag)).
+Data can be revalidated on-demand by path ([`revalidatePath`](#revalidatepath)) or by cache tag ([`revalidateTag`](#fetch-optionsnexttags-and-revalidatetag)).
 
 **How On-Demand Revalidation Works**
 
@@ -394,7 +394,7 @@ When configuring the different caching mechanisms, it's important to understand 
 ### Data Cache and Client-side Router cache
 
 - Revalidating the Data Cache in a [Route Handler](/docs/app/building-your-application/routing/route-handlers) **will not** immediately invalidate the Router Cache as the Router Handler isn't tied to a specific route. This means Router Cache will continue to serve the previous payload until a hard refresh, or the automatic invalidation period has elapsed.
-- To immediately invalidate the Data Cache and Router cache, you can use [`revalidatePath`](#revalidatepath) or [`revalidateTag`](#fetch-optionsnexttag-and-revalidatetag) in a [Server Action](/docs/app/building-your-application/data-fetching/forms-and-mutations).
+- To immediately invalidate the Data Cache and Router cache, you can use [`revalidatePath`](#revalidatepath) or [`revalidateTag`](#fetch-optionsnexttags-and-revalidatetag) in a [Server Action](/docs/app/building-your-application/data-fetching/forms-and-mutations).
 
 ## APIs
 
@@ -408,8 +408,8 @@ The following table provides an overview of how different Next.js APIs affect ca
 | [`fetch`](#fetch)                                                      |              |                       | Cache                 | Cache       |
 | [`fetch` `options.cache`](#fetch-optionscache)                         |              |                       | Cache or Opt out      |             |
 | [`fetch` `options.next.revalidate`](#fetch-optionsnextrevalidate)      |              | Revalidate            | Revalidate            |             |
-| [`fetch` `options.next.tags`](#fetch-optionsnexttag-and-revalidatetag) |              | Cache                 | Cache                 |             |
-| [`revalidateTag`](#fetch-optionsnexttag-and-revalidatetag)             |              | Revalidate            | Revalidate            |             |
+| [`fetch` `options.next.tags`](#fetch-optionsnexttags-and-revalidatetag) |              | Cache                 | Cache                 |             |
+| [`revalidateTag`](#fetch-optionsnexttags-and-revalidatetag)             |              | Revalidate            | Revalidate            |             |
 | [`revalidatePath`](#revalidatepath)                                    |              | Revalidate            | Revalidate            |             |
 | [`const revalidate`](#segment-config-options)                          |              | Revalidate or Opt out | Revalidate or Opt out |             |
 | [`const dynamic`](#segment-config-options)                             |              | Cache or Opt out      | Cache or Opt out      |             |
