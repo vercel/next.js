@@ -45,7 +45,7 @@ use tokio::{
     task::JoinSet,
 };
 use tungstenite::{error::ProtocolError::ResetWithoutClosingHandshake, Error::Protocol};
-use turbo_tasks::{unit, ReadRef, Vc};
+use turbo_tasks::{ReadRef, Vc};
 use turbopack_binding::{
     turbo::{
         tasks::{RawVc, State, TransientInstance, TransientValue, TurboTasks},
@@ -313,7 +313,7 @@ async fn run_test(resource: PathBuf) -> JsResult {
             )
             .await?;
 
-            Ok(unit())
+            Ok::<Vc<()>, _>(Default::default())
         });
         tt.wait_task_completion(task, true).await.unwrap();
     }
