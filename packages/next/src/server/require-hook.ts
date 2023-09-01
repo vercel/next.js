@@ -24,8 +24,8 @@ const toResolveMap = (map: Record<string, string>): [string, string][] =>
 
 // these must use require.resolve to be statically analyzable
 export const defaultOverrides = {
-  'styled-jsx': dirname(require.resolve('styled-jsx/package.json')),
-  'styled-jsx/style': require.resolve('styled-jsx/style'),
+  'styled-jsx': dirname(resolve('styled-jsx/package.json')),
+  'styled-jsx/style': resolve('styled-jsx/style'),
 }
 
 export const baseOverrides = {
