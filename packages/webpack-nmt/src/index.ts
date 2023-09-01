@@ -1,7 +1,7 @@
-import { spawn } from "child_process";
-import { join } from "path";
-
-import { Compilation, WebpackPluginInstance, Compiler } from "webpack";
+import { spawn } from "node:child_process";
+import { join } from "node:path";
+import type { WebpackPluginInstance, Compiler } from "webpack";
+import { Compilation } from "webpack";
 
 export interface NodeModuleTracePluginOptions {
   cwd?: string;
@@ -45,7 +45,9 @@ export class NodeModuleTracePlugin implements WebpackPluginInstance {
             name: NodeModuleTracePlugin.PluginName,
             stage: Compilation.PROCESS_ASSETS_STAGE_SUMMARIZE,
           },
-          () => this.createTraceAssets(compilation)
+          () => {
+            this.createTraceAssets(compilation);
+          }
         );
       }
     );
@@ -55,6 +57,7 @@ export class NodeModuleTracePlugin implements WebpackPluginInstance {
   }
 
   private createTraceAssets(compilation: Compilation) {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- webpack guarantees outputPath
     const outputPath = compilation.outputOptions.path!;
 
     const isTraceable = (file: string) =>
@@ -100,6 +103,7 @@ export class NodeModuleTracePlugin implements WebpackPluginInstance {
         "@vercel/experimental-nft/package.json"
       );
     } catch (e) {
+      // eslint-disable-next-line no-console -- log feedback
       console.warn(
         `Could not resolve the @vercel/experimental-nft directory, turbo tracing may fail.`
       );
@@ -114,6 +118,7 @@ export class NodeModuleTracePlugin implements WebpackPluginInstance {
         );
         turboTracingBinPath = join(turboTracingBinPackageJsonPath, "..");
       } catch (e) {
+        // eslint-disable-next-line no-console -- log feedback
         console.warn(
           `Could not resolve the @vercel/experimental-nft-${process.platform}-${process.arch} directory, turbo tracing may fail.`
         );
@@ -128,6 +133,7 @@ export class NodeModuleTracePlugin implements WebpackPluginInstance {
     let chunks = [...this.chunksToTrace];
     let restChunks = chunks.length > maxFiles ? chunks.splice(maxFiles) : [];
     while (chunks.length) {
+      // eslint-disable-next-line no-await-in-loop -- trace chunks in sequence
       await traceChunks(args, paths, chunks, cwd);
       chunks = restChunks;
       if (restChunks.length) {
@@ -138,9 +144,9 @@ export class NodeModuleTracePlugin implements WebpackPluginInstance {
 }
 
 function traceChunks(
-  args: string[],
+  args: Array<string>,
   paths: string,
-  chunks: string[],
+  chunks: Array<string>,
   cwd?: string
 ) {
   const turboTracingProcess = spawn("node-file-trace", [...args, ...chunks], {
@@ -154,12 +160,13 @@ function traceChunks(
   });
   return new Promise<void>((resolve, reject) => {
     turboTracingProcess.on("error", (err) => {
+      // eslint-disable-next-line no-console -- log error
       console.error(err);
     });
-    turboTracingProcess.stdout.on("data", (chunk) => {
+    turboTracingProcess.stdout.on("data", (chunk: string | Uint8Array) => {
       process.stdout.write(chunk);
     });
-    turboTracingProcess.stderr.on("data", (chunk) => {
+    turboTracingProcess.stderr.on("data", (chunk: string | Uint8Array) => {
       process.stderr.write(chunk);
     });
     turboTracingProcess.once("exit", (code) => {
