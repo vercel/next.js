@@ -481,15 +481,13 @@ describe.each([[''], ['/docs']])(
         `
         )
 
-        const outputIndex = next.cliOutput.length
         try {
           // navigate to a 404 page
           await webdriver(next.url, basePath + '/does-not-exist')
 
-          await check(
-            () => next.cliOutput.slice(outputIndex),
-            /getInitialProps called/
-          )
+          await check(() => next.cliOutput, /getInitialProps called/)
+
+          const outputIndex = next.cliOutput.length
 
           // wait a few seconds to ensure polling didn't happen
           await waitFor(3000)
@@ -497,7 +495,7 @@ describe.each([[''], ['/docs']])(
           const logOccurrences =
             next.cliOutput.slice(outputIndex).split('getInitialProps called')
               .length - 1
-          expect(logOccurrences).toBe(1)
+          expect(logOccurrences).toBe(0)
         } finally {
           await next.deleteFile(errorPage)
         }
