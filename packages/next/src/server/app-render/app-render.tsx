@@ -1748,8 +1748,9 @@ export async function renderToHTMLOrFlight(
       await Promise.all(staticGenerationStore.pendingRevalidates)
     }
     addImplicitTags(staticGenerationStore)
+    extraRenderResultMeta.fetchTags = staticGenerationStore.tags?.join(',')
     renderResult.extendMetadata({
-      fetchTags: staticGenerationStore.tags?.join(','),
+      fetchTags: extraRenderResultMeta.fetchTags,
     })
 
     if (staticGenerationStore.isStaticGeneration) {
