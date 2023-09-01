@@ -186,6 +186,9 @@ function assignDefaults(
 
   const result = { ...defaultConfig, ...config }
 
+  // avoid mutating config if it was already initialized
+  if (process.env.__NEXT_PRIVATE_CONFIG_INITIALIZED) return result
+
   if (result.output === 'export') {
     if (result.i18n) {
       throw new Error(

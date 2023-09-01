@@ -135,15 +135,6 @@ async function main() {
     )
     const origEnv = Object.assign({}, process.env)
 
-    // TODO: set config to env variable to be re-used so we don't reload
-    // un-necessarily
-    const config = await loadConfig(
-      command === 'dev' ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
-      dir,
-      undefined,
-      undefined,
-      true
-    )
     let dirsResult: ReturnType<typeof findPagesDir> | undefined = undefined
 
     try {
@@ -155,6 +146,18 @@ async function main() {
     if (dirsResult?.appDir || process.env.NODE_ENV === 'development') {
       process.env = origEnv
     }
+
+    // TODO: set config to env variable to be re-used so we don't reload
+    // un-necessarily
+    const config = await loadConfig(
+      command === 'dev' ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
+      dir,
+      undefined,
+      undefined,
+      true
+    )
+
+    process.env.__NEXT_PRIVATE_CONFIG_INITIALIZED = '1'
 
     if (dirsResult?.appDir) {
       // we need to reset env if we are going to create
