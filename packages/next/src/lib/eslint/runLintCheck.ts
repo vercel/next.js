@@ -185,7 +185,7 @@ async function lint(
       }
     }
 
-    const pagesDir = findPagesDir(baseDir, hasAppDir).pagesDir
+    const pagesDir = findPagesDir(baseDir).pagesDir
     const pagesDirRules = pagesDir ? ['@next/next/no-html-link-for-pages'] : []
 
     if (nextEslintPluginIsEnabled) {

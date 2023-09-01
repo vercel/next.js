@@ -185,7 +185,7 @@ const nextLint: CliCommand = async (argv) => {
 
   const distDir = join(baseDir, nextConfig.distDir)
   const defaultCacheLocation = join(distDir, 'cache', 'eslint/')
-  const { pagesDir, appDir } = findPagesDir(baseDir, true)
+  const { pagesDir, appDir } = findPagesDir(baseDir)
 
   await verifyTypeScriptSetup({
     dir: baseDir,
