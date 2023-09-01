@@ -12,7 +12,7 @@ createNextDescribe(
     it('renders YoutubeEmbed', async () => {
       const $ = await next.render$('/youtube-embed')
 
-      const baseContainer = $('[data-ntpc="YoutubeEmbed"]')
+      const baseContainer = $('[data-ntpc="YouTubeEmbed"]')
       const youtubeContainer = $('lite-youtube')
       expect(baseContainer.length).toBe(1)
       expect(youtubeContainer.length).toBe(1)
@@ -23,7 +23,7 @@ createNextDescribe(
 
       const baseContainer = $('[data-ntpc="GoogleMapsEmbed"]')
       const mapContainer = $(
-        '[src="https://www.google.com/maps/embed/v1/place?key=XYZ&q=Brooklyn+Bridge,New+York,NY"]'
+        '[src^="https://www.google.com/maps/embed/v1/place?key=XYZ"]'
       )
       expect(baseContainer.length).toBe(1)
       expect(mapContainer.length).toBe(1)

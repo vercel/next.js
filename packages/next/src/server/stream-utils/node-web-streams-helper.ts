@@ -105,12 +105,12 @@ export function createBufferedTransformStream(): TransformStream<
   const flushBuffer = (controller: TransformStreamDefaultController) => {
     if (!pendingFlush) {
       pendingFlush = new Promise((resolve) => {
-        setTimeout(() => {
+        queueTask(() => {
           controller.enqueue(bufferedBytes)
           bufferedBytes = new Uint8Array()
           pendingFlush = null
           resolve()
-        }, 0)
+        })
       })
     }
   }
@@ -227,7 +227,7 @@ function createDeferredSuffixStream(
           // NOTE: streaming flush
           // Enqueue suffix part before the major chunks are enqueued so that
           // suffix won't be flushed too early to interrupt the data stream
-          setTimeout(() => {
+          queueTask(() => {
             controller.enqueue(encodeText(suffix))
             res()
           })

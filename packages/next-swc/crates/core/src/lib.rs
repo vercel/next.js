@@ -56,8 +56,10 @@ pub mod amp_attributes;
 mod auto_cjs;
 pub mod cjs_optimizer;
 pub mod disallow_re_export_all_in_page;
+pub mod named_import_transform;
 pub mod next_dynamic;
 pub mod next_ssg;
+pub mod optimize_barrel;
 pub mod page_config;
 pub mod react_remove_properties;
 pub mod react_server_components;
@@ -127,6 +129,12 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub modularize_imports: Option<modularize_imports::Config>,
+
+    #[serde(default)]
+    pub auto_modularize_imports: Option<named_import_transform::Config>,
+
+    #[serde(default)]
+    pub optimize_barrel_exports: Option<optimize_barrel::Config>,
 
     #[serde(default)]
     pub font_loaders: Option<next_transform_font::Config>,
@@ -244,6 +252,14 @@ where
         match &opts.shake_exports {
             Some(config) => Either::Left(shake_exports::shake_exports(config.clone())),
             None => Either::Right(noop()),
+        },
+        match &opts.auto_modularize_imports {
+            Some(config) => Either::Left(named_import_transform::named_import_transform(config.clone())),
+            None => Either::Right(noop()),
+        },
+        match &opts.optimize_barrel_exports {
+            Some(config) => Either::Left(optimize_barrel::optimize_barrel(config.clone())),
+            _ => Either::Right(noop()),
         },
         opts.emotion
             .as_ref()

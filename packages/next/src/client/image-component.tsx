@@ -10,7 +10,7 @@ import React, {
   forwardRef,
   version,
 } from 'react'
-import { preload } from 'react-dom'
+import ReactDOM from 'react-dom'
 import Head from '../shared/lib/head'
 import { getImgProps } from '../shared/lib/get-img-props'
 import type {
@@ -320,9 +320,9 @@ function ImagePreload({
     ...getDynamicProps(imgAttributes.fetchPriority),
   }
 
-  if (isAppRouter && preload) {
+  if (isAppRouter && ReactDOM.preload) {
     // See https://github.com/facebook/react/pull/26940
-    preload(
+    ReactDOM.preload(
       imgAttributes.src,
       // @ts-expect-error TODO: upgrade to `@types/react-dom@18.3.x`
       opts

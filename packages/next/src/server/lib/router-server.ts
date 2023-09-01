@@ -105,10 +105,7 @@ export async function initialize(opts: {
     const telemetry = new Telemetry({
       distDir: path.join(opts.dir, config.distDir),
     })
-    const { pagesDir, appDir } = findPagesDir(
-      opts.dir,
-      !!config.experimental.appDir
-    )
+    const { pagesDir, appDir } = findPagesDir(opts.dir, true)
 
     // No need to initialize pages worker if pagesDir is undefined.
     if (pagesDir === undefined) {
@@ -134,7 +131,9 @@ export async function initialize(opts: {
   const { ipcPort, ipcValidationKey } = await createIpcServer({
     async ensurePage(
       match: Parameters<
-        InstanceType<typeof import('../dev/hot-reloader').default>['ensurePage']
+        InstanceType<
+          typeof import('../dev/hot-reloader-webpack').default
+        >['ensurePage']
       >[0]
     ) {
       // TODO: remove after ensure is pulled out of server
@@ -352,7 +351,7 @@ export async function initialize(opts: {
       // TODO: log socket errors?
     })
 
-    const matchedDynamicRoutes = new Set<string>()
+    const invokedOutputs = new Set<string>()
 
     async function invokeRender(
       parsedUrl: NextUrlWithParsedQuery,
@@ -502,12 +501,12 @@ export async function initialize(opts: {
         resHeaders,
         bodyStream,
         matchedOutput,
-      } = await resolveRoutes(
+      } = await resolveRoutes({
         req,
-        matchedDynamicRoutes,
-        false,
-        signalFromNodeResponse(res)
-      )
+        isUpgradeReq: false,
+        signal: signalFromNodeResponse(res),
+        invokedOutputs,
+      })
 
       if (devInstance && matchedOutput?.type === 'devVirtualFsItem') {
         const origUrl = req.url || '/'
@@ -684,6 +683,8 @@ export async function initialize(opts: {
       }
 
       if (matchedOutput) {
+        invokedOutputs.add(matchedOutput.itemPath)
+
         return await invokeRender(
           parsedUrl,
           matchedOutput.type === 'appFile' ? 'app' : 'pages',
@@ -701,6 +702,13 @@ export async function initialize(opts: {
         'no-cache, no-store, max-age=0, must-revalidate'
       )
 
+      // Short-circuit favicon.ico serving so that the 404 page doesn't get built as favicon is requested by the browser when loading any route.
+      if (opts.dev && !matchedOutput && parsedUrl.pathname === '/favicon.ico') {
+        res.statusCode = 404
+        res.end('')
+        return null
+      }
+
       const appNotFound = opts.dev
         ? devInstance?.serverFields.hasAppNotFound
         : await fsChecker.getItem('/_not-found')
@@ -710,7 +718,7 @@ export async function initialize(opts: {
           parsedUrl,
           'app',
           handleIndex,
-          '/_not-found',
+          opts.dev ? '/not-found' : '/_not-found',
           {
             'x-invoke-status': '404',
           }
@@ -779,12 +787,11 @@ export async function initialize(opts: {
         }
       }
 
-      const { matchedOutput, parsedUrl } = await resolveRoutes(
+      const { matchedOutput, parsedUrl } = await resolveRoutes({
         req,
-        new Set(),
-        true,
-        signalFromNodeResponse(socket)
-      )
+        isUpgradeReq: true,
+        signal: signalFromNodeResponse(socket),
+      })
 
       // TODO: allow upgrade requests to pages/app paths?
       // this was not previously supported
