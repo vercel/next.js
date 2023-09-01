@@ -117,7 +117,14 @@ Output:
 type Sitemap = Array<{
   url: string
   lastModified?: string | Date
-  changeFrequency?: 'always' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'never'
+  changeFrequency?:
+    | 'always'
+    | 'hourly'
+    | 'daily'
+    | 'weekly'
+    | 'monthly'
+    | 'yearly'
+    | 'never'
   priority?: number
 }>
 ```
@@ -128,7 +135,7 @@ type Sitemap = Array<{
 
 ## Version History
 
-| Version   | Changes               |
-| --------- | --------------------- |
-| `v13.3.0` | `sitemap` introduced. |
+| Version   | Changes                                                      |
+| --------- | ------------------------------------------------------------ |
+| `v13.3.0` | `sitemap` introduced.                                        |
 | `v13.4.5` | Add `changeFrequency` and `priority` attributes to sitemaps. |
