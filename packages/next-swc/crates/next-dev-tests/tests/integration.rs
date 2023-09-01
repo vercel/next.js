@@ -313,7 +313,7 @@ async fn run_test(resource: PathBuf) -> JsResult {
             )
             .await?;
 
-            Ok(Default::default())
+            Ok::<Vc<()>, _>(Default::default())
         });
         tt.wait_task_completion(task, true).await.unwrap();
     }
