@@ -6,7 +6,6 @@ import path from 'path'
 
 // This module will only be loaded once per process.
 
-const { dirname } = require('path')
 const mod = require('module')
 const resolveFilename = mod._resolveFilename
 const originalRequire = mod.prototype.require
@@ -21,12 +20,6 @@ const resolve = process.env.NEXT_MINIMAL
 
 const toResolveMap = (map: Record<string, string>): [string, string][] =>
   Object.entries(map).map(([key, value]) => [key, resolve(value)])
-
-// these must use require.resolve to be statically analyzable
-export const defaultOverrides = {
-  'styled-jsx': dirname(resolve('styled-jsx/package.json')),
-  'styled-jsx/style': resolve('styled-jsx/style'),
-}
 
 export const baseOverrides = {
   react: 'next/dist/compiled/react',
@@ -80,9 +73,6 @@ export function addHookAliases(aliases: [string, string][] = []) {
     hookPropertyMap.set(key, value)
   }
 }
-
-// Add default aliases
-addHookAliases(toResolveMap(defaultOverrides))
 
 // Override built-in React packages if necessary
 function overrideReact() {
