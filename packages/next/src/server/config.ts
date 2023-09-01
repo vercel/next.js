@@ -20,7 +20,6 @@ import { loadEnvConfig, updateInitialEnv } from '@next/env'
 import { flushAndExit } from '../telemetry/flush-and-exit'
 import { findRootDir } from '../lib/find-root'
 import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
-import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
@@ -309,17 +308,17 @@ function assignDefaults(
       )
     }
 
-    if (
-      result.basePath &&
-      images.path &&
-      !pathHasPrefix(images.path, result.basePath)
-    ) {
+    if (images.path === imageConfigDefault.path && result.basePath) {
       images.path = `${result.basePath}${images.path}`
     }
 
     // Append trailing slash for non-default loaders and when trailingSlash is set
-    if (images.path && result.trailingSlash) {
-      if (images.path[images.path.length - 1] !== '/') {
+    if (images.path) {
+      if (
+        (images.loader !== 'default' &&
+          images.path[images.path.length - 1] !== '/') ||
+        result.trailingSlash
+      ) {
         images.path += '/'
       }
     }
