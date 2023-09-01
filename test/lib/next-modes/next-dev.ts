@@ -90,6 +90,13 @@ export class NextDevInstance extends NextInstance {
               .split(/\s*- Local:/)
               .pop()
               .trim()
+          } else if (
+            msg.includes('started server on') &&
+            msg.includes('url:')
+          ) {
+            this._url = msg.split('url: ').pop().split(/\s/)[0].trim()
+          }
+          if (this._url) {
             try {
               this._parsedUrl = new URL(this._url)
             } catch (err) {
