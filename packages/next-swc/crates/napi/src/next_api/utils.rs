@@ -7,7 +7,7 @@ use napi::{
     JsFunction, JsObject, JsUnknown, NapiRaw, NapiValue, Status,
 };
 use serde::Serialize;
-use turbo_tasks::{unit, ReadRef, TaskId, TryJoinIterExt, TurboTasks, Vc};
+use turbo_tasks::{ReadRef, TaskId, TryJoinIterExt, TurboTasks, Vc};
 use turbopack_binding::{
     turbo::{tasks_fs::FileContent, tasks_memory::MemoryBackend},
     turbopack::core::{
@@ -264,9 +264,9 @@ pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send,
             if !matches!(status, Status::Ok) {
                 let error = anyhow!("Error calling JS function: {}", status);
                 eprintln!("{}", error);
-                return Err(error);
+                return Err::<Vc<()>, _>(error);
             }
-            Ok(unit())
+            Ok(Default::default())
         })
     });
     Ok(External::new(RootTask {
