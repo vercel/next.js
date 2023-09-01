@@ -2,14 +2,6 @@ import { join } from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 
-function matchModules(logs: string) {
-  return [
-    ...logs.matchAll(
-      /compiled (\/[\w-]+)*\s*in \d+(\.\d+)? (s|ms) \((\d+) modules\)/g
-    ),
-  ]
-}
-
 describe('optimizePackageImports', () => {
   let next: NextInstance
 
@@ -63,7 +55,11 @@ describe('optimizePackageImports', () => {
     // Ensure the icons are rendered
     expect(html).toContain('<svg xmlns="http://www.w3.org/2000/svg"')
 
-    const modules = matchModules(logs)
+    const modules = [
+      ...logs.matchAll(
+        /compiled (\/[\w-]+)*\s*in \d+(\.\d+)? (s|ms) \((\d+) modules\)/g
+      ),
+    ]
 
     expect(modules.length).toBeGreaterThanOrEqual(1)
     for (const [, , , , moduleCount] of modules) {
@@ -84,7 +80,11 @@ describe('optimizePackageImports', () => {
     // Ensure the icons are rendered
     expect(html).toContain('<svg xmlns="http://www.w3.org/2000/svg"')
 
-    const modules = matchModules(logs)
+    const modules = [
+      ...logs.matchAll(
+        /compiled (\/[\w-]+)*\s*in \d+(\.\d+)? (s|ms) \((\d+) modules\)/g
+      ),
+    ]
 
     expect(modules.length).toBeGreaterThanOrEqual(1)
     for (const [, , , , moduleCount] of modules) {

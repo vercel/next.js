@@ -49,8 +49,7 @@ function hasStoreChanged(nextStore: OutputState) {
 }
 
 let startTime = 0
-let lastTime = Date.now()
-let lastTrigger = ''
+let trigger = ''
 
 store.subscribe((state) => {
   if (!hasStoreChanged(state)) {
@@ -63,17 +62,9 @@ store.subscribe((state) => {
 
   if (state.loading) {
     if (state.trigger) {
-      lastTrigger = state.trigger
-    } else {
-      // not aware of the original trigger, just saying compiling
-      if (
-        Date.now() - lastTime > 3 * 1000 &&
-        lastTrigger !== 'initial' &&
-        lastTrigger
-      ) {
-        Log.wait('compiling ' + lastTrigger + ' ...')
-      }
-      lastTrigger = ''
+      trigger = state.trigger
+    } else if (trigger !== 'initial') {
+      Log.wait('compiling' + (trigger ? ` ${trigger}` : '') + ' ...')
     }
     if (startTime === 0) {
       startTime = Date.now()
@@ -112,12 +103,13 @@ store.subscribe((state) => {
     startTime = 0
 
     timeMessage =
-      time > 2000 ? `in ${Math.round(time / 100) / 10}s` : `in ${time} ms`
+      ' ' +
+      (time > 2000 ? `in ${Math.round(time / 100) / 10}s` : `in ${time} ms`)
   }
 
   let modulesMessage = ''
   if (state.totalModulesCount) {
-    modulesMessage = `(${state.totalModulesCount} modules)`
+    modulesMessage = ` (${state.totalModulesCount} modules)`
   }
 
   if (state.warnings) {
@@ -131,14 +123,17 @@ store.subscribe((state) => {
   }
 
   if (state.typeChecking) {
-    Log.info(`bundled ${timeMessage} ${modulesMessage}, type checking...`)
+    Log.info(
+      `bundled ${trigger}${timeMessage}${modulesMessage}, type checking...`
+    )
     return
   }
 
-  if (lastTrigger === 'initial') {
+  if (trigger === 'initial') {
     Log.event('ready')
-  } else if (lastTrigger) {
-    Log.event(`compiled ${lastTrigger} ${timeMessage} ${modulesMessage}`)
+    trigger = ''
+  } else if (trigger) {
+    Log.event(`compiled ${trigger}${timeMessage}${modulesMessage}`)
   }
 
   // Ensure traces are flushed after each compile in development mode

@@ -1163,17 +1163,17 @@ describe.each([[''], ['/docs']])(
         await next.patchFile(pageName, originalContent)
         await check(
           () => next.cliOutput.substring(outputLength),
-          /compiled.*?successfully/i
+          /compiling \/auto-export-is-ready .../i
         )
         const compileTime = next.cliOutput
           .substring(outputLength)
-          .match(/compiled.*?successfully in ([\d.]{1,})\s?(?:s|ms)/i)
+          .match(/compiled.*? in ([\d.]{1,})\s?(?:s|ms)/i)
 
         let compileTimeMs = parseFloat(compileTime[1])
         if (
           next.cliOutput
             .substring(outputLength)
-            .match(/compiled.*?successfully in ([\d.]{1,})\s?s/)
+            .match(/compiled.* in ([\d.]{1,})\s?m?s/)
         ) {
           compileTimeMs = compileTimeMs * 1000
         }
