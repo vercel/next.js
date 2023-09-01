@@ -264,12 +264,13 @@ export class AppRouteRouteModule extends RouteModule<
 
     // Get the context for the static generation.
     const staticGenerationContext: StaticGenerationContext = {
-      pathname: this.definition.pathname,
+      urlPathname: request.nextUrl.pathname,
       renderOpts:
         // If the staticGenerationContext is not provided then we default to
         // the default values.
         context.staticGenerationContext ?? {
           supportsDynamicHTML: false,
+          originalPathname: this.definition.pathname,
         },
     }
 
