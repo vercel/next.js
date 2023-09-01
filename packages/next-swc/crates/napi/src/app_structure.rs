@@ -11,7 +11,7 @@ use next_core::app_structure::{
     LoaderTree, MetadataWithAltItem,
 };
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{unit, ReadRef, Vc};
+use turbo_tasks::{ReadRef, Vc};
 use turbopack_binding::{
     turbo::{
         tasks::{
@@ -332,7 +332,7 @@ pub fn stream_entrypoints(
                 func.call(Ok(None), ThreadsafeFunctionCallMode::NonBlocking);
             }
 
-            Ok(unit())
+            Ok::<Vc<()>, _>(Default::default())
         })
     });
     Ok(())

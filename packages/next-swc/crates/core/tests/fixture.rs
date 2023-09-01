@@ -6,6 +6,7 @@ use next_swc::{
     named_import_transform::named_import_transform,
     next_dynamic::next_dynamic,
     next_ssg::next_ssg,
+    optimize_barrel::optimize_barrel,
     page_config::page_config_test,
     react_remove_properties::remove_properties,
     react_server_components::server_components,
@@ -471,6 +472,58 @@ fn named_import_transform_fixture(input: PathBuf) {
                     {
                         "packages": ["foo", "bar"]
                     }
+                    "#
+                ))
+            )
+        },
+        &input,
+        &output,
+        Default::default(),
+    );
+}
+
+#[fixture("tests/fixture/optimize-barrel/normal/**/input.js")]
+fn optimize_barrel_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            let unresolved_mark = Mark::new();
+            let top_level_mark = Mark::new();
+
+            chain!(
+                resolver(unresolved_mark, top_level_mark, false),
+                optimize_barrel(json(
+                    r#"
+                        {
+                            "wildcard": false
+                        }
+                    "#
+                ))
+            )
+        },
+        &input,
+        &output,
+        Default::default(),
+    );
+}
+
+#[fixture("tests/fixture/optimize-barrel/wildcard/**/input.js")]
+fn optimize_barrel_wildcard_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            let unresolved_mark = Mark::new();
+            let top_level_mark = Mark::new();
+
+            chain!(
+                resolver(unresolved_mark, top_level_mark, false),
+                optimize_barrel(json(
+                    r#"
+                        {
+                            "wildcard": true
+                        }
                     "#
                 ))
             )

@@ -17,7 +17,9 @@ use next_core::{
     pages_structure::{
         find_pages_structure, PagesDirectoryStructure, PagesStructure, PagesStructureItem,
     },
-    pathname_for_path, PathType,
+    pathname_for_path,
+    util::NextRuntime,
+    PathType,
 };
 use turbo_tasks::Vc;
 use turbopack_binding::{
@@ -343,6 +345,7 @@ async fn get_page_entry_for_file(
         ssr_module_context,
         source,
         Vc::cell(original_name),
+        NextRuntime::NodeJs,
     );
 
     let client_module = create_page_loader_entry_module(client_module_context, source, pathname);

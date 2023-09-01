@@ -20,6 +20,8 @@ export interface CachedFetchValue {
     body: string
     url: string
     status?: number
+    // tags are only present with file-system-cache
+    // fetch cache stores tags outside of cache entry
     tags?: string[]
   }
   revalidate: number
@@ -112,10 +114,13 @@ export type IncrementalCacheItem = {
 } | null
 
 export interface IncrementalCache {
-  get: (key: string) => Promise<IncrementalCacheItem>
+  get: (
+    key: string,
+    ctx?: { fetchCache?: boolean }
+  ) => Promise<IncrementalCacheItem>
   set: (
     key: string,
     data: IncrementalCacheValue | null,
-    revalidate?: number | false
+    ctx: { revalidate: number | false }
   ) => Promise<void>
 }

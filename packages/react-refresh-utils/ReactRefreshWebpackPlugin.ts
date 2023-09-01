@@ -137,11 +137,9 @@ function webpack5(this: ReactFreshWebpackPlugin, compiler: WebpackCompiler) {
   compiler.hooks.compilation.tap('ReactFreshWebpackPlugin', (compilation) => {
     injectRefreshFunctions(compilation, Template)
 
-    // @ts-ignore Exists in webpack 5
     compilation.hooks.additionalTreeRuntimeRequirements.tap(
       'ReactFreshWebpackPlugin',
       (chunk: any) => {
-        // @ts-ignore Exists in webpack 5
         compilation.addRuntimeModule(chunk, new ReactRefreshRuntimeModule())
       }
     )

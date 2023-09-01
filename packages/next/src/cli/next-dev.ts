@@ -188,6 +188,12 @@ async function createRouterWorker(fullConfig: NextConfigComplete): Promise<{
   return {
     worker,
     cleanup: async () => {
+      // Remove process listeners for childprocess too.
+      for (const curWorker of ((worker as any)._workerPool?._workers || []) as {
+        _child?: ChildProcess
+      }[]) {
+        curWorker._child?.off('exit', cleanup)
+      }
       process.off('exit', cleanup)
       process.off('SIGINT', cleanup)
       process.off('SIGTERM', cleanup)
@@ -319,7 +325,7 @@ const nextDev: CliCommand = async (argv) => {
     process.env.EXPERIMENTAL_TURBOPACK = '1'
   }
 
-  const distDir = path.join(dir, config.distDir)
+  const distDir = path.join(dir, config.distDir ?? '.next')
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
   setGlobal('distDir', distDir)
 
@@ -343,12 +349,7 @@ const nextDev: CliCommand = async (argv) => {
       isDev: true,
     })
 
-    const { pagesDir, appDir } = findPagesDir(
-      dir,
-      typeof rawNextConfig?.experimental?.appDir === 'undefined'
-        ? !!defaultConfig.experimental?.appDir
-        : !!rawNextConfig.experimental?.appDir
-    )
+    const { pagesDir, appDir } = findPagesDir(dir, true)
     const telemetry = new Telemetry({
       distDir,
     })
