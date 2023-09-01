@@ -50,6 +50,7 @@ import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-s
 import { createClientRouterFilter } from '../../../lib/create-client-router-filter'
 import { absolutePathToPage } from '../../../shared/lib/page-path/absolute-path-to-page'
 import { generateInterceptionRoutesRewrites } from '../../../lib/generate-interception-routes-rewrites'
+import { OutputState, store as consoleStore } from '../../../build/output/store'
 
 import {
   APP_BUILD_MANIFEST,
@@ -437,6 +438,8 @@ async function startWatcher(opts: SetupOpts) {
         await loadPartialManifest(APP_PATHS_MANIFEST, pageName, type)
       )
     }
+
+    const buildingReported = new Set<string>()
 
     async function changeSubscription(
       page: string,
@@ -872,13 +875,13 @@ async function startWatcher(opts: SetupOpts) {
                 break
               }
 
+              case 'span-end':
               case 'client-error': // { errorCount, clientId }
               case 'client-warning': // { warningCount, clientId }
               case 'client-success': // { clientId }
               case 'server-component-reload-page': // { clientId }
               case 'client-reload-page': // { clientId }
               case 'client-full-reload': // { stackTrace, hadRuntimeError }
-              case 'span-end': // { startTime, endTime, spanName, attributes }
                 // TODO
                 break
 
@@ -900,9 +903,10 @@ async function startWatcher(opts: SetupOpts) {
                 break
 
               default:
-                // Might have been a Next.js message...
                 if (!parsedData.event) {
-                  throw new Error(`unrecognized Turbopack message "${data}"`)
+                  throw new Error(
+                    `unrecognized Turbopack HMR message "${data}"`
+                  )
                 }
             }
           })
@@ -1001,6 +1005,35 @@ async function startWatcher(opts: SetupOpts) {
           throw new PageNotFoundError(`route not found ${page}`)
         }
 
+        if (!buildingReported.has(page)) {
+          buildingReported.add(page)
+          let suffix
+          switch (route.type) {
+            case 'app-page':
+              suffix = 'page'
+              break
+            case 'app-route':
+              suffix = 'route'
+              break
+            case 'page':
+            case 'page-api':
+              suffix = ''
+              break
+            default:
+              throw new Error('Unexpected route type ' + route.type)
+          }
+
+          consoleStore.setState(
+            {
+              loading: true,
+              trigger: `${page}${
+                !page.endsWith('/') && suffix.length > 0 ? '/' : ''
+              }${suffix} (client and server)`,
+            } as OutputState,
+            true
+          )
+        }
+
         switch (route.type) {
           case 'page': {
             if (isApp) {
@@ -1022,6 +1055,7 @@ async function startWatcher(opts: SetupOpts) {
               const writtenEndpoint = await processResult(
                 await globalEntries.document.writeToDisk()
               )
+
               changeSubscription('_document', globalEntries.document, () => {
                 return { action: 'reloadPage' }
               })
@@ -1032,6 +1066,7 @@ async function startWatcher(opts: SetupOpts) {
             const writtenEndpoint = await processResult(
               await route.htmlEndpoint.writeToDisk()
             )
+
             changeSubscription(page, route.dataEndpoint, (pageName, change) => {
               switch (change.type) {
                 case ServerClientChangeType.Server:
@@ -1090,6 +1125,7 @@ async function startWatcher(opts: SetupOpts) {
             const writtenEndpoint = await processResult(
               await route.htmlEndpoint.writeToDisk()
             )
+
             changeSubscription(page, route.rscEndpoint, (_page, change) => {
               switch (change.type) {
                 case ServerClientChangeType.Server:
@@ -1141,6 +1177,14 @@ async function startWatcher(opts: SetupOpts) {
             throw new Error(`unknown route type ${route.type} for ${page}`)
           }
         }
+
+        consoleStore.setState(
+          {
+            loading: false,
+            partial: 'client and server',
+          } as OutputState,
+          true
+        )
       },
     }
 
