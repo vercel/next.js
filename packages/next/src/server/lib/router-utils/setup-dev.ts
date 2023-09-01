@@ -888,7 +888,7 @@ async function startWatcher(opts: SetupOpts) {
               loading: true,
               trigger: `${page}${
                 !page.endsWith('/') && suffix.length > 0 ? '/' : ''
-              }${suffix} (client and server)`,
+              }${suffix}`,
             } as OutputState,
             true
           )
@@ -1025,7 +1025,7 @@ async function startWatcher(opts: SetupOpts) {
         consoleStore.setState(
           {
             loading: false,
-            partial: 'client and server',
+            partial: undefined,
           } as OutputState,
           true
         )
