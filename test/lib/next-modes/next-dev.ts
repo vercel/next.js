@@ -80,7 +80,7 @@ export class NextDevInstance extends NextInstance {
           }
         })
         const readyCb = (msg) => {
-          function resolveUrl(url: string) {
+          const resolveServer = () => {
             try {
               this._parsedUrl = new URL(this._url)
             } catch (err) {
@@ -103,13 +103,13 @@ export class NextDevInstance extends NextInstance {
               .split(/\s*- Local:/)
               .pop()
               .trim()
-            resolveUrl(this._url)
+            resolveServer()
           } else if (
             msg.includes('started server on') &&
             msg.includes('url:')
           ) {
             this._url = msg.split('url: ').pop().split(/\s/)[0].trim()
-            resolveUrl(this._url)
+            resolveServer()
           }
         }
         this.on('stdout', readyCb)
