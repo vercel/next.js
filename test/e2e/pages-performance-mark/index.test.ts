@@ -1,7 +1,7 @@
 import { createNextDescribe } from 'e2e-utils'
 
 // This test case doesn't indicate rendering duplicate head in _document is valid,
-// but it's a way to reproduce the the performance mark crashing.
+// but it's a way to reproduce the performance mark crashing.
 createNextDescribe(
   'pages performance mark',
   {
