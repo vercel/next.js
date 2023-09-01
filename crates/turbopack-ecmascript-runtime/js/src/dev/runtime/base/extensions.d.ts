@@ -57,6 +57,7 @@ interface Hot {
   status: () => keyof typeof HotUpdateStatus;
   addStatusHandler: (handler: HotUpdateStatusHandler) => void;
   removeStatusHandler: (handler: HotUpdateStatusHandler) => void;
+  check: (autoApply: boolean) => Promise<any[] | null>;
 }
 
 interface Module {

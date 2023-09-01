@@ -1083,7 +1083,11 @@ function createModuleHot(moduleId, hotData) {
         status: ()=>"idle",
         // NOTE(alexkirsz) Since we always return "idle" for now, these are no-ops.
         addStatusHandler: (_handler)=>{},
-        removeStatusHandler: (_handler)=>{}
+        removeStatusHandler: (_handler)=>{},
+        // NOTE(jridgewell) Check returns the list of updated modules, but we don't
+        // want the webpack code paths to ever update (the turbopack paths handle
+        // this already).
+        check: ()=>Promise.resolve(null)
     };
     return {
         hot,
