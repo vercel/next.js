@@ -1699,6 +1699,9 @@ importers:
       prettier:
         specifier: 2.5.1
         version: 2.5.1
+      rimraf:
+        specifier: ^3.0.2
+        version: 3.0.2
 
 packages:
 
