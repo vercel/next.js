@@ -73,7 +73,7 @@ export async function recursiveDelete(
               : join(dirname(absolutePath), linkPath)
           )
           isDirectory = stats.isDirectory()
-        } catch (_) {}
+        } catch {}
       }
 
       const pp = join(previousPath, part.name)

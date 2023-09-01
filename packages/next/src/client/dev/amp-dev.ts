@@ -77,14 +77,8 @@ async function tryApplyUpdates() {
   }
 }
 
-addMessageListener((event) => {
-  if (event.data === '\uD83D\uDC93') {
-    return
-  }
-
+addMessageListener((message) => {
   try {
-    const message = JSON.parse(event.data)
-
     // actions which are not related to amp-dev
     if (
       message.action === 'serverError' ||
@@ -102,7 +96,7 @@ addMessageListener((event) => {
     }
   } catch (err: any) {
     console.warn(
-      '[HMR] Invalid message: ' + event.data + '\n' + (err?.stack ?? '')
+      '[HMR] Invalid message: ' + message + '\n' + (err?.stack ?? '')
     )
   }
 })
