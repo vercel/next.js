@@ -439,49 +439,82 @@ function Head({ callback }: { callback: () => void }): null {
   return null
 }
 
+const performanceMarks = {
+  navigationStart: 'navigationStart',
+  beforeRender: 'beforeRender',
+  afterRender: 'afterRender',
+  afterHydrate: 'afterHydrate',
+  routeChange: 'routeChange',
+} as const
+
+const performanceMeasures = {
+  hydration: 'Next.js-hydration',
+  beforeHydration: 'Next.js-before-hydration',
+  routeChangeToRender: 'Next.js-route-change-to-render',
+  render: 'Next.js-render',
+} as const
+
 let reactRoot: any = null
 // On initial render a hydrate should always happen
 let shouldHydrate: boolean = true
 
 function clearMarks(): void {
-  ;['beforeRender', 'afterHydrate', 'afterRender', 'routeChange'].forEach(
-    (mark) => performance.clearMarks(mark)
-  )
+  ;[
+    performanceMarks.beforeRender,
+    performanceMarks.afterHydrate,
+    performanceMarks.afterRender,
+    performanceMarks.routeChange,
+  ].forEach((mark) => performance.clearMarks(mark))
 }
 
 function markHydrateComplete(): void {
   if (!ST) return
 
-  performance.mark('afterHydrate') // mark end of hydration
+  performance.mark(performanceMarks.afterHydrate) // mark end of hydration
 
-  const beforeHydrationMeasure = performance.measure(
-    'Next.js-before-hydration',
-    'navigationStart',
-    'beforeRender'
-  )
-
-  const hydrationMeasure = performance.measure(
-    'Next.js-hydration',
-    'beforeRender',
-    'afterHydrate'
-  )
-
-  tracer
-    .startSpan('navigation-to-hydration', {
-      startTime: performance.timeOrigin + beforeHydrationMeasure.startTime,
-      attributes: {
-        pathname: location.pathname,
-        query: location.search,
-      },
-    })
-    .end(
-      performance.timeOrigin +
-        hydrationMeasure.startTime +
-        hydrationMeasure.duration
+  const hasBeforeRenderMark = performance.getEntriesByName(
+    performanceMarks.beforeRender,
+    'mark'
+  ).length
+  if (hasBeforeRenderMark) {
+    const beforeHydrationMeasure = performance.measure(
+      performanceMeasures.beforeHydration,
+      performanceMarks.navigationStart,
+      performanceMarks.beforeRender
     )
 
+    const hydrationMeasure = performance.measure(
+      performanceMeasures.hydration,
+      performanceMarks.beforeRender,
+      performanceMarks.afterHydrate
+    )
+
+    if (
+      process.env.NODE_ENV === 'development' &&
+      // Old versions of Safari don't return `PerformanceMeasure`s from `performance.measure()`
+      beforeHydrationMeasure !== undefined &&
+      hydrationMeasure !== undefined
+    ) {
+      tracer
+        .startSpan('navigation-to-hydration', {
+          startTime: performance.timeOrigin + beforeHydrationMeasure.startTime,
+          attributes: {
+            pathname: location.pathname,
+            query: location.search,
+          },
+        })
+        .end(
+          performance.timeOrigin +
+            hydrationMeasure.startTime +
+            hydrationMeasure.duration
+        )
+    }
+  }
+
   if (onPerfEntry) {
-    performance.getEntriesByName('Next.js-hydration').forEach(onPerfEntry)
+    performance
+      .getEntriesByName(performanceMeasures.hydration)
+      .forEach(onPerfEntry)
   }
   clearMarks()
 }
@@ -489,31 +522,45 @@ function markHydrateComplete(): void {
 function markRenderComplete(): void {
   if (!ST) return
 
-  performance.mark('afterRender') // mark end of render
+  performance.mark(performanceMarks.afterRender) // mark end of render
   const navStartEntries: PerformanceEntryList = performance.getEntriesByName(
-    'routeChange',
+    performanceMarks.routeChange,
     'mark'
   )
 
   if (!navStartEntries.length) return
 
-  performance.measure(
-    'Next.js-route-change-to-render',
-    navStartEntries[0].name,
-    'beforeRender'
-  )
-  performance.measure('Next.js-render', 'beforeRender', 'afterRender')
-  if (onPerfEntry) {
-    performance.getEntriesByName('Next.js-render').forEach(onPerfEntry)
-    performance
-      .getEntriesByName('Next.js-route-change-to-render')
-      .forEach(onPerfEntry)
+  const hasBeforeRenderMark = performance.getEntriesByName(
+    performanceMarks.beforeRender,
+    'mark'
+  ).length
+
+  if (hasBeforeRenderMark) {
+    performance.measure(
+      performanceMeasures.routeChangeToRender,
+      navStartEntries[0].name,
+      performanceMarks.beforeRender
+    )
+    performance.measure(
+      performanceMeasures.render,
+      performanceMarks.beforeRender,
+      performanceMarks.afterRender
+    )
+    if (onPerfEntry) {
+      performance
+        .getEntriesByName(performanceMeasures.render)
+        .forEach(onPerfEntry)
+      performance
+        .getEntriesByName(performanceMeasures.routeChangeToRender)
+        .forEach(onPerfEntry)
+    }
   }
 
   clearMarks()
-  ;['Next.js-route-change-to-render', 'Next.js-render'].forEach((measure) =>
-    performance.clearMeasures(measure)
-  )
+  ;[
+    performanceMeasures.routeChangeToRender,
+    performanceMeasures.render,
+  ].forEach((measure) => performance.clearMeasures(measure))
 }
 
 function renderReactElement(
@@ -522,7 +569,7 @@ function renderReactElement(
 ): void {
   // mark start of hydrate/render
   if (ST) {
-    performance.mark('beforeRender')
+    performance.mark(performanceMarks.beforeRender)
   }
 
   const reactEl = fn(shouldHydrate ? markHydrateComplete : markRenderComplete)

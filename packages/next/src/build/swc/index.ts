@@ -506,7 +506,7 @@ export enum ServerClientChangeType {
   Both = 'Both',
 }
 export interface ServerClientChange {
-  change: ServerClientChangeType
+  type: ServerClientChangeType
 }
 
 export interface Project {
@@ -920,7 +920,7 @@ function bindingToApi(binding: any, _wasm: boolean) {
           )
       )
 
-      // The subscriptions will emit always emit once, which is the initial
+      // The subscriptions will always emit once, which is the initial
       // computation. This is not a change, so swallow it.
       await Promise.all([serverSubscription.next(), clientSubscription.next()])
 
@@ -943,17 +943,17 @@ function bindingToApi(binding: any, _wasm: boolean) {
                 diagnostics: server.value.diagnostics.concat(
                   client.value.diagnostics
                 ),
-                change: ServerClientChangeType.Both,
+                type: ServerClientChangeType.Both,
               }
             } else if (server) {
               yield {
                 ...server.value,
-                change: ServerClientChangeType.Server,
+                type: ServerClientChangeType.Server,
               }
             } else {
               yield {
                 ...client!.value,
-                change: ServerClientChangeType.Client,
+                type: ServerClientChangeType.Client,
               }
             }
           }
