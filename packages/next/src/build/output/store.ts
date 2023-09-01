@@ -66,7 +66,11 @@ store.subscribe((state) => {
       lastTrigger = state.trigger
     } else {
       // not aware of the original trigger, just saying compiling
-      if (Date.now() - lastTime > 3 * 1000 && lastTrigger !== 'initial') {
+      if (
+        Date.now() - lastTime > 3 * 1000 &&
+        lastTrigger !== 'initial' &&
+        lastTrigger
+      ) {
         Log.wait('compiling ' + lastTrigger + ' ...')
       }
       lastTrigger = ''
