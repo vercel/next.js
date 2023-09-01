@@ -83,7 +83,6 @@ async function lint(
   lintDirs: string[],
   eslintrcFile: string | null,
   pkgJsonPath: string | null,
-  hasAppDir: boolean,
   {
     lintDuringBuild = false,
     eslintOptions = null,
@@ -278,7 +277,6 @@ async function lint(
 export async function runLintCheck(
   baseDir: string,
   lintDirs: string[],
-  hasAppDir: boolean,
   opts: {
     lintDuringBuild?: boolean
     eslintOptions?: any
@@ -330,21 +328,14 @@ export async function runLintCheck(
 
     if (config.exists) {
       // Run if ESLint config exists
-      return await lint(
-        baseDir,
-        lintDirs,
-        eslintrcFile,
-        pkgJsonPath,
-        hasAppDir,
-        {
-          lintDuringBuild,
-          eslintOptions,
-          reportErrorsOnly,
-          maxWarnings,
-          formatter,
-          outputFile,
-        }
-      )
+      return await lint(baseDir, lintDirs, eslintrcFile, pkgJsonPath, {
+        lintDuringBuild,
+        eslintOptions,
+        reportErrorsOnly,
+        maxWarnings,
+        formatter,
+        outputFile,
+      })
     } else {
       // Display warning if no ESLint configuration is present inside
       // config file during "next build", no warning is shown when

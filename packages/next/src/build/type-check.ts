@@ -147,8 +147,7 @@ export async function startTypeChecking({
             eslintCacheDir,
             config.eslint?.dirs,
             config.experimental.workerThreads,
-            telemetry,
-            !!appDir
+            telemetry
           )
         }),
     ])
