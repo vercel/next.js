@@ -186,7 +186,8 @@ export async function adapter(
   let cookiesFromResponse
 
   // we only care to make async storage available for middleware
-  const isMiddleware = !!params.request.headers['x-middleware-invoke']
+  const isMiddleware =
+    params.page === '/middleware' || params.page === '/src/middleware'
   if (isMiddleware) {
     response = await RequestAsyncStorageWrapper.wrap(
       requestAsyncStorage,
