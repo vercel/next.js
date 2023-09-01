@@ -138,7 +138,7 @@ async function main() {
     let dirsResult: ReturnType<typeof findPagesDir> | undefined = undefined
 
     try {
-      dirsResult = findPagesDir(dir, true)
+      dirsResult = findPagesDir(dir)
     } catch (_) {
       // handle this error further down
     }
