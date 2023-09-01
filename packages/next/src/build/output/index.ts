@@ -7,8 +7,6 @@ import { OutputState, store as consoleStore } from './store'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { CompilerNameValues, COMPILER_NAMES } from '../../shared/lib/constants'
 
-let startTime = 0
-
 export function startedDevelopmentServer(appUrl: string, bindAddr: string) {
   consoleStore.setState({ appUrl, bindAddr })
 }
@@ -193,7 +191,6 @@ buildStore.subscribe((state) => {
       true
     )
   }
-  startTime = Date.now()
 })
 
 export function ampValidation(

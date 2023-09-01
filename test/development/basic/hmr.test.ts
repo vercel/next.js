@@ -1163,18 +1163,18 @@ describe.each([[''], ['/docs']])(
         await next.patchFile(pageName, originalContent)
         await check(
           () => next.cliOutput.substring(outputLength),
-          /compiling \/auto-export-is-ready .../i
+          /compiled.*?/i
         )
-        const compileTime = next.cliOutput
-          .substring(outputLength)
-          .match(/compiled.*? in ([\d.]{1,})\s?(?:s|ms)/i)
+        const compileTimeStr = next.cliOutput.substring(outputLength)
+
+        const matches = [
+          ...compileTimeStr.match(/compiled.*? in ([\d.]{1,})\s?(?:s|ms)/i),
+        ]
+        const [, compileTime, timeUnit] = matches
+        console.log('compileTime, timeUnit', compileTime, timeUnit)
 
         let compileTimeMs = parseFloat(compileTime[1])
-        if (
-          next.cliOutput
-            .substring(outputLength)
-            .match(/compiled.* in ([\d.]{1,})\s?m?s/)
-        ) {
+        if (timeUnit === 's') {
           compileTimeMs = compileTimeMs * 1000
         }
         expect(compileTimeMs).toBeLessThan(3000)
