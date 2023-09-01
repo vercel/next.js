@@ -270,7 +270,7 @@ describe('Ordering with Global CSS and Modules (prod)', () => {
 
   it('should have compiled successfully', () => {
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled successfully/)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it('should have the correct color (css ordering)', async () => {

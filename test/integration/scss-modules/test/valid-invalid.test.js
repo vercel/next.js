@@ -80,7 +80,7 @@ describe('Valid CSS Module Usage from within node_modules', () => {
 
   it('should have compiled successfully', () => {
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled successfully/)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've prerendered with relevant data`, async () => {
@@ -133,7 +133,7 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
 
   it('should have compiled successfully', () => {
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled successfully/)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've prerendered with relevant data`, async () => {

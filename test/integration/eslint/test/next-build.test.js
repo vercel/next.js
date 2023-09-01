@@ -150,7 +150,7 @@ describe('Next Build', () => {
     expect(output).not.toContain('Build error occurred')
     expect(output).not.toContain('NoFilesFoundError')
     expect(output).toContain('Warning: Synchronous scripts should not be used.')
-    expect(output).toContain('✓ Compiled successfully')
+    expect(output).toContain('Compiled successfully')
   })
 
   test('eslint ignored directories do not fail the build', async () => {
@@ -163,7 +163,7 @@ describe('Next Build', () => {
     expect(output).not.toContain('Build error occurred')
     expect(output).not.toContain('AllFilesIgnoredError')
     expect(output).toContain('Warning: Synchronous scripts should not be used.')
-    expect(output).toContain('✓ Compiled successfully')
+    expect(output).toContain('Compiled successfully')
   })
 
   test('missing Next.js plugin', async () => {

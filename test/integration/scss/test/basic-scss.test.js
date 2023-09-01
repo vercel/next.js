@@ -62,7 +62,7 @@ describe('SCSS Support', () => {
         stdout: true,
       })
       expect(code).toBe(0)
-      expect(stdout).toMatch(/✓ Compiled successfully/)
+      expect(stdout).toMatch(/Compiled successfully/)
     })
 
     it(`should've compiled and prefixed`, async () => {
@@ -196,7 +196,7 @@ describe('SCSS Support', () => {
 
     it('should have compiled successfully', () => {
       expect(code).toBe(0)
-      expect(stdout).toMatch(/✓ Compiled successfully/)
+      expect(stdout).toMatch(/Compiled successfully/)
     })
 
     it('should have CSS for page', async () => {

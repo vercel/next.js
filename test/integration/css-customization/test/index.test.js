@@ -19,7 +19,7 @@ describe('CSS Customization', () => {
       stdout: true,
     })
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled successfully/)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've compiled and prefixed`, async () => {
@@ -85,7 +85,7 @@ describe('CSS Customization Array', () => {
       stdout: true,
     })
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled successfully/)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've compiled and prefixed`, async () => {
@@ -156,7 +156,7 @@ describe('CSS Customization custom loader', () => {
     })
     expect(code).toBe(0)
     expect(stderr).toMatch(/Built-in CSS support is being disabled/)
-    expect(stdout).toMatch(/✓ Compiled successfully/)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've applied style`, async () => {
@@ -186,7 +186,7 @@ describe('Bad CSS Customization', () => {
       stdout: true,
       stderr: true,
     })
-    expect(stdout).toMatch(/✓ Compiled successfully/)
+    expect(stdout).toMatch(/Compiled successfully/)
     expect(stderr).toMatch(/field which is not supported.*?sourceMap/)
     ;[
       'postcss-modules-values',

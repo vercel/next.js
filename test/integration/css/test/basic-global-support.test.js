@@ -18,7 +18,7 @@ describe('Basic Global Support', () => {
       stdout: true,
     })
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled successfully/)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've emitted a single CSS file`, async () => {
@@ -46,7 +46,7 @@ describe('Basic Global Support with special characters in path', () => {
       stdout: true,
     })
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled successfully/)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've emitted a single CSS file`, async () => {
@@ -74,7 +74,7 @@ describe('Basic Global Support with src/ dir', () => {
       stdout: true,
     })
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled successfully/)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've emitted a single CSS file`, async () => {
@@ -102,7 +102,7 @@ describe('Multi Global Support', () => {
       stdout: true,
     })
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled successfully/)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've emitted a single CSS file`, async () => {
@@ -131,7 +131,7 @@ describe('Nested @import() Global Support', () => {
       stdout: true,
     })
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled successfully/)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've emitted a single CSS file`, async () => {
@@ -161,7 +161,7 @@ describe('Multi Global Support (reversed)', () => {
       stdout: true,
     })
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled successfully/)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've emitted a single CSS file`, async () => {
@@ -190,7 +190,7 @@ describe('CSS URL via `file-loader`', () => {
       stdout: true,
     })
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled successfully/)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've emitted expected files`, async () => {
@@ -236,7 +236,7 @@ describe('CSS URL via `file-loader` and asset prefix (1)', () => {
       stdout: true,
     })
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled successfully/)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've emitted expected files`, async () => {
@@ -282,7 +282,7 @@ describe('CSS URL via `file-loader` and asset prefix (2)', () => {
       stdout: true,
     })
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled successfully/)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've emitted expected files`, async () => {

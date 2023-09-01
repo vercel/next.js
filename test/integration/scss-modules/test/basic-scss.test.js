@@ -38,7 +38,7 @@ describe('Basic SCSS Module Support', () => {
 
   it('should have compiled successfully', () => {
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled successfully/)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've emitted a single CSS file`, async () => {
@@ -94,7 +94,7 @@ describe('3rd Party CSS Module Support', () => {
 
   it('should have compiled successfully', () => {
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled successfully/)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've emitted a single CSS file`, async () => {
@@ -174,7 +174,7 @@ describe('Has CSS Module in computed styles in Production', () => {
 
   it('should have compiled successfully', () => {
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled successfully/)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it('should have CSS for page', async () => {
@@ -248,7 +248,7 @@ describe('CSS Module Composes Usage (Basic)', () => {
 
   it('should have compiled successfully', () => {
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled successfully/)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've emitted a single CSS file`, async () => {
@@ -281,7 +281,7 @@ describe('CSS Module Composes Usage (External)', () => {
 
   it('should have compiled successfully', () => {
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled successfully/)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've emitted a single CSS file`, async () => {

@@ -11,7 +11,7 @@ const runTests = () => {
   it('should build successfully', async () => {
     const { stdout, code } = await nextBuild(appDir, [], { stdout: true })
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled successfully/)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it('should show error for GSSP during export', async () => {

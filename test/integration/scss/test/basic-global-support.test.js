@@ -19,7 +19,7 @@ describe('Basic Global Support', () => {
       stdout: true,
     })
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled successfully/)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've emitted a single CSS file`, async () => {
@@ -47,7 +47,7 @@ describe('Basic Module Include Paths Support', () => {
       stdout: true,
     })
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled successfully/)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've emitted a single CSS file`, async () => {
@@ -75,7 +75,7 @@ describe('Basic Module Prepend Data Support', () => {
       stdout: true,
     })
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled successfully/)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've emitted a single CSS file`, async () => {
@@ -103,7 +103,7 @@ describe('Basic Global Support with src/ dir', () => {
       stdout: true,
     })
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled successfully/)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've emitted a single CSS file`, async () => {
@@ -131,7 +131,7 @@ describe('Multi Global Support', () => {
       stdout: true,
     })
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled successfully/)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've emitted a single CSS file`, async () => {
@@ -160,7 +160,7 @@ describe('Nested @import() Global Support', () => {
       stdout: true,
     })
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled successfully/)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've emitted a single CSS file`, async () => {
@@ -190,7 +190,7 @@ describe('Multi Global Support (reversed)', () => {
       stdout: true,
     })
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled successfully/)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've emitted a single CSS file`, async () => {
@@ -219,7 +219,7 @@ describe('Good CSS Import from node_modules', () => {
       stdout: true,
     })
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled successfully/)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've emitted a single CSS file`, async () => {
@@ -246,7 +246,7 @@ describe('Good Nested CSS Import from node_modules', () => {
       stdout: true,
     })
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled successfully/)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've emitted a single CSS file`, async () => {

@@ -27,7 +27,7 @@ describe('Dynamic Route CSS Module Usage', () => {
 
   it('should have compiled successfully', () => {
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled successfully/)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it(`should've emitted a single CSS file`, async () => {
@@ -75,7 +75,7 @@ describe('Catch-all Route CSS Module Usage', () => {
 
   it('should have compiled successfully', () => {
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled successfully/)
+    expect(stdout).toMatch(/Compiled successfully/)
   })
 
   it('should apply styles correctly', async () => {
