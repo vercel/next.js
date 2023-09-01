@@ -69,7 +69,7 @@ const handleSessionStop = async () => {
       typeof traceGlobals.get('pagesDir') === 'undefined' ||
       typeof traceGlobals.get('appDir') === 'undefined'
     ) {
-      const pagesResult = findPagesDir(dir, true)
+      const pagesResult = findPagesDir(dir)
       appDir = !!pagesResult.appDir
       pagesDir = !!pagesResult.pagesDir
     }
@@ -348,8 +348,8 @@ const nextDev: CliCommand = async (argv) => {
       ...devServerOptions,
       isDev: true,
     })
-
-    const { pagesDir, appDir } = findPagesDir(dir, true)
+    const distDir = path.join(dir, rawNextConfig.distDir || '.next')
+    const { pagesDir, appDir } = findPagesDir(dir)
     const telemetry = new Telemetry({
       distDir,
     })
