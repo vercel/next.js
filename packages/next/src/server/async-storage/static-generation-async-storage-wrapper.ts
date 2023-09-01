@@ -4,7 +4,7 @@ import type { AsyncLocalStorage } from 'async_hooks'
 import type { IncrementalCache } from '../lib/incremental-cache'
 
 export type StaticGenerationContext = {
-  pathname: string
+  urlPathname: string
   renderOpts: {
     originalPathname?: string
     incrementalCache?: IncrementalCache
@@ -34,7 +34,7 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
 > = {
   wrap<Result>(
     storage: AsyncLocalStorage<StaticGenerationStore>,
-    { pathname, renderOpts }: StaticGenerationContext,
+    { urlPathname, renderOpts }: StaticGenerationContext,
     callback: (store: StaticGenerationStore) => Result
   ): Result {
     /**
@@ -57,8 +57,8 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
 
     const store: StaticGenerationStore = {
       isStaticGeneration,
-      pathname,
-      originalPathname: renderOpts.originalPathname,
+      urlPathname,
+      pagePath: renderOpts.originalPathname,
       incrementalCache:
         // we fallback to a global incremental cache for edge-runtime locally
         // so that it can access the fs cache without mocks

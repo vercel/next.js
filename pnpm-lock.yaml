@@ -171,8 +171,8 @@ importers:
         specifier: 6.1.1
         version: 6.1.1(@types/node-fetch@2.6.1)(node-fetch@2.6.7)
       '@vercel/og':
-        specifier: 0.5.9
-        version: 0.5.9
+        specifier: 0.5.12
+        version: 0.5.12
       '@zeit/next-typescript':
         specifier: 1.1.2-canary.0
         version: 1.1.2-canary.0(@babel/core@7.18.0)
@@ -471,8 +471,8 @@ importers:
         specifier: 1.54.0
         version: 1.54.0
       satori:
-        specifier: 0.10.1
-        version: 0.10.1
+        specifier: 0.10.3
+        version: 0.10.3
       scheduler-builtin:
         specifier: npm:scheduler@0.24.0-canary-dd480ef92-20230822
         version: /scheduler@0.24.0-canary-dd480ef92-20230822
@@ -726,7 +726,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 13.4.20-canary.13
+        specifier: 13.4.20-canary.15
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.3.3
@@ -787,7 +787,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 13.4.20-canary.13
+        specifier: 13.4.20-canary.15
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.1
@@ -914,19 +914,19 @@ importers:
         specifier: 1.1.0
         version: 1.1.0
       '@next/polyfill-module':
-        specifier: 13.4.20-canary.13
+        specifier: 13.4.20-canary.15
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 13.4.20-canary.13
+        specifier: 13.4.20-canary.15
         version: link:../next-polyfill-nomodule
       '@next/react-dev-overlay':
-        specifier: 13.4.20-canary.13
+        specifier: 13.4.20-canary.15
         version: link:../react-dev-overlay
       '@next/react-refresh-utils':
-        specifier: 13.4.20-canary.13
+        specifier: 13.4.20-canary.15
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 13.4.20-canary.13
+        specifier: 13.4.20-canary.15
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.4.1
@@ -1688,7 +1688,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 13.4.20-canary.13
+        specifier: 13.4.20-canary.15
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -8876,12 +8876,12 @@ packages:
       - supports-color
     dev: true
 
-  /@vercel/og@0.5.9:
-    resolution: {integrity: sha512-CtjaV/BVHtNCjRtxGqn8Q6AKFLqcG34Byxr91+mY+4eqyp/09LVe9jEeY9WXjbaKvu8syWPMteTpY+YQUQYzSg==}
+  /@vercel/og@0.5.12:
+    resolution: {integrity: sha512-NDtxHeX1ka0uSh6tSuIuOh2rz6+++BC7RSoqQd/NmKHK9kJ9mdhgRiMv8uBSgcdgBucRfyKHUzora+qaXhyB5Q==}
     engines: {node: '>=16'}
     dependencies:
       '@resvg/resvg-wasm': 2.4.1
-      satori: 0.10.1
+      satori: 0.10.3
       yoga-wasm-web: 0.3.3
     dev: true
 
@@ -23926,8 +23926,8 @@ packages:
       immutable: 4.1.0
       source-map-js: 1.0.2
 
-  /satori@0.10.1:
-    resolution: {integrity: sha512-F4bTCkDp931tLb7+UCNPBuSQwXhikrUkI4fBQo6fA8lF0Evqqgg3nDyUpRktQpR5Ry1DIiIVqLyEwkAms87ykg==}
+  /satori@0.10.3:
+    resolution: {integrity: sha512-8tZPu7AGiRWimbOyja1s2HK0hEC4DacZ8cAKDITxlVI5tKQZbOuMiVgSB50CABwc0I4Imgtkq7o9Egj1WOJTKg==}
     engines: {node: '>=16'}
     dependencies:
       '@shuding/opentype.js': 1.4.0-beta.0

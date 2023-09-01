@@ -466,19 +466,26 @@ function markHydrateComplete(): void {
     'afterHydrate'
   )
 
-  tracer
-    .startSpan('navigation-to-hydration', {
-      startTime: performance.timeOrigin + beforeHydrationMeasure.startTime,
-      attributes: {
-        pathname: location.pathname,
-        query: location.search,
-      },
-    })
-    .end(
-      performance.timeOrigin +
-        hydrationMeasure.startTime +
-        hydrationMeasure.duration
-    )
+  if (
+    process.env.NODE_ENV === 'development' &&
+    // Old versions of Safari don't return `PerformanceMeasure`s from `performance.measure()`
+    beforeHydrationMeasure !== undefined &&
+    hydrationMeasure !== undefined
+  ) {
+    tracer
+      .startSpan('navigation-to-hydration', {
+        startTime: performance.timeOrigin + beforeHydrationMeasure.startTime,
+        attributes: {
+          pathname: location.pathname,
+          query: location.search,
+        },
+      })
+      .end(
+        performance.timeOrigin +
+          hydrationMeasure.startTime +
+          hydrationMeasure.duration
+      )
+  }
 
   if (onPerfEntry) {
     performance.getEntriesByName('Next.js-hydration').forEach(onPerfEntry)

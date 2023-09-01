@@ -19,19 +19,6 @@ export function unstable_cache<T extends Callback>(
   const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
     (fetch as any).__nextGetStaticStore?.() || _staticGenerationAsyncStorage
 
-  const store: undefined | StaticGenerationStore =
-    staticGenerationAsyncStorage?.getStore()
-
-  const incrementalCache:
-    | import('../../lib/incremental-cache').IncrementalCache
-    | undefined =
-    store?.incrementalCache || (globalThis as any).__incrementalCache
-
-  if (!incrementalCache) {
-    throw new Error(
-      `Invariant: incrementalCache missing in unstable_cache ${cb.toString()}`
-    )
-  }
   if (options.revalidate === 0) {
     throw new Error(
       `Invariant revalidate: 0 can not be passed to unstable_cache(), must be "false" or "> 0" ${cb.toString()}`
@@ -39,6 +26,20 @@ export function unstable_cache<T extends Callback>(
   }
 
   const cachedCb = async (...args: any[]) => {
+    const store: undefined | StaticGenerationStore =
+      staticGenerationAsyncStorage?.getStore()
+
+    const incrementalCache:
+      | import('../../lib/incremental-cache').IncrementalCache
+      | undefined =
+      store?.incrementalCache || (globalThis as any).__incrementalCache
+
+    if (!incrementalCache) {
+      throw new Error(
+        `Invariant: incrementalCache missing in unstable_cache ${cb.toString()}`
+      )
+    }
+
     const joinedKey = `${cb.toString()}-${
       Array.isArray(keyParts) && keyParts.join(',')
     }-${JSON.stringify(args)}`
@@ -51,18 +52,10 @@ export function unstable_cache<T extends Callback>(
       {
         ...store,
         fetchCache: 'only-no-store',
+        urlPathname: store?.urlPathname || '/',
         isStaticGeneration: !!store?.isStaticGeneration,
-        pathname: store?.pathname || '/',
       },
       async () => {
-        const cacheKey = await incrementalCache?.fetchCacheKey(joinedKey)
-        const cacheEntry =
-          cacheKey &&
-          !(
-            store?.isOnDemandRevalidate || incrementalCache.isOnDemandRevalidate
-          ) &&
-          (await incrementalCache?.get(cacheKey, true, options.revalidate))
-
         const tags = options.tags || []
 
         if (Array.isArray(tags) && store) {
@@ -77,11 +70,18 @@ export function unstable_cache<T extends Callback>(
         }
         const implicitTags = addImplicitTags(store)
 
-        for (const tag of implicitTags) {
-          if (!tags.includes(tag)) {
-            tags.push(tag)
-          }
-        }
+        const cacheKey = await incrementalCache?.fetchCacheKey(joinedKey)
+        const cacheEntry =
+          cacheKey &&
+          !(
+            store?.isOnDemandRevalidate || incrementalCache.isOnDemandRevalidate
+          ) &&
+          (await incrementalCache?.get(cacheKey, {
+            fetchCache: true,
+            revalidate: options.revalidate,
+            tags,
+            softTags: implicitTags,
+          }))
 
         const invokeCallback = async () => {
           const result = await cb(...args)
@@ -96,7 +96,6 @@ export function unstable_cache<T extends Callback>(
                   // TODO: handle non-JSON values?
                   body: JSON.stringify(result),
                   status: 200,
-                  tags,
                   url: '',
                 },
                 revalidate:
@@ -104,8 +103,11 @@ export function unstable_cache<T extends Callback>(
                     ? CACHE_ONE_YEAR
                     : options.revalidate,
               },
-              options.revalidate,
-              true
+              {
+                revalidate: options.revalidate,
+                fetchCache: true,
+                tags,
+              }
             )
           }
           return result
@@ -128,7 +130,6 @@ export function unstable_cache<T extends Callback>(
           const resData = cacheEntry.value.data
           cachedValue = JSON.parse(resData.body)
         }
-        const currentTags = cacheEntry.value.data.tags
 
         if (isStale) {
           if (!store) {
@@ -143,22 +144,6 @@ export function unstable_cache<T extends Callback>(
               )
             )
           }
-        } else if (tags && !tags.every((tag) => currentTags?.includes(tag))) {
-          if (!cacheEntry.value.data.tags) {
-            cacheEntry.value.data.tags = []
-          }
-
-          for (const tag of tags) {
-            if (!cacheEntry.value.data.tags.includes(tag)) {
-              cacheEntry.value.data.tags.push(tag)
-            }
-          }
-          incrementalCache?.set(
-            cacheKey,
-            cacheEntry.value,
-            options.revalidate,
-            true
-          )
         }
         return cachedValue
       }

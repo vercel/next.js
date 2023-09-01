@@ -25,7 +25,10 @@ import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
-import { SERVER_PROPS_EXPORT_ERROR } from '../lib/constants'
+import {
+  NEXT_CACHE_TAGS_HEADER,
+  SERVER_PROPS_EXPORT_ERROR,
+} from '../lib/constants'
 import { requireFontManifest } from '../server/require'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { trace } from '../trace'
@@ -502,7 +505,7 @@ export default async function exportPage({
               console.log('cacheTags for ', page, cacheTags)
 
               if (cacheTags) {
-                headers['x-next-cache-tags'] = cacheTags
+                headers[NEXT_CACHE_TAGS_HEADER] = cacheTags
               }
 
               if (!headers['content-type'] && body.type) {
@@ -558,7 +561,7 @@ export default async function exportPage({
               const cacheTags = (curRenderOpts as any).fetchTags
               const headers = cacheTags
                 ? {
-                    'x-next-cache-tags': cacheTags,
+                    [NEXT_CACHE_TAGS_HEADER]: cacheTags,
                   }
                 : undefined
 

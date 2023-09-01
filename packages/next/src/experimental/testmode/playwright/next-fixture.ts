@@ -9,7 +9,7 @@ export interface NextFixture {
 }
 
 class NextFixtureImpl implements NextFixture {
-  private fetchHandler: FetchHandler | null = null
+  private fetchHandlers: FetchHandler[] = []
 
   constructor(
     public testId: string,
@@ -27,12 +27,11 @@ class NextFixtureImpl implements NextFixture {
   }
 
   onFetch(handler: FetchHandler): void {
-    this.fetchHandler = handler
+    this.fetchHandlers.push(handler)
   }
 
   private async handleFetch(request: Request): Promise<FetchHandlerResult> {
-    const handler = this.fetchHandler
-    if (handler) {
+    for (const handler of this.fetchHandlers.slice().reverse()) {
       const result = handler(request)
       if (result) {
         return result
