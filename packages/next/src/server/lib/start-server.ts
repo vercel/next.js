@@ -221,10 +221,10 @@ export async function startServer({
       }
 
       try {
-        const cleanup = () => {
+        const cleanup = (code: number | null) => {
           debug('start-server process cleanup')
           server.close()
-          process.exit(0)
+          process.exit(code ?? 0)
         }
         const exception = (err: Error) => {
           // This is the render worker, we keep the process alive

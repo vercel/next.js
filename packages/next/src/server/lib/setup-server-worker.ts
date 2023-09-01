@@ -6,7 +6,6 @@ import http, { IncomingMessage, ServerResponse } from 'http'
 import '../require-hook'
 import '../node-polyfill-fetch'
 
-import { warn } from '../../build/output/log'
 import { Duplex } from 'stream'
 
 process.on('unhandledRejection', (err) => {
@@ -17,7 +16,7 @@ process.on('uncaughtException', (err) => {
   console.error(err)
 })
 
-export const WORKER_SELF_EXIT_CODE = 77
+export const OUT_OF_MEMORY_EXIT_CODE = 77
 
 const MAXIMUM_HEAP_SIZE_ALLOWED =
   (v8.getHeapStatistics().heap_size_limit / 1024 / 1024) * 0.9
@@ -63,11 +62,8 @@ export async function initializeServerWorker(
           process.memoryUsage().heapUsed / 1024 / 1024 >
           MAXIMUM_HEAP_SIZE_ALLOWED
         ) {
-          warn(
-            'The server is running out of memory, restarting to free up memory.'
-          )
           server.close()
-          process.exit(WORKER_SELF_EXIT_CODE)
+          process.exit(OUT_OF_MEMORY_EXIT_CODE)
         }
       })
   })

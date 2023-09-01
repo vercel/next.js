@@ -27,6 +27,7 @@ import type { ChildProcess } from 'child_process'
 import { checkIsNodeDebugging } from '../server/lib/is-node-debugging'
 import { createSelfSignedCertificate } from '../lib/mkcert'
 import uploadTrace from '../trace/upload-trace'
+import { OUT_OF_MEMORY_EXIT_CODE } from '../server/lib/setup-server-worker'
 
 let dir: string
 let config: NextConfigComplete
@@ -127,7 +128,10 @@ function watchConfigFiles(
 type StartServerWorker = Worker &
   Pick<typeof import('../server/lib/start-server'), 'startServer'>
 
-async function createRouterWorker(fullConfig: NextConfigComplete): Promise<{
+async function createRouterWorker(
+  fullConfig: NextConfigComplete,
+  handleReboot: (reason: string) => void
+): Promise<{
   worker: StartServerWorker
   cleanup: () => Promise<void>
 }> {
@@ -158,13 +162,20 @@ async function createRouterWorker(fullConfig: NextConfigComplete): Promise<{
   }) as Worker &
     Pick<typeof import('../server/lib/start-server'), 'startServer'>
 
-  const cleanup = () => {
+  const cleanup = (code: number | null) => {
     for (const curWorker of ((worker as any)._workerPool?._workers || []) as {
       _child?: ChildProcess
     }[]) {
       curWorker._child?.kill('SIGINT')
     }
-    process.exit(0)
+
+    if (code === OUT_OF_MEMORY_EXIT_CODE) {
+      handleReboot(
+        'The server is running out of memory, restarting to free up memory.'
+      )
+    } else {
+      process.exit(0)
+    }
   }
 
   // If the child routing worker exits we need to exit the entire process
@@ -402,9 +413,12 @@ const nextDev: CliCommand = async (argv) => {
 
     return server
   } else {
+    let runningServer: Awaited<ReturnType<typeof runDevServer>> | undefined
+
     const runDevServer = async (reboot: boolean) => {
       try {
-        const workerInit = await createRouterWorker(config)
+        // eslint-disable-next-line @typescript-eslint/no-use-before-define
+        const workerInit = await createRouterWorker(config, handleReboot)
         if (!!args['--experimental-https']) {
           Log.warn(
             'Self-signed certificates are currently an experimental feature, use at your own risk.'
@@ -442,20 +456,8 @@ const nextDev: CliCommand = async (argv) => {
       }
     }
 
-    let runningServer: Awaited<ReturnType<typeof runDevServer>> | undefined
-
-    watchConfigFiles(devServerOptions.dir, async (filename) => {
-      if (process.env.__NEXT_DISABLE_MEMORY_WATCHER) {
-        Log.info(
-          `Detected change, manual restart required due to '__NEXT_DISABLE_MEMORY_WATCHER' usage`
-        )
-        return
-      }
-      Log.warn(
-        `\n> Found a change in ${path.basename(
-          filename
-        )}. Restarting the server to apply the changes...`
-      )
+    async function handleReboot(reason: string) {
+      Log.warn(reason)
 
       try {
         if (runningServer) {
@@ -466,6 +468,21 @@ const nextDev: CliCommand = async (argv) => {
         console.error(err)
         process.exit(1)
       }
+    }
+
+    watchConfigFiles(devServerOptions.dir, async (filename) => {
+      if (process.env.__NEXT_DISABLE_MEMORY_WATCHER) {
+        Log.info(
+          `Detected change, manual restart required due to '__NEXT_DISABLE_MEMORY_WATCHER' usage`
+        )
+        return
+      }
+
+      handleReboot(
+        `Found a change in ${path.basename(
+          filename
+        )}. Restarting the server to apply the changes...`
+      )
     })
 
     runningServer = await runDevServer(false)

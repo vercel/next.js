@@ -6,8 +6,6 @@ import { formatHostname } from './format-hostname'
 import next from '../next'
 import { PropagateToWorkersField } from './router-utils/types'
 
-export const WORKER_SELF_EXIT_CODE = 77
-
 let result:
   | undefined
   | {
