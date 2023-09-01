@@ -298,9 +298,6 @@ const configSchema = {
             },
           ] as any,
         },
-        appDir: {
-          type: 'boolean',
-        },
         serverActions: {
           type: 'boolean',
         },
@@ -386,9 +383,6 @@ const configSchema = {
         },
         outputFileTracingIncludes: {
           type: 'object',
-        },
-        pageEnv: {
-          type: 'boolean',
         },
         proxyTimeout: {
           minimum: 0,

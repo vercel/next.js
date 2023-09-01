@@ -113,7 +113,10 @@ import {
   fromNodeOutgoingHttpHeaders,
   toNodeOutgoingHttpHeaders,
 } from './web/utils'
-import { NEXT_QUERY_PARAM_PREFIX } from '../lib/constants'
+import {
+  NEXT_CACHE_TAGS_HEADER,
+  NEXT_QUERY_PARAM_PREFIX,
+} from '../lib/constants'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import {
   NextRequestAdapter,
@@ -426,8 +429,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.buildId = this.getBuildId()
     this.minimalMode = minimalMode || !!process.env.NEXT_PRIVATE_MINIMAL_MODE
 
-    this.hasAppDir =
-      !!this.nextConfig.experimental.appDir && this.getHasAppDir(dev)
+    this.hasAppDir = this.getHasAppDir(dev)
     const serverComponents = this.hasAppDir
 
     this.nextFontManifest = this.getNextFontManifest()
@@ -1925,7 +1927,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const renderOpts: RenderOpts = {
         ...components,
         ...opts,
-        ...(isAppPath && this.nextConfig.experimental.appDir
+        ...(isAppPath
           ? {
               incrementalCache,
               isRevalidate: isSSG,
@@ -1998,7 +2000,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             headers = toNodeOutgoingHttpHeaders(response.headers)
 
             if (cacheTags) {
-              headers['x-next-cache-tags'] = cacheTags
+              headers[NEXT_CACHE_TAGS_HEADER] = cacheTags
             }
 
             if (!headers['content-type'] && blob.type) {
@@ -2117,7 +2119,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const cacheTags = metadata.fetchTags
       if (cacheTags) {
         headers = {
-          'x-next-cache-tags': cacheTags,
+          [NEXT_CACHE_TAGS_HEADER]: cacheTags,
         }
       }
 
@@ -2408,7 +2410,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const headers = { ...cachedData.headers }
 
       if (!(this.minimalMode && isSSG)) {
-        delete headers['x-next-cache-tags']
+        delete headers[NEXT_CACHE_TAGS_HEADER]
       }
 
       await sendResponse(
@@ -2425,11 +2427,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         if (
           this.minimalMode &&
           isSSG &&
-          cachedData.headers?.['x-next-cache-tags']
+          cachedData.headers?.[NEXT_CACHE_TAGS_HEADER]
         ) {
           res.setHeader(
-            'x-next-cache-tags',
-            cachedData.headers['x-next-cache-tags'] as string
+            NEXT_CACHE_TAGS_HEADER,
+            cachedData.headers[NEXT_CACHE_TAGS_HEADER] as string
           )
         }
         if (isDataReq && typeof cachedData.pageData !== 'string') {

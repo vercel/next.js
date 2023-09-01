@@ -730,20 +730,20 @@ createNextDescribe(
 
           await browser.elementByCss('#back').click()
 
-          switch (type) {
-            case 'tag':
-              await browser.elementByCss('#revalidate-thankyounext').click()
-              break
-            case 'path':
-              await browser.elementByCss('#revalidate-path').click()
-              break
-            default:
-              throw new Error(`Invalid type: ${type}`)
-          }
-
           // Should be different
           let revalidatedThankYouNext
           await check(async () => {
+            switch (type) {
+              case 'tag':
+                await browser.elementByCss('#revalidate-thankyounext').click()
+                break
+              case 'path':
+                await browser.elementByCss('#revalidate-path').click()
+                break
+              default:
+                throw new Error(`Invalid type: ${type}`)
+            }
+
             revalidatedThankYouNext = await browser
               .elementByCss('#thankyounext')
               .text()

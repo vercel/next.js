@@ -32,6 +32,10 @@ import {
   getModifiedCookieValues,
 } from '../web/spec-extension/adapters/request-cookies'
 import { RequestStore } from '../../client/components/request-async-storage'
+import {
+  NEXT_CACHE_REVALIDATED_TAGS_HEADER,
+  NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
+} from '../../lib/constants'
 
 function nodeToWebReadableStream(nodeReadable: import('stream').Readable) {
   if (process.env.NEXT_RUNTIME !== 'edge') {
@@ -178,11 +182,11 @@ async function createRedirectRenderResult(
 
     if (staticGenerationStore.revalidatedTags) {
       forwardedHeaders.set(
-        'x-next-revalidated-tags',
+        NEXT_CACHE_REVALIDATED_TAGS_HEADER,
         staticGenerationStore.revalidatedTags.join(',')
       )
       forwardedHeaders.set(
-        'x-next-revalidate-tag-token',
+        NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
         staticGenerationStore.incrementalCache?.prerenderManifest?.preview
           ?.previewModeId || ''
       )

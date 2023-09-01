@@ -9,6 +9,7 @@ import {
 import { formatWithValidation } from 'next/dist/shared/lib/router/utils/format-url'
 import { initializeHMR } from '../dev/client'
 import { subscribeToUpdate } from '@vercel/turbopack-ecmascript-runtime/dev/client/hmr-client'
+import { sendMessage } from '@vercel/turbopack-ecmascript-runtime/dev/client/websocket'
 ;(self as any).__next_set_public_path__ = () => {}
 
 async function loadPageChunk(assetPrefix: string, chunkData: ChunkData) {
@@ -83,6 +84,7 @@ function subscribeToPageManifest({ assetPrefix }: { assetPrefix: string }) {
     {
       path: '_next/static/development/_devPagesManifest.json',
     },
+    sendMessage,
     (update) => {
       if (['restart', 'notFound', 'partial'].includes(update.type)) {
         return
@@ -169,6 +171,7 @@ function subscribeToPageData({
         'x-nextjs-data': '1',
       },
     },
+    sendMessage,
     (update) => {
       if (update.type !== 'restart') {
         return
