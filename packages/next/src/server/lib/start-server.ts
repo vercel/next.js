@@ -223,8 +223,12 @@ export async function startServer({
 
       if (logReady) {
         Log.bootstrap(
-          chalk.hex('#ad7fa8')(
-            ` ${Log.prefixes.ready} Next.js ${process.env.__NEXT_VERSION}`
+          chalk.bold(
+            chalk.hex('#ad7fa8')(
+              ` ${`${Log.prefixes.ready} Next.js`} ${
+                process.env.__NEXT_VERSION
+              }`
+            )
           )
         )
         Log.bootstrap(` - Local:        ${appUrl}`)

@@ -38,7 +38,7 @@ describe('Basic CSS Module Support', () => {
 
   it('should have compiled successfully', () => {
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled/)
+    expect(stdout).toMatch(/✓ Compiled successfully/)
     expect(stdout).toContain('.css')
   })
 
@@ -95,7 +95,7 @@ describe('3rd Party CSS Module Support', () => {
 
   it('should have compiled successfully', () => {
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled/)
+    expect(stdout).toMatch(/✓ Compiled successfully/)
   })
 
   it(`should've emitted a single CSS file`, async () => {
@@ -175,7 +175,7 @@ describe('Has CSS Module in computed styles in Production', () => {
 
   it('should have compiled successfully', () => {
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled/)
+    expect(stdout).toMatch(/✓ Compiled successfully/)
   })
 
   it('should have CSS for page', async () => {
@@ -301,7 +301,7 @@ describe('Valid CSS Module Usage from within node_modules', () => {
 
   it('should have compiled successfully', () => {
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled/)
+    expect(stdout).toMatch(/✓ Compiled successfully/)
   })
 
   it(`should've prerendered with relevant data`, async () => {
@@ -354,7 +354,7 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
 
   it('should have compiled successfully', () => {
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled/)
+    expect(stdout).toMatch(/✓ Compiled successfully/)
   })
 
   it(`should've prerendered with relevant data`, async () => {
@@ -397,7 +397,7 @@ describe('CSS Module Composes Usage (Basic)', () => {
 
   it('should have compiled successfully', () => {
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled/)
+    expect(stdout).toMatch(/✓ Compiled successfully/)
   })
 
   it(`should've emitted a single CSS file`, async () => {
@@ -430,7 +430,7 @@ describe('CSS Module Composes Usage (External)', () => {
 
   it('should have compiled successfully', () => {
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled/)
+    expect(stdout).toMatch(/✓ Compiled successfully/)
   })
 
   it(`should've emitted a single CSS file`, async () => {
@@ -468,7 +468,7 @@ describe('Dynamic Route CSS Module Usage', () => {
 
   it('should have compiled successfully', () => {
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled/)
+    expect(stdout).toMatch(/✓ Compiled successfully/)
   })
 
   it('should apply styles correctly', async () => {
@@ -516,7 +516,7 @@ describe('Catch-all Route CSS Module Usage', () => {
 
   it('should have compiled successfully', () => {
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled/)
+    expect(stdout).toMatch(/✓ Compiled successfully/)
   })
 
   it('should apply styles correctly', async () => {

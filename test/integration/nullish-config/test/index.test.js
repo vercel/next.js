@@ -30,7 +30,7 @@ const runTests = (type) => {
     if (type === 'dev') {
       expect(stdout).toMatch(/- Local:/i)
     } else {
-      expect(stdout).toMatch(/✓ Compiled/i)
+      expect(stdout).toMatch(/✓ Compiled successfully/i)
     }
   })
 
@@ -55,7 +55,7 @@ const runTests = (type) => {
     if (type === 'dev') {
       expect(stdout).toMatch(/- Local:/i)
     } else {
-      expect(stdout).toMatch(/✓ Compiled/i)
+      expect(stdout).toMatch(/✓ Compiled successfully/i)
     }
   })
 }

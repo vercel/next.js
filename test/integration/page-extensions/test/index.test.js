@@ -18,7 +18,7 @@ describe('Page Extensions', () => {
 
     await fs.remove(nextConfig)
 
-    expect(stdout).toContain('✓ Compiled')
+    expect(stdout).toContain('✓ Compiled successfully')
   })
 
   it('should throw if pageExtensions is an empty array', async () => {
@@ -75,6 +75,6 @@ describe('Page Extensions', () => {
 
     await fs.remove(nextConfig)
 
-    expect(stdout).toContain('✓ Compiled')
+    expect(stdout).toContain('✓ Compiled successfully')
   })
 })

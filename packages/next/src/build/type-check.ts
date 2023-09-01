@@ -114,11 +114,9 @@ export async function startTypeChecking({
   // we will not create a spinner if both ignoreTypeScriptErrors and ignoreESLint are
   // enabled, but we will still verifying project's tsconfig and dependencies.
   if (typeCheckingAndLintingSpinnerPrefixText) {
-    typeCheckingAndLintingSpinner = createSpinner({
-      prefixText: ` ${Log.createPrefix(
-        'info'
-      )} ${typeCheckingAndLintingSpinnerPrefixText}`,
-    })
+    typeCheckingAndLintingSpinner = createSpinner(
+      typeCheckingAndLintingSpinnerPrefixText
+    )
   }
 
   const typeCheckStart = process.hrtime()

@@ -483,11 +483,7 @@ export default async function build(
       } as any
 
       if (!isGenerate) {
-        buildSpinner = createSpinner({
-          prefixText: ` ${Log.createPrefix(
-            'info'
-          )} Creating an optimized production build`,
-        })
+        buildSpinner = createSpinner('Creating an optimized production build')
       }
 
       NextBuildContext.buildSpinner = buildSpinner
@@ -1129,9 +1125,7 @@ export default async function build(
         await startTypeChecking(typeCheckingOptions)
       }
 
-      const postCompileSpinner = createSpinner({
-        prefixText: ` ${Log.createPrefix('info')} Collecting page data`,
-      })
+      const postCompileSpinner = createSpinner('Collecting page data')
 
       const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
       const appBuildManifestPath = path.join(distDir, APP_BUILD_MANIFEST)
@@ -2601,11 +2595,7 @@ export default async function build(
 
           await exportApp(dir, exportOptions, nextBuildSpan)
 
-          const postBuildSpinner = createSpinner({
-            prefixText: `${Log.createPrefix(
-              'info'
-            )} Finalizing page optimization`,
-          })
+          const postBuildSpinner = createSpinner('Finalizing page optimization')
           ssgNotFoundPaths = exportConfig.ssgNotFoundPaths
 
           // remove server bundles that were exported

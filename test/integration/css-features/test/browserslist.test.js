@@ -20,7 +20,7 @@ describe('Browserslist: Old', () => {
 
   it('should have compiled successfully', () => {
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled/)
+    expect(stdout).toMatch(/✓ Compiled successfully/)
   })
 
   it(`should've emitted a single CSS file`, async () => {
@@ -52,7 +52,7 @@ describe('Browserslist: New', () => {
 
   it('should have compiled successfully', () => {
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled/)
+    expect(stdout).toMatch(/✓ Compiled successfully/)
   })
 
   it(`should've emitted a single CSS file`, async () => {

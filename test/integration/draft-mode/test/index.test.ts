@@ -128,7 +128,7 @@ describe('Test Draft Mode', () => {
         stdout: true,
       })
       expect(code).toBe(0)
-      expect(stdout).toMatch(/✓ Compiled/)
+      expect(stdout).toMatch(/✓ Compiled successfully/)
     })
 
     it('should start production application', async () => {

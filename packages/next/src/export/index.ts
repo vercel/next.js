@@ -68,6 +68,7 @@ function divideSegments(number: number, segments: number): number[] {
 
 const createProgress = (total: number, label: string) => {
   const leadingPrefix = Log.createPrefix('info')
+  const finishedLeadingPrefix = Log.createPrefix('event')
   const segments = divideSegments(total, 4)
 
   if (total === 0) {
@@ -77,32 +78,28 @@ const createProgress = (total: number, label: string) => {
   let currentSegmentCount = 0
   let lastProgressOutput = Date.now()
   let curProgress = 0
-  let progressSpinner = createSpinner(
-    // Leave a trailing space between prefix and spinner
-    { prefixText: ` ${leadingPrefix} ${label} (${curProgress}/${total}) ` },
-    {
-      spinner: {
-        frames: [
-          '[    ]',
-          '[=   ]',
-          '[==  ]',
-          '[=== ]',
-          '[ ===]',
-          '[  ==]',
-          '[   =]',
-          '[    ]',
-          '[   =]',
-          '[  ==]',
-          '[ ===]',
-          '[====]',
-          '[=== ]',
-          '[==  ]',
-          '[=   ]',
-        ],
-        interval: 200,
-      },
-    }
-  )
+  let progressSpinner = createSpinner(`${label} (${curProgress}/${total})`, {
+    spinner: {
+      frames: [
+        '[    ]',
+        '[=   ]',
+        '[==  ]',
+        '[=== ]',
+        '[ ===]',
+        '[  ==]',
+        '[   =]',
+        '[    ]',
+        '[   =]',
+        '[  ==]',
+        '[ ===]',
+        '[====]',
+        '[=== ]',
+        '[==  ]',
+        '[=   ]',
+      ],
+      interval: 200,
+    },
+  })
 
   return () => {
     curProgress++
@@ -124,18 +121,19 @@ const createProgress = (total: number, label: string) => {
       lastProgressOutput = Date.now()
     }
 
+    const isEnded = curProgress === total
     // Use \r to reset current line with spinner.
     // If it's 100% progressed, then we don't need to break a new line to avoid logging from routes while building.
-    const newText = `\r ${leadingPrefix} ${label} (${curProgress}/${total})${
-      curProgress === total ? '' : '\n'
-    }`
+    const newText = `\r ${
+      isEnded ? finishedLeadingPrefix : leadingPrefix
+    } ${label} (${curProgress}/${total})${isEnded ? '' : '\n'}`
     if (progressSpinner) {
       progressSpinner.text = newText
     } else {
       console.log(newText)
     }
 
-    if (curProgress === total && progressSpinner) {
+    if (isEnded && progressSpinner) {
       progressSpinner.stop()
       console.log(newText)
     }

@@ -63,7 +63,7 @@ store.subscribe((state) => {
   if (state.loading) {
     if (state.trigger) {
       trigger = state.trigger
-    } else if (trigger !== 'initial') {
+    } else if (trigger !== 'initial' && trigger) {
       Log.wait('compiling' + (trigger ? ` ${trigger}` : '') + ' ...')
     }
     if (startTime === 0) {

@@ -14,7 +14,7 @@ describe('Numeric Separator Support', () => {
 
     expect(code).toBe(0)
 
-    expect(stdout).toContain('✓ Compiled')
+    expect(stdout).toContain('✓ Compiled successfully')
     expect(stderr).not.toContain('Failed to compile')
   })
 })

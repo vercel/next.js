@@ -60,7 +60,7 @@ describe('Valid Global CSS from npm', () => {
       stdout: true,
     })
     expect(code).toBe(0)
-    expect(stdout).toMatch(/✓ Compiled/)
+    expect(stdout).toMatch(/✓ Compiled successfully/)
   })
 
   it(`should've emitted a single CSS file`, async () => {

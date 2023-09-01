@@ -105,7 +105,7 @@ export default function EvilPage(): JSX.Element {
 
   it('should build the app', async () => {
     const output = await nextBuild(appDir, [], { stdout: true })
-    expect(output.stdout).toMatch(/✓ Compiled/)
+    expect(output.stdout).toMatch(/✓ Compiled successfully/)
     expect(output.code).toBe(0)
   })
 
@@ -125,7 +125,7 @@ export default function EvilPage(): JSX.Element {
     try {
       const output = await nextBuild(appDir, [], { stdout: true })
 
-      expect(output.stdout).toMatch(/✓ Compiled/)
+      expect(output.stdout).toMatch(/✓ Compiled successfully/)
       expect(output.code).toBe(0)
     } finally {
       nextConfig.restore()
@@ -144,7 +144,7 @@ export default function EvilPage(): JSX.Element {
         errorPage.replace('static ', 'static async ')
         const output = await nextBuild(appDir, [], { stdout: true })
 
-        expect(output.stdout).toMatch(/✓ Compiled/)
+        expect(output.stdout).toMatch(/✓ Compiled successfully/)
       } finally {
         errorPage.restore()
       }
@@ -156,7 +156,7 @@ export default function EvilPage(): JSX.Element {
         page.replace(/async \(/g, '(')
         const output = await nextBuild(appDir, [], { stdout: true })
 
-        expect(output.stdout).toMatch(/✓ Compiled/)
+        expect(output.stdout).toMatch(/✓ Compiled successfully/)
       } finally {
         page.restore()
       }

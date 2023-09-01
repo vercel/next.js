@@ -2,9 +2,6 @@
 module.exports = {
   experimental: {
     logging: 'verbose',
-    incrementalCacheHandlerPath: process.env.CUSTOM_CACHE_HANDLER,
-    gzipSize: true,
-    sharedPool: true,
   },
 
   rewrites: async () => {
