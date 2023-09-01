@@ -104,10 +104,7 @@ export async function initialize(opts: {
     const telemetry = new Telemetry({
       distDir: path.join(opts.dir, config.distDir),
     })
-    const { pagesDir, appDir } = findPagesDir(
-      opts.dir,
-      !!config.experimental.appDir
-    )
+    const { pagesDir, appDir } = findPagesDir(opts.dir, true)
 
     const { setupDev } =
       (await require('./router-utils/setup-dev')) as typeof import('./router-utils/setup-dev')
@@ -678,6 +675,13 @@ export async function initialize(opts: {
         'Cache-Control',
         'no-cache, no-store, max-age=0, must-revalidate'
       )
+
+      // Short-circuit favicon.ico serving so that the 404 page doesn't get built as favicon is requested by the browser when loading any route.
+      if (opts.dev && !matchedOutput && parsedUrl.pathname === '/favicon.ico') {
+        res.statusCode = 404
+        res.end('')
+        return null
+      }
 
       const appNotFound = opts.dev
         ? devInstance?.serverFields.hasAppNotFound

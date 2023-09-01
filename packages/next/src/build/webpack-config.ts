@@ -293,12 +293,8 @@ export function getDefineEnv({
       config.reactStrictMode === null ? false : config.reactStrictMode
     ),
     'process.env.__NEXT_STRICT_MODE_APP': JSON.stringify(
-      // When next.config.js does not have reactStrictMode enabling appDir will enable it.
-      config.reactStrictMode === null
-        ? config.experimental.appDir
-          ? true
-          : false
-        : config.reactStrictMode
+      // When next.config.js does not have reactStrictMode it's enabled by default.
+      config.reactStrictMode === null ? true : config.reactStrictMode
     ),
     'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
       !dev && config.optimizeFonts
@@ -362,22 +358,6 @@ export function getDefineEnv({
           'global.GENTLY': JSON.stringify(false),
         }
       : undefined),
-    // stub process.env with proxy to warn a missing value is
-    // being accessed in development mode
-    ...(config.experimental.pageEnv && dev
-      ? {
-          'process.env': `
-            new Proxy(${isNodeServer ? 'process.env' : '{}'}, {
-              get(target, prop) {
-                if (typeof target[prop] === 'undefined') {
-                  console.warn(\`An environment variable (\${prop}) that was not provided in the environment was accessed.\nSee more info here: https://nextjs.org/docs/messages/missing-env-value\`)
-                }
-                return target[prop]
-              }
-            })
-          `,
-        }
-      : {}),
   }
 }
 
@@ -791,7 +771,7 @@ export default async function getBaseWebpackConfig(
     rewrites.afterFiles.length > 0 ||
     rewrites.fallback.length > 0
 
-  const hasAppDir = !!config.experimental.appDir && !!appDir
+  const hasAppDir = !!appDir
   const hasServerComponents = hasAppDir
   const disableOptimizedLoading = true
   const enableTypedRoutes = !!config.experimental.typedRoutes && hasAppDir
@@ -2710,7 +2690,6 @@ export default async function getBaseWebpackConfig(
   }
 
   const configVars = JSON.stringify({
-    appDir: config.experimental.appDir,
     crossOrigin: config.crossOrigin,
     pageExtensions: pageExtensions,
     trailingSlash: config.trailingSlash,
@@ -2725,7 +2704,6 @@ export default async function getBaseWebpackConfig(
     serverActions: config.experimental.serverActions,
     typedRoutes: config.experimental.typedRoutes,
     basePath: config.basePath,
-    pageEnv: config.experimental.pageEnv,
     excludeDefaultMomentLocales: config.excludeDefaultMomentLocales,
     assetPrefix: config.assetPrefix,
     disableOptimizedLoading,

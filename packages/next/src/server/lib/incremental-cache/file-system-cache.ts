@@ -1,10 +1,11 @@
 import type { OutgoingHttpHeaders } from 'http'
 import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
+
 import LRUCache from 'next/dist/compiled/lru-cache'
 import { CacheFs } from '../../../shared/lib/utils'
 import path from '../../../shared/lib/isomorphic/path'
 import { CachedFetchValue } from '../../response-cache'
-import { getDerivedTags } from './utils'
+import { NEXT_CACHE_TAGS_HEADER } from '../../../lib/constants'
 
 type FileSystemCacheContext = Omit<
   CacheHandlerContext,
@@ -16,7 +17,7 @@ type FileSystemCacheContext = Omit<
 
 type TagsManifest = {
   version: 1
-  items: { [tag: string]: { keys: string[]; revalidatedAt: number } }
+  items: { [tag: string]: { revalidatedAt: number } }
 }
 let memoryCache: LRUCache<string, CacheHandlerValue> | undefined
 let tagsManifest: TagsManifest | undefined
@@ -81,31 +82,6 @@ export default class FileSystemCache implements CacheHandler {
     }
   }
 
-  async setTags(key: string, tags: string[]) {
-    this.loadTagsManifest()
-    if (!tagsManifest || !this.tagsManifestPath) {
-      return
-    }
-
-    for (const tag of tags) {
-      const data = tagsManifest.items[tag] || { keys: [] }
-      if (!data.keys.includes(key)) {
-        data.keys.push(key)
-      }
-      tagsManifest.items[tag] = data
-    }
-
-    try {
-      await this.fs.mkdir(path.dirname(this.tagsManifestPath))
-      await this.fs.writeFile(
-        this.tagsManifestPath,
-        JSON.stringify(tagsManifest || {})
-      )
-    } catch (err: any) {
-      console.warn('Failed to update tags manifest.', err)
-    }
-  }
-
   public async revalidateTag(tag: string) {
     // we need to ensure the tagsManifest is refreshed
     // since separate workers can be updating it at the same
@@ -115,7 +91,7 @@ export default class FileSystemCache implements CacheHandler {
       return
     }
 
-    const data = tagsManifest.items[tag] || { keys: [] }
+    const data = tagsManifest.items[tag] || {}
     data.revalidatedAt = Date.now()
     tagsManifest.items[tag] = data
 
@@ -130,7 +106,18 @@ export default class FileSystemCache implements CacheHandler {
     }
   }
 
-  public async get(key: string, fetchCache?: boolean) {
+  public async get(
+    key: string,
+    {
+      tags,
+      softTags,
+      fetchCache,
+    }: {
+      tags?: string[]
+      softTags?: string[]
+      fetchCache?: boolean
+    } = {}
+  ) {
     let data = memoryCache?.get(key)
 
     // let's check the disk for seed data
@@ -177,6 +164,17 @@ export default class FileSystemCache implements CacheHandler {
           data = {
             lastModified,
             value: parsedData,
+          }
+
+          if (data.value?.kind === 'FETCH') {
+            const storedTags = data.value?.data?.tags
+
+            // update stored tags if a new one is being added
+            // TODO: remove this when we can send the tags
+            // via header on GET same as SET
+            if (!tags?.every((tag) => storedTags?.includes(tag))) {
+              await this.set(key, data.value, { tags })
+            }
           }
         } else {
           const pageData = isAppPath
@@ -234,42 +232,41 @@ export default class FileSystemCache implements CacheHandler {
         // unable to get data from disk
       }
     }
-    let cacheTags: undefined | string[]
 
     if (data?.value?.kind === 'PAGE') {
-      const tagsHeader = data.value.headers?.['x-next-cache-tags']
+      let cacheTags: undefined | string[]
+      const tagsHeader = data.value.headers?.[NEXT_CACHE_TAGS_HEADER]
 
       if (typeof tagsHeader === 'string') {
         cacheTags = tagsHeader.split(',')
       }
-    }
 
-    if (data?.value?.kind === 'PAGE' && cacheTags?.length) {
-      this.loadTagsManifest()
-      const derivedTags = getDerivedTags(cacheTags || [])
+      if (cacheTags?.length) {
+        this.loadTagsManifest()
 
-      const isStale = derivedTags.some((tag) => {
-        return (
-          tagsManifest?.items[tag]?.revalidatedAt &&
-          tagsManifest?.items[tag].revalidatedAt >=
-            (data?.lastModified || Date.now())
-        )
-      })
+        const isStale = cacheTags.some((tag) => {
+          return (
+            tagsManifest?.items[tag]?.revalidatedAt &&
+            tagsManifest?.items[tag].revalidatedAt >=
+              (data?.lastModified || Date.now())
+          )
+        })
 
-      // we trigger a blocking validation if an ISR page
-      // had a tag revalidated, if we want to be a background
-      // revalidation instead we return data.lastModified = -1
-      if (isStale) {
-        data = undefined
+        // we trigger a blocking validation if an ISR page
+        // had a tag revalidated, if we want to be a background
+        // revalidation instead we return data.lastModified = -1
+        if (isStale) {
+          data = undefined
+        }
       }
     }
 
     if (data && data?.value?.kind === 'FETCH') {
       this.loadTagsManifest()
-      const innerData = data.value.data
-      const derivedTags = getDerivedTags(innerData.tags || [])
 
-      const wasRevalidated = derivedTags.some((tag) => {
+      const combinedTags = [...(tags || []), ...(softTags || [])]
+
+      const wasRevalidated = combinedTags.some((tag) => {
         if (this.revalidatedTags.includes(tag)) {
           return true
         }
@@ -290,7 +287,13 @@ export default class FileSystemCache implements CacheHandler {
     return data || null
   }
 
-  public async set(key: string, data: CacheHandlerValue['value']) {
+  public async set(
+    key: string,
+    data: CacheHandlerValue['value'],
+    ctx: {
+      tags?: string[]
+    }
+  ) {
     memoryCache?.set(key, {
       value: data,
       lastModified: Date.now(),
@@ -345,8 +348,13 @@ export default class FileSystemCache implements CacheHandler {
         fetchCache: true,
       })
       await this.fs.mkdir(path.dirname(filePath))
-      await this.fs.writeFile(filePath, JSON.stringify(data))
-      await this.setTags(key, data.data.tags || [])
+      await this.fs.writeFile(
+        filePath,
+        JSON.stringify({
+          ...data,
+          tags: ctx.tags,
+        })
+      )
     }
   }
 
