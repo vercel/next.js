@@ -134,7 +134,7 @@ module.exports = ({ dev, turbo }) => {
       }),
       !!process.env.ANALYZE &&
         new BundleAnalyzerPlugin({
-          analyzerPort: dev ? 8888 : 8889,
+          analyzerPort: 8888 + (dev ? 0 : 1) + (turbo ? 1 : 0),
         }),
     ].filter(Boolean),
     stats: {
