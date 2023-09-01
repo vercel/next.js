@@ -20,7 +20,7 @@ import devalue from 'next/dist/compiled/devalue'
 import findUp from 'next/dist/compiled/find-up'
 import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
-import path from 'path'
+import path, { dirname } from 'path'
 import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
@@ -145,7 +145,11 @@ import { startTypeChecking } from './type-check'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
 
 import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
-import { baseOverrides, experimentalOverrides } from '../server/require-hook'
+import {
+  baseOverrides,
+  defaultOverrides,
+  experimentalOverrides,
+} from '../server/require-hook'
 import { initialize } from '../server/lib/incremental-cache-server'
 import { nodeFs } from '../server/lib/node-fs-methods'
 
@@ -2090,14 +2094,24 @@ export default async function build(
               ...Object.values(experimentalOverrides).map((override) =>
                 require.resolve(override)
               ),
-              require.resolve(
-                'next/dist/compiled/next-server/server.runtime.prod'
-              ),
+              ...(config.experimental.turbotrace
+                ? []
+                : Object.keys(defaultOverrides).map((value) =>
+                    require.resolve(value, {
+                      paths: [require.resolve('next/dist/server/require-hook')],
+                    })
+                  )),
               require.resolve(
                 'next/dist/compiled/next-server/app-page.runtime.prod'
               ),
               require.resolve(
+                'next/dist/compiled/next-server/app-route.runtime.prod'
+              ),
+              require.resolve(
                 'next/dist/compiled/next-server/pages.runtime.prod'
+              ),
+              require.resolve(
+                'next/dist/compiled/next-server/pages-api.runtime.prod'
               ),
             ]
 
@@ -2125,18 +2139,6 @@ export default async function build(
               ...sharedEntriesSet,
               require.resolve(
                 'next/dist/compiled/next-server/server.runtime.prod'
-              ),
-              require.resolve(
-                'next/dist/compiled/next-server/app-page.runtime.prod'
-              ),
-              require.resolve(
-                'next/dist/compiled/next-server/pages.runtime.prod'
-              ),
-              require.resolve(
-                'next/dist/compiled/next-server/pages-api.runtime.prod'
-              ),
-              require.resolve(
-                'next/dist/compiled/next-server/app-route.runtime.prod'
               ),
             ].filter(Boolean)
 

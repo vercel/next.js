@@ -2,7 +2,7 @@
 // This is needed for userland plugins to attach to the same webpack instance as Next.js'.
 // Individually compiled modules are as defined for the compilation in bundles/webpack/packages/*.
 
-import path from 'path'
+import path, { dirname } from 'path'
 
 // This module will only be loaded once per process.
 
@@ -20,6 +20,11 @@ const resolve = process.env.NEXT_MINIMAL
 
 const toResolveMap = (map: Record<string, string>): [string, string][] =>
   Object.entries(map).map(([key, value]) => [key, resolve(value)])
+
+export const defaultOverrides = {
+  'styled-jsx': dirname(resolve('styled-jsx/package.json')),
+  'styled-jsx/style': resolve('styled-jsx/style'),
+}
 
 export const baseOverrides = {
   react: 'next/dist/compiled/react',
@@ -73,6 +78,8 @@ export function addHookAliases(aliases: [string, string][] = []) {
     hookPropertyMap.set(key, value)
   }
 }
+
+addHookAliases(toResolveMap(defaultOverrides))
 
 // Override built-in React packages if necessary
 function overrideReact() {
