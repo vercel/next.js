@@ -53,10 +53,10 @@ export function debounce<T, F extends AnyFunc<T>>(
     }
   }
 
-  return function (this: T, ...args: Parameters<F>) {
+  return function (this: T, ...passedArgs: Parameters<F>) {
     // The arguments and this context of the most recent call are saved so the
     // debounced function can be invoked with them later.
-    args = args
+    args = passedArgs
     context = this
 
     // Instead of constantly clearing and scheduling a timer, we record the

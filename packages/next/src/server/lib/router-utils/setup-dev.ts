@@ -252,14 +252,16 @@ async function startWatcher(opts: SetupOpts) {
       return message
     }
 
+    class ModuleBuildError extends Error {}
+
     function processIssues(
-      key: string,
+      name: string,
       result: TurbopackResult,
       throwIssue = false
     ) {
-      const oldSet = issues.get(key) ?? new Map()
+      const oldSet = issues.get(name) ?? new Map()
       const newSet = new Map<string, Issue>()
-      issues.set(key, newSet)
+      issues.set(name, newSet)
 
       for (const issue of result.issues) {
         // TODO better formatting
@@ -277,7 +279,7 @@ async function startWatcher(opts: SetupOpts) {
 
       for (const issue of oldSet.keys()) {
         if (!newSet.has(issue)) {
-          console.error(`✅ ${key} fixed ${issue}`)
+          console.error(`✅ ${name} fixed ${issue}`)
         }
       }
     }
@@ -303,8 +305,6 @@ async function startWatcher(opts: SetupOpts) {
       return result
     }
 
-    class ModuleBuildError extends Error {}
-
     let hmrHash = 0
     const sendHmrDebounce = debounce(() => {
       interface HmrError {
@@ -315,7 +315,7 @@ async function startWatcher(opts: SetupOpts) {
         stack?: string
       }
       const errors = new Map<string, HmrError>()
-      for (const [_path, issueMap] of issues) {
+      for (const [, issueMap] of issues) {
         for (const [key, issue] of issueMap) {
           if (errors.has(key)) continue
 
