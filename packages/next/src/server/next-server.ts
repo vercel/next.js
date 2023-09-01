@@ -48,7 +48,6 @@ import { findDir } from '../lib/find-pages-dir'
 import { UrlWithParsedQuery } from 'url'
 import { NodeNextRequest, NodeNextResponse } from './base-http/node'
 import { sendRenderResult } from './send-payload'
-import { getExtension, serveStatic } from './serve-static'
 import { ParsedUrlQuery } from 'querystring'
 import { ParsedUrl, parseUrl } from '../shared/lib/router/utils/parse-url'
 import * as Log from '../build/output/log'
@@ -376,14 +375,6 @@ export default class NextNodeServer extends BaseServer {
     })
   }
 
-  protected sendStatic(
-    req: NodeNextRequest,
-    res: NodeNextResponse,
-    path: string
-  ): Promise<void> {
-    return serveStatic(req.originalRequest, res.originalResponse, path)
-  }
-
   protected async runApi(
     req: BaseNextRequest | NodeNextRequest,
     res: BaseNextResponse | NodeNextResponse,
@@ -504,56 +495,59 @@ export default class NextNodeServer extends BaseServer {
       throw new Error(
         'invariant: imageOptimizer should not be called in minimal mode'
       )
-    }
-    const { imageOptimizer } =
-      require('./image-optimizer') as typeof import('./image-optimizer')
+    } else {
+      const { imageOptimizer } =
+        require('./image-optimizer') as typeof import('./image-optimizer')
 
-    return imageOptimizer(
-      req.originalRequest,
-      res.originalResponse,
-      paramsResult,
-      this.nextConfig,
-      this.renderOpts.dev,
-      async (newReq, newRes, newParsedUrl) => {
-        if (newReq.url === req.url) {
-          throw new Error(`Invariant attempted to optimize _next/image itself`)
-        }
+      return imageOptimizer(
+        req.originalRequest,
+        res.originalResponse,
+        paramsResult,
+        this.nextConfig,
+        this.renderOpts.dev,
+        async (newReq, newRes, newParsedUrl) => {
+          if (newReq.url === req.url) {
+            throw new Error(
+              `Invariant attempted to optimize _next/image itself`
+            )
+          }
 
-        if (this.isRenderWorker) {
-          const invokeRes = await invokeRequest(
-            `http://${this.fetchHostname || 'localhost'}:${this.port}${
-              newReq.url || ''
-            }`,
-            {
-              method: newReq.method || 'GET',
-              headers: newReq.headers,
-              signal: signalFromNodeResponse(res.originalResponse),
+          if (this.isRenderWorker) {
+            const invokeRes = await invokeRequest(
+              `http://${this.fetchHostname || 'localhost'}:${this.port}${
+                newReq.url || ''
+              }`,
+              {
+                method: newReq.method || 'GET',
+                headers: newReq.headers,
+                signal: signalFromNodeResponse(res.originalResponse),
+              }
+            )
+            const filteredResHeaders = filterReqHeaders(
+              toNodeOutgoingHttpHeaders(invokeRes.headers),
+              ipcForbiddenHeaders
+            )
+
+            for (const key of Object.keys(filteredResHeaders)) {
+              newRes.setHeader(key, filteredResHeaders[key] || '')
             }
-          )
-          const filteredResHeaders = filterReqHeaders(
-            toNodeOutgoingHttpHeaders(invokeRes.headers),
-            ipcForbiddenHeaders
-          )
+            newRes.statusCode = invokeRes.status || 200
 
-          for (const key of Object.keys(filteredResHeaders)) {
-            newRes.setHeader(key, filteredResHeaders[key] || '')
+            if (invokeRes.body) {
+              await pipeReadable(invokeRes.body, newRes)
+            } else {
+              res.send()
+            }
+            return
           }
-          newRes.statusCode = invokeRes.status || 200
-
-          if (invokeRes.body) {
-            await pipeReadable(invokeRes.body, newRes)
-          } else {
-            res.send()
-          }
-          return
+          return this.getRequestHandler()(
+            new NodeNextRequest(newReq),
+            new NodeNextResponse(newRes),
+            newParsedUrl
+          )
         }
-        return this.getRequestHandler()(
-          new NodeNextRequest(newReq),
-          new NodeNextResponse(newRes),
-          newParsedUrl
-        )
-      }
-    )
+      )
+    }
   }
 
   protected getPagePath(pathname: string, locales?: string[]): string {
@@ -734,93 +728,98 @@ export default class NextNodeServer extends BaseServer {
       return {
         finished: true,
       }
-    }
-    const { ImageOptimizerCache } =
-      require('./image-optimizer') as typeof import('./image-optimizer')
+    } else {
+      const { ImageOptimizerCache } =
+        require('./image-optimizer') as typeof import('./image-optimizer')
 
-    const imageOptimizerCache = new ImageOptimizerCache({
-      distDir: this.distDir,
-      nextConfig: this.nextConfig,
-    })
+      const imageOptimizerCache = new ImageOptimizerCache({
+        distDir: this.distDir,
+        nextConfig: this.nextConfig,
+      })
 
-    const { getHash, sendResponse, ImageError } =
-      require('./image-optimizer') as typeof import('./image-optimizer')
+      const { getHash, sendResponse, ImageError } =
+        require('./image-optimizer') as typeof import('./image-optimizer')
 
-    if (!this.imageResponseCache) {
-      throw new Error('invariant image optimizer cache was not initialized')
-    }
-    const imagesConfig = this.nextConfig.images
-
-    if (imagesConfig.loader !== 'default' || imagesConfig.unoptimized) {
-      await this.render404(req, res)
-      return { finished: true }
-    }
-    const paramsResult = ImageOptimizerCache.validateParams(
-      (req as NodeNextRequest).originalRequest,
-      parsedUrl.query,
-      this.nextConfig,
-      !!this.renderOpts.dev
-    )
-
-    if ('errorMessage' in paramsResult) {
-      res.statusCode = 400
-      res.body(paramsResult.errorMessage).send()
-      return { finished: true }
-    }
-    const cacheKey = ImageOptimizerCache.getCacheKey(paramsResult)
-
-    try {
-      const cacheEntry = await this.imageResponseCache.get(
-        cacheKey,
-        async () => {
-          const { buffer, contentType, maxAge } = await this.imageOptimizer(
-            req as NodeNextRequest,
-            res as NodeNextResponse,
-            paramsResult
-          )
-          const etag = getHash([buffer])
-
-          return {
-            value: {
-              kind: 'IMAGE',
-              buffer,
-              etag,
-              extension: getExtension(contentType) as string,
-            },
-            revalidate: maxAge,
-          }
-        },
-        {
-          incrementalCache: imageOptimizerCache,
-        }
-      )
-
-      if (cacheEntry?.value?.kind !== 'IMAGE') {
-        throw new Error('invariant did not get entry from image response cache')
+      if (!this.imageResponseCache) {
+        throw new Error('invariant image optimizer cache was not initialized')
       }
-      sendResponse(
+      const imagesConfig = this.nextConfig.images
+
+      if (imagesConfig.loader !== 'default' || imagesConfig.unoptimized) {
+        await this.render404(req, res)
+        return { finished: true }
+      }
+      const paramsResult = ImageOptimizerCache.validateParams(
         (req as NodeNextRequest).originalRequest,
-        (res as NodeNextResponse).originalResponse,
-        paramsResult.href,
-        cacheEntry.value.extension,
-        cacheEntry.value.buffer,
-        paramsResult.isStatic,
-        cacheEntry.isMiss ? 'MISS' : cacheEntry.isStale ? 'STALE' : 'HIT',
-        imagesConfig,
-        cacheEntry.revalidate || 0,
-        Boolean(this.renderOpts.dev)
+        parsedUrl.query,
+        this.nextConfig,
+        !!this.renderOpts.dev
       )
-    } catch (err) {
-      if (err instanceof ImageError) {
-        res.statusCode = err.statusCode
-        res.body(err.message).send()
-        return {
-          finished: true,
-        }
+
+      if ('errorMessage' in paramsResult) {
+        res.statusCode = 400
+        res.body(paramsResult.errorMessage).send()
+        return { finished: true }
       }
-      throw err
+      const cacheKey = ImageOptimizerCache.getCacheKey(paramsResult)
+
+      try {
+        const { getExtension } =
+          require('./serve-static') as typeof import('./serve-static')
+        const cacheEntry = await this.imageResponseCache.get(
+          cacheKey,
+          async () => {
+            const { buffer, contentType, maxAge } = await this.imageOptimizer(
+              req as NodeNextRequest,
+              res as NodeNextResponse,
+              paramsResult
+            )
+            const etag = getHash([buffer])
+
+            return {
+              value: {
+                kind: 'IMAGE',
+                buffer,
+                etag,
+                extension: getExtension(contentType) as string,
+              },
+              revalidate: maxAge,
+            }
+          },
+          {
+            incrementalCache: imageOptimizerCache,
+          }
+        )
+
+        if (cacheEntry?.value?.kind !== 'IMAGE') {
+          throw new Error(
+            'invariant did not get entry from image response cache'
+          )
+        }
+        sendResponse(
+          (req as NodeNextRequest).originalRequest,
+          (res as NodeNextResponse).originalResponse,
+          paramsResult.href,
+          cacheEntry.value.extension,
+          cacheEntry.value.buffer,
+          paramsResult.isStatic,
+          cacheEntry.isMiss ? 'MISS' : cacheEntry.isStale ? 'STALE' : 'HIT',
+          imagesConfig,
+          cacheEntry.revalidate || 0,
+          Boolean(this.renderOpts.dev)
+        )
+      } catch (err) {
+        if (err instanceof ImageError) {
+          res.statusCode = err.statusCode
+          res.body(err.message).send()
+          return {
+            finished: true,
+          }
+        }
+        throw err
+      }
+      return { finished: true }
     }
-    return { finished: true }
   }
 
   protected async handleCatchallRenderRequest(
