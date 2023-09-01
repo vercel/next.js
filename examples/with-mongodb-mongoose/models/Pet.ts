@@ -1,7 +1,19 @@
 import mongoose from 'mongoose'
 
+export interface Pets extends mongoose.Document {
+  name: string
+  owner_name: string
+  species: string
+  age: number
+  poddy_trained: boolean
+  diet: string[]
+  image_url: string
+  likes: string[]
+  dislikes: string[]
+}
+
 /* PetSchema will correspond to a collection in your MongoDB database. */
-const PetSchema = new mongoose.Schema({
+const PetSchema = new mongoose.Schema<Pets>({
   name: {
     /* The name of this pet */
 
@@ -36,7 +48,7 @@ const PetSchema = new mongoose.Schema({
   diet: {
     /* List of dietary needs, if applicable */
 
-    type: Array,
+    type: [String],
   },
   image_url: {
     /* Url to pet image */
@@ -47,13 +59,13 @@ const PetSchema = new mongoose.Schema({
   likes: {
     /* List of things your pet likes to do */
 
-    type: Array,
+    type: [String],
   },
   dislikes: {
     /* List of things your pet does not like to do */
 
-    type: Array,
+    type: [String],
   },
 })
 
-export default mongoose.models.Pet || mongoose.model('Pet', PetSchema)
+export default mongoose.models.Pet || mongoose.model<Pets>('Pet', PetSchema)
