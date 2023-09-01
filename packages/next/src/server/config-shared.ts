@@ -175,7 +175,6 @@ export interface ExperimentalConfig {
   proxyTimeout?: number
   isrFlushToDisk?: boolean
   workerThreads?: boolean
-  pageEnv?: boolean
   // optimizeCss can be boolean or critters' option object
   // Use Record<string, unknown> as critters doesn't export its Option type
   // https://github.com/GoogleChromeLabs/critters/blob/a590c05f9197b656d2aeaae9369df2483c26b072/packages/critters/src/index.d.ts
@@ -183,11 +182,6 @@ export interface ExperimentalConfig {
   nextScriptWorkers?: boolean
   scrollRestoration?: boolean
   externalDir?: boolean
-  /**
-   * The App Router (app directory) enables support for layouts, Server Components, streaming, and colocated data fetching.
-   * @see https://nextjs.org/docs/app/api-reference/next-config-js/appDir
-   */
-  appDir?: boolean
   amp?: {
     optimizer?: any
     validator?: string
@@ -702,7 +696,7 @@ export const defaultConfig: NextConfig = {
     deploymentId: undefined,
     useDeploymentIdServerActions: false,
     appDocumentPreloading: undefined,
-    clientRouterFilter: false,
+    clientRouterFilter: true,
     clientRouterFilterRedirects: false,
     fetchCacheKeyPrefix: '',
     middlewarePrefetch: 'flexible',
@@ -717,7 +711,6 @@ export const defaultConfig: NextConfig = {
     sharedPool: true,
     isrFlushToDisk: true,
     workerThreads: false,
-    pageEnv: false,
     proxyTimeout: undefined,
     optimizeCss: false,
     nextScriptWorkers: false,
@@ -727,7 +720,6 @@ export const defaultConfig: NextConfig = {
     gzipSize: true,
     craCompat: false,
     esmExternals: true,
-    appDir: true,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
     incrementalCacheHandlerPath: undefined,

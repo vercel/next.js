@@ -32,6 +32,7 @@ import { FileType, fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
 import loadCustomRoutes, {
   CustomRoutes,
+  Header,
   normalizeRouteRegex,
   Redirect,
   Rewrite,
@@ -170,47 +171,46 @@ export type PrerenderManifest = {
   preview: __ApiPreviewProps
 }
 
-type CustomRoute = {
+type ManifestBuiltRoute = {
+  /**
+   * The route pattern used to match requests for this route.
+   */
   regex: string
-  statusCode?: number | undefined
-  permanent?: undefined
-  source: string
-  locale?: false | undefined
-  basePath?: false | undefined
-  destination?: string | undefined
+}
+
+export type ManifestRewriteRoute = ManifestBuiltRoute & Rewrite
+export type ManifestRedirectRoute = ManifestBuiltRoute & Redirect
+export type ManifestHeaderRoute = ManifestBuiltRoute & Header
+
+export type ManifestRoute = ManifestBuiltRoute & {
+  page: string
+  namedRegex?: string
+  routeKeys?: { [key: string]: string }
+}
+
+export type ManifestDataRoute = {
+  page: string
+  routeKeys?: { [key: string]: string }
+  dataRouteRegex: string
+  namedDataRouteRegex?: string
 }
 
 export type RoutesManifest = {
   version: number
   pages404: boolean
   basePath: string
-  redirects: Array<CustomRoute>
+  redirects: Array<Redirect>
   rewrites?:
-    | Array<CustomRoute>
+    | Array<ManifestRewriteRoute>
     | {
-        beforeFiles: Array<CustomRoute>
-        afterFiles: Array<CustomRoute>
-        fallback: Array<CustomRoute>
+        beforeFiles: Array<ManifestRewriteRoute>
+        afterFiles: Array<ManifestRewriteRoute>
+        fallback: Array<ManifestRewriteRoute>
       }
-  headers: Array<CustomRoute>
-  staticRoutes: Array<{
-    page: string
-    regex: string
-    namedRegex?: string
-    routeKeys?: { [key: string]: string }
-  }>
-  dynamicRoutes: Array<{
-    page: string
-    regex: string
-    namedRegex?: string
-    routeKeys?: { [key: string]: string }
-  }>
-  dataRoutes: Array<{
-    page: string
-    routeKeys?: { [key: string]: string }
-    dataRouteRegex: string
-    namedDataRouteRegex?: string
-  }>
+  headers: Array<ManifestHeaderRoute>
+  staticRoutes: Array<ManifestRoute>
+  dynamicRoutes: Array<ManifestRoute>
+  dataRoutes: Array<ManifestDataRoute>
   i18n?: {
     domains?: Array<{
       http?: true
@@ -229,6 +229,52 @@ export type RoutesManifest = {
   }
   skipMiddlewareUrlNormalize?: boolean
   caseSensitive?: boolean
+}
+
+export function buildCustomRoute(
+  type: 'header',
+  route: Header
+): ManifestHeaderRoute
+export function buildCustomRoute(
+  type: 'rewrite',
+  route: Rewrite
+): ManifestRewriteRoute
+export function buildCustomRoute(
+  type: 'redirect',
+  route: Redirect,
+  restrictedRedirectPaths: string[]
+): ManifestRedirectRoute
+export function buildCustomRoute(
+  type: RouteType,
+  route: Redirect | Rewrite | Header,
+  restrictedRedirectPaths?: string[]
+): ManifestHeaderRoute | ManifestRewriteRoute | ManifestRedirectRoute {
+  const compiled = pathToRegexp(route.source, [], {
+    strict: true,
+    sensitive: false,
+    delimiter: '/', // default is `/#?`, but Next does not pass query info
+  })
+
+  let source = compiled.source
+  if (!route.internal) {
+    source = modifyRouteRegex(
+      source,
+      type === 'redirect' ? restrictedRedirectPaths : undefined
+    )
+  }
+
+  const regex = normalizeRouteRegex(source)
+
+  if (type !== 'redirect') {
+    return { ...route, regex }
+  }
+
+  return {
+    ...route,
+    statusCode: getRedirectStatus(route as Redirect),
+    permanent: undefined,
+    regex,
+  }
 }
 
 async function generateClientSsgManifest(
@@ -359,7 +405,7 @@ export default async function build(
       setGlobal('telemetry', telemetry)
 
       const publicDir = path.join(dir, 'public')
-      const isAppDirEnabled = !!config.experimental.appDir
+      const isAppDirEnabled = true
       const { pagesDir, appDir } = findPagesDir(dir, isAppDirEnabled)
       NextBuildContext.pagesDir = pagesDir
       NextBuildContext.appDir = appDir
@@ -710,44 +756,6 @@ export default async function build(
         config.basePath ? `${config.basePath}${p}` : p
       )
 
-      const buildCustomRoute = (
-        r: {
-          source: string
-          locale?: false
-          basePath?: false
-          statusCode?: number
-          destination?: string
-        },
-        type: RouteType
-      ) => {
-        const keys: any[] = []
-
-        const routeRegex = pathToRegexp(r.source, keys, {
-          strict: true,
-          sensitive: false,
-          delimiter: '/', // default is `/#?`, but Next does not pass query info
-        })
-        let regexSource = routeRegex.source
-
-        if (!(r as any).internal) {
-          regexSource = modifyRouteRegex(
-            routeRegex.source,
-            type === 'redirect' ? restrictedRedirectPaths : undefined
-          )
-        }
-
-        return {
-          ...r,
-          ...(type === 'redirect'
-            ? {
-                statusCode: getRedirectStatus(r as Redirect),
-                permanent: undefined,
-              }
-            : {}),
-          regex: normalizeRouteRegex(regexSource),
-        }
-      }
-
       const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
       const routesManifest: RoutesManifest = nextBuildSpan
         .traceChild('generate-routes-manifest')
@@ -772,10 +780,10 @@ export default async function build(
             pages404: true,
             caseSensitive: !!config.experimental.caseSensitiveRoutes,
             basePath: config.basePath,
-            redirects: redirects.map((r: any) =>
-              buildCustomRoute(r, 'redirect')
+            redirects: redirects.map((r) =>
+              buildCustomRoute('redirect', r, restrictedRedirectPaths)
             ),
-            headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
+            headers: headers.map((r) => buildCustomRoute('header', r)),
             dynamicRoutes,
             staticRoutes,
             dataRoutes: [],
@@ -791,22 +799,23 @@ export default async function build(
         })
 
       if (rewrites.beforeFiles.length === 0 && rewrites.fallback.length === 0) {
-        routesManifest.rewrites = rewrites.afterFiles.map((r: any) =>
-          buildCustomRoute(r, 'rewrite')
+        routesManifest.rewrites = rewrites.afterFiles.map((r) =>
+          buildCustomRoute('rewrite', r)
         )
       } else {
         routesManifest.rewrites = {
-          beforeFiles: rewrites.beforeFiles.map((r: any) =>
-            buildCustomRoute(r, 'rewrite')
+          beforeFiles: rewrites.beforeFiles.map((r) =>
+            buildCustomRoute('rewrite', r)
           ),
-          afterFiles: rewrites.afterFiles.map((r: any) =>
-            buildCustomRoute(r, 'rewrite')
+          afterFiles: rewrites.afterFiles.map((r) =>
+            buildCustomRoute('rewrite', r)
           ),
-          fallback: rewrites.fallback.map((r: any) =>
-            buildCustomRoute(r, 'rewrite')
+          fallback: rewrites.fallback.map((r) =>
+            buildCustomRoute('rewrite', r)
           ),
         }
       }
+
       const combinedRewrites: Rewrite[] = [
         ...rewrites.beforeFiles,
         ...rewrites.afterFiles,
@@ -2057,7 +2066,7 @@ export default async function build(
                   await fs.copyFile(cachedTracePath, nextServerTraceOutput)
                   return
                 }
-              } catch (_) {}
+              } catch {}
             }
 
             const root =
