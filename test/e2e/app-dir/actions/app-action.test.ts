@@ -74,6 +74,24 @@ createNextDescribe(
       }, 'same')
     })
 
+    it('should push new route when redirecting', async () => {
+      const browser = await next.browser('/header')
+
+      await browser.elementByCss('#setCookieAndRedirect').click()
+      await check(async () => {
+        return (await browser.elementByCss('#redirected').text()) || ''
+      }, 'redirected')
+
+      // Ensure we can navigate back
+      await browser.back()
+
+      await check(async () => {
+        return (
+          (await browser.elementByCss('#setCookieAndRedirect').text()) || ''
+        )
+      }, 'setCookieAndRedirect')
+    })
+
     it('should support headers in client imported actions', async () => {
       const logs: string[] = []
       next.on('stdout', (log) => {
@@ -256,6 +274,40 @@ createNextDescribe(
 
       await browser.elementByCss('#client-inc').click()
       await check(() => browser.elementByCss('#value').text(), 'Value = 2')
+    })
+
+    it('should not block navigation events while a server action is in flight', async () => {
+      let browser = await next.browser('/client')
+
+      await browser.elementByCss('#slow-inc').click()
+
+      // navigate to server
+      await browser.elementByCss('#navigate-server').click()
+      // intentionally bailing after 2 retries so we don't retry to the point where the async function resolves
+      await check(() => browser.url(), `${next.url}/server`, true, 2)
+
+      browser = await next.browser('/server')
+
+      await browser.elementByCss('#slow-inc').click()
+
+      // navigate to client
+      await browser.elementByCss('#navigate-client').click()
+      // intentionally bailing after 2 retries so we don't retry to the point where the async function resolves
+      await check(() => browser.url(), `${next.url}/client`, true, 2)
+    })
+
+    it('should support next/dynamic with ssr: false', async () => {
+      const browser = await next.browser('/dynamic-csr')
+
+      await check(() => {
+        return browser.elementByCss('button').text()
+      }, '0')
+
+      await browser.elementByCss('button').click()
+
+      await check(() => {
+        return browser.elementByCss('button').text()
+      }, '1')
     })
 
     if (isNextStart) {
@@ -678,20 +730,20 @@ createNextDescribe(
 
           await browser.elementByCss('#back').click()
 
-          switch (type) {
-            case 'tag':
-              await browser.elementByCss('#revalidate-thankyounext').click()
-              break
-            case 'path':
-              await browser.elementByCss('#revalidate-path').click()
-              break
-            default:
-              throw new Error(`Invalid type: ${type}`)
-          }
-
           // Should be different
           let revalidatedThankYouNext
           await check(async () => {
+            switch (type) {
+              case 'tag':
+                await browser.elementByCss('#revalidate-thankyounext').click()
+                break
+              case 'path':
+                await browser.elementByCss('#revalidate-path').click()
+                break
+              default:
+                throw new Error(`Invalid type: ${type}`)
+            }
+
             revalidatedThankYouNext = await browser
               .elementByCss('#thankyounext')
               .text()

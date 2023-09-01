@@ -1,8 +1,11 @@
 {
   "private": true,
-  "exports": "./index.mjs",
+  "description": "A set of scripts to help with Next.js issue management",
   "scripts": {
-    "build": "ncc -m -o . build src/index.mjs --license licenses.txt"
+    "build:autolabel": "ncc -m --license licenses.txt build src/autolabel.mjs -o autolabel",
+    "build:clarify": "ncc -m --license licenses.txt build src/clarify.mjs -o clarify",
+    "build:repro-link": "ncc -m --license licenses.txt build src/repro-link.mjs -o repro-link",
+    "build": "pnpm build:autolabel && pnpm build:clarify && pnpm build:repro-link"
   },
   "devDependencies": {
     "@vercel/ncc": "0.34.0",

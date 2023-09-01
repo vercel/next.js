@@ -8,7 +8,7 @@
     "react-dom": "latest"
   },
   "engines": {
-    "node": ">=16.8.0",
+    "node": ">=16.14.0",
     "pnpm": "8.6.11"
   },
   "packageManager": "pnpm@8.6.11"

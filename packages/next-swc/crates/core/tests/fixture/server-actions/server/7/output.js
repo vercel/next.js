@@ -1,10 +1,10 @@
-/* __next_internal_action_entry_do_not_use__ $$ACTION_0 */ import __create_action_proxy__ from "private-next-rsc-action-proxy";
+/* __next_internal_action_entry_do_not_use__ $$ACTION_0 */ import { createActionProxy } from "private-next-rsc-action-proxy";
 import deleteFromDb from 'db';
 export function Item(product, foo, bar) {
     async function deleteItem(...args) {
         return $$ACTION_0.apply(null, (deleteItem.$$bound || []).concat(args));
     }
-    __create_action_proxy__("6d53ce510b2e36499b8f56038817b9bad86cabb4", [
+    createActionProxy("6d53ce510b2e36499b8f56038817b9bad86cabb4", [
         product.id,
         product?.foo,
         product.bar.baz,

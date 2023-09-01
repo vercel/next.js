@@ -6,6 +6,14 @@ export const PRERENDER_REVALIDATE_HEADER = 'x-prerender-revalidate'
 export const PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER =
   'x-prerender-revalidate-if-generated'
 
+export const NEXT_CACHE_TAGS_HEADER = 'x-next-cache-tags'
+export const NEXT_CACHE_SOFT_TAGS_HEADER = 'x-next-cache-soft-tags'
+export const NEXT_CACHE_REVALIDATED_TAGS_HEADER = 'x-next-revalidated-tags'
+export const NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER =
+  'x-next-revalidate-tag-token'
+
+export const NEXT_CACHE_IMPLICIT_TAG_ID = '_N_T_'
+
 // in seconds
 export const CACHE_ONE_YEAR = 31536000
 
@@ -15,7 +23,6 @@ export const MIDDLEWARE_LOCATION_REGEXP = `(?:src/)?${MIDDLEWARE_FILENAME}`
 
 // Pattern to detect instrumentation hooks file
 export const INSTRUMENTATION_HOOK_FILENAME = 'instrumentation'
-export const INSTRUMENTATION_HOOKS_LOCATION_REGEXP = `(?:src/)?${INSTRUMENTATION_HOOK_FILENAME}`
 
 // Because on Windows absolute paths in the generated code can break because of numbers, eg 1 in the path,
 // we have to use a private alias

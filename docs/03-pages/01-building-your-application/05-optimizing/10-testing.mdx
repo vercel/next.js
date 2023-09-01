@@ -318,7 +318,7 @@ npm install --save-dev jest jest-environment-jsdom @testing-library/react @testi
 Create a `jest.config.mjs` file in your project's root directory and add the following:
 
 ```js filename="jest.config.mjs"
-import nextJest from 'next/jest'
+import nextJest from 'next/jest.js'
 
 const createJestConfig = nextJest({
   // Provide the path to your Next.js app to load next.config.js and .env files in your test environment
@@ -432,8 +432,10 @@ setupFilesAfterEnv: ['<rootDir>/jest.setup.js']
 Then, inside `jest.setup.js`, add the following import:
 
 ```js filename="jest.setup.js"
-import '@testing-library/jest-dom/extend-expect'
+import '@testing-library/jest-dom'
 ```
+
+> [`extend-expect` was removed in `v6.0`](https://github.com/testing-library/jest-dom/releases/tag/v6.0.0), so if you are using `@testing-library/jest-dom` before version 6, you will need to import `@testing-library/jest-dom/extend-expect` instead.
 
 If you need to add more setup options before each test, it's common to add them to the `jest.setup.js` file above.
 

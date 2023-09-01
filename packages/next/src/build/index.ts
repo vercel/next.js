@@ -32,6 +32,7 @@ import { FileType, fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
 import loadCustomRoutes, {
   CustomRoutes,
+  Header,
   normalizeRouteRegex,
   Redirect,
   Rewrite,
@@ -109,6 +110,7 @@ import {
   copyTracedFiles,
   isReservedPage,
   AppConfig,
+  isAppBuiltinNotFoundPage,
 } from './utils'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
@@ -128,6 +130,7 @@ import { flatReaddir } from '../lib/flat-readdir'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import {
+  NEXT_ROUTER_PREFETCH,
   RSC,
   RSC_CONTENT_TYPE_HEADER,
   RSC_VARY_HEADER,
@@ -168,47 +171,46 @@ export type PrerenderManifest = {
   preview: __ApiPreviewProps
 }
 
-type CustomRoute = {
+type ManifestBuiltRoute = {
+  /**
+   * The route pattern used to match requests for this route.
+   */
   regex: string
-  statusCode?: number | undefined
-  permanent?: undefined
-  source: string
-  locale?: false | undefined
-  basePath?: false | undefined
-  destination?: string | undefined
+}
+
+export type ManifestRewriteRoute = ManifestBuiltRoute & Rewrite
+export type ManifestRedirectRoute = ManifestBuiltRoute & Redirect
+export type ManifestHeaderRoute = ManifestBuiltRoute & Header
+
+export type ManifestRoute = ManifestBuiltRoute & {
+  page: string
+  namedRegex?: string
+  routeKeys?: { [key: string]: string }
+}
+
+export type ManifestDataRoute = {
+  page: string
+  routeKeys?: { [key: string]: string }
+  dataRouteRegex: string
+  namedDataRouteRegex?: string
 }
 
 export type RoutesManifest = {
   version: number
   pages404: boolean
   basePath: string
-  redirects: Array<CustomRoute>
+  redirects: Array<Redirect>
   rewrites?:
-    | Array<CustomRoute>
+    | Array<ManifestRewriteRoute>
     | {
-        beforeFiles: Array<CustomRoute>
-        afterFiles: Array<CustomRoute>
-        fallback: Array<CustomRoute>
+        beforeFiles: Array<ManifestRewriteRoute>
+        afterFiles: Array<ManifestRewriteRoute>
+        fallback: Array<ManifestRewriteRoute>
       }
-  headers: Array<CustomRoute>
-  staticRoutes: Array<{
-    page: string
-    regex: string
-    namedRegex?: string
-    routeKeys?: { [key: string]: string }
-  }>
-  dynamicRoutes: Array<{
-    page: string
-    regex: string
-    namedRegex?: string
-    routeKeys?: { [key: string]: string }
-  }>
-  dataRoutes: Array<{
-    page: string
-    routeKeys?: { [key: string]: string }
-    dataRouteRegex: string
-    namedDataRouteRegex?: string
-  }>
+  headers: Array<ManifestHeaderRoute>
+  staticRoutes: Array<ManifestRoute>
+  dynamicRoutes: Array<ManifestRoute>
+  dataRoutes: Array<ManifestDataRoute>
   i18n?: {
     domains?: Array<{
       http?: true
@@ -223,9 +225,56 @@ export type RoutesManifest = {
   rsc: {
     header: typeof RSC
     varyHeader: typeof RSC_VARY_HEADER
+    prefetchHeader: typeof NEXT_ROUTER_PREFETCH
   }
   skipMiddlewareUrlNormalize?: boolean
   caseSensitive?: boolean
+}
+
+export function buildCustomRoute(
+  type: 'header',
+  route: Header
+): ManifestHeaderRoute
+export function buildCustomRoute(
+  type: 'rewrite',
+  route: Rewrite
+): ManifestRewriteRoute
+export function buildCustomRoute(
+  type: 'redirect',
+  route: Redirect,
+  restrictedRedirectPaths: string[]
+): ManifestRedirectRoute
+export function buildCustomRoute(
+  type: RouteType,
+  route: Redirect | Rewrite | Header,
+  restrictedRedirectPaths?: string[]
+): ManifestHeaderRoute | ManifestRewriteRoute | ManifestRedirectRoute {
+  const compiled = pathToRegexp(route.source, [], {
+    strict: true,
+    sensitive: false,
+    delimiter: '/', // default is `/#?`, but Next does not pass query info
+  })
+
+  let source = compiled.source
+  if (!route.internal) {
+    source = modifyRouteRegex(
+      source,
+      type === 'redirect' ? restrictedRedirectPaths : undefined
+    )
+  }
+
+  const regex = normalizeRouteRegex(source)
+
+  if (type !== 'redirect') {
+    return { ...route, regex }
+  }
+
+  return {
+    ...route,
+    statusCode: getRedirectStatus(route as Redirect),
+    permanent: undefined,
+    regex,
+  }
 }
 
 async function generateClientSsgManifest(
@@ -356,7 +405,7 @@ export default async function build(
       setGlobal('telemetry', telemetry)
 
       const publicDir = path.join(dir, 'public')
-      const isAppDirEnabled = !!config.experimental.appDir
+      const isAppDirEnabled = true
       const { pagesDir, appDir } = findPagesDir(dir, isAppDirEnabled)
       NextBuildContext.pagesDir = pagesDir
       NextBuildContext.appDir = appDir
@@ -446,11 +495,11 @@ export default async function build(
 
       const pagesPaths =
         !appDirOnly && pagesDir
-          ? await nextBuildSpan
-              .traceChild('collect-pages')
-              .traceAsyncFn(() =>
-                recursiveReadDir(pagesDir, validFileMatcher.isPageFile)
-              )
+          ? await nextBuildSpan.traceChild('collect-pages').traceAsyncFn(() =>
+              recursiveReadDir(pagesDir, {
+                pathnameFilter: validFileMatcher.isPageFile,
+              })
+            )
           : []
 
       const middlewareDetectionRegExp = new RegExp(
@@ -510,16 +559,14 @@ export default async function build(
         const appPaths = await nextBuildSpan
           .traceChild('collect-app-paths')
           .traceAsyncFn(() =>
-            recursiveReadDir(
-              appDir,
-              (absolutePath) =>
+            recursiveReadDir(appDir, {
+              pathnameFilter: (absolutePath) =>
                 validFileMatcher.isAppRouterPage(absolutePath) ||
                 // For now we only collect the root /not-found page in the app
                 // directory as the 404 fallback
                 validFileMatcher.isRootNotFound(absolutePath),
-              undefined,
-              (part) => part.startsWith('_')
-            )
+              ignorePartFilter: (part) => part.startsWith('_'),
+            })
           )
 
         mappedAppPages = nextBuildSpan
@@ -709,44 +756,6 @@ export default async function build(
         config.basePath ? `${config.basePath}${p}` : p
       )
 
-      const buildCustomRoute = (
-        r: {
-          source: string
-          locale?: false
-          basePath?: false
-          statusCode?: number
-          destination?: string
-        },
-        type: RouteType
-      ) => {
-        const keys: any[] = []
-
-        const routeRegex = pathToRegexp(r.source, keys, {
-          strict: true,
-          sensitive: false,
-          delimiter: '/', // default is `/#?`, but Next does not pass query info
-        })
-        let regexSource = routeRegex.source
-
-        if (!(r as any).internal) {
-          regexSource = modifyRouteRegex(
-            routeRegex.source,
-            type === 'redirect' ? restrictedRedirectPaths : undefined
-          )
-        }
-
-        return {
-          ...r,
-          ...(type === 'redirect'
-            ? {
-                statusCode: getRedirectStatus(r as Redirect),
-                permanent: undefined,
-              }
-            : {}),
-          regex: normalizeRouteRegex(regexSource),
-        }
-      }
-
       const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
       const routesManifest: RoutesManifest = nextBuildSpan
         .traceChild('generate-routes-manifest')
@@ -771,10 +780,10 @@ export default async function build(
             pages404: true,
             caseSensitive: !!config.experimental.caseSensitiveRoutes,
             basePath: config.basePath,
-            redirects: redirects.map((r: any) =>
-              buildCustomRoute(r, 'redirect')
+            redirects: redirects.map((r) =>
+              buildCustomRoute('redirect', r, restrictedRedirectPaths)
             ),
-            headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
+            headers: headers.map((r) => buildCustomRoute('header', r)),
             dynamicRoutes,
             staticRoutes,
             dataRoutes: [],
@@ -782,6 +791,7 @@ export default async function build(
             rsc: {
               header: RSC,
               varyHeader: RSC_VARY_HEADER,
+              prefetchHeader: NEXT_ROUTER_PREFETCH,
               contentTypeHeader: RSC_CONTENT_TYPE_HEADER,
             },
             skipMiddlewareUrlNormalize: config.skipMiddlewareUrlNormalize,
@@ -789,22 +799,23 @@ export default async function build(
         })
 
       if (rewrites.beforeFiles.length === 0 && rewrites.fallback.length === 0) {
-        routesManifest.rewrites = rewrites.afterFiles.map((r: any) =>
-          buildCustomRoute(r, 'rewrite')
+        routesManifest.rewrites = rewrites.afterFiles.map((r) =>
+          buildCustomRoute('rewrite', r)
         )
       } else {
         routesManifest.rewrites = {
-          beforeFiles: rewrites.beforeFiles.map((r: any) =>
-            buildCustomRoute(r, 'rewrite')
+          beforeFiles: rewrites.beforeFiles.map((r) =>
+            buildCustomRoute('rewrite', r)
           ),
-          afterFiles: rewrites.afterFiles.map((r: any) =>
-            buildCustomRoute(r, 'rewrite')
+          afterFiles: rewrites.afterFiles.map((r) =>
+            buildCustomRoute('rewrite', r)
           ),
-          fallback: rewrites.fallback.map((r: any) =>
-            buildCustomRoute(r, 'rewrite')
+          fallback: rewrites.fallback.map((r) =>
+            buildCustomRoute('rewrite', r)
           ),
         }
       }
+
       const combinedRewrites: Rewrite[] = [
         ...rewrites.beforeFiles,
         ...rewrites.afterFiles,
@@ -1135,6 +1146,7 @@ export default async function build(
       const additionalSsgPaths = new Map<string, Array<string>>()
       const additionalSsgPathsEncoded = new Map<string, Array<string>>()
       const appStaticPaths = new Map<string, Array<string>>()
+      const appPrefetchPaths = new Map<string, string>()
       const appStaticPathsEncoded = new Map<string, Array<string>>()
       const appNormalizedPaths = new Map<string, string>()
       const appDynamicParamPaths = new Set<string>()
@@ -1274,6 +1286,7 @@ export default async function build(
         CacheHandler = require(path.isAbsolute(incrementalCacheHandlerPath)
           ? incrementalCacheHandlerPath
           : path.join(dir, incrementalCacheHandlerPath))
+        CacheHandler = CacheHandler.default || CacheHandler
       }
 
       const { ipcPort, ipcValidationKey } = await initialize({
@@ -1492,12 +1505,18 @@ export default async function build(
                   }
                 }
 
+                const pageFilePath = isAppBuiltinNotFoundPage(pagePath)
+                  ? require.resolve(
+                      'next/dist/client/components/not-found-error'
+                    )
+                  : path.join(
+                      (pageType === 'pages' ? pagesDir : appDir) || '',
+                      pagePath
+                    )
+
                 const staticInfo = pagePath
                   ? await getPageStaticInfo({
-                      pageFilePath: path.join(
-                        (pageType === 'pages' ? pagesDir : appDir) || '',
-                        pagePath
-                      ),
+                      pageFilePath,
                       nextConfig: config,
                       pageType,
                     })
@@ -1613,6 +1632,16 @@ export default async function build(
                                 !!workerResult.prerenderRoutes?.length
 
                               if (
+                                config.output === 'export' &&
+                                isDynamic &&
+                                !hasGenerateStaticParams
+                              ) {
+                                throw new Error(
+                                  `Page "${page}" is missing "generateStaticParams()" so it cannot be used with "output: export" config.`
+                                )
+                              }
+
+                              if (
                                 // Mark the app as static if:
                                 // - It has no dynamic param
                                 // - It doesn't have generateStaticParams but `dynamic` is set to
@@ -1643,6 +1672,14 @@ export default async function build(
                             appDynamicParamPaths.add(originalAppPath)
                           }
                           appDefaultConfigs.set(originalAppPath, appConfig)
+
+                          if (
+                            !isStatic &&
+                            !isAppRouteRoute(originalAppPath) &&
+                            !isDynamicRoute(originalAppPath)
+                          ) {
+                            appPrefetchPaths.set(originalAppPath, page)
+                          }
                         }
                       } else {
                         if (isEdgeRuntime(pageRuntime)) {
@@ -2029,7 +2066,7 @@ export default async function build(
                   await fs.copyFile(cachedTracePath, nextServerTraceOutput)
                   return
                 }
-              } catch (_) {}
+              } catch {}
             }
 
             const root =
@@ -2257,9 +2294,8 @@ export default async function build(
 
       // Since custom _app.js can wrap the 404 page we have to opt-out of static optimization if it has getInitialProps
       // Only export the static 404 when there is no /_error present
-      const useStatic404 =
-        !customAppGetInitialProps &&
-        (!hasNonStaticErrorPage || hasPages404 || hasApp404)
+      const useStaticPages404 =
+        !customAppGetInitialProps && (!hasNonStaticErrorPage || hasPages404)
 
       if (invalidPages.size > 0) {
         const err = new Error(
@@ -2379,6 +2415,8 @@ export default async function build(
         !hasPages500 && !hasNonStaticErrorPage && !customAppGetInitialProps
 
       const combinedPages = [...staticPages, ...ssgPages]
+      const isApp404Static = appStaticPaths.has('/_not-found')
+      const hasStaticApp404 = hasApp404 && isApp404Static
 
       // we need to trigger automatic exporting when we have
       // - static 404/500
@@ -2387,7 +2425,7 @@ export default async function build(
       if (
         !isCompile &&
         (combinedPages.length > 0 ||
-          useStatic404 ||
+          useStaticPages404 ||
           useDefaultStatic500 ||
           isAppDirEnabled)
       ) {
@@ -2460,7 +2498,7 @@ export default async function build(
                 })
               })
 
-              if (useStatic404) {
+              if (useStaticPages404) {
                 defaultMap['/404'] = {
                   page: hasPages404 ? '/404' : '/_error',
                 }
@@ -2488,11 +2526,20 @@ export default async function build(
                 })
               })
 
+              for (const [originalAppPath, page] of appPrefetchPaths) {
+                defaultMap[page] = {
+                  page: originalAppPath,
+                  query: {},
+                  _isAppDir: true,
+                  _isAppPrefetch: true,
+                }
+              }
+
               if (i18n) {
                 for (const page of [
                   ...staticPages,
                   ...ssgPages,
-                  ...(useStatic404 ? ['/404'] : []),
+                  ...(useStaticPages404 ? ['/404'] : []),
                   ...(useDefaultStatic500 ? ['/500'] : []),
                 ]) {
                   const isSsg = ssgPages.has(page)
@@ -2831,12 +2878,11 @@ export default async function build(
           }
 
           // If there's /not-found inside app, we prefer it over the pages 404
-          if (hasApp404 && useStatic404) {
-            // await moveExportedPage('/_error', '/404', '/404', false, 'html')
+          if (hasStaticApp404) {
             await moveExportedAppNotFoundTo404()
           } else {
             // Only move /404 to /404 when there is no custom 404 as in that case we don't know about the 404 page
-            if (!hasPages404 && useStatic404) {
+            if (!hasPages404 && !hasApp404 && useStaticPages404) {
               await moveExportedPage('/_error', '/404', '/404', false, 'html')
             }
           }
@@ -2988,8 +3034,7 @@ export default async function build(
           }
 
           // remove temporary export folder
-          await recursiveDelete(exportOptions.outdir)
-          await fs.rmdir(exportOptions.outdir)
+          await fs.rm(exportOptions.outdir, { recursive: true, force: true })
           await fs.writeFile(
             manifestPath,
             JSON.stringify(pagesManifest, null, 2),
@@ -3015,7 +3060,7 @@ export default async function build(
           ssrPageCount:
             pagesPaths.length -
             (staticPages.size + ssgPages.size + serverPropsPages.size),
-          hasStatic404: useStatic404,
+          hasStatic404: useStaticPages404,
           hasReportWebVitals:
             namedExports?.includes('reportWebVitals') ?? false,
           rewritesCount: combinedRewrites.length,
@@ -3124,15 +3169,15 @@ export default async function build(
       const images = { ...config.images }
       const { deviceSizes, imageSizes } = images
       ;(images as any).sizes = [...deviceSizes, ...imageSizes]
-      ;(images as any).remotePatterns = (
-        config?.images?.remotePatterns || []
-      ).map((p: RemotePattern) => ({
-        // Should be the same as matchRemotePattern()
-        protocol: p.protocol,
-        hostname: makeRe(p.hostname).source,
-        port: p.port,
-        pathname: makeRe(p.pathname ?? '**').source,
-      }))
+      images.remotePatterns = (config?.images?.remotePatterns || []).map(
+        (p: RemotePattern) => ({
+          // Should be the same as matchRemotePattern()
+          protocol: p.protocol,
+          hostname: makeRe(p.hostname).source,
+          port: p.port,
+          pathname: makeRe(p.pathname ?? '**').source,
+        })
+      )
 
       await fs.writeFile(
         path.join(distDir, IMAGES_MANIFEST),
@@ -3215,7 +3260,7 @@ export default async function build(
           distPath: distDir,
           buildId: buildId,
           pagesDir,
-          useStatic404,
+          useStaticPages404,
           pageExtensions: config.pageExtensions,
           appBuildManifest,
           buildManifest,
