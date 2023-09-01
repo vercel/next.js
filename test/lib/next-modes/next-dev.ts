@@ -80,23 +80,7 @@ export class NextDevInstance extends NextInstance {
           }
         })
         const readyCb = (msg) => {
-          const colorStrippedMsg = stripAnsi(msg)
-          if (colorStrippedMsg.includes('- Local:')) {
-            // turbo devserver emits stdout in rust directly, can contain unexpected chars with color codes
-            // strip out again for the safety
-            this._url = msg
-              .split('\n')
-              .find((line) => line.includes('- Local:'))
-              .split(/\s*- Local:/)
-              .pop()
-              .trim()
-          } else if (
-            msg.includes('started server on') &&
-            msg.includes('url:')
-          ) {
-            this._url = msg.split('url: ').pop().split(/\s/)[0].trim()
-          }
-          if (this._url) {
+          function resolveUrl(url: string) {
             try {
               this._parsedUrl = new URL(this._url)
             } catch (err) {
@@ -107,6 +91,25 @@ export class NextDevInstance extends NextInstance {
             }
             // server might reload so we keep listening
             resolve()
+          }
+
+          const colorStrippedMsg = stripAnsi(msg)
+          if (colorStrippedMsg.includes('- Local:')) {
+            // turbo devserver emits stdout in rust directly, can contain unexpected chars with color codes
+            // strip out again for the safety
+            this._url = msg
+              .split('\n')
+              .find((line) => line.includes('- Local:'))
+              .split(/\s*- Local:/)
+              .pop()
+              .trim()
+            resolveUrl(this._url)
+          } else if (
+            msg.includes('started server on') &&
+            msg.includes('url:')
+          ) {
+            this._url = msg.split('url: ').pop().split(/\s/)[0].trim()
+            resolveUrl(this._url)
           }
         }
         this.on('stdout', readyCb)
