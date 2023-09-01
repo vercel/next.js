@@ -2,10 +2,20 @@ import { useState } from 'react'
 import { useRouter } from 'next/router'
 import Link from 'next/link'
 import dbConnect from '../../lib/dbConnect'
-import Pet from '../../models/Pet'
+import Pet, { Pets } from '../../models/Pet'
+import { GetServerSideProps, GetServerSidePropsContext } from 'next'
+import { ParsedUrlQuery } from 'querystring'
+
+interface Params extends ParsedUrlQuery {
+  id: string
+}
+
+type Props = {
+  pet: Pets
+}
 
 /* Allows you to view pet card info and delete pet card*/
-const PetPage = ({ pet }) => {
+const PetPage = ({ pet }: Props) => {
   const router = useRouter()
   const [message, setMessage] = useState('')
   const handleDelete = async () => {
@@ -49,7 +59,7 @@ const PetPage = ({ pet }) => {
           </div>
 
           <div className="btn-container">
-            <Link href="/[id]/edit" as={`/${pet._id}/edit`} legacyBehavior>
+            <Link href={`/${pet._id}/edit`}>
               <button className="btn edit">Edit</button>
             </Link>
             <button className="btn delete" onClick={handleDelete}>
@@ -63,13 +73,33 @@ const PetPage = ({ pet }) => {
   )
 }
 
-export async function getServerSideProps({ params }) {
+export const getServerSideProps: GetServerSideProps<Props, Params> = async ({
+  params,
+}: GetServerSidePropsContext) => {
   await dbConnect()
 
-  const pet = await Pet.findById(params.id).lean()
-  pet._id = pet._id.toString()
+  if (!params?.id) {
+    return {
+      notFound: true,
+    }
+  }
 
-  return { props: { pet } }
+  const pet = await Pet.findById(params.id).lean()
+
+  if (!pet) {
+    return {
+      notFound: true,
+    }
+  }
+
+  /* Ensures all objectIds and nested objectIds are serialized as JSON data */
+  const serializedPet = JSON.parse(JSON.stringify(pet))
+
+  return {
+    props: {
+      pet: serializedPet,
+    },
+  }
 }
 
 export default PetPage
