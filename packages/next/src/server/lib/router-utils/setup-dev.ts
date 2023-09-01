@@ -4,10 +4,13 @@ import {
   Route,
   TurbopackResult,
   WrittenEndpoint,
+  ServerClientChange,
   ServerClientChangeType,
+  Issue,
 } from '../../../build/swc'
 import type { Socket } from 'net'
 import ws from 'next/dist/compiled/ws'
+import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 
 import fs from 'fs'
 import url from 'url'
@@ -94,6 +97,7 @@ import { devPageFiles } from '../../../build/webpack/plugins/next-types-plugin/s
 import type { RenderWorkers } from '../router-server'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
+import { debounce } from '../../utils'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -187,7 +191,7 @@ async function startWatcher(opts: SetupOpts) {
     })
     const iter = project.entrypointsSubscribe()
     const curEntries: Map<string, Route> = new Map()
-    let changeSubscriptions: Map<string, AsyncIterator<any>> = new Map()
+    const changeSubscriptions: Map<string, AsyncIterator<any>> = new Map()
     let prevMiddleware: boolean | undefined = undefined
     const globalEntries: {
       app: Endpoint | undefined
@@ -202,57 +206,155 @@ async function startWatcher(opts: SetupOpts) {
     let currentEntriesHandling = new Promise(
       (resolve) => (currentEntriesHandlingResolve = resolve)
     )
+    const hmrPayloads = new Map<string, object>()
+    let hmrBuilding = false
 
-    const issues = new Map<string, Set<string>>()
+    const issues = new Map<string, Map<string, Issue>>()
+
+    function issueKey(issue: Issue): string {
+      return `${issue.severity} - ${issue.filePath} - ${issue.title}\n${issue.description}\n\n`
+    }
+
+    function formatIssue(issue: Issue) {
+      const { filePath, title, description, source } = issue
+      let formattedTitle = title.replace(/\n/g, '\n    ')
+      let message = ''
+
+      let formattedFilePath = filePath
+        .replace('[project]/', '')
+        .replaceAll('/./', '/')
+        .replace('\\\\?\\', '')
+
+      if (source) {
+        const { start, end } = source
+        message = `${issue.severity} - ${formattedFilePath}:${start.line + 1}:${
+          start.column
+        }  ${formattedTitle}`
+        if (source.source.content) {
+          message +=
+            '\n\n' +
+            codeFrameColumns(
+              source.source.content,
+              {
+                start: { line: start.line + 1, column: start.column + 1 },
+                end: { line: end.line + 1, column: end.column + 1 },
+              },
+              { forceColor: true }
+            )
+        }
+      } else {
+        message = `${formattedTitle}`
+      }
+      if (description) {
+        message += `\n${description.replace(/\n/g, '\n    ')}`
+      }
+
+      return message
+    }
+
+    class ModuleBuildError extends Error {}
+
+    function processIssues(
+      name: string,
+      result: TurbopackResult,
+      throwIssue = false
+    ) {
+      const oldSet = issues.get(name) ?? new Map()
+      const newSet = new Map<string, Issue>()
+      issues.set(name, newSet)
+
+      for (const issue of result.issues) {
+        // TODO better formatting
+        if (issue.severity !== 'error' && issue.severity !== 'fatal') continue
+        const key = issueKey(issue)
+        const formatted = formatIssue(issue)
+        if (!throwIssue && !oldSet.has(key)) {
+          console.error(`  ⚠ ${key} ${formatted}\n\n`)
+        }
+        newSet.set(key, issue)
+        if (throwIssue) {
+          throw new ModuleBuildError(formatted)
+        }
+      }
+
+      for (const issue of oldSet.keys()) {
+        if (!newSet.has(issue)) {
+          console.error(`✅ ${name} fixed ${issue}`)
+        }
+      }
+    }
 
     async function processResult(
-      key: string,
-      result: TurbopackResult<WrittenEndpoint> | undefined
-    ): Promise<TurbopackResult<WrittenEndpoint> | undefined> {
-      if (result) {
-        await (global as any)._nextDeleteCache?.(
-          result.serverPaths
-            .map((p) => path.join(distDir, p))
-            .concat([
-              // We need to clear the chunk cache in react
-              require.resolve(
-                'next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.edge.development.js'
-              ),
-              // And this redirecting module as well
-              require.resolve(
-                'next/dist/compiled/react-server-dom-webpack/client.edge.js'
-              ),
-            ])
-        )
+      result: TurbopackResult<WrittenEndpoint>
+    ): Promise<TurbopackResult<WrittenEndpoint>> {
+      await (global as any)._nextDeleteCache?.(
+        result.serverPaths
+          .map((p) => path.join(distDir, p))
+          .concat([
+            // We need to clear the chunk cache in react
+            require.resolve(
+              'next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.edge.development.js'
+            ),
+            // And this redirecting module as well
+            require.resolve(
+              'next/dist/compiled/react-server-dom-webpack/client.edge.js'
+            ),
+          ])
+      )
 
-        const oldSet = issues.get(key) ?? new Set()
-        const newSet = new Set<string>()
-
-        for (const issue of result.issues) {
-          // TODO better formatting
-          if (issue.severity !== 'error' && issue.severity !== 'fatal') continue
-          const issueKey = `${issue.severity} - ${issue.filePath} - ${issue.title}\n${issue.description}\n\n`
-          if (!oldSet.has(issueKey)) {
-            console.error(
-              `  ⚠ ${key} ${issue.severity} - ${
-                issue.filePath
-              }\n    ${issue.title.replace(
-                /\n/g,
-                '\n    '
-              )}\n    ${issue.description.replace(/\n/g, '\n    ')}\n\n`
-            )
-          }
-          newSet.add(issueKey)
-        }
-        for (const issue of oldSet) {
-          if (!newSet.has(issue)) {
-            console.error(`✅ ${key} fixed ${issue}`)
-          }
-        }
-
-        issues.set(key, newSet)
-      }
       return result
+    }
+
+    let hmrHash = 0
+    const sendHmrDebounce = debounce(() => {
+      interface HmrError {
+        moduleName?: string
+        message: string
+        details?: string
+        moduleTrace?: Array<{ moduleName: string }>
+        stack?: string
+      }
+      const errors = new Map<string, HmrError>()
+      for (const [, issueMap] of issues) {
+        for (const [key, issue] of issueMap) {
+          if (errors.has(key)) continue
+
+          console.log(issue)
+          const message = formatIssue(issue)
+
+          errors.set(key, {
+            message,
+            details: issue.detail,
+          })
+        }
+      }
+
+      hotReloader.send({
+        action: 'built',
+        hash: String(++hmrHash),
+        errors: [...errors.values()],
+        warnings: [],
+      })
+      hmrBuilding = false
+
+      if (errors.size === 0) {
+        for (const payload of hmrPayloads.values()) {
+          hotReloader.send(payload)
+        }
+        hmrPayloads.clear()
+      }
+    }, 2)
+
+    function sendHmr(key: string, id: string, payload: object) {
+      // We've detected a change in some part of the graph. If nothing has
+      // been inserted into building yet, then this is the first change
+      // emitted, but their may be many more coming.
+      if (!hmrBuilding) {
+        hotReloader.send('building')
+        hmrBuilding = true
+      }
+      hmrPayloads.set(`${key}:${id}`, payload)
+      sendHmrDebounce()
     }
 
     const clearCache = (filePath: string) =>
@@ -344,7 +446,7 @@ async function startWatcher(opts: SetupOpts) {
       endpoint: Endpoint | undefined,
       makePayload: (
         page: string,
-        change: ServerClientChangeType
+        change: TurbopackResult<ServerClientChange>
       ) => object | void
     ) {
       if (!endpoint || changeSubscriptions.has(page)) return
@@ -353,9 +455,18 @@ async function startWatcher(opts: SetupOpts) {
       changeSubscriptions.set(page, changed)
 
       for await (const change of changed) {
-        const payload = makePayload(page, change.change)
-        if (payload) hotReloader.send(payload)
+        processIssues(page, change)
+        const payload = makePayload(page, change)
+        if (payload) sendHmr('endpoint-change', page, payload)
       }
+    }
+    function clearChangeSubscription(page: string) {
+      const subscription = changeSubscriptions.get(page)
+      if (subscription) {
+        subscription.return?.()
+        changeSubscriptions.delete(page)
+      }
+      issues.delete(page)
     }
 
     try {
@@ -406,18 +517,21 @@ async function startWatcher(opts: SetupOpts) {
           // unnecessary during the first serve)
           if (prevMiddleware === true && !middleware) {
             // Went from middleware to no middleware
-            hotReloader.send({ event: 'middlewareChanges' })
-            changeSubscriptions.get('')?.return?.()
-            changeSubscriptions.delete('')
+            clearChangeSubscription('middleware')
+            sendHmr('entrypoint-change', 'middleware', {
+              event: 'middlewareChanges',
+            })
           } else if (prevMiddleware === false && middleware) {
             // Went from no middleware to middleware
-            hotReloader.send({ event: 'middlewareChanges' })
+            sendHmr('endpoint-change', 'middleware', {
+              event: 'middlewareChanges',
+            })
           }
           if (middleware) {
-            await processResult(
-              'middleware',
+            const writtenEndpoint = await processResult(
               await middleware.endpoint.writeToDisk()
             )
+            processIssues('middleware', writtenEndpoint)
             await loadMiddlewareManifest('middleware', 'middleware')
             serverFields.actualMiddlewareFile = 'middleware'
             serverFields.middleware = {
@@ -427,7 +541,7 @@ async function startWatcher(opts: SetupOpts) {
                 middlewareManifests.get('middleware')?.middleware['/'].matchers,
             }
 
-            changeSubscription('', middleware.endpoint, () => {
+            changeSubscription('middleware', middleware.endpoint, () => {
               return { event: 'middlewareChanges' }
             })
             prevMiddleware = true
@@ -615,17 +729,7 @@ async function startWatcher(opts: SetupOpts) {
       )
     }
 
-    async function writeOtherManifests(): Promise<void> {
-      const loadableManifestPath = path.join(
-        distDir,
-        'react-loadable-manifest.json'
-      )
-      await clearCache(loadableManifestPath)
-      await writeFile(
-        loadableManifestPath,
-        JSON.stringify({}, null, 2),
-        'utf-8'
-      )
+    async function writeFontManifest(): Promise<void> {
       // TODO: turbopack should write the correct
       // version of this
       const fontManifestPath = path.join(
@@ -649,6 +753,19 @@ async function startWatcher(opts: SetupOpts) {
       )
     }
 
+    async function writeOtherManifests(): Promise<void> {
+      const loadableManifestPath = path.join(
+        distDir,
+        'react-loadable-manifest.json'
+      )
+      await clearCache(loadableManifestPath)
+      await writeFile(
+        loadableManifestPath,
+        JSON.stringify({}, null, 2),
+        'utf-8'
+      )
+    }
+
     async function subscribeToHmrEvents(id: string, client: ws) {
       let mapping = clientToHmrSubscription.get(client)
       if (mapping === undefined) {
@@ -659,8 +776,24 @@ async function startWatcher(opts: SetupOpts) {
 
       const subscription = project.hmrEvents(id)
       mapping.set(id, subscription)
+
+      // The subscription will always emit once, which is the initial
+      // computation. This is not a change, so swallow it.
+      try {
+        await subscription.next()
+      } catch (e) {
+        // The client is using an HMR session from a previous server, tell them
+        // to fully reload the page to resolve the issue. We can't use
+        // `hotReloader.send` since that would force very connected client to
+        // reload, only this client is out of date.
+        client.send(JSON.stringify({ action: 'reloadPage' }))
+        client.close()
+        return
+      }
+
       for await (const data of subscription) {
-        hotReloader.send({ type: 'turbopack-message', data })
+        processIssues(id, data)
+        sendHmr('hrm-event', id, { type: 'turbopack-message', data })
       }
     }
 
@@ -690,6 +823,7 @@ async function startWatcher(opts: SetupOpts) {
     await writeAppPathsManifest()
     await writeMiddlewareManifest()
     await writeOtherManifests()
+    await writeFontManifest()
 
     const turbopackHotReloader: NextJsHotReloaderInterface = {
       activeWebpackConfigs: undefined,
@@ -721,12 +855,6 @@ async function startWatcher(opts: SetupOpts) {
         wsServer.handleUpgrade(req, socket, head, (client) => {
           clients.add(client)
           client.on('close', () => clients.delete(client))
-
-          // server sends:
-          //   - Middleware HMR:
-          //     - { action: 'building' }
-          //     - { action: 'sync', hash, errors, warnings, versionInfo }
-          //     - { action: 'built', hash }
 
           client.addEventListener('message', ({ data }) => {
             const parsedData = JSON.parse(
@@ -830,20 +958,32 @@ async function startWatcher(opts: SetupOpts) {
         let page = match?.definition?.pathname ?? inputPage
 
         if (page === '/_error') {
-          await processResult('_app', await globalEntries.app?.writeToDisk())
+          if (globalEntries.app) {
+            const writtenEndpoint = await processResult(
+              await globalEntries.app.writeToDisk()
+            )
+            processIssues('_app', writtenEndpoint)
+          }
           await loadBuildManifest('_app')
           await loadPagesManifest('_app')
 
-          await processResult(
-            '_document',
-            await globalEntries.document?.writeToDisk()
-          )
-          changeSubscription('_document', globalEntries?.document, () => {
-            return { action: 'reloadPage' }
-          })
+          if (globalEntries.document) {
+            const writtenEndpoint = await processResult(
+              await globalEntries.document.writeToDisk()
+            )
+            changeSubscription('_document', globalEntries.document, () => {
+              return { action: 'reloadPage' }
+            })
+            processIssues('_document', writtenEndpoint)
+          }
           await loadPagesManifest('_document')
 
-          await processResult(page, await globalEntries.error?.writeToDisk())
+          if (globalEntries.error) {
+            const writtenEndpoint = await processResult(
+              await globalEntries.error.writeToDisk()
+            )
+            processIssues(page, writtenEndpoint)
+          }
           await loadBuildManifest('_error')
           await loadPagesManifest('_error')
 
@@ -904,28 +1044,33 @@ async function startWatcher(opts: SetupOpts) {
               )
             }
 
-            await processResult('_app', await globalEntries.app?.writeToDisk())
-
+            if (globalEntries.app) {
+              const writtenEndpoint = await processResult(
+                await globalEntries.app.writeToDisk()
+              )
+              processIssues('_app', writtenEndpoint)
+            }
             await loadBuildManifest('_app')
             await loadPagesManifest('_app')
 
-            await processResult(
-              '_document',
-              await globalEntries.document?.writeToDisk()
-            )
+            if (globalEntries.document) {
+              const writtenEndpoint = await processResult(
+                await globalEntries.document.writeToDisk()
+              )
 
-            changeSubscription('_document', globalEntries?.document, () => {
-              return { action: 'reloadPage' }
-            })
+              changeSubscription('_document', globalEntries.document, () => {
+                return { action: 'reloadPage' }
+              })
+              processIssues('_document', writtenEndpoint)
+            }
             await loadPagesManifest('_document')
 
             const writtenEndpoint = await processResult(
-              page,
               await route.htmlEndpoint.writeToDisk()
             )
 
-            changeSubscription(page, route.htmlEndpoint, (pageName, change) => {
-              switch (change) {
+            changeSubscription(page, route.dataEndpoint, (pageName, change) => {
+              switch (change.type) {
                 case ServerClientChangeType.Server:
                 case ServerClientChangeType.Both:
                   return { event: 'serverOnlyChanges', pages: [pageName] }
@@ -948,6 +1093,8 @@ async function startWatcher(opts: SetupOpts) {
             await writeMiddlewareManifest()
             await writeOtherManifests()
 
+            processIssues(page, writtenEndpoint, true)
+
             break
           }
           case 'page-api': {
@@ -956,7 +1103,6 @@ async function startWatcher(opts: SetupOpts) {
             // api requests to page API routes.
 
             const writtenEndpoint = await processResult(
-              page,
               await route.endpoint.writeToDisk()
             )
 
@@ -973,13 +1119,17 @@ async function startWatcher(opts: SetupOpts) {
             await writeMiddlewareManifest()
             await writeOtherManifests()
 
+            processIssues(page, writtenEndpoint, true)
+
             break
           }
           case 'app-page': {
-            await processResult(page, await route.htmlEndpoint.writeToDisk())
+            const writtenEndpoint = await processResult(
+              await route.htmlEndpoint.writeToDisk()
+            )
 
-            changeSubscription(page, route.htmlEndpoint, (_page, change) => {
-              switch (change) {
+            changeSubscription(page, route.rscEndpoint, (_page, change) => {
+              switch (change.type) {
                 case ServerClientChangeType.Server:
                 case ServerClientChangeType.Both:
                   return { action: 'serverComponentChanges' }
@@ -997,12 +1147,16 @@ async function startWatcher(opts: SetupOpts) {
             await writeMiddlewareManifest()
             await writeOtherManifests()
 
+            processIssues(page, writtenEndpoint, true)
+
             break
           }
           case 'app-route': {
-            const type = (
-              await processResult(page, await route.endpoint.writeToDisk())
-            )?.type
+            const writtenEndpoint = await processResult(
+              await route.endpoint.writeToDisk()
+            )
+
+            const type = writtenEndpoint?.type
 
             await loadAppPathManifest(page, 'app-route')
             if (type === 'edge') {
@@ -1016,6 +1170,8 @@ async function startWatcher(opts: SetupOpts) {
             await writeMiddlewareManifest()
             await writeMiddlewareManifest()
             await writeOtherManifests()
+
+            processIssues(page, writtenEndpoint, true)
 
             break
           }

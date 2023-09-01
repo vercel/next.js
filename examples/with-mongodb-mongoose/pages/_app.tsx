@@ -2,8 +2,9 @@ import '../css/style.css'
 import '../css/form.css'
 import Head from 'next/head'
 import Link from 'next/link'
+import type { AppProps } from 'next/app'
 
-function MyApp({ Component, pageProps }) {
+function MyApp({ Component, pageProps }: AppProps) {
   return (
     <>
       <Head>
@@ -22,7 +23,7 @@ function MyApp({ Component, pageProps }) {
           alt="pet care logo"
         ></img>
       </div>
-      <div className="grid wrapper">
+      <div className="wrapper grid">
         <Component {...pageProps} />
       </div>
     </>

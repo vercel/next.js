@@ -17,6 +17,7 @@ window.next = {
   emitter,
 }
 ;(self as any).__next_set_public_path__ = () => {}
+;(self as any).__webpack_hash__ = 0
 
 // for the page loader
 declare let __turbopack_load__: any
