@@ -1804,7 +1804,8 @@ export async function copyTracedFiles(
   tracingRoot: string,
   serverConfig: { [key: string]: any },
   middlewareManifest: MiddlewareManifest,
-  hasInstrumentationHook: boolean
+  hasInstrumentationHook: boolean,
+  hasAppDir: boolean
 ) {
   const outputPath = path.join(distDir, 'standalone')
   let moduleType = false
@@ -1967,9 +1968,11 @@ const nextConfig = ${JSON.stringify({
     })}
 
 process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(nextConfig)
-process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = nextConfig.experimental && nextConfig.experimental.serverActions
-  ? 'experimental'
-  : 'next'
+process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = ${hasAppDir}
+  ? nextConfig.experimental && nextConfig.experimental.serverActions
+    ? 'experimental'
+    : 'next'
+  : '';
 
 if (
   Number.isNaN(keepAliveTimeout) ||

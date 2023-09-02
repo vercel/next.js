@@ -2384,7 +2384,8 @@ export default async function build(
               outputFileTracingRoot,
               requiredServerFiles.config,
               middlewareManifest,
-              hasInstrumentationHook
+              hasInstrumentationHook,
+              hasAppDir
             )
           })
       }
