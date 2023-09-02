@@ -2,7 +2,32 @@ import { useState } from 'react'
 import { useRouter } from 'next/router'
 import { mutate } from 'swr'
 
-const Form = ({ formId, petForm, forNewPet = true }) => {
+interface FormData {
+  name: string
+  owner_name: string
+  species: string
+  age: number
+  poddy_trained: boolean
+  diet: string[]
+  image_url: string
+  likes: string[]
+  dislikes: string[]
+}
+
+interface Error {
+  name?: string
+  owner_name?: string
+  species?: string
+  image_url?: string
+}
+
+type Props = {
+  formId: string
+  petForm: FormData
+  forNewPet?: boolean
+}
+
+const Form = ({ formId, petForm, forNewPet = true }: Props) => {
   const router = useRouter()
   const contentType = 'application/json'
   const [errors, setErrors] = useState({})
@@ -21,7 +46,7 @@ const Form = ({ formId, petForm, forNewPet = true }) => {
   })
 
   /* The PUT method edits an existing entry in the mongodb database. */
-  const putData = async (form) => {
+  const putData = async (form: FormData) => {
     const { id } = router.query
 
     try {
@@ -36,7 +61,7 @@ const Form = ({ formId, petForm, forNewPet = true }) => {
 
       // Throw error with status code in case Fetch API req failed
       if (!res.ok) {
-        throw new Error(res.status)
+        throw new Error(res.status.toString())
       }
 
       const { data } = await res.json()
@@ -49,7 +74,7 @@ const Form = ({ formId, petForm, forNewPet = true }) => {
   }
 
   /* The POST method adds a new entry in the mongodb database. */
-  const postData = async (form) => {
+  const postData = async (form: FormData) => {
     try {
       const res = await fetch('/api/pets', {
         method: 'POST',
@@ -62,7 +87,7 @@ const Form = ({ formId, petForm, forNewPet = true }) => {
 
       // Throw error with status code in case Fetch API req failed
       if (!res.ok) {
-        throw new Error(res.status)
+        throw new Error(res.status.toString())
       }
 
       router.push('/')
@@ -71,10 +96,14 @@ const Form = ({ formId, petForm, forNewPet = true }) => {
     }
   }
 
-  const handleChange = (e) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
     const target = e.target
     const value =
-      target.name === 'poddy_trained' ? target.checked : target.value
+      target.name === 'poddy_trained'
+        ? (target as HTMLInputElement).checked
+        : target.value
     const name = target.name
 
     setForm({
@@ -85,7 +114,7 @@ const Form = ({ formId, petForm, forNewPet = true }) => {
 
   /* Makes sure pet info is filled for pet name, owner name, species, and image url*/
   const formValidate = () => {
-    let err = {}
+    let err: Error = {}
     if (!form.name) err.name = 'Name is required'
     if (!form.owner_name) err.owner_name = 'Owner is required'
     if (!form.species) err.species = 'Species is required'
@@ -93,9 +122,10 @@ const Form = ({ formId, petForm, forNewPet = true }) => {
     return err
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const errs = formValidate()
+
     if (Object.keys(errs).length === 0) {
       forNewPet ? postData(form) : putData(form)
     } else {
@@ -109,7 +139,7 @@ const Form = ({ formId, petForm, forNewPet = true }) => {
         <label htmlFor="name">Name</label>
         <input
           type="text"
-          maxLength="20"
+          maxLength={20}
           name="name"
           value={form.name}
           onChange={handleChange}
@@ -119,7 +149,7 @@ const Form = ({ formId, petForm, forNewPet = true }) => {
         <label htmlFor="owner_name">Owner</label>
         <input
           type="text"
-          maxLength="20"
+          maxLength={20}
           name="owner_name"
           value={form.owner_name}
           onChange={handleChange}
@@ -129,7 +159,7 @@ const Form = ({ formId, petForm, forNewPet = true }) => {
         <label htmlFor="species">Species</label>
         <input
           type="text"
-          maxLength="30"
+          maxLength={30}
           name="species"
           value={form.species}
           onChange={handleChange}
@@ -155,7 +185,7 @@ const Form = ({ formId, petForm, forNewPet = true }) => {
         <label htmlFor="diet">Diet</label>
         <textarea
           name="diet"
-          maxLength="60"
+          maxLength={60}
           value={form.diet}
           onChange={handleChange}
         />
@@ -172,7 +202,7 @@ const Form = ({ formId, petForm, forNewPet = true }) => {
         <label htmlFor="likes">Likes</label>
         <textarea
           name="likes"
-          maxLength="60"
+          maxLength={60}
           value={form.likes}
           onChange={handleChange}
         />
@@ -180,7 +210,7 @@ const Form = ({ formId, petForm, forNewPet = true }) => {
         <label htmlFor="dislikes">Dislikes</label>
         <textarea
           name="dislikes"
-          maxLength="60"
+          maxLength={60}
           value={form.dislikes}
           onChange={handleChange}
         />

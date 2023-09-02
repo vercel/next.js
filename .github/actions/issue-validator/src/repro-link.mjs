@@ -20,6 +20,8 @@ async function run() {
   const { body: issue_body } = issue
   if (!issue_body) return console.log('Could not get issue body, exiting')
 
+  // https://github.com/vercel/next.js/blob/canary/.github/ISSUE_TEMPLATE/1.bug_report.yml?plain=1
+
   const start =
     '### Link to the code that reproduces this issue or a replay of the bug'
   const end = '### To Reproduce'
@@ -44,6 +46,13 @@ async function run() {
     repo: context.repo.repo,
     issue_number: issue.number,
     state: 'closed',
+  })
+
+  await client.issues.addLabels({
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    issue_number: issue.number,
+    labels: ['invalid link'],
   })
 
   // Comment on the issue

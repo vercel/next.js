@@ -1,8 +1,9 @@
 use anyhow::{bail, Context, Result};
 use next_core::{
     all_server_paths,
-    middleware::{get_middleware_module, wrap_edge_entry},
+    middleware::get_middleware_module,
     mode::NextMode,
+    next_edge::entry::wrap_edge_entry,
     next_manifests::{EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2},
     next_server::{get_server_runtime_entries, ServerContextType},
     util::parse_config_from_source,
