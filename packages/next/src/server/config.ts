@@ -313,14 +313,12 @@ function assignDefaults(
     }
 
     // Append trailing slash for non-default loaders and when trailingSlash is set
-    if (images.path) {
-      if (
-        (images.loader !== 'default' &&
-          images.path[images.path.length - 1] !== '/') ||
-        result.trailingSlash
-      ) {
-        images.path += '/'
-      }
+    if (
+      images.path &&
+      !images.path.endsWith('/') &&
+      (images.loader !== 'default' || result.trailingSlash)
+    ) {
+      images.path += '/'
     }
 
     if (images.loaderFile) {
