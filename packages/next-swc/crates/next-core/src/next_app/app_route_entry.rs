@@ -55,7 +55,7 @@ pub async fn get_app_route_entry(
     let original_page_name = get_original_route_name(&original_name);
     let path = source.ident().path();
 
-    let template_file = "build/webpack/loaders/next-route-loader/templates/app-route.js";
+    let template_file = "build/templates/app-route.js";
 
     // Load the file from the next.js codebase.
     let file = load_next_js_template(project_root, template_file.to_string()).await?;
@@ -120,7 +120,7 @@ pub async fn get_app_route_entry(
     );
 
     if is_edge {
-        rsc_entry = wrap_edge_entry(context, project_root, rsc_entry, original_page_name.clone());
+        rsc_entry = wrap_edge_entry(context, project_root, rsc_entry, pathname.clone());
     }
 
     let Some(rsc_entry) =
@@ -143,7 +143,7 @@ pub async fn wrap_edge_entry(
     context: Vc<ModuleAssetContext>,
     project_root: Vc<FileSystemPath>,
     entry: Vc<Box<dyn Module>>,
-    original_name: String,
+    pathname: String,
 ) -> Result<Vc<Box<dyn Module>>> {
     let mut source = RopeBuilder::default();
     writedoc!(
@@ -158,7 +158,7 @@ pub async fn wrap_edge_entry(
                 default: EdgeRouteModuleWrapper.wrap(module.routeModule),
             }}
         "#,
-        StringifyJs(&format_args!("middleware_{}", original_name))
+        StringifyJs(&format_args!("middleware_{}", pathname))
     )?;
     let file = File::from(source.build());
     // TODO(alexkirsz) Figure out how to name this virtual asset.

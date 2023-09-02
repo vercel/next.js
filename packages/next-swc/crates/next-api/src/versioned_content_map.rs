@@ -11,7 +11,14 @@ use turbopack_binding::{
     },
 };
 
-type VersionedContentMapInner = HashMap<Vc<FileSystemPath>, Vc<Box<dyn VersionedContent>>>;
+/// An unresolved output assets operation. We need to pass an operation here as
+/// it's stored for later usage and we want to reconnect this operation when
+/// it's received from the map again.
+#[turbo_tasks::value(transparent)]
+pub struct OutputAssetsOperation(Vc<OutputAssets>);
+
+type VersionedContentMapInner =
+    HashMap<Vc<FileSystemPath>, (Vc<Box<dyn VersionedContent>>, Vc<OutputAssets>)>;
 
 #[turbo_tasks::value]
 pub struct VersionedContentMap {
@@ -38,8 +45,12 @@ impl VersionedContentMap {
 #[turbo_tasks::value_impl]
 impl VersionedContentMap {
     #[turbo_tasks::function]
-    pub async fn insert_output_assets(self: Vc<Self>, assets: Vc<OutputAssets>) -> Result<()> {
-        let assets = assets.await?;
+    pub async fn insert_output_assets(
+        self: Vc<Self>,
+        assets_operation: Vc<OutputAssetsOperation>,
+    ) -> Result<()> {
+        let assets_operation = *assets_operation.await?;
+        let assets = assets_operation.await?;
         let entries: Vec<_> = assets
             .iter()
             .map(|asset| async move {
@@ -48,7 +59,7 @@ impl VersionedContentMap {
                 // content.
                 Ok((
                     asset.ident().path().resolve().await?,
-                    asset.versioned_content(),
+                    (asset.versioned_content(), assets_operation),
                 ))
             })
             .try_join()
@@ -62,7 +73,7 @@ impl VersionedContentMap {
 
     #[turbo_tasks::function]
     pub async fn get(&self, path: Vc<FileSystemPath>) -> Result<Vc<Box<dyn VersionedContent>>> {
-        let content = {
+        let result = {
             // NOTE(alexkirsz) This is to avoid Rust marking this method as !Send because a
             // StateRef to the map is captured across an await boundary below, even though
             // it does not look like it would.
@@ -70,11 +81,12 @@ impl VersionedContentMap {
             let map = self.map.get();
             map.get(&path).copied()
         };
-        let Some(content) = content else {
+        let Some((content, assets_operation)) = result else {
             let path = path.to_string().await?;
             bail!("could not find versioned content for path {}", path);
         };
         // NOTE(alexkirsz) This is necessary to mark the task as active again.
+        Vc::connect(assets_operation);
         Vc::connect(content);
         Ok(content)
     }

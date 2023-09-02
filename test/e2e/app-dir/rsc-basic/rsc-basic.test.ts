@@ -327,7 +327,7 @@ createNextDescribe(
 
       // from styled-jsx
       expect(head).toMatch(/{color:(\s*)purple;?}/) // styled-jsx/style
-      expect(head).toMatch(/{color:(\s*)hotpink;?}/) // styled-jsx/css
+      expect(head).toMatch(/{color:(\s*)#ff69b4;?}/) // styled-jsx/css
 
       // from styled-components
       expect(head).toMatch(/{color:(\s*)blue;?}/)
@@ -339,7 +339,7 @@ createNextDescribe(
 
       // from styled-jsx
       expect(head).toMatch(/{color:(\s*)purple;?}/) // styled-jsx/style
-      expect(head).toMatch(/{color:(\s*)hotpink;?}/) // styled-jsx/css
+      expect(head).toMatch(/{color:(\s*)#ff69b4;?}/) // styled-jsx/css
 
       // from styled-components
       expect(head).toMatch(/{color:(\s*)blue;?}/)
@@ -551,6 +551,16 @@ createNextDescribe(
       expect(
         await browser.eval(`window.partial_hydration_counter_result`)
       ).toBe('count: 1')
+    })
+
+    it('should support webpack loader rules', async () => {
+      const browser = await next.browser('/loader-rule')
+
+      expect(
+        await browser.eval(
+          `window.getComputedStyle(document.querySelector('#red')).color`
+        )
+      ).toBe('rgb(255, 0, 0)')
     })
 
     if (isNextStart) {

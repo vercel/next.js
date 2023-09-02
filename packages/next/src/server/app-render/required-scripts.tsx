@@ -6,7 +6,8 @@ export function getRequiredScripts(
   buildManifest: BuildManifest,
   assetPrefix: string,
   SRIManifest: undefined | Record<string, string>,
-  qs: string
+  qs: string,
+  nonce: string | undefined
 ): [() => void, string | { src: string; integrity: string }] {
   let preinitScripts: () => void
   let preinitScriptCommands: string[] = []
@@ -33,6 +34,7 @@ export function getRequiredScripts(
         ReactDOM.preinit(preinitScriptCommands[i], {
           as: 'script',
           integrity: preinitScriptCommands[i + 1],
+          nonce,
         })
       }
     }
@@ -47,6 +49,7 @@ export function getRequiredScripts(
       for (let i = 0; i < preinitScriptCommands.length; i++) {
         ReactDOM.preinit(preinitScriptCommands[i], {
           as: 'script',
+          nonce,
         })
       }
     }
