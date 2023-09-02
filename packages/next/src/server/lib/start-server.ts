@@ -194,11 +194,11 @@ export async function startServer({
       )
 
       const formattedHostname =
-        !hostname || hostname === '0.0.0.0'
-          ? 'localhost'
-          : actualHostname === '[::]'
+        !hostname || actualHostname === '0.0.0.0'
+          ? 'localhost' 
+          : actualHostname === '[::]' 
           ? '[::1]'
-          : actualHostname
+          : formatHostname(hostname)
 
       port = typeof addr === 'object' ? addr?.port || port : port
       const appUrl = `${
