@@ -11,9 +11,9 @@ export function getFetchHostname(
   actualHostname: string,
   providedHostname: string | undefined
 ) {
-  return actualHostname === '0.0.0.0'
+  return !providedHostname || actualHostname === '0.0.0.0'
     ? 'localhost'
     : actualHostname === '::'
     ? '[::1]'
-    : formatHostname(providedHostname || actualHostname)
+    : formatHostname(providedHostname)
 }
