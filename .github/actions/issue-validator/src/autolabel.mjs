@@ -38,7 +38,7 @@ async function run() {
 
   const matchSection = issue_body
     .split('Which area(s) are affected? (Select all that apply)')[1]
-    ?.split('Another way you can help the maintainers')[0]
+    ?.split('### Additional context')[0]
 
   if (!matchSection) {
     console.log(
