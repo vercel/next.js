@@ -344,12 +344,20 @@ export async function GET(request) {
 ### Redirects
 
 ```ts filename="app/api/route.ts" switcher
-import { redirect } from 'next/navigation'
+import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET(request: Request) {
-  redirect('https://nextjs.org/')
+export async function GET(request: NextRequest) {
+
+// your URL should be complete you can use something like '/foo',
+//you can also try   
+// const url = req.nextUrl.clone();
+// url.pathname = "/projects";
+// return NextResponse.redirect(url);
+
+ return NextResponse.redirect('https://nextjs.org/')
 }
 ```
+
 
 ```js filename="app/api/route.js" switcher
 import { redirect } from 'next/navigation'
