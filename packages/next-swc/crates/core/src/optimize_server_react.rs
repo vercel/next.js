@@ -109,6 +109,10 @@ impl Fold for OptimizeServerReact {
     // const [state, setState] = useState(x);
     // const [state, setState] = React.useState(x);
     fn fold_var_declarators(&mut self, d: Vec<VarDeclarator>) -> Vec<VarDeclarator> {
+        if !self.optimize_use_state {
+            return d;
+        }
+
         let mut new_d = vec![];
         for decl in d {
             if let Pat::Array(array_pat) = &decl.name {
