@@ -88,6 +88,8 @@ export async function initialize(opts: {
   let requestHandler: RequestHandler
   let upgradeHandler: any
 
+  const optsHostname = opts.hostname || 'localhost'
+
   const { port, server, hostname } = await initializeServerWorker(
     (...args) => {
       return requestHandler(...args)
@@ -95,13 +97,17 @@ export async function initialize(opts: {
     (...args) => {
       return upgradeHandler(...args)
     },
-    opts
+    {
+      ...opts,
+      hostname: optsHostname,
+    }
   )
 
   app = next({
     ...opts,
     _routerWorker: opts.workerType === 'router',
     _renderWorker: opts.workerType === 'render',
+    hostname: optsHostname,
     customServer: false,
     httpServer: server,
   })
@@ -112,7 +118,7 @@ export async function initialize(opts: {
 
   result = {
     port,
-    hostname: getFetchHostname(hostname, opts.hostname),
+    hostname: getFetchHostname(hostname, optsHostname),
   }
 
   return result
