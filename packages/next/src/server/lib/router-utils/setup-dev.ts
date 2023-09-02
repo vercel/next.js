@@ -97,7 +97,7 @@ import { devPageFiles } from '../../../build/webpack/plugins/next-types-plugin/s
 import type { RenderWorkers } from '../router-server'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import {
-  HMR_ACTIONS,
+  HMR_ACTIONS_SENT_TO_BROWSER,
   HMR_ACTION_TYPES,
   NextJsHotReloaderInterface,
 } from '../../dev/hot-reloader-types'
@@ -334,7 +334,7 @@ async function startWatcher(opts: SetupOpts) {
       }
 
       hotReloader.send({
-        action: HMR_ACTIONS.BUILT,
+        action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT,
         hash: String(++hmrHash),
         errors: [...errors.values()],
         warnings: [],
@@ -354,7 +354,7 @@ async function startWatcher(opts: SetupOpts) {
       // been inserted into building yet, then this is the first change
       // emitted, but their may be many more coming.
       if (!hmrBuilding) {
-        hotReloader.send({ action: HMR_ACTIONS.BUILDING })
+        hotReloader.send({ action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING })
         hmrBuilding = true
       }
       hmrPayloads.set(`${key}:${id}`, payload)
@@ -523,12 +523,12 @@ async function startWatcher(opts: SetupOpts) {
             // Went from middleware to no middleware
             clearChangeSubscription('middleware')
             sendHmr('entrypoint-change', 'middleware', {
-              event: HMR_ACTIONS.MIDDLEWARE_CHANGES,
+              event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
             })
           } else if (prevMiddleware === false && middleware) {
             // Went from no middleware to middleware
             sendHmr('endpoint-change', 'middleware', {
-              event: HMR_ACTIONS.MIDDLEWARE_CHANGES,
+              event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
             })
           }
           if (middleware) {
@@ -546,7 +546,7 @@ async function startWatcher(opts: SetupOpts) {
             }
 
             changeSubscription('middleware', middleware.endpoint, () => {
-              return { event: HMR_ACTIONS.MIDDLEWARE_CHANGES }
+              return { event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES }
             })
             prevMiddleware = true
           } else {
@@ -797,7 +797,10 @@ async function startWatcher(opts: SetupOpts) {
 
       for await (const data of subscription) {
         processIssues(id, data)
-        sendHmr('hrm-event', id, { type: HMR_ACTIONS.TURBOPACK_MESSAGE, data })
+        sendHmr('hrm-event', id, {
+          type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
+          data,
+        })
       }
     }
 
@@ -875,11 +878,11 @@ async function startWatcher(opts: SetupOpts) {
                 hotReloader.send(
                   parsedData.appDirRouter
                     ? {
-                        action: HMR_ACTIONS.PONG,
+                        action: HMR_ACTIONS_SENT_TO_BROWSER.PONG,
                         success: true,
                       }
                     : {
-                        event: HMR_ACTIONS.PONG,
+                        event: HMR_ACTIONS_SENT_TO_BROWSER.PONG,
                         success: true,
                       }
                 )
@@ -979,7 +982,7 @@ async function startWatcher(opts: SetupOpts) {
               await globalEntries.document.writeToDisk()
             )
             changeSubscription('_document', globalEntries.document, () => {
-              return { action: HMR_ACTIONS.RELOAD_PAGE }
+              return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
             })
             processIssues('_document', writtenEndpoint)
           }
@@ -1066,7 +1069,7 @@ async function startWatcher(opts: SetupOpts) {
               )
 
               changeSubscription('_document', globalEntries.document, () => {
-                return { action: HMR_ACTIONS.RELOAD_PAGE }
+                return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
               })
               processIssues('_document', writtenEndpoint)
             }
@@ -1081,7 +1084,7 @@ async function startWatcher(opts: SetupOpts) {
                 case ServerClientChangeType.Server:
                 case ServerClientChangeType.Both:
                   return {
-                    event: HMR_ACTIONS.SERVER_ONLY_CHANGES,
+                    event: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
                     pages: [pageName],
                   }
                 default:
@@ -1142,7 +1145,10 @@ async function startWatcher(opts: SetupOpts) {
               switch (change.type) {
                 case ServerClientChangeType.Server:
                 case ServerClientChangeType.Both:
-                  return { action: HMR_ACTIONS.SERVER_COMPONENT_CHANGES }
+                  return {
+                    action:
+                      HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+                  }
                 default:
               }
             })
@@ -1790,7 +1796,7 @@ async function startWatcher(opts: SetupOpts) {
 
           // emit the change so clients fetch the update
           hotReloader.send({
-            action: HMR_ACTIONS.DEV_PAGES_MANIFEST_UPDATE,
+            action: HMR_ACTIONS_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE,
             data: [
               {
                 devPagesManifest: true,
@@ -1799,12 +1805,15 @@ async function startWatcher(opts: SetupOpts) {
           })
 
           addedRoutes.forEach((route) => {
-            hotReloader.send({ action: HMR_ACTIONS.ADDED_PAGE, data: [route] })
+            hotReloader.send({
+              action: HMR_ACTIONS_SENT_TO_BROWSER.ADDED_PAGE,
+              data: [route],
+            })
           })
 
           removedRoutes.forEach((route) => {
             hotReloader.send({
-              action: HMR_ACTIONS.REMOVED_PAGE,
+              action: HMR_ACTIONS_SENT_TO_BROWSER.REMOVED_PAGE,
               data: [route],
             })
           })

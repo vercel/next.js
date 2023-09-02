@@ -6,7 +6,7 @@ import type getBaseWebpackConfig from '../../build/webpack-config'
 import type { RouteMatch } from '../future/route-matches/route-match'
 import type { Update as TurbopackUpdate } from '../../build/swc'
 
-export const enum HMR_ACTIONS {
+export const enum HMR_ACTIONS_SENT_TO_BROWSER {
   ADDED_PAGE = 'addedPage',
   REMOVED_PAGE = 'removedPage',
   RELOAD_PAGE = 'reloadPage',
@@ -21,60 +21,60 @@ export const enum HMR_ACTIONS {
 }
 
 interface TurboPackMessageAction {
-  type: HMR_ACTIONS.TURBOPACK_MESSAGE
+  type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE
   data: TurbopackUpdate
 }
 
 interface BuildingAction {
-  action: HMR_ACTIONS.BUILDING
+  action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING
 }
 
 interface BuiltAction {
-  action: HMR_ACTIONS.BUILT
+  action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT
   hash: string
   errors: ReadonlyArray<unknown>
   warnings: ReadonlyArray<unknown>
 }
 
 interface AddedPageAction {
-  action: HMR_ACTIONS.ADDED_PAGE
+  action: HMR_ACTIONS_SENT_TO_BROWSER.ADDED_PAGE
   data: [page: string | null]
 }
 
 interface RemovedPageAction {
-  action: HMR_ACTIONS.REMOVED_PAGE
+  action: HMR_ACTIONS_SENT_TO_BROWSER.REMOVED_PAGE
   data: [page: string | null]
 }
 
 interface ReloadPageAction {
-  action: HMR_ACTIONS.RELOAD_PAGE
+  action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE
 }
 
 interface ServerComponentChangesAction {
-  action: HMR_ACTIONS.SERVER_COMPONENT_CHANGES
+  action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES
 }
 
 interface MiddlewareChangesAction {
-  event: HMR_ACTIONS.MIDDLEWARE_CHANGES
+  event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES
 }
 
 interface ServerOnlyChangesAction {
-  event: HMR_ACTIONS.SERVER_ONLY_CHANGES
+  event: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES
   pages: ReadonlyArray<string>
 }
 
 interface PongActionAppRouter {
-  action: HMR_ACTIONS.PONG
+  action: HMR_ACTIONS_SENT_TO_BROWSER.PONG
   success: boolean
 }
 
 interface PongActionPagesRouter {
-  event: HMR_ACTIONS.PONG
+  event: HMR_ACTIONS_SENT_TO_BROWSER.PONG
   success: boolean
 }
 
 interface DevPagesManifestUpdateAction {
-  action: HMR_ACTIONS.DEV_PAGES_MANIFEST_UPDATE
+  action: HMR_ACTIONS_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE
   data: [
     {
       devPagesManifest: true
