@@ -5,6 +5,7 @@ import {
 } from '../../../../server/app-render/types'
 import { callServer } from '../../../app-call-server'
 import {
+  ACTION,
   NEXT_ROUTER_STATE_TREE,
   NEXT_URL,
   RSC_CONTENT_TYPE_HEADER,
@@ -51,8 +52,8 @@ async function fetchServerAction(
     method: 'POST',
     headers: {
       Accept: RSC_CONTENT_TYPE_HEADER,
-      'Next-Action': actionId,
-      [NEXT_ROUTER_STATE_TREE]: JSON.stringify(state.tree),
+      [ACTION]: actionId,
+      [NEXT_ROUTER_STATE_TREE]: encodeURIComponent(JSON.stringify(state.tree)),
       ...(process.env.__NEXT_ACTIONS_DEPLOYMENT_ID &&
       process.env.NEXT_DEPLOYMENT_ID
         ? {
@@ -88,7 +89,11 @@ async function fetchServerAction(
   }
 
   const redirectLocation = location
-    ? new URL(addBasePath(location), window.location.origin)
+    ? new URL(
+        addBasePath(location),
+        // Ensure relative redirects in Server Actions work, e.g. redirect('./somewhere-else')
+        new URL(state.canonicalUrl, window.location.href)
+      )
     : undefined
 
   let isFlightResponse =
@@ -147,9 +152,28 @@ export function serverActionReducer(
     return handleMutable(state, mutable)
   }
 
-  if (!action.mutable.inFlightServerAction) {
-    action.mutable.inFlightServerAction = createRecordFromThenable(
-      fetchServerAction(state, action)
+  if (mutable.inFlightServerAction) {
+    // unblock if a navigation event comes through
+    // while we've suspended on an action
+    if (
+      mutable.globalMutable.pendingNavigatePath &&
+      mutable.globalMutable.pendingNavigatePath !== href
+    ) {
+      return state
+    }
+  } else {
+    mutable.inFlightServerAction = createRecordFromThenable(
+      fetchServerAction(state, action).then((result) => {
+        // if the server action resolves after a navigation took place,
+        // reset ServerActionMutable values & trigger a refresh so that any stale data gets updated
+        if (mutable.globalMutable.pendingNavigatePath) {
+          mutable.inFlightServerAction = null
+          mutable.globalMutable.pendingNavigatePath = undefined
+          mutable.globalMutable.refresh()
+        } else {
+          return result
+        }
+      })
     )
   }
 
@@ -164,6 +188,13 @@ export function serverActionReducer(
     } = readRecordValue(
       action.mutable.inFlightServerAction!
     ) as Awaited<FetchServerActionResult>
+
+    // Make sure the redirection is a push instead of a replace.
+    // Issue: https://github.com/vercel/next.js/issues/53911
+    if (redirectLocation) {
+      state.pushRef.pendingPush = true
+      mutable.pendingPush = true
+    }
 
     mutable.previousTree = state.tree
 

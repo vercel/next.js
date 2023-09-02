@@ -1,17 +1,20 @@
 import type { CacheFs } from '../../../shared/lib/utils'
+
+import FetchCache from './fetch-cache'
 import FileSystemCache from './file-system-cache'
 import { PrerenderManifest } from '../../../build'
 import path from '../../../shared/lib/isomorphic/path'
+import { encodeText } from '../../stream-utils/encode-decode'
+import { encode } from '../../../shared/lib/base64-arraybuffer'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
-import FetchCache from './fetch-cache'
 import {
   IncrementalCacheValue,
   IncrementalCacheEntry,
 } from '../../response-cache'
-import { encode } from '../../../shared/lib/base64-arraybuffer'
-import { encodeText } from '../../stream-utils/encode-decode'
 import {
   CACHE_ONE_YEAR,
+  NEXT_CACHE_REVALIDATED_TAGS_HEADER,
+  NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
   PRERENDER_REVALIDATE_HEADER,
 } from '../../../lib/constants'
 
@@ -44,20 +47,13 @@ export class CacheHandler {
   constructor(_ctx: CacheHandlerContext) {}
 
   public async get(
-    _key: string,
-    _fetchCache?: boolean,
-    _fetchUrl?: string,
-    _fetchIdx?: number
+    ..._args: Parameters<IncrementalCache['get']>
   ): Promise<CacheHandlerValue | null> {
     return {} as any
   }
 
   public async set(
-    _key: string,
-    _data: IncrementalCacheValue | null,
-    _fetchCache?: boolean,
-    _fetchUrl?: string,
-    _fetchIdx?: number
+    ..._args: Parameters<IncrementalCache['set']>
   ): Promise<void> {}
 
   public async revalidateTag(_tag: string): Promise<void> {}
@@ -152,11 +148,12 @@ export class IncrementalCache {
 
     if (
       minimalMode &&
-      typeof requestHeaders['x-next-revalidated-tags'] === 'string' &&
-      requestHeaders['x-next-revalidate-tag-token'] ===
+      typeof requestHeaders[NEXT_CACHE_REVALIDATED_TAGS_HEADER] === 'string' &&
+      requestHeaders[NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER] ===
         this.prerenderManifest?.preview?.previewModeId
     ) {
-      revalidatedTags = requestHeaders['x-next-revalidated-tags'].split(',')
+      revalidatedTags =
+        requestHeaders[NEXT_CACHE_REVALIDATED_TAGS_HEADER].split(',')
     }
 
     if (CurCacheHandler) {
@@ -393,11 +390,15 @@ export class IncrementalCache {
 
   // get data from cache if available
   async get(
-    pathname: string,
-    fetchCache?: boolean,
-    revalidate?: number | false,
-    fetchUrl?: string,
-    fetchIdx?: number
+    cacheKey: string,
+    ctx: {
+      fetchCache?: boolean
+      revalidate?: number | false
+      fetchUrl?: string
+      fetchIdx?: number
+      tags?: string[]
+      softTags?: string[]
+    } = {}
   ): Promise<IncrementalCacheEntry | null> {
     if (
       process.env.__NEXT_INCREMENTAL_CACHE_IPC_PORT &&
@@ -419,22 +420,28 @@ export class IncrementalCache {
     // so that getStaticProps is always called for easier debugging
     if (
       this.dev &&
-      (!fetchCache || this.requestHeaders['cache-control'] === 'no-cache')
+      (!ctx.fetchCache || this.requestHeaders['cache-control'] === 'no-cache')
     ) {
       return null
     }
 
-    pathname = this._getPathname(pathname, fetchCache)
+    cacheKey = this._getPathname(cacheKey, ctx.fetchCache)
     let entry: IncrementalCacheEntry | null = null
+    let revalidate = ctx.revalidate
 
-    const cacheData = await this.cacheHandler?.get(
-      pathname,
-      fetchCache,
-      fetchUrl,
-      fetchIdx
-    )
+    const cacheData = await this.cacheHandler?.get(cacheKey, ctx)
 
     if (cacheData?.value?.kind === 'FETCH') {
+      const combinedTags = [...(ctx.tags || []), ...(ctx.softTags || [])]
+      // if a tag was revalidated we don't return stale data
+      if (
+        combinedTags.some((tag) => {
+          return this.revalidatedTags?.includes(tag)
+        })
+      ) {
+        return null
+      }
+
       revalidate = revalidate || cacheData.value.revalidate
       const age = Math.round(
         (Date.now() - (cacheData.lastModified || 0)) / 1000
@@ -455,7 +462,7 @@ export class IncrementalCache {
     }
 
     const curRevalidate =
-      this.prerenderManifest.routes[toRoute(pathname)]?.initialRevalidateSeconds
+      this.prerenderManifest.routes[toRoute(cacheKey)]?.initialRevalidateSeconds
 
     let isStale: boolean | -1 | undefined
     let revalidateAfter: false | number
@@ -465,9 +472,9 @@ export class IncrementalCache {
       revalidateAfter = -1 * CACHE_ONE_YEAR
     } else {
       revalidateAfter = this.calculateRevalidate(
-        pathname,
+        cacheKey,
         cacheData?.lastModified || Date.now(),
-        this.dev && !fetchCache
+        this.dev && !ctx.fetchCache
       )
       isStale =
         revalidateAfter !== false && revalidateAfter < Date.now()
@@ -486,7 +493,7 @@ export class IncrementalCache {
 
     if (
       !cacheData &&
-      this.prerenderManifest.notFoundRoutes.includes(pathname)
+      this.prerenderManifest.notFoundRoutes.includes(cacheKey)
     ) {
       // for the first hit after starting the server the cache
       // may not have a way to save notFound: true so if
@@ -499,14 +506,7 @@ export class IncrementalCache {
         curRevalidate,
         revalidateAfter,
       }
-      this.set(
-        pathname,
-        entry.value,
-        curRevalidate,
-        fetchCache,
-        fetchUrl,
-        fetchIdx
-      )
+      this.set(cacheKey, entry.value, ctx)
     }
     return entry
   }
@@ -515,10 +515,13 @@ export class IncrementalCache {
   async set(
     pathname: string,
     data: IncrementalCacheValue | null,
-    revalidateSeconds?: number | false,
-    fetchCache?: boolean,
-    fetchUrl?: string,
-    fetchIdx?: number
+    ctx: {
+      revalidate?: number | false
+      fetchCache?: boolean
+      fetchUrl?: string
+      fetchIdx?: number
+      tags?: string[]
+    }
   ) {
     if (
       process.env.__NEXT_INCREMENTAL_CACHE_IPC_PORT &&
@@ -536,38 +539,32 @@ export class IncrementalCache {
       })
     }
 
-    if (this.dev && !fetchCache) return
+    if (this.dev && !ctx.fetchCache) return
     // fetchCache has upper limit of 2MB per-entry currently
-    if (fetchCache && JSON.stringify(data).length > 2 * 1024 * 1024) {
+    if (ctx.fetchCache && JSON.stringify(data).length > 2 * 1024 * 1024) {
       if (this.dev) {
         throw new Error(`fetch for over 2MB of data can not be cached`)
       }
       return
     }
 
-    pathname = this._getPathname(pathname, fetchCache)
+    pathname = this._getPathname(pathname, ctx.fetchCache)
 
     try {
       // we use the prerender manifest memory instance
       // to store revalidate timings for calculating
       // revalidateAfter values so we update this on set
-      if (typeof revalidateSeconds !== 'undefined' && !fetchCache) {
+      if (typeof ctx.revalidate !== 'undefined' && !ctx.fetchCache) {
         this.prerenderManifest.routes[pathname] = {
           dataRoute: path.posix.join(
             '/_next/data',
             `${normalizePagePath(pathname)}.json`
           ),
           srcRoute: null, // FIXME: provide actual source route, however, when dynamically appending it doesn't really matter
-          initialRevalidateSeconds: revalidateSeconds,
+          initialRevalidateSeconds: ctx.revalidate,
         }
       }
-      await this.cacheHandler?.set(
-        pathname,
-        data,
-        fetchCache,
-        fetchUrl,
-        fetchIdx
-      )
+      await this.cacheHandler?.set(pathname, data, ctx)
     } catch (error) {
       console.warn('Failed to update prerender cache for', pathname, error)
     }

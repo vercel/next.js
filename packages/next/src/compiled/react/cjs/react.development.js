@@ -23,7 +23,7 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
 }
-          var ReactVersion = '18.3.0-canary-9377e1010-20230712';
+          var ReactVersion = '18.3.0-canary-dd480ef92-20230822';
 
 // ATTENTION
 // When adding new symbols to this file,

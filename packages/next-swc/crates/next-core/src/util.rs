@@ -113,6 +113,7 @@ pub async fn foreign_code_context_condition(
     Hash,
     PartialOrd,
     Ord,
+    TaskInput,
 )]
 #[serde(rename_all = "lowercase")]
 pub enum NextRuntime {
@@ -123,7 +124,7 @@ pub enum NextRuntime {
 }
 
 #[turbo_tasks::value]
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct NextSourceConfig {
     pub runtime: NextRuntime,
 
@@ -164,7 +165,7 @@ impl Issue for NextSourceConfigParsingIssue {
     }
 
     #[turbo_tasks::function]
-    fn context(&self) -> Vc<FileSystemPath> {
+    fn file_path(&self) -> Vc<FileSystemPath> {
         self.ident.path()
     }
 

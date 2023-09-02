@@ -285,6 +285,7 @@ var REACT_CACHE_TYPE = Symbol.for('react.cache');
 var REACT_TRACING_MARKER_TYPE = Symbol.for('react.tracing_marker');
 var REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
 var REACT_MEMO_CACHE_SENTINEL = Symbol.for('react.memo_cache_sentinel');
+var REACT_POSTPONE_TYPE = Symbol.for('react.postpone');
 var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 var FAUX_ITERATOR_SYMBOL = '@@iterator';
 function getIteratorFn(maybeIterable) {
@@ -8383,7 +8384,11 @@ var SuspenseyCommitException = new Error('Suspense Exception: This is not a real
 // for now this will do.
 
 var noopSuspenseyCommitThenable = {
-  then: function () {}
+  then: function () {
+    {
+      error('Internal React error: A listener was unexpectedly attached to a ' + '"noop" thenable. This is a bug in React. Please file an issue.');
+    }
+  }
 };
 function createThenableState() {
   // The ThenableState is created the first time a component suspends. If it
@@ -15068,188 +15073,194 @@ function throwException(root, returnFiber, sourceFiber, value, rootRenderLanes) 
     }
   }
 
-  if (value !== null && typeof value === 'object' && typeof value.then === 'function') {
-    // This is a wakeable. The component suspended.
-    var wakeable = value;
-    resetSuspendedComponent(sourceFiber);
-
-    {
-      if (getIsHydrating() && sourceFiber.mode & ConcurrentMode) {
-        markDidThrowWhileHydratingDEV();
-      }
+  if (value !== null && typeof value === 'object') {
+    if (value.$$typeof === REACT_POSTPONE_TYPE) {
+      // Act as if this is an infinitely suspending promise.
+      value = {
+        then: function () {}
+      };
     }
 
+    if (typeof value.then === 'function') {
+      // This is a wakeable. The component suspended.
+      var wakeable = value;
+      resetSuspendedComponent(sourceFiber);
 
-    var suspenseBoundary = getSuspenseHandler();
+      {
+        if (getIsHydrating() && sourceFiber.mode & ConcurrentMode) {
+          markDidThrowWhileHydratingDEV();
+        }
+      }
 
-    if (suspenseBoundary !== null) {
-      switch (suspenseBoundary.tag) {
-        case SuspenseComponent:
-          {
-            // If this suspense boundary is not already showing a fallback, mark
-            // the in-progress render as suspended. We try to perform this logic
-            // as soon as soon as possible during the render phase, so the work
-            // loop can know things like whether it's OK to switch to other tasks,
-            // or whether it can wait for data to resolve before continuing.
-            // TODO: Most of these checks are already performed when entering a
-            // Suspense boundary. We should track the information on the stack so
-            // we don't have to recompute it on demand. This would also allow us
-            // to unify with `use` which needs to perform this logic even sooner,
-            // before `throwException` is called.
-            if (sourceFiber.mode & ConcurrentMode) {
-              if (getShellBoundary() === null) {
-                // Suspended in the "shell" of the app. This is an undesirable
-                // loading state. We should avoid committing this tree.
-                renderDidSuspendDelayIfPossible();
-              } else {
-                // If we suspended deeper than the shell, we don't need to delay
-                // the commmit. However, we still call renderDidSuspend if this is
-                // a new boundary, to tell the work loop that a new fallback has
-                // appeared during this render.
-                // TODO: Theoretically we should be able to delete this branch.
-                // It's currently used for two things: 1) to throttle the
-                // appearance of successive loading states, and 2) in
-                // SuspenseList, to determine whether the children include any
-                // pending fallbacks. For 1, we should apply throttling to all
-                // retries, not just ones that render an additional fallback. For
-                // 2, we should check subtreeFlags instead. Then we can delete
-                // this branch.
-                var current = suspenseBoundary.alternate;
 
-                if (current === null) {
-                  renderDidSuspend();
-                }
-              }
-            }
+      var suspenseBoundary = getSuspenseHandler();
 
-            suspenseBoundary.flags &= ~ForceClientRender;
-            markSuspenseBoundaryShouldCapture(suspenseBoundary, returnFiber, sourceFiber, root, rootRenderLanes); // Retry listener
-            //
-            // If the fallback does commit, we need to attach a different type of
-            // listener. This one schedules an update on the Suspense boundary to
-            // turn the fallback state off.
-            //
-            // Stash the wakeable on the boundary fiber so we can access it in the
-            // commit phase.
-            //
-            // When the wakeable resolves, we'll attempt to render the boundary
-            // again ("retry").
-            // Check if this is a Suspensey resource. We do not attach retry
-            // listeners to these, because we don't actually need them for
-            // rendering. Only for committing. Instead, if a fallback commits
-            // and the only thing that suspended was a Suspensey resource, we
-            // retry immediately.
-            // TODO: Refactor throwException so that we don't have to do this type
-            // check. The caller already knows what the cause was.
-
-            var isSuspenseyResource = wakeable === noopSuspenseyCommitThenable;
-
-            if (isSuspenseyResource) {
-              suspenseBoundary.flags |= ScheduleRetry;
-            } else {
-              var retryQueue = suspenseBoundary.updateQueue;
-
-              if (retryQueue === null) {
-                suspenseBoundary.updateQueue = new Set([wakeable]);
-              } else {
-                retryQueue.add(wakeable);
-              }
-            }
-
-            break;
-          }
-
-        case OffscreenComponent:
-          {
-            if (suspenseBoundary.mode & ConcurrentMode) {
-              suspenseBoundary.flags |= ShouldCapture;
-
-              var _isSuspenseyResource = wakeable === noopSuspenseyCommitThenable;
-
-              if (_isSuspenseyResource) {
-                suspenseBoundary.flags |= ScheduleRetry;
-              } else {
-                var offscreenQueue = suspenseBoundary.updateQueue;
-
-                if (offscreenQueue === null) {
-                  var newOffscreenQueue = {
-                    transitions: null,
-                    markerInstances: null,
-                    retryQueue: new Set([wakeable])
-                  };
-                  suspenseBoundary.updateQueue = newOffscreenQueue;
+      if (suspenseBoundary !== null) {
+        switch (suspenseBoundary.tag) {
+          case SuspenseComponent:
+            {
+              // If this suspense boundary is not already showing a fallback, mark
+              // the in-progress render as suspended. We try to perform this logic
+              // as soon as soon as possible during the render phase, so the work
+              // loop can know things like whether it's OK to switch to other tasks,
+              // or whether it can wait for data to resolve before continuing.
+              // TODO: Most of these checks are already performed when entering a
+              // Suspense boundary. We should track the information on the stack so
+              // we don't have to recompute it on demand. This would also allow us
+              // to unify with `use` which needs to perform this logic even sooner,
+              // before `throwException` is called.
+              if (sourceFiber.mode & ConcurrentMode) {
+                if (getShellBoundary() === null) {
+                  // Suspended in the "shell" of the app. This is an undesirable
+                  // loading state. We should avoid committing this tree.
+                  renderDidSuspendDelayIfPossible();
                 } else {
-                  var _retryQueue = offscreenQueue.retryQueue;
+                  // If we suspended deeper than the shell, we don't need to delay
+                  // the commmit. However, we still call renderDidSuspend if this is
+                  // a new boundary, to tell the work loop that a new fallback has
+                  // appeared during this render.
+                  // TODO: Theoretically we should be able to delete this branch.
+                  // It's currently used for two things: 1) to throttle the
+                  // appearance of successive loading states, and 2) in
+                  // SuspenseList, to determine whether the children include any
+                  // pending fallbacks. For 1, we should apply throttling to all
+                  // retries, not just ones that render an additional fallback. For
+                  // 2, we should check subtreeFlags instead. Then we can delete
+                  // this branch.
+                  var current = suspenseBoundary.alternate;
 
-                  if (_retryQueue === null) {
-                    offscreenQueue.retryQueue = new Set([wakeable]);
-                  } else {
-                    _retryQueue.add(wakeable);
+                  if (current === null) {
+                    renderDidSuspend();
                   }
                 }
               }
 
-              break;
-            } // Fall through
+              suspenseBoundary.flags &= ~ForceClientRender;
+              markSuspenseBoundaryShouldCapture(suspenseBoundary, returnFiber, sourceFiber, root, rootRenderLanes); // Retry listener
+              //
+              // If the fallback does commit, we need to attach a different type of
+              // listener. This one schedules an update on the Suspense boundary to
+              // turn the fallback state off.
+              //
+              // Stash the wakeable on the boundary fiber so we can access it in the
+              // commit phase.
+              //
+              // When the wakeable resolves, we'll attempt to render the boundary
+              // again ("retry").
+              // Check if this is a Suspensey resource. We do not attach retry
+              // listeners to these, because we don't actually need them for
+              // rendering. Only for committing. Instead, if a fallback commits
+              // and the only thing that suspended was a Suspensey resource, we
+              // retry immediately.
+              // TODO: Refactor throwException so that we don't have to do this type
+              // check. The caller already knows what the cause was.
 
-          }
+              var isSuspenseyResource = wakeable === noopSuspenseyCommitThenable;
 
-        default:
-          {
-            throw new Error("Unexpected Suspense handler tag (" + suspenseBoundary.tag + "). This " + 'is a bug in React.');
-          }
-      } // We only attach ping listeners in concurrent mode. Legacy Suspense always
-      // commits fallbacks synchronously, so there are no pings.
+              if (isSuspenseyResource) {
+                suspenseBoundary.flags |= ScheduleRetry;
+              } else {
+                var retryQueue = suspenseBoundary.updateQueue;
 
-
-      if (suspenseBoundary.mode & ConcurrentMode) {
-        attachPingListener(root, wakeable, rootRenderLanes);
-      }
-
-      return;
-    } else {
-      // No boundary was found. Unless this is a sync update, this is OK.
-      // We can suspend and wait for more data to arrive.
-      if (root.tag === ConcurrentRoot) {
-        // In a concurrent root, suspending without a Suspense boundary is
-        // allowed. It will suspend indefinitely without committing.
-        //
-        // TODO: Should we have different behavior for discrete updates? What
-        // about flushSync? Maybe it should put the tree into an inert state,
-        // and potentially log a warning. Revisit this for a future release.
-        attachPingListener(root, wakeable, rootRenderLanes);
-        renderDidSuspendDelayIfPossible();
-        return;
-      } else {
-        // In a legacy root, suspending without a boundary is always an error.
-        var uncaughtSuspenseError = new Error('A component suspended while responding to synchronous input. This ' + 'will cause the UI to be replaced with a loading indicator. To ' + 'fix, updates that suspend should be wrapped ' + 'with startTransition.');
-        value = uncaughtSuspenseError;
-      }
-    }
-  } else {
-    // This is a regular error, not a Suspense wakeable.
-    if (getIsHydrating() && sourceFiber.mode & ConcurrentMode) {
-      markDidThrowWhileHydratingDEV();
-
-      var _suspenseBoundary = getSuspenseHandler(); // If the error was thrown during hydration, we may be able to recover by
-      // discarding the dehydrated content and switching to a client render.
-      // Instead of surfacing the error, find the nearest Suspense boundary
-      // and render it again without hydration.
+                if (retryQueue === null) {
+                  suspenseBoundary.updateQueue = new Set([wakeable]);
+                } else {
+                  retryQueue.add(wakeable);
+                } // We only attach ping listeners in concurrent mode. Legacy
+                // Suspense always commits fallbacks synchronously, so there are
+                // no pings.
 
 
-      if (_suspenseBoundary !== null) {
-        if ((_suspenseBoundary.flags & ShouldCapture) === NoFlags$1) {
-          // Set a flag to indicate that we should try rendering the normal
-          // children again, not the fallback.
-          _suspenseBoundary.flags |= ForceClientRender;
+                if (suspenseBoundary.mode & ConcurrentMode) {
+                  attachPingListener(root, wakeable, rootRenderLanes);
+                }
+              }
+
+              return;
+            }
+
+          case OffscreenComponent:
+            {
+              if (suspenseBoundary.mode & ConcurrentMode) {
+                suspenseBoundary.flags |= ShouldCapture;
+
+                var _isSuspenseyResource = wakeable === noopSuspenseyCommitThenable;
+
+                if (_isSuspenseyResource) {
+                  suspenseBoundary.flags |= ScheduleRetry;
+                } else {
+                  var offscreenQueue = suspenseBoundary.updateQueue;
+
+                  if (offscreenQueue === null) {
+                    var newOffscreenQueue = {
+                      transitions: null,
+                      markerInstances: null,
+                      retryQueue: new Set([wakeable])
+                    };
+                    suspenseBoundary.updateQueue = newOffscreenQueue;
+                  } else {
+                    var _retryQueue = offscreenQueue.retryQueue;
+
+                    if (_retryQueue === null) {
+                      offscreenQueue.retryQueue = new Set([wakeable]);
+                    } else {
+                      _retryQueue.add(wakeable);
+                    }
+                  }
+
+                  attachPingListener(root, wakeable, rootRenderLanes);
+                }
+
+                return;
+              }
+            }
         }
 
-        markSuspenseBoundaryShouldCapture(_suspenseBoundary, returnFiber, sourceFiber, root, rootRenderLanes); // Even though the user may not be affected by this error, we should
-        // still log it so it can be fixed.
-
-        queueHydrationError(createCapturedValueAtFiber(value, sourceFiber));
-        return;
+        throw new Error("Unexpected Suspense handler tag (" + suspenseBoundary.tag + "). This " + 'is a bug in React.');
+      } else {
+        // No boundary was found. Unless this is a sync update, this is OK.
+        // We can suspend and wait for more data to arrive.
+        if (root.tag === ConcurrentRoot) {
+          // In a concurrent root, suspending without a Suspense boundary is
+          // allowed. It will suspend indefinitely without committing.
+          //
+          // TODO: Should we have different behavior for discrete updates? What
+          // about flushSync? Maybe it should put the tree into an inert state,
+          // and potentially log a warning. Revisit this for a future release.
+          attachPingListener(root, wakeable, rootRenderLanes);
+          renderDidSuspendDelayIfPossible();
+          return;
+        } else {
+          // In a legacy root, suspending without a boundary is always an error.
+          var uncaughtSuspenseError = new Error('A component suspended while responding to synchronous input. This ' + 'will cause the UI to be replaced with a loading indicator. To ' + 'fix, updates that suspend should be wrapped ' + 'with startTransition.');
+          value = uncaughtSuspenseError;
+        }
       }
+    }
+  } // This is a regular error, not a Suspense wakeable.
+
+
+  if (getIsHydrating() && sourceFiber.mode & ConcurrentMode) {
+    markDidThrowWhileHydratingDEV();
+
+    var _suspenseBoundary = getSuspenseHandler(); // If the error was thrown during hydration, we may be able to recover by
+    // discarding the dehydrated content and switching to a client render.
+    // Instead of surfacing the error, find the nearest Suspense boundary
+    // and render it again without hydration.
+
+
+    if (_suspenseBoundary !== null) {
+      if ((_suspenseBoundary.flags & ShouldCapture) === NoFlags$1) {
+        // Set a flag to indicate that we should try rendering the normal
+        // children again, not the fallback.
+        _suspenseBoundary.flags |= ForceClientRender;
+      }
+
+      markSuspenseBoundaryShouldCapture(_suspenseBoundary, returnFiber, sourceFiber, root, rootRenderLanes); // Even though the user may not be affected by this error, we should
+      // still log it so it can be fixed.
+
+      queueHydrationError(createCapturedValueAtFiber(value, sourceFiber));
+      return;
     }
   }
 
@@ -17109,7 +17120,8 @@ function updateDehydratedSuspenseComponent(current, workInProgress, didSuspend, 
       // This boundary is in a permanent fallback state. In this case, we'll never
       // get an update and we'll never be able to hydrate the final content. Let's just try the
       // client side render instead.
-      var digest, message, stack;
+      var digest;
+      var message, stack;
 
       {
         var _getSuspenseInstanceF = getSuspenseInstanceFallbackErrorDetails(suspenseInstance);
@@ -17119,17 +17131,22 @@ function updateDehydratedSuspenseComponent(current, workInProgress, didSuspend, 
         stack = _getSuspenseInstanceF.stack;
       }
 
-      var error;
+      var capturedValue = null; // TODO: Figure out a better signal than encoding a magic digest value.
 
-      if (message) {
-        // eslint-disable-next-line react-internal/prod-error-codes
-        error = new Error(message);
-      } else {
-        error = new Error('The server could not finish this Suspense boundary, likely ' + 'due to an error during server rendering. Switched to ' + 'client rendering.');
+      if (digest !== 'POSTPONE') {
+        var error;
+
+        if (message) {
+          // eslint-disable-next-line react-internal/prod-error-codes
+          error = new Error(message);
+        } else {
+          error = new Error('The server could not finish this Suspense boundary, likely ' + 'due to an error during server rendering. Switched to ' + 'client rendering.');
+        }
+
+        error.digest = digest;
+        capturedValue = createCapturedValue(error, digest, stack);
       }
 
-      error.digest = digest;
-      var capturedValue = createCapturedValue(error, digest, stack);
       return retrySuspenseComponentWithoutHydrating(current, workInProgress, renderLanes, capturedValue);
     }
     // any context has changed, we need to treat is as if the input might have changed.
@@ -24122,77 +24139,63 @@ function performConcurrentWorkOnRoot(root, didTimeout) {
   var exitStatus = shouldTimeSlice ? renderRootConcurrent(root, lanes) : renderRootSync(root, lanes);
 
   if (exitStatus !== RootInProgress) {
-    if (exitStatus === RootErrored) {
-      // If something threw an error, try rendering one more time. We'll
-      // render synchronously to block concurrent data mutations, and we'll
-      // includes all pending updates are included. If it still fails after
-      // the second attempt, we'll give up and commit the resulting tree.
-      var originallyAttemptedLanes = lanes;
-      var errorRetryLanes = getLanesToRetrySynchronouslyOnError(root, originallyAttemptedLanes);
+    var renderWasConcurrent = shouldTimeSlice;
 
-      if (errorRetryLanes !== NoLanes) {
-        lanes = errorRetryLanes;
-        exitStatus = recoverFromConcurrentError(root, originallyAttemptedLanes, errorRetryLanes);
-      }
-    }
+    do {
+      if (exitStatus === RootDidNotComplete) {
+        // The render unwound without completing the tree. This happens in special
+        // cases where need to exit the current render without producing a
+        // consistent tree or committing.
+        markRootSuspended(root, lanes);
+      } else {
+        // The render completed.
+        // Check if this render may have yielded to a concurrent event, and if so,
+        // confirm that any newly rendered stores are consistent.
+        // TODO: It's possible that even a concurrent render may never have yielded
+        // to the main thread, if it was fast enough, or if it expired. We could
+        // skip the consistency check in that case, too.
+        var finishedWork = root.current.alternate;
 
-    if (exitStatus === RootFatalErrored) {
-      var fatalError = workInProgressRootFatalError;
-      prepareFreshStack(root, NoLanes);
-      markRootSuspended(root, lanes);
-      ensureRootIsScheduled(root);
-      throw fatalError;
-    }
+        if (renderWasConcurrent && !isRenderConsistentWithExternalStores(finishedWork)) {
+          // A store was mutated in an interleaved event. Render again,
+          // synchronously, to block further mutations.
+          exitStatus = renderRootSync(root, lanes); // We assume the tree is now consistent because we didn't yield to any
+          // concurrent events.
 
-    if (exitStatus === RootDidNotComplete) {
-      // The render unwound without completing the tree. This happens in special
-      // cases where need to exit the current render without producing a
-      // consistent tree or committing.
-      markRootSuspended(root, lanes);
-    } else {
-      // The render completed.
-      // Check if this render may have yielded to a concurrent event, and if so,
-      // confirm that any newly rendered stores are consistent.
-      // TODO: It's possible that even a concurrent render may never have yielded
-      // to the main thread, if it was fast enough, or if it expired. We could
-      // skip the consistency check in that case, too.
-      var renderWasConcurrent = !includesBlockingLane(root, lanes);
-      var finishedWork = root.current.alternate;
+          renderWasConcurrent = false; // Need to check the exit status again.
 
-      if (renderWasConcurrent && !isRenderConsistentWithExternalStores(finishedWork)) {
-        // A store was mutated in an interleaved event. Render again,
-        // synchronously, to block further mutations.
-        exitStatus = renderRootSync(root, lanes); // We need to check again if something threw
+          continue;
+        } // Check if something threw
+
 
         if (exitStatus === RootErrored) {
-          var _originallyAttemptedLanes = lanes;
+          var originallyAttemptedLanes = lanes;
+          var errorRetryLanes = getLanesToRetrySynchronouslyOnError(root, originallyAttemptedLanes);
 
-          var _errorRetryLanes = getLanesToRetrySynchronouslyOnError(root, _originallyAttemptedLanes);
-
-          if (_errorRetryLanes !== NoLanes) {
-            lanes = _errorRetryLanes;
-            exitStatus = recoverFromConcurrentError(root, _originallyAttemptedLanes, _errorRetryLanes); // We assume the tree is now consistent because we didn't yield to any
-            // concurrent events.
+          if (errorRetryLanes !== NoLanes) {
+            lanes = errorRetryLanes;
+            exitStatus = recoverFromConcurrentError(root, originallyAttemptedLanes, errorRetryLanes);
+            renderWasConcurrent = false;
           }
         }
 
         if (exitStatus === RootFatalErrored) {
-          var _fatalError = workInProgressRootFatalError;
+          var fatalError = workInProgressRootFatalError;
           prepareFreshStack(root, NoLanes);
           markRootSuspended(root, lanes);
           ensureRootIsScheduled(root);
-          throw _fatalError;
-        } // FIXME: Need to check for RootDidNotComplete again. The factoring here
-        // isn't ideal.
-
-      } // We now have a consistent tree. The next step is either to commit it,
-      // or, if something suspended, wait to commit it after a timeout.
+          throw fatalError;
+        } // We now have a consistent tree. The next step is either to commit it,
+        // or, if something suspended, wait to commit it after a timeout.
 
 
-      root.finishedWork = finishedWork;
-      root.finishedLanes = lanes;
-      finishConcurrentRender(root, exitStatus, finishedWork, lanes);
-    }
+        root.finishedWork = finishedWork;
+        root.finishedLanes = lanes;
+        finishConcurrentRender(root, exitStatus, finishedWork, lanes);
+      }
+
+      break;
+    } while (true);
   }
 
   ensureRootIsScheduled(root);
@@ -24791,9 +24794,20 @@ function shouldRemainOnPreviousScreen() {
   // on the previous screen, versus showing a fallback as soon as possible. It
   // takes into account both the priority of render and also whether showing a
   // fallback would produce a desirable user experience.
-  // TODO: Once `use` has fully replaced the `throw promise` pattern, we should
+  var handler = getSuspenseHandler();
+
+  if (handler === null) {
+    // There's no Suspense boundary that can provide a fallback. We have no
+    // choice but to remain on the previous screen.
+    // NOTE: We do this even for sync updates, for lack of any better option. In
+    // the future, we may change how we handle this, like by putting the whole
+    // root into a "detached" mode.
+    return true;
+  } // TODO: Once `use` has fully replaced the `throw promise` pattern, we should
   // be able to remove the equivalent check in finishConcurrentRender, and rely
   // just on this one.
+
+
   if (includesOnlyTransitions(workInProgressRootRenderLanes)) {
     if (getShellBoundary() === null) {
       // We're rendering inside the "shell" of the app. Activating the nearest
@@ -24809,23 +24823,19 @@ function shouldRemainOnPreviousScreen() {
     }
   }
 
-  var handler = getSuspenseHandler();
-
-  if (handler === null) ; else {
-    if (includesOnlyRetries(workInProgressRootRenderLanes) || // In this context, an OffscreenLane counts as a Retry
-    // TODO: It's become increasingly clear that Retries and Offscreen are
-    // deeply connected. They probably can be unified further.
-    includesSomeLane(workInProgressRootRenderLanes, OffscreenLane)) {
-      // During a retry, we can suspend rendering if the nearest Suspense boundary
-      // is the boundary of the "shell", because we're guaranteed not to block
-      // any new content from appearing.
-      //
-      // The reason we must check if this is a retry is because it guarantees
-      // that suspending the work loop won't block an actual update, because
-      // retries don't "update" anything; they fill in fallbacks that were left
-      // behind by a previous transition.
-      return handler === getShellBoundary();
-    }
+  if (includesOnlyRetries(workInProgressRootRenderLanes) || // In this context, an OffscreenLane counts as a Retry
+  // TODO: It's become increasingly clear that Retries and Offscreen are
+  // deeply connected. They probably can be unified further.
+  includesSomeLane(workInProgressRootRenderLanes, OffscreenLane)) {
+    // During a retry, we can suspend rendering if the nearest Suspense boundary
+    // is the boundary of the "shell", because we're guaranteed not to block
+    // any new content from appearing.
+    //
+    // The reason we must check if this is a retry is because it guarantees
+    // that suspending the work loop won't block an actual update, because
+    // retries don't "update" anything; they fill in fallbacks that were left
+    // behind by a previous transition.
+    return handler === getShellBoundary();
   } // For all other Lanes besides Transitions and Retries, we should not wait
   // for the data to load.
 
@@ -27761,7 +27771,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks) {
   return root;
 }
 
-var ReactVersion = '18.3.0-experimental-9377e1010-20230712';
+var ReactVersion = '18.3.0-experimental-dd480ef92-20230822';
 
 function createPortal$1(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {
@@ -35989,7 +35999,9 @@ var ReactDOMClientDispatcher = {
   prefetchDNS: prefetchDNS$1,
   preconnect: preconnect$1,
   preload: preload$1,
-  preinit: preinit$1
+  preloadModule: preloadModule$1,
+  preinit: preinit$1,
+  preinitModule: preinitModule$1
 }; // We expect this to get inlined. It is a function mostly to communicate the special nature of
 // how we resolve the HoistableRoot for ReactDOM.pre*() methods. Because we support calling
 // these methods outside of render there is no way to know which Document or ShadowRoot is 'scoped'
@@ -36145,6 +36157,77 @@ function preload$1(href, options) {
   }
 }
 
+function preloadModule$1(href, options) {
+
+  {
+    var encountered = '';
+
+    if (typeof href !== 'string' || !href) {
+      encountered += " The `href` argument encountered was " + getValueDescriptorExpectingObjectForWarning(href) + ".";
+    }
+
+    if (options !== undefined && typeof options !== 'object') {
+      encountered += " The `options` argument encountered was " + getValueDescriptorExpectingObjectForWarning(options) + ".";
+    } else if (options && 'as' in options && typeof options.as !== 'string') {
+      encountered += " The `as` option encountered was " + getValueDescriptorExpectingObjectForWarning(options.as) + ".";
+    }
+
+    if (encountered) {
+      error('ReactDOM.preloadModule(): Expected two arguments, a non-empty `href` string and, optionally, an `options` object with an `as` property valid for a `<link rel="modulepreload" as="..." />` tag.%s', encountered);
+    }
+  }
+
+  var ownerDocument = getDocumentForImperativeFloatMethods();
+
+  if (typeof href === 'string' && href) {
+    var as = options && typeof options.as === 'string' ? options.as : 'script';
+    var preloadSelector = "link[rel=\"modulepreload\"][as=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(as) + "\"][href=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(href) + "\"]"; // Some preloads are keyed under their selector. This happens when the preload is for
+    // an arbitrary type. Other preloads are keyed under the resource key they represent a preload for.
+    // Here we figure out which key to use to determine if we have a preload already.
+
+    var key = preloadSelector;
+
+    switch (as) {
+      case 'audioworklet':
+      case 'paintworklet':
+      case 'serviceworker':
+      case 'sharedworker':
+      case 'worker':
+      case 'script':
+        {
+          key = getScriptKey(href);
+          break;
+        }
+    }
+
+    if (!preloadPropsMap.has(key)) {
+      var preloadProps = preloadModulePropsFromPreloadModuleOptions(href, as, options);
+      preloadPropsMap.set(key, preloadProps);
+
+      if (null === ownerDocument.querySelector(preloadSelector)) {
+        switch (as) {
+          case 'audioworklet':
+          case 'paintworklet':
+          case 'serviceworker':
+          case 'sharedworker':
+          case 'worker':
+          case 'script':
+            {
+              if (ownerDocument.querySelector(getScriptSelectorFromKey(key))) {
+                return;
+              }
+            }
+        }
+
+        var instance = ownerDocument.createElement('link');
+        setInitialProperties(instance, 'link', preloadProps);
+        markNodeAsHoistable(instance);
+        ownerDocument.head.appendChild(instance);
+      }
+    }
+  }
+}
+
 function preloadPropsFromPreloadOptions(href, as, options) {
   return {
     rel: 'preload',
@@ -36162,6 +36245,16 @@ function preloadPropsFromPreloadOptions(href, as, options) {
     imageSrcSet: options.imageSrcSet,
     imageSizes: options.imageSizes,
     referrerPolicy: options.referrerPolicy
+  };
+}
+
+function preloadModulePropsFromPreloadModuleOptions(href, as, options) {
+  return {
+    rel: 'modulepreload',
+    as: as !== 'script' ? as : undefined,
+    href: href,
+    crossOrigin: options ? options.crossOrigin : undefined,
+    integrity: options ? options.integrity : undefined
   };
 }
 
@@ -36286,6 +36379,96 @@ function preinit$1(href, options) {
   }
 }
 
+function preinitModule$1(href, options) {
+
+  {
+    var encountered = '';
+
+    if (typeof href !== 'string' || !href) {
+      encountered += " The `href` argument encountered was " + getValueDescriptorExpectingObjectForWarning(href) + ".";
+    }
+
+    if (options !== undefined && typeof options !== 'object') {
+      encountered += " The `options` argument encountered was " + getValueDescriptorExpectingObjectForWarning(options) + ".";
+    } else if (options && 'as' in options && options.as !== 'script') {
+      encountered += " The `as` option encountered was " + getValueDescriptorExpectingEnumForWarning(options.as) + ".";
+    }
+
+    if (encountered) {
+      error('ReactDOM.preinitModule(): Expected up to two arguments, a non-empty `href` string and, optionally, an `options` object with a valid `as` property.%s', encountered);
+    } else {
+      var as = options && typeof options.as === 'string' ? options.as : 'script';
+
+      switch (as) {
+        case 'script':
+          {
+            break;
+          }
+        // We have an invalid as type and need to warn
+
+        default:
+          {
+            var typeOfAs = getValueDescriptorExpectingEnumForWarning(as);
+
+            error('ReactDOM.preinitModule(): Currently the only supported "as" type for this function is "script"' + ' but received "%s" instead. This warning was generated for `href` "%s". In the future other' + ' module types will be supported, aligning with the import-attributes proposal. Learn more here:' + ' (https://github.com/tc39/proposal-import-attributes)', typeOfAs, href);
+          }
+      }
+    }
+  }
+
+  var ownerDocument = getDocumentForImperativeFloatMethods();
+
+  if (typeof href === 'string' && href) {
+    var _as = options && typeof options.as === 'string' ? options.as : 'script';
+
+    switch (_as) {
+      case 'script':
+        {
+          var src = href;
+          var scripts = getResourcesFromRoot(ownerDocument).hoistableScripts;
+          var key = getScriptKey(src); // Check if this resource already exists
+
+          var resource = scripts.get(key);
+
+          if (resource) {
+            // We can early return. The resource exists and there is nothing
+            // more to do
+            return;
+          } // Attempt to hydrate instance from DOM
+
+
+          var instance = ownerDocument.querySelector(getScriptSelectorFromKey(key));
+
+          if (!instance) {
+            // Construct a new instance and insert it
+            var scriptProps = modulePropsFromPreinitModuleOptions(src, options); // Adopt certain preload props
+
+            var preloadProps = preloadPropsMap.get(key);
+
+            if (preloadProps) {
+              adoptPreloadPropsForScript(scriptProps, preloadProps);
+            }
+
+            instance = ownerDocument.createElement('script');
+            markNodeAsHoistable(instance);
+            setInitialProperties(instance, 'link', scriptProps);
+            ownerDocument.head.appendChild(instance);
+          } // Construct a Resource and cache it
+
+
+          resource = {
+            type: 'script',
+            instance: instance,
+            count: 1,
+            state: null
+          };
+          scripts.set(key, resource);
+          return;
+        }
+    }
+  }
+}
+
 function stylesheetPropsFromPreinitOptions(href, precedence, options) {
   return {
     rel: 'stylesheet',
@@ -36305,6 +36488,16 @@ function scriptPropsFromPreinitOptions(src, options) {
     integrity: options.integrity,
     nonce: options.nonce,
     fetchPriority: options.fetchPriority
+  };
+}
+
+function modulePropsFromPreinitModuleOptions(src, options) {
+  return {
+    src: src,
+    async: true,
+    type: 'module',
+    crossOrigin: options ? options.crossOrigin : undefined,
+    integrity: options ? options.integrity : undefined
   };
 } // This function is called in begin work and we should always have a currentDocument set
 
@@ -36696,7 +36889,7 @@ function adoptPreloadPropsForStylesheet(stylesheetProps, preloadProps) {
 function adoptPreloadPropsForScript(scriptProps, preloadProps) {
   if (scriptProps.crossOrigin == null) scriptProps.crossOrigin = preloadProps.crossOrigin;
   if (scriptProps.referrerPolicy == null) scriptProps.referrerPolicy = preloadProps.referrerPolicy;
-  if (scriptProps.integrity == null) scriptProps.referrerPolicy = preloadProps.integrity;
+  if (scriptProps.integrity == null) scriptProps.integrity = preloadProps.integrity;
 }
 
 var tagCaches = null;
@@ -37754,11 +37947,31 @@ function preload(href, options) {
   // so we favor silent bailout over warning or erroring.
 
 }
+function preloadModule(href, options) {
+  var dispatcher = Dispatcher.current;
+
+  if (dispatcher) {
+    dispatcher.preloadModule(href, options);
+  } // We don't error because preload needs to be resilient to being called in a variety of scopes
+  // and the runtime may not be capable of responding. The function is optimistic and not critical
+  // so we favor silent bailout over warning or erroring.
+
+}
 function preinit(href, options) {
   var dispatcher = Dispatcher.current;
 
   if (dispatcher) {
     dispatcher.preinit(href, options);
+  } // We don't error because preinit needs to be resilient to being called in a variety of scopes
+  // and the runtime may not be capable of responding. The function is optimistic and not critical
+  // so we favor silent bailout over warning or erroring.
+
+}
+function preinitModule(href, options) {
+  var dispatcher = Dispatcher.current;
+
+  if (dispatcher) {
+    dispatcher.preinitModule(href, options);
   } // We don't error because preinit needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
@@ -37857,7 +38070,9 @@ exports.hydrateRoot = hydrateRoot;
 exports.preconnect = preconnect;
 exports.prefetchDNS = prefetchDNS;
 exports.preinit = preinit;
+exports.preinitModule = preinitModule;
 exports.preload = preload;
+exports.preloadModule = preloadModule;
 exports.render = render;
 exports.unmountComponentAtNode = unmountComponentAtNode;
 exports.unstable_batchedUpdates = batchedUpdates$1;

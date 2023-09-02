@@ -29,6 +29,7 @@ use crate::{
         local::{NextFontLocalCssModuleReplacer, NextFontLocalReplacer},
     },
     next_server::context::ServerContextType,
+    util::NextRuntime,
 };
 
 // Make sure to not add any external requests here.
@@ -37,6 +38,7 @@ use crate::{
 pub async fn get_next_client_import_map(
     project_path: Vc<FileSystemPath>,
     ty: Value<ClientContextType>,
+    mode: NextMode,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ImportMap>> {
@@ -47,6 +49,7 @@ pub async fn get_next_client_import_map(
         project_path,
         execution_context,
         next_config,
+        mode,
     )
     .await?;
 
@@ -198,6 +201,7 @@ pub async fn get_next_server_import_map(
         project_path,
         execution_context,
         next_config,
+        mode,
     )
     .await?;
 
@@ -211,7 +215,7 @@ pub async fn get_next_server_import_map(
 
     let ty = ty.into_value();
 
-    insert_next_server_special_aliases(&mut import_map, ty, mode).await?;
+    insert_next_server_special_aliases(&mut import_map, ty, mode, NextRuntime::NodeJs).await?;
     let external = ImportMapping::External(None).cell();
 
     match ty {
@@ -270,6 +274,7 @@ pub async fn get_next_edge_import_map(
         project_path,
         execution_context,
         next_config,
+        mode,
     )
     .await?;
 
@@ -283,7 +288,7 @@ pub async fn get_next_edge_import_map(
 
     let ty = ty.into_value();
 
-    insert_next_server_special_aliases(&mut import_map, ty, mode).await?;
+    insert_next_server_special_aliases(&mut import_map, ty, mode, NextRuntime::Edge).await?;
 
     match ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {}
@@ -308,22 +313,28 @@ pub async fn get_next_edge_import_map(
 pub fn get_next_client_resolved_map(
     context: Vc<FileSystemPath>,
     root: Vc<FileSystemPath>,
+    mode: NextMode,
 ) -> Vc<ResolvedMap> {
-    let glob_mappings = vec![
-        // Temporary hack to replace the hot reloader until this is passable by props in next.js
-        (
-            context.root(),
-            Glob::new(
-                "**/next/dist/client/components/react-dev-overlay/hot-reloader-client.js"
-                    .to_string(),
+    let glob_mappings = if mode == NextMode::Development {
+        vec![]
+    } else {
+        vec![
+            // Temporary hack to replace the hot reloader until this is passable by props in
+            // next.js
+            (
+                context.root(),
+                Glob::new(
+                    "**/next/dist/client/components/react-dev-overlay/hot-reloader-client.js"
+                        .to_string(),
+                ),
+                ImportMapping::PrimaryAlternative(
+                    "@vercel/turbopack-next/dev/hot-reloader.tsx".to_string(),
+                    Some(root),
+                )
+                .into(),
             ),
-            ImportMapping::PrimaryAlternative(
-                "@vercel/turbopack-next/dev/hot-reloader.tsx".to_string(),
-                Some(root),
-            )
-            .into(),
-        ),
-    ];
+        ]
+    };
     ResolvedMap {
         by_glob: glob_mappings,
     }
@@ -356,25 +367,30 @@ static NEXT_ALIASES: [(&str, &str); 23] = [
     ("setImmediate", "next/dist/compiled/setimmediate"),
 ];
 
-pub async fn insert_next_server_special_aliases(
+async fn insert_next_server_special_aliases(
     import_map: &mut ImportMap,
     ty: ServerContextType,
     mode: NextMode,
+    runtime: NextRuntime,
 ) -> Result<()> {
+    let external_if_node = move |context_dir: Vc<FileSystemPath>, request: &str| match runtime {
+        NextRuntime::Edge => request_to_import_mapping(context_dir, request),
+        NextRuntime::NodeJs => external_request_to_import_mapping(request),
+    };
     match (mode, ty) {
         (_, ServerContextType::Pages { pages_dir }) => {
             import_map.insert_exact_alias(
                 "@opentelemetry/api",
                 // TODO(WEB-625) this actually need to prefer the local version of
                 // @opentelemetry/api
-                external_request_to_import_mapping("next/dist/compiled/@opentelemetry/api"),
+                external_if_node(pages_dir, "next/dist/compiled/@opentelemetry/api"),
             );
             insert_alias_to_alternatives(
                 import_map,
                 format!("{VIRTUAL_PACKAGE_NAME}/pages/_app"),
                 vec![
                     request_to_import_mapping(pages_dir, "./_app"),
-                    external_request_to_import_mapping("next/app"),
+                    external_if_node(pages_dir, "next/app"),
                 ],
             );
             insert_alias_to_alternatives(
@@ -382,7 +398,7 @@ pub async fn insert_next_server_special_aliases(
                 format!("{VIRTUAL_PACKAGE_NAME}/pages/_document"),
                 vec![
                     request_to_import_mapping(pages_dir, "./_document"),
-                    external_request_to_import_mapping("next/document"),
+                    external_if_node(pages_dir, "next/document"),
                 ],
             );
             insert_alias_to_alternatives(
@@ -390,7 +406,7 @@ pub async fn insert_next_server_special_aliases(
                 format!("{VIRTUAL_PACKAGE_NAME}/pages/_error"),
                 vec![
                     request_to_import_mapping(pages_dir, "./_error"),
-                    external_request_to_import_mapping("next/error"),
+                    external_if_node(pages_dir, "next/error"),
                 ],
             );
         }
@@ -485,14 +501,15 @@ pub async fn insert_next_server_special_aliases(
         // * maps react-dom -> react-dom/server-rendering-stub
         // * passes through react and (react|react-dom|react-server-dom-webpack)/(.*) to
         //   next/dist/compiled/react and next/dist/compiled/$1/$2 resp.
-        (NextMode::Build | NextMode::Development, ServerContextType::AppSSR { .. }) => {
+        (NextMode::Build | NextMode::Development, ServerContextType::AppSSR { app_dir }) => {
             import_map.insert_exact_alias(
                 "react",
-                external_request_to_import_mapping("next/dist/compiled/react"),
+                external_if_node(app_dir, "next/dist/compiled/react"),
             );
             import_map.insert_exact_alias(
                 "react-dom",
-                external_request_to_import_mapping(
+                external_if_node(
+                    app_dir,
                     "next/dist/compiled/react-dom/server-rendering-stub",
                 ),
             );
@@ -505,7 +522,7 @@ pub async fn insert_next_server_special_aliases(
                     "next/dist/compiled/react-server-dom-webpack/*",
                 ),
             ] {
-                let import_mapping = external_request_to_import_mapping(request);
+                let import_mapping = external_if_node(app_dir, request);
                 import_map.insert_wildcard_alias(wildcard_alias, import_mapping);
             }
         }
@@ -525,6 +542,7 @@ pub async fn insert_next_shared_aliases(
     project_path: Vc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,
     next_config: Vc<NextConfig>,
+    mode: NextMode,
 ) -> Result<()> {
     let package_root = next_js_fs().root();
 
@@ -540,12 +558,14 @@ pub async fn insert_next_shared_aliases(
         );
     }
 
-    // we use the next.js hydration code, so we replace the error overlay with our
-    // own
-    import_map.insert_exact_alias(
-        "next/dist/compiled/@next/react-dev-overlay/dist/client",
-        request_to_import_mapping(package_root, "./overlay/client.ts"),
-    );
+    if mode != NextMode::Development {
+        // we use the next.js hydration code, so we replace the error overlay with our
+        // own
+        import_map.insert_exact_alias(
+            "next/dist/compiled/@next/react-dev-overlay/dist/client",
+            request_to_import_mapping(package_root, "./overlay/client.ts"),
+        );
+    }
 
     insert_package_alias(
         import_map,

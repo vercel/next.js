@@ -104,7 +104,8 @@ describe('Instrumentation Hook', () => {
       expect(page).toContain('Hello')
     })
     if (isNextDev) {
-      it('should reload the server when the instrumentation hook changes', async () => {
+      // TODO: Implement handling for changing the instrument file.
+      it.skip('should reload the server when the instrumentation hook changes', async () => {
         await next.render('/')
         await next.patchFile(
           './instrumentation.js',

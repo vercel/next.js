@@ -83,7 +83,6 @@ async function lint(
   lintDirs: string[],
   eslintrcFile: string | null,
   pkgJsonPath: string | null,
-  hasAppDir: boolean,
   {
     lintDuringBuild = false,
     eslintOptions = null,
@@ -185,7 +184,7 @@ async function lint(
       }
     }
 
-    const pagesDir = findPagesDir(baseDir, hasAppDir).pagesDir
+    const pagesDir = findPagesDir(baseDir).pagesDir
     const pagesDirRules = pagesDir ? ['@next/next/no-html-link-for-pages'] : []
 
     if (nextEslintPluginIsEnabled) {
@@ -210,6 +209,7 @@ async function lint(
         eslint = new ESLint(options)
       }
     } else {
+      Log.warn('')
       Log.warn(
         'The Next.js plugin was not detected in your ESLint configuration. See https://nextjs.org/docs/basic-features/eslint#migrating-existing-config'
       )
@@ -277,7 +277,6 @@ async function lint(
 export async function runLintCheck(
   baseDir: string,
   lintDirs: string[],
-  hasAppDir: boolean,
   opts: {
     lintDuringBuild?: boolean
     eslintOptions?: any
@@ -329,21 +328,14 @@ export async function runLintCheck(
 
     if (config.exists) {
       // Run if ESLint config exists
-      return await lint(
-        baseDir,
-        lintDirs,
-        eslintrcFile,
-        pkgJsonPath,
-        hasAppDir,
-        {
-          lintDuringBuild,
-          eslintOptions,
-          reportErrorsOnly,
-          maxWarnings,
-          formatter,
-          outputFile,
-        }
-      )
+      return await lint(baseDir, lintDirs, eslintrcFile, pkgJsonPath, {
+        lintDuringBuild,
+        eslintOptions,
+        reportErrorsOnly,
+        maxWarnings,
+        formatter,
+        outputFile,
+      })
     } else {
       // Display warning if no ESLint configuration is present inside
       // config file during "next build", no warning is shown when

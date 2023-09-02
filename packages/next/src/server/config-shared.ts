@@ -164,21 +164,17 @@ export interface ExperimentalConfig {
   fetchCacheKeyPrefix?: string
   optimisticClientCache?: boolean
   middlewarePrefetch?: 'strict' | 'flexible'
-  legacyBrowsers?: boolean
   manualClientBasePath?: boolean
-  newNextLinkBehavior?: boolean
   // custom path to a cache handler to use
   incrementalCacheHandlerPath?: string
   disablePostcssPresetEnv?: boolean
   swcMinify?: boolean
-  swcFileReading?: boolean
   cpus?: number
   memoryBasedWorkersCount?: boolean
   sharedPool?: boolean
   proxyTimeout?: number
   isrFlushToDisk?: boolean
   workerThreads?: boolean
-  pageEnv?: boolean
   // optimizeCss can be boolean or critters' option object
   // Use Record<string, unknown> as critters doesn't export its Option type
   // https://github.com/GoogleChromeLabs/critters/blob/a590c05f9197b656d2aeaae9369df2483c26b072/packages/critters/src/index.d.ts
@@ -186,11 +182,6 @@ export interface ExperimentalConfig {
   nextScriptWorkers?: boolean
   scrollRestoration?: boolean
   externalDir?: boolean
-  /**
-   * The App Router (app directory) enables support for layouts, Server Components, streaming, and colocated data fetching.
-   * @see https://nextjs.org/docs/app/api-reference/next-config-js/appDir
-   */
-  appDir?: boolean
   amp?: {
     optimizer?: any
     validator?: string
@@ -235,6 +226,11 @@ export interface ExperimentalConfig {
   serverComponentsExternalPackages?: string[]
 
   webVitalsAttribution?: Array<(typeof WEB_VITALS)[number]>
+
+  /**
+   * Automatically apply the "modularizeImports" optimization to imports of the specified packages.
+   */
+  optimizePackageImports?: string[]
 
   turbo?: ExperimentalTurboOptions
   turbotrace?: {
@@ -309,6 +305,7 @@ export type ExportPathMap = {
     page: string
     query?: NextParsedUrlQuery
     _isAppDir?: boolean
+    _isAppPrefetch?: boolean
     _isDynamicError?: boolean
   }
 }
@@ -540,10 +537,10 @@ export interface NextConfig extends Record<string, any> {
   serverRuntimeConfig?: { [key: string]: any }
 
   /**
-   * Next.js automatically polyfills node-fetch and enables HTTP Keep-Alive by default.
+   * Next.js enables HTTP Keep-Alive by default.
    * You may want to disable HTTP Keep-Alive for certain `fetch()` calls or globally.
    *
-   * @see [Disabling HTTP Keep-Alive](https://nextjs.org/docs/api-reference/next.config.js/disabling-http-keep-alive)
+   * @see [Disabling HTTP Keep-Alive](https://nextjs.org/docs/app/api-reference/next-config-js/httpAgentOptions)
    */
   httpAgentOptions?: { keepAlive?: boolean }
 
@@ -682,7 +679,7 @@ export const defaultConfig: NextConfig = {
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
   reactProductionProfiling: false,
-  reactStrictMode: false,
+  reactStrictMode: null,
   httpAgentOptions: {
     keepAlive: true,
   },
@@ -699,14 +696,12 @@ export const defaultConfig: NextConfig = {
     deploymentId: undefined,
     useDeploymentIdServerActions: false,
     appDocumentPreloading: undefined,
-    clientRouterFilter: false,
+    clientRouterFilter: true,
     clientRouterFilterRedirects: false,
     fetchCacheKeyPrefix: '',
     middlewarePrefetch: 'flexible',
     optimisticClientCache: true,
     manualClientBasePath: false,
-    legacyBrowsers: false,
-    newNextLinkBehavior: true,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
@@ -716,7 +711,6 @@ export const defaultConfig: NextConfig = {
     sharedPool: true,
     isrFlushToDisk: true,
     workerThreads: false,
-    pageEnv: false,
     proxyTimeout: undefined,
     optimizeCss: false,
     nextScriptWorkers: false,
@@ -724,10 +718,8 @@ export const defaultConfig: NextConfig = {
     externalDir: false,
     disableOptimizedLoading: false,
     gzipSize: true,
-    swcFileReading: true,
     craCompat: false,
     esmExternals: true,
-    appDir: true,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
     incrementalCacheHandlerPath: undefined,
