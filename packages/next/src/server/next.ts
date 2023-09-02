@@ -19,7 +19,7 @@ import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
-import {
+import type {
   WorkerRequestHandler,
   WorkerUpgradeHandler,
 } from './lib/setup-server-worker'

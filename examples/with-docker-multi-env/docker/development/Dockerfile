@@ -47,6 +47,8 @@ USER nextjs
 EXPOSE 3000
 
 ENV PORT 3000
-ENV HOSTNAME localhost
+# Uncomment the following line if `process.env.HOSTNAME` is not provided by your provider
+# and `localhost` doesn't work with your use case.
+# ENV HOSTNAME 0.0.0.0
 
 CMD ["node", "server.js"]

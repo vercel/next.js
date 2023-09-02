@@ -2,9 +2,9 @@ import type { RequestHandler } from '../next'
 
 // this must come first as it includes require hooks
 import { initializeServerWorker } from './setup-server-worker'
-import { formatHostname } from './format-hostname'
 import next from '../next'
 import { PropagateToWorkersField } from './router-utils/types'
+import { getFetchHostname } from './get-fetch-hostname'
 
 export const WORKER_SELF_EXIT_CODE = 77
 
@@ -102,11 +102,8 @@ export async function initialize(opts: {
     ...opts,
     _routerWorker: opts.workerType === 'router',
     _renderWorker: opts.workerType === 'render',
-    hostname,
     customServer: false,
     httpServer: server,
-    port: opts.port,
-    isNodeDebugging: opts.isNodeDebugging,
   })
 
   requestHandler = app.getRequestHandler()
@@ -115,7 +112,7 @@ export async function initialize(opts: {
 
   result = {
     port,
-    hostname: formatHostname(hostname),
+    hostname: getFetchHostname(hostname, opts.hostname),
   }
 
   return result

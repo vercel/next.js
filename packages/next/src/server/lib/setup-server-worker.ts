@@ -87,7 +87,6 @@ export async function initializeServerWorker(
         upgradeHandler(req, socket, upgrade)
       })
     }
-    let hostname = opts.hostname || 'localhost'
 
     server.on('listening', async () => {
       try {
@@ -116,6 +115,6 @@ export async function initializeServerWorker(
         return reject(err)
       }
     })
-    server.listen(0, hostname)
+    server.listen(0, opts.hostname)
   })
 }

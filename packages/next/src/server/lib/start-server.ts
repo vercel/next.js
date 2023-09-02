@@ -11,11 +11,12 @@ import { getDebugPort } from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
 import fs from 'fs'
-import {
+import type {
   WorkerRequestHandler,
   WorkerUpgradeHandler,
 } from './setup-server-worker'
 import { checkIsNodeDebugging } from './is-node-debugging'
+import { getFetchHostname } from './get-fetch-hostname'
 const debug = setupDebug('next:start-server')
 
 if (process.env.NEXT_CPU_PROF) {
@@ -28,7 +29,7 @@ export interface StartServerOptions {
   port: number
   logReady?: boolean
   isDev: boolean
-  hostname: string
+  hostname?: string
   allowRetry?: boolean
   customServer?: boolean
   minimalMode?: boolean
@@ -54,7 +55,7 @@ export async function getRequestHandlers({
   dir: string
   port: number
   isDev: boolean
-  hostname: string
+  hostname?: string
   minimalMode?: boolean
   isNodeDebugging?: boolean
   keepAliveTimeout?: number
@@ -187,18 +188,15 @@ export async function startServer({
   await new Promise<void>((resolve) => {
     server.on('listening', async () => {
       const addr = server.address()
-      const actualHostname = formatHostname(
+      const host =
         typeof addr === 'object'
           ? addr?.address || hostname || 'localhost'
           : addr
-      )
 
-      const formattedHostname =
-        !hostname || actualHostname === '0.0.0.0'
-          ? 'localhost' 
-          : actualHostname === '[::]' 
-          ? '[::1]'
-          : formatHostname(hostname)
+      // The server's actual host
+      const formattedServerHost = formatHostname(host)
+      // appUrl's host - the server should respond when this hostname is fetched
+      const formattedHostname = getFetchHostname(host, hostname)
 
       port = typeof addr === 'object' ? addr?.port || port : port
       const appUrl = `${
@@ -215,7 +213,9 @@ export async function startServer({
       }
 
       if (logReady) {
-        Log.ready(`started server on ${actualHostname}:${port}, url: ${appUrl}`)
+        Log.ready(
+          `started server on ${formattedServerHost}:${port}, url: ${appUrl}`
+        )
         // expose the main port to render workers
         process.env.PORT = port + ''
       }
