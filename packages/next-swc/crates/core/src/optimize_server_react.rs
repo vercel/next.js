@@ -91,9 +91,9 @@ impl Fold for OptimizeServerReact {
                         if &f.to_id() == react_ident {
                             if let MemberProp::Ident(i) = &member.prop {
                                 // Remove `React.useEffect` and `React.useLayoutEffect` calls
-                                if i.sym.to_string() == "useEffect" {
-                                    return Expr::Lit(Lit::Null(Null { span: DUMMY_SP }));
-                                } else if i.sym.to_string() == "useLayoutEffect" {
+                                if i.sym.to_string() == "useEffect"
+                                    || i.sym.to_string() == "useLayoutEffect"
+                                {
                                     return Expr::Lit(Lit::Null(Null { span: DUMMY_SP }));
                                 }
                             }
@@ -119,51 +119,38 @@ impl Fold for OptimizeServerReact {
                 if array_pat.elems.len() == 2 {
                     if let Some(array_pat_1) = &array_pat.elems[0] {
                         if let Some(array_pat_2) = &array_pat.elems[1] {
-                            if let Some(box expr) = &decl.init {
-                                match expr {
-                                    Expr::Call(call) => {
-                                        if let Callee::Expr(box Expr::Ident(f)) = &call.callee {
-                                            if let Some(use_state_ident) = &self.use_state_ident {
-                                                if &f.to_id() == use_state_ident
-                                                    && call.args.len() == 1
-                                                {
-                                                    // const state = x, setState = () => {};
-                                                    new_d.push(VarDeclarator {
-                                                        definite: false,
-                                                        name: array_pat_1.clone(),
-                                                        init: Some(call.args[0].expr.clone()),
-                                                        span: DUMMY_SP,
-                                                    });
-                                                    new_d.push(VarDeclarator {
-                                                        definite: false,
-                                                        name: array_pat_2.clone(),
-                                                        init: Some(Box::new(Expr::Arrow(
-                                                            ArrowExpr {
-                                                                body: Box::new(
-                                                                    BlockStmtOrExpr::Expr(
-                                                                        Box::new(Expr::Lit(
-                                                                            Lit::Null(Null {
-                                                                                span: DUMMY_SP,
-                                                                            }),
-                                                                        )),
-                                                                    ),
-                                                                ),
-                                                                params: vec![],
-                                                                is_async: false,
-                                                                is_generator: false,
-                                                                span: DUMMY_SP,
-                                                                type_params: None,
-                                                                return_type: None,
-                                                            },
-                                                        ))),
-                                                        span: DUMMY_SP,
-                                                    });
-                                                    continue;
-                                                }
-                                            }
+                            if let Some(box Expr::Call(call)) = &decl.init {
+                                if let Callee::Expr(box Expr::Ident(f)) = &call.callee {
+                                    if let Some(use_state_ident) = &self.use_state_ident {
+                                        if &f.to_id() == use_state_ident && call.args.len() == 1 {
+                                            // const state = x, setState = () => {};
+                                            new_d.push(VarDeclarator {
+                                                definite: false,
+                                                name: array_pat_1.clone(),
+                                                init: Some(call.args[0].expr.clone()),
+                                                span: DUMMY_SP,
+                                            });
+                                            new_d.push(VarDeclarator {
+                                                definite: false,
+                                                name: array_pat_2.clone(),
+                                                init: Some(Box::new(Expr::Arrow(ArrowExpr {
+                                                    body: Box::new(BlockStmtOrExpr::Expr(
+                                                        Box::new(Expr::Lit(Lit::Null(Null {
+                                                            span: DUMMY_SP,
+                                                        }))),
+                                                    )),
+                                                    params: vec![],
+                                                    is_async: false,
+                                                    is_generator: false,
+                                                    span: DUMMY_SP,
+                                                    type_params: None,
+                                                    return_type: None,
+                                                }))),
+                                                span: DUMMY_SP,
+                                            });
+                                            continue;
                                         }
                                     }
-                                    _ => {}
                                 }
                             }
                         }
