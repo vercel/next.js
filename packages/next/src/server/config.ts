@@ -20,6 +20,7 @@ import { loadEnvConfig, updateInitialEnv } from '@next/env'
 import { flushAndExit } from '../telemetry/flush-and-exit'
 import { findRootDir } from '../lib/find-root'
 import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
+import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
@@ -308,7 +309,11 @@ function assignDefaults(
       )
     }
 
-    if (images.path === imageConfigDefault.path && result.basePath) {
+    if (
+      images.path === imageConfigDefault.path &&
+      result.basePath &&
+      !pathHasPrefix(images.path, result.basePath)
+    ) {
       images.path = `${result.basePath}${images.path}`
     }
 
