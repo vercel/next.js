@@ -377,6 +377,12 @@ export function getLoaderSWCOptions({
     },
   }
 
+  if (isServer && !development) {
+    baseOptions.optimizeServerReact = {
+      optimize_use_state: true,
+    }
+  }
+
   // Modularize import optimization for barrel files
   if (optimizePackageImports) {
     baseOptions.autoModularizeImports = {

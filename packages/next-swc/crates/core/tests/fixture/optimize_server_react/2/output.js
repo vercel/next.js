@@ -1,6 +1,9 @@
 // https://github.com/vercel/commerce/blob/18167d22f31fce6c90f98912e514243236200989/components/layout/search/filter/dropdown.tsx#L16
 'use client';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import { ChevronDownIcon } from '@heroicons/react/24/outline';
+import { FilterItem } from './item';
 export default function FilterItemDropdown({ list }) {
     const pathname = usePathname();
     const searchParams = useSearchParams();

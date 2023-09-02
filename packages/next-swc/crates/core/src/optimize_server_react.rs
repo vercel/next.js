@@ -37,6 +37,8 @@ impl Fold for OptimizeServerReact {
         let mut new_items = vec![];
 
         for item in items {
+            new_items.push(item.clone().fold_with(self));
+
             if let ModuleItem::ModuleDecl(ModuleDecl::Import(import_decl)) = &item {
                 if import_decl.src.value.to_string() != "react" {
                     continue;
@@ -63,8 +65,6 @@ impl Fold for OptimizeServerReact {
                     }
                 }
             }
-
-            new_items.push(item.fold_with(self));
         }
 
         new_items
