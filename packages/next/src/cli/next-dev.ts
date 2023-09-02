@@ -348,7 +348,7 @@ const nextDev: CliCommand = async (argv) => {
       ...devServerOptions,
       isDev: true,
     })
-    const distDir = path.join(dir, rawNextConfig.distDir || '.next')
+
     const { pagesDir, appDir } = findPagesDir(dir)
     const telemetry = new Telemetry({
       distDir,
