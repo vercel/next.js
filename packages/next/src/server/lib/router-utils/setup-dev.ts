@@ -855,7 +855,8 @@ async function startWatcher(opts: SetupOpts) {
         return { finished: undefined }
       },
 
-      onHMR(req: IncomingMessage, socket: Socket, head: Buffer) {
+      // TODO: Figure out if socket type can match the NextJsHotReloaderInterface
+      onHMR(req, socket: Socket, head) {
         wsServer.handleUpgrade(req, socket, head, (client) => {
           clients.add(client)
           client.on('close', () => clients.delete(client))
