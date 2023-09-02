@@ -925,7 +925,7 @@ async function startWatcher(opts: SetupOpts) {
         })
       },
 
-      send(action: object) {
+      send(action) {
         const payload = JSON.stringify(action)
         for (const client of clients) {
           client.send(payload)
