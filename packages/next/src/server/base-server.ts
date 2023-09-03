@@ -2413,13 +2413,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         delete headers[NEXT_CACHE_TAGS_HEADER]
       }
 
+      const nullBodyStatus = [101, 204, 205, 304]
+
       await sendResponse(
         req,
         res,
-        new Response(cachedData.body, {
-          headers: fromNodeOutgoingHttpHeaders(headers),
-          status: cachedData.status || 200,
-        })
+        new Response(
+          nullBodyStatus.includes(cachedData.status) ? null : cachedData.body,
+          {
+            headers: fromNodeOutgoingHttpHeaders(headers),
+            status: cachedData.status || 200,
+          }
+        )
       )
       return null
     } else {
