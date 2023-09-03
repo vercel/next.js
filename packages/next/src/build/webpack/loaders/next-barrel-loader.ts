@@ -108,7 +108,7 @@ const NextBarrelLoader = async function (
   })
 
   const matches = source.match(
-    /^([^]*)export const __next_private_export_map__ = '([^']+)'/
+    /^([^]*)export const __next_private_export_map__ = ('[^']+'|"[^"]+")/
   )
 
   if (!matches) {
@@ -125,7 +125,11 @@ const NextBarrelLoader = async function (
   // It needs to keep the prefix for comments and directives like "use client".
   const prefix = matches[1]
 
-  const exportList = JSON.parse(matches[2]) as [string, string, string][]
+  const exportList = JSON.parse(matches[2].slice(1, -1)) as [
+    string,
+    string,
+    string
+  ][]
   const exportMap = new Map<string, [string, string]>()
   for (const [name, path, orig] of exportList) {
     exportMap.set(name, [path, orig])
@@ -138,8 +142,11 @@ const NextBarrelLoader = async function (
     if (exportMap.has(name)) {
       const decl = exportMap.get(name)!
 
-      // In the wildcard case, all exports are from the file itself.
-      if (wildcard) {
+      // In the wildcard case, if the value is exported from another file, we
+      // redirect to that file (decl[0]). Otherwise, export from the current
+      // file itself (this.resourcePath).
+      if (wildcard && !decl[0]) {
+        // E.g. the file contains `export const a = 1`
         decl[0] = this.resourcePath
         decl[1] = name
       }
