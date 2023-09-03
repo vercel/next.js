@@ -46,8 +46,12 @@ fn effect_has_side_effect_deps(call: &CallExpr) -> bool {
     // As well as:
     // useEffect(() => {}, [x()])
     if let box Expr::Array(arr) = &call.args[1].expr {
-        for elem in &arr.elems {
-            if let Some(ExprOrSpread { expr: box Expr::Call(_), .. }) = elem {
+        for elem in arr.elems.iter().flatten() {
+            if let ExprOrSpread {
+                expr: box Expr::Call(_),
+                ..
+            } = elem
+            {
                 return true;
             }
         }
