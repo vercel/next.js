@@ -70,7 +70,10 @@ import {
   isNonRoutePagesPage,
 } from '../../lib/is-internal-component'
 import { RouteKind } from '../future/route-kind'
-import { NextJsHotReloaderInterface } from './hot-reloader-types'
+import {
+  HMR_ACTIONS_SENT_TO_BROWSER,
+  type NextJsHotReloaderInterface,
+} from './hot-reloader-types'
 
 const MILLISECONDS_IN_NANOSECOND = 1_000_000
 
@@ -345,13 +348,13 @@ export default class HotReloader implements NextJsHotReloaderInterface {
   public clearHmrServerError(): void {
     if (this.hmrServerError) {
       this.setHmrServerError(null)
-      this.send('reloadPage')
+      this.send({ action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE })
     }
   }
 
   protected async refreshServerComponents(): Promise<void> {
     this.send({
-      action: 'serverComponentChanges',
+      action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
       // TODO: granular reloading of changes
       // entrypoints: serverComponentChanges,
     })
@@ -1254,7 +1257,7 @@ export default class HotReloader implements NextJsHotReloaderInterface {
         this.serverPrevDocumentHash = documentChunk.hash || null
 
         // Notify reload to reload the page, as _document.js was changed (different hash)
-        this.send('reloadPage')
+        this.send({ action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE })
       }
     )
 
@@ -1281,13 +1284,13 @@ export default class HotReloader implements NextJsHotReloaderInterface {
 
       if (middlewareChanges.length > 0) {
         this.send({
-          event: 'middlewareChanges',
+          event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
         })
       }
 
       if (pageChanges.length > 0) {
         this.send({
-          event: 'serverOnlyChanges',
+          event: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
           pages: serverOnlyChanges.map((pg) =>
             denormalizePagePath(pg.slice('pages'.length))
           ),
@@ -1338,14 +1341,20 @@ export default class HotReloader implements NextJsHotReloaderInterface {
           if (addedPages.size > 0) {
             for (const addedPage of addedPages) {
               const page = getRouteFromEntrypoint(addedPage)
-              this.send('addedPage', page)
+              this.send({
+                action: HMR_ACTIONS_SENT_TO_BROWSER.ADDED_PAGE,
+                data: [page],
+              })
             }
           }
 
           if (removedPages.size > 0) {
             for (const removedPage of removedPages) {
               const page = getRouteFromEntrypoint(removedPage)
-              this.send('removedPage', page)
+              this.send({
+                action: HMR_ACTIONS_SENT_TO_BROWSER.REMOVED_PAGE,
+                data: [page],
+              })
             }
           }
         }
@@ -1446,10 +1455,8 @@ export default class HotReloader implements NextJsHotReloaderInterface {
     }
   }
 
-  public send(action?: string | any, ...args: any[]): void {
-    this.webpackHotMiddleware!.publish(
-      action && typeof action === 'object' ? action : { action, data: args }
-    )
+  public send(action: Parameters<NextJsHotReloaderInterface['send']>[0]): void {
+    this.webpackHotMiddleware!.publish(action)
   }
 
   public async ensurePage({
