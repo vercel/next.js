@@ -15,6 +15,7 @@ import { getDebugPort } from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
 import {
+  RESTART_EXIT_CODE,
   WorkerRequestHandler,
   WorkerUpgradeHandler,
 } from './setup-server-worker'
@@ -292,7 +293,7 @@ export async function startServer({
           filename
         )}. Restarting the server to apply the changes...`
       )
-      process.exit(0)
+      process.exit(RESTART_EXIT_CODE)
     })
   }
 }

@@ -4,7 +4,11 @@ import type { UrlWithParsedQuery } from 'url'
 import type { NextConfigComplete } from './config-shared'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextUrlWithParsedQuery } from './request-meta'
-
+import {
+  RESTART_EXIT_CODE,
+  WorkerRequestHandler,
+  WorkerUpgradeHandler,
+} from './lib/setup-server-worker'
 import { spawnSync } from 'child_process'
 
 // if we are not inside of the esm loader enabled
@@ -35,7 +39,7 @@ if (
       })
 
       if (
-        !(result.signal || result.status) &&
+        result.status === RESTART_EXIT_CODE &&
         process.env.NODE_ENV === 'development'
       ) {
         startWorker()
@@ -63,10 +67,6 @@ import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
-import {
-  WorkerRequestHandler,
-  WorkerUpgradeHandler,
-} from './lib/setup-server-worker'
 import { checkIsNodeDebugging } from './lib/is-node-debugging'
 
 let ServerImpl: typeof Server

@@ -8,6 +8,7 @@ import {
   nextBuild,
   runNextCommand,
   runNextCommandDev,
+  killProcess,
 } from 'next-test-utils'
 import fs from 'fs-extra'
 import path, { join } from 'path'
@@ -21,7 +22,8 @@ const dirDuplicateSass = join(__dirname, '../duplicate-sass')
 const testExitSignal = async (
   killSignal = '',
   args = [],
-  readyRegex = /Creating an optimized production/
+  readyRegex = /Creating an optimized production/,
+  expectedExitSignal
 ) => {
   let instance
   const killSigint = (inst) => {
@@ -38,14 +40,18 @@ const testExitSignal = async (
   }).catch((err) => expect.fail(err.message))
 
   await check(() => output, readyRegex)
-  instance.kill(killSignal)
+  await killProcess(instance.pid, killSignal)
 
   const { code, signal } = await cmdPromise
-  // Node can only partially emulate signals on Windows. Our signal handlers won't affect the exit code.
-  // See: https://nodejs.org/api/process.html#process_signal_events
-  const expectedExitSignal = process.platform === `win32` ? killSignal : null
-  expect(signal).toBe(expectedExitSignal)
-  expect(code).toBe(0)
+
+  if (!expectedExitSignal) {
+    // Node can only partially emulate signals on Windows. Our signal handlers won't affect the exit code.
+    // See: https://nodejs.org/api/process.html#process_signal_events
+    expectedExitSignal = process.platform === `win32` ? killSignal : null
+    expect(code).toBe(0)
+  } else {
+    expect(signal).toBe(expectedExitSignal)
+  }
 }
 
 describe('CLI Usage', () => {
@@ -633,7 +639,8 @@ describe('CLI Usage', () => {
       await testExitSignal(
         'SIGINT',
         ['dev', dirBasic, '-p', port],
-        /started server on/
+        /started server on/,
+        'SIGINT'
       )
     })
     test('should exit when SIGTERM is signalled', async () => {
@@ -641,7 +648,8 @@ describe('CLI Usage', () => {
       await testExitSignal(
         'SIGTERM',
         ['dev', dirBasic, '-p', port],
-        /started server on/
+        /started server on/,
+        'SIGTERM'
       )
     })
 
