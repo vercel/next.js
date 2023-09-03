@@ -9,7 +9,7 @@ export default function FilterItemDropdown({ list }) {
     const searchParams = useSearchParams();
     const active = '', setActive = ()=>null;
     const openSelect = false, setOpenSelect = ()=>null;
-    const ref = useRef < HTMLDivElement > null;
+    const ref = useRef(null);
     null;
     null;
     return <div className="relative" ref={ref}>

@@ -11,6 +11,10 @@ export default function App() {
     return () => {}
   }, [1, 2, App])
 
+  useLayoutEffect(() => {}, [runSideEffect()])
+  useEffect(() => {}, [1, runSideEffect(), 2])
+  useEffect(() => {}, getArray())
+
   const a = useMemo(() => {
     return 1
   }, [])

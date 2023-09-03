@@ -13,7 +13,7 @@ export default function FilterItemDropdown({ list }) {
   const searchParams = useSearchParams()
   const [active, setActive] = useState('')
   const [openSelect, setOpenSelect] = useState(false)
-  const ref = useRef < HTMLDivElement > null
+  const ref = useRef(null)
 
   useEffect(() => {
     const handleClickOutside = (event) => {

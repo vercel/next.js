@@ -32,6 +32,30 @@ struct OptimizeServerReact {
     use_layout_effect_ident: Option<Id>,
 }
 
+fn effect_has_side_effect_deps(call: &CallExpr) -> bool {
+    if call.args.len() != 2 {
+        return false;
+    }
+
+    // We can't optimize if the effect has a function call as a dependency:
+    // useEffect(() => {}, x())
+    if let box Expr::Call(_) = &call.args[1].expr {
+        return true;
+    }
+
+    // As well as:
+    // useEffect(() => {}, [x()])
+    if let box Expr::Array(arr) = &call.args[1].expr {
+        for elem in &arr.elems {
+            if let Some(ExprOrSpread { expr: box Expr::Call(_), .. }) = elem {
+                return true;
+            }
+        }
+    }
+
+    false
+}
+
 impl Fold for OptimizeServerReact {
     fn fold_module_items(&mut self, items: Vec<ModuleItem>) -> Vec<ModuleItem> {
         let mut new_items = vec![];
@@ -75,13 +99,13 @@ impl Fold for OptimizeServerReact {
             if let Callee::Expr(box Expr::Ident(f)) = &call.callee {
                 // Remove `useEffect` call
                 if let Some(use_effect_ident) = &self.use_effect_ident {
-                    if &f.to_id() == use_effect_ident {
+                    if &f.to_id() == use_effect_ident && !effect_has_side_effect_deps(call) {
                         return Expr::Lit(Lit::Null(Null { span: DUMMY_SP }));
                     }
                 }
                 // Remove `useLayoutEffect` call
                 if let Some(use_layout_effect_ident) = &self.use_layout_effect_ident {
-                    if &f.to_id() == use_layout_effect_ident {
+                    if &f.to_id() == use_layout_effect_ident && !effect_has_side_effect_deps(call) {
                         return Expr::Lit(Lit::Null(Null { span: DUMMY_SP }));
                     }
                 }
