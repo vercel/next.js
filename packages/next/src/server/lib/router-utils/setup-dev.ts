@@ -797,7 +797,7 @@ async function startWatcher(opts: SetupOpts) {
 
       for await (const data of subscription) {
         processIssues(id, data)
-        sendHmr('hrm-event', id, {
+        sendHmr('hmr-event', id, {
           type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
           data,
         })
