@@ -43,10 +43,10 @@ Template components should accept and use a `children` prop. `template` is rende
 </Layout>
 ```
 
-## Good to know
-
-- By default, `template` is a [Server Component](/docs/app/building-your-application/rendering/server-components), but can also be used as a Client Component through the `"use client"` directive.
-- When a user navigates between routes that share a `template`, a new instance of the component is mounted, DOM elements are recreated, state is **not** preserved, and effects are re-synchronized.
+> **Good to know**:
+>
+> - By default, `template` is a [Server Component](/docs/app/building-your-application/rendering/server-components), but can also be used as a [Client Component](/docs/app/building-your-application/rendering/client-components) through the `"use client"` directive.
+> - When a user navigates between routes that share a `template`, a new instance of the component is mounted, DOM elements are recreated, state is **not** preserved, and effects are re-synchronized.
 
 ## Version History
 
