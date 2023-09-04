@@ -34,8 +34,9 @@ import {
   RSC_MODULE_TYPES,
 } from '../../shared/lib/constants'
 import { RouteMatch } from '../future/route-matches/route-match'
-import { RouteKind } from '../future/route-kind'
-import { AppPageRouteMatch } from '../future/route-matches/app-page-route-match'
+import { isAppPageRouteMatch } from '../future/route-matches/app-page-route-match'
+import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
+import HotReloader from './hot-reloader-webpack'
 
 const debug = origDebug('next:on-demand-entry-handler')
 
@@ -456,6 +457,16 @@ async function findPagePathData(
     }
   }
 
+  if (page === '/not-found' && appDir) {
+    return {
+      absolutePagePath: require.resolve(
+        'next/dist/client/components/not-found-error'
+      ),
+      bundlePath: 'app/not-found',
+      page: '/not-found',
+    }
+  }
+
   if (page === '/_error') {
     return {
       absolutePagePath: require.resolve('next/dist/pages/_error'),
@@ -489,6 +500,7 @@ async function findRoutePathData(
 }
 
 export function onDemandEntryHandler({
+  hotReloader,
   maxInactiveAge,
   multiCompiler,
   nextConfig,
@@ -497,6 +509,7 @@ export function onDemandEntryHandler({
   rootDir,
   appDir,
 }: {
+  hotReloader: HotReloader
   maxInactiveAge: number
   multiCompiler: webpack.MultiCompiler
   nextConfig: NextConfigComplete
@@ -707,9 +720,8 @@ export function onDemandEntryHandler({
 
     // If the route is actually an app page route, then we should have access
     // to the app route match, and therefore, the appPaths from it.
-    if (match?.definition.kind === RouteKind.APP_PAGE) {
-      const { definition: route } = match as AppPageRouteMatch
-      appPaths = route.appPaths
+    if (!appPaths && match && isAppPageRouteMatch(match)) {
+      appPaths = match.definition.appPaths
     }
 
     try {
@@ -939,13 +951,10 @@ export function onDemandEntryHandler({
 
           // New error occurred: buffered error is flushed and new error occurred
           if (!bufferedHmrServerError && error) {
-            client.send(
-              JSON.stringify({
-                event: 'server-error', // for pages dir
-                action: 'serverError', // for app dir
-                errorJSON: stringifyError(error),
-              })
-            )
+            hotReloader.send({
+              action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR,
+              errorJSON: stringifyError(error),
+            })
             bufferedHmrServerError = null
           }
 
@@ -964,7 +973,7 @@ export function onDemandEntryHandler({
               })
             )
           }
-        } catch (_) {}
+        } catch {}
       })
     },
   }
