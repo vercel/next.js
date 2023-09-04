@@ -225,7 +225,7 @@ export class WebpackHotMiddleware {
     })
   }
 
-  publish = (payload: any) => {
+  publish = (payload: unknown) => {
     if (this.closed) return
     this.eventStream.publish(payload)
   }

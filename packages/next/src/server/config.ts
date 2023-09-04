@@ -426,13 +426,6 @@ function assignDefaults(
   )
 
   if (
-    typeof userConfig.experimental?.clientRouterFilter === 'undefined' &&
-    result.experimental?.appDir
-  ) {
-    result.experimental.clientRouterFilter = true
-  }
-
-  if (
     result.experimental?.outputFileTracingRoot &&
     !isAbsolute(result.experimental.outputFileTracingRoot)
   ) {
@@ -732,6 +725,8 @@ function assignDefaults(
       '@heroicons/react/20/solid',
       '@heroicons/react/24/solid',
       '@heroicons/react/24/outline',
+      '@visx/visx',
+      '@tremor/react',
     ]),
   ]
 

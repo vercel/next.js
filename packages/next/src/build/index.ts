@@ -405,8 +405,8 @@ export default async function build(
       setGlobal('telemetry', telemetry)
 
       const publicDir = path.join(dir, 'public')
-      const isAppDirEnabled = !!config.experimental.appDir
-      const { pagesDir, appDir } = findPagesDir(dir, isAppDirEnabled)
+      const isAppDirEnabled = true
+      const { pagesDir, appDir } = findPagesDir(dir)
       NextBuildContext.pagesDir = pagesDir
       NextBuildContext.appDir = appDir
       hasAppDir = Boolean(appDir)

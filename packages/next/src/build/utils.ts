@@ -1241,7 +1241,7 @@ export async function buildAppStaticPaths({
   return StaticGenerationAsyncStorageWrapper.wrap(
     staticGenerationAsyncStorage,
     {
-      pathname: page,
+      urlPathname: page,
       renderOpts: {
         originalPathname: page,
         incrementalCache,
@@ -1987,7 +1987,7 @@ startServer({
   port: currentPort,
   allowRetry: false,
   keepAliveTimeout,
-  useWorkers: !!nextConfig.experimental?.appDir,
+  useWorkers: true,
 }).catch((err) => {
   console.error(err);
   process.exit(1);

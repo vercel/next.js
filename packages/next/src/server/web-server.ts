@@ -6,6 +6,7 @@ import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { PayloadOptions } from './send-payload'
 import type { LoadComponentsReturnType } from './load-components'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
+import type { PrerenderManifest } from '../build'
 
 import { byteLength } from './api-utils/web'
 import BaseServer, {
@@ -23,7 +24,6 @@ import { isDynamicRoute } from '../shared/lib/router/utils'
 import { interpolateDynamicPath, normalizeVercelUrl } from './server-utils'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { IncrementalCache } from './lib/incremental-cache'
-import { PrerenderManifest } from '../build'
 
 interface WebServerOptions extends Options {
   webServerConfig: {
@@ -68,7 +68,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       allowedRevalidateHeaderKeys:
         this.nextConfig.experimental.allowedRevalidateHeaderKeys,
       minimalMode: this.minimalMode,
-      fetchCache: this.nextConfig.experimental.appDir,
+      fetchCache: true,
       fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
       maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
       flushToDisk: false,
