@@ -96,7 +96,6 @@ describe.each([[''], ['/docs']])(
           const newContactPagePath = join('pages', 'hmr', '_contact.js')
           let browser
           try {
-            const start = next.cliOutput.length
             browser = await webdriver(next.url, basePath + '/hmr/contact')
             const text = await browser.elementByCss('p').text()
             expect(text).toBe('This is the contact page.')
@@ -367,7 +366,6 @@ describe.each([[''], ['/docs']])(
         const newPage = join('pages', 'hmr', 'new-page.js')
 
         try {
-          const start = next.cliOutput.length
           browser = await webdriver(next.url, basePath + '/hmr/new-page')
 
           expect(await browser.elementByCss('body').text()).toMatch(
@@ -405,7 +403,6 @@ describe.each([[''], ['/docs']])(
         const newPage = join('pages', 'hmr', '[foo]', 'page.js')
 
         try {
-          const start = next.cliOutput.length
           browser = await webdriver(next.url, basePath + '/hmr/foo/page')
 
           expect(await browser.elementByCss('body').text()).toMatch(
@@ -490,7 +487,6 @@ describe.each([[''], ['/docs']])(
         const aboutPage = join('pages', 'hmr', 'about2.js')
         const aboutContent = await next.readFile(aboutPage)
         try {
-          const start = next.cliOutput.length
           browser = await webdriver(next.url, basePath + '/hmr/about2')
           await check(
             () => getBrowserBodyText(browser),
