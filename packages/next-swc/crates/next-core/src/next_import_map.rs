@@ -38,6 +38,7 @@ use crate::{
 pub async fn get_next_client_import_map(
     project_path: Vc<FileSystemPath>,
     ty: Value<ClientContextType>,
+    mode: NextMode,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ImportMap>> {
@@ -48,6 +49,7 @@ pub async fn get_next_client_import_map(
         project_path,
         execution_context,
         next_config,
+        mode,
     )
     .await?;
 
@@ -199,6 +201,7 @@ pub async fn get_next_server_import_map(
         project_path,
         execution_context,
         next_config,
+        mode,
     )
     .await?;
 
@@ -271,6 +274,7 @@ pub async fn get_next_edge_import_map(
         project_path,
         execution_context,
         next_config,
+        mode,
     )
     .await?;
 
@@ -309,22 +313,28 @@ pub async fn get_next_edge_import_map(
 pub fn get_next_client_resolved_map(
     context: Vc<FileSystemPath>,
     root: Vc<FileSystemPath>,
+    mode: NextMode,
 ) -> Vc<ResolvedMap> {
-    let glob_mappings = vec![
-        // Temporary hack to replace the hot reloader until this is passable by props in next.js
-        (
-            context.root(),
-            Glob::new(
-                "**/next/dist/client/components/react-dev-overlay/hot-reloader-client.js"
-                    .to_string(),
+    let glob_mappings = if mode == NextMode::Development {
+        vec![]
+    } else {
+        vec![
+            // Temporary hack to replace the hot reloader until this is passable by props in
+            // next.js
+            (
+                context.root(),
+                Glob::new(
+                    "**/next/dist/client/components/react-dev-overlay/hot-reloader-client.js"
+                        .to_string(),
+                ),
+                ImportMapping::PrimaryAlternative(
+                    "@vercel/turbopack-next/dev/hot-reloader.tsx".to_string(),
+                    Some(root),
+                )
+                .into(),
             ),
-            ImportMapping::PrimaryAlternative(
-                "@vercel/turbopack-next/dev/hot-reloader.tsx".to_string(),
-                Some(root),
-            )
-            .into(),
-        ),
-    ];
+        ]
+    };
     ResolvedMap {
         by_glob: glob_mappings,
     }
@@ -532,6 +542,7 @@ pub async fn insert_next_shared_aliases(
     project_path: Vc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,
     next_config: Vc<NextConfig>,
+    mode: NextMode,
 ) -> Result<()> {
     let package_root = next_js_fs().root();
 
@@ -547,12 +558,14 @@ pub async fn insert_next_shared_aliases(
         );
     }
 
-    // we use the next.js hydration code, so we replace the error overlay with our
-    // own
-    import_map.insert_exact_alias(
-        "next/dist/compiled/@next/react-dev-overlay/dist/client",
-        request_to_import_mapping(package_root, "./overlay/client.ts"),
-    );
+    if mode != NextMode::Development {
+        // we use the next.js hydration code, so we replace the error overlay with our
+        // own
+        import_map.insert_exact_alias(
+            "next/dist/compiled/@next/react-dev-overlay/dist/client",
+            request_to_import_mapping(package_root, "./overlay/client.ts"),
+        );
+    }
 
     insert_package_alias(
         import_map,

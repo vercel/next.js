@@ -19,7 +19,7 @@ use next_core::{
 };
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, unit, Completion, IntoTraitRef, State, TaskInput,
+    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, IntoTraitRef, State, TaskInput,
     TransientInstance, Value, Vc,
 };
 use turbopack_binding::{
@@ -108,7 +108,7 @@ impl ProjectContainer {
     #[turbo_tasks::function]
     pub async fn update(self: Vc<Self>, options: ProjectOptions) -> Result<Vc<()>> {
         self.await?.options_state.set(options);
-        Ok(unit())
+        Ok(Default::default())
     }
 
     #[turbo_tasks::function]
@@ -424,7 +424,7 @@ impl Project {
         emit_event("swcRemoveConsole", remove_console_enabled);
         emit_event("swcEmotion", emotion_enabled);
 
-        Ok(unit())
+        Ok(Default::default())
     }
 
     #[turbo_tasks::function]
@@ -586,7 +586,7 @@ impl Project {
         Ok(self
             .await?
             .versioned_content_map
-            .get(self.client_root().join(identifier)))
+            .get(self.client_relative_path().join(identifier)))
     }
 
     #[turbo_tasks::function]
@@ -635,7 +635,7 @@ impl Project {
         Ok(self
             .await?
             .versioned_content_map
-            .keys_in_path(self.client_root()))
+            .keys_in_path(self.client_relative_path()))
     }
 }
 

@@ -243,13 +243,7 @@ pub async fn find_app_dir(project_path: Vc<FileSystemPath>) -> Result<Vc<OptionA
 /// Finds and returns the [DirectoryTree] of the app directory if enabled and
 /// existing.
 #[turbo_tasks::function]
-pub async fn find_app_dir_if_enabled(
-    project_path: Vc<FileSystemPath>,
-    next_config: Vc<NextConfig>,
-) -> Result<Vc<OptionAppDir>> {
-    if !*next_config.app_dir().await? {
-        return Ok(Vc::cell(None));
-    }
+pub async fn find_app_dir_if_enabled(project_path: Vc<FileSystemPath>) -> Result<Vc<OptionAppDir>> {
     Ok(find_app_dir(project_path))
 }
 

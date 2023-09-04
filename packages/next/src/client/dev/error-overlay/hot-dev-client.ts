@@ -63,15 +63,14 @@ let customHmrEventHandler: any
 export default function connect() {
   register()
 
-  addMessageListener((event) => {
+  addMessageListener((payload) => {
     try {
-      const payload = JSON.parse(event.data)
-      if (!('action' in payload)) return
-
-      processMessage(payload)
+      if ('action' in payload) {
+        processMessage(payload)
+      }
     } catch (err: any) {
       console.warn(
-        '[HMR] Invalid message: ' + event.data + '\n' + (err?.stack ?? '')
+        '[HMR] Invalid message: ' + payload + '\n' + (err?.stack ?? '')
       )
     }
   })
