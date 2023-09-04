@@ -100,6 +100,8 @@ import {
   HMR_ACTIONS_SENT_TO_BROWSER,
   HMR_ACTION_TYPES,
   NextJsHotReloaderInterface,
+  ReloadPageAction,
+  TurboPackConnectedAction,
 } from '../../dev/hot-reloader-types'
 import { debounce } from '../../utils'
 
@@ -790,7 +792,10 @@ async function startWatcher(opts: SetupOpts) {
         // to fully reload the page to resolve the issue. We can't use
         // `hotReloader.send` since that would force very connected client to
         // reload, only this client is out of date.
-        client.send(JSON.stringify({ action: 'reloadPage' }))
+        const reloadAction: ReloadPageAction = {
+          action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
+        }
+        client.send(JSON.stringify(reloadAction))
         client.close()
         return
       }
@@ -871,24 +876,9 @@ async function startWatcher(opts: SetupOpts) {
 
             // Next.js messages
             switch (parsedData.event) {
-              case 'ping': {
-                // const result = parsedData.appDirRoute
-                // ? handleAppDirPing(parsedData.tree)
-                // : handlePing(parsedData.page)
-                hotReloader.send(
-                  parsedData.appDirRouter
-                    ? {
-                        action: HMR_ACTIONS_SENT_TO_BROWSER.PONG,
-                        success: true,
-                      }
-                    : {
-                        event: HMR_ACTIONS_SENT_TO_BROWSER.PONG,
-                        success: true,
-                      }
-                )
+              case 'ping':
+                // Ping doesn't need additional handling in Turbopack.
                 break
-              }
-
               case 'span-end':
               case 'client-error': // { errorCount, clientId }
               case 'client-warning': // { warningCount, clientId }
@@ -925,7 +915,10 @@ async function startWatcher(opts: SetupOpts) {
             }
           })
 
-          client.send(JSON.stringify({ type: 'turbopack-connected' }))
+          const turbopackConnected: TurboPackConnectedAction = {
+            type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
+          }
+          client.send(JSON.stringify(turbopackConnected))
         })
       },
 
