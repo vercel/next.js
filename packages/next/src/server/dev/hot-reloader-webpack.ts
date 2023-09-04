@@ -1385,6 +1385,7 @@ export default class HotReloader implements NextJsHotReloaderInterface {
     })
 
     this.onDemandEntries = onDemandEntryHandler({
+      hotReloader: this,
       multiCompiler: this.multiCompiler,
       pagesDir: this.pagesDir,
       appDir: this.appDir,

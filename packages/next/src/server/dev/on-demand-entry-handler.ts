@@ -35,6 +35,8 @@ import {
 } from '../../shared/lib/constants'
 import { RouteMatch } from '../future/route-matches/route-match'
 import { isAppPageRouteMatch } from '../future/route-matches/app-page-route-match'
+import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
+import HotReloader from './hot-reloader-webpack'
 
 const debug = origDebug('next:on-demand-entry-handler')
 
@@ -498,6 +500,7 @@ async function findRoutePathData(
 }
 
 export function onDemandEntryHandler({
+  hotReloader,
   maxInactiveAge,
   multiCompiler,
   nextConfig,
@@ -506,6 +509,7 @@ export function onDemandEntryHandler({
   rootDir,
   appDir,
 }: {
+  hotReloader: HotReloader
   maxInactiveAge: number
   multiCompiler: webpack.MultiCompiler
   nextConfig: NextConfigComplete
@@ -947,12 +951,10 @@ export function onDemandEntryHandler({
 
           // New error occurred: buffered error is flushed and new error occurred
           if (!bufferedHmrServerError && error) {
-            client.send(
-              JSON.stringify({
-                action: 'serverError',
-                errorJSON: stringifyError(error),
-              })
-            )
+            hotReloader.send({
+              action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR,
+              errorJSON: stringifyError(error),
+            })
             bufferedHmrServerError = null
           }
 
