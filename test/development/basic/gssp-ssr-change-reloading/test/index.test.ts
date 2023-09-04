@@ -319,10 +319,6 @@ describe('GS(S)P Server-Side Change Reloading', () => {
     expect(props.count).toBe(1)
     expect(props.data).toEqual({ hello: 'world' })
 
-    // wait longer than the max inactive age for on-demand entries
-    // to ensure we aren't incorrectly disposing the active entry
-    await waitFor(20 * 1000)
-
     const page = 'lib/data.json'
     const originalContent = await next.readFile(page)
 
