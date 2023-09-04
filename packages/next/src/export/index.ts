@@ -119,19 +119,19 @@ const createProgress = (total: number, label: string) => {
       lastProgressOutput = Date.now()
     }
 
-    const isEnded = curProgress === total
+    const isFinished = curProgress === total
     // Use \r to reset current line with spinner.
     // If it's 100% progressed, then we don't need to break a new line to avoid logging from routes while building.
     const newText = `\r ${
-      isEnded ? Log.prefixes.event : Log.prefixes.info
-    } ${label} (${curProgress}/${total})${isEnded ? '' : '\n'}`
+      isFinished ? Log.prefixes.event : Log.prefixes.info
+    } ${label} (${curProgress}/${total})${isFinished ? '' : '\n'}`
     if (progressSpinner) {
       progressSpinner.text = newText
     } else {
       console.log(newText)
     }
 
-    if (isEnded && progressSpinner) {
+    if (isFinished && progressSpinner) {
       progressSpinner.stop()
       console.log(newText)
     }
