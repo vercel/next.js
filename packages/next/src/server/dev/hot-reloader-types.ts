@@ -102,6 +102,7 @@ export type HMR_ACTION_TYPES =
   | MiddlewareChangesAction
   | ServerOnlyChangesAction
   | DevPagesManifestUpdateAction
+  | ServerErrorAction
 
 export interface NextJsHotReloaderInterface {
   activeWebpackConfigs?: Array<Awaited<ReturnType<typeof getBaseWebpackConfig>>>
