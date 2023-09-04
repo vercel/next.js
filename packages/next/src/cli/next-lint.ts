@@ -5,7 +5,7 @@ import { join } from 'path'
 import chalk from 'next/dist/compiled/chalk'
 
 import { CliCommand } from '../lib/commands'
-import { ESLINT_DEFAULT_DIRS_WITH_APP } from '../lib/constants'
+import { ESLINT_DEFAULT_DIRS } from '../lib/constants'
 import { runLintCheck } from '../lib/eslint/runLintCheck'
 import { printAndExit } from '../server/lib/utils'
 import { Telemetry } from '../telemetry/storage'
@@ -165,11 +165,8 @@ const nextLint: CliCommand = async (argv) => {
   const dirs: string[] = args['--dir'] ?? nextConfig.eslint?.dirs
   const filesToLint = [...(dirs ?? []), ...files]
 
-  // Remove that when the `appDir` will be stable.
-  const directoriesToLint = ESLINT_DEFAULT_DIRS_WITH_APP
-
   const pathsToLint = (
-    filesToLint.length ? filesToLint : directoriesToLint
+    filesToLint.length ? filesToLint : ESLINT_DEFAULT_DIRS
   ).reduce((res: string[], d: string) => {
     const currDir = join(baseDir, d)
     if (!existsSync(currDir)) return res
@@ -185,8 +182,7 @@ const nextLint: CliCommand = async (argv) => {
 
   const distDir = join(baseDir, nextConfig.distDir)
   const defaultCacheLocation = join(distDir, 'cache', 'eslint/')
-  const hasAppDir = true
-  const { pagesDir, appDir } = findPagesDir(baseDir, hasAppDir)
+  const { pagesDir, appDir } = findPagesDir(baseDir)
 
   await verifyTypeScriptSetup({
     dir: baseDir,
@@ -199,7 +195,7 @@ const nextLint: CliCommand = async (argv) => {
     hasPagesDir: !!pagesDir,
   })
 
-  runLintCheck(baseDir, pathsToLint, hasAppDir, {
+  runLintCheck(baseDir, pathsToLint, {
     lintDuringBuild: false,
     eslintOptions: eslintOptions(args, defaultCacheLocation),
     reportErrorsOnly: reportErrorsOnly,
