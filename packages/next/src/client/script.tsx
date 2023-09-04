@@ -4,7 +4,7 @@ import ReactDOM from 'react-dom'
 import React, { useEffect, useContext, useRef } from 'react'
 import { ScriptHTMLAttributes } from 'react'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
-import { setBasicAttributesFromProps } from './head-manager'
+import { setAttributesFromProps } from './set-attributes-from-props'
 import { requestIdleCallback } from './request-idle-callback'
 
 const ScriptCache = new Map()
@@ -138,7 +138,7 @@ const loadScript = (props: ScriptProps): void => {
     ScriptCache.set(src, loadPromise)
   }
 
-  setBasicAttributesFromProps(el, props)
+  setAttributesFromProps(el, props)
 
   if (strategy === 'worker') {
     el.setAttribute('type', 'text/partytown')
