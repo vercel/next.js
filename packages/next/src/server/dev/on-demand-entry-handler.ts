@@ -37,6 +37,7 @@ import { RouteMatch } from '../future/route-matches/route-match'
 import { isAppPageRouteMatch } from '../future/route-matches/app-page-route-match'
 import {
   HMR_ACTIONS_SENT_TO_BROWSER,
+  HMR_ACTION_TYPES,
   ServerErrorAction,
 } from './hot-reloader-types'
 
@@ -951,7 +952,7 @@ export function onDemandEntryHandler({
 
           // New error occurred: buffered error is flushed and new error occurred
           if (!bufferedHmrServerError && error) {
-            const serverErrorAction: ServerErrorAction = {
+            const serverErrorAction: HMR_ACTION_TYPES = {
               action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR,
               errorJSON: stringifyError(error),
             }

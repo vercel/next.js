@@ -21,7 +21,7 @@ export const enum HMR_ACTIONS_SENT_TO_BROWSER {
   SERVER_ERROR = 'serverError',
 }
 
-export interface ServerErrorAction {
+interface ServerErrorAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR
   errorJSON: string
 }
