@@ -615,11 +615,8 @@ export function onDemandEntryHandler({
     disposeInactiveEntries(curEntries, maxInactiveAge)
   }, pingIntervalTime + 1000).unref()
 
-  function handleAppDirPing(
-    tree: FlightRouterState
-  ): { success: true } | { invalid: true } {
+  function handleAppDirPing(tree: FlightRouterState): void {
     const pages = getEntrypointsFromTree(tree, true)
-    let toSend: { invalid: true } | { success: true } = { invalid: true }
 
     for (const page of pages) {
       for (const compilerType of [
@@ -651,17 +648,12 @@ export function onDemandEntryHandler({
         }
         entryInfo.lastActiveTime = Date.now()
         entryInfo.dispose = false
-        toSend = { success: true }
       }
     }
-
-    return toSend
   }
 
-  function handlePing(pg: string) {
+  function handlePing(pg: string): void {
     const page = normalizePathSep(pg)
-    let toSend: { invalid: true } | { success: true } = { invalid: true }
-
     for (const compilerType of [
       COMPILER_NAMES.client,
       COMPILER_NAMES.server,
@@ -674,7 +666,7 @@ export function onDemandEntryHandler({
       if (!entryInfo) {
         // if (page !== lastEntry) client pings, but there's no entry for page
         if (compilerType === COMPILER_NAMES.client) {
-          return { invalid: true }
+          return
         }
         continue
       }
@@ -693,9 +685,8 @@ export function onDemandEntryHandler({
       }
       entryInfo.lastActiveTime = Date.now()
       entryInfo.dispose = false
-      toSend = { success: true }
     }
-    return toSend
+    return
   }
 
   async function ensurePageImpl({
@@ -963,15 +954,11 @@ export function onDemandEntryHandler({
           )
 
           if (parsedData.event === 'ping') {
-            const result = parsedData.appDirRoute
-              ? handleAppDirPing(parsedData.tree)
-              : handlePing(parsedData.page)
-            client.send(
-              JSON.stringify({
-                ...result,
-                [parsedData.appDirRoute ? 'action' : 'event']: 'pong',
-              })
-            )
+            if (parsedData.appDirRoute) {
+              handleAppDirPing(parsedData.tree)
+            } else {
+              handlePing(parsedData.page)
+            }
           }
         } catch {}
       })
