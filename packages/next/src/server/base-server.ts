@@ -2120,7 +2120,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const { metadata } = result
 
       // Add any fetch tags that were on the page to the response headers.
-      const cacheTags = (renderOpts as any).fetchTags
+      const cacheTags = metadata.fetchTags
       if (cacheTags) {
         headers = {
           [NEXT_CACHE_TAGS_HEADER]: cacheTags,
@@ -2128,7 +2128,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
 
       // Pull any fetch metrics from the render onto the request.
-      ;(req as any).fetchMetrics = (renderOpts as any).fetchMetrics
+      ;(req as any).fetchMetrics = metadata.fetchMetrics
 
       // we don't throw static to dynamic errors in dev as isSSG
       // is a best guess in dev since we don't have the prerender pass

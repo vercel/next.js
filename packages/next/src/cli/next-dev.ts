@@ -12,7 +12,7 @@ import { getProjectDir } from '../lib/get-project-dir'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import path from 'path'
 import { NextConfigComplete } from '../server/config-shared'
-import { traceGlobals } from '../trace/shared'
+import { setGlobal, traceGlobals } from '../trace/shared'
 import { Telemetry } from '../telemetry/storage'
 import loadConfig from '../server/config'
 import { findPagesDir } from '../lib/find-pages-dir'
@@ -27,6 +27,7 @@ import type { ChildProcess } from 'child_process'
 import { checkIsNodeDebugging } from '../server/lib/is-node-debugging'
 import { createSelfSignedCertificate } from '../lib/mkcert'
 import uploadTrace from '../trace/upload-trace'
+import { trace } from '../trace'
 
 let dir: string
 let config: NextConfigComplete
@@ -68,7 +69,7 @@ const handleSessionStop = async () => {
       typeof traceGlobals.get('pagesDir') === 'undefined' ||
       typeof traceGlobals.get('appDir') === 'undefined'
     ) {
-      const pagesResult = findPagesDir(dir, true)
+      const pagesResult = findPagesDir(dir)
       appDir = !!pagesResult.appDir
       pagesDir = !!pagesResult.pagesDir
     }
@@ -90,19 +91,13 @@ const handleSessionStop = async () => {
   }
 
   if (traceUploadUrl) {
-    if (isTurboSession) {
-      console.warn(
-        'Uploading traces with Turbopack is not yet supported. Skipping sending trace.'
-      )
-    } else {
-      uploadTrace({
-        traceUploadUrl,
-        mode: 'dev',
-        isTurboSession,
-        projectDir: dir,
-        distDir: config.distDir,
-      })
-    }
+    uploadTrace({
+      traceUploadUrl,
+      mode: 'dev',
+      isTurboSession,
+      projectDir: dir,
+      distDir: config.distDir,
+    })
   }
 
   // ensure we re-enable the terminal cursor before exiting
@@ -330,6 +325,10 @@ const nextDev: CliCommand = async (argv) => {
     process.env.EXPERIMENTAL_TURBOPACK = '1'
   }
 
+  const distDir = path.join(dir, config.distDir ?? '.next')
+  setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
+  setGlobal('distDir', distDir)
+
   if (process.env.TURBOPACK) {
     isTurboSession = true
 
@@ -339,7 +338,6 @@ const nextDev: CliCommand = async (argv) => {
       require('../build/swc') as typeof import('../build/swc')
     const { eventCliSession } =
       require('../telemetry/events/version') as typeof import('../telemetry/events/version')
-    const { setGlobal } = require('../trace') as typeof import('../trace')
     require('../telemetry/storage') as typeof import('../telemetry/storage')
     const findUp =
       require('next/dist/compiled/find-up') as typeof import('next/dist/compiled/find-up')
@@ -351,8 +349,7 @@ const nextDev: CliCommand = async (argv) => {
       isDev: true,
     })
 
-    const distDir = path.join(dir, rawNextConfig.distDir || '.next')
-    const { pagesDir, appDir } = findPagesDir(dir, true)
+    const { pagesDir, appDir } = findPagesDir(dir)
     const telemetry = new Telemetry({
       distDir,
     })
@@ -380,15 +377,19 @@ const nextDev: CliCommand = async (argv) => {
     // Turbopack need to be in control over reading the .env files and watching them.
     // So we need to start with a initial env to know which env vars are coming from the user.
     resetEnv()
-    let bindings = await loadBindings()
+    let server
+    trace('start-dev-server').traceAsyncFn(async (_) => {
+      let bindings = await loadBindings()
 
-    let server = bindings.turbo.startDev({
-      ...devServerOptions,
-      showAll: args['--show-all'] ?? false,
-      root: args['--root'] ?? findRootDir(dir),
+      server = bindings.turbo.startDev({
+        ...devServerOptions,
+        showAll: args['--show-all'] ?? false,
+        root: args['--root'] ?? findRootDir(dir),
+      })
+
+      // Start preflight after server is listening and ignore errors:
+      preflight(false).catch(() => {})
     })
-    // Start preflight after server is listening and ignore errors:
-    preflight(false).catch(() => {})
 
     if (!isCustomTurbopack) {
       await telemetry.flush()
@@ -468,7 +469,9 @@ const nextDev: CliCommand = async (argv) => {
       }
     })
 
-    runningServer = await runDevServer(false)
+    await trace('start-dev-server').traceAsyncFn(async (_) => {
+      runningServer = await runDevServer(false)
+    })
   }
 }
 

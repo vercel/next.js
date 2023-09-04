@@ -68,8 +68,7 @@ use turbopack_binding::{
             introspect::IntrospectionSource,
             source::{
                 combined::CombinedContentSource, router::PrefixedRouterContentSource,
-                source_maps::SourceMapContentSource, static_assets::StaticAssetsContentSource,
-                ContentSource,
+                static_assets::StaticAssetsContentSource, ContentSource,
             },
             DevServer, DevServerBuilder,
         },
@@ -348,13 +347,11 @@ async fn source(
         .iter()
         .map(|r| match r {
             EntryRequest::Relative(p) => {
-                Request::relative(Value::new(p.clone().into()), Vc::<String>::empty(), false)
+                Request::relative(Value::new(p.clone().into()), Default::default(), false)
             }
-            EntryRequest::Module(m, p) => Request::module(
-                m.clone(),
-                Value::new(p.clone().into()),
-                Vc::<String>::empty(),
-            ),
+            EntryRequest::Module(m, p) => {
+                Request::module(m.clone(), Value::new(p.clone().into()), Default::default())
+            }
         })
         .collect();
 
@@ -427,7 +424,6 @@ async fn source(
         .cell(),
     );
     let main_source = Vc::upcast(main_source);
-    let source_maps = Vc::upcast(SourceMapContentSource::new(main_source));
     let source_map_trace = Vc::upcast(NextSourceMapTraceContentSource::new(main_source));
     let img_source = Vc::upcast(NextImageContentSource::new(main_source));
     let router_source = Vc::upcast(NextRouterContentSource::new(
@@ -440,7 +436,7 @@ async fn source(
     ));
     let source = Vc::upcast(
         PrefixedRouterContentSource {
-            prefix: Vc::<String>::empty(),
+            prefix: Default::default(),
             routes: vec![
                 ("__turbopack__".to_string(), introspect),
                 ("__turbo_tasks__".to_string(), viz),
@@ -450,7 +446,6 @@ async fn source(
                 ),
                 // TODO: Load path from next.config.js
                 ("_next/image".to_string(), img_source),
-                ("__turbopack_sourcemap__".to_string(), source_maps),
             ],
             fallback: router_source,
         }

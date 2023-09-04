@@ -726,6 +726,7 @@ function assignDefaults(
       '@heroicons/react/24/solid',
       '@heroicons/react/24/outline',
       '@visx/visx',
+      '@tremor/react',
     ]),
   ]
 
