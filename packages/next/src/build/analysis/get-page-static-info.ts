@@ -2,7 +2,7 @@ import type { NextConfig } from '../../server/config-shared'
 import type { Middleware, RouteHas } from '../../lib/load-custom-routes'
 
 import { promises as fs } from 'fs'
-import LRUCache from 'next/dist/compiled/lru-cache'
+import { LRUCache } from 'next/dist/compiled/lru-cache'
 import { matcher } from 'next/dist/compiled/micromatch'
 import { ServerRuntime } from 'next/types'
 import {
@@ -411,6 +411,9 @@ function warnAboutExperimentalEdge(apiRoute: string | null) {
     process.env.NODE_ENV === 'production' &&
     process.env.NEXT_PRIVATE_BUILD_WORKER === '1'
   ) {
+    return
+  }
+  if (apiRoute === null) {
     return
   }
   if (apiRouteWarnings.has(apiRoute)) {

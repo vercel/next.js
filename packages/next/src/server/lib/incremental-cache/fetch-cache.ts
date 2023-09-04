@@ -1,6 +1,6 @@
 import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
 
-import LRUCache from 'next/dist/compiled/lru-cache'
+import { LRUCache } from 'next/dist/compiled/lru-cache'
 import {
   CACHE_ONE_YEAR,
   NEXT_CACHE_SOFT_TAGS_HEADER,
@@ -80,7 +80,7 @@ export default class FetchCache implements CacheHandler {
 
         memoryCache = new LRUCache({
           max: ctx.maxMemoryCacheSize,
-          length({ value }) {
+          sizeCalculation({ value }) {
             if (!value) {
               return 25
             } else if (value.kind === 'REDIRECT') {

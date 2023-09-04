@@ -62,7 +62,7 @@ import { BatchedFileReader } from '../future/route-matcher-providers/dev/helpers
 import { DefaultFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/default-file-reader'
 import { NextBuildContext } from '../../build/build-context'
 import { IncrementalCache } from '../lib/incremental-cache'
-import LRUCache from 'next/dist/compiled/lru-cache'
+import { LRUCache } from 'next/dist/compiled/lru-cache'
 import { errorToJSON } from '../render'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import {
@@ -152,7 +152,7 @@ export default class DevServer extends Server {
     this.staticPathsCache = new LRUCache({
       // 5MB
       max: 5 * 1024 * 1024,
-      length(value) {
+      sizeCalculation(value) {
         return JSON.stringify(value.staticPaths).length
       },
     })
@@ -712,7 +712,7 @@ export default class DevServer extends Server {
         return value
       })
       .catch((err) => {
-        this.staticPathsCache.del(pathname)
+        this.staticPathsCache.delete(pathname)
         if (!result) throw err
         Log.error(`Failed to generate static paths for ${pathname}:`)
         console.error(err)

@@ -1,7 +1,7 @@
 import type { OutgoingHttpHeaders } from 'http'
 import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
 
-import LRUCache from 'next/dist/compiled/lru-cache'
+import { LRUCache } from 'next/dist/compiled/lru-cache'
 import { CacheFs } from '../../../shared/lib/utils'
 import path from '../../../shared/lib/isomorphic/path'
 import { CachedFetchValue } from '../../response-cache'
@@ -40,7 +40,7 @@ export default class FileSystemCache implements CacheHandler {
     if (ctx.maxMemoryCacheSize && !memoryCache) {
       memoryCache = new LRUCache({
         max: ctx.maxMemoryCacheSize,
-        length({ value }) {
+        sizeCalculation({ value }) {
           if (!value) {
             return 25
           } else if (value.kind === 'REDIRECT') {

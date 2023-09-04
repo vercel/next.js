@@ -1,21 +1,17 @@
 /* eslint-disable no-redeclare */
-interface Cache<K, V> {
-  set(key: K, value: V, maxAge?: number): boolean
-  get(key: K): V | undefined
-  del(key: K): void
-}
+import type { LRUCache } from 'next/dist/compiled/lru-cache'
 
-export function withPromiseCache<K, V>(
-  cache: Cache<K, Promise<V>>,
+export function withPromiseCache<K extends {}, V>(
+  cache: LRUCache<K, Promise<V>>,
   fn: (value: K) => Promise<V>
 ): (value: K) => Promise<V>
-export function withPromiseCache<T extends any[], K, V>(
-  cache: Cache<K, Promise<V>>,
+export function withPromiseCache<T extends any[], K extends {}, V>(
+  cache: LRUCache<K, Promise<V>>,
   fn: (...values: T) => Promise<V>,
   getKey: (...values: T) => K
 ): (...values: T) => Promise<V>
-export function withPromiseCache<T extends any[], K, V>(
-  cache: Cache<K, Promise<V>>,
+export function withPromiseCache<T extends any[], K extends {}, V>(
+  cache: LRUCache<K, Promise<V>>,
   fn: (...values: T) => Promise<V>,
   getKey?: (...values: T) => K
 ): (...values: T) => Promise<V> {
@@ -24,7 +20,7 @@ export function withPromiseCache<T extends any[], K, V>(
     let p = cache.get(key)
     if (!p) {
       p = fn(...values)
-      p.catch(() => cache.del(key))
+      p.catch(() => cache.delete(key))
       cache.set(key, p)
     }
     return p

@@ -10,7 +10,7 @@ import path from 'path'
 import fs from 'fs/promises'
 import * as Log from '../../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
-import LRUCache from 'next/dist/compiled/lru-cache'
+import { LRUCache } from 'next/dist/compiled/lru-cache'
 import loadCustomRoutes from '../../../lib/load-custom-routes'
 import { modifyRouteRegex } from '../../../lib/redirect-status'
 import { UnwrapPromise } from '../../../lib/coalesced-function'
@@ -96,6 +96,8 @@ export const buildCustomRoute = <T>(
   }
 }
 
+const undefinedValue = Symbol('undefined')
+
 export async function setupFsCheck(opts: {
   dir: string
   dev: boolean
@@ -106,10 +108,10 @@ export async function setupFsCheck(opts: {
   ) => void
 }) {
   const getItemsLru = !opts.dev
-    ? new LRUCache<string, FsOutput | null>({
+    ? new LRUCache<string, FsOutput | typeof undefinedValue>({
         max: 1024 * 1024,
-        length(value, key) {
-          if (!value) return key?.length || 0
+        sizeCalculation(value, key) {
+          if (value === undefinedValue) return key?.length || 0
           return (
             (key || '').length +
             (value.fsPath || '').length +
@@ -402,7 +404,7 @@ export async function setupFsCheck(opts: {
       const lruResult = getItemsLru?.get(itemKey)
 
       if (lruResult) {
-        return lruResult
+        return lruResult === undefinedValue ? null : lruResult
       }
 
       // handle minimal mode case with .rsc output path (this is
@@ -610,7 +612,7 @@ export async function setupFsCheck(opts: {
         }
       }
 
-      getItemsLru?.set(itemKey, null)
+      getItemsLru?.set(itemKey, undefinedValue)
       return null
     },
     getDynamicRoutes() {
