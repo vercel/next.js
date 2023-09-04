@@ -18,6 +18,7 @@ export const enum HMR_ACTIONS_SENT_TO_BROWSER {
   PONG = 'pong',
   DEV_PAGES_MANIFEST_UPDATE = 'devPagesManifestUpdate',
   TURBOPACK_MESSAGE = 'turbopack-message',
+  SERVER_ERROR = 'serverError',
 }
 
 interface TurboPackMessageAction {

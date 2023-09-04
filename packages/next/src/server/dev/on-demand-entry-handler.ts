@@ -35,6 +35,7 @@ import {
 } from '../../shared/lib/constants'
 import { RouteMatch } from '../future/route-matches/route-match'
 import { isAppPageRouteMatch } from '../future/route-matches/app-page-route-match'
+import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
 
 const debug = origDebug('next:on-demand-entry-handler')
 
@@ -949,7 +950,7 @@ export function onDemandEntryHandler({
           if (!bufferedHmrServerError && error) {
             client.send(
               JSON.stringify({
-                action: 'serverError',
+                action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR,
                 errorJSON: stringifyError(error),
               })
             )
