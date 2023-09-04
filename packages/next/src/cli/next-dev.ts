@@ -480,6 +480,7 @@ const nextDev: CliCommand = async (argv) => {
         )
         return
       }
+      // Adding a new line to avoid the logs going directly after the spinner in `next build`
       Log.warn('')
       Log.warn(
         `Found a change in ${path.basename(

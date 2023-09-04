@@ -67,8 +67,6 @@ function divideSegments(number: number, segments: number): number[] {
 }
 
 const createProgress = (total: number, label: string) => {
-  const leadingPrefix = Log.prefixes.info
-  const finishedLeadingPrefix = Log.prefixes.event
   const segments = divideSegments(total, 4)
 
   if (total === 0) {
@@ -125,7 +123,7 @@ const createProgress = (total: number, label: string) => {
     // Use \r to reset current line with spinner.
     // If it's 100% progressed, then we don't need to break a new line to avoid logging from routes while building.
     const newText = `\r ${
-      isEnded ? finishedLeadingPrefix : leadingPrefix
+      isEnded ? Log.prefixes.event : Log.prefixes.info
     } ${label} (${curProgress}/${total})${isEnded ? '' : '\n'}`
     if (progressSpinner) {
       progressSpinner.text = newText

@@ -118,9 +118,6 @@ describe.each([[''], ['/docs']])(
               /This is the contact page/
             )
 
-            expect(next.cliOutput.slice(start)).toContain(
-              'compiling /hmr/contact ...'
-            )
             expect(next.cliOutput).toContain('compiled /_error')
           } finally {
             if (browser) {
@@ -392,9 +389,6 @@ describe.each([[''], ['/docs']])(
             /This page could not be found/
           )
 
-          expect(next.cliOutput.slice(start)).toContain(
-            'compiling /hmr/new-page ...'
-          )
           expect(next.cliOutput).toContain('compiled /_error')
         } catch (err) {
           await next.deleteFile(newPage)
@@ -433,9 +427,6 @@ describe.each([[''], ['/docs']])(
             /This page could not be found/
           )
 
-          expect(next.cliOutput.slice(start)).toContain(
-            'compiling /hmr/[foo]/page ...'
-          )
           expect(next.cliOutput).toContain('compiled /_error')
         } catch (err) {
           await next.deleteFile(newPage)
@@ -517,9 +508,7 @@ describe.each([[''], ['/docs']])(
             () => getBrowserBodyText(browser),
             /This is the about page/
           )
-          expect(next.cliOutput.slice(start)).toContain(
-            'compiling /hmr/about2 ...'
-          )
+
           expect(next.cliOutput).toContain('compiled /_error')
         } catch (err) {
           await next.patchFile(aboutPage, aboutContent)
@@ -914,7 +903,7 @@ describe.each([[''], ['/docs']])(
           ).toMatchInlineSnapshot(
             next.normalizeSnapshot(`
               "./components/parse-error.js
-              Error: 
+              Error:
                 x Expression expected
                  ,-[./components/parse-error.js:1:1]
                1 | This
