@@ -34,11 +34,11 @@ async function run() {
    */
   const toAdd = []
 
-  // https://github.com/vercel/next.js/blame/canary/.github/ISSUE_TEMPLATE/1.bug_report.yml
+  // https://github.com/vercel/next.js/blob/canary/.github/ISSUE_TEMPLATE/1.bug_report.yml?plain=1
 
   const matchSection = issue_body
-    .split('Which area(s) of Next.js are affected? (leave empty if unsure)')[1]
-    ?.split('Link to the code that reproduces this issue')[0]
+    .split('Which area(s) are affected? (Select all that apply)')[1]
+    ?.split('### Additional context')[0]
 
   if (!matchSection) {
     console.log(

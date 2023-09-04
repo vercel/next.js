@@ -104,7 +104,7 @@ export async function initialize(opts: {
     const telemetry = new Telemetry({
       distDir: path.join(opts.dir, config.distDir),
     })
-    const { pagesDir, appDir } = findPagesDir(opts.dir, true)
+    const { pagesDir, appDir } = findPagesDir(opts.dir)
 
     const { setupDev } =
       (await require('./router-utils/setup-dev')) as typeof import('./router-utils/setup-dev')

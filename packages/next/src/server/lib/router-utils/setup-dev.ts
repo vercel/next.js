@@ -96,7 +96,11 @@ import { MiddlewareManifest } from '../../../build/webpack/plugins/middleware-pl
 import { devPageFiles } from '../../../build/webpack/plugins/next-types-plugin/shared'
 import type { RenderWorkers } from '../router-server'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
-import { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
+import {
+  HMR_ACTIONS_SENT_TO_BROWSER,
+  HMR_ACTION_TYPES,
+  NextJsHotReloaderInterface,
+} from '../../dev/hot-reloader-types'
 import { debounce } from '../../utils'
 
 const wsServer = new ws.Server({ noServer: true })
@@ -206,7 +210,7 @@ async function startWatcher(opts: SetupOpts) {
     let currentEntriesHandling = new Promise(
       (resolve) => (currentEntriesHandlingResolve = resolve)
     )
-    const hmrPayloads = new Map<string, object>()
+    const hmrPayloads = new Map<string, HMR_ACTION_TYPES>()
     let hmrBuilding = false
 
     const issues = new Map<string, Map<string, Issue>>()
@@ -330,7 +334,7 @@ async function startWatcher(opts: SetupOpts) {
       }
 
       hotReloader.send({
-        action: 'built',
+        action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT,
         hash: String(++hmrHash),
         errors: [...errors.values()],
         warnings: [],
@@ -345,12 +349,12 @@ async function startWatcher(opts: SetupOpts) {
       }
     }, 2)
 
-    function sendHmr(key: string, id: string, payload: object) {
+    function sendHmr(key: string, id: string, payload: HMR_ACTION_TYPES) {
       // We've detected a change in some part of the graph. If nothing has
       // been inserted into building yet, then this is the first change
       // emitted, but their may be many more coming.
       if (!hmrBuilding) {
-        hotReloader.send('building')
+        hotReloader.send({ action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING })
         hmrBuilding = true
       }
       hmrPayloads.set(`${key}:${id}`, payload)
@@ -447,7 +451,7 @@ async function startWatcher(opts: SetupOpts) {
       makePayload: (
         page: string,
         change: TurbopackResult<ServerClientChange>
-      ) => object | void
+      ) => HMR_ACTION_TYPES | void
     ) {
       if (!endpoint || changeSubscriptions.has(page)) return
 
@@ -519,12 +523,12 @@ async function startWatcher(opts: SetupOpts) {
             // Went from middleware to no middleware
             clearChangeSubscription('middleware')
             sendHmr('entrypoint-change', 'middleware', {
-              event: 'middlewareChanges',
+              event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
             })
           } else if (prevMiddleware === false && middleware) {
             // Went from no middleware to middleware
             sendHmr('endpoint-change', 'middleware', {
-              event: 'middlewareChanges',
+              event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
             })
           }
           if (middleware) {
@@ -542,7 +546,7 @@ async function startWatcher(opts: SetupOpts) {
             }
 
             changeSubscription('middleware', middleware.endpoint, () => {
-              return { event: 'middlewareChanges' }
+              return { event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES }
             })
             prevMiddleware = true
           } else {
@@ -793,7 +797,10 @@ async function startWatcher(opts: SetupOpts) {
 
       for await (const data of subscription) {
         processIssues(id, data)
-        sendHmr('hrm-event', id, { type: 'turbopack-message', data })
+        sendHmr('hmr-event', id, {
+          type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
+          data,
+        })
       }
     }
 
@@ -851,7 +858,8 @@ async function startWatcher(opts: SetupOpts) {
         return { finished: undefined }
       },
 
-      onHMR(req: IncomingMessage, socket: Socket, head: Buffer) {
+      // TODO: Figure out if socket type can match the NextJsHotReloaderInterface
+      onHMR(req, socket: Socket, head) {
         wsServer.handleUpgrade(req, socket, head, (client) => {
           clients.add(client)
           client.on('close', () => clients.delete(client))
@@ -863,18 +871,9 @@ async function startWatcher(opts: SetupOpts) {
 
             // Next.js messages
             switch (parsedData.event) {
-              case 'ping': {
-                // const result = parsedData.appDirRoute
-                // ? handleAppDirPing(parsedData.tree)
-                // : handlePing(parsedData.page)
-                const result = { success: true }
-                hotReloader.send({
-                  ...result,
-                  [parsedData.appDirRoute ? 'action' : 'event']: 'pong',
-                })
+              case 'ping':
+                // Ping doesn't need additional handling in Turbopack.
                 break
-              }
-
               case 'span-end':
               case 'client-error': // { errorCount, clientId }
               case 'client-warning': // { warningCount, clientId }
@@ -915,10 +914,8 @@ async function startWatcher(opts: SetupOpts) {
         })
       },
 
-      send(action: string | object, ...data: any[]) {
-        const payload = JSON.stringify(
-          typeof action === 'string' ? { action, data } : action
-        )
+      send(action) {
+        const payload = JSON.stringify(action)
         for (const client of clients) {
           client.send(payload)
         }
@@ -972,7 +969,7 @@ async function startWatcher(opts: SetupOpts) {
               await globalEntries.document.writeToDisk()
             )
             changeSubscription('_document', globalEntries.document, () => {
-              return { action: 'reloadPage' }
+              return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
             })
             processIssues('_document', writtenEndpoint)
           }
@@ -1059,7 +1056,7 @@ async function startWatcher(opts: SetupOpts) {
               )
 
               changeSubscription('_document', globalEntries.document, () => {
-                return { action: 'reloadPage' }
+                return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
               })
               processIssues('_document', writtenEndpoint)
             }
@@ -1073,7 +1070,10 @@ async function startWatcher(opts: SetupOpts) {
               switch (change.type) {
                 case ServerClientChangeType.Server:
                 case ServerClientChangeType.Both:
-                  return { event: 'serverOnlyChanges', pages: [pageName] }
+                  return {
+                    event: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
+                    pages: [pageName],
+                  }
                 default:
               }
             })
@@ -1132,7 +1132,10 @@ async function startWatcher(opts: SetupOpts) {
               switch (change.type) {
                 case ServerClientChangeType.Server:
                 case ServerClientChangeType.Both:
-                  return { action: 'serverComponentChanges' }
+                  return {
+                    action:
+                      HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+                  }
                 default:
               }
             })
@@ -1781,16 +1784,27 @@ async function startWatcher(opts: SetupOpts) {
           )
 
           // emit the change so clients fetch the update
-          hotReloader.send('devPagesManifestUpdate', {
-            devPagesManifest: true,
+          hotReloader.send({
+            action: HMR_ACTIONS_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE,
+            data: [
+              {
+                devPagesManifest: true,
+              },
+            ],
           })
 
           addedRoutes.forEach((route) => {
-            hotReloader.send('addedPage', route)
+            hotReloader.send({
+              action: HMR_ACTIONS_SENT_TO_BROWSER.ADDED_PAGE,
+              data: [route],
+            })
           })
 
           removedRoutes.forEach((route) => {
-            hotReloader.send('removedPage', route)
+            hotReloader.send({
+              action: HMR_ACTIONS_SENT_TO_BROWSER.REMOVED_PAGE,
+              data: [route],
+            })
           })
         }
         prevSortedRoutes = sortedRoutes
