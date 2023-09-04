@@ -1707,6 +1707,34 @@ export default async function getBaseWebpackConfig(
         | Required<webpack.Configuration>['optimization']['splitChunks']
         | false => {
         if (dev) {
+          if (isNodeServer) {
+            const extractRootNodeModule = (modulePath: string) => {
+              const regex = /node_modules(?:\/|\\)\.?pnpm(?:\/|\\)?([^/\\]+)/
+              const match = modulePath.match(regex)
+              return match ? match[1] : null
+            }
+            return {
+              cacheGroups: {
+                vendor: {
+                  chunks: 'all',
+                  reuseExistingChunk: true,
+                  test: /[\\/]node_modules[\\/]/,
+                  name: (module: webpack.Module) => {
+                    const moduleId = module.nameForCondition()!
+                    const rootModule = extractRootNodeModule(moduleId)
+                    if (rootModule) {
+                      return `vendor-chunks/${rootModule}`
+                    } else {
+                      const hash = crypto.createHash('sha1').update(moduleId)
+                      hash.update(moduleId)
+                      return `vendor-chunks/${hash.digest('hex')}`
+                    }
+                  },
+                },
+              },
+            }
+          }
+
           return false
         }
 
