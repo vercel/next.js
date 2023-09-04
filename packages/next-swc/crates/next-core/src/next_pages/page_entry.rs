@@ -2,7 +2,6 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use indexmap::indexmap;
-use indoc::writedoc;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::{rope::Rope, FileSystemPath};
 use turbopack_binding::{
@@ -14,7 +13,6 @@ use turbopack_binding::{
         core::{
             asset::AssetContent,
             context::AssetContext,
-            module::Module,
             reference_type::{EntryReferenceSubType, ReferenceType},
             source::Source,
             virtual_source::VirtualSource,
@@ -23,7 +21,10 @@ use turbopack_binding::{
     },
 };
 
-use crate::util::{load_next_js_template, virtual_next_js_template_path, NextRuntime};
+use crate::{
+    next_edge::entry::wrap_edge_entry,
+    util::{load_next_js_template, virtual_next_js_template_path, NextRuntime},
+};
 
 #[turbo_tasks::function]
 pub async fn create_page_ssr_entry_module(
@@ -136,38 +137,4 @@ pub async fn create_page_ssr_entry_module(
     };
 
     Ok(ssr_module)
-}
-
-#[turbo_tasks::function]
-pub async fn wrap_edge_entry(
-    context: Vc<Box<dyn AssetContext>>,
-    project_root: Vc<FileSystemPath>,
-    entry: Vc<Box<dyn Module>>,
-    pathname: String,
-) -> Result<Vc<Box<dyn Module>>> {
-    let mut source = RopeBuilder::default();
-    writedoc!(
-        source,
-        r#"
-            import * as module from "MODULE"
-
-            self._ENTRIES ||= {{}}
-            self._ENTRIES[{}] = module
-        "#,
-        StringifyJs(&format_args!("middleware_{}", pathname))
-    )?;
-    let file = File::from(source.build());
-    // TODO(alexkirsz) Figure out how to name this virtual asset.
-    let virtual_source = VirtualSource::new(
-        project_root.join("edge-wrapper.js".to_string()),
-        AssetContent::file(file.into()),
-    );
-    let inner_assets = indexmap! {
-        "MODULE".to_string() => entry
-    };
-
-    Ok(context.process(
-        Vc::upcast(virtual_source),
-        Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
-    ))
 }
