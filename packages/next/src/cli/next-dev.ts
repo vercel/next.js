@@ -319,7 +319,7 @@ const nextDev: CliCommand = async (argv) => {
   }
 
   if (args['--turbo']) {
-    process.env.TURBOPACK = '1'
+    process.env.EXPERIMENTAL_TURBOPACK = '1'
   }
   if (args['--experimental-turbo']) {
     process.env.EXPERIMENTAL_TURBOPACK = '1'
