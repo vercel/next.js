@@ -35,8 +35,6 @@ import {
 } from '../../shared/lib/constants'
 import { RouteMatch } from '../future/route-matches/route-match'
 import { isAppPageRouteMatch } from '../future/route-matches/app-page-route-match'
-import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
-import HotReloader from './hot-reloader-webpack'
 
 const debug = origDebug('next:on-demand-entry-handler')
 
@@ -500,7 +498,6 @@ async function findRoutePathData(
 }
 
 export function onDemandEntryHandler({
-  hotReloader,
   maxInactiveAge,
   multiCompiler,
   nextConfig,
@@ -509,7 +506,6 @@ export function onDemandEntryHandler({
   rootDir,
   appDir,
 }: {
-  hotReloader: HotReloader
   maxInactiveAge: number
   multiCompiler: webpack.MultiCompiler
   nextConfig: NextConfigComplete
@@ -614,6 +610,89 @@ export function onDemandEntryHandler({
   setInterval(function () {
     disposeInactiveEntries(curEntries, maxInactiveAge)
   }, pingIntervalTime + 1000).unref()
+
+  function handleAppDirPing(
+    tree: FlightRouterState
+  ): { success: true } | { invalid: true } {
+    const pages = getEntrypointsFromTree(tree, true)
+    let toSend: { invalid: true } | { success: true } = { invalid: true }
+
+    for (const page of pages) {
+      for (const compilerType of [
+        COMPILER_NAMES.client,
+        COMPILER_NAMES.server,
+        COMPILER_NAMES.edgeServer,
+      ]) {
+        const entryKey = getEntryKey(compilerType, 'app', `/${page}`)
+        const entryInfo = curEntries[entryKey]
+
+        // If there's no entry, it may have been invalidated and needs to be re-built.
+        if (!entryInfo) {
+          // if (page !== lastEntry) client pings, but there's no entry for page
+          continue
+        }
+
+        // We don't need to maintain active state of anything other than BUILT entries
+        if (entryInfo.status !== BUILT) continue
+
+        // If there's an entryInfo
+        if (!lastServerAccessPagesForAppDir.includes(entryKey)) {
+          lastServerAccessPagesForAppDir.unshift(entryKey)
+
+          // Maintain the buffer max length
+          // TODO: verify that the current pageKey is not at the end of the array as multiple entrypoints can exist
+          if (lastServerAccessPagesForAppDir.length > pagesBufferLength) {
+            lastServerAccessPagesForAppDir.pop()
+          }
+        }
+        entryInfo.lastActiveTime = Date.now()
+        entryInfo.dispose = false
+        toSend = { success: true }
+      }
+    }
+
+    return toSend
+  }
+
+  function handlePing(pg: string) {
+    const page = normalizePathSep(pg)
+    let toSend: { invalid: true } | { success: true } = { invalid: true }
+
+    for (const compilerType of [
+      COMPILER_NAMES.client,
+      COMPILER_NAMES.server,
+      COMPILER_NAMES.edgeServer,
+    ]) {
+      const entryKey = getEntryKey(compilerType, 'pages', page)
+      const entryInfo = curEntries[entryKey]
+
+      // If there's no entry, it may have been invalidated and needs to be re-built.
+      if (!entryInfo) {
+        // if (page !== lastEntry) client pings, but there's no entry for page
+        if (compilerType === COMPILER_NAMES.client) {
+          return { invalid: true }
+        }
+        continue
+      }
+
+      // We don't need to maintain active state of anything other than BUILT entries
+      if (entryInfo.status !== BUILT) continue
+
+      // If there's an entryInfo
+      if (!lastClientAccessPages.includes(entryKey)) {
+        lastClientAccessPages.unshift(entryKey)
+
+        // Maintain the buffer max length
+        if (lastClientAccessPages.length > pagesBufferLength) {
+          lastClientAccessPages.pop()
+        }
+      }
+      entryInfo.lastActiveTime = Date.now()
+      entryInfo.dispose = false
+      toSend = { success: true }
+    }
+    return toSend
+  }
 
   async function ensurePageImpl({
     page,
@@ -862,17 +941,35 @@ export function onDemandEntryHandler({
       client.addEventListener('close', () => {
         bufferedHmrServerError = null
       })
-      client.addEventListener('message', () => {
+      client.addEventListener('message', ({ data }) => {
         try {
           const error = getHmrServerError()
 
           // New error occurred: buffered error is flushed and new error occurred
           if (!bufferedHmrServerError && error) {
-            hotReloader.send({
-              action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR,
-              errorJSON: stringifyError(error),
-            })
+            client.send(
+              JSON.stringify({
+                action: 'serverError',
+                errorJSON: stringifyError(error),
+              })
+            )
             bufferedHmrServerError = null
+          }
+
+          const parsedData = JSON.parse(
+            typeof data !== 'string' ? data.toString() : data
+          )
+
+          if (parsedData.event === 'ping') {
+            const result = parsedData.appDirRoute
+              ? handleAppDirPing(parsedData.tree)
+              : handlePing(parsedData.page)
+            client.send(
+              JSON.stringify({
+                ...result,
+                [parsedData.appDirRoute ? 'action' : 'event']: 'pong',
+              })
+            )
           }
         } catch {}
       })
