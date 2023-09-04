@@ -18,6 +18,12 @@ export const enum HMR_ACTIONS_SENT_TO_BROWSER {
   PONG = 'pong',
   DEV_PAGES_MANIFEST_UPDATE = 'devPagesManifestUpdate',
   TURBOPACK_MESSAGE = 'turbopack-message',
+  SERVER_ERROR = 'serverError',
+}
+
+interface ServerErrorAction {
+  action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR
+  errorJSON: string
 }
 
 interface TurboPackMessageAction {
@@ -96,6 +102,7 @@ export type HMR_ACTION_TYPES =
   | MiddlewareChangesAction
   | ServerOnlyChangesAction
   | DevPagesManifestUpdateAction
+  | ServerErrorAction
 
 export interface NextJsHotReloaderInterface {
   activeWebpackConfigs?: Array<Awaited<ReturnType<typeof getBaseWebpackConfig>>>

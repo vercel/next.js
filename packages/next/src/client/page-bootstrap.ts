@@ -17,7 +17,7 @@ export function pageBootrap(assetPrefix: string) {
     let buildIndicatorHandler: (obj: Record<string, any>) => void = () => {}
 
     function devPagesHmrListener(payload: any) {
-      if (payload.action === 'serverError' && payload.errorJSON) {
+      if (payload.action === 'serverError') {
         const { stack, message } = JSON.parse(payload.errorJSON)
         const error = new Error(message)
         error.stack = stack
