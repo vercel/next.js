@@ -106,10 +106,10 @@ export const config = {
       sizeLimit: '1mb',
     },
   },
+  // Specifies the maximum allowed duration for this function to execute (in seconds)
+  maxDuration: 5,
 }
 ```
-
-The `api` object includes all config options available for API Routes.
 
 `bodyParser` is automatically enabled. If you want to consume the body as a `Stream` or with [`raw-body`](https://www.npmjs.com/package/raw-body), you can set this to `false`.
 

@@ -113,7 +113,10 @@ import {
   fromNodeOutgoingHttpHeaders,
   toNodeOutgoingHttpHeaders,
 } from './web/utils'
-import { NEXT_QUERY_PARAM_PREFIX } from '../lib/constants'
+import {
+  NEXT_CACHE_TAGS_HEADER,
+  NEXT_QUERY_PARAM_PREFIX,
+} from '../lib/constants'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import {
   NextRequestAdapter,
@@ -1997,7 +2000,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             headers = toNodeOutgoingHttpHeaders(response.headers)
 
             if (cacheTags) {
-              headers['x-next-cache-tags'] = cacheTags
+              headers[NEXT_CACHE_TAGS_HEADER] = cacheTags
             }
 
             if (!headers['content-type'] && blob.type) {
@@ -2113,15 +2116,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const { metadata } = result
 
       // Add any fetch tags that were on the page to the response headers.
-      const cacheTags = (renderOpts as any).fetchTags
+      const cacheTags = metadata.fetchTags
       if (cacheTags) {
         headers = {
-          'x-next-cache-tags': cacheTags,
+          [NEXT_CACHE_TAGS_HEADER]: cacheTags,
         }
       }
 
       // Pull any fetch metrics from the render onto the request.
-      ;(req as any).fetchMetrics = (renderOpts as any).fetchMetrics
+      ;(req as any).fetchMetrics = metadata.fetchMetrics
 
       // we don't throw static to dynamic errors in dev as isSSG
       // is a best guess in dev since we don't have the prerender pass
@@ -2407,7 +2410,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const headers = { ...cachedData.headers }
 
       if (!(this.minimalMode && isSSG)) {
-        delete headers['x-next-cache-tags']
+        delete headers[NEXT_CACHE_TAGS_HEADER]
       }
 
       await sendResponse(
@@ -2424,11 +2427,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         if (
           this.minimalMode &&
           isSSG &&
-          cachedData.headers?.['x-next-cache-tags']
+          cachedData.headers?.[NEXT_CACHE_TAGS_HEADER]
         ) {
           res.setHeader(
-            'x-next-cache-tags',
-            cachedData.headers['x-next-cache-tags'] as string
+            NEXT_CACHE_TAGS_HEADER,
+            cachedData.headers[NEXT_CACHE_TAGS_HEADER] as string
           )
         }
         if (isDataReq && typeof cachedData.pageData !== 'string') {

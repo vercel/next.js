@@ -120,7 +120,7 @@ pub async fn get_app_route_entry(
     );
 
     if is_edge {
-        rsc_entry = wrap_edge_entry(context, project_root, rsc_entry, original_page_name.clone());
+        rsc_entry = wrap_edge_entry(context, project_root, rsc_entry, pathname.clone());
     }
 
     let Some(rsc_entry) =
