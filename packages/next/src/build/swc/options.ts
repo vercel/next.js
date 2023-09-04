@@ -183,6 +183,7 @@ function getBaseSWCOptions({
           isServer: !!isServerLayer,
         }
       : undefined,
+    disableChecks: false,
   }
 }
 
@@ -236,7 +237,6 @@ function getEmotionOptions(
 }
 
 export function getJestSWCOptions({
-  isServer,
   filename,
   esm,
   modularizeImports,
@@ -247,7 +247,6 @@ export function getJestSWCOptions({
   pagesDir,
   hasServerComponents,
 }: {
-  isServer: boolean
   filename: string
   esm: boolean
   modularizeImports?: NextConfig['modularizeImports']
@@ -263,20 +262,20 @@ export function getJestSWCOptions({
     jest: true,
     development: false,
     hasReactRefresh: false,
-    globalWindow: !isServer,
+    globalWindow: true,
     modularizeImports,
     swcPlugins,
     compilerOptions,
     jsConfig,
     hasServerComponents,
     resolvedBaseUrl,
-    isServerLayer: isServer,
   })
 
   const isNextDist = nextDistPath.test(filename)
 
   return {
     ...baseOptions,
+    disableChecks: true,
     env: {
       targets: {
         // Targets the current version of Node.js
