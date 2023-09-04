@@ -9,8 +9,8 @@ import {
 import * as Log from './log'
 
 export type OutputState =
-  | { bootstrap: true; appUrl: string | null; bindAddr: string | null }
-  | ({ bootstrap: false; appUrl: string | null; bindAddr: string | null } & (
+  | { bootstrap: true }
+  | ({ bootstrap: false } & (
       | {
           loading: true
           trigger: string | undefined
@@ -27,12 +27,10 @@ export type OutputState =
     ))
 
 export const store = createStore<OutputState>({
-  appUrl: null,
-  bindAddr: null,
   bootstrap: true,
 })
 
-let lastStore: OutputState = { appUrl: null, bindAddr: null, bootstrap: true }
+let lastStore: OutputState = { bootstrap: true }
 function hasStoreChanged(nextStore: OutputState) {
   if (
     (
@@ -55,10 +53,12 @@ store.subscribe((state) => {
     return
   }
 
+  // This condition is always false because
+  // 1. `.subscribe()` listener is only fired when `.setState()` happens, not on `createStore()` initialization
+  // 2. `.setState()` is always called with `bootstrap: false` explicitly.
+  //
+  // This `if` block only acts as a type guard
   if (state.bootstrap) {
-    if (state.appUrl) {
-      Log.ready(`started server on ${state.bindAddr}, url: ${state.appUrl}`)
-    }
     return
   }
 

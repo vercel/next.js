@@ -7,10 +7,6 @@ import { OutputState, store as consoleStore } from './store'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { CompilerNameValues, COMPILER_NAMES } from '../../shared/lib/constants'
 
-export function startedDevelopmentServer(appUrl: string, bindAddr: string) {
-  consoleStore.setState({ appUrl, bindAddr })
-}
-
 type CompilerDiagnostics = {
   totalModulesCount: number
   errors: string[] | null
@@ -111,13 +107,10 @@ let edgeServerWasLoading = false
 buildStore.subscribe((state) => {
   const { amp, client, server, edgeServer, trigger } = state
 
-  const { appUrl } = consoleStore.getState()
-
   if (client.loading || server.loading || edgeServer?.loading) {
     consoleStore.setState(
       {
         bootstrap: false,
-        appUrl: appUrl!,
         loading: true,
         trigger,
       } as OutputState,
@@ -133,9 +126,8 @@ buildStore.subscribe((state) => {
 
   buildWasDone = true
 
-  let partialState: Partial<OutputState> = {
+  const partialState: Partial<OutputState> = {
     bootstrap: false,
-    appUrl: appUrl!,
     loading: false,
     typeChecking: false,
     partial:
