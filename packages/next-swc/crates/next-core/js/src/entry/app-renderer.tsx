@@ -25,8 +25,6 @@ import { IncrementalCache } from 'next/dist/server/lib/incremental-cache'
 
 installRequireAndChunkLoad()
 
-process.env.__NEXT_NEW_LINK_BEHAVIOR = 'true'
-
 const MIME_TEXT_HTML_UTF8 = 'text/html; charset=utf-8'
 
 startOperationStreamHandler(async (renderData: RenderData, respond) => {
@@ -73,6 +71,7 @@ async function runOperation(renderData: RenderData) {
   } = {
     // TODO: give an actual buildId when next build is supported
     buildId: 'development',
+    basePath: '',
     params: renderData.params,
     supportsDynamicHTML: true,
     dev: true,

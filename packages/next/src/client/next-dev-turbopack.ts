@@ -1,8 +1,12 @@
 // TODO: Remove use of `any` type.
-import { initialize, hydrate, version, router, emitter } from './'
-import { displayContent } from './dev/fouc'
+import { initialize, version, router, emitter } from './'
+import initWebpackHMR from './dev/webpack-hot-middleware-client'
 
 import './setup-hydration-warning'
+import { pageBootrap } from './page-bootstrap'
+import { addMessageListener, sendMessage } from './dev/error-overlay/websocket'
+//@ts-expect-error requires "moduleResolution": "node16" in tsconfig.json and not .ts extension
+import { connect } from '@vercel/turbopack-ecmascript-runtime/dev/client/hmr-client.ts'
 
 window.next = {
   version: `${version}-turbo`,
@@ -13,15 +17,15 @@ window.next = {
   emitter,
 }
 ;(self as any).__next_set_public_path__ = () => {}
+;(self as any).__webpack_hash__ = 0
 
 // for the page loader
 declare let __turbopack_load__: any
 
+const webpackHMR = initWebpackHMR()
 initialize({
   // TODO the prop name is confusing as related to webpack
-  webpackHMR: {
-    onUnrecoverableError() {},
-  },
+  webpackHMR,
 })
   .then(({ assetPrefix }) => {
     // for the page loader
@@ -51,7 +55,19 @@ initialize({
       )
     }
 
-    return hydrate({ beforeRender: displayContent }).then(() => {})
+    connect({
+      addMessageListener(cb: (msg: Record<string, string>) => void) {
+        addMessageListener((msg) => {
+          // Only call Turbopack's message listener for turbopack messages
+          if (msg.type?.startsWith('turbopack-')) {
+            cb(msg)
+          }
+        })
+      },
+      sendMessage,
+    })
+
+    return pageBootrap(assetPrefix)
   })
   .catch((err) => {
     console.error('Error was not caught', err)

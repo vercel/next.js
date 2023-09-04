@@ -4,6 +4,11 @@
     "styles": ["normal", "italic"],
     "subsets": ["latin", "latin-ext"]
   },
+  "ADLaM Display": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["adlam", "latin", "latin-ext"]
+  },
   "Abel": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -1868,6 +1873,31 @@
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext"]
+  },
+  "Bricolage Grotesque": {
+    "weights": ["200", "300", "400", "500", "600", "700", "800", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "opsz",
+        "min": 10,
+        "max": 48,
+        "defaultValue": 14
+      },
+      {
+        "tag": "wdth",
+        "min": 75,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["cyrillic-ext", "latin", "latin-ext", "vietnamese"]
   },
   "Bruno Ace": {
     "weights": ["400"],
@@ -7744,9 +7774,28 @@
     "subsets": ["gurmukhi", "latin", "latin-ext"]
   },
   "Noto Sans HK": {
-    "weights": ["100", "300", "400", "500", "700", "900"],
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
     "styles": ["normal"],
-    "subsets": ["latin"]
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["cyrillic", "latin", "latin-ext", "vietnamese"]
   },
   "Noto Sans Hanifi Rohingya": {
     "weights": ["400", "500", "600", "700", "variable"],
@@ -7804,17 +7853,17 @@
   "Noto Sans Imperial Aramaic": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": ["imperial-aramaic"]
+    "subsets": ["imperial-aramaic", "latin", "latin-ext"]
   },
   "Noto Sans Indic Siyaq Numbers": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": ["indic-siyaq-numbers"]
+    "subsets": ["indic-siyaq-numbers", "latin", "latin-ext"]
   },
   "Noto Sans Inscriptional Pahlavi": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": ["inscriptional-pahlavi"]
+    "subsets": ["inscriptional-pahlavi", "latin", "latin-ext"]
   },
   "Noto Sans Inscriptional Parthian": {
     "weights": ["400"],
@@ -7859,9 +7908,28 @@
     "subsets": ["javanese", "latin", "latin-ext"]
   },
   "Noto Sans KR": {
-    "weights": ["100", "300", "400", "500", "700", "900"],
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
     "styles": ["normal"],
-    "subsets": ["latin"]
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["cyrillic", "latin", "latin-ext", "vietnamese"]
   },
   "Noto Sans Kaithi": {
     "weights": ["400"],
@@ -8097,7 +8165,7 @@
   "Noto Sans Mandaic": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": ["mandaic"]
+    "subsets": ["latin", "latin-ext", "mandaic"]
   },
   "Noto Sans Manichaean": {
     "weights": ["400"],
@@ -8122,7 +8190,7 @@
   "Noto Sans Mayan Numerals": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": ["mayan-numerals"]
+    "subsets": ["latin", "latin-ext", "mayan-numerals"]
   },
   "Noto Sans Medefaidrin": {
     "weights": ["400", "500", "600", "700", "variable"],
@@ -8429,9 +8497,28 @@
     "subsets": ["latin", "latin-ext", "runic"]
   },
   "Noto Sans SC": {
-    "weights": ["100", "300", "400", "500", "700", "900"],
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
     "styles": ["normal"],
-    "subsets": ["latin"]
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["cyrillic", "latin", "latin-ext", "vietnamese"]
   },
   "Noto Sans Samaritan": {
     "weights": ["400"],
@@ -8612,9 +8699,28 @@
     "subsets": ["latin", "latin-ext", "syriac"]
   },
   "Noto Sans TC": {
-    "weights": ["100", "300", "400", "500", "700", "900"],
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
     "styles": ["normal"],
-    "subsets": ["latin"]
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["cyrillic", "latin", "latin-ext", "vietnamese"]
   },
   "Noto Sans Tagalog": {
     "weights": ["400"],
@@ -10472,6 +10578,11 @@
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext"]
   },
+  "Pushster": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext"]
+  },
   "Qahiri": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -11366,6 +11477,11 @@
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext", "vietnamese"]
+  },
+  "Ruwudu": {
+    "weights": ["400", "500", "600", "700"],
+    "styles": ["normal"],
+    "subsets": ["arabic", "latin", "latin-ext"]
   },
   "Rye": {
     "weights": ["400"],
@@ -12448,8 +12564,16 @@
     "subsets": ["latin", "latin-ext", "thai", "vietnamese"]
   },
   "Teko": {
-    "weights": ["300", "400", "500", "600", "700"],
+    "weights": ["300", "400", "500", "600", "700", "variable"],
     "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ],
     "subsets": ["devanagari", "latin", "latin-ext"]
   },
   "Tektur": {
@@ -13158,6 +13282,42 @@
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext", "vietnamese"]
+  },
+  "Wavefont": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "ROND",
+        "min": 0,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "YELA",
+        "min": -100,
+        "max": 100,
+        "defaultValue": -100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext"]
   },
   "Wellfleet": {
     "weights": ["400"],

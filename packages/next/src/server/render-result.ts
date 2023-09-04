@@ -1,3 +1,4 @@
+import { StaticGenerationStore } from '../client/components/static-generation-async-storage'
 import { pipeReadable, PipeTarget } from './pipe-readable'
 
 type ContentTypeOption = string | undefined
@@ -9,6 +10,8 @@ export type RenderResultMetadata = {
   assetQueryString?: string
   isNotFound?: boolean
   isRedirect?: boolean
+  fetchMetrics?: StaticGenerationStore['fetchMetrics']
+  fetchTags?: string
 }
 
 type RenderResultResponse = string | ReadableStream<Uint8Array> | null
@@ -56,6 +59,10 @@ export default class RenderResult {
     this.response = response
     this.contentType = contentType
     this.metadata = metadata
+  }
+
+  public extendMetadata(metadata: RenderResultMetadata) {
+    Object.assign(this.metadata, metadata)
   }
 
   /**
