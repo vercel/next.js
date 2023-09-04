@@ -1,10 +1,9 @@
-pub(crate) mod app_client_references_chunks;
-pub(crate) mod app_client_shared_chunks;
-pub(crate) mod app_entry;
-pub(crate) mod app_favicon_entry;
-pub(crate) mod app_page_entry;
-pub(crate) mod app_route_entry;
-pub(crate) mod unsupported_dynamic_metadata_issue;
+pub mod app_client_references_chunks;
+pub mod app_client_shared_chunks;
+pub mod app_entry;
+pub mod app_page_entry;
+pub mod app_route_entry;
+pub mod metadata;
 
 use std::{
     fmt::{Display, Formatter, Write},
@@ -24,7 +23,7 @@ pub use crate::next_app::{
     app_favicon_entry::get_app_route_favicon_entry,
     app_page_entry::get_app_page_entry,
     app_route_entry::get_app_route_entry,
-    unsupported_dynamic_metadata_issue::UnsupportedDynamicMetadataIssue,
+    metadata::UnsupportedDynamicMetadataIssue,
 };
 
 /// See [AppPage].

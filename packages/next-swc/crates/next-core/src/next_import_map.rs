@@ -638,6 +638,14 @@ pub async fn insert_next_shared_aliases(
         .into(),
     );
 
+    import_map.insert_exact_alias(
+        "@vercel/og",
+        request_to_import_mapping(
+            package_root,
+            "next/dist/server/web/spec-extension/image-response",
+        ),
+    );
+
     import_map.insert_singleton_alias("@swc/helpers", get_next_package(project_path));
     import_map.insert_singleton_alias("styled-jsx", get_next_package(project_path));
     import_map.insert_singleton_alias("next", project_path);

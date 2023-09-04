@@ -1,10 +1,11 @@
-use std::{collections::HashMap, io::Write as _, iter::once};
+use std::{collections::HashMap, io::Write as _};
 
 use anyhow::{bail, Result};
 use indexmap::indexmap;
 use indoc::formatdoc;
+use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-use turbo_tasks::Vc;
+use turbo_tasks::{trace::TraceRawVcs, TaskInput, Vc};
 use turbopack_binding::{
     turbo::{
         tasks::Value,
@@ -30,7 +31,6 @@ use turbopack_binding::{
         dev_server::{
             html::DevHtmlAsset,
             source::{
-                asset_graph::AssetGraphContentSource,
                 combined::CombinedContentSource,
                 route_tree::{BaseSegment, RouteType},
                 ContentSource, ContentSourceData, ContentSourceExt, NoContentSource,
@@ -47,7 +47,6 @@ use turbopack_binding::{
             },
             NodeEntry, NodeRenderingEntry,
         },
-        r#static::fixed::FixedStaticAsset,
         turbopack::{transition::Transition, ModuleAssetContext},
     },
 };
@@ -55,17 +54,17 @@ use turbopack_binding::{
 use crate::{
     app_render::next_server_component_transition::NextServerComponentTransition,
     app_segment_config::{parse_segment_config_from_loader_tree, parse_segment_config_from_source},
-    app_structure::{
-        get_entrypoints, get_global_metadata, Entrypoint, GlobalMetadata, LoaderTree, MetadataItem,
-        OptionAppDir,
-    },
+    app_structure::{get_entrypoints, Entrypoint, LoaderTree, MetadataItem, OptionAppDir},
     bootstrap::{route_bootstrap, BootstrapConfig},
     embed_js::{next_asset, next_js_file_path},
     env::env_for_js,
     fallback::get_fallback_page,
     loader_tree::{LoaderTreeModule, ServerComponentTransition},
     mode::NextMode,
-    next_app::{AppPage, AppPath, PathSegment, UnsupportedDynamicMetadataIssue},
+    next_app::{
+        metadata::{route::get_app_metadata_route_source, UnsupportedDynamicMetadataIssue},
+        AppPage, AppPath, PathSegment,
+    },
     next_client::{
         context::{
             get_client_assets_path, get_client_module_options_context,
@@ -599,7 +598,6 @@ pub async fn create_app_source(
         return Ok(Vc::upcast(NoContentSource::new()));
     };
     let entrypoints = get_entrypoints(app_dir, next_config.page_extensions());
-    let metadata = get_global_metadata(app_dir, next_config.page_extensions());
 
     let context_ssr = app_context(
         project_path,
@@ -681,12 +679,19 @@ pub async fn create_app_source(
                 output_path,
                 render_data,
             ),
+            Entrypoint::AppMetadata { ref page, metadata } => create_app_route_source_for_metadata(
+                page.clone(),
+                context_ssr,
+                project_path,
+                app_dir,
+                env,
+                server_root,
+                server_runtime_entries,
+                output_path,
+                render_data,
+                metadata,
+            ),
         })
-        .chain(once(create_global_metadata_source(
-            app_dir,
-            metadata,
-            server_root,
-        )))
         .collect();
 
     if let Some(&Entrypoint::AppPage {
@@ -714,50 +719,6 @@ pub async fn create_app_source(
         }
     }
 
-    Ok(Vc::upcast(CombinedContentSource { sources }.cell()))
-}
-
-#[turbo_tasks::function]
-async fn create_global_metadata_source(
-    app_dir: Vc<FileSystemPath>,
-    metadata: Vc<GlobalMetadata>,
-    server_root: Vc<FileSystemPath>,
-) -> Result<Vc<Box<dyn ContentSource>>> {
-    let metadata = metadata.await?;
-    let mut unsupported_metadata = Vec::new();
-    let mut sources = Vec::new();
-    for (server_path, item) in [
-        ("robots.txt", metadata.robots),
-        ("favicon.ico", metadata.favicon),
-        ("sitemap.xml", metadata.sitemap),
-    ] {
-        let Some(item) = item else {
-            continue;
-        };
-        match item {
-            MetadataItem::Static { path } => {
-                let asset = FixedStaticAsset::new(
-                    server_root.join(server_path.to_string()),
-                    Vc::upcast(FileSource::new(path)),
-                );
-                sources.push(Vc::upcast(AssetGraphContentSource::new_eager(
-                    server_root,
-                    Vc::upcast(asset),
-                )))
-            }
-            MetadataItem::Dynamic { path } => {
-                unsupported_metadata.push(path);
-            }
-        }
-    }
-    if !unsupported_metadata.is_empty() {
-        UnsupportedDynamicMetadataIssue {
-            app_dir,
-            files: unsupported_metadata,
-        }
-        .cell()
-        .emit();
-    }
     Ok(Vc::upcast(CombinedContentSource { sources }.cell()))
 }
 
@@ -890,7 +851,55 @@ async fn create_app_route_source_for_route(
                 context: context_ssr,
                 runtime_entries,
                 server_root,
-                entry_path,
+                entry: AppRouteEntry::Path(entry_path),
+                project_path,
+                intermediate_output_path: intermediate_output_path_root,
+                output_root: intermediate_output_path_root,
+                app_dir,
+            }
+            .cell(),
+        ),
+        render_data,
+        should_debug("app_source"),
+    );
+
+    Ok(source.issue_file_path(app_dir, format!("Next.js App Route {app_path}")))
+}
+
+#[turbo_tasks::function]
+async fn create_app_route_source_for_metadata(
+    page: AppPage,
+    context_ssr: Vc<ModuleAssetContext>,
+    project_path: Vc<FileSystemPath>,
+    app_dir: Vc<FileSystemPath>,
+    env: Vc<Box<dyn ProcessEnv>>,
+    server_root: Vc<FileSystemPath>,
+    runtime_entries: Vc<Sources>,
+    intermediate_output_path_root: Vc<FileSystemPath>,
+    render_data: Vc<JsonValue>,
+    metadata: MetadataItem,
+) -> Result<Vc<Box<dyn ContentSource>>> {
+    let app_path = AppPath::from(page.clone());
+    let pathname_vc = Vc::cell(app_path.to_string());
+
+    let params_matcher = NextParamsMatcher::new(pathname_vc);
+
+    let (base_segments, route_type) = app_path_to_segments(&app_path)?;
+
+    let source = create_node_api_source(
+        project_path,
+        env,
+        base_segments,
+        route_type,
+        server_root,
+        Vc::upcast(params_matcher),
+        pathname_vc,
+        Vc::upcast(
+            AppRoute {
+                context: context_ssr,
+                runtime_entries,
+                server_root,
+                entry: AppRouteEntry::Metadata { metadata, page },
                 project_path,
                 intermediate_output_path: intermediate_output_path_root,
                 output_root: intermediate_output_path_root,
@@ -1078,12 +1087,21 @@ impl NodeEntry for AppRenderer {
     }
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, TaskInput, TraceRawVcs)]
+pub enum AppRouteEntry {
+    Path(Vc<FileSystemPath>),
+    Metadata {
+        metadata: MetadataItem,
+        page: AppPage,
+    },
+}
+
 /// The node.js renderer api routes in the app directory
 #[turbo_tasks::value]
 struct AppRoute {
     runtime_entries: Vc<Sources>,
     context: Vc<ModuleAssetContext>,
-    entry_path: Vc<FileSystemPath>,
+    entry: AppRouteEntry,
     intermediate_output_path: Vc<FileSystemPath>,
     project_path: Vc<FileSystemPath>,
     server_root: Vc<FileSystemPath>,
@@ -1110,13 +1128,19 @@ impl AppRoute {
             .build(),
         );
 
-        let entry_file_source = FileSource::new(this.entry_path);
+        let entry_file_source = match this.entry {
+            AppRouteEntry::Path(path) => Vc::upcast(FileSource::new(path)),
+            AppRouteEntry::Metadata { metadata, ref page } => {
+                get_app_metadata_route_source(metadata, page.clone())
+            }
+        };
+
         let entry_asset = this.context.process(
-            Vc::upcast(entry_file_source),
+            entry_file_source,
             Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),
         );
 
-        let config = parse_segment_config_from_source(entry_asset, Vc::upcast(entry_file_source));
+        let config = parse_segment_config_from_source(entry_asset, entry_file_source);
         let module = match config.await?.runtime {
             Some(NextRuntime::NodeJs) | None => {
                 let bootstrap_asset = next_asset("entry/app/route.ts".to_string());
@@ -1125,7 +1149,7 @@ impl AppRoute {
                     .context
                     .with_transition("next-route".to_string())
                     .process(
-                        Vc::upcast(entry_file_source),
+                        entry_file_source,
                         Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),
                     );
 
@@ -1144,7 +1168,7 @@ impl AppRoute {
                     .context
                     .with_transition("next-edge-route".to_string())
                     .process(
-                        Vc::upcast(entry_file_source),
+                        entry_file_source,
                         Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),
                     );
 

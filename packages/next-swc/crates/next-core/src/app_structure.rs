@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 use anyhow::{bail, Result};
 use indexmap::{
@@ -6,8 +6,6 @@ use indexmap::{
     map::{Entry, OccupiedEntry},
     IndexMap,
 };
-use once_cell::sync::Lazy;
-use regex::Regex;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs, Completion, Completions, TaskInput, ValueToString,
@@ -19,7 +17,13 @@ use turbopack_binding::{
 };
 
 use crate::{
-    next_app::{AppPage, AppPath, PageType},
+    next_app::{
+        metadata::{
+            match_global_metadata_file, match_local_metadata_file, normalize_metadata_route,
+            GlobalMetadataFileMatch, MetadataFileMatch,
+        },
+        AppPage, AppPath, PageType,
+    },
     next_config::NextConfig,
     next_import_map::get_next_package,
 };
@@ -108,6 +112,49 @@ pub enum MetadataItem {
     Dynamic { path: Vc<FileSystemPath> },
 }
 
+#[turbo_tasks::function]
+pub async fn get_metadata_route_name(meta: MetadataItem) -> Result<Vc<String>> {
+    Ok(match meta {
+        MetadataItem::Static { path } => {
+            let path_value = path.await?;
+            Vc::cell(path_value.file_name().to_string())
+        }
+        MetadataItem::Dynamic { path } => {
+            let Some(stem) = &*path.file_stem().await? else {
+                bail!(
+                    "unable to resolve file stem for metadata item at {}",
+                    path.to_string().await?
+                );
+            };
+
+            match stem.as_str() {
+                "robots" => Vc::cell("robots.txt".to_string()),
+                "manifest" => Vc::cell("manifest.webmanifest".to_string()),
+                "sitemap" => Vc::cell("sitemap.xml".to_string()),
+                _ => Vc::cell(stem.clone()),
+            }
+        }
+    })
+}
+
+impl MetadataItem {
+    pub fn into_path(self) -> Vc<FileSystemPath> {
+        match self {
+            MetadataItem::Static { path } => path,
+            MetadataItem::Dynamic { path } => path,
+        }
+    }
+}
+
+impl From<MetadataWithAltItem> for MetadataItem {
+    fn from(value: MetadataWithAltItem) -> Self {
+        match value {
+            MetadataWithAltItem::Static { path, .. } => MetadataItem::Static { path },
+            MetadataWithAltItem::Dynamic { path } => MetadataItem::Dynamic { path },
+        }
+    }
+}
+
 /// Metadata file that can be placed in any segment of the app directory.
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs)]
 pub struct Metadata {
@@ -119,10 +166,8 @@ pub struct Metadata {
     pub twitter: Vec<MetadataWithAltItem>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub open_graph: Vec<MetadataWithAltItem>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub favicon: Vec<MetadataWithAltItem>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub manifest: Option<MetadataItem>,
+    pub sitemap: Option<MetadataItem>,
 }
 
 impl Metadata {
@@ -132,15 +177,13 @@ impl Metadata {
             apple,
             twitter,
             open_graph,
-            favicon,
-            manifest,
+            sitemap,
         } = self;
         icon.is_empty()
             && apple.is_empty()
             && twitter.is_empty()
             && open_graph.is_empty()
-            && favicon.is_empty()
-            && manifest.is_none()
+            && sitemap.is_none()
     }
 
     fn merge(a: &Self, b: &Self) -> Self {
@@ -154,8 +197,7 @@ impl Metadata {
                 .chain(b.open_graph.iter())
                 .copied()
                 .collect(),
-            favicon: a.favicon.iter().chain(b.favicon.iter()).copied().collect(),
-            manifest: a.manifest.or(b.manifest),
+            sitemap: a.sitemap.or(b.sitemap),
         }
     }
 }
@@ -169,7 +211,7 @@ pub struct GlobalMetadata {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub robots: Option<MetadataItem>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub sitemap: Option<MetadataItem>,
+    pub manifest: Option<MetadataItem>,
 }
 
 impl GlobalMetadata {
@@ -177,9 +219,9 @@ impl GlobalMetadata {
         let GlobalMetadata {
             favicon,
             robots,
-            sitemap,
+            manifest,
         } = self;
-        favicon.is_none() && robots.is_none() && sitemap.is_none()
+        favicon.is_none() && robots.is_none() && manifest.is_none()
     }
 }
 
@@ -255,46 +297,6 @@ pub async fn find_app_dir_if_enabled(project_path: Vc<FileSystemPath>) -> Result
     Ok(find_app_dir(project_path))
 }
 
-static STATIC_LOCAL_METADATA: Lazy<HashMap<&'static str, &'static [&'static str]>> =
-    Lazy::new(|| {
-        HashMap::from([
-            (
-                "icon",
-                &["ico", "jpg", "jpeg", "png", "svg"] as &'static [&'static str],
-            ),
-            ("apple-icon", &["jpg", "jpeg", "png"]),
-            ("opengraph-image", &["jpg", "jpeg", "png", "gif"]),
-            ("twitter-image", &["jpg", "jpeg", "png", "gif"]),
-            ("favicon", &["ico"]),
-            ("manifest", &["webmanifest", "json"]),
-        ])
-    });
-
-static STATIC_GLOBAL_METADATA: Lazy<HashMap<&'static str, &'static [&'static str]>> =
-    Lazy::new(|| {
-        HashMap::from([
-            ("favicon", &["ico"] as &'static [&'static str]),
-            ("robots", &["txt"]),
-            ("sitemap", &["xml"]),
-        ])
-    });
-
-fn match_metadata_file<'a>(
-    basename: &'a str,
-    page_extensions: &[String],
-) -> Option<(&'a str, i32, bool)> {
-    let (stem, ext) = basename.split_once('.')?;
-    static REGEX: Lazy<Regex> = Lazy::new(|| Regex::new("^(.*?)(\\d*)$").unwrap());
-    let captures = REGEX.captures(stem).expect("the regex will always match");
-    let stem = captures.get(1).unwrap().as_str();
-    let num: i32 = captures.get(2).unwrap().as_str().parse().unwrap_or(-1);
-    if page_extensions.iter().any(|e| e == ext) {
-        return Some((stem, num, true));
-    }
-    let exts = STATIC_LOCAL_METADATA.get(stem)?;
-    exts.contains(&ext).then_some((stem, num, false))
-}
-
 #[turbo_tasks::function]
 async fn get_directory_tree(
     dir: Vc<FileSystemPath>,
@@ -312,7 +314,6 @@ async fn get_directory_tree(
     let mut metadata_apple = Vec::new();
     let mut metadata_open_graph = Vec::new();
     let mut metadata_twitter = Vec::new();
-    let mut metadata_favicon = Vec::new();
 
     for (basename, entry) in entries {
         match *entry {
@@ -328,59 +329,58 @@ async fn get_directory_tree(
                             "not-found" => components.not_found = Some(file),
                             "default" => components.default = Some(file),
                             "route" => components.route = Some(file),
-                            "manifest" => {
-                                components.metadata.manifest =
-                                    Some(MetadataItem::Dynamic { path: file });
-                                continue;
-                            }
                             _ => {}
                         }
                     }
                 }
 
-                if let Some((metadata_type, num, dynamic)) =
-                    match_metadata_file(basename.as_str(), &page_extensions_value)
-                {
-                    if metadata_type == "manifest" {
-                        if num == -1 {
-                            components.metadata.manifest =
-                                Some(MetadataItem::Static { path: file });
+                let Some(MetadataFileMatch {
+                    metadata_type,
+                    number,
+                    dynamic,
+                }) = match_local_metadata_file(basename.as_str(), &page_extensions_value)
+                else {
+                    continue;
+                };
+
+                let entry = match metadata_type {
+                    "icon" => &mut metadata_icon,
+                    "apple-icon" => &mut metadata_apple,
+                    "twitter-image" => &mut metadata_twitter,
+                    "opengraph-image" => &mut metadata_open_graph,
+                    "sitemap" => {
+                        if dynamic {
+                            components.metadata.sitemap =
+                                Some(MetadataItem::Dynamic { path: file });
+                        } else {
+                            components.metadata.sitemap = Some(MetadataItem::Static { path: file });
                         }
                         continue;
                     }
+                    _ => continue,
+                };
 
-                    let entry = match metadata_type {
-                        "icon" => Some(&mut metadata_icon),
-                        "apple-icon" => Some(&mut metadata_apple),
-                        "twitter-image" => Some(&mut metadata_twitter),
-                        "opengraph-image" => Some(&mut metadata_open_graph),
-                        "favicon" => Some(&mut metadata_favicon),
-                        _ => None,
-                    };
-
-                    if let Some(entry) = entry {
-                        if dynamic {
-                            entry.push((num, MetadataWithAltItem::Dynamic { path: file }));
-                        } else {
-                            let file_value = file.await?;
-                            let file_name = file_value.file_name();
-                            let basename = file_name
-                                .rsplit_once('.')
-                                .map_or(file_name, |(basename, _)| basename);
-                            let alt_path = file.parent().join(format!("{}.alt.txt", basename));
-                            let alt_path =
-                                matches!(&*alt_path.get_type().await?, FileSystemEntryType::File)
-                                    .then_some(alt_path);
-                            entry.push((
-                                num,
-                                MetadataWithAltItem::Static {
-                                    path: file,
-                                    alt_path,
-                                },
-                            ));
-                        }
-                    }
+                if dynamic {
+                    entry.push((number, MetadataWithAltItem::Dynamic { path: file }));
+                    continue;
                 }
+
+                let file_value = file.await?;
+                let file_name = file_value.file_name();
+                let basename = file_name
+                    .rsplit_once('.')
+                    .map_or(file_name, |(basename, _)| basename);
+                let alt_path = file.parent().join(format!("{}.alt.txt", basename));
+                let alt_path = matches!(&*alt_path.get_type().await?, FileSystemEntryType::File)
+                    .then_some(alt_path);
+
+                entry.push((
+                    number,
+                    MetadataWithAltItem::Static {
+                        path: file,
+                        alt_path,
+                    },
+                ));
             }
             DirectoryEntry::Directory(dir) => {
                 // appDir ignores paths starting with an underscore
@@ -394,7 +394,7 @@ async fn get_directory_tree(
         }
     }
 
-    fn sort<T>(mut list: Vec<(i32, T)>) -> Vec<T> {
+    fn sort<T>(mut list: Vec<(Option<u32>, T)>) -> Vec<T> {
         list.sort_by_key(|(num, _)| *num);
         list.into_iter().map(|(_, item)| item).collect()
     }
@@ -403,7 +403,6 @@ async fn get_directory_tree(
     components.metadata.apple = sort(metadata_apple);
     components.metadata.twitter = sort(metadata_twitter);
     components.metadata.open_graph = sort(metadata_open_graph);
-    components.metadata.favicon = sort(metadata_favicon);
 
     Ok(DirectoryTree {
         subdirectories,
@@ -418,6 +417,7 @@ pub struct LoaderTree {
     pub segment: String,
     pub parallel_routes: IndexMap<String, Vc<LoaderTree>>,
     pub components: Vc<Components>,
+    pub global_metadata: Vc<GlobalMetadata>,
 }
 
 #[turbo_tasks::function]
@@ -446,6 +446,8 @@ async fn merge_loader_trees(
         segment,
         parallel_routes,
         components,
+        // this is always the same, no need to merge it
+        global_metadata: tree1.global_metadata,
     }
     .cell())
 }
@@ -461,6 +463,10 @@ pub enum Entrypoint {
     AppRoute {
         page: AppPage,
         path: Vc<FileSystemPath>,
+    },
+    AppMetadata {
+        page: AppPage,
+        metadata: MetadataItem,
     },
 }
 
@@ -568,6 +574,12 @@ async fn add_app_page(
         } => {
             conflict("route", existing_page);
         }
+        Entrypoint::AppMetadata {
+            page: existing_page,
+            ..
+        } => {
+            conflict("metadata", existing_page);
+        }
     }
 
     Ok(())
@@ -607,6 +619,55 @@ fn add_app_route(
         } => {
             conflict("route", existing_page);
         }
+        Entrypoint::AppMetadata {
+            page: existing_page,
+            ..
+        } => {
+            conflict("metadata", existing_page);
+        }
+    }
+}
+
+fn add_app_metadata_route(
+    app_dir: Vc<FileSystemPath>,
+    result: &mut IndexMap<String, Entrypoint>,
+    page: AppPage,
+    metadata: MetadataItem,
+) {
+    let pathname = AppPath::from(page.clone());
+
+    let e = match result.entry(format!("{pathname}")) {
+        Entry::Occupied(e) => e,
+        Entry::Vacant(e) => {
+            e.insert(Entrypoint::AppMetadata { page, metadata });
+            return;
+        }
+    };
+
+    let conflict = |existing_name: &str, existing_page: &AppPage| {
+        conflict_issue(app_dir, &e, "metadata", existing_name, &page, existing_page);
+    };
+
+    let value = e.get();
+    match value {
+        Entrypoint::AppPage {
+            page: existing_page,
+            ..
+        } => {
+            conflict("page", existing_page);
+        }
+        Entrypoint::AppRoute {
+            page: existing_page,
+            ..
+        } => {
+            conflict("route", existing_page);
+        }
+        Entrypoint::AppMetadata {
+            page: existing_page,
+            ..
+        } => {
+            conflict("metadata", existing_page);
+        }
     }
 }
 
@@ -615,20 +676,32 @@ pub fn get_entrypoints(
     app_dir: Vc<FileSystemPath>,
     page_extensions: Vc<Vec<String>>,
 ) -> Vc<Entrypoints> {
-    directory_tree_to_entrypoints(app_dir, get_directory_tree(app_dir, page_extensions))
+    directory_tree_to_entrypoints(
+        app_dir,
+        get_directory_tree(app_dir, page_extensions),
+        get_global_metadata(app_dir, page_extensions),
+    )
 }
 
 #[turbo_tasks::function]
 fn directory_tree_to_entrypoints(
     app_dir: Vc<FileSystemPath>,
     directory_tree: Vc<DirectoryTree>,
+    global_metadata: Vc<GlobalMetadata>,
 ) -> Vc<Entrypoints> {
-    directory_tree_to_entrypoints_internal(app_dir, "".to_string(), directory_tree, AppPage::new())
+    directory_tree_to_entrypoints_internal(
+        app_dir,
+        global_metadata,
+        "".to_string(),
+        directory_tree,
+        AppPage::new(),
+    )
 }
 
 #[turbo_tasks::function]
 async fn directory_tree_to_entrypoints_internal(
     app_dir: Vc<FileSystemPath>,
+    global_metadata: Vc<GlobalMetadata>,
     directory_name: String,
     directory_tree: Vc<DirectoryTree>,
     app_page: AppPage,
@@ -656,6 +729,7 @@ async fn directory_tree_to_entrypoints_internal(
                         ..Default::default()
                     }
                     .cell(),
+                    global_metadata,
                 }
                 .cell()
             } else {
@@ -670,10 +744,12 @@ async fn directory_tree_to_entrypoints_internal(
                                 ..Default::default()
                             }
                             .cell(),
+                            global_metadata,
                         }
                         .cell(),
                     },
                     components: components.without_leafs().cell(),
+                    global_metadata,
                 }
                 .cell()
             },
@@ -695,24 +771,27 @@ async fn directory_tree_to_entrypoints_internal(
                         ..Default::default()
                     }
                     .cell(),
+                    global_metadata,
                 }
                 .cell()
             } else {
                 LoaderTree {
                     segment: directory_name.to_string(),
                     parallel_routes: indexmap! {
-                        "children".to_string() => LoaderTree {
-                            segment: "__DEFAULT__".to_string(),
-                            parallel_routes: IndexMap::new(),
-                            components: Components {
-                                default: Some(default),
-                                ..Default::default()
-                            }
-                            .cell(),
+                    "children".to_string() => LoaderTree {
+                        segment: "__DEFAULT__".to_string(),
+                        parallel_routes: IndexMap::new(),
+                        components: Components {
+                            default: Some(default),
+                            ..Default::default()
                         }
                         .cell(),
+                        global_metadata,
+                    }
+                    .cell(),
                     },
                     components: components.without_leafs().cell(),
+                    global_metadata,
                 }
                 .cell()
             },
@@ -729,8 +808,50 @@ async fn directory_tree_to_entrypoints_internal(
         );
     }
 
+    let Metadata {
+        icon,
+        apple,
+        twitter,
+        open_graph,
+        sitemap,
+    } = &components.metadata;
+
+    for meta in sitemap
+        .iter()
+        .copied()
+        .chain(icon.iter().copied().map(MetadataItem::from))
+        .chain(apple.iter().copied().map(MetadataItem::from))
+        .chain(twitter.iter().copied().map(MetadataItem::from))
+        .chain(open_graph.iter().copied().map(MetadataItem::from))
+    {
+        let app_page = app_page.clone_push_str(&get_metadata_route_name(meta).await?)?;
+
+        add_app_metadata_route(
+            app_dir,
+            &mut result,
+            normalize_metadata_route(app_page)?,
+            meta,
+        );
+    }
+
     // root path: /
     if app_page.is_root() {
+        let GlobalMetadata {
+            favicon,
+            robots,
+            manifest,
+        } = &*global_metadata.await?;
+
+        for meta in favicon.iter().chain(robots.iter()).chain(manifest.iter()) {
+            let app_page = app_page.clone_push_str(&get_metadata_route_name(*meta).await?)?;
+
+            add_app_metadata_route(
+                app_dir,
+                &mut result,
+                normalize_metadata_route(app_page)?,
+                *meta,
+            );
+        }
         // Next.js has this logic in "collect-app-paths", where the root not-found page
         // is considered as its own entry point.
         if let Some(_not_found) = components.not_found {
@@ -745,10 +866,12 @@ async fn directory_tree_to_entrypoints_internal(
                             ..Default::default()
                         }
                         .cell(),
+                global_metadata,
                     }
                     .cell(),
                 },
                 components: components.without_leafs().cell(),
+                global_metadata,
             }
             .cell();
 
@@ -774,10 +897,12 @@ async fn directory_tree_to_entrypoints_internal(
                             ..Default::default()
                         }
                         .cell(),
+                global_metadata,
                     }
                     .cell(),
                 },
                 components: components.without_leafs().cell(),
+                global_metadata,
             }
             .cell();
 
@@ -796,6 +921,7 @@ async fn directory_tree_to_entrypoints_internal(
 
         let map = directory_tree_to_entrypoints_internal(
             app_dir,
+            global_metadata,
             subdir_name.to_string(),
             subdirectory,
             app_page,
@@ -818,6 +944,7 @@ async fn directory_tree_to_entrypoints_internal(
                                 key => loader_tree,
                             },
                             components: components.without_leafs().cell(),
+                            global_metadata,
                         }
                         .cell();
                         add_app_page(app_dir, &mut result, page.clone(), child_loader_tree).await?;
@@ -825,6 +952,9 @@ async fn directory_tree_to_entrypoints_internal(
                 }
                 Entrypoint::AppRoute { ref page, path } => {
                     add_app_route(app_dir, &mut result, page.clone(), path);
+                }
+                Entrypoint::AppMetadata { ref page, metadata } => {
+                    add_app_metadata_route(app_dir, &mut result, page.clone(), metadata);
                 }
             }
         }
@@ -850,23 +980,29 @@ pub async fn get_global_metadata(
     let mut metadata = GlobalMetadata::default();
 
     for (basename, entry) in entries {
-        if let DirectoryEntry::File(file) = *entry {
-            if let Some((stem, ext)) = basename.split_once('.') {
-                let list = match stem {
-                    "favicon" => Some(&mut metadata.favicon),
-                    "sitemap" => Some(&mut metadata.sitemap),
-                    "robots" => Some(&mut metadata.robots),
-                    _ => None,
-                };
-                if let Some(list) = list {
-                    if page_extensions.await?.iter().any(|e| e == ext) {
-                        *list = Some(MetadataItem::Dynamic { path: file });
-                    }
-                    if STATIC_GLOBAL_METADATA.get(stem).unwrap().contains(&ext) {
-                        *list = Some(MetadataItem::Static { path: file });
-                    }
-                }
-            }
+        let DirectoryEntry::File(file) = *entry else {
+            continue;
+        };
+
+        let Some(GlobalMetadataFileMatch {
+            metadata_type,
+            dynamic,
+        }) = match_global_metadata_file(basename, &page_extensions.await?)
+        else {
+            continue;
+        };
+
+        let entry = match metadata_type {
+            "favicon" => &mut metadata.favicon,
+            "manifest" => &mut metadata.manifest,
+            "robots" => &mut metadata.robots,
+            _ => continue,
+        };
+
+        if dynamic {
+            *entry = Some(MetadataItem::Dynamic { path: file });
+        } else {
+            *entry = Some(MetadataItem::Static { path: file });
         }
         // TODO(WEB-952) handle symlinks in app dir
     }

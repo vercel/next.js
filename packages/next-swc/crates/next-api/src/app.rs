@@ -3,12 +3,13 @@ use next_core::{
     all_server_paths,
     app_structure::{
         get_entrypoints, Entrypoint as AppEntrypoint, Entrypoints as AppEntrypoints, LoaderTree,
+        MetadataItem,
     },
     get_edge_resolve_options_context,
     mode::NextMode,
     next_app::{
         get_app_client_references_chunks, get_app_client_shared_chunks, get_app_page_entry,
-        get_app_route_entry, AppEntry, AppPage,
+        get_app_route_entry, metadata::route::get_app_metadata_route_entry, AppEntry, AppPage,
     },
     next_client::{
         get_client_module_options_context, get_client_resolve_options_context,
@@ -395,6 +396,16 @@ pub async fn app_entry_point_to_route(
                 .cell(),
             ),
         },
+        AppEntrypoint::AppMetadata { page, metadata } => Route::AppRoute {
+            endpoint: Vc::upcast(
+                AppEndpoint {
+                    ty: AppEndpointType::Metadata { metadata },
+                    app_project,
+                    page,
+                }
+                .cell(),
+            ),
+        },
     }
     .cell()
 }
@@ -413,6 +424,9 @@ enum AppEndpointType {
     },
     Route {
         path: Vc<FileSystemPath>,
+    },
+    Metadata {
+        metadata: MetadataItem,
     },
 }
 
@@ -449,6 +463,17 @@ impl AppEndpoint {
     }
 
     #[turbo_tasks::function]
+    fn app_metadata_entry(&self, metadata: MetadataItem) -> Vc<AppEntry> {
+        get_app_metadata_route_entry(
+            self.app_project.rsc_module_context(),
+            self.app_project.edge_rsc_module_context(),
+            self.app_project.project().project_path(),
+            self.page.clone(),
+            metadata,
+        )
+    }
+
+    #[turbo_tasks::function]
     fn output_assets(self: Vc<Self>) -> Vc<OutputAssets> {
         self.output().output_assets()
     }
@@ -465,6 +490,7 @@ impl AppEndpoint {
             // as we know we won't have any client references. However, for now, for simplicity's
             // sake, we just do the same thing as for pages.
             AppEndpointType::Route { path } => (self.app_route_entry(path), "route"),
+            AppEndpointType::Metadata { metadata } => (self.app_metadata_entry(metadata), "route"),
         };
 
         let node_root = this.app_project.project().node_root();

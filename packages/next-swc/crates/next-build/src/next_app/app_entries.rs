@@ -2,11 +2,11 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use next_core::{
-    app_structure::{find_app_dir_if_enabled, get_entrypoints, get_global_metadata, Entrypoint},
+    app_structure::{find_app_dir_if_enabled, get_entrypoints, Entrypoint},
     mode::NextMode,
     next_app::{
         get_app_client_shared_chunks, get_app_page_entry, get_app_route_entry,
-        get_app_route_favicon_entry, AppEntry, ClientReferencesChunks,
+        metadata::route::get_app_metadata_route_entry, AppEntry, ClientReferencesChunks,
     },
     next_client::{
         get_client_module_options_context, get_client_resolve_options_context,
@@ -184,7 +184,7 @@ pub async fn get_app_entries(
         rsc_resolve_options_context,
     );
 
-    let mut entries = entrypoints
+    let entries = entrypoints
         .await?
         .iter()
         .map(|(_, entrypoint)| async move {
@@ -206,23 +206,18 @@ pub async fn get_app_entries(
                     page.clone(),
                     project_root,
                 ),
+                Entrypoint::AppMetadata { page, metadata } => get_app_metadata_route_entry(
+                    rsc_context,
+                    // TODO add edge support
+                    rsc_context,
+                    project_root,
+                    page.clone(),
+                    *metadata,
+                ),
             })
         })
         .try_join()
         .await?;
-
-    let global_metadata = get_global_metadata(app_dir, next_config.page_extensions());
-    let global_metadata = global_metadata.await?;
-
-    if let Some(favicon) = global_metadata.favicon {
-        entries.push(get_app_route_favicon_entry(
-            rsc_context,
-            // TODO add edge support
-            rsc_context,
-            favicon,
-            project_root,
-        ));
-    }
 
     let client_context = ModuleAssetContext::new(
         Vc::cell(Default::default()),

@@ -17,8 +17,12 @@ use turbopack_binding::turbopack::{
 };
 
 use crate::{
-    app_structure::{Components, LoaderTree, Metadata, MetadataItem, MetadataWithAltItem},
+    app_structure::{
+        get_metadata_route_name, Components, GlobalMetadata, LoaderTree, Metadata, MetadataItem,
+        MetadataWithAltItem,
+    },
     mode::NextMode,
+    next_app::{AppPage, AppPath},
     next_image::module::{BlurPlaceholderMode, StructuredImageModuleType},
 };
 
@@ -164,7 +168,12 @@ impl LoaderTreeBuilder {
         Ok(())
     }
 
-    fn write_metadata(&mut self, metadata: &Metadata) -> Result<()> {
+    async fn write_metadata(
+        &mut self,
+        metadata: &Metadata,
+        global_metadata: &GlobalMetadata,
+        app_path: &AppPath,
+    ) -> Result<()> {
         if metadata.is_empty() {
             return Ok(());
         }
@@ -173,14 +182,23 @@ impl LoaderTreeBuilder {
             apple,
             twitter,
             open_graph,
-            favicon,
-            manifest,
+            sitemap: _,
         } = metadata;
+        let GlobalMetadata {
+            favicon: _,
+            manifest,
+            robots: _,
+        } = global_metadata;
+
         self.loader_tree_code += "  metadata: {";
-        self.write_metadata_items("icon", favicon.iter().chain(icon.iter()))?;
-        self.write_metadata_items("apple", apple.iter())?;
-        self.write_metadata_items("twitter", twitter.iter())?;
-        self.write_metadata_items("openGraph", open_graph.iter())?;
+        self.write_metadata_items("icon", icon.iter(), app_path)
+            .await?;
+        self.write_metadata_items("apple", apple.iter(), app_path)
+            .await?;
+        self.write_metadata_items("twitter", twitter.iter(), app_path)
+            .await?;
+        self.write_metadata_items("openGraph", open_graph.iter(), app_path)
+            .await?;
         self.write_metadata_manifest(*manifest)?;
         self.loader_tree_code += "  },";
         Ok(())
@@ -215,10 +233,11 @@ impl LoaderTreeBuilder {
         Ok(())
     }
 
-    fn write_metadata_items<'a>(
+    async fn write_metadata_items<'a>(
         &mut self,
         name: &str,
         it: impl Iterator<Item = &'a MetadataWithAltItem>,
+        app_path: &AppPath,
     ) -> Result<()> {
         use std::fmt::Write;
         let mut it = it.peekable();
@@ -227,22 +246,28 @@ impl LoaderTreeBuilder {
         }
         writeln!(self.loader_tree_code, "    {name}: [")?;
         for item in it {
-            self.write_metadata_item(name, item)?;
+            self.write_metadata_item(name, item, app_path).await?;
         }
         writeln!(self.loader_tree_code, "    ],")?;
         Ok(())
     }
 
-    fn write_metadata_item(&mut self, name: &str, item: &MetadataWithAltItem) -> Result<()> {
+    async fn write_metadata_item(
+        &mut self,
+        name: &str,
+        item: &MetadataWithAltItem,
+        app_path: &AppPath,
+    ) -> Result<()> {
         use std::fmt::Write;
         let i = self.unique_number();
         let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
         let inner_module_id = format!("METADATA_{i}");
-        self.imports
-            .push(format!("import {identifier} from \"{inner_module_id}\";"));
         let s = "      ";
+        let metadata_route = &*get_metadata_route_name((*item).into()).await?;
         match item {
             MetadataWithAltItem::Static { path, alt_path } => {
+                self.imports
+                    .push(format!("import {identifier} from \"{inner_module_id}\";"));
                 self.inner_assets.insert(
                     inner_module_id,
                     Vc::upcast(StructuredImageModuleType::create_module(
@@ -251,8 +276,14 @@ impl LoaderTreeBuilder {
                         self.context,
                     )),
                 );
+
                 writeln!(self.loader_tree_code, "{s}(async (props) => [{{")?;
-                writeln!(self.loader_tree_code, "{s}  url: {identifier}.src,")?;
+                writeln!(
+                    self.loader_tree_code,
+                    "{s}  url: {},",
+                    StringifyJs(&format!("{app_path}/{metadata_route}"))
+                )?;
+
                 let numeric_sizes = name == "twitter" || name == "openGraph";
                 if numeric_sizes {
                     writeln!(self.loader_tree_code, "{s}  width: {identifier}.width,")?;
@@ -263,6 +294,7 @@ impl LoaderTreeBuilder {
                         "{s}  sizes: `${{{identifier}.width}}x${{{identifier}.height}}`,"
                     )?;
                 }
+
                 if let Some(alt_path) = alt_path {
                     let identifier = magic_identifier::mangle(&format!("{name} alt text #{i}"));
                     let inner_module_id = format!("METADATA_ALT_{i}");
@@ -289,14 +321,21 @@ impl LoaderTreeBuilder {
     }
 
     #[async_recursion]
-    async fn walk_tree(&mut self, loader_tree: Vc<LoaderTree>) -> Result<()> {
+    async fn walk_tree(
+        &mut self,
+        loader_tree: Vc<LoaderTree>,
+        mut app_page: AppPage,
+    ) -> Result<()> {
         use std::fmt::Write;
 
         let LoaderTree {
             segment,
             parallel_routes,
             components,
+            global_metadata,
         } = &*loader_tree.await?;
+
+        app_page.push_str(segment)?;
 
         writeln!(
             self.loader_tree_code,
@@ -306,7 +345,7 @@ impl LoaderTreeBuilder {
         // add parallel_routes
         for (key, &parallel_route) in parallel_routes.iter() {
             write!(self.loader_tree_code, "{key}: ", key = StringifyJs(key))?;
-            self.walk_tree(parallel_route).await?;
+            self.walk_tree(parallel_route, app_page.clone()).await?;
             writeln!(self.loader_tree_code, ",")?;
         }
         writeln!(self.loader_tree_code, "}}, {{")?;
@@ -333,13 +372,14 @@ impl LoaderTreeBuilder {
             .await?;
         self.write_component(ComponentType::NotFound, *not_found)
             .await?;
-        self.write_metadata(metadata)?;
+        self.write_metadata(metadata, &*global_metadata.await?, &app_page.into())
+            .await?;
         write!(self.loader_tree_code, "}}]")?;
         Ok(())
     }
 
     async fn build(mut self, loader_tree: Vc<LoaderTree>) -> Result<LoaderTreeModule> {
-        self.walk_tree(loader_tree).await?;
+        self.walk_tree(loader_tree, AppPage::new()).await?;
         Ok(LoaderTreeModule {
             imports: self.imports,
             loader_tree_code: self.loader_tree_code,
