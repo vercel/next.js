@@ -18,6 +18,7 @@ export const enum HMR_ACTIONS_SENT_TO_BROWSER {
   DEV_PAGES_MANIFEST_UPDATE = 'devPagesManifestUpdate',
   TURBOPACK_MESSAGE = 'turbopack-message',
   SERVER_ERROR = 'serverError',
+  TURBOPACK_CONNECTED = 'turbopack-connected',
 }
 
 interface ServerErrorAction {
@@ -51,7 +52,7 @@ interface RemovedPageAction {
   data: [page: string | null]
 }
 
-interface ReloadPageAction {
+export interface ReloadPageAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE
 }
 
@@ -75,6 +76,10 @@ interface DevPagesManifestUpdateAction {
       devPagesManifest: true
     }
   ]
+}
+
+export interface TurboPackConnectedAction {
+  type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED
 }
 
 export type HMR_ACTION_TYPES =
