@@ -93,7 +93,7 @@ export async function validateTurboNextConfig({
       : '>>> TURBOPACK'
   )} ${chalk.dim('(beta)')}\n\n`
 
-  let thankYouMsg =
+  let thankYouMessage =
     [
       `Thank you for trying Next.js v13 with Turbopack! As a reminder`,
       `Turbopack is currently in beta and not yet ready for production.`,
@@ -188,10 +188,10 @@ export async function validateTurboNextConfig({
 
   const hasWarningOrError = babelrc || unsupportedConfig.length
   if (!hasWarningOrError) {
-    thankYouMsg = chalk.dim(thankYouMsg)
+    thankYouMessage = chalk.dim(thankYouMessage)
   }
   if (!isCustomTurbopack) {
-    console.log(turbopackGradient + thankYouMsg)
+    console.log(turbopackGradient + thankYouMessage)
   }
 
   let feedbackMessage = `Learn more about Next.js v13 and Turbopack: ${chalk.underline(
