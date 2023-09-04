@@ -187,9 +187,15 @@ export const installTemplate = async ({
 
   /**
    * These flags will be passed to `install()`, which calls the package manager
-   * install process.
+   * install process when installing dependencies.
    */
   const installFlags = { packageManager, isOnline }
+
+  /**
+   * These flags will be passed to `install()`, which calls the package manager
+   * install process when installing dev dependencies.
+   */
+  const devInstallFlags = { packageManager, isOnline, dependencies: true }
 
   /**
    * Default dependencies.
@@ -205,10 +211,15 @@ export const installTemplate = async ({
   ]
 
   /**
+   * Default dev dependencies.
+   */
+  const devDependencies = []
+
+  /**
    * TypeScript projects will have type definitions and other devDependencies.
    */
   if (mode === 'ts') {
-    dependencies.push(
+    devDependencies.push(
       'typescript',
       '@types/react',
       '@types/node',
@@ -220,15 +231,16 @@ export const installTemplate = async ({
    * Add Tailwind CSS dependencies.
    */
   if (tailwind) {
-    dependencies.push('tailwindcss', 'postcss', 'autoprefixer')
+    devDependencies.push('tailwindcss', 'postcss', 'autoprefixer')
   }
 
   /**
    * Default eslint dependencies.
    */
   if (eslint) {
-    dependencies.push('eslint', 'eslint-config-next')
+    devDependencies.push('eslint', 'eslint-config-next')
   }
+
   /**
    * Install package.json dependencies if they exist.
    */
@@ -241,6 +253,19 @@ export const installTemplate = async ({
     console.log()
 
     await install(root, dependencies, installFlags)
+  }
+  /**
+   * Install package.json dev dependencies if they exist.
+   */
+  if (devDependencies.length) {
+    console.log()
+    console.log('Installing dev dependencies:')
+    for (const dependency of devDependencies) {
+      console.log(`- ${cyan(dependency)}`)
+    }
+    console.log()
+
+    await install(root, devDependencies, devInstallFlags)
   }
 }
 
