@@ -67,8 +67,8 @@ function divideSegments(number: number, segments: number): number[] {
 }
 
 const createProgress = (total: number, label: string) => {
-  const leadingPrefix = Log.createPrefix('info')
-  const finishedLeadingPrefix = Log.createPrefix('event')
+  const leadingPrefix = Log.prefixes.info
+  const finishedLeadingPrefix = Log.prefixes.event
   const segments = divideSegments(total, 4)
 
   if (total === 0) {

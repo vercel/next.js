@@ -49,7 +49,7 @@ function hasStoreChanged(nextStore: OutputState) {
 }
 
 let startTime = 0
-let trigger = ''
+let trigger = '' // default, use empty string for trigger
 
 store.subscribe((state) => {
   if (!hasStoreChanged(state)) {
@@ -63,7 +63,7 @@ store.subscribe((state) => {
   if (state.loading) {
     if (state.trigger) {
       trigger = state.trigger
-    } else if (trigger !== 'initial' && trigger) {
+    } else if (trigger !== 'initial' && trigger !== '') {
       Log.wait('compiling' + (trigger ? ` ${trigger}` : '') + ' ...')
     }
     if (startTime === 0) {

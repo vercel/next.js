@@ -35,10 +35,6 @@ function prefixedLog(prefixType: keyof typeof prefixes, ...message: any[]) {
   }
 }
 
-export function createPrefix(prefixType: keyof typeof prefixes) {
-  return prefixes[prefixType]
-}
-
 export function bootstrap(...message: any[]) {
   console.log(' ', ...message)
 }

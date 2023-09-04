@@ -13,9 +13,9 @@ export default function createSpinner(
 ) {
   let spinner: undefined | ora.Ora
 
-  const prefixText = ` ${Log.createPrefix('info')} ${text}`
+  const prefixText = ` ${Log.prefixes.info} ${text}`
   // Add \r at beginning to reset the current line of loading status text
-  const suffixText = `\r ${Log.createPrefix('event')} ${text}`
+  const suffixText = `\r ${Log.prefixes.event} ${text}`
 
   if (process.stdout.isTTY) {
     spinner = ora({

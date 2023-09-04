@@ -311,7 +311,6 @@ const nextDev: CliCommand = async (argv) => {
 
   const { loadedEnvFiles } = loadEnvConfig(dir, true, console, false)
 
-  let envInfo: string[] = []
   let expFeatureInfo: string[] = []
   config = await loadConfig(
     PHASE_DEVELOPMENT_SERVER,
@@ -328,6 +327,8 @@ const nextDev: CliCommand = async (argv) => {
       )
     }
   )
+
+  let envInfo: string[] = []
   if (loadedEnvFiles.length > 0) {
     envInfo = loadedEnvFiles.map((f) => f.path)
   }

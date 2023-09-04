@@ -395,9 +395,7 @@ export default async function build(
           // Intentionally not piping to stderr in case people fail in CI when
           // stderr is detected.
           console.log(
-            `${Log.createPrefix(
-              'warn'
-            )} No build cache found. Please configure build caching for faster rebuilds. Read more: https://nextjs.org/docs/messages/no-cache`
+            `${Log.prefixes.warn} No build cache found. Please configure build caching for faster rebuilds. Read more: https://nextjs.org/docs/messages/no-cache`
           )
         }
       }
