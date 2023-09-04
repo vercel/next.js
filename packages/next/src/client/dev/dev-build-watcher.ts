@@ -5,7 +5,7 @@ type VerticalPosition = 'top' | 'bottom'
 type HorizonalPosition = 'left' | 'right'
 
 export default function initializeBuildWatcher(
-  toggleCallback: (cb: (event: string | { data: string }) => void) => void,
+  toggleCallback: (cb: (obj: Record<string, any>) => void) => void,
   position = 'bottom-right'
 ) {
   const shadowHost = document.createElement('div')
@@ -53,21 +53,13 @@ export default function initializeBuildWatcher(
 
   // Handle events
 
-  addMessageListener((event) => {
-    // This is the heartbeat event
-    if (event.data === '\uD83D\uDC93') {
-      return
-    }
-
+  addMessageListener((obj) => {
     try {
-      handleMessage(event)
+      handleMessage(obj)
     } catch {}
   })
 
-  function handleMessage(event: string | { data: string }) {
-    const obj =
-      typeof event === 'string' ? { action: event } : JSON.parse(event.data)
-
+  function handleMessage(obj: Record<string, any>) {
     // eslint-disable-next-line default-case
     switch (obj.action) {
       case 'building':

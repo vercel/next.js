@@ -93,7 +93,7 @@ export default function Error({ error, reset }) {
   height="903"
 />
 
-- `error.js` automatically creates an [React Error Boundary](https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary) that **wraps** a nested child segment or `page.js` component.
+- `error.js` automatically creates a [React Error Boundary](https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary) that **wraps** a nested child segment or `page.js` component.
 - The React component exported from the `error.js` file is used as the **fallback** component.
 - If an error is thrown within the error boundary, the error is **contained**, and the fallback component is **rendered**.
 - When the fallback error component is active, layouts **above** the error boundary **maintain** their state and **remain** interactive, and the error component can display functionality to recover from the error.
