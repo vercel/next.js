@@ -15,9 +15,15 @@ export const enum HMR_ACTIONS_SENT_TO_BROWSER {
   SERVER_ONLY_CHANGES = 'serverOnlyChanges',
   BUILT = 'built',
   BUILDING = 'building',
-  PONG = 'pong',
   DEV_PAGES_MANIFEST_UPDATE = 'devPagesManifestUpdate',
   TURBOPACK_MESSAGE = 'turbopack-message',
+  SERVER_ERROR = 'serverError',
+  TURBOPACK_CONNECTED = 'turbopack-connected',
+}
+
+interface ServerErrorAction {
+  action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR
+  errorJSON: string
 }
 
 interface TurboPackMessageAction {
@@ -46,7 +52,7 @@ interface RemovedPageAction {
   data: [page: string | null]
 }
 
-interface ReloadPageAction {
+export interface ReloadPageAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE
 }
 
@@ -63,16 +69,6 @@ interface ServerOnlyChangesAction {
   pages: ReadonlyArray<string>
 }
 
-interface PongActionAppRouter {
-  action: HMR_ACTIONS_SENT_TO_BROWSER.PONG
-  success: boolean
-}
-
-interface PongActionPagesRouter {
-  event: HMR_ACTIONS_SENT_TO_BROWSER.PONG
-  success: boolean
-}
-
 interface DevPagesManifestUpdateAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE
   data: [
@@ -82,11 +78,12 @@ interface DevPagesManifestUpdateAction {
   ]
 }
 
-type PongAction = PongActionAppRouter | PongActionPagesRouter
+export interface TurboPackConnectedAction {
+  type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED
+}
 
 export type HMR_ACTION_TYPES =
   | TurboPackMessageAction
-  | PongAction
   | BuildingAction
   | BuiltAction
   | AddedPageAction
@@ -96,6 +93,7 @@ export type HMR_ACTION_TYPES =
   | MiddlewareChangesAction
   | ServerOnlyChangesAction
   | DevPagesManifestUpdateAction
+  | ServerErrorAction
 
 export interface NextJsHotReloaderInterface {
   activeWebpackConfigs?: Array<Awaited<ReturnType<typeof getBaseWebpackConfig>>>
