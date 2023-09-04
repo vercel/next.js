@@ -871,6 +871,9 @@ async function startWatcher(opts: SetupOpts) {
 
             // Next.js messages
             switch (parsedData.event) {
+              case 'ping':
+                // Ping doesn't need additional handling in Turbopack.
+                break
               case 'span-end':
               case 'client-error': // { errorCount, clientId }
               case 'client-warning': // { warningCount, clientId }
