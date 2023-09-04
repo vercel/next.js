@@ -949,8 +949,7 @@ export function onDemandEntryHandler({
           if (!bufferedHmrServerError && error) {
             client.send(
               JSON.stringify({
-                event: 'server-error', // for pages dir
-                action: 'serverError', // for app dir
+                action: 'serverError',
                 errorJSON: stringifyError(error),
               })
             )
