@@ -478,7 +478,7 @@ export function getResolveRoutes(
               mockedRes.on('close', () => {
                 readableController.close()
               })
-              initResult?.requestHandler(req, mockedRes)
+              initResult?.requestHandler(req, mockedRes, parsedUrl)
               await mockedRes.headPromise
               middlewareRes = mockedRes
             } catch (e) {
