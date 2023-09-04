@@ -35,7 +35,10 @@ import {
 } from '../../shared/lib/constants'
 import { RouteMatch } from '../future/route-matches/route-match'
 import { isAppPageRouteMatch } from '../future/route-matches/app-page-route-match'
-import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
+import {
+  HMR_ACTIONS_SENT_TO_BROWSER,
+  ServerErrorAction,
+} from './hot-reloader-types'
 
 const debug = origDebug('next:on-demand-entry-handler')
 
@@ -948,12 +951,11 @@ export function onDemandEntryHandler({
 
           // New error occurred: buffered error is flushed and new error occurred
           if (!bufferedHmrServerError && error) {
-            client.send(
-              JSON.stringify({
-                action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR,
-                errorJSON: stringifyError(error),
-              })
-            )
+            const serverErrorAction: ServerErrorAction = {
+              action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR,
+              errorJSON: stringifyError(error),
+            }
+            client.send(JSON.stringify(serverErrorAction))
             bufferedHmrServerError = null
           }
 
