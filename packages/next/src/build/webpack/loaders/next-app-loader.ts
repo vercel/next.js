@@ -182,6 +182,9 @@ async function createTreeCodeFromPath(
   const isNotFoundRoute = page === '/_not-found'
   const isDefaultNotFound = isAppBuiltinNotFoundPage(pagePath)
   const appDirPrefix = isDefaultNotFound ? APP_DIR_ALIAS : splittedPath[0]
+  const hasRootNotFound = await resolver(
+    `${appDirPrefix}/${FILE_TYPES['not-found']}`
+  )
   const pages: string[] = []
 
   let rootLayout: string | undefined
@@ -321,15 +324,18 @@ async function createTreeCodeFromPath(
       )
 
       // Add default not found error as root not found if not present
-      const hasRootNotFound = definedFilePaths.some(
+      const hasNotFoundFile = definedFilePaths.some(
         ([type]) => type === 'not-found'
       )
       // If the first layer is a group route, we treat it as root layer
       const isFirstLayerGroupRoute =
         segments.length === 1 &&
         subSegmentPath.filter((seg) => isGroupSegment(seg)).length === 1
-      if ((isRootLayer || isFirstLayerGroupRoute) && !hasRootNotFound) {
-        definedFilePaths.push(['not-found', defaultNotFoundPath])
+      if ((isRootLayer || isFirstLayerGroupRoute) && !hasNotFoundFile) {
+        // If you already have a root not found, don't insert default not-found to group routes root
+        if (!(hasRootNotFound && isFirstLayerGroupRoute)) {
+          definedFilePaths.push(['not-found', defaultNotFoundPath])
+        }
       }
 
       if (!rootLayout) {
