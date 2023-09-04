@@ -195,7 +195,7 @@ export const installTemplate = async ({
    * These flags will be passed to `install()`, which calls the package manager
    * install process when installing dev dependencies.
    */
-  const devInstallFlags = { packageManager, isOnline, dependencies: true }
+  const devInstallFlags = { packageManager, isOnline, devDependencies: true }
 
   /**
    * Default dependencies.
