@@ -139,7 +139,6 @@ buildStore.subscribe((state) => {
     appUrl: appUrl!,
     loading: false,
     typeChecking: false,
-    partial: undefined,
     totalModulesCount:
       (clientWasLoading ? client.totalModulesCount : 0) +
       (serverWasLoading ? server.totalModulesCount : 0) +
