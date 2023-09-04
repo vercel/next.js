@@ -191,9 +191,11 @@ export class Playwright extends BrowserInterface {
         websocketFrames.push({ payload: frame.payload })
 
         if (tracePlaywright) {
-          page
-            .evaluate(`console.log('received ws message ${frame.payload}')`)
-            .catch(() => {})
+          if (!frame.payload.includes('pong')) {
+            page
+              .evaluate(`console.log('received ws message ${frame.payload}')`)
+              .catch(() => {})
+          }
         }
       })
     })

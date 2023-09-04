@@ -871,6 +871,24 @@ async function startWatcher(opts: SetupOpts) {
 
             // Next.js messages
             switch (parsedData.event) {
+              case 'ping': {
+                // const result = parsedData.appDirRoute
+                // ? handleAppDirPing(parsedData.tree)
+                // : handlePing(parsedData.page)
+                hotReloader.send(
+                  parsedData.appDirRouter
+                    ? {
+                        action: HMR_ACTIONS_SENT_TO_BROWSER.PONG,
+                        success: true,
+                      }
+                    : {
+                        event: HMR_ACTIONS_SENT_TO_BROWSER.PONG,
+                        success: true,
+                      }
+                )
+                break
+              }
+
               case 'span-end':
               case 'client-error': // { errorCount, clientId }
               case 'client-warning': // { warningCount, clientId }

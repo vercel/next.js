@@ -44,6 +44,9 @@ interface Dispatcher {
   onRefresh(): void
 }
 
+// TODO-APP: add actual type
+type PongEvent = any
+
 let mostRecentCompilationHash: any = null
 let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
 
@@ -405,6 +408,9 @@ function processMessage(
       }
       return
     }
+    case 'pong': {
+      return
+    }
     case 'devPagesManifestUpdate': {
       return
     }
@@ -475,7 +481,7 @@ export default function HotReload({
   const router = useRouter()
 
   useEffect(() => {
-    const handler = (event: MessageEvent<any>) => {
+    const handler = (event: MessageEvent<PongEvent>) => {
       try {
         processMessage(event, sendMessage, router, dispatcher)
       } catch (err: any) {
