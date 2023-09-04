@@ -110,7 +110,7 @@ impl<C: Comments> ServerActions<C> {
                         handler
                             .struct_span_err(
                                 body.span,
-                                "It is not allowed to define inline \"use server\" annotated Server Actions in Client Components.\nTo use Server Actions in a Client Component, you can either export them from a separate file with \"use server\" at the top, or pass them down through props from a Server Component.\n\nRead more: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions#with-client-components\n",
+                                "It is not allowed to define inline \"use server\" annotated Server Actions in Client Components.\nTo use Server Actions in a Client Component, you can either export them from a separate file with \"use server\" at the top, or pass them down through props from a Server Component.\n\nRead more: https://nextjs.org/docs/app/api-reference/server-actions#with-client-components\n",
                             )
                             .emit()
                     });
@@ -915,7 +915,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         raw: None,
                     }),
                     type_only: false,
-                    asserts: None,
+                    with: None,
                 })));
             }
 
@@ -1001,7 +1001,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         raw: None,
                     }),
                     type_only: false,
-                    asserts: None,
+                    with: None,
                 })));
                 new.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                     span: DUMMY_SP,
@@ -1076,7 +1076,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     raw: None,
                 }),
                 type_only: false,
-                asserts: None,
+                with: None,
             })));
             // Make it the first item
             new.rotate_right(1);
@@ -1261,7 +1261,7 @@ fn remove_server_directive_index_in_module(
                                 handler
                                     .struct_span_err(
                                         *span,
-                                        "To use Server Actions, please enable the feature flag in your Next.js config. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions#convention",
+                                        "To use Server Actions, please enable the feature flag in your Next.js config. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching/forms-and-mutations#convention",
                                     )
                                     .emit()
                             });
@@ -1360,7 +1360,7 @@ fn remove_server_directive_index_in_fn(
                             handler
                                 .struct_span_err(
                                     *span,
-                                    "To use Server Actions, please enable the feature flag in your Next.js config. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions#convention",
+                                    "To use Server Actions, please enable the feature flag in your Next.js config. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching/forms-and-mutations#convention",
                                 )
                                 .emit()
                         });

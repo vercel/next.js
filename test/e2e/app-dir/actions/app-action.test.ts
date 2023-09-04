@@ -74,6 +74,24 @@ createNextDescribe(
       }, 'same')
     })
 
+    it('should push new route when redirecting', async () => {
+      const browser = await next.browser('/header')
+
+      await browser.elementByCss('#setCookieAndRedirect').click()
+      await check(async () => {
+        return (await browser.elementByCss('#redirected').text()) || ''
+      }, 'redirected')
+
+      // Ensure we can navigate back
+      await browser.back()
+
+      await check(async () => {
+        return (
+          (await browser.elementByCss('#setCookieAndRedirect').text()) || ''
+        )
+      }, 'setCookieAndRedirect')
+    })
+
     it('should support headers in client imported actions', async () => {
       const logs: string[] = []
       next.on('stdout', (log) => {
@@ -276,6 +294,53 @@ createNextDescribe(
       await browser.elementByCss('#navigate-client').click()
       // intentionally bailing after 2 retries so we don't retry to the point where the async function resolves
       await check(() => browser.url(), `${next.url}/client`, true, 2)
+    })
+
+    it('should support next/dynamic with ssr: false', async () => {
+      const browser = await next.browser('/dynamic-csr')
+
+      await check(() => {
+        return browser.elementByCss('button').text()
+      }, '0')
+
+      await browser.elementByCss('button').click()
+
+      await check(() => {
+        return browser.elementByCss('button').text()
+      }, '1')
+    })
+
+    it('should only submit action once when resubmitting an action after navigation', async () => {
+      let requestCount = 0
+
+      const browser = await next.browser('/server', {
+        beforePageLoad(page) {
+          page.on('request', (request) => {
+            const url = new URL(request.url())
+            if (url.pathname === '/server') {
+              requestCount++
+            }
+          })
+        },
+      })
+
+      async function submitForm() {
+        await browser.elementById('name').type('foo')
+        await browser.elementById('submit').click()
+        await check(() => browser.url(), /header/)
+      }
+
+      await submitForm()
+
+      await browser.elementById('navigate-server').click()
+      await check(() => browser.url(), /server/)
+      await browser.waitForIdleNetwork()
+
+      requestCount = 0
+
+      await submitForm()
+
+      expect(requestCount).toBe(1)
     })
 
     if (isNextStart) {
@@ -698,20 +763,20 @@ createNextDescribe(
 
           await browser.elementByCss('#back').click()
 
-          switch (type) {
-            case 'tag':
-              await browser.elementByCss('#revalidate-thankyounext').click()
-              break
-            case 'path':
-              await browser.elementByCss('#revalidate-path').click()
-              break
-            default:
-              throw new Error(`Invalid type: ${type}`)
-          }
-
           // Should be different
           let revalidatedThankYouNext
           await check(async () => {
+            switch (type) {
+              case 'tag':
+                await browser.elementByCss('#revalidate-thankyounext').click()
+                break
+              case 'path':
+                await browser.elementByCss('#revalidate-path').click()
+                break
+              default:
+                throw new Error(`Invalid type: ${type}`)
+            }
+
             revalidatedThankYouNext = await browser
               .elementByCss('#thankyounext')
               .text()

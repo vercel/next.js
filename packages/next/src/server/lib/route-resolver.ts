@@ -66,10 +66,7 @@ export async function makeResolver(
     minimalMode: false,
     config: nextConfig,
   })
-  const { appDir, pagesDir } = findPagesDir(
-    dir,
-    !!nextConfig.experimental.appDir
-  )
+  const { appDir, pagesDir } = findPagesDir(dir)
   // we format the hostname so that it can be fetched
   const fetchHostname = formatHostname(hostname)
 
@@ -230,12 +227,12 @@ export async function makeResolver(
     req: IncomingMessage,
     res: ServerResponse
   ): Promise<RouteResult | void> {
-    const routeResult = await resolveRoutes(
+    const routeResult = await resolveRoutes({
       req,
-      new Set(),
-      false,
-      signalFromNodeResponse(res)
-    )
+      isUpgradeReq: false,
+      signal: signalFromNodeResponse(res),
+    })
+
     const {
       matchedOutput,
       bodyStream,

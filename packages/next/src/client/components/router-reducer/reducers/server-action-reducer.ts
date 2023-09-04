@@ -89,7 +89,11 @@ async function fetchServerAction(
   }
 
   const redirectLocation = location
-    ? new URL(addBasePath(location), window.location.origin)
+    ? new URL(
+        addBasePath(location),
+        // Ensure relative redirects in Server Actions work, e.g. redirect('./somewhere-else')
+        new URL(state.canonicalUrl, window.location.href)
+      )
     : undefined
 
   let isFlightResponse =
@@ -155,21 +159,22 @@ export function serverActionReducer(
       mutable.globalMutable.pendingNavigatePath &&
       mutable.globalMutable.pendingNavigatePath !== href
     ) {
+      mutable.inFlightServerAction.then(() => {
+        if (mutable.actionResultResolved) return
+
+        // if the server action resolves after a navigation took place,
+        // reset ServerActionMutable values & trigger a refresh so that any stale data gets updated
+        mutable.inFlightServerAction = null
+        mutable.globalMutable.pendingNavigatePath = undefined
+        mutable.globalMutable.refresh()
+        mutable.actionResultResolved = true
+      })
+
       return state
     }
   } else {
     mutable.inFlightServerAction = createRecordFromThenable(
-      fetchServerAction(state, action).then((result) => {
-        // if the server action resolves after a navigation took place,
-        // reset ServerActionMutable values & trigger a refresh so that any stale data gets updated
-        if (mutable.globalMutable.pendingNavigatePath) {
-          mutable.inFlightServerAction = null
-          mutable.globalMutable.pendingNavigatePath = undefined
-          mutable.globalMutable.refresh()
-        } else {
-          return result
-        }
-      })
+      fetchServerAction(state, action)
     )
   }
 
@@ -182,8 +187,15 @@ export function serverActionReducer(
       redirectLocation,
       // revalidatedParts,
     } = readRecordValue(
-      action.mutable.inFlightServerAction!
+      mutable.inFlightServerAction!
     ) as Awaited<FetchServerActionResult>
+
+    // Make sure the redirection is a push instead of a replace.
+    // Issue: https://github.com/vercel/next.js/issues/53911
+    if (redirectLocation) {
+      state.pushRef.pendingPush = true
+      mutable.pendingPush = true
+    }
 
     mutable.previousTree = state.tree
 

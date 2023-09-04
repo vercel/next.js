@@ -31,6 +31,21 @@ createNextDescribe(
       }
     })
 
+    it('should render default 404 with root layout for non-existent page', async () => {
+      const browser = await next.browser('/non-existent')
+      await browser.waitForElementByCss('.next-error-h1')
+      expect(await browser.elementByCss('.next-error-h1').text()).toBe('404')
+      expect(await browser.elementByCss('html').getAttribute('class')).toBe(
+        'root-layout-html'
+      )
+
+      if (isNextDev) {
+        const cliOutput = next.cliOutput
+        expect(cliOutput).toContain('/not-found')
+        expect(cliOutput).not.toContain('/_error')
+      }
+    })
+
     it('should error on server notFound from root layout on server-side', async () => {
       const browser = await next.browser('/?root-not-found=1')
 
