@@ -4,26 +4,37 @@ import { check } from 'next-test-utils'
 import { createNextDescribe, FileRef } from 'e2e-utils'
 
 function parseLogsFromCli(cliOutput: string) {
-  return stripAnsi(cliOutput)
+  const logs = stripAnsi(cliOutput)
     .split('\n')
-    .filter((log) => log.includes('ms (cache:'))
-    .map((log) => {
+    .filter((log) => log.includes('Cache missed reason') || log.includes('GET'))
+
+  return logs.reduce((parsedLogs, log) => {
+    if (log.includes('Cache missed reason')) {
+      // cache miss reason
+      const reasonSegment = log.split('Cache missed reason: ')[1].trim()
+      const reason = reasonSegment.slice(1, -1)
+      parsedLogs[parsedLogs.length - 1].cache = reason
+    } else {
+      // request info
       const trimmedLog = log.replace(/^[^a-zA-Z]+/, '')
       const parts = trimmedLog.split(' ')
       const method = parts[0]
       const url = parts[1]
       const statusCode = parseInt(parts[2])
       const responseTime = parseInt(parts[4])
-      const cache = parts.slice(5).join(' ')
 
-      return {
+      const parsedLog = {
         method,
         url,
         statusCode,
         responseTime,
-        cache,
+        cache: undefined,
       }
-    })
+      parsedLogs.push(parsedLog)
+    }
+    // console.log('parsedLogs', parsedLogs)
+    return parsedLogs
+  }, [] as any[])
 }
 
 createNextDescribe(
@@ -70,7 +81,7 @@ createNextDescribe(
               log.url.includes('api/random?no-cache')
             )
 
-            if (logEntry?.cache === '(cache: SKIP, reason: cache: no-cache)') {
+            if (logEntry?.cache === 'cache: no-cache') {
               return 'success'
             }
           }, 'success')
@@ -86,7 +97,7 @@ createNextDescribe(
               log.url.includes('api/random?revalidate-0')
             )
 
-            if (logEntry?.cache === '(cache: SKIP, reason: revalidate: 0)') {
+            if (logEntry?.cache === 'revalidate: 0') {
               return 'success'
             }
           }, 'success')
@@ -104,10 +115,8 @@ createNextDescribe(
               log.url.includes('api/random?auto-cache')
             )
 
-            if (
-              logEntry?.cache ===
-              '(cache: SKIP, reason: cache-control: no-cache (hard refresh))'
-            ) {
+            console.log('logEntry?.cache', logEntry?.cache)
+            if (logEntry?.cache === 'cache-control: no-cache (hard refresh)') {
               return 'success'
             }
           }, 'success')

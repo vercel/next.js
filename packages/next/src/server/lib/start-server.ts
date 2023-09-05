@@ -16,7 +16,8 @@ import type {
   WorkerUpgradeHandler,
 } from './setup-server-worker'
 import { checkIsNodeDebugging } from './is-node-debugging'
-import { getFetchHostname } from './get-fetch-hostname'
+import chalk from '../../lib/chalk'
+
 const debug = setupDebug('next:start-server')
 
 if (process.env.NEXT_CPU_PROF) {
@@ -34,6 +35,9 @@ export interface StartServerOptions {
   customServer?: boolean
   minimalMode?: boolean
   keepAliveTimeout?: number
+  // logging info
+  envInfo?: string[]
+  expFeatureInfo?: string[]
   // this is dev-server only
   selfSignedCertificate?: {
     key: string
@@ -85,6 +89,8 @@ export async function startServer({
   isExperimentalTestProxy,
   logReady = true,
   selfSignedCertificate,
+  envInfo,
+  expFeatureInfo,
 }: StartServerOptions): Promise<void> {
   let handlersReady = () => {}
   let handlersError = () => {}
@@ -213,11 +219,42 @@ export async function startServer({
       }
 
       if (logReady) {
-        Log.ready(
-          `started server on ${formattedServerHost}:${port}, url: ${appUrl}`
+        Log.bootstrap(
+          chalk.bold(
+            chalk.hex('#ad7fa8')(
+              ` ${`${Log.prefixes.ready} Next.js`} ${
+                process.env.__NEXT_VERSION
+              }`
+            )
+          )
         )
+        Log.bootstrap(` - Local:        ${appUrl}`)
+        if (hostname) {
+          Log.bootstrap(
+            ` - Network:      ${actualHostname}${
+              (port + '').startsWith(':') ? '' : ':'
+            }${port}`
+          )
+        }
+        if (envInfo?.length)
+          Log.bootstrap(` - Environments: ${envInfo.join(', ')}`)
+
+        if (expFeatureInfo?.length) {
+          Log.bootstrap(` - Experiments (use at your own risk):`)
+          // only show maximum 3 flags
+          for (const exp of expFeatureInfo.slice(0, 3)) {
+            Log.bootstrap(`    · ${exp}`)
+          }
+          /* ${expFeatureInfo.length - 3} more */
+          if (expFeatureInfo.length > 3) {
+            Log.bootstrap(`    · ...`)
+          }
+        }
         // expose the main port to render workers
         process.env.PORT = port + ''
+
+        // New line after the bootstrap info
+        Log.info('')
       }
 
       try {

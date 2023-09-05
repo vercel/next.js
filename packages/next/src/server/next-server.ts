@@ -104,6 +104,10 @@ import { loadManifest } from './load-manifest'
 
 export * from './base-server'
 
+function writeStdoutLine(text: string) {
+  process.stdout.write(' ' + text + '\n')
+}
+
 export interface NodeRequestHandler {
   (
     req: IncomingMessage | BaseNextRequest,
@@ -1045,11 +1049,10 @@ export default class NextNodeServer extends BaseServer {
 
           if (Array.isArray(fetchMetrics) && fetchMetrics.length) {
             if (enabledVerboseLogging) {
-              process.stdout.write('\n')
-              process.stdout.write(
-                `- ${chalk.cyan(req.method || 'GET')} ${req.url} ${
+              writeStdoutLine(
+                `${chalk.white.bold(req.method || 'GET')} ${req.url} ${
                   res.statusCode
-                } in ${getDurationStr(reqDuration)}\n`
+                } in ${getDurationStr(reqDuration)}`
               )
             }
 
@@ -1070,20 +1073,24 @@ export default class NextNodeServer extends BaseServer {
                   nestedLevel += 1
                 }
               }
-              return `${'───'.repeat(nestedLevel + 1)}`
+
+              return `${'  │ '.repeat(nestedLevel)}`
             }
 
             for (let i = 0; i < fetchMetrics.length; i++) {
               const metric = fetchMetrics[i]
-              const lastItem = i === fetchMetrics.length - 1
               let { cacheStatus, cacheReason } = metric
+              let cacheReasonStr = ''
 
               const duration = metric.end - metric.start
 
               if (cacheStatus === 'hit') {
                 cacheStatus = chalk.green('HIT')
               } else if (cacheStatus === 'skip') {
-                cacheStatus = `${chalk.yellow('SKIP')}, reason: ${cacheReason}`
+                cacheStatus = `${chalk.yellow('SKIP')}`
+                cacheReasonStr = `${chalk.grey(
+                  `Cache missed reason: (${chalk.white(cacheReason)})`
+                )}`
               } else {
                 cacheStatus = chalk.yellow('MISS')
               }
@@ -1115,24 +1122,41 @@ export default class NextNodeServer extends BaseServer {
               }
 
               if (enabledVerboseLogging) {
-                process.stdout.write(
-                  `   ${chalk.grey(
-                    `${lastItem ? '└' : '├'}${calcNestedLevel(
-                      fetchMetrics.slice(0, i),
-                      metric.start
-                    )}`
-                  )} ${chalk.cyan(metric.method)} ${url} ${
-                    metric.status
-                  } in ${getDurationStr(duration)} (cache: ${cacheStatus})\n`
+                const newLineLeadingChar = '│'
+                const nestedIndent = calcNestedLevel(
+                  fetchMetrics.slice(0, i),
+                  metric.start
                 )
+
+                writeStdoutLine(
+                  `${`${newLineLeadingChar}${nestedIndent}${
+                    i === 0 ? ' ' : ''
+                  }${chalk.white.bold(metric.method)} ${chalk.grey(url)} ${
+                    metric.status
+                  } in ${getDurationStr(duration)} (cache: ${cacheStatus})`}`
+                )
+                if (cacheReasonStr) {
+                  const nextNestedIndent = calcNestedLevel(
+                    fetchMetrics.slice(0, i + 1),
+                    metric.start
+                  )
+                  writeStdoutLine(
+                    newLineLeadingChar +
+                      nextNestedIndent +
+                      (i > 0 ? ' ' : '  ') +
+                      newLineLeadingChar +
+                      '  ' +
+                      cacheReasonStr
+                  )
+                }
               }
             }
           } else {
             if (enabledVerboseLogging) {
-              process.stdout.write(
-                `- ${chalk.cyan(req.method || 'GET')} ${req.url} ${
+              writeStdoutLine(
+                `${chalk.white.bold(req.method || 'GET')} ${req.url} ${
                   res.statusCode
-                } in ${getDurationStr(reqDuration)}\n`
+                } in ${getDurationStr(reqDuration)}`
               )
             }
           }

@@ -35,11 +35,8 @@ async function main() {
   })
 
   server.listen(port, '0.0.0.0', () => {
-    console.log(
-      `> started server on url: http://localhost:${port} as ${
-        dev ? 'development' : process.env.NODE_ENV
-      }`
-    )
+    console.log(`- Local: http://localhost:${port}`)
+    console.log(`- Next mode: ${dev ? 'development' : process.env.NODE_ENV}`)
   })
 }
 
