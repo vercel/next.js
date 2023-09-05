@@ -1,10 +1,10 @@
-/**@type import('next').NextConfig */
+/** @type {import('next').NextConfig} */
 module.exports = {
   experimental: {
     logging: 'verbose',
     incrementalCacheHandlerPath: process.env.CUSTOM_CACHE_HANDLER,
   },
-  // assetPrefix: '/assets',
+
   rewrites: async () => {
     return {
       // beforeFiles: [ { source: '/assets/:path*', destination: '/:path*' } ],

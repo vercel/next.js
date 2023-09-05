@@ -30,8 +30,8 @@
 
 /packages/next/src/build/                     @timneutkens @ijjk @shuding @huozhi @vercel/web-tooling
 /packages/next/src/telemetry/                 @timneutkens @ijjk @shuding @padmaia
-/packages/next-swc/                           @timneutkens @ijjk @shuding @vercel/web-tooling
-Cargo.toml                                    @timneutkens @ijjk @shuding @vercel/web-tooling
-Cargo.lock                                    @timneutkens @ijjk @shuding @vercel/web-tooling
-/.cargo/config.toml                           @timneutkens @ijjk @shuding @vercel/web-tooling
-/.config/nextest.toml                         @timneutkens @ijjk @shuding @vercel/web-tooling
+/packages/next-swc/                           @timneutkens @ijjk @shuding @huozhi @vercel/web-tooling
+Cargo.toml                                    @timneutkens @ijjk @shuding @huozhi @vercel/web-tooling
+Cargo.lock                                    @timneutkens @ijjk @shuding @huozhi @vercel/web-tooling
+/.cargo/config.toml                           @timneutkens @ijjk @shuding @huozhi @vercel/web-tooling
+/.config/nextest.toml                         @timneutkens @ijjk @shuding @huozhi @vercel/web-tooling
