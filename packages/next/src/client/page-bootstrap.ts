@@ -16,7 +16,13 @@ export function pageBootrap(assetPrefix: string) {
 
     let buildIndicatorHandler: (obj: Record<string, any>) => void = () => {}
 
-    function devPagesHmrListener(payload: any) {
+    if (process.env.__NEXT_BUILD_INDICATOR) {
+      initializeBuildWatcher((handler: any) => {
+        buildIndicatorHandler = handler
+      }, process.env.__NEXT_BUILD_INDICATOR_POSITION)
+    }
+
+    addMessageListener((payload) => {
       if (payload.action === 'serverError') {
         const { stack, message } = JSON.parse(payload.errorJSON)
         const error = new Error(message)
@@ -73,13 +79,6 @@ export function pageBootrap(assetPrefix: string) {
             .finally(clearIndicator)
         }
       }
-    }
-    addMessageListener(devPagesHmrListener)
-
-    if (process.env.__NEXT_BUILD_INDICATOR) {
-      initializeBuildWatcher((handler: any) => {
-        buildIndicatorHandler = handler
-      }, process.env.__NEXT_BUILD_INDICATOR_POSITION)
-    }
+    })
   })
 }
