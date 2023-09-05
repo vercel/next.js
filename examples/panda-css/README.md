@@ -17,11 +17,11 @@ npx create-next-app --example panda-css panda-css-app
 ```
 
 ```bash
-yarn create-next-app --example panda-css panda-css-app
+yarn create next-app --example panda-css panda-css-app
 ```
 
 ```bash
-pnpm create-next-app --example panda-css panda-css-app
+pnpm create next-app --example panda-css panda-css-app
 ```
 
 ```bash
