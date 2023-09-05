@@ -712,7 +712,7 @@ export default class HotReloader implements NextJsHotReloaderInterface {
 
     this.versionInfo = await this.getVersionInfo(
       startSpan,
-      !!process.env.NEXT_TEST_MODE || this.telemetry.isEnabled
+      !!process.env.__NEXT_TEST_MODE || this.telemetry.isEnabled
     )
 
     await this.clean(startSpan)
