@@ -890,14 +890,14 @@ importers:
         specifier: 1.1.0
         version: 1.1.0
       '@edge-runtime/cookies':
-        specifier: 3.4.0
-        version: 3.4.0
+        specifier: 3.4.1
+        version: 3.4.1
       '@edge-runtime/ponyfill':
         specifier: 2.4.0
         version: 2.4.0
       '@edge-runtime/primitives':
-        specifier: 3.1.0
-        version: 3.1.0
+        specifier: 3.1.1
+        version: 3.1.1
       '@hapi/accept':
         specifier: 5.0.2
         version: 5.0.2
@@ -1163,8 +1163,8 @@ importers:
         specifier: 4.19.0
         version: 4.19.0
       edge-runtime:
-        specifier: 2.5.0
-        version: 2.5.0
+        specifier: 2.5.1
+        version: 2.5.1
       events:
         specifier: 3.3.0
         version: 3.3.0
@@ -5164,8 +5164,8 @@ packages:
     resolution: {integrity: sha512-smLocSfrt3s53H/XSVP3/1kP42oqvrkjUPtyaFd1F79ux24oE31BKt+q0c6lsa6hOYrFzsIwyc5GXAI5JmfOew==}
     dev: true
 
-  /@edge-runtime/cookies@3.4.0:
-    resolution: {integrity: sha512-rhkTN7D8YO78lf76gdmK4FYc4Z5zQMGPABFLCWiJzeHmHgaCievF/lHEf1WO1OGZVxe1V34NYxsNTZsXwLht3Q==}
+  /@edge-runtime/cookies@3.4.1:
+    resolution: {integrity: sha512-z27BvgPxI73CgSlxU/NAUf1Q/shnqi6cobHEowf6VuLdSjGR3NjI2Y5dZUIBbK2zOJVZbXcHsVzJjz8LklteFQ==}
     engines: {node: '>=16'}
     dev: true
 
@@ -5195,11 +5195,23 @@ packages:
     engines: {node: '>=16'}
     dev: true
 
+  /@edge-runtime/primitives@3.1.1:
+    resolution: {integrity: sha512-ROO22py+KdAfzqWZu6CtVMC4qV6mS0W1jPI51jGXE+uenyBUN7cQTWB9ReQc8Bm4cnjqmhajvpqEx3j7Y9iSOg==}
+    engines: {node: '>=16'}
+    dev: true
+
   /@edge-runtime/vm@3.1.0:
     resolution: {integrity: sha512-Y2JZgJP+4byI17SiDeEZhvBUvJ+om7E5ll/jrS7aGRpet5qKnJSsGep6xxhMjqT/j8ulFvTMN/kdlMMy5pEKBQ==}
     engines: {node: '>=16'}
     dependencies:
       '@edge-runtime/primitives': 3.1.0
+    dev: true
+
+  /@edge-runtime/vm@3.1.1:
+    resolution: {integrity: sha512-6NJRRG04/91qnWLZj+wZm27q6fJkTbkZdIJdo/Ig++GTxkAv8Wh/45nIcz9Xg7AzIAMpAkflFdiCrCoZ3hp1Iw==}
+    engines: {node: '>=16'}
+    dependencies:
+      '@edge-runtime/primitives': 3.1.1
     dev: true
 
   /@emotion/babel-plugin@11.11.0:
@@ -12706,13 +12718,13 @@ packages:
       safe-buffer: 5.2.1
     dev: true
 
-  /edge-runtime@2.5.0:
-    resolution: {integrity: sha512-QgDNX6R+RPwhY3+vqHpvYE4XUoB/cFG60nGBKu9pmPOJxQleeTCj2F5CHimIpNqex9h1Cy2Y3tuQ+Vq2GzmZIA==}
+  /edge-runtime@2.5.1:
+    resolution: {integrity: sha512-E0kY1Dqvwvk9yh7dvR56KnCjXf/dlbrrGjO5Sjnz9Ja3WqYT3csv2B8O4erxJiOWfWy9NTukBk4Kb3yrR66gBw==}
     engines: {node: '>=16'}
     hasBin: true
     dependencies:
       '@edge-runtime/format': 2.2.0
-      '@edge-runtime/vm': 3.1.0
+      '@edge-runtime/vm': 3.1.1
       async-listen: 3.0.1
       mri: 1.2.0
       picocolors: 1.0.0
