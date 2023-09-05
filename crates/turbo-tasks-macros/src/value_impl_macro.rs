@@ -251,7 +251,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     #[doc(hidden)]
                     #[allow(non_camel_case_types)]
                     // #[turbo_tasks::async_trait]
-                    trait #inline_extension_trait_ident {
+                    trait #inline_extension_trait_ident: std::marker::Send {
                         #[allow(declare_interior_mutable_const)]
                         #[doc(hidden)]
                         const #native_function_ident: #native_function_ty;

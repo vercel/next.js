@@ -23,7 +23,10 @@ async fn index_set_is_empty(index_set: Vc<IndexSet<Vc<()>>>) -> Result<Vc<bool>>
     Ok(Vc::cell(index_set.is_empty()))
 }
 
-impl<T> Vc<IndexSet<Vc<T>>> {
+impl<T> Vc<IndexSet<Vc<T>>>
+where
+    T: Send,
+{
     /// See [`IndexSet::len`].
     pub fn len(self) -> Vc<usize> {
         index_set_len(Self::to_repr(self))
@@ -40,7 +43,10 @@ fn index_set_default() -> Vc<IndexSet<Vc<()>>> {
     Vc::cell(Default::default())
 }
 
-impl<T> ValueDefault for IndexSet<Vc<T>> {
+impl<T> ValueDefault for IndexSet<Vc<T>>
+where
+    T: Send,
+{
     fn value_default() -> Vc<Self> {
         // Safety: `index_set_default` creates an empty set, which is a valid
         // representation of any index set of `Vc`.
@@ -60,7 +66,10 @@ async fn index_set_dbg_depth(
         .await
 }
 
-impl<T> ValueDebug for IndexSet<Vc<T>> {
+impl<T> ValueDebug for IndexSet<Vc<T>>
+where
+    T: Send,
+{
     fn dbg(self: Vc<Self>) -> Vc<ValueDebugString> {
         index_set_dbg_depth(Vc::<Self>::to_repr(self), usize::MAX)
     }

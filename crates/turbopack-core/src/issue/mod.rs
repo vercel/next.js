@@ -744,7 +744,7 @@ where
     }
 }
 
-pub async fn handle_issues<T>(
+pub async fn handle_issues<T: Send>(
     source: Vc<T>,
     issue_reporter: Vc<Box<dyn IssueReporter>>,
     min_failing_severity: Vc<IssueSeverity>,

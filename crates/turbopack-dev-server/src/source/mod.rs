@@ -420,7 +420,7 @@ pub trait ContentSource {
     }
 }
 
-pub trait ContentSourceExt {
+pub trait ContentSourceExt: Send {
     fn issue_file_path(
         self: Vc<Self>,
         file_path: Vc<FileSystemPath>,

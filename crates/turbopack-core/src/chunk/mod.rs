@@ -338,7 +338,7 @@ async fn reference_to_graph_nodes<I>(
     )>,
 >
 where
-    I: FromChunkableModule,
+    I: Send + FromChunkableModule,
 {
     let Some(chunkable_module_reference) =
         Vc::try_resolve_downcast::<Box<dyn ChunkableModuleReference>>(reference).await?
@@ -503,7 +503,7 @@ struct ChunkContentVisit<I> {
     _phantom: PhantomData<I>,
 }
 
-type ChunkItemToGraphNodesEdges<I> = impl Iterator<
+type ChunkItemToGraphNodesEdges<I: Send> = impl Iterator<
     Item = (
         Option<(Vc<Box<dyn Module>>, ChunkingType)>,
         ChunkContentGraphNode<Vc<I>>,
@@ -515,7 +515,7 @@ type ChunkItemToGraphNodesFuture<I: FromChunkableModule> =
 
 impl<I> Visit<ChunkContentGraphNode<Vc<I>>, ()> for ChunkContentVisit<Vc<I>>
 where
-    I: FromChunkableModule,
+    I: Send + FromChunkableModule,
 {
     type Edge = (
         Option<(Vc<Box<dyn Module>>, ChunkingType)>,

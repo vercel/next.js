@@ -6,7 +6,7 @@ use turbo_tasks_macros_shared::{get_type_ident, GenericTypeInput};
 use crate::value_macro::value_type_and_register;
 
 pub fn generic_type(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as GenericTypeInput);
+    let mut input = parse_macro_input!(input as GenericTypeInput);
 
     for param in &input.generics.params {
         match param {
@@ -30,6 +30,14 @@ pub fn generic_type(input: TokenStream) -> TokenStream {
                     .error("const parameters are not supported in generic_type")
                     .emit();
             }
+        }
+    }
+
+    // Add Send bound to input generics.
+
+    for param in &mut input.generics.params {
+        if let GenericParam::Type(param) = param {
+            param.bounds.push(syn::parse_quote! { std::marker::Send });
         }
     }
 

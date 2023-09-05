@@ -167,7 +167,10 @@ where
     }
 }
 
-impl<T> TaskInput for Vc<T> {
+impl<T> TaskInput for Vc<T>
+where
+    T: Send,
+{
     fn try_from_concrete(input: &ConcreteTaskInput) -> Result<Self> {
         match input {
             ConcreteTaskInput::TaskCell(task, index) => Ok(Vc {

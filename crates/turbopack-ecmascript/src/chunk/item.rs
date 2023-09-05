@@ -179,7 +179,7 @@ pub trait EcmascriptChunkItem: ChunkItem {
     fn chunking_context(self: Vc<Self>) -> Vc<Box<dyn EcmascriptChunkingContext>>;
 }
 
-pub trait EcmascriptChunkItemExt {
+pub trait EcmascriptChunkItemExt: Send {
     /// Returns the module id of this chunk item.
     fn id(self: Vc<Self>) -> Vc<ModuleId>;
 

@@ -23,7 +23,11 @@ async fn index_map_is_empty(index_map: Vc<IndexMap<Vc<()>, Vc<()>>>) -> Result<V
     Ok(Vc::cell(index_map.is_empty()))
 }
 
-impl<K, V> Vc<IndexMap<Vc<K>, Vc<V>>> {
+impl<K, V> Vc<IndexMap<Vc<K>, Vc<V>>>
+where
+    K: Send,
+    V: Send,
+{
     /// See [`IndexMap::len`].
     pub fn len(self) -> Vc<usize> {
         index_map_len(Self::to_repr(self))
@@ -40,7 +44,11 @@ fn index_map_default() -> Vc<IndexMap<Vc<()>, Vc<()>>> {
     Vc::cell(Default::default())
 }
 
-impl<K, V> ValueDefault for IndexMap<Vc<K>, Vc<V>> {
+impl<K, V> ValueDefault for IndexMap<Vc<K>, Vc<V>>
+where
+    K: Send,
+    V: Send,
+{
     fn value_default() -> Vc<Self> {
         // Safety: `index_map_default` creates an empty map, which is a valid
         // representation of any index set of `Vc`.
@@ -60,7 +68,11 @@ async fn index_map_dbg_depth(
         .await
 }
 
-impl<K, V> ValueDebug for IndexMap<Vc<K>, Vc<V>> {
+impl<K, V> ValueDebug for IndexMap<Vc<K>, Vc<V>>
+where
+    K: Send,
+    V: Send,
+{
     fn dbg(self: Vc<Self>) -> Vc<ValueDebugString> {
         index_map_dbg_depth(Vc::<Self>::to_repr(self), usize::MAX)
     }
