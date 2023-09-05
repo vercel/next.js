@@ -1,6 +1,13 @@
 # Panda CSS Example
 
-An example of using (Panda CSS)[https://panda-css.com/] with Create Next App.
+This example contains a simple implementation of [Panda CSS](https://panda-css.com/). It contains styling for a link made in four different approaches supported by Panda CSS. Refer to the [documentation](https://panda-css.com/docs) for when to use - and how to combine - the different approaches to suit your needs.
+
+## Link examples
+
+- [Atomic Recipe (CVA)](https://panda-css.com/docs/concepts/recipes#atomic-recipe-or-cva) Create multi-variant atomic styles with a type-safe runtime API.
+- [Atomic Style](https://panda-css.com/docs/concepts/writing-styles#atomic-styles) Type-safe reusable atoms with small CSS footprint.
+- [Config Recipe](https://panda-css.com/docs/concepts/recipes#config-recipe) Resuable recipes extracted and generated just-in-time.
+- [Text Styles](https://panda-css.com/docs/theming/text-styles#defining-text-styles) Global text styles for consistent and legible typography.
 
 ## Deploy your own
 
