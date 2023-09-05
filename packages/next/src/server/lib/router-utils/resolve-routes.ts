@@ -35,6 +35,8 @@ import {
 } from '../../../shared/lib/router/utils/prepare-destination'
 import { createRequestResponseMocks } from '../mock-request'
 
+import '../../node-polyfill-web-streams'
+
 const debug = setupDebug('next:router-server:resolve-routes')
 
 export function getResolveRoutes(
