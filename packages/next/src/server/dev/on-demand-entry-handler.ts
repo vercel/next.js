@@ -37,7 +37,6 @@ import { RouteMatch } from '../future/route-matches/route-match'
 import { isAppPageRouteMatch } from '../future/route-matches/app-page-route-match'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
 import HotReloader from './hot-reloader-webpack'
-import { normalizeMetadataRoute } from '../../lib/metadata/get-metadata-route'
 
 const debug = origDebug('next:on-demand-entry-handler')
 
