@@ -857,7 +857,7 @@ export function onDemandEntryHandler({
       if (hasNewEntry) {
         reportTrigger(
           !clientOnly && hasNewEntry
-            ? `${pagePathData.page} (client and server)`
+            ? `${pagePathData.page}`
             : pagePathData.page
         )
       }
