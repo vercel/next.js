@@ -107,6 +107,9 @@ importers:
       '@swc/helpers':
         specifier: 0.5.1
         version: 0.5.1
+      '@testing-library/jest-dom':
+        specifier: 6.1.2
+        version: 6.1.2(@types/jest@27.4.1)(jest@27.0.6)
       '@testing-library/react':
         specifier: 13.0.0
         version: 13.0.0(react-dom@18.2.0)(react@18.2.0)
@@ -726,7 +729,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 13.4.20-canary.15
+        specifier: 13.4.20-canary.16
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.3.3
@@ -787,7 +790,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 13.4.20-canary.15
+        specifier: 13.4.20-canary.16
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.1
@@ -914,19 +917,19 @@ importers:
         specifier: 1.1.0
         version: 1.1.0
       '@next/polyfill-module':
-        specifier: 13.4.20-canary.15
+        specifier: 13.4.20-canary.16
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 13.4.20-canary.15
+        specifier: 13.4.20-canary.16
         version: link:../next-polyfill-nomodule
       '@next/react-dev-overlay':
-        specifier: 13.4.20-canary.15
+        specifier: 13.4.20-canary.16
         version: link:../react-dev-overlay
       '@next/react-refresh-utils':
-        specifier: 13.4.20-canary.15
+        specifier: 13.4.20-canary.16
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 13.4.20-canary.15
+        specifier: 13.4.20-canary.16
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.4.1
@@ -1058,8 +1061,8 @@ importers:
         specifier: 0.22.6
         version: 0.22.6
       '@vercel/turbopack-ecmascript-runtime':
-        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230829.2
-        version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230829.2(react-refresh@0.12.0)(webpack@5.86.0)'
+        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230901.3
+        version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230901.3(react-refresh@0.12.0)(webpack@5.86.0)'
       acorn:
         specifier: 8.5.0
         version: 8.5.0
@@ -1210,9 +1213,6 @@ importers:
       is-wsl:
         specifier: 2.2.0
         version: 2.2.0
-      jest-docblock:
-        specifier: 29.4.3
-        version: 29.4.3
       jest-worker:
         specifier: 27.0.0-next.5
         version: 27.0.0-next.5
@@ -1524,11 +1524,11 @@ importers:
   packages/next-swc/crates/next-core/js:
     dependencies:
       '@vercel/turbopack-ecmascript-runtime':
-        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230829.2
-        version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230829.2(react-refresh@0.12.0)(webpack@5.86.0)'
+        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230901.3
+        version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230901.3(react-refresh@0.12.0)(webpack@5.86.0)'
       '@vercel/turbopack-node':
-        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230829.2
-        version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230829.2'
+        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230901.3
+        version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230901.3'
       anser:
         specifier: ^2.1.1
         version: 2.1.1
@@ -1685,7 +1685,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 13.4.20-canary.15
+        specifier: 13.4.20-canary.16
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -1695,6 +1695,10 @@ importers:
         version: 2.5.1
 
 packages:
+
+  /@adobe/css-tools@4.3.1:
+    resolution: {integrity: sha512-/62yikz7NLScCGAAST5SHdnjaDJQBDq0M2muyRTpf2VQhw6StBg2ALiu73zSJQ4fMVLA+0uBhBHAle7Wg+2kSg==}
+    dev: true
 
   /@ampproject/remapping@2.1.2:
     resolution: {integrity: sha512-hoyByceqwKirw7w3Z7gnIIZC3Wx3J484Y3L/cMpXFbr7d9ZQj2mODrirNzcJa+SM3UlpWXYvKV4RlRpFXlWgXg==}
@@ -4961,7 +4965,7 @@ packages:
     resolution: {integrity: sha512-9E9FJowqAsytyOY6LG+1KuueckRL+aQW+mKvXRXnuFGyRAyepJPmEo9vgMfXUA6O9u3IeEdv9MAkppFcaQwogQ==}
     engines: {node: '>=6.9.0'}
     dependencies:
-      regenerator-runtime: 0.13.5
+      regenerator-runtime: 0.13.4
     dev: true
 
   /@babel/runtime@7.22.3:
@@ -7911,13 +7915,43 @@ packages:
     engines: {node: '>=12'}
     dependencies:
       '@babel/code-frame': 7.12.11
-      '@babel/runtime': 7.16.7
+      '@babel/runtime': 7.15.4
       '@types/aria-query': 5.0.1
-      aria-query: 5.0.0
+      aria-query: 5.3.0
       chalk: 4.1.2
       dom-accessibility-api: 0.5.13
       lz-string: 1.5.0
       pretty-format: 27.5.1
+    dev: true
+
+  /@testing-library/jest-dom@6.1.2(@types/jest@27.4.1)(jest@27.0.6):
+    resolution: {integrity: sha512-NP9jl1Q2qDDtx+cqogowtQtmgD2OVs37iMSIsTv5eN5ETRkf26Kj6ugVwA93/gZzzFWQAsgkKkcftDe91BJCkQ==}
+    engines: {node: '>=14', npm: '>=6', yarn: '>=1'}
+    peerDependencies:
+      '@jest/globals': '>= 28'
+      '@types/jest': '>= 28'
+      jest: '>= 28'
+      vitest: '>= 0.32'
+    peerDependenciesMeta:
+      '@jest/globals':
+        optional: true
+      '@types/jest':
+        optional: true
+      jest:
+        optional: true
+      vitest:
+        optional: true
+    dependencies:
+      '@adobe/css-tools': 4.3.1
+      '@babel/runtime': 7.15.4
+      '@types/jest': 27.4.1
+      aria-query: 5.3.0
+      chalk: 3.0.0
+      css.escape: 1.5.1
+      dom-accessibility-api: 0.5.13
+      jest: 27.0.6
+      lodash: 4.17.20
+      redent: 3.0.0
     dev: true
 
   /@testing-library/react@13.0.0(react-dom@18.2.0)(react@18.2.0):
@@ -9409,16 +9443,10 @@ packages:
       mri: 1.1.0
     dev: true
 
-  /aria-query@5.0.0:
-    resolution: {integrity: sha512-V+SM7AbUwJ+EBnB8+DXs0hPZHO0W6pqBcc0dW90OwtVG02PswOu/teuARoLQjdDOH+t9pJgGnW5/Qmouf3gPJg==}
-    engines: {node: '>=6.0'}
-    dev: true
-
   /aria-query@5.3.0:
     resolution: {integrity: sha512-b0P0sZPKtyu8HkeRAfCq0IfURZK+SuwMjY1UXGBU27wpAiTwQAIlq56IbIO+ytk/JjS1fMR14ee5WBBfKi5J6A==}
     dependencies:
       dequal: 2.0.3
-    dev: false
 
   /arr-diff@4.0.0:
     resolution: {integrity: sha512-YVIQ82gZPGBebQV/a8dar4AitzCQs0jjXwMPZllpXMaGjXPYVUawSxQrRsjhjupyVxEvbHgUmIhKVlND+j02kA==}
@@ -16791,13 +16819,6 @@ packages:
   /jest-docblock@27.0.6:
     resolution: {integrity: sha512-Fid6dPcjwepTFraz0YxIMCi7dejjJ/KL9FBjPYhBp4Sv1Y9PdhImlKZqYU555BlN4TQKaTc+F2Av1z+anVyGkA==}
     engines: {node: ^10.13.0 || ^12.13.0 || ^14.15.0 || >=15.0.0}
-    dependencies:
-      detect-newline: 3.1.0
-    dev: true
-
-  /jest-docblock@29.4.3:
-    resolution: {integrity: sha512-fzdTftThczeSD9nZ3fzA/4KkHtnmllawWrXO69vtI+L9WjEIuXWs4AmyME7lN5hU7dB0sHhuPfcKofRsUb/2Fg==}
-    engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
     dependencies:
       detect-newline: 3.1.0
     dev: true
@@ -27187,9 +27208,9 @@ packages:
   /zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
-  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230829.2(react-refresh@0.12.0)(webpack@5.86.0)':
-    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230829.2}
-    id: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230829.2'
+  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230901.3(react-refresh@0.12.0)(webpack@5.86.0)':
+    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230901.3}
+    id: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230901.3'
     name: '@vercel/turbopack-ecmascript-runtime'
     version: 0.0.0
     dependencies:
@@ -27199,8 +27220,8 @@ packages:
       - react-refresh
       - webpack
 
-  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230829.2':
-    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230829.2}
+  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230901.3':
+    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230901.3}
     name: '@vercel/turbopack-node'
     version: 0.0.0
     dependencies:
