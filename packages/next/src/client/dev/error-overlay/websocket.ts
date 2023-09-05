@@ -44,11 +44,6 @@ export function connectHMR(options: {
     function handleMessage(event: MessageEvent<string>) {
       lastActivity = Date.now()
 
-      // webpack's heartbeat event.
-      if (event.data === '\uD83D\uDC93') {
-        return
-      }
-
       const msg = JSON.parse(event.data)
       for (const eventCallback of eventCallbacks) {
         eventCallback(msg)
