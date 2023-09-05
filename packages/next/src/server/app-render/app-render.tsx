@@ -286,10 +286,13 @@ export async function renderToHTMLOrFlight(
      * that we need to resolve the final metadata.
      */
 
-    const requestId =
-      process.env.NEXT_RUNTIME === 'edge'
-        ? crypto.randomUUID()
-        : require('next/dist/compiled/nanoid').nanoid()
+    let requestId: string
+
+    if (process.env.NEXT_RUNTIME === 'edge') {
+      requestId = crypto.randomUUID()
+    } else {
+      requestId = require('next/dist/compiled/nanoid').nanoid()
+    }
 
     const LayoutRouter =
       ComponentMod.LayoutRouter as typeof import('../../client/components/layout-router').default

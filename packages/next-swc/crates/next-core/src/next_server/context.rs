@@ -111,10 +111,9 @@ pub async fn get_server_resolve_options_context(
     let mut custom_conditions = vec![mode.node_env().to_string(), "node".to_string()];
 
     match ty {
-        ServerContextType::AppRSC { .. } | ServerContextType::AppRoute { .. } => {
-            custom_conditions.push("react-server".to_string())
-        }
-        ServerContextType::Pages { .. }
+        ServerContextType::AppRSC { .. } => custom_conditions.push("react-server".to_string()),
+        ServerContextType::AppRoute { .. }
+        | ServerContextType::Pages { .. }
         | ServerContextType::PagesData { .. }
         | ServerContextType::AppSSR { .. }
         | ServerContextType::Middleware { .. } => {}
