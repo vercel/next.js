@@ -257,7 +257,8 @@ async function loadWebAssemblyModule(
 })();
 
 function _eval({ code, url, map }: EcmascriptModuleEntry): ModuleFactory {
-  code += `\n\n//# sourceURL=${location.origin}/${url}`;
-  if (map) code += `\n//# sourceMappingURL=${map}`;
+  code += `\n\n//# sourceURL=${location.origin}/${CHUNK_BASE_PATH}${url}`;
+  if (map)
+    code += `\n//# sourceMappingURL=${location.origin}/${CHUNK_BASE_PATH}${map}`;
   return eval(code);
 }
