@@ -130,7 +130,8 @@ function runTests({ dev }) {
   }
 
   if (dev) {
-    it('should not have error after pinging WebSocket', async () => {
+    // TODO: pong event not longer exist, refactor test.
+    it.skip('should not have error after pinging WebSocket', async () => {
       const browser = await webdriver(appPort, '/')
       await browser.eval(`(function() {
         window.uncaughtErrs = []

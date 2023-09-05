@@ -183,6 +183,7 @@ function getBaseSWCOptions({
           isServer: !!isServerLayer,
         }
       : undefined,
+    disableChecks: false,
   }
 }
 
@@ -270,13 +271,15 @@ export function getJestSWCOptions({
     jsConfig,
     hasServerComponents,
     resolvedBaseUrl,
-    isServerLayer: isServer,
+    // Don't apply server layer transformations for Jest
+    isServerLayer: false,
   })
 
   const isNextDist = nextDistPath.test(filename)
 
   return {
     ...baseOptions,
+    disableChecks: true,
     env: {
       targets: {
         // Targets the current version of Node.js

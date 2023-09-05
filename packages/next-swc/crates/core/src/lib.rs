@@ -97,6 +97,9 @@ pub struct TransformOptions {
     pub is_server: bool,
 
     #[serde(default)]
+    pub disable_checks: bool,
+
+    #[serde(default)]
     pub server_components: Option<react_server_components::Config>,
 
     #[serde(default)]
@@ -194,7 +197,8 @@ where
                     file.name.clone(),
                     config.clone(),
                     comments.clone(),
-                    opts.app_dir.clone()
+                    opts.app_dir.clone(),
+                    opts.disable_checks
                 )),
             _ => Either::Right(noop()),
         },
