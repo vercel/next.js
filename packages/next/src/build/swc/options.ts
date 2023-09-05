@@ -271,7 +271,8 @@ export function getJestSWCOptions({
     jsConfig,
     hasServerComponents,
     resolvedBaseUrl,
-    isServerLayer: isServer,
+    // Don't apply server layer transformations for Jest
+    isServerLayer: false,
   })
 
   const isNextDist = nextDistPath.test(filename)
