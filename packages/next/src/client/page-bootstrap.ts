@@ -1,16 +1,14 @@
 import { hydrate, router } from './'
 import initOnDemandEntries from './dev/on-demand-entries-client'
-import initializeBuildWatcher from './dev/dev-build-watcher'
+import initializeBuildWatcher, {
+  ShowHideHandler,
+} from './dev/dev-build-watcher'
 import { displayContent } from './dev/fouc'
 import { connectHMR, addMessageListener } from './dev/error-overlay/websocket'
 import {
   assign,
   urlQueryToSearchParams,
 } from '../shared/lib/router/utils/querystring'
-import {
-  HMR_ACTIONS_SENT_TO_BROWSER,
-  HMR_ACTION_TYPES,
-} from '../server/dev/hot-reloader-types'
 
 export function pageBootrap(assetPrefix: string) {
   connectHMR({ assetPrefix, path: '/_next/webpack-hmr' })
@@ -18,7 +16,7 @@ export function pageBootrap(assetPrefix: string) {
   return hydrate({ beforeRender: displayContent }).then(() => {
     initOnDemandEntries()
 
-    let buildIndicatorHandler: (obj: HMR_ACTION_TYPES) => void = () => {}
+    let buildIndicatorHandler: ShowHideHandler | undefined
 
     if (process.env.__NEXT_BUILD_INDICATOR) {
       initializeBuildWatcher((handler) => {
@@ -63,14 +61,9 @@ export function pageBootrap(assetPrefix: string) {
           if (!router.clc && pages.includes(router.pathname)) {
             console.log('Refreshing page data due to server-side change')
 
-            buildIndicatorHandler({
-              action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING,
-            })
+            buildIndicatorHandler?.show()
 
-            const clearIndicator = () =>
-              buildIndicatorHandler({
-                action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT,
-              })
+            const clearIndicator = () => buildIndicatorHandler?.hide()
 
             router
               .replace(

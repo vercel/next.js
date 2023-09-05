@@ -8,8 +8,13 @@ import { addMessageListener } from './error-overlay/websocket'
 type VerticalPosition = 'top' | 'bottom'
 type HorizonalPosition = 'left' | 'right'
 
+export interface ShowHideHandler {
+  show: () => void
+  hide: () => void
+}
+
 export default function initializeBuildWatcher(
-  toggleCallback: (cb: (obj: HMR_ACTION_TYPES) => void) => void,
+  toggleCallback: (handlers: ShowHideHandler) => void,
   position = 'bottom-right'
 ) {
   const shadowHost = document.createElement('div')
@@ -63,6 +68,23 @@ export default function initializeBuildWatcher(
     } catch {}
   })
 
+  function show() {
+    timeoutId && clearTimeout(timeoutId)
+    isVisible = true
+    isBuilding = true
+    updateContainer()
+  }
+
+  function hide() {
+    isBuilding = false
+    // Wait for the fade out transition to complete
+    timeoutId = setTimeout(() => {
+      isVisible = false
+      updateContainer()
+    }, 100)
+    updateContainer()
+  }
+
   function handleMessage(obj: HMR_ACTION_TYPES) {
     if (!('action' in obj)) {
       return
@@ -71,25 +93,19 @@ export default function initializeBuildWatcher(
     // eslint-disable-next-line default-case
     switch (obj.action) {
       case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING:
-        timeoutId && clearTimeout(timeoutId)
-        isVisible = true
-        isBuilding = true
-        updateContainer()
+        show()
         break
       case HMR_ACTIONS_SENT_TO_BROWSER.BUILT:
       case HMR_ACTIONS_SENT_TO_BROWSER.SYNC:
-        isBuilding = false
-        // Wait for the fade out transition to complete
-        timeoutId = setTimeout(() => {
-          isVisible = false
-          updateContainer()
-        }, 100)
-        updateContainer()
+        hide()
         break
     }
   }
 
-  toggleCallback(handleMessage)
+  toggleCallback({
+    show,
+    hide,
+  })
 
   function updateContainer() {
     if (isBuilding) {
