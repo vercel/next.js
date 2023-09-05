@@ -9,7 +9,7 @@ import path from 'path'
 import { NextConfigComplete } from '../server/config-shared'
 import { setGlobal, traceGlobals } from '../trace/shared'
 import { Telemetry } from '../telemetry/storage'
-import loadConfig from '../server/config'
+import loadConfig, { getEnabledExperimentalFeatures } from '../server/config'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { findRootDir } from '../lib/find-root'
 import { fileExists, FileType } from '../lib/file-exists'
@@ -18,6 +18,7 @@ import { resetEnv } from '@next/env'
 import { createSelfSignedCertificate } from '../lib/mkcert'
 import uploadTrace from '../trace/upload-trace'
 import { startServer } from '../server/lib/start-server'
+import { loadEnvConfig } from '@next/env'
 import { trace } from '../trace'
 
 let dir: string
@@ -175,7 +176,30 @@ const nextDev: CliCommand = async (args) => {
   // We do not set a default host value here to prevent breaking
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
-  config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
+
+  const { loadedEnvFiles } = loadEnvConfig(dir, true, console, false)
+
+  let expFeatureInfo: string[] = []
+  config = await loadConfig(
+    PHASE_DEVELOPMENT_SERVER,
+    dir,
+    undefined,
+    undefined,
+    undefined,
+    (userConfig) => {
+      const userNextConfigExperimental = getEnabledExperimentalFeatures(
+        userConfig.experimental
+      )
+      expFeatureInfo = userNextConfigExperimental.sort(
+        (a, b) => a.length - b.length
+      )
+    }
+  )
+
+  let envInfo: string[] = []
+  if (loadedEnvFiles.length > 0) {
+    envInfo = loadedEnvFiles.map((f) => f.path)
+  }
 
   const isExperimentalTestProxy = args['--experimental-test-proxy']
 
@@ -190,6 +214,8 @@ const nextDev: CliCommand = async (args) => {
     isDev: true,
     hostname: host,
     isExperimentalTestProxy,
+    envInfo,
+    expFeatureInfo,
   }
 
   if (args['--turbo']) {

@@ -227,12 +227,7 @@ createNextDescribe(
         await next.fetch('/')
         expect(
           stripAnsi(next.cliOutput).match(
-            /You have enabled experimental feature/g
-          ).length
-        ).toBe(1)
-        expect(
-          stripAnsi(next.cliOutput).match(
-            /Experimental features are not covered by semver/g
+            /Experiments \(use at your own risk\):/g
           ).length
         ).toBe(1)
       })

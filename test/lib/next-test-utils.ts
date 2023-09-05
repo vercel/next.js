@@ -30,6 +30,7 @@ import {
   shouldRunExperimentalTurboDevTest,
   shouldRunTurboDevTest,
 } from './turbo'
+import stripAnsi from 'strip-ansi'
 
 export { shouldRunTurboDevTest }
 
@@ -361,28 +362,32 @@ export function runNextCommandDev(
     )
     let didResolve = false
 
+    const bootType =
+      opts.nextStart || stdOut
+        ? 'start'
+        : opts?.experimentalTurbo
+        ? 'experimentalTurbo'
+        : opts?.turbo
+        ? 'turbo'
+        : 'dev'
+
     function handleStdout(data) {
       const message = data.toString()
       const bootupMarkers = {
-        dev: /compiled .*successfully/i,
+        dev: /✓ ready/i,
         turbo: /started server/i,
-        experimentalTurbo: /started server/i,
-        start: /started server/i,
+        experimentalTurbo: /✓ ready/i,
+        start: /▲ Next.js/i,
       }
+
+      const strippedMessage = stripAnsi(message) as any
       if (
-        (opts.bootupMarker && opts.bootupMarker.test(message)) ||
-        bootupMarkers[
-          opts.nextStart || stdOut
-            ? 'start'
-            : opts?.experimentalTurbo
-            ? 'experimentalTurbo'
-            : opts?.turbo
-            ? 'turbo'
-            : 'dev'
-        ].test(message)
+        (opts.bootupMarker && opts.bootupMarker.test(strippedMessage)) ||
+        bootupMarkers[bootType].test(strippedMessage)
       ) {
         if (!didResolve) {
           didResolve = true
+          // Pass down the original message
           resolve(stdOut ? message : instance)
         }
       }
@@ -397,7 +402,7 @@ export function runNextCommandDev(
     }
 
     function handleStderr(data) {
-      const message = data.toString()
+      const message = stripAnsi(data.toString()) as any
       if (typeof opts.onStderr === 'function') {
         opts.onStderr(message)
       }
@@ -407,12 +412,12 @@ export function runNextCommandDev(
       }
     }
 
-    instance.stdout.on('data', handleStdout)
     instance.stderr.on('data', handleStderr)
+    instance.stdout.on('data', handleStdout)
 
     instance.on('close', () => {
-      instance.stdout.removeListener('data', handleStdout)
       instance.stderr.removeListener('data', handleStderr)
+      instance.stdout.removeListener('data', handleStdout)
       if (!didResolve) {
         didResolve = true
         resolve(undefined)

@@ -4,6 +4,9 @@
 /// <reference types="react-dom" />
 /// <reference types="react-dom/experimental" />
 
+import type { Agent as HttpAgent } from 'http'
+import type { Agent as HttpsAgent } from 'https'
+
 import React from 'react'
 import { ParsedUrlQuery } from 'querystring'
 import { IncomingMessage, ServerResponse } from 'http'
@@ -314,6 +317,11 @@ declare global {
     ): T
     randomUUID(): string
   }
+
+  var __NEXT_HTTP_AGENT_OPTIONS: { keepAlive?: boolean } | undefined
+  var __NEXT_UNDICI_AGENT_SET: boolean
+  var __NEXT_HTTP_AGENT: HttpAgent
+  var __NEXT_HTTPS_AGENT: HttpsAgent
 }
 
 export default next
