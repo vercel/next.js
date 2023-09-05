@@ -39,7 +39,7 @@ use crate::{
 #[must_use]
 pub struct Vc<T>
 where
-    T: ?Sized,
+    T: ?Sized + Send,
 {
     pub(crate) node: RawVc,
     #[doc(hidden)]
@@ -176,7 +176,7 @@ where
 #[doc(hidden)]
 impl<T> Deref for Vc<T>
 where
-    T: ?Sized,
+    T: ?Sized + Send,
 {
     type Target = VcDeref<T>;
 
@@ -190,14 +190,14 @@ where
     }
 }
 
-impl<T> Copy for Vc<T> where T: ?Sized {}
+impl<T> Copy for Vc<T> where T: ?Sized + Send {}
 
-unsafe impl<T> Send for Vc<T> where T: ?Sized {}
-unsafe impl<T> Sync for Vc<T> where T: ?Sized {}
+unsafe impl<T> Send for Vc<T> where T: ?Sized + Send {}
+unsafe impl<T> Sync for Vc<T> where T: ?Sized + Send {}
 
 impl<T> Clone for Vc<T>
 where
-    T: ?Sized,
+    T: ?Sized + Send,
 {
     fn clone(&self) -> Self {
         *self
@@ -206,7 +206,7 @@ where
 
 impl<T> core::hash::Hash for Vc<T>
 where
-    T: ?Sized,
+    T: ?Sized + Send,
 {
     fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         self.node.hash(state);
@@ -215,18 +215,18 @@ where
 
 impl<T> PartialEq<Vc<T>> for Vc<T>
 where
-    T: ?Sized,
+    T: ?Sized + Send,
 {
     fn eq(&self, other: &Self) -> bool {
         self.node == other.node
     }
 }
 
-impl<T> Eq for Vc<T> where T: ?Sized {}
+impl<T> Eq for Vc<T> where T: ?Sized + Send {}
 
 impl<T> PartialOrd<Vc<T>> for Vc<T>
 where
-    T: ?Sized,
+    T: ?Sized + Send,
 {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         self.node.partial_cmp(&other.node)
@@ -235,7 +235,7 @@ where
 
 impl<T> Ord for Vc<T>
 where
-    T: ?Sized,
+    T: ?Sized + Send,
 {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.node.cmp(&other.node)
@@ -244,7 +244,7 @@ where
 
 impl<T> Serialize for Vc<T>
 where
-    T: ?Sized,
+    T: ?Sized + Send,
 {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         self.node.serialize(serializer)
@@ -253,7 +253,7 @@ where
 
 impl<'de, T> Deserialize<'de> for Vc<T>
 where
-    T: ?Sized,
+    T: ?Sized + Send,
 {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         Ok(Vc {
@@ -265,7 +265,10 @@ where
 
 // TODO(alexkirsz) This should not be implemented for Vc. Instead, users should
 // use the `ValueDebug` implementation to get a `D: Debug`.
-impl<T> std::fmt::Debug for Vc<T> {
+impl<T> std::fmt::Debug for Vc<T>
+where
+    T: Send,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Vc").field("node", &self.node).finish()
     }
@@ -294,7 +297,7 @@ where
 
 impl<T> Vc<T>
 where
-    T: ?Sized,
+    T: ?Sized + Send,
 {
     /// Connects the operation pointed to by this `Vc` to the current task.
     pub fn connect(vc: Self) {
@@ -337,7 +340,7 @@ where
     pub fn upcast<K>(vc: Self) -> Vc<K>
     where
         T: Upcast<K>,
-        K: VcValueTrait + ?Sized,
+        K: VcValueTrait + ?Sized + Send,
     {
         Vc {
             node: vc.node,
@@ -348,7 +351,7 @@ where
 
 impl<T> Vc<T>
 where
-    T: ?Sized,
+    T: ?Sized + Send,
 {
     /// Resolve the reference until it points to a cell directly.
     ///
@@ -386,7 +389,7 @@ where
 
 impl<T> Vc<T>
 where
-    T: VcValueTrait + ?Sized,
+    T: VcValueTrait + ?Sized + Send,
 {
     /// Attempts to sidecast the given `Vc<Box<dyn T>>` to a `Vc<Box<dyn K>>`.
     /// This operation also resolves the `Vc`.
@@ -398,7 +401,7 @@ where
     /// removing the need for a `Result` return type.
     pub async fn try_resolve_sidecast<K>(vc: Self) -> Result<Option<Vc<K>>, ResolveTypeError>
     where
-        K: VcValueTrait + ?Sized,
+        K: VcValueTrait + ?Sized + Send,
     {
         let raw_vc: RawVc = vc.node;
         let raw_vc = raw_vc
@@ -418,7 +421,7 @@ where
     pub async fn try_resolve_downcast<K>(vc: Self) -> Result<Option<Vc<K>>, ResolveTypeError>
     where
         K: Upcast<T>,
-        K: VcValueTrait + ?Sized,
+        K: VcValueTrait + ?Sized + Send,
     {
         let raw_vc: RawVc = vc.node;
         let raw_vc = raw_vc
@@ -453,7 +456,7 @@ where
 
 impl<T> CollectiblesSource for Vc<T>
 where
-    T: ?Sized,
+    T: ?Sized + Send,
 {
     fn take_collectibles<Vt: VcValueTrait>(self) -> CollectiblesFuture<Vt> {
         self.node.take_collectibles()
@@ -466,7 +469,7 @@ where
 
 impl<T> From<RawVc> for Vc<T>
 where
-    T: ?Sized,
+    T: ?Sized + Send,
 {
     fn from(node: RawVc) -> Self {
         Self {
@@ -478,7 +481,7 @@ where
 
 impl<T> TraceRawVcs for Vc<T>
 where
-    T: ?Sized,
+    T: ?Sized + Send,
 {
     fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
         TraceRawVcs::trace_raw_vcs(&self.node, trace_context);
@@ -487,7 +490,7 @@ where
 
 impl<T> ValueDebugFormat for Vc<T>
 where
-    T: ?Sized,
+    T: ?Sized + Send,
     T: Upcast<Box<dyn ValueDebug>>,
 {
     fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString {
@@ -534,11 +537,11 @@ where
     }
 }
 
-impl<T> Unpin for Vc<T> where T: ?Sized {}
+impl<T> Unpin for Vc<T> where T: ?Sized + Send {}
 
 impl<T> Default for Vc<T>
 where
-    T: ValueDefault,
+    T: ValueDefault + Send,
 {
     fn default() -> Self {
         T::value_default()

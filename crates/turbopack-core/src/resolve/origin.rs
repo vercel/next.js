@@ -30,7 +30,7 @@ pub trait ResolveOrigin {
 // TODO it would be nice if these methods can be moved to the trait to allow
 // overriding it, but currently we explicitly disallow it due to the way
 // transitions work. Maybe transitions should be decorators on ResolveOrigin?
-pub trait ResolveOriginExt {
+pub trait ResolveOriginExt: Send {
     /// Resolve to an asset from that origin. Custom resolve options can be
     /// passed. Otherwise provide `origin.resolve_options()` unmodified.
     fn resolve_asset(

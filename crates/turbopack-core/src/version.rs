@@ -105,7 +105,7 @@ impl From<AssetContent> for Vc<Box<dyn VersionedContent>> {
     }
 }
 
-pub trait VersionedContentExt {
+pub trait VersionedContentExt: Send {
     fn versioned(self: Vc<Self>) -> Vc<Box<dyn VersionedContent>>;
 }
 

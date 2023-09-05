@@ -17,7 +17,7 @@ use crate::{
 #[turbo_tasks::value_trait]
 pub trait EvaluatableAsset: Asset + Module + ChunkableModule {}
 
-pub trait EvaluatableAssetExt {
+pub trait EvaluatableAssetExt: Send {
     fn to_evaluatable(
         self: Vc<Self>,
         asset_context: Vc<Box<dyn AssetContext>>,

@@ -22,7 +22,10 @@ async fn vec_is_empty(vec: Vc<Vec<Vc<()>>>) -> Result<Vc<bool>> {
     Ok(Vc::cell(vec.is_empty()))
 }
 
-impl<T> Vc<Vec<Vc<T>>> {
+impl<T> Vc<Vec<Vc<T>>>
+where
+    T: Send,
+{
     /// See [`Vec::len`].
     pub fn len(self) -> Vc<usize> {
         vec_len(Self::to_repr(self))
@@ -39,7 +42,10 @@ fn vec_default() -> Vc<Vec<Vc<()>>> {
     Vc::cell(Default::default())
 }
 
-impl<T> ValueDefault for Vec<Vc<T>> {
+impl<T> ValueDefault for Vec<Vc<T>>
+where
+    T: Send,
+{
     fn value_default() -> Vc<Self> {
         // Safety: `vec_default` creates an empty vector, which is a valid
         // representation of any vector of `Vc`s.
@@ -55,7 +61,10 @@ async fn vec_dbg_depth(vec: Vc<Vec<Vc<()>>>, depth: usize) -> Result<Vc<ValueDeb
         .await
 }
 
-impl<T> ValueDebug for Vec<Vc<T>> {
+impl<T> ValueDebug for Vec<Vc<T>>
+where
+    T: Send,
+{
     fn dbg(self: Vc<Self>) -> Vc<ValueDebugString> {
         vec_dbg_depth(Vc::<Self>::to_repr(self), usize::MAX)
     }

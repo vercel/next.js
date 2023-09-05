@@ -22,7 +22,10 @@ async fn option_is_some(option: Vc<Option<Vc<()>>>) -> Result<Vc<bool>> {
     Ok(Vc::cell(option.is_some()))
 }
 
-impl<T> Vc<Option<Vc<T>>> {
+impl<T> Vc<Option<Vc<T>>>
+where
+    T: Send,
+{
     /// See [`Option::is_none`].
     pub fn is_none(self) -> Vc<bool> {
         option_is_none(Self::to_repr(self))
@@ -39,7 +42,10 @@ fn option_default() -> Vc<Option<Vc<()>>> {
     Vc::cell(Default::default())
 }
 
-impl<T> ValueDefault for Option<Vc<T>> {
+impl<T> ValueDefault for Option<Vc<T>>
+where
+    T: Send,
+{
     fn value_default() -> Vc<Self> {
         // Safety: `option_default` creates a None variant, which is a valid
         // representation of any option of `Vc`.
@@ -59,7 +65,10 @@ async fn option_dbg_depth(
         .await
 }
 
-impl<T> ValueDebug for Option<Vc<T>> {
+impl<T> ValueDebug for Option<Vc<T>>
+where
+    T: Send,
+{
     fn dbg(self: Vc<Self>) -> Vc<ValueDebugString> {
         option_dbg_depth(Vc::<Self>::to_repr(self), usize::MAX)
     }

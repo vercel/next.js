@@ -436,7 +436,7 @@ impl<T: VcValueTrait> CollectiblesFuture<T> {
     }
 }
 
-impl<T: VcValueTrait> Future for CollectiblesFuture<T> {
+impl<T: VcValueTrait + Send> Future for CollectiblesFuture<T> {
     type Output = Result<AutoSet<Vc<T>>>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {

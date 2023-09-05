@@ -129,7 +129,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 #[doc(hidden)]
                 #[allow(non_camel_case_types)]
                 // #[turbo_tasks::async_trait]
-                trait #inline_extension_trait_ident {
+                trait #inline_extension_trait_ident: std::marker::Send {
                     #[allow(declare_interior_mutable_const)]
                     const #native_function_ident: #native_function_ty;
                     #[allow(declare_interior_mutable_const)]
@@ -197,7 +197,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
     let expanded = quote! {
         #[must_use]
         #(#attrs)*
-        #vis #trait_token #trait_ident: #(#supertraits)+*
+        #vis #trait_token #trait_ident: std::marker::Send + #(#supertraits)+*
         {
             #(#items)*
         }
