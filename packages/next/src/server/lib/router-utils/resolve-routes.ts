@@ -488,7 +488,7 @@ export function getResolveRoutes(
 
                 if (middlewareRes.body) {
                   bodyStream = middlewareRes.body
-                } else if (middlewareRes.status !== 200) {
+                } else if (middlewareRes.status) {
                   bodyStream = new ReadableStream({
                     start(controller) {
                       controller.enqueue('')

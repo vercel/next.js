@@ -6,7 +6,6 @@ import '../node-polyfill-fetch'
 
 import url from 'url'
 import path from 'path'
-import http from 'http'
 import { findPageFile } from './find-page-file'
 import { getRequestMeta } from '../request-meta'
 import setupDebug from 'next/dist/compiled/debug'
@@ -16,13 +15,11 @@ import { setupFsCheck } from './router-utils/filesystem'
 import { proxyRequest } from './router-utils/proxy-request'
 import { getResolveRoutes } from './router-utils/resolve-routes'
 import { PERMANENT_REDIRECT_STATUS } from '../../shared/lib/constants'
-import { splitCookiesString, toNodeOutgoingHttpHeaders } from '../web/utils'
 import { formatHostname } from './format-hostname'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import type { RenderWorker } from './router-server'
 import { pipeReadable } from '../pipe-readable'
-import { Stream } from 'stream'
 
 type RouteResult =
   | {
