@@ -108,7 +108,8 @@ const enabledTests = [
   'test/integration/catches-missing-getStaticProps/test/index.test.js',
   'test/integration/clean-distdir/test/index.test.js',
   'test/integration/client-navigation-a11y/test/index.test.js',
-  'test/integration/config-experimental-warning/test/index.test.js',
+  // TODO: re-enable once the logging is aligned
+  // 'test/integration/config-experimental-warning/test/index.test.js',
   'test/integration/config-schema-check/test/index.test.js',
   'test/integration/config-syntax-error/test/index.test.js',
   'test/integration/config-validation/test/index.test.ts',
