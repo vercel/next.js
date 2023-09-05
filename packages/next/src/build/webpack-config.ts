@@ -1715,6 +1715,8 @@ export default async function getBaseWebpackConfig(
               This is safe because the vendor code doesn't change between reloads.
             */
             const extractRootNodeModule = (modulePath: string) => {
+              // This regex is used to extract the root node module name to be used as the chunk group name.
+              // example: ../../node_modules/.pnpm/next@10/foo/node_modules/bar -> next@10
               const regex =
                 /node_modules(?:\/|\\)\.?(?:pnpm(?:\/|\\))?([^/\\]+)/
               const match = modulePath.match(regex)
