@@ -136,20 +136,23 @@ export class WebpackHotMiddleware {
 
   onClientInvalid = () => {
     if (this.closed || this.serverLatestStats?.stats.hasErrors()) return
-    this.eventStream.publish({ action: 'building' })
+    const buildingEvent: HMR_ACTION_TYPES = {
+      action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING,
+    }
+    this.eventStream.publish(buildingEvent)
   }
 
   onClientDone = (statsResult: webpack.Stats) => {
     this.clientLatestStats = { ts: Date.now(), stats: statsResult }
     if (this.closed || this.serverLatestStats?.stats.hasErrors()) return
-    this.publishStats('built', statsResult)
+    this.publishStats(statsResult)
   }
 
   onServerInvalid = () => {
     if (!this.serverLatestStats?.stats.hasErrors()) return
     this.serverLatestStats = null
     if (this.clientLatestStats?.stats) {
-      this.publishStats('built', this.clientLatestStats.stats)
+      this.publishStats(this.clientLatestStats.stats)
     }
   }
 
@@ -157,7 +160,7 @@ export class WebpackHotMiddleware {
     if (this.closed) return
     if (statsResult.hasErrors()) {
       this.serverLatestStats = { ts: Date.now(), stats: statsResult }
-      this.publishStats('built', statsResult)
+      this.publishStats(statsResult)
     }
   }
 
@@ -165,7 +168,7 @@ export class WebpackHotMiddleware {
     if (!this.middlewareLatestStats?.stats.hasErrors()) return
     this.middlewareLatestStats = null
     if (this.clientLatestStats?.stats) {
-      this.publishStats('built', this.clientLatestStats.stats)
+      this.publishStats(this.clientLatestStats.stats)
     }
   }
 
@@ -177,7 +180,7 @@ export class WebpackHotMiddleware {
 
     if (statsResult.hasErrors()) {
       this.middlewareLatestStats = { ts: Date.now(), stats: statsResult }
-      this.publishStats('built', statsResult)
+      this.publishStats(statsResult)
     }
   }
 
@@ -214,7 +217,7 @@ export class WebpackHotMiddleware {
     }
   }
 
-  publishStats = (action: string, statsResult: webpack.Stats) => {
+  publishStats = (statsResult: webpack.Stats) => {
     const stats = statsResult.toJson({
       all: false,
       hash: true,
@@ -223,12 +226,14 @@ export class WebpackHotMiddleware {
       moduleTrace: true,
     })
 
-    this.eventStream.publish({
-      action: action,
-      hash: stats.hash,
+    const builtAction: HMR_ACTION_TYPES = {
+      action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT,
+      hash: stats.hash!,
       warnings: stats.warnings || [],
       errors: stats.errors || [],
-    })
+    }
+
+    this.eventStream.publish(builtAction)
   }
 
   publish = (payload: unknown) => {
