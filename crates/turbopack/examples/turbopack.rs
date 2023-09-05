@@ -9,9 +9,7 @@ use std::{
 
 use anyhow::Result;
 use tokio::{spawn, time::sleep};
-use turbo_tasks::{
-    unit, util::FormatDuration, TurboTasks, TurboTasksBackendApi, UpdateInfo, Value, Vc,
-};
+use turbo_tasks::{util::FormatDuration, TurboTasks, TurboTasksBackendApi, UpdateInfo, Value, Vc};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 use turbo_tasks_memory::{
     stats::{ReferenceType, Stats},
@@ -72,7 +70,7 @@ async fn main() -> Result<()> {
             let rebased = RebasedAsset::new(module, input, output);
             emit_with_completion(Vc::upcast(rebased), output).await?;
 
-            Ok(unit())
+            Ok::<Vc<()>, _>(Default::default())
         })
     });
     spawn({

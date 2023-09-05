@@ -2,7 +2,7 @@ use std::{collections::HashMap, fs, path::PathBuf};
 
 use criterion::{Bencher, BenchmarkId, Criterion};
 use regex::Regex;
-use turbo_tasks::{unit, TurboTasks, Value, Vc};
+use turbo_tasks::{TurboTasks, Value, Vc};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, NullFileSystem};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
@@ -103,7 +103,7 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
 
                 emit_with_completion(Vc::upcast(rebased), output_dir).await?;
 
-                Ok(unit())
+                Ok::<Vc<()>, _>(Default::default())
             });
             tt.wait_task_completion(task, true).await.unwrap();
         }
