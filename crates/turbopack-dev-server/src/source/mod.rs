@@ -9,7 +9,6 @@ pub mod request;
 pub(crate) mod resolve;
 pub mod route_tree;
 pub mod router;
-pub mod source_maps;
 pub mod static_assets;
 pub mod wrapping_source;
 

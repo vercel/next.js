@@ -31,8 +31,7 @@ use turbopack_dev_server::{
     introspect::IntrospectionSource,
     source::{
         combined::CombinedContentSource, router::PrefixedRouterContentSource,
-        source_maps::SourceMapContentSource, static_assets::StaticAssetsContentSource,
-        ContentSource,
+        static_assets::StaticAssetsContentSource, ContentSource,
     },
     DevServer, DevServerBuilder,
 };
@@ -299,13 +298,11 @@ async fn source(
         .cell(),
     );
     let main_source = Vc::upcast(main_source);
-    let source_maps = Vc::upcast(SourceMapContentSource::new(main_source));
     let source = Vc::upcast(PrefixedRouterContentSource::new(
         Default::default(),
         vec![
             ("__turbopack__".to_string(), introspect),
             ("__turbo_tasks__".to_string(), viz),
-            ("__turbopack_sourcemap__".to_string(), source_maps),
         ],
         main_source,
     ));
