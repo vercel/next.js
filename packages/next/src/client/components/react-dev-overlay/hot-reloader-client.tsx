@@ -35,7 +35,10 @@ import {
 } from './internal/helpers/use-websocket'
 import { parseComponentStack } from './internal/helpers/parse-component-stack'
 import type { VersionInfo } from '../../../server/dev/parse-version-info'
-import { HMR_ACTION_TYPES } from '../../../server/dev/hot-reloader-types'
+import {
+  HMR_ACTIONS_SENT_TO_BROWSER,
+  HMR_ACTION_TYPES,
+} from '../../../server/dev/hot-reloader-types'
 
 interface Dispatcher {
   onBuildOk(): void
@@ -241,12 +244,12 @@ function processMessage(
   }
 
   switch (obj.action) {
-    case 'building': {
+    case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING: {
       console.log('[Fast Refresh] rebuilding')
       break
     }
-    case 'built':
-    case 'sync': {
+    case HMR_ACTIONS_SENT_TO_BROWSER.BUILT:
+    case HMR_ACTIONS_SENT_TO_BROWSER.SYNC: {
       if (obj.hash) {
         handleAvailableHash(obj.hash)
       }
@@ -283,7 +286,7 @@ function processMessage(
         )
 
         // Compilation with warnings (e.g. ESLint).
-        const isHotUpdate = obj.action !== 'sync'
+        const isHotUpdate = obj.action !== HMR_ACTIONS_SENT_TO_BROWSER.SYNC
 
         // Print warnings to the console.
         const formattedMessages = formatWebpackMessages({
@@ -328,7 +331,7 @@ function processMessage(
       )
 
       const isHotUpdate =
-        obj.action !== 'sync' &&
+        obj.action !== HMR_ACTIONS_SENT_TO_BROWSER.SYNC &&
         (!window.__NEXT_DATA__ || window.__NEXT_DATA__.page !== '/_error') &&
         isUpdateAvailable()
 
@@ -350,7 +353,7 @@ function processMessage(
       return
     }
     // TODO-APP: make server component change more granular
-    case 'serverComponentChanges': {
+    case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES: {
       sendMessage(
         JSON.stringify({
           event: 'server-component-reload-page',
@@ -375,7 +378,7 @@ function processMessage(
 
       return
     }
-    case 'reloadPage': {
+    case HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE: {
       sendMessage(
         JSON.stringify({
           event: 'client-reload-page',
@@ -384,19 +387,19 @@ function processMessage(
       )
       return window.location.reload()
     }
-    case 'removedPage': {
+    case HMR_ACTIONS_SENT_TO_BROWSER.REMOVED_PAGE: {
       // TODO-APP: potentially only refresh if the currently viewed page was removed.
       // @ts-ignore it exists, it's just hidden
       router.fastRefresh()
       return
     }
-    case 'addedPage': {
+    case HMR_ACTIONS_SENT_TO_BROWSER.ADDED_PAGE: {
       // TODO-APP: potentially only refresh if the currently viewed page was added.
       // @ts-ignore it exists, it's just hidden
       router.fastRefresh()
       return
     }
-    case 'serverError': {
+    case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR: {
       const { errorJSON } = obj
       if (errorJSON) {
         const { message, stack } = JSON.parse(errorJSON)
@@ -406,11 +409,11 @@ function processMessage(
       }
       return
     }
-    case 'devPagesManifestUpdate': {
+    case HMR_ACTIONS_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE: {
       return
     }
     default: {
-      throw new Error('Unexpected action ' + obj.action)
+      throw new Error('Unexpected action ' + JSON.stringify(obj))
     }
   }
 }

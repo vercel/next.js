@@ -9,6 +9,7 @@ import {
   assign,
   urlQueryToSearchParams,
 } from '../shared/lib/router/utils/querystring'
+import { HMR_ACTIONS_SENT_TO_BROWSER } from '../server/dev/hot-reloader-types'
 
 export function pageBootrap(assetPrefix: string) {
   connectHMR({ assetPrefix, path: '/_next/webpack-hmr' })
@@ -26,14 +27,17 @@ export function pageBootrap(assetPrefix: string) {
 
     addMessageListener((payload) => {
       if ('action' in payload) {
-        if (payload.action === 'serverError') {
+        if (payload.action === HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR) {
           const { stack, message } = JSON.parse(payload.errorJSON)
           const error = new Error(message)
           error.stack = stack
           throw error
-        } else if (payload.action === 'reloadPage') {
+        } else if (payload.action === HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE) {
           window.location.reload()
-        } else if (payload.action === 'devPagesManifestUpdate') {
+        } else if (
+          payload.action ===
+          HMR_ACTIONS_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE
+        ) {
           fetch(
             `${assetPrefix}/_next/static/development/_devPagesManifest.json`
           )
@@ -46,9 +50,11 @@ export function pageBootrap(assetPrefix: string) {
             })
         }
       } else if ('event' in payload) {
-        if (payload.event === 'middlewareChanges') {
+        if (payload.event === HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES) {
           return window.location.reload()
-        } else if (payload.event === 'serverOnlyChanges') {
+        } else if (
+          payload.event === HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES
+        ) {
           const { pages } = payload
 
           // Make sure to reload when the dev-overlay is showing for an

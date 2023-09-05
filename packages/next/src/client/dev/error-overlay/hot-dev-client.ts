@@ -38,7 +38,10 @@ import {
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { addMessageListener, sendMessage } from './websocket'
 import formatWebpackMessages from './format-webpack-messages'
-import { HMR_ACTION_TYPES } from '../../../server/dev/hot-reloader-types'
+import {
+  HMR_ACTIONS_SENT_TO_BROWSER,
+  HMR_ACTION_TYPES,
+} from '../../../server/dev/hot-reloader-types'
 
 // This alternative WebpackDevServer combines the functionality of:
 // https://github.com/webpack/webpack-dev-server/blob/webpack-1/client/index.js
@@ -239,13 +242,13 @@ function processMessage(obj: HMR_ACTION_TYPES) {
   }
 
   switch (obj.action) {
-    case 'building': {
+    case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING: {
       startLatency = Date.now()
       console.log('[Fast Refresh] rebuilding')
       break
     }
-    case 'built':
-    case 'sync': {
+    case HMR_ACTIONS_SENT_TO_BROWSER.BUILT:
+    case HMR_ACTIONS_SENT_TO_BROWSER.SYNC: {
       if (obj.hash) {
         handleAvailableHash(obj.hash)
       }
@@ -283,11 +286,11 @@ function processMessage(obj: HMR_ACTION_TYPES) {
       )
       return handleSuccess()
     }
-    case 'serverComponentChanges': {
+    case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES: {
       window.location.reload()
       return
     }
-    case 'serverError': {
+    case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR: {
       const { errorJSON } = obj
       if (errorJSON) {
         const { message, stack } = JSON.parse(errorJSON)
