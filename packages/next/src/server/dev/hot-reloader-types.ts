@@ -8,19 +8,19 @@ import type { Update as TurbopackUpdate } from '../../build/swc'
 import type { VersionInfo } from './parse-version-info'
 
 export const enum HMR_ACTIONS_SENT_TO_BROWSER {
-  ADDED_PAGE = 'a',
-  REMOVED_PAGE = 'b',
-  RELOAD_PAGE = 'c',
-  SERVER_COMPONENT_CHANGES = 'd',
-  MIDDLEWARE_CHANGES = 'e',
-  SERVER_ONLY_CHANGES = 'f',
-  SYNC = 'g',
-  BUILT = 'h',
-  BUILDING = 'i',
-  DEV_PAGES_MANIFEST_UPDATE = 'j',
-  TURBOPACK_MESSAGE = 'turbopack-k',
-  SERVER_ERROR = 'l',
-  TURBOPACK_CONNECTED = 'turbopack-m',
+  ADDED_PAGE = 'addedPage',
+  REMOVED_PAGE = 'removedPage',
+  RELOAD_PAGE = 'reloadPage',
+  SERVER_COMPONENT_CHANGES = 'serverComponentChanges',
+  MIDDLEWARE_CHANGES = 'middlewareChanges',
+  SERVER_ONLY_CHANGES = 'serverOnlyChanges',
+  SYNC = 'sync',
+  BUILT = 'built',
+  BUILDING = 'building',
+  DEV_PAGES_MANIFEST_UPDATE = 'devPagesManifestUpdate',
+  TURBOPACK_MESSAGE = 'turbopack-message',
+  SERVER_ERROR = 'serverError',
+  TURBOPACK_CONNECTED = 'turbopack-connected',
 }
 
 interface ServerErrorAction {
