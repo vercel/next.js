@@ -2,17 +2,11 @@ use std::{collections::HashMap, ops::Deref};
 
 use anyhow::Result;
 use once_cell::sync::Lazy;
-use turbo_tasks::{TryJoinIterExt, ValueToString, Vc};
-use turbo_tasks_fs::FileSystemPath;
-use turbopack_binding::turbopack::{
-    core::issue::{Issue, IssueSeverity},
-    ecmascript::utils::FormatIter,
-};
 
 use crate::next_app::{AppPage, PageSegment};
 
-pub mod route;
 pub mod image;
+pub mod route;
 
 pub static STATIC_LOCAL_METADATA: Lazy<HashMap<&'static str, &'static [&'static str]>> =
     Lazy::new(|| {
@@ -258,12 +252,6 @@ fn get_metadata_route_suffix(page: &str) -> Option<String> {
     }
 }
 
-// page: `/(dashboard)/user/[id]/page`
-// pathname: `/user/[id]`
-//
-// page: `/account/route`
-// pathname: `/account`
-
 /// Map metadata page key to the corresponding route
 ///
 /// static file page key:    /app/robots.txt -> /robots.txt -> /robots.txt/route
@@ -359,101 +347,5 @@ mod test {
                 PageSegment::OptionalCatchAll("__metadata_id__".to_string()),
             ])
         );
-    }
-}
-
-// pub fn normalize_metadata_route(page: &str) -> String {
-//     if !is_metadata_route(page) {
-//         return page.to_string();
-//     }
-//
-//     let mut route = page.to_string();
-//     let mut suffix: Option<String> = None;
-//     if route == "/robots" {
-//         route += ".txt"
-//     } else if route == "/manifest" {
-//         route += ".webmanifest"
-//     } else if route.ends_with("/sitemap") {
-//         route += ".xml"
-//     } else {
-//         // Remove the file extension, e.g. /route-path/robots.txt ->
-// /route-path         let pathname_prefix =
-// split_directory(page).0.unwrap_or_default();         suffix =
-// get_metadata_route_suffix(pathname_prefix);     }
-//
-//     // Support both /<metadata-route.ext> and custom routes
-//     // /<metadata-route>/route.ts. If it's a metadata file route, we need to
-//     // append /[id]/route to the page.
-//     if !route.ends_with("/route") {
-//         let is_static_metadata_file = is_static_metadata_route_file(page);
-//         let (dir, filename) = split_directory(&route);
-//         let (base_name, ext) = split_extensions(filename);
-//
-//         let is_static_route =
-//             page.starts_with("/robots") || page.starts_with("/manifest") ||
-// is_static_metadata_file;
-//
-//         // the next version has a `/route` suffix added here, do we need it?
-//         route = format!(
-//             "{}/{}{}{}{}",
-//             dir.unwrap_or_default(),
-//             base_name,
-//             suffix
-//                 .map(|suffix| format!("-{suffix}"))
-//                 .unwrap_or_default(),
-//             ext.map(|ext| format!(".{ext}")).unwrap_or_default(),
-//             (!is_static_route)
-//                 .then_some("/[[...__metadata_id__]]")
-//                 .unwrap_or_default(),
-//         );
-//     }
-//
-//     route
-// }
-
-#[turbo_tasks::value(shared)]
-pub struct UnsupportedDynamicMetadataIssue {
-    pub app_dir: Vc<FileSystemPath>,
-    pub files: Vec<Vc<FileSystemPath>>,
-}
-
-#[turbo_tasks::value_impl]
-impl Issue for UnsupportedDynamicMetadataIssue {
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        IssueSeverity::Warning.into()
-    }
-
-    #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("unsupported".to_string())
-    }
-
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.app_dir
-    }
-
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<String> {
-        Vc::cell(
-            "Dynamic metadata from filesystem is currently not supported in Turbopack".to_string(),
-        )
-    }
-
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<String>> {
-        let mut files = self
-            .files
-            .iter()
-            .map(|file| file.to_string())
-            .try_join()
-            .await?;
-        files.sort();
-        Ok(Vc::cell(format!(
-            "The following files were found in the app directory, but are not supported by \
-             Turbopack. They are ignored:\n{}",
-            FormatIter(|| files.iter().flat_map(|file| vec!["\n- ", file]))
-        )))
     }
 }

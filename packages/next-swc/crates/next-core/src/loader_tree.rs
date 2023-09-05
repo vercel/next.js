@@ -33,7 +33,6 @@ pub struct LoaderTreeBuilder {
     imports: Vec<String>,
     loader_tree_code: String,
     context: Vc<ModuleAssetContext>,
-    unsupported_metadata: Vec<Vc<FileSystemPath>>,
     mode: NextMode,
     server_component_transition: ServerComponentTransition,
     pages: Vec<Vc<FileSystemPath>>,
@@ -82,7 +81,6 @@ impl LoaderTreeBuilder {
             imports: Vec::new(),
             loader_tree_code: String::new(),
             context,
-            unsupported_metadata: Vec::new(),
             server_component_transition,
             mode,
             pages: Vec::new(),
@@ -413,7 +411,6 @@ impl LoaderTreeBuilder {
             imports: self.imports,
             loader_tree_code: self.loader_tree_code,
             inner_assets: self.inner_assets,
-            unsupported_metadata: self.unsupported_metadata,
             pages: self.pages,
         })
     }
@@ -423,7 +420,6 @@ pub struct LoaderTreeModule {
     pub imports: Vec<String>,
     pub loader_tree_code: String,
     pub inner_assets: IndexMap<String, Vc<Box<dyn Module>>>,
-    pub unsupported_metadata: Vec<Vc<FileSystemPath>>,
     pub pages: Vec<Vc<FileSystemPath>>,
 }
 

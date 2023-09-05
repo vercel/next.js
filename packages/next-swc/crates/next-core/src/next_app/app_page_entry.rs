@@ -6,8 +6,8 @@ use turbopack_binding::{
     turbo::tasks_fs::{rope::RopeBuilder, File, FileSystemPath},
     turbopack::{
         core::{
-            asset::AssetContent, context::AssetContext, issue::IssueExt,
-            reference_type::ReferenceType, virtual_source::VirtualSource,
+            asset::AssetContent, context::AssetContext, reference_type::ReferenceType,
+            virtual_source::VirtualSource,
         },
         ecmascript::{chunk::EcmascriptChunkPlaceable, utils::StringifyJs},
         turbopack::ModuleAssetContext,
@@ -19,7 +19,7 @@ use crate::{
     app_structure::LoaderTree,
     loader_tree::{LoaderTreeModule, ServerComponentTransition},
     mode::NextMode,
-    next_app::{AppPage, AppPath, UnsupportedDynamicMetadataIssue},
+    next_app::{AppPage, AppPath},
     next_server_component::NextServerComponentTransition,
     parse_segment_config_from_loader_tree,
     util::{load_next_js_template, virtual_next_js_template_path, NextRuntime},
@@ -31,7 +31,6 @@ pub async fn get_app_page_entry(
     nodejs_context: Vc<ModuleAssetContext>,
     edge_context: Vc<ModuleAssetContext>,
     loader_tree: Vc<LoaderTree>,
-    app_dir: Vc<FileSystemPath>,
     page: AppPage,
     project_root: Vc<FileSystemPath>,
 ) -> Result<Vc<AppEntry>> {
@@ -57,18 +56,8 @@ pub async fn get_app_page_entry(
         inner_assets,
         imports,
         loader_tree_code,
-        unsupported_metadata,
         pages,
     } = loader_tree;
-
-    if !unsupported_metadata.is_empty() {
-        UnsupportedDynamicMetadataIssue {
-            app_dir,
-            files: unsupported_metadata,
-        }
-        .cell()
-        .emit();
-    }
 
     let mut result = RopeBuilder::default();
 

@@ -20,7 +20,6 @@ use turbopack_binding::{
             context::AssetContext,
             environment::ServerAddr,
             file_source::FileSource,
-            issue::IssueExt,
             reference_type::{
                 EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType,
             },
@@ -61,10 +60,7 @@ use crate::{
     fallback::get_fallback_page,
     loader_tree::{LoaderTreeModule, ServerComponentTransition},
     mode::NextMode,
-    next_app::{
-        metadata::{route::get_app_metadata_route_source, UnsupportedDynamicMetadataIssue},
-        AppPage, AppPath, PathSegment,
-    },
+    next_app::{metadata::route::get_app_metadata_route_source, AppPage, AppPath, PathSegment},
     next_client::{
         context::{
             get_client_assets_path, get_client_module_options_context,
@@ -599,6 +595,8 @@ pub async fn create_app_source(
     };
     let entrypoints = get_entrypoints(app_dir, next_config.page_extensions());
 
+    let mode = NextMode::DevServer;
+
     let context_ssr = app_context(
         project_path,
         execution_context,
@@ -608,7 +606,7 @@ pub async fn create_app_source(
         client_chunking_context,
         client_compile_time_info,
         true,
-        NextMode::DevServer,
+        mode,
         next_config,
         server_addr,
         output_path,
@@ -622,7 +620,7 @@ pub async fn create_app_source(
         client_chunking_context,
         client_compile_time_info,
         false,
-        NextMode::DevServer,
+        mode,
         next_config,
         server_addr,
         output_path,
@@ -669,6 +667,7 @@ pub async fn create_app_source(
             ),
             Entrypoint::AppRoute { ref page, path } => create_app_route_source_for_route(
                 page.clone(),
+                mode,
                 path,
                 context_ssr,
                 project_path,
@@ -681,6 +680,7 @@ pub async fn create_app_source(
             ),
             Entrypoint::AppMetadata { ref page, metadata } => create_app_route_source_for_metadata(
                 page.clone(),
+                mode,
                 context_ssr,
                 project_path,
                 app_dir,
@@ -755,7 +755,6 @@ async fn create_app_page_source_for_route(
         Vc::upcast(
             AppRenderer {
                 runtime_entries,
-                app_dir,
                 context_ssr,
                 context,
                 server_root,
@@ -800,7 +799,6 @@ async fn create_app_not_found_page_source(
         Vc::upcast(
             AppRenderer {
                 runtime_entries,
-                app_dir,
                 context_ssr,
                 context,
                 server_root,
@@ -821,6 +819,7 @@ async fn create_app_not_found_page_source(
 #[turbo_tasks::function]
 async fn create_app_route_source_for_route(
     page: AppPage,
+    mode: NextMode,
     entry_path: Vc<FileSystemPath>,
     context_ssr: Vc<ModuleAssetContext>,
     project_path: Vc<FileSystemPath>,
@@ -852,6 +851,7 @@ async fn create_app_route_source_for_route(
                 runtime_entries,
                 server_root,
                 entry: AppRouteEntry::Path(entry_path),
+                mode,
                 project_path,
                 intermediate_output_path: intermediate_output_path_root,
                 output_root: intermediate_output_path_root,
@@ -869,6 +869,7 @@ async fn create_app_route_source_for_route(
 #[turbo_tasks::function]
 async fn create_app_route_source_for_metadata(
     page: AppPage,
+    mode: NextMode,
     context_ssr: Vc<ModuleAssetContext>,
     project_path: Vc<FileSystemPath>,
     app_dir: Vc<FileSystemPath>,
@@ -900,6 +901,7 @@ async fn create_app_route_source_for_metadata(
                 runtime_entries,
                 server_root,
                 entry: AppRouteEntry::Metadata { metadata, page },
+                mode,
                 project_path,
                 intermediate_output_path: intermediate_output_path_root,
                 output_root: intermediate_output_path_root,
@@ -918,7 +920,6 @@ async fn create_app_route_source_for_metadata(
 #[turbo_tasks::value]
 struct AppRenderer {
     runtime_entries: Vc<Sources>,
-    app_dir: Vc<FileSystemPath>,
     context_ssr: Vc<ModuleAssetContext>,
     context: Vc<ModuleAssetContext>,
     project_path: Vc<FileSystemPath>,
@@ -933,7 +934,6 @@ impl AppRenderer {
     async fn entry(self: Vc<Self>, with_ssr: bool) -> Result<Vc<NodeRenderingEntry>> {
         let AppRenderer {
             runtime_entries,
-            app_dir,
             context_ssr,
             context,
             project_path,
@@ -963,15 +963,6 @@ impl AppRenderer {
             NextMode::DevServer,
         )
         .await?;
-
-        if !loader_tree_module.unsupported_metadata.is_empty() {
-            UnsupportedDynamicMetadataIssue {
-                app_dir,
-                files: loader_tree_module.unsupported_metadata,
-            }
-            .cell()
-            .emit();
-        }
 
         let mut result = RopeBuilder::from(
             formatdoc!(
@@ -1102,6 +1093,7 @@ struct AppRoute {
     runtime_entries: Vc<Sources>,
     context: Vc<ModuleAssetContext>,
     entry: AppRouteEntry,
+    mode: NextMode,
     intermediate_output_path: Vc<FileSystemPath>,
     project_path: Vc<FileSystemPath>,
     server_root: Vc<FileSystemPath>,
@@ -1131,7 +1123,7 @@ impl AppRoute {
         let entry_file_source = match this.entry {
             AppRouteEntry::Path(path) => Vc::upcast(FileSource::new(path)),
             AppRouteEntry::Metadata { metadata, ref page } => {
-                get_app_metadata_route_source(metadata, page.clone())
+                get_app_metadata_route_source(page.clone(), this.mode, metadata)
             }
         };
 

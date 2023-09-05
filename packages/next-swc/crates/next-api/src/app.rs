@@ -115,6 +115,11 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
+    fn mode(&self) -> Vc<NextMode> {
+        self.mode.cell()
+    }
+
+    #[turbo_tasks::function]
     fn app_entrypoints(&self) -> Vc<AppEntrypoints> {
         get_entrypoints(self.app_dir, self.project.next_config().page_extensions())
     }
@@ -445,7 +450,6 @@ impl AppEndpoint {
             self.app_project.rsc_module_context(),
             self.app_project.edge_rsc_module_context(),
             loader_tree,
-            self.app_project.app_dir(),
             self.page.clone(),
             self.app_project.project().project_path(),
         )
@@ -463,14 +467,15 @@ impl AppEndpoint {
     }
 
     #[turbo_tasks::function]
-    fn app_metadata_entry(&self, metadata: MetadataItem) -> Vc<AppEntry> {
-        get_app_metadata_route_entry(
+    async fn app_metadata_entry(&self, metadata: MetadataItem) -> Result<Vc<AppEntry>> {
+        Ok(get_app_metadata_route_entry(
             self.app_project.rsc_module_context(),
             self.app_project.edge_rsc_module_context(),
             self.app_project.project().project_path(),
             self.page.clone(),
+            *self.app_project.mode().await?,
             metadata,
-        )
+        ))
     }
 
     #[turbo_tasks::function]

@@ -2,8 +2,6 @@
 //!
 //! See `next/src/build/webpack/loaders/next-metadata-route-loader`
 
-use std::hint::black_box;
-
 use anyhow::{bail, Result};
 use base64::{display::Base64Display, engine::general_purpose::STANDARD};
 use indoc::{formatdoc, indoc};
@@ -19,6 +17,7 @@ use turbopack_binding::{
 
 use crate::{
     app_structure::MetadataItem,
+    mode::NextMode,
     next_app::{
         app_entry::AppEntry,
         app_route_entry::get_app_route_entry,
@@ -30,11 +29,12 @@ use crate::{
 /// Computes the route source for a Next.js metadata file.
 #[turbo_tasks::function]
 pub async fn get_app_metadata_route_source(
-    metadata: MetadataItem,
     page: AppPage,
+    mode: NextMode,
+    metadata: MetadataItem,
 ) -> Result<Vc<Box<dyn Source>>> {
     Ok(match metadata {
-        MetadataItem::Static { path } => static_route_source(path),
+        MetadataItem::Static { path } => static_route_source(mode, path),
         MetadataItem::Dynamic { path } => {
             let raw_path = &*path.await?;
             let stem = file_stem(&raw_path.path);
@@ -42,7 +42,7 @@ pub async fn get_app_metadata_route_source(
             if stem == "robots" || stem == "manifest" {
                 dynamic_text_route_source(path)
             } else if stem == "sitemap" {
-                dynamic_site_map_route_source(path, page)
+                dynamic_site_map_route_source(mode, path, page)
             } else {
                 dynamic_image_route_source(path)
             }
@@ -56,12 +56,13 @@ pub fn get_app_metadata_route_entry(
     edge_context: Vc<ModuleAssetContext>,
     project_root: Vc<FileSystemPath>,
     page: AppPage,
+    mode: NextMode,
     metadata: MetadataItem,
 ) -> Vc<AppEntry> {
     get_app_route_entry(
         nodejs_context,
         edge_context,
-        get_app_metadata_route_source(metadata, page.clone()),
+        get_app_metadata_route_source(page.clone(), mode, metadata),
         page,
         project_root,
     )
@@ -113,17 +114,17 @@ async fn get_base64_file_content(path: Vc<FileSystemPath>) -> Result<String> {
 }
 
 #[turbo_tasks::function]
-async fn static_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<dyn Source>>> {
+async fn static_route_source(
+    mode: NextMode,
+    path: Vc<FileSystemPath>,
+) -> Result<Vc<Box<dyn Source>>> {
     let raw_path = &*path.await?;
     let content_type = get_content_type(raw_path);
     let stem = file_stem(&raw_path.path);
 
-    // FIXME
-    let production = black_box(false);
-
     let cache_control = if stem == "favicon" {
         CACHE_HEADER_REVALIDATE
-    } else if production {
+    } else if mode == NextMode::Build {
         CACHE_HEADER_LONG_CACHE
     } else {
         CACHE_HEADER_NONE
@@ -210,6 +211,7 @@ async fn dynamic_text_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<dy
 
 #[turbo_tasks::function]
 async fn dynamic_site_map_route_source(
+    mode: NextMode,
     path: Vc<FileSystemPath>,
     page: AppPage,
 ) -> Result<Vc<Box<dyn Source>>> {
@@ -219,10 +221,9 @@ async fn dynamic_site_map_route_source(
 
     let mut static_generation_code = "";
 
-    // FIXME
-    let production = black_box(false);
-
-    if production && page.contains(&PageSegment::Dynamic("[__metadata_id__]".to_string())) {
+    if mode == NextMode::Build
+        && page.contains(&PageSegment::Dynamic("[__metadata_id__]".to_string()))
+    {
         static_generation_code = indoc! {
             r#"
                 export async function generateStaticParams() {

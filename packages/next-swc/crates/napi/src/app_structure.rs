@@ -189,8 +189,6 @@ async fn prepare_components_for_js(
         metadata.open_graph.iter(),
     )
     .await?;
-    // TODO
-    // add_meta(&mut meta.favicon, project_path, metadata.favicon.iter()).await?;
     add_meta(&mut meta.sitemap, project_path, metadata.sitemap).await?;
     Ok(result)
 }

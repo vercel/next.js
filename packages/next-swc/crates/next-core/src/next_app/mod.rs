@@ -23,7 +23,6 @@ pub use crate::next_app::{
     app_favicon_entry::get_app_route_favicon_entry,
     app_page_entry::get_app_page_entry,
     app_route_entry::get_app_route_entry,
-    metadata::UnsupportedDynamicMetadataIssue,
 };
 
 /// See [AppPage].
