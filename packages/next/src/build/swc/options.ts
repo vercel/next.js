@@ -304,6 +304,7 @@ export function getLoaderSWCOptions({
   isPageFile,
   hasReactRefresh,
   modularizeImports,
+  optimizeServerReact,
   optimizePackageImports,
   swcPlugins,
   compilerOptions,
@@ -325,6 +326,7 @@ export function getLoaderSWCOptions({
   appDir: string
   isPageFile: boolean
   hasReactRefresh: boolean
+  optimizeServerReact?: boolean
   modularizeImports: NextConfig['modularizeImports']
   optimizePackageImports?: NonNullable<
     NextConfig['experimental']
@@ -378,6 +380,12 @@ export function getLoaderSWCOptions({
         },
       },
     },
+  }
+
+  if (optimizeServerReact && isServer && !development) {
+    baseOptions.optimizeServerReact = {
+      optimize_use_state: true,
+    }
   }
 
   // Modularize import optimization for barrel files
