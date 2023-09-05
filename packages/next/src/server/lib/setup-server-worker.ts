@@ -41,7 +41,7 @@ export async function initializeServerWorker(
     port: number
     dev: boolean
     minimalMode?: boolean
-    hostname?: string
+    hostname: string
     workerType: 'router' | 'render'
     isNodeDebugging: boolean
     keepAliveTimeout?: number
