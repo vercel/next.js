@@ -9,6 +9,7 @@ import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
 import { getDebugPort } from './utils'
 import { formatHostname } from './format-hostname'
+import { getFetchHostname } from './get-fetch-hostname'
 import { initialize } from './router-server'
 import fs from 'fs'
 import type {
@@ -230,11 +231,7 @@ export async function startServer({
         )
         Log.bootstrap(` - Local:        ${appUrl}`)
         if (hostname) {
-          Log.bootstrap(
-            ` - Network:      ${actualHostname}${
-              (port + '').startsWith(':') ? '' : ':'
-            }${port}`
-          )
+          Log.bootstrap(` - Network:      ${formattedServerHost}:${port}`)
         }
         if (envInfo?.length)
           Log.bootstrap(` - Environments: ${envInfo.join(', ')}`)
