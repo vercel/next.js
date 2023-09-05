@@ -6,7 +6,7 @@ use std::{
 };
 
 use anyhow::{bail, Context, Result};
-use turbo_tasks::{unit, TransientInstance, TryJoinIterExt, TurboTasks, Value, Vc};
+use turbo_tasks::{TransientInstance, TryJoinIterExt, TurboTasks, Value, Vc};
 use turbo_tasks_fs::FileSystem;
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::ecmascript::EcmascriptModuleAsset;
@@ -105,7 +105,7 @@ impl TurbopackBuildBuilder {
     }
 
     pub async fn build(self) -> Result<()> {
-        let task = self.turbo_tasks.spawn_once_task(async move {
+        let task = self.turbo_tasks.spawn_once_task::<(), _>(async move {
             let build_result = build_internal(
                 self.project_dir.clone(),
                 self.root_dir,
@@ -142,7 +142,7 @@ impl TurbopackBuildBuilder {
             )
             .await?;
 
-            Ok(unit())
+            Ok(Default::default())
         });
 
         self.turbo_tasks.wait_task_completion(task, true).await?;
@@ -204,13 +204,11 @@ async fn build_internal(
         .map(|r| async move {
             Ok(match &*r.await? {
                 EntryRequest::Relative(p) => {
-                    Request::relative(Value::new(p.clone().into()), Vc::<String>::empty(), false)
+                    Request::relative(Value::new(p.clone().into()), Default::default(), false)
                 }
-                EntryRequest::Module(m, p) => Request::module(
-                    m.clone(),
-                    Value::new(p.clone().into()),
-                    Vc::<String>::empty(),
-                ),
+                EntryRequest::Module(m, p) => {
+                    Request::module(m.clone(), Value::new(p.clone().into()), Default::default())
+                }
             })
         })
         .try_join()
@@ -294,7 +292,7 @@ async fn build_internal(
         .try_join()
         .await?;
 
-    Ok(unit())
+    Ok(Default::default())
 }
 
 pub async fn build(args: &BuildArguments) -> Result<()> {

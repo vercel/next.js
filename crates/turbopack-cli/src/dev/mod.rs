@@ -268,13 +268,11 @@ async fn source(
         .iter()
         .map(|r| match r {
             EntryRequest::Relative(p) => {
-                Request::relative(Value::new(p.clone().into()), Vc::<String>::empty(), false)
+                Request::relative(Value::new(p.clone().into()), Default::default(), false)
             }
-            EntryRequest::Module(m, p) => Request::module(
-                m.clone(),
-                Value::new(p.clone().into()),
-                Vc::<String>::empty(),
-            ),
+            EntryRequest::Module(m, p) => {
+                Request::module(m.clone(), Value::new(p.clone().into()), Default::default())
+            }
         })
         .collect();
 
@@ -303,7 +301,7 @@ async fn source(
     let main_source = Vc::upcast(main_source);
     let source_maps = Vc::upcast(SourceMapContentSource::new(main_source));
     let source = Vc::upcast(PrefixedRouterContentSource::new(
-        Vc::<String>::empty(),
+        Default::default(),
         vec![
             ("__turbopack__".to_string(), introspect),
             ("__turbo_tasks__".to_string(), viz),
