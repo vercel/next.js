@@ -44,6 +44,7 @@ import {
   SERVER_DIRECTORY,
   NEXT_FONT_MANIFEST,
   PHASE_PRODUCTION_BUILD,
+  INTERNAL_HEADERS,
 } from '../shared/lib/constants'
 import { findDir } from '../lib/find-pages-dir'
 import { UrlWithParsedQuery } from 'url'
@@ -1437,7 +1438,9 @@ export default class NextNodeServer extends BaseServer {
       checkIsOnDemandRevalidate(params.request, this.renderOpts.previewProps)
         .isOnDemandRevalidate
     ) {
-      return { finished: false }
+      return {
+        response: new Response(null, { headers: { 'x-middleware-next': '1' } }),
+      } as FetchEventResult
     }
 
     let url: string
@@ -1584,6 +1587,11 @@ export default class NextNodeServer extends BaseServer {
     let result: Awaited<
       ReturnType<typeof NextNodeServer.prototype.runMiddleware>
     >
+    let bubblingResult = false
+
+    for (const key of INTERNAL_HEADERS) {
+      delete req.headers[key]
+    }
 
     try {
       await this.ensureMiddleware()
@@ -1595,7 +1603,15 @@ export default class NextNodeServer extends BaseServer {
         parsed: parsed,
       })
 
-      if (isMiddlewareInvoke && 'response' in result) {
+      if (isMiddlewareInvoke) {
+        bubblingResult = true
+        const err = new Error()
+        ;(err as any).result = result
+        ;(err as any).bubble = true
+        throw err
+      }
+
+      if ('response' in result) {
         for (const [key, value] of Object.entries(
           toNodeOutgoingHttpHeaders(result.response.headers)
         )) {
@@ -1614,6 +1630,10 @@ export default class NextNodeServer extends BaseServer {
         return { finished: true }
       }
     } catch (err) {
+      if (bubblingResult) {
+        throw err
+      }
+
       if (isError(err) && err.code === 'ENOENT') {
         await this.render404(req, res, parsed)
         return { finished: true }

@@ -104,6 +104,7 @@ import {
   TurboPackConnectedAction,
 } from '../../dev/hot-reloader-types'
 import { debounce } from '../../utils'
+import { deleteCache } from '../../../build/webpack/plugins/nextjs-require-cache-hot-reloader'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -363,8 +364,7 @@ async function startWatcher(opts: SetupOpts) {
       sendHmrDebounce()
     }
 
-    const clearCache = (filePath: string) =>
-      (global as any)._nextDeleteCache?.([filePath])
+    const clearCache = (filePath: string) => deleteCache(filePath)
 
     async function loadPartialManifest<T>(
       name: string,

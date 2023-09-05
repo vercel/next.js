@@ -1,6 +1,6 @@
 import type { TLSSocket } from 'tls'
 import type { FsOutput } from './filesystem'
-import type { IncomingMessage } from 'http'
+import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextConfigComplete } from '../../config-shared'
 import type { RenderWorker, initialize } from '../router-server'
 import type { PatchMatcher } from '../../../shared/lib/router/utils/path-match'
@@ -96,10 +96,12 @@ export function getResolveRoutes(
 
   async function resolveRoutes({
     req,
+    res,
     isUpgradeReq,
     invokedOutputs,
   }: {
     req: IncomingMessage
+    res: ServerResponse
     isUpgradeReq: boolean
     signal: AbortSignal
     invokedOutputs?: Set<string>
@@ -453,7 +455,7 @@ export function getResolveRoutes(
 
             debug('invoking middleware', req.url, invokeHeaders)
 
-            let middlewareRes
+            let middlewareRes: Response | undefined = undefined
             let bodyStream: ReadableStream | undefined = undefined
             try {
               let readableController: ReadableStreamController<Buffer>
@@ -467,12 +469,6 @@ export function getResolveRoutes(
                 },
               })
 
-              bodyStream = new ReadableStream({
-                start(controller) {
-                  readableController = controller
-                },
-              })
-
               const initResult = await renderWorkers.pages?.initialize(
                 renderWorkerOpts
               )
@@ -480,9 +476,27 @@ export function getResolveRoutes(
               mockedRes.on('close', () => {
                 readableController.close()
               })
-              initResult?.requestHandler(req, mockedRes, parsedUrl)
-              await mockedRes.headPromise
-              middlewareRes = mockedRes
+
+              try {
+                await initResult?.requestHandler(req, res, parsedUrl)
+              } catch (err: any) {
+                if (!('result' in err) || !('response' in err.result)) {
+                  throw err
+                }
+                middlewareRes = err.result.response as Response
+                res.statusCode = middlewareRes.status
+
+                if (middlewareRes.body) {
+                  bodyStream = middlewareRes.body
+                } else if (middlewareRes.status !== 200) {
+                  bodyStream = new ReadableStream({
+                    start(controller) {
+                      controller.enqueue('')
+                      controller.close()
+                    },
+                  })
+                }
+              }
             } catch (e) {
               // If the client aborts before we can receive a response object
               // (when the headers are flushed), then we can early exit without
@@ -497,11 +511,25 @@ export function getResolveRoutes(
               throw e
             }
 
+            if (res.closed || res.finished) {
+              return {
+                parsedUrl,
+                resHeaders,
+                finished: true,
+              }
+            }
+
+            if (!middlewareRes) {
+              throw new Error(
+                `Invariant: missing middleware response ${req.url}`
+              )
+            }
+
             const middlewareHeaders = toNodeOutgoingHttpHeaders(
               middlewareRes.headers
             ) as Record<string, string | string[] | undefined>
 
-            debug('middleware res', middlewareRes.statusCode, middlewareHeaders)
+            debug('middleware res', middlewareRes.status, middlewareHeaders)
 
             if (middlewareHeaders['x-middleware-override-headers']) {
               const overriddenHeaders: Set<string> = new Set()
@@ -613,7 +641,7 @@ export function getResolveRoutes(
                 parsedUrl,
                 resHeaders,
                 finished: true,
-                statusCode: middlewareRes.statusCode,
+                statusCode: middlewareRes.status,
               }
             }
 
@@ -623,7 +651,7 @@ export function getResolveRoutes(
                 resHeaders,
                 finished: true,
                 bodyStream,
-                statusCode: middlewareRes.statusCode,
+                statusCode: middlewareRes.status,
               }
             }
           }

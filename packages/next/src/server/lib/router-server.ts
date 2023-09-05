@@ -368,6 +368,7 @@ export async function initialize(opts: {
         matchedOutput,
       } = await resolveRoutes({
         req,
+        res,
         isUpgradeReq: false,
         signal: signalFromNodeResponse(res),
         invokedOutputs,
@@ -661,6 +662,7 @@ export async function initialize(opts: {
 
       const { matchedOutput, parsedUrl } = await resolveRoutes({
         req,
+        res: socket as any,
         isUpgradeReq: true,
         signal: signalFromNodeResponse(socket),
       })

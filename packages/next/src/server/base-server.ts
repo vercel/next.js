@@ -1299,7 +1299,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         return this.renderError(null, req, res, '/_error', {})
       }
 
-      if (this.minimalMode || this.renderOpts.dev) {
+      if (this.minimalMode || this.renderOpts.dev || (err as any).bubble) {
         throw err
       }
       this.logError(getProperError(err))
