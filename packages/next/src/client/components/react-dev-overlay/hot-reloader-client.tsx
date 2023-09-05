@@ -215,7 +215,7 @@ function processMessage(
     return
   }
 
-  function handleErrors(errors: any[]) {
+  function handleErrors(errors: ReadonlyArray<unknown>) {
     // "Massage" webpack messages.
     const formatted = formatWebpackMessages({
       errors: errors,
@@ -251,11 +251,11 @@ function processMessage(
         handleAvailableHash(obj.hash)
       }
 
-      const { errors, warnings, versionInfo } = obj
+      const { errors, warnings } = obj
 
       // Is undefined when it's a 'built' event
-      if (versionInfo) {
-        dispatcher.onVersionInfo(versionInfo)
+      if ('versionInfo' in obj) {
+        dispatcher.onVersionInfo(obj.versionInfo)
       }
       const hasErrors = Boolean(errors && errors.length)
       // Compilation with errors (e.g. syntax error or missing modules).

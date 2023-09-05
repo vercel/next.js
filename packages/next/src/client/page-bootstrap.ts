@@ -7,6 +7,10 @@ import {
   assign,
   urlQueryToSearchParams,
 } from '../shared/lib/router/utils/querystring'
+import {
+  HMR_ACTIONS_SENT_TO_BROWSER,
+  HMR_ACTION_TYPES,
+} from '../server/dev/hot-reloader-types'
 
 export function pageBootrap(assetPrefix: string) {
   connectHMR({ assetPrefix, path: '/_next/webpack-hmr' })
@@ -14,10 +18,10 @@ export function pageBootrap(assetPrefix: string) {
   return hydrate({ beforeRender: displayContent }).then(() => {
     initOnDemandEntries()
 
-    let buildIndicatorHandler: (obj: Record<string, any>) => void = () => {}
+    let buildIndicatorHandler: (obj: HMR_ACTION_TYPES) => void = () => {}
 
     if (process.env.__NEXT_BUILD_INDICATOR) {
-      initializeBuildWatcher((handler: any) => {
+      initializeBuildWatcher((handler) => {
         buildIndicatorHandler = handler
       }, process.env.__NEXT_BUILD_INDICATOR_POSITION)
     }
@@ -59,10 +63,14 @@ export function pageBootrap(assetPrefix: string) {
           if (!router.clc && pages.includes(router.pathname)) {
             console.log('Refreshing page data due to server-side change')
 
-            buildIndicatorHandler({ action: 'building' })
+            buildIndicatorHandler({
+              action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING,
+            })
 
             const clearIndicator = () =>
-              buildIndicatorHandler({ action: 'built' })
+              buildIndicatorHandler({
+                action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT,
+              })
 
             router
               .replace(

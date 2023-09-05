@@ -25,6 +25,10 @@ import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type ws from 'next/dist/compiled/ws'
 import { isMiddlewareFilename } from '../../build/utils'
 import type { VersionInfo } from './parse-version-info'
+import {
+  HMR_ACTIONS_SENT_TO_BROWSER,
+  HMR_ACTION_TYPES,
+} from './hot-reloader-types'
 
 function isMiddlewareStats(stats: webpack.Stats) {
   for (const key of stats.compilation.entrypoints.keys()) {
@@ -195,16 +199,18 @@ export class WebpackHotMiddleware {
     if (syncStats) {
       const stats = statsToJson(syncStats)
       const middlewareStats = statsToJson(this.middlewareLatestStats?.stats)
-      this.eventStream.publish({
-        action: 'sync',
-        hash: stats.hash,
+
+      const syncAction: HMR_ACTION_TYPES = {
+        action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
+        hash: stats.hash!,
         errors: [...(stats.errors || []), ...(middlewareStats.errors || [])],
         warnings: [
           ...(stats.warnings || []),
           ...(middlewareStats.warnings || []),
         ],
         versionInfo: this.versionInfo,
-      })
+      }
+      this.eventStream.publish(syncAction)
     }
   }
 

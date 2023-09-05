@@ -5,15 +5,16 @@ import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type getBaseWebpackConfig from '../../build/webpack-config'
 import type { RouteMatch } from '../future/route-matches/route-match'
 import type { Update as TurbopackUpdate } from '../../build/swc'
+import type { VersionInfo } from './parse-version-info'
 
 export const enum HMR_ACTIONS_SENT_TO_BROWSER {
-  ACTION_SYNC = 'sync',
   ADDED_PAGE = 'addedPage',
   REMOVED_PAGE = 'removedPage',
   RELOAD_PAGE = 'reloadPage',
   SERVER_COMPONENT_CHANGES = 'serverComponentChanges',
   MIDDLEWARE_CHANGES = 'middlewareChanges',
   SERVER_ONLY_CHANGES = 'serverOnlyChanges',
+  SYNC = 'sync',
   BUILT = 'built',
   BUILDING = 'building',
   DEV_PAGES_MANIFEST_UPDATE = 'devPagesManifestUpdate',
@@ -37,10 +38,11 @@ interface BuildingAction {
 }
 
 interface SyncAction {
-  action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT
+  action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC
   hash: string
   errors: ReadonlyArray<unknown>
   warnings: ReadonlyArray<unknown>
+  versionInfo: VersionInfo
 }
 interface BuiltAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT

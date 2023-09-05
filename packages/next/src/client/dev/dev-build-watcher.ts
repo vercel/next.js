@@ -1,12 +1,15 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import { HMR_ACTION_TYPES } from '../../server/dev/hot-reloader-types'
+import {
+  HMR_ACTIONS_SENT_TO_BROWSER,
+  HMR_ACTION_TYPES,
+} from '../../server/dev/hot-reloader-types'
 import { addMessageListener } from './error-overlay/websocket'
 
 type VerticalPosition = 'top' | 'bottom'
 type HorizonalPosition = 'left' | 'right'
 
 export default function initializeBuildWatcher(
-  toggleCallback: (cb: (obj: Record<string, any>) => void) => void,
+  toggleCallback: (cb: (obj: HMR_ACTION_TYPES) => void) => void,
   position = 'bottom-right'
 ) {
   const shadowHost = document.createElement('div')
@@ -67,14 +70,14 @@ export default function initializeBuildWatcher(
 
     // eslint-disable-next-line default-case
     switch (obj.action) {
-      case 'building':
+      case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING:
         timeoutId && clearTimeout(timeoutId)
         isVisible = true
         isBuilding = true
         updateContainer()
         break
-      case 'built':
-      case 'sync':
+      case HMR_ACTIONS_SENT_TO_BROWSER.BUILT:
+      case HMR_ACTIONS_SENT_TO_BROWSER.SYNC:
         isBuilding = false
         // Wait for the fade out transition to complete
         timeoutId = setTimeout(() => {
