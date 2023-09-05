@@ -21,7 +21,9 @@ const infoLog = (...args: any[]) => {
   if (process.env.NEXT_PRIVATE_BUILD_WORKER) {
     return
   }
-  Log.info(...args)
+  if (process.env.DEBUG) {
+    Log.info(...args)
+  }
 }
 
 /**
@@ -506,7 +508,7 @@ export enum ServerClientChangeType {
   Both = 'Both',
 }
 export interface ServerClientChange {
-  change: ServerClientChangeType
+  type: ServerClientChangeType
 }
 
 export interface Project {
@@ -920,7 +922,7 @@ function bindingToApi(binding: any, _wasm: boolean) {
           )
       )
 
-      // The subscriptions will emit always emit once, which is the initial
+      // The subscriptions will always emit once, which is the initial
       // computation. This is not a change, so swallow it.
       await Promise.all([serverSubscription.next(), clientSubscription.next()])
 
@@ -943,17 +945,17 @@ function bindingToApi(binding: any, _wasm: boolean) {
                 diagnostics: server.value.diagnostics.concat(
                   client.value.diagnostics
                 ),
-                change: ServerClientChangeType.Both,
+                type: ServerClientChangeType.Both,
               }
             } else if (server) {
               yield {
                 ...server.value,
-                change: ServerClientChangeType.Server,
+                type: ServerClientChangeType.Server,
               }
             } else {
               yield {
                 ...client!.value,
-                change: ServerClientChangeType.Client,
+                type: ServerClientChangeType.Client,
               }
             }
           }
@@ -1057,7 +1059,7 @@ async function loadWasm(importPath = '', isCustomTurbopack: boolean) {
       if (pkg === '@next/swc-wasm-web') {
         bindings = await bindings.default()
       }
-      infoLog('Using wasm build of next-swc')
+      infoLog('next-swc build: wasm build @next/swc-wasm-web')
 
       // Note wasm binary does not support async intefaces yet, all async
       // interface coereces to sync interfaces.
@@ -1187,7 +1189,7 @@ function loadNative(isCustomTurbopack = false, importPath?: string) {
   for (const triple of triples) {
     try {
       bindings = require(`@next/swc/native/next-swc.${triple.platformArchABI}.node`)
-      infoLog('Using locally built binary of @next/swc')
+      infoLog('next-swc build: local built @next/swc')
       break
     } catch (e) {}
   }

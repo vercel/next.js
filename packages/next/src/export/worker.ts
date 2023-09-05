@@ -554,7 +554,7 @@ export default async function exportPage({
             results.fromBuildExportRevalidate = revalidate
 
             if (revalidate !== 0) {
-              const cacheTags = (curRenderOpts as any).fetchTags
+              const cacheTags = metadata.fetchTags
               const headers = cacheTags
                 ? {
                     [NEXT_CACHE_TAGS_HEADER]: cacheTags,

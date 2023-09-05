@@ -1,7 +1,10 @@
-type WebSocketMessage = Record<string, any>
+import { HMR_ACTION_TYPES } from '../../../server/dev/hot-reloader-types'
 
 let source: WebSocket
-const eventCallbacks: ((msg: WebSocketMessage) => void)[] = []
+
+type ActionCallback = (action: HMR_ACTION_TYPES) => void
+
+const eventCallbacks: Array<ActionCallback> = []
 let lastActivity = Date.now()
 
 function getSocketProtocol(assetPrefix: string): string {
@@ -15,8 +18,8 @@ function getSocketProtocol(assetPrefix: string): string {
   return protocol === 'http:' ? 'ws' : 'wss'
 }
 
-export function addMessageListener(cb: (msg: WebSocketMessage) => void) {
-  eventCallbacks.push(cb)
+export function addMessageListener(callback: ActionCallback) {
+  eventCallbacks.push(callback)
 }
 
 export function sendMessage(data: string) {
@@ -44,15 +47,11 @@ export function connectHMR(options: {
     function handleMessage(event: MessageEvent<string>) {
       lastActivity = Date.now()
 
-      // webpack's heartbeat event.
-      if (event.data === '\uD83D\uDC93') {
-        return
+      // Coerce into HMR_ACTION_TYPES as that is the format.
+      const msg: HMR_ACTION_TYPES = JSON.parse(event.data)
+      for (const eventCallback of eventCallbacks) {
+        eventCallback(msg)
       }
-
-      const msg = JSON.parse(event.data)
-      eventCallbacks.forEach((cb) => {
-        cb(msg)
-      })
     }
 
     let timer: NodeJS.Timeout
