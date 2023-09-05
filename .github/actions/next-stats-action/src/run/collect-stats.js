@@ -53,7 +53,7 @@ module.exports = async function collectStats(
     })
 
     child.stdout.on('data', (data) => {
-      if (data.toString().includes('started server') && !serverReadyResolved) {
+      if (data.toString().includes('- Local:') && !serverReadyResolved) {
         serverReadyResolved = true
         serverReadyResolve()
       }

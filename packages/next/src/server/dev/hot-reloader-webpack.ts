@@ -72,6 +72,7 @@ import {
 import { RouteKind } from '../future/route-kind'
 import {
   HMR_ACTIONS_SENT_TO_BROWSER,
+  HMR_ACTION_TYPES,
   type NextJsHotReloaderInterface,
 } from './hot-reloader-types'
 
@@ -1458,7 +1459,7 @@ export default class HotReloader implements NextJsHotReloaderInterface {
     }
   }
 
-  public send(action: Parameters<NextJsHotReloaderInterface['send']>[0]): void {
+  public send(action: HMR_ACTION_TYPES): void {
     this.webpackHotMiddleware!.publish(action)
   }
 

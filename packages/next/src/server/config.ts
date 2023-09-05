@@ -682,7 +682,6 @@ function assignDefaults(
       '@fortawesome/fontawesome-svg-core',
       '@fortawesome/free-solid-svg-icons',
       '@headlessui-float/react',
-      'react-hot-toast',
       '@heroicons/react/20/solid',
       '@heroicons/react/24/solid',
       '@heroicons/react/24/outline',

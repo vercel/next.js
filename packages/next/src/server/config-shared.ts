@@ -232,6 +232,11 @@ export interface ExperimentalConfig {
    */
   optimizePackageImports?: string[]
 
+  /**
+   * Optimize React APIs for server builds.
+   */
+  optimizeServerReact?: boolean
+
   turbo?: ExperimentalTurboOptions
   turbotrace?: {
     logLevel?:
