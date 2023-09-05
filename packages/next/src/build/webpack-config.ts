@@ -1708,17 +1708,27 @@ export default async function getBaseWebpackConfig(
         | false => {
         if (dev) {
           if (isNodeServer) {
+            /*
+              In development, we want to split code that comes from `node_modules` into their own chunks.
+              This is because in development, we often need to reload the user bundle due to changes in the code.
+              To work around this, we put all the vendor code into separate chunks so that we don't need to reload them.
+              This is safe because the vendor code doesn't change between reloads.
+            */
             const extractRootNodeModule = (modulePath: string) => {
-              const regex = /node_modules(?:\/|\\)\.?pnpm(?:\/|\\)?([^/\\]+)/
+              const regex =
+                /node_modules(?:\/|\\)\.?(?:pnpm(?:\/|\\))?([^/\\]+)/
               const match = modulePath.match(regex)
               return match ? match[1] : null
             }
             return {
               cacheGroups: {
+                // this chunk configuration gives us a separate chunk for each top level module in node_modules
+                // or a hashed chunk if we can't extract the module name.
                 vendor: {
                   chunks: 'all',
                   reuseExistingChunk: true,
                   test: /[\\/]node_modules[\\/]/,
+                  minSize: 0,
                   name: (module: webpack.Module) => {
                     const moduleId = module.nameForCondition()!
                     const rootModule = extractRootNodeModule(moduleId)
