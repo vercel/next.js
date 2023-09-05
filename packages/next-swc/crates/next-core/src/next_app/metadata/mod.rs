@@ -12,6 +12,7 @@ use turbopack_binding::turbopack::{
 use crate::next_app::{AppPage, PageSegment};
 
 pub mod route;
+pub mod image;
 
 pub static STATIC_LOCAL_METADATA: Lazy<HashMap<&'static str, &'static [&'static str]>> =
     Lazy::new(|| {
@@ -120,9 +121,9 @@ fn filename(path: &str) -> &str {
     split_directory(path).1
 }
 
-fn split_extensions(path: &str) -> (&str, Option<&str>) {
+fn split_extension(path: &str) -> (&str, Option<&str>) {
     let filename = filename(path);
-    if let Some((filename_before_extension, ext)) = filename.split_once('.') {
+    if let Some((filename_before_extension, ext)) = filename.rsplit_once('.') {
         if filename_before_extension.is_empty() {
             return (filename, None);
         }
@@ -133,8 +134,8 @@ fn split_extensions(path: &str) -> (&str, Option<&str>) {
     }
 }
 
-fn filename_base(path: &str) -> &str {
-    split_extensions(path).0
+fn file_stem(path: &str) -> &str {
+    split_extension(path).0
 }
 
 /// When you only pass the file extension as `[]`, it will only match the static
@@ -160,7 +161,7 @@ pub fn is_metadata_route_file(
             return true;
         }
     } else {
-        let stem = filename_base(filename);
+        let stem = file_stem(filename);
         let stem = match_numbered_metadata(stem)
             .map(|(stem, _)| stem)
             .unwrap_or(stem);
@@ -179,7 +180,7 @@ pub fn is_metadata_route_file(
             return true;
         }
     } else {
-        let base_name = filename_base(filename);
+        let base_name = file_stem(filename);
         if STATIC_GLOBAL_METADATA.contains_key(base_name) {
             return true;
         }
@@ -291,7 +292,7 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
     // append /[id]/route to the page.
     if !route.ends_with("/route") {
         let is_static_metadata_file = is_static_metadata_route_file(&route);
-        let (base_name, ext) = split_extensions(&route);
+        let (base_name, ext) = split_extension(&route);
 
         let is_static_route = route.starts_with("/robots")
             || route.starts_with("/manifest")

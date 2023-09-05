@@ -414,6 +414,7 @@ async fn get_directory_tree(
 #[turbo_tasks::value]
 #[derive(Debug, Clone)]
 pub struct LoaderTree {
+    pub page: AppPage,
     pub segment: String,
     pub parallel_routes: IndexMap<String, Vc<LoaderTree>>,
     pub components: Vc<Components>,
@@ -443,6 +444,7 @@ async fn merge_loader_trees(
     let components = Components::merge(&*tree1.components.await?, &*tree2.components.await?).cell();
 
     Ok(LoaderTree {
+        page: tree1.page.clone(),
         segment,
         parallel_routes,
         components,
@@ -722,6 +724,7 @@ async fn directory_tree_to_entrypoints_internal(
             app_page.clone().complete(PageType::Page)?,
             if current_level_is_parallel_route {
                 LoaderTree {
+                    page: app_page.clone(),
                     segment: "__PAGE__".to_string(),
                     parallel_routes: IndexMap::new(),
                     components: Components {
@@ -734,9 +737,11 @@ async fn directory_tree_to_entrypoints_internal(
                 .cell()
             } else {
                 LoaderTree {
+                    page: app_page.clone(),
                     segment: directory_name.to_string(),
                     parallel_routes: indexmap! {
                         "children".to_string() => LoaderTree {
+                            page: app_page.clone(),
                             segment: "__PAGE__".to_string(),
                             parallel_routes: IndexMap::new(),
                             components: Components {
@@ -764,6 +769,7 @@ async fn directory_tree_to_entrypoints_internal(
             app_page.clone().complete(PageType::Page)?,
             if current_level_is_parallel_route {
                 LoaderTree {
+                    page: app_page.clone(),
                     segment: "__DEFAULT__".to_string(),
                     parallel_routes: IndexMap::new(),
                     components: Components {
@@ -776,9 +782,11 @@ async fn directory_tree_to_entrypoints_internal(
                 .cell()
             } else {
                 LoaderTree {
+                    page: app_page.clone(),
                     segment: directory_name.to_string(),
                     parallel_routes: indexmap! {
                     "children".to_string() => LoaderTree {
+                        page: app_page.clone(),
                         segment: "__DEFAULT__".to_string(),
                         parallel_routes: IndexMap::new(),
                         components: Components {
@@ -856,9 +864,11 @@ async fn directory_tree_to_entrypoints_internal(
         // is considered as its own entry point.
         if let Some(_not_found) = components.not_found {
             let dev_not_found_tree = LoaderTree {
+                page: app_page.clone(),
                 segment: directory_name.to_string(),
                 parallel_routes: indexmap! {
                     "children".to_string() => LoaderTree {
+                        page: app_page.clone(),
                         segment: "__DEFAULT__".to_string(),
                         parallel_routes: IndexMap::new(),
                         components: Components {
@@ -887,9 +897,11 @@ async fn directory_tree_to_entrypoints_internal(
             // Create default not-found page for production if there's no customized
             // not-found
             let prod_not_found_tree = LoaderTree {
+                page: app_page.clone(),
                 segment: directory_name.to_string(),
                 parallel_routes: indexmap! {
                     "children".to_string() => LoaderTree {
+                        page: app_page.clone(),
                         segment: "__PAGE__".to_string(),
                         parallel_routes: IndexMap::new(),
                         components: Components {
@@ -924,7 +936,7 @@ async fn directory_tree_to_entrypoints_internal(
             global_metadata,
             subdir_name.to_string(),
             subdirectory,
-            app_page,
+            app_page.clone(),
         )
         .await?;
 
@@ -939,6 +951,7 @@ async fn directory_tree_to_entrypoints_internal(
                     } else {
                         let key = parallel_route_key.unwrap_or("children").to_string();
                         let child_loader_tree = LoaderTree {
+                            page: app_page.clone(),
                             segment: directory_name.to_string(),
                             parallel_routes: indexmap! {
                                 key => loader_tree,

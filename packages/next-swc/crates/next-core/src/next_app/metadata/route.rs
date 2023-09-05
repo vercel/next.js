@@ -22,7 +22,7 @@ use crate::{
     next_app::{
         app_entry::AppEntry,
         app_route_entry::get_app_route_entry,
-        metadata::{filename_base, split_extensions},
+        metadata::{file_stem, split_extension},
         AppPage, PageSegment,
     },
 };
@@ -37,11 +37,11 @@ pub async fn get_app_metadata_route_source(
         MetadataItem::Static { path } => static_route_source(path),
         MetadataItem::Dynamic { path } => {
             let raw_path = &*path.await?;
-            let file_base_name = filename_base(&raw_path.path);
+            let stem = file_stem(&raw_path.path);
 
-            if file_base_name == "robots" || file_base_name == "manifest" {
+            if stem == "robots" || stem == "manifest" {
                 dynamic_text_route_source(path)
-            } else if file_base_name == "sitemap" {
+            } else if stem == "sitemap" {
                 dynamic_site_map_route_source(path, page)
             } else {
                 dynamic_image_route_source(path)
@@ -68,7 +68,7 @@ pub fn get_app_metadata_route_entry(
 }
 
 fn get_content_type(raw_path: &FileSystemPath) -> String {
-    let (name, ext) = split_extensions(&raw_path.path);
+    let (name, ext) = split_extension(&raw_path.path);
     let mut ext = ext.unwrap_or_default();
     if ext == "jpg" {
         ext = "jpeg"
@@ -116,12 +116,12 @@ async fn get_base64_file_content(path: Vc<FileSystemPath>) -> Result<String> {
 async fn static_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<dyn Source>>> {
     let raw_path = &*path.await?;
     let content_type = get_content_type(raw_path);
-    let file_base_name = filename_base(&raw_path.path);
+    let stem = file_stem(&raw_path.path);
 
     // FIXME
     let production = black_box(false);
 
-    let cache_control = if file_base_name == "favicon" {
+    let cache_control = if stem == "favicon" {
         CACHE_HEADER_REVALIDATE
     } else if production {
         CACHE_HEADER_LONG_CACHE
@@ -157,8 +157,7 @@ async fn static_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<dyn Sour
 
     let file = File::from(code);
     let source = VirtualSource::new(
-        path.parent()
-            .join(format!("{file_base_name}--route-entry.ts")),
+        path.parent().join(format!("{stem}--route-entry.js")),
         AssetContent::file(file.into()),
     );
 
@@ -168,7 +167,7 @@ async fn static_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<dyn Sour
 #[turbo_tasks::function]
 async fn dynamic_text_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<dyn Source>>> {
     let raw_path = &*path.await?;
-    let file_base_name = filename_base(&raw_path.path);
+    let stem = file_stem(&raw_path.path);
     let content_type = get_content_type(raw_path);
 
     let code = formatdoc! {
@@ -196,14 +195,13 @@ async fn dynamic_text_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<dy
         "#,
         resource_path = StringifyJs(&format!("./{}", raw_path.file_name())),
         content_type = StringifyJs(&content_type),
-        file_type = StringifyJs(&file_base_name),
+        file_type = StringifyJs(&stem),
         cache_control = StringifyJs(CACHE_HEADER_REVALIDATE),
     };
 
     let file = File::from(code);
     let source = VirtualSource::new(
-        path.parent()
-            .join(format!("{file_base_name}--route-entry.ts")),
+        path.parent().join(format!("{stem}--route-entry.js")),
         AssetContent::file(file.into()),
     );
 
@@ -216,7 +214,7 @@ async fn dynamic_site_map_route_source(
     page: AppPage,
 ) -> Result<Vc<Box<dyn Source>>> {
     let raw_path = &*path.await?;
-    let file_base_name = filename_base(&raw_path.path);
+    let stem = file_stem(&raw_path.path);
     let content_type = get_content_type(raw_path);
 
     let mut static_generation_code = "";
@@ -291,15 +289,14 @@ async fn dynamic_site_map_route_source(
         "#,
         resource_path = StringifyJs(&format!("./{}", raw_path.file_name())),
         content_type = StringifyJs(&content_type),
-        file_type = StringifyJs(&file_base_name),
+        file_type = StringifyJs(&stem),
         cache_control = StringifyJs(CACHE_HEADER_REVALIDATE),
         static_generation_code = static_generation_code,
     };
 
     let file = File::from(code);
     let source = VirtualSource::new(
-        path.parent()
-            .join(format!("{file_base_name}--route-entry.ts")),
+        path.parent().join(format!("{stem}--route-entry.js")),
         AssetContent::file(file.into()),
     );
 
@@ -309,7 +306,7 @@ async fn dynamic_site_map_route_source(
 #[turbo_tasks::function]
 async fn dynamic_image_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<dyn Source>>> {
     let raw_path = &*path.await?;
-    let file_base_name = filename_base(&raw_path.path);
+    let stem = file_stem(&raw_path.path);
 
     let code = formatdoc! {
         r#"
@@ -352,8 +349,7 @@ async fn dynamic_image_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<d
 
     let file = File::from(code);
     let source = VirtualSource::new(
-        path.parent()
-            .join(format!("{file_base_name}--route-entry.ts")),
+        path.parent().join(format!("{stem}--route-entry.js")),
         AssetContent::file(file.into()),
     );
 

@@ -255,6 +255,7 @@ async fn prepare_loader_tree_for_js(
     loader_tree: Vc<LoaderTree>,
 ) -> Result<Vc<LoaderTreeForJs>> {
     let LoaderTree {
+        page: _,
         segment,
         parallel_routes,
         components,
