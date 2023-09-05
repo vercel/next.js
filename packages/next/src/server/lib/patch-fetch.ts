@@ -4,6 +4,7 @@ import type * as ServerHooks from '../../client/components/hooks-server-context'
 import { AppRenderSpan, NextNodeServerSpan } from './trace/constants'
 import { getTracer, SpanKind } from './trace/tracer'
 import { CACHE_ONE_YEAR, NEXT_CACHE_IMPLICIT_TAG_ID } from '../../lib/constants'
+import * as Log from '../../build/output/log'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -225,8 +226,8 @@ export function patchFetch({
           typeof _cache === 'string' &&
           typeof curRevalidate !== 'undefined'
         ) {
-          console.warn(
-            `Warning: fetch for ${fetchUrl} on ${staticGenerationStore.urlPathname} specified "cache: ${_cache}" and "revalidate: ${curRevalidate}", only one should be specified.`
+          Log.warn(
+            `fetch for ${fetchUrl} on ${staticGenerationStore.urlPathname} specified "cache: ${_cache}" and "revalidate: ${curRevalidate}", only one should be specified.`
           )
           _cache = undefined
         }
