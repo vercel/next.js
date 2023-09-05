@@ -50,9 +50,9 @@ export function connectHMR(options: {
       }
 
       const msg = JSON.parse(event.data)
-      eventCallbacks.forEach((cb) => {
-        cb(msg)
-      })
+      for (const eventCallback of eventCallbacks) {
+        eventCallback(msg)
+      }
     }
 
     let timer: NodeJS.Timeout
