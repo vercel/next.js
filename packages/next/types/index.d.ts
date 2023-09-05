@@ -318,7 +318,7 @@ declare global {
     randomUUID(): string
   }
 
-  var __NEXT_HTTP_AGENT_OPTIONS: { keepAlive?: boolean }
+  var __NEXT_HTTP_AGENT_OPTIONS: { keepAlive?: boolean } | undefined
   var __NEXT_UNDICI_AGENT_SET: boolean
   var __NEXT_HTTP_AGENT: HttpAgent
   var __NEXT_HTTPS_AGENT: HttpsAgent
