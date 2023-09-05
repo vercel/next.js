@@ -136,10 +136,9 @@ export class WebpackHotMiddleware {
 
   onClientInvalid = () => {
     if (this.closed || this.serverLatestStats?.stats.hasErrors()) return
-    const buildingEvent: HMR_ACTION_TYPES = {
+    this.publish({
       action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING,
-    }
-    this.eventStream.publish(buildingEvent)
+    })
   }
 
   onClientDone = (statsResult: webpack.Stats) => {
@@ -203,7 +202,7 @@ export class WebpackHotMiddleware {
       const stats = statsToJson(syncStats)
       const middlewareStats = statsToJson(this.middlewareLatestStats?.stats)
 
-      const syncAction: HMR_ACTION_TYPES = {
+      this.publish({
         action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
         hash: stats.hash!,
         errors: [...(stats.errors || []), ...(middlewareStats.errors || [])],
@@ -212,8 +211,7 @@ export class WebpackHotMiddleware {
           ...(middlewareStats.warnings || []),
         ],
         versionInfo: this.versionInfo,
-      }
-      this.eventStream.publish(syncAction)
+      })
     }
   }
 
@@ -226,17 +224,15 @@ export class WebpackHotMiddleware {
       moduleTrace: true,
     })
 
-    const builtAction: HMR_ACTION_TYPES = {
+    this.publish({
       action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT,
       hash: stats.hash!,
       warnings: stats.warnings || [],
       errors: stats.errors || [],
-    }
-
-    this.eventStream.publish(builtAction)
+    })
   }
 
-  publish = (payload: unknown) => {
+  publish = (payload: HMR_ACTION_TYPES) => {
     if (this.closed) return
     this.eventStream.publish(payload)
   }
