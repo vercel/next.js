@@ -1394,8 +1394,8 @@ importers:
         specifier: 1.0.35
         version: 1.0.35
       undici:
-        specifier: 5.22.0
-        version: 5.22.0
+        specifier: 5.23.0
+        version: 5.23.0
       unistore:
         specifier: 3.4.1
         version: 3.4.1(react@18.2.0)
@@ -26004,8 +26004,8 @@ packages:
     engines: {node: '>=0.10.0'}
     dev: true
 
-  /undici@5.22.0:
-    resolution: {integrity: sha512-fR9RXCc+6Dxav4P9VV/sp5w3eFiSdOjJYsbtWfd4s5L5C4ogyuVpdKIVHeW0vV1MloM65/f7W45nR9ZxwVdyiA==}
+  /undici@5.23.0:
+    resolution: {integrity: sha512-1D7w+fvRsqlQ9GscLBwcAJinqcZGHUKjbOmXdlE/v8BvEGXjeWAax+341q44EuTcHXXnfyKNbKRq4Lg7OzhMmg==}
     engines: {node: '>=14.0'}
     dependencies:
       busboy: 1.6.0
