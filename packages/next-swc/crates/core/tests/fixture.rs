@@ -325,6 +325,29 @@ fn react_server_components_server_graph_fixture(input: PathBuf) {
                 ),
                 tr.comments.as_ref().clone(),
                 None,
+                false,
+            )
+        },
+        &input,
+        &output,
+        Default::default(),
+    );
+}
+
+#[fixture("tests/fixture/react-server-components/server-graph-no-checks/**/input.js")]
+fn react_server_components_no_checks_server_graph_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|tr| {
+            server_components(
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                next_swc::react_server_components::Config::WithOptions(
+                    next_swc::react_server_components::Options { is_server: true },
+                ),
+                tr.comments.as_ref().clone(),
+                None,
+                true,
             )
         },
         &input,
@@ -346,6 +369,29 @@ fn react_server_components_client_graph_fixture(input: PathBuf) {
                 ),
                 tr.comments.as_ref().clone(),
                 None,
+                false,
+            )
+        },
+        &input,
+        &output,
+        Default::default(),
+    );
+}
+
+#[fixture("tests/fixture/react-server-components/client-graph-no-checks/**/input.js")]
+fn react_server_components_no_checks_client_graph_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|tr| {
+            server_components(
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                next_swc::react_server_components::Config::WithOptions(
+                    next_swc::react_server_components::Options { is_server: false },
+                ),
+                tr.comments.as_ref().clone(),
+                None,
+                true,
             )
         },
         &input,
