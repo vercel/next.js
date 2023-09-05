@@ -35,6 +35,7 @@ import {
 } from './internal/helpers/use-websocket'
 import { parseComponentStack } from './internal/helpers/parse-component-stack'
 import type { VersionInfo } from '../../../server/dev/parse-version-info'
+import { HMR_ACTION_TYPES } from '../../../server/dev/hot-reloader-types'
 
 interface Dispatcher {
   onBuildOk(): void
@@ -205,7 +206,7 @@ function processMessage(
   router: ReturnType<typeof useRouter>,
   dispatcher: Dispatcher
 ) {
-  let obj
+  let obj: HMR_ACTION_TYPES | undefined
   try {
     obj = JSON.parse(e.data)
   } catch {}

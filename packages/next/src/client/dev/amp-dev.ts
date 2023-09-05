@@ -78,13 +78,18 @@ async function tryApplyUpdates() {
 }
 
 addMessageListener((message) => {
+  if (!('action' in message)) {
+    return
+  }
+
   try {
     // actions which are not related to amp-dev
     if (
       message.action === 'serverError' ||
       message.action === 'devPagesManifestUpdate'
-    )
+    ) {
       return
+    }
     if (message.action === 'sync' || message.action === 'built') {
       if (!message.hash) {
         return

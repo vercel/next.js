@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
+import { HMR_ACTION_TYPES } from '../../server/dev/hot-reloader-types'
 import { addMessageListener } from './error-overlay/websocket'
 
 type VerticalPosition = 'top' | 'bottom'
@@ -59,7 +60,11 @@ export default function initializeBuildWatcher(
     } catch {}
   })
 
-  function handleMessage(obj: Record<string, any>) {
+  function handleMessage(obj: HMR_ACTION_TYPES) {
+    if (!('action' in obj)) {
+      return
+    }
+
     // eslint-disable-next-line default-case
     switch (obj.action) {
       case 'building':

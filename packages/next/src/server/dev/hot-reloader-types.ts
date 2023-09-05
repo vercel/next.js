@@ -7,6 +7,7 @@ import type { RouteMatch } from '../future/route-matches/route-match'
 import type { Update as TurbopackUpdate } from '../../build/swc'
 
 export const enum HMR_ACTIONS_SENT_TO_BROWSER {
+  ACTION_SYNC = 'sync',
   ADDED_PAGE = 'addedPage',
   REMOVED_PAGE = 'removedPage',
   RELOAD_PAGE = 'reloadPage',
@@ -35,6 +36,12 @@ interface BuildingAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING
 }
 
+interface SyncAction {
+  action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT
+  hash: string
+  errors: ReadonlyArray<unknown>
+  warnings: ReadonlyArray<unknown>
+}
 interface BuiltAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT
   hash: string
@@ -85,6 +92,7 @@ export interface TurboPackConnectedAction {
 export type HMR_ACTION_TYPES =
   | TurboPackMessageAction
   | BuildingAction
+  | SyncAction
   | BuiltAction
   | AddedPageAction
   | RemovedPageAction
