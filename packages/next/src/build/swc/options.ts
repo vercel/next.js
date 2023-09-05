@@ -237,6 +237,7 @@ function getEmotionOptions(
 }
 
 export function getJestSWCOptions({
+  isServer,
   filename,
   esm,
   modularizeImports,
@@ -247,6 +248,7 @@ export function getJestSWCOptions({
   pagesDir,
   hasServerComponents,
 }: {
+  isServer: boolean
   filename: string
   esm: boolean
   modularizeImports?: NextConfig['modularizeImports']
@@ -262,13 +264,15 @@ export function getJestSWCOptions({
     jest: true,
     development: false,
     hasReactRefresh: false,
-    globalWindow: true,
+    globalWindow: !isServer,
     modularizeImports,
     swcPlugins,
     compilerOptions,
     jsConfig,
     hasServerComponents,
     resolvedBaseUrl,
+    // Don't apply server layer transformations for Jest
+    isServerLayer: false,
   })
 
   const isNextDist = nextDistPath.test(filename)
