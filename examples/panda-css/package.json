@@ -16,11 +16,10 @@
     "react-dom": "18.2.0"
   },
   "devDependencies": {
+    "@pandacss/dev": "^0.13.1",
     "@types/node": "20.5.7",
     "@types/react": "18.2.21",
     "@types/react-dom": "18.2.7",
-    "@pandacss/dev": "^0.13.1",
-    "prettier": "^3.0.3",
     "typescript": "5.2.2"
   }
 }
