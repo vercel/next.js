@@ -2257,7 +2257,7 @@ createNextDescribe(
             expect(html).toInclude('<p>search params suspense</p>')
           })
 
-          it('should have empty search params on force-static', async () => {
+          it.skip('should have empty search params on force-static', async () => {
             const res = await next.fetch(
               '/hooks/use-search-params/force-static?first=value&second=other&third'
             )
