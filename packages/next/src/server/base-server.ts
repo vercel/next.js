@@ -1280,7 +1280,16 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         if (result.finished) {
           return
         } else {
-          throw new Error(`Invariant: middleware response was not finished`)
+          const err = new Error()
+          ;(err as any).result = {
+            response: new Response(null, {
+              headers: {
+                'x-middleware-next': '1',
+              },
+            }),
+          }
+          ;(err as any).bubble = true
+          throw err
         }
       }
 
