@@ -33,7 +33,7 @@ async function main() {
     }).listen(port, '0.0.0.0', (err) => {
       if (err) throw err
       // Start mode
-      console.log(`started server on url: http://${hostname}:${port}`)
+      console.log(`- Local: http://${hostname}:${port}`)
     })
   })
 }

@@ -237,6 +237,7 @@ function getEmotionOptions(
 }
 
 export function getJestSWCOptions({
+  isServer,
   filename,
   esm,
   modularizeImports,
@@ -247,6 +248,7 @@ export function getJestSWCOptions({
   pagesDir,
   hasServerComponents,
 }: {
+  isServer: boolean
   filename: string
   esm: boolean
   modularizeImports?: NextConfig['modularizeImports']
@@ -262,13 +264,15 @@ export function getJestSWCOptions({
     jest: true,
     development: false,
     hasReactRefresh: false,
-    globalWindow: true,
+    globalWindow: !isServer,
     modularizeImports,
     swcPlugins,
     compilerOptions,
     jsConfig,
     hasServerComponents,
     resolvedBaseUrl,
+    // Don't apply server layer transformations for Jest
+    isServerLayer: false,
   })
 
   const isNextDist = nextDistPath.test(filename)
@@ -300,6 +304,7 @@ export function getLoaderSWCOptions({
   isPageFile,
   hasReactRefresh,
   modularizeImports,
+  optimizeServerReact,
   optimizePackageImports,
   swcPlugins,
   compilerOptions,
@@ -321,6 +326,7 @@ export function getLoaderSWCOptions({
   appDir: string
   isPageFile: boolean
   hasReactRefresh: boolean
+  optimizeServerReact?: boolean
   modularizeImports: NextConfig['modularizeImports']
   optimizePackageImports?: NonNullable<
     NextConfig['experimental']
@@ -374,6 +380,12 @@ export function getLoaderSWCOptions({
         },
       },
     },
+  }
+
+  if (optimizeServerReact && isServer && !development) {
+    baseOptions.optimizeServerReact = {
+      optimize_use_state: true,
+    }
   }
 
   // Modularize import optimization for barrel files
