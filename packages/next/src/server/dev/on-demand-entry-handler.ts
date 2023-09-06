@@ -101,10 +101,8 @@ export function getEntryKey(
 ) {
   // TODO: handle the /children slot better
   // this is a quick hack to handle when children is provided as children/page instead of /page
-  return `${compilerType}@${pageBundleType}@${page.replace(
-    /(@[^/]+)\/children/g,
-    '$1'
-  )}`
+  const pageKey = page.replace(/(@[^/]+)\/children/g, '$1')
+  return `${compilerType}@${pageBundleType}@${pageKey}`
 }
 
 function getPageBundleType(pageBundlePath: string) {
@@ -521,7 +519,7 @@ export function onDemandEntryHandler({
   let curInvalidator: Invalidator = getInvalidator(
     multiCompiler.outputPath
   ) as any
-  let curEntries = getEntries(multiCompiler.outputPath) as any
+  const curEntries = getEntries(multiCompiler.outputPath) as any
 
   if (!curInvalidator) {
     curInvalidator = new Invalidator(multiCompiler)
