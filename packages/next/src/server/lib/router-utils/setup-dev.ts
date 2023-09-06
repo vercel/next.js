@@ -231,7 +231,7 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     function formatIssue(issue: Issue) {
-      const { filePath, title, description, source } = issue
+      const { filePath, title, description, source, detail } = issue
       let formattedTitle = title.replace(/\n/g, '\n    ')
       let message = ''
 
@@ -265,6 +265,9 @@ async function startWatcher(opts: SetupOpts) {
       }
       if (description) {
         message += `\n${description.replace(/\n/g, '\n    ')}`
+      }
+      if (detail) {
+        message += `\n${detail.replace(/\n/g, '\n    ')}`
       }
 
       return message
