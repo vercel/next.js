@@ -476,7 +476,6 @@ export default async function exportPage({
             // This is a route handler, which means it has it's handler in the
             // bundled file already, we should just use that.
             const filename = posix.join(distDir, 'server', 'app', page)
-            console.log('module', filename)
 
             // Load the module for the route.
             const module = await RouteModuleLoader.load<AppRouteRouteModule>(
@@ -502,7 +501,6 @@ export default async function exportPage({
               const headers = toNodeOutgoingHttpHeaders(response.headers)
               const cacheTags = (context.staticGenerationContext as any)
                 .fetchTags
-              console.log('cacheTags for ', page, cacheTags)
 
               if (cacheTags) {
                 headers[NEXT_CACHE_TAGS_HEADER] = cacheTags

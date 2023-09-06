@@ -1405,8 +1405,8 @@ export default async function getBaseWebpackConfig(
     const isEsmRequested = dependencyType === 'esm'
 
     /**
-     * @param {string} localRes the full path to the file
-     * @returns {string | undefined} the externalized path
+     * @param localRes the full path to the file
+     * @returns the externalized path
      * @description returns an externalized path if the file is a Next.js file and ends with either `.shared-runtime.js` or `.external.js`
      * This is used to ensure that files used across the rendering runtime(s) and the user code are one and the same. The logic in this function
      * will rewrite the require to the correct bundle location depending on the layer at which the file is being used.
@@ -2023,7 +2023,11 @@ export default async function getBaseWebpackConfig(
           ? [
               {
                 layer: WEBPACK_LAYERS.appRouteHandler,
-                test: /private-next-app-dir\/.*\/route\.js$/,
+                test: new RegExp(
+                  `private-next-app-dir\\/.*\\/route\\.(${pageExtensions.join(
+                    '|'
+                  )})$`
+                ),
               },
               {
                 // Make sure that AsyncLocalStorage module instance is shared between server and client

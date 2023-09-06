@@ -369,7 +369,6 @@ export class AppRouteRouteModule extends RouteModule<
                       staticGenerationStore.pendingRevalidates || []
                     )
                     addImplicitTags(staticGenerationStore)
-                    console.log('tags for ', route, staticGenerationStore.tags)
                     ;(context.staticGenerationContext as any).fetchTags =
                       staticGenerationStore.tags?.join(',')
 

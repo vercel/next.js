@@ -459,6 +459,7 @@ export default class NextNodeServer extends BaseServer {
       throw new Error(
         'invariant: renderHTML should not be called in minimal mode'
       )
+      // the `else` branch is needed for tree-shaking
     } else {
       // Due to the way we pass data by mutating `renderOpts`, we can't extend the
       // object here but only updating its `nextFontManifest` field.
@@ -732,6 +733,7 @@ export default class NextNodeServer extends BaseServer {
       return {
         finished: true,
       }
+      // the `else` branch is needed for tree-shaking
     } else {
       const { ImageOptimizerCache } =
         require('./image-optimizer') as typeof import('./image-optimizer')
