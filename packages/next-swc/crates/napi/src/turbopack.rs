@@ -9,7 +9,6 @@ use next_build::{
     build as turbo_next_build, build_options::BuildContext, BuildOptions as NextBuildOptions,
 };
 use next_core::next_config::{Rewrite, Rewrites, RouteHas};
-use next_dev::devserver_options::DevServerOptions;
 
 use crate::util::MapErr;
 
