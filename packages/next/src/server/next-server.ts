@@ -1631,7 +1631,7 @@ export default class NextNodeServer extends BaseServer {
         }
         return { finished: true }
       }
-    } catch (err) {
+    } catch (err: any) {
       if (bubblingResult) {
         throw err
       }
@@ -1643,14 +1643,14 @@ export default class NextNodeServer extends BaseServer {
 
       if (err instanceof DecodeError) {
         res.statusCode = 400
-        this.renderError(err, req, res, parsed.pathname || '')
+        await this.renderError(err, req, res, parsed.pathname || '')
         return { finished: true }
       }
 
       const error = getProperError(err)
       console.error(error)
       res.statusCode = 500
-      this.renderError(error, req, res, parsed.pathname || '')
+      await this.renderError(error, req, res, parsed.pathname || '')
       return { finished: true }
     }
 

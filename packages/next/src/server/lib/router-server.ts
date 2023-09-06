@@ -374,6 +374,10 @@ export async function initialize(opts: {
         invokedOutputs,
       })
 
+      if (res.closed || res.finished) {
+        return
+      }
+
       if (devInstance && matchedOutput?.type === 'devVirtualFsItem') {
         const origUrl = req.url || '/'
 

@@ -1938,12 +1938,11 @@ export async function copyTracedFiles(
       moduleType
         ? `import path from 'path'
 import { fileURLToPath } from 'url'
+import module from 'module'
+const require = module.createRequire(import.meta.url)
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
-import { startServer } from 'next/dist/server/lib/start-server.js'
 `
-        : `
-const path = require('path')
-const { startServer } = require('next/dist/server/lib/start-server')`
+        : `const path = require('path')`
     }
 
 const dir = path.join(__dirname)
@@ -1973,6 +1972,9 @@ process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = ${hasAppDir}
     ? 'experimental'
     : 'next'
   : '';
+
+require('next')
+const { startServer } = require('next/dist/server/lib/start-server')
 
 if (
   Number.isNaN(keepAliveTimeout) ||

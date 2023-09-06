@@ -2100,9 +2100,14 @@ export default async function build(
 
             const vanillaServerEntries = [
               ...sharedEntriesSet,
-              isStandalone
-                ? require.resolve('next/dist/server/lib/start-server')
-                : null,
+              ...(isStandalone
+                ? [
+                    require.resolve('next/dist/server/lib/start-server'),
+                    require.resolve('next/dist/server/next'),
+                    require.resolve('next/dist/esm/server/esm-loader.mjs'),
+                    require.resolve('next/dist/server/import-overrides'),
+                  ]
+                : []),
               require.resolve('next/dist/server/next-server'),
             ].filter(Boolean) as string[]
 

@@ -511,18 +511,12 @@ export function getResolveRoutes(
               throw e
             }
 
-            if (res.closed || res.finished) {
+            if (res.closed || res.finished || !middlewareRes) {
               return {
                 parsedUrl,
                 resHeaders,
                 finished: true,
               }
-            }
-
-            if (!middlewareRes) {
-              throw new Error(
-                `Invariant: missing middleware response ${req.url}`
-              )
             }
 
             const middlewareHeaders = toNodeOutgoingHttpHeaders(

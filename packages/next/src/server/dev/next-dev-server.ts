@@ -390,7 +390,7 @@ export default class DevServer extends Server {
       }
 
       response.statusCode = 500
-      this.renderError(err, request, response, parsedUrl.pathname)
+      await this.renderError(err, request, response, parsedUrl.pathname)
       return { finished: true }
     }
   }
