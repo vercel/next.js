@@ -35,10 +35,7 @@ export function getProjectDir(dir?: string) {
       Log.error(
         `Invalid project directory provided, no such directory: ${path.resolve(
           dir || '.'
-        )}`,
-        new Error().stack,
-        process.env.NEXT_PRIVATE_WORKER,
-        process.argv
+        )}`
       )
       process.exit(1)
     }
