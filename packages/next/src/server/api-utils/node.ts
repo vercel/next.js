@@ -199,6 +199,8 @@ type RevalidateFn = (config: {
 
 type ApiContext = __ApiPreviewProps & {
   trustHostHeader?: boolean
+  ipcPort?: string
+  ipcKey?: string
   allowedRevalidateHeaderKeys?: string[]
   hostname?: string
   revalidate?: RevalidateFn
@@ -460,10 +462,9 @@ async function revalidate(
         throw new Error(`Invalid response ${res.status}`)
       }
     } else if (context.revalidate) {
+      const { ipcPort, ipcKey } = context
       // We prefer to use the IPC call if running under the workers mode.
-      const ipcPort = process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT
       if (ipcPort) {
-        const ipcKey = process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY
         const res = await invokeRequest(
           `http://${
             context.hostname || 'localhost'

@@ -3,7 +3,8 @@ import type { NextServer, RequestHandler } from '../next'
 import next from '../next'
 import { PropagateToWorkersField } from './router-utils/types'
 
-let result:
+const result: Record<
+  string,
   | undefined
   | {
       requestHandler: ReturnType<
@@ -13,8 +14,9 @@ let result:
         InstanceType<typeof NextServer>['getUpgradeHandler']
       >
     }
+> = {}
 
-let app: ReturnType<typeof next> | undefined
+let apps: Record<string, ReturnType<typeof next> | undefined> = {}
 
 let sandboxContext: undefined | typeof import('../web/sandbox/context')
 let requireCacheHotReloader:
@@ -41,9 +43,11 @@ export function deleteCache(filePaths: string[]) {
 }
 
 export async function propagateServerField(
+  dir: string,
   field: PropagateToWorkersField,
   value: any
 ) {
+  const app = apps[dir]
   if (!app) {
     throw new Error('Invariant cant propagate server field, no app initialized')
   }
@@ -73,11 +77,13 @@ export async function initialize(opts: {
   serverFields?: any
   server?: any
   experimentalTestProxy: boolean
+  _ipcPort?: string
+  _ipcKey?: string
 }) {
   // if we already setup the server return as we only need to do
   // this on first worker boot
-  if (result) {
-    return result
+  if (result[opts.dir]) {
+    return result[opts.dir]
   }
 
   const type = process.env.__NEXT_PRIVATE_RENDER_WORKER
@@ -88,7 +94,7 @@ export async function initialize(opts: {
   let requestHandler: RequestHandler
   let upgradeHandler: any
 
-  app = next({
+  const app = next({
     ...opts,
     _routerWorker: opts.workerType === 'router',
     _renderWorker: opts.workerType === 'render',
@@ -98,15 +104,15 @@ export async function initialize(opts: {
     port: opts.port,
     isNodeDebugging: opts.isNodeDebugging,
   })
-
+  apps[opts.dir] = app
   requestHandler = app.getRequestHandler()
   upgradeHandler = app.getUpgradeHandler()
+
   await app.prepare(opts.serverFields)
 
-  result = {
+  result[opts.dir] = {
     requestHandler,
     upgradeHandler,
   }
-
-  return result
+  return result[opts.dir]
 }

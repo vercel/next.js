@@ -493,8 +493,8 @@ export default class DevServer extends Server {
         fetchHostname: this.fetchHostname,
         method: 'logErrorWithOriginalStack',
         args: [errorToJSON(err as Error), type],
-        ipcPort: process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT,
-        ipcKey: process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY,
+        ipcPort: this.ipcPort,
+        ipcKey: this.ipcKey,
       })
       return
     }
@@ -742,8 +742,8 @@ export default class DevServer extends Server {
       fetchHostname: this.fetchHostname,
       method: 'ensurePage',
       args: [opts],
-      ipcPort: process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT,
-      ipcKey: process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY,
+      ipcPort: this.ipcPort,
+      ipcKey: this.ipcKey,
     })
   }
 
@@ -806,8 +806,8 @@ export default class DevServer extends Server {
         fetchHostname: this.fetchHostname,
         method: 'getFallbackErrorComponents',
         args: [],
-        ipcPort: process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT,
-        ipcKey: process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY,
+        ipcPort: this.ipcPort,
+        ipcKey: this.ipcKey,
       })
       return await loadDefaultErrorComponents(this.distDir)
     }
@@ -822,8 +822,8 @@ export default class DevServer extends Server {
         fetchHostname: this.fetchHostname,
         method: 'getCompilationError',
         args: [page],
-        ipcPort: process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT,
-        ipcKey: process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY,
+        ipcPort: this.ipcPort,
+        ipcKey: this.ipcKey,
       })
       return deserializeErr(err)
     }

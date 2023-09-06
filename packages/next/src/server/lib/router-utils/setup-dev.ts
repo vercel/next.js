@@ -157,8 +157,8 @@ async function startWatcher(opts: SetupOpts) {
   )
 
   async function propagateToWorkers(field: PropagateToWorkersField, args: any) {
-    await opts.renderWorkers.app?.propagateServerField(field, args)
-    await opts.renderWorkers.pages?.propagateServerField(field, args)
+    await opts.renderWorkers.app?.propagateServerField(opts.dir, field, args)
+    await opts.renderWorkers.pages?.propagateServerField(opts.dir, field, args)
   }
 
   const serverFields: {

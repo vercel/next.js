@@ -104,6 +104,7 @@ export async function initialize(opts: {
 
     const { setupDev } =
       (await require('./router-utils/setup-dev')) as typeof import('./router-utils/setup-dev')
+
     devInstance = await setupDev({
       // Passed here but the initialization of this object happens below, doing the initialization before the setupDev call breaks.
       renderWorkers,
@@ -179,10 +180,6 @@ export async function initialize(opts: {
     },
   } as any)
 
-  // Set global environment variables for the app render server to use.
-  process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT = ipcPort + ''
-  process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY = ipcValidationKey
-
   renderWorkers.app =
     require('./render-server') as typeof import('./render-server')
 
@@ -196,15 +193,18 @@ export async function initialize(opts: {
     minimalMode: opts.minimalMode,
     dev: !!opts.dev,
     server: opts.server,
+    _ipcPort: ipcPort + '',
+    _ipcKey: ipcValidationKey,
     isNodeDebugging: !!opts.isNodeDebugging,
     serverFields: devInstance?.serverFields || {},
     experimentalTestProxy: !!opts.experimentalTestProxy,
   }
 
   // pre-initialize workers
+  const handlers = await renderWorkers.app?.initialize(renderWorkerOpts)
   const initialized = {
-    app: await renderWorkers.app?.initialize(renderWorkerOpts),
-    pages: await renderWorkers.pages?.initialize(renderWorkerOpts),
+    app: handlers,
+    pages: handlers,
   }
 
   const logError = async (
