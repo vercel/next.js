@@ -8,6 +8,7 @@ import os from 'os'
 import { createInterface } from 'readline'
 import { createReadStream } from 'fs'
 import path from 'path'
+import { Telemetry } from '../telemetry/storage'
 
 // Predefined set of the event names to be included in the trace.
 // If the trace span's name matches to one of the event names in the set,
@@ -52,14 +53,16 @@ interface TraceEvent {
 }
 
 interface TraceMetadata {
+  anonymousId: string
   arch: string
   commit: string
   cpus: number
+  isTurboSession: boolean
   mode: string
+  nextVersion: string
   pkgName: string
   platform: string
-  isTurboSession: boolean
-  nextVersion: string
+  sessionId: string
 }
 
 ;(async function upload() {
@@ -69,6 +72,8 @@ interface TraceMetadata {
       'utf8'
     )
   ).version
+
+  const telemetry = new Telemetry({ distDir })
 
   const projectPkgJsonPath = await findUp('package.json')
   assert(projectPkgJsonPath)
@@ -125,6 +130,7 @@ interface TraceMetadata {
 
   const body: TraceRequestBody = {
     metadata: {
+      anonymousId: telemetry.anonymousId,
       arch: os.arch(),
       commit,
       cpus: os.cpus().length,
@@ -133,6 +139,7 @@ interface TraceMetadata {
       nextVersion,
       pkgName,
       platform: os.platform(),
+      sessionId: telemetry.sessionId,
     },
     traces: [...traces.values()],
   }
