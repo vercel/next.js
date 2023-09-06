@@ -1605,15 +1605,15 @@ export default class NextNodeServer extends BaseServer {
         parsed: parsed,
       })
 
-      if (isMiddlewareInvoke) {
-        bubblingResult = true
-        const err = new Error()
-        ;(err as any).result = result
-        ;(err as any).bubble = true
-        throw err
-      }
-
       if ('response' in result) {
+        if (isMiddlewareInvoke) {
+          bubblingResult = true
+          const err = new Error()
+          ;(err as any).result = result
+          ;(err as any).bubble = true
+          throw err
+        }
+
         for (const [key, value] of Object.entries(
           toNodeOutgoingHttpHeaders(result.response.headers)
         )) {

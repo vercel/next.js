@@ -1271,17 +1271,17 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         if (nextDataResult.finished) {
           return
         }
-        const result = await this.handleCatchallMiddlewareRequest(
-          req,
-          res,
-          parsedUrl
-        )
-        if (!result.finished) {
-          res.setHeader('x-middleware-next', '1')
-          res.body('')
-          res.send()
+        await this.handleCatchallMiddlewareRequest(req, res, parsedUrl)
+
+        // if we didn't already, bubble a NextResponse.next() result
+        const err = new Error()
+        ;(err as any).result = {
+          response: new Response(null, {
+            headers: { 'x-middleware-next': '1' },
+          }),
         }
-        return
+        ;(err as any).bubble = true
+        throw err
       }
 
       // ensure we strip the basePath when not using an invoke header
