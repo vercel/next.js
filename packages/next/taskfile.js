@@ -251,7 +251,7 @@ externals['node-fetch'] = 'next/dist/compiled/node-fetch'
 export async function ncc_node_fetch(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('node-fetch')))
-    .ncc({ packageName: 'node-fetch', externals })
+    .ncc({ packageName: 'node-fetch', externals, detectBunExternals: true })
     .target('src/compiled/node-fetch')
 }
 
@@ -325,7 +325,7 @@ externals['undici'] = 'next/dist/compiled/undici'
 export async function ncc_undici(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('undici')))
-    .ncc({ packageName: 'undici', externals })
+    .ncc({ packageName: 'undici', externals, detectBunExternals: true })
     .target('src/compiled/undici')
 
   const outputFile = join('src/compiled/undici/index.js')
@@ -2155,7 +2155,7 @@ externals['ws'] = 'next/dist/compiled/ws'
 export async function ncc_ws(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('ws')))
-    .ncc({ packageName: 'ws', externals })
+    .ncc({ packageName: 'ws', externals, detectBunExternals: true })
     .target('src/compiled/ws')
 }
 

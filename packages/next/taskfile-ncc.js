@@ -50,7 +50,17 @@ module.exports = function (task) {
         )
       }
 
-      file.data = Buffer.from(code, 'utf8')
+      // In Bun, `ws`, `node-fetch`, and `undici` are overridden to hook into native code
+      // more efficiently. For `ws`, the original implementation of is purely JS and
+      // accesses `req.socket` directly, which Bun doesn't support.
+      //
+      // This prefix is added for these two modules which detect Bun using `process.versions.bun`
+      // and then calling require. The '||' allows the IIFE from ncc to run as usual.
+      file.data = options.detectBunExternals
+        ? Buffer.from(
+            `typeof process<'u'&&process.versions.bun&&(module.exports=require('${options.packageName}'))||${code}`
+          )
+        : Buffer.from(code, 'utf8')
     })
   })
 }
