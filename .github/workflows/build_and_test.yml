@@ -125,7 +125,7 @@ jobs:
     secrets: inherit
 
   test-turbopack-dev:
-    name: test experimental turbopack dev
+    name: test turbopack dev
     needs: ['build-native', 'build-next']
     uses: ./.github/workflows/build_reusable.yml
     with:
@@ -134,7 +134,7 @@ jobs:
     secrets: inherit
 
   test-turbopack-integration:
-    name: test experimental turbopack integration
+    name: test turbopack integration
     needs: ['build-native', 'build-next']
     strategy:
       fail-fast: false
