@@ -1,0 +1,5 @@
+a = FreeVar(import)("a")
+
+b = (???*0* | FreeVar(import)("a") | FreeVar(import)("b"))
+- *0* b
+  ⚠️  pattern without value
