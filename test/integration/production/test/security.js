@@ -98,9 +98,9 @@ module.exports = (context) => {
       const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
 
       const readPath = join(__dirname, `../.next/static/${buildId}`)
-      const buildFiles = await recursiveReadDir(readPath, (f) =>
-        /\.js$/.test(f)
-      )
+      const buildFiles = await recursiveReadDir(readPath, {
+        pathnameFilter: (f) => /\.js$/.test(f),
+      })
 
       if (buildFiles.length < 1) {
         throw new Error('Could not locate any build files')

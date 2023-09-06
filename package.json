@@ -87,6 +87,7 @@
     "@swc/cli": "0.1.55",
     "@swc/core": "1.3.55",
     "@swc/helpers": "0.5.1",
+    "@testing-library/jest-dom": "6.1.2",
     "@testing-library/react": "13.0.0",
     "@types/cheerio": "0.22.16",
     "@types/cookie": "0.3.3",
@@ -108,7 +109,7 @@
     "@typescript-eslint/eslint-plugin": "6.1.0",
     "@typescript-eslint/parser": "6.1.0",
     "@vercel/fetch": "6.1.1",
-    "@vercel/og": "0.5.9",
+    "@vercel/og": "0.5.12",
     "@zeit/next-typescript": "1.1.2-canary.0",
     "abort-controller": "3.0.0",
     "alex": "9.1.0",
@@ -208,7 +209,7 @@
     "request-promise-core": "1.1.2",
     "resolve-from": "5.0.0",
     "sass": "1.54.0",
-    "satori": "0.10.1",
+    "satori": "0.10.3",
     "scheduler-builtin": "npm:scheduler@0.24.0-canary-dd480ef92-20230822",
     "scheduler-experimental-builtin": "npm:scheduler@0.0.0-experimental-dd480ef92-20230822",
     "seedrandom": "3.0.5",
@@ -247,7 +248,7 @@
   },
   "engines": {
     "node": ">=16.14.0",
-    "pnpm": "8.6.11"
+    "pnpm": "8.7.1"
   },
-  "packageManager": "pnpm@8.6.11"
+  "packageManager": "pnpm@8.7.1"
 }

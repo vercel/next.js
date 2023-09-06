@@ -7,7 +7,7 @@ import type {
 
 import React from 'react'
 import { UrlObject } from 'url'
-import { resolveHref } from '../shared/lib/router/utils/resolve-href'
+import { resolveHref } from './resolve-href'
 import { isLocalURL } from '../shared/lib/router/utils/is-local-url'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
 import { isAbsoluteUrl } from '../shared/lib/utils'
@@ -276,8 +276,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       onClick,
       onMouseEnter: onMouseEnterProp,
       onTouchStart: onTouchStartProp,
-      // @ts-expect-error this is inlined as a literal boolean not a string
-      legacyBehavior = process.env.__NEXT_NEW_LINK_BEHAVIOR === false,
+      legacyBehavior = false,
       ...restProps
     } = props
 
