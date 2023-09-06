@@ -244,7 +244,7 @@ describe('skip-trailing-slash-redirect', () => {
     expect(await res.text()).toContain('another page')
   })
 
-  it('should not apply trailing slash to links on client', async () => {
+  it('should preserve original trailing slashes to links on client', async () => {
     const browser = await webdriver(next.url, '/')
     await browser.eval('window.beforeNav = 1')
 
@@ -254,6 +254,15 @@ describe('skip-trailing-slash-redirect', () => {
         'http://n'
       ).pathname
     ).toBe('/another')
+
+    expect(
+      new URL(
+        await browser
+          .elementByCss('#to-another-with-slash')
+          .getAttribute('href'),
+        'http://n'
+      ).pathname
+    ).toBe('/another/')
 
     await browser.elementByCss('#to-another').click()
     await browser.waitForElementByCss('#another')
