@@ -115,7 +115,7 @@ export async function initialize(opts: {
       dir: opts.dir,
       nextConfig: config,
       isCustomServer: opts.customServer,
-      turbo: !!process.env.EXPERIMENTAL_TURBOPACK,
+      turbo: !!process.env.TURBOPACK,
     })
   }
 

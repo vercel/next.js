@@ -25,11 +25,7 @@ import type { RequestInit, Response } from 'node-fetch'
 import type { NextServer } from 'next/dist/server/next'
 import type { BrowserInterface } from './browsers/base'
 
-import {
-  getTurbopackFlag,
-  shouldRunExperimentalTurboDevTest,
-  shouldRunTurboDevTest,
-} from './turbo'
+import { getTurbopackFlag, shouldRunTurboDevTest } from './turbo'
 import stripAnsi from 'strip-ansi'
 
 export { shouldRunTurboDevTest }
@@ -319,7 +315,6 @@ export interface NextDevOptions {
   bootupMarker?: RegExp
   nextStart?: boolean
   turbo?: boolean
-  experimentalTurbo?: boolean
 
   stderr?: false
   stdout?: false
@@ -363,20 +358,13 @@ export function runNextCommandDev(
     let didResolve = false
 
     const bootType =
-      opts.nextStart || stdOut
-        ? 'start'
-        : opts?.experimentalTurbo
-        ? 'experimentalTurbo'
-        : opts?.turbo
-        ? 'turbo'
-        : 'dev'
+      opts.nextStart || stdOut ? 'start' : opts?.turbo ? 'turbo' : 'dev'
 
     function handleStdout(data) {
       const message = data.toString()
       const bootupMarkers = {
         dev: /✓ ready/i,
-        turbo: /started server/i,
-        experimentalTurbo: /✓ ready/i,
+        turbo: /✓ ready/i,
         start: /▲ Next.js/i,
       }
 
@@ -438,11 +426,10 @@ export function launchApp(
 ) {
   const options = opts ?? {}
   const useTurbo = shouldRunTurboDevTest()
-  const useExperimentalTurbo = shouldRunExperimentalTurboDevTest()
 
   return runNextCommandDev(
     [
-      useTurbo || useExperimentalTurbo ? getTurbopackFlag() : undefined,
+      useTurbo ? getTurbopackFlag() : undefined,
       dir,
       '-p',
       port as string,
@@ -451,7 +438,6 @@ export function launchApp(
     {
       ...options,
       turbo: useTurbo,
-      experimentalTurbo: useExperimentalTurbo,
     }
   )
 }
@@ -1025,30 +1011,23 @@ export function findAllTelemetryEvents(output: string, eventName: string) {
   return events.filter((e) => e.eventName === eventName).map((e) => e.payload)
 }
 
-type TestVariants = 'default' | 'turbo' | 'experimentalTurbo'
+type TestVariants = 'default' | 'turbo'
 
 // WEB-168: There are some differences / incompletes in turbopack implementation enforces jest requires to update
 // test snapshot when run against turbo. This fn returns describe, or describe.skip dependes on the running context
 // to avoid force-snapshot update per each runs until turbopack update includes all the changes.
 export function getSnapshotTestDescribe(variant: TestVariants) {
   const runningEnv = variant ?? 'default'
-  if (
-    runningEnv !== 'default' &&
-    runningEnv !== 'turbo' &&
-    runningEnv !== 'experimentalTurbo'
-  ) {
+  if (runningEnv !== 'default' && runningEnv !== 'turbo') {
     throw new Error(
-      `An invalid test env was passed: ${variant} (only "default", "turbo" and "experimentalTurbo" are valid options)`
+      `An invalid test env was passed: ${variant} (only "default" and "turbo" are valid options)`
     )
   }
 
   const shouldRunTurboDev = shouldRunTurboDevTest()
-  const shouldRunExperimentalTurboDev = shouldRunExperimentalTurboDevTest()
   const shouldSkip =
     (runningEnv === 'turbo' && !shouldRunTurboDev) ||
-    (runningEnv === 'experimentalTurbo' && !shouldRunExperimentalTurboDev) ||
-    (runningEnv === 'default' &&
-      (shouldRunTurboDev || shouldRunExperimentalTurboDev))
+    (runningEnv === 'default' && shouldRunTurboDev)
 
   return shouldSkip ? describe.skip : describe
 }

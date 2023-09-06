@@ -1,13 +1,13 @@
-import type { NextRouter, Url } from '../router'
+import type { NextRouter, Url } from '../shared/lib/router/router'
 
-import { searchParamsToUrlQuery } from './querystring'
-import { formatWithValidation } from './format-url'
-import { omit } from './omit'
-import { normalizeRepeatedSlashes } from '../../utils'
-import { normalizePathTrailingSlash } from '../../../../client/normalize-trailing-slash'
-import { isLocalURL } from './is-local-url'
-import { isDynamicRoute } from './is-dynamic'
-import { interpolateAs } from './interpolate-as'
+import { searchParamsToUrlQuery } from '../shared/lib/router/utils/querystring'
+import { formatWithValidation } from '../shared/lib/router/utils/format-url'
+import { omit } from '../shared/lib/router/utils/omit'
+import { normalizeRepeatedSlashes } from '../shared/lib/utils'
+import { normalizePathTrailingSlash } from './normalize-trailing-slash'
+import { isLocalURL } from '../shared/lib/router/utils/is-local-url'
+import { isDynamicRoute } from '../shared/lib/router/utils'
+import { interpolateAs } from '../shared/lib/router/utils/interpolate-as'
 
 /**
  * Resolves a given hyperlink with a certain router state (basePath not included).
