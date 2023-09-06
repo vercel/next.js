@@ -1,11 +1,8 @@
-import { FileReader } from './helpers/file-reader/file-reader'
-import {
-  PagesAPILocaleRouteMatcher,
-  PagesAPIRouteMatcher,
-} from '../../route-matchers/pages-api-route-matcher'
+import type { FileReader } from './helpers/file-reader/file-reader'
+
+import { PagesAPIRouteMatcher } from '../../route-matchers/pages-api-route-matcher'
 import { RouteKind } from '../../route-kind'
 import path from 'path'
-import { LocaleRouteNormalizer } from '../../normalizers/locale-route-normalizer'
 import { FileCacheRouteMatcherProvider } from './file-cache-route-matcher-provider'
 import { DevPagesNormalizers } from '../../normalizers/built/pages'
 
@@ -16,8 +13,7 @@ export class DevPagesAPIRouteMatcherProvider extends FileCacheRouteMatcherProvid
   constructor(
     private readonly pagesDir: string,
     private readonly extensions: ReadonlyArray<string>,
-    reader: FileReader,
-    private readonly localeNormalizer?: LocaleRouteNormalizer
+    reader: FileReader
   ) {
     super(pagesDir, reader)
 
@@ -62,28 +58,15 @@ export class DevPagesAPIRouteMatcherProvider extends FileCacheRouteMatcherProvid
       const page = this.normalizers.page.normalize(filename)
       const bundlePath = this.normalizers.bundlePath.normalize(filename)
 
-      if (this.localeNormalizer) {
-        matchers.push(
-          new PagesAPILocaleRouteMatcher({
-            kind: RouteKind.PAGES_API,
-            pathname,
-            page,
-            bundlePath,
-            filename,
-            i18n: {},
-          })
-        )
-      } else {
-        matchers.push(
-          new PagesAPIRouteMatcher({
-            kind: RouteKind.PAGES_API,
-            pathname,
-            page,
-            bundlePath,
-            filename,
-          })
-        )
-      }
+      matchers.push(
+        new PagesAPIRouteMatcher({
+          kind: RouteKind.PAGES_API,
+          pathname,
+          page,
+          bundlePath,
+          filename,
+        })
+      )
     }
 
     return matchers
