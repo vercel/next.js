@@ -1,0 +1,69 @@
+[
+    (
+        "a",
+        Call(
+            3,
+            FreeVar(
+                Atom('import' type=static),
+            ),
+            [
+                Constant(
+                    Str(
+                        Word(
+                            Atom('a' type=static),
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "b",
+        Alternatives(
+            8,
+            [
+                Unknown(
+                    Some(
+                        Variable(
+                            (
+                                Atom('b' type=static),
+                                #2,
+                            ),
+                        ),
+                    ),
+                    "pattern without value",
+                ),
+                Call(
+                    3,
+                    FreeVar(
+                        Atom('import' type=static),
+                    ),
+                    [
+                        Constant(
+                            Str(
+                                Word(
+                                    Atom('a' type=static),
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+                Call(
+                    3,
+                    FreeVar(
+                        Atom('import' type=static),
+                    ),
+                    [
+                        Constant(
+                            Str(
+                                Word(
+                                    Atom('b' type=static),
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+            ],
+        ),
+    ),
+]

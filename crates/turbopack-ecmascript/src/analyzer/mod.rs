@@ -3166,7 +3166,9 @@ pub mod test_utils {
         builtin::early_replace_builtin, well_known::replace_well_known, JsValue, ModuleValue,
         WellKnownFunctionKind, WellKnownObjectKind,
     };
-    use crate::analyzer::{builtin::replace_builtin, parse_require_context};
+    use crate::analyzer::{
+        builtin::replace_builtin, imports::ImportAnnotations, parse_require_context,
+    };
 
     pub async fn early_visitor(mut v: JsValue) -> Result<(JsValue, bool)> {
         let m = early_replace_builtin(&mut v);
@@ -3178,6 +3180,17 @@ pub mod test_utils {
         compile_time_info: Vc<CompileTimeInfo>,
     ) -> Result<(JsValue, bool)> {
         let mut new_value = match v {
+            JsValue::Call(
+                _,
+                box JsValue::WellKnownFunction(WellKnownFunctionKind::Import),
+                ref args,
+            ) => match &args[0] {
+                JsValue::Constant(v) => JsValue::Module(ModuleValue {
+                    module: v.to_string().into(),
+                    annotations: ImportAnnotations::default(),
+                }),
+                _ => v.into_unknown("import() non constant"),
+            },
             JsValue::Call(
                 _,
                 box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
@@ -3205,6 +3218,7 @@ pub mod test_utils {
                 Err(err) => v.into_unknown(PrettyPrintError(&err).to_string()),
             },
             JsValue::FreeVar(ref var) => match &**var {
+                "import" => JsValue::WellKnownFunction(WellKnownFunctionKind::Import),
                 "require" => JsValue::WellKnownFunction(WellKnownFunctionKind::Require),
                 "define" => JsValue::WellKnownFunction(WellKnownFunctionKind::Define),
                 "__dirname" => "__dirname".into(),

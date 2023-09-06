@@ -416,8 +416,20 @@ impl EvalContext {
             &Expr::Cond(CondExpr {
                 box ref cons,
                 box ref alt,
+                box ref test,
                 ..
-            }) => JsValue::alternatives(vec![self.eval(cons), self.eval(alt)]),
+            }) => {
+                let test = self.eval(test);
+                if let Some(truthy) = test.is_truthy() {
+                    if truthy {
+                        self.eval(cons)
+                    } else {
+                        self.eval(alt)
+                    }
+                } else {
+                    JsValue::alternatives(vec![self.eval(cons), self.eval(alt)])
+                }
+            }
 
             Expr::Tpl(e) => self.eval_tpl(e, false),
 
@@ -1525,6 +1537,47 @@ impl VisitAstPath for Analyzer<'_> {
         self.effects = take(&mut self.data.effects);
         program.visit_children_with_path(self, ast_path);
         self.data.effects = take(&mut self.effects);
+    }
+
+    fn visit_cond_expr<'ast: 'r, 'r>(
+        &mut self,
+        expr: &'ast CondExpr,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        {
+            let mut ast_path =
+                ast_path.with_guard(AstParentNodeRef::CondExpr(expr, CondExprField::Test));
+            expr.test.visit_with_path(self, &mut ast_path);
+        }
+
+        let prev_effects = take(&mut self.effects);
+        let then = {
+            let mut ast_path =
+                ast_path.with_guard(AstParentNodeRef::CondExpr(expr, CondExprField::Cons));
+            expr.cons.visit_with_path(self, &mut ast_path);
+            EffectsBlock {
+                effects: take(&mut self.effects),
+                ast_path: as_parent_path(&ast_path),
+            }
+        };
+        let r#else = {
+            let mut ast_path =
+                ast_path.with_guard(AstParentNodeRef::CondExpr(expr, CondExprField::Alt));
+            expr.alt.visit_with_path(self, &mut ast_path);
+            EffectsBlock {
+                effects: take(&mut self.effects),
+                ast_path: as_parent_path(&ast_path),
+            }
+        };
+        self.effects = prev_effects;
+
+        self.add_conditional_effect(
+            &expr.test,
+            ast_path,
+            AstParentKind::CondExpr(CondExprField::Test),
+            expr.span(),
+            ConditionalKind::Ternary { then, r#else },
+        );
     }
 
     fn visit_if_stmt<'ast: 'r, 'r>(
