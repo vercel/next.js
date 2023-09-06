@@ -2,6 +2,13 @@ import { RouteMatcher } from '../../route-matchers/route-matcher'
 
 type GroupedMatcherResults = {
   /**
+   * all is a map of all the matchers, keyed by their pathname. There may be
+   * multiple matchers for the same pathname, so the value is an array of
+   * matchers.
+   */
+  readonly all: ReadonlyMap<string, ReadonlyArray<RouteMatcher>>
+
+  /**
    * duplicates is a map of all the duplicate matchers, keyed by their
    * pathname. This will only contain references to those matchers where more
    * than one matcher exists for the same pathname.
@@ -65,5 +72,5 @@ export function groupMatcherResults(
     }
   }
 
-  return { duplicates }
+  return { all, duplicates }
 }

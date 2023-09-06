@@ -15,18 +15,21 @@ describe('DefaultRouteMatcherManager', () => {
     await expect(
       manager.match('/some/not/real/path', {
         i18n: undefined,
+        matchedOutputPathname: undefined,
       })
     ).resolves.toEqual(null)
     manager.push({ matchers: jest.fn(async () => []) })
     await expect(
       manager.match('/some/not/real/path', {
         i18n: undefined,
+        matchedOutputPathname: undefined,
       })
     ).rejects.toThrow()
     await manager.load()
     await expect(
       manager.match('/some/not/real/path', {
         i18n: undefined,
+        matchedOutputPathname: undefined,
       })
     ).resolves.toEqual(null)
   })
@@ -37,6 +40,7 @@ describe('DefaultRouteMatcherManager', () => {
     await expect(
       manager.match('/some/not/real/path', {
         i18n: undefined,
+        matchedOutputPathname: undefined,
       })
     ).resolves.toEqual(null)
   })
@@ -55,13 +59,13 @@ describe('DefaultRouteMatcherManager', () => {
     }>([
       {
         pathname: '/some/[slug]/path',
-        options: { i18n: undefined },
+        options: { i18n: undefined, matchedOutputPathname: undefined },
         definitions: [],
         expected: undefined,
       },
       {
         pathname: '/some/[slug]/path',
-        options: { i18n: undefined },
+        options: { i18n: undefined, matchedOutputPathname: undefined },
         definitions: [
           {
             kind: RouteKind.APP_PAGE,
@@ -108,6 +112,7 @@ describe('DefaultRouteMatcherManager', () => {
           pathname: '/some/path',
           inferredFromDefault: false,
         },
+        matchedOutputPathname: undefined,
       },
       definition: {
         kind: RouteKind.PAGES,
@@ -129,6 +134,7 @@ describe('DefaultRouteMatcherManager', () => {
           pathname: '/some/path',
           inferredFromDefault: false,
         },
+        matchedOutputPathname: undefined,
       },
       definition: {
         kind: RouteKind.PAGES,
@@ -150,6 +156,7 @@ describe('DefaultRouteMatcherManager', () => {
           pathname: '/some/path',
           inferredFromDefault: false,
         },
+        matchedOutputPathname: undefined,
       },
       definition: {
         kind: RouteKind.PAGES,
@@ -206,6 +213,7 @@ describe('DefaultRouteMatcherManager', () => {
         pathname: '/some/path',
         inferredFromDefault: false,
       },
+      matchedOutputPathname: undefined,
     }
     const match = await manager.match('/en-US/some/path', options)
     expect(match?.definition).toBe(definition)
@@ -234,6 +242,7 @@ describe('DefaultRouteMatcherManager', () => {
         pathname: '/some/path',
         inferredFromDefault: true,
       },
+      matchedOutputPathname: undefined,
     }
     const match = await manager.match('/en-US/some/path', options)
     expect(match?.definition).toBe(definition)

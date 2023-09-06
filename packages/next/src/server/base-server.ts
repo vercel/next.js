@@ -68,11 +68,7 @@ import * as Log from '../build/output/log'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
 import { getUtils } from './server-utils'
 import isError, { getProperError } from '../lib/is-error'
-import {
-  addRequestMeta,
-  getRequestMeta,
-  removeRequestMeta,
-} from './request-meta'
+import { addRequestMeta, getRequestMeta } from './request-meta'
 
 import { ImageConfigComplete } from '../shared/lib/image-config'
 import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
@@ -124,6 +120,7 @@ import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-ass
 import { stripInternalHeaders } from './internal-utils'
 import { AppRouteDefinitionBuilder } from './future/route-matcher-providers/builders/app-route-definition-builder'
 import { isAppPageRouteDefinition } from './future/route-definitions/app-page-route-definition'
+import { isInvokedRouteMatch } from './future/route-matches/invoked-route-match'
 import { RouteMatch } from './future/route-matches/route-match'
 import { isAppRouteDefinition } from './future/route-definitions/app-route-definition'
 
@@ -904,6 +901,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           let srcPathname = matchedPath
           const match = await this.matchers.match(matchedPath, {
             i18n: localeAnalysisResult,
+            // Not supported when running in minimal mode, no need to check.
+            matchedOutputPathname: undefined,
           })
 
           // Update the source pathname to the matched page's pathname.
@@ -2564,6 +2563,17 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null>
   protected abstract getRoutesManifest(): NormalizedRouteManifest | undefined
 
+  protected matchedOutputPathname(req: Pick<BaseNextRequest, 'headers'>) {
+    if (this.minimalMode || !this.isRenderWorker) return undefined
+
+    const matchedOutputPathname = req.headers['x-invoke-output']
+
+    if (typeof matchedOutputPathname !== 'string') return undefined
+    if (matchedOutputPathname.length === 0) return undefined
+
+    return matchedOutputPathname
+  }
+
   private async renderMatch(
     ctx: Omit<RequestContext, 'match'>,
     match: RouteMatch,
@@ -2594,31 +2604,29 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     delete query[NEXT_RSC_UNION_QUERY]
     delete query._nextBubbleNoFallback
 
-    const options: MatchOptions = {
-      i18n: this.i18nProvider?.fromQuery(pathname, query),
-    }
-
     try {
-      for await (const match of this.matchers.matchAll(pathname, options)) {
-        // when a specific invoke-output is meant to be matched
-        // ensure a prior dynamic route/page doesn't take priority
-        const invokeOutput = ctx.req.headers['x-invoke-output']
-        if (
-          !this.minimalMode &&
-          this.isRenderWorker &&
-          typeof invokeOutput === 'string' &&
-          isDynamicRoute(invokeOutput) &&
-          invokeOutput !== match.definition.pathname
-        ) {
-          continue
+      if (ctx.match && isInvokedRouteMatch(ctx.match)) {
+        const result = await this.renderMatch(ctx, ctx.match, bubbleNoFallback)
+
+        // If the result not false (implying it couldn't render it) we should
+        // return it.
+        if (result !== false) return result
+
+        // Otherwise continue.
+      } else {
+        const options: MatchOptions = {
+          i18n: this.i18nProvider?.fromQuery(pathname, query),
+          matchedOutputPathname: this.matchedOutputPathname(ctx.req),
         }
 
-        const result = await this.renderMatch(ctx, match, bubbleNoFallback)
+        for await (const match of this.matchers.matchAll(pathname, options)) {
+          const result = await this.renderMatch(ctx, match, bubbleNoFallback)
 
-        // If we couldn't render the page component, we should continue.
-        if (result === false) continue
+          // If we couldn't render the page component, we should continue.
+          if (result === false) continue
 
-        return result
+          return result
+        }
       }
 
       // currently edge functions aren't receiving the x-matched-path
@@ -2919,18 +2927,17 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         )
       }
 
-      // If the page has a route module, use it for the new match. If it doesn't
-      // have a route module, remove the match.
-      if (result.components.routeModule) {
-        addRequestMeta(ctx.req, '_nextMatch', {
-          definition: result.components.routeModule.definition,
-          params: undefined,
-        })
-      } else {
-        removeRequestMeta(ctx.req, '_nextMatch')
-      }
-
       try {
+        // Update the match on the context.
+        if (result.components.routeModule) {
+          ctx.match = {
+            definition: result.components.routeModule.definition,
+            params: undefined,
+          }
+        } else {
+          ctx.match = null
+        }
+
         return await this.renderToResponseWithComponents(
           {
             ...ctx,
@@ -2958,12 +2965,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const fallbackComponents = await this.getFallbackErrorComponents()
 
       if (fallbackComponents) {
-        // There was an error, so use it's definition from the route module
-        // to add the match to the request.
-        addRequestMeta(ctx.req, '_nextMatch', {
+        ctx.match = {
+          // We know that the fallback components have a route module.
           definition: fallbackComponents.routeModule!.definition,
           params: undefined,
-        })
+        }
 
         return this.renderToResponseWithComponents(
           {

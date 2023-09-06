@@ -10,13 +10,11 @@ export const INTERCEPTION_ROUTE_MARKERS = [
 
 export function isInterceptionRouteAppPath(path: string): boolean {
   // TODO-APP: add more serious validation
-  return (
-    path
-      .split('/')
-      .find((segment) =>
-        INTERCEPTION_ROUTE_MARKERS.find((m) => segment.startsWith(m))
-      ) !== undefined
-  )
+  return path
+    .split('/')
+    .some((segment) =>
+      INTERCEPTION_ROUTE_MARKERS.some((m) => segment.startsWith(m))
+    )
 }
 
 export function extractInterceptionRouteInformation(path: string) {

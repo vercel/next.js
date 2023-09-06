@@ -838,7 +838,9 @@ export default class NextNodeServer extends BaseServer {
 
       const options: MatchOptions = {
         i18n: this.i18nProvider?.fromQuery(pathname, query),
+        matchedOutputPathname: this.matchedOutputPathname(req),
       }
+
       const match = await this.matchers.match(pathname, options)
 
       // If we don't have a match, try to render it anyways.
@@ -847,10 +849,6 @@ export default class NextNodeServer extends BaseServer {
 
         return { finished: true }
       }
-
-      // Add the match to the request so we don't have to re-run the matcher
-      // for the same request.
-      addRequestMeta(req, '_nextMatch', match)
 
       // TODO-APP: move this to a route handler
       const edgeFunctionsPages = this.getEdgeFunctionsPages()

@@ -10,6 +10,14 @@ export type MatchOptions = {
    * application was not configured for additional locales.
    */
   i18n: Readonly<LocaleInfo> | undefined
+
+  /**
+   * The output of the matcher that should be used for matching. When defined,
+   * it will only match with the matchers that share the same output. Variants
+   * like different locales will be matched in order to match the correct
+   * output.
+   */
+  matchedOutputPathname: string | undefined
 }
 
 export interface RouteMatcherManager {

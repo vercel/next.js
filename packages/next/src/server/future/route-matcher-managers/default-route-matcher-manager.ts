@@ -14,6 +14,7 @@ import {
 } from '../normalizers/match-options-normalizer'
 import { groupMatcherResults } from './helpers/group-matcher-results'
 import { sortDynamicMatchers } from './helpers/sort-dynamic-matchers'
+import { extendInvokedRouteMatch } from '../route-matches/invoked-route-match'
 
 type RouteMatchers = {
   /**
@@ -33,6 +34,13 @@ type RouteMatchers = {
    * definition. This is used to warn about duplicate matchers in development.
    */
   duplicates: ReadonlyMap<string, ReadonlyArray<RouteMatcher>>
+
+  /**
+   * A map of all the matchers, keyed by the pathname of the definition. This
+   * is used to match against a specific definition pathname when a specific
+   * output is requested.
+   */
+  all: ReadonlyMap<string, ReadonlyArray<RouteMatcher>>
 }
 
 export class DefaultRouteMatcherManager implements RouteMatcherManager {
@@ -48,6 +56,7 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
     static: [],
     dynamic: [],
     duplicates: new Map(),
+    all: new Map(),
   }
 
   /**
@@ -127,7 +136,7 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
       }, [])
 
       // Group the matchers and find any duplicates.
-      const { duplicates } = groupMatcherResults(matchers)
+      const { all, duplicates } = groupMatcherResults(matchers)
 
       // Update the duplicate matchers. This is used in the development manager
       // to warn about duplicates.
@@ -145,6 +154,9 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
         return
       }
       this.previousMatchers = matchers
+
+      // Update the matcher outputs reference.
+      this.matchers.all = all
 
       // For matchers that are for static routes, filter them now.
       this.matchers.static = matchers.filter((matcher) => !matcher.isDynamic)
@@ -238,6 +250,37 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
 
     // Normalize the pathname and options.
     const normalized = this.normalizer.normalize({ pathname, options })
+
+    // If a definition pathname was provided, get the match for it, and only it.
+    if (normalized.options.matchedOutputPathname) {
+      // Get the matcher for the definition pathname.
+      const matchers = this.matchers.all.get(
+        normalized.options.matchedOutputPathname
+      )
+
+      // There was no matchers for this output.
+      if (!matchers) return null
+
+      // Loop over the matchers, yielding the first match, it should only match
+      // once.
+      for (const matcher of matchers) {
+        const match = this.validate(matcher, normalized)
+        if (!match) continue
+
+        // We found a match, so yield it and exit.
+        yield extendInvokedRouteMatch(
+          match,
+          // Attach the matched output pathname to the match to indicate that
+          // this match was created via a specific output.
+          normalized.options.matchedOutputPathname
+        )
+
+        return null
+      }
+
+      // We didn't find a match, so exit.
+      return null
+    }
 
     // If this pathname looks like a dynamic route, then we couldn't have a
     // static match for it because you can't escape the dynamic route parameters

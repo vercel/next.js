@@ -6,5 +6,9 @@
  *   - `/` -> `/`
  */
 export function removeTrailingSlash(route: string) {
-  return route.replace(/\/$/, '') || '/'
+  if (route === '/' || !route.endsWith('/')) {
+    return route
+  }
+
+  return route.slice(0, -1)
 }

@@ -519,7 +519,7 @@ export function onDemandEntryHandler({
   let curInvalidator: Invalidator = getInvalidator(
     multiCompiler.outputPath
   ) as any
-  const curEntries = getEntries(multiCompiler.outputPath) as any
+  const curEntries = getEntries(multiCompiler.outputPath)
 
   if (!curInvalidator) {
     curInvalidator = new Invalidator(multiCompiler)
