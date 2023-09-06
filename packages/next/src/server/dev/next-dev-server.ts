@@ -419,7 +419,7 @@ export default class DevServer extends Server {
       const err = getProperError(error)
       const { req, res, page } = params
       res.statusCode = 500
-      this.renderError(err, req, res, page)
+      await this.renderError(err, req, res, page)
       return null
     }
   }
