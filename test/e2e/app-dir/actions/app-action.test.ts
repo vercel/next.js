@@ -310,6 +310,39 @@ createNextDescribe(
       }, '1')
     })
 
+    it('should only submit action once when resubmitting an action after navigation', async () => {
+      let requestCount = 0
+
+      const browser = await next.browser('/server', {
+        beforePageLoad(page) {
+          page.on('request', (request) => {
+            const url = new URL(request.url())
+            if (url.pathname === '/server') {
+              requestCount++
+            }
+          })
+        },
+      })
+
+      async function submitForm() {
+        await browser.elementById('name').type('foo')
+        await browser.elementById('submit').click()
+        await check(() => browser.url(), /header/)
+      }
+
+      await submitForm()
+
+      await browser.elementById('navigate-server').click()
+      await check(() => browser.url(), /server/)
+      await browser.waitForIdleNetwork()
+
+      requestCount = 0
+
+      await submitForm()
+
+      expect(requestCount).toBe(1)
+    })
+
     if (isNextStart) {
       it('should not expose action content in sourcemaps', async () => {
         const sourcemap = (
@@ -730,20 +763,20 @@ createNextDescribe(
 
           await browser.elementByCss('#back').click()
 
-          switch (type) {
-            case 'tag':
-              await browser.elementByCss('#revalidate-thankyounext').click()
-              break
-            case 'path':
-              await browser.elementByCss('#revalidate-path').click()
-              break
-            default:
-              throw new Error(`Invalid type: ${type}`)
-          }
-
           // Should be different
           let revalidatedThankYouNext
           await check(async () => {
+            switch (type) {
+              case 'tag':
+                await browser.elementByCss('#revalidate-thankyounext').click()
+                break
+              case 'path':
+                await browser.elementByCss('#revalidate-path').click()
+                break
+              default:
+                throw new Error(`Invalid type: ${type}`)
+            }
+
             revalidatedThankYouNext = await browser
               .elementByCss('#thankyounext')
               .text()

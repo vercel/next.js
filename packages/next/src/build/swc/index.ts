@@ -21,7 +21,9 @@ const infoLog = (...args: any[]) => {
   if (process.env.NEXT_PRIVATE_BUILD_WORKER) {
     return
   }
-  Log.info(...args)
+  if (process.env.DEBUG) {
+    Log.info(...args)
+  }
 }
 
 /**
@@ -475,10 +477,8 @@ export type TurbopackResult<T = {}> = T & {
   diagnostics: Diagnostics[]
 }
 
-interface Middleware {
+export interface Middleware {
   endpoint: Endpoint
-  runtime: 'nodejs' | 'edge'
-  matcher?: string[]
 }
 
 export interface Entrypoints {
@@ -502,13 +502,13 @@ export interface UpdateInfo {
   tasks: number
 }
 
-enum ServerClientChangeType {
+export enum ServerClientChangeType {
   Server = 'Server',
   Client = 'Client',
   Both = 'Both',
 }
 export interface ServerClientChange {
-  change: ServerClientChangeType
+  type: ServerClientChangeType
 }
 
 export interface Project {
@@ -552,7 +552,7 @@ export interface Endpoint {
    * After changed() has been awaited it will listen to changes.
    * The async iterator will yield for each change.
    */
-  changed(): Promise<AsyncIterableIterator<TurbopackResult>>
+  changed(): Promise<AsyncIterableIterator<TurbopackResult<ServerClientChange>>>
 }
 
 interface EndpointConfig {
@@ -594,6 +594,8 @@ function bindingToApi(binding: any, _wasm: boolean) {
   type NativeFunction<T> = (
     callback: (err: Error, value: T) => void
   ) => Promise<{ __napiType: 'RootTask' }>
+
+  const cancel = new (class Cancel extends Error {})()
 
   /**
    * Utility function to ensure all variants of an enum are handled.
@@ -637,6 +639,7 @@ function bindingToApi(binding: any, _wasm: boolean) {
           reject: (error: Error) => void
         }
       | undefined
+    let canceled = false
 
     // The native function will call this every time it emits a new result. We
     // either need to notify a waiting consumer, or buffer the new result until
@@ -654,10 +657,10 @@ function bindingToApi(binding: any, _wasm: boolean) {
       }
     }
 
-    return (async function* () {
+    const iterator = (async function* () {
       const task = await withErrorCause(() => nativeFunction(emitResult))
       try {
-        while (true) {
+        while (!canceled) {
           if (buffer.length > 0) {
             const item = buffer.shift()!
             if (item.err) throw item.err
@@ -669,10 +672,19 @@ function bindingToApi(binding: any, _wasm: boolean) {
             })
           }
         }
+      } catch (e) {
+        if (e === cancel) return
+        throw e
       } finally {
         binding.rootTaskDispose(task)
       }
     })()
+    iterator.return = async () => {
+      canceled = true
+      if (waiting) waiting.reject(cancel)
+      return { value: undefined, done: true } as IteratorReturnResult<never>
+    }
+    return iterator
   }
 
   /**
@@ -910,6 +922,10 @@ function bindingToApi(binding: any, _wasm: boolean) {
           )
       )
 
+      // The subscriptions will always emit once, which is the initial
+      // computation. This is not a change, so swallow it.
+      await Promise.all([serverSubscription.next(), clientSubscription.next()])
+
       return (async function* () {
         try {
           while (true) {
@@ -929,17 +945,17 @@ function bindingToApi(binding: any, _wasm: boolean) {
                 diagnostics: server.value.diagnostics.concat(
                   client.value.diagnostics
                 ),
-                change: ServerClientChangeType.Both,
+                type: ServerClientChangeType.Both,
               }
             } else if (server) {
               yield {
                 ...server.value,
-                change: ServerClientChangeType.Server,
+                type: ServerClientChangeType.Server,
               }
             } else {
               yield {
                 ...client!.value,
-                change: ServerClientChangeType.Client,
+                type: ServerClientChangeType.Client,
               }
             }
           }
@@ -1043,7 +1059,7 @@ async function loadWasm(importPath = '', isCustomTurbopack: boolean) {
       if (pkg === '@next/swc-wasm-web') {
         bindings = await bindings.default()
       }
-      infoLog('Using wasm build of next-swc')
+      infoLog('next-swc build: wasm build @next/swc-wasm-web')
 
       // Note wasm binary does not support async intefaces yet, all async
       // interface coereces to sync interfaces.
@@ -1173,7 +1189,7 @@ function loadNative(isCustomTurbopack = false, importPath?: string) {
   for (const triple of triples) {
     try {
       bindings = require(`@next/swc/native/next-swc.${triple.platformArchABI}.node`)
-      infoLog('Using locally built binary of @next/swc')
+      infoLog('next-swc build: local built @next/swc')
       break
     } catch (e) {}
   }

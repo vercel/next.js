@@ -4,7 +4,7 @@ function getSocketProtocol(assetPrefix: string): string {
   try {
     // assetPrefix is a url
     protocol = new URL(assetPrefix).protocol
-  } catch (_) {}
+  } catch {}
 
   return protocol === 'http:' ? 'ws' : 'wss'
 }

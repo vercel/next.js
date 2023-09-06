@@ -1,4 +1,8 @@
-import type { PrerenderManifest, RoutesManifest } from '../../../build'
+import type {
+  ManifestRoute,
+  PrerenderManifest,
+  RoutesManifest,
+} from '../../../build'
 import type { NextConfigComplete } from '../../config-shared'
 import type { MiddlewareManifest } from '../../../build/webpack/plugins/middleware-plugin'
 
@@ -14,7 +18,10 @@ import { FileType, fileExists } from '../../../lib/file-exists'
 import { recursiveReadDir } from '../../../lib/recursive-readdir'
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
 import { escapeStringRegexp } from '../../../shared/lib/escape-regexp'
-import { getPathMatch } from '../../../shared/lib/router/utils/path-match'
+import {
+  PatchMatcher,
+  getPathMatch,
+} from '../../../shared/lib/router/utils/path-match'
 import { getRouteRegex } from '../../../shared/lib/router/utils/route-regex'
 import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
 import { pathHasPrefix } from '../../../shared/lib/router/utils/path-has-prefix'
@@ -35,6 +42,7 @@ import {
   ROUTES_MANIFEST,
 } from '../../../shared/lib/constants'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
+import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
 
 export type FsOutput = {
   type:
@@ -54,12 +62,19 @@ export type FsOutput = {
 
 const debug = setupDebug('next:router-server:filesystem')
 
+export type FilesystemDynamicRoute = ManifestRoute & {
+  /**
+   * The path matcher that can be used to match paths against this route.
+   */
+  match: PatchMatcher
+}
+
 export const buildCustomRoute = <T>(
   type: 'redirect' | 'header' | 'rewrite' | 'before_files_rewrite',
   item: T & { source: string },
   basePath?: string,
   caseSensitive?: boolean
-): T & { match: ReturnType<typeof getPathMatch>; check?: boolean } => {
+): T & { match: PatchMatcher; check?: boolean } => {
   const restrictedRedirectPaths = ['/_next'].map((p) =>
     basePath ? `${basePath}${p}` : p
   )
@@ -91,18 +106,20 @@ export async function setupFsCheck(opts: {
     arg: (files: Map<string, { timestamp: number }>) => void
   ) => void
 }) {
-  const getItemsLru = new LRUCache<string, FsOutput | null>({
-    max: 1024 * 1024,
-    length(value, key) {
-      if (!value) return key?.length || 0
-      return (
-        (key || '').length +
-        (value.fsPath || '').length +
-        value.itemPath.length +
-        value.type.length
-      )
-    },
-  })
+  const getItemsLru = !opts.dev
+    ? new LRUCache<string, FsOutput | null>({
+        max: 1024 * 1024,
+        length(value, key) {
+          if (!value) return key?.length || 0
+          return (
+            (key || '').length +
+            (value.fsPath || '').length +
+            value.itemPath.length +
+            value.type.length
+          )
+        },
+      })
+    : undefined
 
   // routes that have _next/data endpoints (SSG/SSP)
   const nextDataRoutes = new Set<string>()
@@ -112,9 +129,7 @@ export async function setupFsCheck(opts: {
 
   const appFiles = new Set<string>()
   const pageFiles = new Set<string>()
-  let dynamicRoutes: (RoutesManifest['dynamicRoutes'][0] & {
-    match: ReturnType<typeof getPathMatch>
-  })[] = []
+  let dynamicRoutes: FilesystemDynamicRoute[] = []
 
   let middlewareMatcher:
     | ReturnType<typeof getMiddlewareRouteMatcher>
@@ -141,10 +156,9 @@ export async function setupFsCheck(opts: {
     buildId = await fs.readFile(buildIdPath, 'utf8')
 
     try {
-      for (let file of await recursiveReadDir(publicFolderPath, () => true)) {
-        file = normalizePathSep(file)
-        // ensure filename is encoded
-        publicFolderItems.add(encodeURI(file))
+      for (const file of await recursiveReadDir(publicFolderPath)) {
+        // Ensure filename is encoded and normalized.
+        publicFolderItems.add(encodeURI(normalizePathSep(file)))
       }
     } catch (err: any) {
       if (err.code !== 'ENOENT') {
@@ -153,13 +167,9 @@ export async function setupFsCheck(opts: {
     }
 
     try {
-      for (let file of await recursiveReadDir(
-        legacyStaticFolderPath,
-        () => true
-      )) {
-        file = normalizePathSep(file)
-        // ensure filename is encoded
-        legacyStaticFolderItems.add(encodeURI(file))
+      for (const file of await recursiveReadDir(legacyStaticFolderPath)) {
+        // Ensure filename is encoded and normalized.
+        legacyStaticFolderItems.add(encodeURI(normalizePathSep(file)))
       }
       Log.warn(
         `The static directory has been deprecated in favor of the public directory. https://nextjs.org/docs/messages/static-dir-deprecated`
@@ -171,14 +181,10 @@ export async function setupFsCheck(opts: {
     }
 
     try {
-      for (let file of await recursiveReadDir(
-        nextStaticFolderPath,
-        () => true
-      )) {
-        file = normalizePathSep(file)
-        // ensure filename is encoded
+      for (const file of await recursiveReadDir(nextStaticFolderPath)) {
+        // Ensure filename is encoded and normalized.
         nextStaticFolderItems.add(
-          path.posix.join('/_next/static', encodeURI(file))
+          path.posix.join('/_next/static', encodeURI(normalizePathSep(file)))
         )
       }
     } catch (err) {
@@ -268,17 +274,20 @@ export async function setupFsCheck(opts: {
     }
 
     customRoutes = {
-      // @ts-expect-error additional fields in manifest type
       redirects: routesManifest.redirects,
-      // @ts-expect-error additional fields in manifest type
-      rewrites: Array.isArray(routesManifest.rewrites)
-        ? {
+      rewrites: routesManifest.rewrites
+        ? Array.isArray(routesManifest.rewrites)
+          ? {
+              beforeFiles: [],
+              afterFiles: routesManifest.rewrites,
+              fallback: [],
+            }
+          : routesManifest.rewrites
+        : {
             beforeFiles: [],
-            afterFiles: routesManifest.rewrites,
+            afterFiles: [],
             fallback: [],
-          }
-        : routesManifest.rewrites,
-      // @ts-expect-error additional fields in manifest type
+          },
       headers: routesManifest.headers,
     }
   } else {
@@ -391,7 +400,7 @@ export async function setupFsCheck(opts: {
     async getItem(itemPath: string): Promise<FsOutput | null> {
       const originalItemPath = itemPath
       const itemKey = originalItemPath
-      const lruResult = getItemsLru.get(itemKey)
+      const lruResult = getItemsLru?.get(itemKey)
 
       if (lruResult) {
         return lruResult
@@ -418,7 +427,7 @@ export async function setupFsCheck(opts: {
 
       try {
         decodedItemPath = decodeURIComponent(itemPath)
-      } catch (_) {}
+      } catch {}
 
       if (itemPath === '/_next/image') {
         return {
@@ -457,7 +466,7 @@ export async function setupFsCheck(opts: {
 
             try {
               curDecodedItemPath = decodeURIComponent(curItemPath)
-            } catch (_) {}
+            } catch {}
           }
         }
 
@@ -469,7 +478,7 @@ export async function setupFsCheck(opts: {
 
           try {
             curDecodedItemPath = decodeURIComponent(curItemPath)
-          } catch (_) {}
+          } catch {}
         }
 
         if (
@@ -505,7 +514,7 @@ export async function setupFsCheck(opts: {
 
           try {
             curDecodedItemPath = decodeURIComponent(curItemPath)
-          } catch (_) {}
+          } catch {}
         }
 
         // check decoded variant as well
@@ -563,18 +572,21 @@ export async function setupFsCheck(opts: {
                   const tempItemPath = decodeURIComponent(curItemPath)
                   fsPath = path.posix.join(itemsRoot, tempItemPath)
                   found = await fileExists(fsPath, FileType.File)
-                } catch (_) {}
+                } catch {}
 
                 if (!found) {
                   continue
                 }
               }
             } else if (type === 'pageFile' || type === 'appFile') {
+              const isAppFile = type === 'appFile'
               if (
                 ensureFn &&
                 (await ensureFn({
                   type,
-                  itemPath: curItemPath,
+                  itemPath: isAppFile
+                    ? normalizeMetadataRoute(curItemPath)
+                    : curItemPath,
                 })?.catch(() => 'ENSURE_FAILED')) === 'ENSURE_FAILED'
               ) {
                 continue
@@ -597,16 +609,12 @@ export async function setupFsCheck(opts: {
             itemPath: curItemPath,
           }
 
-          if (!opts.dev) {
-            getItemsLru.set(itemKey, itemResult)
-          }
+          getItemsLru?.set(itemKey, itemResult)
           return itemResult
         }
       }
 
-      if (!opts.dev) {
-        getItemsLru.set(itemKey, null)
-      }
+      getItemsLru?.set(itemKey, null)
       return null
     },
     getDynamicRoutes() {

@@ -8,10 +8,7 @@ createNextDescribe(
   },
   ({ next }) => {
     it('should output config file change', async () => {
-      await check(
-        async () => next.cliOutput,
-        /compiled client and server successfully/
-      )
+      await check(async () => next.cliOutput, /ready/)
       await next.patchFile(
         'next.config.js',
         `

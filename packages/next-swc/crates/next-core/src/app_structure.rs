@@ -243,13 +243,7 @@ pub async fn find_app_dir(project_path: Vc<FileSystemPath>) -> Result<Vc<OptionA
 /// Finds and returns the [DirectoryTree] of the app directory if enabled and
 /// existing.
 #[turbo_tasks::function]
-pub async fn find_app_dir_if_enabled(
-    project_path: Vc<FileSystemPath>,
-    next_config: Vc<NextConfig>,
-) -> Result<Vc<OptionAppDir>> {
-    if !*next_config.app_dir().await? {
-        return Ok(Vc::cell(None));
-    }
+pub async fn find_app_dir_if_enabled(project_path: Vc<FileSystemPath>) -> Result<Vc<OptionAppDir>> {
     Ok(find_app_dir(project_path))
 }
 
@@ -754,7 +748,7 @@ async fn directory_tree_to_entrypoints_internal(
         // Next.js has this logic in "collect-app-paths", where the root not-found page
         // is considered as its own entry point.
         if let Some(_not_found) = components.not_found {
-            let tree = LoaderTree {
+            let dev_not_found_tree = LoaderTree {
                 segment: directory_name.to_string(),
                 parallel_routes: indexmap! {
                     "children".to_string() => LoaderTree {
@@ -771,12 +765,13 @@ async fn directory_tree_to_entrypoints_internal(
                 components: components.without_leafs().cell(),
             }
             .cell();
+
             add_app_page(
                 app_dir,
                 &mut result,
                 "/not-found".to_string(),
                 "/not-found".to_string(),
-                tree,
+                dev_not_found_tree,
             )
             .await?;
             add_app_page(
@@ -784,7 +779,36 @@ async fn directory_tree_to_entrypoints_internal(
                 &mut result,
                 "/_not-found".to_string(),
                 "/_not-found".to_string(),
-                tree,
+                dev_not_found_tree,
+            )
+            .await?;
+        } else {
+            // Create default not-found page for production if there's no customized
+            // not-found
+            let prod_not_found_tree = LoaderTree {
+                segment: directory_name.to_string(),
+                parallel_routes: indexmap! {
+                    "children".to_string() => LoaderTree {
+                        segment: "__PAGE__".to_string(),
+                        parallel_routes: IndexMap::new(),
+                        components: Components {
+                            page: Some(get_next_package(app_dir).join("dist/client/components/not-found-error.js".to_string())),
+                            ..Default::default()
+                        }
+                        .cell(),
+                    }
+                    .cell(),
+                },
+                components: components.without_leafs().cell(),
+            }
+            .cell();
+
+            add_app_page(
+                app_dir,
+                &mut result,
+                "/_not-found".to_string(),
+                "/_not-found".to_string(),
+                prod_not_found_tree,
             )
             .await?;
         }
@@ -804,12 +828,12 @@ async fn directory_tree_to_entrypoints_internal(
             } else {
                 format!("{path_prefix}/{subdir_name}")
             },
-            if is_route_group || parallel_route_key.is_some() {
-                path_prefix.clone()
-            } else if path_prefix == "/" {
+            if parallel_route_key.is_some() {
+                original_name_prefix.clone()
+            } else if original_name_prefix == "/" {
                 format!("/{subdir_name}")
             } else {
-                format!("{path_prefix}/{subdir_name}")
+                format!("{original_name_prefix}/{subdir_name}")
             },
         )
         .await?;
