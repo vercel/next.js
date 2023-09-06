@@ -1,5 +1,6 @@
+import type { RouteDefinition } from './route-definition'
+
 import { RouteKind } from '../route-kind'
-import { RouteDefinition } from './route-definition'
 
 export interface AppPageRouteDefinition
   extends RouteDefinition<RouteKind.APP_PAGE> {
@@ -19,4 +20,10 @@ export interface AppPageInterceptingRouteDefinition
    * the interception route markers (`(..)(..)`, `(..)`, and `(...)`).
    */
   readonly pathnameOverride: string
+}
+
+export function isAppPageRouteDefinition(
+  definition: RouteDefinition
+): definition is AppPageRouteDefinition {
+  return definition.kind === RouteKind.APP_PAGE
 }

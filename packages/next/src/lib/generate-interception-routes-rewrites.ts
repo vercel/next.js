@@ -44,7 +44,7 @@ function voidParamsBeforeInterceptionMarker(path: string): string {
 }
 
 export function generateInterceptionRoutesRewrites(
-  appPaths: string[]
+  appPaths: ReadonlyArray<string>
 ): Rewrite[] {
   const rewrites: Rewrite[] = []
 

@@ -3,5 +3,6 @@ export type PropagateToWorkersField =
   | 'actualInstrumentationHookFile'
   | 'reloadMatchers'
   | 'loadEnvConfig'
-  | 'appPathRoutes'
+  | 'appPathsManifest'
+  | 'reloadAppPathRoutes'
   | 'middleware'

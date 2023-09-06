@@ -269,6 +269,7 @@ export default class DevServer extends Server {
     await super.prepareImpl()
     await this.runInstrumentationHookIfAvailable()
     await this.matchers.reload()
+    this.reloadAppPathRoutes()
     this.setDevReady!()
 
     // This is required by the tracing subsystem.
@@ -401,7 +402,7 @@ export default class DevServer extends Server {
     query: ParsedUrlQuery
     params: Params | undefined
     page: string
-    appPaths: string[] | null
+    appPaths: ReadonlyArray<string> | null
     isAppPath: boolean
   }) {
     try {

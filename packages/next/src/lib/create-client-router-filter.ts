@@ -6,7 +6,7 @@ import { Redirect } from './load-custom-routes'
 import { tryToParsePath } from './try-to-parse-path'
 
 export function createClientRouterFilter(
-  paths: string[],
+  paths: ReadonlyArray<string>,
   redirects: Redirect[],
   allowedErrorRate?: number
 ): {

@@ -101,6 +101,7 @@ import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 import { signalFromNodeResponse } from './web/spec-extension/adapters/next-request'
 import { RouteModuleLoader } from './future/helpers/module-loader/route-module-loader'
 import { loadManifest } from './load-manifest'
+import { isAppPageRouteDefinition } from './future/route-definitions/app-page-route-definition'
 
 export * from './base-server'
 
@@ -561,27 +562,25 @@ export default class NextNodeServer extends BaseServer {
   ) {
     const edgeFunctionsPages = this.getEdgeFunctionsPages() || []
     if (edgeFunctionsPages.length) {
-      const appPaths = this.getOriginalAppPaths(ctx.pathname)
-      const isAppPath = Array.isArray(appPaths)
-
-      let page = ctx.pathname
-      if (isAppPath) {
-        // When it's an array, we need to pass all parallel routes to the loader.
-        page = appPaths[0]
-      }
+      const appRoute = this.appRoutes?.get(ctx.pathname)
+      const page = appRoute?.page ?? ctx.pathname
 
       for (const edgeFunctionsPage of edgeFunctionsPages) {
-        if (edgeFunctionsPage === page) {
-          await this.runEdgeFunction({
-            req: ctx.req,
-            res: ctx.res,
-            query: ctx.query,
-            params: ctx.renderOpts.params,
-            page,
-            appPaths,
-          })
-          return null
-        }
+        if (edgeFunctionsPage !== page) continue
+
+        await this.runEdgeFunction({
+          req: ctx.req,
+          res: ctx.res,
+          query: ctx.query,
+          params: ctx.renderOpts.params,
+          page,
+          appPaths:
+            appRoute && isAppPageRouteDefinition(appRoute)
+              ? appRoute.appPaths
+              : null,
+        })
+
+        return null
       }
     }
 
@@ -1416,7 +1415,7 @@ export default class NextNodeServer extends BaseServer {
   protected async ensureMiddleware() {}
   protected async ensureEdgeFunction(_params: {
     page: string
-    appPaths: string[] | null
+    appPaths: ReadonlyArray<string> | null
   }) {}
 
   /**
@@ -1735,7 +1734,7 @@ export default class NextNodeServer extends BaseServer {
     query: ParsedUrlQuery
     params: Params | undefined
     page: string
-    appPaths: string[] | null
+    appPaths: ReadonlyArray<string> | null
     match?: RouteMatch
     onWarning?: (warning: Error) => void
   }): Promise<FetchEventResult | null> {

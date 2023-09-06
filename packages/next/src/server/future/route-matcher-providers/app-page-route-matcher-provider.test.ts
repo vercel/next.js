@@ -79,8 +79,8 @@ describe('AppPageRouteMatcherProvider', () => {
           page: '/dashboard/users/page',
           bundlePath: 'app/dashboard/users/page',
           appPaths: [
-            '/dashboard/users/page',
             '/(marketing)/dashboard/users/page',
+            '/dashboard/users/page',
           ],
         },
       },
