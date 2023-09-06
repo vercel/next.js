@@ -1731,6 +1731,9 @@ export default async function getBaseWebpackConfig(
                   reuseExistingChunk: true,
                   test: /[\\/]node_modules[\\/]/,
                   minSize: 0,
+                  minChunks: 0,
+                  maxAsyncRequests: 300,
+                  maxInitialRequests: 300,
                   name: (module: webpack.Module) => {
                     const moduleId = module.nameForCondition()!
                     const rootModule = extractRootNodeModule(moduleId)
@@ -1743,6 +1746,9 @@ export default async function getBaseWebpackConfig(
                     }
                   },
                 },
+                // disable the default chunk groups
+                default: false,
+                defaultVendors: false,
               },
             }
           }
