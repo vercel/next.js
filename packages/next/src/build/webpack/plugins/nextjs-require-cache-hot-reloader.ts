@@ -112,7 +112,7 @@ export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
           compilation.outputOptions.path!,
           page + '.js'
         )
-        await deleteCache(outputPath)
+        deleteCache(outputPath)
       }
     })
   }
