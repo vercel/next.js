@@ -38,11 +38,15 @@ export interface Mutable {
   prefetchCache?: AppRouterState['prefetchCache']
   hashFragment?: string
   shouldScroll?: boolean
+  globalMutable: {
+    pendingNavigatePath?: string
+    refresh: () => void
+    isInfinitelySuspending?: boolean
+  }
 }
 
 export interface ServerActionMutable extends Mutable {
   inFlightServerAction?: Promise<any> | null
-  globalMutable: { pendingNavigatePath?: string; refresh: () => void }
   actionResultResolved?: boolean
 }
 

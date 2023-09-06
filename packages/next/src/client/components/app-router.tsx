@@ -33,12 +33,12 @@ import {
   ACTION_RESTORE,
   ACTION_SERVER_ACTION,
   ACTION_SERVER_PATCH,
+  Mutable,
   PrefetchKind,
   ReducerActions,
   RouterChangeByServerResponse,
   RouterNavigate,
   ServerActionDispatcher,
-  ServerActionMutable,
 } from './router-reducer/router-reducer-types'
 import { createHrefFromUrl } from './router-reducer/create-href-from-url'
 import {
@@ -73,7 +73,7 @@ export function getServerActionDispatcher() {
   return globalServerActionDispatcher
 }
 
-let globalServerActionMutable: ServerActionMutable['globalMutable'] = {
+let globalMutable: Mutable['globalMutable'] = {
   refresh: () => {}, // noop until the router is initialized
 }
 
@@ -145,7 +145,7 @@ function useServerActionDispatcher(dispatch: React.Dispatch<ReducerActions>) {
         dispatch({
           ...actionPayload,
           type: ACTION_SERVER_ACTION,
-          mutable: { globalMutable: globalServerActionMutable },
+          mutable: { globalMutable },
           cache: createEmptyCacheNode(),
         })
       })
@@ -174,7 +174,7 @@ function useChangeByServerResponse(
           previousTree,
           overrideCanonicalUrl,
           cache: createEmptyCacheNode(),
-          mutable: {},
+          mutable: { globalMutable },
         })
       })
     },
@@ -186,7 +186,7 @@ function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
   return useCallback(
     (href, navigateType, forceOptimisticNavigation, shouldScroll) => {
       const url = new URL(addBasePath(href), location.href)
-      globalServerActionMutable.pendingNavigatePath = href
+      globalMutable.pendingNavigatePath = href
 
       return dispatch({
         type: ACTION_NAVIGATE,
@@ -197,7 +197,7 @@ function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
         shouldScroll: shouldScroll ?? true,
         navigateType,
         cache: createEmptyCacheNode(),
-        mutable: {},
+        mutable: { globalMutable },
       })
     },
     [dispatch]
@@ -322,7 +322,7 @@ function Router({
           dispatch({
             type: ACTION_REFRESH,
             cache: createEmptyCacheNode(),
-            mutable: {},
+            mutable: { globalMutable },
             origin: window.location.origin,
           })
         })
@@ -338,7 +338,7 @@ function Router({
             dispatch({
               type: ACTION_FAST_REFRESH,
               cache: createEmptyCacheNode(),
-              mutable: {},
+              mutable: { globalMutable },
               origin: window.location.origin,
             })
           })
@@ -357,7 +357,7 @@ function Router({
   }, [appRouter])
 
   useEffect(() => {
-    globalServerActionMutable.refresh = appRouter.refresh
+    globalMutable.refresh = appRouter.refresh
   }, [appRouter.refresh])
 
   if (process.env.NODE_ENV !== 'production') {
@@ -384,6 +384,8 @@ function Router({
     function handlePageShow(event: PageTransitionEvent) {
       if (!event.persisted || !window.history.state?.tree) return
 
+      globalMutable.isInfinitelySuspending = false
+
       dispatch({
         type: ACTION_RESTORE,
         url: new URL(window.location.href),
@@ -408,7 +410,7 @@ function Router({
   // probably safe because we know this is a singleton component and it's never
   // in <Offscreen>. At least I hope so. (It will run twice in dev strict mode,
   // but that's... fine?)
-  if (pushRef.mpaNavigation) {
+  if (pushRef.mpaNavigation && !globalMutable.isInfinitelySuspending) {
     const location = window.location
     if (pushRef.pendingPush) {
       location.assign(canonicalUrl)
@@ -418,6 +420,7 @@ function Router({
     // TODO-APP: Should we listen to navigateerror here to catch failed
     // navigations somehow? And should we call window.stop() if a SPA navigation
     // should interrupt an MPA one?
+    globalMutable.isInfinitelySuspending = true
     use(createInfinitePromise())
   }
 

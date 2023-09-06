@@ -562,7 +562,7 @@ createNextDescribe(
         )
       })
 
-      it('should emit refresh meta tag (peramnent) for redirect page when streaming', async () => {
+      it('should emit refresh meta tag (permanent) for redirect page when streaming', async () => {
         const html = await next.render('/redirect/suspense-2')
         expect(html).toContain(
           '<meta http-equiv="refresh" content="0;url=/redirect/result"/>'
