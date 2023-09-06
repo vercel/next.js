@@ -128,12 +128,9 @@ impl GetContentSourceContent for TurboTasksSource {
                 };
                 let mut stats = Stats::new();
                 let b = tt.backend();
-                let active_only = query.contains_key("active");
                 let include_unloaded = query.contains_key("unloaded");
                 b.with_all_cached_tasks(|task| {
-                    stats.add_id_conditional(b, task, |_, info| {
-                        (include_unloaded || !info.unloaded) && (!active_only || info.active)
-                    });
+                    stats.add_id_conditional(b, task, |_, info| include_unloaded || !info.unloaded);
                 });
                 let tree = stats.treeify(ReferenceType::Dependency);
                 let table = viz::table::create_table(tree, tt.stats_type());
