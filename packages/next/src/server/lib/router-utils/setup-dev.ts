@@ -10,7 +10,6 @@ import {
 } from '../../../build/swc'
 import type { Socket } from 'net'
 import ws from 'next/dist/compiled/ws'
-import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 
 import fs from 'fs'
 import url from 'url'
@@ -237,6 +236,9 @@ async function startWatcher(opts: SetupOpts) {
           start.column
         }  ${formattedTitle}`
         if (source.source.content) {
+          const {
+            codeFrameColumns,
+          } = require('next/dist/compiled/babel/code-frame')
           message +=
             '\n\n' +
             codeFrameColumns(
