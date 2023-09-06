@@ -1,11 +1,29 @@
-import { dirname } from 'path'
+const { dirname } = require('path') as typeof import('path')
 
+let resolve: typeof require.resolve = process.env.NEXT_MINIMAL
+  ? // @ts-ignore
+    __non_webpack_require__.resolve
+  : require.resolve
+
+let nextPaths: undefined | { paths: string[] | undefined } = undefined
+
+if (!process.env.NEXT_MINIMAL) {
+  nextPaths = {
+    paths: resolve.paths('next/package.json') || undefined,
+  }
+}
 export const hookPropertyMap = new Map()
 
 // these must use require.resolve to be statically analyzable
 export const defaultOverrides = {
-  'styled-jsx': dirname(require.resolve('styled-jsx/package.json')),
-  'styled-jsx/style': require.resolve('styled-jsx/style'),
+  'styled-jsx': dirname(
+    process.env.NEXT_MINIMAL
+      ? require.resolve('styled-jsx/package.json')
+      : require.resolve('styled-jsx/package.json', nextPaths)
+  ),
+  'styled-jsx/style': process.env.NEXT_MINIMAL
+    ? require.resolve('styled-jsx/style')
+    : require.resolve('styled-jsx/style', nextPaths),
 }
 
 export const baseOverrides = {
@@ -57,13 +75,8 @@ export const experimentalOverrides = {
 
 let aliasedPrebundledReact = false
 
-const resolve = process.env.NEXT_MINIMAL
-  ? // @ts-ignore
-    __non_webpack_require__.resolve
-  : require.resolve
-
 const toResolveMap = (map: Record<string, string>): [string, string][] =>
-  Object.entries(map).map(([key, value]) => [key, resolve(value)])
+  Object.entries(map).map(([key, value]) => [key, resolve(value, nextPaths)])
 
 export function addHookAliases(aliases: [string, string][] = []) {
   for (const [key, value] of aliases) {

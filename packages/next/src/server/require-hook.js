@@ -6,7 +6,7 @@
 const mod = require('module')
 const resolveFilename = mod._resolveFilename
 
-const { overrideReact, hookPropertyMap } = require('./lib/import-overrides')
+const { overrideReact, hookPropertyMap } = require('./import-overrides')
 
 mod._resolveFilename = function (
   originalResolveFilename,

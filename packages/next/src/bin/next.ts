@@ -133,6 +133,7 @@ async function main() {
     const dir = getProjectDir(
       process.env.NEXT_PRIVATE_DEV_DIR || validatedArgs._[0]
     )
+    process.env.NEXT_PRIVATE_DIR = dir
     const origEnv = Object.assign({}, process.env)
 
     // TODO: set config to env variable to be re-used so we don't reload

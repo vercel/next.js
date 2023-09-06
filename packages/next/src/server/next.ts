@@ -4,12 +4,13 @@ import type { UrlWithParsedQuery } from 'url'
 import type { NextConfigComplete } from './config-shared'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextUrlWithParsedQuery } from './request-meta'
+import { spawnSync } from 'child_process'
+import { getEsmLoaderPath } from './lib/get-esm-loader-path'
 import {
   RESTART_EXIT_CODE,
   WorkerRequestHandler,
   WorkerUpgradeHandler,
 } from './lib/setup-server-worker'
-import { spawnSync } from 'child_process'
 
 // if we are not inside of the esm loader enabled
 // worker we need to re-spawn with correct args
@@ -22,9 +23,10 @@ if (
     process.env.NODE_ENV === 'development')
 ) {
   const nodePath = process.argv0
+
   const newArgs = [
     '--experimental-loader',
-    'next/dist/esm/server/esm-loader.mjs',
+    getEsmLoaderPath(),
     '--no-warnings',
     ...process.argv.splice(1),
   ]

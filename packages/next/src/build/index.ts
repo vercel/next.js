@@ -147,9 +147,10 @@ import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
 import {
   baseOverrides,
   experimentalOverrides,
-} from '../server/lib/import-overrides'
+} from '../server/import-overrides'
 import { initialize } from '../server/lib/incremental-cache-server'
 import { nodeFs } from '../server/lib/node-fs-methods'
+import { getEsmLoaderPath } from '../server/lib/get-esm-loader-path'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -1242,7 +1243,7 @@ export default async function build(
           forkOptions: {
             execArgv: [
               '--experimental-loader',
-              'next/dist/esm/server/esm-loader.mjs',
+              getEsmLoaderPath(),
               '--no-warnings',
             ],
             env: {
