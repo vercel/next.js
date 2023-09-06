@@ -1,3 +1,4 @@
+import { codeFrameColumns } from '@babel/code-frame'
 import { constants as FS, promises as fs } from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
 import path from 'path'
@@ -234,8 +235,6 @@ export async function createOriginalStackFrame({
         ?.replace('__webpack_exports__.', ''),
     arguments: [],
   }
-
-  const { codeFrameColumns } = require('next/dist/compiled/babel/code-frame')
 
   const originalCodeFrame: string | null =
     !(originalFrame.file?.includes('node_modules') ?? true) &&
