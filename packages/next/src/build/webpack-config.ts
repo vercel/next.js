@@ -1731,7 +1731,7 @@ export default async function getBaseWebpackConfig(
                   reuseExistingChunk: true,
                   test: /[\\/]node_modules[\\/]/,
                   minSize: 0,
-                  minChunks: 0,
+                  minChunks: 1,
                   maxAsyncRequests: 300,
                   maxInitialRequests: 300,
                   name: (module: webpack.Module) => {
