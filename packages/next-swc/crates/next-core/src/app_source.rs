@@ -65,7 +65,7 @@ use crate::{
     fallback::get_fallback_page,
     loader_tree::{LoaderTreeModule, ServerComponentTransition},
     mode::NextMode,
-    next_app::UnsupportedDynamicMetadataIssue,
+    next_app::{AppPage, AppPath, PathSegment, UnsupportedDynamicMetadataIssue},
     next_client::{
         context::{
             get_client_assets_path, get_client_module_options_context,
@@ -95,31 +95,28 @@ use crate::{
     util::{render_data, NextRuntime},
 };
 
-fn pathname_to_segments(pathname: &str) -> Result<(Vec<BaseSegment>, RouteType)> {
+fn app_path_to_segments(path: &AppPath) -> Result<(Vec<BaseSegment>, RouteType)> {
     let mut segments = Vec::new();
-    let mut split = pathname.split('/');
-    while let Some(segment) = split.next() {
-        if segment.is_empty()
-            || (segment.starts_with('(') && segment.ends_with(')') || segment.starts_with('@'))
-        {
-            // ignore
-        } else if segment.starts_with("[[...") && segment.ends_with("]]")
-            || segment.starts_with("[...") && segment.ends_with(']')
-        {
-            // (optional) catch all segment
-            if split.remainder().is_some() {
-                bail!(
-                    "Invalid route {}, catch all segment must be the last segment",
-                    pathname
-                )
+    let mut iter = path.iter().peekable();
+
+    while let Some(segment) = iter.next() {
+        match segment {
+            PathSegment::Static(s) => {
+                segments.push(BaseSegment::Static(s.to_string()));
             }
-            return Ok((segments, RouteType::CatchAll));
-        } else if segment.starts_with('[') || segment.ends_with(']') {
-            // dynamic segment
-            segments.push(BaseSegment::Dynamic);
-        } else {
-            // normal segment
-            segments.push(BaseSegment::Static(segment.to_string()));
+            PathSegment::Dynamic(_) => {
+                segments.push(BaseSegment::Dynamic);
+            }
+            PathSegment::CatchAll(_) | PathSegment::OptionalCatchAll(_) => {
+                if iter.peek().is_some() {
+                    bail!(
+                        "Invalid route {}, catch all segment must be the last segment",
+                        path
+                    )
+                }
+
+                return Ok((segments, RouteType::CatchAll));
+            }
         }
     }
     Ok((segments, RouteType::Exact))
@@ -654,12 +651,12 @@ pub async fn create_app_source(
     let entrypoints = entrypoints.await?;
     let mut sources: Vec<_> = entrypoints
         .iter()
-        .map(|(pathname, entrypoint)| match *entrypoint {
+        .map(|(_, entrypoint)| match *entrypoint {
             Entrypoint::AppPage {
-                original_name: _,
+                ref page,
                 loader_tree,
             } => create_app_page_source_for_route(
-                pathname.clone(),
+                page.clone(),
                 loader_tree,
                 context_ssr,
                 context,
@@ -672,11 +669,8 @@ pub async fn create_app_source(
                 output_path,
                 render_data,
             ),
-            Entrypoint::AppRoute {
-                original_name: _,
-                path,
-            } => create_app_route_source_for_route(
-                pathname.clone(),
+            Entrypoint::AppRoute { ref page, path } => create_app_route_source_for_route(
+                page.clone(),
                 path,
                 context_ssr,
                 project_path,
@@ -696,7 +690,7 @@ pub async fn create_app_source(
         .collect();
 
     if let Some(&Entrypoint::AppPage {
-        original_name: _,
+        page: _,
         loader_tree,
     }) = entrypoints.get("/_not-found")
     {
@@ -769,7 +763,7 @@ async fn create_global_metadata_source(
 
 #[turbo_tasks::function]
 async fn create_app_page_source_for_route(
-    pathname: String,
+    page: AppPage,
     loader_tree: Vc<LoaderTree>,
     context_ssr: Vc<ModuleAssetContext>,
     context: Vc<ModuleAssetContext>,
@@ -782,11 +776,12 @@ async fn create_app_page_source_for_route(
     intermediate_output_path_root: Vc<FileSystemPath>,
     render_data: Vc<JsonValue>,
 ) -> Result<Vc<Box<dyn ContentSource>>> {
-    let pathname_vc = Vc::cell(pathname.clone());
+    let app_path = AppPath::from(page.clone());
+    let pathname_vc = Vc::cell(app_path.to_string());
 
     let params_matcher = NextParamsMatcher::new(pathname_vc);
 
-    let (base_segments, route_type) = pathname_to_segments(&pathname)?;
+    let (base_segments, route_type) = app_path_to_segments(&app_path)?;
 
     let source = create_node_rendered_source(
         project_path,
@@ -814,7 +809,7 @@ async fn create_app_page_source_for_route(
         should_debug("app_source"),
     );
 
-    Ok(source.issue_file_path(app_dir, format!("Next.js App Page Route {pathname}")))
+    Ok(source.issue_file_path(app_dir, format!("Next.js App Page Route {app_path}")))
 }
 
 #[turbo_tasks::function]
@@ -864,7 +859,7 @@ async fn create_app_not_found_page_source(
 
 #[turbo_tasks::function]
 async fn create_app_route_source_for_route(
-    pathname: String,
+    page: AppPage,
     entry_path: Vc<FileSystemPath>,
     context_ssr: Vc<ModuleAssetContext>,
     project_path: Vc<FileSystemPath>,
@@ -875,11 +870,12 @@ async fn create_app_route_source_for_route(
     intermediate_output_path_root: Vc<FileSystemPath>,
     render_data: Vc<JsonValue>,
 ) -> Result<Vc<Box<dyn ContentSource>>> {
-    let pathname_vc = Vc::cell(pathname.to_string());
+    let app_path = AppPath::from(page.clone());
+    let pathname_vc = Vc::cell(app_path.to_string());
 
     let params_matcher = NextParamsMatcher::new(pathname_vc);
 
-    let (base_segments, route_type) = pathname_to_segments(&pathname)?;
+    let (base_segments, route_type) = app_path_to_segments(&app_path)?;
 
     let source = create_node_api_source(
         project_path,
@@ -906,7 +902,7 @@ async fn create_app_route_source_for_route(
         should_debug("app_source"),
     );
 
-    Ok(source.issue_file_path(app_dir, format!("Next.js App Route {pathname}")))
+    Ok(source.issue_file_path(app_dir, format!("Next.js App Route {app_path}")))
 }
 
 /// The renderer for pages in app directory
