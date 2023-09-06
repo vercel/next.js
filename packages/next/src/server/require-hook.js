@@ -16,9 +16,6 @@ mod._resolveFilename = function (
   isMain,
   options
 ) {
-  if (request === 'from-require' || request === 'from-import') {
-    console.log('require-hook', request)
-  }
   // In case the environment variable is set after the module is loaded.
   overrideReact()
 
