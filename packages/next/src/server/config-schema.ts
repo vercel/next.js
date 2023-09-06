@@ -461,6 +461,9 @@ const configSchema = {
         optimizePackageImports: {
           type: 'array',
         },
+        optimizeServerReact: {
+          type: 'boolean',
+        },
         instrumentationHook: {
           type: 'boolean',
         },
