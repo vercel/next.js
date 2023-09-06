@@ -224,12 +224,7 @@ export default class DevServer extends Server {
         )
       )
       matchers.push(
-        new DevPagesAPIRouteMatcherProvider(
-          pagesDir,
-          extensions,
-          fileReader,
-          this.localeNormalizer
-        )
+        new DevPagesAPIRouteMatcherProvider(pagesDir, extensions, fileReader)
       )
     }
 
