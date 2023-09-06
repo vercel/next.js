@@ -10,10 +10,6 @@ module.exports = {
       // beforeFiles: [ { source: '/assets/:path*', destination: '/:path*' } ],
       afterFiles: [
         {
-          source: '/rewritten-to-dashboard',
-          destination: '/dashboard',
-        },
-        {
           source: '/rewritten-use-search-params',
           destination: '/hooks/use-search-params',
         },
