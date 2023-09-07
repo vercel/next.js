@@ -1,6 +1,6 @@
 import { config } from 'dotenv'
 
-import fetch from 'node-fetch'
+import 'next/src/server/node-polyfill-fetch'
 import chalk from 'chalk'
 import execa from 'execa'
 import path from 'path'
