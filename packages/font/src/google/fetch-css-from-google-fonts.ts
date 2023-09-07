@@ -1,5 +1,5 @@
 // @ts-ignore
-import { fetch } from 'next/src/compiled/undici'
+import 'next/src/compiled/undici'
 import { nextFontError } from '../next-font-error'
 import { getProxyAgent } from './get-proxy-agent'
 
@@ -60,6 +60,7 @@ export async function fetchCSSFromGoogleFonts(
         : undefined
 
       const res = await fetch(url, {
+        // @ts-ignore
         agent: getProxyAgent(),
         // Add a timeout in dev
         signal,
