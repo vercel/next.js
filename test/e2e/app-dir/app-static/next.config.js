@@ -1,7 +1,9 @@
 /** @type {import('next').NextConfig} */
 module.exports = {
   experimental: {
-    logging: 'verbose',
+    logging: {
+      level: 'verbose',
+    },
     incrementalCacheHandlerPath: process.env.CUSTOM_CACHE_HANDLER,
   },
 
