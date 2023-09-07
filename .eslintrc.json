@@ -162,10 +162,7 @@
     },
     {
       "files": ["packages/**"],
-      "excludedFiles": [
-        "packages/next/taskfile*.js",
-        "packages/next/webpack.config.js"
-      ],
+      "excludedFiles": ["packages/next/taskfile.js"],
       "rules": {
         "no-shadow": ["warn", { "builtinGlobals": false }],
         "import/no-extraneous-dependencies": [

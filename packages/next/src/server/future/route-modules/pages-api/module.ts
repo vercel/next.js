@@ -100,16 +100,6 @@ export class PagesAPIRouteModule extends RouteModule<
   PagesAPIRouteDefinition,
   PagesAPIUserlandModule
 > {
-  constructor(options: PagesAPIRouteModuleOptions) {
-    super(options)
-
-    if (typeof options.userland.default !== 'function') {
-      throw new Error(
-        `Page ${options.definition.page} does not export a default function.`
-      )
-    }
-  }
-
   /**
    *
    * @param req the incoming server request

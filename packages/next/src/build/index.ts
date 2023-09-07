@@ -143,13 +143,8 @@ import { createClientRouterFilter } from '../lib/create-client-router-filter'
 import { createValidFileMatcher } from '../server/lib/find-page-file'
 import { startTypeChecking } from './type-check'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
-
 import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
-import {
-  baseOverrides,
-  defaultOverrides,
-  experimentalOverrides,
-} from '../server/require-hook'
+import { baseOverrides, experimentalOverrides } from '../server/require-hook'
 import { initialize } from '../server/lib/incremental-cache-server'
 import { nodeFs } from '../server/lib/node-fs-methods'
 
@@ -1248,7 +1243,6 @@ export default async function build(
           forkOptions: {
             env: {
               ...process.env,
-              __NEXT_PRIVATE_RENDER_RUNTIME: type,
               __NEXT_INCREMENTAL_CACHE_IPC_PORT: ipcPort + '',
               __NEXT_INCREMENTAL_CACHE_IPC_KEY: ipcValidationKey,
               __NEXT_PRIVATE_PREBUNDLED_REACT:
@@ -2090,25 +2084,6 @@ export default async function build(
               ...Object.values(experimentalOverrides).map((override) =>
                 require.resolve(override)
               ),
-              ...(config.experimental.turbotrace
-                ? []
-                : Object.keys(defaultOverrides).map((value) =>
-                    require.resolve(value, {
-                      paths: [require.resolve('next/dist/server/require-hook')],
-                    })
-                  )),
-              require.resolve(
-                'next/dist/compiled/next-server/app-page.runtime.prod'
-              ),
-              require.resolve(
-                'next/dist/compiled/next-server/app-route.runtime.prod'
-              ),
-              require.resolve(
-                'next/dist/compiled/next-server/pages.runtime.prod'
-              ),
-              require.resolve(
-                'next/dist/compiled/next-server/pages-api.runtime.prod'
-              ),
             ]
 
             // ensure we trace any dependencies needed for custom
@@ -2134,7 +2109,10 @@ export default async function build(
             const minimalServerEntries = [
               ...sharedEntriesSet,
               require.resolve(
-                'next/dist/compiled/next-server/server.runtime.prod'
+                'next/dist/compiled/minimal-next-server/next-server-cached.js'
+              ),
+              require.resolve(
+                'next/dist/compiled/minimal-next-server/next-server.js'
               ),
             ].filter(Boolean)
 

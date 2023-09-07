@@ -1,5 +1,5 @@
 import { useContext } from 'react'
-import { RouterContext } from '../../shared/lib/router-context.shared-runtime'
+import { RouterContext } from '../../shared/lib/router-context'
 import { NextRouter } from '../router'
 
 /**

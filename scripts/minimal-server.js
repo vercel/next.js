@@ -1,4 +1,3 @@
-console.time('next-wall-time')
 // Usage: node scripts/minimal-server.js <path-to-app-dir>
 // This script is used to run a minimal Next.js server in production mode.
 
@@ -45,13 +44,11 @@ if (process.env.LOG_READFILE) {
 
   require('fs').readFile = function (path, options, callback) {
     readFileCount++
-    console.log(`readFile: ${path}`)
     return originalReadFile.apply(this, arguments)
   }
 
   require('fs').readFileSync = function (path, options) {
     readFileSyncCount++
-    console.log(`readFileSync: ${path}`)
     return originalReadFileSync.apply(this, arguments)
   }
 }
@@ -59,9 +56,10 @@ if (process.env.LOG_READFILE) {
 console.time('next-cold-start')
 
 const NextServer = process.env.USE_BUNDLED_NEXT
-  ? require('next/dist/compiled/next-server/server.runtime.prod').default
+  ? require('next/dist/compiled/minimal-next-server/next-server-cached').default
   : require('next/dist/server/next-server').default
 
+console.timeEnd('next-cold-start')
 if (process.env.LOG_READFILE) {
   console.log(`readFileCount: ${readFileCount + readFileSyncCount}`)
 }
@@ -103,20 +101,9 @@ require('http')
         if (process.env.LOG_READFILE) {
           console.log(`readFileCount: ${readFileCount + readFileSyncCount}`)
         }
+        require('process').exit(0)
       })
   })
   .listen(3000, () => {
     console.timeEnd('next-cold-start')
-    fetch('http://localhost:3000/')
-      .then((res) => res.text())
-      .then((text) => {
-        console.log(text)
-      })
-      .catch((err) => {
-        console.error(err)
-      })
-      .finally(() => {
-        console.timeEnd('next-wall-time')
-        require('process').exit(0)
-      })
   })

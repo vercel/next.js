@@ -17,6 +17,10 @@ createNextDescribe(
   'i18n-data-route',
   {
     files: __dirname,
+    env: {
+      // Disable internal header stripping so we can test the invoke output.
+      __NEXT_NO_STRIP_INTERNAL_HEADERS: '1',
+    },
   },
   ({ next }) => {
     describe('with locale prefix', () => {
