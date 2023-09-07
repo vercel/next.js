@@ -154,7 +154,7 @@ export function fetchViaHTTP(
   appPort: string | number,
   pathname: string,
   query?: Record<string, any> | string | null | undefined,
-  opts?: RequestInit & { agent?: any }
+  opts?: RequestInit & { agent?: any; compress?: boolean }
 ): Promise<Response> {
   const url = query ? withQuery(pathname, query) : pathname
   return fetch(getFullUrl(appPort, url), opts)

@@ -1,7 +1,6 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
-import FormData from 'form-data'
 import path from 'path'
 
 async function serialize(response: Response) {
@@ -98,8 +97,12 @@ describe('Edge can read request body', () => {
     })
 
     it('reads a multipart form data', async () => {
-      const formData = new FormData()
-      formData.append('hello', 'world')
+      const fakeRequest = new Request('http://localhost', {
+        method: 'POST',
+        headers: { 'Content-Type': 'multipart/form-data' },
+        body: new URLSearchParams({ hello: 'world' }),
+      })
+      const formData = await fakeRequest.formData()
 
       const response = await fetchViaHTTP(
         next.url,
