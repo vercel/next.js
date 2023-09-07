@@ -19,10 +19,10 @@ import {
   isRedirectError,
 } from '../../client/components/redirect'
 import RenderResult from '../render-result'
-import { StaticGenerationStore } from '../../client/components/static-generation-async-storage'
+import { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import { FlightRenderResult } from './flight-render-result'
 import { ActionResult } from './types'
-import { ActionAsyncStorage } from '../../client/components/action-async-storage'
+import { ActionAsyncStorage } from '../../client/components/action-async-storage.external'
 import {
   filterReqHeaders,
   actionsForbiddenHeaders,
@@ -31,7 +31,8 @@ import {
   appendMutableCookies,
   getModifiedCookieValues,
 } from '../web/spec-extension/adapters/request-cookies'
-import { RequestStore } from '../../client/components/request-async-storage'
+
+import { RequestStore } from '../../client/components/request-async-storage.external'
 import {
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,

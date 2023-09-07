@@ -55,7 +55,7 @@ import {
   getCookieParser,
   checkIsOnDemandRevalidate,
 } from './api-utils'
-import { setConfig } from '../shared/lib/runtime-config'
+import { setConfig } from '../shared/lib/runtime-config.shared-runtime'
 
 import { setRevalidateHeaders } from './send-payload/revalidate-headers'
 import { execOnce } from '../shared/lib/utils'
@@ -427,7 +427,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     } = this.nextConfig
 
     this.buildId = this.getBuildId()
-    this.minimalMode = minimalMode || !!process.env.NEXT_PRIVATE_MINIMAL_MODE
+    // this is a hack to avoid Webpack knowing this is equal to this.minimalMode
+    // because we replace this.minimalMode to true in production bundles.
+    const minimalModeKey = 'minimalMode'
+    this[minimalModeKey] =
+      minimalMode || !!process.env.NEXT_PRIVATE_MINIMAL_MODE
 
     this.hasAppDir = this.getHasAppDir(dev)
     const serverComponents = this.hasAppDir
