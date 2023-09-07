@@ -8,7 +8,7 @@ import {
   nextStart,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
-import fetch from 'node-fetch'
+import 'next/src/server/node-polyfill-fetch'
 import { join } from 'path'
 
 const appDir = join(__dirname, '../')

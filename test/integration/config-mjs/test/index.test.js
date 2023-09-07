@@ -3,7 +3,7 @@
 import cheerio from 'cheerio'
 import { findPort, killApp, launchApp, renderViaHTTP } from 'next-test-utils'
 import webdriver from 'next-webdriver'
-import fetch from 'node-fetch'
+import 'next/src/server/node-polyfill-fetch'
 import { join } from 'path'
 
 const context = {}

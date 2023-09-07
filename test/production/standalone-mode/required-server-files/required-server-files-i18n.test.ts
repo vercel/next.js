@@ -13,7 +13,7 @@ import {
   renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
-import nodeFetch from 'node-fetch'
+import 'next/src/server/node-polyfill-fetch'
 
 describe('should set-up next', () => {
   let next: NextInstance
@@ -25,7 +25,7 @@ describe('should set-up next', () => {
   beforeAll(async () => {
     let wasmPkgIsAvailable = false
 
-    const res = await nodeFetch(
+    const res = await fetch(
       `https://registry.npmjs.com/@next/swc-wasm-nodejs/-/swc-wasm-nodejs-${
         require('next/package.json').version
       }.tgz`,

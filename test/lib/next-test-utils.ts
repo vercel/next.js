@@ -13,7 +13,7 @@ import path from 'path'
 import spawn from 'cross-spawn'
 import { writeFile } from 'fs-extra'
 import getPort from 'get-port'
-import fetch from 'node-fetch'
+import 'next/src/server/node-polyfill-fetch'
 import qs from 'querystring'
 import treeKill from 'tree-kill'
 
@@ -21,7 +21,6 @@ import server from 'next/dist/server/next'
 import _pkg from 'next/package.json'
 
 import type { SpawnOptions, ChildProcess } from 'child_process'
-import type { RequestInit, Response } from 'node-fetch'
 import type { NextServer } from 'next/dist/server/next'
 import type { BrowserInterface } from './browsers/base'
 

@@ -3,7 +3,6 @@ import path from 'path'
 import cheerio from 'cheerio'
 import { check, withQuery } from 'next-test-utils'
 import { createNextDescribe, FileRef } from 'e2e-utils'
-import type { Response } from 'node-fetch'
 
 createNextDescribe(
   'app-dir with middleware',

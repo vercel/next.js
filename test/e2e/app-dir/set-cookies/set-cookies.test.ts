@@ -1,5 +1,4 @@
 import { createNextDescribe } from 'e2e-utils'
-import type { Response } from 'node-fetch'
 
 import cookies, { nextConfigHeaders } from './cookies.mjs'
 
