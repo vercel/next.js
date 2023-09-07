@@ -4,8 +4,8 @@ const path = require('path')
 const { readJson, writeJson } = require('fs-extra')
 const execa = require('execa')
 
-/** @type {any} */
-const fetch = require('node-fetch')
+// @ts-ignore
+require('next/src/server/node-polyfill-fetch')
 
 // Use this script to update Next's vendored copy of React and related packages:
 //

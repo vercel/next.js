@@ -1,4 +1,4 @@
-import fetch from 'node-fetch'
+import 'next/src/server/node-polyfill-fetch'
 
 export const TEST_PROJECT_NAME = 'vtest314-e2e-tests'
 export const TEST_TEAM_NAME = process.env.VERCEL_TEST_TEAM

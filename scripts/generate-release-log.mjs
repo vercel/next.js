@@ -1,4 +1,4 @@
-import fetch from 'node-fetch'
+import 'next/src/server/node-polyfill-fetch'
 
 async function main() {
   const releasesArray = await fetch(
