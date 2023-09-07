@@ -44,7 +44,6 @@ import { getRedirectStatus } from '../lib/redirect-status'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import {
   APP_PATHS_MANIFEST,
-  INTERNAL_HEADERS,
   NEXT_BUILTIN_DOCUMENT,
   PAGES_MANIFEST,
   STATIC_STATUS_PAGES,
