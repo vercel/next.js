@@ -487,7 +487,7 @@ export class IncrementalCache {
         isStale,
         curRevalidate,
         revalidateAfter,
-        value: cacheData.value,
+        value: isStale ? null : cacheData.value,
       }
     }
 
