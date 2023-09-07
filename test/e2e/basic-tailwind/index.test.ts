@@ -2,22 +2,21 @@
 import { createNext, FileRef } from 'e2e-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
-
-const fixturesDir = join(__dirname, '../..', 'css-fixtures')
+import type { NextInstance } from 'test/lib/next-modes/base'
 
 //[NOTE]: This test is migrated from next-dev integration tests for turbopack,
 //Extracted into a single test file so we can put this in blocking tests for turbopack (turbopack-tests-manifests.js)
 describe('Render css with tailwind', () => {
-  const appDir = join(fixturesDir, 'with-tailwindcss')
-
-  let next
+  let next: NextInstance
   beforeAll(async () => {
     next = await createNext({
       files: {
-        pages: new FileRef(join(appDir, 'pages')),
-        styles: new FileRef(join(appDir, 'styles')),
-        'postcss.config.js': new FileRef(join(appDir, 'postcss.config.js')),
-        'tailwind.config.js': new FileRef(join(appDir, 'tailwind.config.js')),
+        pages: new FileRef(join(__dirname, 'pages')),
+        styles: new FileRef(join(__dirname, 'styles')),
+        'postcss.config.js': new FileRef(join(__dirname, 'postcss.config.js')),
+        'tailwind.config.js': new FileRef(
+          join(__dirname, 'tailwind.config.js')
+        ),
       },
       dependencies: {
         postcss: '^8.4.29',
