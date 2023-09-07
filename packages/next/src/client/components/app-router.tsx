@@ -409,6 +409,7 @@ function Router({
   // in <Offscreen>. At least I hope so. (It will run twice in dev strict mode,
   // but that's... fine?)
   if (pushRef.mpaNavigation) {
+    // if there's a re-render, we don't want to trigger another redirect if one is already in flight to the same URL
     if (globalMutable.pendingMpaPath !== canonicalUrl) {
       const location = window.location
       if (pushRef.pendingPush) {
