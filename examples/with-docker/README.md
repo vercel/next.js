@@ -31,6 +31,10 @@ To add support for Docker to an existing project, just copy the `Dockerfile` int
 module.exports = {
   // ... rest of the configuration.
   output: 'standalone',
+// for next version <= 12.10
+//  experimental: {
+//      outputStandalone: true,
+//  },
 }
 ```
 
