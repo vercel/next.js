@@ -1,8 +1,5 @@
 import nextFontGoogleFontLoader from './loader'
-// @ts-ignore
-import { fetch } from 'next/dist/compiled/undici'
-
-jest.mock('next/dist/compiled/undici')
+import 'next/dist/server/node-polyfill-fetch'
 
 describe('next/font/google loader', () => {
   afterEach(() => {
@@ -120,7 +117,7 @@ describe('next/font/google loader', () => {
         fontFunctionArguments: any,
         expectedUrl: any
       ) => {
-        fetch.mockResolvedValue({
+        globalThis.fetch = jest.fn().mockResolvedValue({
           ok: true,
           text: async () => 'OK',
         })
