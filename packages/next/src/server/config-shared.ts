@@ -194,6 +194,11 @@ export interface ExperimentalConfig {
   gzipSize?: boolean
   craCompat?: boolean
   esmExternals?: boolean | 'loose'
+  /**
+   * In-memory cache size in bytes.
+   *
+   * If `isrMemoryCacheSize: 0` disables in-memory caching.
+   */
   isrMemoryCacheSize?: number
   fullySpecified?: boolean
   urlImports?: NonNullable<webpack.Configuration['experiments']>['buildHttp']
