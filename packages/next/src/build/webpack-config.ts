@@ -481,7 +481,7 @@ function getOptimizedAliases(): { [pkg: string]: string } {
 }
 
 // Alias these modules to be resolved with "module" if possible.
-function getModularizeImportAliases(packages: string[]) {
+function getBarrelOptimizationAliases(packages: string[]) {
   const aliases: { [pkg: string]: string } = {}
   const mainFields = ['module', 'main']
 
@@ -492,7 +492,7 @@ function getModularizeImportAliases(packages: string[]) {
 
       for (const field of mainFields) {
         if (descriptionFileData.hasOwnProperty(field)) {
-          aliases[pkg] = path.join(
+          aliases[pkg + '$'] = path.join(
             path.dirname(descriptionFilePath),
             descriptionFileData[field]
           )
@@ -1142,7 +1142,7 @@ export default async function getBaseWebpackConfig(
       // For Node server, we need to re-alias the package imports to prefer to
       // resolve to the ESM export.
       ...(isNodeServer
-        ? getModularizeImportAliases(
+        ? getBarrelOptimizationAliases(
             config.experimental.optimizePackageImports || []
           )
         : {}),
@@ -1731,6 +1731,9 @@ export default async function getBaseWebpackConfig(
                   reuseExistingChunk: true,
                   test: /[\\/]node_modules[\\/]/,
                   minSize: 0,
+                  minChunks: 1,
+                  maxAsyncRequests: 300,
+                  maxInitialRequests: 300,
                   name: (module: webpack.Module) => {
                     const moduleId = module.nameForCondition()!
                     const rootModule = extractRootNodeModule(moduleId)
@@ -1743,6 +1746,9 @@ export default async function getBaseWebpackConfig(
                     }
                   },
                 },
+                // disable the default chunk groups
+                default: false,
+                defaultVendors: false,
               },
             }
           }

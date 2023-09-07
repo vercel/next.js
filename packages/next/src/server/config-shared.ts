@@ -694,7 +694,7 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
-    serverMinification: false,
+    serverMinification: true,
     serverSourceMaps: false,
     caseSensitiveRoutes: false,
     useDeploymentId: false,
