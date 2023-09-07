@@ -1,0 +1,6 @@
+error - [rendering] [root of the server]/invalid  Error during SSR Rendering
+  Error: Invalid src prop (https://image-optimization-test.vercel.app/test.webp) on `next/image`, hostname "image-optimization-test.vercel.app" is not configured under images in your `next.config.js`
+  
+  Debug info:
+  - Error: Invalid src prop (https://image-optimization-test.vercel.app/test.webp) on `next/image`, hostname "image-optimization-test.vercel.app" is not configured under images in your `next.config.js`
+    See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host

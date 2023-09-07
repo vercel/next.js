@@ -4,11 +4,11 @@ import {
   AppRouterContext,
   GlobalLayoutRouterContext,
   LayoutRouterContext,
-} from '../../shared/lib/app-router-context.shared-runtime'
+} from '../../shared/lib/app-router-context'
 import {
   SearchParamsContext,
   PathnameContext,
-} from '../../shared/lib/hooks-client-context.shared-runtime'
+} from '../../shared/lib/hooks-client-context'
 import { clientHookInServerComponentError } from './client-hook-in-server-component-error'
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
 
@@ -111,12 +111,12 @@ export function usePathname(): string {
 export {
   ServerInsertedHTMLContext,
   useServerInsertedHTML,
-} from '../../shared/lib/server-inserted-html.shared-runtime'
+} from '../../shared/lib/server-inserted-html'
 
 /**
  * Get the router methods. For example router.push('/dashboard')
  */
-export function useRouter(): import('../../shared/lib/app-router-context.shared-runtime').AppRouterInstance {
+export function useRouter(): import('../../shared/lib/app-router-context').AppRouterInstance {
   clientHookInServerComponentError('useRouter')
   const router = useContext(AppRouterContext)
   if (router === null) {

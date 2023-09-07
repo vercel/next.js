@@ -59,7 +59,7 @@ import {
   RSC,
 } from '../client/components/app-router-headers'
 
-const envConfig = require('../shared/lib/runtime-config.shared-runtime')
+const envConfig = require('../shared/lib/runtime-config')
 
 ;(globalThis as any).__NEXT_DATA__ = {
   nextExport: true,
@@ -307,10 +307,8 @@ export default async function exportPage({
       await promises.mkdir(baseDir, { recursive: true })
       let renderResult: RenderResult | undefined
       let curRenderOpts: RenderOpts = {}
-      const renderToHTML =
-        require('../server/future/route-modules/pages/module.compiled')
-          .renderToHTML as typeof import('../server/render').renderToHTML
-
+      const { renderToHTML } =
+        require('../server/render') as typeof import('../server/render')
       let renderMethod = renderToHTML
       let inAmpMode = false,
         hybridAmp = false
@@ -481,6 +479,7 @@ export default async function exportPage({
             const module = await RouteModuleLoader.load<AppRouteRouteModule>(
               filename
             )
+
             // Call the handler with the request and context from the module.
             const response = await module.handle(request, context)
 
@@ -536,9 +535,8 @@ export default async function exportPage({
             results.fromBuildExportRevalidate = 0
           }
         } else {
-          const renderToHTMLOrFlight =
-            require('../server/future/route-modules/app-page/module.compiled')
-              .renderToHTMLOrFlight as typeof import('../server/app-render/app-render').renderToHTMLOrFlight
+          const { renderToHTMLOrFlight } =
+            require('../server/app-render/app-render') as typeof import('../server/app-render/app-render')
 
           try {
             curRenderOpts.params ||= {}

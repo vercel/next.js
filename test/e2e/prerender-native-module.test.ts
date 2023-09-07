@@ -85,6 +85,8 @@ describe('prerender native module', () => {
             /node_modules\/sqlite3\/.*?\.node/,
             /node_modules\/sqlite\/.*?\.js/,
             /node_modules\/next/,
+            /next\/router\.js/,
+            /next\/dist\/client\/router\.js/,
             /\/data\.sqlite/,
           ],
           notTests: [],
@@ -97,6 +99,7 @@ describe('prerender native module', () => {
         )
         const { version, files } = JSON.parse(contents)
         expect(version).toBe(1)
+
         expect(
           check.tests.every((item) => files.some((file) => item.test(file)))
         ).toBe(true)

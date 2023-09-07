@@ -2,7 +2,7 @@ use std::{collections::HashMap, io::Write as _, iter::once};
 
 use anyhow::{bail, Result};
 use indexmap::indexmap;
-use indoc::formatdoc;
+use indoc::indoc;
 use serde_json::Value as JsonValue;
 use turbo_tasks::Vc;
 use turbopack_binding::{
@@ -964,18 +964,13 @@ impl AppRenderer {
             .emit();
         }
 
-        let mut result = RopeBuilder::from(
-            formatdoc!(
-                "
-                \"TURBOPACK {{ chunking-type: isolatedParallel; transition: {rsc_transition} }}\";
+        let mut result = RopeBuilder::from(indoc! {"
+                \"TURBOPACK { chunking-type: isolatedParallel; transition: next-edge-server-component }\";
                 import GlobalErrorMod from \"next/dist/client/components/error-boundary\"
-                const {{ GlobalError }} = GlobalErrorMod;
-                \"TURBOPACK {{ chunking-type: isolatedParallel; transition: {rsc_transition} }}\";
+                const { GlobalError } = GlobalErrorMod;
+                \"TURBOPACK { chunking-type: isolatedParallel; transition: next-edge-server-component }\";
                 import base from \"next/dist/server/app-render/entry-base\"\n
-            "
-            )
-            .into_bytes(),
-        );
+            "});
 
         for import in loader_tree_module.imports {
             writeln!(result, "{import}")?;
