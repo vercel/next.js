@@ -6,6 +6,7 @@ export default function Page() {
   return (
     <>
       <p className={styles.template}>hello pages</p>
+      <p id="deploymentId">{process.env.NEXT_DEPLOYMENT_ID}</p>
       <Image src={testImage} alt="test image" />
 
       <button

@@ -14,28 +14,23 @@ const appDir = join(__dirname, '../')
 
 let appPort
 let app
-let browser
 
-function runTests() {
-  it('should add "src" to img1 based on the loader config', async () => {
+function runTests(url: string) {
+  it('should work with loaderFile config', async () => {
+    const browser = await webdriver(appPort, url)
     expect(await browser.elementById('img1').getAttribute('src')).toBe(
       '/logo.png#w:828,q:50'
     )
-  })
-
-  it('should add "srcset" to img1 based on the loader config', async () => {
     expect(await browser.elementById('img1').getAttribute('srcset')).toBe(
       '/logo.png#w:640,q:50 1x, /logo.png#w:828,q:50 2x'
     )
   })
 
-  it('should add "src" to img2 based on the loader prop', async () => {
+  it('should work with loader prop', async () => {
+    const browser = await webdriver(appPort, url)
     expect(await browser.elementById('img2').getAttribute('src')).toBe(
       '/logo.png?wid=640&qual=35'
     )
-  })
-
-  it('should add "srcset" to img2 based on the loader prop', async () => {
     expect(await browser.elementById('img2').getAttribute('srcset')).toBe(
       '/logo.png?wid=256&qual=35 1x, /logo.png?wid=640&qual=35 2x'
     )
@@ -43,34 +38,48 @@ function runTests() {
 }
 
 describe('Image Loader Config', () => {
-  describe('dev mode', () => {
+  describe('dev mode - component', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
-      browser = await webdriver(appPort, '/')
     })
     afterAll(() => {
       killApp(app)
-      if (browser) {
-        browser.close()
-      }
     })
-    runTests()
+    runTests('/')
   })
 
-  describe('server mode', () => {
+  describe('server mode - component', () => {
     beforeAll(async () => {
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
-      browser = await webdriver(appPort, '/')
     })
     afterAll(() => {
       killApp(app)
-      if (browser) {
-        browser.close()
-      }
     })
-    runTests()
+    runTests('/')
+  })
+  describe('dev mode - getImgProps', () => {
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(() => {
+      killApp(app)
+    })
+    runTests('/get-img-props')
+  })
+
+  describe('server mode - getImgProps', () => {
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(() => {
+      killApp(app)
+    })
+    runTests('/get-img-props')
   })
 })

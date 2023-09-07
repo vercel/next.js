@@ -9,5 +9,5 @@ export function djb2Hash(str: string) {
 }
 
 export function hexHash(str: string) {
-  return djb2Hash(str).toString(16).slice(0, 7)
+  return djb2Hash(str).toString(36).slice(0, 5)
 }

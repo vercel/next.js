@@ -4,7 +4,7 @@ import type { AsyncLocalStorage } from 'async_hooks'
 import type { IncrementalCache } from '../lib/incremental-cache'
 
 export type StaticGenerationContext = {
-  pathname: string
+  urlPathname: string
   renderOpts: {
     originalPathname?: string
     incrementalCache?: IncrementalCache
@@ -34,7 +34,7 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
 > = {
   wrap<Result>(
     storage: AsyncLocalStorage<StaticGenerationStore>,
-    { pathname, renderOpts }: StaticGenerationContext,
+    { urlPathname, renderOpts }: StaticGenerationContext,
     callback: (store: StaticGenerationStore) => Result
   ): Result {
     /**
@@ -53,14 +53,12 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
      * coalescing, and ISR continue working as intended.
      */
     const isStaticGeneration =
-      !renderOpts.supportsDynamicHTML &&
-      !renderOpts.isBot &&
-      !renderOpts.isDraftMode
+      !renderOpts.supportsDynamicHTML && !renderOpts.isDraftMode
 
     const store: StaticGenerationStore = {
       isStaticGeneration,
-      pathname,
-      originalPathname: renderOpts.originalPathname,
+      urlPathname,
+      pagePath: renderOpts.originalPathname,
       incrementalCache:
         // we fallback to a global incremental cache for edge-runtime locally
         // so that it can access the fs cache without mocks
@@ -69,6 +67,8 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
       isPrerendering: renderOpts.nextExport,
       fetchCache: renderOpts.fetchCache,
       isOnDemandRevalidate: renderOpts.isOnDemandRevalidate,
+
+      isDraftMode: renderOpts.isDraftMode,
     }
 
     // TODO: remove this when we resolve accessing the store outside the execution context

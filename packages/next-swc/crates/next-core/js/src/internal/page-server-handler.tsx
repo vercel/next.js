@@ -305,20 +305,20 @@ export default function startHandler({
       }
     }
 
-    if (!renderResult || renderResult.isNull()) {
+    if (!renderResult || renderResult.isNull) {
       throw new Error('no render result returned')
     }
 
     const body = renderResult.toUnchunkedString()
 
     // TODO: handle revalidate
-    // const sprRevalidate = renderResult.metadata().revalidate;
+    // const sprRevalidate = renderResult.metadata.revalidate;
 
     return {
       type: 'response',
       statusCode: res.statusCode,
       headers: [
-        ['Content-Type', renderResult.contentType() ?? MIME_TEXT_HTML_UTF8],
+        ['Content-Type', renderResult.contentType ?? MIME_TEXT_HTML_UTF8],
       ],
       body,
     }

@@ -25,12 +25,17 @@ interface Options {
   sensitive?: boolean
 }
 
+export type PatchMatcher = (
+  pathname?: string | null,
+  params?: Record<string, any>
+) => Record<string, any> | false
+
 /**
  * Generates a path matcher function for a given path and options based on
  * path-to-regexp. By default the match will be case insensitive, non strict
  * and delimited by `/`.
  */
-export function getPathMatch(path: string, options?: Options) {
+export function getPathMatch(path: string, options?: Options): PatchMatcher {
   const keys: Key[] = []
   const regexp = pathToRegexp(path, keys, {
     delimiter: '/',
@@ -39,7 +44,7 @@ export function getPathMatch(path: string, options?: Options) {
     strict: options?.strict,
   })
 
-  const matcher = regexpToFunction(
+  const matcher = regexpToFunction<Record<string, any>>(
     options?.regexModifier
       ? new RegExp(options.regexModifier(regexp.source), regexp.flags)
       : regexp,
@@ -52,14 +57,14 @@ export function getPathMatch(path: string, options?: Options) {
    * `false` but if it does it will return an object with the matched params
    * merged with the params provided in the second argument.
    */
-  return <T extends { [key: string]: any }>(
-    pathname?: string | null,
-    params?: any
-  ): false | T => {
-    const res = pathname == null ? false : matcher(pathname)
-    if (!res) {
-      return false
-    }
+  return (pathname, params) => {
+    // If no pathname is provided it's not a match.
+    if (typeof pathname !== 'string') return false
+
+    const match = matcher(pathname)
+
+    // If the path did not match `false` will be returned.
+    if (!match) return false
 
     /**
      * If unnamed params are not allowed they must be removed from
@@ -69,11 +74,11 @@ export function getPathMatch(path: string, options?: Options) {
     if (options?.removeUnnamedParams) {
       for (const key of keys) {
         if (typeof key.name === 'number') {
-          delete (res.params as any)[key.name]
+          delete match.params[key.name]
         }
       }
     }
 
-    return { ...params, ...res.params }
+    return { ...params, ...match.params }
   }
 }

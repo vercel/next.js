@@ -9,6 +9,7 @@ import {
 import { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/subresource-integrity-plugin'
 import { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
+import { SizeLimit } from '../../types'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -84,7 +85,7 @@ type JSONValue =
   | JSONValue[]
   | { [k: string]: JSONValue }
 
-type TurboLoaderItem =
+export type TurboLoaderItem =
   | string
   | {
       loader: string
@@ -92,7 +93,7 @@ type TurboLoaderItem =
       options: Record<string, JSONValue>
     }
 
-interface ExperimentalTurboOptions {
+export interface ExperimentalTurboOptions {
   /**
    * (`next --turbo` only) A mapping of aliased imports to modules to load in their place.
    *
@@ -163,21 +164,17 @@ export interface ExperimentalConfig {
   fetchCacheKeyPrefix?: string
   optimisticClientCache?: boolean
   middlewarePrefetch?: 'strict' | 'flexible'
-  legacyBrowsers?: boolean
   manualClientBasePath?: boolean
-  newNextLinkBehavior?: boolean
   // custom path to a cache handler to use
   incrementalCacheHandlerPath?: string
   disablePostcssPresetEnv?: boolean
   swcMinify?: boolean
-  swcFileReading?: boolean
   cpus?: number
   memoryBasedWorkersCount?: boolean
   sharedPool?: boolean
   proxyTimeout?: number
   isrFlushToDisk?: boolean
   workerThreads?: boolean
-  pageEnv?: boolean
   // optimizeCss can be boolean or critters' option object
   // Use Record<string, unknown> as critters doesn't export its Option type
   // https://github.com/GoogleChromeLabs/critters/blob/a590c05f9197b656d2aeaae9369df2483c26b072/packages/critters/src/index.d.ts
@@ -185,11 +182,6 @@ export interface ExperimentalConfig {
   nextScriptWorkers?: boolean
   scrollRestoration?: boolean
   externalDir?: boolean
-  /**
-   * The App Router (app directory) enables support for layouts, Server Components, streaming, and colocated data fetching.
-   * @see https://nextjs.org/docs/app/api-reference/next-config-js/appDir
-   */
-  appDir?: boolean
   amp?: {
     optimizer?: any
     validator?: string
@@ -234,6 +226,16 @@ export interface ExperimentalConfig {
   serverComponentsExternalPackages?: string[]
 
   webVitalsAttribution?: Array<(typeof WEB_VITALS)[number]>
+
+  /**
+   * Automatically apply the "modularizeImports" optimization to imports of the specified packages.
+   */
+  optimizePackageImports?: string[]
+
+  /**
+   * Optimize React APIs for server builds.
+   */
+  optimizeServerReact?: boolean
 
   turbo?: ExperimentalTurboOptions
   turbotrace?: {
@@ -281,6 +283,26 @@ export interface ExperimentalConfig {
    * Enable `react@experimental` channel for the `app` directory.
    */
   serverActions?: boolean
+
+  /**
+   * Allows adjusting body parser size limit for server actions.
+   */
+  serverActionsBodySizeLimit?: SizeLimit
+
+  /**
+   * enables the minification of server code.
+   */
+  serverMinification?: boolean
+
+  /**
+   * Enables source maps generation for the server production bundle.
+   */
+  serverSourceMaps?: boolean
+
+  /**
+   * @internal Used by the Next.js internals only.
+   */
+  trustHostHeader?: boolean
 }
 
 export type ExportPathMap = {
@@ -288,6 +310,7 @@ export type ExportPathMap = {
     page: string
     query?: NextParsedUrlQuery
     _isAppDir?: boolean
+    _isAppPrefetch?: boolean
     _isDynamicError?: boolean
   }
 }
@@ -492,6 +515,12 @@ export interface NextConfig extends Record<string, any> {
   optimizeFonts?: boolean
 
   /**
+   * Enable react profiling in production
+   *
+   */
+  reactProductionProfiling?: boolean
+
+  /**
    * The Next.js runtime is Strict Mode-compliant.
    *
    * @see [React Strict Mode](https://nextjs.org/docs/api-reference/next.config.js/react-strict-mode)
@@ -513,10 +542,10 @@ export interface NextConfig extends Record<string, any> {
   serverRuntimeConfig?: { [key: string]: any }
 
   /**
-   * Next.js automatically polyfills node-fetch and enables HTTP Keep-Alive by default.
+   * Next.js enables HTTP Keep-Alive by default.
    * You may want to disable HTTP Keep-Alive for certain `fetch()` calls or globally.
    *
-   * @see [Disabling HTTP Keep-Alive](https://nextjs.org/docs/api-reference/next.config.js/disabling-http-keep-alive)
+   * @see [Disabling HTTP Keep-Alive](https://nextjs.org/docs/app/api-reference/next-config-js/httpAgentOptions)
    */
   httpAgentOptions?: { keepAlive?: boolean }
 
@@ -600,7 +629,7 @@ export interface NextConfig extends Record<string, any> {
   modularizeImports?: Record<
     string,
     {
-      transform: string
+      transform: string | Record<string, string>
       preventFullImport?: boolean
       skipDefaultConversion?: boolean
     }
@@ -639,8 +668,8 @@ export const defaultConfig: NextConfig = {
     buildActivityPosition: 'bottom-right',
   },
   onDemandEntries: {
-    maxInactiveAge: 15 * 1000,
-    pagesBufferLength: 2,
+    maxInactiveAge: 60 * 1000,
+    pagesBufferLength: 5,
   },
   amp: {
     canonicalBase: '',
@@ -654,7 +683,8 @@ export const defaultConfig: NextConfig = {
   excludeDefaultMomentLocales: true,
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
-  reactStrictMode: false,
+  reactProductionProfiling: false,
+  reactStrictMode: null,
   httpAgentOptions: {
     keepAlive: true,
   },
@@ -664,19 +694,19 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
+    serverMinification: true,
+    serverSourceMaps: false,
     caseSensitiveRoutes: false,
     useDeploymentId: false,
     deploymentId: undefined,
     useDeploymentIdServerActions: false,
     appDocumentPreloading: undefined,
-    clientRouterFilter: false,
+    clientRouterFilter: true,
     clientRouterFilterRedirects: false,
     fetchCacheKeyPrefix: '',
     middlewarePrefetch: 'flexible',
     optimisticClientCache: true,
     manualClientBasePath: false,
-    legacyBrowsers: false,
-    newNextLinkBehavior: true,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
@@ -686,7 +716,6 @@ export const defaultConfig: NextConfig = {
     sharedPool: true,
     isrFlushToDisk: true,
     workerThreads: false,
-    pageEnv: false,
     proxyTimeout: undefined,
     optimizeCss: false,
     nextScriptWorkers: false,
@@ -694,10 +723,8 @@ export const defaultConfig: NextConfig = {
     externalDir: false,
     disableOptimizedLoading: false,
     gzipSize: true,
-    swcFileReading: true,
     craCompat: false,
     esmExternals: true,
-    appDir: true,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
     incrementalCacheHandlerPath: undefined,
@@ -730,9 +757,15 @@ export async function normalizeConfig(phase: string, config: any) {
 export function validateConfig(userConfig: NextConfig): {
   errors?: Array<any> | null
 } {
-  const configValidator = require('next/dist/next-config-validate.js')
-  configValidator(userConfig)
-  return {
-    errors: configValidator.errors,
+  if (process.env.NEXT_MINIMAL) {
+    return {
+      errors: [],
+    }
+  } else {
+    const configValidator = require('next/dist/next-config-validate.js')
+    configValidator(userConfig)
+    return {
+      errors: configValidator.errors,
+    }
   }
 }

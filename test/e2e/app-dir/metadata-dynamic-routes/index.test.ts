@@ -14,6 +14,9 @@ createNextDescribe(
   'app dir - metadata dynamic routes',
   {
     files: __dirname,
+    dependencies: {
+      '@vercel/og': 'latest',
+    },
   },
   ({ next, isNextDev, isNextStart, isNextDeploy }) => {
     describe('text routes', () => {
@@ -52,6 +55,8 @@ createNextDescribe(
           <url>
           <loc>https://example.com</loc>
           <lastmod>2021-01-01</lastmod>
+          <changefreq>weekly</changefreq>
+          <priority>0.5</priority>
           </url>
           <url>
           <loc>https://example.com/about</loc>
@@ -101,8 +106,33 @@ createNextDescribe(
       })
 
       it('should render og image with twitter-image dynamic routes', async () => {
-        const res = await next.fetch('/twitter-image')
+        // nodejs runtime
+        let res = await next.fetch('/twitter-image')
 
+        expect(res.headers.get('content-type')).toBe('image/png')
+        expect(res.headers.get('cache-control')).toBe(
+          isNextDev ? CACHE_HEADERS.NONE : CACHE_HEADERS.LONG
+        )
+
+        if (isNextDev) {
+          await check(async () => {
+            next.hasFile('.next/server/app-paths-manifest.json')
+            return 'success'
+          }, /success/)
+
+          const appPathsManifest = JSON.parse(
+            await next.readFile('.next/server/app-paths-manifest.json')
+          )
+          const entryKeys = Object.keys(appPathsManifest)
+          // Only has one route for twitter-image with catch-all routes in dev
+          expect(entryKeys).not.toContain('/twitter-image')
+          expect(entryKeys).toContain(
+            '/twitter-image/[[...__metadata_id__]]/route'
+          )
+        }
+
+        // edge runtime
+        res = await next.fetch('/twitter-image2')
         expect(res.headers.get('content-type')).toBe('image/png')
         expect(res.headers.get('cache-control')).toBe(
           isNextDev ? CACHE_HEADERS.NONE : CACHE_HEADERS.LONG
@@ -210,6 +240,16 @@ createNextDescribe(
         expect(ogImageUrl).toMatch('/static/opengraph-image')
         // should already normalize the parallel routes segment to url
         expect(ogImageUrl).not.toContain('(group)')
+      })
+
+      it('should handle custom fonts in both edge and nodejs runtime', async () => {
+        const resOgEdge = await next.fetch('/font/opengraph-image')
+        const resOgNodejs = await next.fetch('/font/opengraph-image2')
+
+        expect(resOgEdge.status).toBe(200)
+        expect(resOgEdge.headers.get('content-type')).toBe('image/png')
+        expect(resOgNodejs.status).toBe(200)
+        expect(resOgNodejs.headers.get('content-type')).toBe('image/png')
       })
     })
 
@@ -369,16 +409,26 @@ createNextDescribe(
           return new ImageResponse(<div>icon</div>)
         }
         `
+
+        const outputBeforeFetch = next.cliOutput + ''
+
         await next.patchFile(iconFilePath, contentMissingIdProperty)
         await next.fetch('/metadata-base/unset/icon/100')
-        await next.deleteFile(iconFilePath) // revert
 
-        await check(async () => {
-          expect(next.cliOutput).toContain(
-            `id is required for every item returned from generateImageMetadata`
-          )
-          return 'success'
-        }, /success/)
+        const outputAfterFetch = next.cliOutput + ''
+        const output = outputAfterFetch.replace(outputBeforeFetch, '')
+
+        try {
+          await check(async () => {
+            expect(output).toContain(
+              `id property is required for every item returned from generateImageMetadata`
+            )
+            return 'success'
+          }, /success/)
+        } finally {
+          await next.deleteFile(iconFilePath)
+          await next.fetch('/metadata-base/unset/icon/100')
+        }
       })
 
       it('should error when id is missing in generateSitemaps', async () => {
@@ -388,7 +438,7 @@ createNextDescribe(
 
         export async function generateSitemaps() {
           return [
-            { id: 0 },
+            { },
           ]
         }
 
@@ -400,16 +450,26 @@ createNextDescribe(
             },
           ]
         }`
+
+        const outputBeforeFetch = next.cliOutput + ''
+
         await next.patchFile(sitemapFilePath, contentMissingIdProperty)
         await next.fetch('/metadata-base/unset/sitemap.xml/0')
-        await next.deleteFile(sitemapFilePath) // revert
 
-        await check(async () => {
-          expect(next.cliOutput).toContain(
-            `id is required for every item returned from generateImageMetadata`
-          )
-          return 'success'
-        }, /success/)
+        const outputAfterFetch = next.cliOutput + ''
+        const output = outputAfterFetch.replace(outputBeforeFetch, '')
+
+        try {
+          await check(async () => {
+            expect(output).toContain(
+              `id property is required for every item returned from generateSitemaps`
+            )
+            return 'success'
+          }, /success/)
+        } finally {
+          await next.deleteFile(sitemapFilePath)
+          await next.fetch('/metadata-base/unset/sitemap.xml/0')
+        }
       })
     }
 

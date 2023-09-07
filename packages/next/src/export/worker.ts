@@ -25,12 +25,15 @@ import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
-import { SERVER_PROPS_EXPORT_ERROR } from '../lib/constants'
+import {
+  NEXT_CACHE_TAGS_HEADER,
+  SERVER_PROPS_EXPORT_ERROR,
+} from '../lib/constants'
 import { requireFontManifest } from '../server/require'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { trace } from '../trace'
 import { isInAmpMode } from '../shared/lib/amp-mode'
-import { setHttpClientAndAgentOptions } from '../server/config'
+import { setHttpClientAndAgentOptions } from '../server/setup-http-agent-env'
 import RenderResult from '../server/render-result'
 import isError from '../lib/is-error'
 import { addRequestMeta } from '../server/request-meta'
@@ -45,8 +48,16 @@ import { NodeNextRequest } from '../server/base-http/node'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { toNodeOutgoingHttpHeaders } from '../server/web/utils'
 import { RouteModuleLoader } from '../server/future/helpers/module-loader/route-module-loader'
-import { NextRequestAdapter } from '../server/web/spec-extension/adapters/next-request'
+import {
+  NextRequestAdapter,
+  signalFromNodeResponse,
+} from '../server/web/spec-extension/adapters/next-request'
 import * as ciEnvironment from '../telemetry/ci-info'
+import {
+  NEXT_ROUTER_PREFETCH,
+  NEXT_URL,
+  RSC,
+} from '../client/components/app-router-headers'
 
 const envConfig = require('../shared/lib/runtime-config')
 
@@ -79,7 +90,6 @@ interface ExportPageInput {
   disableOptimizedLoading: any
   parentSpanId: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
-  serverComponents?: boolean
   debugOutput?: boolean
   isrMemoryCacheSize?: NextConfigComplete['experimental']['isrMemoryCacheSize']
   fetchCache?: boolean
@@ -137,7 +147,6 @@ export default async function exportPage({
   optimizeCss,
   disableOptimizedLoading,
   httpAgentOptions,
-  serverComponents,
   debugOutput,
   isrMemoryCacheSize,
   fetchCache,
@@ -157,13 +166,14 @@ export default async function exportPage({
 
     try {
       if (renderOpts.deploymentId) {
-        process.env.__NEXT_DEPLOYMENT_ID = renderOpts.deploymentId
+        process.env.NEXT_DEPLOYMENT_ID = renderOpts.deploymentId
       }
       const { query: originalQuery = {} } = pathMap
       const { page } = pathMap
       const pathname = normalizeAppPath(page)
-      const isAppDir = (pathMap as any)._isAppDir
-      const isDynamicError = (pathMap as any)._isDynamicError
+      const isAppDir = Boolean(pathMap._isAppDir)
+      const isAppPrefetch = Boolean(pathMap._isAppPrefetch)
+      const isDynamicError = pathMap._isDynamicError
       const filePath = normalizePagePath(path)
       const isDynamic = isDynamicRoute(page)
       const ampPath = `${filePath}.amp`
@@ -313,7 +323,6 @@ export default async function exportPage({
         components = await loadComponents({
           distDir,
           pathname: page,
-          hasServerComponents: !!serverComponents,
           isAppPath: isAppDir,
         })
         curRenderOpts = {
@@ -387,11 +396,50 @@ export default async function exportPage({
           err.digest === NEXT_DYNAMIC_NO_SSR_CODE ||
           isRedirectError(err)
 
-        if (isRouteHandler) {
+        const isNotFoundPage = page === '/_not-found'
+
+        const generatePrefetchRsc = async () => {
+          // If we bail for prerendering due to dynamic usage we need to
+          // generate a static prefetch payload to prevent invoking
+          // functions during runtime just for prefetching
+
+          const { renderToHTMLOrFlight } =
+            require('../server/app-render/app-render') as typeof import('../server/app-render/app-render')
+          req.headers[RSC.toLowerCase()] = '1'
+          req.headers[NEXT_URL.toLowerCase()] = path
+          req.headers[NEXT_ROUTER_PREFETCH.toLowerCase()] = '1'
+
+          curRenderOpts.supportsDynamicHTML = true
+          delete (curRenderOpts as any).isRevalidate
+
+          const prefetchRenderResult = await renderToHTMLOrFlight(
+            req as any,
+            res as any,
+            isNotFoundPage ? '/404' : pathname,
+            query,
+            curRenderOpts as any
+          )
+          prefetchRenderResult.pipe(res as import('http').ServerResponse)
+          await res.hasStreamed
+          const prefetchRscData = Buffer.concat(res.buffers).toString()
+
+          await promises.writeFile(
+            htmlFilepath.replace(/\.html$/, '.prefetch.rsc'),
+            prefetchRscData
+          )
+        }
+
+        // for dynamic routes with no generate static params
+        // we generate strictly the prefetch RSC payload to
+        // avoid attempting to render with default params e.g. [slug]
+        if (isAppPrefetch) {
+          await generatePrefetchRsc()
+        } else if (isRouteHandler) {
           // Ensure that the url for the page is absolute.
           req.url = `http://localhost:3000${req.url}`
           const request = NextRequestAdapter.fromNodeNextRequest(
-            new NodeNextRequest(req)
+            new NodeNextRequest(req),
+            signalFromNodeResponse(res)
           )
 
           // Create the context for the handler. This contains the params from
@@ -454,7 +502,7 @@ export default async function exportPage({
                 .fetchTags
 
               if (cacheTags) {
-                headers['x-next-cache-tags'] = cacheTags
+                headers[NEXT_CACHE_TAGS_HEADER] = cacheTags
               }
 
               if (!headers['content-type'] && body.type) {
@@ -492,8 +540,6 @@ export default async function exportPage({
 
           try {
             curRenderOpts.params ||= {}
-
-            const isNotFoundPage = page === '/_not-found'
             const result = await renderToHTMLOrFlight(
               req as any,
               res as any,
@@ -508,10 +554,10 @@ export default async function exportPage({
             results.fromBuildExportRevalidate = revalidate
 
             if (revalidate !== 0) {
-              const cacheTags = (curRenderOpts as any).fetchTags
+              const cacheTags = metadata.fetchTags
               const headers = cacheTags
                 ? {
-                    'x-next-cache-tags': cacheTags,
+                    [NEXT_CACHE_TAGS_HEADER]: cacheTags,
                   }
                 : undefined
 
@@ -536,6 +582,8 @@ export default async function exportPage({
               throw new Error(
                 `Page with dynamic = "error" encountered dynamic data method on ${path}.`
               )
+            } else {
+              await generatePrefetchRsc()
             }
 
             const staticBailoutInfo = metadata.staticBailoutInfo || {}
@@ -651,7 +699,7 @@ export default async function exportPage({
       }
 
       const html =
-        renderResult && !renderResult.isNull()
+        renderResult && !renderResult.isNull
           ? renderResult.toUnchunkedString()
           : ''
 
@@ -690,7 +738,7 @@ export default async function exportPage({
           }
 
           const ampHtml =
-            ampRenderResult && !ampRenderResult.isNull()
+            ampRenderResult && !ampRenderResult.isNull
               ? ampRenderResult.toUnchunkedString()
               : ''
           if (!curRenderOpts.ampSkipValidation) {

@@ -30,7 +30,13 @@ createNextDescribe(
         await check(async () => {
           // Check that the client-side manifest is correct before any requests
           const clientReferenceManifest = JSON.parse(
-            await next.readFile('.next/server/client-reference-manifest.json')
+            JSON.parse(
+              (
+                await next.readFile(
+                  '.next/server/app/page_client-reference-manifest.js'
+                )
+              ).match(/]=(.+)$/)[1]
+            )
           )
           const clientModulesNames = Object.keys(
             clientReferenceManifest.clientModules
@@ -152,6 +158,11 @@ createNextDescribe(
       expect(html).toContain('foo.client')
     })
 
+    it('should create client reference successfully for all file conventions', async () => {
+      const html = await next.render('/conventions')
+      expect(html).toContain('it works')
+    })
+
     it('should be able to navigate between rsc routes', async () => {
       const browser = await next.browser('/root')
 
@@ -180,6 +191,11 @@ createNextDescribe(
         `document.querySelector('#content').innerText`
       )
       expect(content).toMatchInlineSnapshot('"next_streaming_data"')
+    })
+
+    it('should track client components in dynamic imports', async () => {
+      const html = await next.render('/dynamic')
+      expect(html).toContain('dynamic data!')
     })
 
     it('should support next/link in server components', async () => {
@@ -311,7 +327,7 @@ createNextDescribe(
 
       // from styled-jsx
       expect(head).toMatch(/{color:(\s*)purple;?}/) // styled-jsx/style
-      expect(head).toMatch(/{color:(\s*)hotpink;?}/) // styled-jsx/css
+      expect(head).toMatch(/{color:(\s*)#ff69b4;?}/) // styled-jsx/css
 
       // from styled-components
       expect(head).toMatch(/{color:(\s*)blue;?}/)
@@ -323,7 +339,7 @@ createNextDescribe(
 
       // from styled-jsx
       expect(head).toMatch(/{color:(\s*)purple;?}/) // styled-jsx/style
-      expect(head).toMatch(/{color:(\s*)hotpink;?}/) // styled-jsx/css
+      expect(head).toMatch(/{color:(\s*)#ff69b4;?}/) // styled-jsx/css
 
       // from styled-components
       expect(head).toMatch(/{color:(\s*)blue;?}/)
@@ -537,6 +553,16 @@ createNextDescribe(
       ).toBe('count: 1')
     })
 
+    it('should support webpack loader rules', async () => {
+      const browser = await next.browser('/loader-rule')
+
+      expect(
+        await browser.eval(
+          `window.getComputedStyle(document.querySelector('#red')).color`
+        )
+      ).toBe('rgb(255, 0, 0)')
+    })
+
     if (isNextStart) {
       it('should generate edge SSR manifests for Node.js', async () => {
         const requiredServerFiles = JSON.parse(
@@ -546,7 +572,6 @@ createNextDescribe(
         const files = [
           'middleware-build-manifest.js',
           'middleware-manifest.json',
-          'client-reference-manifest.json',
         ]
 
         let promises = files.map(async (file) => {

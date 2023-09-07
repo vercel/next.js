@@ -19,10 +19,11 @@ import entry from 'APP_ENTRY'
 import BOOTSTRAP from 'APP_BOOTSTRAP'
 import { createServerResponse } from '../internal/http'
 import { createManifests, installRequireAndChunkLoad } from './app/manifest'
+import { join } from 'node:path'
+import { nodeFs } from 'next/dist/server/lib/node-fs-methods'
+import { IncrementalCache } from 'next/dist/server/lib/incremental-cache'
 
 installRequireAndChunkLoad()
-
-process.env.__NEXT_NEW_LINK_BEHAVIOR = 'true'
 
 const MIME_TEXT_HTML_UTF8 = 'text/html; charset=utf-8'
 
@@ -57,6 +58,8 @@ async function runOperation(renderData: RenderData) {
     ),
   } as any
 
+  const url = new URL(renderData.originalUrl, 'next://')
+
   const res = createServerResponse(req, renderData.path)
 
   const query = parse(renderData.rawQuery)
@@ -68,6 +71,7 @@ async function runOperation(renderData: RenderData) {
   } = {
     // TODO: give an actual buildId when next build is supported
     buildId: 'development',
+    basePath: '',
     params: renderData.params,
     supportsDynamicHTML: true,
     dev: true,
@@ -90,6 +94,32 @@ async function runOperation(renderData: RenderData) {
       },
       pages: ['page.js'],
     },
+    incrementalCache: new IncrementalCache({
+      fs: nodeFs,
+      dev: true,
+      requestHeaders: { ...req.headers },
+      requestProtocol: url.protocol.replace(/:$/, '') as 'http' | 'https',
+      appDir: true,
+      allowedRevalidateHeaderKeys: renderData.data?.allowedRevalidateHeaderKeys,
+      minimalMode: false,
+      serverDistDir: join(process.cwd(), '.next/server'),
+      fetchCache: true,
+      fetchCacheKeyPrefix: renderData.data?.fetchCacheKeyPrefix,
+      maxMemoryCacheSize: renderData.data?.isrMemoryCacheSize,
+      flushToDisk: false,
+      getPrerenderManifest: () => ({
+        version: 4,
+        routes: {},
+        dynamicRoutes: {},
+        preview: {
+          previewModeEncryptionKey: '',
+          previewModeId: '',
+          previewModeSigningKey: '',
+        },
+        notFoundRoutes: [],
+      }),
+      CurCacheHandler: undefined,
+    }),
     clientReferenceManifest,
     runtime: 'nodejs',
     serverComponents: true,
@@ -106,11 +136,10 @@ async function runOperation(renderData: RenderData) {
     renderOpt as any as RenderOpts
   )
 
-  if (!result || result.isNull())
-    throw new Error('rendering was not successful')
+  if (!result || result.isNull) throw new Error('rendering was not successful')
 
   const body = new PassThrough()
-  if (result.isDynamic()) {
+  if (result.isDynamic) {
     result.pipe(body)
   } else {
     body.write(result.toUnchunkedString())
@@ -118,7 +147,7 @@ async function runOperation(renderData: RenderData) {
   return {
     statusCode: res.statusCode,
     headers: [
-      ['Content-Type', result.contentType() ?? MIME_TEXT_HTML_UTF8],
+      ['Content-Type', result.contentType ?? MIME_TEXT_HTML_UTF8],
       ['Vary', RSC_VARY_HEADER],
     ] as [string, string][],
     body,

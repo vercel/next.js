@@ -194,17 +194,17 @@ export async function parseBody(
   }
 }
 
+type RevalidateFn = (config: {
+  urlPath: string
+  revalidateHeaders: { [key: string]: string | string[] }
+  opts: { unstable_onlyGenerated?: boolean }
+}) => Promise<void>
+
 type ApiContext = __ApiPreviewProps & {
   trustHostHeader?: boolean
   allowedRevalidateHeaderKeys?: string[]
   hostname?: string
-  revalidate?: (config: {
-    urlPath: string
-    revalidateHeaders: { [key: string]: string | string[] }
-    opts: { unstable_onlyGenerated?: boolean }
-  }) => Promise<any>
-
-  // (_req: IncomingMessage, _res: ServerResponse) => Promise<any>
+  revalidate?: RevalidateFn
 }
 
 function getMaxContentLength(responseLimit?: ResponseLimit) {
@@ -437,7 +437,7 @@ async function revalidate(
         const ipcKey = process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY
         const res = await invokeRequest(
           `http://${
-            context.hostname
+            context.hostname || 'localhost'
           }:${ipcPort}?key=${ipcKey}&method=revalidate&args=${encodeURIComponent(
             JSON.stringify([{ urlPath, revalidateHeaders, opts }])
           )}`,
@@ -446,16 +446,7 @@ async function revalidate(
             headers: {},
           }
         )
-
-        const chunks = []
-
-        for await (const chunk of res) {
-          if (chunk) {
-            chunks.push(chunk)
-          }
-        }
-        const body = Buffer.concat(chunks).toString()
-        const result = JSON.parse(body)
+        const result = await res.json()
 
         if (result.err) {
           throw new Error(result.err.message)

@@ -5,12 +5,13 @@ import { useRouter, usePathname } from 'next/dist/client/components/navigation'
 import { useEffect } from 'react'
 import { subscribeToUpdate } from '@vercel/turbopack-ecmascript-runtime/dev/client/hmr-client'
 import { ReactDevOverlay } from './client'
+import { sendMessage } from '@vercel/turbopack-ecmascript-runtime/dev/client/websocket'
 
 type HotReloadProps = React.PropsWithChildren<{
   assetPrefix?: string
 }>
 
-export default function HotReload({ assetPrefix, children }: HotReloadProps) {
+export default function HotReload({ children }: HotReloadProps) {
   const router = useRouter()
   const path = usePathname()!.slice(1)
 
@@ -22,6 +23,7 @@ export default function HotReload({ assetPrefix, children }: HotReloadProps) {
           rsc: '1',
         },
       },
+      sendMessage,
       (update) => {
         if (update.type !== 'issues') {
           router.refresh()

@@ -1,31 +1,38 @@
 #!/usr/bin/env node
 import arg from 'next/dist/compiled/arg/index.js'
-import { startServer, StartServerOptions } from '../server/lib/start-server'
+import type { StartServerOptions } from '../server/lib/start-server'
+import {
+  genRouterWorkerExecArgv,
+  getNodeOptionsWithoutInspect,
+} from '../server/lib/utils'
 import { getPort, printAndExit } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { CliCommand } from '../lib/commands'
-import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import path from 'path'
-import {
-  defaultConfig,
-  NextConfig,
-  NextConfigComplete,
-} from '../server/config-shared'
-import { traceGlobals } from '../trace/shared'
+import { NextConfigComplete } from '../server/config-shared'
+import { setGlobal, traceGlobals } from '../trace/shared'
 import { Telemetry } from '../telemetry/storage'
-import loadConfig from '../server/config'
+import loadConfig, { getEnabledExperimentalFeatures } from '../server/config'
 import { findPagesDir } from '../lib/find-pages-dir'
-import { findRootDir } from '../lib/find-root'
 import { fileExists, FileType } from '../lib/file-exists'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
 import Watchpack from 'watchpack'
-import stripAnsi from 'next/dist/compiled/strip-ansi'
-import { getPossibleInstrumentationHookFilenames } from '../build/worker'
+import { initialEnv } from '@next/env'
+import { getValidatedArgs } from '../lib/get-validated-args'
+import { Worker } from 'next/dist/compiled/jest-worker'
+import type { ChildProcess } from 'child_process'
+import { checkIsNodeDebugging } from '../server/lib/is-node-debugging'
+import { createSelfSignedCertificate } from '../lib/mkcert'
+import uploadTrace from '../trace/upload-trace'
+import { loadEnvConfig } from '@next/env'
+import { trace } from '../trace'
 
 let dir: string
+let config: NextConfigComplete
 let isTurboSession = false
+let traceUploadUrl: string
 let sessionStopHandled = false
 let sessionStarted = Date.now()
 
@@ -34,16 +41,18 @@ const handleSessionStop = async () => {
   sessionStopHandled = true
 
   try {
-    const { eventCliSession } =
+    const { eventCliSessionStopped } =
       require('../telemetry/events/session-stopped') as typeof import('../telemetry/events/session-stopped')
 
-    const config = await loadConfig(
-      PHASE_DEVELOPMENT_SERVER,
-      dir,
-      undefined,
-      undefined,
-      true
-    )
+    config =
+      config ||
+      (await loadConfig(
+        PHASE_DEVELOPMENT_SERVER,
+        dir,
+        undefined,
+        undefined,
+        true
+      ))
 
     let telemetry =
       (traceGlobals.get('telemetry') as InstanceType<
@@ -60,13 +69,13 @@ const handleSessionStop = async () => {
       typeof traceGlobals.get('pagesDir') === 'undefined' ||
       typeof traceGlobals.get('appDir') === 'undefined'
     ) {
-      const pagesResult = findPagesDir(dir, !!config.experimental.appDir)
+      const pagesResult = findPagesDir(dir)
       appDir = !!pagesResult.appDir
       pagesDir = !!pagesResult.pagesDir
     }
 
     telemetry.record(
-      eventCliSession({
+      eventCliSessionStopped({
         cliCommand: 'dev',
         turboFlag: isTurboSession,
         durationMilliseconds: Date.now() - sessionStarted,
@@ -81,6 +90,16 @@ const handleSessionStop = async () => {
     // noise to the output
   }
 
+  if (traceUploadUrl) {
+    uploadTrace({
+      traceUploadUrl,
+      mode: 'dev',
+      isTurboSession,
+      projectDir: dir,
+      distDir: config.distDir,
+    })
+  }
+
   // ensure we re-enable the terminal cursor before exiting
   // the program, or the cursor could remain hidden
   process.stdout.write('\x1B[?25h')
@@ -91,25 +110,98 @@ const handleSessionStop = async () => {
 process.on('SIGINT', handleSessionStop)
 process.on('SIGTERM', handleSessionStop)
 
-let unwatchConfigFiles: () => void
-
 function watchConfigFiles(
   dirToWatch: string,
-  onChange = (filename: string) =>
-    Log.warn(
-      `\n> Found a change in ${path.basename(
-        filename
-      )}. Restart the server to see the changes in effect.`
-    )
+  onChange: (filename: string) => void
 ) {
-  if (unwatchConfigFiles) {
-    unwatchConfigFiles()
-  }
-
   const wp = new Watchpack()
   wp.watch({ files: CONFIG_FILES.map((file) => path.join(dirToWatch, file)) })
   wp.on('change', onChange)
-  unwatchConfigFiles = () => wp.close()
+}
+
+type StartServerWorker = Worker &
+  Pick<typeof import('../server/lib/start-server'), 'startServer'>
+
+async function createRouterWorker(fullConfig: NextConfigComplete): Promise<{
+  worker: StartServerWorker
+  cleanup: () => Promise<void>
+}> {
+  const isNodeDebugging = checkIsNodeDebugging()
+  const worker = new Worker(require.resolve('../server/lib/start-server'), {
+    numWorkers: 1,
+    // TODO: do we want to allow more than 8 OOM restarts?
+    maxRetries: 8,
+    forkOptions: {
+      execArgv: await genRouterWorkerExecArgv(
+        isNodeDebugging === undefined ? false : isNodeDebugging
+      ),
+      env: {
+        FORCE_COLOR: '1',
+        ...(initialEnv as any),
+        NODE_OPTIONS: getNodeOptionsWithoutInspect(),
+        ...(process.env.NEXT_CPU_PROF
+          ? { __NEXT_PRIVATE_CPU_PROFILE: `CPU.router` }
+          : {}),
+        WATCHPACK_WATCHER_LIMIT: '20',
+        TURBOPACK: process.env.TURBOPACK,
+        __NEXT_PRIVATE_PREBUNDLED_REACT: !!fullConfig.experimental.serverActions
+          ? 'experimental'
+          : 'next',
+      },
+    },
+    exposedMethods: ['startServer'],
+  }) as Worker &
+    Pick<typeof import('../server/lib/start-server'), 'startServer'>
+
+  const cleanup = () => {
+    for (const curWorker of ((worker as any)._workerPool?._workers || []) as {
+      _child?: ChildProcess
+    }[]) {
+      curWorker._child?.kill('SIGINT')
+    }
+    process.exit(0)
+  }
+
+  // If the child routing worker exits we need to exit the entire process
+  for (const curWorker of ((worker as any)._workerPool?._workers || []) as {
+    _child?: ChildProcess
+  }[]) {
+    curWorker._child?.on('exit', cleanup)
+  }
+
+  process.on('exit', cleanup)
+  process.on('SIGINT', cleanup)
+  process.on('SIGTERM', cleanup)
+  process.on('uncaughtException', cleanup)
+  process.on('unhandledRejection', cleanup)
+
+  const workerStdout = worker.getStdout()
+  const workerStderr = worker.getStderr()
+
+  workerStdout.on('data', (data) => {
+    process.stdout.write(data)
+  })
+  workerStderr.on('data', (data) => {
+    process.stderr.write(data)
+  })
+
+  return {
+    worker,
+    cleanup: async () => {
+      // Remove process listeners for childprocess too.
+      for (const curWorker of ((worker as any)._workerPool?._workers || []) as {
+        _child?: ChildProcess
+      }[]) {
+        curWorker._child?.off('exit', cleanup)
+      }
+      process.off('exit', cleanup)
+      process.off('SIGINT', cleanup)
+      process.off('SIGTERM', cleanup)
+      process.off('uncaughtException', cleanup)
+      process.off('unhandledRejection', cleanup)
+      await worker.end()
+    },
+  }
 }
 
 const nextDev: CliCommand = async (argv) => {
@@ -119,6 +211,12 @@ const nextDev: CliCommand = async (argv) => {
     '--port': Number,
     '--hostname': String,
     '--turbo': Boolean,
+    '--experimental-turbo': Boolean,
+    '--experimental-https': Boolean,
+    '--experimental-https-key': String,
+    '--experimental-https-cert': String,
+    '--experimental-test-proxy': Boolean,
+    '--experimental-upload-trace': String,
 
     // To align current messages with native binary.
     // Will need to adjust subcommand later.
@@ -130,15 +228,7 @@ const nextDev: CliCommand = async (argv) => {
     '-p': '--port',
     '-H': '--hostname',
   }
-  let args: arg.Result<arg.Spec>
-  try {
-    args = arg(validArgs, { argv })
-  } catch (error) {
-    if (isError(error) && error.code === 'ARG_UNKNOWN_OPTION') {
-      return printAndExit(error.message, 1)
-    }
-    throw error
-  }
+  const args = getValidatedArgs(validArgs, argv)
   if (args['--help']) {
     console.log(`
       Description
@@ -154,6 +244,7 @@ const nextDev: CliCommand = async (argv) => {
       Options
         --port, -p      A port number on which to start the application
         --hostname, -H  Hostname on which to start the application (default: 0.0.0.0)
+        --experimental-upload-trace=<trace-url>  [EXPERIMENTAL] Report a subset of the debugging trace to a remote http url. Includes sensitive data. Disabled by default and url must be provided.
         --help, -h      Displays this message
     `)
     process.exit(0)
@@ -165,7 +256,7 @@ const nextDev: CliCommand = async (argv) => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  async function preflight() {
+  async function preflight(skipOnReboot: boolean) {
     const { getPackageVersion, getDependencies } = (await Promise.resolve(
       require('../lib/get-package-version')
     )) as typeof import('../lib/get-package-version')
@@ -182,22 +273,24 @@ const nextDev: CliCommand = async (argv) => {
       )
     }
 
-    const { dependencies, devDependencies } = await getDependencies({
-      cwd: dir,
-    })
+    if (!skipOnReboot) {
+      const { dependencies, devDependencies } = await getDependencies({
+        cwd: dir,
+      })
 
-    // Warn if @next/font is installed as a dependency. Ignore `workspace:*` to not warn in the Next.js monorepo.
-    if (
-      dependencies['@next/font'] ||
-      (devDependencies['@next/font'] &&
-        devDependencies['@next/font'] !== 'workspace:*')
-    ) {
-      const command = getNpxCommand(dir)
-      Log.warn(
-        'Your project has `@next/font` installed as a dependency, please use the built-in `next/font` instead. ' +
-          'The `@next/font` package will be removed in Next.js 14. ' +
-          `You can migrate by running \`${command} @next/codemod@latest built-in-next-font .\`. Read more: https://nextjs.org/docs/messages/built-in-next-font`
-      )
+      // Warn if @next/font is installed as a dependency. Ignore `workspace:*` to not warn in the Next.js monorepo.
+      if (
+        dependencies['@next/font'] ||
+        (devDependencies['@next/font'] &&
+          devDependencies['@next/font'] !== 'workspace:*')
+      ) {
+        const command = getNpxCommand(dir)
+        Log.warn(
+          'Your project has `@next/font` installed as a dependency, please use the built-in `next/font` instead. ' +
+            'The `@next/font` package will be removed in Next.js 14. ' +
+            `You can migrate by running \`${command} @next/codemod@latest built-in-next-font .\`. Read more: https://nextjs.org/docs/messages/built-in-next-font`
+        )
+      }
     }
   }
 
@@ -210,355 +303,127 @@ const nextDev: CliCommand = async (argv) => {
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
 
+  const { loadedEnvFiles } = loadEnvConfig(dir, true, console, false)
+
+  let expFeatureInfo: string[] = []
+  config = await loadConfig(
+    PHASE_DEVELOPMENT_SERVER,
+    dir,
+    undefined,
+    undefined,
+    undefined,
+    (userConfig) => {
+      const userNextConfigExperimental = getEnabledExperimentalFeatures(
+        userConfig.experimental
+      )
+      expFeatureInfo = userNextConfigExperimental.sort(
+        (a, b) => a.length - b.length
+      )
+    }
+  )
+
+  let envInfo: string[] = []
+  if (loadedEnvFiles.length > 0) {
+    envInfo = loadedEnvFiles.map((f) => f.path)
+  }
+
+  const isExperimentalTestProxy = args['--experimental-test-proxy']
+
+  if (args['--experimental-upload-trace']) {
+    traceUploadUrl = args['--experimental-upload-trace']
+  }
+
   const devServerOptions: StartServerOptions = {
     dir,
     port,
     allowRetry,
     isDev: true,
     hostname: host,
-    // This is required especially for app dir.
-    useWorkers: true,
+    isExperimentalTestProxy,
+    envInfo,
+    expFeatureInfo,
   }
 
   if (args['--turbo']) {
-    isTurboSession = true
+    process.env.TURBOPACK = '1'
+  }
 
-    const { validateTurboNextConfig } =
-      require('../lib/turbopack-warning') as typeof import('../lib/turbopack-warning')
-    const { loadBindings, __isCustomTurbopackBinary, teardownHeapProfiler } =
-      require('../build/swc') as typeof import('../build/swc')
-    const { eventCliSession } =
-      require('../telemetry/events/version') as typeof import('../telemetry/events/version')
-    const { setGlobal } = require('../trace') as typeof import('../trace')
-    require('../telemetry/storage') as typeof import('../telemetry/storage')
-    const findUp =
-      require('next/dist/compiled/find-up') as typeof import('next/dist/compiled/find-up')
+  const distDir = path.join(dir, config.distDir ?? '.next')
+  setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
+  setGlobal('distDir', distDir)
 
-    const isCustomTurbopack = await __isCustomTurbopackBinary()
-    const rawNextConfig = await validateTurboNextConfig({
-      isCustomTurbopack,
-      ...devServerOptions,
-      isDev: true,
-    })
+  const runDevServer = async (reboot: boolean) => {
+    try {
+      const workerInit = await createRouterWorker(config)
 
-    const distDir = path.join(dir, rawNextConfig.distDir || '.next')
-    const { pagesDir, appDir } = findPagesDir(
-      dir,
-      typeof rawNextConfig?.experimental?.appDir === 'undefined'
-        ? !!defaultConfig.experimental?.appDir
-        : !!rawNextConfig.experimental?.appDir
-    )
-    const telemetry = new Telemetry({
-      distDir,
-    })
-    setGlobal('appDir', appDir)
-    setGlobal('pagesDir', pagesDir)
-    setGlobal('telemetry', telemetry)
+      if (!!args['--experimental-https']) {
+        Log.warn(
+          'Self-signed certificates are currently an experimental feature, use at your own risk.'
+        )
 
-    if (!isCustomTurbopack) {
-      telemetry.record(
-        eventCliSession(distDir, rawNextConfig as NextConfigComplete, {
-          webpackVersion: 5,
-          cliCommand: 'dev',
-          isSrcDir: path
-            .relative(dir, pagesDir || appDir || '')
-            .startsWith('src'),
-          hasNowJson: !!(await findUp('now.json', { cwd: dir })),
-          isCustomServer: false,
-          turboFlag: true,
-          pagesDir: !!pagesDir,
-          appDir: !!appDir,
-        })
-      )
-    }
+        let certificate: { key: string; cert: string } | undefined
 
-    let bindings: any = await loadBindings()
-    let server = bindings.turbo.startDev({
-      ...devServerOptions,
-      showAll: args['--show-all'] ?? false,
-      root: args['--root'] ?? findRootDir(dir),
-    })
-    // Start preflight after server is listening and ignore errors:
-    preflight().catch(() => {})
-
-    if (!isCustomTurbopack) {
-      await telemetry.flush()
-    }
-
-    // There are some cases like test fixtures teardown that normal flush won't hit.
-    // Force flush those on those case, but don't wait for it.
-    ;['SIGTERM', 'SIGINT', 'beforeExit', 'exit'].forEach((event) =>
-      process.on(event, () => teardownHeapProfiler())
-    )
-
-    return server
-  } else {
-    let cleanupFns: (() => Promise<void> | void)[] = []
-    const runDevServer = async () => {
-      const oldCleanupFns = cleanupFns
-      cleanupFns = []
-      await Promise.allSettled(oldCleanupFns.map((fn) => fn()))
-
-      try {
-        let shouldFilter = false
-        let devServerTeardown: (() => Promise<void>) | undefined
-        let config: NextConfig | undefined
-
-        watchConfigFiles(devServerOptions.dir, (filename) => {
-          Log.warn(
-            `\n> Found a change in ${path.basename(
-              filename
-            )}. Restarting the server to apply the changes...`
-          )
-          runDevServer()
-        })
-        cleanupFns.push(unwatchConfigFiles)
-
-        const setupFork = async (newDir?: string) => {
-          // if we're using workers we can auto restart on config changes
-          if (process.env.__NEXT_DISABLE_MEMORY_WATCHER && devServerTeardown) {
-            Log.info(
-              `Detected change, manual restart required due to '__NEXT_DISABLE_MEMORY_WATCHER' usage`
-            )
-            return
+        if (
+          args['--experimental-https-key'] &&
+          args['--experimental-https-cert']
+        ) {
+          certificate = {
+            key: path.resolve(args['--experimental-https-key']),
+            cert: path.resolve(args['--experimental-https-cert']),
           }
-
-          if (devServerTeardown) {
-            await devServerTeardown()
-            devServerTeardown = undefined
-          }
-
-          const startDir = dir
-          if (newDir) {
-            dir = newDir
-            process.env = Object.keys(process.env).reduce((newEnv, key) => {
-              newEnv[key] = process.env[key]?.replace(startDir, newDir)
-              return newEnv
-            }, {} as typeof process.env)
-
-            process.chdir(newDir)
-
-            devServerOptions.dir = newDir
-            devServerOptions.prevDir = startDir
-          }
-
-          // since errors can start being logged from the fork
-          // before we detect the project directory rename
-          // attempt suppressing them long enough to check
-          const filterForkErrors = (chunk: Buffer, fd: 'stdout' | 'stderr') => {
-            const cleanChunk = stripAnsi(chunk + '')
-            if (
-              cleanChunk.match(
-                /(ENOENT|Module build failed|Module not found|Cannot find module|Can't resolve)/
-              )
-            ) {
-              if (startDir === dir) {
-                try {
-                  // check if start directory is still valid
-                  const result = findPagesDir(
-                    startDir,
-                    !!config?.experimental?.appDir
-                  )
-                  shouldFilter = !Boolean(result.pagesDir || result.appDir)
-                } catch (_) {
-                  shouldFilter = true
-                }
-              }
-              if (shouldFilter || startDir !== dir) {
-                shouldFilter = true
-                return
-              }
-            }
-            process[fd].write(chunk)
-          }
-
-          let resolveCleanup!: (cleanup: () => Promise<void>) => void
-          let cleanupPromise = new Promise<() => Promise<void>>((resolve) => {
-            resolveCleanup = resolve
-          })
-          const cleanupWrapper = async () => {
-            const promise = cleanupPromise
-            cleanupPromise = Promise.resolve(async () => {})
-            const cleanup = await promise
-            await cleanup()
-          }
-          cleanupFns.push(cleanupWrapper)
-          devServerTeardown = cleanupWrapper
-
-          try {
-            devServerOptions.onStdout = (chunk) => {
-              filterForkErrors(chunk, 'stdout')
-            }
-            devServerOptions.onStderr = (chunk) => {
-              filterForkErrors(chunk, 'stderr')
-            }
-            shouldFilter = false
-            resolveCleanup(await startServer(devServerOptions))
-          } finally {
-            // fallback to noop, if not provided
-            resolveCleanup(async () => {})
-          }
-
-          if (!config) {
-            config = await loadConfig(
-              PHASE_DEVELOPMENT_SERVER,
-              dir,
-              undefined,
-              undefined,
-              true
-            )
-          }
+        } else {
+          certificate = await createSelfSignedCertificate(host)
         }
 
-        await setupFork()
-        await preflight()
-
-        const parentDir = path.join('/', dir, '..')
-        const watchedEntryLength = parentDir.split('/').length + 1
-        const previousItems = new Set<string>()
-        const instrumentationFilePaths = !!config?.experimental
-          ?.instrumentationHook
-          ? getPossibleInstrumentationHookFilenames(dir, config.pageExtensions!)
-          : []
-
-        const instrumentationFileWatcher = new Watchpack({})
-        cleanupFns.push(() => instrumentationFileWatcher.close())
-
-        instrumentationFileWatcher.watch({
-          files: instrumentationFilePaths,
-          startTime: 0,
+        await workerInit.worker.startServer({
+          ...devServerOptions,
+          selfSignedCertificate: certificate,
         })
-
-        let instrumentationFileLastHash: string | undefined = undefined
-        const previousInstrumentationFiles = new Set<string>()
-        instrumentationFileWatcher.on('aggregated', async () => {
-          const knownFiles = instrumentationFileWatcher.getTimeInfoEntries()
-          const instrumentationFile = [...knownFiles.entries()].find(
-            ([key, value]) => instrumentationFilePaths.includes(key) && value
-          )?.[0]
-
-          if (instrumentationFile) {
-            const fs = require('fs') as typeof import('fs')
-            const instrumentationFileHash = (
-              require('crypto') as typeof import('crypto')
-            )
-              .createHash('sha256')
-              .update(await fs.promises.readFile(instrumentationFile, 'utf8'))
-              .digest('hex')
-
-            if (
-              instrumentationFileLastHash &&
-              instrumentationFileHash !== instrumentationFileLastHash
-            ) {
-              Log.warn(
-                `The instrumentation file has changed, restarting the server to apply changes.`
-              )
-              return setupFork()
-            } else {
-              if (
-                !instrumentationFileLastHash &&
-                previousInstrumentationFiles.size !== 0
-              ) {
-                Log.warn(
-                  'The instrumentation file was added, restarting the server to apply changes.'
-                )
-                return setupFork()
-              }
-              instrumentationFileLastHash = instrumentationFileHash
-            }
-          } else if (
-            [...previousInstrumentationFiles.keys()].find((key) =>
-              instrumentationFilePaths.includes(key)
-            )
-          ) {
-            Log.warn(
-              `The instrumentation file has been removed, restarting the server to apply changes.`
-            )
-            instrumentationFileLastHash = undefined
-            return setupFork()
-          }
-
-          previousInstrumentationFiles.clear()
-          knownFiles.forEach((_: any, key: any) =>
-            previousInstrumentationFiles.add(key)
-          )
-        })
-
-        const projectFolderWatcher = new Watchpack({
-          ignored: (entry: string) => {
-            return !(entry.split('/').length <= watchedEntryLength)
-          },
-        })
-        cleanupFns.push(() => projectFolderWatcher.close())
-
-        projectFolderWatcher.watch({ directories: [parentDir], startTime: 0 })
-
-        projectFolderWatcher.on('aggregated', async () => {
-          const knownFiles = projectFolderWatcher.getTimeInfoEntries()
-          const newFiles: string[] = []
-          let hasPagesApp = false
-
-          // if the dir still exists nothing to check
-          try {
-            const result = findPagesDir(dir, !!config?.experimental?.appDir)
-            hasPagesApp = Boolean(result.pagesDir || result.appDir)
-          } catch (err) {
-            // if findPagesDir throws validation error let this be
-            // handled in the dev-server itself in the fork
-            if ((err as any).message?.includes('experimental')) {
-              return
-            }
-          }
-
-          // try to find new dir introduced
-          if (previousItems.size) {
-            for (const key of knownFiles.keys()) {
-              if (!previousItems.has(key)) {
-                newFiles.push(key)
-              }
-            }
-            previousItems.clear()
-          }
-
-          for (const key of knownFiles.keys()) {
-            previousItems.add(key)
-          }
-
-          if (hasPagesApp) {
-            return
-          }
-
-          // if we failed to find the new dir it may have been moved
-          // to a new parent directory which we can't track as easily
-          // so exit gracefully
-          try {
-            const result = findPagesDir(
-              newFiles[0],
-              !!config?.experimental?.appDir
-            )
-            hasPagesApp = Boolean(result.pagesDir || result.appDir)
-          } catch (_) {}
-
-          if (hasPagesApp && newFiles.length === 1) {
-            Log.info(
-              `Detected project directory rename, restarting in new location`
-            )
-            setupFork(newFiles[0])
-            watchConfigFiles(newFiles[0])
-          } else {
-            Log.error(
-              `Project directory could not be found, restart Next.js in your new directory`
-            )
-            process.exit(0)
-          }
-        })
-      } catch (err) {
-        console.error(err)
-        process.exit(1)
+      } else {
+        await workerInit.worker.startServer(devServerOptions)
       }
+
+      await preflight(reboot)
+      return {
+        cleanup: workerInit.cleanup,
+      }
+    } catch (err) {
+      console.error(err)
+      process.exit(1)
     }
-    await runDevServer()
   }
+
+  let runningServer: Awaited<ReturnType<typeof runDevServer>> | undefined
+
+  watchConfigFiles(devServerOptions.dir, async (filename) => {
+    if (process.env.__NEXT_DISABLE_MEMORY_WATCHER) {
+      Log.info(
+        `Detected change, manual restart required due to '__NEXT_DISABLE_MEMORY_WATCHER' usage`
+      )
+      return
+    }
+    // Adding a new line to avoid the logs going directly after the spinner in `next build`
+    Log.warn('')
+    Log.warn(
+      `Found a change in ${path.basename(
+        filename
+      )}. Restarting the server to apply the changes...`
+    )
+
+    try {
+      if (runningServer) {
+        await runningServer.cleanup()
+      }
+      runningServer = await runDevServer(true)
+    } catch (err) {
+      console.error(err)
+      process.exit(1)
+    }
+  })
+
+  await trace('start-dev-server').traceAsyncFn(async (_) => {
+    runningServer = await runDevServer(false)
+  })
 }
 
 export { nextDev }

@@ -49,6 +49,7 @@ export default function resolveRewrites(
         {
           headers: {
             host: document.location.hostname,
+            'user-agent': navigator.userAgent,
           },
           cookies: document.cookie
             .split('; ')

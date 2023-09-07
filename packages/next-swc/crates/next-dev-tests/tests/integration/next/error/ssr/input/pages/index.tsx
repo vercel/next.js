@@ -33,10 +33,21 @@ function runTests(
   const TIMEOUT = 40000
 
   it(
-    'returns a 500 status code',
+    'returns a 500 status code for a broken page',
     async () => {
       const res = await fetch('/broken')
       expect(res.status).toBe(500)
+    },
+    TIMEOUT
+  )
+
+  // The existance of this test case fixes the error overlay later.
+  // I think it's related to streaming the result.
+  it(
+    'returns a 200 status code for a broken app page',
+    async () => {
+      const res = await fetch('/broken-app')
+      expect(res.status).toBe(200)
     },
     TIMEOUT
   )

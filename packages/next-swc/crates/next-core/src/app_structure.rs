@@ -1,46 +1,49 @@
-use std::{
-    borrow::Cow,
-    collections::{BTreeMap, HashMap},
-};
+use std::collections::{BTreeMap, HashMap};
 
 use anyhow::{bail, Result};
-use indexmap::{indexmap, map::Entry, IndexMap};
+use indexmap::{
+    indexmap,
+    map::{Entry, OccupiedEntry},
+    IndexMap,
+};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat,
-    primitives::{StringVc, StringsVc},
-    trace::TraceRawVcs,
-    CompletionVc, CompletionsVc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, Completions, TaskInput, ValueToString,
+    Vc,
 };
 use turbopack_binding::{
-    turbo::tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc},
-    turbopack::core::issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
+    turbo::tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath},
+    turbopack::core::issue::{Issue, IssueExt, IssueSeverity},
 };
 
-use crate::next_config::NextConfigVc;
+use crate::{
+    next_app::{AppPage, AppPath},
+    next_config::NextConfig,
+    next_import_map::get_next_package,
+};
 
 /// A final route in the app directory.
 #[turbo_tasks::value]
 #[derive(Default, Debug, Clone)]
 pub struct Components {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub page: Option<FileSystemPathVc>,
+    pub page: Option<Vc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub layout: Option<FileSystemPathVc>,
+    pub layout: Option<Vc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub error: Option<FileSystemPathVc>,
+    pub error: Option<Vc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub loading: Option<FileSystemPathVc>,
+    pub loading: Option<Vc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub template: Option<FileSystemPathVc>,
+    pub template: Option<Vc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub not_found: Option<FileSystemPathVc>,
+    pub not_found: Option<Vc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub default: Option<FileSystemPathVc>,
+    pub default: Option<Vc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub route: Option<FileSystemPathVc>,
+    pub route: Option<Vc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Metadata::is_empty")]
     pub metadata: Metadata,
 }
@@ -76,13 +79,13 @@ impl Components {
 }
 
 #[turbo_tasks::value_impl]
-impl ComponentsVc {
+impl Components {
     /// Returns a completion that changes when any route in the components
     /// changes.
     #[turbo_tasks::function]
-    pub async fn routes_changed(self) -> Result<CompletionVc> {
+    pub async fn routes_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
         self.await?;
-        Ok(CompletionVc::new())
+        Ok(Completion::new())
     }
 }
 
@@ -90,19 +93,19 @@ impl ComponentsVc {
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs)]
 pub enum MetadataWithAltItem {
     Static {
-        path: FileSystemPathVc,
-        alt_path: Option<FileSystemPathVc>,
+        path: Vc<FileSystemPath>,
+        alt_path: Option<Vc<FileSystemPath>>,
     },
     Dynamic {
-        path: FileSystemPathVc,
+        path: Vc<FileSystemPath>,
     },
 }
 
 /// A single metadata file.
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, TaskInput, TraceRawVcs)]
 pub enum MetadataItem {
-    Static { path: FileSystemPathVc },
-    Dynamic { path: FileSystemPathVc },
+    Static { path: Vc<FileSystemPath> },
+    Dynamic { path: Vc<FileSystemPath> },
 }
 
 /// Metadata file that can be placed in any segment of the app directory.
@@ -184,16 +187,16 @@ impl GlobalMetadata {
 #[derive(Debug)]
 pub struct DirectoryTree {
     /// key is e.g. "dashboard", "(dashboard)", "@slot"
-    pub subdirectories: BTreeMap<String, DirectoryTreeVc>,
-    pub components: ComponentsVc,
+    pub subdirectories: BTreeMap<String, Vc<DirectoryTree>>,
+    pub components: Vc<Components>,
 }
 
 #[turbo_tasks::value_impl]
-impl DirectoryTreeVc {
+impl DirectoryTree {
     /// Returns a completion that changes when any route in the whole tree
     /// changes.
     #[turbo_tasks::function]
-    pub async fn routes_changed(self) -> Result<CompletionVc> {
+    pub async fn routes_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
         let DirectoryTree {
             subdirectories,
             components,
@@ -203,55 +206,52 @@ impl DirectoryTreeVc {
         for child in subdirectories.values() {
             children.push(child.routes_changed());
         }
-        Ok(CompletionsVc::cell(children).completed())
+        Ok(Vc::<Completions>::cell(children).completed())
     }
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionAppDir(Option<FileSystemPathVc>);
+pub struct OptionAppDir(Option<Vc<FileSystemPath>>);
 
 #[turbo_tasks::value_impl]
-impl OptionAppDirVc {
+impl OptionAppDir {
     /// Returns a completion that changes when any route in the whole tree
     /// changes.
     #[turbo_tasks::function]
-    pub async fn routes_changed(self, next_config: NextConfigVc) -> Result<CompletionVc> {
+    pub async fn routes_changed(
+        self: Vc<Self>,
+        next_config: Vc<NextConfig>,
+    ) -> Result<Vc<Completion>> {
         if let Some(app_dir) = *self.await? {
             let directory_tree = get_directory_tree(app_dir, next_config.page_extensions());
             directory_tree.routes_changed().await?;
         }
-        Ok(CompletionVc::new())
+        Ok(Completion::new())
     }
 }
 
 /// Finds and returns the [DirectoryTree] of the app directory if existing.
 #[turbo_tasks::function]
-pub async fn find_app_dir(project_path: FileSystemPathVc) -> Result<OptionAppDirVc> {
-    let app = project_path.join("app");
-    let src_app = project_path.join("src/app");
+pub async fn find_app_dir(project_path: Vc<FileSystemPath>) -> Result<Vc<OptionAppDir>> {
+    let app = project_path.join("app".to_string());
+    let src_app = project_path.join("src/app".to_string());
     let app_dir = if *app.get_type().await? == FileSystemEntryType::Directory {
         app
     } else if *src_app.get_type().await? == FileSystemEntryType::Directory {
         src_app
     } else {
-        return Ok(OptionAppDirVc::cell(None));
+        return Ok(Vc::cell(None));
     }
     .resolve()
     .await?;
 
-    Ok(OptionAppDirVc::cell(Some(app_dir)))
+    Ok(Vc::cell(Some(app_dir)))
 }
 
 /// Finds and returns the [DirectoryTree] of the app directory if enabled and
 /// existing.
 #[turbo_tasks::function]
-pub async fn find_app_dir_if_enabled(
-    project_path: FileSystemPathVc,
-    next_config: NextConfigVc,
-) -> Result<OptionAppDirVc> {
-    if !*next_config.app_dir().await? {
-        return Ok(OptionAppDirVc::cell(None));
-    }
+pub async fn find_app_dir_if_enabled(project_path: Vc<FileSystemPath>) -> Result<Vc<OptionAppDir>> {
     Ok(find_app_dir(project_path))
 }
 
@@ -297,11 +297,11 @@ fn match_metadata_file<'a>(
 
 #[turbo_tasks::function]
 async fn get_directory_tree(
-    app_dir: FileSystemPathVc,
-    page_extensions: StringsVc,
-) -> Result<DirectoryTreeVc> {
-    let DirectoryContent::Entries(entries) = &*app_dir.read_dir().await? else {
-        bail!("app_dir must be a directory")
+    dir: Vc<FileSystemPath>,
+    page_extensions: Vc<Vec<String>>,
+) -> Result<Vc<DirectoryTree>> {
+    let DirectoryContent::Entries(entries) = &*dir.read_dir().await? else {
+        bail!("{} must be a directory", dir.to_string().await?);
     };
     let page_extensions_value = page_extensions.await?;
 
@@ -367,7 +367,7 @@ async fn get_directory_tree(
                             let basename = file_name
                                 .rsplit_once('.')
                                 .map_or(file_name, |(basename, _)| basename);
-                            let alt_path = file.parent().join(&format!("{}.alt.txt", basename));
+                            let alt_path = file.parent().join(format!("{}.alt.txt", basename));
                             let alt_path =
                                 matches!(&*alt_path.get_type().await?, FileSystemEntryType::File)
                                     .then_some(alt_path);
@@ -416,16 +416,16 @@ async fn get_directory_tree(
 #[derive(Debug, Clone)]
 pub struct LoaderTree {
     pub segment: String,
-    pub parallel_routes: IndexMap<String, LoaderTreeVc>,
-    pub components: ComponentsVc,
+    pub parallel_routes: IndexMap<String, Vc<LoaderTree>>,
+    pub components: Vc<Components>,
 }
 
 #[turbo_tasks::function]
 async fn merge_loader_trees(
-    app_dir: FileSystemPathVc,
-    tree1: LoaderTreeVc,
-    tree2: LoaderTreeVc,
-) -> Result<LoaderTreeVc> {
+    app_dir: Vc<FileSystemPath>,
+    tree1: Vc<LoaderTree>,
+    tree2: Vc<LoaderTree>,
+) -> Result<Vc<LoaderTree>> {
     let tree1 = tree1.await?;
     let tree2 = tree2.await?;
 
@@ -451,11 +451,17 @@ async fn merge_loader_trees(
 }
 
 #[derive(
-    Copy, Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, Debug,
+    Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, Debug, TaskInput,
 )]
 pub enum Entrypoint {
-    AppPage { loader_tree: LoaderTreeVc },
-    AppRoute { path: FileSystemPathVc },
+    AppPage {
+        page: AppPage,
+        loader_tree: Vc<LoaderTree>,
+    },
+    AppRoute {
+        page: AppPage,
+        path: Vc<FileSystemPath>,
+    },
 }
 
 #[turbo_tasks::value(transparent)]
@@ -469,15 +475,11 @@ fn match_parallel_route(name: &str) -> Option<&str> {
     name.strip_prefix('@')
 }
 
-fn is_optional_segment(name: &str) -> bool {
-    name.starts_with('(') && name.ends_with(')')
-}
-
 async fn add_parallel_route(
-    app_dir: FileSystemPathVc,
-    result: &mut IndexMap<String, LoaderTreeVc>,
+    app_dir: Vc<FileSystemPath>,
+    result: &mut IndexMap<String, Vc<LoaderTree>>,
     key: String,
-    loader_tree: LoaderTreeVc,
+    loader_tree: Vc<LoaderTree>,
 ) -> Result<()> {
     match result.entry(key) {
         Entry::Occupied(mut e) => {
@@ -493,79 +495,144 @@ async fn add_parallel_route(
     Ok(())
 }
 
+fn conflict_issue(
+    app_dir: Vc<FileSystemPath>,
+    e: &OccupiedEntry<String, Entrypoint>,
+    a: &str,
+    b: &str,
+    value_a: &AppPage,
+    value_b: &AppPage,
+) {
+    let item_names = if a == b {
+        format!("{}s", a)
+    } else {
+        format!("{} and {}", a, b)
+    };
+
+    DirectoryTreeIssue {
+        app_dir,
+        message: Vc::cell(format!(
+            "Conflicting {} at {}: {a} at {value_a} and {b} at {value_b}",
+            item_names,
+            e.key(),
+        )),
+        severity: IssueSeverity::Error.cell(),
+    }
+    .cell()
+    .emit();
+}
+
 async fn add_app_page(
-    app_dir: FileSystemPathVc,
+    app_dir: Vc<FileSystemPath>,
     result: &mut IndexMap<String, Entrypoint>,
-    key: String,
-    loader_tree: LoaderTreeVc,
+    page: AppPage,
+    loader_tree: Vc<LoaderTree>,
 ) -> Result<()> {
-    match result.entry(key) {
-        Entry::Occupied(mut e) => {
-            let value = e.get_mut();
-            let Entrypoint::AppPage { loader_tree: value } = value else {
-                DirectoryTreeIssue {
-                    app_dir,
-                    message: StringVc::cell(format!("Conflicting route at {}", e.key())),
-                    severity: IssueSeverity::Error.cell(),
-                }.cell().as_issue().emit();
-                return Ok(());
-            };
-            *value = merge_loader_trees(app_dir, *value, loader_tree)
-                .resolve()
-                .await?;
-        }
+    let pathname = AppPath::from(page.clone());
+
+    let mut e = match result.entry(format!("{pathname}")) {
+        Entry::Occupied(e) => e,
         Entry::Vacant(e) => {
-            e.insert(Entrypoint::AppPage { loader_tree });
+            e.insert(Entrypoint::AppPage { page, loader_tree });
+            return Ok(());
+        }
+    };
+
+    let conflict = |existing_name: &str, existing_page: &AppPage| {
+        conflict_issue(app_dir, &e, "page", existing_name, &page, existing_page);
+    };
+
+    let value = e.get();
+    match value {
+        Entrypoint::AppPage {
+            page: existing_page,
+            ..
+        } => {
+            if *existing_page != page {
+                conflict("page", existing_page);
+                return Ok(());
+            }
+
+            if let Entrypoint::AppPage {
+                loader_tree: value, ..
+            } = e.get_mut()
+            {
+                *value = merge_loader_trees(app_dir, *value, loader_tree)
+                    .resolve()
+                    .await?;
+            }
+        }
+        Entrypoint::AppRoute {
+            page: existing_page,
+            ..
+        } => {
+            conflict("route", existing_page);
         }
     }
+
     Ok(())
 }
 
-async fn add_app_route(
-    app_dir: FileSystemPathVc,
+fn add_app_route(
+    app_dir: Vc<FileSystemPath>,
     result: &mut IndexMap<String, Entrypoint>,
-    key: String,
-    path: FileSystemPathVc,
-) -> Result<()> {
-    match result.entry(key) {
-        Entry::Occupied(mut e) => {
-            DirectoryTreeIssue {
-                app_dir,
-                message: StringVc::cell(format!("Conflicting route at {}", e.key())),
-                severity: IssueSeverity::Error.cell(),
-            }
-            .cell()
-            .as_issue()
-            .emit();
-            *e.get_mut() = Entrypoint::AppRoute { path };
-        }
+    page: AppPage,
+    path: Vc<FileSystemPath>,
+) {
+    let pathname = AppPath::from(page.clone());
+
+    let e = match result.entry(format!("{pathname}")) {
+        Entry::Occupied(e) => e,
         Entry::Vacant(e) => {
-            e.insert(Entrypoint::AppRoute { path });
+            e.insert(Entrypoint::AppRoute { page, path });
+            return;
+        }
+    };
+
+    let conflict = |existing_name: &str, existing_page: &AppPage| {
+        conflict_issue(app_dir, &e, "route", existing_name, &page, existing_page);
+    };
+
+    let value = e.get();
+    match value {
+        Entrypoint::AppPage {
+            page: existing_page,
+            ..
+        } => {
+            conflict("page", existing_page);
+        }
+        Entrypoint::AppRoute {
+            page: existing_page,
+            ..
+        } => {
+            conflict("route", existing_page);
         }
     }
-    Ok(())
 }
 
 #[turbo_tasks::function]
-pub fn get_entrypoints(app_dir: FileSystemPathVc, page_extensions: StringsVc) -> EntrypointsVc {
+pub fn get_entrypoints(
+    app_dir: Vc<FileSystemPath>,
+    page_extensions: Vc<Vec<String>>,
+) -> Vc<Entrypoints> {
     directory_tree_to_entrypoints(app_dir, get_directory_tree(app_dir, page_extensions))
 }
 
 #[turbo_tasks::function]
 fn directory_tree_to_entrypoints(
-    app_dir: FileSystemPathVc,
-    directory_tree: DirectoryTreeVc,
-) -> EntrypointsVc {
-    directory_tree_to_entrypoints_internal(app_dir, "", directory_tree, "/")
+    app_dir: Vc<FileSystemPath>,
+    directory_tree: Vc<DirectoryTree>,
+) -> Vc<Entrypoints> {
+    directory_tree_to_entrypoints_internal(app_dir, "".to_string(), directory_tree, AppPage::new())
 }
 
 #[turbo_tasks::function]
 async fn directory_tree_to_entrypoints_internal(
-    app_dir: FileSystemPathVc,
-    directory_name: &str,
-    directory_tree: DirectoryTreeVc,
-    path_prefix: &str,
-) -> Result<EntrypointsVc> {
+    app_dir: Vc<FileSystemPath>,
+    directory_name: String,
+    directory_tree: Vc<DirectoryTree>,
+    app_page: AppPage,
+) -> Result<Vc<Entrypoints>> {
     let mut result = IndexMap::new();
 
     let directory_tree = &*directory_tree.await?;
@@ -573,13 +640,13 @@ async fn directory_tree_to_entrypoints_internal(
     let subdirectories = &directory_tree.subdirectories;
     let components = directory_tree.components.await?;
 
-    let current_level_is_parallel_route = is_parallel_route(directory_name);
+    let current_level_is_parallel_route = is_parallel_route(&directory_name);
 
     if let Some(page) = components.page {
         add_app_page(
             app_dir,
             &mut result,
-            path_prefix.to_string(),
+            app_page.clone(),
             if current_level_is_parallel_route {
                 LoaderTree {
                     segment: "__PAGE__".to_string(),
@@ -618,7 +685,7 @@ async fn directory_tree_to_entrypoints_internal(
         add_app_page(
             app_dir,
             &mut result,
-            path_prefix.to_string(),
+            app_page.clone(),
             if current_level_is_parallel_route {
                 LoaderTree {
                     segment: "__DEFAULT__".to_string(),
@@ -654,31 +721,90 @@ async fn directory_tree_to_entrypoints_internal(
     }
 
     if let Some(route) = components.route {
-        add_app_route(app_dir, &mut result, path_prefix.to_string(), route).await?;
+        add_app_route(app_dir, &mut result, app_page.clone(), route);
+    }
+
+    // root path: /
+    if app_page.len() == 0 {
+        // Next.js has this logic in "collect-app-paths", where the root not-found page
+        // is considered as its own entry point.
+        if let Some(_not_found) = components.not_found {
+            let dev_not_found_tree = LoaderTree {
+                segment: directory_name.to_string(),
+                parallel_routes: indexmap! {
+                    "children".to_string() => LoaderTree {
+                        segment: "__DEFAULT__".to_string(),
+                        parallel_routes: IndexMap::new(),
+                        components: Components {
+                            default: Some(get_next_package(app_dir).join("dist/client/components/parallel-route-default.js".to_string())),
+                            ..Default::default()
+                        }
+                        .cell(),
+                    }
+                    .cell(),
+                },
+                components: components.without_leafs().cell(),
+            }
+            .cell();
+
+            {
+                let app_page = app_page.clone_push_str("not-found")?;
+                add_app_page(app_dir, &mut result, app_page, dev_not_found_tree).await?;
+            }
+            {
+                let app_page = app_page.clone_push_str("_not-found")?;
+                add_app_page(app_dir, &mut result, app_page, dev_not_found_tree).await?;
+            }
+        } else {
+            // Create default not-found page for production if there's no customized
+            // not-found
+            let prod_not_found_tree = LoaderTree {
+                segment: directory_name.to_string(),
+                parallel_routes: indexmap! {
+                    "children".to_string() => LoaderTree {
+                        segment: "__PAGE__".to_string(),
+                        parallel_routes: IndexMap::new(),
+                        components: Components {
+                            page: Some(get_next_package(app_dir).join("dist/client/components/not-found-error.js".to_string())),
+                            ..Default::default()
+                        }
+                        .cell(),
+                    }
+                    .cell(),
+                },
+                components: components.without_leafs().cell(),
+            }
+            .cell();
+
+            let app_page = app_page.clone_push_str("_not-found")?;
+            add_app_page(app_dir, &mut result, app_page, prod_not_found_tree).await?;
+        }
     }
 
     for (subdir_name, &subdirectory) in subdirectories.iter() {
         let parallel_route_key = match_parallel_route(subdir_name);
-        let optional_segment = is_optional_segment(subdir_name);
+
+        let mut app_page = app_page.clone();
+        if parallel_route_key.is_none() {
+            app_page.push_str(subdir_name)?;
+        }
+
         let map = directory_tree_to_entrypoints_internal(
             app_dir,
-            subdir_name,
+            subdir_name.to_string(),
             subdirectory,
-            if parallel_route_key.is_some() || optional_segment {
-                Cow::Borrowed(path_prefix)
-            } else if path_prefix == "/" {
-                format!("/{subdir_name}").into()
-            } else {
-                format!("{path_prefix}/{subdir_name}").into()
-            }
-            .as_ref(),
+            app_page,
         )
         .await?;
-        for (full_path, &entrypoint) in map.iter() {
-            match entrypoint {
-                Entrypoint::AppPage { loader_tree } => {
+
+        for (_, entrypoint) in map.iter() {
+            match *entrypoint {
+                Entrypoint::AppPage {
+                    ref page,
+                    loader_tree,
+                } => {
                     if current_level_is_parallel_route {
-                        add_app_page(app_dir, &mut result, full_path.clone(), loader_tree).await?;
+                        add_app_page(app_dir, &mut result, page.clone(), loader_tree).await?;
                     } else {
                         let key = parallel_route_key.unwrap_or("children").to_string();
                         let child_loader_tree = LoaderTree {
@@ -689,17 +815,16 @@ async fn directory_tree_to_entrypoints_internal(
                             components: components.without_leafs().cell(),
                         }
                         .cell();
-                        add_app_page(app_dir, &mut result, full_path.clone(), child_loader_tree)
-                            .await?;
+                        add_app_page(app_dir, &mut result, page.clone(), child_loader_tree).await?;
                     }
                 }
-                Entrypoint::AppRoute { path } => {
-                    add_app_route(app_dir, &mut result, full_path.clone(), path).await?;
+                Entrypoint::AppRoute { ref page, path } => {
+                    add_app_route(app_dir, &mut result, page.clone(), path);
                 }
             }
         }
     }
-    Ok(EntrypointsVc::cell(result))
+    Ok(Vc::cell(result))
 }
 
 /// ref: https://github.com/vercel/next.js/blob/c390c1662bc79e12cf7c037dcb382ef5ead6e492/packages/next/src/build/entries.ts#L119
@@ -711,9 +836,9 @@ fn get_underscore_normalized_path(path: &str) -> String {
 /// Returns the global metadata for an app directory.
 #[turbo_tasks::function]
 pub async fn get_global_metadata(
-    app_dir: FileSystemPathVc,
-    page_extensions: StringsVc,
-) -> Result<GlobalMetadataVc> {
+    app_dir: Vc<FileSystemPath>,
+    page_extensions: Vc<Vec<String>>,
+) -> Result<Vc<GlobalMetadata>> {
     let DirectoryContent::Entries(entries) = &*app_dir.read_dir().await? else {
         bail!("app_dir must be a directory")
     };
@@ -746,37 +871,37 @@ pub async fn get_global_metadata(
 
 #[turbo_tasks::value(shared)]
 struct DirectoryTreeIssue {
-    pub severity: IssueSeverityVc,
-    pub app_dir: FileSystemPathVc,
-    pub message: StringVc,
+    pub severity: Vc<IssueSeverity>,
+    pub app_dir: Vc<FileSystemPath>,
+    pub message: Vc<String>,
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for DirectoryTreeIssue {
     #[turbo_tasks::function]
-    fn severity(&self) -> IssueSeverityVc {
+    fn severity(&self) -> Vc<IssueSeverity> {
         self.severity
     }
 
     #[turbo_tasks::function]
-    async fn title(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(
+    async fn title(&self) -> Result<Vc<String>> {
+        Ok(Vc::cell(
             "An issue occurred while preparing your Next.js app".to_string(),
         ))
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> StringVc {
-        StringVc::cell("next app".to_string())
+    fn category(&self) -> Vc<String> {
+        Vc::cell("next app".to_string())
     }
 
     #[turbo_tasks::function]
-    fn context(&self) -> FileSystemPathVc {
+    fn file_path(&self) -> Vc<FileSystemPath> {
         self.app_dir
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> StringVc {
+    fn description(&self) -> Vc<String> {
         self.message
     }
 }

@@ -1,0 +1,31 @@
+---
+title: 'Invalid `styled-jsx` children'
+---
+
+## Why This Error Occurred
+
+You have passed invalid children to a `<style jsx>` tag.
+
+## Possible Ways to Fix It
+
+Make sure to only pass one child to the `<style jsx>` tag, typically a template literal.
+
+```jsx filename="example.js"
+const Component = () => (
+  <div>
+    <p>Red paragraph</p>
+    <style jsx>{`
+      p {
+        color: red;
+      }
+    `}</style>
+  </div>
+)
+```
+
+Please see the links for more examples.
+
+## Useful Links
+
+- [Built-In CSS-in-JS](/docs/pages/building-your-application/styling/css-in-js)
+- [styled-jsx documentation](https://github.com/vercel/styled-jsx)

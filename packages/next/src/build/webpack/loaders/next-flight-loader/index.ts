@@ -5,8 +5,11 @@ import { getRSCModuleInformation } from '../../../analysis/get-page-static-info'
 import { getModuleBuildInfo } from '../get-module-build-info'
 
 const noopHeadPath = require.resolve('next/dist/client/components/noop-head')
+// For edge runtime it will be aliased to esm version by webpack
+const MODULE_PROXY_PATH =
+  'next/dist/build/webpack/loaders/next-flight-loader/module-proxy'
 
-export default async function transformSource(
+export default function transformSource(
   this: any,
   source: string,
   sourceMap: any
@@ -16,17 +19,10 @@ export default async function transformSource(
     throw new Error('Expected source to have been transformed to a string.')
   }
 
-  const moduleProxy =
-    this._compiler.name === 'edge-server'
-      ? 'next/dist/esm/build/webpack/loaders/next-flight-loader/module-proxy'
-      : 'next/dist/build/webpack/loaders/next-flight-loader/module-proxy'
-
-  const callback = this.async()
-
   // Assign the RSC meta information to buildInfo.
   // Exclude next internal files which are not marked as client files
   const buildInfo = getModuleBuildInfo(this._module)
-  buildInfo.rsc = getRSCModuleInformation(source)
+  buildInfo.rsc = getRSCModuleInformation(source, true)
 
   // A client boundary.
   if (buildInfo.rsc?.type === RSC_MODULE_TYPES.client) {
@@ -55,15 +51,16 @@ export default async function transformSource(
 
     if (assumedSourceType === 'module') {
       if (clientRefs.includes('*')) {
-        return callback(
+        this.callback(
           new Error(
             `It's currently unsupported to use "export *" in a client boundary. Please use named exports instead.`
           )
         )
+        return
       }
 
       let esmSource = `\
-import { createProxy } from "${moduleProxy}"
+import { createProxy } from "${MODULE_PROXY_PATH}"
 const proxy = createProxy(String.raw\`${this.resourcePath}\`)
 
 // Accessing the __esModule property and exporting $$typeof are required here.
@@ -88,7 +85,8 @@ export { e${cnt++} as ${ref} };`
         }
       }
 
-      return callback(null, esmSource, sourceMap)
+      this.callback(null, esmSource, sourceMap)
+      return
     }
   }
 
@@ -100,9 +98,9 @@ export { e${cnt++} as ${ref} };`
     }
   }
 
-  return callback(
+  this.callback(
     null,
-    source.replace(RSC_MOD_REF_PROXY_ALIAS, moduleProxy),
+    source.replace(RSC_MOD_REF_PROXY_ALIAS, MODULE_PROXY_PATH),
     sourceMap
   )
 }

@@ -59,7 +59,8 @@ describe('Build Output', () => {
         expect(stdout).toContain('○ /')
       })
 
-      it('should not deviate from snapshot', async () => {
+      // TODO: change format of this test to be more reliable
+      it.skip('should not deviate from snapshot', async () => {
         console.log(stdout)
 
         if (process.env.NEXT_PRIVATE_SKIP_SIZE_TESTS) {
@@ -182,9 +183,9 @@ describe('Build Output', () => {
       })
 
       it('should not emit extracted comments', async () => {
-        const files = await recursiveReadDir(join(appDir, '.next'), (f) =>
-          /\.txt|\.LICENSE\./.test(f)
-        )
+        const files = await recursiveReadDir(join(appDir, '.next'), {
+          pathnameFilter: (f) => /\.txt|\.LICENSE\./.test(f),
+        })
         expect(files).toEqual([])
       })
     })

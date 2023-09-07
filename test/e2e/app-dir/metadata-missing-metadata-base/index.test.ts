@@ -24,7 +24,7 @@ describe('app dir - metadata missing metadataBase', () => {
     await next.start()
     await fetchViaHTTP(next.url, '/')
     expect(next.cliOutput).toInclude(
-      'metadata.metadataBase is not set for resolving social open graph or twitter images, fallbacks to'
+      'metadata.metadataBase is not set for resolving social open graph or twitter images, using'
     )
     expect(next.cliOutput).toInclude(`"http://localhost:${port}`)
     expect(next.cliOutput).toInclude(

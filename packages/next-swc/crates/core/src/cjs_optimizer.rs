@@ -221,7 +221,7 @@ impl VisitMut for CjsOptimizer {
                             // TODO: Config
 
                             if let Pat::Ident(name) = &n.name {
-                                if let Some(..) = self.should_rewrite(&v.value) {
+                                if self.should_rewrite(&v.value).is_some() {
                                     let key = name.to_id();
 
                                     if !self.data.is_prepass {

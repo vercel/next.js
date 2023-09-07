@@ -10,17 +10,16 @@
     "start": "next start"
   },
   "dependencies": {
-    "convex": "~0.12.0",
+    "convex": "~0.19.0",
     "next": "latest",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "@types/node": "^18.13.0",
-    "@types/react": "^18.0.28",
-    "@types/react-dom": "^18.0.10",
+    "@types/node": "^18.15.3",
+    "@types/react-dom": "18.0.11",
+    "@types/react": "18.0.37",
     "npm-run-all": "^4.1.5",
-    "prettier": "^2.8.4",
     "typescript": "^4.9.5"
   }
 }

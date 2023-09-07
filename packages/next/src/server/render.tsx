@@ -23,6 +23,7 @@ import type {
   GetStaticProps,
   PreviewData,
   ServerRuntime,
+  SizeLimit,
 } from 'next/types'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import type { ReactReadableStream } from './stream-utils/node-web-streams-helper'
@@ -72,10 +73,9 @@ import { allowedStatusCodes, getRedirectStatus } from '../lib/redirect-status'
 import RenderResult, { type RenderResultMetadata } from './render-result'
 import isError from '../lib/is-error'
 import {
-  streamFromArray,
+  streamFromString,
   streamToString,
   chainStreams,
-  createBufferedTransformStream,
   renderToInitialStream,
   continueFromInitialStream,
 } from './stream-utils/node-web-streams-helper'
@@ -91,7 +91,6 @@ import { AppRouterContext } from '../shared/lib/app-router-context'
 import { SearchParamsContext } from '../shared/lib/hooks-client-context'
 import { getTracer } from './lib/trace/tracer'
 import { RenderSpan } from './lib/trace/constants'
-import { PageNotFoundError } from '../shared/lib/utils'
 import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
 
 let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
@@ -261,6 +260,7 @@ export type RenderOptsPartial = {
   isBot?: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
+  serverActionsBodySizeLimit?: SizeLimit
   customServer?: boolean
   crossOrigin?: 'anonymous' | 'use-credentials' | '' | undefined
   images: ImageConfigComplete
@@ -272,6 +272,11 @@ export type RenderOptsPartial = {
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
+
+export type RenderOptsExtra = {
+  App: AppType
+  Document: DocumentType
+}
 
 const invalidKeysMsg = (
   methodName: 'getServerSideProps' | 'getStaticProps',
@@ -335,33 +340,6 @@ function checkRedirectValues(
   }
 }
 
-export const deserializeErr = (serializedErr: any) => {
-  if (
-    !serializedErr ||
-    typeof serializedErr !== 'object' ||
-    !serializedErr.stack
-  ) {
-    return serializedErr
-  }
-  let ErrorType: any = Error
-
-  if (serializedErr.name === 'PageNotFoundError') {
-    ErrorType = PageNotFoundError
-  }
-
-  const err = new ErrorType(serializedErr.message)
-  err.stack = serializedErr.stack
-  err.name = serializedErr.name
-  ;(err as any).digest = serializedErr.digest
-
-  if (process.env.NEXT_RUNTIME !== 'edge') {
-    const { decorateServerError } =
-      require('next/dist/compiled/@next/react-dev-overlay/dist/middleware') as typeof import('next/dist/compiled/@next/react-dev-overlay/dist/middleware')
-    decorateServerError(err, serializedErr.source || 'server')
-  }
-  return err
-}
-
 export function errorToJSON(err: Error) {
   let source: typeof COMPILER_NAMES.server | typeof COMPILER_NAMES.edgeServer =
     'server'
@@ -400,12 +378,13 @@ function serializeError(
   }
 }
 
-export async function renderToHTML(
+export async function renderToHTMLImpl(
   req: IncomingMessage,
   res: ServerResponse,
   pathname: string,
   query: NextParsedUrlQuery,
-  renderOpts: RenderOpts
+  renderOpts: Omit<RenderOpts, keyof RenderOptsExtra>,
+  extra: RenderOptsExtra
 ): Promise<RenderResult> {
   const renderResultMeta: RenderResultMetadata = {}
 
@@ -443,14 +422,13 @@ export async function renderToHTML(
     basePath,
     images,
     runtime: globalRuntime,
-    App,
   } = renderOpts
+  const { App } = extra
 
   const assetQueryString = renderResultMeta.assetQueryString
 
-  let Document = renderOpts.Document
+  let Document = extra.Document
 
-  // Component will be wrapped by ServerComponentWrapper for RSC
   let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
     renderOpts.Component
   const OriginComponent = Component
@@ -1176,8 +1154,6 @@ export async function renderToHTML(
     return inAmpMode ? children : <div id="__next">{children}</div>
   }
 
-  // Always disable streaming for pages rendering
-  const generateStaticHTML = true
   const renderDocument = async () => {
     // For `Document`, there are two cases that we don't support:
     // 1. Using `Document.getInitialProps` in the Edge runtime.
@@ -1315,7 +1291,7 @@ export async function renderToHTML(
         return continueFromInitialStream(initialStream, {
           suffix,
           dataStream: serverComponentsInlinedTransformStream?.readable,
-          generateStaticHTML,
+          generateStaticHTML: true,
           getServerInsertedHTML,
           serverInsertedHTMLToHead: false,
         })
@@ -1339,7 +1315,7 @@ export async function renderToHTML(
       const { docProps } = documentInitialPropsRes as any
       // includes suffix in initial html stream
       bodyResult = (suffix: string) =>
-        createBodyResult(streamFromArray([docProps.html, suffix]))
+        createBodyResult(streamFromString(docProps.html + suffix))
     } else {
       const stream = await renderShell(App, Component)
       bodyResult = (suffix: string) => createBodyResult(stream, suffix)
@@ -1521,35 +1497,34 @@ export async function renderToHTML(
     '<next-js-internal-body-render-target></next-js-internal-body-render-target>'
   )
 
-  const prefix: Array<string> = []
+  let prefix = ''
   if (!documentHTML.startsWith(DOCTYPE)) {
-    prefix.push(DOCTYPE)
+    prefix += DOCTYPE
   }
-  prefix.push(renderTargetPrefix)
+  prefix += renderTargetPrefix
   if (inAmpMode) {
-    prefix.push('<!-- __NEXT_DATA__ -->')
+    prefix += '<!-- __NEXT_DATA__ -->'
   }
 
   const streams = [
-    streamFromArray(prefix),
+    streamFromString(prefix),
     await documentResult.bodyResult(renderTargetSuffix),
   ]
 
   const postOptimize = (html: string) =>
     postProcessHTML(pathname, html, renderOpts, { inAmpMode, hybridAmp })
 
-  if (generateStaticHTML) {
-    const html = await streamToString(chainStreams(streams))
-    const optimizedHtml = await postOptimize(html)
-    return new RenderResult(optimizedHtml, renderResultMeta)
-  }
-
-  return new RenderResult(
-    chainStreams(streams).pipeThrough(
-      createBufferedTransformStream(postOptimize)
-    ),
-    renderResultMeta
-  )
+  const html = await streamToString(chainStreams(streams))
+  const optimizedHtml = await postOptimize(html)
+  return new RenderResult(optimizedHtml, renderResultMeta)
 }
 
-export type RenderToHTMLResult = typeof renderToHTML
+export async function renderToHTML(
+  req: IncomingMessage,
+  res: ServerResponse,
+  pathname: string,
+  query: NextParsedUrlQuery,
+  renderOpts: RenderOpts
+): Promise<RenderResult> {
+  return renderToHTMLImpl(req, res, pathname, query, renderOpts, renderOpts)
+}

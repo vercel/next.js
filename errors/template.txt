@@ -1,4 +1,8 @@
-# {{title}}
+---
+title: {{title}}
+---
+
+## `{{errorId}}`
 
 #### Why This Error Occurred
 

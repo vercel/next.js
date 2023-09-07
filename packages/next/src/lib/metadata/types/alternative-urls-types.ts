@@ -412,7 +412,15 @@ type LangCode =
   | 'zh-MO'
   | 'zh-SG'
   | 'zh-TW'
+  | 'zh-Hans'
+  | 'zh-Hant'
   | 'zu-ZA'
+  // We can't have all valid combinations of language-region-script listed here
+  // as the list is too long and breaks the TypeScript compiler. So instead we
+  // only add the most common ones with a general string pattern for the rest.
+  // This way autocompletion still works and it is still possible to add custom
+  // lang codes.
+  | `${Lowercase<string>}-${string}`
 
 type UnmatchedLang = 'x-default'
 

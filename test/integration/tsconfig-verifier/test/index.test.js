@@ -34,7 +34,6 @@ describe('tsconfig.json verifier', () => {
           \\"allowJs\\": true,
           \\"skipLibCheck\\": true,
           \\"strict\\": false,
-          \\"forceConsistentCasingInFileNames\\": true,
           \\"noEmit\\": true,
           \\"incremental\\": true,
           \\"esModuleInterop\\": true,
@@ -89,7 +88,6 @@ describe('tsconfig.json verifier', () => {
           \\"allowJs\\": true,
           \\"skipLibCheck\\": true,
           \\"strict\\": false,
-          \\"forceConsistentCasingInFileNames\\": true,
           \\"noEmit\\": true,
           \\"incremental\\": true,
           \\"esModuleInterop\\": true,
@@ -163,7 +161,6 @@ describe('tsconfig.json verifier', () => {
           \\"allowJs\\": true,
           \\"skipLibCheck\\": true,
           \\"strict\\": false,
-          \\"forceConsistentCasingInFileNames\\": true,
           \\"noEmit\\": true,
           \\"incremental\\": true,
           \\"moduleResolution\\": \\"node\\",
@@ -218,7 +215,6 @@ describe('tsconfig.json verifier', () => {
           \\"allowJs\\": true,
           \\"skipLibCheck\\": true,
           \\"strict\\": false,
-          \\"forceConsistentCasingInFileNames\\": true,
           \\"noEmit\\": true,
           \\"incremental\\": true,
           \\"moduleResolution\\": \\"node\\",
@@ -270,7 +266,6 @@ describe('tsconfig.json verifier', () => {
           \\"allowJs\\": true,
           \\"skipLibCheck\\": true,
           \\"strict\\": false,
-          \\"forceConsistentCasingInFileNames\\": true,
           \\"noEmit\\": true,
           \\"incremental\\": true,
           \\"moduleResolution\\": \\"node\\",
@@ -303,7 +298,7 @@ describe('tsconfig.json verifier', () => {
 
     await writeFile(
       tsConfig,
-      `{ "compilerOptions": { "esModuleInterop": false, "moduleResolution": "node16" } }`
+      `{ "compilerOptions": { "esModuleInterop": false, "moduleResolution": "node16", "module": "node16" } }`
     )
     await new Promise((resolve) => setTimeout(resolve, 500))
     const { code, stderr, stdout } = await nextBuild(appDir, undefined, {
@@ -318,6 +313,7 @@ describe('tsconfig.json verifier', () => {
         \\"compilerOptions\\": {
           \\"esModuleInterop\\": true,
           \\"moduleResolution\\": \\"node16\\",
+          \\"module\\": \\"node16\\",
           \\"lib\\": [
             \\"dom\\",
             \\"dom.iterable\\",
@@ -326,10 +322,8 @@ describe('tsconfig.json verifier', () => {
           \\"allowJs\\": true,
           \\"skipLibCheck\\": true,
           \\"strict\\": false,
-          \\"forceConsistentCasingInFileNames\\": true,
           \\"noEmit\\": true,
           \\"incremental\\": true,
-          \\"module\\": \\"esnext\\",
           \\"resolveJsonModule\\": true,
           \\"isolatedModules\\": true,
           \\"jsx\\": \\"preserve\\",
@@ -382,7 +376,6 @@ describe('tsconfig.json verifier', () => {
           \\"allowJs\\": true,
           \\"skipLibCheck\\": true,
           \\"strict\\": false,
-          \\"forceConsistentCasingInFileNames\\": true,
           \\"noEmit\\": true,
           \\"incremental\\": true,
           \\"module\\": \\"esnext\\",
@@ -434,7 +427,6 @@ describe('tsconfig.json verifier', () => {
           \\"allowJs\\": true,
           \\"skipLibCheck\\": true,
           \\"strict\\": false,
-          \\"forceConsistentCasingInFileNames\\": true,
           \\"noEmit\\": true,
           \\"incremental\\": true,
           \\"esModuleInterop\\": true,
@@ -493,7 +485,6 @@ describe('tsconfig.json verifier', () => {
           \\"allowJs\\": true,
           \\"skipLibCheck\\": true,
           \\"strict\\": false,
-          \\"forceConsistentCasingInFileNames\\": true,
           \\"noEmit\\": true,
           \\"incremental\\": true,
           \\"resolveJsonModule\\": true,
@@ -547,7 +538,6 @@ describe('tsconfig.json verifier', () => {
           \\"allowJs\\": true,
           \\"skipLibCheck\\": true,
           \\"strict\\": false,
-          \\"forceConsistentCasingInFileNames\\": true,
           \\"noEmit\\": true,
           \\"incremental\\": true,
           \\"esModuleInterop\\": true,
@@ -598,7 +588,7 @@ describe('tsconfig.json verifier', () => {
           "incremental": true,
           "esModuleInterop": true,
           "module": "esnext",
-          "moduleResolution": "node",
+          "moduleResolution": "bundler",
           "resolveJsonModule": true,
           "isolatedModules": true,
           "jsx": "preserve",
@@ -659,7 +649,7 @@ describe('tsconfig.json verifier', () => {
           "noEmit": true,
           "esModuleInterop": true,
           "module": "esnext",
-          "moduleResolution": "node",
+          "moduleResolution": "bundler",
           "resolveJsonModule": true,
           "isolatedModules": true,
           "jsx": "preserve",

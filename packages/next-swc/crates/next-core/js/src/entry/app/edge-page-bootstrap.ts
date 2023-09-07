@@ -1,4 +1,3 @@
-import 'next/dist/esm/server/web/globals'
 import { adapter } from 'next/dist/server/web/adapter'
 import { RSC_VARY_HEADER } from 'next/dist/client/components/app-router-headers'
 import { IncrementalCache } from 'next/dist/server/lib/incremental-cache'
@@ -30,6 +29,7 @@ async function render(request: NextRequest, event: NextFetchEvent) {
     supportsDynamicHTML: true,
     dev: true,
     buildId: 'development',
+    basePath: '',
     buildManifest: {
       polyfillFiles: [],
       rootMainFiles: BOOTSTRAP.filter((path) => path.endsWith('.js')),
@@ -76,16 +76,32 @@ async function render(request: NextRequest, event: NextFetchEvent) {
 
   response.headers.append(
     'Content-Type',
-    result.contentType() || MIME_TEXT_HTML_UTF8
+    result.contentType || MIME_TEXT_HTML_UTF8
   )
   response.headers.append('Vary', RSC_VARY_HEADER)
 
   const writer = tranform.writable.getWriter()
-  result.pipe({
+
+  let innerClose: undefined | (() => void)
+  const target = {
     write: (chunk: Uint8Array) => writer.write(chunk),
     end: () => writer.close(),
-    destroy: (reason?: Error) => writer.abort(reason),
-  })
+
+    on(_event: 'close', cb: () => void) {
+      innerClose = cb
+    },
+    off(_event: 'close', _cb: () => void) {
+      innerClose = undefined
+    },
+  }
+  const onClose = () => {
+    innerClose?.()
+  }
+  // No, this cannot be replaced with `finally`, because early cancelling
+  // the stream will create a rejected promise, and finally will create an
+  // unhandled rejection.
+  writer.closed.then(onClose, onClose)
+  result.pipe(target)
 
   return response
 }

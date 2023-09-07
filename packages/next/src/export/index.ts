@@ -17,14 +17,12 @@ import * as Log from '../build/output/log'
 import createSpinner from '../build/spinner'
 import { SSG_FALLBACK_EXPORT_ERROR } from '../lib/constants'
 import { recursiveCopy } from '../lib/recursive-copy'
-import { recursiveDelete } from '../lib/recursive-delete'
 import {
   BUILD_ID_FILE,
   CLIENT_PUBLIC_FILES_PATH,
   CLIENT_STATIC_FILES_PATH,
   EXPORT_DETAIL,
   EXPORT_MARKER,
-  CLIENT_REFERENCE_MANIFEST,
   NEXT_FONT_MANIFEST,
   MIDDLEWARE_MANIFEST,
   PAGES_MANIFEST,
@@ -97,7 +95,7 @@ const createProgress = (total: number, label: string) => {
         '[==  ]',
         '[=   ]',
       ],
-      interval: 500,
+      interval: 200,
     },
   })
 
@@ -121,14 +119,19 @@ const createProgress = (total: number, label: string) => {
       lastProgressOutput = Date.now()
     }
 
-    const newText = `${label} (${curProgress}/${total})`
+    const isFinished = curProgress === total
+    // Use \r to reset current line with spinner.
+    // If it's 100% progressed, then we don't need to break a new line to avoid logging from routes while building.
+    const newText = `\r ${
+      isFinished ? Log.prefixes.event : Log.prefixes.info
+    } ${label} (${curProgress}/${total})${isFinished ? '' : '\n'}`
     if (progressSpinner) {
       progressSpinner.text = newText
     } else {
       console.log(newText)
     }
 
-    if (curProgress === total && progressSpinner) {
+    if (isFinished && progressSpinner) {
       progressSpinner.stop()
       console.log(newText)
     }
@@ -271,7 +274,7 @@ export default async function exportApp(
     let prerenderManifest: PrerenderManifest | undefined = undefined
     try {
       prerenderManifest = require(join(distDir, PRERENDER_MANIFEST))
-    } catch (_) {}
+    } catch {}
 
     let appRoutePathManifest: Record<string, string> | undefined = undefined
     try {
@@ -355,7 +358,7 @@ export default async function exportApp(
       )
     }
 
-    await recursiveDelete(join(outDir))
+    await promises.rm(outDir, { recursive: true, force: true })
     await promises.mkdir(join(outDir, '_next', buildId), { recursive: true })
 
     writeFileSync(
@@ -472,6 +475,8 @@ export default async function exportApp(
       largePageDataBytes: nextConfig.experimental.largePageDataBytes,
       serverComponents: options.hasAppDir,
       hasServerComponents: options.hasAppDir,
+      serverActionsBodySizeLimit:
+        nextConfig.experimental.serverActionsBodySizeLimit,
       nextFontManifest: require(join(
         distDir,
         'server',
@@ -480,11 +485,6 @@ export default async function exportApp(
       images: nextConfig.images,
       ...(options.hasAppDir
         ? {
-            clientReferenceManifest: require(join(
-              distDir,
-              SERVER_DIRECTORY,
-              CLIENT_REFERENCE_MANIFEST + '.json'
-            )),
             serverActionsManifest: require(join(
               distDir,
               SERVER_DIRECTORY,
@@ -552,8 +552,7 @@ export default async function exportApp(
     const filteredPaths = exportPaths.filter(
       // Remove API routes
       (route) =>
-        (exportPathMap[route] as any)._isAppDir ||
-        !isAPIRoute(exportPathMap[route].page)
+        exportPathMap[route]._isAppDir || !isAPIRoute(exportPathMap[route].page)
     )
 
     if (filteredPaths.length !== exportPaths.length) {
@@ -595,7 +594,7 @@ export default async function exportApp(
         )) as MiddlewareManifest
 
         hasMiddleware = Object.keys(middlewareManifest.middleware).length > 0
-      } catch (_) {}
+      } catch {}
 
       // Warn if the user defines a path for an API page
       if (hasApiRoutes || hasMiddleware) {
@@ -627,7 +626,7 @@ export default async function exportApp(
       !options.silent &&
       createProgress(
         filteredPaths.length,
-        `${Log.prefixes.info} ${options.statusMessage || 'Exporting'}`
+        `${options.statusMessage || 'Exporting'}`
       )
     const pagesDataDir = options.buildExport
       ? outDir
@@ -725,10 +724,9 @@ export default async function exportApp(
               nextConfig.experimental.disableOptimizedLoading,
             parentSpanId: pageExportSpan.id,
             httpAgentOptions: nextConfig.httpAgentOptions,
-            serverComponents: options.hasAppDir,
             debugOutput: options.debugOutput,
             isrMemoryCacheSize: nextConfig.experimental.isrMemoryCacheSize,
-            fetchCache: nextConfig.experimental.appDir,
+            fetchCache: true,
             fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
             incrementalCacheHandlerPath:
               nextConfig.experimental.incrementalCacheHandlerPath,

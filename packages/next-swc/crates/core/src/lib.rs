@@ -26,33 +26,41 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
+// TODO(alexkirsz) Remove once the diagnostic is fixed.
+#![allow(rustc::untranslatable_diagnostic_trivial)]
 #![recursion_limit = "2048"]
 #![deny(clippy::all)]
 #![feature(box_patterns)]
 
-use std::{cell::RefCell, env::current_dir, path::PathBuf, rc::Rc, sync::Arc};
+use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::Arc};
 
 use auto_cjs::contains_cjs;
 use either::Either;
 use fxhash::FxHashSet;
 use next_transform_font::next_font_loaders;
 use serde::Deserialize;
-use turbopack_binding::swc::core::{
-    common::{
-        chain, comments::Comments, pass::Optional, FileName, Mark, SourceFile, SourceMap,
-        SyntaxContext,
+use turbopack_binding::swc::{
+    core::{
+        common::{
+            chain, comments::Comments, pass::Optional, FileName, Mark, SourceFile, SourceMap,
+            SyntaxContext,
+        },
+        ecma::{
+            ast::EsVersion, parser::parse_file_as_module, transforms::base::pass::noop, visit::Fold,
+        },
     },
-    ecma::{
-        ast::EsVersion, parser::parse_file_as_module, transforms::base::pass::noop, visit::Fold,
-    },
+    custom_transform::modularize_imports,
 };
 
 pub mod amp_attributes;
 mod auto_cjs;
 pub mod cjs_optimizer;
 pub mod disallow_re_export_all_in_page;
+pub mod named_import_transform;
 pub mod next_dynamic;
 pub mod next_ssg;
+pub mod optimize_barrel;
+pub mod optimize_server_react;
 pub mod page_config;
 pub mod react_remove_properties;
 pub mod react_server_components;
@@ -89,6 +97,9 @@ pub struct TransformOptions {
     pub is_server: bool,
 
     #[serde(default)]
+    pub disable_checks: bool,
+
+    #[serde(default)]
     pub server_components: Option<react_server_components::Config>,
 
     #[serde(default)]
@@ -121,8 +132,13 @@ pub struct TransformOptions {
     pub emotion: Option<turbopack_binding::swc::custom_transform::emotion::EmotionOptions>,
 
     #[serde(default)]
-    pub modularize_imports:
-        Option<turbopack_binding::swc::custom_transform::modularize_imports::Config>,
+    pub modularize_imports: Option<modularize_imports::Config>,
+
+    #[serde(default)]
+    pub auto_modularize_imports: Option<named_import_transform::Config>,
+
+    #[serde(default)]
+    pub optimize_barrel_exports: Option<optimize_barrel::Config>,
 
     #[serde(default)]
     pub font_loaders: Option<next_transform_font::Config>,
@@ -132,6 +148,9 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub cjs_require_optimizer: Option<cjs_optimizer::Config>,
+
+    #[serde(default)]
+    pub optimize_server_react: Option<optimize_server_react::Config>,
 }
 
 pub fn custom_before_pass<'a, C: Comments + 'a>(
@@ -154,7 +173,7 @@ where
             Either::Left(turbopack_binding::swc::custom_transform::relay::relay(
                 config,
                 file.name.clone(),
-                current_dir().unwrap(),
+                std::env::current_dir().unwrap(),
                 opts.pages_dir.clone(),
                 None,
             ))
@@ -163,20 +182,12 @@ where
         }
     };
 
-    let mut modularize_imports_config = match &opts.modularize_imports {
+    let modularize_imports_config = match &opts.modularize_imports {
         Some(config) => config.clone(),
-        None => turbopack_binding::swc::custom_transform::modularize_imports::Config {
+        None => modularize_imports::Config {
             packages: std::collections::HashMap::new(),
         },
     };
-    modularize_imports_config.packages.insert(
-        "next/server".to_string(),
-        turbopack_binding::swc::custom_transform::modularize_imports::PackageConfig {
-            transform: "next/dist/server/web/exports/{{ kebabCase member }}".to_string(),
-            prevent_full_import: false,
-            skip_default_conversion: false,
-        },
-    );
 
     chain!(
         disallow_re_export_all_in_page::disallow_re_export_all_in_page(opts.is_page_file),
@@ -186,7 +197,8 @@ where
                     file.name.clone(),
                     config.clone(),
                     comments.clone(),
-                    opts.app_dir.clone()
+                    opts.app_dir.clone(),
+                    opts.disable_checks
                 )),
             _ => Either::Right(noop()),
         },
@@ -220,7 +232,9 @@ where
             opts.is_server,
             match &opts.server_components {
                 Some(config) if config.truthy() => match config {
-                    react_server_components::Config::WithOptions(x) => x.is_server,
+                    // Always enable the Server Components mode for both
+                    // server and client layers.
+                    react_server_components::Config::WithOptions(_) => true,
                     _ => false,
                 },
                 _ => false,
@@ -247,6 +261,18 @@ where
             Some(config) => Either::Left(shake_exports::shake_exports(config.clone())),
             None => Either::Right(noop()),
         },
+        match &opts.auto_modularize_imports {
+            Some(config) => Either::Left(named_import_transform::named_import_transform(config.clone())),
+            None => Either::Right(noop()),
+        },
+        match &opts.optimize_barrel_exports {
+            Some(config) => Either::Left(optimize_barrel::optimize_barrel(config.clone())),
+            _ => Either::Right(noop()),
+        },
+        match &opts.optimize_server_react {
+            Some(config) => Either::Left(optimize_server_react::optimize_server_react(config.clone())),
+            _ => Either::Right(noop()),
+        },
         opts.emotion
             .as_ref()
             .and_then(|config| {
@@ -270,7 +296,7 @@ where
                 }
             })
             .unwrap_or_else(|| Either::Right(noop())),
-        turbopack_binding::swc::custom_transform::modularize_imports::modularize_imports(
+        modularize_imports::modularize_imports(
             modularize_imports_config
         ),
         match &opts.font_loaders {
@@ -311,7 +337,7 @@ impl TransformOptions {
 
         if should_enable_commonjs {
             self.swc.config.module = Some(
-                serde_json::from_str(r##"{ "type": "commonjs", "ignoreDynamic": true }"##).unwrap(),
+                serde_json::from_str(r#"{ "type": "commonjs", "ignoreDynamic": true }"#).unwrap(),
             );
         }
 

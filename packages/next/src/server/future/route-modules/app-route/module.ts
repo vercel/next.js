@@ -32,6 +32,8 @@ import * as Log from '../../../../build/output/log'
 import { autoImplementMethods } from './helpers/auto-implement-methods'
 import { getNonStaticMethods } from './helpers/get-non-static-methods'
 import { appendMutableCookies } from '../../../web/spec-extension/adapters/request-cookies'
+import { RouteKind } from '../../route-kind'
+import { parsedUrlQueryToParams } from './helpers/parsed-url-query-to-params'
 
 // These are imported weirdly like this because of the way that the bundling
 // works. We need to import the built files from the dist directory, but we
@@ -158,6 +160,10 @@ export class AppRouteRouteModule extends RouteModule<
   private readonly nonStaticMethods: ReadonlyArray<HTTP_METHOD> | false
   private readonly dynamic: AppRouteUserlandModule['dynamic']
 
+  public static is(route: RouteModule): route is AppRouteRouteModule {
+    return route.definition.kind === RouteKind.APP_ROUTE
+  }
+
   constructor({
     userland,
     definition,
@@ -187,27 +193,6 @@ export class AppRouteRouteModule extends RouteModule<
         )
       }
     }
-  }
-
-  /**
-   * When true, indicates that the global interfaces have been patched via the
-   * `patch()` method.
-   */
-  private hasSetup: boolean = false
-
-  /**
-   * Validates the userland module to ensure the exported methods and properties
-   * are valid.
-   */
-  public async setup() {
-    // If we've already setup, then return.
-    if (this.hasSetup) return
-
-    // Mark the module as setup. The following warnings about the userland
-    // module will run if we're in development. If the module files are modified
-    // when in development, then the require cache will be busted for it and
-    // this method will be called again (resetting the `hasSetup` flag).
-    this.hasSetup = true
 
     // We only warn in development after here, so return if we're not in
     // development.
@@ -279,12 +264,13 @@ export class AppRouteRouteModule extends RouteModule<
 
     // Get the context for the static generation.
     const staticGenerationContext: StaticGenerationContext = {
-      pathname: this.definition.pathname,
+      urlPathname: request.nextUrl.pathname,
       renderOpts:
         // If the staticGenerationContext is not provided then we default to
         // the default values.
         context.staticGenerationContext ?? {
           supportsDynamicHTML: false,
+          originalPathname: this.definition.pathname,
         },
     }
 
@@ -378,7 +364,9 @@ export class AppRouteRouteModule extends RouteModule<
                         this.staticGenerationAsyncStorage,
                     })
                     const res = await handler(wrappedRequest, {
-                      params: context.params,
+                      params: context.params
+                        ? parsedUrlQueryToParams(context.params)
+                        : undefined,
                     })
                     ;(context.staticGenerationContext as any).fetchMetrics =
                       staticGenerationStore.fetchMetrics

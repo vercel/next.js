@@ -28,6 +28,11 @@ export async function quit() {
   browser = undefined
 }
 
+interface ElementHandleExt extends ElementHandle {
+  getComputedCss(prop: string): Promise<string>
+  text(): Promise<string>
+}
+
 export class Playwright extends BrowserInterface {
   private activeTrace?: string
   private eventCallbacks: Record<Event, Set<(...args: any[]) => void>> = {
@@ -48,8 +53,12 @@ export class Playwright extends BrowserInterface {
     this.eventCallbacks[event]?.delete(cb)
   }
 
-  async setup(browserName: string, locale: string, javaScriptEnabled: boolean) {
-    const headless = !!process.env.HEADLESS
+  async setup(
+    browserName: string,
+    locale: string,
+    javaScriptEnabled: boolean,
+    headless: boolean
+  ) {
     let device
 
     if (process.env.DEVICE_NAME) {
@@ -85,17 +94,29 @@ export class Playwright extends BrowserInterface {
     if (browserName === 'safari') {
       return await webkit.launch(launchOptions)
     } else if (browserName === 'firefox') {
-      return await firefox.launch(launchOptions)
+      return await firefox.launch({
+        ...launchOptions,
+        firefoxUserPrefs: {
+          ...launchOptions.firefoxUserPrefs,
+          // The "fission.webContentIsolationStrategy" pref must be
+          // set to 1 on Firefox due to the bug where a new history
+          // state is pushed on a page reload.
+          // See https://github.com/microsoft/playwright/issues/22640
+          // See https://bugzilla.mozilla.org/show_bug.cgi?id=1832341
+          'fission.webContentIsolationStrategy': 1,
+        },
+      })
     } else {
       return await chromium.launch({
         devtools: !launchOptions.headless,
         ...launchOptions,
+        ignoreDefaultArgs: ['--disable-back-forward-cache'],
       })
     }
   }
 
   async get(url: string): Promise<void> {
-    return page.goto(url) as any
+    await page.goto(url)
   }
 
   async loadPage(
@@ -170,11 +191,9 @@ export class Playwright extends BrowserInterface {
         websocketFrames.push({ payload: frame.payload })
 
         if (tracePlaywright) {
-          if (!frame.payload.includes('pong')) {
-            page
-              .evaluate(`console.log('received ws message ${frame.payload}')`)
-              .catch(() => {})
-          }
+          page
+            .evaluate(`console.log('received ws message ${frame.payload}')`)
+            .catch(() => {})
         }
       })
     })
@@ -191,19 +210,19 @@ export class Playwright extends BrowserInterface {
     await page.goto(url, { waitUntil: 'load' })
   }
 
-  back(): BrowserInterface {
-    return this.chain(() => {
-      return page.goBack()
+  back(options): BrowserInterface {
+    return this.chain(async () => {
+      await page.goBack(options)
     })
   }
-  forward(): BrowserInterface {
-    return this.chain(() => {
-      return page.goForward()
+  forward(options): BrowserInterface {
+    return this.chain(async () => {
+      await page.goForward(options)
     })
   }
   refresh(): BrowserInterface {
-    return this.chain(() => {
-      return page.reload()
+    return this.chain(async () => {
+      await page.reload()
     })
   }
   setDimensions({
@@ -234,29 +253,22 @@ export class Playwright extends BrowserInterface {
     return this.chain(() => page.bringToFront())
   }
 
-  private wrapElement(el: ElementHandle, selector: string) {
-    ;(el as any).selector = selector
-    ;(el as any).text = () => el.innerText()
-    ;(el as any).getComputedCss = (prop) =>
-      page.evaluate(
+  private wrapElement(el: ElementHandle, selector: string): ElementHandleExt {
+    function getComputedCss(prop: string) {
+      return page.evaluate(
         function (args) {
-          return (
-            getComputedStyle(document.querySelector(args.selector))[
-              args.prop
-            ] || null
-          )
+          const style = getComputedStyle(document.querySelector(args.selector))
+          return style[args.prop] || null
         },
         { selector, prop }
       )
-    ;(el as any).getCssValue = (el as any).getComputedCss
-    ;(el as any).getValue = () =>
-      page.evaluate(
-        function (args) {
-          return (document.querySelector(args.selector) as any).value
-        },
-        { selector }
-      )
-    return el
+    }
+
+    return Object.assign(el, {
+      selector,
+      getComputedCss,
+      text: () => el.innerText(),
+    })
   }
 
   elementByCss(selector: string) {
@@ -268,38 +280,31 @@ export class Playwright extends BrowserInterface {
   }
 
   getValue() {
-    return this.chain((el) =>
-      page.evaluate(
-        function (args) {
-          return document.querySelector(args.selector).value
-        },
-        { selector: el.selector }
-      )
-    ) as any
+    return this.chain((el: ElementHandleExt) => el.inputValue())
   }
 
   text() {
-    return this.chain((el) => el.text()) as any
+    return this.chain((el: ElementHandleExt) => el.innerText())
   }
 
   type(text) {
-    return this.chain((el) => el.type(text))
+    return this.chain((el: ElementHandleExt) => el.type(text))
   }
 
   moveTo() {
-    return this.chain((el) => {
-      return page.hover(el.selector).then(() => el)
+    return this.chain((el: ElementHandleExt) => {
+      return el.hover().then(() => el)
     })
   }
 
   async getComputedCss(prop: string) {
-    return this.chain((el) => {
-      return el.getCssValue(prop)
+    return this.chain((el: ElementHandleExt) => {
+      return el.getComputedCss(prop)
     }) as any
   }
 
   async getAttribute<T = any>(attr) {
-    return this.chain((el) => el.getAttribute(attr)) as T
+    return this.chain((el: ElementHandleExt) => el.getAttribute(attr)) as T
   }
 
   hasElementByCssSelector(selector: string) {
@@ -307,25 +312,25 @@ export class Playwright extends BrowserInterface {
   }
 
   keydown(key: string): BrowserInterface {
-    return this.chain((el) => {
+    return this.chain((el: ElementHandleExt) => {
       return page.keyboard.down(key).then(() => el)
     })
   }
 
   keyup(key: string): BrowserInterface {
-    return this.chain((el) => {
+    return this.chain((el: ElementHandleExt) => {
       return page.keyboard.up(key).then(() => el)
     })
   }
 
   click() {
-    return this.chain((el) => {
+    return this.chain((el: ElementHandleExt) => {
       return el.click().then(() => el)
     })
   }
 
   touchStart() {
-    return this.chain((el: ElementHandle) => {
+    return this.chain((el: ElementHandleExt) => {
       return el.dispatchEvent('touchstart').then(() => el)
     })
   }

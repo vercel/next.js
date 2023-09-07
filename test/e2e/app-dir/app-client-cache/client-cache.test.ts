@@ -147,8 +147,8 @@ createNextDescribe(
 
           expect(newNumber).not.toBe(randomNumber)
         })
-        // TODO-APP: investigate flaky test
-        it.skip('should prefetch again after 5 mins if the link is visible again', async () => {
+
+        it('should prefetch again after 5 mins if the link is visible again', async () => {
           const { getRequests, clearRequests } = await createRequestsListener(
             browser
           )
@@ -304,7 +304,7 @@ createNextDescribe(
 
           expect(number).toBe(randomNumber)
 
-          await browser.eval(fastForwardTo, 30 * 1000)
+          await browser.eval(fastForwardTo, 5 * 1000)
 
           await browser.elementByCss('[href="/"]').click()
 
@@ -314,7 +314,19 @@ createNextDescribe(
             .waitForElementByCss('#random-number')
             .text()
 
-          expect(newNumber).not.toBe(randomNumber)
+          expect(newNumber).toBe(randomNumber)
+
+          await browser.eval(fastForwardTo, 30 * 1000)
+
+          await browser.elementByCss('[href="/"]').click()
+
+          const newNumber2 = await browser
+            .elementByCss('[href="/1"]')
+            .click()
+            .waitForElementByCss('#random-number')
+            .text()
+
+          expect(newNumber2).not.toBe(newNumber)
         })
         it('should refetch below the fold after 30 seconds', async () => {
           const randomLoadingNumber = await browser

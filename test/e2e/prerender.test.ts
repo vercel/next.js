@@ -1850,8 +1850,8 @@ describe('Prerender', () => {
         previewRes.headers
           .get('set-cookie')
           .split(',')
-          .forEach((c) => {
-            c = cookie.parse(c)
+          .forEach((s) => {
+            const c = cookie.parse(s)
             const isBypass = c.__prerender_bypass
 
             if (isBypass || c.__next_preview_data) {

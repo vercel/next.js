@@ -38,6 +38,10 @@ import {
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { addMessageListener, sendMessage } from './websocket'
 import formatWebpackMessages from './format-webpack-messages'
+import {
+  HMR_ACTIONS_SENT_TO_BROWSER,
+  HMR_ACTION_TYPES,
+} from '../../../server/dev/hot-reloader-types'
 
 // This alternative WebpackDevServer combines the functionality of:
 // https://github.com/webpack/webpack-dev-server/blob/webpack-1/client/index.js
@@ -63,13 +67,17 @@ let customHmrEventHandler: any
 export default function connect() {
   register()
 
-  addMessageListener((event) => {
-    if (!event.data.includes('action')) return
+  addMessageListener((payload) => {
+    if (!('action' in payload)) {
+      return
+    }
 
     try {
-      processMessage(event)
-    } catch (ex) {
-      console.warn('Invalid HMR message: ' + event.data + '\n', ex)
+      processMessage(payload)
+    } catch (err: any) {
+      console.warn(
+        '[HMR] Invalid message: ' + payload + '\n' + (err?.stack ?? '')
+      )
     }
   })
 
@@ -185,17 +193,17 @@ function handleErrors(errors: any) {
 
 let startLatency: any = undefined
 
-function onBeforeFastRefresh(hasUpdates: any) {
-  if (hasUpdates) {
+function onBeforeFastRefresh(updatedModules: string[]) {
+  if (updatedModules.length > 0) {
     // Only trigger a pending state if we have updates to apply
     // (cf. onFastRefresh)
     onBeforeRefresh()
   }
 }
 
-function onFastRefresh(hasUpdates: any) {
+function onFastRefresh(updatedModules: string[]) {
   onBuildOk()
-  if (hasUpdates) {
+  if (updatedModules.length > 0) {
     // Only complete a pending state if we applied updates
     // (cf. onBeforeFastRefresh)
     onRefresh()
@@ -211,6 +219,8 @@ function onFastRefresh(hasUpdates: any) {
         id: window.__nextDevClientId,
         startTime: startLatency,
         endTime: endLatency,
+        page: window.location.pathname,
+        updatedModules,
       })
     )
     if (self.__NEXT_HMR_LATENCY_CB) {
@@ -226,16 +236,19 @@ function handleAvailableHash(hash: string) {
 }
 
 // Handle messages from the server.
-function processMessage(e: any) {
-  const obj = JSON.parse(e.data)
+function processMessage(obj: HMR_ACTION_TYPES) {
+  if (!('action' in obj)) {
+    return
+  }
+
   switch (obj.action) {
-    case 'building': {
+    case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING: {
       startLatency = Date.now()
       console.log('[Fast Refresh] rebuilding')
       break
     }
-    case 'built':
-    case 'sync': {
+    case HMR_ACTIONS_SENT_TO_BROWSER.BUILT:
+    case HMR_ACTIONS_SENT_TO_BROWSER.SYNC: {
       if (obj.hash) {
         handleAvailableHash(obj.hash)
       }
@@ -273,10 +286,18 @@ function processMessage(e: any) {
       )
       return handleSuccess()
     }
-    case 'serverComponentChanges': {
-      // Server component changes don't apply to `pages`.
-      // TODO-APP: Remove reload once the correct overlay is rendered on initial page load in app dir
+    case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES: {
       window.location.reload()
+      return
+    }
+    case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR: {
+      const { errorJSON } = obj
+      if (errorJSON) {
+        const { message, stack } = JSON.parse(errorJSON)
+        const error = new Error(message)
+        error.stack = stack
+        handleErrors([error])
+      }
       return
     }
     default: {
@@ -319,7 +340,10 @@ function afterApplyUpdates(fn: () => void) {
 }
 
 // Attempt to update code on the fly, fall back to a hard reload.
-function tryApplyUpdates(onBeforeHotUpdate: any, onHotUpdateSuccess: any) {
+function tryApplyUpdates(
+  onBeforeHotUpdate: ((updatedModules: string[]) => unknown) | undefined,
+  onHotUpdateSuccess: (updatedModules: string[]) => unknown
+) {
   // @ts-expect-error TODO: module.hot exists but type needs to be added. Can't use `as any` here as webpack parses for `module.hot` calls.
   if (!module.hot) {
     // HotModuleReplacementPlugin is not in Webpack configuration.
@@ -333,7 +357,7 @@ function tryApplyUpdates(onBeforeHotUpdate: any, onHotUpdateSuccess: any) {
     return
   }
 
-  function handleApplyUpdates(err: any, updatedModules: any) {
+  function handleApplyUpdates(err: any, updatedModules: string[] | null) {
     if (err || hadRuntimeError || !updatedModules) {
       if (err) {
         console.warn(
@@ -353,18 +377,17 @@ function tryApplyUpdates(onBeforeHotUpdate: any, onHotUpdateSuccess: any) {
       return
     }
 
-    const hasUpdates = Boolean(updatedModules.length)
     if (typeof onHotUpdateSuccess === 'function') {
       // Maybe we want to do something.
-      onHotUpdateSuccess(hasUpdates)
+      onHotUpdateSuccess(updatedModules)
     }
 
     if (isUpdateAvailable()) {
       // While we were updating, there was a new update! Do it again.
       // However, this time, don't trigger a pending refresh state.
       tryApplyUpdates(
-        hasUpdates ? undefined : onBeforeHotUpdate,
-        hasUpdates ? onBuildOk : onHotUpdateSuccess
+        updatedModules.length > 0 ? undefined : onBeforeHotUpdate,
+        updatedModules.length > 0 ? onBuildOk : onHotUpdateSuccess
       )
     } else {
       onBuildOk()
@@ -389,8 +412,7 @@ function tryApplyUpdates(onBeforeHotUpdate: any, onHotUpdateSuccess: any) {
       }
 
       if (typeof onBeforeHotUpdate === 'function') {
-        const hasUpdates = Boolean(updatedModules.length)
-        onBeforeHotUpdate(hasUpdates)
+        onBeforeHotUpdate(updatedModules)
       }
       // @ts-expect-error TODO: module.hot exists but type needs to be added. Can't use `as any` here as webpack parses for `module.hot` calls.
       return module.hot.apply()

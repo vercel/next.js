@@ -133,7 +133,8 @@ export function waitForLoaded(iframe: HTMLIFrameElement): Promise<void> {
   return new Promise((resolve) => {
     if (
       iframe.contentDocument != null &&
-      iframe.contentDocument.readyState === 'complete'
+      iframe.contentDocument.readyState === 'complete' &&
+      iframe.contentDocument.documentURI !== 'about:blank'
     ) {
       resolve()
     } else {
@@ -147,11 +148,12 @@ export function waitForLoaded(iframe: HTMLIFrameElement): Promise<void> {
 }
 
 export function waitForSelector(
-  node: ParentNode | HTMLIFrameElement | ShadowRoot,
+  node: HTMLIFrameElement | ShadowRoot,
   selector: string
 ): Promise<Element> {
   return new Promise((resolve, reject) => {
-    const document = 'contentDocument' in node ? node.contentDocument! : node
+    const document =
+      'contentDocument' in node ? node.contentDocument!.documentElement : node
     const timeout = 30000
     let element = document.querySelector(selector)
     if (element) {
@@ -168,14 +170,20 @@ export function waitForSelector(
     if (timeout) {
       setTimeout(() => {
         observer.disconnect()
-        reject(new Error(`Timed out waiting for selector "${selector}"`))
+        reject(
+          new Error(
+            `Timed out waiting for selector "${selector}" in "${document}"\n\nNode content: "${
+              'innerHTML' in document ? document.innerHTML : 'no innerHTML'
+            }"`
+          )
+        )
       }, timeout)
     }
   })
 }
 
 export async function waitForErrorOverlay(
-  node: ParentNode | HTMLIFrameElement
+  node: HTMLIFrameElement
 ): Promise<ShadowRoot> {
   let element = await waitForSelector(node, 'nextjs-portal')
   return element.shadowRoot!
