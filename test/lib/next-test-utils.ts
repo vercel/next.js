@@ -13,7 +13,7 @@ import path from 'path'
 import spawn from 'cross-spawn'
 import { writeFile } from 'fs-extra'
 import getPort from 'get-port'
-import 'next/src/server/node-polyfill-fetch'
+import { fetch, RequestInit, Response } from 'next/src/compiled/undici'
 import qs from 'querystring'
 import treeKill from 'tree-kill'
 
@@ -154,7 +154,7 @@ export function fetchViaHTTP(
   appPort: string | number,
   pathname: string,
   query?: Record<string, any> | string | null | undefined,
-  opts?: RequestInit & { agent?: any; compress?: boolean }
+  opts?: RequestInit
 ): Promise<Response> {
   const url = query ? withQuery(pathname, query) : pathname
   return fetch(getFullUrl(appPort, url), opts)
