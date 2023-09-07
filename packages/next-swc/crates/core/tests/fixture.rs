@@ -7,6 +7,7 @@ use next_swc::{
     next_dynamic::next_dynamic,
     next_ssg::next_ssg,
     optimize_barrel::optimize_barrel,
+    optimize_server_react::optimize_server_react,
     page_config::page_config_test,
     react_remove_properties::remove_properties,
     react_server_components::server_components,
@@ -325,6 +326,29 @@ fn react_server_components_server_graph_fixture(input: PathBuf) {
                 ),
                 tr.comments.as_ref().clone(),
                 None,
+                false,
+            )
+        },
+        &input,
+        &output,
+        Default::default(),
+    );
+}
+
+#[fixture("tests/fixture/react-server-components/server-graph-no-checks/**/input.js")]
+fn react_server_components_no_checks_server_graph_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|tr| {
+            server_components(
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                next_swc::react_server_components::Config::WithOptions(
+                    next_swc::react_server_components::Options { is_server: true },
+                ),
+                tr.comments.as_ref().clone(),
+                None,
+                true,
             )
         },
         &input,
@@ -346,6 +370,29 @@ fn react_server_components_client_graph_fixture(input: PathBuf) {
                 ),
                 tr.comments.as_ref().clone(),
                 None,
+                false,
+            )
+        },
+        &input,
+        &output,
+        Default::default(),
+    );
+}
+
+#[fixture("tests/fixture/react-server-components/client-graph-no-checks/**/input.js")]
+fn react_server_components_no_checks_client_graph_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|tr| {
+            server_components(
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                next_swc::react_server_components::Config::WithOptions(
+                    next_swc::react_server_components::Options { is_server: false },
+                ),
+                tr.comments.as_ref().clone(),
+                None,
+                true,
             )
         },
         &input,
@@ -482,7 +529,7 @@ fn named_import_transform_fixture(input: PathBuf) {
     );
 }
 
-#[fixture("tests/fixture/optimize-barrel/**/input.js")]
+#[fixture("tests/fixture/optimize-barrel/normal/**/input.js")]
 fn optimize_barrel_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
@@ -493,16 +540,61 @@ fn optimize_barrel_fixture(input: PathBuf) {
 
             chain!(
                 resolver(unresolved_mark, top_level_mark, false),
-                optimize_barrel(
-                    FileName::Real(PathBuf::from("/some-project/node_modules/foo/file.js")),
-                    json(
-                        r#"
+                optimize_barrel(json(
+                    r#"
                         {
-                            "names": ["x", "y", "z"]
+                            "wildcard": false
                         }
-                        "#
-                    )
-                )
+                    "#
+                ))
+            )
+        },
+        &input,
+        &output,
+        Default::default(),
+    );
+}
+
+#[fixture("tests/fixture/optimize-barrel/wildcard/**/input.js")]
+fn optimize_barrel_wildcard_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            let unresolved_mark = Mark::new();
+            let top_level_mark = Mark::new();
+
+            chain!(
+                resolver(unresolved_mark, top_level_mark, false),
+                optimize_barrel(json(
+                    r#"
+                        {
+                            "wildcard": true
+                        }
+                    "#
+                ))
+            )
+        },
+        &input,
+        &output,
+        Default::default(),
+    );
+}
+
+#[fixture("tests/fixture/optimize_server_react/**/input.js")]
+fn optimize_server_react_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            let unresolved_mark = Mark::new();
+            let top_level_mark = Mark::new();
+
+            chain!(
+                resolver(unresolved_mark, top_level_mark, false),
+                optimize_server_react(next_swc::optimize_server_react::Config {
+                    optimize_use_state: true
+                })
             )
         },
         &input,

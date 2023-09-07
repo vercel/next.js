@@ -268,6 +268,13 @@ jobs:
         run: ${{ matrix.settings.setup }}
         if: ${{ matrix.settings.setup }}
 
+      - name: Cache on ${{ github.ref_name }}
+        uses: ijjk/rust-cache@turbo-cache-v1.0.7
+        with:
+          save-if: 'true'
+          cache-provider: 'turbo'
+          shared-key: build-${{ matrix.settings.target }}-${{ hashFiles('.cargo/config.toml') }}
+
       # we only need custom caching for docker builds
       # as they are on an older Node.js version and have
       # issues with turbo caching

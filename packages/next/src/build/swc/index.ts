@@ -8,7 +8,6 @@ import { getParserOptions } from './options'
 import { eventSwcLoadFailure } from '../../telemetry/events/swc-load-failure'
 import { patchIncorrectLockfile } from '../../lib/patch-incorrect-lockfile'
 import { downloadWasmSwc, downloadNativeNextSwc } from '../../lib/download-swc'
-import { spawn } from 'child_process'
 import { NextConfigComplete, TurboLoaderItem } from '../../server/config-shared'
 import { isDeepStrictEqual } from 'util'
 
@@ -21,7 +20,9 @@ const infoLog = (...args: any[]) => {
   if (process.env.NEXT_PRIVATE_BUILD_WORKER) {
     return
   }
-  Log.info(...args)
+  if (process.env.DEBUG) {
+    Log.info(...args)
+  }
 }
 
 /**
@@ -91,23 +92,8 @@ const triples = (() => {
 // naive interface - `loadBindings` will not validate neither path nor the binary.
 //
 // Note these are internal flag: there's no stability, feature guarantee.
-const __INTERNAL_CUSTOM_TURBOPACK_BINARY =
-  process.env.__INTERNAL_CUSTOM_TURBOPACK_BINARY
 const __INTERNAL_CUSTOM_TURBOPACK_BINDINGS =
   process.env.__INTERNAL_CUSTOM_TURBOPACK_BINDINGS
-export const __isCustomTurbopackBinary = async (): Promise<boolean> => {
-  if (
-    !!__INTERNAL_CUSTOM_TURBOPACK_BINARY &&
-    !!__INTERNAL_CUSTOM_TURBOPACK_BINDINGS
-  ) {
-    throw new Error('Cannot use TURBOPACK_BINARY and TURBOPACK_BINDINGS both')
-  }
-
-  return (
-    !!__INTERNAL_CUSTOM_TURBOPACK_BINARY ||
-    !!__INTERNAL_CUSTOM_TURBOPACK_BINDINGS
-  )
-}
 
 function checkVersionMismatch(pkgData: any) {
   const version = pkgData.version
@@ -156,7 +142,6 @@ export const lockfilePatchPromise: { cur?: Promise<void> } = {}
 export interface Binding {
   isWasm: boolean
   turbo: {
-    startDev: any
     startTrace: any
     nextBuild?: any
     createTurboTasks?: any
@@ -206,7 +191,6 @@ export async function loadBindings(): Promise<Binding> {
     }
   }
 
-  const isCustomTurbopack = await __isCustomTurbopackBinary()
   pendingBindings = new Promise(async (resolve, _reject) => {
     if (!lockfilePatchPromise.cur) {
       // always run lockfile check once so that it gets patched
@@ -227,10 +211,7 @@ export async function loadBindings(): Promise<Binding> {
 
     if (shouldLoadWasmFallbackFirst) {
       lastNativeBindingsLoadErrorCode = 'unsupported_target'
-      const fallbackBindings = await tryLoadWasmWithFallback(
-        attempts,
-        isCustomTurbopack
-      )
+      const fallbackBindings = await tryLoadWasmWithFallback(attempts)
       if (fallbackBindings) {
         return resolve(fallbackBindings)
       }
@@ -245,16 +226,13 @@ export async function loadBindings(): Promise<Binding> {
     // with other reasons than `ERR_MODULE_NOT_FOUND`.
     // - Lastly, falls back to wasm binding where possible.
     try {
-      return resolve(loadNative(isCustomTurbopack))
+      return resolve(loadNative())
     } catch (a) {
       if (
         Array.isArray(a) &&
         a.every((m) => m.includes('it was not installed'))
       ) {
-        let fallbackBindings = await tryLoadNativeWithFallback(
-          attempts,
-          isCustomTurbopack
-        )
+        let fallbackBindings = await tryLoadNativeWithFallback(attempts)
 
         if (fallbackBindings) {
           return resolve(fallbackBindings)
@@ -266,10 +244,7 @@ export async function loadBindings(): Promise<Binding> {
 
     // For these platforms we already tried to load wasm and failed, skip reattempt
     if (!shouldLoadWasmFallbackFirst && !disableWasmFallback) {
-      const fallbackBindings = await tryLoadWasmWithFallback(
-        attempts,
-        isCustomTurbopack
-      )
+      const fallbackBindings = await tryLoadWasmWithFallback(attempts)
       if (fallbackBindings) {
         return resolve(fallbackBindings)
       }
@@ -280,10 +255,7 @@ export async function loadBindings(): Promise<Binding> {
   return pendingBindings
 }
 
-async function tryLoadNativeWithFallback(
-  attempts: Array<string>,
-  isCustomTurbopack: boolean
-) {
+async function tryLoadNativeWithFallback(attempts: Array<string>) {
   const nativeBindingsDirectory = path.join(
     path.dirname(require.resolve('next/package.json')),
     'next-swc-fallback'
@@ -299,7 +271,7 @@ async function tryLoadNativeWithFallback(
   await downloadNativeBindingsPromise
 
   try {
-    let bindings = loadNative(isCustomTurbopack, nativeBindingsDirectory)
+    let bindings = loadNative(nativeBindingsDirectory)
     return bindings
   } catch (a: any) {
     attempts.concat(a)
@@ -307,12 +279,9 @@ async function tryLoadNativeWithFallback(
   return undefined
 }
 
-async function tryLoadWasmWithFallback(
-  attempts: any,
-  isCustomTurbopack: boolean
-) {
+async function tryLoadWasmWithFallback(attempts: any) {
   try {
-    let bindings = await loadWasm('', isCustomTurbopack)
+    let bindings = await loadWasm('')
     // @ts-expect-error TODO: this event has a wrong type.
     eventSwcLoadFailure({
       wasm: 'enabled',
@@ -336,10 +305,7 @@ async function tryLoadWasmWithFallback(
       downloadWasmPromise = downloadWasmSwc(nextVersion, wasmDirectory)
     }
     await downloadWasmPromise
-    let bindings = await loadWasm(
-      pathToFileURL(wasmDirectory).href,
-      isCustomTurbopack
-    )
+    let bindings = await loadWasm(pathToFileURL(wasmDirectory).href)
     // @ts-expect-error TODO: this event has a wrong type.
     eventSwcLoadFailure({
       wasm: 'fallback',
@@ -475,10 +441,8 @@ export type TurbopackResult<T = {}> = T & {
   diagnostics: Diagnostics[]
 }
 
-interface Middleware {
+export interface Middleware {
   endpoint: Endpoint
-  runtime: 'nodejs' | 'edge'
-  matcher?: string[]
 }
 
 export interface Entrypoints {
@@ -502,13 +466,13 @@ export interface UpdateInfo {
   tasks: number
 }
 
-enum ServerClientChangeType {
+export enum ServerClientChangeType {
   Server = 'Server',
   Client = 'Client',
   Both = 'Both',
 }
 export interface ServerClientChange {
-  change: ServerClientChangeType
+  type: ServerClientChangeType
 }
 
 export interface Project {
@@ -552,7 +516,7 @@ export interface Endpoint {
    * After changed() has been awaited it will listen to changes.
    * The async iterator will yield for each change.
    */
-  changed(): Promise<AsyncIterableIterator<TurbopackResult>>
+  changed(): Promise<AsyncIterableIterator<TurbopackResult<ServerClientChange>>>
 }
 
 interface EndpointConfig {
@@ -594,6 +558,8 @@ function bindingToApi(binding: any, _wasm: boolean) {
   type NativeFunction<T> = (
     callback: (err: Error, value: T) => void
   ) => Promise<{ __napiType: 'RootTask' }>
+
+  const cancel = new (class Cancel extends Error {})()
 
   /**
    * Utility function to ensure all variants of an enum are handled.
@@ -637,6 +603,7 @@ function bindingToApi(binding: any, _wasm: boolean) {
           reject: (error: Error) => void
         }
       | undefined
+    let canceled = false
 
     // The native function will call this every time it emits a new result. We
     // either need to notify a waiting consumer, or buffer the new result until
@@ -654,10 +621,10 @@ function bindingToApi(binding: any, _wasm: boolean) {
       }
     }
 
-    return (async function* () {
+    const iterator = (async function* () {
       const task = await withErrorCause(() => nativeFunction(emitResult))
       try {
-        while (true) {
+        while (!canceled) {
           if (buffer.length > 0) {
             const item = buffer.shift()!
             if (item.err) throw item.err
@@ -669,10 +636,19 @@ function bindingToApi(binding: any, _wasm: boolean) {
             })
           }
         }
+      } catch (e) {
+        if (e === cancel) return
+        throw e
       } finally {
         binding.rootTaskDispose(task)
       }
     })()
+    iterator.return = async () => {
+      canceled = true
+      if (waiting) waiting.reject(cancel)
+      return { value: undefined, done: true } as IteratorReturnResult<never>
+    }
+    return iterator
   }
 
   /**
@@ -910,6 +886,10 @@ function bindingToApi(binding: any, _wasm: boolean) {
           )
       )
 
+      // The subscriptions will always emit once, which is the initial
+      // computation. This is not a change, so swallow it.
+      await Promise.all([serverSubscription.next(), clientSubscription.next()])
+
       return (async function* () {
         try {
           while (true) {
@@ -929,17 +909,17 @@ function bindingToApi(binding: any, _wasm: boolean) {
                 diagnostics: server.value.diagnostics.concat(
                   client.value.diagnostics
                 ),
-                change: ServerClientChangeType.Both,
+                type: ServerClientChangeType.Both,
               }
             } else if (server) {
               yield {
                 ...server.value,
-                change: ServerClientChangeType.Server,
+                type: ServerClientChangeType.Server,
               }
             } else {
               yield {
                 ...client!.value,
-                change: ServerClientChangeType.Client,
+                type: ServerClientChangeType.Client,
               }
             }
           }
@@ -1025,7 +1005,7 @@ function bindingToApi(binding: any, _wasm: boolean) {
   return createProject
 }
 
-async function loadWasm(importPath = '', isCustomTurbopack: boolean) {
+async function loadWasm(importPath = '') {
   if (wasmBindings) {
     return wasmBindings
   }
@@ -1043,7 +1023,7 @@ async function loadWasm(importPath = '', isCustomTurbopack: boolean) {
       if (pkg === '@next/swc-wasm-web') {
         bindings = await bindings.default()
       }
-      infoLog('Using wasm build of next-swc')
+      infoLog('next-swc build: wasm build @next/swc-wasm-web')
 
       // Note wasm binary does not support async intefaces yet, all async
       // interface coereces to sync interfaces.
@@ -1079,27 +1059,6 @@ async function loadWasm(importPath = '', isCustomTurbopack: boolean) {
           return undefined
         },
         turbo: {
-          startDev: (options: any) => {
-            if (!isCustomTurbopack) {
-              Log.error('Wasm binding does not support --turbo yet')
-              return
-            } else if (!!__INTERNAL_CUSTOM_TURBOPACK_BINDINGS) {
-              Log.warn(
-                'Trying to load custom turbopack bindings. Note this is internal testing purpose only, actual wasm fallback cannot load this bindings'
-              )
-              Log.warn(
-                `Loading custom turbopack bindings from ${__INTERNAL_CUSTOM_TURBOPACK_BINDINGS}`
-              )
-
-              const devOptions = {
-                ...options,
-                noOpen: options.noOpen ?? true,
-              }
-              require(__INTERNAL_CUSTOM_TURBOPACK_BINDINGS).startTurboDev(
-                toBuffer(devOptions)
-              )
-            }
-          },
           startTrace: () => {
             Log.error('Wasm binding does not support trace yet')
           },
@@ -1159,7 +1118,7 @@ async function loadWasm(importPath = '', isCustomTurbopack: boolean) {
   throw attempts
 }
 
-function loadNative(isCustomTurbopack = false, importPath?: string) {
+function loadNative(importPath?: string) {
   if (nativeBindings) {
     return nativeBindings
   }
@@ -1173,7 +1132,7 @@ function loadNative(isCustomTurbopack = false, importPath?: string) {
   for (const triple of triples) {
     try {
       bindings = require(`@next/swc/native/next-swc.${triple.platformArchABI}.node`)
-      infoLog('Using locally built binary of @next/swc')
+      infoLog('next-swc build: local built @next/swc')
       break
     } catch (e) {}
   }
@@ -1282,84 +1241,6 @@ function loadNative(isCustomTurbopack = false, importPath?: string) {
       teardownHeapProfiler: bindings.teardownHeapProfiler,
       teardownCrashReporter: bindings.teardownCrashReporter,
       turbo: {
-        startDev: (options: any) => {
-          initHeapProfiler()
-
-          const devOptions = {
-            ...options,
-            noOpen: options.noOpen ?? true,
-          }
-
-          if (!isCustomTurbopack) {
-            bindings.startTurboDev(toBuffer(devOptions))
-          } else if (!!__INTERNAL_CUSTOM_TURBOPACK_BINARY) {
-            console.warn(
-              `Loading custom turbopack binary from ${__INTERNAL_CUSTOM_TURBOPACK_BINARY}`
-            )
-
-            return new Promise((resolve, reject) => {
-              const args: any[] = []
-
-              Object.entries(devOptions).forEach(([key, value]) => {
-                let cli_key = `--${key.replace(
-                  /[A-Z]/g,
-                  (m) => '-' + m.toLowerCase()
-                )}`
-                if (key === 'dir') {
-                  args.push(value)
-                } else if (typeof value === 'boolean' && value === true) {
-                  args.push(cli_key)
-                } else if (typeof value !== 'boolean' && !!value) {
-                  args.push(cli_key, value)
-                }
-              })
-
-              console.warn(`Running turbopack with args: [${args.join(' ')}]`)
-
-              let child = spawn(__INTERNAL_CUSTOM_TURBOPACK_BINARY, args, {
-                stdio: 'pipe',
-              })
-              child.on('message', (message: any) => {
-                require('console').log(message)
-              })
-              child.stdout.on('data', (data: any) => {
-                require('console').log(data.toString())
-              })
-              child.stderr.on('data', (data: any) => {
-                require('console').log(data.toString())
-              })
-
-              child.on('close', (code: any) => {
-                if (code !== 0) {
-                  reject({
-                    command: `${__INTERNAL_CUSTOM_TURBOPACK_BINARY} ${args.join(
-                      ' '
-                    )}`,
-                  })
-                  return
-                }
-                resolve(0)
-              })
-
-              process.on('beforeExit', () => {
-                if (child) {
-                  console.log('Killing turbopack process')
-                  child.kill()
-                  child = null as any
-                }
-              })
-            })
-          } else if (!!__INTERNAL_CUSTOM_TURBOPACK_BINDINGS) {
-            console.warn(
-              `Loading custom turbopack bindings from ${__INTERNAL_CUSTOM_TURBOPACK_BINDINGS}`
-            )
-            console.warn(`Running turbopack with args: `, devOptions)
-
-            require(__INTERNAL_CUSTOM_TURBOPACK_BINDINGS).startTurboDev(
-              toBuffer(devOptions)
-            )
-          }
-        },
         nextBuild: (options: unknown) => {
           initHeapProfiler()
           const ret = (customBindings ?? bindings).nextBuild(options)
