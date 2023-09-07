@@ -16,7 +16,7 @@
     "target": "esnext",
     // modules
     "baseUrl": ".",
-    "module": "Node16",
+    "module": "node16",
     "moduleResolution": "node16",
     "paths": {
       "@vercel/turbopack-next/*": ["src/*"],
