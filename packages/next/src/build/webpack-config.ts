@@ -1267,7 +1267,16 @@ export default async function getBaseWebpackConfig(
     }
   }
 
-  for (const packageName of ['react', 'react-dom']) {
+  for (const packageName of [
+    'react',
+    'react-dom',
+    ...(hasAppDir
+      ? [
+          `next/dist/compiled/react${bundledReactChannel}`,
+          `next/dist/compiled/react-dom${bundledReactChannel}`,
+        ]
+      : []),
+  ]) {
     addPackagePath(packageName, dir)
   }
 
