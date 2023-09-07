@@ -46,7 +46,9 @@ declare module 'next/dist/compiled/@mswjs/interceptors/ClientRequest' {
   export * from '@mswjs/interceptors/ClientRequest'
 }
 
-declare module 'next/dist/compiled/undici' {}
+declare module 'next/dist/compiled/undici' {
+  export * from 'undici'
+}
 
 declare module 'next/dist/compiled/jest-worker' {
   export * from 'jest-worker'

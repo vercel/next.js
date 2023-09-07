@@ -140,9 +140,6 @@ importers:
       '@types/node':
         specifier: 20.2.5
         version: 20.2.5
-      '@types/node-fetch':
-        specifier: 2.6.1
-        version: 2.6.1
       '@types/react':
         specifier: 18.2.7
         version: 18.2.7
@@ -362,9 +359,6 @@ importers:
       next:
         specifier: workspace:*
         version: link:packages/next
-      node-fetch:
-        specifier: 2.6.7
-        version: 2.6.7
       npm-run-all:
         specifier: 4.1.5
         version: 4.1.5

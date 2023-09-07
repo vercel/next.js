@@ -1,8 +1,8 @@
 import nextFontGoogleFontLoader from './loader'
 // @ts-ignore
-import fetch from 'next/dist/compiled/node-fetch'
+import { fetch } from 'next/dist/compiled/undici'
 
-jest.mock('next/dist/compiled/node-fetch')
+jest.mock('next/dist/compiled/undici')
 
 describe('next/font/google loader', () => {
   afterEach(() => {

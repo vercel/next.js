@@ -1,5 +1,5 @@
 // @ts-ignore
-import fetch from 'next/dist/compiled/node-fetch'
+import { fetch } from 'next/dist/compiled/undici'
 import { getProxyAgent } from './get-proxy-agent'
 
 /**
