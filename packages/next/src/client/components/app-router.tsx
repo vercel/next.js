@@ -384,8 +384,6 @@ function Router({
     function handlePageShow(event: PageTransitionEvent) {
       if (!event.persisted || !window.history.state?.tree) return
 
-      globalMutable.isInfinitelySuspending = false
-
       dispatch({
         type: ACTION_RESTORE,
         url: new URL(window.location.href),
@@ -410,17 +408,20 @@ function Router({
   // probably safe because we know this is a singleton component and it's never
   // in <Offscreen>. At least I hope so. (It will run twice in dev strict mode,
   // but that's... fine?)
-  if (pushRef.mpaNavigation && !globalMutable.isInfinitelySuspending) {
-    const location = window.location
-    if (pushRef.pendingPush) {
-      location.assign(canonicalUrl)
-    } else {
-      location.replace(canonicalUrl)
+  if (pushRef.mpaNavigation) {
+    if (globalMutable.pendingMpaPath !== canonicalUrl) {
+      const location = window.location
+      if (pushRef.pendingPush) {
+        location.assign(canonicalUrl)
+      } else {
+        location.replace(canonicalUrl)
+      }
+
+      globalMutable.pendingMpaPath = canonicalUrl
     }
     // TODO-APP: Should we listen to navigateerror here to catch failed
     // navigations somehow? And should we call window.stop() if a SPA navigation
     // should interrupt an MPA one?
-    globalMutable.isInfinitelySuspending = true
     use(createInfinitePromise())
   }
 

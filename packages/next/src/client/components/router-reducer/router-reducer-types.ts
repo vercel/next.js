@@ -40,8 +40,8 @@ export interface Mutable {
   shouldScroll?: boolean
   globalMutable: {
     pendingNavigatePath?: string
+    pendingMpaPath?: string
     refresh: () => void
-    isInfinitelySuspending?: boolean
   }
 }
 

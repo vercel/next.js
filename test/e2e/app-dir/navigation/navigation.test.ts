@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { check, waitFor } from 'next-test-utils'
 import type { Request } from 'playwright-chromium'
 
 createNextDescribe(
@@ -467,36 +467,58 @@ createNextDescribe(
       })
     })
 
-    describe('navigation between pages and app', () => {
-      it('should not contain _rsc query while navigating from app to pages', async () => {
-        // Initiate with app
-        const browser = await next.browser('/assertion/page')
-        await browser
-          .elementByCss('#link-to-pages')
-          .click()
-          .waitForElementByCss('#link-to-app')
-        expect(await browser.url()).toBe(next.url + '/some')
-        await browser
-          .elementByCss('#link-to-app')
-          .click()
-          .waitForElementByCss('#link-to-pages')
-        expect(await browser.url()).toBe(next.url + '/assertion/page')
+    it('should not contain _rsc query while navigating from app to pages', async () => {
+      // Initiate with app
+      const browser = await next.browser('/assertion/page')
+      await browser
+        .elementByCss('#link-to-pages')
+        .click()
+        .waitForElementByCss('#link-to-app')
+      expect(await browser.url()).toBe(next.url + '/some')
+      await browser
+        .elementByCss('#link-to-app')
+        .click()
+        .waitForElementByCss('#link-to-pages')
+      expect(await browser.url()).toBe(next.url + '/assertion/page')
+    })
+
+    it('should not contain _rsc query while navigating from pages to app', async () => {
+      // Initiate with pages
+      const browser = await next.browser('/some')
+      await browser
+        .elementByCss('#link-to-app')
+        .click()
+        .waitForElementByCss('#link-to-pages')
+      expect(await browser.url()).toBe(next.url + '/assertion/page')
+      await browser
+        .elementByCss('#link-to-pages')
+        .click()
+        .waitForElementByCss('#link-to-app')
+      expect(await browser.url()).toBe(next.url + '/some')
+    })
+
+    // this test is pretty hard to test in playwright, so most of the heavy lifting is in the page component itself
+    // it triggers a hover on a link to initiate a prefetch request every second, and so we check that
+    // it doesn't repeatedly initiate the mpa navigation request
+    it('should not continously initiate a mpa navigation to the same URL when router state changes', async () => {
+      let requestCount = 0
+      const browser = await next.browser('/mpa-nav-test', {
+        beforePageLoad(page) {
+          page.on('request', (request) => {
+            const url = new URL(request.url())
+            if (url.pathname === '/slow-page') {
+              requestCount++
+            }
+          })
+        },
       })
 
-      it('should not contain _rsc query while navigating from pages to app', async () => {
-        // Initiate with pages
-        const browser = await next.browser('/some')
-        await browser
-          .elementByCss('#link-to-app')
-          .click()
-          .waitForElementByCss('#link-to-pages')
-        expect(await browser.url()).toBe(next.url + '/assertion/page')
-        await browser
-          .elementByCss('#link-to-pages')
-          .click()
-          .waitForElementByCss('#link-to-app')
-        expect(await browser.url()).toBe(next.url + '/some')
-      })
+      await browser.waitForElementByCss('#link-to-slow-page')
+
+      // wait a few seconds since prefetches are triggered in 1s intervals in the page component
+      await waitFor(5000)
+
+      expect(requestCount).toBe(2)
     })
 
     describe('nested navigation', () => {
