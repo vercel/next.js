@@ -68,7 +68,7 @@ export async function fsToJson(dir, output = {}) {
 }
 
 export async function expectWidth(res, w, { expectAnimated = false } = {}) {
-  const buffer = await res.buffer()
+  const buffer = Buffer.from(await res.arrayBuffer())
   const d = sizeOf(buffer)
   expect(d.width).toBe(w)
   const lengthStr = res.headers.get('Content-Length')
@@ -107,9 +107,9 @@ async function expectAvifSmallerThanWebp(w, q, appPort) {
   expect(res3.status).toBe(200)
   expect(res3.headers.get('Content-Type')).toBe('image/jpeg')
 
-  const avif = (await res1.buffer()).byteLength
-  const webp = (await res2.buffer()).byteLength
-  const jpeg = (await res3.buffer()).byteLength
+  const avif = Buffer.from(await res1.arrayBuffer()).byteLength
+  const webp = Buffer.from(await res2.arrayBuffer()).byteLength
+  const jpeg = Buffer.from(await res3.arrayBuffer()).byteLength
 
   expect(webp).toBeLessThan(jpeg)
   expect(avif).toBeLessThanOrEqual(webp)
@@ -124,7 +124,7 @@ async function fetchWithDuration(
   console.warn('Fetching', pathname, query)
   const start = Date.now()
   const res = await fetchViaHTTP(appPort, pathname, query, opts)
-  const buffer = await res.buffer()
+  const buffer = Buffer.from(await res.arrayBuffer())
   const duration = Date.now() - start
   return { duration, buffer, res }
 }
@@ -1059,7 +1059,7 @@ export function runTests(ctx) {
     )
     expect(res2.headers.get('Vary')).toBe('Accept')
     expect(res2.headers.get('Content-Disposition')).toBeFalsy()
-    expect((await res2.buffer()).length).toBe(0)
+    expect(Buffer.from(await res2.arrayBuffer()).length).toBe(0)
 
     const query3 = { url: '/test.jpg', w: ctx.w, q: 25 }
     const res3 = await fetchViaHTTP(ctx.appPort, '/_next/image', query3, opts2)
@@ -1143,7 +1143,7 @@ export function runTests(ctx) {
         `${contentDispositionType}; filename="grayscale.png"`
       )
 
-      const png = await res.buffer()
+      const png = Buffer.from(await res.arrayBuffer())
 
       // Read the color type byte (offset 9 + magic number 16).
       // http://www.libpng.org/pub/png/spec/1.2/PNG-Chunks.html
