@@ -116,6 +116,13 @@ export interface ExperimentalTurboOptions {
    *
    * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
    */
+  loaders?: Record<string, TurboLoaderItem[]>
+
+  /**
+   * (`next --turbo` only) A list of webpack loaders to apply when running with Turbopack.
+   *
+   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
+   */
   rules?: Record<string, TurboRule>
 }
 

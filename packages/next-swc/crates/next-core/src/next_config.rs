@@ -376,7 +376,7 @@ pub enum RemotePatternProtocal {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct ExperimentalTurboConfig {
-    /// This option has been replace by `rules`.
+    /// This option has been replaced by `rules`.
     pub loaders: Option<JsonValue>,
     pub rules: Option<IndexMap<String, RuleConfigItem>>,
     pub resolve_alias: Option<IndexMap<String, JsonValue>>,

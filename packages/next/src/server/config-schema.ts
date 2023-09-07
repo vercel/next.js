@@ -450,6 +450,9 @@ const configSchema = {
           type: 'object',
           additionalProperties: false,
           properties: {
+            loaders: {
+              type: 'object',
+            },
             rules: {
               type: 'object',
             },

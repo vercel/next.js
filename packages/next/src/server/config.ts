@@ -12,6 +12,7 @@ import {
   NextConfigComplete,
   validateConfig,
   NextConfig,
+  TurboLoaderItem,
 } from './config-shared'
 import { loadWebpackHook } from './config-utils'
 import { ImageConfig, imageConfigDefault } from '../shared/lib/image-config'
@@ -847,6 +848,27 @@ export default async function loadConfig(
         (canonicalBase.endsWith('/')
           ? canonicalBase.slice(0, -1)
           : canonicalBase) || ''
+    }
+
+    if (
+      userConfig.experimental?.turbo?.loaders &&
+      !userConfig.experimental?.turbo?.rules
+    ) {
+      curLog.warn(
+        'experimental.turbo.loaders is now deprecated. Please update next.config.js to use experimental.turbo.rules as soon as possible.\n' +
+          'The new option is similar, but the key should be a glob instead of an extension.\n' +
+          'Example: loaders: { ".mdx": ["mdx-loader"] } -> rules: { "*.mdx": ["mdx-loader"] }" }\n' +
+          'See more info here https://nextjs.org/docs/app/api-reference/next-config-js/turbo'
+      )
+
+      const rules: Record<string, TurboLoaderItem[]> = {}
+      for (const [ext, loaders] of Object.entries(
+        userConfig.experimental.turbo.loaders
+      )) {
+        rules['*' + ext] = loaders as TurboLoaderItem[]
+      }
+
+      userConfig.experimental.turbo.rules = rules
     }
 
     onLoadUserConfig?.(userConfig)
