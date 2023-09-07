@@ -433,8 +433,6 @@ export default class NextNodeServer extends BaseServer {
       {
         previewProps: this.renderOpts.previewProps,
         revalidate: this.revalidate.bind(this),
-        ipcPort: this.ipcPort,
-        ipcKey: this.ipcKey,
         trustHostHeader: this.nextConfig.experimental.trustHostHeader,
         allowedRevalidateHeaderKeys:
           this.nextConfig.experimental.allowedRevalidateHeaderKeys,

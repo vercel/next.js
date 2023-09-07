@@ -1,4 +1,6 @@
 import type { IncomingMessage } from 'http'
+import type { NextJsHotReloaderInterface } from '../dev/hot-reloader-types'
+import type { createWorker } from './server-ipc'
 
 // this must come first as it includes require hooks
 import type {
@@ -18,7 +20,6 @@ import { setupFsCheck } from './router-utils/filesystem'
 import { proxyRequest } from './router-utils/proxy-request'
 import { isAbortError, pipeReadable } from '../pipe-readable'
 import { createRequestResponseMocks } from './mock-request'
-import { createIpcServer, createWorker } from './server-ipc'
 import { UnwrapPromise } from '../../lib/coalesced-function'
 import { getResolveRoutes } from './router-utils/resolve-routes'
 import { NextUrlWithParsedQuery, getRequestMeta } from '../request-meta'
@@ -49,6 +50,13 @@ export interface RenderWorkers {
   app?: Awaited<ReturnType<typeof createWorker>>
   pages?: Awaited<ReturnType<typeof createWorker>>
 }
+
+const devInstances: Record<
+  string,
+  UnwrapPromise<ReturnType<typeof import('./router-utils/setup-dev').setupDev>>
+> = {}
+
+const requestHandlers: Record<string, WorkerRequestHandler> = {}
 
 export async function initialize(opts: {
   dir: string
@@ -117,68 +125,79 @@ export async function initialize(opts: {
       isCustomServer: opts.customServer,
       turbo: !!process.env.TURBOPACK,
     })
-  }
-
-  const { ipcPort, ipcValidationKey } = await createIpcServer({
-    async ensurePage(
-      match: Parameters<
-        InstanceType<
-          typeof import('../dev/hot-reloader-webpack').default
-        >['ensurePage']
-      >[0]
-    ) {
-      // TODO: remove after ensure is pulled out of server
-      return await devInstance?.hotReloader.ensurePage(match)
-    },
-    async logErrorWithOriginalStack(...args: any[]) {
-      // @ts-ignore
-      return await devInstance?.logErrorWithOriginalStack(...args)
-    },
-    async getFallbackErrorComponents() {
-      await devInstance?.hotReloader?.buildFallbackError()
-      // Build the error page to ensure the fallback is built too.
-      // TODO: See if this can be moved into hotReloader or removed.
-      await devInstance?.hotReloader.ensurePage({
-        page: '/_error',
-        clientOnly: false,
-      })
-    },
-    async getCompilationError(page: string) {
-      const errors = await devInstance?.hotReloader?.getCompilationErrors(page)
-      if (!errors) return
-
-      // Return the very first error we found.
-      return errors[0]
-    },
-    async revalidate({
-      urlPath,
-      revalidateHeaders,
-      opts: revalidateOpts,
-    }: {
-      urlPath: string
-      revalidateHeaders: IncomingMessage['headers']
-      opts: any
-    }) {
-      const mocked = createRequestResponseMocks({
-        url: urlPath,
-        headers: revalidateHeaders,
-      })
-
-      // eslint-disable-next-line @typescript-eslint/no-use-before-define
-      await requestHandler(mocked.req, mocked.res)
-      await mocked.res.hasStreamed
-
-      if (
-        mocked.res.getHeader('x-nextjs-cache') !== 'REVALIDATED' &&
-        !(
-          mocked.res.statusCode === 404 && revalidateOpts.unstable_onlyGenerated
-        )
+    devInstances[opts.dir] = devInstance
+    ;(global as any)._nextDevHandlers = {
+      async ensurePage(
+        dir: string,
+        match: Parameters<
+          InstanceType<
+            typeof import('../dev/hot-reloader-webpack').default
+          >['ensurePage']
+        >[0]
       ) {
-        throw new Error(`Invalid response ${mocked.res.statusCode}`)
-      }
-      return {}
-    },
-  } as any)
+        const curDevInstance = devInstances[dir]
+        // TODO: remove after ensure is pulled out of server
+        return await curDevInstance?.hotReloader.ensurePage(match)
+      },
+      async logErrorWithOriginalStack(dir: string, ...args: any[]) {
+        const curDevInstance = devInstances[dir]
+        // @ts-ignore
+        return await curDevInstance?.logErrorWithOriginalStack(...args)
+      },
+      async getFallbackErrorComponents(dir: string) {
+        const curDevInstance = devInstances[dir]
+        await curDevInstance.hotReloader.buildFallbackError()
+        // Build the error page to ensure the fallback is built too.
+        // TODO: See if this can be moved into hotReloader or removed.
+        await curDevInstance.hotReloader.ensurePage({
+          page: '/_error',
+          clientOnly: false,
+        })
+      },
+      async getCompilationError(dir: string, page: string) {
+        const curDevInstance = devInstances[dir]
+        const errors = await curDevInstance?.hotReloader?.getCompilationErrors(
+          page
+        )
+        if (!errors) return
+
+        // Return the very first error we found.
+        return errors[0]
+      },
+      async revalidate(
+        dir: string,
+        {
+          urlPath,
+          revalidateHeaders,
+          opts: revalidateOpts,
+        }: {
+          urlPath: string
+          revalidateHeaders: IncomingMessage['headers']
+          opts: any
+        }
+      ) {
+        const mocked = createRequestResponseMocks({
+          url: urlPath,
+          headers: revalidateHeaders,
+        })
+        const curRequestHandler = requestHandlers[dir]
+        // eslint-disable-next-line @typescript-eslint/no-use-before-define
+        await curRequestHandler(mocked.req, mocked.res)
+        await mocked.res.hasStreamed
+
+        if (
+          mocked.res.getHeader('x-nextjs-cache') !== 'REVALIDATED' &&
+          !(
+            mocked.res.statusCode === 404 &&
+            revalidateOpts.unstable_onlyGenerated
+          )
+        ) {
+          throw new Error(`Invalid response ${mocked.res.statusCode}`)
+        }
+        return {}
+      },
+    } as any
+  }
 
   renderWorkers.app =
     require('./render-server') as typeof import('./render-server')
@@ -193,8 +212,6 @@ export async function initialize(opts: {
     minimalMode: opts.minimalMode,
     dev: !!opts.dev,
     server: opts.server,
-    _ipcPort: ipcPort + '',
-    _ipcKey: ipcValidationKey,
     isNodeDebugging: !!opts.isNodeDebugging,
     serverFields: devInstance?.serverFields || {},
     experimentalTestProxy: !!opts.experimentalTestProxy,

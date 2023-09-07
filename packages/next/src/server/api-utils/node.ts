@@ -199,8 +199,6 @@ type RevalidateFn = (config: {
 
 type ApiContext = __ApiPreviewProps & {
   trustHostHeader?: boolean
-  ipcPort?: string
-  ipcKey?: string
   allowedRevalidateHeaderKeys?: string[]
   hostname?: string
   revalidate?: RevalidateFn
@@ -462,29 +460,6 @@ async function revalidate(
         throw new Error(`Invalid response ${res.status}`)
       }
     } else if (context.revalidate) {
-      const { ipcPort, ipcKey } = context
-      // We prefer to use the IPC call if running under the workers mode.
-      if (ipcPort) {
-        const res = await invokeRequest(
-          `http://${
-            context.hostname || 'localhost'
-          }:${ipcPort}?key=${ipcKey}&method=revalidate&args=${encodeURIComponent(
-            JSON.stringify([{ urlPath, revalidateHeaders, opts }])
-          )}`,
-          {
-            method: 'GET',
-            headers: {},
-          }
-        )
-        const result = await res.json()
-
-        if (result.err) {
-          throw new Error(result.err.message)
-        }
-
-        return
-      }
-
       await context.revalidate({
         urlPath,
         revalidateHeaders,

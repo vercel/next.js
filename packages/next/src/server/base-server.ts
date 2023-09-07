@@ -194,8 +194,6 @@ export interface Options {
 
   _routerWorker?: boolean
   _renderWorker?: boolean
-  _ipcPort?: string
-  _ipcKey?: string
 
   isNodeDebugging?: 'brk' | boolean
 }
@@ -297,8 +295,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected readonly clientReferenceManifest?: ClientReferenceManifest
   protected nextFontManifest?: NextFontManifest
   private readonly responseCache: ResponseCacheBase
-  protected readonly ipcPort?: string
-  protected readonly ipcKey?: string
 
   protected abstract getPublicDir(): string
   protected abstract getHasStaticDir(): boolean
@@ -387,12 +383,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       customServer = true,
       hostname,
       port,
-      _ipcPort,
-      _ipcKey,
     } = options
 
-    this.ipcPort = _ipcPort
-    this.ipcKey = _ipcKey
     this.serverOptions = options
     this.isRenderWorker = options._renderWorker
 

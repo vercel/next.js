@@ -65,10 +65,7 @@ import { IncrementalCache } from '../lib/incremental-cache'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import { errorToJSON } from '../render'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
-import {
-  deserializeErr,
-  invokeIpcMethod,
-} from '../lib/server-ipc/request-utils'
+import { deserializeErr } from '../lib/server-ipc/request-utils'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -101,6 +98,10 @@ export default class DevServer extends Server {
     string,
     UnwrapPromise<ReturnType<DevServer['getStaticPaths']>>
   >
+
+  private invokeDevMethod({ method, args }: { method: string; args: any[] }) {
+    return (global as any)._nextDevHandlers[method](this.dir, ...args)
+  }
 
   protected staticPathsWorker?: { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -489,12 +490,9 @@ export default class DevServer extends Server {
     type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
   ): Promise<void> {
     if (this.isRenderWorker) {
-      await invokeIpcMethod({
-        fetchHostname: this.fetchHostname,
+      await this.invokeDevMethod({
         method: 'logErrorWithOriginalStack',
         args: [errorToJSON(err as Error), type],
-        ipcPort: this.ipcPort,
-        ipcKey: this.ipcKey,
       })
       return
     }
@@ -738,12 +736,9 @@ export default class DevServer extends Server {
       throw new Error('Invariant ensurePage called outside render worker')
     }
 
-    await invokeIpcMethod({
-      fetchHostname: this.fetchHostname,
+    await this.invokeDevMethod({
       method: 'ensurePage',
       args: [opts],
-      ipcPort: this.ipcPort,
-      ipcKey: this.ipcKey,
     })
   }
 
@@ -802,12 +797,9 @@ export default class DevServer extends Server {
 
   protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
     if (this.isRenderWorker) {
-      await invokeIpcMethod({
-        fetchHostname: this.fetchHostname,
+      await this.invokeDevMethod({
         method: 'getFallbackErrorComponents',
         args: [],
-        ipcPort: this.ipcPort,
-        ipcKey: this.ipcKey,
       })
       return await loadDefaultErrorComponents(this.distDir)
     }
@@ -818,14 +810,10 @@ export default class DevServer extends Server {
 
   async getCompilationError(page: string): Promise<any> {
     if (this.isRenderWorker) {
-      const err = await invokeIpcMethod({
-        fetchHostname: this.fetchHostname,
+      return await this.invokeDevMethod({
         method: 'getCompilationError',
         args: [page],
-        ipcPort: this.ipcPort,
-        ipcKey: this.ipcKey,
       })
-      return deserializeErr(err)
     }
     throw new Error(
       'Invariant getCompilationError called outside render worker'
