@@ -4,7 +4,7 @@ import {
   StaticGenerationAsyncStorage,
 } from '../../../client/components/static-generation-async-storage'
 import { CACHE_ONE_YEAR } from '../../../lib/constants'
-import { addImplicitTags } from '../../lib/patch-fetch'
+import { addImplicitTags, validateTags } from '../../lib/patch-fetch'
 
 type Callback = (...args: any[]) => Promise<any>
 
@@ -56,7 +56,10 @@ export function unstable_cache<T extends Callback>(
         isStaticGeneration: !!store?.isStaticGeneration,
       },
       async () => {
-        const tags = options.tags || []
+        const tags = validateTags(
+          options.tags || [],
+          `unstable_cache ${cb.toString()}`
+        )
 
         if (Array.isArray(tags) && store) {
           if (!store.tags) {

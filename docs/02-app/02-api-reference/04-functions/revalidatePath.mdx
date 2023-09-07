@@ -8,10 +8,6 @@ description: API Reference for the revalidatePath function.
 > **Good to know**:
 >
 > - `revalidatePath` is available in both [Node.js and Edge runtimes](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes).
-> - `revalidatePath` can invalidate by:
->   - URL `revalidatePath('/blog/post-1')` invalidates just this specific URL
->   - page path `revalidatePath('/blog/[slug]', 'page')` invalidates the page regardless of exact URL
->   - from a layout `revalidatePath('/blog/[slug]', 'layout')` invalidates any paths that include this layout
 > - `revalidatePath` only invalidates the cache when the included path is next visited. This means calling `revalidatePath` with a dynamic route segment will not immediately trigger many revalidations at once. The invalidation only happens when the path is next visited.
 
 ## Parameters
@@ -20,7 +16,7 @@ description: API Reference for the revalidatePath function.
 revalidatePath(path: string, type?: 'page' | 'layout'): void;
 ```
 
-- `path`: A string representing the filesystem path associated with the data you want to revalidate. This is the literal route segment (e.g. `/product/123`) not the path on the filesystem `/product/[slug]/page`.
+- `path`: A string representing the filesystem path associated with the data you want to revalidate. This is the literal route segment (for example, `/product/123`) not the path on the filesystem `/product/[slug]/page`. Must be less than 1024 characters.
 - `type`: An optional string of either 'page' or 'layout' to change behavior of what type of path is being revalidated.
 
 ## Returns
@@ -28,6 +24,33 @@ revalidatePath(path: string, type?: 'page' | 'layout'): void;
 `revalidatePath` does not return any value.
 
 ## Examples
+
+### Revalidating A Specific URL
+
+```ts
+import { revalidatePath } from 'next/cache'
+revalidatePath('/blog/post-1')
+```
+
+When revalidating with just a path it will only revalidate the specific URL on the next visit for example, `/blog/post-1` will revalidate but `/blog/post-2` would not.
+
+### Revalidating A Page Path
+
+```ts
+import { revalidatePath } from 'next/cache'
+revalidatePath('/blog/[slug]', 'page')
+```
+
+When revalidating with a page path and the "page" argument is provided any URL that matches that specific page will be revalidated on the next visit. This will not invalidate pages beneath the specific page for example, `/blog/[slug]` won't invalidate `/blog/[slug]/[author]`.
+
+### Revalidating A Layout Path
+
+```ts
+import { revalidatePath } from 'next/cache'
+revalidatePath('/blog/[slug]', 'layout')
+```
+
+When revalidating with a page path and the "layout" argument is provided any URL that includes that layout will be revalidated. This will cause pages beneath with the same layout to revalidate on the next visit for example, in the above case `/blog/[slug]/[another]` would also revalidate on the next visit.
 
 ### Server Action
 
