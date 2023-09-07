@@ -53,7 +53,7 @@ describe('Edge Compiler can import asset assets', () => {
     const response = await fetchViaHTTP(next.url, '/api/edge', {
       handler: 'image-file',
     })
-    const buffer: Buffer = await response.buffer()
+    const buffer = Buffer.from(await response.arrayBuffer())
     const image = await fs.readFile(
       path.join(__dirname, './app/src/vercel.png')
     )

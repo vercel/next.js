@@ -24,7 +24,9 @@ createNextDescribe(
     it('should render OpenGraph image meta tag correctly', async () => {
       const html$ = await next.render$('/')
       const ogUrl = new URL(html$('meta[property="og:image"]').attr('content'))
-      const imageBuffer = await (await next.fetch(ogUrl.pathname)).buffer()
+      const imageBuffer = Buffer.from(
+        await (await next.fetch(ogUrl.pathname)).arrayBuffer()
+      )
 
       const size = imageSize(imageBuffer)
       expect([size.width, size.height]).toEqual([1200, 630])
