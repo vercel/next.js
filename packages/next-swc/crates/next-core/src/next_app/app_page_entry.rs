@@ -19,7 +19,7 @@ use crate::{
     app_structure::LoaderTree,
     loader_tree::{LoaderTreeModule, ServerComponentTransition},
     mode::NextMode,
-    next_app::UnsupportedDynamicMetadataIssue,
+    next_app::{AppPage, AppPath, UnsupportedDynamicMetadataIssue},
     next_server_component::NextServerComponentTransition,
     parse_segment_config_from_loader_tree,
     util::{load_next_js_template, virtual_next_js_template_path, NextRuntime},
@@ -32,8 +32,7 @@ pub async fn get_app_page_entry(
     edge_context: Vc<ModuleAssetContext>,
     loader_tree: Vc<LoaderTree>,
     app_dir: Vc<FileSystemPath>,
-    pathname: String,
-    original_name: String,
+    page: AppPage,
     project_root: Vc<FileSystemPath>,
 ) -> Result<Vc<AppEntry>> {
     let config = parse_segment_config_from_loader_tree(loader_tree, Vc::upcast(nodejs_context));
@@ -79,6 +78,9 @@ pub async fn get_app_page_entry(
 
     let pages = pages.iter().map(|page| page.to_string()).try_join().await?;
 
+    let original_name = page.to_string();
+    let pathname = AppPath::from(page.clone()).to_string();
+
     let original_page_name = get_original_page_name(&original_name);
 
     let template_file = "build/templates/app-page.js";
@@ -90,7 +92,7 @@ pub async fn get_app_page_entry(
         .to_str()?
         .replace(
             "\"VAR_DEFINITION_PAGE\"",
-            &StringifyJs(&original_name).to_string(),
+            &StringifyJs(&page.to_string()).to_string(),
         )
         .replace(
             "\"VAR_DEFINITION_PATHNAME\"",

@@ -1593,6 +1593,9 @@ export default class NextNodeServer extends BaseServer {
       delete req.headers[key]
     }
 
+    // Strip the internal headers.
+    this.stripInternalHeaders(req)
+
     try {
       await this.ensureMiddleware()
 
