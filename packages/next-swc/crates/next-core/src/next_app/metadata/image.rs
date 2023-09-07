@@ -22,7 +22,7 @@ use turbopack_binding::{
     },
 };
 
-use crate::next_app::{metadata::file_stem, AppPage};
+use crate::next_app::AppPage;
 
 async fn hash_file_content(path: Vc<FileSystemPath>) -> Result<u64> {
     let original_file_content = path.read().await?;
@@ -45,9 +45,9 @@ pub async fn dynamic_image_metadata_source(
     ty: String,
     page: AppPage,
 ) -> Result<Vc<Box<dyn Source>>> {
-    let raw_path = &*path.await?;
-
-    let stem = file_stem(&raw_path.path);
+    let stem = path.file_stem().await?;
+    let stem = stem.as_deref().unwrap_or_default();
+    let ext = &*path.extension().await?;
 
     let hash_query = format!("?{:x}", hash_file_content(path).await?);
 
@@ -111,7 +111,7 @@ pub async fn dynamic_image_metadata_source(
             }}
         "#,
         exported_fields_excluding_default = exported_fields_excluding_default,
-        resource_path = StringifyJs(&format!("./{}", raw_path.file_name())),
+        resource_path = StringifyJs(&format!("./{}.{}", stem, ext)),
         pathname_prefix = StringifyJs(&page.to_string()),
         page_segment = StringifyJs(stem),
         sizes = sizes,

@@ -20,7 +20,6 @@ pub use crate::next_app::{
     },
     app_client_shared_chunks::get_app_client_shared_chunks,
     app_entry::AppEntry,
-    app_favicon_entry::get_app_route_favicon_entry,
     app_page_entry::get_app_page_entry,
     app_route_entry::get_app_route_entry,
 };

@@ -570,23 +570,6 @@ async fn insert_next_server_special_aliases(
         ),
     );
 
-    // TODO: use this alias
-    // let og_mapping = match runtime {
-    //     NextRuntime::Edge => {
-    //         request_to_import_mapping(project_path,
-    // "next/dist/compiled/@vercel/og/index.edge.js")     }
-    //     NextRuntime::NodeJs => {
-    //         request_to_import_mapping(project_path,
-    // "next/dist/compiled/@vercel/og/index.node.js")         //
-    // external_request_to_import_mapping("next/dist/compiled/@vercel/         //
-    // og/index.node.js")     }
-    // };
-    // import_map.insert_exact_alias("@vercel/og", og_mapping);
-    // import_map.insert_exact_alias(
-    //     "next/dist/server/web/spec-extension/image-response",
-    //     og_mapping,
-    // );
-
     Ok(())
 }
 

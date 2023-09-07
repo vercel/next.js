@@ -18,12 +18,7 @@ use turbopack_binding::{
 use crate::{
     app_structure::MetadataItem,
     mode::NextMode,
-    next_app::{
-        app_entry::AppEntry,
-        app_route_entry::get_app_route_entry,
-        metadata::{file_stem, split_extension},
-        AppPage, PageSegment,
-    },
+    next_app::{app_entry::AppEntry, app_route_entry::get_app_route_entry, AppPage, PageSegment},
 };
 
 /// Computes the route source for a Next.js metadata file.
@@ -36,8 +31,8 @@ pub async fn get_app_metadata_route_source(
     Ok(match metadata {
         MetadataItem::Static { path } => static_route_source(mode, path),
         MetadataItem::Dynamic { path } => {
-            let raw_path = &*path.await?;
-            let stem = file_stem(&raw_path.path);
+            let stem = path.file_stem().await?;
+            let stem = stem.as_deref().unwrap_or_default();
 
             if stem == "robots" || stem == "manifest" {
                 dynamic_text_route_source(path)
@@ -68,31 +63,36 @@ pub fn get_app_metadata_route_entry(
     )
 }
 
-fn get_content_type(raw_path: &FileSystemPath) -> String {
-    let (name, ext) = split_extension(&raw_path.path);
-    let mut ext = ext.unwrap_or_default();
+async fn get_content_type(path: Vc<FileSystemPath>) -> Result<String> {
+    let stem = &*path.file_stem().await?;
+    let ext = &*path.extension().await?;
+
+    let name = stem.as_deref().unwrap_or_default();
+    let mut ext = ext.as_str();
     if ext == "jpg" {
         ext = "jpeg"
     }
 
     if name == "favicon" && ext == "ico" {
-        return "image/x-icon".to_string();
+        return Ok("image/x-icon".to_string());
     }
     if name == "sitemap" {
-        return "application/xml".to_string();
+        return Ok("application/xml".to_string());
     }
     if name == "robots" {
-        return "text/plain".to_string();
+        return Ok("text/plain".to_string());
     }
     if name == "manifest" {
-        return "application/manifest+json".to_string();
+        return Ok("application/manifest+json".to_string());
     }
 
     if ext == "png" || ext == "jpeg" || ext == "ico" || ext == "svg" {
-        return mime_guess::from_ext(ext).first_or_text_plain().to_string();
+        return Ok(mime_guess::from_ext(ext)
+            .first_or_octet_stream()
+            .to_string());
     }
 
-    "text/plain".to_string()
+    Ok("text/plain".to_string())
 }
 
 const CACHE_HEADER_NONE: &str = "no-cache, no-store";
@@ -118,9 +118,10 @@ async fn static_route_source(
     mode: NextMode,
     path: Vc<FileSystemPath>,
 ) -> Result<Vc<Box<dyn Source>>> {
-    let raw_path = &*path.await?;
-    let content_type = get_content_type(raw_path);
-    let stem = file_stem(&raw_path.path);
+    let stem = path.file_stem().await?;
+    let stem = stem.as_deref().unwrap_or_default();
+
+    let content_type = get_content_type(path).await?;
 
     let cache_control = if stem == "favicon" {
         CACHE_HEADER_REVALIDATE
@@ -167,9 +168,11 @@ async fn static_route_source(
 
 #[turbo_tasks::function]
 async fn dynamic_text_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<dyn Source>>> {
-    let raw_path = &*path.await?;
-    let stem = file_stem(&raw_path.path);
-    let content_type = get_content_type(raw_path);
+    let stem = path.file_stem().await?;
+    let stem = stem.as_deref().unwrap_or_default();
+    let ext = &*path.extension().await?;
+
+    let content_type = get_content_type(path).await?;
 
     let code = formatdoc! {
         r#"
@@ -194,7 +197,7 @@ async fn dynamic_text_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<dy
               }})
             }}
         "#,
-        resource_path = StringifyJs(&format!("./{}", raw_path.file_name())),
+        resource_path = StringifyJs(&format!("./{}.{}", stem, ext)),
         content_type = StringifyJs(&content_type),
         file_type = StringifyJs(&stem),
         cache_control = StringifyJs(CACHE_HEADER_REVALIDATE),
@@ -215,9 +218,11 @@ async fn dynamic_site_map_route_source(
     path: Vc<FileSystemPath>,
     page: AppPage,
 ) -> Result<Vc<Box<dyn Source>>> {
-    let raw_path = &*path.await?;
-    let stem = file_stem(&raw_path.path);
-    let content_type = get_content_type(raw_path);
+    let stem = path.file_stem().await?;
+    let stem = stem.as_deref().unwrap_or_default();
+    let ext = &*path.extension().await?;
+
+    let content_type = get_content_type(path).await?;
 
     let mut static_generation_code = "";
 
@@ -288,7 +293,7 @@ async fn dynamic_site_map_route_source(
 
             {static_generation_code}
         "#,
-        resource_path = StringifyJs(&format!("./{}", raw_path.file_name())),
+        resource_path = StringifyJs(&format!("./{}.{}", stem, ext)),
         content_type = StringifyJs(&content_type),
         file_type = StringifyJs(&stem),
         cache_control = StringifyJs(CACHE_HEADER_REVALIDATE),
@@ -306,8 +311,9 @@ async fn dynamic_site_map_route_source(
 
 #[turbo_tasks::function]
 async fn dynamic_image_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<dyn Source>>> {
-    let raw_path = &*path.await?;
-    let stem = file_stem(&raw_path.path);
+    let stem = path.file_stem().await?;
+    let stem = stem.as_deref().unwrap_or_default();
+    let ext = &*path.extension().await?;
 
     let code = formatdoc! {
         r#"
@@ -345,7 +351,7 @@ async fn dynamic_image_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<d
                 return handler({{ params: ctx.params ? params : undefined, id }})
             }}
         "#,
-        resource_path = StringifyJs(&format!("./{}", raw_path.file_name())),
+        resource_path = StringifyJs(&format!("./{}.{}", stem, ext)),
     };
 
     let file = File::from(code);
