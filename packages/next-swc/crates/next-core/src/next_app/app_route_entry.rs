@@ -54,7 +54,6 @@ pub async fn get_app_route_entry(
     let original_name = page.to_string();
     let pathname = AppPath::from(page.clone()).to_string();
 
-    let original_page_name = get_original_route_name(&original_name);
     let path = source.ident().path();
 
     let template_file = "build/templates/app-route.js";
@@ -83,7 +82,7 @@ pub async fn get_app_route_entry(
         )
         .replace(
             "\"VAR_ORIGINAL_PATHNAME\"",
-            &StringifyJs(&original_page_name).to_string(),
+            &StringifyJs(&original_name).to_string(),
         )
         .replace(
             "\"VAR_RESOLVED_PAGE_PATH\"",
@@ -133,7 +132,7 @@ pub async fn get_app_route_entry(
 
     Ok(AppEntry {
         pathname: pathname.to_string(),
-        original_name: original_page_name,
+        original_name,
         rsc_entry,
         config,
     }
@@ -176,11 +175,4 @@ pub async fn wrap_edge_entry(
         Vc::upcast(virtual_source),
         Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
     ))
-}
-
-fn get_original_route_name(pathname: &str) -> String {
-    match pathname {
-        "/" => "/route".to_string(),
-        _ => format!("{}/route", pathname),
-    }
 }

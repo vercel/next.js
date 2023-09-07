@@ -19,7 +19,7 @@ use turbopack_binding::{
 };
 
 use crate::{
-    next_app::{AppPage, AppPath},
+    next_app::{AppPage, AppPath, PageType},
     next_config::NextConfig,
     next_import_map::get_next_package,
 };
@@ -646,7 +646,7 @@ async fn directory_tree_to_entrypoints_internal(
         add_app_page(
             app_dir,
             &mut result,
-            app_page.clone(),
+            app_page.clone().complete(PageType::Page)?,
             if current_level_is_parallel_route {
                 LoaderTree {
                     segment: "__PAGE__".to_string(),
@@ -685,7 +685,7 @@ async fn directory_tree_to_entrypoints_internal(
         add_app_page(
             app_dir,
             &mut result,
-            app_page.clone(),
+            app_page.clone().complete(PageType::Page)?,
             if current_level_is_parallel_route {
                 LoaderTree {
                     segment: "__DEFAULT__".to_string(),
@@ -721,11 +721,16 @@ async fn directory_tree_to_entrypoints_internal(
     }
 
     if let Some(route) = components.route {
-        add_app_route(app_dir, &mut result, app_page.clone(), route);
+        add_app_route(
+            app_dir,
+            &mut result,
+            app_page.clone().complete(PageType::Route)?,
+            route,
+        );
     }
 
     // root path: /
-    if app_page.len() == 0 {
+    if app_page.is_root() {
         // Next.js has this logic in "collect-app-paths", where the root not-found page
         // is considered as its own entry point.
         if let Some(_not_found) = components.not_found {

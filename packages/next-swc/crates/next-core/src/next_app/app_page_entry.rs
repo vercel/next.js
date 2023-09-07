@@ -81,8 +81,6 @@ pub async fn get_app_page_entry(
     let original_name = page.to_string();
     let pathname = AppPath::from(page.clone()).to_string();
 
-    let original_page_name = get_original_page_name(&original_name);
-
     let template_file = "build/templates/app-page.js";
 
     // Load the file from the next.js codebase.
@@ -100,7 +98,7 @@ pub async fn get_app_page_entry(
         )
         .replace(
             "\"VAR_ORIGINAL_PATHNAME\"",
-            &StringifyJs(&original_page_name).to_string(),
+            &StringifyJs(&original_name).to_string(),
         )
         // TODO(alexkirsz) Support custom global error.
         .replace(
@@ -154,20 +152,9 @@ pub async fn get_app_page_entry(
 
     Ok(AppEntry {
         pathname: pathname.to_string(),
-        original_name: original_page_name,
+        original_name,
         rsc_entry,
         config,
     }
     .cell())
-}
-
-// TODO(alexkirsz) This shouldn't be necessary. The loader tree should keep
-// track of this instead.
-fn get_original_page_name(pathname: &str) -> String {
-    match pathname {
-        "/" => "/page".to_string(),
-        "/_not-found" => "/_not-found".to_string(),
-        "/not-found" => "/not-found".to_string(),
-        _ => format!("{}/page", pathname),
-    }
 }
