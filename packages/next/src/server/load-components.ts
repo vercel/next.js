@@ -11,6 +11,7 @@ import type {
   GetStaticProps,
 } from 'next/types'
 import type { RouteModule } from './future/route-modules/route-module'
+import type { RouteDefinition } from './future/route-definitions/route-definition'
 
 import {
   BUILD_MANIFEST,
@@ -19,13 +20,16 @@ import {
   SERVER_REFERENCE_MANIFEST,
 } from '../shared/lib/constants'
 import { join } from 'path'
-import { requirePage } from './require'
+import { requirePage, requirePagePath } from './require'
 import { BuildManifest } from './get-page-files'
 import { interopDefault } from '../lib/interop-default'
 import { getTracer } from './lib/trace/tracer'
 import { LoadComponentsSpan } from './lib/trace/constants'
 import { loadManifest } from './load-manifest'
 import { wait } from '../lib/wait'
+import { isAppPageRouteDefinition } from './future/route-definitions/app-page-route-definition'
+import { isPagesRouteDefinition } from './future/route-definitions/pages-route-definition'
+
 export type ManifestItem = {
   id: number | string
   files: string[]
@@ -115,31 +119,49 @@ async function loadDefaultErrorComponentsImpl(
   }
 }
 
+type LoadComponentsInput = {
+  distDir: string
+  isAppPath: boolean
+  page: string
+  definition: RouteDefinition | null
+}
+
 async function loadComponentsImpl({
   distDir,
   page,
   isAppPath,
-}: {
-  distDir: string
-  page: string
-  isAppPath: boolean
-}): Promise<LoadComponentsReturnType> {
+  definition,
+}: LoadComponentsInput): Promise<LoadComponentsReturnType> {
   let DocumentMod = {}
   let AppMod = {}
-  if (!isAppPath) {
+  // If there is no definition and it's not an app path or there is a definition
+  // and it's a pages route definition, we should load the default _document and
+  // _app files.
+  if (
+    (!definition && !isAppPath) ||
+    (definition && isPagesRouteDefinition(definition))
+  ) {
     ;[DocumentMod, AppMod] = await Promise.all([
       Promise.resolve().then(() => requirePage('/_document', distDir, false)),
       Promise.resolve().then(() => requirePage('/_app', distDir, false)),
     ])
   }
-  const ComponentMod = await Promise.resolve().then(() =>
-    requirePage(page, distDir, isAppPath)
-  )
+
+  const ComponentMod = definition
+    ? await requirePagePath(definition.filename, definition.page)
+    : await requirePage(page, distDir, isAppPath)
 
   // Make sure to avoid loading the manifest for Route Handlers
-  const hasClientManifest =
-    isAppPath &&
-    (page.endsWith('/page') || page === '/not-found' || page === '/_not-found')
+  const isAppPage = definition
+    ? // If there's a definition, we should ensure it's a app pages route
+      // definition.
+      isAppPageRouteDefinition(definition)
+    : // Otherwise, we should ensure it's not a app pages path. App routes do
+      // not have a client manifest.
+      isAppPath &&
+      (page.endsWith('/page') ||
+        page === '/not-found' ||
+        page === '/_not-found')
 
   const [
     buildManifest,
@@ -151,7 +173,7 @@ async function loadComponentsImpl({
     loadManifestWithRetries<ReactLoadableManifest>(
       join(distDir, REACT_LOADABLE_MANIFEST)
     ),
-    hasClientManifest
+    isAppPage
       ? loadJSManifest<ClientReferenceManifest>(
           join(
             distDir,
@@ -163,7 +185,7 @@ async function loadComponentsImpl({
           page.replace(/%5F/g, '_')
         )
       : undefined,
-    isAppPath
+    isAppPage
       ? loadManifestWithRetries(
           join(distDir, 'server', SERVER_REFERENCE_MANIFEST + '.json')
         ).catch(() => null)

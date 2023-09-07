@@ -1,6 +1,5 @@
 import type { PagesManifest } from '../../../../build/webpack/plugins/pages-manifest-plugin'
-import type { AppPageRouteDefinition } from '../../route-definitions/app-page-route-definition'
-import type { AppRouteRouteDefinition } from '../../route-definitions/app-route-route-definition'
+import type { AppRouteDefinition } from '../../route-definitions/app-route-definition'
 
 import { isAppRouteRoute } from '../../../../lib/is-app-route-route'
 import { AppBundlePathNormalizer } from '../../normalizers/built/app/app-bundle-path-normalizer'
@@ -13,10 +12,7 @@ export class AppRouteDefinitionBuilder {
     bundlePath: new AppBundlePathNormalizer(),
   }
 
-  private readonly definitions = new Map<
-    string,
-    AppPageRouteDefinition | AppRouteRouteDefinition
-  >()
+  private readonly definitions = new Map<string, AppRouteDefinition>()
   private readonly appPaths = new Map<string, string[]>()
 
   static fromManifest(manifest: PagesManifest): AppRouteDefinitionBuilder {
@@ -27,6 +23,14 @@ export class AppRouteDefinitionBuilder {
     }
 
     return routes
+  }
+
+  /**
+   * Clear all the definitions and app paths.
+   */
+  public clear(): void {
+    this.definitions.clear()
+    this.appPaths.clear()
   }
 
   public toManifest(): PagesManifest {
@@ -93,9 +97,7 @@ export class AppRouteDefinitionBuilder {
     return Array.from(this.appPaths.keys()).sort()
   }
 
-  public get(
-    pathname: string
-  ): AppPageRouteDefinition | AppRouteRouteDefinition | null {
+  public get(pathname: string): AppRouteDefinition | null {
     const appPaths = this.appPaths.get(pathname)
     if (!Array.isArray(appPaths)) return null
 
@@ -113,11 +115,8 @@ export class AppRouteDefinitionBuilder {
    *
    * @returns the entries of the app paths
    */
-  public toSortedDefinitions(): ReadonlyArray<
-    AppPageRouteDefinition | AppRouteRouteDefinition
-  > {
-    const definitions: Array<AppPageRouteDefinition | AppRouteRouteDefinition> =
-      []
+  public toSortedDefinitions(): ReadonlyArray<AppRouteDefinition> {
+    const definitions: Array<AppRouteDefinition> = []
     for (const pathname of this.pathnames()) {
       // We know that this will always return a value because we only add
       // pathnames that have app paths.

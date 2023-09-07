@@ -102,7 +102,8 @@ import {
   TurboPackConnectedAction,
 } from '../../dev/hot-reloader-types'
 import { debounce } from '../../utils'
-import { AppRouteDefinitionBuilder } from '../../future/route-matcher-providers/builders/app-route-definition-builder'
+import { isAppRouteDefinition } from '../../future/route-definitions/app-route-definition'
+import { isAPIRoute } from '../../../lib/is-api-route'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -866,6 +867,8 @@ async function startWatcher(opts: SetupOpts) {
               .ensurePage({
                 page: decodedPagePath,
                 clientOnly: false,
+                // TODO: figure out if we need to pass a definition here (required for app pages)
+                definition: null,
               })
               .catch(console.error)
           }
@@ -963,15 +966,8 @@ async function startWatcher(opts: SetupOpts) {
       async buildFallbackError() {
         // Not implemented yet.
       },
-      async ensurePage({
-        page: inputPage,
-        // Unused parameters
-        // clientOnly,
-        // appPaths,
-        match,
-        isApp,
-      }) {
-        let page = match?.definition?.pathname ?? inputPage
+      async ensurePage({ page: inputPage, definition }) {
+        const page = definition?.page ?? inputPage
 
         if (page === '/_error') {
           if (globalEntries.app) {
@@ -1054,7 +1050,7 @@ async function startWatcher(opts: SetupOpts) {
 
         switch (route.type) {
           case 'page': {
-            if (isApp) {
+            if (definition && isAppRouteDefinition(definition)) {
               throw new Error(
                 `mis-matched route type: isApp && page for ${page}`
               )
@@ -1236,11 +1232,23 @@ async function startWatcher(opts: SetupOpts) {
 
   opts.fsChecker.ensureCallback(async function ensure(item) {
     if (item.type === 'appFile' || item.type === 'pageFile') {
+      // If the type is an app file, then we should mark it as an app page.
+      const isApp = item.type === 'appFile'
+
+      // Try to get the page definition for the item.
+      const definition = isApp
+        ? opts.fsChecker.appRoutes.get(item.itemPath)
+        : null
+
       await hotReloader.ensurePage({
+        page: definition?.page ?? item.itemPath,
         clientOnly: false,
-        page: item.itemPath,
-        isApp: item.type === 'appFile',
+        definition,
       })
+
+      // Reload the matchers.
+      // TODO: only reload the matchers for the type that changed, ie, only reload the app worker for app pages
+      await propagateToWorkers('reloadMatchers', undefined)
     }
   })
 
@@ -1314,7 +1322,6 @@ async function startWatcher(opts: SetupOpts) {
       let middlewareMatchers: MiddlewareMatcher[] | undefined
       const routedPages: string[] = []
       const knownFiles = wp.getTimeInfoEntries()
-      const appRoutes = new AppRouteDefinitionBuilder()
       const pageNameSet = new Set<string>()
       const conflictingAppPagePaths = new Set<string>()
       const appPageFilePaths = new Map<string, string>()
@@ -1325,8 +1332,9 @@ async function startWatcher(opts: SetupOpts) {
       let conflictingPageChange = 0
       let hasRootAppNotFound = false
 
-      const { appFiles, pageFiles } = opts.fsChecker
+      const { appRoutes, appFiles, pageFiles } = opts.fsChecker
 
+      appRoutes.clear()
       appFiles.clear()
       pageFiles.clear()
       devPageFiles.clear()
@@ -1451,7 +1459,7 @@ async function startWatcher(opts: SetupOpts) {
 
         if (
           !isAppPath &&
-          pageName.startsWith('/api/') &&
+          isAPIRoute(pageName) &&
           nextConfig.output === 'export'
         ) {
           Log.error(
@@ -1768,6 +1776,14 @@ async function startWatcher(opts: SetupOpts) {
         const dataRoutes: typeof opts.fsChecker.dynamicRoutes = []
 
         for (const page of sortedRoutes) {
+          // Only add data routes for pages in the `pages/` directory. They are
+          // the only ones that can have `getStaticProps`/`getServerSideProps`.
+          if (!pagesPageFilePaths.has(page)) continue
+
+          // Exclude any `/api` routes as they don't have associated data
+          // routes either.
+          if (!isAPIRoute(page)) continue
+
           const route = buildDataRoute(page, 'development')
           const routeRegex = getRouteRegex(route.page)
           dataRoutes.push({
@@ -1991,6 +2007,8 @@ async function startWatcher(opts: SetupOpts) {
       return hotReloader.ensurePage({
         page: serverFields.actualMiddlewareFile,
         clientOnly: false,
+        // The definition is not available for middleware.
+        definition: null,
       })
     },
   }

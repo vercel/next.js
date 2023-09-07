@@ -6,6 +6,7 @@ import type {
   DynamicParamTypesShort,
   FlightRouterState,
 } from '../app-render/types'
+import type { RouteDefinition } from '../future/route-definitions/route-definition'
 
 import { EventEmitter } from 'events'
 import { findPageFile } from '../lib/find-page-file'
@@ -33,10 +34,9 @@ import {
   COMPILER_NAMES,
   RSC_MODULE_TYPES,
 } from '../../shared/lib/constants'
-import { RouteMatch } from '../future/route-matches/route-match'
-import { isAppPageRouteMatch } from '../future/route-matches/app-page-route-match'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
 import HotReloader from './hot-reloader-webpack'
+import { isAppPageRouteDefinition } from '../future/route-definitions/app-page-route-definition'
 
 const debug = origDebug('next:on-demand-entry-handler')
 
@@ -359,6 +359,13 @@ function tryToNormalizePagePath(page: string) {
   }
 }
 
+type PagePathData = {
+  absolutePagePath: string
+  bundlePath: string
+  page: string
+  appPaths: ReadonlyArray<string> | null
+}
+
 /**
  * Attempts to find a page file path from the given pages absolute directory,
  * a page and allowed extensions. If the page can't be found it will throw an
@@ -375,7 +382,7 @@ async function findPagePathData(
   extensions: string[],
   pagesDir?: string,
   appDir?: string
-) {
+): Promise<PagePathData> {
   const normalizedPagePath = tryToNormalizePagePath(page)
   let pagePath: string | null = null
 
@@ -410,6 +417,9 @@ async function findPagePathData(
       absolutePagePath: join(rootDir, pagePath),
       bundlePath: bundlePath.slice(1),
       page: pageKey,
+      // This is a middleware or instrumentation hook, so we don't have app
+      // paths.
+      appPaths: null,
     }
   }
 
@@ -428,6 +438,8 @@ async function findPagePathData(
         absolutePagePath: join(appDir, pagePath),
         bundlePath: posix.join('app', pageUrl),
         page: posix.normalize(pageUrl),
+        // TODO: we should be able to generate this
+        appPaths: null,
       }
     }
   }
@@ -452,6 +464,8 @@ async function findPagePathData(
       absolutePagePath: join(pagesDir, pagePath),
       bundlePath: posix.join('pages', normalizePagePath(pageUrl)),
       page: posix.normalize(pageUrl),
+      // This is a pages page, so we don't have app paths.
+      appPaths: null,
     }
   }
 
@@ -462,6 +476,8 @@ async function findPagePathData(
       ),
       bundlePath: 'app/not-found',
       page: '/not-found',
+      // This does not have app paths.
+      appPaths: null,
     }
   }
 
@@ -470,6 +486,7 @@ async function findPagePathData(
       absolutePagePath: require.resolve('next/dist/pages/_error'),
       bundlePath: page,
       page: normalizePathSep(page),
+      appPaths: null,
     }
   } else {
     throw new PageNotFoundError(normalizedPagePath)
@@ -480,20 +497,24 @@ async function findRoutePathData(
   rootDir: string,
   page: string,
   extensions: string[],
-  pagesDir?: string,
-  appDir?: string,
-  match?: RouteMatch
-): ReturnType<typeof findPagePathData> {
-  if (match) {
+  pagesDir: string | undefined,
+  appDir: string | undefined,
+  definition: RouteDefinition | null
+): Promise<PagePathData> {
+  if (definition) {
     // If the match is available, we don't have to discover the data from the
     // filesystem.
     return {
-      absolutePagePath: match.definition.filename,
-      page: match.definition.page,
-      bundlePath: match.definition.bundlePath,
+      absolutePagePath: definition.filename,
+      page: definition.page,
+      bundlePath: definition.bundlePath,
+      appPaths: isAppPageRouteDefinition(definition)
+        ? definition.appPaths
+        : null,
     }
   }
 
+  // TODO: deprecate this mechanism
   return findPagePathData(rootDir, page, extensions, pagesDir, appDir)
 }
 
@@ -690,15 +711,11 @@ export function onDemandEntryHandler({
   async function ensurePageImpl({
     page,
     clientOnly,
-    appPaths = null,
-    match,
-    isApp,
+    definition,
   }: {
     page: string
     clientOnly: boolean
-    appPaths?: ReadonlyArray<string> | null
-    match?: RouteMatch
-    isApp?: boolean
+    definition: RouteDefinition | null
   }): Promise<void> {
     const stalledTime = 60
     const stalledEnsureTimeout = setTimeout(() => {
@@ -707,26 +724,21 @@ export function onDemandEntryHandler({
       )
     }, stalledTime * 1000)
 
-    // If the route is actually an app page route, then we should have access
-    // to the app route match, and therefore, the appPaths from it.
-    if (!appPaths && match && isAppPageRouteMatch(match)) {
-      appPaths = match.definition.appPaths
-    }
-
     try {
+      const isApp = definition ? isAppPageRouteDefinition(definition) : false
       const pagePathData = await findRoutePathData(
         rootDir,
         page,
         nextConfig.pageExtensions,
         pagesDir,
         appDir,
-        match
+        definition
       )
 
       const isInsideAppDir =
         !!appDir && pagePathData.absolutePagePath.startsWith(appDir)
 
-      if (typeof isApp === 'boolean' && !(isApp === isInsideAppDir)) {
+      if ((isApp && isInsideAppDir) || (!isApp && !isInsideAppDir)) {
         throw new Error(
           'Ensure bailed, found path does not match ensure type (pages/app)'
         )
@@ -771,7 +783,7 @@ export function onDemandEntryHandler({
 
         curEntries[entryKey] = {
           type: EntryTypes.ENTRY,
-          appPaths,
+          appPaths: pagePathData.appPaths,
           absolutePagePath: pagePathData.absolutePagePath,
           request: pagePathData.absolutePagePath,
           bundlePath: pagePathData.bundlePath,
@@ -902,15 +914,11 @@ export function onDemandEntryHandler({
     async ensurePage({
       page,
       clientOnly,
-      appPaths = null,
-      match,
-      isApp,
+      definition,
     }: {
       page: string
       clientOnly: boolean
-      appPaths?: ReadonlyArray<string> | null
-      match?: RouteMatch
-      isApp?: boolean
+      definition: RouteDefinition | null
     }) {
       if (curEnsurePage.has(page)) {
         return curEnsurePage.get(page)
@@ -918,9 +926,7 @@ export function onDemandEntryHandler({
       const promise = ensurePageImpl({
         page,
         clientOnly,
-        appPaths,
-        match,
-        isApp,
+        definition,
       }).finally(() => {
         curEnsurePage.delete(page)
       })

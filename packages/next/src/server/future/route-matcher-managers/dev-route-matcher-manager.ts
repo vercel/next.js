@@ -11,7 +11,7 @@ import * as Log from '../../../build/output/log'
 import chalk from 'next/dist/compiled/chalk'
 
 export interface RouteEnsurer {
-  ensure(match: RouteMatch): Promise<void>
+  ensure(definition: RouteDefinition): Promise<void>
 }
 
 export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
@@ -75,7 +75,7 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
     for await (const development of super.matchAll(pathname, options)) {
       // We're here, which means that we haven't seen this match yet, so we
       // should try to ensure it and recompile the production matcher.
-      await this.ensurer.ensure(development)
+      await this.ensurer.ensure(development.definition)
       await this.production.forceReload()
 
       // Iterate over the production matches again, this time we should be able

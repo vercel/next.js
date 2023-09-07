@@ -32,7 +32,6 @@ import {
   MiddlewareRouteMatch,
   getMiddlewareRouteMatcher,
 } from '../../../shared/lib/router/utils/middleware-route-matcher'
-
 import {
   APP_PATH_ROUTES_MANIFEST,
   BUILD_ID_FILE,
@@ -43,6 +42,7 @@ import {
 } from '../../../shared/lib/constants'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
+import { AppRouteDefinitionBuilder } from '../../future/route-matcher-providers/builders/app-route-definition-builder'
 
 export type FsOutput = {
   type:
@@ -126,6 +126,9 @@ export async function setupFsCheck(opts: {
   const publicFolderItems = new Set<string>()
   const nextStaticFolderItems = new Set<string>()
   const legacyStaticFolderItems = new Set<string>()
+
+  // TODO: (wyattjoh) maybe this isn't updated fast enough, we may need the directory scan from the dev matchers
+  const appRoutes = new AppRouteDefinitionBuilder()
 
   const appFiles = new Set<string>()
   const pageFiles = new Set<string>()
@@ -379,6 +382,7 @@ export async function setupFsCheck(opts: {
     buildId,
     handleLocale,
 
+    appRoutes,
     appFiles,
     pageFiles,
     dynamicRoutes,

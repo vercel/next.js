@@ -324,6 +324,8 @@ export default async function exportPage({
           distDir,
           page,
           isAppPath: isAppDir,
+          // TODO: generate or pass a definition
+          definition: null,
         })
         curRenderOpts = {
           ...components,

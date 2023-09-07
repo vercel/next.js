@@ -144,6 +144,8 @@ export async function initialize(opts: {
       await devInstance?.hotReloader.ensurePage({
         page: '/_error',
         clientOnly: false,
+        // Error pages do not have a route definition.
+        definition: null,
       })
     },
     async getCompilationError(page: string) {

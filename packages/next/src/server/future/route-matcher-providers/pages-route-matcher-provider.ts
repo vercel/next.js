@@ -46,6 +46,9 @@ export class PagesRouteMatcherProvider extends ManifestRouteMatcherProvider<
 
         return true
       })
+      // Sort the pathnames to ensure that the order of the matchers is
+      // deterministic.
+      .sort()
 
     const matchers: Array<PagesRouteMatcher | PagesLocaleRouteMatcher> = []
     for (const page of pathnames) {

@@ -104,12 +104,7 @@ export function getPagePath(
   return pagePath
 }
 
-export function requirePage(
-  page: string,
-  distDir: string,
-  isAppPath: boolean
-): any {
-  const pagePath = getPagePath(page, distDir, undefined, isAppPath)
+export function requirePagePath(pagePath: string, page: string) {
   if (pagePath.endsWith('.html')) {
     return promises.readFile(pagePath, 'utf8').catch((err) => {
       throw new MissingStaticPage(page, err.message)
@@ -120,6 +115,15 @@ export function requirePage(
     ? // @ts-ignore
       __non_webpack_require__(pagePath)
     : require(pagePath)
+}
+
+export function requirePage(
+  page: string,
+  distDir: string,
+  isAppPath: boolean
+): any {
+  const pagePath = getPagePath(page, distDir, undefined, isAppPath)
+  return requirePagePath(pagePath, page)
 }
 
 export function requireFontManifest(distDir: string) {

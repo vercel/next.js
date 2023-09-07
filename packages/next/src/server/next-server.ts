@@ -26,6 +26,8 @@ import {
 } from '../shared/lib/router/utils/route-matcher'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { RouteMatch } from './future/route-matches/route-match'
+import type { RouteDefinition } from './future/route-definitions/route-definition'
+
 import { renderToHTML, type RenderOpts } from './render'
 
 import fs from 'fs'
@@ -101,7 +103,6 @@ import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 import { signalFromNodeResponse } from './web/spec-extension/adapters/next-request'
 import { RouteModuleLoader } from './future/helpers/module-loader/route-module-loader'
 import { loadManifest } from './load-manifest'
-import { isAppPageRouteDefinition } from './future/route-definitions/app-page-route-definition'
 
 export * from './base-server'
 
@@ -196,11 +197,15 @@ export default class NextNodeServer extends BaseServer {
         distDir: this.distDir,
         page: '/_document',
         isAppPath: false,
+        // TODO: generate a route definition for _document
+        definition: null,
       }).catch(() => {})
       loadComponents({
         distDir: this.distDir,
         page: '/_app',
         isAppPath: false,
+        // TODO: generate a route definition for _app
+        definition: null,
       }).catch(() => {})
     }
 
@@ -397,32 +402,33 @@ export default class NextNodeServer extends BaseServer {
     query: ParsedUrlQuery,
     match: PagesAPIRouteMatch
   ): Promise<boolean> {
+    const { definition, params } = match
+    const { page } = definition
+
     const edgeFunctionsPages = this.getEdgeFunctionsPages()
 
     for (const edgeFunctionsPage of edgeFunctionsPages) {
-      if (edgeFunctionsPage === match.definition.pathname) {
-        const handledAsEdgeFunction = await this.runEdgeFunction({
-          req,
-          res,
-          query,
-          params: match.params,
-          page: match.definition.pathname,
-          match,
-          appPaths: null,
-        })
+      if (edgeFunctionsPage !== page) continue
 
-        if (handledAsEdgeFunction) {
-          return true
-        }
-      }
+      const handled = await this.runEdgeFunction({
+        req,
+        res,
+        query,
+        params,
+        page,
+        match,
+        definition,
+      })
+
+      if (handled) return true
     }
 
     // The module supports minimal mode, load the minimal module.
     const module = await RouteModuleLoader.load<PagesAPIRouteModule>(
-      match.definition.filename
+      definition.filename
     )
 
-    query = { ...query, ...match.params }
+    query = { ...query, ...params }
 
     delete query.__nextLocale
     delete query.__nextDefaultLocale
@@ -441,8 +447,8 @@ export default class NextNodeServer extends BaseServer {
         minimalMode: this.minimalMode,
         dev: this.renderOpts.dev === true,
         query,
-        params: match.params,
-        page: match.definition.pathname,
+        params,
+        page,
       }
     )
 
@@ -561,7 +567,7 @@ export default class NextNodeServer extends BaseServer {
     ctx: RequestContext,
     bubbleNoFallback: boolean
   ) {
-    const edgeFunctionsPages = this.getEdgeFunctionsPages() || []
+    const edgeFunctionsPages = this.getEdgeFunctionsPages()
     if (edgeFunctionsPages.length) {
       const definition =
         ctx.match?.definition ?? this.appRoutes?.get(ctx.pathname) ?? null
@@ -570,18 +576,14 @@ export default class NextNodeServer extends BaseServer {
       for (const edgeFunctionsPage of edgeFunctionsPages) {
         if (edgeFunctionsPage !== page) continue
 
-        const appPaths =
-          definition && isAppPageRouteDefinition(definition)
-            ? definition.appPaths
-            : null
-
         await this.runEdgeFunction({
           req: ctx.req,
           res: ctx.res,
           query: ctx.query,
           params: ctx.renderOpts.params,
           page,
-          appPaths,
+          match: ctx.match,
+          definition,
         })
 
         return null
@@ -596,6 +598,7 @@ export default class NextNodeServer extends BaseServer {
     query,
     params,
     isAppPath,
+    definition,
   }: {
     page: string
     query: NextParsedUrlQuery
@@ -604,15 +607,18 @@ export default class NextNodeServer extends BaseServer {
     // The following parameters are used in the development server's
     // implementation.
     sriEnabled?: boolean
-    appPaths?: ReadonlyArray<string> | null
     shouldEnsure: boolean
+    definition: RouteDefinition | null
   }): Promise<FindComponentsResult | null> {
     return getTracer().trace(
       NextNodeServerSpan.findPageComponents,
       {
         spanName: `resolving page into components`,
         attributes: {
-          'next.route': isAppPath ? normalizeAppPath(page) : page,
+          'next.route':
+            definition?.page ?? isAppPath
+              ? normalizeAppPath(page)
+              : normalizePagePath(page),
         },
       },
       () =>
@@ -621,6 +627,7 @@ export default class NextNodeServer extends BaseServer {
           query,
           params,
           isAppPath,
+          definition,
         })
     )
   }
@@ -630,71 +637,106 @@ export default class NextNodeServer extends BaseServer {
     query,
     params,
     isAppPath,
+    definition,
   }: {
     page: string
     query: NextParsedUrlQuery
     params: Params
     isAppPath: boolean
+    definition: RouteDefinition | null
   }): Promise<FindComponentsResult | null> {
+    // Get the match definition (if we have one).
+    if (definition) {
+      // Update the pathname to the definition's pathname.
+      inputPage = definition.page
+    }
+
+    // We may need to try multiple pathnames to find the components. We'll
+    // collect all the pathnames we need to try here.
     const pages: string[] = [inputPage]
-    if (query.amp) {
-      // try serving a static AMP version first
-      pages.unshift(
-        (isAppPath
-          ? normalizeAppPath(inputPage)
-          : normalizePagePath(inputPage)) + '.amp'
-      )
-    }
 
-    if (query.__nextLocale) {
-      pages.unshift(
-        ...pages.map(
-          (path) => `/${query.__nextLocale}${path === '/' ? '' : path}`
-        )
-      )
-    }
+    // If we don't have a definition and this isn't an app path, then we should
+    // check to see if there's any other files we should be trying first.
+    if (!definition && !isAppPath) {
+      // If the page is a pages path that supports AMP, then if the user requested
+      // the AMP version of the page, we should try to load the AMP version of the
+      // page.
+      if (query.amp) {
+        pages.unshift(normalizePagePath(inputPage) + '.amp')
+      }
 
-    for (const page of pages) {
-      try {
-        const components = await loadComponents({
-          distDir: this.distDir,
-          page: page,
-          isAppPath,
-        })
-
-        if (
-          query.__nextLocale &&
-          typeof components.Component === 'string' &&
-          !page.startsWith(`/${query.__nextLocale}`)
-        ) {
-          // if loading an static HTML file the locale is required
-          // to be present since all HTML files are output under their locale
-          continue
-        }
-
-        return {
-          components,
-          query: {
-            ...(components.getStaticProps
-              ? ({
-                  amp: query.amp,
-                  __nextDataReq: query.__nextDataReq,
-                  __nextLocale: query.__nextLocale,
-                  __nextDefaultLocale: query.__nextDefaultLocale,
-                } as NextParsedUrlQuery)
-              : query),
-            // For appDir params is excluded.
-            ...((isAppPath ? {} : params) || {}),
-          },
-        }
-      } catch (err) {
-        // we should only not throw if we failed to find the page
-        // in the pages-manifest
-        if (!(err instanceof PageNotFoundError)) {
-          throw err
-        }
+      // If there's a locale on the query, then we may need to try prefixing the
+      // locale to the page path. If this isn't for a match, which means we
+      // haven't performed locale matching already, and this isn't an app path,
+      // then we just have to prefix the pathnames with the locale and try to
+      // load the components.
+      if (query.__nextLocale) {
+        pages.unshift(...pages.map((p) => `/${query.__nextLocale}${p}`))
       }
     }
+
+    // Loop over all the pathnames and try to load the components. Return with the
+    // first successful result.
+    for (const page of pages) {
+      let components: LoadComponentsReturnType
+      try {
+        components = await loadComponents({
+          page,
+          definition,
+          distDir: this.distDir,
+          isAppPath,
+        })
+      } catch (err) {
+        // If the error is a page not found error, then we should continue
+        // trying to load the page.
+        if (err instanceof PageNotFoundError) continue
+
+        throw err
+      }
+
+      // Ensure that if we're trying to load a locale-specific page, we
+      // don't accidentally load the default locale's page. All HTML files
+      // that are locale aware are output in a subfolder under their locale.
+      // This only really applies to those pages that haven't been loaded via
+      // a route definition, as we don't test files.
+      if (
+        !isAppPath &&
+        query.__nextLocale &&
+        typeof components.Component === 'string' &&
+        !page.startsWith(`/${query.__nextLocale}`)
+      ) {
+        continue
+      }
+
+      // We're ready to return a response, collect the result.
+      const result: FindComponentsResult = {
+        components,
+        query: {},
+      }
+
+      // If this is a component exporting `getStaticProps`, then we should
+      // only provide the Next.js specific query values.
+      if (components.getStaticProps) {
+        Object.assign(result.query, {
+          amp: query.amp,
+          __nextDataReq: query.__nextDataReq,
+          __nextLocale: query.__nextLocale,
+          __nextDefaultLocale: query.__nextDefaultLocale,
+        })
+      } else {
+        // Otherwise, we should provide all query values.
+        Object.assign(result.query, query)
+      }
+
+      // If this isn't an app path, then we should provide the params.
+      if (!isAppPath) {
+        Object.assign(result.query, params)
+      }
+
+      return result
+    }
+
+    // If we didn't find any components, then we should return null.
     return null
   }
 
@@ -846,7 +888,6 @@ export default class NextNodeServer extends BaseServer {
       // If we don't have a match, try to render it anyways.
       if (!match) {
         await this.render(req, res, pathname, query, parsedUrl, true, null)
-
         return { finished: true }
       }
 
@@ -856,10 +897,13 @@ export default class NextNodeServer extends BaseServer {
         // If the page doesn't match the edge function page, skip it.
         if (edgeFunctionsPage !== match.definition.page) continue
 
+        // A match was found while the page was in export mode, we should
+        // render the 404 page.
         if (this.nextConfig.output === 'export') {
           await this.render404(req, res, parsedUrl)
           return { finished: true }
         }
+
         delete query._nextBubbleNoFallback
         delete query[NEXT_RSC_UNION_QUERY]
 
@@ -870,7 +914,7 @@ export default class NextNodeServer extends BaseServer {
           params: match.params,
           page: match.definition.page,
           match,
-          appPaths: null,
+          definition: match.definition,
         })
 
         // If we handled the request, we can return early.
@@ -939,18 +983,6 @@ export default class NextNodeServer extends BaseServer {
   ): Promise<void> {
     throw new Error(
       'Invariant: logErrorWithOriginalStack can only be called on the development server'
-    )
-  }
-
-  // Used in development only, overloaded in next-dev-server
-  protected async ensurePage(_opts: {
-    page: string
-    clientOnly: boolean
-    appPaths?: ReadonlyArray<string> | null
-    match?: RouteMatch
-  }): Promise<void> {
-    throw new Error(
-      'Invariant: ensurePage can only be called on the development server'
     )
   }
 
@@ -1238,32 +1270,25 @@ export default class NextNodeServer extends BaseServer {
     err: Error | null
   ) {
     const { req, res, query } = ctx
-    const is404 = res.statusCode === 404
 
-    if (is404 && this.hasAppDir && this.isRenderWorker) {
-      const notFoundPathname = this.renderOpts.dev
-        ? '/not-found'
-        : '/_not-found'
-
-      if (this.renderOpts.dev) {
-        await this.ensurePage({
-          page: notFoundPathname,
-          clientOnly: false,
-        }).catch(() => {})
-      }
-
-      if (this.getEdgeFunctionsPages().includes(notFoundPathname)) {
+    if (res.statusCode === 404 && this.hasAppDir && this.isRenderWorker) {
+      const page = this.renderOpts.dev ? '/not-found' : '/_not-found'
+      if (this.getEdgeFunctionsPages().includes(page)) {
         await this.runEdgeFunction({
           req: req as BaseNextRequest,
           res: res as BaseNextResponse,
           query: query || {},
           params: {},
-          page: notFoundPathname,
-          appPaths: null,
+          page,
+          match: null,
+          // TODO: we should generate the definition here
+          definition: null,
         })
+
         return null
       }
     }
+
     return super.renderErrorToResponseImpl(ctx, err)
   }
 
@@ -1418,10 +1443,6 @@ export default class NextNodeServer extends BaseServer {
    * so that we can run it.
    */
   protected async ensureMiddleware() {}
-  protected async ensureEdgeFunction(_params: {
-    page: string
-    appPaths: ReadonlyArray<string> | null
-  }) {}
 
   /**
    * This method gets all middleware matchers and execute them when the request
@@ -1739,16 +1760,14 @@ export default class NextNodeServer extends BaseServer {
     query: ParsedUrlQuery
     params: Params | undefined
     page: string
-    appPaths: ReadonlyArray<string> | null
-    match?: RouteMatch
+    match: RouteMatch | null
+    definition: RouteDefinition | null
     onWarning?: (warning: Error) => void
   }): Promise<FetchEventResult | null> {
     let edgeInfo: ReturnType<typeof this.getEdgeFunctionInfo> | undefined
 
-    const { query, page, match } = params
+    const { query, page } = params
 
-    if (!match)
-      await this.ensureEdgeFunction({ page, appPaths: params.appPaths })
     edgeInfo = this.getEdgeFunctionInfo({
       page,
       middleware: false,

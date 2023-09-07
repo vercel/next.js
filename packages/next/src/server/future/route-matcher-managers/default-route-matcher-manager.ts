@@ -285,7 +285,7 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
     // If this pathname looks like a dynamic route, then we couldn't have a
     // static match for it because you can't escape the dynamic route parameters
     // when creating the page. So we can skip the static matchers.
-    if (!isDynamicRoute(pathname)) {
+    if (!isDynamicRoute(normalized.pathname)) {
       for (const matcher of this.matchers.static) {
         const match = this.validate(matcher, normalized)
         if (!match) continue

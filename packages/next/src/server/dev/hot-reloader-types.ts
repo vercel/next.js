@@ -3,7 +3,7 @@ import type { UrlObject } from 'url'
 import type { Duplex } from 'stream'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type getBaseWebpackConfig from '../../build/webpack-config'
-import type { RouteMatch } from '../future/route-matches/route-match'
+import type { RouteDefinition } from '../future/route-definitions/route-definition'
 import type { Update as TurbopackUpdate } from '../../build/swc'
 import type { VersionInfo } from './parse-version-info'
 
@@ -131,14 +131,10 @@ export interface NextJsHotReloaderInterface {
   ensurePage({
     page,
     clientOnly,
-    appPaths,
-    match,
-    isApp,
+    definition,
   }: {
     page: string
     clientOnly: boolean
-    appPaths?: ReadonlyArray<string> | null
-    isApp?: boolean
-    match?: RouteMatch
+    definition: RouteDefinition | null
   }): Promise<void>
 }

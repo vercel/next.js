@@ -1436,6 +1436,8 @@ export async function isPageStatic({
           distDir,
           page: originalAppPath || page,
           isAppPath: pageType === 'app',
+          // TODO: generate or pass a definition
+          definition: null,
         })
       }
       const Comp = componentsResult.Component || {}
@@ -1679,6 +1681,7 @@ export async function hasCustomGetInitialProps(
     distDir,
     page,
     isAppPath: false,
+    definition: null,
   })
   let mod = components.ComponentMod
 
@@ -1701,6 +1704,7 @@ export async function getDefinedNamedExports(
     distDir,
     page,
     isAppPath: false,
+    definition: null,
   })
 
   return Object.keys(components.ComponentMod).filter((key) => {

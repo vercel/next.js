@@ -37,6 +37,8 @@ import type {
   AppRouteRouteHandlerContext,
   AppRouteRouteModule,
 } from './future/route-modules/app-route/module'
+import type { RouteMatch } from './future/route-matches/route-match'
+import type { RouteDefinition } from './future/route-definitions/route-definition'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { formatHostname } from './lib/format-hostname'
@@ -119,9 +121,7 @@ import { matchNextDataPathname } from './lib/match-next-data-pathname'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
 import { stripInternalHeaders } from './internal-utils'
 import { AppRouteDefinitionBuilder } from './future/route-matcher-providers/builders/app-route-definition-builder'
-import { isAppPageRouteDefinition } from './future/route-definitions/app-page-route-definition'
 import { isInvokedRouteMatch } from './future/route-matches/invoked-route-match'
-import { RouteMatch } from './future/route-matches/route-match'
 import { isAppRouteDefinition } from './future/route-definitions/app-route-definition'
 
 export type FindComponentsResult = {
@@ -306,11 +306,17 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     page: string
     query: NextParsedUrlQuery
     params: Params
+    /**
+     * If true this corresponds to a request for a page under `app/`.
+     */
     isAppPath: boolean
+    /**
+     * If set, this corresponds to the route that should be found.
+     */
+    definition: RouteDefinition | null
     // The following parameters are used in the development server's
     // implementation.
     sriEnabled?: boolean
-    appPaths?: ReadonlyArray<string> | null
     shouldEnsure?: boolean
   }): Promise<FindComponentsResult | null>
   protected abstract getFontManifest(): FontManifest | undefined
@@ -2510,36 +2516,37 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   ) {
     const { query, pathname, match } = ctx
 
+    // Try to get the definition from the match if it's available, otherwise try
+    // to get it from the app routes.
     const definition =
       match?.definition ?? this.appRoutes?.get(pathname) ?? null
     const page = definition?.page ?? pathname
-    const appPaths =
-      definition && isAppPageRouteDefinition(definition)
-        ? definition.appPaths
-        : null
 
     const result = await this.findPageComponents({
       page,
       query,
-      params: ctx.renderOpts.params || {},
       isAppPath: definition ? isAppRouteDefinition(definition) : false,
+      params: ctx.renderOpts.params || {},
       sriEnabled: !!this.nextConfig.experimental.sri?.algorithm,
-      appPaths,
+      definition,
       // Ensuring for loading page component routes is done via the matcher.
       shouldEnsure: false,
     })
-    if (result) {
-      try {
-        return await this.renderToResponseWithComponents(ctx, result)
-      } catch (err) {
-        const isNoFallbackError = err instanceof NoFallbackError
 
-        if (!isNoFallbackError || (isNoFallbackError && bubbleNoFallback)) {
-          throw err
-        }
-      }
+    // If we didn't find a page component, we should return.
+    if (!result) return false
+
+    try {
+      return await this.renderToResponseWithComponents(ctx, result)
+    } catch (err) {
+      // If this isn't a no fallback error, we should re-throw it.
+      if (!(err instanceof NoFallbackError)) throw err
+
+      // If we are bubbling the no fallback error, we should re-throw it.
+      if (bubbleNoFallback) throw err
+
+      return false
     }
-    return false
   }
 
   private async renderToResponse(
@@ -2836,6 +2843,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             params: {},
             isAppPath: true,
             shouldEnsure: true,
+            // TODO: generate a definition for this page
+            definition: null,
           })
           using404Page = result !== null
         }
@@ -2848,6 +2857,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             isAppPath: false,
             // Ensuring can't be done here because you never "match" a 404 route.
             shouldEnsure: true,
+            // TODO: generate a definition for this page
+            definition: null,
           })
           using404Page = result !== null
         }
@@ -2870,6 +2881,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             // Ensuring can't be done here because you never "match" a 500
             // route.
             shouldEnsure: true,
+            // TODO: generate a definition for this page
+            definition: null,
           })
         }
       }
@@ -2883,6 +2896,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           // Ensuring can't be done here because you never "match" an error
           // route.
           shouldEnsure: true,
+          // TODO: generate a definition for this page
+          definition: null,
         })
         statusPage = '/_error'
       }

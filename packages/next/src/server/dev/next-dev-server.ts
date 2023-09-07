@@ -6,8 +6,13 @@ import type { ParsedUrl } from '../../shared/lib/router/utils/parse-url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
-import type { FallbackMode, MiddlewareRoutingItem } from '../base-server'
+import type {
+  FallbackMode,
+  MiddlewareRoutingItem,
+  RequestContext,
+} from '../base-server'
 import type { FunctionComponent } from 'react'
+import type { RouteDefinition } from '../future/route-definitions/route-definition'
 import type { RouteMatch } from '../future/route-matches/route-match'
 import type { RouteMatcherManager } from '../future/route-matcher-managers/route-matcher-manager'
 import type {
@@ -189,11 +194,11 @@ export default class DevServer extends Server {
     const { pagesDir, appDir } = findPagesDir(this.dir)
 
     const ensurer: RouteEnsurer = {
-      ensure: async (match) => {
+      ensure: async (definition) => {
         await this.ensurePage({
-          match,
-          page: match.definition.page,
+          page: definition.page,
           clientOnly: false,
+          definition,
         })
       },
     }
@@ -397,10 +402,17 @@ export default class DevServer extends Server {
     query: ParsedUrlQuery
     params: Params | undefined
     page: string
-    appPaths: ReadonlyArray<string> | null
-    isAppPath: boolean
+    match: RouteMatch | null
+    definition: RouteDefinition | null
   }) {
     try {
+      const { page, match, definition } = params
+
+      // If there isn't a match, we need to ensure that the page exists.
+      if (!match) {
+        await this.ensureEdgeFunction({ page, definition })
+      }
+
       return super.runEdgeFunction({
         ...params,
         onWarning: (warn) => {
@@ -480,6 +492,25 @@ export default class DevServer extends Server {
     }
   }
 
+  protected async renderErrorToResponseImpl(
+    ctx: RequestContext,
+    err: Error | null
+  ) {
+    if (ctx.res.statusCode === 404 && this.hasAppDir && this.isRenderWorker) {
+      try {
+        // Try to ensure that the 404 page is built.
+        await this.ensurePage({
+          page: '/not-found',
+          clientOnly: false,
+          // TODO: we should probably generate a route definition for this
+          definition: null,
+        })
+      } catch {}
+    }
+
+    return super.renderErrorToResponseImpl(ctx, err)
+  }
+
   protected async logErrorWithOriginalStack(
     err?: unknown,
     type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
@@ -540,6 +571,8 @@ export default class DevServer extends Server {
     return this.ensurePage({
       page: this.actualMiddlewareFile!,
       clientOnly: false,
+      // Middleware is not a page, so we don't have a route definition.
+      definition: null,
     })
   }
 
@@ -549,6 +582,9 @@ export default class DevServer extends Server {
       (await this.ensurePage({
         page: this.actualInstrumentationHookFile!,
         clientOnly: false,
+        // Instrumentation hook is not a page, so we don't have a route
+        // definition.
+        definition: null,
       })
         .then(() => true)
         .catch(() => false))
@@ -571,12 +607,12 @@ export default class DevServer extends Server {
 
   protected async ensureEdgeFunction({
     page,
-    appPaths,
+    definition,
   }: {
     page: string
-    appPaths: string[] | null
+    definition: RouteDefinition | null
   }) {
-    return this.ensurePage({ page, appPaths, clientOnly: false })
+    return this.ensurePage({ page, definition, clientOnly: false })
   }
 
   generateRoutes(_dev?: boolean) {
@@ -727,11 +763,10 @@ export default class DevServer extends Server {
   protected async ensurePage(opts: {
     page: string
     clientOnly: boolean
-    appPaths?: ReadonlyArray<string> | null
-    match?: RouteMatch
+    definition: RouteDefinition | null
   }): Promise<void> {
     if (!this.isRenderWorker) {
-      throw new Error('Invariant ensurePage called outside render worker')
+      throw new Error('Invariant: ensurePage called outside render worker')
     }
 
     await invokeIpcMethod({
@@ -748,16 +783,16 @@ export default class DevServer extends Server {
     query,
     params,
     isAppPath,
-    appPaths = null,
     shouldEnsure,
+    definition,
   }: {
     page: string
     query: NextParsedUrlQuery
     params: Params
     isAppPath: boolean
     sriEnabled?: boolean
-    appPaths?: ReadonlyArray<string> | null
     shouldEnsure: boolean
+    definition: RouteDefinition | null
   }): Promise<FindComponentsResult | null> {
     await this.devReady
     const compilationErr = await this.getCompilationError(page)
@@ -765,16 +800,18 @@ export default class DevServer extends Server {
       // Wrap build errors so that they don't get logged again
       throw new WrappedBuildError(compilationErr)
     }
+
     try {
       if (shouldEnsure || this.renderOpts.customServer) {
         await this.ensurePage({
           page,
-          appPaths,
           clientOnly: false,
+          definition,
         })
       }
 
       this.nextFontManifest = super.getNextFontManifest()
+
       // before we re-evaluate a route module, we want to restore globals that might
       // have been patched previously to their original state so that we don't
       // patch on top of the previous patch, which would keep the context of the previous
@@ -787,6 +824,7 @@ export default class DevServer extends Server {
         params,
         isAppPath,
         shouldEnsure,
+        definition,
       })
     } catch (err) {
       if ((err as any).code !== 'ENOENT') {

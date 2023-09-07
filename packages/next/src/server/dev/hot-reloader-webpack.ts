@@ -4,6 +4,7 @@ import type { Duplex } from 'stream'
 import type { Telemetry } from '../../telemetry/storage'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { UrlObject } from 'url'
+import type { RouteDefinition } from '../future/route-definitions/route-definition'
 
 import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
 import { getOverlayMiddleware } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
@@ -61,7 +62,6 @@ import ws from 'next/dist/compiled/ws'
 import { promises as fs } from 'fs'
 import { UnwrapPromise } from '../../lib/coalesced-function'
 import { getRegistry } from '../../lib/helpers/get-registry'
-import { RouteMatch } from '../future/route-matches/route-match'
 import { parseVersionInfo, VersionInfo } from './parse-version-info'
 import { isAPIRoute } from '../../lib/is-api-route'
 import { getRouteLoaderEntry } from '../../build/webpack/loaders/next-route-loader'
@@ -312,7 +312,7 @@ export default class HotReloader implements NextJsHotReloaderInterface {
 
       if (page === '/_error' || BLOCKED_PAGES.indexOf(page) === -1) {
         try {
-          await this.ensurePage({ page, clientOnly: true })
+          await this.ensurePage({ page, clientOnly: true, definition: null })
         } catch (error) {
           return await renderScriptError(pageBundleRes, getProperError(error))
         }
@@ -1464,32 +1464,29 @@ export default class HotReloader implements NextJsHotReloaderInterface {
   public async ensurePage({
     page,
     clientOnly,
-    appPaths,
-    match,
-    isApp,
+    definition,
   }: {
     page: string
     clientOnly: boolean
-    appPaths?: ReadonlyArray<string> | null
-    isApp?: boolean
-    match?: RouteMatch
+    definition: RouteDefinition | null
   }): Promise<void> {
     // Make sure we don't re-build or dispose prebuilt pages
     if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
       return
     }
+
+    // If there's an error, we should throw it.
     const error = clientOnly
       ? this.clientError
       : this.serverError || this.clientError
     if (error) {
-      return Promise.reject(error)
+      throw error
     }
+
     return this.onDemandEntries?.ensurePage({
       page,
       clientOnly,
-      appPaths,
-      match,
-      isApp,
-    }) as any
+      definition,
+    })
   }
 }

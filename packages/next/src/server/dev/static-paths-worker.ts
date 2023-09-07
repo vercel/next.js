@@ -65,6 +65,8 @@ export async function loadStaticPaths({
     distDir,
     page: originalAppPath || pathname,
     isAppPath: !!isAppPath,
+    // TODO: we should be able to generate this
+    definition: null,
   })
 
   if (!components.getStaticPaths && !isAppPath) {
