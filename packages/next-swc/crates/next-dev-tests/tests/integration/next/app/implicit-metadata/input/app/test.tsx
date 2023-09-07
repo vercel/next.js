@@ -17,27 +17,22 @@ export default function Test() {
       ).toEqual([
         expect.objectContaining({
           rel: 'manifest',
-          href: expect.stringMatching(/^\/_next\/static\/.+\.webmanifest$/),
+          href: expect.stringMatching(/^\/manifest\.webmanifest$/),
           sizes: null,
         }),
         expect.objectContaining({
           rel: 'icon',
-          href: expect.stringMatching(/^\/_next\/static\/.+\.ico$/),
-          sizes: '48x48',
-        }),
-        expect.objectContaining({
-          rel: 'icon',
-          href: expect.stringMatching(/^\/_next\/static\/.+\.png$/),
+          href: expect.stringMatching(/^\/icon\d+\.png\?.+$/),
           sizes: '32x32',
         }),
         expect.objectContaining({
           rel: 'icon',
-          href: expect.stringMatching(/^\/_next\/static\/.+\.png$/),
+          href: expect.stringMatching(/^\/icon\d+\.png\?.+$/),
           sizes: '64x64',
         }),
         expect.objectContaining({
           rel: 'apple-touch-icon',
-          href: expect.stringMatching(/^\/_next\/static\/.+\.png$/),
+          href: expect.stringMatching(/^\/apple-icon\.png\?.+$/),
           sizes: '114x114',
         }),
       ])
@@ -51,7 +46,7 @@ export default function Test() {
           .map((l) => [l.getAttribute('property'), l.getAttribute('content')])
       )
       expect(metaObject).toEqual({
-        'og:image': expect.stringMatching(/^.+\/_next\/static\/.+\.png$/),
+        'og:image': expect.stringMatching(/^.+\/opengraph-image\.png\?.+$/),
         'og:image:width': '114',
         'og:image:height': '114',
         'og:image:alt': 'This is an alt text.',
