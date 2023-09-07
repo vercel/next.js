@@ -13,7 +13,7 @@ use turbopack_binding::{
             parse::Request,
             pattern::Pattern,
             plugin::{ResolvePlugin, ResolvePluginCondition},
-            ResolveResult, ResolveResultItem, ResolveResultOption,
+            ResolveResultOption,
         },
     },
 };
@@ -99,55 +99,6 @@ impl ResolvePlugin for UnsupportedModulesResolvePlugin {
         }
 
         Ok(ResolveResultOption::none())
-    }
-}
-
-#[turbo_tasks::value]
-pub(crate) struct NextExternalResolvePlugin {
-    root: Vc<FileSystemPath>,
-}
-
-#[turbo_tasks::value_impl]
-impl NextExternalResolvePlugin {
-    #[turbo_tasks::function]
-    pub fn new(root: Vc<FileSystemPath>) -> Vc<Self> {
-        NextExternalResolvePlugin { root }.cell()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ResolvePlugin for NextExternalResolvePlugin {
-    #[turbo_tasks::function]
-    fn after_resolve_condition(&self) -> Vc<ResolvePluginCondition> {
-        ResolvePluginCondition::new(
-            self.root.root(),
-            Glob::new(
-                "**/next/dist/**/*.{external,shared-runtime,runtime.dev,runtime.prod}.js"
-                    .to_string(),
-            ),
-        )
-    }
-
-    #[turbo_tasks::function]
-    async fn after_resolve(
-        &self,
-        fs_path: Vc<FileSystemPath>,
-        _context: Vc<FileSystemPath>,
-        _request: Vc<Request>,
-    ) -> Result<Vc<ResolveResultOption>> {
-        let raw_fs_path = &*fs_path.await?;
-        let path = raw_fs_path.path.to_string();
-        // Find the starting index of 'next/dist' and slice from that point. It should
-        // always be found since the glob pattern above is specific enough.
-        let starting_index = path.find("next/dist").unwrap();
-        // Replace '/esm/' with '/' to match the CJS version of the file.
-        let modified_path = &path[starting_index..].replace("/esm/", "/");
-        Ok(Vc::cell(Some(
-            ResolveResult::primary(ResolveResultItem::OriginalReferenceTypeExternal(
-                modified_path.to_string(),
-            ))
-            .into(),
-        )))
     }
 }
 

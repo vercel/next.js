@@ -1,9 +1,6 @@
 import React from 'react'
 import { invalidateCacheByRouterState } from './invalidate-cache-by-router-state'
-import {
-  CacheStates,
-  CacheNode,
-} from '../../../shared/lib/app-router-context.shared-runtime'
+import { CacheStates, CacheNode } from '../../../shared/lib/app-router-context'
 import type { FlightRouterState } from '../../../server/app-render/types'
 
 describe('invalidateCacheByRouterState', () => {

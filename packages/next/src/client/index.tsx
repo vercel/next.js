@@ -10,16 +10,16 @@ import type {
 
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
+import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import mitt, { MittEmitter } from '../shared/lib/mitt'
-import { RouterContext } from '../shared/lib/router-context.shared-runtime'
+import { RouterContext } from '../shared/lib/router-context'
 import { handleSmoothScroll } from '../shared/lib/router/utils/handle-smooth-scroll'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import {
   urlQueryToSearchParams,
   assign,
 } from '../shared/lib/router/utils/querystring'
-import { setConfig } from '../shared/lib/runtime-config.shared-runtime'
+import { setConfig } from '../shared/lib/runtime-config'
 import {
   getURL,
   loadGetInitialProps,
@@ -34,17 +34,17 @@ import measureWebVitals from './performance-relayer'
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 import { getProperError } from '../lib/is-error'
-import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
+import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { ImageConfigComplete } from '../shared/lib/image-config'
 import { removeBasePath } from './remove-base-path'
 import { hasBasePath } from './has-base-path'
-import { AppRouterContext } from '../shared/lib/app-router-context.shared-runtime'
+import { AppRouterContext } from '../shared/lib/app-router-context'
 import {
   adaptForAppRouterInstance,
   adaptForSearchParams,
   PathnameContextProviderAdapter,
-} from '../shared/lib/router/adapters.shared-runtime'
-import { SearchParamsContext } from '../shared/lib/hooks-client-context.shared-runtime'
+} from '../shared/lib/router/adapters'
+import { SearchParamsContext } from '../shared/lib/hooks-client-context'
 import onRecoverableError from './on-recoverable-error'
 import tracer from './tracing/tracer'
 import reportToSocket from './tracing/report-to-socket'

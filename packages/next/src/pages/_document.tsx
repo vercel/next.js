@@ -17,11 +17,8 @@ import { BuildManifest, getPageFiles } from '../server/get-page-files'
 import { htmlEscapeJsonString } from '../server/htmlescape'
 import isError from '../lib/is-error'
 
-import {
-  HtmlContext,
-  useHtmlContext,
-} from '../shared/lib/html-context.shared-runtime'
-import type { HtmlProps } from '../shared/lib/html-context.shared-runtime'
+import { HtmlContext, useHtmlContext } from '../shared/lib/html-context'
+import type { HtmlProps } from '../shared/lib/html-context'
 
 export { DocumentContext, DocumentInitialProps, DocumentProps }
 

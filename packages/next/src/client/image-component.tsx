@@ -25,9 +25,9 @@ import type {
   ImageLoaderProps,
 } from '../shared/lib/image-config'
 import { imageConfigDefault } from '../shared/lib/image-config'
-import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
+import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { warnOnce } from '../shared/lib/utils/warn-once'
-import { RouterContext } from '../shared/lib/router-context.shared-runtime'
+import { RouterContext } from '../shared/lib/router-context'
 
 // @ts-ignore - This is replaced by webpack alias
 import defaultLoader from 'next/dist/shared/lib/image-loader'
