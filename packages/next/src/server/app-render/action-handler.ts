@@ -239,7 +239,7 @@ export async function handleAction({
   req,
   res,
   ComponentMod,
-  pathname,
+  page,
   serverActionsManifest,
   generateFlight,
   staticGenerationStore,
@@ -249,7 +249,7 @@ export async function handleAction({
   req: IncomingMessage
   res: ServerResponse
   ComponentMod: any
-  pathname: string
+  page: string
   serverActionsManifest: any
   generateFlight: (options: {
     actionResult: ActionResult
@@ -280,7 +280,7 @@ export async function handleAction({
     )
     let bound = []
 
-    const workerName = 'app' + pathname
+    const workerName = 'app' + page
     const serverModuleMap = new Proxy(
       {},
       {

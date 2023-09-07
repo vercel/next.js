@@ -36,7 +36,7 @@ const EdgeAppRouteLoader: webpack.LoaderDefinitionFunction<EdgeAppRouteLoaderQue
 
     buildInfo.nextEdgeSSR = {
       isServerComponent: false,
-      page: page,
+      page,
       isAppDir: true,
     }
     buildInfo.route = {

@@ -18,7 +18,7 @@ import { SizeLimit } from '../../../../../types'
 
 export function getRender({
   dev,
-  page,
+  page: definitionPage,
   appMod,
   pageMod,
   errorMod,
@@ -76,8 +76,10 @@ export function getRender({
     conf: config,
     minimalMode: true,
     webServerConfig: {
-      page,
-      normalizedPage: isAppPath ? normalizeAppPath(page) : page,
+      page: definitionPage,
+      normalizedPage: isAppPath
+        ? normalizeAppPath(definitionPage)
+        : definitionPage,
       pagesType,
       prerenderManifest,
       extendRenderOpts: {
@@ -91,8 +93,8 @@ export function getRender({
       },
       renderToHTML,
       incrementalCacheHandler,
-      loadComponent: async (pathname) => {
-        if (pathname === page) {
+      loadComponent: async (page) => {
+        if (page === definitionPage) {
           return {
             ...baseLoadComponentResult,
             Component: pageMod.default,
@@ -102,13 +104,13 @@ export function getRender({
             getStaticPaths: pageMod.getStaticPaths,
             ComponentMod: pageMod,
             isAppPath: !!pageMod.__next_app__,
-            pathname,
+            page,
             routeModule: pageMod.routeModule,
           }
         }
 
         // If there is a custom 500 page, we need to handle it separately.
-        if (pathname === '/500' && error500Mod) {
+        if (page === '/500' && error500Mod) {
           return {
             ...baseLoadComponentResult,
             Component: error500Mod.default,
@@ -117,12 +119,12 @@ export function getRender({
             getServerSideProps: error500Mod.getServerSideProps,
             getStaticPaths: error500Mod.getStaticPaths,
             ComponentMod: error500Mod,
-            pathname,
+            page,
             routeModule: error500Mod.routeModule,
           }
         }
 
-        if (pathname === '/_error') {
+        if (page === '/_error') {
           return {
             ...baseLoadComponentResult,
             Component: errorMod.default,
@@ -131,7 +133,7 @@ export function getRender({
             getServerSideProps: errorMod.getServerSideProps,
             getStaticPaths: errorMod.getStaticPaths,
             ComponentMod: errorMod,
-            pathname,
+            page,
             routeModule: errorMod.routeModule,
           }
         }

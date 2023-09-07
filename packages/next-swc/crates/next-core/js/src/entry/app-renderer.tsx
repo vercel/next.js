@@ -65,7 +65,7 @@ async function runOperation(renderData: RenderData) {
   const query = parse(renderData.rawQuery)
   const renderOpt: Omit<
     RenderOpts,
-    'App' | 'Document' | 'Component' | 'pathname'
+    'App' | 'Document' | 'Component' | 'page'
   > & {
     params: ParsedUrlQuery
   } = {
