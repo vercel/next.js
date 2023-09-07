@@ -21,7 +21,7 @@ use turbopack_binding::{
 };
 
 use crate::{
-    next_app::AppEntry,
+    next_app::{AppEntry, AppPage, AppPath},
     parse_segment_config_from_source,
     util::{load_next_js_template, virtual_next_js_template_path, NextRuntime},
 };
@@ -32,8 +32,7 @@ pub async fn get_app_route_entry(
     nodejs_context: Vc<ModuleAssetContext>,
     edge_context: Vc<ModuleAssetContext>,
     source: Vc<Box<dyn Source>>,
-    pathname: String,
-    original_name: String,
+    page: AppPage,
     project_root: Vc<FileSystemPath>,
 ) -> Result<Vc<AppEntry>> {
     let config = parse_segment_config_from_source(
@@ -51,6 +50,9 @@ pub async fn get_app_route_entry(
     };
 
     let mut result = RopeBuilder::default();
+
+    let original_name = page.to_string();
+    let pathname = AppPath::from(page.clone()).to_string();
 
     let original_page_name = get_original_route_name(&original_name);
     let path = source.ident().path();
