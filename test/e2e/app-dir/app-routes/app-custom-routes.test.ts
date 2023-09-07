@@ -1,6 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
-import { Readable } from 'stream'
 
 import {
   withRequestMeta,
@@ -203,12 +202,10 @@ createNextDescribe(
         it('can handle handle a streaming request and streaming response', async () => {
           const body = new Array(10).fill(JSON.stringify({ ping: 'pong' }))
           let index = 0
-          const stream = new Readable({
-            read() {
-              if (index >= body.length) return this.push(null)
-
-              this.push(body[index] + '\n')
-              index++
+          const stream = new ReadableStream({
+            pull(controller) {
+              if (index >= body.length) controller.close()
+              else controller.enqueue(body[index++] + '\n')
             },
           })
 
@@ -225,12 +222,10 @@ createNextDescribe(
       it('can handle handle a streaming request and streaming response (edge)', async () => {
         const body = new Array(10).fill(JSON.stringify({ ping: 'pong' }))
         let index = 0
-        const stream = new Readable({
-          read() {
-            if (index >= body.length) return this.push(null)
-
-            this.push(body[index] + '\n')
-            index++
+        const stream = new ReadableStream({
+          pull(controller) {
+            if (index >= body.length) controller.close()
+            else controller.enqueue(body[index++] + '\n')
           },
         })
 
@@ -298,12 +293,10 @@ createNextDescribe(
           const body = { ping: 'pong' }
           const encoded = JSON.stringify(body)
           let index = 0
-          const stream = new Readable({
-            async read() {
-              if (index >= encoded.length) return this.push(null)
-
-              this.push(encoded[index])
-              index++
+          const stream = new ReadableStream({
+            async pull(controller) {
+              if (index >= encoded.length) controller.close()
+              else controller.enqueue(encoded[index++])
             },
           })
           const res = await next.fetch(bathPath + '/advanced/body/json', {
@@ -321,12 +314,10 @@ createNextDescribe(
         const body = { ping: 'pong' }
         const encoded = JSON.stringify(body)
         let index = 0
-        const stream = new Readable({
-          async read() {
-            if (index >= encoded.length) return this.push(null)
-
-            this.push(encoded[index])
-            index++
+        const stream = new ReadableStream({
+          async pull(controller) {
+            if (index >= encoded.length) controller.close()
+            else controller.enqueue(encoded[index++])
           },
         })
         const res = await next.fetch(bathPath + '/edge/advanced/body/json', {
