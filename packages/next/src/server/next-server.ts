@@ -1606,6 +1606,9 @@ export default class NextNodeServer extends BaseServer {
       ReturnType<typeof NextNodeServer.prototype.runMiddleware>
     >
 
+    // Strip the internal headers.
+    this.stripInternalHeaders(req)
+
     try {
       await this.ensureMiddleware()
 
