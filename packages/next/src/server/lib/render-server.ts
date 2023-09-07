@@ -3,20 +3,19 @@ import type { NextServer, RequestHandler } from '../next'
 import next from '../next'
 import { PropagateToWorkersField } from './router-utils/types'
 
-const result: Record<
+let initializations: Record<
   string,
-  | undefined
-  | {
+  | Promise<{
       requestHandler: ReturnType<
         InstanceType<typeof NextServer>['getRequestHandler']
       >
       upgradeHandler: ReturnType<
         InstanceType<typeof NextServer>['getUpgradeHandler']
       >
-    }
+      app: ReturnType<typeof next>
+    }>
+  | undefined
 > = {}
-
-let apps: Record<string, ReturnType<typeof next> | undefined> = {}
 
 let sandboxContext: undefined | typeof import('../web/sandbox/context')
 let requireCacheHotReloader:
@@ -47,10 +46,11 @@ export async function propagateServerField(
   field: PropagateToWorkersField,
   value: any
 ) {
-  const app = apps[dir]
-  if (!app) {
+  const initialization = await initializations[dir]
+  if (!initialization) {
     throw new Error('Invariant cant propagate server field, no app initialized')
   }
+  const { app } = initialization
   let appField = (app as any).server
 
   if (appField) {
@@ -65,7 +65,7 @@ export async function propagateServerField(
   }
 }
 
-export async function initialize(opts: {
+async function initializeImpl(opts: {
   dir: string
   port: number
   dev: boolean
@@ -80,12 +80,6 @@ export async function initialize(opts: {
   _ipcPort?: string
   _ipcKey?: string
 }) {
-  // if we already setup the server return as we only need to do
-  // this on first worker boot
-  if (result[opts.dir]) {
-    return result[opts.dir]
-  }
-
   const type = process.env.__NEXT_PRIVATE_RENDER_WORKER
   if (type) {
     process.title = 'next-render-worker-' + type
@@ -104,15 +98,32 @@ export async function initialize(opts: {
     port: opts.port,
     isNodeDebugging: opts.isNodeDebugging,
   })
-  apps[opts.dir] = app
   requestHandler = app.getRequestHandler()
   upgradeHandler = app.getUpgradeHandler()
 
   await app.prepare(opts.serverFields)
 
-  result[opts.dir] = {
+  return {
     requestHandler,
     upgradeHandler,
+    app,
   }
-  return result[opts.dir]
+}
+
+export async function initialize(
+  opts: Parameters<typeof initializeImpl>[0]
+): Promise<{
+  requestHandler: ReturnType<
+    InstanceType<typeof NextServer>['getRequestHandler']
+  >
+  upgradeHandler: ReturnType<
+    InstanceType<typeof NextServer>['getUpgradeHandler']
+  >
+}> {
+  // if we already setup the server return as we only need to do
+  // this on first worker boot
+  if (initializations[opts.dir]) {
+    return initializations[opts.dir]!
+  }
+  return (initializations[opts.dir] = initializeImpl(opts))
 }
