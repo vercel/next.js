@@ -30,9 +30,7 @@ interface WebServerOptions extends Options {
     page: string
     normalizedPage: string
     pagesType: 'app' | 'pages' | 'root'
-    loadComponent: (
-      pathname: string
-    ) => Promise<LoadComponentsReturnType | null>
+    loadComponent: (page: string) => Promise<LoadComponentsReturnType | null>
     extendRenderOpts: Partial<BaseServer['renderOpts']> &
       Pick<BaseServer['renderOpts'], 'buildId'>
     renderToHTML:
@@ -294,18 +292,16 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   }
 
   protected async findPageComponents({
-    pathname,
+    page,
     query,
     params,
   }: {
-    pathname: string
+    page: string
     query: NextParsedUrlQuery
     params: Params | null
     isAppPath: boolean
   }) {
-    const result = await this.serverOptions.webServerConfig.loadComponent(
-      pathname
-    )
+    const result = await this.serverOptions.webServerConfig.loadComponent(page)
     if (!result) return null
 
     return {

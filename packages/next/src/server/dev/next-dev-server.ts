@@ -749,14 +749,14 @@ export default class DevServer extends Server {
   }
 
   protected async findPageComponents({
-    pathname,
+    page,
     query,
     params,
     isAppPath,
     appPaths = null,
     shouldEnsure,
   }: {
-    pathname: string
+    page: string
     query: NextParsedUrlQuery
     params: Params
     isAppPath: boolean
@@ -765,7 +765,7 @@ export default class DevServer extends Server {
     shouldEnsure: boolean
   }): Promise<FindComponentsResult | null> {
     await this.devReady
-    const compilationErr = await this.getCompilationError(pathname)
+    const compilationErr = await this.getCompilationError(page)
     if (compilationErr) {
       // Wrap build errors so that they don't get logged again
       throw new WrappedBuildError(compilationErr)
@@ -773,7 +773,7 @@ export default class DevServer extends Server {
     try {
       if (shouldEnsure || this.renderOpts.customServer) {
         await this.ensurePage({
-          page: pathname,
+          page,
           appPaths,
           clientOnly: false,
         })
@@ -787,7 +787,7 @@ export default class DevServer extends Server {
       this.restorePatchedGlobals()
 
       return await super.findPageComponents({
-        pathname,
+        page,
         query,
         params,
         isAppPath,

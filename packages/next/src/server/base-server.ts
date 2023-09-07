@@ -303,7 +303,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getBuildId(): string
 
   protected abstract findPageComponents(params: {
-    pathname: string
+    page: string
     query: NextParsedUrlQuery
     params: Params
     isAppPath: boolean
@@ -1587,12 +1587,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     let fallbackMode: FallbackMode
     let hasFallback = false
-    const isDynamic = isDynamicRoute(components.pathname)
+    const isDynamic = isDynamicRoute(components.page)
 
     if (isAppPath && isDynamic) {
       const pathsResult = await this.getStaticPaths({
         pathname,
-        originalAppPath: components.pathname,
+        originalAppPath: components.page,
         requestHeaders: req.headers,
       })
 
@@ -1601,7 +1601,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       hasFallback = typeof fallbackMode !== 'undefined'
 
       if (this.nextConfig.output === 'export') {
-        const page = components.pathname
+        const page = components.page
 
         if (fallbackMode !== 'static') {
           throw new Error(
@@ -2504,17 +2504,17 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const { query, pathname } = ctx
 
     const appRoute = this.appRoutes?.get(pathname) ?? null
+    const page = appRoute?.page ?? pathname
+    const appPaths =
+      appRoute && isAppPageRouteDefinition(appRoute) ? appRoute.appPaths : null
 
     const result = await this.findPageComponents({
-      pathname: appRoute?.page ?? pathname,
+      page,
       query,
       params: ctx.renderOpts.params || {},
       isAppPath: appRoute !== null,
       sriEnabled: !!this.nextConfig.experimental.sri?.algorithm,
-      appPaths:
-        appRoute && isAppPageRouteDefinition(appRoute)
-          ? appRoute.appPaths
-          : null,
+      appPaths,
       // Ensuring for loading page component routes is done via the matcher.
       shouldEnsure: false,
     })
@@ -2792,7 +2792,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         if (this.hasAppDir) {
           // Use the not-found entry in app directory
           result = await this.findPageComponents({
-            pathname: this.renderOpts.dev ? '/not-found' : '/_not-found',
+            page: this.renderOpts.dev ? '/not-found' : '/_not-found',
             query,
             params: {},
             isAppPath: true,
@@ -2803,7 +2803,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
         if (!result && (await this.hasPage('/404'))) {
           result = await this.findPageComponents({
-            pathname: '/404',
+            page: '/404',
             query,
             params: {},
             isAppPath: false,
@@ -2824,7 +2824,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         // dev overlay is used instead
         if (statusPage !== '/500' || !this.renderOpts.dev) {
           result = await this.findPageComponents({
-            pathname: statusPage,
+            page: statusPage,
             query,
             params: {},
             isAppPath: false,
@@ -2837,7 +2837,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       if (!result) {
         result = await this.findPageComponents({
-          pathname: '/_error',
+          page: '/_error',
           query,
           params: {},
           isAppPath: false,

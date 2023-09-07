@@ -63,7 +63,7 @@ export async function loadStaticPaths({
 
   const components = await loadComponents({
     distDir,
-    pathname: originalAppPath || pathname,
+    page: originalAppPath || pathname,
     isAppPath: !!isAppPath,
   })
 
