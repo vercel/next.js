@@ -187,31 +187,23 @@ pub async fn get_app_entries(
     let mut entries = entrypoints
         .await?
         .iter()
-        .map(|(pathname, entrypoint)| async move {
+        .map(|(_, entrypoint)| async move {
             Ok(match entrypoint {
-                Entrypoint::AppPage {
-                    original_name,
-                    loader_tree,
-                } => get_app_page_entry(
+                Entrypoint::AppPage { page, loader_tree } => get_app_page_entry(
                     rsc_context,
                     // TODO add edge support
                     rsc_context,
                     *loader_tree,
                     app_dir,
-                    pathname.clone(),
-                    original_name.clone(),
+                    page.clone(),
                     project_root,
                 ),
-                Entrypoint::AppRoute {
-                    original_name,
-                    path,
-                } => get_app_route_entry(
+                Entrypoint::AppRoute { page, path } => get_app_route_entry(
                     rsc_context,
                     // TODO add edge support
                     rsc_context,
                     Vc::upcast(FileSource::new(*path)),
-                    pathname.clone(),
-                    original_name.clone(),
+                    page.clone(),
                     project_root,
                 ),
             })

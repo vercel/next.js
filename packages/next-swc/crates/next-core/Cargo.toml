@@ -39,6 +39,7 @@ turbopack-binding = { workspace = true, features = [
   "__turbo_tasks_hash",
   "__turbopack",
   "__turbopack_build",
+  "__turbopack_cli_utils",
   "__turbopack_core",
   "__turbopack_dev",
   "__turbopack_dev_server",

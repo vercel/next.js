@@ -21,6 +21,7 @@ const enabledTests = [
   'test/e2e/type-module-interop/index.test.ts',
   'test/e2e/undici-fetch/index.test.ts',
   'test/integration/bigint/test/index.test.js',
+  'test/e2e/styled-jsx/index.test.ts',
   // TODO: re-enable once the logging is aligned
   // 'test/integration/middleware-basic/test/index.test.js',
 ]
