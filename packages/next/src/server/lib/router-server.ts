@@ -1,5 +1,4 @@
 import type { IncomingMessage } from 'http'
-import type { NextJsHotReloaderInterface } from '../dev/hot-reloader-types'
 import type { createWorker } from './server-ipc'
 
 // this must come first as it includes require hooks
@@ -663,6 +662,7 @@ export async function initialize(opts: {
     requestHandler = wrapRequestHandlerWorker(requestHandler)
     interceptTestApis()
   }
+  requestHandlers[opts.dir] = requestHandler
 
   const upgradeHandler: WorkerUpgradeHandler = async (req, socket, head) => {
     try {

@@ -63,9 +63,7 @@ import { DefaultFileReader } from '../future/route-matcher-providers/dev/helpers
 import { NextBuildContext } from '../../build/build-context'
 import { IncrementalCache } from '../lib/incremental-cache'
 import LRUCache from 'next/dist/compiled/lru-cache'
-import { errorToJSON } from '../render'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
-import { deserializeErr } from '../lib/server-ipc/request-utils'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -492,7 +490,7 @@ export default class DevServer extends Server {
     if (this.isRenderWorker) {
       await this.invokeDevMethod({
         method: 'logErrorWithOriginalStack',
-        args: [errorToJSON(err as Error), type],
+        args: [err, type],
       })
       return
     }
