@@ -22,6 +22,7 @@ import {
   getReservedPortExplanation,
   isPortIsReserved,
 } from '../lib/helpers/get-reserved-port'
+import { validateTurboNextConfig } from '../lib/turbopack-warning'
 
 let dir: string
 let config: NextConfigComplete
@@ -227,6 +228,11 @@ const nextDev: CliCommand = async (args) => {
 
   if (args['--turbo']) {
     process.env.TURBOPACK = '1'
+    await validateTurboNextConfig({
+      isCustomTurbopack: !!process.env.__INTERNAL_CUSTOM_TURBOPACK_BINDINGS,
+      ...devServerOptions,
+      isDev: true,
+    })
   }
 
   const distDir = path.join(dir, config.distDir ?? '.next')
