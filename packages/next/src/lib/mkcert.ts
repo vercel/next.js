@@ -3,10 +3,7 @@ import path from 'path'
 import { getCacheDirectory } from './helpers/get-cache-directory'
 import * as Log from '../build/output/log'
 import { execSync } from 'child_process'
-
-const { fetch } = require('next/dist/compiled/undici') as {
-  fetch: typeof global.fetch
-}
+import '../server/node-polyfill-fetch'
 
 const MKCERT_VERSION = 'v1.4.4'
 
