@@ -23,7 +23,7 @@ describe('Middleware Responses', () => {
 
     it(`${label}responds with multiple cookies`, async () => {
       const res = await fetchViaHTTP(next.url, `${locale}/two-cookies`)
-      expect(res.headers.raw()['set-cookie']).toEqual([
+      expect(res.headers.getSetCookie()).toEqual([
         'foo=chocochip',
         'bar=chocochip',
       ])
@@ -79,7 +79,7 @@ describe('Middleware Responses', () => {
       )
       expect(res.headers.get('x-nested-header')).toBe('valid')
       expect(res.headers.get('x-append-me')).toBe('top')
-      expect(res.headers.raw()['set-cookie']).toEqual(['bar=chocochip'])
+      expect(res.headers.getSetCookie()).toEqual(['bar=chocochip'])
     })
   }
   testsWithLocale()

@@ -154,19 +154,14 @@ export function fetchViaHTTP(
   appPort: string | number,
   pathname: string,
   query?: Record<string, any> | string | null | undefined,
-  opts?: RequestInit
+  opts?: RequestInit & { agent?: any }
 ): Promise<Response> {
   const url = query ? withQuery(pathname, query) : pathname
   return fetch(getFullUrl(appPort, url), opts)
 }
 
-export function renderViaHTTP(
-  appPort: string | number,
-  pathname: string,
-  query?: Record<string, any> | string | undefined,
-  opts?: RequestInit
-) {
-  return fetchViaHTTP(appPort, pathname, query, opts).then((res) => res.text())
+export function renderViaHTTP(...args: Parameters<typeof fetchViaHTTP>) {
+  return fetchViaHTTP(...args).then((res) => res.text())
 }
 
 export function findPort() {
