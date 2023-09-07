@@ -263,7 +263,7 @@ export default class DevServer extends Server {
 
     await super.prepareImpl()
     await this.runInstrumentationHookIfAvailable()
-    await this.matchers.reload()
+    await this.matchers.load()
     this.reloadAppPathRoutes()
     this.setDevReady!()
 

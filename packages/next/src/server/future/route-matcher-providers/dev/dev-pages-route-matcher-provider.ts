@@ -9,7 +9,9 @@ import { LocaleRouteNormalizer } from '../../normalizers/locale-route-normalizer
 import { FileCacheRouteMatcherProvider } from './file-cache-route-matcher-provider'
 import { DevPagesNormalizers } from '../../normalizers/built/pages'
 
-export class DevPagesRouteMatcherProvider extends FileCacheRouteMatcherProvider<PagesRouteMatcher> {
+export class DevPagesRouteMatcherProvider extends FileCacheRouteMatcherProvider<
+  PagesRouteMatcher | PagesLocaleRouteMatcher
+> {
   private readonly expression: RegExp
   private readonly normalizers: DevPagesNormalizers
 
@@ -52,8 +54,8 @@ export class DevPagesRouteMatcherProvider extends FileCacheRouteMatcherProvider<
 
   protected async transform(
     files: ReadonlyArray<string>
-  ): Promise<ReadonlyArray<PagesRouteMatcher>> {
-    const matchers: Array<PagesRouteMatcher> = []
+  ): Promise<ReadonlyArray<PagesRouteMatcher | PagesLocaleRouteMatcher>> {
+    const matchers: Array<PagesRouteMatcher | PagesLocaleRouteMatcher> = []
     for (const filename of files) {
       // If the file isn't a match for this matcher, then skip it.
       if (!this.test(filename)) continue
@@ -70,7 +72,13 @@ export class DevPagesRouteMatcherProvider extends FileCacheRouteMatcherProvider<
             page,
             bundlePath,
             filename,
-            i18n: {},
+            i18n: {
+              // In development we don't have specific routes per locale, so
+              // we can just set this to undefined to have it accept all
+              // locales.
+              detectedLocale: undefined,
+              pathname,
+            },
           })
         )
       } else {

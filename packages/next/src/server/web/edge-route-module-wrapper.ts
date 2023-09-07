@@ -9,7 +9,7 @@ import './globals'
 
 import { adapter, type AdapterOptions } from './adapter'
 import { IncrementalCache } from '../lib/incremental-cache'
-import { RouteMatcher } from '../future/route-matchers/route-matcher'
+import { AppRouteRouteMatcher } from '../future/route-matchers/app-route-route-matcher'
 import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 
@@ -21,7 +21,7 @@ type WrapOptions = Partial<Pick<AdapterOptions, 'page'>>
  * Note that this class should only be used in the edge runtime.
  */
 export class EdgeRouteModuleWrapper {
-  private readonly matcher: RouteMatcher
+  private readonly matcher: AppRouteRouteMatcher
 
   /**
    * The constructor is wrapped with private to ensure that it can only be
@@ -31,7 +31,7 @@ export class EdgeRouteModuleWrapper {
    */
   private constructor(private readonly routeModule: AppRouteRouteModule) {
     // TODO: (wyattjoh) possibly allow the module to define it's own matcher
-    this.matcher = new RouteMatcher(routeModule.definition)
+    this.matcher = new AppRouteRouteMatcher(routeModule.definition)
   }
 
   /**
@@ -63,6 +63,8 @@ export class EdgeRouteModuleWrapper {
   }
 
   private async handler(request: NextRequest): Promise<Response> {
+    // TODO: harmonize the pathname normalization between the server and here
+
     // Get the pathname for the matcher. Pathnames should not have trailing
     // slashes for matching.
     let pathname = removeTrailingSlash(new URL(request.url).pathname)
@@ -75,7 +77,7 @@ export class EdgeRouteModuleWrapper {
     }
 
     // Get the match for this request.
-    const match = this.matcher.match(pathname)
+    const match = this.matcher.match({ pathname })
     if (!match) {
       throw new Error(
         `Invariant: no match found for request. Pathname '${pathname}' should have matched '${this.matcher.definition.pathname}'`

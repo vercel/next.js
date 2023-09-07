@@ -407,6 +407,7 @@ export default class NextNodeServer extends BaseServer {
           query,
           params: match.params,
           page: match.definition.pathname,
+          match,
           appPaths: null,
         })
 
@@ -562,11 +563,17 @@ export default class NextNodeServer extends BaseServer {
   ) {
     const edgeFunctionsPages = this.getEdgeFunctionsPages() || []
     if (edgeFunctionsPages.length) {
-      const appRoute = this.appRoutes?.get(ctx.pathname)
-      const page = appRoute?.page ?? ctx.pathname
+      const definition =
+        ctx.match?.definition ?? this.appRoutes?.get(ctx.pathname) ?? null
+      const page = definition?.page ?? ctx.pathname
 
       for (const edgeFunctionsPage of edgeFunctionsPages) {
         if (edgeFunctionsPage !== page) continue
+
+        const appPaths =
+          definition && isAppPageRouteDefinition(definition)
+            ? definition.appPaths
+            : null
 
         await this.runEdgeFunction({
           req: ctx.req,
@@ -574,10 +581,7 @@ export default class NextNodeServer extends BaseServer {
           query: ctx.query,
           params: ctx.renderOpts.params,
           page,
-          appPaths:
-            appRoute && isAppPageRouteDefinition(appRoute)
-              ? appRoute.appPaths
-              : null,
+          appPaths,
         })
 
         return null
@@ -839,7 +843,7 @@ export default class NextNodeServer extends BaseServer {
 
       // If we don't have a match, try to render it anyways.
       if (!match) {
-        await this.render(req, res, pathname, query, parsedUrl, true)
+        await this.render(req, res, pathname, query, parsedUrl, true, null)
 
         return { finished: true }
       }
@@ -890,7 +894,7 @@ export default class NextNodeServer extends BaseServer {
         if (handled) return { finished: true }
       }
 
-      await this.render(req, res, pathname, query, parsedUrl, true)
+      await this.render(req, res, pathname, query, parsedUrl, true, match)
 
       return {
         finished: true,
@@ -1201,9 +1205,10 @@ export default class NextNodeServer extends BaseServer {
     req: BaseNextRequest | IncomingMessage,
     res: BaseNextResponse | ServerResponse,
     pathname: string,
-    query?: NextParsedUrlQuery,
-    parsedUrl?: NextUrlWithParsedQuery,
-    internal = false
+    query: NextParsedUrlQuery = {},
+    parsedUrl: NextUrlWithParsedQuery | undefined,
+    internal = false,
+    match: RouteMatch | null
   ): Promise<void> {
     return super.render(
       this.normalizeReq(req),
@@ -1211,7 +1216,8 @@ export default class NextNodeServer extends BaseServer {
       pathname,
       query,
       parsedUrl,
-      internal
+      internal,
+      match
     )
   }
 

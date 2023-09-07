@@ -180,7 +180,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     }
 
     try {
-      await this.render(req, res, pathname, query, parsedUrl, true)
+      await this.render(req, res, pathname, query, parsedUrl, true, null)
 
       return {
         finished: true,

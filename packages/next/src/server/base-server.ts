@@ -124,6 +124,8 @@ import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-ass
 import { stripInternalHeaders } from './internal-utils'
 import { AppRouteDefinitionBuilder } from './future/route-matcher-providers/builders/app-route-definition-builder'
 import { isAppPageRouteDefinition } from './future/route-definitions/app-page-route-definition'
+import { RouteMatch } from './future/route-matches/route-match'
+import { isAppRouteDefinition } from './future/route-definitions/app-route-definition'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -208,6 +210,7 @@ export interface BaseRequestHandler {
 export type RequestContext = {
   req: BaseNextRequest
   res: BaseNextResponse
+  match: RouteMatch | null
   pathname: string
   query: NextParsedUrlQuery
   renderOpts: RenderOptsPartial
@@ -494,14 +497,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // Start route compilation. We don't wait for the routes to finish loading
     // because we use the `waitTillReady` promise below in `handleRequest` to
     // wait. Also we can't `await` in the constructor.
-    void this.matchers.reload()
+    void this.matchers.load()
 
     this.setAssetPrefix(assetPrefix)
     this.responseCache = this.getResponseCache({ dev })
   }
 
   protected reloadMatchers() {
-    return this.matchers.reload()
+    return this.matchers.forceReload()
   }
 
   protected reloadAppPathRoutes() {
@@ -619,13 +622,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     return { finished: false }
   }
 
-  protected async handleCatchallRenderRequest(
-    _req: BaseNextRequest,
-    _res: BaseNextResponse,
-    _parsedUrl: NextUrlWithParsedQuery
-  ): Promise<{ finished: boolean }> {
-    return { finished: false }
-  }
+  protected abstract handleCatchallRenderRequest(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    parsedUrl: NextUrlWithParsedQuery
+  ): Promise<{ finished: boolean }>
 
   protected async handleCatchallMiddlewareRequest(
     _req: BaseNextRequest,
@@ -1427,12 +1428,21 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     req: BaseNextRequest,
     res: BaseNextResponse,
     pathname: string,
-    query: NextParsedUrlQuery = {},
-    parsedUrl?: NextUrlWithParsedQuery,
-    internalRender = false
+    query: NextParsedUrlQuery | undefined,
+    parsedUrl: NextUrlWithParsedQuery | undefined,
+    internalRender = false,
+    match: RouteMatch | null = null
   ): Promise<void> {
     return getTracer().trace(BaseServerSpan.render, async () =>
-      this.renderImpl(req, res, pathname, query, parsedUrl, internalRender)
+      this.renderImpl(
+        req,
+        res,
+        pathname,
+        query,
+        parsedUrl,
+        internalRender,
+        match
+      )
     )
   }
 
@@ -1441,8 +1451,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     res: BaseNextResponse,
     pathname: string,
     query: NextParsedUrlQuery = {},
-    parsedUrl?: NextUrlWithParsedQuery,
-    internalRender = false
+    parsedUrl: NextUrlWithParsedQuery | undefined,
+    internalRender = false,
+    match: RouteMatch | null
   ): Promise<void> {
     if (!pathname.startsWith('/')) {
       console.warn(
@@ -1483,6 +1494,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       res,
       pathname,
       query,
+      match,
     })
   }
 
@@ -2497,18 +2509,21 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     ctx: RequestContext,
     bubbleNoFallback: boolean
   ) {
-    const { query, pathname } = ctx
+    const { query, pathname, match } = ctx
 
-    const appRoute = this.appRoutes?.get(pathname) ?? null
-    const page = appRoute?.page ?? pathname
+    const definition =
+      match?.definition ?? this.appRoutes?.get(pathname) ?? null
+    const page = definition?.page ?? pathname
     const appPaths =
-      appRoute && isAppPageRouteDefinition(appRoute) ? appRoute.appPaths : null
+      definition && isAppPageRouteDefinition(definition)
+        ? definition.appPaths
+        : null
 
     const result = await this.findPageComponents({
       page,
       query,
       params: ctx.renderOpts.params || {},
-      isAppPath: appRoute !== null,
+      isAppPath: definition ? isAppRouteDefinition(definition) : false,
       sriEnabled: !!this.nextConfig.experimental.sri?.algorithm,
       appPaths,
       // Ensuring for loading page component routes is done via the matcher.
@@ -2549,6 +2564,27 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null>
   protected abstract getRoutesManifest(): NormalizedRouteManifest | undefined
 
+  private async renderMatch(
+    ctx: Omit<RequestContext, 'match'>,
+    match: RouteMatch,
+    bubbleNoFallback: boolean
+  ) {
+    return this.renderPageComponent(
+      {
+        ...ctx,
+        match,
+        // Use the overridden pathname if available, otherwise use the
+        // original pathname.
+        pathname: match.definition.pathname,
+        renderOpts: {
+          ...ctx.renderOpts,
+          params: match.params,
+        },
+      },
+      bubbleNoFallback
+    )
+  }
+
   private async renderToResponseImpl(
     ctx: RequestContext
   ): Promise<ResponsePayload | null> {
@@ -2571,27 +2607,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           !this.minimalMode &&
           this.isRenderWorker &&
           typeof invokeOutput === 'string' &&
-          isDynamicRoute(invokeOutput || '') &&
+          isDynamicRoute(invokeOutput) &&
           invokeOutput !== match.definition.pathname
         ) {
           continue
         }
 
-        const result = await this.renderPageComponent(
-          {
-            ...ctx,
-            // Use the overridden pathname if available, otherwise use the
-            // original pathname.
-            pathname:
-              match.definition.pathnameOverride || match.definition.pathname,
-            renderOpts: {
-              ...ctx.renderOpts,
-              params: match.params,
-            },
-          },
-          bubbleNoFallback
-        )
-        if (result !== false) return result
+        const result = await this.renderMatch(ctx, match, bubbleNoFallback)
+
+        // If we couldn't render the page component, we should continue.
+        if (result === false) continue
+
+        return result
       }
 
       // currently edge functions aren't receiving the x-matched-path
@@ -2600,9 +2627,16 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // the rewrite case
       // @ts-expect-error extended in child class web-server
       if (this.serverOptions.webServerConfig) {
-        // @ts-expect-error extended in child class web-server
-        ctx.pathname = this.serverOptions.webServerConfig.page
-        const result = await this.renderPageComponent(ctx, bubbleNoFallback)
+        const result = await this.renderPageComponent(
+          {
+            ...ctx,
+            // TODO: should construct match from available definition and pass down
+            match: null,
+            // @ts-expect-error extended in child class web-server
+            pathname: this.serverOptions.webServerConfig.page,
+          },
+          bubbleNoFallback
+        )
         if (result !== false) return result
       }
     } catch (error) {
@@ -2699,13 +2733,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     req: BaseNextRequest,
     res: BaseNextResponse,
     pathname: string,
-    query: ParsedUrlQuery = {}
+    query: ParsedUrlQuery | undefined = {}
   ): Promise<string | null> {
     return this.getStaticHTML((ctx) => this.renderToResponse(ctx), {
       req,
       res,
       pathname,
       query,
+      match: null,
     })
   }
 
@@ -2745,7 +2780,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
         return response
       },
-      { req, res, pathname, query }
+      { req, res, pathname, query, match: null }
     )
   }
 
@@ -2968,6 +3003,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       res,
       pathname,
       query,
+      match: null,
     })
   }
 
