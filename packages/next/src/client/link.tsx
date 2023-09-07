@@ -7,7 +7,7 @@ import type {
 
 import React from 'react'
 import { UrlObject } from 'url'
-import { resolveHref } from '../shared/lib/router/utils/resolve-href'
+import { resolveHref } from './resolve-href'
 import { isLocalURL } from '../shared/lib/router/utils/is-local-url'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
 import { isAbsoluteUrl } from '../shared/lib/utils'
