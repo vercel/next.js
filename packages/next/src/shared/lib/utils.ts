@@ -1,4 +1,4 @@
-import type { HtmlProps } from './html-context.shared-runtime'
+import type { HtmlProps } from './html-context'
 import type { ComponentType } from 'react'
 import type { DomainLocale } from '../../server/config'
 import type { Env } from '@next/env'

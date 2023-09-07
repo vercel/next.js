@@ -41,7 +41,7 @@ import {
   UnwrapPromise,
   withCoalescedInvoke,
 } from '../../lib/coalesced-function'
-import { loadDefaultErrorComponents } from '../load-default-error-components'
+import { loadDefaultErrorComponents } from '../load-components'
 import { DecodeError, MiddlewareNotFoundError } from '../../shared/lib/utils'
 import * as Log from '../../build/output/log'
 import isError, { getProperError } from '../../lib/is-error'
