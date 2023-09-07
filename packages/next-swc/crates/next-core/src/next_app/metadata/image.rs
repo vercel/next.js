@@ -1,3 +1,7 @@
+//! (partial) Rust port of the `next-metadata-image-loader`
+//!
+//! See `next/src/build/webpack/loaders/next-metadata-image-loader`
+
 use anyhow::{bail, Result};
 use indoc::formatdoc;
 use turbo_tasks::{ValueToString, Vc};
