@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "13.4.20-canary.19",
+  "version": "13.4.20-canary.20",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -83,13 +83,14 @@
   },
   "taskr": {
     "requires": [
+      "./taskfile-webpack.js",
       "./taskfile-ncc.js",
       "./taskfile-swc.js",
       "./taskfile-watch.js"
     ]
   },
   "dependencies": {
-    "@next/env": "13.4.20-canary.19",
+    "@next/env": "13.4.20-canary.20",
     "@swc/helpers": "0.5.1",
     "busboy": "1.6.0",
     "caniuse-lite": "^1.0.30001406",
@@ -144,11 +145,11 @@
     "@mswjs/interceptors": "0.23.0",
     "@napi-rs/cli": "2.16.2",
     "@napi-rs/triples": "1.1.0",
-    "@next/polyfill-module": "13.4.20-canary.19",
-    "@next/polyfill-nomodule": "13.4.20-canary.19",
-    "@next/react-dev-overlay": "13.4.20-canary.19",
-    "@next/react-refresh-utils": "13.4.20-canary.19",
-    "@next/swc": "13.4.20-canary.19",
+    "@next/polyfill-module": "13.4.20-canary.20",
+    "@next/polyfill-nomodule": "13.4.20-canary.20",
+    "@next/react-dev-overlay": "13.4.20-canary.20",
+    "@next/react-refresh-utils": "13.4.20-canary.20",
+    "@next/swc": "13.4.20-canary.20",
     "@opentelemetry/api": "1.4.1",
     "@playwright/test": "^1.35.1",
     "@segment/ajv-human-errors": "2.1.2",
@@ -299,6 +300,7 @@
     "tar": "6.1.15",
     "taskr": "1.1.0",
     "terser": "5.14.1",
+    "terser-webpack-plugin": "5.3.9",
     "text-table": "0.2.0",
     "timers-browserify": "2.0.12",
     "tty-browserify": "0.0.1",
