@@ -1,4 +1,4 @@
-import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../shared/lib/app-router-context'
 import type {
   FlightRouterState,
   FlightData,

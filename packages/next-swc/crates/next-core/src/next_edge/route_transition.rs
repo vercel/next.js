@@ -58,26 +58,24 @@ impl Transition for NextEdgeRouteTransition {
 
     #[turbo_tasks::function]
     async fn process_module(
-        self: Vc<Self>,
+        &self,
         asset: Vc<Box<dyn Module>>,
         context: Vc<ModuleAssetContext>,
     ) -> Result<Vc<Box<dyn Module>>> {
-        let new_context = self.process_context(context);
-        let this = self.await?;
         let new_asset = route_bootstrap(
             asset,
-            Vc::upcast(new_context),
-            this.base_path,
-            this.bootstrap_asset,
+            Vc::upcast(context),
+            self.base_path,
+            self.bootstrap_asset,
             Vc::cell(indexmap! {
-                "NAME".to_string() => this.entry_name.clone(),
+                "NAME".to_string() => self.entry_name.clone(),
             }),
         );
 
         let asset = ChunkGroupFilesAsset {
             module: Vc::upcast(new_asset),
-            client_root: this.output_path,
-            chunking_context: this.edge_chunking_context,
+            client_root: self.output_path,
+            chunking_context: self.edge_chunking_context,
             runtime_entries: None,
         };
 

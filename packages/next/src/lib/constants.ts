@@ -132,10 +132,6 @@ const WEBPACK_LAYERS_NAMES = {
    * The server bundle layer for metadata routes.
    */
   appMetadataRoute: 'app-metadata-route',
-  /**
-   * The layer for the server bundle for App Route handlers.
-   */
-  appRouteHandler: 'app-route-handler',
 }
 
 export const WEBPACK_LAYERS = {
@@ -145,7 +141,6 @@ export const WEBPACK_LAYERS = {
       WEBPACK_LAYERS_NAMES.reactServerComponents,
       WEBPACK_LAYERS_NAMES.actionBrowser,
       WEBPACK_LAYERS_NAMES.appMetadataRoute,
-      WEBPACK_LAYERS_NAMES.appRouteHandler,
     ],
   },
 }

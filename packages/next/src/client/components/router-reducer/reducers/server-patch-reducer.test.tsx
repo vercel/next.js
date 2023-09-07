@@ -41,7 +41,7 @@ jest.mock('../fetch-server-response', () => {
 import {
   CacheNode,
   CacheStates,
-} from '../../../../shared/lib/app-router-context.shared-runtime'
+} from '../../../../shared/lib/app-router-context'
 import { createInitialRouterState } from '../create-initial-router-state'
 import {
   ServerPatchAction,

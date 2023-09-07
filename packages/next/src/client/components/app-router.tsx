@@ -14,11 +14,11 @@ import {
   LayoutRouterContext,
   GlobalLayoutRouterContext,
   CacheStates,
-} from '../../shared/lib/app-router-context.shared-runtime'
+} from '../../shared/lib/app-router-context'
 import type {
   CacheNode,
   AppRouterInstance,
-} from '../../shared/lib/app-router-context.shared-runtime'
+} from '../../shared/lib/app-router-context'
 import type {
   FlightRouterState,
   FlightData,
@@ -44,7 +44,7 @@ import { createHrefFromUrl } from './router-reducer/create-href-from-url'
 import {
   SearchParamsContext,
   PathnameContext,
-} from '../../shared/lib/hooks-client-context.shared-runtime'
+} from '../../shared/lib/hooks-client-context'
 import { useReducerWithReduxDevtools } from './use-reducer-with-devtools'
 import { ErrorBoundary } from './error-boundary'
 import {

@@ -96,9 +96,10 @@ pub async fn get_edge_resolve_options_context(
     ];
 
     match ty {
-        ServerContextType::AppRSC { .. } => custom_conditions.push("react-server".to_string()),
-        ServerContextType::AppRoute { .. }
-        | ServerContextType::Pages { .. }
+        ServerContextType::AppRSC { .. } | ServerContextType::AppRoute { .. } => {
+            custom_conditions.push("react-server".to_string())
+        }
+        ServerContextType::Pages { .. }
         | ServerContextType::PagesData { .. }
         | ServerContextType::AppSSR { .. }
         | ServerContextType::Middleware { .. } => {}

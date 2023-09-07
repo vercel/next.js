@@ -1381,9 +1381,6 @@ importers:
       terser:
         specifier: 5.14.1
         version: 5.14.1
-      terser-webpack-plugin:
-        specifier: 5.3.9
-        version: 5.3.9(@swc/core@1.3.55)(webpack@5.86.0)
       text-table:
         specifier: 0.2.0
         version: 0.2.0
