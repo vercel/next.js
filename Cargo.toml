@@ -16,9 +16,6 @@ members = [
   "packages/next-swc/crates/next-transform-strip-page-exports",
 ]
 
-[profile.dev.package.swc_css_prefixer]
-opt-level = 2
-
 # This is a workaround for wasm timeout issue
 [profile.dev.package."*"]
 debug-assertions = false
