@@ -1,7 +1,7 @@
 import {
   CacheNode,
   CacheStates,
-} from '../../../../shared/lib/app-router-context'
+} from '../../../../shared/lib/app-router-context.shared-runtime'
 import type {
   FlightRouterState,
   FlightSegmentPath,
