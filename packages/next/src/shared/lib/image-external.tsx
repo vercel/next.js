@@ -4,8 +4,8 @@ import type { ImageProps, ImageLoader, StaticImageData } from './get-img-props'
 import { getImgProps } from './get-img-props'
 import { warnOnce } from './utils/warn-once'
 import { ClientImage } from '../../client/image-component'
-import { RouterContext } from '../lib/router-context'
 import React from 'react'
+import ReactDOM from 'react-dom'
 
 // @ts-ignore - This is replaced by webpack alias
 import defaultLoader from 'next/dist/shared/lib/image-loader'
@@ -27,9 +27,8 @@ const unstable_getImgProps = (imgProps: ImageProps) => {
 }
 
 export default function Image(imgProps: ImageProps) {
-  const pagesRouter = React.useContext(RouterContext)
   if (
-    pagesRouter ||
+    !ReactDOM.preload ||
     imgProps.placeholder ||
     Object.entries(imgProps).some(
       ([key, value]) => key.startsWith('on') || typeof value === 'function'
