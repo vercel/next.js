@@ -604,7 +604,7 @@ pub fn get_server_chunking_context(
         project_path,
         node_root,
         node_root.join("server/chunks".to_string()),
-        client_root.join("static/media".to_string()),
+        client_root.join("_next/static/media".to_string()),
         environment,
     )
     .minify_type(MinifyType::NoMinify)
