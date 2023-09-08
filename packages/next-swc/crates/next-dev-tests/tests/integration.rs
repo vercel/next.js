@@ -552,6 +552,7 @@ async fn get_mock_server_future(mock_dir: &Path) -> Result<(), String> {
             Some(mock_dir.to_path_buf()),
             false,
             0,
+            std::future::pending(),
         )
         .await
     } else {

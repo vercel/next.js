@@ -1248,7 +1248,6 @@ export default async function build(
           forkOptions: {
             env: {
               ...process.env,
-              __NEXT_PRIVATE_RENDER_RUNTIME: type,
               __NEXT_INCREMENTAL_CACHE_IPC_PORT: ipcPort + '',
               __NEXT_INCREMENTAL_CACHE_IPC_KEY: ipcValidationKey,
               __NEXT_PRIVATE_PREBUNDLED_REACT:
@@ -1256,7 +1255,7 @@ export default async function build(
                   ? config.experimental.serverActions
                     ? 'experimental'
                     : 'next'
-                  : '',
+                  : undefined,
             },
           },
           enableWorkerThreads: config.experimental.workerThreads,

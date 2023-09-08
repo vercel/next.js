@@ -215,7 +215,14 @@ pub async fn get_next_server_import_map(
 
     let ty = ty.into_value();
 
-    insert_next_server_special_aliases(&mut import_map, ty, mode, NextRuntime::NodeJs).await?;
+    insert_next_server_special_aliases(
+        &mut import_map,
+        project_path,
+        ty,
+        mode,
+        NextRuntime::NodeJs,
+    )
+    .await?;
     let external: Vc<ImportMapping> = ImportMapping::External(None).cell();
 
     import_map.insert_exact_alias("next/dist/server/require-hook", external);
@@ -290,7 +297,8 @@ pub async fn get_next_edge_import_map(
 
     let ty = ty.into_value();
 
-    insert_next_server_special_aliases(&mut import_map, ty, mode, NextRuntime::Edge).await?;
+    insert_next_server_special_aliases(&mut import_map, project_path, ty, mode, NextRuntime::Edge)
+        .await?;
 
     match ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {}
@@ -371,6 +379,7 @@ static NEXT_ALIASES: [(&str, &str); 23] = [
 
 async fn insert_next_server_special_aliases(
     import_map: &mut ImportMap,
+    project_path: Vc<FileSystemPath>,
     ty: ServerContextType,
     mode: NextMode,
     runtime: NextRuntime,
@@ -552,6 +561,14 @@ async fn insert_next_server_special_aliases(
         }
         (_, ServerContextType::Middleware) => {}
     }
+
+    import_map.insert_exact_alias(
+        "@vercel/og",
+        external_if_node(
+            project_path,
+            "next/dist/server/web/spec-extension/image-response",
+        ),
+    );
 
     Ok(())
 }
