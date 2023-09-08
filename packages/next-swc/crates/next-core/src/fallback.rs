@@ -63,6 +63,7 @@ pub async fn get_fallback_page(
         project_path,
         execution_context,
         next_config,
+        NextMode::DevServer,
     )
     .await?;
 

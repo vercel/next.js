@@ -3,6 +3,7 @@ import fs from 'fs-extra'
 import { NextInstance } from './base'
 import spawn from 'cross-spawn'
 import { Span } from 'next/src/trace'
+import stripAnsi from 'strip-ansi'
 
 export class NextStartInstance extends NextInstance {
   private _buildId: string
@@ -122,8 +123,14 @@ export class NextStartInstance extends NextInstance {
         })
 
         const readyCb = (msg) => {
-          if (msg.includes('started server on') && msg.includes('url:')) {
-            this._url = msg.split('url: ').pop().split(/\s/)[0].trim()
+          const colorStrippedMsg = stripAnsi(msg)
+          if (colorStrippedMsg.includes('- Local:')) {
+            this._url = msg
+              .split('\n')
+              .find((line) => line.includes('- Local:'))
+              .split(/\s*- Local:/)
+              .pop()
+              .trim()
             this._parsedUrl = new URL(this._url)
             this.off('stdout', readyCb)
             resolve()

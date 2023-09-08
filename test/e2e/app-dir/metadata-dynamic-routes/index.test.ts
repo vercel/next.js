@@ -114,6 +114,23 @@ createNextDescribe(
           isNextDev ? CACHE_HEADERS.NONE : CACHE_HEADERS.LONG
         )
 
+        if (isNextDev) {
+          await check(async () => {
+            next.hasFile('.next/server/app-paths-manifest.json')
+            return 'success'
+          }, /success/)
+
+          const appPathsManifest = JSON.parse(
+            await next.readFile('.next/server/app-paths-manifest.json')
+          )
+          const entryKeys = Object.keys(appPathsManifest)
+          // Only has one route for twitter-image with catch-all routes in dev
+          expect(entryKeys).not.toContain('/twitter-image')
+          expect(entryKeys).toContain(
+            '/twitter-image/[[...__metadata_id__]]/route'
+          )
+        }
+
         // edge runtime
         res = await next.fetch('/twitter-image2')
         expect(res.headers.get('content-type')).toBe('image/png')

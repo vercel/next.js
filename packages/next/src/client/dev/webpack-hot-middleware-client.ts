@@ -11,54 +11,56 @@ export default () => {
       window.next.router.pathname === '/404' ||
       window.next.router.pathname === '/_error'
 
-    if (obj.action === 'reloadPage') {
-      sendMessage(
-        JSON.stringify({
-          event: 'client-reload-page',
-          clientId: window.__nextDevClientId,
-        })
-      )
-      return window.location.reload()
-    }
-    if (obj.action === 'removedPage') {
-      const [page] = obj.data
-      if (page === window.next.router.pathname || isOnErrorPage) {
+    switch (obj.action) {
+      case 'reloadPage': {
         sendMessage(
           JSON.stringify({
-            event: 'client-removed-page',
+            event: 'client-reload-page',
             clientId: window.__nextDevClientId,
-            page,
           })
         )
         return window.location.reload()
       }
-      return
-    }
-    if (obj.action === 'addedPage') {
-      const [page] = obj.data
-      if (
-        (page === window.next.router.pathname &&
-          typeof window.next.router.components[page] === 'undefined') ||
-        isOnErrorPage
-      ) {
-        sendMessage(
-          JSON.stringify({
-            event: 'client-added-page',
-            clientId: window.__nextDevClientId,
-            page,
-          })
-        )
-        return window.location.reload()
+      case 'removedPage': {
+        const [page] = obj.data
+        if (page === window.next.router.pathname || isOnErrorPage) {
+          sendMessage(
+            JSON.stringify({
+              event: 'client-removed-page',
+              clientId: window.__nextDevClientId,
+              page,
+            })
+          )
+          return window.location.reload()
+        }
+        return
       }
-      return
+      case 'addedPage': {
+        const [page] = obj.data
+        if (
+          (page === window.next.router.pathname &&
+            typeof window.next.router.components[page] === 'undefined') ||
+          isOnErrorPage
+        ) {
+          sendMessage(
+            JSON.stringify({
+              event: 'client-added-page',
+              clientId: window.__nextDevClientId,
+              page,
+            })
+          )
+          return window.location.reload()
+        }
+        return
+      }
+      case 'serverError':
+      case 'devPagesManifestUpdate': {
+        return
+      }
+      default: {
+        throw new Error('Unexpected action ' + obj.action)
+      }
     }
-    if (
-      obj.action === 'serverError' ||
-      obj.action === 'devPagesManifestUpdate'
-    ) {
-      return
-    }
-    throw new Error('Unexpected action ' + obj.action)
   })
 
   return devClient

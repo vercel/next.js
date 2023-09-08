@@ -69,7 +69,7 @@ const nextBuild: CliCommand = (argv) => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  if (args['--experimental-turbo'] || process.env.EXPERIMENTAL_TURBOPACK) {
+  if (args['--experimental-turbo']) {
     process.env.TURBOPACK = '1'
   }
 

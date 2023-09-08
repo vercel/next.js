@@ -75,7 +75,7 @@ impl<'a> FontImportsGenerator<'a> {
                             }),
                             specifiers: vec![],
                             type_only: false,
-                            asserts: None,
+                            with: None,
                             span: DUMMY_SP,
                         });
                     }
@@ -172,7 +172,7 @@ impl<'a> Visit for FontImportsGenerator<'a> {
                                 })],
                                 src: None,
                                 type_only: false,
-                                asserts: None,
+                                with: None,
                             }),
                         ));
                     }

@@ -183,6 +183,7 @@ function getBaseSWCOptions({
           isServer: !!isServerLayer,
         }
       : undefined,
+    disableChecks: false,
   }
 }
 
@@ -270,13 +271,15 @@ export function getJestSWCOptions({
     jsConfig,
     hasServerComponents,
     resolvedBaseUrl,
-    isServerLayer: isServer,
+    // Don't apply server layer transformations for Jest
+    isServerLayer: false,
   })
 
   const isNextDist = nextDistPath.test(filename)
 
   return {
     ...baseOptions,
+    disableChecks: true,
     env: {
       targets: {
         // Targets the current version of Node.js
@@ -301,6 +304,8 @@ export function getLoaderSWCOptions({
   isPageFile,
   hasReactRefresh,
   modularizeImports,
+  optimizeServerReact,
+  optimizePackageImports,
   swcPlugins,
   compilerOptions,
   jsConfig,
@@ -310,6 +315,7 @@ export function getLoaderSWCOptions({
   hasServerComponents,
   isServerLayer,
   isServerActionsEnabled,
+  optimizeBarrelExports,
 }: // This is not passed yet as "paths" resolving is handled by webpack currently.
 // resolvedBaseUrl,
 {
@@ -320,7 +326,11 @@ export function getLoaderSWCOptions({
   appDir: string
   isPageFile: boolean
   hasReactRefresh: boolean
+  optimizeServerReact?: boolean
   modularizeImports: NextConfig['modularizeImports']
+  optimizePackageImports?: NonNullable<
+    NextConfig['experimental']
+  >['optimizePackageImports']
   swcPlugins: ExperimentalConfig['swcPlugins']
   compilerOptions: NextConfig['compiler']
   jsConfig: any
@@ -330,6 +340,7 @@ export function getLoaderSWCOptions({
   hasServerComponents?: boolean
   isServerLayer: boolean
   isServerActionsEnabled?: boolean
+  optimizeBarrelExports?: string[]
 }) {
   let baseOptions: any = getBaseSWCOptions({
     filename,
@@ -370,10 +381,21 @@ export function getLoaderSWCOptions({
       },
     },
   }
-  baseOptions.autoModularizeImports = {
-    packages: [
-      // TODO: Add a list of packages that should be optimized by default
-    ],
+
+  if (optimizeServerReact && isServer && !development) {
+    baseOptions.optimizeServerReact = {
+      optimize_use_state: true,
+    }
+  }
+
+  // Modularize import optimization for barrel files
+  if (optimizePackageImports) {
+    baseOptions.autoModularizeImports = {
+      packages: optimizePackageImports,
+    }
+  }
+  if (optimizeBarrelExports) {
+    baseOptions.optimizeBarrelExports = optimizeBarrelExports
   }
 
   const isNextDist = nextDistPath.test(filename)

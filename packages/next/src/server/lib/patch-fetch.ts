@@ -3,26 +3,68 @@ import type * as ServerHooks from '../../client/components/hooks-server-context'
 
 import { AppRenderSpan, NextNodeServerSpan } from './trace/constants'
 import { getTracer, SpanKind } from './trace/tracer'
-import { CACHE_ONE_YEAR } from '../../lib/constants'
+import { CACHE_ONE_YEAR, NEXT_CACHE_IMPLICIT_TAG_ID } from '../../lib/constants'
+import * as Log from '../../build/output/log'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
+
+const getDerivedTags = (pathname: string): string[] => {
+  const derivedTags: string[] = [`/layout`]
+
+  // we automatically add the current path segments as tags
+  // for revalidatePath handling
+  if (pathname.startsWith('/')) {
+    const pathnameParts = pathname.split('/')
+
+    for (let i = 1; i < pathnameParts.length + 1; i++) {
+      let curPathname = pathnameParts.slice(0, i).join('/')
+
+      if (curPathname) {
+        // all derived tags other than the page are layout tags
+        if (!curPathname.endsWith('/page') && !curPathname.endsWith('/route')) {
+          curPathname = `${curPathname}${
+            !curPathname.endsWith('/') ? '/' : ''
+          }layout`
+        }
+        derivedTags.push(curPathname)
+      }
+    }
+  }
+  return derivedTags
+}
 
 export function addImplicitTags(
   staticGenerationStore: ReturnType<StaticGenerationAsyncStorage['getStore']>
 ) {
   const newTags: string[] = []
-  const pathname = staticGenerationStore?.originalPathname
-  if (!pathname) {
+  if (!staticGenerationStore) {
     return newTags
   }
+  const { pagePath, urlPathname } = staticGenerationStore
 
   if (!Array.isArray(staticGenerationStore.tags)) {
     staticGenerationStore.tags = []
   }
-  if (!staticGenerationStore.tags.includes(pathname)) {
-    staticGenerationStore.tags.push(pathname)
+
+  if (pagePath) {
+    const derivedTags = getDerivedTags(pagePath)
+
+    for (let tag of derivedTags) {
+      tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${tag}`
+      if (!staticGenerationStore.tags?.includes(tag)) {
+        staticGenerationStore.tags.push(tag)
+      }
+      newTags.push(tag)
+    }
   }
-  newTags.push(pathname)
+
+  if (urlPathname) {
+    const tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${urlPathname}`
+    if (!staticGenerationStore.tags?.includes(tag)) {
+      staticGenerationStore.tags.push(tag)
+    }
+    newTags.push(tag)
+  }
   return newTags
 }
 
@@ -166,11 +208,6 @@ export function patchFetch({
         }
         const implicitTags = addImplicitTags(staticGenerationStore)
 
-        for (const tag of implicitTags || []) {
-          if (!tags.includes(tag)) {
-            tags.push(tag)
-          }
-        }
         const isOnlyCache = staticGenerationStore.fetchCache === 'only-cache'
         const isForceCache = staticGenerationStore.fetchCache === 'force-cache'
         const isDefaultCache =
@@ -189,8 +226,8 @@ export function patchFetch({
           typeof _cache === 'string' &&
           typeof curRevalidate !== 'undefined'
         ) {
-          console.warn(
-            `Warning: fetch for ${fetchUrl} on ${staticGenerationStore.pathname} specified "cache: ${_cache}" and "revalidate: ${curRevalidate}", only one should be specified.`
+          Log.warn(
+            `fetch for ${fetchUrl} on ${staticGenerationStore.urlPathname} specified "cache: ${_cache}" and "revalidate: ${curRevalidate}", only one should be specified.`
           )
           _cache = undefined
         }
@@ -306,43 +343,6 @@ export function patchFetch({
             console.error(`Failed to generate cache key for`, input)
           }
         }
-        const requestInputFields = [
-          'cache',
-          'credentials',
-          'headers',
-          'integrity',
-          'keepalive',
-          'method',
-          'mode',
-          'redirect',
-          'referrer',
-          'referrerPolicy',
-          'signal',
-          'window',
-          'duplex',
-        ]
-
-        if (isRequestInput) {
-          const reqInput: Request = input as any
-          const reqOptions: RequestInit = {
-            body: (reqInput as any)._ogBody || reqInput.body,
-          }
-
-          for (const field of requestInputFields) {
-            // @ts-expect-error custom fields
-            reqOptions[field] = reqInput[field]
-          }
-          input = new Request(reqInput.url, reqOptions)
-        } else if (init) {
-          const initialInit = init
-          init = {
-            body: (init as any)._ogBody || init.body,
-          }
-          for (const field of requestInputFields) {
-            // @ts-expect-error custom fields
-            init[field] = initialInit[field]
-          }
-        }
 
         const fetchIdx = staticGenerationStore.nextFetchId ?? 1
         staticGenerationStore.nextFetchId = fetchIdx + 1
@@ -354,6 +354,46 @@ export function patchFetch({
           isStale?: boolean,
           cacheReasonOverride?: string
         ) => {
+          const requestInputFields = [
+            'cache',
+            'credentials',
+            'headers',
+            'integrity',
+            'keepalive',
+            'method',
+            'mode',
+            'redirect',
+            'referrer',
+            'referrerPolicy',
+            'window',
+            'duplex',
+
+            // don't pass through signal when revalidating
+            ...(isStale ? [] : ['signal']),
+          ]
+
+          if (isRequestInput) {
+            const reqInput: Request = input as any
+            const reqOptions: RequestInit = {
+              body: (reqInput as any)._ogBody || reqInput.body,
+            }
+
+            for (const field of requestInputFields) {
+              // @ts-expect-error custom fields
+              reqOptions[field] = reqInput[field]
+            }
+            input = new Request(reqInput.url, reqOptions)
+          } else if (init) {
+            const initialInit = init
+            init = {
+              body: (init as any)._ogBody || init.body,
+            }
+            for (const field of requestInputFields) {
+              // @ts-expect-error custom fields
+              init[field] = initialInit[field]
+            }
+          }
+
           // add metadata to init without editing the original
           const clonedInit = {
             ...init,
@@ -389,15 +429,17 @@ export function patchFetch({
                       headers: Object.fromEntries(res.headers.entries()),
                       body: bodyBuffer.toString('base64'),
                       status: res.status,
-                      tags,
                       url: res.url,
                     },
                     revalidate: normalizedRevalidate,
                   },
-                  revalidate,
-                  true,
-                  fetchUrl,
-                  fetchIdx
+                  {
+                    fetchCache: true,
+                    revalidate,
+                    fetchUrl,
+                    fetchIdx,
+                    tags,
+                  }
                 )
               } catch (err) {
                 console.warn(`Failed to set fetch cache`, input, err)
@@ -424,13 +466,14 @@ export function patchFetch({
 
           const entry = staticGenerationStore.isOnDemandRevalidate
             ? null
-            : await staticGenerationStore.incrementalCache.get(
-                cacheKey,
-                true,
+            : await staticGenerationStore.incrementalCache.get(cacheKey, {
+                fetchCache: true,
                 revalidate,
                 fetchUrl,
-                fetchIdx
-              )
+                fetchIdx,
+                tags,
+                softTags: implicitTags,
+              })
 
           if (entry) {
             await handleUnlock()
@@ -440,7 +483,6 @@ export function patchFetch({
           }
 
           if (entry?.value && entry.value.kind === 'FETCH') {
-            const currentTags = entry.value.data.tags
             // when stale and is revalidating we wait for fresh data
             // so the revalidated entry has the updated data
             if (!(staticGenerationStore.isRevalidate && entry.isStale)) {
@@ -451,31 +493,7 @@ export function patchFetch({
                 staticGenerationStore.pendingRevalidates.push(
                   doOriginalFetch(true).catch(console.error)
                 )
-              } else if (
-                tags &&
-                !tags.every((tag) => currentTags?.includes(tag))
-              ) {
-                // if new tags are being added we need to set even if
-                // the data isn't stale
-                if (!entry.value.data.tags) {
-                  entry.value.data.tags = []
-                }
-
-                for (const tag of tags) {
-                  if (!entry.value.data.tags.includes(tag)) {
-                    entry.value.data.tags.push(tag)
-                  }
-                }
-                staticGenerationStore.incrementalCache?.set(
-                  cacheKey,
-                  entry.value,
-                  revalidate,
-                  true,
-                  fetchUrl,
-                  fetchIdx
-                )
               }
-
               const resData = entry.value.data
               let decodedBody: ArrayBuffer
 
@@ -518,8 +536,8 @@ export function patchFetch({
             if (cache === 'no-store') {
               staticGenerationStore.revalidate = 0
               const dynamicUsageReason = `no-store fetch ${input}${
-                staticGenerationStore.pathname
-                  ? ` ${staticGenerationStore.pathname}`
+                staticGenerationStore.urlPathname
+                  ? ` ${staticGenerationStore.urlPathname}`
                   : ''
               }`
               const err = new DynamicServerError(dynamicUsageReason)
@@ -546,8 +564,8 @@ export function patchFetch({
                 const dynamicUsageReason = `revalidate: ${
                   next.revalidate
                 } fetch ${input}${
-                  staticGenerationStore.pathname
-                    ? ` ${staticGenerationStore.pathname}`
+                  staticGenerationStore.urlPathname
+                    ? ` ${staticGenerationStore.urlPathname}`
                     : ''
                 }`
                 const err = new DynamicServerError(dynamicUsageReason)

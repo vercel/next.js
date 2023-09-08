@@ -295,6 +295,31 @@ export function isInstrumentationHookFilename(file?: string) {
   )
 }
 
+const filterAndSortList = (
+  list: ReadonlyArray<string>,
+  routeType: ROUTER_TYPE,
+  hasCustomApp: boolean
+) => {
+  let pages: string[]
+  if (routeType === 'app') {
+    // filter out static app route of /favicon.ico
+    pages = list.filter((e) => e !== '/favicon.ico')
+  } else {
+    // filter built-in pages
+    pages = list
+      .slice()
+      .filter(
+        (e) =>
+          !(
+            e === '/_document' ||
+            e === '/_error' ||
+            (!hasCustomApp && e === '/_app')
+          )
+      )
+  }
+  return pages.sort((a, b) => a.localeCompare(b))
+}
+
 export interface PageInfo {
   isHybridAmp?: boolean
   size: number
@@ -367,21 +392,9 @@ export async function printTreeView(
       .replace(/(?:^|[.-])([0-9a-z]{6})[0-9a-z]{14}(?=\.)/, '.$1')
 
   // Check if we have a custom app.
-  const hasCustomApp =
+  const hasCustomApp = !!(
     pagesDir && (await findPageFile(pagesDir, '/_app', pageExtensions, false))
-
-  const filterAndSortList = (list: ReadonlyArray<string>) =>
-    list
-      .slice()
-      .filter(
-        (e) =>
-          !(
-            e === '/_document' ||
-            e === '/_error' ||
-            (!hasCustomApp && e === '/_app')
-          )
-      )
-      .sort((a, b) => a.localeCompare(b))
+  )
 
   // Collect all the symbols we use so we can print the icons out.
   const usedSymbols = new Set()
@@ -402,6 +415,11 @@ export async function printTreeView(
     list: ReadonlyArray<string>
     routerType: ROUTER_TYPE
   }) => {
+    const filteredPages = filterAndSortList(list, routerType, hasCustomApp)
+    if (filteredPages.length === 0) {
+      return
+    }
+
     messages.push(
       [
         routerType === 'app' ? 'Route (app)' : 'Route (pages)',
@@ -410,7 +428,7 @@ export async function printTreeView(
       ].map((entry) => chalk.underline(entry)) as [string, string, string]
     )
 
-    filterAndSortList(list).forEach((item, i, arr) => {
+    filteredPages.forEach((item, i, arr) => {
       const border =
         i === 0
           ? arr.length === 1
@@ -1241,7 +1259,7 @@ export async function buildAppStaticPaths({
   return StaticGenerationAsyncStorageWrapper.wrap(
     staticGenerationAsyncStorage,
     {
-      pathname: page,
+      urlPathname: page,
       renderOpts: {
         originalPathname: page,
         incrementalCache,
@@ -1987,7 +2005,7 @@ startServer({
   port: currentPort,
   allowRetry: false,
   keepAliveTimeout,
-  useWorkers: !!nextConfig.experimental?.appDir,
+  useWorkers: true,
 }).catch((err) => {
   console.error(err);
   process.exit(1);
@@ -1997,6 +2015,12 @@ startServer({
 
 export function isReservedPage(page: string) {
   return RESERVED_PAGE.test(page)
+}
+
+export function isAppBuiltinNotFoundPage(page: string) {
+  return /next[\\/]dist[\\/]client[\\/]components[\\/]not-found-error/.test(
+    page
+  )
 }
 
 export function isCustomErrorPage(page: string) {
@@ -2061,8 +2085,7 @@ export class NestedMiddlewareError extends Error {
 
 export function getSupportedBrowsers(
   dir: string,
-  isDevelopment: boolean,
-  config: NextConfigComplete
+  isDevelopment: boolean
 ): string[] | undefined {
   let browsers: any
   try {
@@ -2081,10 +2104,6 @@ export function getSupportedBrowsers(
     return browsers
   }
 
-  // When the user sets `legacyBrowsers: true`, we pass undefined
-  // to SWC which is basically ES5 and matches the default behavior
-  // prior to Next.js 13
-  return config.experimental.legacyBrowsers
-    ? undefined
-    : MODERN_BROWSERSLIST_TARGET
+  // Uses modern browsers as the default.
+  return MODERN_BROWSERSLIST_TARGET
 }
