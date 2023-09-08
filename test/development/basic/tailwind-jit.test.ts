@@ -1,7 +1,6 @@
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { check, shouldRunTurboDevTest } from 'next-test-utils'
 
 // [TODO]: It is unclear why turbopack takes longer to run this test
@@ -11,26 +10,21 @@ if (shouldRunTurboDevTest()) {
 }
 
 describe('TailwindCSS JIT', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        'postcss.config.js': new FileRef(
-          join(__dirname, 'tailwind-jit/postcss.config.js')
-        ),
-        'tailwind.config.js': new FileRef(
-          join(__dirname, 'tailwind-jit/tailwind.config.js')
-        ),
-        pages: new FileRef(join(__dirname, 'tailwind-jit/pages')),
-      },
-      dependencies: {
-        tailwindcss: '2.2.19',
-        postcss: '8.3.5',
-      },
-    })
+  const { next } = nextTestSetup({
+    files: {
+      'postcss.config.js': new FileRef(
+        join(__dirname, 'tailwind-jit/postcss.config.js')
+      ),
+      'tailwind.config.js': new FileRef(
+        join(__dirname, 'tailwind-jit/tailwind.config.js')
+      ),
+      pages: new FileRef(join(__dirname, 'tailwind-jit/pages')),
+    },
+    dependencies: {
+      tailwindcss: '2.2.19',
+      postcss: '8.3.5',
+    },
   })
-  afterAll(() => next.destroy())
 
   it('works with JIT enabled', async () => {
     let browser
