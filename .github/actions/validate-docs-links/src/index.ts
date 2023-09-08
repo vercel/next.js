@@ -59,8 +59,14 @@ const COMMENT_TAG = '<!-- LINK_CHECKER_COMMENT -->'
 const { context, getOctokit } = github
 const octokit = getOctokit(process.env.GITHUB_TOKEN!)
 const { owner, repo } = context.repo
-const pullRequest = context.payload.pull_request!
+const pullRequest = context.payload.pull_request
+if (!pullRequest) {
+  console.log('Skipping since this is not a pull request')
+  process.exit(0)
+}
 const sha = pullRequest.head.sha
+const isFork = pullRequest.head.repo.fork
+const prNumber = pullRequest.number
 
 const slugger = new GithubSlugger()
 
@@ -280,7 +286,7 @@ async function findBotComment(): Promise<Comment | undefined> {
     const { data: comments } = await octokit.rest.issues.listComments({
       owner,
       repo,
-      issue_number: pullRequest.number,
+      issue_number: prNumber,
     })
 
     return comments.find((c) => c.body?.includes(COMMENT_TAG))
@@ -310,7 +316,6 @@ async function updateComment(
 }
 
 async function createComment(comment: string): Promise<string> {
-  const isFork = pullRequest.head.repo.fork
   if (isFork) {
     setFailed(
       'The action could not create a Github comment because it is initiated from a forked repo. View the action logs for a list of broken links.'
@@ -322,7 +327,7 @@ async function createComment(comment: string): Promise<string> {
       const { data } = await octokit.rest.issues.createComment({
         owner,
         repo,
-        issue_number: pullRequest.number,
+        issue_number: prNumber,
         body: comment,
       })
 
@@ -346,7 +351,6 @@ async function updateCheckStatus(
   errorsExist: boolean,
   commentUrl?: string
 ): Promise<void> {
-  const isFork = pullRequest.head.repo.fork
   const checkName = 'Docs Link Validation'
 
   let summary, text

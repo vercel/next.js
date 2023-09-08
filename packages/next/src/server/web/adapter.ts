@@ -11,13 +11,15 @@ import { NextURL } from './next-url'
 import { stripInternalSearchParams } from '../internal-utils'
 import { normalizeRscPath } from '../../shared/lib/router/utils/app-paths'
 import {
-  FETCH_CACHE_HEADER,
   NEXT_ROUTER_PREFETCH,
   NEXT_ROUTER_STATE_TREE,
   RSC,
 } from '../../client/components/app-router-headers'
 import { NEXT_QUERY_PARAM_PREFIX } from '../../lib/constants'
 import { ensureInstrumentationRegistered } from './globals'
+import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
+import { requestAsyncStorage } from '../../client/components/request-async-storage'
+import { PrerenderManifest } from '../../build'
 
 class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -48,7 +50,6 @@ const FLIGHT_PARAMETERS = [
   [RSC],
   [NEXT_ROUTER_STATE_TREE],
   [NEXT_ROUTER_PREFETCH],
-  [FETCH_CACHE_HEADER],
 ] as const
 
 export type AdapterOptions = {
@@ -65,6 +66,10 @@ export async function adapter(
 
   // TODO-APP: use explicit marker for this
   const isEdgeRendering = typeof self.__BUILD_MANIFEST !== 'undefined'
+  const prerenderManifest: PrerenderManifest | undefined =
+    typeof self.__PRERENDER_MANIFEST === 'string'
+      ? JSON.parse(self.__PRERENDER_MANIFEST)
+      : undefined
 
   params.request.url = normalizeRscPath(params.request.url, true)
 
@@ -177,11 +182,42 @@ export async function adapter(
   }
 
   const event = new NextFetchEvent({ request, page: params.page })
-  let response = await params.handler(request, event)
+  let response
+  let cookiesFromResponse
+
+  // we only care to make async storage available for middleware
+  const isMiddleware =
+    params.page === '/middleware' || params.page === '/src/middleware'
+  if (isMiddleware) {
+    response = await RequestAsyncStorageWrapper.wrap(
+      requestAsyncStorage,
+      {
+        req: request,
+        renderOpts: {
+          onUpdateCookies: (cookies) => {
+            cookiesFromResponse = cookies
+          },
+          // @ts-expect-error: TODO: investigate why previewProps isn't on RenderOpts
+          previewProps: prerenderManifest?.preview || {
+            previewModeId: 'development-id',
+            previewModeEncryptionKey: '',
+            previewModeSigningKey: '',
+          },
+        },
+      },
+      () => params.handler(request, event)
+    )
+  } else {
+    response = await params.handler(request, event)
+  }
 
   // check if response is a Response object
   if (response && !(response instanceof Response)) {
     throw new TypeError('Expected an instance of Response to be returned')
+  }
+
+  if (response && cookiesFromResponse) {
+    response.headers.set('set-cookie', cookiesFromResponse)
   }
 
   /**

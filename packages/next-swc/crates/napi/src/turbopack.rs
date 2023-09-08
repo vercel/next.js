@@ -9,15 +9,8 @@ use next_build::{
     build as turbo_next_build, build_options::BuildContext, BuildOptions as NextBuildOptions,
 };
 use next_core::next_config::{Rewrite, Rewrites, RouteHas};
-use next_dev::{devserver_options::DevServerOptions, start_server};
 
 use crate::util::MapErr;
-
-#[napi]
-pub async fn start_turbo_dev(options: Buffer) -> napi::Result<()> {
-    let options: DevServerOptions = serde_json::from_slice(&options)?;
-    start_server(&options).await.convert_err()
-}
 
 #[napi(object, object_to_js = false)]
 #[derive(Debug)]

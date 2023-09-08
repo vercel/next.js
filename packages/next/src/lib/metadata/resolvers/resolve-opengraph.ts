@@ -53,6 +53,7 @@ export function resolveImages(
 
   const nonNullableImages = []
   for (const item of resolvedImages) {
+    if (!item) continue
     const isItemUrl = isStringOrURL(item)
     const inputUrl = isItemUrl ? item : item.url
     if (!inputUrl) continue
@@ -144,9 +145,9 @@ export const resolveTwitter: FieldResolverExtraArgs<
   [ResolvedMetadata['metadataBase'], string | null]
 > = (twitter, metadataBase, titleTemplate) => {
   if (!twitter) return null
+  let card = 'card' in twitter ? twitter.card : undefined
   const resolved = {
     ...twitter,
-    card: 'card' in twitter ? twitter.card : 'summary',
     title: resolveTitle(twitter.title, titleTemplate),
   } as ResolvedTwitterMetadata
   for (const infoKey of TwitterBasicInfoKeys) {
@@ -154,6 +155,9 @@ export const resolveTwitter: FieldResolverExtraArgs<
   }
   const imageMetadataBase = getSocialImageFallbackMetadataBase(metadataBase)
   resolved.images = resolveImages(twitter.images, imageMetadataBase)
+
+  card = card || (resolved.images?.length ? 'summary_large_image' : 'summary')
+  resolved.card = card
 
   if ('card' in resolved) {
     switch (resolved.card) {

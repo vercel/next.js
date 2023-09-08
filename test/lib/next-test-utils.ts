@@ -8,7 +8,6 @@ import {
 } from 'fs'
 import { promisify } from 'util'
 import http from 'http'
-import https from 'https'
 import path from 'path'
 
 import spawn from 'cross-spawn'
@@ -26,7 +25,8 @@ import type { RequestInit, Response } from 'node-fetch'
 import type { NextServer } from 'next/dist/server/next'
 import type { BrowserInterface } from './browsers/base'
 
-import { shouldRunTurboDevTest } from './turbo'
+import { getTurbopackFlag, shouldRunTurboDevTest } from './turbo'
+import stripAnsi from 'strip-ansi'
 
 export { shouldRunTurboDevTest }
 
@@ -158,19 +158,7 @@ export function fetchViaHTTP(
   opts?: RequestInit
 ): Promise<Response> {
   const url = query ? withQuery(pathname, query) : pathname
-  return fetch(getFullUrl(appPort, url), {
-    // in node.js v17 fetch favors IPv6 but Next.js is
-    // listening on IPv4 by default so force IPv4 DNS resolving
-    agent: (parsedUrl) => {
-      if (parsedUrl.protocol === 'https:') {
-        return new https.Agent({ family: 4 })
-      }
-      if (parsedUrl.protocol === 'http:') {
-        return new http.Agent({ family: 4 })
-      }
-    },
-    ...opts,
-  })
+  return fetch(getFullUrl(appPort, url), opts)
 }
 
 export function renderViaHTTP(
@@ -369,21 +357,25 @@ export function runNextCommandDev(
     )
     let didResolve = false
 
+    const bootType =
+      opts.nextStart || stdOut ? 'start' : opts?.turbo ? 'turbo' : 'dev'
+
     function handleStdout(data) {
       const message = data.toString()
       const bootupMarkers = {
-        dev: /compiled .*successfully/i,
-        turbo: /started server/i,
-        start: /started server/i,
+        dev: /✓ ready/i,
+        turbo: /✓ ready/i,
+        start: /▲ Next.js/i,
       }
+
+      const strippedMessage = stripAnsi(message) as any
       if (
-        (opts.bootupMarker && opts.bootupMarker.test(message)) ||
-        bootupMarkers[
-          opts.nextStart || stdOut ? 'start' : opts?.turbo ? 'turbo' : 'dev'
-        ].test(message)
+        (opts.bootupMarker && opts.bootupMarker.test(strippedMessage)) ||
+        bootupMarkers[bootType].test(strippedMessage)
       ) {
         if (!didResolve) {
           didResolve = true
+          // Pass down the original message
           resolve(stdOut ? message : instance)
         }
       }
@@ -398,7 +390,7 @@ export function runNextCommandDev(
     }
 
     function handleStderr(data) {
-      const message = data.toString()
+      const message = stripAnsi(data.toString()) as any
       if (typeof opts.onStderr === 'function') {
         opts.onStderr(message)
       }
@@ -408,12 +400,12 @@ export function runNextCommandDev(
       }
     }
 
-    instance.stdout.on('data', handleStdout)
     instance.stderr.on('data', handleStderr)
+    instance.stdout.on('data', handleStdout)
 
     instance.on('close', () => {
-      instance.stdout.removeListener('data', handleStdout)
       instance.stderr.removeListener('data', handleStderr)
+      instance.stdout.removeListener('data', handleStdout)
       if (!didResolve) {
         didResolve = true
         resolve(undefined)
@@ -436,9 +428,12 @@ export function launchApp(
   const useTurbo = shouldRunTurboDevTest()
 
   return runNextCommandDev(
-    [useTurbo ? '--turbo' : undefined, dir, '-p', port as string].filter(
-      Boolean
-    ),
+    [
+      useTurbo ? getTurbopackFlag() : undefined,
+      dir,
+      '-p',
+      port as string,
+    ].filter(Boolean),
     undefined,
     {
       ...options,
@@ -682,6 +677,11 @@ export class File {
 
     const newContent = currentContent.replace(pattern, newValue)
     this.write(newContent)
+  }
+
+  prepend(str: string) {
+    const content = readFileSync(this.path, 'utf8')
+    this.write(str + content)
   }
 
   delete() {

@@ -65,7 +65,7 @@ use crate::{
     fallback::get_fallback_page,
     loader_tree::{LoaderTreeModule, ServerComponentTransition},
     mode::NextMode,
-    next_app::UnsupportedDynamicMetadataIssue,
+    next_app::{AppPage, AppPath, PathSegment, UnsupportedDynamicMetadataIssue},
     next_client::{
         context::{
             get_client_assets_path, get_client_module_options_context,
@@ -85,38 +85,38 @@ use crate::{
         route_transition::NextEdgeRouteTransition,
     },
     next_route_matcher::{NextFallbackMatcher, NextParamsMatcher},
-    next_server::context::{
-        get_server_compile_time_info, get_server_module_options_context,
-        get_server_resolve_options_context, ServerContextType,
+    next_server::{
+        context::{
+            get_server_compile_time_info, get_server_module_options_context,
+            get_server_resolve_options_context, ServerContextType,
+        },
+        route_transition::NextRouteTransition,
     },
     util::{render_data, NextRuntime},
 };
 
-fn pathname_to_segments(pathname: &str) -> Result<(Vec<BaseSegment>, RouteType)> {
+fn app_path_to_segments(path: &AppPath) -> Result<(Vec<BaseSegment>, RouteType)> {
     let mut segments = Vec::new();
-    let mut split = pathname.split('/');
-    while let Some(segment) = split.next() {
-        if segment.is_empty()
-            || (segment.starts_with('(') && segment.ends_with(')') || segment.starts_with('@'))
-        {
-            // ignore
-        } else if segment.starts_with("[[...") && segment.ends_with("]]")
-            || segment.starts_with("[...") && segment.ends_with(']')
-        {
-            // (optional) catch all segment
-            if split.remainder().is_some() {
-                bail!(
-                    "Invalid route {}, catch all segment must be the last segment",
-                    pathname
-                )
+    let mut iter = path.iter().peekable();
+
+    while let Some(segment) = iter.next() {
+        match segment {
+            PathSegment::Static(s) => {
+                segments.push(BaseSegment::Static(s.to_string()));
             }
-            return Ok((segments, RouteType::CatchAll));
-        } else if segment.starts_with('[') || segment.ends_with(']') {
-            // dynamic segment
-            segments.push(BaseSegment::Dynamic);
-        } else {
-            // normal segment
-            segments.push(BaseSegment::Static(segment.to_string()));
+            PathSegment::Dynamic(_) => {
+                segments.push(BaseSegment::Dynamic);
+            }
+            PathSegment::CatchAll(_) | PathSegment::OptionalCatchAll(_) => {
+                if iter.peek().is_some() {
+                    bail!(
+                        "Invalid route {}, catch all segment must be the last segment",
+                        path
+                    )
+                }
+
+                return Ok((segments, RouteType::CatchAll));
+            }
         }
     }
     Ok((segments, RouteType::Exact))
@@ -133,7 +133,7 @@ async fn next_client_transition(
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<Box<dyn Transition>>> {
     let ty: Value<ClientContextType> = Value::new(ClientContextType::App { app_dir });
-    let mode = NextMode::Development;
+    let mode = NextMode::DevServer;
     let client_module_options_context = get_client_module_options_context(
         project_path,
         execution_context,
@@ -170,7 +170,7 @@ fn next_ssr_client_module_transition(
     server_addr: Vc<ServerAddr>,
 ) -> Vc<Box<dyn Transition>> {
     let ty = Value::new(ServerContextType::AppSSR { app_dir });
-    let mode = NextMode::Development;
+    let mode = NextMode::DevServer;
     Vc::upcast(
         NextSSRClientModuleTransition {
             ssr_module_options_context: get_server_module_options_context(
@@ -194,17 +194,49 @@ fn next_ssr_client_module_transition(
 }
 
 #[turbo_tasks::function]
+fn next_edge_ssr_client_module_transition(
+    project_path: Vc<FileSystemPath>,
+    execution_context: Vc<ExecutionContext>,
+    app_dir: Vc<FileSystemPath>,
+    next_config: Vc<NextConfig>,
+    server_addr: Vc<ServerAddr>,
+) -> Vc<Box<dyn Transition>> {
+    let ty = Value::new(ServerContextType::AppSSR { app_dir });
+    let mode = NextMode::DevServer;
+    Vc::upcast(
+        NextSSRClientModuleTransition {
+            ssr_module_options_context: get_server_module_options_context(
+                project_path,
+                execution_context,
+                ty,
+                mode,
+                next_config,
+            ),
+            ssr_resolve_options_context: get_edge_resolve_options_context(
+                project_path,
+                ty,
+                mode,
+                next_config,
+                execution_context,
+            ),
+            ssr_environment: get_edge_compile_time_info(project_path, server_addr),
+        }
+        .cell(),
+    )
+}
+
+#[turbo_tasks::function]
 fn next_server_component_transition(
     project_path: Vc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,
     app_dir: Vc<FileSystemPath>,
     server_root: Vc<FileSystemPath>,
-    mode: NextMode,
     process_env: Vc<Box<dyn ProcessEnv>>,
     next_config: Vc<NextConfig>,
     server_addr: Vc<ServerAddr>,
     ecmascript_client_reference_transition_name: Vc<String>,
 ) -> Vc<Box<dyn Transition>> {
+    let mode = NextMode::DevServer;
     let ty = Value::new(ServerContextType::AppRSC {
         app_dir,
         client_transition: None,
@@ -224,6 +256,37 @@ fn next_server_component_transition(
             rsc_module_options_context,
             rsc_resolve_options_context,
             server_root,
+        }
+        .cell(),
+    )
+}
+
+#[turbo_tasks::function]
+fn next_route_transition(
+    project_path: Vc<FileSystemPath>,
+    app_dir: Vc<FileSystemPath>,
+    process_env: Vc<Box<dyn ProcessEnv>>,
+    next_config: Vc<NextConfig>,
+    server_addr: Vc<ServerAddr>,
+    execution_context: Vc<ExecutionContext>,
+) -> Vc<Box<dyn Transition>> {
+    let mode = NextMode::DevServer;
+    let server_ty = Value::new(ServerContextType::AppRoute { app_dir });
+
+    let server_compile_time_info = get_server_compile_time_info(mode, process_env, server_addr);
+
+    let server_resolve_options_context = get_server_resolve_options_context(
+        project_path,
+        server_ty,
+        mode,
+        next_config,
+        execution_context,
+    );
+
+    Vc::upcast(
+        NextRouteTransition {
+            server_compile_time_info,
+            server_resolve_options_context,
         }
         .cell(),
     )
@@ -274,7 +337,7 @@ fn next_edge_route_transition(
     output_path: Vc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,
 ) -> Vc<Box<dyn Transition>> {
-    let mode = NextMode::Development;
+    let mode = NextMode::DevServer;
     let server_ty = Value::new(ServerContextType::AppRoute { app_dir });
 
     let edge_compile_time_info = get_edge_compile_time_info(project_path, server_addr);
@@ -324,7 +387,7 @@ fn next_edge_page_transition(
     output_path: Vc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,
 ) -> Vc<Box<dyn Transition>> {
-    let server_ty = Value::new(ServerContextType::AppRoute { app_dir });
+    let server_ty = Value::new(ServerContextType::AppSSR { app_dir });
 
     let edge_compile_time_info = get_edge_compile_time_info(project_path, server_addr);
 
@@ -361,7 +424,6 @@ fn next_edge_page_transition(
     )
 }
 
-#[allow(clippy::too_many_arguments)]
 #[turbo_tasks::function]
 fn app_context(
     project_path: Vc<FileSystemPath>,
@@ -377,8 +439,6 @@ fn app_context(
     server_addr: Vc<ServerAddr>,
     output_path: Vc<FileSystemPath>,
 ) -> Vc<ModuleAssetContext> {
-    let next_server_to_client_transition = Vc::upcast(NextServerToClientTransition { ssr }.cell());
-
     let mut transitions = HashMap::new();
     transitions.insert(
         "next-edge-route".to_string(),
@@ -389,6 +449,17 @@ fn app_context(
             next_config,
             server_addr,
             output_path,
+            execution_context,
+        ),
+    );
+    transitions.insert(
+        "next-route".to_string(),
+        next_route_transition(
+            project_path,
+            app_dir,
+            env,
+            next_config,
+            server_addr,
             execution_context,
         ),
     );
@@ -413,13 +484,17 @@ fn app_context(
             execution_context,
             app_dir,
             server_root,
-            mode,
             env,
             next_config,
             server_addr,
             Vc::cell(ecmacscript_client_reference_transition_name.clone()),
         ),
     );
+    transitions.insert(
+        ecmacscript_client_reference_transition_name,
+        Vc::upcast(NextServerToClientTransition { ssr, edge: false }.cell()),
+    );
+    let ecmacscript_edge_client_reference_transition_name = "edge-server-to-client".to_string();
     transitions.insert(
         "next-edge-server-component".to_string(),
         next_edge_server_component_transition(
@@ -430,12 +505,12 @@ fn app_context(
             mode,
             next_config,
             server_addr,
-            Vc::cell(ecmacscript_client_reference_transition_name.clone()),
+            Vc::cell(ecmacscript_edge_client_reference_transition_name.clone()),
         ),
     );
     transitions.insert(
-        ecmacscript_client_reference_transition_name,
-        next_server_to_client_transition,
+        ecmacscript_edge_client_reference_transition_name,
+        Vc::upcast(NextServerToClientTransition { ssr, edge: true }.cell()),
     );
     transitions.insert(
         "next-client".to_string(),
@@ -469,6 +544,16 @@ fn app_context(
             execution_context,
             app_dir,
             env,
+            next_config,
+            server_addr,
+        ),
+    );
+    transitions.insert(
+        "next-edge-ssr-client-module".to_string(),
+        next_edge_ssr_client_module_transition(
+            project_path,
+            execution_context,
+            app_dir,
             next_config,
             server_addr,
         ),
@@ -525,7 +610,7 @@ pub async fn create_app_source(
         client_chunking_context,
         client_compile_time_info,
         true,
-        NextMode::Development,
+        NextMode::DevServer,
         next_config,
         server_addr,
         output_path,
@@ -539,7 +624,7 @@ pub async fn create_app_source(
         client_chunking_context,
         client_compile_time_info,
         false,
-        NextMode::Development,
+        NextMode::DevServer,
         next_config,
         server_addr,
         output_path,
@@ -566,9 +651,12 @@ pub async fn create_app_source(
     let entrypoints = entrypoints.await?;
     let mut sources: Vec<_> = entrypoints
         .iter()
-        .map(|(pathname, &loader_tree)| match loader_tree {
-            Entrypoint::AppPage { loader_tree } => create_app_page_source_for_route(
-                pathname.clone(),
+        .map(|(_, entrypoint)| match *entrypoint {
+            Entrypoint::AppPage {
+                ref page,
+                loader_tree,
+            } => create_app_page_source_for_route(
+                page.clone(),
                 loader_tree,
                 context_ssr,
                 context,
@@ -581,8 +669,8 @@ pub async fn create_app_source(
                 output_path,
                 render_data,
             ),
-            Entrypoint::AppRoute { path } => create_app_route_source_for_route(
-                pathname.clone(),
+            Entrypoint::AppRoute { ref page, path } => create_app_route_source_for_route(
+                page.clone(),
                 path,
                 context_ssr,
                 project_path,
@@ -601,7 +689,11 @@ pub async fn create_app_source(
         )))
         .collect();
 
-    if let Some(&Entrypoint::AppPage { loader_tree }) = entrypoints.get("/_not-found") {
+    if let Some(&Entrypoint::AppPage {
+        page: _,
+        loader_tree,
+    }) = entrypoints.get("/_not-found")
+    {
         if loader_tree.await?.components.await?.not_found.is_some() {
             // Only add a source for the app 404 page if a top-level not-found page is
             // defined. Otherwise, the 404 page is handled by the pages logic.
@@ -669,10 +761,9 @@ async fn create_global_metadata_source(
     Ok(Vc::upcast(CombinedContentSource { sources }.cell()))
 }
 
-#[allow(clippy::too_many_arguments)]
 #[turbo_tasks::function]
 async fn create_app_page_source_for_route(
-    pathname: String,
+    page: AppPage,
     loader_tree: Vc<LoaderTree>,
     context_ssr: Vc<ModuleAssetContext>,
     context: Vc<ModuleAssetContext>,
@@ -685,11 +776,12 @@ async fn create_app_page_source_for_route(
     intermediate_output_path_root: Vc<FileSystemPath>,
     render_data: Vc<JsonValue>,
 ) -> Result<Vc<Box<dyn ContentSource>>> {
-    let pathname_vc = Vc::cell(pathname.clone());
+    let app_path = AppPath::from(page.clone());
+    let pathname_vc = Vc::cell(app_path.to_string());
 
     let params_matcher = NextParamsMatcher::new(pathname_vc);
 
-    let (base_segments, route_type) = pathname_to_segments(&pathname)?;
+    let (base_segments, route_type) = app_path_to_segments(&app_path)?;
 
     let source = create_node_rendered_source(
         project_path,
@@ -717,10 +809,9 @@ async fn create_app_page_source_for_route(
         should_debug("app_source"),
     );
 
-    Ok(source.issue_context(app_dir, format!("Next.js App Page Route {pathname}")))
+    Ok(source.issue_file_path(app_dir, format!("Next.js App Page Route {app_path}")))
 }
 
-#[allow(clippy::too_many_arguments)]
 #[turbo_tasks::function]
 async fn create_app_not_found_page_source(
     loader_tree: Vc<LoaderTree>,
@@ -763,13 +854,12 @@ async fn create_app_not_found_page_source(
         should_debug("app_source"),
     );
 
-    Ok(source.issue_context(app_dir, "Next.js App Page Route /404".to_string()))
+    Ok(source.issue_file_path(app_dir, "Next.js App Page Route /404".to_string()))
 }
 
-#[allow(clippy::too_many_arguments)]
 #[turbo_tasks::function]
 async fn create_app_route_source_for_route(
-    pathname: String,
+    page: AppPage,
     entry_path: Vc<FileSystemPath>,
     context_ssr: Vc<ModuleAssetContext>,
     project_path: Vc<FileSystemPath>,
@@ -780,11 +870,12 @@ async fn create_app_route_source_for_route(
     intermediate_output_path_root: Vc<FileSystemPath>,
     render_data: Vc<JsonValue>,
 ) -> Result<Vc<Box<dyn ContentSource>>> {
-    let pathname_vc = Vc::cell(pathname.to_string());
+    let app_path = AppPath::from(page.clone());
+    let pathname_vc = Vc::cell(app_path.to_string());
 
     let params_matcher = NextParamsMatcher::new(pathname_vc);
 
-    let (base_segments, route_type) = pathname_to_segments(&pathname)?;
+    let (base_segments, route_type) = app_path_to_segments(&app_path)?;
 
     let source = create_node_api_source(
         project_path,
@@ -811,7 +902,7 @@ async fn create_app_route_source_for_route(
         should_debug("app_source"),
     );
 
-    Ok(source.issue_context(app_dir, format!("Next.js App Route {pathname}")))
+    Ok(source.issue_file_path(app_dir, format!("Next.js App Route {app_path}")))
 }
 
 /// The renderer for pages in app directory
@@ -830,7 +921,7 @@ struct AppRenderer {
 #[turbo_tasks::value_impl]
 impl AppRenderer {
     #[turbo_tasks::function]
-    async fn entry(self: Vc<Self>, is_rsc: bool) -> Result<Vc<NodeRenderingEntry>> {
+    async fn entry(self: Vc<Self>, with_ssr: bool) -> Result<Vc<NodeRenderingEntry>> {
         let AppRenderer {
             runtime_entries,
             app_dir,
@@ -842,10 +933,10 @@ impl AppRenderer {
             loader_tree,
         } = *self.await?;
 
-        let (context, intermediate_output_path) = if is_rsc {
-            (context, intermediate_output_path.join("rsc".to_string()))
-        } else {
+        let (context, intermediate_output_path) = if with_ssr {
             (context_ssr, intermediate_output_path)
+        } else {
+            (context, intermediate_output_path.join("rsc".to_string()))
         };
 
         let config = parse_segment_config_from_loader_tree(loader_tree, Vc::upcast(context));
@@ -860,7 +951,7 @@ impl AppRenderer {
             loader_tree,
             context,
             ServerComponentTransition::TransitionName(rsc_transition.to_string()),
-            NextMode::Development,
+            NextMode::DevServer,
         )
         .await?;
 
@@ -972,13 +1063,13 @@ impl NodeEntry for AppRenderer {
     #[turbo_tasks::function]
     fn entry(self: Vc<Self>, data: Value<ContentSourceData>) -> Vc<NodeRenderingEntry> {
         let data = data.into_value();
-        let is_rsc = if let Some(headers) = data.headers {
-            headers.contains_key("rsc")
+        let with_ssr = if let Some(headers) = data.headers {
+            !headers.contains_key("rsc")
         } else {
-            false
+            true
         };
-        // Call with only is_rsc as key
-        self.entry(is_rsc)
+        // Call with only with_ssr as key
+        self.entry(with_ssr)
     }
 }
 
@@ -1024,6 +1115,14 @@ impl AppRoute {
         let module = match config.await?.runtime {
             Some(NextRuntime::NodeJs) | None => {
                 let bootstrap_asset = next_asset("entry/app/route.ts".to_string());
+
+                let entry_asset = this
+                    .context
+                    .with_transition("next-route".to_string())
+                    .process(
+                        Vc::upcast(entry_file_source),
+                        Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),
+                    );
 
                 route_bootstrap(
                     entry_asset,

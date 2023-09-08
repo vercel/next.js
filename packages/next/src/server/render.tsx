@@ -73,7 +73,7 @@ import { allowedStatusCodes, getRedirectStatus } from '../lib/redirect-status'
 import RenderResult, { type RenderResultMetadata } from './render-result'
 import isError from '../lib/is-error'
 import {
-  streamFromArray,
+  streamFromString,
   streamToString,
   chainStreams,
   renderToInitialStream,
@@ -91,7 +91,6 @@ import { AppRouterContext } from '../shared/lib/app-router-context'
 import { SearchParamsContext } from '../shared/lib/hooks-client-context'
 import { getTracer } from './lib/trace/tracer'
 import { RenderSpan } from './lib/trace/constants'
-import { PageNotFoundError } from '../shared/lib/utils'
 import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
 
 let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
@@ -339,33 +338,6 @@ function checkRedirectValues(
         `See more info here: https://nextjs.org/docs/messages/invalid-redirect-gssp`
     )
   }
-}
-
-export const deserializeErr = (serializedErr: any) => {
-  if (
-    !serializedErr ||
-    typeof serializedErr !== 'object' ||
-    !serializedErr.stack
-  ) {
-    return serializedErr
-  }
-  let ErrorType: any = Error
-
-  if (serializedErr.name === 'PageNotFoundError') {
-    ErrorType = PageNotFoundError
-  }
-
-  const err = new ErrorType(serializedErr.message)
-  err.stack = serializedErr.stack
-  err.name = serializedErr.name
-  ;(err as any).digest = serializedErr.digest
-
-  if (process.env.NEXT_RUNTIME !== 'edge') {
-    const { decorateServerError } =
-      require('next/dist/compiled/@next/react-dev-overlay/dist/middleware') as typeof import('next/dist/compiled/@next/react-dev-overlay/dist/middleware')
-    decorateServerError(err, serializedErr.source || 'server')
-  }
-  return err
 }
 
 export function errorToJSON(err: Error) {
@@ -1343,7 +1315,7 @@ export async function renderToHTMLImpl(
       const { docProps } = documentInitialPropsRes as any
       // includes suffix in initial html stream
       bodyResult = (suffix: string) =>
-        createBodyResult(streamFromArray([docProps.html, suffix]))
+        createBodyResult(streamFromString(docProps.html + suffix))
     } else {
       const stream = await renderShell(App, Component)
       bodyResult = (suffix: string) => createBodyResult(stream, suffix)
@@ -1525,17 +1497,17 @@ export async function renderToHTMLImpl(
     '<next-js-internal-body-render-target></next-js-internal-body-render-target>'
   )
 
-  const prefix: Array<string> = []
+  let prefix = ''
   if (!documentHTML.startsWith(DOCTYPE)) {
-    prefix.push(DOCTYPE)
+    prefix += DOCTYPE
   }
-  prefix.push(renderTargetPrefix)
+  prefix += renderTargetPrefix
   if (inAmpMode) {
-    prefix.push('<!-- __NEXT_DATA__ -->')
+    prefix += '<!-- __NEXT_DATA__ -->'
   }
 
   const streams = [
-    streamFromArray(prefix),
+    streamFromString(prefix),
     await documentResult.bodyResult(renderTargetSuffix),
   ]
 

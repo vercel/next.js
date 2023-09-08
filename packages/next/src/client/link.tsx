@@ -7,7 +7,7 @@ import type {
 
 import React from 'react'
 import { UrlObject } from 'url'
-import { resolveHref } from '../shared/lib/router/utils/resolve-href'
+import { resolveHref } from './resolve-href'
 import { isLocalURL } from '../shared/lib/router/utils/is-local-url'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
 import { isAbsoluteUrl } from '../shared/lib/utils'
@@ -103,7 +103,11 @@ type InternalLinkProps = {
 
 // TODO-APP: Include the full set of Anchor props
 // adding this to the publicly exported type currently breaks existing apps
-export type LinkProps = InternalLinkProps
+
+// `RouteInferType` is a stub here to avoid breaking `typedRoutes` when the type
+// isn't generated yet. It will be replaced when the webpack plugin runs.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export type LinkProps<RouteInferType = any> = InternalLinkProps
 type LinkPropsRequired = RequiredKeys<LinkProps>
 type LinkPropsOptional = OptionalKeys<InternalLinkProps>
 
@@ -272,8 +276,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       onClick,
       onMouseEnter: onMouseEnterProp,
       onTouchStart: onTouchStartProp,
-      // @ts-expect-error this is inlined as a literal boolean not a string
-      legacyBehavior = process.env.__NEXT_NEW_LINK_BEHAVIOR === false,
+      legacyBehavior = false,
       ...restProps
     } = props
 

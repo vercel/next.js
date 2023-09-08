@@ -46,10 +46,10 @@ import {
 } from '../shared/lib/router/adapters'
 import { SearchParamsContext } from '../shared/lib/hooks-client-context'
 import onRecoverableError from './on-recoverable-error'
+import tracer from './tracing/tracer'
+import reportToSocket from './tracing/report-to-socket'
 
 /// <reference types="react-dom/experimental" />
-
-declare let __webpack_public_path__: string
 
 declare global {
   interface Window {
@@ -62,34 +62,6 @@ declare global {
     __NEXT_P: any[]
   }
 }
-
-const addChunkSuffix =
-  (getOriginalChunk: (chunkId: any) => string) => (chunkId: any) => {
-    return (
-      getOriginalChunk(chunkId) +
-      `${
-        process.env.NEXT_DEPLOYMENT_ID
-          ? `?dpl=${process.env.NEXT_DEPLOYMENT_ID}`
-          : ''
-      }`
-    )
-  }
-
-// ensure dynamic imports have deployment id added if enabled
-const getChunkScriptFilename = __webpack_require__.u
-// eslint-disable-next-line no-undef
-__webpack_require__.u = addChunkSuffix(getChunkScriptFilename)
-
-// eslint-disable-next-line no-undef
-const getChunkCssFilename = __webpack_require__.k
-// eslint-disable-next-line no-undef
-__webpack_require__.k = addChunkSuffix(getChunkCssFilename)
-
-// eslint-disable-next-line no-undef
-const getMiniCssFilename = __webpack_require__.miniCssF
-// eslint-disable-next-line no-undef
-__webpack_require__.miniCssF = addChunkSuffix(getMiniCssFilename)
-
 type RenderRouteInfo = PrivateRouteInfo & {
   App: AppComponent
   scroll?: { x: number; y: number } | null
@@ -121,10 +93,6 @@ let webpackHMR: any
 
 let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
 let CachedComponent: React.ComponentType
-
-  // Ignore the module ID transform in client.
-  // @ts-ignore
-;(self as any).__next_require__ = __webpack_require__
 
 class Container extends React.Component<{
   children?: React.ReactNode
@@ -220,6 +188,8 @@ class Container extends React.Component<{
 export async function initialize(opts: { webpackHMR?: any } = {}): Promise<{
   assetPrefix: string
 }> {
+  tracer.onSpanEnd(reportToSocket)
+
   // This makes sure this specific lines are removed in production
   if (process.env.NODE_ENV === 'development') {
     webpackHMR = opts.webpackHMR
@@ -234,7 +204,7 @@ export async function initialize(opts: { webpackHMR?: any } = {}): Promise<{
   const prefix: string = initialData.assetPrefix || ''
   // With dynamic assetPrefix it's no longer possible to set assetPrefix at the build time
   // So, this is how we do it in the client side at runtime
-  __webpack_public_path__ = `${prefix}/_next/` //eslint-disable-line
+  ;(self as any).__next_set_public_path__(`${prefix}/_next/`) //eslint-disable-line
 
   // Initialize next/config with the environment configuration
   setConfig({
@@ -469,30 +439,82 @@ function Head({ callback }: { callback: () => void }): null {
   return null
 }
 
+const performanceMarks = {
+  navigationStart: 'navigationStart',
+  beforeRender: 'beforeRender',
+  afterRender: 'afterRender',
+  afterHydrate: 'afterHydrate',
+  routeChange: 'routeChange',
+} as const
+
+const performanceMeasures = {
+  hydration: 'Next.js-hydration',
+  beforeHydration: 'Next.js-before-hydration',
+  routeChangeToRender: 'Next.js-route-change-to-render',
+  render: 'Next.js-render',
+} as const
+
 let reactRoot: any = null
 // On initial render a hydrate should always happen
 let shouldHydrate: boolean = true
 
 function clearMarks(): void {
-  ;['beforeRender', 'afterHydrate', 'afterRender', 'routeChange'].forEach(
-    (mark) => performance.clearMarks(mark)
-  )
+  ;[
+    performanceMarks.beforeRender,
+    performanceMarks.afterHydrate,
+    performanceMarks.afterRender,
+    performanceMarks.routeChange,
+  ].forEach((mark) => performance.clearMarks(mark))
 }
 
 function markHydrateComplete(): void {
   if (!ST) return
 
-  performance.mark('afterHydrate') // mark end of hydration
+  performance.mark(performanceMarks.afterHydrate) // mark end of hydration
 
-  performance.measure(
-    'Next.js-before-hydration',
-    'navigationStart',
-    'beforeRender'
-  )
-  performance.measure('Next.js-hydration', 'beforeRender', 'afterHydrate')
+  const hasBeforeRenderMark = performance.getEntriesByName(
+    performanceMarks.beforeRender,
+    'mark'
+  ).length
+  if (hasBeforeRenderMark) {
+    const beforeHydrationMeasure = performance.measure(
+      performanceMeasures.beforeHydration,
+      performanceMarks.navigationStart,
+      performanceMarks.beforeRender
+    )
+
+    const hydrationMeasure = performance.measure(
+      performanceMeasures.hydration,
+      performanceMarks.beforeRender,
+      performanceMarks.afterHydrate
+    )
+
+    if (
+      process.env.NODE_ENV === 'development' &&
+      // Old versions of Safari don't return `PerformanceMeasure`s from `performance.measure()`
+      beforeHydrationMeasure !== undefined &&
+      hydrationMeasure !== undefined
+    ) {
+      tracer
+        .startSpan('navigation-to-hydration', {
+          startTime: performance.timeOrigin + beforeHydrationMeasure.startTime,
+          attributes: {
+            pathname: location.pathname,
+            query: location.search,
+          },
+        })
+        .end(
+          performance.timeOrigin +
+            hydrationMeasure.startTime +
+            hydrationMeasure.duration
+        )
+    }
+  }
 
   if (onPerfEntry) {
-    performance.getEntriesByName('Next.js-hydration').forEach(onPerfEntry)
+    performance
+      .getEntriesByName(performanceMeasures.hydration)
+      .forEach(onPerfEntry)
   }
   clearMarks()
 }
@@ -500,31 +522,45 @@ function markHydrateComplete(): void {
 function markRenderComplete(): void {
   if (!ST) return
 
-  performance.mark('afterRender') // mark end of render
+  performance.mark(performanceMarks.afterRender) // mark end of render
   const navStartEntries: PerformanceEntryList = performance.getEntriesByName(
-    'routeChange',
+    performanceMarks.routeChange,
     'mark'
   )
 
   if (!navStartEntries.length) return
 
-  performance.measure(
-    'Next.js-route-change-to-render',
-    navStartEntries[0].name,
-    'beforeRender'
-  )
-  performance.measure('Next.js-render', 'beforeRender', 'afterRender')
-  if (onPerfEntry) {
-    performance.getEntriesByName('Next.js-render').forEach(onPerfEntry)
-    performance
-      .getEntriesByName('Next.js-route-change-to-render')
-      .forEach(onPerfEntry)
+  const hasBeforeRenderMark = performance.getEntriesByName(
+    performanceMarks.beforeRender,
+    'mark'
+  ).length
+
+  if (hasBeforeRenderMark) {
+    performance.measure(
+      performanceMeasures.routeChangeToRender,
+      navStartEntries[0].name,
+      performanceMarks.beforeRender
+    )
+    performance.measure(
+      performanceMeasures.render,
+      performanceMarks.beforeRender,
+      performanceMarks.afterRender
+    )
+    if (onPerfEntry) {
+      performance
+        .getEntriesByName(performanceMeasures.render)
+        .forEach(onPerfEntry)
+      performance
+        .getEntriesByName(performanceMeasures.routeChangeToRender)
+        .forEach(onPerfEntry)
+    }
   }
 
   clearMarks()
-  ;['Next.js-route-change-to-render', 'Next.js-render'].forEach((measure) =>
-    performance.clearMeasures(measure)
-  )
+  ;[
+    performanceMeasures.routeChangeToRender,
+    performanceMeasures.render,
+  ].forEach((measure) => performance.clearMeasures(measure))
 }
 
 function renderReactElement(
@@ -533,7 +569,7 @@ function renderReactElement(
 ): void {
   // mark start of hydrate/render
   if (ST) {
-    performance.mark('beforeRender')
+    performance.mark(performanceMarks.beforeRender)
   }
 
   const reactEl = fn(shouldHydrate ? markHydrateComplete : markRenderComplete)

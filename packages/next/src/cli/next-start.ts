@@ -3,12 +3,9 @@
 import arg from 'next/dist/compiled/arg/index.js'
 import { startServer } from '../server/lib/start-server'
 import { getPort, printAndExit } from '../server/lib/utils'
-import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { CliCommand } from '../lib/commands'
-import { resolve } from 'path'
-import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
-import loadConfig from '../server/config'
+import { getValidatedArgs } from '../lib/get-validated-args'
 
 const nextStart: CliCommand = async (argv) => {
   const validArgs: arg.Spec = {
@@ -17,21 +14,14 @@ const nextStart: CliCommand = async (argv) => {
     '--port': Number,
     '--hostname': String,
     '--keepAliveTimeout': Number,
+    '--experimental-test-proxy': Boolean,
 
     // Aliases
     '-h': '--help',
     '-p': '--port',
     '-H': '--hostname',
   }
-  let args: arg.Result<arg.Spec>
-  try {
-    args = arg(validArgs, { argv })
-  } catch (error) {
-    if (isError(error) && error.code === 'ARG_UNKNOWN_OPTION') {
-      return printAndExit(error.message, 1)
-    }
-    throw error
-  }
+  const args = getValidatedArgs(validArgs, argv)
   if (args['--help']) {
     console.log(`
       Description
@@ -57,6 +47,8 @@ const nextStart: CliCommand = async (argv) => {
   const host = args['--hostname']
   const port = getPort(args)
 
+  const isExperimentalTestProxy = args['--experimental-test-proxy']
+
   const keepAliveTimeoutArg: number | undefined = args['--keepAliveTimeout']
   if (
     typeof keepAliveTimeoutArg !== 'undefined' &&
@@ -74,22 +66,13 @@ const nextStart: CliCommand = async (argv) => {
     ? Math.ceil(keepAliveTimeoutArg)
     : undefined
 
-  const config = await loadConfig(
-    PHASE_PRODUCTION_SERVER,
-    resolve(dir || '.'),
-    undefined,
-    undefined,
-    true
-  )
-
   await startServer({
     dir,
-    nextConfig: config,
     isDev: false,
+    isExperimentalTestProxy,
     hostname: host,
     port,
     keepAliveTimeout,
-    useWorkers: !!config.experimental.appDir,
   })
 }
 

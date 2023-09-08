@@ -2,23 +2,25 @@ import type { TLSSocket } from 'tls'
 import type { FsOutput } from './filesystem'
 import type { IncomingMessage } from 'http'
 import type { NextConfigComplete } from '../../config-shared'
+import type { RenderWorker, initialize } from '../router-server'
+import type { PatchMatcher } from '../../../shared/lib/router/utils/path-match'
 
 import url from 'url'
 import { Redirect } from '../../../../types'
-import { RenderWorker } from '../router-server'
 import setupDebug from 'next/dist/compiled/debug'
 import { getCloneableBody } from '../../body-streams'
-import { filterReqHeaders } from '../server-ipc/utils'
+import { filterReqHeaders, ipcForbiddenHeaders } from '../server-ipc/utils'
 import { Header } from '../../../lib/load-custom-routes'
 import { stringifyQuery } from '../../server-route-utils'
+import { formatHostname } from '../format-hostname'
 import { toNodeOutgoingHttpHeaders } from '../../web/utils'
 import { invokeRequest } from '../server-ipc/invoke-request'
+import { isAbortError } from '../../pipe-readable'
 import { getCookieParser, setLazyProp } from '../../api-utils'
 import { getHostname } from '../../../shared/lib/get-hostname'
 import { UnwrapPromise } from '../../../lib/coalesced-function'
 import { getRedirectStatus } from '../../../lib/redirect-status'
 import { normalizeRepeatedSlashes } from '../../../shared/lib/utils'
-import { getPathMatch } from '../../../shared/lib/router/utils/path-match'
 import { relativizeURL } from '../../../shared/lib/router/utils/relativize-url'
 import { addPathPrefix } from '../../../shared/lib/router/utils/add-path-prefix'
 import { pathHasPrefix } from '../../../shared/lib/router/utils/path-has-prefix'
@@ -44,7 +46,7 @@ export function getResolveRoutes(
     ReturnType<typeof import('./filesystem').setupFsCheck>
   >,
   config: NextConfigComplete,
-  opts: Parameters<typeof import('../router-server').initialize>[0],
+  opts: Parameters<typeof initialize>[0],
   renderWorkers: {
     app?: RenderWorker
     pages?: RenderWorker
@@ -52,30 +54,34 @@ export function getResolveRoutes(
   renderWorkerOpts: Parameters<RenderWorker['initialize']>[0],
   ensureMiddleware?: () => Promise<void>
 ) {
-  const routes: ({
-    match: ReturnType<typeof getPathMatch>
+  type Route = {
+    /**
+     * The path matcher to check if this route applies to this request.
+     */
+    match: PatchMatcher
     check?: boolean
     name?: string
-    internal?: boolean
   } & Partial<Header> &
-    Partial<Redirect>)[] = [
+    Partial<Redirect>
+
+  const routes: Route[] = [
     // _next/data with middleware handling
-    { match: () => ({} as any), name: 'middleware_next_data' },
+    { match: () => ({}), name: 'middleware_next_data' },
 
     ...(opts.minimalMode ? [] : fsChecker.headers),
     ...(opts.minimalMode ? [] : fsChecker.redirects),
 
     // check middleware (using matchers)
-    { match: () => ({} as any), name: 'middleware' },
+    { match: () => ({}), name: 'middleware' },
 
     ...(opts.minimalMode ? [] : fsChecker.rewrites.beforeFiles),
 
     // check middleware (using matchers)
-    { match: () => ({} as any), name: 'before_files_end' },
+    { match: () => ({}), name: 'before_files_end' },
 
     // we check exact matches on fs before continuing to
     // after files rewrites
-    { match: () => ({} as any), name: 'check_fs' },
+    { match: () => ({}), name: 'check_fs' },
 
     ...(opts.minimalMode ? [] : fsChecker.rewrites.afterFiles),
 
@@ -83,18 +89,24 @@ export function getResolveRoutes(
     // fallback rewrites
     {
       check: true,
-      match: () => ({} as any),
+      match: () => ({}),
       name: 'after files check: true',
     },
 
     ...(opts.minimalMode ? [] : fsChecker.rewrites.fallback),
   ]
 
-  async function resolveRoutes(
-    req: IncomingMessage,
-    matchedDynamicRoutes: Set<string>,
-    isUpgradeReq?: boolean
-  ): Promise<{
+  async function resolveRoutes({
+    req,
+    isUpgradeReq,
+    signal,
+    invokedOutputs,
+  }: {
+    req: IncomingMessage
+    isUpgradeReq: boolean
+    signal: AbortSignal
+    invokedOutputs?: Set<string>
+  }): Promise<{
     finished: boolean
     statusCode?: number
     bodyStream?: ReadableStream | null
@@ -135,7 +147,9 @@ export function getResolveRoutes(
     const initUrl = (config.experimental as any).trustHostHeader
       ? `https://${req.headers.host || 'localhost'}${req.url}`
       : opts.port
-      ? `${protocol}://${opts.hostname || 'localhost'}:${opts.port}${req.url}`
+      ? `${protocol}://${formatHostname(opts.hostname || 'localhost')}:${
+          opts.port
+        }${req.url}`
       : req.url || ''
 
     addRequestMeta(req, '__NEXT_INIT_URL', initUrl)
@@ -218,18 +232,22 @@ export function getResolveRoutes(
     }
 
     async function checkTrue() {
-      if (checkLocaleApi(parsedUrl.pathname || '')) {
+      const pathname = parsedUrl.pathname || ''
+
+      if (checkLocaleApi(pathname)) {
         return
       }
-      const output = await fsChecker.getItem(parsedUrl.pathname || '')
+      if (!invokedOutputs?.has(pathname)) {
+        const output = await fsChecker.getItem(pathname)
 
-      if (output) {
-        if (
-          config.useFileSystemPublicRoutes ||
-          didRewrite ||
-          (output.type !== 'appFile' && output.type !== 'pageFile')
-        ) {
-          return output
+        if (output) {
+          if (
+            config.useFileSystemPublicRoutes ||
+            didRewrite ||
+            (output.type !== 'appFile' && output.type !== 'pageFile')
+          ) {
+            return output
+          }
         }
       }
       const dynamicRoutes = fsChecker.getDynamicRoutes()
@@ -244,12 +262,12 @@ export function getResolveRoutes(
       const localeResult = fsChecker.handleLocale(curPathname || '')
 
       for (const route of dynamicRoutes) {
-        // when resolving fallback: false we attempt to
+        // when resolving fallback: false the
         // render worker may return a no-fallback response
         // which signals we need to continue resolving.
         // TODO: optimize this to collect static paths
         // to use at the routing layer
-        if (matchedDynamicRoutes.has(route.page)) {
+        if (invokedOutputs?.has(route.page)) {
           continue
         }
         const params = route.match(localeResult.pathname)
@@ -270,7 +288,6 @@ export function getResolveRoutes(
           if (pageOutput && curPathname?.startsWith('/_next/data')) {
             parsedUrl.query.__nextDataReq = '1'
           }
-          matchedDynamicRoutes.add(route.page)
 
           if (config.useFileSystemPublicRoutes || didRewrite) {
             return pageOutput
@@ -376,17 +393,19 @@ export function getResolveRoutes(
         }
 
         if (route.name === 'check_fs') {
-          if (checkLocaleApi(parsedUrl.pathname || '')) {
+          const pathname = parsedUrl.pathname || ''
+
+          if (invokedOutputs?.has(pathname) || checkLocaleApi(pathname)) {
             return
           }
-          const output = await fsChecker.getItem(parsedUrl.pathname || '')
+          const output = await fsChecker.getItem(pathname)
 
           if (
             output &&
             !(
               config.i18n &&
               initialLocaleResult?.detectedLocale &&
-              pathHasPrefix(parsedUrl.pathname || '', '/api')
+              pathHasPrefix(pathname, '/api')
             )
           ) {
             if (
@@ -453,14 +472,31 @@ export function getResolveRoutes(
 
             debug('invoking middleware', renderUrl, invokeHeaders)
 
-            const middlewareRes = await invokeRequest(
-              renderUrl,
-              {
-                headers: invokeHeaders,
-                method: req.method,
-              },
-              getRequestMeta(req, '__NEXT_CLONABLE_BODY')?.cloneBodyStream()
-            )
+            let middlewareRes
+            try {
+              middlewareRes = await invokeRequest(
+                renderUrl,
+                {
+                  headers: invokeHeaders,
+                  method: req.method,
+                  signal,
+                },
+                getRequestMeta(req, '__NEXT_CLONABLE_BODY')?.cloneBodyStream()
+              )
+            } catch (e) {
+              // If the client aborts before we can receive a response object
+              // (when the headers are flushed), then we can early exit without
+              // further processing.
+              if (isAbortError(e)) {
+                return {
+                  parsedUrl,
+                  resHeaders,
+                  finished: true,
+                }
+              }
+              throw e
+            }
+
             const middlewareHeaders = toNodeOutgoingHttpHeaders(
               middlewareRes.headers
             ) as Record<string, string | string[] | undefined>
@@ -511,7 +547,7 @@ export function getResolveRoutes(
             delete middlewareHeaders['x-middleware-next']
 
             for (const [key, value] of Object.entries({
-              ...filterReqHeaders(middlewareHeaders),
+              ...filterReqHeaders(middlewareHeaders, ipcForbiddenHeaders),
             })) {
               if (
                 [

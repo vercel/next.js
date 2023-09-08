@@ -64,6 +64,7 @@ enum NextNodeServerSpan {
   route = 'route',
   onProxyReq = 'onProxyReq',
   apiResolver = 'apiResolver',
+  internalFetch = 'internalFetch',
 }
 
 enum StartServerSpan {

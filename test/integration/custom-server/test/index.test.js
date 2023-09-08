@@ -123,6 +123,18 @@ describe.skip.each([
       expect(html).toMatch(/made it to dashboard/)
     })
 
+    it('should handle custom urls with requests handler', async () => {
+      const html = await renderViaHTTP(
+        nextUrl,
+        '/custom-url-with-request-handler',
+        undefined,
+        {
+          agent,
+        }
+      )
+      expect(html).toMatch(/made it to dashboard/)
+    })
+
     it('should contain customServer in NEXT_DATA', async () => {
       const html = await renderViaHTTP(nextUrl, '/', undefined, { agent })
       const $ = cheerio.load(html)
@@ -279,9 +291,7 @@ describe.skip.each([
       )
       await fetchViaHTTP(nextUrl, '/unhandled-rejection', undefined, { agent })
       await check(() => stderr, /unhandledRejection/)
-      expect(stderr).toContain(
-        '- error unhandledRejection: Error: unhandled rejection'
-      )
+      expect(stderr).toContain('unhandledRejection: Error: unhandled rejection')
       expect(stderr).toContain('server.js:37:22')
     })
   })

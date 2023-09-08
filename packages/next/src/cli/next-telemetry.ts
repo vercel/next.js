@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 import chalk from 'next/dist/compiled/chalk'
 import arg from 'next/dist/compiled/arg/index.js'
-import { printAndExit } from '../server/lib/utils'
 import { CliCommand } from '../lib/commands'
 import { Telemetry } from '../telemetry/storage'
-import isError from '../lib/is-error'
+import { getValidatedArgs } from '../lib/get-validated-args'
 
 const nextTelemetry: CliCommand = (argv) => {
   const validArgs: arg.Spec = {
@@ -15,15 +14,7 @@ const nextTelemetry: CliCommand = (argv) => {
     // Aliases
     '-h': '--help',
   }
-  let args: arg.Result<arg.Spec>
-  try {
-    args = arg(validArgs, { argv })
-  } catch (error) {
-    if (isError(error) && error.code === 'ARG_UNKNOWN_OPTION') {
-      return printAndExit(error.message, 1)
-    }
-    throw error
-  }
+  const args = getValidatedArgs(validArgs, argv)
 
   if (args['--help']) {
     console.log(

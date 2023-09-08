@@ -61,7 +61,7 @@ pub async fn get_app_entries(
     server_compile_time_info: Vc<CompileTimeInfo>,
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<AppEntries>> {
-    let app_dir = find_app_dir_if_enabled(project_root, next_config);
+    let app_dir = find_app_dir_if_enabled(project_root);
 
     let Some(&app_dir) = app_dir.await?.as_ref() else {
         return Ok(AppEntries::cell(AppEntries {
@@ -187,23 +187,23 @@ pub async fn get_app_entries(
     let mut entries = entrypoints
         .await?
         .iter()
-        .map(|(pathname, entrypoint)| async move {
+        .map(|(_, entrypoint)| async move {
             Ok(match entrypoint {
-                Entrypoint::AppPage { loader_tree } => get_app_page_entry(
+                Entrypoint::AppPage { page, loader_tree } => get_app_page_entry(
                     rsc_context,
                     // TODO add edge support
                     rsc_context,
                     *loader_tree,
                     app_dir,
-                    pathname.clone(),
+                    page.clone(),
                     project_root,
                 ),
-                Entrypoint::AppRoute { path } => get_app_route_entry(
+                Entrypoint::AppRoute { page, path } => get_app_route_entry(
                     rsc_context,
                     // TODO add edge support
                     rsc_context,
                     Vc::upcast(FileSource::new(*path)),
-                    pathname.clone(),
+                    page.clone(),
                     project_root,
                 ),
             })

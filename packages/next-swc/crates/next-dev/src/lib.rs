@@ -32,17 +32,18 @@ use next_core::{
     pages_structure::find_pages_structure,
     router_source::NextRouterContentSource,
     source_map::NextSourceMapTraceContentSource,
+    tracing_presets::{
+        TRACING_NEXT_TARGETS, TRACING_NEXT_TURBOPACK_TARGETS, TRACING_NEXT_TURBO_TASKS_TARGETS,
+    },
 };
-use once_cell::sync::Lazy;
 use owo_colors::OwoColorize;
 use tracing_subscriber::{prelude::*, EnvFilter, Registry};
 use turbo_tasks::{
-    util::{FormatBytes, FormatDuration},
-    StatsType, TransientInstance, TurboTasks, TurboTasksBackendApi, UpdateInfo, Value, Vc,
+    util::FormatDuration, StatsType, TransientInstance, TurboTasks, TurboTasksBackendApi,
+    UpdateInfo, Value, Vc,
 };
 use turbopack_binding::{
     turbo::{
-        malloc::TurboMalloc,
         tasks_env::{CustomProcessEnv, ProcessEnv},
         tasks_fs::{DiskFileSystem, FileSystem},
         tasks_memory::MemoryBackend,
@@ -53,14 +54,12 @@ use turbopack_binding::{
             issue::{ConsoleUi, LogOptions},
             raw_trace::RawTraceLayer,
             trace_writer::TraceWriter,
-            tracing_presets::{
-                TRACING_OVERVIEW_TARGETS, TRACING_TURBOPACK_TARGETS, TRACING_TURBO_TASKS_TARGETS,
-            },
+            tracing_presets::TRACING_OVERVIEW_TARGETS,
         },
         core::{
             environment::ServerAddr,
             issue::{IssueReporter, IssueSeverity},
-            resolve::{parse::Request, pattern::QueryMap},
+            resolve::parse::Request,
             server_fs::ServerFileSystem,
             PROJECT_FILESYSTEM_NAME,
         },
@@ -69,8 +68,7 @@ use turbopack_binding::{
             introspect::IntrospectionSource,
             source::{
                 combined::CombinedContentSource, router::PrefixedRouterContentSource,
-                source_maps::SourceMapContentSource, static_assets::StaticAssetsContentSource,
-                ContentSource,
+                static_assets::StaticAssetsContentSource, ContentSource,
             },
             DevServer, DevServerBuilder,
         },
@@ -295,7 +293,6 @@ async fn server_env(
     Ok(Vc::upcast(CustomProcessEnv::new(env, Vc::cell(map))))
 }
 
-#[allow(clippy::too_many_arguments)]
 #[turbo_tasks::function]
 async fn source(
     root_dir: String,
@@ -337,7 +334,7 @@ async fn source(
     let execution_context =
         ExecutionContext::new(project_path, Vc::upcast(build_chunking_context), env);
 
-    let mode = NextMode::Development;
+    let mode = NextMode::DevServer;
     let next_config_execution_context = execution_context.with_layer("next_config".to_string());
     let next_config = load_next_config(next_config_execution_context);
     let rewrites = load_rewrites(next_config_execution_context);
@@ -349,9 +346,11 @@ async fn source(
     let entry_requests = entry_requests
         .iter()
         .map(|r| match r {
-            EntryRequest::Relative(p) => Request::relative(Value::new(p.clone().into()), false),
+            EntryRequest::Relative(p) => {
+                Request::relative(Value::new(p.clone().into()), Default::default(), false)
+            }
             EntryRequest::Module(m, p) => {
-                Request::module(m.clone(), Value::new(p.clone().into()), QueryMap::none())
+                Request::module(m.clone(), Value::new(p.clone().into()), Default::default())
             }
         })
         .collect();
@@ -386,7 +385,7 @@ async fn source(
         next_config,
         server_addr,
     );
-    let app_dir = find_app_dir_if_enabled(project_path, next_config);
+    let app_dir = find_app_dir_if_enabled(project_path);
     let app_source = create_app_source(
         app_dir,
         project_path,
@@ -425,7 +424,6 @@ async fn source(
         .cell(),
     );
     let main_source = Vc::upcast(main_source);
-    let source_maps = Vc::upcast(SourceMapContentSource::new(main_source));
     let source_map_trace = Vc::upcast(NextSourceMapTraceContentSource::new(main_source));
     let img_source = Vc::upcast(NextImageContentSource::new(main_source));
     let router_source = Vc::upcast(NextRouterContentSource::new(
@@ -438,7 +436,7 @@ async fn source(
     ));
     let source = Vc::upcast(
         PrefixedRouterContentSource {
-            prefix: Vc::<String>::empty(),
+            prefix: Default::default(),
             routes: vec![
                 ("__turbopack__".to_string(), introspect),
                 ("__turbo_tasks__".to_string(), viz),
@@ -448,7 +446,6 @@ async fn source(
                 ),
                 // TODO: Load path from next.config.js
                 ("_next/image".to_string(), img_source),
-                ("__turbopack_sourcemap__".to_string(), source_maps),
             ],
             fallback: router_source,
         }
@@ -462,28 +459,6 @@ pub fn register() {
     next_core::register();
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }
-
-static TRACING_NEXT_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
-    [
-        &TRACING_OVERVIEW_TARGETS[..],
-        &[
-            "next_dev=trace",
-            "next_core=trace",
-            "next_font=trace",
-            "turbopack_node=trace",
-        ],
-    ]
-    .concat()
-});
-static TRACING_NEXT_TURBOPACK_TARGETS: Lazy<Vec<&str>> =
-    Lazy::new(|| [&TRACING_NEXT_TARGETS[..], &TRACING_TURBOPACK_TARGETS[..]].concat());
-static TRACING_NEXT_TURBO_TASKS_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
-    [
-        &TRACING_TURBOPACK_TARGETS[..],
-        &TRACING_TURBO_TASKS_TARGETS[..],
-    ]
-    .concat()
-});
 
 /// Start a devserver with the given options.
 pub async fn start_server(options: &DevServerOptions) -> Result<()> {
@@ -609,10 +584,9 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
     let stats_future = async move {
         if options.log_detail {
             println!(
-                "{event_type} - startup {start} ({memory})",
+                "{event_type} - startup {start}",
                 event_type = "event".purple(),
                 start = FormatDuration(start.elapsed()),
-                memory = FormatBytes(TurboMalloc::memory_usage())
             );
         }
 
@@ -634,20 +608,18 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
                 match (options.log_detail, !reasons.is_empty()) {
                     (true, true) => {
                         println!(
-                            "\x1b[2K{event_type} - {reasons} {elapsed} ({tasks} tasks, {memory})",
+                            "\x1b[2K{event_type} - {reasons} {elapsed} ({tasks} tasks)",
                             event_type = "event".purple(),
                             elapsed = FormatDuration(elapsed),
                             tasks = count,
-                            memory = FormatBytes(TurboMalloc::memory_usage())
                         );
                     }
                     (true, false) => {
                         println!(
-                            "\x1b[2K{event_type} - compilation {elapsed} ({tasks} tasks, {memory})",
+                            "\x1b[2K{event_type} - compilation {elapsed} ({tasks} tasks)",
                             event_type = "event".purple(),
                             elapsed = FormatDuration(elapsed),
                             tasks = count,
-                            memory = FormatBytes(TurboMalloc::memory_usage())
                         );
                     }
                     (false, true) => {
@@ -669,18 +641,10 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
                 }
             } else {
                 progress_counter += 1;
-                if options.log_detail {
-                    print!(
-                        "\x1b[2K{event_type} - {progress_counter}s... ({memory})\r",
-                        event_type = "event".purple(),
-                        memory = FormatBytes(TurboMalloc::memory_usage())
-                    );
-                } else {
-                    print!(
-                        "\x1b[2K{event_type} - {progress_counter}s...\r",
-                        event_type = "event".purple(),
-                    );
-                }
+                print!(
+                    "\x1b[2K{event_type} - {progress_counter}s...\r",
+                    event_type = "event".purple(),
+                );
                 let _ = stdout().lock().flush();
             }
         }

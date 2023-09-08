@@ -5,7 +5,6 @@ import findUp from 'next/dist/compiled/find-up'
 import chalk from '../lib/chalk'
 import * as Log from '../build/output/log'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
-import { execOnce } from '../shared/lib/utils'
 import {
   defaultConfig,
   normalizeConfig,
@@ -22,25 +21,6 @@ import { findRootDir } from '../lib/find-root'
 import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
-
-const experimentalWarning = execOnce(
-  (configFileName: string, features: string[]) => {
-    const s = features.length > 1 ? 's' : ''
-    Log.warn(
-      chalk.bold(
-        `You have enabled experimental feature${s} (${features.join(
-          ', '
-        )}) in ${configFileName}.`
-      )
-    )
-    Log.warn(
-      `Experimental features are not covered by semver, and may cause unexpected or broken application behavior. ` +
-        `Use at your own risk.`
-    )
-
-    console.warn()
-  }
-)
 
 export function warnOptionHasBeenMovedOutOfExperimental(
   config: NextConfig,
@@ -94,28 +74,6 @@ function assignDefaults(
 
       if (value === undefined || value === null) {
         return currentConfig
-      }
-
-      if (key === 'experimental' && typeof value === 'object') {
-        const enabledExperiments: (keyof ExperimentalConfig)[] = []
-
-        // defaultConfig.experimental is predefined and will never be undefined
-        // This is only a type guard for the typescript
-        if (defaultConfig.experimental) {
-          for (const featureName of Object.keys(
-            value
-          ) as (keyof ExperimentalConfig)[]) {
-            if (
-              value[featureName] !== defaultConfig.experimental[featureName]
-            ) {
-              enabledExperiments.push(featureName)
-            }
-          }
-        }
-
-        if (!silent && enabledExperiments.length > 0) {
-          experimentalWarning(configFileName, enabledExperiments)
-        }
       }
 
       if (key === 'distDir') {
@@ -335,7 +293,6 @@ function assignDefaults(
           `Specified images.loaderFile does not exist at "${absolutePath}".`
         )
       }
-      images.loader = 'custom'
       images.loaderFile = absolutePath
     }
   }
@@ -399,7 +356,7 @@ function assignDefaults(
     )
     if (isNaN(value) || value < 1) {
       throw new Error(
-        'Server Actions Size Limit must be a valid number or filesize format lager than 1MB: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions'
+        'Server Actions Size Limit must be a valid number or filesize format lager than 1MB: https://nextjs.org/docs/app/api-reference/server-actions#size-limitation'
       )
     }
   }
@@ -425,13 +382,6 @@ function assignDefaults(
     configFileName,
     silent
   )
-
-  if (
-    typeof userConfig.experimental?.clientRouterFilter === 'undefined' &&
-    result.experimental?.appDir
-  ) {
-    result.experimental.clientRouterFilter = true
-  }
 
   if (
     result.experimental?.outputFileTracingRoot &&
@@ -679,27 +629,68 @@ function assignDefaults(
     'lodash-es': {
       transform: 'lodash-es/{{member}}',
     },
-    // TODO: Enable this once we have a way to remove the "-icon" suffix from the import path.
-    // Related discussion: https://github.com/vercel/next.js/pull/50900#discussion_r1239656782
-    // 'lucide-react': {
-    //   transform: 'lucide-react/dist/esm/icons/{{ kebabCase member }}',
-    // },
     ramda: {
       transform: 'ramda/es/{{member}}',
     },
     'react-bootstrap': {
-      transform: 'react-bootstrap/{{member}}',
+      transform: {
+        useAccordionButton:
+          'modularize-import-loader?name=useAccordionButton&from=named&as=default!react-bootstrap/AccordionButton',
+        '*': 'react-bootstrap/{{member}}',
+      },
     },
     antd: {
       transform: 'antd/lib/{{kebabCase member}}',
     },
     ahooks: {
-      transform: 'ahooks/es/{{member}}',
+      transform: {
+        createUpdateEffect:
+          'modularize-import-loader?name=createUpdateEffect&from=named&as=default!ahooks/es/createUpdateEffect',
+        '*': 'ahooks/es/{{member}}',
+      },
     },
     '@ant-design/icons': {
-      transform: '@ant-design/icons/lib/icons/{{member}}',
+      transform: {
+        IconProvider:
+          'modularize-import-loader?name=IconProvider&from=named&as=default!@ant-design/icons',
+        createFromIconfontCN: '@ant-design/icons/es/components/IconFont',
+        getTwoToneColor:
+          'modularize-import-loader?name=getTwoToneColor&from=named&as=default!@ant-design/icons/es/components/twoTonePrimaryColor',
+        setTwoToneColor:
+          'modularize-import-loader?name=setTwoToneColor&from=named&as=default!@ant-design/icons/es/components/twoTonePrimaryColor',
+        '*': '@ant-design/icons/lib/icons/{{member}}',
+      },
+    },
+    'next/server': {
+      transform: 'next/dist/server/web/exports/{{ kebabCase member }}',
     },
   }
+
+  const userProvidedOptimizePackageImports =
+    result.experimental?.optimizePackageImports || []
+  if (!result.experimental) {
+    result.experimental = {}
+  }
+  result.experimental.optimizePackageImports = [
+    ...new Set([
+      ...userProvidedOptimizePackageImports,
+      'lucide-react',
+      '@headlessui/react',
+      '@headlessui-float/react',
+      '@heroicons/react/20/solid',
+      '@heroicons/react/24/solid',
+      '@heroicons/react/24/outline',
+      '@visx/visx',
+      '@tremor/react',
+      'rxjs',
+      '@mui/material',
+      'recharts',
+      '@material-ui/core',
+      'react-use',
+      '@material-ui/icons',
+      '@tabler/icons-react',
+    ]),
+  ]
 
   return result
 }
@@ -709,7 +700,8 @@ export default async function loadConfig(
   dir: string,
   customConfig?: object | null,
   rawConfig?: boolean,
-  silent?: boolean
+  silent?: boolean,
+  onLoadUserConfig?: (conf: NextConfig) => void
 ): Promise<NextConfigComplete> {
   if (!process.env.__NEXT_PRIVATE_RENDER_WORKER) {
     try {
@@ -857,6 +849,7 @@ export default async function loadConfig(
           : canonicalBase) || ''
     }
 
+    onLoadUserConfig?.(userConfig)
     const completeConfig = assignDefaults(
       dir,
       {
@@ -898,4 +891,28 @@ export default async function loadConfig(
   completeConfig.configFileName = configFileName
   setHttpClientAndAgentOptions(completeConfig)
   return completeConfig
+}
+
+export function getEnabledExperimentalFeatures(
+  userNextConfigExperimental: NextConfig['experimental']
+) {
+  const enabledExperiments: (keyof ExperimentalConfig)[] = []
+
+  if (!userNextConfigExperimental) return enabledExperiments
+
+  // defaultConfig.experimental is predefined and will never be undefined
+  // This is only a type guard for the typescript
+  if (defaultConfig.experimental) {
+    for (const featureName of Object.keys(
+      userNextConfigExperimental
+    ) as (keyof ExperimentalConfig)[]) {
+      if (
+        userNextConfigExperimental[featureName] !==
+        defaultConfig.experimental[featureName]
+      ) {
+        enabledExperiments.push(featureName)
+      }
+    }
+  }
+  return enabledExperiments
 }

@@ -13,7 +13,7 @@ use turbopack_binding::{
             context::AssetContext,
             file_source::FileSource,
             ident::AssetIdent,
-            issue::{Issue, IssueContextExt, IssueExt, IssueSeverity},
+            issue::{Issue, IssueDescriptionExt, IssueExt, IssueSeverity},
             reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
             resolve::{
                 find_context_file,
@@ -117,12 +117,14 @@ pub struct NextConfig {
     public_runtime_config: IndexMap<String, serde_json::Value>,
     server_runtime_config: IndexMap<String, serde_json::Value>,
     static_page_generation_timeout: f64,
-    swc_minify: bool,
+    swc_minify: Option<bool>,
     target: Option<String>,
     trailing_slash: bool,
     typescript: TypeScriptConfig,
     use_file_system_public_routes: bool,
     webpack: Option<serde_json::Value>,
+    skip_middleware_url_normalize: Option<bool>,
+    skip_trailing_slash_redirect: Option<bool>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -401,7 +403,6 @@ pub enum LoaderItem {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct ExperimentalConfig {
-    pub app_dir: Option<bool>,
     pub server_components_external_packages: Option<Vec<String>>,
     pub turbo: Option<ExperimentalTurboConfig>,
     pub allowed_revalidate_header_keys: Option<Vec<String>>,
@@ -420,41 +421,30 @@ pub struct ExperimentalConfig {
     cra_compat: Option<bool>,
     disable_optimized_loading: Option<bool>,
     disable_postcss_preset_env: Option<bool>,
-    enable_undici: Option<bool>,
     esm_externals: Option<serde_json::Value>,
     external_dir: Option<bool>,
     fallback_node_polyfills: Option<bool>,
-    fetch_cache: Option<bool>,
     font_loaders: Option<serde_json::Value>,
     force_swc_transforms: Option<bool>,
     fully_specified: Option<bool>,
     gzip_size: Option<bool>,
     incremental_cache_handler_path: Option<String>,
     large_page_data_bytes: Option<f64>,
-    legacy_browsers: Option<bool>,
     manual_client_base_path: Option<bool>,
     middleware_prefetch: Option<MiddlewarePrefetchType>,
-    new_next_link_behavior: Option<bool>,
     next_script_workers: Option<bool>,
     optimistic_client_cache: Option<bool>,
     optimize_css: Option<serde_json::Value>,
     output_file_tracing_ignores: Option<Vec<String>>,
     output_file_tracing_root: Option<String>,
-    page_env: Option<bool>,
-    profiling: Option<bool>,
     proxy_timeout: Option<f64>,
-    runtime: Option<serde_json::Value>,
     scroll_restoration: Option<bool>,
     shared_pool: Option<bool>,
-    skip_middleware_url_normalize: Option<bool>,
-    skip_trailing_slash_redirect: Option<bool>,
     sri: Option<serde_json::Value>,
-    swc_file_reading: Option<bool>,
-    swc_minify: Option<bool>,
     swc_minify_debug_options: Option<serde_json::Value>,
     swc_trace_profiling: Option<bool>,
     transpile_packages: Option<Vec<String>>,
-    turbotrace: Option<serde_json::Value>,
+    pub turbotrace: Option<serde_json::Value>,
     url_imports: Option<serde_json::Value>,
     web_vitals_attribution: Option<serde_json::Value>,
     worker_threads: Option<bool>,
@@ -521,18 +511,6 @@ impl NextConfig {
             self.await?
                 .experimental
                 .server_components_external_packages
-                .as_ref()
-                .cloned()
-                .unwrap_or_default(),
-        ))
-    }
-
-    #[turbo_tasks::function]
-    pub async fn app_dir(self: Vc<Self>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(
-            self.await?
-                .experimental
-                .app_dir
                 .as_ref()
                 .cloned()
                 .unwrap_or_default(),
@@ -653,6 +631,25 @@ impl NextConfig {
             self.await?.sass_options.clone().unwrap_or_default(),
         ))
     }
+
+    #[turbo_tasks::function]
+    pub async fn swc_minify(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(self.await?.swc_minify.unwrap_or(false)))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn skip_middleware_url_normalize(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            self.await?.skip_middleware_url_normalize.unwrap_or(false),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn skip_trailing_slash_redirect(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            self.await?.skip_trailing_slash_redirect.unwrap_or(false),
+        ))
+    }
 }
 
 fn next_configs() -> Vc<Vec<String>> {
@@ -692,7 +689,7 @@ async fn load_config_and_custom_routes(
     };
 
     load_next_config_and_custom_routes_internal(execution_context, config_file)
-        .issue_context(config_file, "Loading Next.js config")
+        .issue_file_path(config_file, "Loading Next.js config")
         .await
 }
 
@@ -799,6 +796,34 @@ pub async fn has_next_config(context: Vc<FileSystemPath>) -> Result<Vc<bool>> {
     )))
 }
 
+/// A subset of ts/jsconfig that next.js implicitly
+/// interops with.
+#[turbo_tasks::value(serialization = "custom", eq = "manual")]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JsConfig {
+    compiler_options: Option<serde_json::Value>,
+}
+
+#[turbo_tasks::value_impl]
+impl JsConfig {
+    #[turbo_tasks::function]
+    pub async fn from_string(string: Vc<String>) -> Result<Vc<Self>> {
+        let string = string.await?;
+        let config: JsConfig = serde_json::from_str(&string)
+            .with_context(|| format!("failed to parse next.config.js: {}", string))?;
+
+        Ok(config.cell())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn compiler_options(self: Vc<Self>) -> Result<Vc<serde_json::Value>> {
+        Ok(Vc::cell(
+            self.await?.compiler_options.clone().unwrap_or_default(),
+        ))
+    }
+}
+
 #[turbo_tasks::value]
 struct OutdatedConfigIssue {
     path: Vc<FileSystemPath>,
@@ -820,7 +845,7 @@ impl Issue for OutdatedConfigIssue {
     }
 
     #[turbo_tasks::function]
-    fn context(&self) -> Vc<FileSystemPath> {
+    fn file_path(&self) -> Vc<FileSystemPath> {
         self.path
     }
 
