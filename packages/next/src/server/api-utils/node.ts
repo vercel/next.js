@@ -1,12 +1,9 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextApiRequest, NextApiResponse } from '../../shared/lib/utils'
 import type { PageConfig, ResponseLimit, SizeLimit } from 'next/types'
-import {
-  checkIsOnDemandRevalidate,
-  __ApiPreviewProps,
-  appendPrerenderCookies,
-} from '.'
+import { checkIsOnDemandRevalidate, __ApiPreviewProps } from '.'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
+import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
 import type { PreviewData } from 'next/types'
 
 import bytes from 'next/dist/compiled/bytes'
@@ -303,20 +300,27 @@ function setDraftMode<T>(
   if (!isValidData(options.previewModeId)) {
     throw new Error('invariant: invalid previewModeId')
   }
-
+  const expires = options.enable ? undefined : new Date(0)
   // To delete a cookie, set `expires` to a date in the past:
   // https://tools.ietf.org/html/rfc6265#section-4.1.1
   // `Max-Age: 0` is not valid, thus ignored, and the cookie is persisted.
-  const expires = options.enable ? undefined : new Date(0)
-
-  appendPrerenderCookies(res, {
-    previewModeId: options.previewModeId,
-    cookieOptions: {
+  const { serialize } =
+    require('next/dist/compiled/cookie') as typeof import('cookie')
+  const previous = res.getHeader('Set-Cookie')
+  res.setHeader(`Set-Cookie`, [
+    ...(typeof previous === 'string'
+      ? [previous]
+      : Array.isArray(previous)
+      ? previous
+      : []),
+    serialize(COOKIE_NAME_PRERENDER_BYPASS, options.previewModeId, {
+      httpOnly: true,
+      sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
+      secure: process.env.NODE_ENV !== 'development',
       path: '/',
       expires,
-    },
-  })
-
+    }),
+  ])
   return res
 }
 
@@ -366,15 +370,40 @@ function setPreviewData<T>(
     )
   }
 
-  appendPrerenderCookies(res, {
-    previewModeId: options.previewModeId,
-    data: payload,
-    cookieOptions: {
-      path: options.path !== undefined ? options.path : '/',
-      maxAge: options.maxAge !== undefined ? options.maxAge : undefined,
-    },
-  })
-
+  const { serialize } =
+    require('next/dist/compiled/cookie') as typeof import('cookie')
+  const previous = res.getHeader('Set-Cookie')
+  res.setHeader(`Set-Cookie`, [
+    ...(typeof previous === 'string'
+      ? [previous]
+      : Array.isArray(previous)
+      ? previous
+      : []),
+    serialize(COOKIE_NAME_PRERENDER_BYPASS, options.previewModeId, {
+      httpOnly: true,
+      sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
+      secure: process.env.NODE_ENV !== 'development',
+      path: '/',
+      ...(options.maxAge !== undefined
+        ? ({ maxAge: options.maxAge } as CookieSerializeOptions)
+        : undefined),
+      ...(options.path !== undefined
+        ? ({ path: options.path } as CookieSerializeOptions)
+        : undefined),
+    }),
+    serialize(COOKIE_NAME_PRERENDER_DATA, payload, {
+      httpOnly: true,
+      sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
+      secure: process.env.NODE_ENV !== 'development',
+      path: '/',
+      ...(options.maxAge !== undefined
+        ? ({ maxAge: options.maxAge } as CookieSerializeOptions)
+        : undefined),
+      ...(options.path !== undefined
+        ? ({ path: options.path } as CookieSerializeOptions)
+        : undefined),
+    }),
+  ])
   return res
 }
 
