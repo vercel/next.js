@@ -25,7 +25,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
 import React from 'react'
 import { LoadableContext } from './loadable-context'
 
-function resolve(obj: any) {
+function resolve(obj: any): React.ExoticComponent {
   return obj && obj.default ? obj.default : obj
 }
 
@@ -129,14 +129,6 @@ function createLoadableComponent(loadFn: any, options: any) {
       subscription.getCurrentValue
     )
 
-    React.useImperativeHandle(
-      ref,
-      () => ({
-        retry: subscription.retry,
-      }),
-      []
-    )
-
     return React.useMemo(() => {
       if (state.loading || state.error) {
         return React.createElement(opts.loading, {
@@ -147,11 +139,17 @@ function createLoadableComponent(loadFn: any, options: any) {
           retry: subscription.retry,
         })
       } else if (state.loaded) {
-        return React.createElement(resolve(state.loaded), props)
+        const component = resolve(state.loaded)
+        return React.createElement(
+          component,
+          component.$$typeof === Symbol.for('react.forward_ref')
+            ? { ...props, ref: ref }
+            : props
+        )
       } else {
         return null
       }
-    }, [props, state])
+    }, [props, state, ref])
   }
 
   LoadableComponent.preload = () => init()
