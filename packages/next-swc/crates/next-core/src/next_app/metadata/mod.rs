@@ -3,7 +3,7 @@ use std::{collections::HashMap, ops::Deref};
 use anyhow::Result;
 use once_cell::sync::Lazy;
 
-use crate::next_app::{AppPage, PageSegment};
+use crate::next_app::{AppPage, PageSegment, PageType};
 
 pub mod image;
 pub mod route;
@@ -105,6 +105,10 @@ pub fn match_global_metadata_file<'a>(
 
 fn split_directory(path: &str) -> (Option<&str>, &str) {
     if let Some((dir, basename)) = path.rsplit_once('/') {
+        if dir.is_empty() {
+            return (Some("/"), basename);
+        }
+
         (Some(dir), basename)
     } else {
         (None, path)
@@ -301,7 +305,7 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
             page.push(PageSegment::OptionalCatchAll("__metadata_id__".to_string()))?;
         }
 
-        // the next version has a `/route` suffix added here, do we need it?
+        page.push(PageSegment::PageType(PageType::Route))?;
     }
 
     Ok(page)
@@ -310,42 +314,28 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
 #[cfg(test)]
 mod test {
     use super::normalize_metadata_route;
-    use crate::next_app::{AppPage, PageSegment};
+    use crate::next_app::AppPage;
 
     #[test]
     fn test_normalize_metadata_route() {
-        let normalized = normalize_metadata_route(AppPage(vec![
-            PageSegment::Static("client".to_string()),
-            PageSegment::Group("meme".to_string()),
-            PageSegment::Static("more-route".to_string()),
-            PageSegment::Static("twitter-image".to_string()),
-        ]))
-        .unwrap();
+        let cases = vec![
+            [
+                "/client/(meme)/more-route/twitter-image",
+                "/client/(meme)/more-route/twitter-image-769mad/[[...__metadata_id__]]/route",
+            ],
+            [
+                "/client/(meme)/more-route/twitter-image2",
+                "/client/(meme)/more-route/twitter-image2-769mad/[[...__metadata_id__]]/route",
+            ],
+            ["/robots.txt", "/robots.txt/route"],
+            ["/manifest.webmanifest", "/manifest.webmanifest/route"],
+        ];
 
-        let expected = AppPage(vec![
-            PageSegment::Static("client".to_string()),
-            PageSegment::Group("meme".to_string()),
-            PageSegment::Static("more-route".to_string()),
-            PageSegment::Static("twitter-image-769mad".to_string()),
-            PageSegment::OptionalCatchAll("__metadata_id__".to_string()),
-        ]);
+        for [input, expected] in cases {
+            let page = AppPage::parse(input).unwrap();
+            let normalized = normalize_metadata_route(page).unwrap();
 
-        assert_eq!(normalized, expected);
-    }
-
-    #[test]
-    fn test_normalize_metadata_route2() {
-        let page = AppPage::parse("/client/(meme)/more-route/twitter-image2").unwrap();
-
-        assert_eq!(
-            normalize_metadata_route(page).unwrap(),
-            AppPage(vec![
-                PageSegment::Static("client".to_string()),
-                PageSegment::Group("meme".to_string()),
-                PageSegment::Static("more-route".to_string()),
-                PageSegment::Static("twitter-image2-769mad".to_string()),
-                PageSegment::OptionalCatchAll("__metadata_id__".to_string()),
-            ])
-        );
+            assert_eq!(&normalized.to_string(), expected);
+        }
     }
 }

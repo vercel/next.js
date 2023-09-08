@@ -131,7 +131,7 @@ pub async fn get_app_route_entry(
     };
 
     Ok(AppEntry {
-        pathname: pathname.to_string(),
+        pathname,
         original_name,
         rsc_entry,
         config,
