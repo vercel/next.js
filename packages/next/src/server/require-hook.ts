@@ -14,12 +14,6 @@ const hookPropertyMap = new Map()
 let aliasedPrebundledReact = false
 
 // that env var is only set in app router
-const isApp = !!process.env.__NEXT_PRIVATE_PREBUNDLED_REACT
-const currentRuntime = `${
-  isApp
-    ? 'next/dist/compiled/next-server/app-page.runtime'
-    : 'next/dist/compiled/next-server/pages.runtime'
-}.prod`
 
 const resolve = process.env.NEXT_MINIMAL
   ? // @ts-ignore
@@ -133,6 +127,11 @@ mod._resolveFilename = function (
 if (process.env.NODE_ENV !== 'development' && !process.env.TURBOPACK) {
   mod.prototype.require = function (request: string) {
     if (request.endsWith('.shared-runtime')) {
+      const currentRuntime = `${
+        !!process.env.__NEXT_PRIVATE_PREBUNDLED_REACT
+          ? 'next/dist/compiled/next-server/app-page.runtime'
+          : 'next/dist/compiled/next-server/pages.runtime'
+      }.prod`
       const base = path.basename(request, '.shared-runtime')
       const camelized = base.replace(/-([a-z])/g, (g) => g[1].toUpperCase())
       const instance = originalRequire.call(this, currentRuntime)
