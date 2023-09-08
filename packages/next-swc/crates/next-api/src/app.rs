@@ -8,7 +8,7 @@ use next_core::{
     mode::NextMode,
     next_app::{
         get_app_client_references_chunks, get_app_client_shared_chunks, get_app_page_entry,
-        get_app_route_entry, AppEntry,
+        get_app_route_entry, AppEntry, AppPage,
     },
     next_client::{
         get_client_module_options_context, get_client_resolve_options_context,
@@ -344,8 +344,7 @@ impl AppProject {
                 .map(|(pathname, app_entrypoint)| async {
                     Ok((
                         pathname.clone(),
-                        *app_entry_point_to_route(self, app_entrypoint.clone(), pathname.clone())
-                            .await?,
+                        *app_entry_point_to_route(self, app_entrypoint.clone()).await?,
                     ))
                 })
                 .try_join()
@@ -360,13 +359,9 @@ impl AppProject {
 pub async fn app_entry_point_to_route(
     app_project: Vc<AppProject>,
     entrypoint: AppEntrypoint,
-    pathname: String,
 ) -> Vc<Route> {
     match entrypoint {
-        AppEntrypoint::AppPage {
-            original_name,
-            loader_tree,
-        } => Route::AppPage {
+        AppEntrypoint::AppPage { page, loader_tree } => Route::AppPage {
             html_endpoint: Vc::upcast(
                 AppEndpoint {
                     ty: AppEndpointType::Page {
@@ -374,8 +369,7 @@ pub async fn app_entry_point_to_route(
                         loader_tree,
                     },
                     app_project,
-                    pathname: pathname.clone(),
-                    original_name: original_name.clone(),
+                    page: page.clone(),
                 }
                 .cell(),
             ),
@@ -386,22 +380,17 @@ pub async fn app_entry_point_to_route(
                         loader_tree,
                     },
                     app_project,
-                    pathname,
-                    original_name,
+                    page,
                 }
                 .cell(),
             ),
         },
-        AppEntrypoint::AppRoute {
-            original_name,
-            path,
-        } => Route::AppRoute {
+        AppEntrypoint::AppRoute { page, path } => Route::AppRoute {
             endpoint: Vc::upcast(
                 AppEndpoint {
                     ty: AppEndpointType::Route { path },
                     app_project,
-                    pathname,
-                    original_name,
+                    page,
                 }
                 .cell(),
             ),
@@ -431,8 +420,7 @@ enum AppEndpointType {
 struct AppEndpoint {
     ty: AppEndpointType,
     app_project: Vc<AppProject>,
-    pathname: String,
-    original_name: String,
+    page: AppPage,
 }
 
 #[turbo_tasks::value_impl]
@@ -444,8 +432,7 @@ impl AppEndpoint {
             self.app_project.edge_rsc_module_context(),
             loader_tree,
             self.app_project.app_dir(),
-            self.pathname.clone(),
-            self.original_name.clone(),
+            self.page.clone(),
             self.app_project.project().project_path(),
         )
     }
@@ -456,8 +443,7 @@ impl AppEndpoint {
             self.app_project.rsc_module_context(),
             self.app_project.edge_rsc_module_context(),
             Vc::upcast(FileSource::new(path)),
-            self.pathname.clone(),
-            self.original_name.clone(),
+            self.page.clone(),
             self.app_project.project().project_path(),
         )
     }

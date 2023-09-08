@@ -70,7 +70,8 @@ type AppRouteHandlerFnContext = {
 }
 
 /**
- * Handler function for app routes.
+ * Handler function for app routes. If a non-Response value is returned, an error
+ * will be thrown.
  */
 export type AppRouteHandlerFn = (
   /**
@@ -82,7 +83,7 @@ export type AppRouteHandlerFn = (
    * dynamic route).
    */
   ctx: AppRouteHandlerFnContext
-) => Promise<Response> | Response
+) => unknown
 
 /**
  * AppRouteHandlers describes the handlers for app routes that is provided by
@@ -368,6 +369,11 @@ export class AppRouteRouteModule extends RouteModule<
                         ? parsedUrlQueryToParams(context.params)
                         : undefined,
                     })
+                    if (!(res instanceof Response)) {
+                      throw new Error(
+                        `No response is returned from route handler '${this.resolvedPagePath}'. Ensure you return a \`Response\` or a \`NextResponse\` in all branches of your handler.`
+                      )
+                    }
                     ;(context.staticGenerationContext as any).fetchMetrics =
                       staticGenerationStore.fetchMetrics
 
