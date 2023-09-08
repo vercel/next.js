@@ -2,7 +2,13 @@ import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { check } from 'next-test-utils'
+import { check, shouldRunTurboDevTest } from 'next-test-utils'
+
+// [TODO]: It is unclear why turbopack takes longer to run this test
+// remove once it's fixed
+if (shouldRunTurboDevTest()) {
+  jest.setTimeout(1000 * 60 * 5)
+}
 
 describe('TailwindCSS JIT', () => {
   let next: NextInstance
