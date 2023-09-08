@@ -296,6 +296,9 @@ importers:
       get-port:
         specifier: 5.1.1
         version: 5.1.1
+      get-port-please:
+        specifier: 3.1.1
+        version: 3.1.1
       glob:
         specifier: 7.1.6
         version: 7.1.6
@@ -14571,6 +14574,10 @@ packages:
       normalize-package-data: 2.5.0
       parse-github-repo-url: 1.4.1
       through2: 2.0.5
+    dev: true
+
+  /get-port-please@3.1.1:
+    resolution: {integrity: sha512-3UBAyM3u4ZBVYDsxOQfJDxEa6XTbpBDrOjp4mf7ExFRt5BKs/QywQQiJsh2B+hxcZLSapWqCRvElUe8DnKcFHA==}
     dev: true
 
   /get-port@5.1.1:
