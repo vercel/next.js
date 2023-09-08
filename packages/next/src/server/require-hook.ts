@@ -13,8 +13,6 @@ const hookPropertyMap = new Map()
 
 let aliasedPrebundledReact = false
 
-// that env var is only set in app router
-
 const resolve = process.env.NEXT_MINIMAL
   ? // @ts-ignore
     __non_webpack_require__.resolve
@@ -128,6 +126,7 @@ if (process.env.NODE_ENV !== 'development' && !process.env.TURBOPACK) {
   mod.prototype.require = function (request: string) {
     if (request.endsWith('.shared-runtime')) {
       const currentRuntime = `${
+        // this env var is only set in app router
         !!process.env.__NEXT_PRIVATE_PREBUNDLED_REACT
           ? 'next/dist/compiled/next-server/app-page.runtime'
           : 'next/dist/compiled/next-server/pages.runtime'
