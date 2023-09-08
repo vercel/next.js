@@ -27,8 +27,7 @@ function testShouldRedirect(expectations) {
     async (route, expectedLocation) => {
       const res = await fetchViaHTTP(appPort, route, {}, { redirect: 'manual' })
       expect(res.status).toBe(308)
-      const { pathname } = new URL(res.headers.get('location'))
-      expect(pathname).toBe(expectedLocation)
+      expect(res.headers.get('location')).toBe(expectedLocation)
     }
   )
 }
