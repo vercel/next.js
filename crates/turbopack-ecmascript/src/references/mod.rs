@@ -2602,7 +2602,7 @@ pub struct AstPath(#[turbo_tasks(trace_ignore)] Vec<AstParentKind>);
 pub static TURBOPACK_HELPER: &str = "__turbopackHelper";
 
 pub fn is_turbopack_helper_import(import: &ImportDecl) -> bool {
-    import.with.as_ref().map_or(false, |asserts| {
+    import.asserts.as_ref().map_or(false, |asserts| {
         asserts.props.iter().any(|assert| {
             assert
                 .as_prop()

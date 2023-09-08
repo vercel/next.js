@@ -299,7 +299,7 @@ impl DepGraph {
                         specifiers,
                         src: Box::new(uri_of_module.clone().into()),
                         type_only: false,
-                        with: Some(Box::new(create_turbopack_chunk_id_assert(dep))),
+                        asserts: Some(Box::new(create_turbopack_chunk_id_assert(dep))),
                     })));
             }
 
@@ -334,7 +334,7 @@ impl DepGraph {
                                     )],
                                     src: None,
                                     type_only: false,
-                                    with: Some(Box::new(ObjectLit {
+                                    asserts: Some(Box::new(ObjectLit {
                                         span: DUMMY_SP,
                                         props: vec![assertion_prop],
                                     })),
@@ -787,7 +787,7 @@ impl DepGraph {
                         })],
                         src: None,
                         type_only: false,
-                        with: None,
+                        asserts: None,
                     })),
                     export: Some(export.clone()),
                     ..Default::default()
