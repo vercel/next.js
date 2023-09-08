@@ -8,7 +8,6 @@ import {
   TEST_TEAM_NAME,
   TEST_TOKEN,
 } from '../../../scripts/reset-vercel-project.mjs'
-import 'next/src/server/node-polyfill-fetch'
 import { Span } from 'next/src/trace'
 
 export class NextDeployInstance extends NextInstance {

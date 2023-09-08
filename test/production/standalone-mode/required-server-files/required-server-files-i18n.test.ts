@@ -13,7 +13,6 @@ import {
   renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
-import 'next/src/server/node-polyfill-fetch'
 
 describe('should set-up next', () => {
   let next: NextInstance
