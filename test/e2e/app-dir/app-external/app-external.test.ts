@@ -1,18 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-
-async function resolveStreamResponse(response: any, onData?: any) {
-  let result = ''
-  onData = onData || (() => {})
-  await new Promise((resolve) => {
-    response.body.on('data', (chunk) => {
-      result += chunk.toString()
-      onData(chunk.toString(), result)
-    })
-
-    response.body.on('end', resolve)
-  })
-  return result
-}
+import { resolveStreamResponse } from '../../../lib/streaming'
 
 createNextDescribe(
   'app dir - external dependency',
