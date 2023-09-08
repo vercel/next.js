@@ -550,7 +550,7 @@ dependencies = [
  "serde",
  "serde-wasm-bindgen",
  "swc",
- "swc_common 0.31.22",
+ "swc_common",
  "swc_ecma_ast",
  "swc_ecma_transforms",
  "swc_ecma_visit",
@@ -3530,7 +3530,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempdir",
- "testing 0.34.1",
+ "testing",
  "tokio",
  "tungstenite",
  "turbo-tasks",
@@ -3598,7 +3598,7 @@ version = "0.1.0"
 dependencies = [
  "pathdiff",
  "swc_core",
- "testing 0.34.1",
+ "testing",
 ]
 
 [[package]]
@@ -3617,7 +3617,7 @@ version = "0.1.0"
 dependencies = [
  "rustc-hash",
  "swc_core",
- "testing 0.34.1",
+ "testing",
  "tracing",
 ]
 
@@ -5665,7 +5665,7 @@ dependencies = [
  "sourcemap",
  "swc_atoms",
  "swc_cached",
- "swc_common 0.31.22",
+ "swc_common",
  "swc_config",
  "swc_ecma_ast",
  "swc_ecma_codegen",
@@ -5681,7 +5681,7 @@ dependencies = [
  "swc_ecma_transforms_optimization",
  "swc_ecma_utils",
  "swc_ecma_visit",
- "swc_error_reporters 0.15.22",
+ "swc_error_reporters",
  "swc_node_comments",
  "swc_plugin_proxy",
  "swc_plugin_runner",
@@ -5725,7 +5725,7 @@ dependencies = [
  "rayon",
  "relative-path",
  "swc_atoms",
- "swc_common 0.31.22",
+ "swc_common",
  "swc_ecma_ast",
  "swc_ecma_codegen",
  "swc_ecma_loader",
@@ -5787,35 +5787,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "swc_common"
-version = "0.32.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c84742fc22df1c293da5354c1cc8a5b45a045e9dc941005c1fd9cb4e9bdabc1"
-dependencies = [
- "ast_node",
- "atty",
- "better_scoped_tls",
- "cfg-if 1.0.0",
- "either",
- "from_variant",
- "new_debug_unreachable",
- "num-bigint",
- "once_cell",
- "parking_lot",
- "rustc-hash",
- "serde",
- "siphasher",
- "string_cache",
- "swc_atoms",
- "swc_eq_ignore_macros",
- "swc_visit",
- "termcolor",
- "tracing",
- "unicode-width",
- "url",
-]
-
-[[package]]
 name = "swc_config"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5851,7 +5822,7 @@ dependencies = [
  "swc_atoms",
  "swc_bundler",
  "swc_cached",
- "swc_common 0.31.22",
+ "swc_common",
  "swc_css_ast",
  "swc_css_codegen",
  "swc_css_compat",
@@ -5880,7 +5851,7 @@ dependencies = [
  "swc_plugin_proxy",
  "swc_plugin_runner",
  "swc_trace_macro",
- "testing 0.33.25",
+ "testing",
  "vergen",
 ]
 
@@ -5894,7 +5865,7 @@ dependencies = [
  "serde",
  "string_enum",
  "swc_atoms",
- "swc_common 0.31.22",
+ "swc_common",
 ]
 
 [[package]]
@@ -5908,7 +5879,7 @@ dependencies = [
  "rustc-hash",
  "serde",
  "swc_atoms",
- "swc_common 0.31.22",
+ "swc_common",
  "swc_css_ast",
  "swc_css_codegen_macros",
  "swc_css_utils",
@@ -5938,7 +5909,7 @@ dependencies = [
  "serde",
  "serde_json",
  "swc_atoms",
- "swc_common 0.31.22",
+ "swc_common",
  "swc_css_ast",
  "swc_css_utils",
  "swc_css_visit",
@@ -5953,7 +5924,7 @@ dependencies = [
  "rustc-hash",
  "serde",
  "swc_atoms",
- "swc_common 0.31.22",
+ "swc_common",
  "swc_css_ast",
  "swc_css_codegen",
  "swc_css_parser",
@@ -5969,7 +5940,7 @@ dependencies = [
  "lexical",
  "serde",
  "swc_atoms",
- "swc_common 0.31.22",
+ "swc_common",
  "swc_css_ast",
 ]
 
@@ -5984,7 +5955,7 @@ dependencies = [
  "serde",
  "serde_json",
  "swc_atoms",
- "swc_common 0.31.22",
+ "swc_common",
  "swc_css_ast",
  "swc_css_utils",
  "swc_css_visit",
@@ -6000,7 +5971,7 @@ dependencies = [
  "serde",
  "serde_json",
  "swc_atoms",
- "swc_common 0.31.22",
+ "swc_common",
  "swc_css_ast",
  "swc_css_visit",
 ]
@@ -6013,7 +5984,7 @@ checksum = "a77e6528e4be03574d827a017b28b071cd3c1b63ecc0a9594d937eb372815889"
 dependencies = [
  "serde",
  "swc_atoms",
- "swc_common 0.31.22",
+ "swc_common",
  "swc_css_ast",
  "swc_visit",
 ]
@@ -6033,7 +6004,7 @@ dependencies = [
  "serde",
  "string_enum",
  "swc_atoms",
- "swc_common 0.31.22",
+ "swc_common",
  "unicode-id",
 ]
 
@@ -6050,7 +6021,7 @@ dependencies = [
  "serde",
  "sourcemap",
  "swc_atoms",
- "swc_common 0.31.22",
+ "swc_common",
  "swc_ecma_ast",
  "swc_ecma_codegen_macros",
  "tracing",
@@ -6077,7 +6048,7 @@ checksum = "a9eda7699dc5b4e9e99b314441196b19ce1730e9d81fae725ff9e0f5c71ebd68"
 dependencies = [
  "phf",
  "swc_atoms",
- "swc_common 0.31.22",
+ "swc_common",
  "swc_ecma_ast",
  "swc_ecma_utils",
  "swc_ecma_visit",
@@ -6096,7 +6067,7 @@ dependencies = [
  "regex",
  "serde",
  "swc_atoms",
- "swc_common 0.31.22",
+ "swc_common",
  "swc_config",
  "swc_ecma_ast",
  "swc_ecma_utils",
@@ -6120,7 +6091,7 @@ dependencies = [
  "serde",
  "serde_json",
  "swc_cached",
- "swc_common 0.31.22",
+ "swc_common",
  "tracing",
 ]
 
@@ -6145,7 +6116,7 @@ dependencies = [
  "serde_json",
  "swc_atoms",
  "swc_cached",
- "swc_common 0.31.22",
+ "swc_common",
  "swc_config",
  "swc_ecma_ast",
  "swc_ecma_codegen",
@@ -6173,7 +6144,7 @@ dependencies = [
  "smartstring",
  "stacker",
  "swc_atoms",
- "swc_common 0.31.22",
+ "swc_common",
  "swc_ecma_ast",
  "tracing",
  "typed-arena",
@@ -6198,7 +6169,7 @@ dependencies = [
  "st-map",
  "string_enum",
  "swc_atoms",
- "swc_common 0.31.22",
+ "swc_common",
  "swc_ecma_ast",
  "swc_ecma_transforms",
  "swc_ecma_utils",
@@ -6216,7 +6187,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "swc_atoms",
- "swc_common 0.31.22",
+ "swc_common",
  "swc_ecma_ast",
  "swc_ecma_parser",
  "swc_macros_common",
@@ -6232,7 +6203,7 @@ dependencies = [
  "anyhow",
  "hex",
  "sha-1",
- "testing 0.33.25",
+ "testing",
  "tracing",
 ]
 
@@ -6243,7 +6214,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b1fa03407af8c2bc6541aea9b62022f318b2d7f7c282e782f5398868d3948a5f"
 dependencies = [
  "swc_atoms",
- "swc_common 0.31.22",
+ "swc_common",
  "swc_ecma_ast",
  "swc_ecma_transforms_base",
  "swc_ecma_transforms_compat",
@@ -6272,7 +6243,7 @@ dependencies = [
  "serde",
  "smallvec",
  "swc_atoms",
- "swc_common 0.31.22",
+ "swc_common",
  "swc_ecma_ast",
  "swc_ecma_parser",
  "swc_ecma_utils",
@@ -6287,7 +6258,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e58867e9bdc687350717ac8cc83ab8be18172800a91ad7882bf5c0035d0d673e"
 dependencies = [
  "swc_atoms",
- "swc_common 0.31.22",
+ "swc_common",
  "swc_ecma_ast",
  "swc_ecma_transforms_base",
  "swc_ecma_utils",
@@ -6308,7 +6279,7 @@ dependencies = [
  "serde",
  "smallvec",
  "swc_atoms",
- "swc_common 0.31.22",
+ "swc_common",
  "swc_config",
  "swc_ecma_ast",
  "swc_ecma_transforms_base",
@@ -6350,7 +6321,7 @@ dependencies = [
  "serde",
  "swc_atoms",
  "swc_cached",
- "swc_common 0.31.22",
+ "swc_common",
  "swc_ecma_ast",
  "swc_ecma_loader",
  "swc_ecma_parser",
@@ -6374,7 +6345,7 @@ dependencies = [
  "rustc-hash",
  "serde_json",
  "swc_atoms",
- "swc_common 0.31.22",
+ "swc_common",
  "swc_ecma_ast",
  "swc_ecma_parser",
  "swc_ecma_transforms_base",
@@ -6396,7 +6367,7 @@ dependencies = [
  "serde",
  "smallvec",
  "swc_atoms",
- "swc_common 0.31.22",
+ "swc_common",
  "swc_ecma_ast",
  "swc_ecma_transforms_base",
  "swc_ecma_transforms_classes",
@@ -6420,7 +6391,7 @@ dependencies = [
  "sha-1",
  "string_enum",
  "swc_atoms",
- "swc_common 0.31.22",
+ "swc_common",
  "swc_config",
  "swc_ecma_ast",
  "swc_ecma_parser",
@@ -6444,7 +6415,7 @@ dependencies = [
  "serde_json",
  "sha-1",
  "sourcemap",
- "swc_common 0.31.22",
+ "swc_common",
  "swc_ecma_ast",
  "swc_ecma_codegen",
  "swc_ecma_parser",
@@ -6453,7 +6424,7 @@ dependencies = [
  "swc_ecma_utils",
  "swc_ecma_visit",
  "tempfile",
- "testing 0.33.25",
+ "testing",
 ]
 
 [[package]]
@@ -6464,7 +6435,7 @@ checksum = "24f5517491b43112f1560e1acd9fbf28ababc0e551ea395f05efaeee7dff1ece"
 dependencies = [
  "serde",
  "swc_atoms",
- "swc_common 0.31.22",
+ "swc_common",
  "swc_ecma_ast",
  "swc_ecma_transforms_base",
  "swc_ecma_transforms_react",
@@ -6481,7 +6452,7 @@ dependencies = [
  "indexmap 1.9.3",
  "rustc-hash",
  "swc_atoms",
- "swc_common 0.31.22",
+ "swc_common",
  "swc_ecma_ast",
  "swc_ecma_utils",
  "swc_ecma_visit",
@@ -6501,7 +6472,7 @@ dependencies = [
  "rayon",
  "rustc-hash",
  "swc_atoms",
- "swc_common 0.31.22",
+ "swc_common",
  "swc_ecma_ast",
  "swc_ecma_visit",
  "tracing",
@@ -6517,7 +6488,7 @@ dependencies = [
  "num-bigint",
  "serde",
  "swc_atoms",
- "swc_common 0.31.22",
+ "swc_common",
  "swc_ecma_ast",
  "swc_visit",
  "tracing",
@@ -6563,20 +6534,7 @@ dependencies = [
  "miette",
  "once_cell",
  "parking_lot",
- "swc_common 0.31.22",
-]
-
-[[package]]
-name = "swc_error_reporters"
-version = "0.16.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c76b479ad1a69bec65b261354b8e2dec8ed0f9ed43c7b54ab053dc4923e1c90e"
-dependencies = [
- "anyhow",
- "miette",
- "once_cell",
- "parking_lot",
- "swc_common 0.32.1",
+ "swc_common",
 ]
 
 [[package]]
@@ -6588,7 +6546,7 @@ dependencies = [
  "indexmap 1.9.3",
  "petgraph",
  "rustc-hash",
- "swc_common 0.31.22",
+ "swc_common",
 ]
 
 [[package]]
@@ -6599,7 +6557,7 @@ checksum = "e57e24c2f183d4f9b6be8e5d871a9748ff5959a4c6912d4b9686c739d8f2abcf"
 dependencies = [
  "auto_impl",
  "petgraph",
- "swc_common 0.31.22",
+ "swc_common",
  "swc_fast_graph",
  "tracing",
 ]
@@ -6624,7 +6582,7 @@ checksum = "da86e3f1e554fe14d69ffb7a22b6176476cde12eb363540506f37a112f766fca"
 dependencies = [
  "dashmap",
  "swc_atoms",
- "swc_common 0.31.22",
+ "swc_common",
 ]
 
 [[package]]
@@ -6649,7 +6607,7 @@ checksum = "2bb75fb6cd712b8e5f8e2cf7d7ac9bbbdbd7e475af9de54842b97f2a02638d73"
 dependencies = [
  "better_scoped_tls",
  "rkyv",
- "swc_common 0.31.22",
+ "swc_common",
  "swc_ecma_ast",
  "swc_trace_macro",
  "tracing",
@@ -6668,7 +6626,7 @@ dependencies = [
  "parking_lot",
  "serde",
  "serde_json",
- "swc_common 0.31.22",
+ "swc_common",
  "swc_ecma_ast",
  "swc_plugin_proxy",
  "tokio",
@@ -6689,7 +6647,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
- "swc_common 0.31.22",
+ "swc_common",
  "swc_core",
  "tracing",
 ]
@@ -6863,28 +6821,8 @@ dependencies = [
  "pretty_assertions",
  "regex",
  "serde_json",
- "swc_common 0.31.22",
- "swc_error_reporters 0.15.22",
- "testing_macros",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "testing"
-version = "0.34.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc31f7f4a7baef94495386462c2a55caa0f0885b61b28c120f783132d14938ed"
-dependencies = [
- "ansi_term",
- "cargo_metadata",
- "difference",
- "once_cell",
- "pretty_assertions",
- "regex",
- "serde_json",
- "swc_common 0.32.1",
- "swc_error_reporters 0.16.1",
+ "swc_common",
+ "swc_error_reporters",
  "testing_macros",
  "tracing",
  "tracing-subscriber",
@@ -7659,7 +7597,7 @@ dependencies = [
  "swc_core",
  "swc_emotion",
  "swc_relay",
- "testing 0.33.25",
+ "testing",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-bytes",
