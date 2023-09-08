@@ -1049,7 +1049,13 @@ export function runTests(ctx) {
     )
     await expectWidth(res1, ctx.w)
 
-    const opts2 = { headers: { accept: 'image/webp', 'if-none-match': etag } }
+    const opts2 = {
+      headers: {
+        accept: 'image/webp',
+        'if-none-match': etag,
+        'Cache-Control': 'must-revalidate',
+      },
+    }
     const res2 = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts2)
     expect(res2.status).toBe(304)
     expect(res2.headers.get('Content-Type')).toBeFalsy()
