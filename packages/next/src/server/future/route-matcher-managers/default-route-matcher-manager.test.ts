@@ -1,6 +1,6 @@
 import { AppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
 import { LocaleRouteDefinition } from '../route-definitions/locale-route-definition'
-import { PagesRouteDefinition } from '../route-definitions/pages-route-definition'
+import { PagesLocaleRouteDefinition } from '../route-definitions/pages-route-definition'
 import { RouteKind } from '../route-kind'
 import { RouteMatcherProvider } from '../route-matcher-providers/route-matcher-provider'
 import { LocaleRouteMatcher } from '../route-matchers/locale-route-matcher'
@@ -113,7 +113,7 @@ describe('DefaultRouteMatcherManager', () => {
 
   it('calls the locale route matcher when one is provided', async () => {
     const manager = new DefaultRouteMatcherManager()
-    const definition: PagesRouteDefinition = {
+    const definition: PagesLocaleRouteDefinition = {
       kind: RouteKind.PAGES,
       filename: '',
       bundlePath: '',
