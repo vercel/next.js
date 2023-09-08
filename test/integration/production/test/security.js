@@ -245,13 +245,13 @@ module.exports = (context) => {
         }
       )
 
-      const { pathname, query } = new URL(
+      const { pathname, search } = new URL(
         res.headers.get('location'),
         'http://n'
       )
       expect(res.status).toBe(308)
       expect(pathname).toBe('/trailing-redirect')
-      expect(query).toBe(
+      expect(search).toBe(
         'url=https%3A%2F%2Fgoogle.com%2Fimage%3Fcrop%3Dfocalpoint%26w%3D24&w=1200&q=100'
       )
     })
@@ -281,13 +281,13 @@ module.exports = (context) => {
         }
       )
 
-      const { pathname, query } = new URL(
+      const { pathname, search } = new URL(
         res.headers.get('location'),
         'http://n'
       )
       expect(res.status).toBe(307)
       expect(pathname).toBe('/about')
-      expect(query).toBe('foo=%2Fgoogle.com')
+      expect(search).toBe('foo=%2Fgoogle.com')
     })
 
     it('should handle encoded / value for trailing slash correctly', async () => {
