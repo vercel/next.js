@@ -55,7 +55,7 @@ import {
   getCookieParser,
   checkIsOnDemandRevalidate,
 } from './api-utils'
-import { setConfig } from '../shared/lib/runtime-config'
+import { setConfig } from '../shared/lib/runtime-config.shared-runtime'
 
 import { setRevalidateHeaders } from './send-payload/revalidate-headers'
 import { execOnce } from '../shared/lib/utils'
@@ -124,6 +124,7 @@ import {
 } from './web/spec-extension/adapters/next-request'
 import { matchNextDataPathname } from './lib/match-next-data-pathname'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
+import { stripInternalHeaders } from './internal-utils'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -427,7 +428,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     } = this.nextConfig
 
     this.buildId = this.getBuildId()
-    this.minimalMode = minimalMode || !!process.env.NEXT_PRIVATE_MINIMAL_MODE
+    // this is a hack to avoid Webpack knowing this is equal to this.minimalMode
+    // because we replace this.minimalMode to true in production bundles.
+    const minimalModeKey = 'minimalMode'
+    this[minimalModeKey] =
+      minimalMode || !!process.env.NEXT_PRIVATE_MINIMAL_MODE
 
     this.hasAppDir = this.getHasAppDir(dev)
     const serverComponents = this.hasAppDir
@@ -1538,6 +1543,28 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     )
   }
 
+  protected stripInternalHeaders(req: BaseNextRequest): void {
+    // Skip stripping internal headers in test mode while the header stripping
+    // has been explicitly disabled. This allows tests to verify internal
+    // routing behavior.
+    if (
+      process.env.__NEXT_TEST_MODE &&
+      process.env.__NEXT_NO_STRIP_INTERNAL_HEADERS === '1'
+    ) {
+      return
+    }
+
+    // Strip the internal headers from both the request and the original
+    // request.
+    stripInternalHeaders(req.headers)
+    if (
+      'originalRequest' in req &&
+      'headers' in (req as NodeNextRequest).originalRequest
+    ) {
+      stripInternalHeaders((req as NodeNextRequest).originalRequest.headers)
+    }
+  }
+
   private async renderToResponseWithComponentsImpl(
     { req, res, pathname, renderOpts: opts }: RequestContext,
     { components, query }: FindComponentsResult
@@ -1546,6 +1573,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // For edge runtime 404 page, /_not-found needs to be treated as 404 page
       (process.env.NEXT_RUNTIME === 'edge' && pathname === '/_not-found') ||
       pathname === '/404'
+
+    // Strip the internal headers.
+    this.stripInternalHeaders(req)
+
     const is500Page = pathname === '/500'
     const isAppPath = components.isAppPath
     const hasServerProps = !!components.getServerSideProps
