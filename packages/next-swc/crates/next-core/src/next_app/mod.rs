@@ -157,7 +157,7 @@ impl AppPage {
             )
         }
 
-        if matches!(self.0.last(), Some(PageSegment::PageType(..))) {
+        if self.is_complete() {
             bail!(
                 "Invalid segment {}, this page path already has the final PageType appended",
                 segment
