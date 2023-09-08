@@ -294,8 +294,8 @@ importers:
         specifier: 9.0.0
         version: 9.0.0
       get-port:
-        specifier: 5.1.1
-        version: 5.1.1
+        specifier: 7.0.0
+        version: 7.0.0
       glob:
         specifier: 7.1.6
         version: 7.1.6
@@ -14576,6 +14576,11 @@ packages:
   /get-port@5.1.1:
     resolution: {integrity: sha512-g/Q1aTSDOxFpchXC4i8ZWvxA1lnPqx/JHqcpIw0/LX9T8x/GBbi6YnlN5nhaKIFkT8oFsscUKgDJYxfwfS6QsQ==}
     engines: {node: '>=8'}
+    dev: true
+
+  /get-port@7.0.0:
+    resolution: {integrity: sha512-mDHFgApoQd+azgMdwylJrv2DX47ywGq1i5VFJE7fZ0dttNq3iQMfsU4IvEgBHojA3KqEudyu7Vq+oN8kNaNkWw==}
+    engines: {node: '>=16'}
     dev: true
 
   /get-stdin@4.0.1:

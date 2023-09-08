@@ -171,7 +171,7 @@ export function renderViaHTTP(
 }
 
 export function findPort() {
-  return getPort()
+  return import('get-port').then((mod) => mod.default())
 }
 
 export interface NextOptions {
