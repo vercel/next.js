@@ -268,7 +268,7 @@ function runTests(dev = false) {
     const etag = response.headers.get('etag')
 
     const unmodifiedResponse = await fetchViaHTTP(appPort, '/api/blog', null, {
-      headers: { 'If-None-Match': etag },
+      headers: { 'If-None-Match': etag, 'Cache-Control': 'must-revalidate' },
     })
 
     expect(unmodifiedResponse.status).toBe(304)
