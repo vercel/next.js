@@ -1,7 +1,9 @@
 /** @type {import('next').NextConfig} */
 module.exports = {
   experimental: {
-    logging: 'verbose',
+    logging: {
+      level: 'verbose',
+    },
     incrementalCacheHandlerPath: process.env.CUSTOM_CACHE_HANDLER,
   },
 
@@ -9,10 +11,6 @@ module.exports = {
     return {
       // beforeFiles: [ { source: '/assets/:path*', destination: '/:path*' } ],
       afterFiles: [
-        {
-          source: '/rewritten-to-dashboard',
-          destination: '/dashboard',
-        },
         {
           source: '/rewritten-use-search-params',
           destination: '/hooks/use-search-params',

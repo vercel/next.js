@@ -7,7 +7,7 @@ import {
   cookieWithRequestMeta,
 } from './helpers'
 
-const bathPath = process.env.BASE_PATH ?? ''
+const basePath = process.env.BASE_PATH ?? ''
 
 createNextDescribe(
   'app-custom-routes',
@@ -26,7 +26,7 @@ createNextDescribe(
           ).toBeTruthy()
         }
         expect(
-          JSON.parse(await next.render(bathPath + '/api/hello.json'))
+          JSON.parse(await next.render(basePath + '/api/hello.json'))
         ).toEqual({
           pathname: '/api/hello.json',
         })
@@ -46,7 +46,7 @@ createNextDescribe(
           ).toBeFalsy()
         }
         expect(
-          JSON.parse(await next.render(bathPath + '/api/dynamic'))
+          JSON.parse(await next.render(basePath + '/api/dynamic'))
         ).toEqual({
           pathname: '/api/dynamic',
           query: {},
@@ -60,7 +60,7 @@ createNextDescribe(
         '/static/second/data.json',
         '/static/three/data.json',
       ])('responds correctly on %s', async (path) => {
-        expect(JSON.parse(await next.render(bathPath + path))).toEqual({
+        expect(JSON.parse(await next.render(basePath + path))).toEqual({
           params: { slug: path.split('/')[2] },
           now: expect.any(Number),
         })
@@ -82,7 +82,7 @@ createNextDescribe(
         '/revalidate-1/second/data.json',
         '/revalidate-1/three/data.json',
       ])('revalidates correctly on %s', async (path) => {
-        const data = JSON.parse(await next.render(bathPath + path))
+        const data = JSON.parse(await next.render(basePath + path))
         expect(data).toEqual({
           params: { slug: path.split('/')[2] },
           now: expect.any(Number),
@@ -90,7 +90,7 @@ createNextDescribe(
 
         await check(async () => {
           expect(data).not.toEqual(
-            JSON.parse(await next.render(bathPath + path))
+            JSON.parse(await next.render(basePath + path))
           )
           return 'success'
         }, 'success')
@@ -116,7 +116,7 @@ createNextDescribe(
           it.each(['/basic/endpoint', '/basic/vercel/endpoint'])(
             'responds correctly on %s',
             async (path) => {
-              const res = await next.fetch(bathPath + path, { method })
+              const res = await next.fetch(basePath + path, { method })
 
               expect(res.status).toEqual(200)
               expect(await res.text()).toContain('hello, world')
@@ -130,7 +130,7 @@ createNextDescribe(
 
       describe('route groups', () => {
         it('routes to the correct handler', async () => {
-          const res = await next.fetch(bathPath + '/basic/endpoint/nested')
+          const res = await next.fetch(basePath + '/basic/endpoint/nested')
 
           expect(res.status).toEqual(200)
           const meta = getRequestMeta(res.headers)
@@ -140,7 +140,7 @@ createNextDescribe(
 
       describe('request', () => {
         it('can read query parameters', async () => {
-          const res = await next.fetch(bathPath + '/advanced/query?ping=pong')
+          const res = await next.fetch(basePath + '/advanced/query?ping=pong')
 
           expect(res.status).toEqual(200)
           const meta = getRequestMeta(res.headers)
@@ -149,7 +149,7 @@ createNextDescribe(
 
         it('can read query parameters (edge)', async () => {
           const res = await next.fetch(
-            bathPath + '/edge/advanced/query?ping=pong'
+            basePath + '/edge/advanced/query?ping=pong'
           )
 
           expect(res.status).toEqual(200)
@@ -161,7 +161,7 @@ createNextDescribe(
       describe('response', () => {
         // TODO-APP: re-enable when rewrites are supported again
         it.skip('supports the NextResponse.rewrite() helper', async () => {
-          const res = await next.fetch(bathPath + '/hooks/rewrite')
+          const res = await next.fetch(basePath + '/hooks/rewrite')
 
           expect(res.status).toEqual(200)
 
@@ -172,7 +172,7 @@ createNextDescribe(
         })
 
         it('supports the NextResponse.redirect() helper', async () => {
-          const res = await next.fetch(bathPath + '/hooks/redirect/response', {
+          const res = await next.fetch(basePath + '/hooks/redirect/response', {
             // "Manually" perform the redirect, we want to inspect the
             // redirection response, so don't actually follow it.
             redirect: 'manual',
@@ -185,7 +185,7 @@ createNextDescribe(
 
         it('supports the NextResponse.json() helper', async () => {
           const meta = { ping: 'pong' }
-          const res = await next.fetch(bathPath + '/hooks/json', {
+          const res = await next.fetch(basePath + '/hooks/json', {
             headers: withRequestMeta(meta),
           })
 
@@ -209,7 +209,7 @@ createNextDescribe(
             },
           })
 
-          const res = await next.fetch(bathPath + '/advanced/body/streaming', {
+          const res = await next.fetch(basePath + '/advanced/body/streaming', {
             method: 'POST',
             body: stream,
           })
@@ -230,7 +230,7 @@ createNextDescribe(
         })
 
         const res = await next.fetch(
-          bathPath + '/edge/advanced/body/streaming',
+          basePath + '/edge/advanced/body/streaming',
           {
             method: 'POST',
             body: stream,
@@ -243,7 +243,7 @@ createNextDescribe(
 
       it('can read a JSON encoded body', async () => {
         const body = { ping: 'pong' }
-        const res = await next.fetch(bathPath + '/advanced/body/json', {
+        const res = await next.fetch(basePath + '/advanced/body/json', {
           method: 'POST',
           body: JSON.stringify(body),
         })
@@ -255,7 +255,7 @@ createNextDescribe(
 
       it('can read a JSON encoded body (edge)', async () => {
         const body = { ping: 'pong' }
-        const res = await next.fetch(bathPath + '/edge/advanced/body/json', {
+        const res = await next.fetch(basePath + '/edge/advanced/body/json', {
           method: 'POST',
           body: JSON.stringify(body),
         })
@@ -267,7 +267,7 @@ createNextDescribe(
 
       it('can read a JSON encoded body for DELETE requests', async () => {
         const body = { name: 'foo' }
-        const res = await next.fetch(bathPath + '/advanced/body/json', {
+        const res = await next.fetch(basePath + '/advanced/body/json', {
           method: 'DELETE',
           body: JSON.stringify(body),
         })
@@ -278,7 +278,7 @@ createNextDescribe(
 
       it('can read a JSON encoded body for OPTIONS requests', async () => {
         const body = { name: 'bar' }
-        const res = await next.fetch(bathPath + '/advanced/body/json', {
+        const res = await next.fetch(basePath + '/advanced/body/json', {
           method: 'OPTIONS',
           body: JSON.stringify(body),
         })
@@ -299,7 +299,7 @@ createNextDescribe(
               else controller.enqueue(encoded[index++])
             },
           })
-          const res = await next.fetch(bathPath + '/advanced/body/json', {
+          const res = await next.fetch(basePath + '/advanced/body/json', {
             method: 'POST',
             body: stream,
           })
@@ -320,7 +320,7 @@ createNextDescribe(
             else controller.enqueue(encoded[index++])
           },
         })
-        const res = await next.fetch(bathPath + '/edge/advanced/body/json', {
+        const res = await next.fetch(basePath + '/edge/advanced/body/json', {
           method: 'POST',
           body: stream,
         })
@@ -332,7 +332,7 @@ createNextDescribe(
 
       it('can read the text body', async () => {
         const body = 'hello, world'
-        const res = await next.fetch(bathPath + '/advanced/body/text', {
+        const res = await next.fetch(basePath + '/advanced/body/text', {
           method: 'POST',
           body,
         })
@@ -344,7 +344,7 @@ createNextDescribe(
 
       it('can read the text body (edge)', async () => {
         const body = 'hello, world'
-        const res = await next.fetch(bathPath + '/edge/advanced/body/text', {
+        const res = await next.fetch(basePath + '/edge/advanced/body/text', {
           method: 'POST',
           body,
         })
@@ -357,7 +357,7 @@ createNextDescribe(
 
     describe('context', () => {
       it('provides params to routes with dynamic parameters', async () => {
-        const res = await next.fetch(bathPath + '/basic/vercel/endpoint')
+        const res = await next.fetch(basePath + '/basic/vercel/endpoint')
 
         expect(res.status).toEqual(200)
         const meta = getRequestMeta(res.headers)
@@ -366,7 +366,7 @@ createNextDescribe(
 
       it('provides params to routes with catch-all routes', async () => {
         const res = await next.fetch(
-          bathPath + '/basic/vercel/some/other/resource'
+          basePath + '/basic/vercel/some/other/resource'
         )
 
         expect(res.status).toEqual(200)
@@ -378,7 +378,7 @@ createNextDescribe(
       })
 
       it('does not provide params to routes without dynamic parameters', async () => {
-        const res = await next.fetch(bathPath + '/basic/endpoint')
+        const res = await next.fetch(basePath + '/basic/endpoint')
 
         expect(res.ok).toBeTrue()
 
@@ -390,7 +390,7 @@ createNextDescribe(
     describe('hooks', () => {
       describe('headers', () => {
         it('gets the correct values', async () => {
-          const res = await next.fetch(bathPath + '/hooks/headers', {
+          const res = await next.fetch(basePath + '/hooks/headers', {
             headers: withRequestMeta({ ping: 'pong' }),
           })
 
@@ -403,7 +403,7 @@ createNextDescribe(
 
       describe('cookies', () => {
         it('gets the correct values', async () => {
-          const res = await next.fetch(bathPath + '/hooks/cookies', {
+          const res = await next.fetch(basePath + '/hooks/cookies', {
             headers: cookieWithRequestMeta({ ping: 'pong' }),
           })
 
@@ -416,7 +416,7 @@ createNextDescribe(
 
       describe('cookies().has()', () => {
         it('gets the correct values', async () => {
-          const res = await next.fetch(bathPath + '/hooks/cookies/has')
+          const res = await next.fetch(basePath + '/hooks/cookies/has')
 
           expect(res.status).toEqual(200)
 
@@ -426,7 +426,7 @@ createNextDescribe(
 
       describe('redirect', () => {
         it('can respond correctly', async () => {
-          const res = await next.fetch(bathPath + '/hooks/redirect', {
+          const res = await next.fetch(basePath + '/hooks/redirect', {
             // "Manually" perform the redirect, we want to inspect the
             // redirection response, so don't actually follow it.
             redirect: 'manual',
@@ -440,7 +440,7 @@ createNextDescribe(
 
       describe('notFound', () => {
         it('can respond correctly', async () => {
-          const res = await next.fetch(bathPath + '/hooks/not-found')
+          const res = await next.fetch(basePath + '/hooks/not-found')
 
           expect(res.status).toEqual(404)
           expect(await res.text()).toBeEmpty()
@@ -450,7 +450,7 @@ createNextDescribe(
 
     describe('error conditions', () => {
       it('responds with 400 (Bad Request) when the requested method is not a valid HTTP method', async () => {
-        const res = await next.fetch(bathPath + '/status/405', {
+        const res = await next.fetch(basePath + '/status/405', {
           method: 'HEADER',
         })
 
@@ -459,7 +459,7 @@ createNextDescribe(
       })
 
       it('responds with 405 (Method Not Allowed) when method is not implemented', async () => {
-        const res = await next.fetch(bathPath + '/status/405', {
+        const res = await next.fetch(basePath + '/status/405', {
           method: 'POST',
         })
 
@@ -468,7 +468,7 @@ createNextDescribe(
       })
 
       it('responds with 500 (Internal Server Error) when the handler throws an error', async () => {
-        const res = await next.fetch(bathPath + '/status/500')
+        const res = await next.fetch(basePath + '/status/500')
 
         expect(res.status).toEqual(500)
         expect(await res.text()).toBeEmpty()
@@ -482,7 +482,7 @@ createNextDescribe(
         // testing that the specific route throws this error in the console.
         expect(next.cliOutput).not.toContain(error)
 
-        const res = await next.fetch(bathPath + '/status/500/next')
+        const res = await next.fetch(basePath + '/status/500/next')
 
         expect(res.status).toEqual(500)
         expect(await res.text()).toBeEmpty()
@@ -498,7 +498,7 @@ createNextDescribe(
 
     describe('automatic implementations', () => {
       it('implements HEAD on routes with GET already implemented', async () => {
-        const res = await next.fetch(bathPath + '/methods/head', {
+        const res = await next.fetch(basePath + '/methods/head', {
           method: 'HEAD',
         })
 
@@ -507,7 +507,7 @@ createNextDescribe(
       })
 
       it('implements OPTIONS on routes', async () => {
-        const res = await next.fetch(bathPath + '/methods/options', {
+        const res = await next.fetch(basePath + '/methods/options', {
           method: 'OPTIONS',
         })
 
@@ -522,7 +522,7 @@ createNextDescribe(
 
     describe('edge functions', () => {
       it('returns response using edge runtime', async () => {
-        const res = await next.fetch(bathPath + '/edge')
+        const res = await next.fetch(basePath + '/edge')
 
         expect(res.status).toEqual(200)
         expect(await res.text()).toContain('hello, world')
@@ -530,7 +530,7 @@ createNextDescribe(
 
       it('returns a response when headers are accessed', async () => {
         const meta = { ping: 'pong' }
-        const res = await next.fetch(bathPath + '/edge/headers', {
+        const res = await next.fetch(basePath + '/edge/headers', {
           headers: withRequestMeta(meta),
         })
 
@@ -541,7 +541,7 @@ createNextDescribe(
 
     describe('dynamic = "force-static"', () => {
       it('strips search, headers, and domain from request', async () => {
-        const res = await next.fetch(bathPath + '/dynamic?query=true', {
+        const res = await next.fetch(basePath + '/dynamic?query=true', {
           headers: {
             accept: 'application/json',
             cookie: 'session=true',
@@ -570,7 +570,7 @@ createNextDescribe(
 
     describe('customized metadata routes', () => {
       it('should work if conflict with metadata routes convention', async () => {
-        const res = await next.fetch(bathPath + '/robots.txt')
+        const res = await next.fetch(basePath + '/robots.txt')
 
         expect(res.status).toEqual(200)
         expect(await res.text()).toBe(
@@ -592,7 +592,7 @@ createNextDescribe(
         ])(
           'should print an error when using lowercase %p in dev',
           async (method: string) => {
-            await next.fetch(bathPath + '/lowercase/' + method)
+            await next.fetch(basePath + '/lowercase/' + method)
 
             await check(() => {
               expect(next.cliOutput).toContain(
@@ -612,7 +612,7 @@ createNextDescribe(
 
       describe('invalid exports', () => {
         it('should print an error when exporting a default handler in dev', async () => {
-          const res = await next.fetch(bathPath + '/default')
+          const res = await next.fetch(basePath + '/default')
 
           // Ensure we get a 405 (Method Not Allowed) response when there is no
           // exported handler for the GET method.
@@ -630,5 +630,18 @@ createNextDescribe(
         })
       })
     }
+
+    describe('no response returned', () => {
+      it('should print an error when no response is returned', async () => {
+        await next.fetch(basePath + '/no-response', { method: 'POST' })
+
+        await check(() => {
+          expect(next.cliOutput).toMatch(
+            /No response is returned from route handler '.+\/route\.ts'\. Ensure you return a `Response` or a `NextResponse` in all branches of your handler\./
+          )
+          return 'yes'
+        }, 'yes')
+      })
+    })
   }
 )
