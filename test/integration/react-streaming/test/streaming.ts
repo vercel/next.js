@@ -8,17 +8,27 @@ function getNodeBySelector(html, selector) {
   return $(selector)
 }
 
-async function resolveStreamResponse(response, onData) {
+const textDecoder = new TextDecoder('utf-8')
+async function resolveStreamResponse(
+  response: Response,
+  onData: (val: string, result: string) => void = () => {}
+) {
   let result = ''
-  onData = onData || (() => {})
-  await new Promise((resolve) => {
-    response.body.on('data', (chunk) => {
-      result += chunk.toString()
-      onData(chunk.toString(), result)
-    })
 
-    response.body.on('end', resolve)
-  })
+  const reader = response.body.getReader()
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      const text = textDecoder.decode(value)
+      result += text
+      onData(text, result)
+    }
+  } finally {
+    reader.releaseLock()
+  }
   return result
 }
 
