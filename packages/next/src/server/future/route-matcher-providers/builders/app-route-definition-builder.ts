@@ -6,6 +6,9 @@ import { isAppRouteRoute } from '../../../../lib/is-app-route-route'
 import { AppBundlePathNormalizer } from '../../normalizers/built/app/app-bundle-path-normalizer'
 import { AppPathnameNormalizer } from '../../normalizers/built/app/app-pathname-normalizer'
 import { RouteKind } from '../../route-kind'
+import { isAppPageRoute } from '../../../../lib/is-app-page-route'
+
+const INTERNAL_APP_PAGES = ['/_not-found', '/not-found']
 
 export class AppRouteDefinitionBuilder {
   private static readonly normalizers = {
@@ -40,6 +43,15 @@ export class AppRouteDefinitionBuilder {
   }
 
   public add(page: string, filename: string): string {
+    let kind: RouteKind | undefined
+    if (isAppRouteRoute(page)) {
+      kind = RouteKind.APP_ROUTE
+    } else if (isAppPageRoute(page) || INTERNAL_APP_PAGES.includes(page)) {
+      kind = RouteKind.APP_PAGE
+    } else {
+      throw new Error(`Unknown route type: ${page}`)
+    }
+
     const pathname =
       AppRouteDefinitionBuilder.normalizers.pathname.normalize(page)
     const bundlePath =
@@ -59,7 +71,7 @@ export class AppRouteDefinitionBuilder {
 
     // If the page is an app route route, then we can add it to the definitions
     // map immediately, there is no need to check if it has any app paths.
-    if (isAppRouteRoute(page)) {
+    if (kind === RouteKind.APP_ROUTE) {
       this.definitions.set(page, {
         kind: RouteKind.APP_ROUTE,
         bundlePath,
@@ -67,7 +79,7 @@ export class AppRouteDefinitionBuilder {
         page,
         pathname,
       })
-    } else {
+    } else if (kind === RouteKind.APP_PAGE) {
       this.definitions.set(page, {
         kind: RouteKind.APP_PAGE,
         bundlePath,
