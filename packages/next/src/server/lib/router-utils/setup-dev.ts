@@ -119,6 +119,7 @@ type SetupOpts = {
     ReturnType<typeof import('./filesystem').setupFsCheck>
   >
   nextConfig: NextConfigComplete
+  port: number
 }
 
 async function verifyTypeScript(opts: SetupOpts) {
@@ -203,6 +204,7 @@ async function startWatcher(opts: SetupOpts) {
       jsConfig,
       watch: true,
       env: process.env as Record<string, string>,
+      serverAddr: `127.0.0.1:${opts.port}`,
     })
     const iter = project.entrypointsSubscribe()
     const curEntries: Map<string, Route> = new Map()
