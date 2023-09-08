@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use anyhow::Result;
 use lazy_static::lazy_static;
-use turbo_tasks::{debug::ValueDebug, Vc};
+use turbo_tasks::Vc;
 use turbo_tasks_fs::glob::Glob;
 use turbopack_binding::{
     turbo::tasks_fs::FileSystemPath,
