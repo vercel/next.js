@@ -42,7 +42,6 @@ next-transform-strip-page-exports = { path = "packages/next-swc/crates/next-tran
 
 # SWC crates
 swc_core = { version = "=0.79.55", features = ["ecma_loader_lru", "ecma_loader_parking_lot"] }
-# swc_ecma_loader = { version = "0.43.24", features = ["cache"] }
 testing = { version = "0.33.21" }
 
 # Turbo crates
