@@ -108,6 +108,12 @@ function writeStdoutLine(text: string) {
   process.stdout.write(' ' + text + '\n')
 }
 
+function formatRequestUrl(url: string, maxLength: number | undefined) {
+  return maxLength !== undefined && url.length > maxLength
+    ? url.substring(0, maxLength) + '..'
+    : url
+}
+
 export interface NodeRequestHandler {
   (
     req: IncomingMessage | BaseNextRequest,
@@ -1010,7 +1016,9 @@ export default class NextNodeServer extends BaseServer {
       const normalizedRes = this.normalizeRes(res)
 
       const enabledVerboseLogging =
-        this.nextConfig.experimental.logging === 'verbose'
+        this.nextConfig.experimental.logging?.level === 'verbose'
+      const shouldTruncateUrl = !this.nextConfig.experimental.logging?.fullUrl
+
       if (this.renderOpts.dev) {
         const _req = req as NodeNextRequest | IncomingMessage
         const _res = res as NodeNextResponse | ServerResponse
@@ -1098,20 +1106,18 @@ export default class NextNodeServer extends BaseServer {
 
               if (url.length > 48) {
                 const parsed = new URL(url)
-                const truncatedHost =
-                  parsed.host.length > 16
-                    ? parsed.host.substring(0, 16) + '..'
-                    : parsed.host
-
-                const truncatedPath =
-                  parsed.pathname.length > 24
-                    ? parsed.pathname.substring(0, 24) + '..'
-                    : parsed.pathname
-
-                const truncatedSearch =
-                  parsed.search.length > 16
-                    ? parsed.search.substring(0, 16) + '..'
-                    : parsed.search
+                const truncatedHost = formatRequestUrl(
+                  parsed.host,
+                  shouldTruncateUrl ? 16 : undefined
+                )
+                const truncatedPath = formatRequestUrl(
+                  parsed.pathname,
+                  shouldTruncateUrl ? 24 : undefined
+                )
+                const truncatedSearch = formatRequestUrl(
+                  parsed.search,
+                  shouldTruncateUrl ? 16 : undefined
+                )
 
                 url =
                   parsed.protocol +
@@ -1584,6 +1590,9 @@ export default class NextNodeServer extends BaseServer {
     let result: Awaited<
       ReturnType<typeof NextNodeServer.prototype.runMiddleware>
     >
+
+    // Strip the internal headers.
+    this.stripInternalHeaders(req)
 
     try {
       await this.ensureMiddleware()

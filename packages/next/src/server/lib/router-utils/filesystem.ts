@@ -249,7 +249,7 @@ export async function setupFsCheck(opts: {
               ? new RegExp(
                   route.dataRouteRegex.replace(
                     `/${escapedBuildId}/`,
-                    `/${escapedBuildId}/(?<nextLocale>.+?)/`
+                    `/${escapedBuildId}/(?<nextLocale>[^/]+?)/`
                   )
                 )
               : new RegExp(route.dataRouteRegex),

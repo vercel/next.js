@@ -186,6 +186,15 @@ async function startWatcher(opts: SetupOpts) {
 
     const { jsConfig } = await loadJsConfig(dir, opts.nextConfig)
 
+    // For the debugging purpose, check if createNext or equivalent next instance setup in test cases
+    // works correctly. Normally `run-test` hides output so only will be visible when `--debug` flag is used.
+    if (process.env.TURBOPACK && process.env.NEXT_TEST_MODE) {
+      require('console').log('Creating turbopack project', {
+        dir,
+        testMode: process.env.NEXT_TEST_MODE,
+      })
+    }
+
     const project = await bindings.turbo.createProject({
       projectPath: dir,
       rootPath: opts.nextConfig.experimental.outputFileTracingRoot || dir,
@@ -1775,7 +1784,7 @@ async function startWatcher(opts: SetupOpts) {
                 ? new RegExp(
                     route.dataRouteRegex.replace(
                       `/development/`,
-                      `/development/(?<nextLocale>.+?)/`
+                      `/development/(?<nextLocale>[^/]+?)/`
                     )
                   )
                 : new RegExp(route.dataRouteRegex),
