@@ -15,3 +15,13 @@ export interface LocaleRouteDefinition<K extends RouteKind = RouteKind>
     locale?: string
   }
 }
+
+export function isLocaleRouteDefinition(
+  definition: RouteDefinition
+): definition is LocaleRouteDefinition {
+  return (
+    'i18n' in definition &&
+    typeof definition.i18n === 'object' &&
+    definition.i18n !== null
+  )
+}

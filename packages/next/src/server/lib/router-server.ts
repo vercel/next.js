@@ -144,6 +144,8 @@ export async function initialize(opts: {
       await devInstance?.hotReloader.ensurePage({
         page: '/_error',
         clientOnly: false,
+        // TODO: get the route definition
+        definition: null,
       })
     },
     async getCompilationError(page: string) {
@@ -466,6 +468,12 @@ export async function initialize(opts: {
           return hotReloaderResult
         }
         req.url = origUrl
+      }
+
+      if (opts.dev) {
+        // We're ready to handle the request now, and we're in dev, so let's ask
+        // our definition manager to reload.
+        await fsChecker.definitions.forceReload()
       }
 
       const {

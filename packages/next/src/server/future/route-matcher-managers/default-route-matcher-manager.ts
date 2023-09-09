@@ -10,6 +10,7 @@ import { MatchOptions, RouteMatcherManager } from './route-matcher-manager'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { LocaleRouteMatcher } from '../route-matchers/locale-route-matcher'
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
+import { DetachedPromise } from '../route-definition-providers/helpers/detached-promise'
 
 interface RouteMatchers {
   static: ReadonlyArray<RouteMatcher>
@@ -34,20 +35,38 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
     return this.providers.length
   }
 
-  private waitTillReadyPromise?: Promise<void>
+  private loaded = false
+  private loadingPromise: DetachedPromise<void> = new DetachedPromise()
+  public async load(): Promise<void> {
+    if (this.loaded) return this.loadingPromise
+
+    try {
+      this.loaded = true
+      await this.forceReload()
+    } catch (err) {
+      this.loadingPromise.reject(err)
+    } finally {
+      this.loadingPromise.resolve()
+    }
+  }
+
+  private reloading = false
+  private reloadingPromise: DetachedPromise<void> = new DetachedPromise()
   public async waitTillReady(): Promise<void> {
-    if (this.waitTillReadyPromise) {
-      await this.waitTillReadyPromise
-      delete this.waitTillReadyPromise
+    if (this.reloading) {
+      await this.reloadingPromise
     }
   }
 
   private previousMatchers: ReadonlyArray<RouteMatcher> = []
-  public async reload() {
-    let callbacks: { resolve: Function; reject: Function }
-    this.waitTillReadyPromise = new Promise((resolve, reject) => {
-      callbacks = { resolve, reject }
-    })
+  public async forceReload() {
+    // If a reload is already in progress, then wait for it to finish.
+    if (this.reloading) return this.reloadingPromise
+
+    // Reset the promise and set the `loading` flag to indicate that a reload is
+    // in progress
+    this.reloadingPromise = new DetachedPromise()
+    this.reloading = true
 
     // Grab the compilation ID for this run, we'll verify it at the end to
     // ensure that if any routes were added before reloading is finished that
@@ -60,7 +79,7 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
 
       // Get all the providers matchers.
       const providersMatchers: ReadonlyArray<ReadonlyArray<RouteMatcher>> =
-        await Promise.all(this.providers.map((provider) => provider.matchers()))
+        await Promise.all(this.providers.map((provider) => provider.provide()))
 
       // Use this to detect duplicate pathnames.
       const all = new Map<string, RouteMatcher>()
@@ -182,15 +201,18 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
         )
       }
     } catch (err) {
-      callbacks!.reject(err)
+      this.reloadingPromise.reject(err)
     } finally {
       // The compilation ID matched, so mark the complication as finished.
       this.lastCompilationID = compilationID
-      callbacks!.resolve()
+
+      // Reset the `loading` flag and resolve the promise
+      this.reloading = false
+      this.reloadingPromise.resolve()
     }
   }
 
-  public push(provider: RouteMatcherProvider): void {
+  public add(provider: RouteMatcherProvider): void {
     this.providers.push(provider)
   }
 

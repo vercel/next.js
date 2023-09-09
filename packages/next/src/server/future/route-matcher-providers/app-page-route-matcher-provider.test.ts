@@ -1,106 +1,81 @@
-import { SERVER_DIRECTORY } from '../../../shared/lib/constants'
-import { AppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
-import { RouteKind } from '../route-kind'
+import type { AppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
+import type { RouteDefinitionProvider } from '../route-definition-providers/route-definition-provider'
+
 import { AppPageRouteMatcherProvider } from './app-page-route-matcher-provider'
-import { ManifestLoader } from './helpers/manifest-loaders/manifest-loader'
+import { AppPageRouteDefinitionBuilder } from '../route-definition-builders/app-page-route-definition-builder'
+import { RouteKind } from '../route-kind'
 
-describe('AppPageRouteMatcherProvider', () => {
-  it('returns no routes with an empty manifest', async () => {
-    const loader: ManifestLoader = { load: jest.fn(() => ({})) }
-    const matcher = new AppPageRouteMatcherProvider('<root>', loader)
-    await expect(matcher.matchers()).resolves.toEqual([])
-  })
+describe('AppPAgeRouteMatcherProvider', () => {
+  it('does not provide duplicate matchers for matching app paths', async () => {
+    const builder = new AppPageRouteDefinitionBuilder()
 
-  describe('manifest matching', () => {
-    it.each<{
-      manifest: Record<string, string>
-      route: AppPageRouteDefinition
-    }>([
-      {
-        manifest: {
-          '/page': 'app/page.js',
-        },
-        route: {
-          kind: RouteKind.APP_PAGE,
-          pathname: '/',
-          filename: `<root>/${SERVER_DIRECTORY}/app/page.js`,
-          page: '/page',
-          bundlePath: 'app/page',
-          appPaths: ['/page'],
-        },
-      },
-      {
-        manifest: {
-          '/(marketing)/about/page': 'app/(marketing)/about/page.js',
-        },
-        route: {
-          kind: RouteKind.APP_PAGE,
-          pathname: '/about',
-          filename: `<root>/${SERVER_DIRECTORY}/app/(marketing)/about/page.js`,
-          page: '/(marketing)/about/page',
-          bundlePath: 'app/(marketing)/about/page',
-          appPaths: ['/(marketing)/about/page'],
-        },
-      },
-      {
-        manifest: {
-          '/dashboard/users/[id]/page': 'app/dashboard/users/[id]/page.js',
-        },
-        route: {
-          kind: RouteKind.APP_PAGE,
-          pathname: '/dashboard/users/[id]',
-          filename: `<root>/${SERVER_DIRECTORY}/app/dashboard/users/[id]/page.js`,
-          page: '/dashboard/users/[id]/page',
-          bundlePath: 'app/dashboard/users/[id]/page',
-          appPaths: ['/dashboard/users/[id]/page'],
-        },
-      },
-      {
-        manifest: { '/dashboard/users/page': 'app/dashboard/users/page.js' },
-        route: {
-          kind: RouteKind.APP_PAGE,
-          pathname: '/dashboard/users',
-          filename: `<root>/${SERVER_DIRECTORY}/app/dashboard/users/page.js`,
-          page: '/dashboard/users/page',
-          bundlePath: 'app/dashboard/users/page',
-          appPaths: ['/dashboard/users/page'],
-        },
-      },
-      {
-        manifest: {
-          '/dashboard/users/page': 'app/dashboard/users/page.js',
-          '/(marketing)/dashboard/users/page':
-            'app/(marketing)/dashboard/users/page.js',
-        },
-        route: {
-          kind: RouteKind.APP_PAGE,
-          pathname: '/dashboard/users',
-          filename: `<root>/${SERVER_DIRECTORY}/app/dashboard/users/page.js`,
-          page: '/dashboard/users/page',
-          bundlePath: 'app/dashboard/users/page',
-          appPaths: [
-            '/(marketing)/dashboard/users/page',
-            '/dashboard/users/page',
-          ],
-        },
-      },
-    ])(
-      'returns the correct routes for $route.pathname',
-      async ({ manifest, route }) => {
-        const loader: ManifestLoader = {
-          load: jest.fn(() => ({
-            '/users/[id]/route': 'app/users/[id]/route.js',
-            '/users/route': 'app/users/route.js',
-            ...manifest,
-          })),
-        }
-        const matcher = new AppPageRouteMatcherProvider('<root>', loader)
-        const matchers = await matcher.matchers()
+    // Added out of sort order here to test that the builder will sort them
+    // when it returns the definition.
+    builder.add({
+      page: '/p/@slot/[...slug]/page',
+      filename: 'app/p/@slot/[...slug]/page.js',
+    })
+    builder.add({
+      page: '/p/[...slug]/page',
+      filename: 'app/p/[...slug]/page.js',
+    })
+    builder.add({
+      page: '/p/foo/page',
+      filename: 'app/p/foo/page.js',
+    })
+    builder.add({
+      page: '/p/@slot/foo/page',
+      filename: 'app/p/@slot/foo/page.js',
+    })
 
-        expect(loader.load).toHaveBeenCalled()
-        expect(matchers).toHaveLength(1)
-        expect(matchers[0].definition).toEqual(route)
-      }
-    )
+    const definitions: RouteDefinitionProvider<AppPageRouteDefinition> = {
+      kind: RouteKind.APP_PAGE,
+      toArray: async () => builder.build(),
+      reload: () => {
+        throw new Error('Function not implemented.')
+      },
+      find: () => {
+        throw new Error('Function not implemented.')
+      },
+      filter: () => {
+        throw new Error('Function not implemented.')
+      },
+    }
+
+    const provider = new AppPageRouteMatcherProvider(definitions)
+
+    const matchers = await provider.provide()
+
+    expect(matchers).toMatchInlineSnapshot(`
+      Array [
+        AppPageRouteMatcher {
+          "definition": Object {
+            "appPaths": Array [
+              "/p/@slot/[...slug]/page",
+              "/p/[...slug]/page",
+            ],
+            "bundlePath": "app/p/[...slug]/page",
+            "filename": "app/p/[...slug]/page.js",
+            "kind": "APP_PAGE",
+            "page": "/p/[...slug]/page",
+            "pathname": "/p/[...slug]",
+          },
+          "dynamic": [Function],
+        },
+        AppPageRouteMatcher {
+          "definition": Object {
+            "appPaths": Array [
+              "/p/@slot/foo/page",
+              "/p/foo/page",
+            ],
+            "bundlePath": "app/p/foo/page",
+            "filename": "app/p/foo/page.js",
+            "kind": "APP_PAGE",
+            "page": "/p/foo/page",
+            "pathname": "/p/foo",
+          },
+        },
+      ]
+    `)
   })
 })

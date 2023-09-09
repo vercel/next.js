@@ -562,8 +562,12 @@ export default class NextNodeServer extends BaseServer {
   ) {
     const edgeFunctionsPages = this.getEdgeFunctionsPages() || []
     if (edgeFunctionsPages.length) {
-      const appRoute = this.appRoutes?.get(ctx.pathname)
-      const page = appRoute?.page ?? ctx.pathname
+      const definition = await this.definitions.find({ pathname: ctx.pathname })
+      const page = definition?.page ?? ctx.pathname
+      const appPaths =
+        definition && isAppPageRouteDefinition(definition)
+          ? definition.appPaths
+          : null
 
       for (const edgeFunctionsPage of edgeFunctionsPages) {
         if (edgeFunctionsPage !== page) continue
@@ -574,10 +578,7 @@ export default class NextNodeServer extends BaseServer {
           query: ctx.query,
           params: ctx.renderOpts.params,
           page,
-          appPaths:
-            appRoute && isAppPageRouteDefinition(appRoute)
-              ? appRoute.appPaths
-              : null,
+          appPaths,
         })
 
         return null

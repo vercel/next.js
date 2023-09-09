@@ -102,7 +102,16 @@ import {
   TurboPackConnectedAction,
 } from '../../dev/hot-reloader-types'
 import { debounce } from '../../utils'
-import { AppRouteDefinitionBuilder } from '../../future/route-matcher-providers/builders/app-route-definition-builder'
+import { DevPagesAPIRouteDefinitionProvider } from '../../future/route-definition-providers/dev/dev-pages-api-route-definition-provider'
+import { FileReader } from '../../future/helpers/file-reader/file-reader'
+import { BatchedFileReader } from '../../future/helpers/file-reader/batched-file-reader'
+import { DefaultFileReader } from '../../future/helpers/file-reader/default-file-reader'
+import { DevPagesRouteDefinitionProvider } from '../../future/route-definition-providers/dev/dev-pages-route-definition-provider'
+import { I18NProvider } from '../../future/helpers/i18n-provider'
+import { DevAppPageRouteDefinitionProvider } from '../../future/route-definition-providers/dev/dev-app-page-route-definition-provider'
+import { DevAppRouteRouteDefinitionProvider } from '../../future/route-definition-providers/dev/dev-app-route-route-definition-provider'
+import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
+import { RouteKind } from '../../future/route-kind'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -866,6 +875,7 @@ async function startWatcher(opts: SetupOpts) {
               .ensurePage({
                 page: decodedPagePath,
                 clientOnly: false,
+                definition: null,
               })
               .catch(console.error)
           }
@@ -1225,6 +1235,62 @@ async function startWatcher(opts: SetupOpts) {
     })
   }
 
+  // Let's configure the definition manager to use.
+  const { definitions } = opts.fsChecker
+
+  // Create a batched file reader to optimize disk reads.
+  const reader: FileReader = new BatchedFileReader(new DefaultFileReader({}))
+
+  // If we have i18n enabled, we need to create an i18n provider.
+  const i18nProvider =
+    opts.nextConfig.i18n && opts.nextConfig.i18n.locales.length > 0
+      ? new I18NProvider(opts.nextConfig.i18n)
+      : null
+
+  // If we have a pages directory, we need to start watching for changes.
+  if (pagesDir) {
+    definitions.add(
+      // Add support for Pages.
+      new DevPagesRouteDefinitionProvider(
+        pagesDir,
+        nextConfig.pageExtensions,
+        reader,
+        i18nProvider
+      )
+    )
+    definitions.add(
+      // Add support for Pages API.
+      new DevPagesAPIRouteDefinitionProvider(
+        pagesDir,
+        nextConfig.pageExtensions,
+        reader
+      )
+    )
+  }
+
+  // If we have an app directory, we need to start watching for changes.
+  if (appDir) {
+    definitions.add(
+      // Add support for App Pages.
+      new DevAppPageRouteDefinitionProvider(
+        appDir,
+        nextConfig.pageExtensions,
+        reader
+      )
+    )
+    definitions.add(
+      // Add support for App Routes.
+      new DevAppRouteRouteDefinitionProvider(
+        appDir,
+        nextConfig.pageExtensions,
+        reader
+      )
+    )
+  }
+
+  // If we've added any definitions, we need to get the initial set of routes.
+  await definitions.forceReload()
+
   await hotReloader.start()
 
   if (opts.nextConfig.experimental.nextScriptWorkers) {
@@ -1235,13 +1301,38 @@ async function startWatcher(opts: SetupOpts) {
   }
 
   opts.fsChecker.ensureCallback(async function ensure(item) {
-    if (item.type === 'appFile' || item.type === 'pageFile') {
-      await hotReloader.ensurePage({
-        clientOnly: false,
-        page: item.itemPath,
-        isApp: item.type === 'appFile',
-      })
+    if (item.type !== 'appFile' && item.type !== 'pageFile') {
+      throw new Error('Unexpected item type ' + item.type)
     }
+
+    const definition = await definitions.find({
+      pathname: item.itemPath,
+    })
+    if (!definition) {
+      throw new Error("Couldn't find definition for " + item.itemPath)
+    }
+
+    // Validate that the type makes sense.
+    if (
+      (item.type === 'appFile' &&
+        definition.kind !== RouteKind.APP_PAGE &&
+        definition.kind !== RouteKind.APP_ROUTE) ||
+      (item.type === 'pageFile' &&
+        definition.kind !== RouteKind.PAGES &&
+        definition.kind !== RouteKind.PAGES_API)
+    ) {
+      throw new Error(`Unexpected item type ${item.type} for ${item.itemPath}`)
+    }
+
+    await hotReloader.ensurePage({
+      clientOnly: false,
+      page: item.itemPath,
+      isApp: item.type === 'appFile',
+      definition,
+    })
+
+    // Ensure was called, so we need to propagate the change to the workers.
+    await propagateToWorkers('reloadRoutes', undefined)
   })
 
   let resolved = false
@@ -1314,7 +1405,7 @@ async function startWatcher(opts: SetupOpts) {
       let middlewareMatchers: MiddlewareMatcher[] | undefined
       const routedPages: string[] = []
       const knownFiles = wp.getTimeInfoEntries()
-      const appRoutes = new AppRouteDefinitionBuilder()
+      const appPaths: Record<string, string[]> = {}
       const pageNameSet = new Set<string>()
       const conflictingAppPagePaths = new Set<string>()
       const appPageFilePaths = new Map<string, string>()
@@ -1475,7 +1566,12 @@ async function startWatcher(opts: SetupOpts) {
             continue
           }
 
-          pageName = appRoutes.add(pageName, fileName)
+          const originalPageName = pageName
+          pageName = normalizeAppPath(pageName).replace(/%5F/g, '_')
+          if (!appPaths[pageName]) {
+            appPaths[pageName] = []
+          }
+          appPaths[pageName].push(originalPageName)
 
           if (useFileSystemPublicRoutes) {
             appFiles.add(pageName)
@@ -1532,7 +1628,7 @@ async function startWatcher(opts: SetupOpts) {
           hotReloader.setHmrServerError(new Error(errorMessage))
         } else if (numConflicting === 0) {
           hotReloader.clearHmrServerError()
-          await propagateToWorkers('reloadMatchers', undefined)
+          await propagateToWorkers('reloadRoutes', undefined)
         }
       }
 
@@ -1541,7 +1637,7 @@ async function startWatcher(opts: SetupOpts) {
       let clientRouterFilters: any
       if (nextConfig.experimental.clientRouterFilter) {
         clientRouterFilters = createClientRouterFilter(
-          appRoutes.pathnames(),
+          Object.keys(appPaths),
           nextConfig.experimental.clientRouterFilterRedirects
             ? ((nextConfig as any)._originalRedirects || []).filter(
                 (r: any) => !r.internal
@@ -1685,13 +1781,6 @@ async function startWatcher(opts: SetupOpts) {
         nestedMiddleware = []
       }
 
-      serverFields.appPathsManifest = appRoutes.toManifest()
-      await propagateToWorkers(
-        'appPathsManifest',
-        serverFields.appPathsManifest
-      )
-      await propagateToWorkers('reloadAppPathRoutes', undefined)
-
       // TODO: pass this to fsChecker/next-dev-server?
       serverFields.middleware = middlewareMatchers
         ? {
@@ -1709,7 +1798,7 @@ async function startWatcher(opts: SetupOpts) {
         : undefined
 
       opts.fsChecker.interceptionRoutes =
-        generateInterceptionRoutesRewrites(appRoutes.pathnames())?.map((item) =>
+        generateInterceptionRoutesRewrites(Object.keys(appPaths))?.map((item) =>
           buildCustomRoute(
             'before_files_rewrite',
             item,
@@ -1838,7 +1927,7 @@ async function startWatcher(opts: SetupOpts) {
       } finally {
         // Reload the matchers. The filesystem would have been written to,
         // and the matchers need to re-scan it to update the router.
-        await propagateToWorkers('reloadMatchers', undefined)
+        await propagateToWorkers('reloadRoutes', undefined)
       }
     })
 
@@ -1991,6 +2080,7 @@ async function startWatcher(opts: SetupOpts) {
       return hotReloader.ensurePage({
         page: serverFields.actualMiddlewareFile,
         clientOnly: false,
+        definition: null,
       })
     },
   }

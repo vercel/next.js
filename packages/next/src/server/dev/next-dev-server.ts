@@ -9,7 +9,6 @@ import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { FallbackMode, MiddlewareRoutingItem } from '../base-server'
 import type { FunctionComponent } from 'react'
 import type { RouteMatch } from '../future/route-matches/route-match'
-import type { RouteMatcherManager } from '../future/route-matcher-managers/route-matcher-manager'
 import type {
   NextParsedUrlQuery,
   NextUrlWithParsedQuery,
@@ -48,18 +47,8 @@ import isError, { getProperError } from '../../lib/is-error'
 import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
 import { isMiddlewareFile } from '../../build/utils'
 import { formatServerError } from '../../lib/format-server-error'
-import {
-  DevRouteMatcherManager,
-  RouteEnsurer,
-} from '../future/route-matcher-managers/dev-route-matcher-manager'
-import { DevPagesRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-pages-route-matcher-provider'
-import { DevPagesAPIRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-pages-api-route-matcher-provider'
-import { DevAppPageRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-app-page-route-matcher-provider'
-import { DevAppRouteRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-app-route-route-matcher-provider'
 import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
-import { NodeManifestLoader } from '../future/route-matcher-providers/helpers/manifest-loaders/node-manifest-loader'
-import { BatchedFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/batched-file-reader'
-import { DefaultFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/default-file-reader'
+import { NodeManifestLoader } from '../future/helpers/manifest-loaders/node-manifest-loader'
 import { NextBuildContext } from '../../build/build-context'
 import { IncrementalCache } from '../lib/incremental-cache'
 import LRUCache from 'next/dist/compiled/lru-cache'
@@ -69,6 +58,7 @@ import {
   deserializeErr,
   invokeIpcMethod,
 } from '../lib/server-ipc/request-utils'
+import { DetachedPromise } from '../future/route-definition-providers/helpers/detached-promise'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -88,8 +78,8 @@ export interface Options extends ServerOptions {
 }
 
 export default class DevServer extends Server {
-  private devReady: Promise<void>
-  private setDevReady?: Function
+  private devReady = new DetachedPromise<void>()
+  private isDevReady: boolean = false
   protected sortedRoutes?: string[]
   private pagesDir?: string
   private appDir?: string
@@ -146,9 +136,6 @@ export default class DevServer extends Server {
     this.renderOpts.appDirDevErrorLogger = (err: any) =>
       this.logErrorWithOriginalStack(err, 'app-dir')
     ;(this.renderOpts as any).ErrorDebug = ReactDevOverlay
-    this.devReady = new Promise((resolve) => {
-      this.setDevReady = resolve
-    })
     this.staticPathsCache = new LRUCache({
       // 5MB
       max: 5 * 1024 * 1024,
@@ -185,72 +172,6 @@ export default class DevServer extends Server {
     this.appDir = appDir
   }
 
-  protected getRouteMatchers(): RouteMatcherManager {
-    const { pagesDir, appDir } = findPagesDir(this.dir)
-
-    const ensurer: RouteEnsurer = {
-      ensure: async (match) => {
-        await this.ensurePage({
-          match,
-          page: match.definition.page,
-          clientOnly: false,
-        })
-      },
-    }
-
-    const matchers = new DevRouteMatcherManager(
-      super.getRouteMatchers(),
-      ensurer,
-      this.dir
-    )
-    const extensions = this.nextConfig.pageExtensions
-    const extensionsExpression = new RegExp(`\\.(?:${extensions.join('|')})$`)
-
-    // If the pages directory is available, then configure those matchers.
-    if (pagesDir) {
-      const fileReader = new BatchedFileReader(
-        new DefaultFileReader({
-          // Only allow files that have the correct extensions.
-          pathnameFilter: (pathname) => extensionsExpression.test(pathname),
-        })
-      )
-
-      matchers.push(
-        new DevPagesRouteMatcherProvider(
-          pagesDir,
-          extensions,
-          fileReader,
-          this.localeNormalizer
-        )
-      )
-      matchers.push(
-        new DevPagesAPIRouteMatcherProvider(pagesDir, extensions, fileReader)
-      )
-    }
-
-    if (appDir) {
-      // We create a new file reader for the app directory because we don't want
-      // to include any folders or files starting with an underscore. This will
-      // prevent the reader from wasting time reading files that we know we
-      // don't care about.
-      const fileReader = new BatchedFileReader(
-        new DefaultFileReader({
-          // Ignore any directory prefixed with an underscore.
-          ignorePartFilter: (part) => part.startsWith('_'),
-        })
-      )
-
-      matchers.push(
-        new DevAppPageRouteMatcherProvider(appDir, extensions, fileReader)
-      )
-      matchers.push(
-        new DevAppRouteRouteMatcherProvider(appDir, extensions, fileReader)
-      )
-    }
-
-    return matchers
-  }
-
   protected getBuildId(): string {
     return 'development'
   }
@@ -263,9 +184,13 @@ export default class DevServer extends Server {
 
     await super.prepareImpl()
     await this.runInstrumentationHookIfAvailable()
-    await this.matchers.reload()
-    this.reloadAppPathRoutes()
-    this.setDevReady!()
+    await this.definitions.load()
+    await this.matchers.load()
+
+    if (!this.isDevReady) {
+      this.isDevReady = true
+      this.devReady.resolve()
+    }
 
     // This is required by the tracing subsystem.
     setGlobal('appDir', this.appDir)
@@ -426,6 +351,7 @@ export default class DevServer extends Server {
     parsedUrl?: NextUrlWithParsedQuery
   ): Promise<void> {
     await this.devReady
+
     return await super.handleRequest(req, res, parsedUrl)
   }
 

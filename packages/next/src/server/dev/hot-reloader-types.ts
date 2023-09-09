@@ -6,6 +6,7 @@ import type getBaseWebpackConfig from '../../build/webpack-config'
 import type { RouteMatch } from '../future/route-matches/route-match'
 import type { Update as TurbopackUpdate } from '../../build/swc'
 import type { VersionInfo } from './parse-version-info'
+import type { RouteDefinition } from '../future/route-definitions/route-definition'
 
 export const enum HMR_ACTIONS_SENT_TO_BROWSER {
   ADDED_PAGE = 'addedPage',
@@ -140,5 +141,6 @@ export interface NextJsHotReloaderInterface {
     appPaths?: ReadonlyArray<string> | null
     isApp?: boolean
     match?: RouteMatch
+    definition: RouteDefinition | null
   }): Promise<void>
 }

@@ -47,7 +47,7 @@ interface Options {
    * If provided, this normalizer will be used to detect the locale instead of
    * the default locale detection.
    */
-  i18nProvider?: I18NProvider
+  i18nProvider?: I18NProvider | null
 }
 
 export function getNextPathnameInfo(

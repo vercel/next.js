@@ -1,5 +1,5 @@
-import { SERVER_DIRECTORY } from '../../../../../shared/lib/constants'
-import path from '../../../../../shared/lib/isomorphic/path'
+import { SERVER_DIRECTORY } from '../../../../shared/lib/constants'
+import path from '../../../../shared/lib/isomorphic/path'
 import { Manifest, ManifestLoader } from './manifest-loader'
 
 export class NodeManifestLoader implements ManifestLoader {

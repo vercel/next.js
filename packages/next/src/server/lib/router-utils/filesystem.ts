@@ -42,7 +42,15 @@ import {
   ROUTES_MANIFEST,
 } from '../../../shared/lib/constants'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
-import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
+import { RouteDefinitionManager } from '../../future/route-definition-manager/route-definition-manager'
+import { DefaultRouteDefinitionManager } from '../../future/route-definition-manager/default-route-definition-manager'
+import { PagesRouteDefinitionProvider } from '../../future/route-definition-providers/pages-route-definition-provider'
+import { ManifestLoader } from '../../future/helpers/manifest-loaders/manifest-loader'
+import { NodeManifestLoader } from '../../future/helpers/manifest-loaders/node-manifest-loader'
+import { I18NProvider } from '../../future/helpers/i18n-provider'
+import { PagesAPIRouteDefinitionProvider } from '../../future/route-definition-providers/pages-api-route-definition-provider'
+import { AppPageRouteDefinitionProvider } from '../../future/route-definition-providers/app-page-route-definition-provider'
+import { AppRouteRouteDefinitionProvider } from '../../future/route-definition-providers/app-route-route-definition-provider'
 
 export type FsOutput = {
   type:
@@ -151,6 +159,17 @@ export async function setupFsCheck(opts: {
   let buildId = 'development'
   let prerenderManifest: PrerenderManifest
 
+  // Create the definitions manager that we can use to match to routes for
+  // aiding in compilation and route matching.
+  const definitions: RouteDefinitionManager =
+    new DefaultRouteDefinitionManager()
+
+  // Create the i18n provider if it's configured.
+  const i18nProvider =
+    opts.config.i18n && opts.config.i18n.locales.length > 0
+      ? new I18NProvider(opts.config.i18n)
+      : null
+
   if (!opts.dev) {
     const buildIdPath = path.join(opts.dir, opts.config.distDir, BUILD_ID_FILE)
     buildId = await fs.readFile(buildIdPath, 'utf8')
@@ -219,6 +238,30 @@ export async function setupFsCheck(opts: {
     const appRoutesManifest = JSON.parse(
       await fs.readFile(appRoutesManifestPath, 'utf8').catch(() => '{}')
     )
+
+    // Create a manifest loader that we can use to load the manifest files.
+    const manifestLoader: ManifestLoader = new NodeManifestLoader(distDir)
+
+    // Configure the definitions manager.
+    definitions.add(
+      // Add support for Pages.
+      new PagesRouteDefinitionProvider(distDir, manifestLoader, i18nProvider)
+    )
+    definitions.add(
+      // Add support for Pages API.
+      new PagesAPIRouteDefinitionProvider(distDir, manifestLoader)
+    )
+    definitions.add(
+      // Add support for App Pages.
+      new AppPageRouteDefinitionProvider(distDir, manifestLoader)
+    )
+    definitions.add(
+      // Add support for App Routes.
+      new AppRouteRouteDefinitionProvider(distDir, manifestLoader)
+    )
+
+    // We've added all the providers, so reload the definitions.
+    await definitions.forceReload()
 
     for (const key of Object.keys(pagesManifest)) {
       // ensure the non-locale version is in the set
@@ -369,7 +412,7 @@ export async function setupFsCheck(opts: {
   debug('pageFiles', pageFiles)
   debug('appFiles', appFiles)
 
-  let ensureFn: (item: FsOutput) => Promise<void> | undefined
+  let ensureFn: ((item: FsOutput) => Promise<void>) | undefined
 
   return {
     headers,
@@ -378,6 +421,8 @@ export async function setupFsCheck(opts: {
 
     buildId,
     handleLocale,
+
+    definitions,
 
     appFiles,
     pageFiles,
@@ -578,20 +623,33 @@ export async function setupFsCheck(opts: {
                   continue
                 }
               }
-            } else if (type === 'pageFile' || type === 'appFile') {
-              const isAppFile = type === 'appFile'
-              if (
-                ensureFn &&
-                (await ensureFn({
-                  type,
-                  itemPath: isAppFile
-                    ? normalizeMetadataRoute(curItemPath)
-                    : curItemPath,
-                })?.catch(() => 'ENSURE_FAILED')) === 'ENSURE_FAILED'
-              ) {
-                continue
-              }
-            } else {
+            } else if (!isDynamicOutput) {
+              continue
+            }
+          }
+
+          // const isAppFile = type === 'appFile'
+          // if (
+          //   ensureFn &&
+          //   (await ensureFn({
+          //     type,
+          //     itemPath: isAppFile
+          //       ? normalizeMetadataRoute(curItemPath)
+          //       : curItemPath,
+          //   })?.catch(() => 'ENSURE_FAILED')) === 'ENSURE_FAILED'
+          // ) {
+          //   continue
+          // }
+
+          if (opts.dev && isDynamicOutput && ensureFn) {
+            // TODO: add support for metadata routes via normalizeMetadataRoute
+
+            try {
+              await ensureFn({
+                type,
+                itemPath: curItemPath,
+              })
+            } catch (err) {
               continue
             }
           }

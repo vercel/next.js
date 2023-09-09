@@ -75,6 +75,7 @@ import {
   HMR_ACTION_TYPES,
   type NextJsHotReloaderInterface,
 } from './hot-reloader-types'
+import { RouteDefinition } from '../future/route-definitions/route-definition'
 
 const MILLISECONDS_IN_NANOSECOND = 1_000_000
 
@@ -312,7 +313,8 @@ export default class HotReloader implements NextJsHotReloaderInterface {
 
       if (page === '/_error' || BLOCKED_PAGES.indexOf(page) === -1) {
         try {
-          await this.ensurePage({ page, clientOnly: true })
+          // TODO: get the route definition
+          await this.ensurePage({ page, clientOnly: true, definition: null })
         } catch (error) {
           return await renderScriptError(pageBundleRes, getProperError(error))
         }
@@ -1467,12 +1469,14 @@ export default class HotReloader implements NextJsHotReloaderInterface {
     appPaths,
     match,
     isApp,
+    definition,
   }: {
     page: string
     clientOnly: boolean
     appPaths?: ReadonlyArray<string> | null
     isApp?: boolean
     match?: RouteMatch
+    definition: RouteDefinition | null
   }): Promise<void> {
     // Make sure we don't re-build or dispose prebuilt pages
     if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
@@ -1490,6 +1494,7 @@ export default class HotReloader implements NextJsHotReloaderInterface {
       appPaths,
       match,
       isApp,
-    }) as any
+      definition,
+    })
   }
 }

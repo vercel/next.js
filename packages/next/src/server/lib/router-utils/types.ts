@@ -1,8 +1,7 @@
 export type PropagateToWorkersField =
   | 'actualMiddlewareFile'
   | 'actualInstrumentationHookFile'
-  | 'reloadMatchers'
+  | 'reloadRoutes'
   | 'loadEnvConfig'
   | 'appPathsManifest'
-  | 'reloadAppPathRoutes'
   | 'middleware'

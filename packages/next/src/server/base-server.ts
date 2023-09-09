@@ -99,7 +99,7 @@ import { AppPageRouteMatcherProvider } from './future/route-matcher-providers/ap
 import { AppRouteRouteMatcherProvider } from './future/route-matcher-providers/app-route-route-matcher-provider'
 import { PagesAPIRouteMatcherProvider } from './future/route-matcher-providers/pages-api-route-matcher-provider'
 import { PagesRouteMatcherProvider } from './future/route-matcher-providers/pages-route-matcher-provider'
-import { ServerManifestLoader } from './future/route-matcher-providers/helpers/manifest-loaders/server-manifest-loader'
+import { ServerManifestLoader } from './future/helpers/manifest-loaders/server-manifest-loader'
 import { getTracer, SpanKind } from './lib/trace/tracer'
 import { BaseServerSpan } from './lib/trace/constants'
 import { I18NProvider } from './future/helpers/i18n-provider'
@@ -122,8 +122,14 @@ import {
 import { matchNextDataPathname } from './lib/match-next-data-pathname'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
 import { stripInternalHeaders } from './internal-utils'
-import { AppRouteDefinitionBuilder } from './future/route-matcher-providers/builders/app-route-definition-builder'
 import { isAppPageRouteDefinition } from './future/route-definitions/app-page-route-definition'
+import { PagesRouteDefinitionProvider } from './future/route-definition-providers/pages-route-definition-provider'
+import { PagesAPIRouteDefinitionProvider } from './future/route-definition-providers/pages-api-route-definition-provider'
+import { AppPageRouteDefinitionProvider } from './future/route-definition-providers/app-page-route-definition-provider'
+import { AppRouteRouteDefinitionProvider } from './future/route-definition-providers/app-route-route-definition-provider'
+import { DefaultRouteDefinitionManager } from './future/route-definition-manager/default-route-definition-manager'
+import { RouteDefinitionManager } from './future/route-definition-manager/route-definition-manager'
+import { isAppRouteRouteDefinition } from './future/route-definitions/app-route-route-definition'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -245,8 +251,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected readonly publicDir: string
   protected readonly hasStaticDir: boolean
   protected readonly hasAppDir: boolean
-  protected readonly pagesManifest?: PagesManifest
-  protected readonly appPathsManifest?: PagesManifest
   protected readonly buildId: string
   protected readonly minimalMode: boolean
   protected readonly renderOpts: {
@@ -290,7 +294,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     strictNextHead: boolean
   }
   protected readonly serverOptions: Readonly<ServerOptions>
-  protected appRoutes?: AppRouteDefinitionBuilder
   protected readonly clientReferenceManifest?: ClientReferenceManifest
   protected nextFontManifest?: NextFontManifest
   private readonly responseCache: ResponseCacheBase
@@ -368,7 +371,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
   // TODO-APP: (wyattjoh): Make protected again. Used for turbopack in route-resolver.ts right now.
   public readonly matchers: RouteMatcherManager
-  protected readonly i18nProvider?: I18NProvider
+  protected readonly definitions: RouteDefinitionManager
+
+  protected readonly i18nProvider: I18NProvider | null
   protected readonly localeNormalizer?: LocaleRouteNormalizer
   protected readonly isRenderWorker?: boolean
 
@@ -408,9 +413,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.publicDir = this.getPublicDir()
     this.hasStaticDir = !minimalMode && this.getHasStaticDir()
 
-    this.i18nProvider = this.nextConfig.i18n?.locales
-      ? new I18NProvider(this.nextConfig.i18n)
-      : undefined
+    this.i18nProvider =
+      this.nextConfig.i18n?.locales && this.nextConfig.i18n.locales.length > 0
+        ? new I18NProvider(this.nextConfig.i18n)
+        : null
 
     // Configure the locale normalizer, it's used for routes inside `pages/`.
     this.localeNormalizer = this.i18nProvider
@@ -484,32 +490,36 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       publicRuntimeConfig,
     })
 
-    this.pagesManifest = this.getPagesManifest()
-    this.appPathsManifest = this.getAppPathsManifest()
-    this.reloadAppPathRoutes()
-
     // Configure the routes.
-    this.matchers = this.getRouteMatchers()
+    const { matchers, definitions } = this.getRoutes()
+    this.matchers = matchers
+    this.definitions = definitions
 
     // Start route compilation. We don't wait for the routes to finish loading
     // because we use the `waitTillReady` promise below in `handleRequest` to
     // wait. Also we can't `await` in the constructor.
-    void this.matchers.reload()
+    void this.definitions
+      .load()
+      .then(() => {
+        return this.matchers.load()
+      })
+      .catch((err) => {
+        console.error(err)
+      })
 
     this.setAssetPrefix(assetPrefix)
     this.responseCache = this.getResponseCache({ dev })
   }
 
-  protected reloadMatchers() {
-    return this.matchers.reload()
-  }
-
-  protected reloadAppPathRoutes() {
-    if (!this.appPathsManifest) return
-
-    this.appRoutes = AppRouteDefinitionBuilder.fromManifest(
-      this.appPathsManifest
-    )
+  protected reloadRoutes() {
+    this.definitions
+      .forceReload()
+      .then(() => {
+        return this.matchers.forceReload()
+      })
+      .catch((err) => {
+        console.error(err)
+      })
   }
 
   protected async handleNextDataRequest(
@@ -635,7 +645,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     return { finished: false }
   }
 
-  protected getRouteMatchers(): RouteMatcherManager {
+  protected getRoutes(): {
+    matchers: RouteMatcherManager
+    definitions: RouteDefinitionManager
+  } {
     // Create a new manifest loader that get's the manifests from the server.
     const manifestLoader = new ServerManifestLoader((name) => {
       switch (name) {
@@ -650,33 +663,55 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     // Configure the matchers and handlers.
     const matchers: RouteMatcherManager = new DefaultRouteMatcherManager()
+    const definitions: RouteDefinitionManager =
+      new DefaultRouteDefinitionManager()
+
+    // TODO: figure out if we can check if the pages directory exists or not.
 
     // Match pages under `pages/`.
-    matchers.push(
+    matchers.add(
       new PagesRouteMatcherProvider(
-        this.distDir,
-        manifestLoader,
-        this.i18nProvider
+        definitions.add(
+          new PagesRouteDefinitionProvider(
+            this.distDir,
+            manifestLoader,
+            this.i18nProvider ?? null
+          )
+        )
       )
     )
 
     // Match api routes under `pages/api/`.
-    matchers.push(
-      new PagesAPIRouteMatcherProvider(this.distDir, manifestLoader)
+    matchers.add(
+      new PagesAPIRouteMatcherProvider(
+        definitions.add(
+          new PagesAPIRouteDefinitionProvider(this.distDir, manifestLoader)
+        )
+      )
     )
 
-    // If the app directory is enabled, then add the app matchers and handlers.
+    // If the app directory is enabled, then add the app matchers.
     if (this.hasAppDir) {
       // Match app pages under `app/`.
-      matchers.push(
-        new AppPageRouteMatcherProvider(this.distDir, manifestLoader)
+      matchers.add(
+        new AppPageRouteMatcherProvider(
+          definitions.add(
+            new AppPageRouteDefinitionProvider(this.distDir, manifestLoader)
+          )
+        )
       )
-      matchers.push(
-        new AppRouteRouteMatcherProvider(this.distDir, manifestLoader)
+
+      // Match app routes under `app/`.
+      matchers.add(
+        new AppRouteRouteMatcherProvider(
+          definitions.add(
+            new AppRouteRouteDefinitionProvider(this.distDir, manifestLoader)
+          )
+        )
       )
     }
 
-    return matchers
+    return { matchers, definitions }
   }
 
   public logError(err: Error): void {
@@ -2499,16 +2534,21 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   ) {
     const { query, pathname } = ctx
 
-    const appRoute = this.appRoutes?.get(pathname) ?? null
-    const page = appRoute?.page ?? pathname
+    const definition = await this.definitions.find({ pathname })
+    const page = definition?.page ?? pathname
     const appPaths =
-      appRoute && isAppPageRouteDefinition(appRoute) ? appRoute.appPaths : null
+      definition && isAppPageRouteDefinition(definition)
+        ? definition.appPaths
+        : null
 
     const result = await this.findPageComponents({
       page,
       query,
       params: ctx.renderOpts.params || {},
-      isAppPath: appRoute !== null,
+      isAppPath: definition
+        ? isAppPageRouteDefinition(definition) ||
+          isAppRouteRouteDefinition(definition)
+        : false,
       sriEnabled: !!this.nextConfig.experimental.sri?.algorithm,
       appPaths,
       // Ensuring for loading page component routes is done via the matcher.

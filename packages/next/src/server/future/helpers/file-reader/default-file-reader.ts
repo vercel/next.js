@@ -3,7 +3,7 @@ import type { FileReader } from './file-reader'
 import {
   RecursiveReadDirOptions,
   recursiveReadDir,
-} from '../../../../../../lib/recursive-readdir'
+} from '../../../../lib/recursive-readdir'
 
 export type DefaultFileReaderOptions = Pick<
   RecursiveReadDirOptions,

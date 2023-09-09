@@ -1,6 +1,6 @@
-import { RouteMatch } from '../route-matches/route-match'
-import { RouteMatcherProvider } from '../route-matcher-providers/route-matcher-provider'
+import type { RouteMatcherProvider } from '../route-matcher-providers/route-matcher-provider'
 import type { LocaleAnalysisResult } from '../helpers/i18n-provider'
+import type { RouteMatch } from '../route-matches/route-match'
 
 export type MatchOptions = {
   skipDynamic?: boolean
@@ -26,13 +26,21 @@ export interface RouteMatcherManager {
    *
    * @param provider the provider for this manager to also manage
    */
-  push(provider: RouteMatcherProvider): void
+  add(provider: RouteMatcherProvider): void
+
+  /**
+   * Loads the matchers from the providers. This should be done after all the
+   * providers have been added or the underlying providers should be refreshed.
+   * This will only run once.
+   */
+  load(): Promise<void>
 
   /**
    * Reloads the matchers from the providers. This should be done after all the
    * providers have been added or the underlying providers should be refreshed.
+   * This will run every time this method is called.
    */
-  reload(): Promise<void>
+  forceReload(): Promise<void>
 
   /**
    * Tests the underlying matchers to find a match. It does not return the
