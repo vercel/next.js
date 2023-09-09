@@ -298,7 +298,7 @@ describe('tsconfig.json verifier', () => {
 
     await writeFile(
       tsConfig,
-      `{ "compilerOptions": { "esModuleInterop": false, "moduleResolution": "node16" } }`
+      `{ "compilerOptions": { "esModuleInterop": false, "moduleResolution": "node16", "module": "node16" } }`
     )
     await new Promise((resolve) => setTimeout(resolve, 500))
     const { code, stderr, stdout } = await nextBuild(appDir, undefined, {
@@ -313,6 +313,7 @@ describe('tsconfig.json verifier', () => {
         \\"compilerOptions\\": {
           \\"esModuleInterop\\": true,
           \\"moduleResolution\\": \\"node16\\",
+          \\"module\\": \\"node16\\",
           \\"lib\\": [
             \\"dom\\",
             \\"dom.iterable\\",
@@ -323,7 +324,6 @@ describe('tsconfig.json verifier', () => {
           \\"strict\\": false,
           \\"noEmit\\": true,
           \\"incremental\\": true,
-          \\"module\\": \\"esnext\\",
           \\"resolveJsonModule\\": true,
           \\"isolatedModules\\": true,
           \\"jsx\\": \\"preserve\\",

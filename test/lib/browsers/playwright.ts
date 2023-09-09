@@ -191,11 +191,9 @@ export class Playwright extends BrowserInterface {
         websocketFrames.push({ payload: frame.payload })
 
         if (tracePlaywright) {
-          if (!frame.payload.includes('pong')) {
-            page
-              .evaluate(`console.log('received ws message ${frame.payload}')`)
-              .catch(() => {})
-          }
+          page
+            .evaluate(`console.log('received ws message ${frame.payload}')`)
+            .catch(() => {})
         }
       })
     })
@@ -212,14 +210,14 @@ export class Playwright extends BrowserInterface {
     await page.goto(url, { waitUntil: 'load' })
   }
 
-  back(): BrowserInterface {
+  back(options): BrowserInterface {
     return this.chain(async () => {
-      await page.goBack()
+      await page.goBack(options)
     })
   }
-  forward(): BrowserInterface {
+  forward(options): BrowserInterface {
     return this.chain(async () => {
-      await page.goForward()
+      await page.goForward(options)
     })
   }
   refresh(): BrowserInterface {

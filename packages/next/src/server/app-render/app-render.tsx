@@ -11,9 +11,9 @@ import type {
   Segment,
 } from './types'
 
-import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
+import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
 import type { StaticGenerationBailout } from '../../client/components/static-generation-bailout'
-import type { RequestAsyncStorage } from '../../client/components/request-async-storage'
+import type { RequestAsyncStorage } from '../../client/components/request-async-storage.external'
 
 import React from 'react'
 import { createServerComponentRenderer } from './create-server-components-renderer'
@@ -28,7 +28,6 @@ import {
   streamToBufferedResult,
   cloneTransformStream,
 } from '../stream-utils/node-web-streams-helper'
-import DefaultNotFound from '../../client/components/not-found-error'
 import {
   canSegmentBeOverridden,
   matchSegment,
@@ -49,6 +48,7 @@ import {
   getURLFromRedirectError,
   isRedirectError,
 } from '../../client/components/redirect'
+import { getRedirectStatusCodeFromError } from '../../client/components/get-redirect-status-code-from-error'
 import { addImplicitTags, patchFetch } from '../lib/patch-fetch'
 import { AppRenderSpan } from '../lib/trace/constants'
 import { getTracer } from '../lib/trace/tracer'
@@ -77,6 +77,7 @@ import { warn } from '../../build/output/log'
 import { appendMutableCookies } from '../web/spec-extension/adapters/request-cookies'
 import { createServerInsertedHTML } from './server-inserted-html'
 import { getRequiredScripts } from './required-scripts'
+import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -181,7 +182,12 @@ export async function renderToHTMLOrFlight(
     supportsDynamicHTML,
     nextConfigOutput,
     serverActionsBodySizeLimit,
+    buildId,
+    deploymentId,
+    appDirDevErrorLogger,
   } = renderOpts
+
+  const extraRenderResultMeta: RenderResultMetadata = {}
 
   const appUsingSizeAdjust = !!nextFontManifest?.appUsingSizeAdjust
 
@@ -194,21 +200,21 @@ export async function renderToHTMLOrFlight(
     _source: 'serverComponentsRenderer',
     dev,
     isNextExport,
-    errorLogger: renderOpts.appDirDevErrorLogger,
+    errorLogger: appDirDevErrorLogger,
     capturedErrors,
   })
   const flightDataRendererErrorHandler = createErrorHandler({
     _source: 'flightDataRenderer',
     dev,
     isNextExport,
-    errorLogger: renderOpts.appDirDevErrorLogger,
+    errorLogger: appDirDevErrorLogger,
     capturedErrors,
   })
   const htmlRendererErrorHandler = createErrorHandler({
     _source: 'htmlRenderer',
     dev,
     isNextExport,
-    errorLogger: renderOpts.appDirDevErrorLogger,
+    errorLogger: appDirDevErrorLogger,
     capturedErrors,
     allCapturedErrors,
   })
@@ -245,7 +251,7 @@ export async function renderToHTMLOrFlight(
       )
     }
     staticGenerationStore.fetchMetrics = []
-    ;(renderOpts as any).fetchMetrics = staticGenerationStore.fetchMetrics
+    extraRenderResultMeta.fetchMetrics = staticGenerationStore.fetchMetrics
 
     const requestStore = requestAsyncStorage.getStore()
     if (!requestStore) {
@@ -280,10 +286,13 @@ export async function renderToHTMLOrFlight(
      * that we need to resolve the final metadata.
      */
 
-    const requestId =
-      process.env.NEXT_RUNTIME === 'edge'
-        ? crypto.randomUUID()
-        : require('next/dist/compiled/nanoid').nanoid()
+    let requestId: string
+
+    if (process.env.NEXT_RUNTIME === 'edge') {
+      requestId = crypto.randomUUID()
+    } else {
+      requestId = require('next/dist/compiled/nanoid').nanoid()
+    }
 
     const LayoutRouter =
       ComponentMod.LayoutRouter as typeof import('../../client/components/layout-router').default
@@ -391,8 +400,8 @@ export async function renderToHTMLOrFlight(
         qs += `?v=${DEV_REQUEST_TS}`
       }
 
-      if (renderOpts.deploymentId) {
-        qs += `${isDev ? '&' : '?'}dpl=${renderOpts.deploymentId}`
+      if (deploymentId) {
+        qs += `${isDev ? '&' : '?'}dpl=${deploymentId}`
       }
       return qs
     }
@@ -400,12 +409,10 @@ export async function renderToHTMLOrFlight(
     const createComponentAndStyles = async ({
       filePath,
       getComponent,
-      shouldPreload,
       injectedCSS,
     }: {
       filePath: string
       getComponent: () => any
-      shouldPreload?: boolean
       injectedCSS: Set<string>
     }): Promise<any> => {
       const cssHrefs = getCssInlinedLinkTags(
@@ -432,11 +439,8 @@ export async function renderToHTMLOrFlight(
             // During HMR, it's critical to use different `precedence` values
             // for different stylesheets, so their order will be kept.
             // https://github.com/facebook/react/pull/25060
-            const precedence = shouldPreload
-              ? process.env.NODE_ENV === 'development'
-                ? 'next_' + href
-                : 'next'
-              : undefined
+            const precedence =
+              process.env.NODE_ENV === 'development' ? 'next_' + href : 'next'
 
             return (
               <link
@@ -613,7 +617,6 @@ export async function renderToHTMLOrFlight(
         ? await createComponentAndStyles({
             filePath: template[1],
             getComponent: template[0],
-            shouldPreload: true,
             injectedCSS: injectedCSSWithCurrentLayout,
           })
         : [React.Fragment]
@@ -739,7 +742,7 @@ export async function renderToHTMLOrFlight(
         const NotFoundBoundary =
           ComponentMod.NotFoundBoundary as typeof import('../../client/components/not-found-boundary').NotFoundBoundary
         Component = (componentProps: any) => {
-          const NotFoundComponent = NotFound || DefaultNotFound
+          const NotFoundComponent = NotFound
           const RootLayoutComponent = LayoutOrPage
           return (
             <NotFoundBoundary
@@ -1252,7 +1255,7 @@ export async function renderToHTMLOrFlight(
         ).map((path) => path.slice(1)) // remove the '' (root) segment
       }
 
-      const buildIdFlightDataPair = [renderOpts.buildId, flightData]
+      const buildIdFlightDataPair = [buildId, flightData]
 
       // For app dir, use the bundled version of Fizz renderer (renderToReadableStream)
       // which contains the subset React.
@@ -1365,7 +1368,7 @@ export async function renderToHTMLOrFlight(
             <>
               {styles}
               <AppRouter
-                buildId={renderOpts.buildId}
+                buildId={buildId}
                 assetPrefix={assetPrefix}
                 initialCanonicalUrl={pathname}
                 initialTree={initialTree}
@@ -1392,7 +1395,7 @@ export async function renderToHTMLOrFlight(
       )
 
     const { HeadManagerContext } =
-      require('../../shared/lib/head-manager-context') as typeof import('../../shared/lib/head-manager-context')
+      require('../../shared/lib/head-manager-context.shared-runtime') as typeof import('../../shared/lib/head-manager-context.shared-runtime')
 
     // On each render, create a new `ServerInsertedHTML` context to capture
     // injected nodes from user code (`useServerInsertedHTML`).
@@ -1437,7 +1440,8 @@ export async function renderToHTMLOrFlight(
           buildManifest,
           assetPrefix,
           subresourceIntegrityManifest,
-          getAssetQueryString(true)
+          getAssetQueryString(true),
+          nonce
         )
         const ServerComponentsRenderer = createServerComponentsRenderer(
           tree,
@@ -1482,11 +1486,13 @@ export async function renderToHTMLOrFlight(
               )
             } else if (isRedirectError(error)) {
               const redirectUrl = getURLFromRedirectError(error)
+              const isPermanent =
+                getRedirectStatusCodeFromError(error) === 308 ? true : false
               if (redirectUrl) {
                 errorMetaTags.push(
                   <meta
                     httpEquiv="refresh"
-                    content={`0;url=${redirectUrl}`}
+                    content={`${isPermanent ? 0 : 1};url=${redirectUrl}`}
                     key={error.digest}
                   />
                 )
@@ -1566,7 +1572,7 @@ export async function renderToHTMLOrFlight(
           let hasRedirectError = false
           if (isRedirectError(err)) {
             hasRedirectError = true
-            res.statusCode = 307
+            res.statusCode = getRedirectStatusCodeFromError(err)
             if (err.mutableCookies) {
               const headers = new Headers()
 
@@ -1576,7 +1582,11 @@ export async function renderToHTMLOrFlight(
                 res.setHeader('set-cookie', Array.from(headers.values()))
               }
             }
-            res.setHeader('Location', getURLFromRedirectError(err))
+            const redirectUrl = addPathPrefix(
+              getURLFromRedirectError(err),
+              renderOpts.basePath
+            )
+            res.setHeader('Location', redirectUrl)
           }
 
           const is404 = res.statusCode === 404
@@ -1614,7 +1624,8 @@ export async function renderToHTMLOrFlight(
               buildManifest,
               assetPrefix,
               subresourceIntegrityManifest,
-              getAssetQueryString(false)
+              getAssetQueryString(false),
+              nonce
             )
 
           const ErrorPage = createServerComponentRenderer(
@@ -1647,7 +1658,7 @@ export async function renderToHTMLOrFlight(
               // so we create a not found page with AppRouter
               return (
                 <AppRouter
-                  buildId={renderOpts.buildId}
+                  buildId={buildId}
                   assetPrefix={assetPrefix}
                   initialCanonicalUrl={pathname}
                   initialTree={initialTree}
@@ -1720,9 +1731,11 @@ export async function renderToHTMLOrFlight(
         await bodyResult({
           asNotFound: true,
           tree: notFoundLoaderTree,
-        })
+        }),
+        { ...extraRenderResultMeta }
       )
     } else if (actionRequestResult) {
+      actionRequestResult.extendMetadata(extraRenderResultMeta)
       return actionRequestResult
     }
 
@@ -1730,14 +1743,18 @@ export async function renderToHTMLOrFlight(
       await bodyResult({
         asNotFound: pagePath === '/404',
         tree: loaderTree,
-      })
+      }),
+      { ...extraRenderResultMeta }
     )
 
     if (staticGenerationStore.pendingRevalidates) {
       await Promise.all(staticGenerationStore.pendingRevalidates)
     }
     addImplicitTags(staticGenerationStore)
-    ;(renderOpts as any).fetchTags = staticGenerationStore.tags?.join(',')
+    extraRenderResultMeta.fetchTags = staticGenerationStore.tags?.join(',')
+    renderResult.extendMetadata({
+      fetchTags: extraRenderResultMeta.fetchTags,
+    })
 
     if (staticGenerationStore.isStaticGeneration) {
       const htmlResult = await streamToBufferedResult(renderResult)
@@ -1758,10 +1775,9 @@ export async function renderToHTMLOrFlight(
         staticGenerationStore.revalidate = 0
       }
 
-      const extraRenderResultMeta: RenderResultMetadata = {
-        pageData: filteredFlightData,
-        revalidate: staticGenerationStore.revalidate ?? defaultRevalidate,
-      }
+      extraRenderResultMeta.pageData = filteredFlightData
+      extraRenderResultMeta.revalidate =
+        staticGenerationStore.revalidate ?? defaultRevalidate
 
       // provide bailout info for debugging
       if (extraRenderResultMeta.revalidate === 0) {
@@ -1783,7 +1799,7 @@ export async function renderToHTMLOrFlight(
     () =>
       StaticGenerationAsyncStorageWrapper.wrap(
         staticGenerationAsyncStorage,
-        { pathname: pagePath, renderOpts },
+        { urlPathname: pathname, renderOpts },
         () => wrappedRender()
       )
   )

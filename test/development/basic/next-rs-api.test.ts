@@ -172,6 +172,7 @@ describe('next.rs api', () => {
         ? path.resolve(__dirname, '../../..')
         : next.testDir,
       watch: true,
+      serverAddr: `127.0.0.1:3000`,
     })
     projectUpdateSubscription = project.updateInfoSubscribe()
   })
@@ -182,6 +183,7 @@ describe('next.rs api', () => {
     expect(entrypoints.done).toBe(false)
     expect(Array.from(entrypoints.value.routes.keys()).sort()).toEqual([
       '/',
+      '/_not-found',
       '/api/edge',
       '/api/nodejs',
       '/app',
@@ -460,77 +462,88 @@ describe('next.rs api', () => {
           projectUpdateSubscription
         )
         const oldContent = await next.readFile(file)
-        await next.patchFile(file, content)
-        let foundUpdates: string[] | false = false
-        let foundServerSideChange = false
-        let done = false
-        const result2 = await Promise.race(
-          [
-            (async () => {
-              const merged = raceIterators(subscriptions)
-              for await (const item of merged) {
-                if (done) return
-                if (item.type === 'partial') {
-                  expect(item.instruction).toEqual({
-                    type: 'ChunkListUpdate',
-                    merged: [
-                      expect.objectContaining({
-                        chunks: expect.toBeObject(),
-                        entries: expect.toBeObject(),
-                      }),
-                    ],
-                  })
-                  const updates = Object.keys(
-                    item.instruction.merged[0].entries
-                  )
-                  expect(updates).not.toBeEmpty()
-
-                  foundUpdates = foundUpdates || []
-                  foundUpdates.push(
-                    ...Object.keys(item.instruction.merged[0].entries)
-                  )
-                }
-              }
-            })(),
-            serverSideSubscription &&
+        let ok = false
+        try {
+          await next.patchFile(file, content)
+          let foundUpdates: string[] | false = false
+          let foundServerSideChange = false
+          let done = false
+          const result2 = await Promise.race(
+            [
               (async () => {
-                for await (const {
-                  issues,
-                  diagnostics,
-                } of serverSideSubscription) {
+                const merged = raceIterators(subscriptions)
+                for await (const item of merged) {
                   if (done) return
-                  expect(issues).toBeArray()
-                  expect(diagnostics).toBeArray()
-                  foundServerSideChange = true
+                  if (item.type === 'partial') {
+                    expect(item.instruction).toEqual({
+                      type: 'ChunkListUpdate',
+                      merged: [
+                        expect.objectContaining({
+                          chunks: expect.toBeObject(),
+                          entries: expect.toBeObject(),
+                        }),
+                      ],
+                    })
+                    const updates = Object.keys(
+                      item.instruction.merged[0].entries
+                    )
+                    expect(updates).not.toBeEmpty()
+
+                    foundUpdates = foundUpdates || []
+                    foundUpdates.push(
+                      ...Object.keys(item.instruction.merged[0].entries)
+                    )
+                  }
                 }
               })(),
-            updateComplete.then(
-              (u) => new Promise((r) => setTimeout(() => r(u), 1000))
-            ),
-            new Promise((r) => setTimeout(() => r('timeout'), 30000)),
-          ].filter((x) => x)
-        )
-        done = true
-        expect(result2).toMatchObject({
-          done: false,
-          value: {
-            duration: expect.toBePositive(),
-            tasks: expect.toBePositive(),
-          },
-        })
-        if (expectedUpdate === false) {
-          expect(foundUpdates).toBe(false)
-        } else {
-          expect(foundUpdates).toEqual([
-            expect.stringContaining(expectedUpdate),
-          ])
+              serverSideSubscription &&
+                (async () => {
+                  for await (const {
+                    issues,
+                    diagnostics,
+                  } of serverSideSubscription) {
+                    if (done) return
+                    expect(issues).toBeArray()
+                    expect(diagnostics).toBeArray()
+                    foundServerSideChange = true
+                  }
+                })(),
+              updateComplete.then(
+                (u) => new Promise((r) => setTimeout(() => r(u), 1000))
+              ),
+              new Promise((r) => setTimeout(() => r('timeout'), 30000)),
+            ].filter((x) => x)
+          )
+          done = true
+          expect(result2).toMatchObject({
+            done: false,
+            value: {
+              duration: expect.toBePositive(),
+              tasks: expect.toBePositive(),
+            },
+          })
+          if (typeof expectedUpdate === 'boolean') {
+            expect(foundUpdates).toBe(false)
+          } else {
+            expect(
+              typeof foundUpdates === 'boolean'
+                ? foundUpdates
+                : Array.from(new Set(foundUpdates))
+            ).toEqual([expect.stringContaining(expectedUpdate)])
+          }
+          expect(foundServerSideChange).toBe(expectedServerSideChange)
+          ok = true
+        } finally {
+          try {
+            const { next: updateComplete2 } = await drainAndGetNext(
+              projectUpdateSubscription
+            )
+            await next.patchFile(file, oldContent)
+            await updateComplete2
+          } catch (e) {
+            if (ok) throw e
+          }
         }
-        expect(foundServerSideChange).toBe(expectedServerSideChange)
-        const { next: updateComplete2 } = await drainAndGetNext(
-          projectUpdateSubscription
-        )
-        await next.patchFile(file, oldContent)
-        await updateComplete2
       })
   }
 })

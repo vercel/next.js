@@ -1,6 +1,6 @@
 'use client'
 
-import type { ChildSegmentMap } from '../../shared/lib/app-router-context'
+import type { ChildSegmentMap } from '../../shared/lib/app-router-context.shared-runtime'
 import type {
   FlightRouterState,
   FlightSegmentPath,
@@ -17,7 +17,7 @@ import {
   LayoutRouterContext,
   GlobalLayoutRouterContext,
   TemplateContext,
-} from '../../shared/lib/app-router-context'
+} from '../../shared/lib/app-router-context.shared-runtime'
 import { fetchServerResponse } from './router-reducer/fetch-server-response'
 import { createInfinitePromise } from './infinite-promise'
 import { ErrorBoundary } from './error-boundary'
@@ -222,7 +222,6 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
 
       // State is mutated to ensure that the focus and scroll is applied only once.
       focusAndScrollRef.apply = false
-      focusAndScrollRef.onlyHashChange = false
       focusAndScrollRef.hashFragment = null
       focusAndScrollRef.segmentPaths = []
 
@@ -262,6 +261,9 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
           onlyHashChange: focusAndScrollRef.onlyHashChange,
         }
       )
+
+      // Mutate after scrolling so that it can be read by `handleSmoothScroll`
+      focusAndScrollRef.onlyHashChange = false
 
       // Set focus on the element
       domNode.focus()

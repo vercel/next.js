@@ -25,7 +25,10 @@ import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
-import { SERVER_PROPS_EXPORT_ERROR } from '../lib/constants'
+import {
+  NEXT_CACHE_TAGS_HEADER,
+  SERVER_PROPS_EXPORT_ERROR,
+} from '../lib/constants'
 import { requireFontManifest } from '../server/require'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { trace } from '../trace'
@@ -50,8 +53,13 @@ import {
   signalFromNodeResponse,
 } from '../server/web/spec-extension/adapters/next-request'
 import * as ciEnvironment from '../telemetry/ci-info'
+import {
+  NEXT_ROUTER_PREFETCH,
+  NEXT_URL,
+  RSC,
+} from '../client/components/app-router-headers'
 
-const envConfig = require('../shared/lib/runtime-config')
+const envConfig = require('../shared/lib/runtime-config.shared-runtime')
 
 ;(globalThis as any).__NEXT_DATA__ = {
   nextExport: true,
@@ -164,6 +172,7 @@ export default async function exportPage({
       const { page } = pathMap
       const pathname = normalizeAppPath(page)
       const isAppDir = Boolean(pathMap._isAppDir)
+      const isAppPrefetch = Boolean(pathMap._isAppPrefetch)
       const isDynamicError = pathMap._isDynamicError
       const filePath = normalizePagePath(path)
       const isDynamic = isDynamicRoute(page)
@@ -298,8 +307,10 @@ export default async function exportPage({
       await promises.mkdir(baseDir, { recursive: true })
       let renderResult: RenderResult | undefined
       let curRenderOpts: RenderOpts = {}
-      const { renderToHTML } =
-        require('../server/render') as typeof import('../server/render')
+      const renderToHTML =
+        require('../server/future/route-modules/pages/module.compiled')
+          .renderToHTML as typeof import('../server/render').renderToHTML
+
       let renderMethod = renderToHTML
       let inAmpMode = false,
         hybridAmp = false
@@ -387,7 +398,45 @@ export default async function exportPage({
           err.digest === NEXT_DYNAMIC_NO_SSR_CODE ||
           isRedirectError(err)
 
-        if (isRouteHandler) {
+        const isNotFoundPage = page === '/_not-found'
+
+        const generatePrefetchRsc = async () => {
+          // If we bail for prerendering due to dynamic usage we need to
+          // generate a static prefetch payload to prevent invoking
+          // functions during runtime just for prefetching
+
+          const { renderToHTMLOrFlight } =
+            require('../server/app-render/app-render') as typeof import('../server/app-render/app-render')
+          req.headers[RSC.toLowerCase()] = '1'
+          req.headers[NEXT_URL.toLowerCase()] = path
+          req.headers[NEXT_ROUTER_PREFETCH.toLowerCase()] = '1'
+
+          curRenderOpts.supportsDynamicHTML = true
+          delete (curRenderOpts as any).isRevalidate
+
+          const prefetchRenderResult = await renderToHTMLOrFlight(
+            req as any,
+            res as any,
+            isNotFoundPage ? '/404' : pathname,
+            query,
+            curRenderOpts as any
+          )
+          prefetchRenderResult.pipe(res as import('http').ServerResponse)
+          await res.hasStreamed
+          const prefetchRscData = Buffer.concat(res.buffers).toString()
+
+          await promises.writeFile(
+            htmlFilepath.replace(/\.html$/, '.prefetch.rsc'),
+            prefetchRscData
+          )
+        }
+
+        // for dynamic routes with no generate static params
+        // we generate strictly the prefetch RSC payload to
+        // avoid attempting to render with default params e.g. [slug]
+        if (isAppPrefetch) {
+          await generatePrefetchRsc()
+        } else if (isRouteHandler) {
           // Ensure that the url for the page is absolute.
           req.url = `http://localhost:3000${req.url}`
           const request = NextRequestAdapter.fromNodeNextRequest(
@@ -432,7 +481,6 @@ export default async function exportPage({
             const module = await RouteModuleLoader.load<AppRouteRouteModule>(
               filename
             )
-
             // Call the handler with the request and context from the module.
             const response = await module.handle(request, context)
 
@@ -455,7 +503,7 @@ export default async function exportPage({
                 .fetchTags
 
               if (cacheTags) {
-                headers['x-next-cache-tags'] = cacheTags
+                headers[NEXT_CACHE_TAGS_HEADER] = cacheTags
               }
 
               if (!headers['content-type'] && body.type) {
@@ -488,13 +536,12 @@ export default async function exportPage({
             results.fromBuildExportRevalidate = 0
           }
         } else {
-          const { renderToHTMLOrFlight } =
-            require('../server/app-render/app-render') as typeof import('../server/app-render/app-render')
+          const renderToHTMLOrFlight =
+            require('../server/future/route-modules/app-page/module.compiled')
+              .renderToHTMLOrFlight as typeof import('../server/app-render/app-render').renderToHTMLOrFlight
 
           try {
             curRenderOpts.params ||= {}
-
-            const isNotFoundPage = page === '/_not-found'
             const result = await renderToHTMLOrFlight(
               req as any,
               res as any,
@@ -509,10 +556,10 @@ export default async function exportPage({
             results.fromBuildExportRevalidate = revalidate
 
             if (revalidate !== 0) {
-              const cacheTags = (curRenderOpts as any).fetchTags
+              const cacheTags = metadata.fetchTags
               const headers = cacheTags
                 ? {
-                    'x-next-cache-tags': cacheTags,
+                    [NEXT_CACHE_TAGS_HEADER]: cacheTags,
                   }
                 : undefined
 
@@ -537,6 +584,8 @@ export default async function exportPage({
               throw new Error(
                 `Page with dynamic = "error" encountered dynamic data method on ${path}.`
               )
+            } else {
+              await generatePrefetchRsc()
             }
 
             const staticBailoutInfo = metadata.staticBailoutInfo || {}

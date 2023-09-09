@@ -1,6 +1,6 @@
 /* __next_internal_action_entry_do_not_use__ x */ import { createActionProxy } from "private-next-rsc-action-proxy";
 export const x = 1;
-import ensureServerEntryExports from "private-next-rsc-action-validate";
+import { ensureServerEntryExports } from "private-next-rsc-action-validate";
 ensureServerEntryExports([
     x
 ]);

@@ -403,7 +403,6 @@ pub enum LoaderItem {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct ExperimentalConfig {
-    pub app_dir: Option<bool>,
     pub server_components_external_packages: Option<Vec<String>>,
     pub turbo: Option<ExperimentalTurboConfig>,
     pub allowed_revalidate_header_keys: Option<Vec<String>>,
@@ -422,35 +421,26 @@ pub struct ExperimentalConfig {
     cra_compat: Option<bool>,
     disable_optimized_loading: Option<bool>,
     disable_postcss_preset_env: Option<bool>,
-    enable_undici: Option<bool>,
     esm_externals: Option<serde_json::Value>,
     external_dir: Option<bool>,
     fallback_node_polyfills: Option<bool>,
-    fetch_cache: Option<bool>,
     font_loaders: Option<serde_json::Value>,
     force_swc_transforms: Option<bool>,
     fully_specified: Option<bool>,
     gzip_size: Option<bool>,
     incremental_cache_handler_path: Option<String>,
     large_page_data_bytes: Option<f64>,
-    legacy_browsers: Option<bool>,
     manual_client_base_path: Option<bool>,
     middleware_prefetch: Option<MiddlewarePrefetchType>,
-    new_next_link_behavior: Option<bool>,
     next_script_workers: Option<bool>,
     optimistic_client_cache: Option<bool>,
     optimize_css: Option<serde_json::Value>,
     output_file_tracing_ignores: Option<Vec<String>>,
     output_file_tracing_root: Option<String>,
-    page_env: Option<bool>,
-    profiling: Option<bool>,
     proxy_timeout: Option<f64>,
-    runtime: Option<serde_json::Value>,
     scroll_restoration: Option<bool>,
     shared_pool: Option<bool>,
     sri: Option<serde_json::Value>,
-    swc_file_reading: Option<bool>,
-    swc_minify: Option<bool>,
     swc_minify_debug_options: Option<serde_json::Value>,
     swc_trace_profiling: Option<bool>,
     transpile_packages: Option<Vec<String>>,
@@ -521,18 +511,6 @@ impl NextConfig {
             self.await?
                 .experimental
                 .server_components_external_packages
-                .as_ref()
-                .cloned()
-                .unwrap_or_default(),
-        ))
-    }
-
-    #[turbo_tasks::function]
-    pub async fn app_dir(self: Vc<Self>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(
-            self.await?
-                .experimental
-                .app_dir
                 .as_ref()
                 .cloned()
                 .unwrap_or_default(),

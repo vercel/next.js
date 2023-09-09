@@ -10,7 +10,7 @@ import {
   runNextCommandDev,
 } from 'next-test-utils'
 import fs from 'fs-extra'
-import { join } from 'path'
+import path, { join } from 'path'
 import pkg from 'next/package'
 import http from 'http'
 import stripAnsi from 'strip-ansi'
@@ -67,7 +67,7 @@ describe('CLI Usage', () => {
       await testExitSignal(
         'SIGINT',
         ['start', dirBasic, '-p', port],
-        /started server on/
+        /- Local:/
       )
     })
     test('should exit when SIGTERM is signalled', async () => {
@@ -84,7 +84,7 @@ describe('CLI Usage', () => {
       await testExitSignal(
         'SIGTERM',
         ['start', dirBasic, '-p', port],
-        /started server on/
+        /- Local:/
       )
     })
 
@@ -110,7 +110,8 @@ describe('CLI Usage', () => {
           stdout: true,
         }
       )
-      expect(output.stdout).toMatch(new RegExp(`on \\[::\\]:${port}`))
+      // Only display when hostname is provided
+      expect(output.stdout).toMatch(new RegExp(`Network:\\s*\\[::\\]:${port}`))
       expect(output.stdout).toMatch(new RegExp(`http://\\[::1\\]:${port}`))
     })
 
@@ -344,7 +345,7 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(() => output, /started server/i)
+        await check(() => output, /- Local:/i)
       } finally {
         await killApp(app)
       }
@@ -363,7 +364,6 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(() => output, new RegExp(`on \\[::\\]:${port}`))
         await check(() => output, new RegExp(`http://localhost:${port}`))
       } finally {
         await killApp(app)
@@ -383,12 +383,11 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(() => output, new RegExp(`on \\[::\\]:${port}`))
         await check(() => output, new RegExp(`http://localhost:${port}`))
       } finally {
         await killApp(app)
       }
-      const matches = /on \[::\]:(\d+)/.exec(output)
+      const matches = /- Local/.exec(output)
       expect(matches).not.toBe(null)
 
       const _port = parseInt(matches[1])
@@ -408,10 +407,11 @@ describe('CLI Usage', () => {
         },
       })
       try {
-        await check(() => output, /on \[::\]:(\d+)/)
-        const matches = /on \[::\]:(\d+)/.exec(output)
-        const _port = parseInt(matches[1])
-        expect(matches).not.toBe(null)
+        await check(() => output, /- Local:/)
+        // without --hostname, do not log Network: xxx
+        const matches = /Network:\\s*\[::\]:(\d+)/.exec(output)
+        const _port = parseInt(matches)
+        expect(matches).toBe(null)
         // Regression test: port 0 was interpreted as if no port had been
         // provided, falling back to 3000.
         expect(_port).not.toBe(3000)
@@ -434,7 +434,6 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(() => output, new RegExp(`on \\[::\\]:${port}`))
         await check(() => output, new RegExp(`http://localhost:${port}`))
       } finally {
         await killApp(app)
@@ -451,7 +450,6 @@ describe('CLI Usage', () => {
         env: { NODE_OPTIONS: '--inspect' },
       })
       try {
-        await check(() => output, new RegExp(`on \\[::\\]:${port}`))
         await check(() => output, new RegExp(`http://localhost:${port}`))
       } finally {
         await killApp(app)
@@ -504,7 +502,7 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(() => output, new RegExp(`on 0.0.0.0:${port}`))
+        await check(() => output, new RegExp(`Network:\\s*0.0.0.0:${port}`))
         await check(() => output, new RegExp(`http://localhost:${port}`))
       } finally {
         await killApp(app)
@@ -524,8 +522,71 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(() => output, new RegExp(`on 0.0.0.0:${port}`))
+        await check(() => output, new RegExp(`Network:\\s*0.0.0.0:${port}`))
         await check(() => output, new RegExp(`http://localhost:${port}`))
+      } finally {
+        await killApp(app)
+      }
+    })
+
+    // only runs on CI as it requires administrator privileges
+    test('--experimental-https', async () => {
+      if (!process.env.CI) {
+        console.warn(
+          '--experimental-https only runs on CI as it requires administrator privileges'
+        )
+
+        return
+      }
+
+      const port = await findPort()
+      let output = ''
+      const app = await runNextCommandDev(
+        [dirBasic, '--experimental-https', '--port', port],
+        undefined,
+        {
+          onStdout(msg) {
+            output += stripAnsi(msg)
+          },
+        }
+      )
+      try {
+        await check(() => output, /Network:\\s*\[::\]:(\d+)/)
+        await check(() => output, /https:\/\/localhost:(\d+)/)
+        await check(() => output, /Certificates created in/)
+      } finally {
+        await killApp(app)
+      }
+    })
+
+    test('--experimental-https with provided key/cert', async () => {
+      const keyFile = path.resolve(
+        __dirname,
+        '../certificates/localhost-key.pem'
+      )
+      const certFile = path.resolve(__dirname, '../certificates/localhost.pem')
+      const port = await findPort()
+      let output = ''
+      const app = await runNextCommandDev(
+        [
+          dirBasic,
+          '--experimental-https',
+          '--experimental-https-key',
+          keyFile,
+          '--experimental-https-cert',
+          certFile,
+          '--port',
+          port,
+        ],
+        undefined,
+        {
+          onStdout(msg) {
+            output += stripAnsi(msg)
+          },
+        }
+      )
+      try {
+        await check(() => output, /https:\/\/localhost:(\d+)/)
       } finally {
         await killApp(app)
       }
@@ -544,7 +605,8 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(() => output, new RegExp(`on \\[::\\]:${port}`))
+        // Only display when hostname is provided
+        await check(() => output, new RegExp(`Network:\\s*\\[::\\]:${port}`))
         await check(() => output, new RegExp(`http://\\[::1\\]:${port}`))
       } finally {
         await killApp(app).catch(() => {})
@@ -566,19 +628,11 @@ describe('CLI Usage', () => {
 
     test('should exit when SIGINT is signalled', async () => {
       const port = await findPort()
-      await testExitSignal(
-        'SIGINT',
-        ['dev', dirBasic, '-p', port],
-        /started server on/
-      )
+      await testExitSignal('SIGINT', ['dev', dirBasic, '-p', port], /- Local:/)
     })
     test('should exit when SIGTERM is signalled', async () => {
       const port = await findPort()
-      await testExitSignal(
-        'SIGTERM',
-        ['dev', dirBasic, '-p', port],
-        /started server on/
-      )
+      await testExitSignal('SIGTERM', ['dev', dirBasic, '-p', port], /- Local:/)
     })
 
     test('invalid directory', async () => {

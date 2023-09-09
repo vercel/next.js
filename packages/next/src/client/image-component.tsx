@@ -10,7 +10,7 @@ import React, {
   forwardRef,
   version,
 } from 'react'
-import { preload } from 'react-dom'
+import ReactDOM from 'react-dom'
 import Head from '../shared/lib/head'
 import { getImgProps } from '../shared/lib/get-img-props'
 import type {
@@ -25,9 +25,9 @@ import type {
   ImageLoaderProps,
 } from '../shared/lib/image-config'
 import { imageConfigDefault } from '../shared/lib/image-config'
-import { ImageConfigContext } from '../shared/lib/image-config-context'
+import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
 import { warnOnce } from '../shared/lib/utils/warn-once'
-import { RouterContext } from '../shared/lib/router-context'
+import { RouterContext } from '../shared/lib/router-context.shared-runtime'
 
 // @ts-ignore - This is replaced by webpack alias
 import defaultLoader from 'next/dist/shared/lib/image-loader'
@@ -320,9 +320,9 @@ function ImagePreload({
     ...getDynamicProps(imgAttributes.fetchPriority),
   }
 
-  if (isAppRouter && preload) {
+  if (isAppRouter && ReactDOM.preload) {
     // See https://github.com/facebook/react/pull/26940
-    preload(
+    ReactDOM.preload(
       imgAttributes.src,
       // @ts-expect-error TODO: upgrade to `@types/react-dom@18.3.x`
       opts

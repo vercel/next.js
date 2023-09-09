@@ -6,7 +6,7 @@ function d() {}
 function Foo() {
     async function e() {}
 }
-import ensureServerEntryExports from "private-next-rsc-action-validate";
+import { ensureServerEntryExports } from "private-next-rsc-action-validate";
 ensureServerEntryExports([
     a,
     b,

@@ -107,6 +107,19 @@ if ('${method}' in entry) {
       '${method}'
     >
   >()
+  checkFields<
+    Diff<
+      {
+        __tag__: '${method}',
+        __return_type__: Response | Promise<Response>
+      },
+      {
+        __tag__: '${method}',
+        __return_type__: ReturnType<MaybeField<TEntry, '${method}'>>
+      },
+      '${method}'
+    >
+  >()
 }
 `
       ).join('')
@@ -428,12 +441,12 @@ declare module 'next/link' {
     'href'
   >
 
-  export type LinkProps<T> = LinkRestProps & {
+  export type LinkProps<RouteInferType> = LinkRestProps & {
     /**
      * The path or URL to navigate to. This is the only required prop. It can also be an object.
      * @see https://nextjs.org/docs/api-reference/next/link
      */
-    href: __next_route_internal_types__.RouteImpl<T> | UrlObject
+    href: __next_route_internal_types__.RouteImpl<RouteInferType> | UrlObject
   }
 
   export default function Link<RouteType>(props: LinkProps<RouteType>): JSX.Element
@@ -442,7 +455,7 @@ declare module 'next/link' {
 declare module 'next/navigation' {
   export * from 'next/dist/client/components/navigation.js'
 
-  import type { NavigateOptions, AppRouterInstance as OriginalAppRouterInstance } from 'next/dist/shared/lib/app-router-context.js'
+  import type { NavigateOptions, AppRouterInstance as OriginalAppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime.js'
   interface AppRouterInstance extends OriginalAppRouterInstance {
     /**
      * Navigate to the provided href.
@@ -575,8 +588,11 @@ export class NextTypesPlugin {
         }
         return
       }
-
-      if (mod.layer !== WEBPACK_LAYERS.reactServerComponents) return
+      if (
+        mod.layer !== WEBPACK_LAYERS.reactServerComponents &&
+        mod.layer !== WEBPACK_LAYERS.appRouteHandler
+      )
+        return
 
       const IS_LAYOUT = /[/\\]layout\.[^./\\]+$/.test(mod.resource)
       const IS_PAGE = !IS_LAYOUT && /[/\\]page\.[^.]+$/.test(mod.resource)
