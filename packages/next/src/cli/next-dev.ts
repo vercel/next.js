@@ -14,19 +14,19 @@ import path from 'path'
 import { NextConfigComplete } from '../server/config-shared'
 import { setGlobal, traceGlobals } from '../trace/shared'
 import { Telemetry } from '../telemetry/storage'
-import loadConfig from '../server/config'
+import loadConfig, { getEnabledExperimentalFeatures } from '../server/config'
 import { findPagesDir } from '../lib/find-pages-dir'
-import { findRootDir } from '../lib/find-root'
 import { fileExists, FileType } from '../lib/file-exists'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
 import Watchpack from 'watchpack'
-import { resetEnv, initialEnv } from '@next/env'
+import { initialEnv } from '@next/env'
 import { getValidatedArgs } from '../lib/get-validated-args'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import type { ChildProcess } from 'child_process'
 import { checkIsNodeDebugging } from '../server/lib/is-node-debugging'
 import { createSelfSignedCertificate } from '../lib/mkcert'
 import uploadTrace from '../trace/upload-trace'
+import { loadEnvConfig } from '@next/env'
 import { trace } from '../trace'
 
 let dir: string
@@ -143,7 +143,7 @@ async function createRouterWorker(fullConfig: NextConfigComplete): Promise<{
           ? { __NEXT_PRIVATE_CPU_PROFILE: `CPU.router` }
           : {}),
         WATCHPACK_WATCHER_LIMIT: '20',
-        EXPERIMENTAL_TURBOPACK: process.env.EXPERIMENTAL_TURBOPACK,
+        TURBOPACK: process.env.TURBOPACK,
         __NEXT_PRIVATE_PREBUNDLED_REACT: !!fullConfig.experimental.serverActions
           ? 'experimental'
           : 'next',
@@ -302,7 +302,31 @@ const nextDev: CliCommand = async (argv) => {
   // We do not set a default host value here to prevent breaking
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
-  config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
+
+  const { loadedEnvFiles } = loadEnvConfig(dir, true, console, false)
+
+  let expFeatureInfo: string[] = []
+  config = await loadConfig(
+    PHASE_DEVELOPMENT_SERVER,
+    dir,
+    undefined,
+    undefined,
+    undefined,
+    (userConfig) => {
+      const userNextConfigExperimental = getEnabledExperimentalFeatures(
+        userConfig.experimental
+      )
+      expFeatureInfo = userNextConfigExperimental.sort(
+        (a, b) => a.length - b.length
+      )
+    }
+  )
+
+  let envInfo: string[] = []
+  if (loadedEnvFiles.length > 0) {
+    envInfo = loadedEnvFiles.map((f) => f.path)
+  }
+
   const isExperimentalTestProxy = args['--experimental-test-proxy']
 
   if (args['--experimental-upload-trace']) {
@@ -316,163 +340,90 @@ const nextDev: CliCommand = async (argv) => {
     isDev: true,
     hostname: host,
     isExperimentalTestProxy,
+    envInfo,
+    expFeatureInfo,
   }
 
   if (args['--turbo']) {
     process.env.TURBOPACK = '1'
-  }
-  if (args['--experimental-turbo']) {
-    process.env.EXPERIMENTAL_TURBOPACK = '1'
   }
 
   const distDir = path.join(dir, config.distDir ?? '.next')
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
   setGlobal('distDir', distDir)
 
-  if (process.env.TURBOPACK) {
-    isTurboSession = true
+  const runDevServer = async (reboot: boolean) => {
+    try {
+      const workerInit = await createRouterWorker(config)
 
-    const { validateTurboNextConfig } =
-      require('../lib/turbopack-warning') as typeof import('../lib/turbopack-warning')
-    const { loadBindings, __isCustomTurbopackBinary, teardownHeapProfiler } =
-      require('../build/swc') as typeof import('../build/swc')
-    const { eventCliSession } =
-      require('../telemetry/events/version') as typeof import('../telemetry/events/version')
-    require('../telemetry/storage') as typeof import('../telemetry/storage')
-    const findUp =
-      require('next/dist/compiled/find-up') as typeof import('next/dist/compiled/find-up')
+      if (!!args['--experimental-https']) {
+        Log.warn(
+          'Self-signed certificates are currently an experimental feature, use at your own risk.'
+        )
 
-    const isCustomTurbopack = await __isCustomTurbopackBinary()
-    const rawNextConfig = await validateTurboNextConfig({
-      isCustomTurbopack,
-      ...devServerOptions,
-      isDev: true,
-    })
+        let certificate: { key: string; cert: string } | undefined
 
-    const { pagesDir, appDir } = findPagesDir(dir)
-    const telemetry = new Telemetry({
-      distDir,
-    })
-    setGlobal('appDir', appDir)
-    setGlobal('pagesDir', pagesDir)
-    setGlobal('telemetry', telemetry)
+        if (
+          args['--experimental-https-key'] &&
+          args['--experimental-https-cert']
+        ) {
+          certificate = {
+            key: path.resolve(args['--experimental-https-key']),
+            cert: path.resolve(args['--experimental-https-cert']),
+          }
+        } else {
+          certificate = await createSelfSignedCertificate(host)
+        }
 
-    if (!isCustomTurbopack) {
-      telemetry.record(
-        eventCliSession(distDir, rawNextConfig as NextConfigComplete, {
-          webpackVersion: 5,
-          cliCommand: 'dev',
-          isSrcDir: path
-            .relative(dir, pagesDir || appDir || '')
-            .startsWith('src'),
-          hasNowJson: !!(await findUp('now.json', { cwd: dir })),
-          isCustomServer: false,
-          turboFlag: true,
-          pagesDir: !!pagesDir,
-          appDir: !!appDir,
+        await workerInit.worker.startServer({
+          ...devServerOptions,
+          selfSignedCertificate: certificate,
         })
+      } else {
+        await workerInit.worker.startServer(devServerOptions)
+      }
+
+      await preflight(reboot)
+      return {
+        cleanup: workerInit.cleanup,
+      }
+    } catch (err) {
+      console.error(err)
+      process.exit(1)
+    }
+  }
+
+  let runningServer: Awaited<ReturnType<typeof runDevServer>> | undefined
+
+  watchConfigFiles(devServerOptions.dir, async (filename) => {
+    if (process.env.__NEXT_DISABLE_MEMORY_WATCHER) {
+      Log.info(
+        `Detected change, manual restart required due to '__NEXT_DISABLE_MEMORY_WATCHER' usage`
       )
+      return
     }
-
-    // Turbopack need to be in control over reading the .env files and watching them.
-    // So we need to start with a initial env to know which env vars are coming from the user.
-    resetEnv()
-    let server
-    trace('start-dev-server').traceAsyncFn(async (_) => {
-      let bindings = await loadBindings()
-
-      server = bindings.turbo.startDev({
-        ...devServerOptions,
-        showAll: args['--show-all'] ?? false,
-        root: args['--root'] ?? findRootDir(dir),
-      })
-
-      // Start preflight after server is listening and ignore errors:
-      preflight(false).catch(() => {})
-    })
-
-    if (!isCustomTurbopack) {
-      await telemetry.flush()
-    }
-
-    // There are some cases like test fixtures teardown that normal flush won't hit.
-    // Force flush those on those case, but don't wait for it.
-    ;['SIGTERM', 'SIGINT', 'beforeExit', 'exit'].forEach((event) =>
-      process.on(event, () => teardownHeapProfiler())
+    // Adding a new line to avoid the logs going directly after the spinner in `next build`
+    Log.warn('')
+    Log.warn(
+      `Found a change in ${path.basename(
+        filename
+      )}. Restarting the server to apply the changes...`
     )
 
-    return server
-  } else {
-    const runDevServer = async (reboot: boolean) => {
-      try {
-        const workerInit = await createRouterWorker(config)
-        if (!!args['--experimental-https']) {
-          Log.warn(
-            'Self-signed certificates are currently an experimental feature, use at your own risk.'
-          )
-
-          let certificate: { key: string; cert: string } | undefined
-
-          if (
-            args['--experimental-https-key'] &&
-            args['--experimental-https-cert']
-          ) {
-            certificate = {
-              key: path.resolve(args['--experimental-https-key']),
-              cert: path.resolve(args['--experimental-https-cert']),
-            }
-          } else {
-            certificate = await createSelfSignedCertificate(host)
-          }
-
-          await workerInit.worker.startServer({
-            ...devServerOptions,
-            selfSignedCertificate: certificate,
-          })
-        } else {
-          await workerInit.worker.startServer(devServerOptions)
-        }
-
-        await preflight(reboot)
-        return {
-          cleanup: workerInit.cleanup,
-        }
-      } catch (err) {
-        console.error(err)
-        process.exit(1)
+    try {
+      if (runningServer) {
+        await runningServer.cleanup()
       }
+      runningServer = await runDevServer(true)
+    } catch (err) {
+      console.error(err)
+      process.exit(1)
     }
+  })
 
-    let runningServer: Awaited<ReturnType<typeof runDevServer>> | undefined
-
-    watchConfigFiles(devServerOptions.dir, async (filename) => {
-      if (process.env.__NEXT_DISABLE_MEMORY_WATCHER) {
-        Log.info(
-          `Detected change, manual restart required due to '__NEXT_DISABLE_MEMORY_WATCHER' usage`
-        )
-        return
-      }
-      Log.warn(
-        `\n> Found a change in ${path.basename(
-          filename
-        )}. Restarting the server to apply the changes...`
-      )
-
-      try {
-        if (runningServer) {
-          await runningServer.cleanup()
-        }
-        runningServer = await runDevServer(true)
-      } catch (err) {
-        console.error(err)
-        process.exit(1)
-      }
-    })
-
-    await trace('start-dev-server').traceAsyncFn(async (_) => {
-      runningServer = await runDevServer(false)
-    })
-  }
+  await trace('start-dev-server').traceAsyncFn(async (_) => {
+    runningServer = await runDevServer(false)
+  })
 }
 
 export { nextDev }

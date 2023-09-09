@@ -42,6 +42,7 @@ import {
   ROUTES_MANIFEST,
 } from '../../../shared/lib/constants'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
+import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
 
 export type FsOutput = {
   type:
@@ -248,7 +249,7 @@ export async function setupFsCheck(opts: {
               ? new RegExp(
                   route.dataRouteRegex.replace(
                     `/${escapedBuildId}/`,
-                    `/${escapedBuildId}/(?<nextLocale>.+?)/`
+                    `/${escapedBuildId}/(?<nextLocale>[^/]+?)/`
                   )
                 )
               : new RegExp(route.dataRouteRegex),
@@ -578,11 +579,14 @@ export async function setupFsCheck(opts: {
                 }
               }
             } else if (type === 'pageFile' || type === 'appFile') {
+              const isAppFile = type === 'appFile'
               if (
                 ensureFn &&
                 (await ensureFn({
                   type,
-                  itemPath: curItemPath,
+                  itemPath: isAppFile
+                    ? normalizeMetadataRoute(curItemPath)
+                    : curItemPath,
                 })?.catch(() => 'ENSURE_FAILED')) === 'ENSURE_FAILED'
               ) {
                 continue

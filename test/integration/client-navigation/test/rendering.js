@@ -229,7 +229,7 @@ export default function (render, fetch, ctx) {
       const styleId = $('#blue-box').attr('class')
       const style = $('style')
 
-      expect(style.text().includes(`p.${styleId}{color:#00f`)).toBeTruthy()
+      expect(style.text().includes(`p.${styleId}{color:blue`)).toBeTruthy()
     })
 
     test('renders styled jsx external', async () => {
@@ -237,7 +237,7 @@ export default function (render, fetch, ctx) {
       const styleId = $('#blue-box').attr('class')
       const style = $('style')
 
-      expect(style.text().includes(`p.${styleId}{color:#00f`)).toBeTruthy()
+      expect(style.text().includes(`p.${styleId}{color:blue`)).toBeTruthy()
     })
 
     test('renders properties populated asynchronously', async () => {

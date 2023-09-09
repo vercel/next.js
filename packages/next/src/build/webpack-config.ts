@@ -103,6 +103,19 @@ const reactPackagesRegex = /^(react|react-dom|react-server-dom-webpack)($|\/)/
 const asyncStoragesRegex =
   /next[\\/]dist[\\/](esm[\\/])?client[\\/]components[\\/](static-generation-async-storage|action-async-storage|request-async-storage)/
 
+const pathSeparators = '[/\\\\]'
+const optionalEsmPart = `((${pathSeparators}esm)?${pathSeparators})`
+const sharedRuntimeFileEnd = '(\\.shared-runtime(\\.js)?)$'
+const externalFileEnd = '(\\.external(\\.js)?)$'
+const nextDist = `next${pathSeparators}dist`
+
+const sharedRuntimePattern = new RegExp(
+  `${nextDist}${optionalEsmPart}.*${sharedRuntimeFileEnd}`
+)
+const externalPattern = new RegExp(
+  `${nextDist}${optionalEsmPart}.*${externalFileEnd}`
+)
+
 // exports.<conditionName>
 const edgeConditionNames = [
   'edge-light',
@@ -481,7 +494,7 @@ function getOptimizedAliases(): { [pkg: string]: string } {
 }
 
 // Alias these modules to be resolved with "module" if possible.
-function getModularizeImportAliases(packages: string[]) {
+function getBarrelOptimizationAliases(packages: string[]) {
   const aliases: { [pkg: string]: string } = {}
   const mainFields = ['module', 'main']
 
@@ -492,7 +505,7 @@ function getModularizeImportAliases(packages: string[]) {
 
       for (const field of mainFields) {
         if (descriptionFileData.hasOwnProperty(field)) {
-          aliases[pkg] = path.join(
+          aliases[pkg + '$'] = path.join(
             path.dirname(descriptionFilePath),
             descriptionFileData[field]
           )
@@ -1011,7 +1024,7 @@ export default async function getBaseWebpackConfig(
   const customRootAliases: { [key: string]: string[] } = {}
 
   if (dev) {
-    const nextDist = 'next/dist/' + (isEdgeServer ? 'esm/' : '')
+    const nextDistPath = 'next/dist/' + (isEdgeServer ? 'esm/' : '')
     customAppAliases[`${PAGES_DIR_ALIAS}/_app`] = [
       ...(pagesDir
         ? pageExtensions.reduce((prev, ext) => {
@@ -1019,7 +1032,7 @@ export default async function getBaseWebpackConfig(
             return prev
           }, [] as string[])
         : []),
-      `${nextDist}pages/_app.js`,
+      `${nextDistPath}pages/_app.js`,
     ]
     customAppAliases[`${PAGES_DIR_ALIAS}/_error`] = [
       ...(pagesDir
@@ -1028,7 +1041,7 @@ export default async function getBaseWebpackConfig(
             return prev
           }, [] as string[])
         : []),
-      `${nextDist}pages/_error.js`,
+      `${nextDistPath}pages/_error.js`,
     ]
     customDocumentAliases[`${PAGES_DIR_ALIAS}/_document`] = [
       ...(pagesDir
@@ -1037,7 +1050,7 @@ export default async function getBaseWebpackConfig(
             return prev
           }, [] as string[])
         : []),
-      `${nextDist}pages/_document.js`,
+      `${nextDistPath}pages/_document.js`,
     ]
   }
 
@@ -1142,7 +1155,7 @@ export default async function getBaseWebpackConfig(
       // For Node server, we need to re-alias the package imports to prefer to
       // resolve to the ESM export.
       ...(isNodeServer
-        ? getModularizeImportAliases(
+        ? getBarrelOptimizationAliases(
             config.experimental.optimizePackageImports || []
           )
         : {}),
@@ -1311,6 +1324,7 @@ export default async function getBaseWebpackConfig(
       WEBPACK_LAYERS.serverSideRendering,
       WEBPACK_LAYERS.appPagesBrowser,
       WEBPACK_LAYERS.actionBrowser,
+      WEBPACK_LAYERS.appRouteHandler,
     ].includes(layer!)
 
     if (
@@ -1367,7 +1381,7 @@ export default async function getBaseWebpackConfig(
       }
 
       const notExternalModules =
-        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|legacy\/image|constants|dynamic|script|navigation|headers)$)|string-hash|private-next-rsc-action-validate|private-next-rsc-action-client-wrapper|private-next-rsc-action-proxy$)/
+        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|legacy\/image|constants|dynamic|script|navigation|headers|router)$)|string-hash|private-next-rsc-action-validate|private-next-rsc-action-client-wrapper|private-next-rsc-action-proxy$)/
       if (notExternalModules.test(request)) {
         return
       }
@@ -1390,41 +1404,59 @@ export default async function getBaseWebpackConfig(
     // Also disable esm request when appDir is enabled
     const isEsmRequested = dependencyType === 'esm'
 
+    /**
+     * @param localRes the full path to the file
+     * @returns the externalized path
+     * @description returns an externalized path if the file is a Next.js file and ends with either `.shared-runtime.js` or `.external.js`
+     * This is used to ensure that files used across the rendering runtime(s) and the user code are one and the same. The logic in this function
+     * will rewrite the require to the correct bundle location depending on the layer at which the file is being used.
+     */
     const isLocalCallback = (localRes: string) => {
-      // Makes sure dist/shared and dist/server are not bundled
-      // we need to process shared `router/router`, `head` and `dynamic`,
-      // so that the DefinePlugin can inject process.env values.
+      const isSharedRuntime = sharedRuntimePattern.test(localRes)
+      const isExternal = externalPattern.test(localRes)
 
-      // Treat next internals as non-external for server layer
-      if (isWebpackServerLayer(layer)) {
-        return
+      // if the file ends with .external, we need to make it a commonjs require in all cases
+      // this is used mainly to share the async local storage across the routing, rendering and user layers.
+      if (isExternal) {
+        // it's important we return the path that starts with `next/dist/` here instead of the absolute path
+        // otherwise NFT will get tripped up
+        return `commonjs ${localRes.replace(/.*?next[/\\]dist/, 'next/dist')}`
       }
+      // if the file ends with .shared-runtime, we need to make it point to the correct bundle depending on the layer
+      // this is because each shared-runtime files are unique per bundle, so if you use app-router context in pages,
+      // it'll be a different instance than the one used in the app-router runtime.
+      if (isSharedRuntime) {
+        if (dev) {
+          return `commonjs ${localRes}`
+        }
 
-      const isNextExternal =
-        /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic|app-dynamic|image-external|lazy-dynamic|head[^-]))/.test(
-          localRes
-        ) ||
-        // There's no need to bundle the dev overlay
-        (process.env.NODE_ENV === 'development' &&
-          /next[/\\]dist[/\\](esm[/\\])?client[/\\]components[/\\]react-dev-overlay[/\\]/.test(
-            localRes
-          ))
+        const name = path.parse(localRes).name.replace('.shared-runtime', '')
 
-      if (isNextExternal) {
-        // Generate Next.js external import
-        const externalRequest = path.posix.join(
-          'next',
-          'dist',
-          path
-            .relative(
-              // Root of Next.js package:
-              path.join(__dirname, '..'),
-              localRes
-            )
-            // Windows path normalization
-            .replace(/\\/g, '/')
+        const camelCaseName = name.replace(/-([a-z])/g, (_, w) =>
+          w.toUpperCase()
         )
-        return `commonjs ${externalRequest}`
+
+        // there's no externals for API routes but if need be, they'll need to be added here and have
+        // their own layer
+        const runtime =
+          layer === 'app-route-handler'
+            ? 'app-route'
+            : isAppLayer
+            ? 'app-page'
+            : 'pages'
+        return [
+          'commonjs ' +
+            path.posix.join(
+              'next',
+              'dist',
+              'compiled',
+              'next-server',
+              `${runtime}.runtime.${dev ? 'dev' : 'prod'}`
+            ),
+          'default',
+          'sharedModules',
+          camelCaseName,
+        ]
       }
     }
 
@@ -1443,6 +1475,10 @@ export default async function getBaseWebpackConfig(
       // Image loader needs to be transpiled
       if (/^next\/dist\/shared\/lib\/image-loader/.test(request)) {
         return
+      }
+
+      if (/^next\/dist\/compiled\/next-server/.test(request)) {
+        return `commonjs ${request}`
       }
 
       if (
@@ -1707,6 +1743,52 @@ export default async function getBaseWebpackConfig(
         | Required<webpack.Configuration>['optimization']['splitChunks']
         | false => {
         if (dev) {
+          if (isNodeServer) {
+            /*
+              In development, we want to split code that comes from `node_modules` into their own chunks.
+              This is because in development, we often need to reload the user bundle due to changes in the code.
+              To work around this, we put all the vendor code into separate chunks so that we don't need to reload them.
+              This is safe because the vendor code doesn't change between reloads.
+            */
+            const extractRootNodeModule = (modulePath: string) => {
+              // This regex is used to extract the root node module name to be used as the chunk group name.
+              // example: ../../node_modules/.pnpm/next@10/foo/node_modules/bar -> next@10
+              const regex =
+                /node_modules(?:\/|\\)\.?(?:pnpm(?:\/|\\))?([^/\\]+)/
+              const match = modulePath.match(regex)
+              return match ? match[1] : null
+            }
+            return {
+              cacheGroups: {
+                // this chunk configuration gives us a separate chunk for each top level module in node_modules
+                // or a hashed chunk if we can't extract the module name.
+                vendor: {
+                  chunks: 'all',
+                  reuseExistingChunk: true,
+                  test: /[\\/]node_modules[\\/]/,
+                  minSize: 0,
+                  minChunks: 1,
+                  maxAsyncRequests: 300,
+                  maxInitialRequests: 300,
+                  name: (module: webpack.Module) => {
+                    const moduleId = module.nameForCondition()!
+                    const rootModule = extractRootNodeModule(moduleId)
+                    if (rootModule) {
+                      return `vendor-chunks/${rootModule}`
+                    } else {
+                      const hash = crypto.createHash('sha1').update(moduleId)
+                      hash.update(moduleId)
+                      return `vendor-chunks/${hash.digest('hex')}`
+                    }
+                  },
+                },
+                // disable the default chunk groups
+                default: false,
+                defaultVendors: false,
+              },
+            }
+          }
+
           return false
         }
 
@@ -1986,6 +2068,14 @@ export default async function getBaseWebpackConfig(
         ...(hasAppDir
           ? [
               {
+                layer: WEBPACK_LAYERS.appRouteHandler,
+                test: new RegExp(
+                  `private-next-app-dir\\/.*\\/route\\.(${pageExtensions.join(
+                    '|'
+                  )})$`
+                ),
+              },
+              {
                 // Make sure that AsyncLocalStorage module instance is shared between server and client
                 // layers.
                 layer: WEBPACK_LAYERS.shared,
@@ -2193,7 +2283,7 @@ export default async function getBaseWebpackConfig(
                         WEBPACK_LAYERS.appPagesBrowser,
                       ],
                     },
-                    exclude: [asyncStoragesRegex, codeCondition.exclude],
+                    exclude: [codeCondition.exclude],
                     use: [
                       ...(dev && isClient
                         ? [

@@ -143,8 +143,13 @@ import { createClientRouterFilter } from '../lib/create-client-router-filter'
 import { createValidFileMatcher } from '../server/lib/find-page-file'
 import { startTypeChecking } from './type-check'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
+
 import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
-import { baseOverrides, experimentalOverrides } from '../server/require-hook'
+import {
+  baseOverrides,
+  defaultOverrides,
+  experimentalOverrides,
+} from '../server/require-hook'
 import { initialize } from '../server/lib/incremental-cache-server'
 import { nodeFs } from '../server/lib/node-fs-methods'
 
@@ -481,9 +486,7 @@ export default async function build(
       } as any
 
       if (!isGenerate) {
-        buildSpinner = createSpinner({
-          prefixText: `${Log.prefixes.info} Creating an optimized production build`,
-        })
+        buildSpinner = createSpinner('Creating an optimized production build')
       }
 
       NextBuildContext.buildSpinner = buildSpinner
@@ -1125,9 +1128,7 @@ export default async function build(
         await startTypeChecking(typeCheckingOptions)
       }
 
-      const postCompileSpinner = createSpinner({
-        prefixText: `${Log.prefixes.info} Collecting page data`,
-      })
+      const postCompileSpinner = createSpinner('Collecting page data')
 
       const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
       const appBuildManifestPath = path.join(distDir, APP_BUILD_MANIFEST)
@@ -1254,7 +1255,7 @@ export default async function build(
                   ? config.experimental.serverActions
                     ? 'experimental'
                     : 'next'
-                  : '',
+                  : undefined,
             },
           },
           enableWorkerThreads: config.experimental.workerThreads,
@@ -2088,6 +2089,25 @@ export default async function build(
               ...Object.values(experimentalOverrides).map((override) =>
                 require.resolve(override)
               ),
+              ...(config.experimental.turbotrace
+                ? []
+                : Object.keys(defaultOverrides).map((value) =>
+                    require.resolve(value, {
+                      paths: [require.resolve('next/dist/server/require-hook')],
+                    })
+                  )),
+              require.resolve(
+                'next/dist/compiled/next-server/app-page.runtime.prod'
+              ),
+              require.resolve(
+                'next/dist/compiled/next-server/app-route.runtime.prod'
+              ),
+              require.resolve(
+                'next/dist/compiled/next-server/pages.runtime.prod'
+              ),
+              require.resolve(
+                'next/dist/compiled/next-server/pages-api.runtime.prod'
+              ),
             ]
 
             // ensure we trace any dependencies needed for custom
@@ -2113,10 +2133,7 @@ export default async function build(
             const minimalServerEntries = [
               ...sharedEntriesSet,
               require.resolve(
-                'next/dist/compiled/minimal-next-server/next-server-cached.js'
-              ),
-              require.resolve(
-                'next/dist/compiled/minimal-next-server/next-server.js'
+                'next/dist/compiled/next-server/server.runtime.prod'
               ),
             ].filter(Boolean)
 
@@ -2597,9 +2614,7 @@ export default async function build(
 
           await exportApp(dir, exportOptions, nextBuildSpan)
 
-          const postBuildSpinner = createSpinner({
-            prefixText: `${Log.prefixes.info} Finalizing page optimization`,
-          })
+          const postBuildSpinner = createSpinner('Finalizing page optimization')
           ssgNotFoundPaths = exportConfig.ssgNotFoundPaths
 
           // remove server bundles that were exported

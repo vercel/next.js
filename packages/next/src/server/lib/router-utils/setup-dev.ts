@@ -10,7 +10,6 @@ import {
 } from '../../../build/swc'
 import type { Socket } from 'net'
 import ws from 'next/dist/compiled/ws'
-import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 
 import fs from 'fs'
 import url from 'url'
@@ -104,6 +103,7 @@ import {
   TurboPackConnectedAction,
 } from '../../dev/hot-reloader-types'
 import { debounce } from '../../utils'
+import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -119,6 +119,7 @@ type SetupOpts = {
     ReturnType<typeof import('./filesystem').setupFsCheck>
   >
   nextConfig: NextConfigComplete
+  port: number
 }
 
 async function verifyTypeScript(opts: SetupOpts) {
@@ -187,6 +188,15 @@ async function startWatcher(opts: SetupOpts) {
 
     const { jsConfig } = await loadJsConfig(dir, opts.nextConfig)
 
+    // For the debugging purpose, check if createNext or equivalent next instance setup in test cases
+    // works correctly. Normally `run-test` hides output so only will be visible when `--debug` flag is used.
+    if (process.env.TURBOPACK && process.env.NEXT_TEST_MODE) {
+      require('console').log('Creating turbopack project', {
+        dir,
+        testMode: process.env.NEXT_TEST_MODE,
+      })
+    }
+
     const project = await bindings.turbo.createProject({
       projectPath: dir,
       rootPath: opts.nextConfig.experimental.outputFileTracingRoot || dir,
@@ -194,6 +204,7 @@ async function startWatcher(opts: SetupOpts) {
       jsConfig,
       watch: true,
       env: process.env as Record<string, string>,
+      serverAddr: `127.0.0.1:${opts.port}`,
     })
     const iter = project.entrypointsSubscribe()
     const curEntries: Map<string, Route> = new Map()
@@ -222,7 +233,7 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     function formatIssue(issue: Issue) {
-      const { filePath, title, description, source } = issue
+      const { filePath, title, description, source, detail } = issue
       let formattedTitle = title.replace(/\n/g, '\n    ')
       let message = ''
 
@@ -237,6 +248,9 @@ async function startWatcher(opts: SetupOpts) {
           start.column
         }  ${formattedTitle}`
         if (source.source.content) {
+          const {
+            codeFrameColumns,
+          } = require('next/dist/compiled/babel/code-frame')
           message +=
             '\n\n' +
             codeFrameColumns(
@@ -253,6 +267,9 @@ async function startWatcher(opts: SetupOpts) {
       }
       if (description) {
         message += `\n${description.replace(/\n/g, '\n    ')}`
+      }
+      if (detail) {
+        message += `\n${detail.replace(/\n/g, '\n    ')}`
       }
 
       return message
@@ -648,7 +665,7 @@ async function startWatcher(opts: SetupOpts) {
 
     async function writeBuildManifest(): Promise<void> {
       const buildManifest = mergeBuildManifests(buildManifests.values())
-      const buildManifestPath = path.join(distDir, 'build-manifest.json')
+      const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
       await clearCache(buildManifestPath)
       await writeFile(
         buildManifestPath,
@@ -885,6 +902,7 @@ async function startWatcher(opts: SetupOpts) {
               case 'client-success': // { clientId }
               case 'server-component-reload-page': // { clientId }
               case 'client-reload-page': // { clientId }
+              case 'client-removed-page': // { page }
               case 'client-full-reload': // { stackTrace, hadRuntimeError }
                 // TODO
                 break
@@ -936,6 +954,8 @@ async function startWatcher(opts: SetupOpts) {
         // Not implemented yet.
       },
       async start() {
+        // Align with nextjs logging for ready start event
+        Log.event('ready')
         // Not implemented yet.
       },
       async stop() {
@@ -999,7 +1019,13 @@ async function startWatcher(opts: SetupOpts) {
         }
 
         await currentEntriesHandling
-        const route = curEntries.get(page)
+        const route =
+          curEntries.get(page) ??
+          curEntries.get(
+            normalizeAppPath(
+              normalizeMetadataRoute(match?.definition?.page ?? inputPage)
+            )
+          )
 
         if (!route) {
           // TODO: why is this entry missing in turbopack?
@@ -1033,7 +1059,7 @@ async function startWatcher(opts: SetupOpts) {
               loading: true,
               trigger: `${page}${
                 !page.endsWith('/') && suffix.length > 0 ? '/' : ''
-              }${suffix} (client and server)`,
+              }${suffix}`,
             } as OutputState,
             true
           )
@@ -1192,7 +1218,6 @@ async function startWatcher(opts: SetupOpts) {
         consoleStore.setState(
           {
             loading: false,
-            partial: 'client and server',
           } as OutputState,
           true
         )
@@ -1565,7 +1590,10 @@ async function startWatcher(opts: SetupOpts) {
 
       if (envChange || tsconfigChange) {
         if (envChange) {
-          loadEnvConfig(dir, true, Log, true)
+          // only log changes in router server
+          loadEnvConfig(dir, true, Log, true, (envFilePath) => {
+            Log.info(`Reload env: ${envFilePath}`)
+          })
           await propagateToWorkers('loadEnvConfig', [
             { dev: true, forceReload: true, silent: true },
           ])
@@ -1769,7 +1797,7 @@ async function startWatcher(opts: SetupOpts) {
                 ? new RegExp(
                     route.dataRouteRegex.replace(
                       `/development/`,
-                      `/development/(?<nextLocale>.+?)/`
+                      `/development/(?<nextLocale>[^/]+?)/`
                     )
                   )
                 : new RegExp(route.dataRouteRegex),

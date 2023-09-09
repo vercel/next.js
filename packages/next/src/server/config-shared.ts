@@ -149,7 +149,10 @@ export interface ExperimentalConfig {
   useDeploymentId?: boolean
   useDeploymentIdServerActions?: boolean
   deploymentId?: string
-  logging?: 'verbose'
+  logging?: {
+    level?: 'verbose'
+    fullUrl?: false
+  }
   appDocumentPreloading?: boolean
   strictNextHead?: boolean
   clientRouterFilter?: boolean
@@ -231,6 +234,11 @@ export interface ExperimentalConfig {
    * Automatically apply the "modularizeImports" optimization to imports of the specified packages.
    */
   optimizePackageImports?: string[]
+
+  /**
+   * Optimize React APIs for server builds.
+   */
+  optimizeServerReact?: boolean
 
   turbo?: ExperimentalTurboOptions
   turbotrace?: {
@@ -689,7 +697,7 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
-    serverMinification: false,
+    serverMinification: true,
     serverSourceMaps: false,
     caseSensitiveRoutes: false,
     useDeploymentId: false,
