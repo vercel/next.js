@@ -143,6 +143,7 @@ import { createClientRouterFilter } from '../lib/create-client-router-filter'
 import { createValidFileMatcher } from '../server/lib/find-page-file'
 import { startTypeChecking } from './type-check'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
+
 import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
 import {
   baseOverrides,
@@ -2084,6 +2085,25 @@ export default async function build(
               ...Object.values(experimentalOverrides).map((override) =>
                 require.resolve(override)
               ),
+              ...(config.experimental.turbotrace
+                ? []
+                : Object.keys(defaultOverrides).map((value) =>
+                    require.resolve(value, {
+                      paths: [require.resolve('next/dist/server/require-hook')],
+                    })
+                  )),
+              require.resolve(
+                'next/dist/compiled/next-server/app-page.runtime.prod'
+              ),
+              require.resolve(
+                'next/dist/compiled/next-server/app-route.runtime.prod'
+              ),
+              require.resolve(
+                'next/dist/compiled/next-server/pages.runtime.prod'
+              ),
+              require.resolve(
+                'next/dist/compiled/next-server/pages-api.runtime.prod'
+              ),
             ]
 
             // ensure we trace any dependencies needed for custom
@@ -2114,10 +2134,7 @@ export default async function build(
             const minimalServerEntries = [
               ...sharedEntriesSet,
               require.resolve(
-                'next/dist/compiled/minimal-next-server/next-server-cached.js'
-              ),
-              require.resolve(
-                'next/dist/compiled/minimal-next-server/next-server.js'
+                'next/dist/compiled/next-server/server.runtime.prod'
               ),
             ].filter(Boolean)
 

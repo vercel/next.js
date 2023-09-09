@@ -7,6 +7,11 @@ import type {
   WorkerUpgradeHandler,
 } from './setup-server-worker'
 
+// This is required before other imports to ensure the require hook is setup.
+import '../node-polyfill-fetch'
+import '../node-environment'
+import '../require-hook'
+
 import url from 'url'
 import path from 'path'
 import loadConfig from '../config'
@@ -123,6 +128,7 @@ export async function initialize(opts: {
       nextConfig: config,
       isCustomServer: opts.customServer,
       turbo: !!process.env.TURBOPACK,
+      port: opts.port,
     })
     devInstances[opts.dir] = devInstance
     ;(global as any)._nextDevHandlers = {

@@ -14,16 +14,9 @@ if (!process.env.NEXT_MINIMAL) {
 }
 export const hookPropertyMap = new Map()
 
-// these must use require.resolve to be statically analyzable
 export const defaultOverrides = {
-  'styled-jsx': dirname(
-    process.env.NEXT_MINIMAL
-      ? require.resolve('styled-jsx/package.json')
-      : require.resolve('styled-jsx/package.json', nextPaths)
-  ),
-  'styled-jsx/style': process.env.NEXT_MINIMAL
-    ? require.resolve('styled-jsx/style')
-    : require.resolve('styled-jsx/style', nextPaths),
+  'styled-jsx': dirname(resolve('styled-jsx/package.json')),
+  'styled-jsx/style': resolve('styled-jsx/style'),
 }
 
 export const baseOverrides = {
@@ -84,7 +77,6 @@ export function addHookAliases(aliases: [string, string][] = []) {
   }
 }
 
-// Add default aliases
 addHookAliases(toResolveMap(defaultOverrides))
 
 // Override built-in React packages if necessary

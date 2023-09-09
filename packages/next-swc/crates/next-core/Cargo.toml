@@ -14,6 +14,7 @@ async-recursion = { workspace = true }
 async-trait = { workspace = true }
 base64 = "0.21.0"
 const_format = "0.2.30"
+lazy-regex = "3.0.1"
 once_cell = { workspace = true }
 qstring = { workspace = true }
 regex = { workspace = true }
