@@ -89,9 +89,6 @@ type PagesAPIRouteHandlerContext = RouteModuleHandleContext & {
    * The page that's being rendered.
    */
   page: string
-
-  ipcPort?: string
-  ipcKey?: string
 }
 
 export type PagesAPIRouteModuleOptions = RouteModuleOptions<
