@@ -15,8 +15,12 @@ if (!process.env.NEXT_MINIMAL) {
 export const hookPropertyMap = new Map()
 
 export const defaultOverrides = {
-  'styled-jsx': dirname(resolve('styled-jsx/package.json')),
-  'styled-jsx/style': resolve('styled-jsx/style'),
+  'styled-jsx': process.env.NEXT_MINIMAL
+    ? dirname(resolve('styled-jsx/package.json'))
+    : dirname(resolve('styled-jsx/package.json', nextPaths)),
+  'styled-jsx/style': process.env.NEXT_MINIMAL
+    ? dirname(resolve('styled-jsx/style'))
+    : dirname(resolve('styled-jsx/style', nextPaths)),
 }
 
 export const baseOverrides = {
