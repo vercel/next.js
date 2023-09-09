@@ -147,6 +147,7 @@ import { generateInterceptionRoutesRewrites } from '../lib/generate-interception
 import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
 import {
   baseOverrides,
+  defaultOverrides,
   experimentalOverrides,
 } from '../server/import-overrides'
 import { initialize } from '../server/lib/incremental-cache-server'
