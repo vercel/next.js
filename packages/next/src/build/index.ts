@@ -150,7 +150,7 @@ import {
   defaultOverrides,
   experimentalOverrides,
 } from '../server/import-overrides'
-import { initialize } from '../server/lib/incremental-cache-server'
+import { initialize as initializeIncrementalCache } from '../server/lib/incremental-cache-server'
 import { nodeFs } from '../server/lib/node-fs-methods'
 import { getEsmLoaderPath } from '../server/lib/get-esm-loader-path'
 
@@ -1298,7 +1298,7 @@ export default async function build(
       const {
         ipcPort: incrementalCacheIpcPort,
         ipcValidationKey: incrementalCacheIpcValidationKey,
-      } = await initialize({
+      } = await initializeIncrementalCache({
         fs: nodeFs,
         dev: false,
         appDir: isAppDirEnabled,
