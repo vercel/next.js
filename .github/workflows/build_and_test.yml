@@ -127,10 +127,14 @@ jobs:
   test-turbopack-dev:
     name: test turbopack dev
     needs: ['build-native', 'build-next']
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3, 4, 5]
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
-      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-tests-manifest.js" TURBOPACK=1 NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_MODE=dev node run-tests.js --test-pattern '^(test\/development)/.*\.test\.(js|jsx|ts|tsx)$' --timings -c ${TEST_CONCURRENCY}
+      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-tests-manifest.js" TURBOPACK=1 NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_MODE=dev node run-tests.js --test-pattern '^(test\/development)/.*\.test\.(js|jsx|ts|tsx)$' --timings -g ${{ matrix.group }}/5 -c ${TEST_CONCURRENCY}
     secrets: inherit
 
   test-turbopack-integration:
@@ -139,13 +143,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1]
-
+        group: [1, 2, 3, 4, 5]
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 16
       skipForDocsOnly: 'yes'
-      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-tests-manifest.js" TURBOPACK=1 node run-tests.js --timings -g ${{ matrix.group }}/1 -c ${TEST_CONCURRENCY} --type integration
+      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-tests-manifest.js" TURBOPACK=1 node run-tests.js --timings -g ${{ matrix.group }}/5 -c ${TEST_CONCURRENCY} --type integration
     secrets: inherit
 
   test-next-swc-wasm:

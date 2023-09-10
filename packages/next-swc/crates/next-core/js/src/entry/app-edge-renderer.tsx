@@ -2,6 +2,8 @@
 // the other imports
 import startOperationStreamHandler from '../internal/operation-stream'
 
+import 'next/dist/server/node-polyfill-fetch'
+
 import { join } from 'path'
 import { parse as parseUrl } from 'node:url'
 

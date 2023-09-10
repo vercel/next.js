@@ -32,7 +32,6 @@ function parseLogsFromCli(cliOutput: string) {
       }
       parsedLogs.push(parsedLog)
     }
-    // console.log('parsedLogs', parsedLogs)
     return parsedLogs
   }, [] as any[])
 }
@@ -46,7 +45,7 @@ createNextDescribe(
       'app/default-cache/page.js': new FileRef(
         path.join(__dirname, 'app/default-cache/page.js')
       ),
-      'next.config.js': `module.exports = { experimental: { logging: 'verbose' } }`,
+      'next.config.js': `module.exports = { experimental: { logging: { level: 'verbose', fullUrl: true } } }`,
     },
   },
   ({ next, isNextDev }) => {
@@ -80,6 +79,9 @@ createNextDescribe(
             const logEntry = logs.find((log) =>
               log.url.includes('api/random?no-cache')
             )
+
+            // expend full url
+            expect(logs.every((log) => log.url.includes('..'))).toBe(false)
 
             if (logEntry?.cache === 'cache: no-cache') {
               return 'success'
@@ -115,7 +117,6 @@ createNextDescribe(
               log.url.includes('api/random?auto-cache')
             )
 
-            console.log('logEntry?.cache', logEntry?.cache)
             if (logEntry?.cache === 'cache-control: no-cache (hard refresh)') {
               return 'success'
             }
