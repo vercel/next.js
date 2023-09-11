@@ -211,9 +211,12 @@ describe('CLI Usage', () => {
 
     test('should not start on a port out of range', async () => {
       const invalidPort = '300001'
-      const { stderr } = await runNextCommand(['start', '--port', invalidPort], {
-        stderr: true,
-      })
+      const { stderr } = await runNextCommand(
+        ['start', '--port', invalidPort],
+        {
+          stderr: true,
+        }
+      )
 
       expect(stderr).toContain(
         `options.port should be >= 0 and < 65536. Received type number (${invalidPort}).`
@@ -222,10 +225,13 @@ describe('CLI Usage', () => {
 
     test('should not start on a reserved port', async () => {
       const reservedPort = '4045'
-      const { stderr } = await runNextCommand(['start', '--port', reservedPort], {
-        stderr: true,
-      })
-      console.log(stderr)
+      const { stderr } = await runNextCommand(
+        ['start', '--port', reservedPort],
+        {
+          stderr: true,
+        }
+      )
+
       expect(stderr).toContain(
         `Bad port: '${reservedPort}' is reserved for npp`
       )
