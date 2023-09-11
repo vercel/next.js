@@ -2,11 +2,13 @@
 // This is needed for userland plugins to attach to the same webpack instance as Next.js'.
 // Individually compiled modules are as defined for the compilation in bundles/webpack/packages/*.
 
+import path, { dirname } from 'path'
+
 // This module will only be loaded once per process.
 
-const { dirname } = require('path')
 const mod = require('module')
 const resolveFilename = mod._resolveFilename
+const originalRequire = mod.prototype.require
 const hookPropertyMap = new Map()
 
 let aliasedPrebundledReact = false
@@ -19,10 +21,9 @@ const resolve = process.env.NEXT_MINIMAL
 const toResolveMap = (map: Record<string, string>): [string, string][] =>
   Object.entries(map).map(([key, value]) => [key, resolve(value)])
 
-// these must use require.resolve to be statically analyzable
 export const defaultOverrides = {
-  'styled-jsx': dirname(require.resolve('styled-jsx/package.json')),
-  'styled-jsx/style': require.resolve('styled-jsx/style'),
+  'styled-jsx': dirname(resolve('styled-jsx/package.json')),
+  'styled-jsx/style': resolve('styled-jsx/style'),
 }
 
 export const baseOverrides = {
@@ -78,7 +79,6 @@ export function addHookAliases(aliases: [string, string][] = []) {
   }
 }
 
-// Add default aliases
 addHookAliases(toResolveMap(defaultOverrides))
 
 // Override built-in React packages if necessary
@@ -117,3 +117,25 @@ mod._resolveFilename = function (
 
   // We use `bind` here to avoid referencing outside variables to create potential memory leaks.
 }.bind(null, resolveFilename, hookPropertyMap)
+
+// This is a hack to make sure that if a user requires a Next.js module that wasn't bundled
+// that needs to point to the rendering runtime version, it will point to the correct one.
+// This can happen on `pages` when a user requires a dependency that uses next/image for example.
+// This is only needed in production as in development we fallback to the external version.
+if (process.env.NODE_ENV !== 'development' && !process.env.TURBOPACK) {
+  mod.prototype.require = function (request: string) {
+    if (request.endsWith('.shared-runtime')) {
+      const currentRuntime = `${
+        // this env var is only set in app router
+        !!process.env.__NEXT_PRIVATE_PREBUNDLED_REACT
+          ? 'next/dist/compiled/next-server/app-page.runtime'
+          : 'next/dist/compiled/next-server/pages.runtime'
+      }.prod`
+      const base = path.basename(request, '.shared-runtime')
+      const camelized = base.replace(/-([a-z])/g, (g) => g[1].toUpperCase())
+      const instance = originalRequire.call(this, currentRuntime)
+      return instance.default.sharedModules[camelized]
+    }
+    return originalRequire.call(this, request)
+  }
+}
