@@ -84,6 +84,7 @@ pub struct NextConfig {
     pub transpile_packages: Option<Vec<String>>,
     pub modularize_imports: Option<IndexMap<String, ModularizeImportPackageConfig>>,
     sass_options: Option<serde_json::Value>,
+    trailing_slash: bool,
 
     // Partially supported
     pub compiler: Option<CompilerConfig>,
@@ -119,7 +120,6 @@ pub struct NextConfig {
     static_page_generation_timeout: f64,
     swc_minify: Option<bool>,
     target: Option<String>,
-    trailing_slash: bool,
     typescript: TypeScriptConfig,
     use_file_system_public_routes: bool,
     webpack: Option<serde_json::Value>,
