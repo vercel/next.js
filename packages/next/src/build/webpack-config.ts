@@ -1559,7 +1559,7 @@ export default async function getBaseWebpackConfig(
     // Forcedly resolve the styled-jsx installed by next.js,
     // since `resolveExternal` cannot find the styled-jsx dep with pnpm
     if (request === 'styled-jsx/style') {
-      return `commonjs ${defaultOverrides['styled-jsx/style']}`
+      resolveResult.res = defaultOverrides['styled-jsx/style']
     }
 
     const { res, isEsm } = resolveResult
