@@ -539,7 +539,9 @@ export async function killProcess(
 
 // Kill a launched app
 export async function killApp(instance: ChildProcess) {
-  await killProcess(instance.pid)
+  if (instance && instance.pid) {
+    await killProcess(instance.pid)
+  }
 }
 
 export async function startApp(app: NextServer) {
