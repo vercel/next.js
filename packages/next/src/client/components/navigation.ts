@@ -1,16 +1,14 @@
-// useLayoutSegments() // Only the segments for the current place. ['children', 'dashboard', 'children', 'integrations'] -> /dashboard/integrations (/dashboard/layout.js would get ['children', 'dashboard', 'children', 'integrations'])
-
 import { useContext, useMemo } from 'react'
 import type { FlightRouterState } from '../../server/app-render/types'
 import {
   AppRouterContext,
   GlobalLayoutRouterContext,
   LayoutRouterContext,
-} from '../../shared/lib/app-router-context'
+} from '../../shared/lib/app-router-context.shared-runtime'
 import {
   SearchParamsContext,
   PathnameContext,
-} from '../../shared/lib/hooks-client-context'
+} from '../../shared/lib/hooks-client-context.shared-runtime'
 import { clientHookInServerComponentError } from './client-hook-in-server-component-error'
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
 
@@ -33,6 +31,7 @@ export class ReadonlyURLSearchParams {
   keys: URLSearchParams['keys']
   values: URLSearchParams['values']
   toString: URLSearchParams['toString']
+  size: any | URLSearchParams['size']
 
   constructor(urlSearchParams: URLSearchParams) {
     this[INTERNAL_URLSEARCHPARAMS_INSTANCE] = urlSearchParams
@@ -45,6 +44,7 @@ export class ReadonlyURLSearchParams {
     this.keys = urlSearchParams.keys.bind(urlSearchParams)
     this.values = urlSearchParams.values.bind(urlSearchParams)
     this.toString = urlSearchParams.toString.bind(urlSearchParams)
+    this.size = urlSearchParams.size
   }
   [Symbol.iterator]() {
     return this[INTERNAL_URLSEARCHPARAMS_INSTANCE][Symbol.iterator]()
@@ -111,12 +111,12 @@ export function usePathname(): string {
 export {
   ServerInsertedHTMLContext,
   useServerInsertedHTML,
-} from '../../shared/lib/server-inserted-html'
+} from '../../shared/lib/server-inserted-html.shared-runtime'
 
 /**
  * Get the router methods. For example router.push('/dashboard')
  */
-export function useRouter(): import('../../shared/lib/app-router-context').AppRouterInstance {
+export function useRouter(): import('../../shared/lib/app-router-context.shared-runtime').AppRouterInstance {
   clientHookInServerComponentError('useRouter')
   const router = useContext(AppRouterContext)
   if (router === null) {
@@ -238,5 +238,5 @@ export function useSelectedLayoutSegment(
   return selectedLayoutSegments[0]
 }
 
-export { redirect } from './redirect'
+export { redirect, permanentRedirect, RedirectType } from './redirect'
 export { notFound } from './not-found'

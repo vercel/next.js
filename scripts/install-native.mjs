@@ -13,6 +13,7 @@ import fs from 'fs-extra'
   const { version: nextVersion } = await fs.readJSON(
     path.join(cwd, 'packages', 'next', 'package.json')
   )
+  const { packageManager } = await fs.readJSON(path.join(cwd, 'package.json'))
 
   try {
     // if installed swc package version matches monorepo version
@@ -51,13 +52,14 @@ import fs from 'fs-extra'
         '@next/swc-win32-ia32-msvc': 'canary',
         '@next/swc-win32-x64-msvc': 'canary',
       },
+      packageManager,
     }
     await fs.writeFile(
       path.join(tmpdir, 'package.json'),
       JSON.stringify(pkgJson)
     )
     await fs.writeFile(path.join(tmpdir, '.npmrc'), 'node-linker=hoisted')
-    let { stdout } = await execa('pnpm', ['install'], {
+    let { stdout } = await execa('pnpm', ['add', 'next@canary'], {
       cwd: tmpdir,
     })
     console.log(stdout)

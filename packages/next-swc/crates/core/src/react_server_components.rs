@@ -50,6 +50,7 @@ struct ReactServerComponents<C: Comments> {
     invalid_client_imports: Vec<JsWord>,
     invalid_server_react_apis: Vec<JsWord>,
     invalid_server_react_dom_apis: Vec<JsWord>,
+    disable_checks: bool,
 }
 
 struct ModuleImports {
@@ -128,7 +129,7 @@ impl<C: Comments> ReactServerComponents<C> {
                                             if is_action_file {
                                                 panic_both_directives(expr_stmt.span)
                                             }
-                                        } else {
+                                        } else if !self.disable_checks {
                                             HANDLER.with(|handler| {
                                                 handler
                                                     .struct_span_err(
@@ -222,6 +223,7 @@ impl<C: Comments> ReactServerComponents<C> {
                             },
                         })
                     }
+                    finished_directives = true;
                 }
                 ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl { decl, .. })) => {
                     match decl {
@@ -240,18 +242,21 @@ impl<C: Comments> ReactServerComponents<C> {
                         }
                         _ => {}
                     }
+                    finished_directives = true;
                 }
                 ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultDecl(ExportDefaultDecl {
                     decl: _,
                     ..
                 })) => {
                     self.export_names.push("default".to_string());
+                    finished_directives = true;
                 }
                 ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(ExportDefaultExpr {
                     expr: _,
                     ..
                 })) => {
                     self.export_names.push("default".to_string());
+                    finished_directives = true;
                 }
                 ModuleItem::ModuleDecl(ModuleDecl::ExportAll(_)) => {
                     self.export_names.push("*".to_string());
@@ -329,6 +334,9 @@ impl<C: Comments> ReactServerComponents<C> {
     }
 
     fn assert_server_graph(&self, imports: &[ModuleImports], module: &Module) {
+        if self.disable_checks {
+            return;
+        }
         for import in imports {
             let source = import.source.0.clone();
             if self.invalid_server_imports.contains(&source) {
@@ -401,6 +409,9 @@ impl<C: Comments> ReactServerComponents<C> {
     }
 
     fn assert_client_graph(&self, imports: &[ModuleImports], module: &Module) {
+        if self.disable_checks {
+            return;
+        }
         for import in imports {
             let source = import.source.0.clone();
             if self.invalid_client_imports.contains(&source) {
@@ -556,12 +567,14 @@ pub fn server_components<C: Comments>(
     config: Config,
     comments: C,
     app_dir: Option<PathBuf>,
+    disable_checks: bool,
 ) -> impl Fold + VisitMut {
-    let is_server: bool = match config {
+    let is_server: bool = match &config {
         Config::WithOptions(x) => x.is_server,
         _ => true,
     };
     as_folder(ReactServerComponents {
+        disable_checks,
         is_server,
         comments,
         filepath: filename.to_string(),

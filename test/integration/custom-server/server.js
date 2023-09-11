@@ -25,7 +25,7 @@ const httpOptions = {
 }
 
 process.on('unhandledRejection', (err) => {
-  console.error('- error unhandledRejection:', err)
+  console.error('unhandledRejection:', err)
 })
 
 app.prepare().then(() => {

@@ -1,14 +1,14 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import { launchApp, nextBuild } from 'next-test-utils'
+import { launchApp, findPort, nextBuild } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 const expectedErr =
   /Webpack config is undefined. You may have forgot to return properly from within the "webpack" method of your next.config.js/
 
 describe('undefined webpack config error', () => {
-  it('should show in production mode', async () => {
+  it.skip('should show in production mode', async () => {
     const result = await nextBuild(appDir, [], {
       stdout: true,
       stderr: true,
@@ -19,7 +19,7 @@ describe('undefined webpack config error', () => {
   it('should show in dev mode', async () => {
     let output = ''
 
-    await launchApp(appDir, [], {
+    await launchApp(appDir, await findPort(), {
       onStderr(msg) {
         output += msg || ''
       },

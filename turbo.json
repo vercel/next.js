@@ -74,6 +74,14 @@
       "outputs": ["crates/wasm/pkg/*"]
     },
     "cache-build-native": {
+      "inputs": [
+        "../../.cargo/**",
+        "../../packages/next-swc/crates/**",
+        "../../**/Cargo.toml",
+        "../../**/Cargo.lock",
+        "../../.github/workflows/build_and_deploy.yml",
+        "../../rust-toolchain"
+      ],
       "dependsOn": ["^cache-build-native"],
       "outputs": ["native/*.node"]
     },

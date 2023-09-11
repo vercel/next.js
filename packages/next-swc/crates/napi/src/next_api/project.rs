@@ -37,8 +37,8 @@ use turbopack_binding::{
 use super::{
     endpoint::ExternalEndpoint,
     utils::{
-        get_diagnostics, get_issues, serde_enum_to_string, subscribe, NapiDiagnostic, NapiIssue,
-        RootTask, TurbopackResult, VcArc,
+        get_diagnostics, get_issues, subscribe, NapiDiagnostic, NapiIssue, RootTask,
+        TurbopackResult, VcArc,
     },
 };
 use crate::register;
@@ -69,6 +69,9 @@ pub struct NapiProjectOptions {
 
     /// A map of environment variables to use when compiling code.
     pub env: Vec<NapiEnvVar>,
+
+    /// The address of the dev server.
+    pub server_addr: String,
 }
 
 #[napi(object)]
@@ -90,6 +93,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
                 .into_iter()
                 .map(|NapiEnvVar { name, value }| (name, value))
                 .collect(),
+            server_addr: val.server_addr,
         }
     }
 }
@@ -265,9 +269,7 @@ impl NapiRoute {
 
 #[napi(object)]
 struct NapiMiddleware {
-    pub endpoint: External<VcArc<Vc<Box<dyn Endpoint>>>>,
-    pub runtime: String,
-    pub matcher: Option<Vec<String>>,
+    pub endpoint: External<ExternalEndpoint>,
 }
 
 impl NapiMiddleware {
@@ -276,9 +278,10 @@ impl NapiMiddleware {
         turbo_tasks: &Arc<TurboTasks<MemoryBackend>>,
     ) -> Result<Self> {
         Ok(NapiMiddleware {
-            endpoint: External::new(VcArc::new(turbo_tasks.clone(), value.endpoint)),
-            runtime: serde_enum_to_string(&value.config.runtime)?,
-            matcher: value.config.matcher.clone(),
+            endpoint: External::new(ExternalEndpoint(VcArc::new(
+                turbo_tasks.clone(),
+                value.endpoint,
+            ))),
         })
     }
 }

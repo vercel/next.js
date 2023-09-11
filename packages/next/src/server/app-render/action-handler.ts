@@ -19,10 +19,10 @@ import {
   isRedirectError,
 } from '../../client/components/redirect'
 import RenderResult from '../render-result'
-import { StaticGenerationStore } from '../../client/components/static-generation-async-storage'
+import { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import { FlightRenderResult } from './flight-render-result'
 import { ActionResult } from './types'
-import { ActionAsyncStorage } from '../../client/components/action-async-storage'
+import { ActionAsyncStorage } from '../../client/components/action-async-storage.external'
 import {
   filterReqHeaders,
   actionsForbiddenHeaders,
@@ -31,7 +31,12 @@ import {
   appendMutableCookies,
   getModifiedCookieValues,
 } from '../web/spec-extension/adapters/request-cookies'
-import { RequestStore } from '../../client/components/request-async-storage'
+
+import { RequestStore } from '../../client/components/request-async-storage.external'
+import {
+  NEXT_CACHE_REVALIDATED_TAGS_HEADER,
+  NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
+} from '../../lib/constants'
 
 function nodeToWebReadableStream(nodeReadable: import('stream').Readable) {
   if (process.env.NEXT_RUNTIME !== 'edge') {
@@ -178,11 +183,11 @@ async function createRedirectRenderResult(
 
     if (staticGenerationStore.revalidatedTags) {
       forwardedHeaders.set(
-        'x-next-revalidated-tags',
+        NEXT_CACHE_REVALIDATED_TAGS_HEADER,
         staticGenerationStore.revalidatedTags.join(',')
       )
       forwardedHeaders.set(
-        'x-next-revalidate-tag-token',
+        NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
         staticGenerationStore.incrementalCache?.prerenderManifest?.preview
           ?.previewModeId || ''
       )
@@ -385,7 +390,7 @@ export async function handleAction({
                 // Exceeded the size limit
                 e.message =
                   e.message +
-                  '\nTo configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions#size-limitation'
+                  '\nTo configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/server-actions#size-limitation'
               }
               throw e
             }
@@ -481,7 +486,7 @@ export async function handleAction({
           const promise = Promise.reject(err)
           try {
             await promise
-          } catch (_) {}
+          } catch {}
           return generateFlight({
             skipFlight: false,
             actionResult: promise,
@@ -497,7 +502,7 @@ export async function handleAction({
         const promise = Promise.reject(err)
         try {
           await promise
-        } catch (_) {}
+        } catch {}
 
         return generateFlight({
           actionResult: promise,

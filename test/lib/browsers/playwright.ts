@@ -53,8 +53,12 @@ export class Playwright extends BrowserInterface {
     this.eventCallbacks[event]?.delete(cb)
   }
 
-  async setup(browserName: string, locale: string, javaScriptEnabled: boolean) {
-    const headless = !!process.env.HEADLESS
+  async setup(
+    browserName: string,
+    locale: string,
+    javaScriptEnabled: boolean,
+    headless: boolean
+  ) {
     let device
 
     if (process.env.DEVICE_NAME) {
@@ -106,6 +110,7 @@ export class Playwright extends BrowserInterface {
       return await chromium.launch({
         devtools: !launchOptions.headless,
         ...launchOptions,
+        ignoreDefaultArgs: ['--disable-back-forward-cache'],
       })
     }
   }
@@ -186,11 +191,9 @@ export class Playwright extends BrowserInterface {
         websocketFrames.push({ payload: frame.payload })
 
         if (tracePlaywright) {
-          if (!frame.payload.includes('pong')) {
-            page
-              .evaluate(`console.log('received ws message ${frame.payload}')`)
-              .catch(() => {})
-          }
+          page
+            .evaluate(`console.log('received ws message ${frame.payload}')`)
+            .catch(() => {})
         }
       })
     })
@@ -207,14 +210,14 @@ export class Playwright extends BrowserInterface {
     await page.goto(url, { waitUntil: 'load' })
   }
 
-  back(): BrowserInterface {
+  back(options): BrowserInterface {
     return this.chain(async () => {
-      await page.goBack()
+      await page.goBack(options)
     })
   }
-  forward(): BrowserInterface {
+  forward(options): BrowserInterface {
     return this.chain(async () => {
-      await page.goForward()
+      await page.goForward(options)
     })
   }
   refresh(): BrowserInterface {

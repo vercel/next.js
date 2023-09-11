@@ -5,7 +5,7 @@ const createJestConfig = nextJest()
 // Any custom config you want to pass to Jest
 /** @type {import('jest').Config} */
 const customJestConfig = {
-  testMatch: ['**/*.test.js', '**/*.test.ts', '**/*.test.tsx'],
+  testMatch: ['**/*.test.js', '**/*.test.ts', '**/*.test.jsx', '**/*.test.tsx'],
   setupFilesAfterEnv: ['<rootDir>/jest-setup-after-env.ts'],
   verbose: true,
   rootDir: 'test',
@@ -30,29 +30,21 @@ const customJestConfig = {
 // This won't count for the retry to avoid duplicated test being reported twice
 // - which means our test trace will report test results for the flaky test as failed without retry.
 const shouldEnableTestTrace =
-  process.env.DATADOG_API_KEY &&
-  process.env.DATADOG_TRACE_NEXTJS_TEST &&
-  !process.env.IS_RETRY
+  process.env.DATADOG_API_KEY && process.env.DATADOG_TRACE_NEXTJS_TEST
 
 if (shouldEnableTestTrace) {
   if (!customJestConfig.reporters) {
     customJestConfig.reporters = ['default']
   }
 
-  const outputDirectory =
-    process.env.TURBOPACK || process.env.EXPERIMENTAL_TURBOPACK
-      ? '<rootDir>/turbopack-test-junit-report'
-      : '<rootDir>/test-junit-report'
+  const outputDirectory = process.env.TURBOPACK
+    ? '<rootDir>/turbopack-test-junit-report'
+    : '<rootDir>/test-junit-report'
 
   customJestConfig.reporters.push([
     'jest-junit',
     {
       outputDirectory,
-      // note: {filename} is not a full path, since putting full path
-      // makes suite name too long and truncates and not able to read the suite name
-      suiteNameTemplate: `{title} [${process.env.NEXT_TEST_MODE ?? 'default'}${
-        process.env.TURBOPACK ? '/t' : ''
-      }${process.env.EXPERIMENTAL_TURBOPACK ? '/et' : ''}/{filename}]`,
       reportTestSuiteErrors: 'true',
       uniqueOutputName: 'true',
       outputName: 'nextjs-test-junit',
