@@ -32,7 +32,7 @@ import { revalidatePath } from 'next/cache'
 revalidatePath('/blog/post-1')
 ```
 
-When revalidating with just a path it will only revalidate the specific URL on the next visit for example, `/blog/post-1` will revalidate but `/blog/post-2` would not.
+This will revalidate one specific URL on the next page visit.
 
 ### Revalidating A Page Path
 
@@ -41,7 +41,7 @@ import { revalidatePath } from 'next/cache'
 revalidatePath('/blog/[slug]', 'page')
 ```
 
-When revalidating with a page path and the "page" argument is provided any URL that matches that specific page will be revalidated on the next visit. This will not invalidate pages beneath the specific page for example, `/blog/[slug]` won't invalidate `/blog/[slug]/[author]`.
+This will revalidate any URL that matches the provided `page` file on the next page visit. This will _not_ invalidate pages beneath the specific page. For example, `/blog/[slug]` won't invalidate `/blog/[slug]/[author]`.
 
 ### Revalidating A Layout Path
 
@@ -50,7 +50,7 @@ import { revalidatePath } from 'next/cache'
 revalidatePath('/blog/[slug]', 'layout')
 ```
 
-When revalidating with a page path and the "layout" argument is provided any URL that includes that layout will be revalidated. This will cause pages beneath with the same layout to revalidate on the next visit for example, in the above case `/blog/[slug]/[another]` would also revalidate on the next visit.
+This will revalidate any URL that matches the provided `layout` file on the next page visit. This will cause pages beneath with the same layout to revalidate on the next visit. For example, in the above case, `/blog/[slug]/[another]` would also revalidate on the next visit.
 
 ### Server Action
 
