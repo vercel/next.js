@@ -84,7 +84,7 @@ export const KNOWN_RESERVED_PORTS = {
 
 export type ReservedPort = keyof typeof KNOWN_RESERVED_PORTS
 
-export function getPortIsReserved(port: number): boolean {
+export function isPortIsReserved(port: number): port is ReservedPort {
   return port in KNOWN_RESERVED_PORTS
 }
 

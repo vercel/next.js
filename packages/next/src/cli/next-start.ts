@@ -5,9 +5,8 @@ import { getPort, printAndExit } from '../server/lib/utils'
 import { getProjectDir } from '../lib/get-project-dir'
 import { CliCommand } from '../lib/commands'
 import {
-  getPortIsReserved,
   getReservedPortExplanation,
-  ReservedPort,
+  isPortIsReserved,
 } from '../lib/helpers/get-reserved-port'
 
 const nextStart: CliCommand = async (args) => {
@@ -36,8 +35,8 @@ const nextStart: CliCommand = async (args) => {
   const host = args['--hostname']
   const port = getPort(args)
 
-  if (getPortIsReserved(port)) {
-    printAndExit(getReservedPortExplanation(port as ReservedPort), 1)
+  if (isPortIsReserved(port)) {
+    printAndExit(getReservedPortExplanation(port), 1)
   }
 
   const isExperimentalTestProxy = args['--experimental-test-proxy']
