@@ -35,7 +35,6 @@ import {
   PRERENDER_REVALIDATE_HEADER,
   PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
 } from '../../lib/constants'
-import { invokeRequest } from '../lib/server-ipc/invoke-request'
 
 export function tryGetPreviewData(
   req: IncomingMessage | BaseNextRequest | Request,
@@ -460,30 +459,6 @@ async function revalidate(
         throw new Error(`Invalid response ${res.status}`)
       }
     } else if (context.revalidate) {
-      // We prefer to use the IPC call if running under the workers mode.
-      const ipcPort = process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT
-      if (ipcPort) {
-        const ipcKey = process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY
-        const res = await invokeRequest(
-          `http://${
-            context.hostname || 'localhost'
-          }:${ipcPort}?key=${ipcKey}&method=revalidate&args=${encodeURIComponent(
-            JSON.stringify([{ urlPath, revalidateHeaders, opts }])
-          )}`,
-          {
-            method: 'GET',
-            headers: {},
-          }
-        )
-        const result = await res.json()
-
-        if (result.err) {
-          throw new Error(result.err.message)
-        }
-
-        return
-      }
-
       await context.revalidate({
         urlPath,
         revalidateHeaders,
