@@ -509,9 +509,12 @@ export function buildTS(
   })
 }
 
-export async function killProcess(pid: number): Promise<void> {
+export async function killProcess(
+  pid: number,
+  signal: string | number = 'SIGTERM'
+): Promise<void> {
   return await new Promise((resolve, reject) => {
-    treeKill(pid, (err) => {
+    treeKill(pid, signal, (err) => {
       if (err) {
         if (
           process.platform === 'win32' &&
