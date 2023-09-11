@@ -122,19 +122,15 @@ mod._resolveFilename = function (
 // that needs to point to the rendering runtime version, it will point to the correct one.
 // This can happen on `pages` when a user requires a dependency that uses next/image for example.
 // This is only needed in production as in development we fallback to the external version.
-if (
-  process.env.NODE_ENV !== 'development' &&
-  process.env.__NEXT_PRIVATE_RENDER_RUNTIME &&
-  !process.env.TURBOPACK
-) {
-  const currentRuntime = `${
-    process.env.__NEXT_PRIVATE_RENDER_RUNTIME === 'pages'
-      ? 'next/dist/compiled/next-server/pages.runtime'
-      : 'next/dist/compiled/next-server/app-page.runtime'
-  }.prod`
-
+if (process.env.NODE_ENV !== 'development' && !process.env.TURBOPACK) {
   mod.prototype.require = function (request: string) {
     if (request.endsWith('.shared-runtime')) {
+      const currentRuntime = `${
+        // this env var is only set in app router
+        !!process.env.__NEXT_PRIVATE_PREBUNDLED_REACT
+          ? 'next/dist/compiled/next-server/app-page.runtime'
+          : 'next/dist/compiled/next-server/pages.runtime'
+      }.prod`
       const base = path.basename(request, '.shared-runtime')
       const camelized = base.replace(/-([a-z])/g, (g) => g[1].toUpperCase())
       const instance = originalRequire.call(this, currentRuntime)

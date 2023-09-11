@@ -115,9 +115,12 @@ export const createWorker = async (
         __NEXT_PRIVATE_STANDALONE_CONFIG:
           process.env.__NEXT_PRIVATE_STANDALONE_CONFIG,
         NODE_ENV: process.env.NODE_ENV,
-        __NEXT_PRIVATE_RENDER_RUNTIME: type,
         __NEXT_PRIVATE_PREBUNDLED_REACT:
-          type === 'app' ? (useServerActions ? 'experimental' : 'next') : '',
+          type === 'app'
+            ? useServerActions
+              ? 'experimental'
+              : 'next'
+            : undefined,
         ...(process.env.NEXT_CPU_PROF
           ? { __NEXT_PRIVATE_CPU_PROFILE: `CPU.${type}-renderer` }
           : {}),
