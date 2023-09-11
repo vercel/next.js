@@ -17,7 +17,7 @@ type Repo = {
   stargazers_count: number
 }
 
-export async function getStaticPaths() {
+export const getStaticPaths = (async () => {
   return {
     paths: [
       {
@@ -28,13 +28,13 @@ export async function getStaticPaths() {
     ],
     fallback: true, // false or "blocking"
   }
-} as GetStaticPaths
+}) satisfies getStaticPaths
 
-export async function getStaticProps() {
+export const getStaticProps = (async (context) => {
   const res = await fetch('https://api.github.com/repos/vercel/next.js')
   const repo = await res.json()
   return { props: { repo } }
-} satisfies GetStaticProps<{
+}) satisfies GetStaticProps<{
   repo: Repo
 }>
 

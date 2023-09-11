@@ -13,11 +13,11 @@ type Repo = {
   stargazers_count: number
 }
 
-export async function getStaticProps() {
+export const getStaticProps = (async (context) => {
   const res = await fetch('https://api.github.com/repos/vercel/next.js')
   const repo = await res.json()
   return { props: { repo } }
-} satisfies GetStaticProps<{
+}) satisfies GetStaticProps<{
   repo: Repo
 }>
 
