@@ -17,7 +17,7 @@ revalidatePath(path: string, type?: 'page' | 'layout'): void;
 ```
 
 - `path`: A string representing the filesystem path associated with the data you want to revalidate. This is the literal route segment (for example, `/product/123`) not the path on the filesystem `/product/[slug]/page`. Must be less than 1024 characters.
-- `type`: An optional string of either 'page' or 'layout' to change behavior of what type of path is being revalidated.
+- `type`: (optional) `'page'` or `'layout'` string to change the type of path to revalidate.
 
 ## Returns
 
