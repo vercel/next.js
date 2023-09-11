@@ -1,21 +1,26 @@
+import '../next'
 import '../node-polyfill-fetch'
 import '../require-hook'
 
 import type { IncomingMessage, ServerResponse } from 'http'
 
+import fs from 'fs'
+import path from 'path'
 import http from 'http'
 import https from 'https'
+import Watchpack from 'watchpack'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
 import { getDebugPort } from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
-import fs from 'fs'
 import {
+  RESTART_EXIT_CODE,
   WorkerRequestHandler,
   WorkerUpgradeHandler,
 } from './setup-server-worker'
 import { checkIsNodeDebugging } from './is-node-debugging'
+import { CONFIG_FILES } from '../../shared/lib/constants'
 import chalk from '../../lib/chalk'
 
 const debug = setupDebug('next:start-server')
@@ -50,6 +55,7 @@ export async function getRequestHandlers({
   dir,
   port,
   isDev,
+  server,
   hostname,
   minimalMode,
   isNodeDebugging,
@@ -59,6 +65,7 @@ export async function getRequestHandlers({
   dir: string
   port: number
   isDev: boolean
+  server?: import('http').Server
   hostname: string
   minimalMode?: boolean
   isNodeDebugging?: boolean
@@ -71,6 +78,7 @@ export async function getRequestHandlers({
     hostname,
     dev: isDev,
     minimalMode,
+    server,
     workerType: 'router',
     isNodeDebugging: isNodeDebugging || false,
     keepAliveTimeout,
@@ -261,10 +269,10 @@ export async function startServer({
       }
 
       try {
-        const cleanup = () => {
+        const cleanup = (code: number | null) => {
           debug('start-server process cleanup')
           server.close()
-          process.exit(0)
+          process.exit(code ?? 0)
         }
         const exception = (err: Error) => {
           // This is the render worker, we keep the process alive
@@ -280,6 +288,7 @@ export async function startServer({
           dir,
           port,
           isDev,
+          server,
           hostname,
           minimalMode,
           isNodeDebugging: Boolean(isNodeDebugging),
@@ -300,4 +309,34 @@ export async function startServer({
     })
     server.listen(port, hostname)
   })
+
+  if (isDev) {
+    function watchConfigFiles(
+      dirToWatch: string,
+      onChange: (filename: string) => void
+    ) {
+      const wp = new Watchpack()
+      wp.watch({
+        files: CONFIG_FILES.map((file) => path.join(dirToWatch, file)),
+      })
+      wp.on('change', onChange)
+    }
+    watchConfigFiles(dir, async (filename) => {
+      if (process.env.__NEXT_DISABLE_MEMORY_WATCHER) {
+        Log.info(
+          `Detected change, manual restart required due to '__NEXT_DISABLE_MEMORY_WATCHER' usage`
+        )
+        return
+      }
+
+      // Adding a new line to avoid the logs going directly after the spinner in `next build`
+      Log.warn('')
+      Log.warn(
+        `Found a change in ${path.basename(
+          filename
+        )}. Restarting the server to apply the changes...`
+      )
+      process.exit(RESTART_EXIT_CODE)
+    })
+  }
 }
