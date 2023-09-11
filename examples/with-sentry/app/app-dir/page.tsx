@@ -1,5 +1,6 @@
-import Link from 'next/link'
+/** If you want to default to app router move this file to app folder and remove pages/index.tsx file */
 
+import Link from 'next/link'
 import Image from 'next/image'
 import { Inter } from 'next/font/google'
 import styles from './Home.module.css'
