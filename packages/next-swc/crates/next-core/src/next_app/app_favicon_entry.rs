@@ -14,7 +14,10 @@ use turbopack_binding::{
 };
 
 use super::app_route_entry::get_app_route_entry;
-use crate::{app_structure::MetadataItem, next_app::AppEntry};
+use crate::{
+    app_structure::MetadataItem,
+    next_app::{AppEntry, AppPage, PageSegment},
+};
 
 /// Computes the entry for a Next.js favicon file.
 #[turbo_tasks::function]
@@ -57,7 +60,7 @@ pub async fn get_app_route_favicon_entry(
             const contentType = {content_type}
             const cacheControl = {cache_control}
             const buffer = Buffer.from({original_file_content_b64}, 'base64')
-            
+
             export function GET() {{
                 return new NextResponse(buffer, {{
                     headers: {{
@@ -66,7 +69,7 @@ pub async fn get_app_route_favicon_entry(
                     }},
                 }})
             }}
-            
+
             export const dynamic = 'force-static'
             "#,
         content_type = StringifyJs(&content_type),
@@ -84,8 +87,7 @@ pub async fn get_app_route_favicon_entry(
         edge_context,
         Vc::upcast(source),
         // TODO(alexkirsz) Get this from the metadata?
-        "/favicon.ico".to_string(),
-        "/favicon.ico".to_string(),
+        AppPage(vec![PageSegment::Static("/favicon.ico".to_string())]),
         project_root,
     ))
 }

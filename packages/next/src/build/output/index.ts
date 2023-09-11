@@ -118,6 +118,7 @@ buildStore.subscribe((state) => {
       {
         bootstrap: false,
         appUrl: appUrl!,
+        // If it takes more than 3 seconds to compile, mark it as loading status
         loading: true,
         trigger,
       } as OutputState,
@@ -138,10 +139,6 @@ buildStore.subscribe((state) => {
     appUrl: appUrl!,
     loading: false,
     typeChecking: false,
-    partial:
-      clientWasLoading && (serverWasLoading || edgeServerWasLoading)
-        ? 'client and server'
-        : undefined,
     totalModulesCount:
       (clientWasLoading ? client.totalModulesCount : 0) +
       (serverWasLoading ? server.totalModulesCount : 0) +

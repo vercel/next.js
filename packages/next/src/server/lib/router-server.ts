@@ -6,6 +6,11 @@ import type {
   WorkerUpgradeHandler,
 } from './setup-server-worker'
 
+// This is required before other imports to ensure the require hook is setup.
+import '../node-polyfill-fetch'
+import '../node-environment'
+import '../require-hook'
+
 import url from 'url'
 import path from 'path'
 import loadConfig from '../config'
@@ -104,7 +109,7 @@ export async function initialize(opts: {
     const telemetry = new Telemetry({
       distDir: path.join(opts.dir, config.distDir),
     })
-    const { pagesDir, appDir } = findPagesDir(opts.dir, true)
+    const { pagesDir, appDir } = findPagesDir(opts.dir)
 
     const { setupDev } =
       (await require('./router-utils/setup-dev')) as typeof import('./router-utils/setup-dev')
@@ -118,7 +123,8 @@ export async function initialize(opts: {
       dir: opts.dir,
       nextConfig: config,
       isCustomServer: opts.customServer,
-      turbo: !!process.env.EXPERIMENTAL_TURBOPACK,
+      turbo: !!process.env.TURBOPACK,
+      port: opts.port,
     })
   }
 

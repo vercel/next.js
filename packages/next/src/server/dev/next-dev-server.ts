@@ -41,7 +41,7 @@ import {
   UnwrapPromise,
   withCoalescedInvoke,
 } from '../../lib/coalesced-function'
-import { loadDefaultErrorComponents } from '../load-components'
+import { loadDefaultErrorComponents } from '../load-default-error-components'
 import { DecodeError, MiddlewareNotFoundError } from '../../shared/lib/utils'
 import * as Log from '../../build/output/log'
 import isError, { getProperError } from '../../lib/is-error'
@@ -180,13 +180,13 @@ export default class DevServer extends Server {
       })
     }
 
-    const { pagesDir, appDir } = findPagesDir(this.dir, true)
+    const { pagesDir, appDir } = findPagesDir(this.dir)
     this.pagesDir = pagesDir
     this.appDir = appDir
   }
 
   protected getRouteMatchers(): RouteMatcherManager {
-    const { pagesDir, appDir } = findPagesDir(this.dir, true)
+    const { pagesDir, appDir } = findPagesDir(this.dir)
 
     const ensurer: RouteEnsurer = {
       ensure: async (match) => {

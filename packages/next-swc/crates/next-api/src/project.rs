@@ -1,4 +1,4 @@
-use std::path::MAIN_SEPARATOR;
+use std::{net::SocketAddr, path::MAIN_SEPARATOR};
 
 use anyhow::Result;
 use indexmap::{map::Entry, IndexMap};
@@ -19,7 +19,7 @@ use next_core::{
 };
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, unit, Completion, IntoTraitRef, State, TaskInput,
+    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, IntoTraitRef, State, TaskInput,
     TransientInstance, Value, Vc,
 };
 use turbopack_binding::{
@@ -81,6 +81,9 @@ pub struct ProjectOptions {
 
     /// Whether to watch the filesystem for file changes.
     pub watch: bool,
+
+    /// The address of the dev server.
+    pub server_addr: String,
 }
 
 #[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat)]
@@ -108,7 +111,7 @@ impl ProjectContainer {
     #[turbo_tasks::function]
     pub async fn update(self: Vc<Self>, options: ProjectOptions) -> Result<Vc<()>> {
         self.await?.options_state.set(options);
-        Ok(unit())
+        Ok(Default::default())
     }
 
     #[turbo_tasks::function]
@@ -122,6 +125,7 @@ impl ProjectContainer {
             root_path: options.root_path.clone(),
             project_path: options.project_path.clone(),
             watch: options.watch,
+            server_addr: options.server_addr.parse()?,
             next_config,
             js_config,
             env: Vc::upcast(env),
@@ -158,6 +162,10 @@ pub struct Project {
 
     /// Whether to watch the filesystem for file changes.
     watch: bool,
+
+    /// The address of the dev server.
+    #[turbo_tasks(trace_ignore)]
+    server_addr: SocketAddr,
 
     /// Next config.
     next_config: Vc<NextConfig>,
@@ -220,6 +228,11 @@ impl Project {
         let disk_fs = DiskFileSystem::new("node".to_string(), this.project_path.clone());
         disk_fs.await?.start_watching_with_invalidation_reason()?;
         Ok(Vc::upcast(disk_fs))
+    }
+
+    #[turbo_tasks::function]
+    fn server_addr(&self) -> Vc<ServerAddr> {
+        ServerAddr::new(self.server_addr).cell()
     }
 
     #[turbo_tasks::function]
@@ -302,18 +315,13 @@ impl Project {
         Ok(get_server_compile_time_info(
             this.mode,
             self.env(),
-            // TODO(alexkirsz) Fill this out.
-            ServerAddr::empty(),
+            self.server_addr(),
         ))
     }
 
     #[turbo_tasks::function]
     pub(super) fn edge_compile_time_info(self: Vc<Self>) -> Vc<CompileTimeInfo> {
-        get_edge_compile_time_info(
-            self.project_path(),
-            // TODO(alexkirsz) Fill this out.
-            ServerAddr::empty(),
-        )
+        get_edge_compile_time_info(self.project_path(), self.server_addr())
     }
 
     #[turbo_tasks::function]
@@ -424,7 +432,7 @@ impl Project {
         emit_event("swcRemoveConsole", remove_console_enabled);
         emit_event("swcEmotion", emotion_enabled);
 
-        Ok(unit())
+        Ok(Default::default())
     }
 
     #[turbo_tasks::function]

@@ -3,11 +3,12 @@
 import { IPC } from '@vercel/turbopack-node/ipc/index'
 
 import 'next/dist/server/node-polyfill-fetch.js'
+import 'next/dist/server/require-hook'
 import './shims'
 
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
-import { renderToHTML, RenderOpts } from 'next/dist/server/render'
+import type { RenderOpts } from 'next/dist/server/render'
 import { getRedirectStatus } from 'next/dist/lib/redirect-status'
 import { PERMANENT_REDIRECT_STATUS } from 'next/dist/shared/lib/constants'
 import { buildStaticPaths } from 'next/dist/build/utils'
@@ -21,6 +22,9 @@ import type { RenderData } from 'types/turbopack'
 import type { ChunkGroup } from 'types/next'
 import type { NextComponentType } from 'next/types'
 import { parse } from 'node:querystring'
+const {
+  renderToHTML,
+} = require('next/dist/compiled/next-server/pages.runtime.dev')
 
 const ipc = IPC as Ipc<IpcIncomingMessage, IpcOutgoingMessage>
 

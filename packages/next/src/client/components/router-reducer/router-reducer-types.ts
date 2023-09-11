@@ -1,4 +1,4 @@
-import type { CacheNode } from '../../../shared/lib/app-router-context'
+import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import type {
   FlightRouterState,
   FlightData,
@@ -38,11 +38,15 @@ export interface Mutable {
   prefetchCache?: AppRouterState['prefetchCache']
   hashFragment?: string
   shouldScroll?: boolean
+  globalMutable: {
+    pendingNavigatePath?: string
+    pendingMpaPath?: string
+    refresh: () => void
+  }
 }
 
 export interface ServerActionMutable extends Mutable {
   inFlightServerAction?: Promise<any> | null
-  globalMutable: { pendingNavigatePath?: string; refresh: () => void }
   actionResultResolved?: boolean
 }
 
