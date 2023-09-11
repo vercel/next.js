@@ -12,7 +12,15 @@ npx create-next-app --example with-docker nextjs-docker
 yarn create next-app --example with-docker nextjs-docker
 # or
 pnpm create next-app --example with-docker nextjs-docker
+# or
+bunx create-next-app --example with-docker nextjs-docker
 ```
+
+Optionally, after the installation is complete:
+
+- Run `cd next-app`, then run `npm install` or `yarn install` or `pnpm install` or `bun install` to generate a lockfile.
+
+It is recommended to commit a lockfile to version control. Although the example will work without one, build errors are more likely to occur when using the latest version of all dependencies. This way, we're always using a known good configuration to develop and run in production.
 
 ## Using Docker
 

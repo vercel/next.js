@@ -15,20 +15,18 @@ This example contains everything needed to get a Next.js development and product
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-docker-compose with-docker-compose-app
-```
-
-```bash
-yarn create next-app --example with-docker-compose with-docker-compose-app
-```
-
-```bash
-pnpm create next-app --example with-docker-compose with-docker-compose-app
+npx create-next-app --example with-docker-compose nextjs-docker-compose
+# or
+yarn create next-app --example with-docker-compose nextjs-docker-compose
+# or
+pnpm create next-app --example with-docker-compose nextjs-docker-compose
+# or
+bunx create-next-app --example with-docker-compose nextjs-docker-compose
 ```
 
 Optionally, after the installation is complete:
 
-- Run `cd next-app`, then run `npm install` or `yarn install` or `pnpm install` to generate a lockfile.
+- Run `cd next-app`, then run `npm install` or `yarn install` or `pnpm install` or `bun install` to generate a lockfile.
 
 It is recommended to commit a lockfile to version control. Although the example will work without one, build errors are more likely to occur when using the latest version of all dependencies. This way, we're always using a known good configuration to develop and run in production.
 

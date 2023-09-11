@@ -1,4 +1,5 @@
-version: '3'
+# `version` key is deprecated
+# https://docs.docker.com/compose/compose-file/compose-versioning/
 
 services:
   next-app:
@@ -9,6 +10,10 @@ services:
       args:
         ENV_VARIABLE: ${ENV_VARIABLE}
         NEXT_PUBLIC_ENV_VARIABLE: ${NEXT_PUBLIC_ENV_VARIABLE}
+    # Set envrionment variables based on the .env file
+    env_file:
+      - .env.production
+      - .env.production.local
     restart: always
     ports:
       - 3000:3000
