@@ -413,7 +413,7 @@ pub struct ExperimentalConfig {
     pub swc_plugins: Option<Vec<(String, serde_json::Value)>>,
 
     // unsupported
-    adjust_font_fallbacks: Option<bool>,
+    optimize_package_imports: Option<Vec<String>>,
     adjust_font_fallbacks_with_size_adjust: Option<bool>,
     allow_middleware_response_body: Option<bool>,
     amp: Option<serde_json::Value>,
