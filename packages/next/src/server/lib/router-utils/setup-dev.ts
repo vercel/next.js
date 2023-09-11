@@ -311,21 +311,20 @@ async function startWatcher(opts: SetupOpts) {
     async function processResult(
       result: TurbopackResult<WrittenEndpoint>
     ): Promise<TurbopackResult<WrittenEndpoint>> {
-      await (global as any)._nextDeleteCache?.(
-        result.serverPaths
-          .map((p) => path.join(distDir, p))
-          .concat([
-            // We need to clear the chunk cache in react
-            require.resolve(
-              'next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.edge.development.js'
-            ),
-            // And this redirecting module as well
-            require.resolve(
-              'next/dist/compiled/react-server-dom-webpack/client.edge.js'
-            ),
-          ])
-      )
-
+      for (const file of result.serverPaths
+        .map((p) => path.join(distDir, p))
+        .concat([
+          // We need to clear the chunk cache in react
+          require.resolve(
+            'next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.edge.development.js'
+          ),
+          // And this redirecting module as well
+          require.resolve(
+            'next/dist/compiled/react-server-dom-webpack/client.edge.js'
+          ),
+        ])) {
+        deleteCache(file)
+      }
       return result
     }
 
