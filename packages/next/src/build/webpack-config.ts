@@ -371,6 +371,7 @@ export function getDefineEnv({
           'global.GENTLY': JSON.stringify(false),
         }
       : undefined),
+    'process.env.TURBOPACK': JSON.stringify(false),
   }
 }
 
