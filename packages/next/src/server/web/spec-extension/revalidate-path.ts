@@ -8,7 +8,7 @@ import {
 export function revalidatePath(originalPath: string, type?: 'layout' | 'page') {
   if (originalPath.length > NEXT_CACHE_SOFT_TAG_MAX_LENGTH) {
     console.warn(
-      `Warning: revalidatePath received "${originalPath}" which exceeded max length of ${NEXT_CACHE_SOFT_TAG_MAX_LENGTH}.`
+      `Warning: revalidatePath received "${originalPath}" which exceeded max length of ${NEXT_CACHE_SOFT_TAG_MAX_LENGTH}. See more info here https://nextjs.org/docs/app/api-reference/functions/revalidatePath`
     )
     return
   }
@@ -19,7 +19,7 @@ export function revalidatePath(originalPath: string, type?: 'layout' | 'page') {
     normalizedPath += `${normalizedPath.endsWith('/') ? '' : '/'}${type}`
   } else if (isDynamicRoute(originalPath)) {
     console.warn(
-      `Warning: a dynamic page path "${originalPath}" was passed to "revalidatePath" without the "page" argument. This has no affect by default`
+      `Warning: a dynamic page path "${originalPath}" was passed to "revalidatePath" without the "page" argument. This has no affect by default, see more info here https://nextjs.org/docs/app/api-reference/functions/revalidatePath`
     )
   }
   return revalidateTag(normalizedPath)
