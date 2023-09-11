@@ -20,6 +20,8 @@ const supportedTurbopackNextConfigOptions = [
   'swcMinify',
   'transpilePackages',
   'trailingSlash',
+  'i18n.locales',
+  'i18n.defaultLocale',
   'sassOptions.includePaths',
   'experimental.serverComponentsExternalPackages',
   'experimental.turbo',
