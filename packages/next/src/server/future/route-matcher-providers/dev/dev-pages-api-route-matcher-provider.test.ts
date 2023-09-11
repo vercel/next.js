@@ -2,7 +2,7 @@ import path from 'path'
 import { PagesAPIRouteDefinition } from '../../route-definitions/pages-api-route-definition'
 import { RouteKind } from '../../route-kind'
 import { DevPagesAPIRouteMatcherProvider } from './dev-pages-api-route-matcher-provider'
-import { FileReader } from './helpers/file-reader/file-reader'
+import { FileReader } from '../../helpers/file-reader/file-reader'
 
 const normalizeSlashes = (p: string) => p.replace(/\//g, path.sep)
 
@@ -11,11 +11,13 @@ describe('DevPagesAPIRouteMatcherProvider', () => {
   const extensions = ['ts', 'tsx', 'js', 'jsx']
 
   it('returns no routes with an empty filesystem', async () => {
-    const reader: FileReader = { read: jest.fn(() => []) }
+    const reader: FileReader = {
+      read: jest.fn(() => []),
+    }
     const matcher = new DevPagesAPIRouteMatcherProvider(dir, extensions, reader)
     const matchers = await matcher.matchers()
     expect(matchers).toHaveLength(0)
-    expect(reader.read).toBeCalledWith(dir)
+    expect(reader.read).toBeCalledWith(dir, { recursive: true })
   })
 
   describe('filename matching', () => {
@@ -81,7 +83,7 @@ describe('DevPagesAPIRouteMatcherProvider', () => {
         )
         const matchers = await matcher.matchers()
         expect(matchers).toHaveLength(1)
-        expect(reader.read).toBeCalledWith(dir)
+        expect(reader.read).toBeCalledWith(dir, { recursive: true })
         expect(matchers[0].definition).toEqual(route)
       }
     )

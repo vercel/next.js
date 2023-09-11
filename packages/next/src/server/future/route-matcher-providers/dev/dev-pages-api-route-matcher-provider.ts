@@ -1,4 +1,4 @@
-import { FileReader } from './helpers/file-reader/file-reader'
+import { FileReader } from '../../helpers/file-reader/file-reader'
 import {
   PagesAPILocaleRouteMatcher,
   PagesAPIRouteMatcher,
@@ -19,7 +19,7 @@ export class DevPagesAPIRouteMatcherProvider extends FileCacheRouteMatcherProvid
     reader: FileReader,
     private readonly localeNormalizer?: LocaleRouteNormalizer
   ) {
-    super(pagesDir, reader)
+    super(pagesDir, reader, true)
 
     // Match any route file that ends with `/${filename}.${extension}` under the
     // pages directory.

@@ -1,8 +1,18 @@
-import { FileReader } from './file-reader'
+import type { FileReader, FileReaderOptions } from './file-reader'
+
+import {
+  groupDuplicateReadDirSpecs,
+  mergeDuplicateReadDirSpecs,
+} from './helpers/deduplicate-recursive-directories'
+
+type FileReadJob = {
+  directory: string
+  recursive: boolean
+}
 
 interface FileReaderBatch {
   completed: boolean
-  directories: Array<string>
+  specs: Array<FileReadJob>
   callbacks: Array<{
     resolve: (value: ReadonlyArray<string>) => void
     reject: (err: any) => void
@@ -10,7 +20,7 @@ interface FileReaderBatch {
 }
 
 /**
- * CachedFileReader will deduplicate requests made to the same folder structure
+ * BatchedFileReader will deduplicate requests made to the same folder structure
  * to scan for files.
  */
 export class BatchedFileReader implements FileReader {
@@ -38,7 +48,7 @@ export class BatchedFileReader implements FileReader {
 
     const batch: FileReaderBatch = {
       completed: false,
-      directories: [],
+      specs: [],
       callbacks: [],
     }
 
@@ -46,13 +56,13 @@ export class BatchedFileReader implements FileReader {
 
     this.schedule(async () => {
       batch.completed = true
-      if (batch.directories.length === 0) return
+      if (batch.specs.length === 0) return
 
       // Collect all the results for each of the directories. If any error
       // occurs, send the results back to the loaders.
       let values: ReadonlyArray<ReadonlyArray<string> | Error>
       try {
-        values = await this.load(batch.directories)
+        values = await this.load(batch.specs)
       } catch (err) {
         // Reject all the callbacks.
         for (const { reject } of batch.callbacks) {
@@ -76,43 +86,36 @@ export class BatchedFileReader implements FileReader {
   }
 
   private async load(
-    directories: ReadonlyArray<string>
+    specs: Array<FileReadJob>
   ): Promise<ReadonlyArray<ReadonlyArray<string> | Error>> {
-    // Make a unique array of directories. This is what lets us de-duplicate
-    // loads for the same directory.
-    const unique = [...new Set(directories)]
+    const queue = groupDuplicateReadDirSpecs(specs)
 
     const results = await Promise.all(
-      unique.map(async (directory) => {
+      queue.map(async ({ directory, recursive, ...rest }) => {
         let files: ReadonlyArray<string> | undefined
         let error: Error | undefined
         try {
-          files = await this.reader.read(directory)
+          files = await this.reader.read(directory, { recursive })
         } catch (err) {
           if (err instanceof Error) error = err
         }
 
-        return { directory, files, error }
+        return { directory, files, error, recursive, ...rest }
       })
     )
 
-    return directories.map((directory) => {
-      const found = results.find((result) => result.directory === directory)
-      if (!found) return []
-
-      if (found.files) return found.files
-      if (found.error) return found.error
-
-      return []
-    })
+    return mergeDuplicateReadDirSpecs(specs, results)
   }
 
-  public async read(dir: string): Promise<ReadonlyArray<string>> {
+  public read(
+    directory: string,
+    { recursive }: FileReaderOptions
+  ): Promise<ReadonlyArray<string>> {
     // Get or create a new file reading batch.
     const batch = this.getOrCreateBatch()
 
     // Push this directory into the batch to resolve.
-    batch.directories.push(dir)
+    batch.specs.push({ directory, recursive })
 
     // Push the promise handles into the batch (under the same index) so it can
     // be resolved later when it's scheduled.

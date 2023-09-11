@@ -1,10 +1,11 @@
-import { FileReader } from './helpers/file-reader/file-reader'
+import type { FileReader } from '../../helpers/file-reader/file-reader'
+
+import path from 'path'
 import {
   PagesRouteMatcher,
   PagesLocaleRouteMatcher,
 } from '../../route-matchers/pages-route-matcher'
 import { RouteKind } from '../../route-kind'
-import path from 'path'
 import { LocaleRouteNormalizer } from '../../normalizers/locale-route-normalizer'
 import { FileCacheRouteMatcherProvider } from './file-cache-route-matcher-provider'
 import { DevPagesNormalizers } from '../../normalizers/built/pages'
@@ -19,7 +20,7 @@ export class DevPagesRouteMatcherProvider extends FileCacheRouteMatcherProvider<
     reader: FileReader,
     private readonly localeNormalizer?: LocaleRouteNormalizer
   ) {
-    super(pagesDir, reader)
+    super(pagesDir, reader, true)
 
     // Match any route file that ends with `/${filename}.${extension}` under the
     // pages directory.

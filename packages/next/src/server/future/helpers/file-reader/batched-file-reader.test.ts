@@ -3,8 +3,8 @@ import { FileReader } from './file-reader'
 
 describe('CachedFileReader', () => {
   it('will only scan the filesystem a minimal amount of times', async () => {
-    const pages = ['1', '2', '3']
-    const app = ['4', '5', '6']
+    const pages = ['1', '2', '3'].map((name) => `<root>/pages/${name}`)
+    const app = ['4', '5', '6'].map((name) => `<root>/app/${name}`)
 
     const reader: FileReader = {
       read: jest.fn(async (directory: string) => {
@@ -21,18 +21,19 @@ describe('CachedFileReader', () => {
     const cached = new BatchedFileReader(reader)
 
     const results = await Promise.all([
-      cached.read('<root>/pages'),
-      cached.read('<root>/pages'),
-      cached.read('<root>/app'),
-      cached.read('<root>/app'),
+      cached.read('<root>/pages', { recursive: true }),
+      cached.read('<root>/pages', { recursive: true }),
+      cached.read('<root>/app', { recursive: true }),
+      cached.read('<root>/app', { recursive: true }),
     ])
 
     expect(reader.read).toBeCalledTimes(2)
     expect(results).toHaveLength(4)
-    expect(results[0]).toBe(pages)
-    expect(results[1]).toBe(pages)
-    expect(results[2]).toBe(app)
-    expect(results[3]).toBe(app)
+    expect(results[0]).toEqual(pages)
+    expect(results[0]).toBe(results[1])
+
+    expect(results[2]).toEqual(app)
+    expect(results[2]).toBe(results[3])
   })
 
   it('will send an error back only to the correct reader', async () => {
@@ -54,9 +55,13 @@ describe('CachedFileReader', () => {
     await Promise.all(
       ['reject', 'resolve', 'reject', 'resolve'].map(async (directory) => {
         if (directory === 'reject') {
-          await expect(cached.read(directory)).rejects.toThrowError('rejected')
+          await expect(
+            cached.read(directory, { recursive: true })
+          ).rejects.toThrowError('rejected')
         } else {
-          await expect(cached.read(directory)).resolves.toEqual(resolved)
+          await expect(
+            cached.read(directory, { recursive: true })
+          ).resolves.toEqual(resolved)
         }
       })
     )

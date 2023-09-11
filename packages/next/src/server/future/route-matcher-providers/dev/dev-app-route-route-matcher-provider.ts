@@ -1,4 +1,5 @@
-import { FileReader } from './helpers/file-reader/file-reader'
+import type { FileReader } from '../../helpers/file-reader/file-reader'
+
 import { AppRouteRouteMatcher } from '../../route-matchers/app-route-route-matcher'
 import { Normalizer } from '../../normalizers/normalizer'
 import { RouteKind } from '../../route-kind'
@@ -18,7 +19,7 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
     extensions: ReadonlyArray<string>,
     reader: FileReader
   ) {
-    super(appDir, reader)
+    super(appDir, reader, true)
 
     this.normalizers = new DevAppNormalizers(appDir, extensions)
   }

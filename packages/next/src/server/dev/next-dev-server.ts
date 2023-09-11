@@ -58,12 +58,12 @@ import { DevAppPageRouteMatcherProvider } from '../future/route-matcher-provider
 import { DevAppRouteRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-app-route-route-matcher-provider'
 import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
 import { NodeManifestLoader } from '../future/route-matcher-providers/helpers/manifest-loaders/node-manifest-loader'
-import { BatchedFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/batched-file-reader'
-import { DefaultFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/default-file-reader'
 import { NextBuildContext } from '../../build/build-context'
 import { IncrementalCache } from '../lib/incremental-cache'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
+import { BatchedFileReader } from '../future/helpers/file-reader/batched-file-reader'
+import { BaseRecursiveFileReader } from '../future/helpers/file-reader/base-file-reader'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -203,17 +203,11 @@ export default class DevServer extends Server {
       this.dir
     )
     const extensions = this.nextConfig.pageExtensions
-    const extensionsExpression = new RegExp(`\\.(?:${extensions.join('|')})$`)
+
+    const fileReader = new BatchedFileReader(new BaseRecursiveFileReader())
 
     // If the pages directory is available, then configure those matchers.
     if (pagesDir) {
-      const fileReader = new BatchedFileReader(
-        new DefaultFileReader({
-          // Only allow files that have the correct extensions.
-          pathnameFilter: (pathname) => extensionsExpression.test(pathname),
-        })
-      )
-
       matchers.push(
         new DevPagesRouteMatcherProvider(
           pagesDir,
@@ -233,17 +227,6 @@ export default class DevServer extends Server {
     }
 
     if (appDir) {
-      // We create a new file reader for the app directory because we don't want
-      // to include any folders or files starting with an underscore. This will
-      // prevent the reader from wasting time reading files that we know we
-      // don't care about.
-      const fileReader = new BatchedFileReader(
-        new DefaultFileReader({
-          // Ignore any directory prefixed with an underscore.
-          ignorePartFilter: (part) => part.startsWith('_'),
-        })
-      )
-
       matchers.push(
         new DevAppPageRouteMatcherProvider(appDir, extensions, fileReader)
       )
