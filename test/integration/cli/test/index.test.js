@@ -208,6 +208,28 @@ describe('CLI Usage', () => {
         'Invalid keep alive timeout provided, expected a non negative number'
       )
     })
+
+    test('should not start on a port out of range', async () => {
+      const invalidPort = '300001'
+      const { stderr } = await runNextCommand(['start', '--port', '300001'], {
+        stderr: true,
+      })
+
+      expect(stderr).toContain(
+        `options.port should be >= 0 and < 65536. Received type number (${invalidPort}).`
+      )
+    })
+
+    test('should not start on a reserved port', async () => {
+      const reservedPort = '4045'
+      const { stderr } = await runNextCommand(['start', '--port', '4045'], {
+        stderr: true,
+      })
+      console.log(stderr)
+      expect(stderr).toContain(
+        `Bad port: '${reservedPort}' is reserved for npp`
+      )
+    })
   })
 
   describe('no command', () => {
