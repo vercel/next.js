@@ -18,6 +18,11 @@ import uploadTrace from '../trace/upload-trace'
 import { startServer } from '../server/lib/start-server'
 import { loadEnvConfig } from '@next/env'
 import { trace } from '../trace'
+import {
+  ReservedPort,
+  getPortIsReserved,
+  getReservedPortExplanation,
+} from '../lib/helpers/get-reserved-port'
 
 let dir: string
 let config: NextConfigComplete
@@ -167,6 +172,12 @@ const nextDev: CliCommand = async (args) => {
   }
 
   const port = getPort(args)
+
+  // Check if port is reserved or not.
+  if (getPortIsReserved(port)) {
+    printAndExit(getReservedPortExplanation(port as ReservedPort), 1)
+  }
+
   // If neither --port nor PORT were specified, it's okay to retry new ports.
   const allowRetry =
     args['--port'] === undefined && process.env.PORT === undefined
