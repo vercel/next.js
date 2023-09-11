@@ -68,6 +68,7 @@ import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plu
 import { getSupportedBrowsers } from './utils'
 import { MemoryWithGcCachePlugin } from './webpack/plugins/memory-with-gc-cache-plugin'
 import { getBabelConfigFile } from './get-babel-config-file'
+import { defaultOverrides } from '../server/import-overrides'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -1146,8 +1147,8 @@ export default async function getBaseWebpackConfig(
 
       next: NEXT_PROJECT_ROOT,
 
-      'styled-jsx/style$': require.resolve(`styled-jsx/style`),
-      'styled-jsx$': require.resolve(`styled-jsx`),
+      'styled-jsx/style$': defaultOverrides['styled-jsx/style'],
+      'styled-jsx$': defaultOverrides['styled-jsx'],
 
       ...customAppAliases,
       ...customErrorAlias,
@@ -1558,7 +1559,7 @@ export default async function getBaseWebpackConfig(
     // Forcedly resolve the styled-jsx installed by next.js,
     // since `resolveExternal` cannot find the styled-jsx dep with pnpm
     if (request === 'styled-jsx/style') {
-      resolveResult.res = require.resolve(request)
+      return `commonjs ${defaultOverrides['styled-jsx/style']}`
     }
 
     const { res, isEsm } = resolveResult

@@ -19,8 +19,8 @@ export const defaultOverrides = {
     ? dirname(resolve('styled-jsx/package.json'))
     : dirname(resolve('styled-jsx/package.json', nextPaths)),
   'styled-jsx/style': process.env.NEXT_MINIMAL
-    ? dirname(resolve('styled-jsx/style'))
-    : dirname(resolve('styled-jsx/style', nextPaths)),
+    ? resolve('styled-jsx/style')
+    : resolve('styled-jsx/style', nextPaths),
 }
 
 export const baseOverrides = {
