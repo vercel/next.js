@@ -67,6 +67,7 @@ export class PagesRouteMatcherProvider extends ManifestRouteMatcherProvider<Page
         matchers.push(
           new PagesRouteMatcher({
             kind: RouteKind.PAGES,
+            // In `pages/`, the page is the same as the pathname.
             pathname: page,
             page,
             bundlePath: this.normalizers.bundlePath.normalize(page),
