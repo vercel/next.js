@@ -68,6 +68,7 @@ import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plu
 import { getSupportedBrowsers } from './utils'
 import { MemoryWithGcCachePlugin } from './webpack/plugins/memory-with-gc-cache-plugin'
 import { getBabelConfigFile } from './get-babel-config-file'
+import { defaultOverrides } from '../server/import-overrides'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -1127,6 +1128,14 @@ export default async function getBaseWebpackConfig(
         '@opentelemetry/api': 'next/dist/compiled/@opentelemetry/api',
       }),
 
+      ...(hasAppDir
+        ? createRSCAliases(bundledReactChannel, {
+            reactSharedSubset: false,
+            reactDomServerRenderingStub: false,
+            reactProductionProfiling,
+          })
+        : {}),
+
       ...(config.images.loaderFile
         ? {
             'next/dist/shared/lib/image-loader': config.images.loaderFile,
@@ -1138,8 +1147,8 @@ export default async function getBaseWebpackConfig(
 
       next: NEXT_PROJECT_ROOT,
 
-      'styled-jsx/style$': require.resolve(`styled-jsx/style`),
-      'styled-jsx$': require.resolve(`styled-jsx`),
+      'styled-jsx/style$': defaultOverrides['styled-jsx/style'],
+      'styled-jsx$': defaultOverrides['styled-jsx'],
 
       ...customAppAliases,
       ...customErrorAlias,
@@ -1273,7 +1282,16 @@ export default async function getBaseWebpackConfig(
     }
   }
 
-  for (const packageName of ['react', 'react-dom']) {
+  for (const packageName of [
+    'react',
+    'react-dom',
+    ...(hasAppDir
+      ? [
+          `next/dist/compiled/react${bundledReactChannel}`,
+          `next/dist/compiled/react-dom${bundledReactChannel}`,
+        ]
+      : []),
+  ]) {
     addPackagePath(packageName, dir)
   }
 
@@ -1541,7 +1559,7 @@ export default async function getBaseWebpackConfig(
     // Forcedly resolve the styled-jsx installed by next.js,
     // since `resolveExternal` cannot find the styled-jsx dep with pnpm
     if (request === 'styled-jsx/style') {
-      resolveResult.res = require.resolve(request)
+      resolveResult.res = defaultOverrides['styled-jsx/style']
     }
 
     const { res, isEsm } = resolveResult
@@ -2116,11 +2134,6 @@ export default async function getBaseWebpackConfig(
                     [require.resolve('next/dynamic')]: require.resolve(
                       'next/dist/shared/lib/app-dynamic'
                     ),
-                    ...createRSCAliases(bundledReactChannel, {
-                      reactSharedSubset: false,
-                      reactDomServerRenderingStub: false,
-                      reactProductionProfiling,
-                    }),
                   },
                 },
               },
