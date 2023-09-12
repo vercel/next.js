@@ -667,7 +667,7 @@ export default async function build(
 
       if (turboNextBuild) {
         // TODO(WEB-397) This is a temporary workaround to allow for filtering a
-        // subset of pages when building with --turbo, until we
+        // subset of pages when building with --experimental-turbo, until we
         // have complete support for all pages.
         if (process.env.NEXT_TURBO_FILTER_PAGES) {
           const filterPages = process.env.NEXT_TURBO_FILTER_PAGES.split(',')

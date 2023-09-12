@@ -8,8 +8,8 @@ export const validArgs: arg.Spec = {
   '--no-lint': Boolean,
   '--no-mangling': Boolean,
   '--experimental-app-only': Boolean,
-  '--turbo': Boolean,
-  '--turbo-root': String,
+  '--experimental-turbo': Boolean,
+  '--experimental-turbo-root': String,
   '--build-mode': String,
   // Aliases
   '-h': '--help',

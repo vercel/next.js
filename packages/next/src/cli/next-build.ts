@@ -25,7 +25,7 @@ const nextBuild: CliCommand = (args) => {
       --no-lint                Disable linting
       --no-mangling            Disable mangling
       --experimental-app-only  Only build 'app' routes
-      --turbo                  Enable turbo mode
+      --experimental-turbo     Enable experimental turbo mode
       --help, -h               Displays this message
     `,
       0
@@ -49,7 +49,7 @@ const nextBuild: CliCommand = (args) => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  if (args['--turbo']) {
+  if (args['--experimental-turbo']) {
     process.env.TURBOPACK = '1'
   }
 
@@ -61,7 +61,7 @@ const nextBuild: CliCommand = (args) => {
     args['--no-mangling'],
     args['--experimental-app-only'],
     !!process.env.TURBOPACK,
-    args['--turbo-root'],
+    args['--experimental-turbo-root'],
     args['--build-mode'] || 'default'
   ).catch((err) => {
     console.error('')
