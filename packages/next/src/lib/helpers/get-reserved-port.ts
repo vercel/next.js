@@ -80,9 +80,9 @@ export const KNOWN_RESERVED_PORTS = {
   6669: 'ircu',
   6697: 'ircs-u',
   10080: 'amanda',
-}
+} as const
 
-export type ReservedPort = keyof typeof KNOWN_RESERVED_PORTS
+type ReservedPort = keyof typeof KNOWN_RESERVED_PORTS
 
 export function isPortIsReserved(port: number): port is ReservedPort {
   return port in KNOWN_RESERVED_PORTS
