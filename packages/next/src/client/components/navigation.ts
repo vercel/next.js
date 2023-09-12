@@ -169,6 +169,7 @@ function getSelectedParams(
 export function useParams<T extends Params = Params>(): T {
   clientHookInServerComponentError('useParams')
   const globalLayoutRouterContext = useContext(GlobalLayoutRouterContext)
+  const pagesRouter = useContext(RouterContext)
 
   // When it's under app router
   if (globalLayoutRouterContext) {
@@ -176,7 +177,6 @@ export function useParams<T extends Params = Params>(): T {
   }
 
   // When it's under pages router,
-  const pagesRouter = useContext(RouterContext)
   if (pagesRouter) {
     const allQuery = pagesRouter.query
     const searchParamsKeysSet = new Set(
