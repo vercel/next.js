@@ -132,7 +132,6 @@ function logStartInfo({
 
   // New line after the bootstrap info
   Log.info('')
-  Log.event('ready')
 }
 
 export async function startServer({
@@ -278,6 +277,17 @@ export async function startServer({
         )
       }
 
+      if (logReady) {
+        logStartInfo({
+          port,
+          actualHostname,
+          appUrl,
+          hostname,
+          envInfo,
+          expFeatureInfo,
+        })
+      }
+
       // expose the main port to render workers
       process.env.PORT = port + ''
 
@@ -318,16 +328,7 @@ export async function startServer({
         process.exit(1)
       }
 
-      if (logReady) {
-        logStartInfo({
-          port,
-          actualHostname,
-          appUrl,
-          hostname,
-          envInfo,
-          expFeatureInfo,
-        })
-      }
+      Log.event('ready')
 
       resolve()
     })
