@@ -36,6 +36,7 @@ import loadCustomRoutes, {
   normalizeRouteRegex,
   Redirect,
   Rewrite,
+  RouteHas,
   RouteType,
 } from '../lib/load-custom-routes'
 import { getRedirectStatus, modifyRouteRegex } from '../lib/redirect-status'
@@ -160,6 +161,7 @@ export type SsgRoute = {
   dataRoute: string | null
   initialStatus?: number
   initialHeaders?: Record<string, string>
+  experimentalBypassFor?: RouteHas[]
 }
 
 export type DynamicSsgRoute = {
@@ -2703,10 +2705,7 @@ export default async function build(
                   ? null
                   : path.posix.join(`${normalizedRoute}.rsc`)
 
-                const routeMeta: {
-                  initialStatus?: SsgRoute['initialStatus']
-                  initialHeaders?: SsgRoute['initialHeaders']
-                } = {}
+                const routeMeta: Partial<SsgRoute> = {}
 
                 const exportRouteMeta: {
                   status?: number
@@ -2743,6 +2742,14 @@ export default async function build(
 
                 finalPrerenderRoutes[route] = {
                   ...routeMeta,
+                  experimentalBypassFor: [
+                    { type: 'header', key: 'Next-Action' },
+                    {
+                      type: 'header',
+                      key: 'content-type',
+                      value: 'multipart/form-data',
+                    },
+                  ],
                   initialRevalidateSeconds: revalidate,
                   srcRoute: page,
                   dataRoute,
