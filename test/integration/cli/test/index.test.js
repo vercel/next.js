@@ -533,7 +533,10 @@ describe('CLI Usage', () => {
     })
 
     test('-p reserved', async () => {
-      const { stderr, stdout } = await runAndCaptureOutput({ port: 1 })
+      const TCP_MUX_PORT = 1
+      const { stderr, stdout } = await runAndCaptureOutput({
+        port: TCP_MUX_PORT,
+      })
 
       expect(stdout).toMatch('')
       expect(stderr).toMatch("Bad port: '1' is reserved for tcpmux")
