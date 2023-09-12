@@ -18231,18 +18231,6 @@ export declare function Purple_Purse<
   adjustFontFallback?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
-export declare function Pushster<
-  T extends CssVariable | undefined = undefined
->(options: {
-  weight: '400' | Array<'400'>
-  style?: 'normal' | Array<'normal'>
-  display?: Display
-  variable?: T
-  preload?: boolean
-  fallback?: string[]
-  adjustFontFallback?: boolean
-  subsets?: Array<'latin' | 'latin-ext'>
-}): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Qahiri<
   T extends CssVariable | undefined = undefined
 >(options: {
