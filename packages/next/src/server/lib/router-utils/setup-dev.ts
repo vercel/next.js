@@ -953,8 +953,6 @@ async function startWatcher(opts: SetupOpts) {
         // Not implemented yet.
       },
       async start() {
-        // Align with nextjs logging for ready start event
-        Log.event('ready')
         // Not implemented yet.
       },
       async stop() {
