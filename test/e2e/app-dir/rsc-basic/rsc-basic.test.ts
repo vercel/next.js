@@ -327,7 +327,7 @@ createNextDescribe(
 
       // from styled-jsx
       expect(head).toMatch(/{color:(\s*)purple;?}/) // styled-jsx/style
-      expect(head).toMatch(/{color:(\s*)#ff69b4;?}/) // styled-jsx/css
+      expect(head).toMatch(/{color:(\s*)hotpink;?}/) // styled-jsx/css
 
       // from styled-components
       expect(head).toMatch(/{color:(\s*)blue;?}/)
@@ -339,7 +339,7 @@ createNextDescribe(
 
       // from styled-jsx
       expect(head).toMatch(/{color:(\s*)purple;?}/) // styled-jsx/style
-      expect(head).toMatch(/{color:(\s*)#ff69b4;?}/) // styled-jsx/css
+      expect(head).toMatch(/{color:(\s*)hotpink;?}/) // styled-jsx/css
 
       // from styled-components
       expect(head).toMatch(/{color:(\s*)blue;?}/)
@@ -450,8 +450,8 @@ createNextDescribe(
       expect(await res.text()).toBe('Hello from import-test.js')
     })
 
-    it('should use stable react for pages', async () => {
-      const ssrPaths = ['/pages-react', '/pages-react-edge']
+    it('should use bundled react for pages with app', async () => {
+      const ssrPaths = ['/pages-react', '/edge-pages-react']
       const promises = ssrPaths.map(async (pathname) => {
         const resPages$ = await next.render$(pathname)
         const ssrPagesReactVersions = [
@@ -461,7 +461,7 @@ createNextDescribe(
         ]
 
         ssrPagesReactVersions.forEach((version) => {
-          expect(version).not.toMatch('-canary-')
+          expect(version).toMatch('-canary-')
         })
       })
       await Promise.all(promises)
@@ -496,10 +496,10 @@ createNextDescribe(
       `)
 
       browserPagesReactVersions.forEach((version) =>
-        expect(version).not.toMatch('-canary-')
+        expect(version).toMatch('-canary-')
       )
       browserEdgePagesReactVersions.forEach((version) =>
-        expect(version).not.toMatch('-canary-')
+        expect(version).toMatch('-canary-')
       )
     })
 

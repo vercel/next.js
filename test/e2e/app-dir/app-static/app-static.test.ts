@@ -2263,7 +2263,7 @@ createNextDescribe(
             )
             const html = await res.text()
 
-            // Shouild not bail out to client rendering
+            // Should not bail out to client rendering
             expect(html).not.toInclude('<p>search params suspense</p>')
 
             // Use empty search params instead
@@ -2277,17 +2277,11 @@ createNextDescribe(
       }
     })
 
-    // TODO: needs updating as usePathname should not bail
-    describe.skip('usePathname', () => {
-      if (isDev) {
-        it('should bail out to client rendering during SSG', async () => {
-          const res = await next.fetch('/hooks/use-pathname/slug')
-          const html = await res.text()
-          expect(html).toInclude('<html id="__next_error__">')
-        })
-      }
-
+    describe('usePathname', () => {
       it('should have the correct values', async () => {
+        const $ = await next.render$('/hooks/use-pathname/slug')
+        expect($('#pathname').text()).toContain('/hooks/use-pathname/slug')
+
         const browser = await next.browser('/hooks/use-pathname/slug')
 
         expect(await browser.elementByCss('#pathname').text()).toBe(

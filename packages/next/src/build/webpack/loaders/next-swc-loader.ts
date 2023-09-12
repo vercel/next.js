@@ -77,6 +77,7 @@ async function loaderTransform(
     optimizePackageImports: nextConfig?.experimental?.optimizePackageImports,
     swcPlugins: nextConfig?.experimental?.swcPlugins,
     compilerOptions: nextConfig?.compiler,
+    optimizeServerReact: nextConfig?.experimental?.optimizeServerReact,
     jsConfig,
     supportedBrowsers,
     swcCacheDir,

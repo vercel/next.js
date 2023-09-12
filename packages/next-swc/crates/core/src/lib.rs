@@ -60,6 +60,7 @@ pub mod named_import_transform;
 pub mod next_dynamic;
 pub mod next_ssg;
 pub mod optimize_barrel;
+pub mod optimize_server_react;
 pub mod page_config;
 pub mod react_remove_properties;
 pub mod react_server_components;
@@ -147,6 +148,9 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub cjs_require_optimizer: Option<cjs_optimizer::Config>,
+
+    #[serde(default)]
+    pub optimize_server_react: Option<optimize_server_react::Config>,
 }
 
 pub fn custom_before_pass<'a, C: Comments + 'a>(
@@ -263,6 +267,10 @@ where
         },
         match &opts.optimize_barrel_exports {
             Some(config) => Either::Left(optimize_barrel::optimize_barrel(config.clone())),
+            _ => Either::Right(noop()),
+        },
+        match &opts.optimize_server_react {
+            Some(config) => Either::Left(optimize_server_react::optimize_server_react(config.clone())),
             _ => Either::Right(noop()),
         },
         opts.emotion

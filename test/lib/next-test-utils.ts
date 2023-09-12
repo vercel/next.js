@@ -13,6 +13,7 @@ import path from 'path'
 import spawn from 'cross-spawn'
 import { writeFile } from 'fs-extra'
 import getPort from 'get-port'
+import { getRandomPort } from 'get-port-please'
 import fetch from 'node-fetch'
 import qs from 'querystring'
 import treeKill from 'tree-kill'
@@ -25,11 +26,7 @@ import type { RequestInit, Response } from 'node-fetch'
 import type { NextServer } from 'next/dist/server/next'
 import type { BrowserInterface } from './browsers/base'
 
-import {
-  getTurbopackFlag,
-  shouldRunExperimentalTurboDevTest,
-  shouldRunTurboDevTest,
-} from './turbo'
+import { getTurbopackFlag, shouldRunTurboDevTest } from './turbo'
 import stripAnsi from 'strip-ansi'
 
 export { shouldRunTurboDevTest }
@@ -175,7 +172,18 @@ export function renderViaHTTP(
 }
 
 export function findPort() {
-  return getPort()
+  // [NOTE] What are we doing here?
+  // There are some flaky tests failures caused by `No available ports found` from 'get-port'.
+  // This may be related / fixed by upstream https://github.com/sindresorhus/get-port/pull/56,
+  // however it happened after get-port switched to pure esm which is not easy to adapt by bump.
+  // get-port-please seems to offer the feature parity so we'll try to use it, and leave get-port as fallback
+  // for a while until we are certain to switch to get-port-please entirely.
+  try {
+    return getRandomPort()
+  } catch (e) {
+    require('console').warn('get-port-please failed, falling back to get-port')
+    return getPort()
+  }
 }
 
 export interface NextOptions {
@@ -319,7 +327,6 @@ export interface NextDevOptions {
   bootupMarker?: RegExp
   nextStart?: boolean
   turbo?: boolean
-  experimentalTurbo?: boolean
 
   stderr?: false
   stdout?: false
@@ -363,20 +370,13 @@ export function runNextCommandDev(
     let didResolve = false
 
     const bootType =
-      opts.nextStart || stdOut
-        ? 'start'
-        : opts?.experimentalTurbo
-        ? 'experimentalTurbo'
-        : opts?.turbo
-        ? 'turbo'
-        : 'dev'
+      opts.nextStart || stdOut ? 'start' : opts?.turbo ? 'turbo' : 'dev'
 
     function handleStdout(data) {
       const message = data.toString()
       const bootupMarkers = {
         dev: /✓ ready/i,
-        turbo: /started server/i,
-        experimentalTurbo: /✓ ready/i,
+        turbo: /✓ ready/i,
         start: /▲ Next.js/i,
       }
 
@@ -438,11 +438,10 @@ export function launchApp(
 ) {
   const options = opts ?? {}
   const useTurbo = shouldRunTurboDevTest()
-  const useExperimentalTurbo = shouldRunExperimentalTurboDevTest()
 
   return runNextCommandDev(
     [
-      useTurbo || useExperimentalTurbo ? getTurbopackFlag() : undefined,
+      useTurbo ? getTurbopackFlag() : undefined,
       dir,
       '-p',
       port as string,
@@ -451,7 +450,6 @@ export function launchApp(
     {
       ...options,
       turbo: useTurbo,
-      experimentalTurbo: useExperimentalTurbo,
     }
   )
 }
@@ -523,9 +521,12 @@ export function buildTS(
   })
 }
 
-export async function killProcess(pid: number): Promise<void> {
+export async function killProcess(
+  pid: number,
+  signal: string | number = 'SIGTERM'
+): Promise<void> {
   return await new Promise((resolve, reject) => {
-    treeKill(pid, (err) => {
+    treeKill(pid, signal, (err) => {
       if (err) {
         if (
           process.platform === 'win32' &&
@@ -550,7 +551,9 @@ export async function killProcess(pid: number): Promise<void> {
 
 // Kill a launched app
 export async function killApp(instance: ChildProcess) {
-  await killProcess(instance.pid)
+  if (instance && instance.pid) {
+    await killProcess(instance.pid)
+  }
 }
 
 export async function startApp(app: NextServer) {
@@ -1022,30 +1025,23 @@ export function findAllTelemetryEvents(output: string, eventName: string) {
   return events.filter((e) => e.eventName === eventName).map((e) => e.payload)
 }
 
-type TestVariants = 'default' | 'turbo' | 'experimentalTurbo'
+type TestVariants = 'default' | 'turbo'
 
 // WEB-168: There are some differences / incompletes in turbopack implementation enforces jest requires to update
 // test snapshot when run against turbo. This fn returns describe, or describe.skip dependes on the running context
 // to avoid force-snapshot update per each runs until turbopack update includes all the changes.
 export function getSnapshotTestDescribe(variant: TestVariants) {
   const runningEnv = variant ?? 'default'
-  if (
-    runningEnv !== 'default' &&
-    runningEnv !== 'turbo' &&
-    runningEnv !== 'experimentalTurbo'
-  ) {
+  if (runningEnv !== 'default' && runningEnv !== 'turbo') {
     throw new Error(
-      `An invalid test env was passed: ${variant} (only "default", "turbo" and "experimentalTurbo" are valid options)`
+      `An invalid test env was passed: ${variant} (only "default" and "turbo" are valid options)`
     )
   }
 
   const shouldRunTurboDev = shouldRunTurboDevTest()
-  const shouldRunExperimentalTurboDev = shouldRunExperimentalTurboDevTest()
   const shouldSkip =
     (runningEnv === 'turbo' && !shouldRunTurboDev) ||
-    (runningEnv === 'experimentalTurbo' && !shouldRunExperimentalTurboDev) ||
-    (runningEnv === 'default' &&
-      (shouldRunTurboDev || shouldRunExperimentalTurboDev))
+    (runningEnv === 'default' && shouldRunTurboDev)
 
   return shouldSkip ? describe.skip : describe
 }

@@ -19,6 +19,7 @@ import { loadEnvConfig, updateInitialEnv } from '@next/env'
 import { flushAndExit } from '../telemetry/flush-and-exit'
 import { findRootDir } from '../lib/find-root'
 import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
+import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
@@ -266,19 +267,21 @@ function assignDefaults(
       )
     }
 
-    if (images.path === imageConfigDefault.path && result.basePath) {
+    if (
+      images.path === imageConfigDefault.path &&
+      result.basePath &&
+      !pathHasPrefix(images.path, result.basePath)
+    ) {
       images.path = `${result.basePath}${images.path}`
     }
 
     // Append trailing slash for non-default loaders and when trailingSlash is set
-    if (images.path) {
-      if (
-        (images.loader !== 'default' &&
-          images.path[images.path.length - 1] !== '/') ||
-        result.trailingSlash
-      ) {
-        images.path += '/'
-      }
+    if (
+      images.path &&
+      !images.path.endsWith('/') &&
+      (images.loader !== 'default' || result.trailingSlash)
+    ) {
+      images.path += '/'
     }
 
     if (images.loaderFile) {
@@ -676,15 +679,19 @@ function assignDefaults(
       ...userProvidedOptimizePackageImports,
       'lucide-react',
       '@headlessui/react',
-      '@fortawesome/fontawesome-svg-core',
-      '@fortawesome/free-solid-svg-icons',
       '@headlessui-float/react',
-      'react-hot-toast',
       '@heroicons/react/20/solid',
       '@heroicons/react/24/solid',
       '@heroicons/react/24/outline',
       '@visx/visx',
       '@tremor/react',
+      'rxjs',
+      '@mui/material',
+      'recharts',
+      '@material-ui/core',
+      'react-use',
+      '@material-ui/icons',
+      '@tabler/icons-react',
     ]),
   ]
 

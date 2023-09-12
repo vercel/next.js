@@ -3,12 +3,13 @@ use next_core::{
     all_server_paths,
     app_structure::{
         get_entrypoints, Entrypoint as AppEntrypoint, Entrypoints as AppEntrypoints, LoaderTree,
+        MetadataItem,
     },
     get_edge_resolve_options_context,
     mode::NextMode,
     next_app::{
         get_app_client_references_chunks, get_app_client_shared_chunks, get_app_page_entry,
-        get_app_route_entry, AppEntry,
+        get_app_route_entry, metadata::route::get_app_metadata_route_entry, AppEntry, AppPage,
     },
     next_client::{
         get_client_module_options_context, get_client_resolve_options_context,
@@ -111,6 +112,11 @@ impl AppProject {
     #[turbo_tasks::function]
     fn app_dir(&self) -> Vc<FileSystemPath> {
         self.app_dir
+    }
+
+    #[turbo_tasks::function]
+    fn mode(&self) -> Vc<NextMode> {
+        self.mode.cell()
     }
 
     #[turbo_tasks::function]
@@ -344,8 +350,7 @@ impl AppProject {
                 .map(|(pathname, app_entrypoint)| async {
                     Ok((
                         pathname.clone(),
-                        *app_entry_point_to_route(self, app_entrypoint.clone(), pathname.clone())
-                            .await?,
+                        *app_entry_point_to_route(self, app_entrypoint.clone()).await?,
                     ))
                 })
                 .try_join()
@@ -360,13 +365,9 @@ impl AppProject {
 pub async fn app_entry_point_to_route(
     app_project: Vc<AppProject>,
     entrypoint: AppEntrypoint,
-    pathname: String,
 ) -> Vc<Route> {
     match entrypoint {
-        AppEntrypoint::AppPage {
-            original_name,
-            loader_tree,
-        } => Route::AppPage {
+        AppEntrypoint::AppPage { page, loader_tree } => Route::AppPage {
             html_endpoint: Vc::upcast(
                 AppEndpoint {
                     ty: AppEndpointType::Page {
@@ -374,8 +375,7 @@ pub async fn app_entry_point_to_route(
                         loader_tree,
                     },
                     app_project,
-                    pathname: pathname.clone(),
-                    original_name: original_name.clone(),
+                    page: page.clone(),
                 }
                 .cell(),
             ),
@@ -386,22 +386,27 @@ pub async fn app_entry_point_to_route(
                         loader_tree,
                     },
                     app_project,
-                    pathname,
-                    original_name,
+                    page,
                 }
                 .cell(),
             ),
         },
-        AppEntrypoint::AppRoute {
-            original_name,
-            path,
-        } => Route::AppRoute {
+        AppEntrypoint::AppRoute { page, path } => Route::AppRoute {
             endpoint: Vc::upcast(
                 AppEndpoint {
                     ty: AppEndpointType::Route { path },
                     app_project,
-                    pathname,
-                    original_name,
+                    page,
+                }
+                .cell(),
+            ),
+        },
+        AppEntrypoint::AppMetadata { page, metadata } => Route::AppRoute {
+            endpoint: Vc::upcast(
+                AppEndpoint {
+                    ty: AppEndpointType::Metadata { metadata },
+                    app_project,
+                    page,
                 }
                 .cell(),
             ),
@@ -425,14 +430,16 @@ enum AppEndpointType {
     Route {
         path: Vc<FileSystemPath>,
     },
+    Metadata {
+        metadata: MetadataItem,
+    },
 }
 
 #[turbo_tasks::value]
 struct AppEndpoint {
     ty: AppEndpointType,
     app_project: Vc<AppProject>,
-    pathname: String,
-    original_name: String,
+    page: AppPage,
 }
 
 #[turbo_tasks::value_impl]
@@ -443,9 +450,7 @@ impl AppEndpoint {
             self.app_project.rsc_module_context(),
             self.app_project.edge_rsc_module_context(),
             loader_tree,
-            self.app_project.app_dir(),
-            self.pathname.clone(),
-            self.original_name.clone(),
+            self.page.clone(),
             self.app_project.project().project_path(),
         )
     }
@@ -456,10 +461,21 @@ impl AppEndpoint {
             self.app_project.rsc_module_context(),
             self.app_project.edge_rsc_module_context(),
             Vc::upcast(FileSource::new(path)),
-            self.pathname.clone(),
-            self.original_name.clone(),
+            self.page.clone(),
             self.app_project.project().project_path(),
         )
+    }
+
+    #[turbo_tasks::function]
+    async fn app_metadata_entry(&self, metadata: MetadataItem) -> Result<Vc<AppEntry>> {
+        Ok(get_app_metadata_route_entry(
+            self.app_project.rsc_module_context(),
+            self.app_project.edge_rsc_module_context(),
+            self.app_project.project().project_path(),
+            self.page.clone(),
+            *self.app_project.mode().await?,
+            metadata,
+        ))
     }
 
     #[turbo_tasks::function]
@@ -479,6 +495,7 @@ impl AppEndpoint {
             // as we know we won't have any client references. However, for now, for simplicity's
             // sake, we just do the same thing as for pages.
             AppEndpointType::Route { path } => (self.app_route_entry(path), "route"),
+            AppEndpointType::Metadata { metadata } => (self.app_metadata_entry(metadata), "route"),
         };
 
         let node_root = this.app_project.project().node_root();
