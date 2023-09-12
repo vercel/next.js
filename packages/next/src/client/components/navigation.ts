@@ -5,12 +5,14 @@ import {
   GlobalLayoutRouterContext,
   LayoutRouterContext,
 } from '../../shared/lib/app-router-context.shared-runtime'
+import { RouterContext } from '../../shared/lib/router-context.shared-runtime'
 import {
   SearchParamsContext,
   PathnameContext,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { clientHookInServerComponentError } from './client-hook-in-server-component-error'
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
+import { asPathToSearchParams } from '../../shared/lib/router/utils/as-path-to-search-params'
 
 const INTERNAL_URLSEARCHPARAMS_INSTANCE = Symbol(
   'internal for urlsearchparams readonly'
@@ -167,11 +169,29 @@ function getSelectedParams(
 export function useParams<T extends Params = Params>(): T {
   clientHookInServerComponentError('useParams')
   const globalLayoutRouterContext = useContext(GlobalLayoutRouterContext)
-  if (!globalLayoutRouterContext) {
-    // This only happens in `pages`. Type is overwritten in navigation.d.ts
-    return null!
+
+  // When it's under app router
+  if (globalLayoutRouterContext) {
+    return getSelectedParams(globalLayoutRouterContext.tree) as T
   }
-  return getSelectedParams(globalLayoutRouterContext.tree) as T
+
+  // When it's under pages router,
+  const pagesRouter = useContext(RouterContext)
+  if (pagesRouter) {
+    const allQuery = pagesRouter.query
+    const searchParamsKeysSet = new Set(
+      asPathToSearchParams(pagesRouter.asPath).keys()
+    )
+    const pathParams: Params = {}
+    for (const key of Object.keys(allQuery)) {
+      if (!searchParamsKeysSet.has(key)) {
+        const queryValue = allQuery[key]!
+        pathParams[key] = queryValue
+      }
+    }
+    return pathParams as T
+  }
+  return {} as T
 }
 
 // TODO-APP: handle parallel routes

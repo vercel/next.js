@@ -6,6 +6,7 @@ import type {
 import { PathnameContext } from '../hooks-client-context.shared-runtime'
 import type { NextRouter } from './router'
 import { isDynamicRoute } from './utils'
+import { asPathToSearchParams } from './utils/as-path-to-search-params'
 
 /**
  * adaptForAppRouterInstance implements the AppRouterInstance with a NextRouter.
@@ -51,8 +52,7 @@ export function adaptForSearchParams(
     return new URLSearchParams()
   }
 
-  const parsedUrlWithoutHost = new URL(router.asPath, 'http://n')
-  return parsedUrlWithoutHost.searchParams
+  return asPathToSearchParams(router.asPath)
 }
 
 export function PathnameContextProviderAdapter({
