@@ -43,7 +43,6 @@ enum NextNodeServerSpan {
   generatePublicRoutes = 'NextNodeServer.generatePublicRoutes',
   generateImageRoutes = 'NextNodeServer.generateImageRoutes.route',
   sendRenderResult = 'NextNodeServer.sendRenderResult',
-  sendStatic = 'NextNodeServer.sendStatic',
   proxyRequest = 'NextNodeServer.proxyRequest',
   runApi = 'NextNodeServer.runApi',
   render = 'NextNodeServer.render',

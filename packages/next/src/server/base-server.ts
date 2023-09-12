@@ -55,7 +55,7 @@ import {
   getCookieParser,
   checkIsOnDemandRevalidate,
 } from './api-utils'
-import { setConfig } from '../shared/lib/runtime-config'
+import { setConfig } from '../shared/lib/runtime-config.shared-runtime'
 
 import { setRevalidateHeaders } from './send-payload/revalidate-headers'
 import { execOnce } from '../shared/lib/utils'
@@ -305,7 +305,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getBuildId(): string
 
   protected abstract findPageComponents(params: {
-    pathname: string
+    page: string
     query: NextParsedUrlQuery
     params: Params
     isAppPath: boolean
@@ -385,6 +385,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       hostname,
       port,
     } = options
+
     this.serverOptions = options
     this.isRenderWorker = options._renderWorker
 
@@ -429,7 +430,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     } = this.nextConfig
 
     this.buildId = this.getBuildId()
-    this.minimalMode = minimalMode || !!process.env.NEXT_PRIVATE_MINIMAL_MODE
+    // this is a hack to avoid Webpack knowing this is equal to this.minimalMode
+    // because we replace this.minimalMode to true in production bundles.
+    const minimalModeKey = 'minimalMode'
+    this[minimalModeKey] =
+      minimalMode || !!process.env.NEXT_PRIVATE_MINIMAL_MODE
 
     this.hasAppDir = this.getHasAppDir(dev)
     const serverComponents = this.hasAppDir
@@ -1268,12 +1273,21 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           res,
           parsedUrl
         )
-        if (!result.finished) {
-          res.setHeader('x-middleware-next', '1')
-          res.body('')
-          res.send()
+
+        if (result.finished) {
+          return
+        } else {
+          const err = new Error()
+          ;(err as any).result = {
+            response: new Response(null, {
+              headers: {
+                'x-middleware-next': '1',
+              },
+            }),
+          }
+          ;(err as any).bubble = true
+          throw err
         }
-        return
       }
 
       // ensure we strip the basePath when not using an invoke header
@@ -1287,6 +1301,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       res.statusCode = 200
       return await this.run(req, res, parsedUrl)
     } catch (err: any) {
+      if (err instanceof NoFallbackError) {
+        throw err
+      }
+
       if (
         (err && typeof err === 'object' && err.code === 'ERR_INVALID_URL') ||
         err instanceof DecodeError ||
@@ -1296,7 +1314,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         return this.renderError(null, req, res, '/_error', {})
       }
 
-      if (this.minimalMode || this.renderOpts.dev) {
+      if (this.minimalMode || this.renderOpts.dev || (err as any).bubble) {
         throw err
       }
       this.logError(getProperError(err))
@@ -1502,21 +1520,20 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }: {
     pathname: string
     requestHeaders: import('./lib/incremental-cache').IncrementalCache['requestHeaders']
-    originalAppPath?: string
+    page: string
+    isAppPath: boolean
   }): Promise<{
     staticPaths?: string[]
     fallbackMode?: 'static' | 'blocking' | false
   }> {
-    // `staticPaths` is intentionally set to `undefined` as it should've
-    // been caught when checking disk data.
-    const staticPaths = undefined
-
     // Read whether or not fallback should exist from the manifest.
     const fallbackField =
       this.getPrerenderManifest().dynamicRoutes[pathname]?.fallback
 
     return {
-      staticPaths,
+      // `staticPaths` is intentionally set to `undefined` as it should've
+      // been caught when checking disk data.
+      staticPaths: undefined,
       fallbackMode:
         typeof fallbackField === 'string'
           ? 'static'
@@ -1575,7 +1592,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.stripInternalHeaders(req)
 
     const is500Page = pathname === '/500'
-    const isAppPath = components.isAppPath
+    const isAppPath = components.isAppPath === true
     const hasServerProps = !!components.getServerSideProps
     let hasStaticPaths = !!components.getStaticPaths
     const actionId = req.headers[ACTION.toLowerCase()] as string
@@ -1602,12 +1619,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     let fallbackMode: FallbackMode
     let hasFallback = false
-    const isDynamic = isDynamicRoute(components.pathname)
+    const isDynamic = isDynamicRoute(components.page)
 
     if (isAppPath && isDynamic) {
       const pathsResult = await this.getStaticPaths({
         pathname,
-        originalAppPath: components.pathname,
+        page: components.page,
+        isAppPath,
         requestHeaders: req.headers,
       })
 
@@ -1616,7 +1634,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       hasFallback = typeof fallbackMode !== 'undefined'
 
       if (this.nextConfig.output === 'export') {
-        const page = components.pathname
+        const page = components.page
 
         if (fallbackMode !== 'static') {
           throw new Error(
@@ -2234,7 +2252,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       ssgCacheKey,
       async (hasResolved, hadCache): Promise<ResponseCacheEntry | null> => {
         const isProduction = !this.renderOpts.dev
-        const isDynamicPathname = isDynamicRoute(pathname)
         const didRespond = hasResolved || res.sent
 
         if (!staticPaths) {
@@ -2242,6 +2259,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             ? await this.getStaticPaths({
                 pathname,
                 requestHeaders: req.headers,
+                isAppPath,
+                page: components.page,
               })
             : { staticPaths: undefined, fallbackMode: false })
         }
@@ -2307,7 +2326,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           staticPathKey &&
           !didRespond &&
           !isPreviewMode &&
-          isDynamicPathname &&
+          isDynamic &&
           (isProduction || !staticPaths || !isPageIncludedInStaticPaths)
         ) {
           if (
@@ -2543,7 +2562,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     const result = await this.findPageComponents({
-      pathname: page,
+      page,
       query,
       params: ctx.renderOpts.params || {},
       isAppPath,
@@ -2618,10 +2637,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         const result = await this.renderPageComponent(
           {
             ...ctx,
-            // Use the overridden pathname if available, otherwise use the
-            // original pathname.
-            pathname:
-              match.definition.pathnameOverride || match.definition.pathname,
+            pathname: match.definition.pathname,
             renderOpts: {
               ...ctx.renderOpts,
               params: match.params,
@@ -2826,7 +2842,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         if (this.hasAppDir) {
           // Use the not-found entry in app directory
           result = await this.findPageComponents({
-            pathname: this.renderOpts.dev ? '/not-found' : '/_not-found',
+            page: this.renderOpts.dev ? '/not-found' : '/_not-found',
             query,
             params: {},
             isAppPath: true,
@@ -2837,7 +2853,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
         if (!result && (await this.hasPage('/404'))) {
           result = await this.findPageComponents({
-            pathname: '/404',
+            page: '/404',
             query,
             params: {},
             isAppPath: false,
@@ -2858,7 +2874,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         // dev overlay is used instead
         if (statusPage !== '/500' || !this.renderOpts.dev) {
           result = await this.findPageComponents({
-            pathname: statusPage,
+            page: statusPage,
             query,
             params: {},
             isAppPath: false,
@@ -2871,7 +2887,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       if (!result) {
         result = await this.findPageComponents({
-          pathname: '/_error',
+          page: '/_error',
           query,
           params: {},
           isAppPath: false,

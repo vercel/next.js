@@ -8,12 +8,13 @@ use turbopack_binding::{
     turbo::tasks_fs::FileSystemPath,
     turbopack::core::{
         diagnostics::DiagnosticExt,
+        file_source::FileSource,
         issue::{unsupported_module::UnsupportedModuleIssue, IssueExt},
         resolve::{
             parse::Request,
             pattern::Pattern,
             plugin::{ResolvePlugin, ResolvePluginCondition},
-            ResolveResultOption,
+            ResolveResult, ResolveResultItem, ResolveResultOption,
         },
     },
 };
@@ -102,6 +103,55 @@ impl ResolvePlugin for UnsupportedModulesResolvePlugin {
     }
 }
 
+#[turbo_tasks::value]
+pub(crate) struct NextExternalResolvePlugin {
+    root: Vc<FileSystemPath>,
+}
+
+#[turbo_tasks::value_impl]
+impl NextExternalResolvePlugin {
+    #[turbo_tasks::function]
+    pub fn new(root: Vc<FileSystemPath>) -> Vc<Self> {
+        NextExternalResolvePlugin { root }.cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ResolvePlugin for NextExternalResolvePlugin {
+    #[turbo_tasks::function]
+    fn after_resolve_condition(&self) -> Vc<ResolvePluginCondition> {
+        ResolvePluginCondition::new(
+            self.root.root(),
+            Glob::new(
+                "**/next/dist/**/*.{external,shared-runtime,runtime.dev,runtime.prod}.js"
+                    .to_string(),
+            ),
+        )
+    }
+
+    #[turbo_tasks::function]
+    async fn after_resolve(
+        &self,
+        fs_path: Vc<FileSystemPath>,
+        _context: Vc<FileSystemPath>,
+        _request: Vc<Request>,
+    ) -> Result<Vc<ResolveResultOption>> {
+        let raw_fs_path = &*fs_path.await?;
+        let path = raw_fs_path.path.to_string();
+        // Find the starting index of 'next/dist' and slice from that point. It should
+        // always be found since the glob pattern above is specific enough.
+        let starting_index = path.find("next/dist").unwrap();
+        // Replace '/esm/' with '/' to match the CJS version of the file.
+        let modified_path = &path[starting_index..].replace("/esm/", "/");
+        Ok(Vc::cell(Some(
+            ResolveResult::primary(ResolveResultItem::OriginalReferenceTypeExternal(
+                modified_path.to_string(),
+            ))
+            .into(),
+        )))
+    }
+}
+
 /// A resolver plugin tracks the usage of certain import paths, emit
 /// telemetry events if there is a match.
 #[turbo_tasks::value]
@@ -152,5 +202,60 @@ impl ResolvePlugin for ModuleFeatureReportResolvePlugin {
         }
 
         Ok(ResolveResultOption::none())
+    }
+}
+
+#[turbo_tasks::value]
+pub(crate) struct NextSharedRuntimeResolvePlugin {
+    root: Vc<FileSystemPath>,
+}
+
+#[turbo_tasks::value_impl]
+impl NextSharedRuntimeResolvePlugin {
+    #[turbo_tasks::function]
+    pub fn new(root: Vc<FileSystemPath>) -> Vc<Self> {
+        NextSharedRuntimeResolvePlugin { root }.cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ResolvePlugin for NextSharedRuntimeResolvePlugin {
+    #[turbo_tasks::function]
+    fn after_resolve_condition(&self) -> Vc<ResolvePluginCondition> {
+        ResolvePluginCondition::new(
+            self.root.root(),
+            Glob::new("**/node_modules/next/dist/**/*.shared-runtime.js".to_string()),
+        )
+    }
+
+    #[turbo_tasks::function]
+    async fn after_resolve(
+        &self,
+        fs_path: Vc<FileSystemPath>,
+        _context: Vc<FileSystemPath>,
+        _request: Vc<Request>,
+    ) -> Result<Vc<ResolveResultOption>> {
+        let raw_fs_path = &*fs_path.await?;
+        let path = raw_fs_path.path.to_string();
+
+        // Find the starting index of 'next/dist' and slice from that point. It should
+        // always be found since the glob pattern above is specific enough.
+        let starting_index = path.find("next/dist").unwrap();
+
+        let (base, path) = path.split_at(starting_index);
+
+        // Replace '/esm/' with '/' to match the CJS version of the file.
+        let modified_path = path.replace("/esm/", "/");
+
+        // If there were no replacements, then the original resolved to the CJS module
+        // and we don't need to do anything special
+        if modified_path == path {
+            return Ok(ResolveResultOption::none());
+        }
+
+        let new_path = fs_path.root().join(base.to_string()).join(modified_path);
+        Ok(Vc::cell(Some(
+            ResolveResult::source(Vc::upcast(FileSource::new(new_path))).into(),
+        )))
     }
 }

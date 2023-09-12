@@ -103,6 +103,8 @@ import {
   TurboPackConnectedAction,
 } from '../../dev/hot-reloader-types'
 import { debounce } from '../../utils'
+import { deleteCache } from '../../../build/webpack/plugins/nextjs-require-cache-hot-reloader'
+import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -118,6 +120,7 @@ type SetupOpts = {
     ReturnType<typeof import('./filesystem').setupFsCheck>
   >
   nextConfig: NextConfigComplete
+  port: number
 }
 
 async function verifyTypeScript(opts: SetupOpts) {
@@ -155,8 +158,8 @@ async function startWatcher(opts: SetupOpts) {
   )
 
   async function propagateToWorkers(field: PropagateToWorkersField, args: any) {
-    await opts.renderWorkers.app?.propagateServerField(field, args)
-    await opts.renderWorkers.pages?.propagateServerField(field, args)
+    await opts.renderWorkers.app?.propagateServerField(opts.dir, field, args)
+    await opts.renderWorkers.pages?.propagateServerField(opts.dir, field, args)
   }
 
   const serverFields: {
@@ -202,6 +205,7 @@ async function startWatcher(opts: SetupOpts) {
       jsConfig,
       watch: true,
       env: process.env as Record<string, string>,
+      serverAddr: `127.0.0.1:${opts.port}`,
     })
     const iter = project.entrypointsSubscribe()
     const curEntries: Map<string, Route> = new Map()
@@ -230,7 +234,7 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     function formatIssue(issue: Issue) {
-      const { filePath, title, description, source } = issue
+      const { filePath, title, description, source, detail } = issue
       let formattedTitle = title.replace(/\n/g, '\n    ')
       let message = ''
 
@@ -264,6 +268,9 @@ async function startWatcher(opts: SetupOpts) {
       }
       if (description) {
         message += `\n${description.replace(/\n/g, '\n    ')}`
+      }
+      if (detail) {
+        message += `\n${detail.replace(/\n/g, '\n    ')}`
       }
 
       return message
@@ -304,21 +311,20 @@ async function startWatcher(opts: SetupOpts) {
     async function processResult(
       result: TurbopackResult<WrittenEndpoint>
     ): Promise<TurbopackResult<WrittenEndpoint>> {
-      await (global as any)._nextDeleteCache?.(
-        result.serverPaths
-          .map((p) => path.join(distDir, p))
-          .concat([
-            // We need to clear the chunk cache in react
-            require.resolve(
-              'next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.edge.development.js'
-            ),
-            // And this redirecting module as well
-            require.resolve(
-              'next/dist/compiled/react-server-dom-webpack/client.edge.js'
-            ),
-          ])
-      )
-
+      for (const file of result.serverPaths
+        .map((p) => path.join(distDir, p))
+        .concat([
+          // We need to clear the chunk cache in react
+          require.resolve(
+            'next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.edge.development.js'
+          ),
+          // And this redirecting module as well
+          require.resolve(
+            'next/dist/compiled/react-server-dom-webpack/client.edge.js'
+          ),
+        ])) {
+        deleteCache(file)
+      }
       return result
     }
 
@@ -374,8 +380,7 @@ async function startWatcher(opts: SetupOpts) {
       sendHmrDebounce()
     }
 
-    const clearCache = (filePath: string) =>
-      (global as any)._nextDeleteCache?.([filePath])
+    const clearCache = (filePath: string) => deleteCache(filePath)
 
     async function loadPartialManifest<T>(
       name: string,
@@ -659,7 +664,7 @@ async function startWatcher(opts: SetupOpts) {
 
     async function writeBuildManifest(): Promise<void> {
       const buildManifest = mergeBuildManifests(buildManifests.values())
-      const buildManifestPath = path.join(distDir, 'build-manifest.json')
+      const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
       await clearCache(buildManifestPath)
       await writeFile(
         buildManifestPath,
@@ -896,6 +901,7 @@ async function startWatcher(opts: SetupOpts) {
               case 'client-success': // { clientId }
               case 'server-component-reload-page': // { clientId }
               case 'client-reload-page': // { clientId }
+              case 'client-removed-page': // { page }
               case 'client-full-reload': // { stackTrace, hadRuntimeError }
                 // TODO
                 break
@@ -1012,7 +1018,13 @@ async function startWatcher(opts: SetupOpts) {
         }
 
         await currentEntriesHandling
-        const route = curEntries.get(page)
+        const route =
+          curEntries.get(page) ??
+          curEntries.get(
+            normalizeAppPath(
+              normalizeMetadataRoute(match?.definition?.page ?? inputPage)
+            )
+          )
 
         if (!route) {
           // TODO: why is this entry missing in turbopack?

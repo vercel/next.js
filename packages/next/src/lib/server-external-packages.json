@@ -22,6 +22,7 @@
   "firebase-admin",
   "jest",
   "jsdom",
+  "libsql",
   "lodash",
   "mdx-bundler",
   "mongodb",
