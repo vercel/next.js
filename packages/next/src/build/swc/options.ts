@@ -105,7 +105,9 @@ function getBaseSWCOptions({
         react: {
           importSource:
             jsConfig?.compilerOptions?.jsxImportSource ??
-            (compilerOptions?.emotion ? '@emotion/react' : 'react'),
+            (compilerOptions?.emotion && !isServerLayer
+              ? '@emotion/react'
+              : 'react'),
           runtime: 'automatic',
           pragma: 'React.createElement',
           pragmaFrag: 'React.Fragment',
@@ -140,7 +142,24 @@ function getBaseSWCOptions({
     reactRemoveProperties: jest
       ? false
       : compilerOptions?.reactRemoveProperties,
-    modularizeImports,
+    // Map the k-v map to an array of pairs.
+    modularizeImports: modularizeImports
+      ? Object.fromEntries(
+          Object.entries(modularizeImports).map(([mod, config]) => [
+            mod,
+            {
+              ...config,
+              transform:
+                typeof config.transform === 'string'
+                  ? config.transform
+                  : Object.entries(config.transform).map(([key, value]) => [
+                      key,
+                      value,
+                    ]),
+            },
+          ])
+        )
+      : undefined,
     relay: compilerOptions?.relay,
     // Always transform styled-jsx and error when `client-only` condition is triggered
     styledJsx: true,
@@ -164,6 +183,7 @@ function getBaseSWCOptions({
           isServer: !!isServerLayer,
         }
       : undefined,
+    disableChecks: false,
   }
 }
 
@@ -251,13 +271,15 @@ export function getJestSWCOptions({
     jsConfig,
     hasServerComponents,
     resolvedBaseUrl,
-    isServerLayer: isServer,
+    // Don't apply server layer transformations for Jest
+    isServerLayer: false,
   })
 
   const isNextDist = nextDistPath.test(filename)
 
   return {
     ...baseOptions,
+    disableChecks: true,
     env: {
       targets: {
         // Targets the current version of Node.js
@@ -282,6 +304,8 @@ export function getLoaderSWCOptions({
   isPageFile,
   hasReactRefresh,
   modularizeImports,
+  optimizeServerReact,
+  optimizePackageImports,
   swcPlugins,
   compilerOptions,
   jsConfig,
@@ -291,6 +315,7 @@ export function getLoaderSWCOptions({
   hasServerComponents,
   isServerLayer,
   isServerActionsEnabled,
+  optimizeBarrelExports,
 }: // This is not passed yet as "paths" resolving is handled by webpack currently.
 // resolvedBaseUrl,
 {
@@ -301,7 +326,11 @@ export function getLoaderSWCOptions({
   appDir: string
   isPageFile: boolean
   hasReactRefresh: boolean
+  optimizeServerReact?: boolean
   modularizeImports: NextConfig['modularizeImports']
+  optimizePackageImports?: NonNullable<
+    NextConfig['experimental']
+  >['optimizePackageImports']
   swcPlugins: ExperimentalConfig['swcPlugins']
   compilerOptions: NextConfig['compiler']
   jsConfig: any
@@ -311,6 +340,7 @@ export function getLoaderSWCOptions({
   hasServerComponents?: boolean
   isServerLayer: boolean
   isServerActionsEnabled?: boolean
+  optimizeBarrelExports?: string[]
 }) {
   let baseOptions: any = getBaseSWCOptions({
     filename,
@@ -352,6 +382,22 @@ export function getLoaderSWCOptions({
     },
   }
 
+  if (optimizeServerReact && isServer && !development) {
+    baseOptions.optimizeServerReact = {
+      optimize_use_state: true,
+    }
+  }
+
+  // Modularize import optimization for barrel files
+  if (optimizePackageImports) {
+    baseOptions.autoModularizeImports = {
+      packages: optimizePackageImports,
+    }
+  }
+  if (optimizeBarrelExports) {
+    baseOptions.optimizeBarrelExports = optimizeBarrelExports
+  }
+
   const isNextDist = nextDistPath.test(filename)
 
   if (isServer) {
@@ -373,9 +419,7 @@ export function getLoaderSWCOptions({
       },
     }
   } else {
-    // Matches default @babel/preset-env behavior
-    baseOptions.jsc.target = 'es5'
-    return {
+    const options = {
       ...baseOptions,
       // Ensure Next.js internals are output as commonjs modules
       ...(isNextDist
@@ -399,5 +443,10 @@ export function getLoaderSWCOptions({
           }
         : {}),
     }
+    if (!options.env) {
+      // Matches default @babel/preset-env behavior
+      options.jsc.target = 'es5'
+    }
+    return options
   }
 }

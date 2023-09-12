@@ -11,6 +11,7 @@ import {
   type RouteModuleOptions,
   type RouteModuleHandleContext,
 } from '../route-module'
+import * as sharedModules from './shared-modules'
 
 type AppPageUserlandModule = {
   /**
@@ -34,9 +35,7 @@ export class AppPageRouteModule extends RouteModule<
   AppPageRouteDefinition,
   AppPageUserlandModule
 > {
-  public handle(): Promise<Response> {
-    throw new Error('Method not implemented.')
-  }
+  static readonly sharedModules = sharedModules
 
   public render(
     req: IncomingMessage,
@@ -52,5 +51,7 @@ export class AppPageRouteModule extends RouteModule<
     )
   }
 }
+
+export { renderToHTMLOrFlight }
 
 export default AppPageRouteModule

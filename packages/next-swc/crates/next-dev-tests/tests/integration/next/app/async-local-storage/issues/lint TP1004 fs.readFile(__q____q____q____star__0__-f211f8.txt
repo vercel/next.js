@@ -1,35 +1,15 @@
-PlainIssue {
-    severity: Warning,
-    context: "[project]/packages/next/dist/server/lib/node-fs-methods.js",
-    category: "parse",
-    title: "lint TP1004 fs.readFile(???*0*) is very dynamic",
-    description: "- *0* f\n  ⚠\u{fe0f}  pattern without value",
-    detail: "",
-    documentation_link: "",
-    source: Some(
-        PlainIssueSource {
-            asset: PlainSource {
-                ident: "[project]/packages/next/dist/server/lib/node-fs-methods.js",
-            },
-            start: SourcePos {
-                line: 17,
-                column: 19,
-            },
-            end: SourcePos {
-                line: 17,
-                column: 19,
-            },
-        },
-    ),
-    sub_issues: [],
-    processing_path: Some(
-        [
-            PlainIssueProcessingPathItem {
-                context: Some(
-                    "[project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/app/async-local-storage/input/app",
-                ),
-                description: "Next.js App Page Route /",
-            },
-        ],
-    ),
-}
+warning - [parse] [project]/packages/next/dist/server/lib/node-fs-methods.js  /packages/next/dist/server/lib/node-fs-methods.js:18:19  lint TP1004 fs.readFile(???*0*) is very dynamic
+      14 |         default: obj
+      15 |     };
+      16 | }
+      17 | const nodeFs = {
+         +                    v
+      18 +     readFile: (f)=>_fs.default.promises.readFile(f),
+         +                    ^
+      19 |     readFileSync: (f)=>_fs.default.readFileSync(f),
+      20 |     writeFile: (f, d)=>_fs.default.promises.writeFile(f, d),
+      21 |     mkdir: (dir)=>_fs.default.promises.mkdir(dir, {
+      22 |             recursive: true
+  
+  - *0* f
+    ⚠️  pattern without value

@@ -1,18 +1,16 @@
 let installed: boolean = false
 
-export function loadWebpackHook({ init }: { init: boolean }) {
-  if (init) {
-    const { init: initWebpack } = require('next/dist/compiled/webpack/webpack')
-    if (installed) {
-      return
-    }
-    installed = true
-    initWebpack()
+export function loadWebpackHook() {
+  const { init: initWebpack } = require('next/dist/compiled/webpack/webpack')
+  if (installed) {
+    return
   }
+  installed = true
+  initWebpack()
 
   // hook the Node.js require so that webpack requires are
   // routed to the bundled and now initialized webpack version
-  require('../server/require-hook').addHookAliases(
+  require('../server/import-overrides').addHookAliases(
     [
       ['webpack', 'next/dist/compiled/webpack/webpack-lib'],
       ['webpack/package', 'next/dist/compiled/webpack/package'],
@@ -138,7 +136,6 @@ export function loadWebpackHook({ init }: { init: boolean }) {
         '@babel/runtime/package.json',
         'next/dist/compiled/@babel/runtime/package.json',
       ],
-      ['node-fetch', 'next/dist/compiled/node-fetch'],
       ['undici', 'next/dist/compiled/undici'],
     ].map(
       // Use dynamic require.resolve to avoid statically analyzable since they're only for build time

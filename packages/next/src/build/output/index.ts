@@ -12,7 +12,7 @@ export function startedDevelopmentServer(appUrl: string, bindAddr: string) {
 }
 
 type CompilerDiagnostics = {
-  modules: number
+  totalModulesCount: number
   errors: string[] | null
   warnings: string[] | null
 }
@@ -118,6 +118,7 @@ buildStore.subscribe((state) => {
       {
         bootstrap: false,
         appUrl: appUrl!,
+        // If it takes more than 3 seconds to compile, mark it as loading status
         loading: true,
         trigger,
       } as OutputState,
@@ -138,14 +139,10 @@ buildStore.subscribe((state) => {
     appUrl: appUrl!,
     loading: false,
     typeChecking: false,
-    partial:
-      clientWasLoading && (serverWasLoading || edgeServerWasLoading)
-        ? 'client and server'
-        : undefined,
-    modules:
-      (clientWasLoading ? client.modules : 0) +
-      (serverWasLoading ? server.modules : 0) +
-      (edgeServerWasLoading ? edgeServer?.modules || 0 : 0),
+    totalModulesCount:
+      (clientWasLoading ? client.totalModulesCount : 0) +
+      (serverWasLoading ? server.totalModulesCount : 0) +
+      (edgeServerWasLoading ? edgeServer?.totalModulesCount || 0 : 0),
     hasEdgeServer: !!edgeServer,
   }
   if (client.errors && clientWasLoading) {
@@ -257,7 +254,7 @@ export function watchCompilers(
 
       onEvent({
         loading: false,
-        modules: stats.compilation.modules.size,
+        totalModulesCount: stats.compilation.modules.size,
         errors: hasErrors ? errors : null,
         warnings: hasWarnings ? warnings : null,
       })

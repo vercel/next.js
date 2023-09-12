@@ -1,5 +1,10 @@
+import { HMR_ACTION_TYPES } from '../../../server/dev/hot-reloader-types'
+
 let source: WebSocket
-const eventCallbacks: ((event: any) => void)[] = []
+
+type ActionCallback = (action: HMR_ACTION_TYPES) => void
+
+const eventCallbacks: Array<ActionCallback> = []
 let lastActivity = Date.now()
 
 function getSocketProtocol(assetPrefix: string): string {
@@ -8,16 +13,16 @@ function getSocketProtocol(assetPrefix: string): string {
   try {
     // assetPrefix is a url
     protocol = new URL(assetPrefix).protocol
-  } catch (_) {}
+  } catch {}
 
   return protocol === 'http:' ? 'ws' : 'wss'
 }
 
-export function addMessageListener(cb: (event: any) => void) {
-  eventCallbacks.push(cb)
+export function addMessageListener(callback: ActionCallback) {
+  eventCallbacks.push(callback)
 }
 
-export function sendMessage(data: any) {
+export function sendMessage(data: string) {
   if (!source || source.readyState !== source.OPEN) return
   return source.send(data)
 }
@@ -39,12 +44,14 @@ export function connectHMR(options: {
       lastActivity = Date.now()
     }
 
-    function handleMessage(event: any) {
+    function handleMessage(event: MessageEvent<string>) {
       lastActivity = Date.now()
 
-      eventCallbacks.forEach((cb) => {
-        cb(event)
-      })
+      // Coerce into HMR_ACTION_TYPES as that is the format.
+      const msg: HMR_ACTION_TYPES = JSON.parse(event.data)
+      for (const eventCallback of eventCallbacks) {
+        eventCallback(msg)
+      }
     }
 
     let timer: NodeJS.Timeout

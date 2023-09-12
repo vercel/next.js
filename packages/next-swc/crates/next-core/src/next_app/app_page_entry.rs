@@ -1,14 +1,13 @@
 use std::io::Write;
 
 use anyhow::{bail, Result};
-use indoc::writedoc;
 use turbo_tasks::{TryJoinIterExt, Value, ValueToString, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{rope::RopeBuilder, File, FileSystemPath},
     turbopack::{
         core::{
-            asset::AssetContent, context::AssetContext, issue::IssueExt,
-            reference_type::ReferenceType, virtual_source::VirtualSource,
+            asset::AssetContent, context::AssetContext, reference_type::ReferenceType,
+            virtual_source::VirtualSource,
         },
         ecmascript::{chunk::EcmascriptChunkPlaceable, utils::StringifyJs},
         turbopack::ModuleAssetContext,
@@ -20,19 +19,29 @@ use crate::{
     app_structure::LoaderTree,
     loader_tree::{LoaderTreeModule, ServerComponentTransition},
     mode::NextMode,
-    next_app::UnsupportedDynamicMetadataIssue,
+    next_app::{AppPage, AppPath},
     next_server_component::NextServerComponentTransition,
+    parse_segment_config_from_loader_tree,
+    util::{load_next_js_template, virtual_next_js_template_path, NextRuntime},
 };
 
 /// Computes the entry for a Next.js app page.
 #[turbo_tasks::function]
 pub async fn get_app_page_entry(
-    context: Vc<ModuleAssetContext>,
+    nodejs_context: Vc<ModuleAssetContext>,
+    edge_context: Vc<ModuleAssetContext>,
     loader_tree: Vc<LoaderTree>,
-    app_dir: Vc<FileSystemPath>,
-    pathname: String,
+    page: AppPage,
     project_root: Vc<FileSystemPath>,
 ) -> Result<Vc<AppEntry>> {
+    let config = parse_segment_config_from_loader_tree(loader_tree, Vc::upcast(nodejs_context));
+    let is_edge = matches!(config.await?.runtime, Some(NextRuntime::Edge));
+    let context = if is_edge {
+        edge_context
+    } else {
+        nodejs_context
+    };
+
     let server_component_transition = Vc::upcast(NextServerComponentTransition::new());
 
     let loader_tree = LoaderTreeModule::build(
@@ -47,18 +56,8 @@ pub async fn get_app_page_entry(
         inner_assets,
         imports,
         loader_tree_code,
-        unsupported_metadata,
         pages,
     } = loader_tree;
-
-    if !unsupported_metadata.is_empty() {
-        UnsupportedDynamicMetadataIssue {
-            app_dir,
-            files: unsupported_metadata,
-        }
-        .cell()
-        .emit();
-    }
 
     let mut result = RopeBuilder::default();
 
@@ -68,59 +67,83 @@ pub async fn get_app_page_entry(
 
     let pages = pages.iter().map(|page| page.to_string()).try_join().await?;
 
-    // NOTE(alexkirsz) Keep in sync with
-    // next.js/packages/next/src/build/webpack/loaders/next-app-loader.ts
-    // TODO(alexkirsz) Support custom global error.
-    let original_name = get_original_page_name(&pathname);
+    let original_name = page.to_string();
+    let pathname = AppPath::from(page.clone()).to_string();
 
-    writedoc!(
-        result,
-        r#"
-            export const tree = {loader_tree_code}
-            export const pages = {pages}
-            export {{ default as GlobalError }} from 'next/dist/client/components/error-boundary'
-            export const originalPathname = {pathname}
-            export const __next_app__ = {{
-                require: __turbopack_require__,
-                loadChunk: __turbopack_load__,
-            }};
+    let template_file = "build/templates/app-page.js";
 
-            export * from 'next/dist/server/app-render/entry-base'
-        "#,
-        pages = StringifyJs(&pages),
-        pathname = StringifyJs(&original_name),
-    )?;
+    // Load the file from the next.js codebase.
+    let file = load_next_js_template(project_root, template_file.to_string()).await?;
+
+    let mut file = file
+        .to_str()?
+        .replace(
+            "\"VAR_DEFINITION_PAGE\"",
+            &StringifyJs(&page.to_string()).to_string(),
+        )
+        .replace(
+            "\"VAR_DEFINITION_PATHNAME\"",
+            &StringifyJs(&pathname).to_string(),
+        )
+        .replace(
+            "\"VAR_ORIGINAL_PATHNAME\"",
+            &StringifyJs(&original_name).to_string(),
+        )
+        // TODO(alexkirsz) Support custom global error.
+        .replace(
+            "\"VAR_MODULE_GLOBAL_ERROR\"",
+            &StringifyJs("next/dist/client/components/error-boundary").to_string(),
+        )
+        .replace(
+            "// INJECT:tree",
+            format!("const tree = {};", loader_tree_code).as_str(),
+        )
+        .replace(
+            "// INJECT:pages",
+            format!("const pages = {};", StringifyJs(&pages)).as_str(),
+        )
+        .replace(
+            "// INJECT:__next_app_require__",
+            "const __next_app_require__ = __turbopack_require__",
+        )
+        .replace(
+            "// INJECT:__next_app_load_chunk__",
+            "const __next_app_load_chunk__ = __turbopack_load__",
+        );
+
+    // Ensure that the last line is a newline.
+    if !file.ends_with('\n') {
+        file.push('\n');
+    }
+
+    result.concat(&file.into());
 
     let file = File::from(result.build());
-    let source =
-        // TODO(alexkirsz) Figure out how to name this virtual asset.
-        VirtualSource::new(project_root.join("todo.tsx".to_string()), AssetContent::file(file.into()));
+
+    let template_path = virtual_next_js_template_path(project_root, template_file.to_string());
+
+    let source = VirtualSource::new(template_path, AssetContent::file(file.into()));
 
     let rsc_entry = context.process(
         Vc::upcast(source),
         Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
     );
 
+    if is_edge {
+        todo!("edge pages are not supported yet")
+    }
+
     let Some(rsc_entry) =
-        Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(rsc_entry).await?
+        Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(rsc_entry).await?
     else {
-        bail!("expected an ECMAScript chunk placeable asset");
+        bail!("expected an ECMAScript chunk placeable module");
     };
 
     Ok(AppEntry {
         pathname: pathname.to_string(),
         original_name,
         rsc_entry,
+        config,
     }
     .cell())
-}
-
-// TODO(alexkirsz) This shouldn't be necessary. The loader tree should keep
-// track of this instead.
-fn get_original_page_name(pathname: &str) -> String {
-    match pathname {
-        "/" => "/page".to_string(),
-        "/_not-found" => "/_not-found".to_string(),
-        _ => format!("{}/page", pathname),
-    }
 }

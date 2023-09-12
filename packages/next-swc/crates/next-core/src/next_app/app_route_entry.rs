@@ -3,7 +3,6 @@ use std::io::Write;
 use anyhow::{bail, Result};
 use indexmap::indexmap;
 use indoc::writedoc;
-use serde::Serialize;
 use turbo_tasks::{Value, ValueToString, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{rope::RopeBuilder, File, FileSystemPath},
@@ -11,7 +10,8 @@ use turbopack_binding::{
         core::{
             asset::AssetContent,
             context::AssetContext,
-            reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
+            module::Module,
+            reference_type::{EntryReferenceSubType, ReferenceType},
             source::Source,
             virtual_source::VirtualSource,
         },
@@ -20,148 +20,159 @@ use turbopack_binding::{
     },
 };
 
-use crate::next_app::AppEntry;
+use crate::{
+    next_app::{AppEntry, AppPage, AppPath},
+    parse_segment_config_from_source,
+    util::{load_next_js_template, virtual_next_js_template_path, NextRuntime},
+};
 
 /// Computes the entry for a Next.js app route.
 #[turbo_tasks::function]
 pub async fn get_app_route_entry(
-    rsc_context: Vc<ModuleAssetContext>,
+    nodejs_context: Vc<ModuleAssetContext>,
+    edge_context: Vc<ModuleAssetContext>,
     source: Vc<Box<dyn Source>>,
-    pathname: String,
+    page: AppPage,
     project_root: Vc<FileSystemPath>,
 ) -> Result<Vc<AppEntry>> {
-    let mut result = RopeBuilder::default();
-
-    let kind = "app-route";
-    let original_name = get_original_route_name(&pathname);
-    let path = source.ident().path();
-
-    let options = AppRouteRouteModuleOptions {
-        definition: AppRouteRouteDefinition {
-            kind: RouteKind::AppRoute,
-            page: original_name.clone(),
-            pathname: pathname.to_string(),
-            filename: path.file_stem().await?.as_ref().unwrap().clone(),
-            // TODO(alexkirsz) Is this necessary?
-            bundle_path: "".to_string(),
-        },
-        resolved_page_path: path.to_string().await?.clone_value(),
-        // TODO(alexkirsz) Is this necessary?
-        next_config_output: "".to_string(),
+    let config = parse_segment_config_from_source(
+        nodejs_context.process(
+            source,
+            Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),
+        ),
+        source,
+    );
+    let is_edge = matches!(config.await?.runtime, Some(NextRuntime::Edge));
+    let context = if is_edge {
+        edge_context
+    } else {
+        nodejs_context
     };
 
-    // NOTE(alexkirsz) Keep in sync with
-    // next.js/packages/next/src/build/webpack/loaders/next-app-loader.ts
-    // TODO(alexkirsz) Support custom global error.
-    writedoc!(
-        result,
-        r#"
-            import 'next/dist/server/node-polyfill-headers'
+    let mut result = RopeBuilder::default();
 
-            import RouteModule from {route_module}
+    let original_name = page.to_string();
+    let pathname = AppPath::from(page.clone()).to_string();
 
-            import * as userland from "ENTRY"
+    let path = source.ident().path();
 
-            const options = {options}
-            const routeModule = new RouteModule({{
-                ...options,
-                userland,
-            }})
+    let template_file = "build/templates/app-route.js";
 
-            // Pull out the exports that we need to expose from the module. This should         
-            // be eliminated when we've moved the other routes to the new format. These
-            // are used to hook into the route.
-            const {{
-                requestAsyncStorage,
-                staticGenerationAsyncStorage,
-                serverHooks,
-                headerHooks,
-                staticGenerationBailout
-            }} = routeModule
+    // Load the file from the next.js codebase.
+    let file = load_next_js_template(project_root, template_file.to_string()).await?;
 
-            const originalPathname = {original}
+    let mut file = file
+        .to_str()?
+        .replace(
+            "\"VAR_DEFINITION_PAGE\"",
+            &StringifyJs(&original_name).to_string(),
+        )
+        .replace(
+            "\"VAR_DEFINITION_PATHNAME\"",
+            &StringifyJs(&pathname).to_string(),
+        )
+        .replace(
+            "\"VAR_DEFINITION_FILENAME\"",
+            &StringifyJs(&path.file_stem().await?.as_ref().unwrap().clone()).to_string(),
+        )
+        // TODO(alexkirsz) Is this necessary?
+        .replace(
+            "\"VAR_DEFINITION_BUNDLE_PATH\"",
+            &StringifyJs("").to_string(),
+        )
+        .replace(
+            "\"VAR_ORIGINAL_PATHNAME\"",
+            &StringifyJs(&original_name).to_string(),
+        )
+        .replace(
+            "\"VAR_RESOLVED_PAGE_PATH\"",
+            &StringifyJs(&path.to_string().await?).to_string(),
+        )
+        .replace(
+            "// INJECT:nextConfigOutput",
+            "const nextConfigOutput = \"\"",
+        );
 
-            export {{
-                routeModule,
-                requestAsyncStorage,
-                staticGenerationAsyncStorage,
-                serverHooks,
-                headerHooks,
-                staticGenerationBailout,
-                originalPathname
-            }}
-        "#,
-        route_module = StringifyJs(&format!(
-            "next/dist/server/future/route-modules/{kind}/module"
-        )),
-        options = StringifyJs(&options),
-        original = StringifyJs(&original_name),
-    )?;
+    // Ensure that the last line is a newline.
+    if !file.ends_with('\n') {
+        file.push('\n');
+    }
+
+    result.concat(&file.into());
 
     let file = File::from(result.build());
-    // TODO(alexkirsz) Figure out how to name this virtual asset.
-    let virtual_source = VirtualSource::new(
-        project_root.join("todo.tsx".to_string()),
-        AssetContent::file(file.into()),
-    );
 
-    let entry = rsc_context.process(
+    let template_path = virtual_next_js_template_path(project_root, template_file.to_string());
+
+    let virtual_source = VirtualSource::new(template_path, AssetContent::file(file.into()));
+
+    let userland_module = context.process(
         source,
-        Value::new(ReferenceType::EcmaScriptModules(
-            EcmaScriptModulesReferenceSubType::Undefined,
-        )),
+        Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),
     );
 
     let inner_assets = indexmap! {
-        "ENTRY".to_string() => entry
+        "VAR_USERLAND".to_string() => userland_module
     };
 
-    let rsc_entry = rsc_context.process(
+    let mut rsc_entry = context.process(
         Vc::upcast(virtual_source),
         Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
     );
 
+    if is_edge {
+        rsc_entry = wrap_edge_entry(context, project_root, rsc_entry, pathname.clone());
+    }
+
     let Some(rsc_entry) =
-        Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(rsc_entry).await?
+        Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(rsc_entry).await?
     else {
-        bail!("expected an ECMAScript chunk placeable asset");
+        bail!("expected an ECMAScript chunk placeable module");
     };
 
     Ok(AppEntry {
-        pathname: pathname.to_string(),
+        pathname,
         original_name,
         rsc_entry,
+        config,
     }
     .cell())
 }
 
-fn get_original_route_name(pathname: &str) -> String {
-    match pathname {
-        "/" => "/route".to_string(),
-        _ => format!("{}/route", pathname),
-    }
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct AppRouteRouteModuleOptions {
-    definition: AppRouteRouteDefinition,
-    resolved_page_path: String,
-    next_config_output: String,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct AppRouteRouteDefinition {
-    kind: RouteKind,
-    page: String,
+#[turbo_tasks::function]
+pub async fn wrap_edge_entry(
+    context: Vc<ModuleAssetContext>,
+    project_root: Vc<FileSystemPath>,
+    entry: Vc<Box<dyn Module>>,
     pathname: String,
-    filename: String,
-    bundle_path: String,
-}
+) -> Result<Vc<Box<dyn Module>>> {
+    let mut source = RopeBuilder::default();
+    writedoc!(
+        source,
+        r#"
+            import {{ EdgeRouteModuleWrapper }} from 'next/dist/esm/server/web/edge-route-module-wrapper'
+            import * as module from "MODULE"
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-enum RouteKind {
-    AppRoute,
+            self._ENTRIES ||= {{}}
+            self._ENTRIES[{}] = {{
+                ComponentMod: module,
+                default: EdgeRouteModuleWrapper.wrap(module.routeModule),
+            }}
+        "#,
+        StringifyJs(&format_args!("middleware_{}", pathname))
+    )?;
+    let file = File::from(source.build());
+    // TODO(alexkirsz) Figure out how to name this virtual asset.
+    let virtual_source = VirtualSource::new(
+        project_root.join("edge-wrapper.js".to_string()),
+        AssetContent::file(file.into()),
+    );
+    let inner_assets = indexmap! {
+        "MODULE".to_string() => entry
+    };
+
+    Ok(context.process(
+        Vc::upcast(virtual_source),
+        Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+    ))
 }

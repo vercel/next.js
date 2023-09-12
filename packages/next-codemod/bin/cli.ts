@@ -13,7 +13,7 @@ import inquirer from 'inquirer'
 import meow from 'meow'
 import path from 'path'
 import execa from 'execa'
-import chalk from 'chalk'
+import { yellow } from 'picocolors'
 import isGitClean from 'is-git-clean'
 import { uninstallPackage } from '../lib/uninstall-package'
 
@@ -38,7 +38,7 @@ export function checkGitStatus(force) {
     } else {
       console.log('Thank you for using @next/codemod!')
       console.log(
-        chalk.yellow(
+        yellow(
           '\nBut before we continue, please stash or commit your git changes.'
         )
       )
@@ -132,7 +132,7 @@ const TRANSFORMER_INQUIRER_CHOICES = [
     value: 'cra-to-next',
   },
   {
-    name: 'new-link: Ensures your <Link> usage is backwards compatible. Used in combination with experimental newNextLinkBehavior',
+    name: 'new-link: Ensures your <Link> usage is backwards compatible.',
     value: 'new-link',
   },
   {

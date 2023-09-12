@@ -7,7 +7,6 @@ import { ErrorBoundary } from './ErrorBoundary'
 import { Base } from './styles/Base'
 import { ComponentStyles } from './styles/ComponentStyles'
 import { CssReset } from './styles/CssReset'
-import { notFound } from 'next/dist/client/components/not-found'
 
 type RefreshState =
   | {
@@ -209,10 +208,6 @@ export default function ReactDevOverlay({
     : null
 
   const isMounted = hasBuildError || hasRuntimeErrors
-
-  if (state.notFound) {
-    notFound()
-  }
 
   return (
     <React.Fragment>

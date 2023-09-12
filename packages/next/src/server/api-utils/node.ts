@@ -35,7 +35,6 @@ import {
   PRERENDER_REVALIDATE_HEADER,
   PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
 } from '../../lib/constants'
-import { invokeRequest } from '../lib/server-ipc/invoke-request'
 
 export function tryGetPreviewData(
   req: IncomingMessage | BaseNextRequest | Request,
@@ -191,17 +190,17 @@ export async function parseBody(
   }
 }
 
+type RevalidateFn = (config: {
+  urlPath: string
+  revalidateHeaders: { [key: string]: string | string[] }
+  opts: { unstable_onlyGenerated?: boolean }
+}) => Promise<void>
+
 type ApiContext = __ApiPreviewProps & {
   trustHostHeader?: boolean
   allowedRevalidateHeaderKeys?: string[]
   hostname?: string
-  revalidate?: (config: {
-    urlPath: string
-    revalidateHeaders: { [key: string]: string | string[] }
-    opts: { unstable_onlyGenerated?: boolean }
-  }) => Promise<any>
-
-  // (_req: IncomingMessage, _res: ServerResponse) => Promise<any>
+  revalidate?: RevalidateFn
 }
 
 function getMaxContentLength(responseLimit?: ResponseLimit) {
@@ -460,39 +459,6 @@ async function revalidate(
         throw new Error(`Invalid response ${res.status}`)
       }
     } else if (context.revalidate) {
-      // We prefer to use the IPC call if running under the workers mode.
-      const ipcPort = process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT
-      if (ipcPort) {
-        const ipcKey = process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY
-        const res = await invokeRequest(
-          `http://${
-            context.hostname
-          }:${ipcPort}?key=${ipcKey}&method=revalidate&args=${encodeURIComponent(
-            JSON.stringify([{ urlPath, revalidateHeaders, opts }])
-          )}`,
-          {
-            method: 'GET',
-            headers: {},
-          }
-        )
-
-        const chunks = []
-
-        for await (const chunk of res) {
-          if (chunk) {
-            chunks.push(chunk)
-          }
-        }
-        const body = Buffer.concat(chunks).toString()
-        const result = JSON.parse(body)
-
-        if (result.err) {
-          throw new Error(result.err.message)
-        }
-
-        return
-      }
-
       await context.revalidate({
         urlPath,
         revalidateHeaders,

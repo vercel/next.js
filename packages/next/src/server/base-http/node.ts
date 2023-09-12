@@ -17,7 +17,7 @@ type Req = IncomingMessage & {
 export class NodeNextRequest extends BaseNextRequest<Readable> {
   public headers = this._req.headers;
 
-  [NEXT_REQUEST_META]: RequestMeta = {}
+  [NEXT_REQUEST_META]: RequestMeta = this._req[NEXT_REQUEST_META] || {}
 
   get originalRequest() {
     // Need to mimic these changes to the original req object for places where we use it:

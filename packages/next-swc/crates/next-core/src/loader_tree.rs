@@ -1,3 +1,5 @@
+use std::fmt::Write;
+
 use anyhow::Result;
 use async_recursion::async_recursion;
 use indexmap::IndexMap;
@@ -12,13 +14,16 @@ use turbopack_binding::turbopack::{
         reference_type::{EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType},
     },
     ecmascript::{magic_identifier, text::TextContentFileSource, utils::StringifyJs},
-    r#static::StaticModuleAsset,
     turbopack::{transition::Transition, ModuleAssetContext},
 };
 
 use crate::{
-    app_structure::{Components, LoaderTree, Metadata, MetadataItem, MetadataWithAltItem},
+    app_structure::{
+        get_metadata_route_name, Components, GlobalMetadata, LoaderTree, Metadata, MetadataItem,
+        MetadataWithAltItem,
+    },
     mode::NextMode,
+    next_app::{metadata::image::dynamic_image_metadata_source, AppPage},
     next_image::module::{BlurPlaceholderMode, StructuredImageModuleType},
 };
 
@@ -28,7 +33,6 @@ pub struct LoaderTreeBuilder {
     imports: Vec<String>,
     loader_tree_code: String,
     context: Vc<ModuleAssetContext>,
-    unsupported_metadata: Vec<Vc<FileSystemPath>>,
     mode: NextMode,
     server_component_transition: ServerComponentTransition,
     pages: Vec<Vc<FileSystemPath>>,
@@ -77,7 +81,6 @@ impl LoaderTreeBuilder {
             imports: Vec::new(),
             loader_tree_code: String::new(),
             context,
-            unsupported_metadata: Vec::new(),
             server_component_transition,
             mode,
             pages: Vec::new(),
@@ -95,8 +98,6 @@ impl LoaderTreeBuilder {
         ty: ComponentType,
         component: Option<Vc<FileSystemPath>>,
     ) -> Result<()> {
-        use std::fmt::Write;
-
         if let Some(component) = component {
             if matches!(ty, ComponentType::Page) {
                 self.pages.push(component);
@@ -107,7 +108,7 @@ impl LoaderTreeBuilder {
             let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
 
             match self.mode {
-                NextMode::Development => {
+                NextMode::Development | NextMode::DevServer => {
                     let chunks_identifier =
                         magic_identifier::mangle(&format!("chunks of {name} #{i}"));
                     writeln!(
@@ -164,7 +165,12 @@ impl LoaderTreeBuilder {
         Ok(())
     }
 
-    fn write_metadata(&mut self, metadata: &Metadata) -> Result<()> {
+    async fn write_metadata(
+        &mut self,
+        app_page: &AppPage,
+        metadata: &Metadata,
+        global_metadata: &GlobalMetadata,
+    ) -> Result<()> {
         if metadata.is_empty() {
             return Ok(());
         }
@@ -173,118 +179,176 @@ impl LoaderTreeBuilder {
             apple,
             twitter,
             open_graph,
-            favicon,
-            manifest,
+            sitemap: _,
         } = metadata;
+        let GlobalMetadata {
+            favicon: _,
+            manifest,
+            robots: _,
+        } = global_metadata;
+
         self.loader_tree_code += "  metadata: {";
-        self.write_metadata_items("icon", favicon.iter().chain(icon.iter()))?;
-        self.write_metadata_items("apple", apple.iter())?;
-        self.write_metadata_items("twitter", twitter.iter())?;
-        self.write_metadata_items("openGraph", open_graph.iter())?;
-        self.write_metadata_manifest(*manifest)?;
+        self.write_metadata_items(app_page, "icon", icon.iter())
+            .await?;
+        self.write_metadata_items(app_page, "apple", apple.iter())
+            .await?;
+        self.write_metadata_items(app_page, "twitter", twitter.iter())
+            .await?;
+        self.write_metadata_items(app_page, "openGraph", open_graph.iter())
+            .await?;
+        self.write_metadata_manifest(*manifest).await?;
         self.loader_tree_code += "  },";
         Ok(())
     }
 
-    fn write_metadata_manifest(&mut self, manifest: Option<MetadataItem>) -> Result<()> {
+    async fn write_metadata_manifest(&mut self, manifest: Option<MetadataItem>) -> Result<()> {
         let Some(manifest) = manifest else {
             return Ok(());
         };
-        match manifest {
-            MetadataItem::Static { path } => {
-                use std::fmt::Write;
-                let i = self.unique_number();
-                let identifier = magic_identifier::mangle(&format!("manifest #{i}"));
-                let inner_module_id = format!("METADATA_{i}");
-                self.imports
-                    .push(format!("import {identifier} from \"{inner_module_id}\";"));
-                self.inner_assets.insert(
-                    inner_module_id,
-                    Vc::upcast(StaticModuleAsset::new(
-                        Vc::upcast(FileSource::new(path)),
-                        Vc::upcast(self.context),
-                    )),
-                );
-                writeln!(self.loader_tree_code, "    manifest: {identifier},")?;
-            }
-            MetadataItem::Dynamic { path } => {
-                self.unsupported_metadata.push(path);
-            }
-        }
+
+        let manifest_route = &format!("/{}", get_metadata_route_name(manifest).await?);
+        writeln!(
+            self.loader_tree_code,
+            "    manifest: {},",
+            StringifyJs(manifest_route)
+        )?;
 
         Ok(())
     }
 
-    fn write_metadata_items<'a>(
+    async fn write_metadata_items<'a>(
         &mut self,
+        app_page: &AppPage,
         name: &str,
         it: impl Iterator<Item = &'a MetadataWithAltItem>,
     ) -> Result<()> {
-        use std::fmt::Write;
         let mut it = it.peekable();
         if it.peek().is_none() {
             return Ok(());
         }
         writeln!(self.loader_tree_code, "    {name}: [")?;
         for item in it {
-            self.write_metadata_item(name, item)?;
+            self.write_metadata_item(app_page, name, item).await?;
         }
         writeln!(self.loader_tree_code, "    ],")?;
         Ok(())
     }
 
-    fn write_metadata_item(&mut self, name: &str, item: &MetadataWithAltItem) -> Result<()> {
-        use std::fmt::Write;
+    async fn write_metadata_item(
+        &mut self,
+        app_page: &AppPage,
+        name: &str,
+        item: &MetadataWithAltItem,
+    ) -> Result<()> {
+        match item {
+            MetadataWithAltItem::Static { path, alt_path } => {
+                self.write_static_metadata_item(app_page, name, item, *path, *alt_path)
+                    .await?;
+            }
+            MetadataWithAltItem::Dynamic { path, .. } => {
+                let i = self.unique_number();
+                let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
+                let inner_module_id = format!("METADATA_{i}");
+
+                self.imports
+                    .push(format!("import {identifier} from \"{inner_module_id}\";"));
+
+                let source = dynamic_image_metadata_source(
+                    Vc::upcast(self.context),
+                    *path,
+                    name.to_string(),
+                    app_page.clone(),
+                );
+
+                self.inner_assets.insert(
+                    inner_module_id,
+                    self.context.process(
+                        source,
+                        Value::new(ReferenceType::EcmaScriptModules(
+                            EcmaScriptModulesReferenceSubType::Undefined,
+                        )),
+                    ),
+                );
+
+                let s = "      ";
+                writeln!(self.loader_tree_code, "{s}{identifier},")?;
+            }
+        }
+        Ok(())
+    }
+
+    async fn write_static_metadata_item(
+        &mut self,
+        app_page: &AppPage,
+        name: &str,
+        item: &MetadataWithAltItem,
+        path: Vc<FileSystemPath>,
+        alt_path: Option<Vc<FileSystemPath>>,
+    ) -> Result<()> {
         let i = self.unique_number();
         let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
         let inner_module_id = format!("METADATA_{i}");
+        let helper_import = "import { fillMetadataSegment } from \
+                             \"next/dist/lib/metadata/get-metadata-route\""
+            .to_string();
+        if !self.imports.contains(&helper_import) {
+            self.imports.push(helper_import);
+        }
+
         self.imports
             .push(format!("import {identifier} from \"{inner_module_id}\";"));
+        self.inner_assets.insert(
+            inner_module_id,
+            Vc::upcast(StructuredImageModuleType::create_module(
+                Vc::upcast(FileSource::new(path)),
+                BlurPlaceholderMode::None,
+                self.context,
+            )),
+        );
+
         let s = "      ";
-        match item {
-            MetadataWithAltItem::Static { path, alt_path } => {
-                self.inner_assets.insert(
-                    inner_module_id,
-                    Vc::upcast(StructuredImageModuleType::create_module(
-                        Vc::upcast(FileSource::new(*path)),
-                        BlurPlaceholderMode::None,
-                        self.context,
-                    )),
-                );
-                writeln!(self.loader_tree_code, "{s}(async (props) => [{{")?;
-                writeln!(self.loader_tree_code, "{s}  url: {identifier}.src,")?;
-                let numeric_sizes = name == "twitter" || name == "openGraph";
-                if numeric_sizes {
-                    writeln!(self.loader_tree_code, "{s}  width: {identifier}.width,")?;
-                    writeln!(self.loader_tree_code, "{s}  height: {identifier}.height,")?;
-                } else {
-                    writeln!(
-                        self.loader_tree_code,
-                        "{s}  sizes: `${{{identifier}.width}}x${{{identifier}.height}}`,"
-                    )?;
-                }
-                if let Some(alt_path) = alt_path {
-                    let identifier = magic_identifier::mangle(&format!("{name} alt text #{i}"));
-                    let inner_module_id = format!("METADATA_ALT_{i}");
-                    self.imports
-                        .push(format!("import {identifier} from \"{inner_module_id}\";"));
-                    self.inner_assets.insert(
-                        inner_module_id,
-                        self.context.process(
-                            Vc::upcast(TextContentFileSource::new(Vc::upcast(FileSource::new(
-                                *alt_path,
-                            )))),
-                            Value::new(ReferenceType::Internal(InnerAssets::empty())),
-                        ),
-                    );
-                    writeln!(self.loader_tree_code, "{s}  alt: {identifier},")?;
-                }
-                writeln!(self.loader_tree_code, "{s}}}]),")?;
-            }
-            MetadataWithAltItem::Dynamic { path, .. } => {
-                self.unsupported_metadata.push(*path);
-            }
+        writeln!(self.loader_tree_code, "{s}(async (props) => [{{")?;
+
+        let metadata_route = &*get_metadata_route_name((*item).into()).await?;
+        writeln!(
+            self.loader_tree_code,
+            "{s}  url: fillMetadataSegment({}, props.params, {}) + \
+             `?${{{identifier}.src.split(\"/\").splice(-1)[0]}}`,",
+            StringifyJs(&app_page.to_string()),
+            StringifyJs(metadata_route),
+        )?;
+
+        let numeric_sizes = name == "twitter" || name == "openGraph";
+        if numeric_sizes {
+            writeln!(self.loader_tree_code, "{s}  width: {identifier}.width,")?;
+            writeln!(self.loader_tree_code, "{s}  height: {identifier}.height,")?;
+        } else {
+            writeln!(
+                self.loader_tree_code,
+                "{s}  sizes: `${{{identifier}.width}}x${{{identifier}.height}}`,"
+            )?;
         }
+
+        if let Some(alt_path) = alt_path {
+            let identifier = magic_identifier::mangle(&format!("{name} alt text #{i}"));
+            let inner_module_id = format!("METADATA_ALT_{i}");
+            self.imports
+                .push(format!("import {identifier} from \"{inner_module_id}\";"));
+            self.inner_assets.insert(
+                inner_module_id,
+                self.context.process(
+                    Vc::upcast(TextContentFileSource::new(Vc::upcast(FileSource::new(
+                        alt_path,
+                    )))),
+                    Value::new(ReferenceType::Internal(InnerAssets::empty())),
+                ),
+            );
+
+            writeln!(self.loader_tree_code, "{s}  alt: {identifier},")?;
+        }
+
+        writeln!(self.loader_tree_code, "{s}}}]),")?;
+
         Ok(())
     }
 
@@ -293,9 +357,11 @@ impl LoaderTreeBuilder {
         use std::fmt::Write;
 
         let LoaderTree {
+            page: app_page,
             segment,
             parallel_routes,
             components,
+            global_metadata,
         } = &*loader_tree.await?;
 
         writeln!(
@@ -333,7 +399,8 @@ impl LoaderTreeBuilder {
             .await?;
         self.write_component(ComponentType::NotFound, *not_found)
             .await?;
-        self.write_metadata(metadata)?;
+        self.write_metadata(app_page, metadata, &*global_metadata.await?)
+            .await?;
         write!(self.loader_tree_code, "}}]")?;
         Ok(())
     }
@@ -344,7 +411,6 @@ impl LoaderTreeBuilder {
             imports: self.imports,
             loader_tree_code: self.loader_tree_code,
             inner_assets: self.inner_assets,
-            unsupported_metadata: self.unsupported_metadata,
             pages: self.pages,
         })
     }
@@ -354,7 +420,6 @@ pub struct LoaderTreeModule {
     pub imports: Vec<String>,
     pub loader_tree_code: String,
     pub inner_assets: IndexMap<String, Vc<Box<dyn Module>>>,
-    pub unsupported_metadata: Vec<Vc<FileSystemPath>>,
     pub pages: Vec<Vc<FileSystemPath>>,
 }
 

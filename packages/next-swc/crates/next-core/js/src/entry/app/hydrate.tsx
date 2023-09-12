@@ -6,7 +6,7 @@ import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-we
 import { callServer } from 'next/dist/client/app-call-server'
 import { linkGc } from 'next/dist/client/app-link-gc'
 
-import { HeadManagerContext } from 'next/dist/shared/lib/head-manager-context'
+import { HeadManagerContext } from 'next/dist/shared/lib/head-manager-context.shared-runtime'
 
 import { initializeHMR } from '@vercel/turbopack-next/dev/client'
 
@@ -24,8 +24,6 @@ globalThis.__next_require__ = (data) => {
   return __turbopack_require__(client_id)
 }
 globalThis.__next_chunk_load__ = __turbopack_load__
-
-process.env.__NEXT_NEW_LINK_BEHAVIOR = 'true'
 
 const appElement = document
 

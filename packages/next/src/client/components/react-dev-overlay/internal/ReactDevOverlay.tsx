@@ -13,7 +13,6 @@ import { parseStack } from './helpers/parseStack'
 import { Base } from './styles/Base'
 import { ComponentStyles } from './styles/ComponentStyles'
 import { CssReset } from './styles/CssReset'
-import { notFound } from '../../not-found'
 
 interface ReactDevOverlayState {
   reactError: SupportedErrorEvent | null
@@ -58,10 +57,6 @@ class ReactDevOverlay extends React.PureComponent<
       hasRuntimeErrors ||
       reactError ||
       rootLayoutMissingTagsError
-
-    if (state.notFound) {
-      notFound()
-    }
 
     return (
       <>
