@@ -89,5 +89,5 @@ export function isPortIsReserved(port: number): port is ReservedPort {
 }
 
 export function getReservedPortExplanation(port: ReservedPort): string {
-  return `Bad port: '${port}' is reserved for ${KNOWN_RESERVED_PORTS[port]}`
+  return `Bad port: "${port}" is reserved for ${KNOWN_RESERVED_PORTS[port]}`
 }

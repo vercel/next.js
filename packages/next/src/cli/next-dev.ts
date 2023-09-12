@@ -19,9 +19,8 @@ import { startServer } from '../server/lib/start-server'
 import { loadEnvConfig } from '@next/env'
 import { trace } from '../trace'
 import {
-  ReservedPort,
-  getPortIsReserved,
   getReservedPortExplanation,
+  isPortIsReserved,
 } from '../lib/helpers/get-reserved-port'
 
 let dir: string
@@ -173,9 +172,8 @@ const nextDev: CliCommand = async (args) => {
 
   const port = getPort(args)
 
-  // Check if port is reserved or not.
-  if (getPortIsReserved(port)) {
-    printAndExit(getReservedPortExplanation(port as ReservedPort), 1)
+  if (isPortIsReserved(port)) {
+    printAndExit(getReservedPortExplanation(port), 1)
   }
 
   // If neither --port nor PORT were specified, it's okay to retry new ports.

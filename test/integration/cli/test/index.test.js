@@ -264,7 +264,7 @@ describe('CLI Usage', () => {
       )
 
       expect(stderr).toContain(
-        `Bad port: '${reservedPort}' is reserved for npp`
+        `Bad port: "${reservedPort}" is reserved for npp`
       )
     })
   })
@@ -539,7 +539,9 @@ describe('CLI Usage', () => {
       })
 
       expect(stdout).toMatch('')
-      expect(stderr).toMatch("Bad port: '1' is reserved for tcpmux")
+      expect(stderr).toMatch(
+        `Bad port: "${TCP_MUX_PORT}" is reserved for tcpmux`
+      )
     })
 
     test('--hostname', async () => {
