@@ -1456,7 +1456,7 @@ export async function isPageStatic({
       } else {
         componentsResult = await loadComponents({
           distDir,
-          pathname: originalAppPath || page,
+          page: originalAppPath || page,
           isAppPath: pageType === 'app',
         })
       }
@@ -1701,7 +1701,7 @@ export async function hasCustomGetInitialProps(
 
   const components = await loadComponents({
     distDir,
-    pathname: page,
+    page: page,
     isAppPath: false,
   })
   let mod = components.ComponentMod
@@ -1725,7 +1725,7 @@ export async function getDefinedNamedExports(
   )
   const components = await loadComponents({
     distDir,
-    pathname: page,
+    page: page,
     isAppPath: false,
   })
 
@@ -1830,7 +1830,8 @@ export async function copyTracedFiles(
   tracingRoot: string,
   serverConfig: { [key: string]: any },
   middlewareManifest: MiddlewareManifest,
-  hasInstrumentationHook: boolean
+  hasInstrumentationHook: boolean,
+  hasAppDir: boolean
 ) {
   const outputPath = path.join(distDir, 'standalone')
   let moduleType = false
@@ -1963,12 +1964,11 @@ export async function copyTracedFiles(
       moduleType
         ? `import path from 'path'
 import { fileURLToPath } from 'url'
+import module from 'module'
+const require = module.createRequire(import.meta.url)
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
-import { startServer } from 'next/dist/server/lib/start-server.js'
 `
-        : `
-const path = require('path')
-const { startServer } = require('next/dist/server/lib/start-server')`
+        : `const path = require('path')`
     }
 
 const dir = path.join(__dirname)
@@ -1993,9 +1993,14 @@ const nextConfig = ${JSON.stringify({
     })}
 
 process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(nextConfig)
-process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = nextConfig.experimental && nextConfig.experimental.serverActions
-  ? 'experimental'
-  : 'next'
+process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = ${hasAppDir}
+  ? nextConfig.experimental && nextConfig.experimental.serverActions
+    ? 'experimental'
+    : 'next'
+  : '';
+
+require('next')
+const { startServer } = require('next/dist/server/lib/start-server')
 
 if (
   Number.isNaN(keepAliveTimeout) ||

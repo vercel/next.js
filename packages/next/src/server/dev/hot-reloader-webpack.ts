@@ -715,9 +715,11 @@ export default class HotReloader implements NextJsHotReloaderInterface {
     const startSpan = this.hotReloaderSpan.traceChild('start')
     startSpan.stop() // Stop immediately to create an artificial parent span
 
+    const testMode = process.env.NEXT_TEST_MODE || process.env.__NEXT_TEST_MODE
+
     this.versionInfo = await this.getVersionInfo(
       startSpan,
-      !!process.env.NEXT_TEST_MODE || this.telemetry.isEnabled
+      !!testMode || this.telemetry.isEnabled
     )
 
     await this.clean(startSpan)

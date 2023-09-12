@@ -324,7 +324,7 @@ export default async function exportPage({
       if (!isRouteHandler) {
         components = await loadComponents({
           distDir,
-          pathname: page,
+          page: page,
           isAppPath: isAppDir,
         })
         curRenderOpts = {

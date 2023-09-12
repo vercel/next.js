@@ -103,6 +103,7 @@ import {
   TurboPackConnectedAction,
 } from '../../dev/hot-reloader-types'
 import { debounce } from '../../utils'
+import { deleteCache } from '../../../build/webpack/plugins/nextjs-require-cache-hot-reloader'
 import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
 
 const wsServer = new ws.Server({ noServer: true })
@@ -157,8 +158,8 @@ async function startWatcher(opts: SetupOpts) {
   )
 
   async function propagateToWorkers(field: PropagateToWorkersField, args: any) {
-    await opts.renderWorkers.app?.propagateServerField(field, args)
-    await opts.renderWorkers.pages?.propagateServerField(field, args)
+    await opts.renderWorkers.app?.propagateServerField(opts.dir, field, args)
+    await opts.renderWorkers.pages?.propagateServerField(opts.dir, field, args)
   }
 
   const serverFields: {
@@ -310,21 +311,20 @@ async function startWatcher(opts: SetupOpts) {
     async function processResult(
       result: TurbopackResult<WrittenEndpoint>
     ): Promise<TurbopackResult<WrittenEndpoint>> {
-      await (global as any)._nextDeleteCache?.(
-        result.serverPaths
-          .map((p) => path.join(distDir, p))
-          .concat([
-            // We need to clear the chunk cache in react
-            require.resolve(
-              'next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.edge.development.js'
-            ),
-            // And this redirecting module as well
-            require.resolve(
-              'next/dist/compiled/react-server-dom-webpack/client.edge.js'
-            ),
-          ])
-      )
-
+      for (const file of result.serverPaths
+        .map((p) => path.join(distDir, p))
+        .concat([
+          // We need to clear the chunk cache in react
+          require.resolve(
+            'next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.edge.development.js'
+          ),
+          // And this redirecting module as well
+          require.resolve(
+            'next/dist/compiled/react-server-dom-webpack/client.edge.js'
+          ),
+        ])) {
+        deleteCache(file)
+      }
       return result
     }
 
@@ -380,8 +380,7 @@ async function startWatcher(opts: SetupOpts) {
       sendHmrDebounce()
     }
 
-    const clearCache = (filePath: string) =>
-      (global as any)._nextDeleteCache?.([filePath])
+    const clearCache = (filePath: string) => deleteCache(filePath)
 
     async function loadPartialManifest<T>(
       name: string,
@@ -954,8 +953,6 @@ async function startWatcher(opts: SetupOpts) {
         // Not implemented yet.
       },
       async start() {
-        // Align with nextjs logging for ready start event
-        Log.event('ready')
         // Not implemented yet.
       },
       async stop() {
