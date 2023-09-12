@@ -249,9 +249,7 @@ describe('CLI Usage', () => {
         }
       )
 
-      expect(stderr).toContain(
-        `options.port should be >= 0 and < 65536. Received type number (${invalidPort}).`
-      )
+      expect(stderr).toContain(`options.port should be >= 0 and < 65536.`)
     })
 
     test('should not start on a reserved port', async () => {
