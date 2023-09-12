@@ -140,16 +140,30 @@ describe('CLI Usage', () => {
     })
 
     test('should format IPv6 addresses correctly', async () => {
+      await nextBuild(dirBasic)
       const port = await findPort()
-      const output = await runNextCommand(
-        ['start', '--hostname', '::', '--port', port],
+
+      let stdout = ''
+      const app = await runNextCommandDev(
+        ['start', dirBasic, '--hostname', '::', '--port', port],
+        undefined,
         {
-          stdout: true,
+          nextStart: true,
+          onStdout(msg) {
+            stdout += msg
+          },
         }
       )
-      // Only display when hostname is provided
-      expect(output.stdout).toMatch(new RegExp(`Network:\\s*\\[::\\]:${port}`))
-      expect(output.stdout).toMatch(new RegExp(`http://\\[::1\\]:${port}`))
+
+      try {
+        await check(() => {
+          // Only display when hostname is provided
+          expect(stdout).toMatch(new RegExp(`Network:\\s*\\[::\\]:${port}`))
+          expect(stdout).toMatch(new RegExp(`http://\\[::1\\]:${port}`))
+        })
+      } finally {
+        await killApp(app)
+      }
     })
 
     test('should warn when unknown argument provided', async () => {

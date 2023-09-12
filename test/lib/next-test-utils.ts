@@ -377,10 +377,11 @@ export function runNextCommandDev(
       const bootupMarkers = {
         dev: /✓ ready/i,
         turbo: /✓ ready/i,
-        start: /▲ Next.js/i,
+        start: /✓ ready/i,
       }
 
       const strippedMessage = stripAnsi(message) as any
+
       if (
         (opts.bootupMarker && opts.bootupMarker.test(strippedMessage)) ||
         bootupMarkers[bootType].test(strippedMessage)

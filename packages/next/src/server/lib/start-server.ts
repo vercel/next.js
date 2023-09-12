@@ -275,15 +275,6 @@ export async function startServer({
         )
       }
 
-      logStartInfo({
-        port,
-        actualHostname,
-        appUrl,
-        hostname,
-        envInfo,
-        expFeatureInfo,
-      })
-
       // expose the main port to render workers
       process.env.PORT = port + ''
 
@@ -316,6 +307,16 @@ export async function startServer({
         })
         requestHandler = initResult[0]
         upgradeHandler = initResult[1]
+
+        logStartInfo({
+          port,
+          actualHostname,
+          appUrl,
+          hostname,
+          envInfo,
+          expFeatureInfo,
+        })
+
         handlersReady()
       } catch (err) {
         // fatal error if we can't setup
@@ -350,8 +351,6 @@ export async function startServer({
         return
       }
 
-      // Adding a new line to avoid the logs going directly after the spinner in `next build`
-      Log.warn('')
       Log.warn(
         `Found a change in ${path.basename(
           filename
