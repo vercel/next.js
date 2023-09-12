@@ -12,7 +12,7 @@ import {
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { clientHookInServerComponentError } from './client-hook-in-server-component-error'
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
-import { asPathToSearchParams } from '../../shared/lib/router/utils/as-path-to-search-params'
+import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 
 const INTERNAL_URLSEARCHPARAMS_INSTANCE = Symbol(
   'internal for urlsearchparams readonly'
@@ -178,16 +178,11 @@ export function useParams<T extends Params = Params>(): T {
 
   // When it's under pages router,
   if (pagesRouter) {
-    const allQuery = pagesRouter.query
-    const searchParamsKeysSet = new Set(
-      asPathToSearchParams(pagesRouter.asPath).keys()
-    )
+    const routeRegex = getRouteRegex(pagesRouter.pathname)
     const pathParams: Params = {}
-    for (const key of Object.keys(allQuery)) {
-      if (!searchParamsKeysSet.has(key)) {
-        const queryValue = allQuery[key]!
-        pathParams[key] = queryValue
-      }
+    const keys = Object.keys(routeRegex.groups)
+    for (const key of keys) {
+      pathParams[key] = pagesRouter.query[key]!
     }
     return pathParams as T
   }
