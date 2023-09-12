@@ -43,6 +43,7 @@ import {
   SERVER_DIRECTORY,
   NEXT_FONT_MANIFEST,
   PHASE_PRODUCTION_BUILD,
+  INTERNAL_HEADERS,
 } from '../shared/lib/constants'
 import { findDir } from '../lib/find-pages-dir'
 import { UrlWithParsedQuery } from 'url'
@@ -918,11 +919,7 @@ export default class NextNodeServer extends BaseServer {
     } catch (err: any) {
       if (err instanceof NoFallbackError) {
         if (this.isRenderWorker) {
-          res.setHeader('x-no-fallback', '1')
-          res.send()
-          return {
-            finished: true,
-          }
+          throw err
         }
 
         return {
@@ -1000,13 +997,17 @@ export default class NextNodeServer extends BaseServer {
   private normalizeReq(
     req: BaseNextRequest | IncomingMessage
   ): BaseNextRequest {
-    return req instanceof IncomingMessage ? new NodeNextRequest(req) : req
+    return !(req instanceof NodeNextRequest)
+      ? new NodeNextRequest(req as IncomingMessage)
+      : req
   }
 
   private normalizeRes(
     res: BaseNextResponse | ServerResponse
   ): BaseNextResponse {
-    return res instanceof ServerResponse ? new NodeNextResponse(res) : res
+    return !(res instanceof NodeNextResponse)
+      ? new NodeNextResponse(res as ServerResponse)
+      : res
   }
 
   public getRequestHandler(): NodeRequestHandler {
@@ -1464,7 +1465,9 @@ export default class NextNodeServer extends BaseServer {
       checkIsOnDemandRevalidate(params.request, this.renderOpts.previewProps)
         .isOnDemandRevalidate
     ) {
-      return { finished: false }
+      return {
+        response: new Response(null, { headers: { 'x-middleware-next': '1' } }),
+      } as FetchEventResult
     }
 
     let url: string
@@ -1611,6 +1614,11 @@ export default class NextNodeServer extends BaseServer {
     let result: Awaited<
       ReturnType<typeof NextNodeServer.prototype.runMiddleware>
     >
+    let bubblingResult = false
+
+    for (const key of INTERNAL_HEADERS) {
+      delete req.headers[key]
+    }
 
     // Strip the internal headers.
     this.stripInternalHeaders(req)
@@ -1625,7 +1633,15 @@ export default class NextNodeServer extends BaseServer {
         parsed: parsed,
       })
 
-      if (isMiddlewareInvoke && 'response' in result) {
+      if ('response' in result) {
+        if (isMiddlewareInvoke) {
+          bubblingResult = true
+          const err = new Error()
+          ;(err as any).result = result
+          ;(err as any).bubble = true
+          throw err
+        }
+
         for (const [key, value] of Object.entries(
           toNodeOutgoingHttpHeaders(result.response.headers)
         )) {
@@ -1643,7 +1659,11 @@ export default class NextNodeServer extends BaseServer {
         }
         return { finished: true }
       }
-    } catch (err) {
+    } catch (err: any) {
+      if (bubblingResult) {
+        throw err
+      }
+
       if (isError(err) && err.code === 'ENOENT') {
         await this.render404(req, res, parsed)
         return { finished: true }
@@ -1651,14 +1671,14 @@ export default class NextNodeServer extends BaseServer {
 
       if (err instanceof DecodeError) {
         res.statusCode = 400
-        this.renderError(err, req, res, parsed.pathname || '')
+        await this.renderError(err, req, res, parsed.pathname || '')
         return { finished: true }
       }
 
       const error = getProperError(err)
       console.error(error)
       res.statusCode = 500
-      this.renderError(error, req, res, parsed.pathname || '')
+      await this.renderError(error, req, res, parsed.pathname || '')
       return { finished: true }
     }
 
