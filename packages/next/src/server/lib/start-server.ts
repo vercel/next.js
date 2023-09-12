@@ -33,7 +33,6 @@ if (process.env.NEXT_CPU_PROF) {
 export interface StartServerOptions {
   dir: string
   port: number
-  logReady?: boolean
   isDev: boolean
   hostname: string
   allowRetry?: boolean
@@ -143,7 +142,6 @@ export async function startServer({
   allowRetry,
   keepAliveTimeout,
   isExperimentalTestProxy,
-  logReady = true,
   selfSignedCertificate,
   envInfo,
   expFeatureInfo,
@@ -277,16 +275,14 @@ export async function startServer({
         )
       }
 
-      if (logReady) {
-        logStartInfo({
-          port,
-          actualHostname,
-          appUrl,
-          hostname,
-          envInfo,
-          expFeatureInfo,
-        })
-      }
+      logStartInfo({
+        port,
+        actualHostname,
+        appUrl,
+        hostname,
+        envInfo,
+        expFeatureInfo,
+      })
 
       // expose the main port to render workers
       process.env.PORT = port + ''
