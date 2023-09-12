@@ -16,8 +16,8 @@ import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
 import {
   RESTART_EXIT_CODE,
-  WorkerRequestHandler,
-  WorkerUpgradeHandler,
+  type WorkerRequestHandler,
+  type WorkerUpgradeHandler,
 } from './setup-server-worker'
 import { checkIsNodeDebugging } from './is-node-debugging'
 import { CONFIG_FILES } from '../../shared/lib/constants'
@@ -207,15 +207,16 @@ export async function startServer({
           ? addr?.address || hostname || 'localhost'
           : addr
       )
-
       const formattedHostname =
-        !hostname || hostname === '0.0.0.0'
+        !hostname || actualHostname === '0.0.0.0'
           ? 'localhost'
           : actualHostname === '[::]'
           ? '[::1]'
-          : actualHostname
+          : formatHostname(hostname)
 
       port = typeof addr === 'object' ? addr?.port || port : port
+
+      const networkUrl = `http://${actualHostname}:${port}`
       const appUrl = `${
         selfSignedCertificate ? 'https' : 'http'
       }://${formattedHostname}:${port}`
@@ -241,11 +242,7 @@ export async function startServer({
         )
         Log.bootstrap(` - Local:        ${appUrl}`)
         if (hostname) {
-          Log.bootstrap(
-            ` - Network:      ${actualHostname}${
-              (port + '').startsWith(':') ? '' : ':'
-            }${port}`
-          )
+          Log.bootstrap(` - Network:      ${networkUrl}`)
         }
         if (envInfo?.length)
           Log.bootstrap(` - Environments: ${envInfo.join(', ')}`)
