@@ -18,6 +18,11 @@ import uploadTrace from '../trace/upload-trace'
 import { startServer } from '../server/lib/start-server'
 import { loadEnvConfig } from '@next/env'
 import { trace } from '../trace'
+import {
+  getReservedPortExplanation,
+  isPortIsReserved,
+} from '../lib/helpers/get-reserved-port'
+import { validateTurboNextConfig } from '../lib/turbopack-warning'
 
 let dir: string
 let config: NextConfigComplete
@@ -167,6 +172,11 @@ const nextDev: CliCommand = async (args) => {
   }
 
   const port = getPort(args)
+
+  if (isPortIsReserved(port)) {
+    printAndExit(getReservedPortExplanation(port), 1)
+  }
+
   // If neither --port nor PORT were specified, it's okay to retry new ports.
   const allowRetry =
     args['--port'] === undefined && process.env.PORT === undefined
@@ -218,6 +228,11 @@ const nextDev: CliCommand = async (args) => {
 
   if (args['--turbo']) {
     process.env.TURBOPACK = '1'
+    await validateTurboNextConfig({
+      isCustomTurbopack: !!process.env.__INTERNAL_CUSTOM_TURBOPACK_BINDINGS,
+      ...devServerOptions,
+      isDev: true,
+    })
   }
 
   const distDir = path.join(dir, config.distDir ?? '.next')
