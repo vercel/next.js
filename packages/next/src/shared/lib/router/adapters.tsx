@@ -40,41 +40,20 @@ export function adaptForAppRouterInstance(
 }
 
 /**
- * transforms the ParsedUrlQuery into a URLSearchParams.
- *
- * @param query the query to transform
- * @returns URLSearchParams
- */
-function transformQuery(query: ParsedUrlQuery): URLSearchParams {
-  const params = new URLSearchParams()
-
-  for (const [name, value] of Object.entries(query)) {
-    if (Array.isArray(value)) {
-      for (const val of value) {
-        params.append(name, val)
-      }
-    } else if (typeof value !== 'undefined') {
-      params.append(name, value)
-    }
-  }
-
-  return params
-}
-
-/**
  * adaptForSearchParams transforms the ParsedURLQuery into URLSearchParams.
  *
  * @param router the router that contains the query.
  * @returns the search params in the URLSearchParams format
  */
 export function adaptForSearchParams(
-  router: Pick<NextRouter, 'isReady' | 'query'>
+  router: Pick<NextRouter, 'isReady' | 'query' | 'asPath'>
 ): URLSearchParams {
   if (!router.isReady || !router.query) {
     return new URLSearchParams()
   }
 
-  return transformQuery(router.query)
+  const parsedUrlWithoutHost = new URL(router.asPath, 'http://n')
+  return parsedUrlWithoutHost.searchParams
 }
 
 export function PathnameContextProviderAdapter({
