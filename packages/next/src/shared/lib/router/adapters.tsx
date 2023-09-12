@@ -1,4 +1,3 @@
-import type { ParsedUrlQuery } from 'node:querystring'
 import React, { useMemo, useRef } from 'react'
 import type {
   AppRouterInstance,
