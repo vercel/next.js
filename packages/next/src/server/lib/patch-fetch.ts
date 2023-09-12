@@ -3,10 +3,44 @@ import type * as ServerHooks from '../../client/components/hooks-server-context'
 
 import { AppRenderSpan, NextNodeServerSpan } from './trace/constants'
 import { getTracer, SpanKind } from './trace/tracer'
-import { CACHE_ONE_YEAR, NEXT_CACHE_IMPLICIT_TAG_ID } from '../../lib/constants'
+import {
+  CACHE_ONE_YEAR,
+  NEXT_CACHE_IMPLICIT_TAG_ID,
+  NEXT_CACHE_TAG_MAX_LENGTH,
+} from '../../lib/constants'
 import * as Log from '../../build/output/log'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
+
+export function validateTags(tags: any[], description: string) {
+  const validTags: string[] = []
+  const invalidTags: Array<{
+    tag: any
+    reason: string
+  }> = []
+
+  for (const tag of tags) {
+    if (typeof tag !== 'string') {
+      invalidTags.push({ tag, reason: 'invalid type, must be a string' })
+    } else if (tag.length > NEXT_CACHE_TAG_MAX_LENGTH) {
+      invalidTags.push({
+        tag,
+        reason: `exceeded max length of ${NEXT_CACHE_TAG_MAX_LENGTH}`,
+      })
+    } else {
+      validTags.push(tag)
+    }
+  }
+
+  if (invalidTags.length > 0) {
+    console.warn(`Warning: invalid tags passed to ${description}: `)
+
+    for (const { tag, reason } of invalidTags) {
+      console.log(`tag: "${tag}" ${reason}`)
+    }
+  }
+  return validTags
+}
 
 const getDerivedTags = (pathname: string): string[] => {
   const derivedTags: string[] = [`/layout`]
@@ -194,7 +228,10 @@ export function patchFetch({
         // RequestInit doesn't keep extra fields e.g. next so it's
         // only available if init is used separate
         let curRevalidate = getNextField('revalidate')
-        const tags: string[] = getNextField('tags') || []
+        const tags: string[] = validateTags(
+          getNextField('tags') || [],
+          `fetch ${input.toString()}`
+        )
 
         if (Array.isArray(tags)) {
           if (!staticGenerationStore.tags) {
