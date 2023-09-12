@@ -27,6 +27,8 @@ use crate::{
     next_import_map::get_next_package,
 };
 
+const NEXT_TEMPLATE_PATH: &str = "dist/esm/build/templates";
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, TaskInput)]
 pub enum PathType {
     PagesPage,
@@ -87,7 +89,7 @@ pub async fn foreign_code_context_condition(
     let transpile_packages = next_config.transpile_packages().await?;
 
     let not_next_template_dir = ContextCondition::not(ContextCondition::InPath(
-        get_next_package(project_path).join(format!("dist/esm/build/templates")),
+        get_next_package(project_path).join(NEXT_TEMPLATE_PATH.to_string()),
     ));
 
     let result = if transpile_packages.is_empty() {
@@ -362,7 +364,8 @@ pub fn virtual_next_js_template_path(
     project_path: Vc<FileSystemPath>,
     file: String,
 ) -> Vc<FileSystemPath> {
-    get_next_package(project_path).join(format!("dist/esm/build/templates/{file}"))
+    debug_assert!(!file.contains('/'));
+    get_next_package(project_path).join(format!("{NEXT_TEMPLATE_PATH}/{file}"))
 }
 
 pub async fn load_next_js_templateon<T: DeserializeOwned>(
