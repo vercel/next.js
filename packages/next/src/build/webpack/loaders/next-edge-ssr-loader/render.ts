@@ -77,7 +77,7 @@ export function getRender({
     minimalMode: true,
     webServerConfig: {
       page,
-      normalizedPage: isAppPath ? normalizeAppPath(page) : page,
+      pathname: isAppPath ? normalizeAppPath(page) : page,
       pagesType,
       prerenderManifest,
       extendRenderOpts: {
@@ -91,8 +91,8 @@ export function getRender({
       },
       renderToHTML,
       incrementalCacheHandler,
-      loadComponent: async (pathname) => {
-        if (pathname === page) {
+      loadComponent: async (inputPage) => {
+        if (inputPage === page) {
           return {
             ...baseLoadComponentResult,
             Component: pageMod.default,
@@ -102,13 +102,13 @@ export function getRender({
             getStaticPaths: pageMod.getStaticPaths,
             ComponentMod: pageMod,
             isAppPath: !!pageMod.__next_app__,
-            pathname,
+            page: inputPage,
             routeModule: pageMod.routeModule,
           }
         }
 
         // If there is a custom 500 page, we need to handle it separately.
-        if (pathname === '/500' && error500Mod) {
+        if (inputPage === '/500' && error500Mod) {
           return {
             ...baseLoadComponentResult,
             Component: error500Mod.default,
@@ -117,12 +117,12 @@ export function getRender({
             getServerSideProps: error500Mod.getServerSideProps,
             getStaticPaths: error500Mod.getStaticPaths,
             ComponentMod: error500Mod,
-            pathname,
+            page: inputPage,
             routeModule: error500Mod.routeModule,
           }
         }
 
-        if (pathname === '/_error') {
+        if (inputPage === '/_error') {
           return {
             ...baseLoadComponentResult,
             Component: errorMod.default,
@@ -131,7 +131,7 @@ export function getRender({
             getServerSideProps: errorMod.getServerSideProps,
             getStaticPaths: errorMod.getStaticPaths,
             ComponentMod: errorMod,
-            pathname,
+            page: inputPage,
             routeModule: errorMod.routeModule,
           }
         }
