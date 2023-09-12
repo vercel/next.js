@@ -13,6 +13,7 @@ import path from 'path'
 import spawn from 'cross-spawn'
 import { writeFile } from 'fs-extra'
 import getPort from 'get-port'
+import { getRandomPort } from 'get-port-please'
 import fetch from 'node-fetch'
 import qs from 'querystring'
 import treeKill from 'tree-kill'
@@ -171,7 +172,18 @@ export function renderViaHTTP(
 }
 
 export function findPort() {
-  return getPort()
+  // [NOTE] What are we doing here?
+  // There are some flaky tests failures caused by `No available ports found` from 'get-port'.
+  // This may be related / fixed by upstream https://github.com/sindresorhus/get-port/pull/56,
+  // however it happened after get-port switched to pure esm which is not easy to adapt by bump.
+  // get-port-please seems to offer the feature parity so we'll try to use it, and leave get-port as fallback
+  // for a while until we are certain to switch to get-port-please entirely.
+  try {
+    return getRandomPort()
+  } catch (e) {
+    require('console').warn('get-port-please failed, falling back to get-port')
+    return getPort()
+  }
 }
 
 export interface NextOptions {
@@ -509,9 +521,12 @@ export function buildTS(
   })
 }
 
-export async function killProcess(pid: number): Promise<void> {
+export async function killProcess(
+  pid: number,
+  signal: string | number = 'SIGTERM'
+): Promise<void> {
   return await new Promise((resolve, reject) => {
-    treeKill(pid, (err) => {
+    treeKill(pid, signal, (err) => {
       if (err) {
         if (
           process.platform === 'win32' &&
@@ -536,7 +551,9 @@ export async function killProcess(pid: number): Promise<void> {
 
 // Kill a launched app
 export async function killApp(instance: ChildProcess) {
-  await killProcess(instance.pid)
+  if (instance && instance.pid) {
+    await killProcess(instance.pid)
+  }
 }
 
 export async function startApp(app: NextServer) {

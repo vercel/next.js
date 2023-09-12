@@ -32,7 +32,7 @@ export async function loadStaticPaths({
   locales,
   defaultLocale,
   isAppPath,
-  originalAppPath,
+  page,
   isrFlushToDisk,
   fetchCacheKeyPrefix,
   maxMemoryCacheSize,
@@ -45,8 +45,8 @@ export async function loadStaticPaths({
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   locales?: string[]
   defaultLocale?: string
-  isAppPath?: boolean
-  originalAppPath?: string
+  isAppPath: boolean
+  page: string
   isrFlushToDisk?: boolean
   fetchCacheKeyPrefix?: string
   maxMemoryCacheSize?: number
@@ -65,8 +65,9 @@ export async function loadStaticPaths({
 
   const components = await loadComponents({
     distDir,
-    pathname: originalAppPath || pathname,
-    isAppPath: !!isAppPath,
+    // In `pages/`, the page is the same as the pathname.
+    page: page || pathname,
+    isAppPath,
   })
 
   if (!components.getStaticPaths && !isAppPath) {
