@@ -17,7 +17,7 @@ process.on('uncaughtException', (err) => {
   console.error(err)
 })
 
-export const WORKER_SELF_EXIT_CODE = 77
+export const RESTART_EXIT_CODE = 77
 
 const MAXIMUM_HEAP_SIZE_ALLOWED =
   (v8.getHeapStatistics().heap_size_limit / 1024 / 1024) * 0.9
@@ -67,7 +67,7 @@ export async function initializeServerWorker(
             'The server is running out of memory, restarting to free up memory.'
           )
           server.close()
-          process.exit(WORKER_SELF_EXIT_CODE)
+          process.exit(RESTART_EXIT_CODE)
         }
       })
   })
