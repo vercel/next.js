@@ -56,7 +56,7 @@ export function getNextPathnameInfo(
 ): NextPathnameInfo {
   const { basePath, i18n, trailingSlash } = options.nextConfig ?? {}
   const info: NextPathnameInfo = {
-    pathname: pathname,
+    pathname,
     trailingSlash: pathname !== '/' ? pathname.endsWith('/') : trailingSlash,
   }
 

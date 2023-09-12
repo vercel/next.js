@@ -622,17 +622,18 @@ export default class DevServer extends Server {
 
   protected async getStaticPaths({
     pathname,
-    originalAppPath,
     requestHeaders,
+    page,
+    isAppPath,
   }: {
     pathname: string
-    originalAppPath?: string
     requestHeaders: IncrementalCache['requestHeaders']
+    page: string
+    isAppPath: boolean
   }): Promise<{
     staticPaths?: string[]
     fallbackMode?: false | 'static' | 'blocking'
   }> {
-    const isAppPath = Boolean(originalAppPath)
     // we lazy load the staticPaths to prevent the user
     // from waiting on them for the page to load in dev mode
 
@@ -658,7 +659,7 @@ export default class DevServer extends Server {
           httpAgentOptions,
           locales,
           defaultLocale,
-          originalAppPath,
+          page,
           isAppPath,
           requestHeaders,
           incrementalCacheHandlerPath:
@@ -741,14 +742,14 @@ export default class DevServer extends Server {
   }
 
   protected async findPageComponents({
-    pathname,
+    page,
     query,
     params,
     isAppPath,
     appPaths = null,
     shouldEnsure,
   }: {
-    pathname: string
+    page: string
     query: NextParsedUrlQuery
     params: Params
     isAppPath: boolean
@@ -757,7 +758,7 @@ export default class DevServer extends Server {
     shouldEnsure: boolean
   }): Promise<FindComponentsResult | null> {
     await this.devReady
-    const compilationErr = await this.getCompilationError(pathname)
+    const compilationErr = await this.getCompilationError(page)
     if (compilationErr) {
       // Wrap build errors so that they don't get logged again
       throw new WrappedBuildError(compilationErr)
@@ -765,7 +766,7 @@ export default class DevServer extends Server {
     try {
       if (shouldEnsure || this.renderOpts.customServer) {
         await this.ensurePage({
-          page: pathname,
+          page,
           appPaths,
           clientOnly: false,
         })
@@ -779,7 +780,7 @@ export default class DevServer extends Server {
       this.restorePatchedGlobals()
 
       return await super.findPageComponents({
-        pathname,
+        page,
         query,
         params,
         isAppPath,
