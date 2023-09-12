@@ -384,6 +384,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       hostname,
       port,
     } = options
+
     this.serverOptions = options
     this.isRenderWorker = options._renderWorker
 
@@ -1271,12 +1272,21 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           res,
           parsedUrl
         )
-        if (!result.finished) {
-          res.setHeader('x-middleware-next', '1')
-          res.body('')
-          res.send()
+
+        if (result.finished) {
+          return
+        } else {
+          const err = new Error()
+          ;(err as any).result = {
+            response: new Response(null, {
+              headers: {
+                'x-middleware-next': '1',
+              },
+            }),
+          }
+          ;(err as any).bubble = true
+          throw err
         }
-        return
       }
 
       // ensure we strip the basePath when not using an invoke header
@@ -1290,6 +1300,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       res.statusCode = 200
       return await this.run(req, res, parsedUrl)
     } catch (err: any) {
+      if (err instanceof NoFallbackError) {
+        throw err
+      }
+
       if (
         (err && typeof err === 'object' && err.code === 'ERR_INVALID_URL') ||
         err instanceof DecodeError ||
@@ -1299,7 +1313,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         return this.renderError(null, req, res, '/_error', {})
       }
 
-      if (this.minimalMode || this.renderOpts.dev) {
+      if (this.minimalMode || this.renderOpts.dev || (err as any).bubble) {
         throw err
       }
       this.logError(getProperError(err))
