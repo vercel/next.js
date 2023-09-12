@@ -305,9 +305,7 @@ createNextDescribe(
       const res = await next.fetch('/dashboard')
       expect(res.headers.get('x-edge-runtime')).toBe('1')
       expect(res.headers.get('vary')).toBe(
-        isNextDeploy
-          ? 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url'
-          : 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url, Accept-Encoding'
+        'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url'
       )
     })
 

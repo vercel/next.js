@@ -1349,13 +1349,13 @@ export async function renderToHTMLImpl(
     }
   }
 
-  getTracer().getRootSpanAttributes()?.set('next.route', renderOpts.pathname)
+  getTracer().getRootSpanAttributes()?.set('next.route', renderOpts.page)
   const documentResult = await getTracer().trace(
     RenderSpan.renderDocument,
     {
-      spanName: `render route (pages) ${renderOpts.pathname}`,
+      spanName: `render route (pages) ${renderOpts.page}`,
       attributes: {
-        'next.route': renderOpts.pathname,
+        'next.route': renderOpts.page,
       },
     },
     async () => renderDocument()

@@ -6,6 +6,7 @@ import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 const supportedTurbopackNextConfigOptions = [
   'configFileName',
   'env',
+  'basePath',
   'modularizeImports',
   'compiler.emotion',
   'compiler.relay',
@@ -19,6 +20,9 @@ const supportedTurbopackNextConfigOptions = [
   'reactStrictMode',
   'swcMinify',
   'transpilePackages',
+  'trailingSlash',
+  'i18n.locales',
+  'i18n.defaultLocale',
   'sassOptions.includePaths',
   'experimental.serverComponentsExternalPackages',
   'experimental.turbo',
@@ -214,7 +218,17 @@ export async function validateTurboNextConfig({
       babelrc
     )})\n  ${`Babel is not yet supported. To use Turbopack at the moment,\n  you'll need to remove your usage of Babel.`}`
   }
-  if (unsupportedConfig.length) {
+
+  if (
+    unsupportedConfig.length === 1 &&
+    unsupportedConfig[0] === 'experimental.optimizePackageImports'
+  ) {
+    console.warn(
+      `\n${chalk.yellow('Warning:')} ${chalk.cyan(
+        'experimental.optimizePackageImports'
+      )} is not yet supported by Turbopack and will be ignored.`
+    )
+  } else if (unsupportedConfig.length) {
     unsupportedParts += `\n\n- Unsupported Next.js configuration option(s) (${chalk.cyan(
       'next.config.js'
     )})\n  ${`To use Turbopack, remove the following configuration options:\n${unsupportedConfig
