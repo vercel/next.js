@@ -132,6 +132,7 @@ function logStartInfo({
 
   // New line after the bootstrap info
   Log.info('')
+  Log.event('ready')
 }
 
 export async function startServer({
