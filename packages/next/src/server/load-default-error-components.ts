@@ -42,7 +42,7 @@ export type LoadComponentsReturnType = {
   ComponentMod: any
   routeModule?: RouteModule
   isAppPath?: boolean
-  pathname: string
+  page: string
 }
 
 async function loadDefaultErrorComponentsImpl(
@@ -68,7 +68,7 @@ async function loadDefaultErrorComponentsImpl(
     ),
     reactLoadableManifest: {},
     ComponentMod,
-    pathname: '/_error',
+    page: '/_error',
     routeModule: ComponentMod.routeModule,
   }
 }
