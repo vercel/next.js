@@ -197,12 +197,12 @@ export default class NextNodeServer extends BaseServer {
       // needed for most requests
       loadComponents({
         distDir: this.distDir,
-        pathname: '/_document',
+        page: '/_document',
         isAppPath: false,
       }).catch(() => {})
       loadComponents({
         distDir: this.distDir,
-        pathname: '/_app',
+        page: '/_app',
         isAppPath: false,
       }).catch(() => {})
     }
@@ -600,12 +600,12 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected async findPageComponents({
-    pathname,
+    page,
     query,
     params,
     isAppPath,
   }: {
-    pathname: string
+    page: string
     query: NextParsedUrlQuery
     params: Params
     isAppPath: boolean
@@ -620,12 +620,12 @@ export default class NextNodeServer extends BaseServer {
       {
         spanName: `resolving page into components`,
         attributes: {
-          'next.route': isAppPath ? normalizeAppPath(pathname) : pathname,
+          'next.route': isAppPath ? normalizeAppPath(page) : page,
         },
       },
       () =>
         this.findPageComponentsImpl({
-          pathname,
+          page,
           query,
           params,
           isAppPath,
@@ -634,38 +634,37 @@ export default class NextNodeServer extends BaseServer {
   }
 
   private async findPageComponentsImpl({
-    pathname,
+    page,
     query,
     params,
     isAppPath,
   }: {
-    pathname: string
+    page: string
     query: NextParsedUrlQuery
     params: Params
     isAppPath: boolean
   }): Promise<FindComponentsResult | null> {
-    const paths: string[] = [pathname]
+    const pagePaths: string[] = [page]
     if (query.amp) {
       // try serving a static AMP version first
-      paths.unshift(
-        (isAppPath ? normalizeAppPath(pathname) : normalizePagePath(pathname)) +
-          '.amp'
+      pagePaths.unshift(
+        (isAppPath ? normalizeAppPath(page) : normalizePagePath(page)) + '.amp'
       )
     }
 
     if (query.__nextLocale) {
-      paths.unshift(
-        ...paths.map(
+      pagePaths.unshift(
+        ...pagePaths.map(
           (path) => `/${query.__nextLocale}${path === '/' ? '' : path}`
         )
       )
     }
 
-    for (const pagePath of paths) {
+    for (const pagePath of pagePaths) {
       try {
         const components = await loadComponents({
           distDir: this.distDir,
-          pathname: pagePath,
+          page: pagePath,
           isAppPath,
         })
 
@@ -1532,7 +1531,7 @@ export default class NextNodeServer extends BaseServer {
           trailingSlash: this.nextConfig.trailingSlash,
         },
         url: url,
-        page: page,
+        page,
         body: getRequestMeta(params.request, '__NEXT_CLONABLE_BODY'),
         signal: signalFromNodeResponse(
           (params.response as NodeNextResponse).originalResponse
