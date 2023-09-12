@@ -88,6 +88,10 @@ pub async fn foreign_code_context_condition(
 ) -> Result<ContextCondition> {
     let transpile_packages = next_config.transpile_packages().await?;
 
+    // The next template files are allowed to import the user's code via import
+    // mapping, and imports must use the project-level [ResolveOptions] instead
+    // of the `node_modules` specific resolve options (the template files are
+    // technically node module files).
     let not_next_template_dir = ContextCondition::not(ContextCondition::InPath(
         get_next_package(project_path).join(NEXT_TEMPLATE_PATH.to_string()),
     ));
@@ -100,13 +104,13 @@ pub async fn foreign_code_context_condition(
     } else {
         ContextCondition::all(vec![
             ContextCondition::InDirectory("node_modules".to_string()),
+            not_next_template_dir,
             ContextCondition::not(ContextCondition::any(
                 transpile_packages
                     .iter()
                     .map(|package| ContextCondition::InDirectory(format!("node_modules/{package}")))
                     .collect(),
             )),
-            not_next_template_dir,
         ])
     };
     Ok(result)
