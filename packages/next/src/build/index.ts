@@ -2045,6 +2045,10 @@ export default async function build(
               distDir,
               'cache/next-server.js.nft.json'
             )
+            const minimalCachedTracePath = path.join(
+              distDir,
+              'cache/next-minimal-server.js.nft.json'
+            )
 
             if (
               lockFiles.length > 0 &&
@@ -2072,9 +2076,19 @@ export default async function build(
                 const existingTrace = JSON.parse(
                   await fs.readFile(cachedTracePath, 'utf8')
                 )
+                const existingMinimalTrace = JSON.parse(
+                  await fs.readFile(minimalCachedTracePath, 'utf8')
+                )
 
-                if (existingTrace.cacheKey === cacheKey) {
+                if (
+                  existingTrace.cacheKey === cacheKey &&
+                  existingMinimalTrace.cacheKey === cacheKey
+                ) {
                   await fs.copyFile(cachedTracePath, nextServerTraceOutput)
+                  await fs.copyFile(
+                    minimalCachedTracePath,
+                    nextMinimalTraceOutput
+                  )
                   return
                 }
               } catch {}
@@ -2301,8 +2315,12 @@ export default async function build(
             ])
 
             await fs.unlink(cachedTracePath).catch(() => {})
+            await fs.unlink(minimalCachedTracePath).catch(() => {})
             await fs
               .copyFile(nextServerTraceOutput, cachedTracePath)
+              .catch(() => {})
+            await fs
+              .copyFile(nextMinimalTraceOutput, minimalCachedTracePath)
               .catch(() => {})
           })
       }
