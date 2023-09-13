@@ -39,6 +39,7 @@ import {
   PERMANENT_REDIRECT_STATUS,
 } from '../../shared/lib/constants'
 import type { NextJsHotReloaderInterface } from '../dev/hot-reloader-types'
+import deferredExit from '../../lib/deferred-exit'
 
 const debug = setupDebug('next:router-server:main')
 
@@ -244,7 +245,7 @@ export async function initialize(opts: {
     }
 
     if (!process.env.__NEXT_PRIVATE_CPU_PROFILE) {
-      process.exit(0)
+      deferredExit(0)
     }
   }
   process.on('exit', cleanup)

@@ -4,24 +4,23 @@ import type { UrlWithParsedQuery } from 'url'
 import type { NextConfigComplete } from './config-shared'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextUrlWithParsedQuery } from './request-meta'
-import { spawnSync } from 'child_process'
+import { ChildProcess, spawn } from 'child_process'
 import { getEsmLoaderPath } from './lib/get-esm-loader-path'
 import {
   RESTART_EXIT_CODE,
   WorkerRequestHandler,
   WorkerUpgradeHandler,
 } from './lib/setup-server-worker'
+import { hasRenderWorker } from './utils'
+import deferredExit from '../lib/deferred-exit'
+
+let workerProcess: ChildProcess | undefined
 
 // if we are not inside of the esm loader enabled
 // worker we need to re-spawn with correct args
 // we can't do this if imported in jest test file otherwise
 // it duplicates tests
-if (
-  typeof jest === 'undefined' &&
-  !process.env.NEXT_PRIVATE_WORKER &&
-  (process.env.__NEXT_PRIVATE_PREBUNDLED_REACT ||
-    process.env.NODE_ENV === 'development')
-) {
+if (hasRenderWorker()) {
   const nodePath = process.argv0
 
   const newArgs = [
@@ -31,28 +30,40 @@ if (
     ...process.argv.splice(1),
   ]
   function startWorker() {
-    try {
-      const result = spawnSync(nodePath, newArgs, {
-        stdio: 'inherit',
-        env: {
-          ...process.env,
-          NEXT_PRIVATE_WORKER: '1',
-        },
-      })
+    workerProcess?.removeAllListeners()
+    workerProcess = spawn(nodePath, newArgs, {
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        NEXT_PRIVATE_WORKER: '1',
+      },
+    })
 
+    workerProcess.on('close', (code) => {
       if (
-        result.status === RESTART_EXIT_CODE &&
+        code === RESTART_EXIT_CODE &&
         process.env.NODE_ENV === 'development'
       ) {
         startWorker()
+      } else {
+        deferredExit(0)
       }
-      process.exit(0)
-    } catch (err) {
+    })
+
+    workerProcess.on('error', (err) => {
       console.error(err)
-      process.exit(1)
-    }
+      deferredExit(1)
+    })
   }
   startWorker()
+
+  function cleanup() {
+    workerProcess?.kill('SIGINT')
+  }
+
+  process.on('exit', cleanup)
+  process.on('SIGINT', cleanup)
+  process.on('SIGTERM', cleanup)
 }
 
 import './require-hook'

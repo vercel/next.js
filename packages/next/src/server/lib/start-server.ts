@@ -22,6 +22,7 @@ import {
 import { checkIsNodeDebugging } from './is-node-debugging'
 import { CONFIG_FILES } from '../../shared/lib/constants'
 import chalk from '../../lib/chalk'
+import deferredExit from '../../lib/deferred-exit'
 
 const debug = setupDebug('next:start-server')
 
@@ -286,7 +287,7 @@ export async function startServer({
         const cleanup = (code: number | null) => {
           debug('start-server process cleanup')
           server.close()
-          process.exit(code ?? 0)
+          deferredExit(code ?? 0)
         }
         const exception = (err: Error) => {
           // This is the render worker, we keep the process alive
@@ -333,7 +334,7 @@ export async function startServer({
         // fatal error if we can't setup
         handlersError()
         console.error(err)
-        process.exit(1)
+        deferredExit(1)
       }
 
       resolve()

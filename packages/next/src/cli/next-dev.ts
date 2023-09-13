@@ -23,6 +23,7 @@ import {
   isPortIsReserved,
 } from '../lib/helpers/get-reserved-port'
 import { validateTurboNextConfig } from '../lib/turbopack-warning'
+import { hasRenderWorker } from '../server/utils'
 
 let dir: string
 let config: NextConfigComplete
@@ -32,7 +33,7 @@ let sessionStopHandled = false
 let sessionStarted = Date.now()
 
 const handleSessionStop = async () => {
-  if (sessionStopHandled) return
+  if (sessionStopHandled || hasRenderWorker()) return
   sessionStopHandled = true
 
   try {
@@ -106,6 +107,12 @@ process.on('SIGINT', handleSessionStop)
 process.on('SIGTERM', handleSessionStop)
 
 const nextDev: CliCommand = async (args) => {
+  if (hasRenderWorker()) {
+    // Return immediately. A worker process will be spawned which will run this
+    // command instead.
+    return
+  }
+
   if (args['--help']) {
     console.log(`
       Description
