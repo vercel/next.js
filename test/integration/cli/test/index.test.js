@@ -538,7 +538,7 @@ describe('CLI Usage', () => {
       const { stderr, stdout } = await runAndCaptureOutput({ port })
 
       expect(stderr).toMatch('already in use')
-      expect(stdout).not.toMatch('ready')
+      expect(stdout).not.toMatch(/ready/i)
       expect(stdout).not.toMatch('started')
       expect(stdout).not.toMatch(`${port}`)
       expect(stripAnsi(stdout).trim()).toBeFalsy()

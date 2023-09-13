@@ -133,7 +133,7 @@ function logStartInfo({
 
   // New line after the bootstrap info
   Log.info('')
-  Log.event(`ready [${formatDurationText}]`)
+  Log.event(`Ready [${formatDurationText}]`)
 }
 
 export async function startServer({
