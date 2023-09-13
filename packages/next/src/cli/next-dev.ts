@@ -193,7 +193,7 @@ const nextDev: CliCommand = async (args) => {
     dir,
     undefined,
     undefined,
-    undefined,
+    true, // keep silent for logging purpose loading
     (userConfig) => {
       const userNextConfigExperimental = getEnabledExperimentalFeatures(
         userConfig.experimental
