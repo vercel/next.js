@@ -104,6 +104,16 @@ export class NextDevInstance extends NextInstance {
               .pop()
               .trim()
             resolveServer()
+          } else if (
+            currentMessage.includes('started server on') &&
+            currentMessage.includes('url:')
+          ) {
+            this._url = currentMessage
+              .split('url: ')
+              .pop()
+              .split(/\s/)[0]
+              .trim()
+            resolveServer()
           }
         }
         this.on('stdout', readyCb)
