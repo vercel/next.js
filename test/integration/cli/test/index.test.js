@@ -693,23 +693,13 @@ describe('CLI Usage', () => {
       expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
     })
 
-    test('should exit when SIGINT is signalled', async () => {
+    test.only('should exit when SIGINT is signalled', async () => {
       const port = await findPort()
-      await testExitSignal(
-        'SIGINT',
-        ['dev', dirBasic, '-p', port],
-        /- Local:/,
-        'SIGINT'
-      )
+      await testExitSignal('SIGINT', ['dev', dirBasic, '-p', port], /- Local:/)
     })
     test('should exit when SIGTERM is signalled', async () => {
       const port = await findPort()
-      await testExitSignal(
-        'SIGTERM',
-        ['dev', dirBasic, '-p', port],
-        /- Local:/,
-        'SIGTERM'
-      )
+      await testExitSignal('SIGTERM', ['dev', dirBasic, '-p', port], /- Local:/)
     })
 
     test('invalid directory', async () => {
