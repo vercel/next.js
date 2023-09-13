@@ -182,343 +182,95 @@ function erroredPages(compilation: webpack.Compilation) {
   return failedPages
 }
 
-export default class HotReloader implements NextJsHotReloaderInterface {
-  private hasAmpEntrypoints: boolean
-  private hasAppRouterEntrypoints: boolean
-  private hasPagesRouterEntrypoints: boolean
-  private dir: string
-  private buildId: string
-  private interceptors: any[]
-  private pagesDir?: string
-  private distDir: string
-  private webpackHotMiddleware?: WebpackHotMiddleware
-  private config: NextConfigComplete
-  private clientStats: webpack.Stats | null
-  private clientError: Error | null = null
-  private serverError: Error | null = null
-  private hmrServerError: Error | null = null
-  private serverPrevDocumentHash: string | null
-  private serverChunkNames?: Set<string>
-  private prevChunkNames?: Set<any>
-  private onDemandEntries?: ReturnType<typeof onDemandEntryHandler>
-  private previewProps: __ApiPreviewProps
-  private watcher: any
-  private rewrites: CustomRoutes['rewrites']
-  private fallbackWatcher: any
-  private hotReloaderSpan: Span
-  private pagesMapping: { [key: string]: string } = {}
-  private appDir?: string
-  private telemetry: Telemetry
-  private versionInfo: VersionInfo = {
+export default function createHotReloader(
+  dir: string,
+  {
+    config,
+    appDir,
+    pagesDir,
+    distDir,
+    buildId,
+    previewProps,
+    rewrites,
+    telemetry,
+  }: {
+    config: NextConfigComplete
+    appDir?: string
+    pagesDir?: string
+    distDir: string
+    buildId: string
+    previewProps: __ApiPreviewProps
+    rewrites: CustomRoutes['rewrites']
+    telemetry: Telemetry
+  }
+): NextJsHotReloaderInterface {
+  let hasAmpEntrypoints: boolean = false
+  let hasAppRouterEntrypoints: boolean = false
+  let hasPagesRouterEntrypoints: boolean = false
+  let interceptors: any[] = []
+  let webpackHotMiddleware: WebpackHotMiddleware
+  let clientStats: webpack.Stats | null = null
+  let clientError: Error | null = null
+  let serverError: Error | null = null
+  let hmrServerError: Error | null = null
+  let serverPrevDocumentHash: string | null = null
+  let serverChunkNames: Set<string> | null = null
+  let prevChunkNames: Set<any>
+  let onDemandEntries: ReturnType<typeof onDemandEntryHandler>
+  let watcher: any
+  let fallbackWatcher: any
+  let hotReloaderSpan: Span
+  let pagesMapping: { [key: string]: string } = {}
+  let versionInfo: VersionInfo = {
     staleness: 'unknown',
     installed: '0.0.0',
   }
-  private reloadAfterInvalidation: boolean = false
+  let reloadAfterInvalidation: boolean = false
 
-  public serverStats: webpack.Stats | null
-  public edgeServerStats: webpack.Stats | null
-  public multiCompiler?: webpack.MultiCompiler
-  public activeWebpackConfigs?: Array<
+  let serverStats: webpack.Stats | null = null
+  let edgeServerStats: webpack.Stats | null = null
+  let multiCompiler: webpack.MultiCompiler | null
+  let activeWebpackConfigs: Array<
     UnwrapPromise<ReturnType<typeof getBaseWebpackConfig>>
   >
 
-  constructor(
-    dir: string,
-    {
-      config,
-      pagesDir,
-      distDir,
-      buildId,
-      previewProps,
-      rewrites,
-      appDir,
-      telemetry,
-    }: {
-      config: NextConfigComplete
-      pagesDir?: string
-      distDir: string
-      buildId: string
-      previewProps: __ApiPreviewProps
-      rewrites: CustomRoutes['rewrites']
-      appDir?: string
-      telemetry: Telemetry
+  hotReloaderSpan = trace('hot-reloader', undefined, {
+    version: process.env.__NEXT_VERSION as string,
+  })
+  // Ensure the hotReloaderSpan is flushed immediately as it's the parentSpan for all processing
+  // of the current `next dev` invocation.
+  hotReloaderSpan.stop()
+
+  const send = ((action: HMR_ACTION_TYPES): void => {
+    webpackHotMiddleware!.publish(action)
+  }) satisfies NextJsHotReloaderInterface['send']
+
+  const setHmrServerError = ((error) => {
+    hmrServerError = error
+  }) satisfies NextJsHotReloaderInterface['setHmrServerError']
+
+  const clearHmrServerError = ((): void => {
+    if (hmrServerError) {
+      setHmrServerError(null)
+      send({ action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE })
     }
-  ) {
-    this.hasAmpEntrypoints = false
-    this.hasAppRouterEntrypoints = false
-    this.hasPagesRouterEntrypoints = false
-    this.buildId = buildId
-    this.dir = dir
-    this.interceptors = []
-    this.pagesDir = pagesDir
-    this.appDir = appDir
-    this.distDir = distDir
-    this.clientStats = null
-    this.serverStats = null
-    this.edgeServerStats = null
-    this.serverPrevDocumentHash = null
-    this.telemetry = telemetry
+  }) satisfies NextJsHotReloaderInterface['clearHmrServerError']
 
-    this.config = config
-    this.previewProps = previewProps
-    this.rewrites = rewrites
-    this.hotReloaderSpan = trace('hot-reloader', undefined, {
-      version: process.env.__NEXT_VERSION as string,
-    })
-    // Ensure the hotReloaderSpan is flushed immediately as it's the parentSpan for all processing
-    // of the current `next dev` invocation.
-    this.hotReloaderSpan.stop()
-  }
-
-  public async run(
-    req: IncomingMessage,
-    res: ServerResponse,
-    parsedUrl: UrlObject
-  ): Promise<{ finished?: true }> {
-    // Usually CORS support is not needed for the hot-reloader (this is dev only feature)
-    // With when the app runs for multi-zones support behind a proxy,
-    // the current page is trying to access this URL via assetPrefix.
-    // That's when the CORS support is needed.
-    const { preflight } = addCorsSupport(req, res)
-    if (preflight) {
-      return {}
-    }
-
-    // When a request comes in that is a page bundle, e.g. /_next/static/<buildid>/pages/index.js
-    // we have to compile the page using on-demand-entries, this middleware will handle doing that
-    // by adding the page to on-demand-entries, waiting till it's done
-    // and then the bundle will be served like usual by the actual route in server/index.js
-    const handlePageBundleRequest = async (
-      pageBundleRes: ServerResponse,
-      parsedPageBundleUrl: UrlObject
-    ): Promise<{ finished?: true }> => {
-      const { pathname } = parsedPageBundleUrl
-      const params = matchNextPageBundleRequest(pathname)
-      if (!params) {
-        return {}
-      }
-
-      let decodedPagePath: string
-
-      try {
-        decodedPagePath = `/${params.path
-          .map((param: string) => decodeURIComponent(param))
-          .join('/')}`
-      } catch (_) {
-        throw new DecodeError('failed to decode param')
-      }
-
-      const page = denormalizePagePath(decodedPagePath)
-
-      if (page === '/_error' || BLOCKED_PAGES.indexOf(page) === -1) {
-        try {
-          await this.ensurePage({ page, clientOnly: true })
-        } catch (error) {
-          return await renderScriptError(pageBundleRes, getProperError(error))
-        }
-
-        const errors = await this.getCompilationErrors(page)
-        if (errors.length > 0) {
-          return await renderScriptError(pageBundleRes, errors[0], {
-            verbose: false,
-          })
-        }
-      }
-
-      return {}
-    }
-
-    const { finished } = await handlePageBundleRequest(res, parsedUrl)
-
-    for (const fn of this.interceptors) {
-      await new Promise<void>((resolve, reject) => {
-        fn(req, res, (err: Error) => {
-          if (err) return reject(err)
-          resolve()
-        })
-      })
-    }
-
-    return { finished }
-  }
-
-  public setHmrServerError(error: Error | null): void {
-    this.hmrServerError = error
-  }
-
-  public clearHmrServerError(): void {
-    if (this.hmrServerError) {
-      this.setHmrServerError(null)
-      this.send({ action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE })
-    }
-  }
-
-  protected async refreshServerComponents(): Promise<void> {
-    this.send({
+  const refreshServerComponents = async (): Promise<void> => {
+    send({
       action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
       // TODO: granular reloading of changes
       // entrypoints: serverComponentChanges,
     })
   }
 
-  public onHMR(req: IncomingMessage, _socket: Duplex, head: Buffer) {
-    wsServer.handleUpgrade(req, req.socket, head, (client) => {
-      this.webpackHotMiddleware?.onHMR(client)
-      this.onDemandEntries?.onHMR(client, () => this.hmrServerError)
-
-      client.addEventListener('message', ({ data }) => {
-        data = typeof data !== 'string' ? data.toString() : data
-
-        try {
-          const payload = JSON.parse(data)
-
-          let traceChild:
-            | {
-                name: string
-                startTime?: bigint
-                endTime?: bigint
-                attrs?: Record<string, number | string | undefined | string[]>
-              }
-            | undefined
-
-          switch (payload.event) {
-            case 'span-end': {
-              new Span({
-                name: payload.spanName,
-                startTime:
-                  BigInt(Math.floor(payload.startTime)) *
-                  BigInt(MILLISECONDS_IN_NANOSECOND),
-                attrs: payload.attributes,
-              }).stop(
-                BigInt(Math.floor(payload.endTime)) *
-                  BigInt(MILLISECONDS_IN_NANOSECOND)
-              )
-              break
-            }
-            case 'client-hmr-latency': {
-              traceChild = {
-                name: payload.event,
-                startTime:
-                  BigInt(payload.startTime) *
-                  BigInt(MILLISECONDS_IN_NANOSECOND),
-                endTime:
-                  BigInt(payload.endTime) * BigInt(MILLISECONDS_IN_NANOSECOND),
-                attrs: {
-                  updatedModules: payload.updatedModules.map((m: string) =>
-                    m.replace(/^\.\//, '[project]/')
-                  ),
-                  page: payload.page,
-                },
-              }
-              break
-            }
-            case 'client-reload-page':
-            case 'client-success': {
-              traceChild = {
-                name: payload.event,
-              }
-              break
-            }
-            case 'client-error': {
-              traceChild = {
-                name: payload.event,
-                attrs: { errorCount: payload.errorCount },
-              }
-              break
-            }
-            case 'client-warning': {
-              traceChild = {
-                name: payload.event,
-                attrs: { warningCount: payload.warningCount },
-              }
-              break
-            }
-            case 'client-removed-page':
-            case 'client-added-page': {
-              traceChild = {
-                name: payload.event,
-                attrs: { page: payload.page || '' },
-              }
-              break
-            }
-            case 'client-full-reload': {
-              const { event, stackTrace, hadRuntimeError } = payload
-
-              traceChild = {
-                name: event,
-                attrs: { stackTrace: stackTrace ?? '' },
-              }
-
-              if (hadRuntimeError) {
-                Log.warn(
-                  `Fast Refresh had to perform a full reload due to a runtime error.`
-                )
-                break
-              }
-
-              let fileMessage = ''
-              if (stackTrace) {
-                const file = /Aborted because (.+) is not accepted/.exec(
-                  stackTrace
-                )?.[1]
-                if (file) {
-                  // `file` is filepath in `pages/` but it can be weird long webpack url in `app/`.
-                  // If it's a webpack loader URL, it will start with '(app-pages)/./'
-                  if (
-                    file.startsWith(`(${WEBPACK_LAYERS.appPagesBrowser})/./`)
-                  ) {
-                    const fileUrl = new URL(file, 'file://')
-                    const cwd = process.cwd()
-                    const modules = fileUrl.searchParams
-                      .getAll('modules')
-                      .map((filepath) => filepath.slice(cwd.length + 1))
-                      .filter(
-                        (filepath) => !filepath.startsWith('node_modules')
-                      )
-
-                    if (modules.length > 0) {
-                      fileMessage = ` when ${modules.join(', ')} changed`
-                    }
-                  } else {
-                    fileMessage = ` when ${file} changed`
-                  }
-                }
-              }
-
-              Log.warn(
-                `Fast Refresh had to perform a full reload${fileMessage}. Read more: https://nextjs.org/docs/messages/fast-refresh-reload`
-              )
-              break
-            }
-            default: {
-              break
-            }
-          }
-
-          if (traceChild) {
-            this.hotReloaderSpan.manualTraceChild(
-              traceChild.name,
-              traceChild.startTime || process.hrtime.bigint(),
-              traceChild.endTime || process.hrtime.bigint(),
-              { ...traceChild.attrs, clientId: payload.id }
-            )
-          }
-        } catch (_) {
-          // invalid WebSocket message
-        }
-      })
-    })
-  }
-
-  private async clean(span: Span): Promise<void> {
+  const clean = (span: Span): Promise<void> => {
     return span
       .traceChild('clean')
-      .traceAsyncFn(() =>
-        recursiveDelete(join(this.dir, this.config.distDir), /^cache/)
-      )
+      .traceAsyncFn(() => recursiveDelete(join(dir, config.distDir), /^cache/))
   }
 
-  private async getVersionInfo(span: Span, enabled: boolean) {
+  const getVersionInfo = async (span: Span, enabled: boolean) => {
     const versionInfoSpan = span.traceChild('get-version-info')
     return versionInfoSpan.traceAsyncFn<VersionInfo>(async () => {
       let installed = '0.0.0'
@@ -548,39 +300,34 @@ export default class HotReloader implements NextJsHotReloaderInterface {
     })
   }
 
-  private async getWebpackConfig(span: Span) {
+  const getWebpackConfig = async (span: Span) => {
     const webpackConfigSpan = span.traceChild('get-webpack-config')
 
-    const pageExtensions = this.config.pageExtensions
+    const pageExtensions = config.pageExtensions
 
     return webpackConfigSpan.traceAsyncFn(async () => {
-      const pagePaths = !this.pagesDir
+      const pagePaths = !pagesDir
         ? ([] as (string | null)[])
         : await webpackConfigSpan
             .traceChild('get-page-paths')
             .traceAsyncFn(() =>
               Promise.all([
-                findPageFile(this.pagesDir!, '/_app', pageExtensions, false),
-                findPageFile(
-                  this.pagesDir!,
-                  '/_document',
-                  pageExtensions,
-                  false
-                ),
+                findPageFile(pagesDir!, '/_app', pageExtensions, false),
+                findPageFile(pagesDir!, '/_document', pageExtensions, false),
               ])
             )
 
-      this.pagesMapping = webpackConfigSpan
+      pagesMapping = webpackConfigSpan
         .traceChild('create-pages-mapping')
         .traceFn(() =>
           createPagesMapping({
             isDev: true,
-            pageExtensions: this.config.pageExtensions,
+            pageExtensions: config.pageExtensions,
             pagesType: 'pages',
             pagePaths: pagePaths.filter(
               (i: string | null): i is string => typeof i === 'string'
             ),
-            pagesDir: this.pagesDir,
+            pagesDir: pagesDir,
           })
         )
 
@@ -588,54 +335,54 @@ export default class HotReloader implements NextJsHotReloaderInterface {
         .traceChild('create-entrypoints')
         .traceAsyncFn(() =>
           createEntrypoints({
-            appDir: this.appDir,
-            buildId: this.buildId,
-            config: this.config,
+            appDir: appDir,
+            buildId: buildId,
+            config: config,
             envFiles: [],
             isDev: true,
-            pages: this.pagesMapping,
-            pagesDir: this.pagesDir,
-            previewMode: this.previewProps,
-            rootDir: this.dir,
-            pageExtensions: this.config.pageExtensions,
+            pages: pagesMapping,
+            pagesDir: pagesDir,
+            previewMode: previewProps,
+            rootDir: dir,
+            pageExtensions: config.pageExtensions,
           })
         )
 
       const commonWebpackOptions = {
         dev: true,
-        buildId: this.buildId,
-        config: this.config,
-        pagesDir: this.pagesDir,
-        rewrites: this.rewrites,
-        originalRewrites: this.config._originalRewrites,
-        originalRedirects: this.config._originalRedirects,
-        runWebpackSpan: this.hotReloaderSpan,
-        appDir: this.appDir,
+        buildId: buildId,
+        config: config,
+        pagesDir: pagesDir,
+        rewrites: rewrites,
+        originalRewrites: config._originalRewrites,
+        originalRedirects: config._originalRedirects,
+        runWebpackSpan: hotReloaderSpan,
+        appDir: appDir,
       }
 
       return webpackConfigSpan
         .traceChild('generate-webpack-config')
         .traceAsyncFn(async () => {
           const info = await loadProjectInfo({
-            dir: this.dir,
+            dir: dir,
             config: commonWebpackOptions.config,
             dev: true,
           })
           return Promise.all([
             // order is important here
-            getBaseWebpackConfig(this.dir, {
+            getBaseWebpackConfig(dir, {
               ...commonWebpackOptions,
               compilerType: COMPILER_NAMES.client,
               entrypoints: entrypoints.client,
               ...info,
             }),
-            getBaseWebpackConfig(this.dir, {
+            getBaseWebpackConfig(dir, {
               ...commonWebpackOptions,
               compilerType: COMPILER_NAMES.server,
               entrypoints: entrypoints.server,
               ...info,
             }),
-            getBaseWebpackConfig(this.dir, {
+            getBaseWebpackConfig(dir, {
               ...commonWebpackOptions,
               compilerType: COMPILER_NAMES.edgeServer,
               entrypoints: entrypoints.edgeServer,
@@ -646,21 +393,21 @@ export default class HotReloader implements NextJsHotReloaderInterface {
     })
   }
 
-  public async buildFallbackError(): Promise<void> {
-    if (this.fallbackWatcher) return
+  const buildFallbackError = (async (): Promise<void> => {
+    if (fallbackWatcher) return
 
     const info = await loadProjectInfo({
-      dir: this.dir,
-      config: this.config,
+      dir: dir,
+      config: config,
       dev: true,
     })
-    const fallbackConfig = await getBaseWebpackConfig(this.dir, {
-      runWebpackSpan: this.hotReloaderSpan,
+    const fallbackConfig = await getBaseWebpackConfig(dir, {
+      runWebpackSpan: hotReloaderSpan,
       dev: true,
       compilerType: COMPILER_NAMES.client,
-      config: this.config,
-      buildId: this.buildId,
-      pagesDir: this.pagesDir,
+      config: config,
+      buildId: buildId,
+      pagesDir: pagesDir,
       rewrites: {
         beforeFiles: [],
         afterFiles: [],
@@ -675,26 +422,26 @@ export default class HotReloader implements NextJsHotReloaderInterface {
       isDevFallback: true,
       entrypoints: (
         await createEntrypoints({
-          appDir: this.appDir,
-          buildId: this.buildId,
-          config: this.config,
+          appDir: appDir,
+          buildId: buildId,
+          config: config,
           envFiles: [],
           isDev: true,
           pages: {
             '/_app': 'next/dist/pages/_app',
             '/_error': 'next/dist/pages/_error',
           },
-          pagesDir: this.pagesDir,
-          previewMode: this.previewProps,
-          rootDir: this.dir,
-          pageExtensions: this.config.pageExtensions,
+          pagesDir: pagesDir,
+          previewMode: previewProps,
+          rootDir: dir,
+          pageExtensions: config.pageExtensions,
         })
       ).client,
       ...info,
     })
     const fallbackCompiler = webpack(fallbackConfig)
 
-    this.fallbackWatcher = await new Promise((resolve) => {
+    fallbackWatcher = await new Promise((resolve) => {
       let bootedFallbackCompiler = false
       fallbackCompiler.watch(
         // @ts-ignore webpack supports an array of watchOptions when using a multiCompiler
@@ -708,41 +455,43 @@ export default class HotReloader implements NextJsHotReloaderInterface {
         }
       )
     })
-  }
+  }) satisfies NextJsHotReloaderInterface['buildFallbackError']
 
-  public async start(): Promise<void> {
-    const startSpan = this.hotReloaderSpan.traceChild('start')
+  const start = (async (): Promise<void> => {
+    const startSpan = hotReloaderSpan.traceChild('start')
     startSpan.stop() // Stop immediately to create an artificial parent span
 
     const testMode = process.env.NEXT_TEST_MODE || process.env.__NEXT_TEST_MODE
 
-    this.versionInfo = await this.getVersionInfo(
+    versionInfo = await getVersionInfo(
       startSpan,
-      !!testMode || this.telemetry.isEnabled
+      !!testMode || telemetry.isEnabled
     )
 
-    await this.clean(startSpan)
+    await clean(startSpan)
     // Ensure distDir exists before writing package.json
-    await fs.mkdir(this.distDir, { recursive: true })
+    await fs.mkdir(distDir, { recursive: true })
 
-    const distPackageJsonPath = join(this.distDir, 'package.json')
+    const distPackageJsonPath = join(distDir, 'package.json')
     // Ensure commonjs handling is used for files in the distDir (generally .next)
     // Files outside of the distDir can be "type": "module"
     await fs.writeFile(distPackageJsonPath, '{"type": "commonjs"}')
 
-    this.activeWebpackConfigs = await this.getWebpackConfig(startSpan)
+    activeWebpackConfigs = await getWebpackConfig(startSpan)
 
-    for (const config of this.activeWebpackConfigs) {
-      const defaultEntry = config.entry
-      config.entry = async (...args) => {
-        const outputPath = this.multiCompiler?.outputPath || ''
+    for (const webpackConfig of activeWebpackConfigs) {
+      const defaultEntry = webpackConfig.entry
+      // eslint-disable-next-line no-loop-func
+      webpackConfig.entry = async (...args) => {
+        const outputPath = multiCompiler?.outputPath || ''
         const entries = getEntries(outputPath)
         // @ts-ignore entry is always a function
         const entrypoints = await defaultEntry(...args)
-        const isClientCompilation = config.name === COMPILER_NAMES.client
-        const isNodeServerCompilation = config.name === COMPILER_NAMES.server
+        const isClientCompilation = webpackConfig.name === COMPILER_NAMES.client
+        const isNodeServerCompilation =
+          webpackConfig.name === COMPILER_NAMES.server
         const isEdgeServerCompilation =
-          config.name === COMPILER_NAMES.edgeServer
+          webpackConfig.name === COMPILER_NAMES.edgeServer
 
         await Promise.all(
           Object.keys(entries).map(async (entryKey) => {
@@ -789,25 +538,25 @@ export default class HotReloader implements NextJsHotReloaderInterface {
 
             // Ensure _error is considered a `pages` page.
             if (page === '/_error') {
-              this.hasPagesRouterEntrypoints = true
+              hasPagesRouterEntrypoints = true
             }
 
-            const hasAppDir = !!this.appDir
+            const hasAppDir = !!appDir
             const isAppPath = hasAppDir && bundlePath.startsWith('app/')
             const staticInfo = isEntry
               ? await getStaticInfoIncludingLayouts({
                   isInsideAppDir: isAppPath,
-                  pageExtensions: this.config.pageExtensions,
+                  pageExtensions: config.pageExtensions,
                   pageFilePath: entryData.absolutePagePath,
-                  appDir: this.appDir,
-                  config: this.config,
+                  appDir: appDir,
+                  config: config,
                   isDev: true,
                   page,
                 })
               : {}
 
             if (staticInfo.amp === true || staticInfo.amp === 'hybrid') {
-              this.hasAmpEntrypoints = true
+              hasAmpEntrypoints = true
             }
             const isServerComponent =
               isAppPath && staticInfo.rsc !== RSC_MODULE_TYPES.client
@@ -819,10 +568,10 @@ export default class HotReloader implements NextJsHotReloaderInterface {
               : 'root'
 
             if (pageType === 'pages') {
-              this.hasPagesRouterEntrypoints = true
+              hasPagesRouterEntrypoints = true
             }
             if (pageType === 'app') {
-              this.hasAppRouterEntrypoints = true
+              hasAppRouterEntrypoints = true
             }
 
             runDependingOnPageType({
@@ -839,19 +588,19 @@ export default class HotReloader implements NextJsHotReloaderInterface {
                       appPaths: entryData.appPaths,
                       pagePath: posix.join(
                         APP_DIR_ALIAS,
-                        relative(
-                          this.appDir!,
-                          entryData.absolutePagePath
-                        ).replace(/\\/g, '/')
+                        relative(appDir!, entryData.absolutePagePath).replace(
+                          /\\/g,
+                          '/'
+                        )
                       ),
-                      appDir: this.appDir!,
-                      pageExtensions: this.config.pageExtensions,
-                      rootDir: this.dir,
+                      appDir: appDir!,
+                      pageExtensions: config.pageExtensions,
+                      rootDir: dir,
                       isDev: true,
-                      tsconfigPath: this.config.typescript.tsconfigPath,
-                      basePath: this.config.basePath,
-                      assetPrefix: this.config.assetPrefix,
-                      nextConfigOutput: this.config.output,
+                      tsconfigPath: config.typescript.tsconfigPath,
+                      basePath: config.basePath,
+                      assetPrefix: config.assetPrefix,
+                      nextConfigOutput: config.output,
                       preferredRegion: staticInfo.preferredRegion,
                       middlewareConfig: Buffer.from(
                         JSON.stringify(staticInfo.middleware || {})
@@ -865,13 +614,13 @@ export default class HotReloader implements NextJsHotReloaderInterface {
                   name: bundlePath,
                   value: getEdgeServerEntry({
                     absolutePagePath: entryData.absolutePagePath,
-                    rootDir: this.dir,
-                    buildId: this.buildId,
+                    rootDir: dir,
+                    buildId: buildId,
                     bundlePath,
-                    config: this.config,
+                    config: config,
                     isDev: true,
                     page,
-                    pages: this.pagesMapping,
+                    pages: pagesMapping,
                     isServerComponent,
                     appDirLoader,
                     pagesType: isAppPath ? 'app' : 'pages',
@@ -908,7 +657,7 @@ export default class HotReloader implements NextJsHotReloaderInterface {
                 if (!isNodeServerCompilation || !isEntry) return
                 entries[entryKey].status = BUILDING
                 let relativeRequest = relative(
-                  config.context!,
+                  webpackConfig.context!,
                   entryData.absolutePagePath
                 )
                 if (
@@ -926,19 +675,19 @@ export default class HotReloader implements NextJsHotReloaderInterface {
                     appPaths: entryData.appPaths,
                     pagePath: posix.join(
                       APP_DIR_ALIAS,
-                      relative(
-                        this.appDir!,
-                        entryData.absolutePagePath
-                      ).replace(/\\/g, '/')
+                      relative(appDir!, entryData.absolutePagePath).replace(
+                        /\\/g,
+                        '/'
+                      )
                     ),
-                    appDir: this.appDir!,
-                    pageExtensions: this.config.pageExtensions,
-                    rootDir: this.dir,
+                    appDir: appDir!,
+                    pageExtensions: config.pageExtensions,
+                    rootDir: dir,
                     isDev: true,
-                    tsconfigPath: this.config.typescript.tsconfigPath,
-                    basePath: this.config.basePath,
-                    assetPrefix: this.config.assetPrefix,
-                    nextConfigOutput: this.config.output,
+                    tsconfigPath: config.typescript.tsconfigPath,
+                    basePath: config.basePath,
+                    assetPrefix: config.assetPrefix,
+                    nextConfigOutput: config.output,
                     preferredRegion: staticInfo.preferredRegion,
                     middlewareConfig: Buffer.from(
                       JSON.stringify(staticInfo.middleware || {})
@@ -960,7 +709,7 @@ export default class HotReloader implements NextJsHotReloaderInterface {
                   value = getRouteLoaderEntry({
                     kind: RouteKind.PAGES,
                     page,
-                    pages: this.pagesMapping,
+                    pages: pagesMapping,
                     absolutePagePath: relativeRequest,
                     preferredRegion: staticInfo.preferredRegion,
                     middlewareConfig: staticInfo.middleware ?? {},
@@ -981,10 +730,10 @@ export default class HotReloader implements NextJsHotReloaderInterface {
           })
         )
 
-        if (!this.hasAmpEntrypoints) {
+        if (!hasAmpEntrypoints) {
           delete entrypoints[CLIENT_STATIC_FILES_RUNTIME_AMP]
         }
-        if (!this.hasPagesRouterEntrypoints) {
+        if (!hasPagesRouterEntrypoints) {
           delete entrypoints[CLIENT_STATIC_FILES_RUNTIME_MAIN]
           delete entrypoints['pages/_app']
           delete entrypoints['pages/_error']
@@ -992,10 +741,10 @@ export default class HotReloader implements NextJsHotReloaderInterface {
           delete entrypoints['pages/_document']
         }
         // Remove React Refresh entrypoint chunk as `app` doesn't require it.
-        if (!this.hasAmpEntrypoints && !this.hasPagesRouterEntrypoints) {
+        if (!hasAmpEntrypoints && !hasPagesRouterEntrypoints) {
           delete entrypoints[CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH]
         }
-        if (!this.hasAppRouterEntrypoints) {
+        if (!hasAppRouterEntrypoints) {
           delete entrypoints[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP]
         }
 
@@ -1005,15 +754,15 @@ export default class HotReloader implements NextJsHotReloaderInterface {
 
     // Enable building of client compilation before server compilation in development
     // @ts-ignore webpack 5
-    this.activeWebpackConfigs.parallelism = 1
+    activeWebpackConfigs.parallelism = 1
 
-    this.multiCompiler = webpack(
-      this.activeWebpackConfigs
+    multiCompiler = webpack(
+      activeWebpackConfigs
     ) as unknown as webpack.MultiCompiler
 
     // Copy over the filesystem so that it is shared between all compilers.
-    const inputFileSystem = this.multiCompiler.compilers[0].inputFileSystem
-    for (const compiler of this.multiCompiler.compilers) {
+    const inputFileSystem = multiCompiler.compilers[0].inputFileSystem
+    for (const compiler of multiCompiler.compilers) {
       compiler.inputFileSystem = inputFileSystem
       // This is set for the initial compile. After that Watching class in webpack adds it.
       compiler.fsStartTime = Date.now()
@@ -1028,13 +777,13 @@ export default class HotReloader implements NextJsHotReloaderInterface {
       })
     }
 
-    this.multiCompiler.hooks.done.tap('NextjsHotReloader', () => {
+    multiCompiler.hooks.done.tap('NextjsHotReloader', () => {
       inputFileSystem.purge!()
     })
     watchCompilers(
-      this.multiCompiler.compilers[0],
-      this.multiCompiler.compilers[1],
-      this.multiCompiler.compilers[2]
+      multiCompiler.compilers[0],
+      multiCompiler.compilers[1],
+      multiCompiler.compilers[2]
     )
 
     // Watch for changes to client/server page files so we can tell when just
@@ -1052,7 +801,7 @@ export default class HotReloader implements NextJsHotReloaderInterface {
     const prevCSSImportModuleHashes = new Map<string, string>()
 
     const pageExtensionRegex = new RegExp(
-      `\\.(?:${this.config.pageExtensions.join('|')})$`
+      `\\.(?:${config.pageExtensions.join('|')})$`
     )
 
     const trackPageChanges =
@@ -1167,11 +916,11 @@ export default class HotReloader implements NextJsHotReloaderInterface {
         }
       }
 
-    this.multiCompiler.compilers[0].hooks.emit.tap(
+    multiCompiler.compilers[0].hooks.emit.tap(
       'NextjsHotReloaderForClient',
       trackPageChanges(prevClientPageHashes, changedClientPages)
     )
-    this.multiCompiler.compilers[1].hooks.emit.tap(
+    multiCompiler.compilers[1].hooks.emit.tap(
       'NextjsHotReloaderForServer',
       trackPageChanges(
         prevServerPageHashes,
@@ -1179,7 +928,7 @@ export default class HotReloader implements NextJsHotReloaderInterface {
         changedServerComponentPages
       )
     )
-    this.multiCompiler.compilers[2].hooks.emit.tap(
+    multiCompiler.compilers[2].hooks.emit.tap(
       'NextjsHotReloaderForServer',
       trackPageChanges(
         prevEdgeServerPageHashes,
@@ -1189,30 +938,30 @@ export default class HotReloader implements NextJsHotReloaderInterface {
     )
 
     // This plugin watches for changes to _document.js and notifies the client side that it should reload the page
-    this.multiCompiler.compilers[1].hooks.failed.tap(
+    multiCompiler.compilers[1].hooks.failed.tap(
       'NextjsHotReloaderForServer',
       (err: Error) => {
-        this.serverError = err
-        this.serverStats = null
-        this.serverChunkNames = undefined
+        serverError = err
+        serverStats = null
+        serverChunkNames = null
       }
     )
 
-    this.multiCompiler.compilers[2].hooks.done.tap(
+    multiCompiler.compilers[2].hooks.done.tap(
       'NextjsHotReloaderForServer',
       (stats) => {
-        this.serverError = null
-        this.edgeServerStats = stats
+        serverError = null
+        edgeServerStats = stats
       }
     )
 
-    this.multiCompiler.compilers[1].hooks.done.tap(
+    multiCompiler.compilers[1].hooks.done.tap(
       'NextjsHotReloaderForServer',
       (stats) => {
-        this.serverError = null
-        this.serverStats = stats
+        serverError = null
+        serverStats = stats
 
-        if (!this.pagesDir) {
+        if (!pagesDir) {
           return
         }
 
@@ -1227,13 +976,13 @@ export default class HotReloader implements NextJsHotReloaderInterface {
         }
 
         // Initial value
-        if (this.serverPrevDocumentHash === null) {
-          this.serverPrevDocumentHash = documentChunk.hash || null
+        if (serverPrevDocumentHash === null) {
+          serverPrevDocumentHash = documentChunk.hash || null
           return
         }
 
         // If _document.js didn't change we don't trigger a reload.
-        if (documentChunk.hash === this.serverPrevDocumentHash) {
+        if (documentChunk.hash === serverPrevDocumentHash) {
           return
         }
 
@@ -1241,10 +990,10 @@ export default class HotReloader implements NextJsHotReloaderInterface {
         // since react bundle is different it will effect the chunk hash.
         // So we diff the chunk changes, if there's only new app page chunk joins,
         // then we don't trigger a reload by checking pages/_document chunk change.
-        if (this.appDir) {
+        if (appDir) {
           const chunkNames = new Set(compilation.namedChunks.keys())
           const diffChunkNames = difference<string>(
-            this.serverChunkNames || new Set(),
+            serverChunkNames || new Set(),
             chunkNames
           )
 
@@ -1254,19 +1003,19 @@ export default class HotReloader implements NextJsHotReloaderInterface {
           ) {
             return
           }
-          this.serverChunkNames = chunkNames
+          serverChunkNames = chunkNames
         }
 
-        this.serverPrevDocumentHash = documentChunk.hash || null
+        serverPrevDocumentHash = documentChunk.hash || null
 
         // Notify reload to reload the page, as _document.js was changed (different hash)
-        this.send({ action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE })
+        send({ action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE })
       }
     )
 
-    this.multiCompiler.hooks.done.tap('NextjsHotReloaderForServer', () => {
-      const reloadAfterInvalidation = this.reloadAfterInvalidation
-      this.reloadAfterInvalidation = false
+    multiCompiler.hooks.done.tap('NextjsHotReloaderForServer', () => {
+      const reloadAfterInvalidationCurrent = reloadAfterInvalidation
+      reloadAfterInvalidation = false
 
       const serverOnlyChanges = difference<string>(
         changedServerPages,
@@ -1286,13 +1035,13 @@ export default class HotReloader implements NextJsHotReloaderInterface {
       )
 
       if (middlewareChanges.length > 0) {
-        this.send({
+        send({
           event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
         })
       }
 
       if (pageChanges.length > 0) {
-        this.send({
+        send({
           event: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
           pages: serverOnlyChanges.map((pg) =>
             denormalizePagePath(pg.slice('pages'.length))
@@ -1303,9 +1052,9 @@ export default class HotReloader implements NextJsHotReloaderInterface {
       if (
         changedServerComponentPages.size ||
         changedCSSImportPages.size ||
-        reloadAfterInvalidation
+        reloadAfterInvalidationCurrent
       ) {
-        this.refreshServerComponents()
+        refreshServerComponents()
       }
 
       changedClientPages.clear()
@@ -1315,18 +1064,18 @@ export default class HotReloader implements NextJsHotReloaderInterface {
       changedCSSImportPages.clear()
     })
 
-    this.multiCompiler.compilers[0].hooks.failed.tap(
+    multiCompiler.compilers[0].hooks.failed.tap(
       'NextjsHotReloaderForClient',
       (err: Error) => {
-        this.clientError = err
-        this.clientStats = null
+        clientError = err
+        clientStats = null
       }
     )
-    this.multiCompiler.compilers[0].hooks.done.tap(
+    multiCompiler.compilers[0].hooks.done.tap(
       'NextjsHotReloaderForClient',
       (stats) => {
-        this.clientError = null
-        this.clientStats = stats
+        clientError = null
+        clientStats = stats
 
         const { compilation } = stats
         const chunkNames = new Set(
@@ -1335,16 +1084,16 @@ export default class HotReloader implements NextJsHotReloaderInterface {
           )
         )
 
-        if (this.prevChunkNames) {
+        if (prevChunkNames) {
           // detect chunks which have to be replaced with a new template
           // e.g, pages/index.js <-> pages/_error.js
-          const addedPages = diff(chunkNames, this.prevChunkNames!)
-          const removedPages = diff(this.prevChunkNames!, chunkNames)
+          const addedPages = diff(chunkNames, prevChunkNames!)
+          const removedPages = diff(prevChunkNames!, chunkNames)
 
           if (addedPages.size > 0) {
             for (const addedPage of addedPages) {
               const page = getRouteFromEntrypoint(addedPage)
-              this.send({
+              send({
                 action: HMR_ACTIONS_SENT_TO_BROWSER.ADDED_PAGE,
                 data: [page],
               })
@@ -1354,7 +1103,7 @@ export default class HotReloader implements NextJsHotReloaderInterface {
           if (removedPages.size > 0) {
             for (const removedPage of removedPages) {
               const page = getRouteFromEntrypoint(removedPage)
-              this.send({
+              send({
                 action: HMR_ACTIONS_SENT_TO_BROWSER.REMOVED_PAGE,
                 data: [page],
               })
@@ -1362,81 +1111,83 @@ export default class HotReloader implements NextJsHotReloaderInterface {
           }
         }
 
-        this.prevChunkNames = chunkNames
+        prevChunkNames = chunkNames
       }
     )
 
-    this.webpackHotMiddleware = new WebpackHotMiddleware(
-      this.multiCompiler.compilers,
-      this.versionInfo
+    webpackHotMiddleware = new WebpackHotMiddleware(
+      multiCompiler.compilers,
+      versionInfo
     )
 
     let booted = false
 
-    this.watcher = await new Promise((resolve) => {
-      const watcher = this.multiCompiler?.watch(
+    watcher = await new Promise((resolve) => {
+      const watcherInstance = multiCompiler?.watch(
         // @ts-ignore webpack supports an array of watchOptions when using a multiCompiler
-        this.activeWebpackConfigs.map((config) => config.watchOptions!),
+        activeWebpackConfigs.map(
+          (activeWebpackConfig) => activeWebpackConfig.watchOptions!
+        ),
         // Errors are handled separately
         (_err: any) => {
           if (!booted) {
             booted = true
-            resolve(watcher)
+            resolve(watcherInstance)
           }
         }
       )
     })
 
-    this.onDemandEntries = onDemandEntryHandler({
-      hotReloader: this,
-      multiCompiler: this.multiCompiler,
-      pagesDir: this.pagesDir,
-      appDir: this.appDir,
-      rootDir: this.dir,
-      nextConfig: this.config,
-      ...(this.config.onDemandEntries as {
+    onDemandEntries = onDemandEntryHandler({
+      send,
+      multiCompiler: multiCompiler,
+      pagesDir: pagesDir,
+      appDir: appDir,
+      rootDir: dir,
+      nextConfig: config,
+      ...(config.onDemandEntries as {
         maxInactiveAge: number
         pagesBufferLength: number
       }),
     })
 
-    this.interceptors = [
+    interceptors = [
       getOverlayMiddleware({
-        rootDirectory: this.dir,
-        stats: () => this.clientStats,
-        serverStats: () => this.serverStats,
-        edgeServerStats: () => this.edgeServerStats,
+        rootDirectory: dir,
+        stats: () => clientStats,
+        serverStats: () => serverStats,
+        edgeServerStats: () => edgeServerStats,
       }),
     ]
-  }
+  }) satisfies NextJsHotReloaderInterface['start']
 
-  public invalidate(
-    { reloadAfterInvalidation }: { reloadAfterInvalidation: boolean } = {
+  const invalidate = ((
+    {
+      reloadAfterInvalidation: shouldReloadAfterInvalidation,
+    }: { reloadAfterInvalidation: boolean } = {
       reloadAfterInvalidation: false,
     }
-  ) {
+  ) => {
     // Cache the `reloadAfterInvalidation` flag, and use it to reload the page when compilation is done
-    this.reloadAfterInvalidation = reloadAfterInvalidation
-    const outputPath = this.multiCompiler?.outputPath
+    reloadAfterInvalidation = shouldReloadAfterInvalidation
+    const outputPath = multiCompiler?.outputPath
     return outputPath && getInvalidator(outputPath)?.invalidate()
-  }
+  }) satisfies NextJsHotReloaderInterface['invalidate']
 
-  public async stop(): Promise<void> {
+  const stop = (async () => {
     await new Promise((resolve, reject) => {
-      this.watcher.close((err: any) => (err ? reject(err) : resolve(true)))
+      watcher.close((err: any) => (err ? reject(err) : resolve(true)))
     })
 
-    if (this.fallbackWatcher) {
+    if (fallbackWatcher) {
       await new Promise((resolve, reject) => {
-        this.fallbackWatcher.close((err: any) =>
-          err ? reject(err) : resolve(true)
-        )
+        fallbackWatcher.close((err: any) => (err ? reject(err) : resolve(true)))
       })
     }
-    this.multiCompiler = undefined
-  }
+    multiCompiler = null
+  }) satisfies NextJsHotReloaderInterface['stop']
 
-  public async getCompilationErrors(page: string) {
+  const getCompilationErrors = (async (page: string) => {
     const getErrors = ({ compilation }: webpack.Stats) => {
       const failedPages = erroredPages(compilation)
       const normalizedPage = normalizePathSep(page)
@@ -1446,52 +1197,266 @@ export default class HotReloader implements NextJsHotReloaderInterface {
         : compilation.errors
     }
 
-    if (this.clientError || this.serverError) {
-      return [this.clientError || this.serverError]
-    } else if (this.clientStats?.hasErrors()) {
-      return getErrors(this.clientStats)
-    } else if (this.serverStats?.hasErrors()) {
-      return getErrors(this.serverStats)
-    } else if (this.edgeServerStats?.hasErrors()) {
-      return getErrors(this.edgeServerStats)
+    if (clientError || serverError) {
+      return [clientError || serverError]
+    } else if (clientStats?.hasErrors()) {
+      return getErrors(clientStats)
+    } else if (serverStats?.hasErrors()) {
+      return getErrors(serverStats)
+    } else if (edgeServerStats?.hasErrors()) {
+      return getErrors(edgeServerStats)
     } else {
       return []
     }
-  }
+  }) satisfies NextJsHotReloaderInterface['getCompilationErrors']
 
-  public send(action: HMR_ACTION_TYPES): void {
-    this.webpackHotMiddleware!.publish(action)
-  }
-
-  public async ensurePage({
-    page,
-    clientOnly,
-    appPaths,
-    match,
-    isApp,
-  }: {
-    page: string
-    clientOnly: boolean
-    appPaths?: ReadonlyArray<string> | null
-    isApp?: boolean
-    match?: RouteMatch
-  }): Promise<void> {
+  const ensurePage = (async ({ page, clientOnly, appPaths, match, isApp }) => {
     // Make sure we don't re-build or dispose prebuilt pages
     if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
       return
     }
-    const error = clientOnly
-      ? this.clientError
-      : this.serverError || this.clientError
+    const error = clientOnly ? clientError : serverError || clientError
     if (error) {
       return Promise.reject(error)
     }
-    return this.onDemandEntries?.ensurePage({
+    await onDemandEntries?.ensurePage({
       page,
       clientOnly,
       appPaths,
       match,
       isApp,
-    }) as any
-  }
+    })
+  }) satisfies NextJsHotReloaderInterface['ensurePage']
+
+  const webpackHotReloader = {
+    async run(req, res, parsedUrl) {
+      // Usually CORS support is not needed for the hot-reloader (this is dev only feature)
+      // With when the app runs for multi-zones support behind a proxy,
+      // the current page is trying to access this URL via assetPrefix.
+      // That's when the CORS support is needed.
+      const { preflight } = addCorsSupport(req, res)
+      if (preflight) {
+        return {}
+      }
+
+      // When a request comes in that is a page bundle, e.g. /_next/static/<buildid>/pages/index.js
+      // we have to compile the page using on-demand-entries, this middleware will handle doing that
+      // by adding the page to on-demand-entries, waiting till it's done
+      // and then the bundle will be served like usual by the actual route in server/index.js
+      const handlePageBundleRequest = async (
+        pageBundleRes: ServerResponse,
+        parsedPageBundleUrl: UrlObject
+      ): Promise<{ finished?: true }> => {
+        const { pathname } = parsedPageBundleUrl
+        const params = matchNextPageBundleRequest(pathname)
+        if (!params) {
+          return {}
+        }
+
+        let decodedPagePath: string
+
+        try {
+          decodedPagePath = `/${params.path
+            .map((param: string) => decodeURIComponent(param))
+            .join('/')}`
+        } catch (_) {
+          throw new DecodeError('failed to decode param')
+        }
+
+        const page = denormalizePagePath(decodedPagePath)
+
+        if (page === '/_error' || BLOCKED_PAGES.indexOf(page) === -1) {
+          try {
+            await ensurePage({ page, clientOnly: true })
+          } catch (error) {
+            return await renderScriptError(pageBundleRes, getProperError(error))
+          }
+
+          const errors = await getCompilationErrors(page)
+          if (errors.length > 0) {
+            return await renderScriptError(pageBundleRes, errors[0], {
+              verbose: false,
+            })
+          }
+        }
+
+        return {}
+      }
+
+      const { finished } = await handlePageBundleRequest(res, parsedUrl)
+
+      for (const fn of interceptors) {
+        await new Promise<void>((resolve, reject) => {
+          fn(req, res, (err: Error) => {
+            if (err) return reject(err)
+            resolve()
+          })
+        })
+      }
+
+      return { finished }
+    },
+    setHmrServerError,
+    clearHmrServerError,
+    onHMR(req, _socket, head) {
+      wsServer.handleUpgrade(req, req.socket, head, (client) => {
+        webpackHotMiddleware?.onHMR(client)
+        onDemandEntries?.onHMR(client, () => hmrServerError)
+
+        client.addEventListener('message', ({ data }) => {
+          data = typeof data !== 'string' ? data.toString() : data
+
+          try {
+            const payload = JSON.parse(data)
+
+            let traceChild:
+              | {
+                  name: string
+                  startTime?: bigint
+                  endTime?: bigint
+                  attrs?: Record<string, number | string | undefined | string[]>
+                }
+              | undefined
+
+            switch (payload.event) {
+              case 'span-end': {
+                new Span({
+                  name: payload.spanName,
+                  startTime:
+                    BigInt(Math.floor(payload.startTime)) *
+                    BigInt(MILLISECONDS_IN_NANOSECOND),
+                  attrs: payload.attributes,
+                }).stop(
+                  BigInt(Math.floor(payload.endTime)) *
+                    BigInt(MILLISECONDS_IN_NANOSECOND)
+                )
+                break
+              }
+              case 'client-hmr-latency': {
+                traceChild = {
+                  name: payload.event,
+                  startTime:
+                    BigInt(payload.startTime) *
+                    BigInt(MILLISECONDS_IN_NANOSECOND),
+                  endTime:
+                    BigInt(payload.endTime) *
+                    BigInt(MILLISECONDS_IN_NANOSECOND),
+                  attrs: {
+                    updatedModules: payload.updatedModules.map((m: string) =>
+                      m.replace(/^\.\//, '[project]/')
+                    ),
+                    page: payload.page,
+                  },
+                }
+                break
+              }
+              case 'client-reload-page':
+              case 'client-success': {
+                traceChild = {
+                  name: payload.event,
+                }
+                break
+              }
+              case 'client-error': {
+                traceChild = {
+                  name: payload.event,
+                  attrs: { errorCount: payload.errorCount },
+                }
+                break
+              }
+              case 'client-warning': {
+                traceChild = {
+                  name: payload.event,
+                  attrs: { warningCount: payload.warningCount },
+                }
+                break
+              }
+              case 'client-removed-page':
+              case 'client-added-page': {
+                traceChild = {
+                  name: payload.event,
+                  attrs: { page: payload.page || '' },
+                }
+                break
+              }
+              case 'client-full-reload': {
+                const { event, stackTrace, hadRuntimeError } = payload
+
+                traceChild = {
+                  name: event,
+                  attrs: { stackTrace: stackTrace ?? '' },
+                }
+
+                if (hadRuntimeError) {
+                  Log.warn(
+                    `Fast Refresh had to perform a full reload due to a runtime error.`
+                  )
+                  break
+                }
+
+                let fileMessage = ''
+                if (stackTrace) {
+                  const file = /Aborted because (.+) is not accepted/.exec(
+                    stackTrace
+                  )?.[1]
+                  if (file) {
+                    // `file` is filepath in `pages/` but it can be weird long webpack url in `app/`.
+                    // If it's a webpack loader URL, it will start with '(app-pages)/./'
+                    if (
+                      file.startsWith(`(${WEBPACK_LAYERS.appPagesBrowser})/./`)
+                    ) {
+                      const fileUrl = new URL(file, 'file://')
+                      const cwd = process.cwd()
+                      const modules = fileUrl.searchParams
+                        .getAll('modules')
+                        .map((filepath) => filepath.slice(cwd.length + 1))
+                        .filter(
+                          (filepath) => !filepath.startsWith('node_modules')
+                        )
+
+                      if (modules.length > 0) {
+                        fileMessage = ` when ${modules.join(', ')} changed`
+                      }
+                    } else {
+                      fileMessage = ` when ${file} changed`
+                    }
+                  }
+                }
+
+                Log.warn(
+                  `Fast Refresh had to perform a full reload${fileMessage}. Read more: https://nextjs.org/docs/messages/fast-refresh-reload`
+                )
+                break
+              }
+              default: {
+                break
+              }
+            }
+
+            if (traceChild) {
+              hotReloaderSpan.manualTraceChild(
+                traceChild.name,
+                traceChild.startTime || process.hrtime.bigint(),
+                traceChild.endTime || process.hrtime.bigint(),
+                { ...traceChild.attrs, clientId: payload.id }
+              )
+            }
+          } catch (_) {
+            // invalid WebSocket message
+          }
+        })
+      })
+    },
+    buildFallbackError,
+    start,
+    stop,
+    invalidate,
+    getCompilationErrors,
+    send,
+    ensurePage,
+    serverStats,
+    edgeServerStats,
+  } satisfies NextJsHotReloaderInterface
+
+  return webpackHotReloader
 }

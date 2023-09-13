@@ -21,7 +21,7 @@ import isError from '../../../lib/is-error'
 import findUp from 'next/dist/compiled/find-up'
 import { FilesystemDynamicRoute, buildCustomRoute } from './filesystem'
 import * as Log from '../../../build/output/log'
-import HotReloader, {
+import createHotReloader, {
   matchNextPageBundleRequest,
 } from '../../dev/hot-reloader-webpack'
 import { setGlobal } from '../../../trace/shared'
@@ -853,7 +853,7 @@ async function startWatcher(opts: SetupOpts) {
     await writeOtherManifests()
     await writeFontManifest()
 
-    const turbopackHotReloader: NextJsHotReloaderInterface = {
+    const turbopackHotReloader = {
       activeWebpackConfigs: undefined,
       serverStats: null,
       edgeServerStats: null,
@@ -1219,11 +1219,11 @@ async function startWatcher(opts: SetupOpts) {
           true
         )
       },
-    }
+    } satisfies NextJsHotReloaderInterface
 
     hotReloader = turbopackHotReloader
   } else {
-    hotReloader = new HotReloader(opts.dir, {
+    hotReloader = createHotReloader(opts.dir, {
       appDir,
       pagesDir,
       distDir: distDir,

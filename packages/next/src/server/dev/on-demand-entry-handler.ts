@@ -35,8 +35,10 @@ import {
 } from '../../shared/lib/constants'
 import { RouteMatch } from '../future/route-matches/route-match'
 import { isAppPageRouteMatch } from '../future/route-matches/app-page-route-match'
-import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
-import HotReloader from './hot-reloader-webpack'
+import {
+  HMR_ACTIONS_SENT_TO_BROWSER,
+  NextJsHotReloaderInterface,
+} from './hot-reloader-types'
 
 const debug = origDebug('next:on-demand-entry-handler')
 
@@ -498,7 +500,7 @@ async function findRoutePathData(
 }
 
 export function onDemandEntryHandler({
-  hotReloader,
+  send,
   maxInactiveAge,
   multiCompiler,
   nextConfig,
@@ -507,7 +509,7 @@ export function onDemandEntryHandler({
   rootDir,
   appDir,
 }: {
-  hotReloader: HotReloader
+  send: NextJsHotReloaderInterface['send']
   maxInactiveAge: number
   multiCompiler: webpack.MultiCompiler
   nextConfig: NextConfigComplete
@@ -911,7 +913,7 @@ export function onDemandEntryHandler({
       appPaths?: ReadonlyArray<string> | null
       match?: RouteMatch
       isApp?: boolean
-    }) {
+    }): Promise<void> {
       if (curEnsurePage.has(page)) {
         return curEnsurePage.get(page)
       }
@@ -940,7 +942,7 @@ export function onDemandEntryHandler({
 
           // New error occurred: buffered error is flushed and new error occurred
           if (!bufferedHmrServerError && error) {
-            hotReloader.send({
+            send({
               action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR,
               errorJSON: stringifyError(error),
             })
