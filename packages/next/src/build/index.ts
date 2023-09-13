@@ -359,7 +359,7 @@ export default async function build(
         .traceAsyncFn(() =>
           loadConfig(PHASE_PRODUCTION_BUILD, dir, {
             // Log for next.config loading process
-            logging: true,
+            silent: false,
           })
         )
       NextBuildContext.config = config

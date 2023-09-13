@@ -45,7 +45,7 @@ createNextDescribe(
     },
   },
   ({ next }) => {
-    it('should validate against defaultConfig', async () => {
+    it('should warn the invalid next config', async () => {
       await next.fetch('/')
       const output = stripAnsi(next.cliOutput)
       const warningTimes = /badKey/.exec(output)?.length

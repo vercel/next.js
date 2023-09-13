@@ -88,7 +88,7 @@ export async function initialize(opts: {
     opts.dir,
     // Log for next.config loading process on server side
     {
-      logging: true,
+      silent: false,
     }
   )
 

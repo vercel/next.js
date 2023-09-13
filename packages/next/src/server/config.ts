@@ -28,7 +28,7 @@ export function warnOptionHasBeenMovedOutOfExperimental(
   oldKey: string,
   newKey: string,
   configFileName: string,
-  silent = false
+  silent: boolean
 ) {
   if (config.experimental && oldKey in config.experimental) {
     if (!silent) {
@@ -55,14 +55,15 @@ export function warnOptionHasBeenMovedOutOfExperimental(
 function assignDefaults(
   dir: string,
   userConfig: { [key: string]: any },
-  silent = false
+  silent: boolean
 ) {
   const configFileName = userConfig.configFileName
-  if (!silent && typeof userConfig.exportTrailingSlash !== 'undefined') {
-    console.warn(
-      chalk.yellow.bold('Warning: ') +
+  if (typeof userConfig.exportTrailingSlash !== 'undefined') {
+    if (!silent) {
+      Log.warn(
         `The "exportTrailingSlash" option has been renamed to "trailingSlash". Please update your ${configFileName}.`
-    )
+      )
+    }
     if (typeof userConfig.trailingSlash === 'undefined') {
       userConfig.trailingSlash = userConfig.exportTrailingSlash
     }
@@ -704,12 +705,12 @@ export default async function loadConfig(
   {
     customConfig,
     rawConfig,
-    logging,
+    silent = true,
     onLoadUserConfig,
   }: {
     customConfig?: object | null
     rawConfig?: boolean
-    logging?: boolean
+    silent?: boolean
     onLoadUserConfig?: (conf: NextConfig) => void
   } = {}
 ): Promise<NextConfigComplete> {
@@ -739,13 +740,13 @@ export default async function loadConfig(
     return JSON.parse(process.env.__NEXT_PRIVATE_RENDER_WORKER_CONFIG)
   }
 
-  const curLog = logging
-    ? Log
-    : {
+  const curLog = silent
+    ? {
         warn: () => {},
         info: () => {},
         error: () => {},
       }
+    : Log
 
   loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, curLog)
 
@@ -759,7 +760,7 @@ export default async function loadConfig(
         configFileName,
         ...customConfig,
       },
-      !logging
+      silent
     ) as NextConfigComplete
   }
 
@@ -809,7 +810,7 @@ export default async function loadConfig(
 
     const validateResult = validateConfig(userConfig)
 
-    if (logging && validateResult.errors) {
+    if (!silent && validateResult.errors) {
       // Only load @segment/ajv-human-errors when invalid config is detected
       const { AggregateAjvError } =
         require('next/dist/compiled/@segment/ajv-human-errors') as typeof import('next/dist/compiled/@segment/ajv-human-errors')
@@ -868,7 +869,7 @@ export default async function loadConfig(
         configFileName,
         ...userConfig,
       },
-      !logging
+      silent
     ) as NextConfigComplete
     return completeConfig
   } else {
@@ -896,7 +897,7 @@ export default async function loadConfig(
   const completeConfig = assignDefaults(
     dir,
     defaultConfig,
-    !logging
+    silent
   ) as NextConfigComplete
   completeConfig.configFileName = configFileName
   setHttpClientAndAgentOptions(completeConfig)

@@ -219,7 +219,7 @@ export class NextServer {
         resolve(this.options.dir || '.'),
         {
           customConfig: this.options.conf,
-          logging: !this.options._renderWorker,
+          silent: !!this.options._renderWorker,
         }
       )
     )
