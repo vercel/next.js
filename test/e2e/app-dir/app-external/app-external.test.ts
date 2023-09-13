@@ -208,5 +208,10 @@ createNextDescribe(
       const middlewareBundle = await next.readFile('.next/server/middleware.js')
       expect(middlewareBundle).not.toContain('image-response')
     })
+
+    it('should use the same async storages if imported directly', async () => {
+      const html = await next.render('/async-storage')
+      expect(html).toContain('success')
+    })
   }
 )

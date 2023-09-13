@@ -10,6 +10,14 @@ export const COMPILER_NAMES = {
   edgeServer: 'edge-server',
 } as const
 
+export const INTERNAL_HEADERS = [
+  'x-invoke-path',
+  'x-invoke-status',
+  'x-invoke-error',
+  'x-invoke-query',
+  'x-middleware-invoke',
+] as const
+
 export type CompilerNameValues = ValueOf<typeof COMPILER_NAMES>
 
 export const COMPILER_INDEXES: {

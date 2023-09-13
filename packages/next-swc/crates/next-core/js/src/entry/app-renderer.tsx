@@ -3,13 +3,15 @@
 import startOperationStreamHandler from '../internal/operation-stream'
 
 import '../polyfill/app-polyfills.ts'
+// TODO: when actions are supported, this should be removed/changed
+process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = 'next'
+import 'next/dist/server/require-hook'
 
 import type { IncomingMessage } from 'node:http'
 
 import type { RenderData } from 'types/turbopack'
 import type { RenderOpts } from 'next/dist/server/app-render/types'
 
-import { renderToHTMLOrFlight } from 'next/dist/server/app-render/app-render'
 import { RSC_VARY_HEADER } from 'next/dist/client/components/app-router-headers'
 import { headersFromEntries, initProxiedHeaders } from '../internal/headers'
 import { parse, ParsedUrlQuery } from 'node:querystring'
@@ -22,6 +24,10 @@ import { createManifests, installRequireAndChunkLoad } from './app/manifest'
 import { join } from 'node:path'
 import { nodeFs } from 'next/dist/server/lib/node-fs-methods'
 import { IncrementalCache } from 'next/dist/server/lib/incremental-cache'
+
+const {
+  renderToHTMLOrFlight,
+} = require('next/dist/compiled/next-server/app-page.runtime.dev')
 
 installRequireAndChunkLoad()
 
@@ -65,7 +71,7 @@ async function runOperation(renderData: RenderData) {
   const query = parse(renderData.rawQuery)
   const renderOpt: Omit<
     RenderOpts,
-    'App' | 'Document' | 'Component' | 'pathname'
+    'App' | 'Document' | 'Component' | 'page'
   > & {
     params: ParsedUrlQuery
   } = {

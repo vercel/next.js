@@ -1,4 +1,4 @@
-export class ImageResponse {
+export class ImageResponse extends Response {
   public static displayName = 'NextImageResponse'
   constructor(
     ...args: ConstructorParameters<
@@ -36,7 +36,7 @@ export class ImageResponse {
 
     const options = args[1] || {}
 
-    return new Response(readable, {
+    super(readable, {
       headers: {
         'content-type': 'image/png',
         'cache-control':
