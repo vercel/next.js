@@ -1,4 +1,3 @@
-import url from 'url'
 import { join } from 'path'
 import assert from 'assert'
 import cheerio from 'cheerio'
@@ -347,7 +346,7 @@ describe('basePath', () => {
           redirect: 'manual',
         }
       )
-      const { pathname } = url.parse(res.headers.get('location') || '')
+      const { pathname } = new URL(res.headers.get('location'), 'http://n')
       expect(pathname).toBe(`${basePath}/somewhere-else`)
       expect(res.status).toBe(307)
       const text = await res.text()
@@ -379,7 +378,7 @@ describe('basePath', () => {
           redirect: 'manual',
         }
       )
-      const { pathname } = url.parse(res.headers.get('location') || '')
+      const { pathname } = new URL(res.headers.get('location'), 'http://n')
       expect(pathname).toBe('/another-destination')
       expect(res.status).toBe(307)
       const text = await res.text()
@@ -584,7 +583,7 @@ describe('basePath', () => {
         { redirect: 'manual' }
       )
       expect(res.status).toBe(308)
-      const { pathname } = new URL(res.headers.get('location'))
+      const { pathname } = new URL(res.headers.get('location'), 'http://n')
       expect(pathname).toBe(`${basePath}/hello`)
       const text = await res.text()
       expect(text).toContain(`${basePath}/hello`)
@@ -598,7 +597,7 @@ describe('basePath', () => {
         { redirect: 'manual' }
       )
       expect(res.status).toBe(308)
-      const { pathname } = new URL(res.headers.get('location'))
+      const { pathname } = new URL(res.headers.get('location'), 'http://n')
       expect(pathname).toBe(`${basePath}`)
       const text = await res.text()
       expect(text).toContain(`${basePath}`)
@@ -756,14 +755,14 @@ describe('basePath', () => {
     it('should have correct href for a link', async () => {
       const browser = await webdriver(next.url, `${basePath}/hello`)
       const href = await browser.elementByCss('a').getAttribute('href')
-      const { pathname } = url.parse(href)
+      const { pathname } = new URL(href, 'http://n')
       expect(pathname).toBe(`${basePath}/other-page`)
     })
 
     it('should have correct href for a link to /', async () => {
       const browser = await webdriver(next.url, `${basePath}/link-to-root`)
       const href = await browser.elementByCss('#link-back').getAttribute('href')
-      const { pathname } = url.parse(href)
+      const { pathname } = new URL(href, 'http://n')
       expect(pathname).toBe(`${basePath}`)
     })
 

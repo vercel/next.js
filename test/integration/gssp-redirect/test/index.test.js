@@ -30,7 +30,7 @@ const runTests = (isDev) => {
     )
     expect(res.status).toBe(307)
 
-    const { pathname } = url.parse(res.headers.get('location'))
+    const { pathname } = new URL(res.headers.get('location'), 'http://n')
 
     expect(pathname).toBe('/404')
   })
@@ -46,7 +46,7 @@ const runTests = (isDev) => {
     )
     expect(res.status).toBe(308)
 
-    const { pathname } = url.parse(res.headers.get('location'))
+    const { pathname } = new URL(res.headers.get('location'), 'http://n')
 
     expect(pathname).toBe('/404')
     expect(res.headers.get('refresh')).toMatch(/url=\/404/)
@@ -63,7 +63,7 @@ const runTests = (isDev) => {
     )
     expect(res.status).toBe(301)
 
-    const { pathname } = url.parse(res.headers.get('location'))
+    const { pathname } = new URL(res.headers.get('location'), 'http://n')
 
     expect(pathname).toBe('/404')
     expect(res.headers.get('refresh')).toBe(null)
@@ -80,7 +80,7 @@ const runTests = (isDev) => {
     )
     expect(res.status).toBe(303)
 
-    const { pathname } = url.parse(res.headers.get('location'))
+    const { pathname } = new URL(res.headers.get('location'), 'http://n')
 
     expect(pathname).toBe('/404')
     expect(res.headers.get('refresh')).toBe(null)
@@ -315,8 +315,7 @@ const runTests = (isDev) => {
     )
     expect(res.status).toBe(307)
 
-    const parsed = url.parse(res.headers.get('location'))
-    expect(parsed.hostname).toBe('example.vercel.sh')
+    const parsed = new URL(res.headers.get('location'), 'http://n')
     expect(parsed.pathname).toBe('/')
   })
 

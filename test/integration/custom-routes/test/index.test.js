@@ -1,7 +1,6 @@
 /* eslint-env jest */
 
 import http from 'http'
-import url from 'url'
 import stripAnsi from 'strip-ansi'
 import fs from 'fs-extra'
 import { join } from 'path'
@@ -426,21 +425,24 @@ const runTests = (isDev = false, isTurbo = false) => {
     const res1 = await fetchViaHTTP(appPort, '/redir-chain1', undefined, {
       redirect: 'manual',
     })
-    const res1location = url.parse(res1.headers.get('location')).pathname
+    const res1location = new URL(res1.headers.get('location'), 'http://n')
+      .pathname
     expect(res1.status).toBe(301)
     expect(res1location).toBe('/redir-chain2')
 
     const res2 = await fetchViaHTTP(appPort, res1location, undefined, {
       redirect: 'manual',
     })
-    const res2location = url.parse(res2.headers.get('location')).pathname
+    const res2location = new URL(res2.headers.get('location'), 'http://n')
+      .pathname
     expect(res2.status).toBe(302)
     expect(res2location).toBe('/redir-chain3')
 
     const res3 = await fetchViaHTTP(appPort, res2location, undefined, {
       redirect: 'manual',
     })
-    const res3location = url.parse(res3.headers.get('location')).pathname
+    const res3location = new URL(res3.headers.get('location'), 'http://n')
+      .pathname
     expect(res3.status).toBe(303)
     expect(res3location).toBe('/')
   })
@@ -477,7 +479,7 @@ const runTests = (isDev = false, isTurbo = false) => {
     const res = await fetchViaHTTP(appPort, '/redirect1', undefined, {
       redirect: 'manual',
     })
-    const { pathname } = url.parse(res.headers.get('location'))
+    const { pathname } = new URL(res.headers.get('location'), 'http://n')
     expect(res.status).toBe(307)
     expect(pathname).toBe('/')
   })
@@ -486,7 +488,7 @@ const runTests = (isDev = false, isTurbo = false) => {
     const res = await fetchViaHTTP(appPort, '/hello/123/another', undefined, {
       redirect: 'manual',
     })
-    const { pathname } = url.parse(res.headers.get('location'))
+    const { pathname } = new URL(res.headers.get('location'), 'http://n')
     expect(res.status).toBe(307)
     expect(pathname).toBe('/blog/123')
   })
@@ -500,24 +502,27 @@ const runTests = (isDev = false, isTurbo = false) => {
         redirect: 'manual',
       }
     )
-    const { pathname, hash, query } = url.parse(
+    const { pathname, hash, searchParams } = new URL(
       res.headers.get('location'),
-      true
+      'http://n'
     )
     expect(res.status).toBe(301)
     expect(pathname).toBe('/docs/v2/network/status-codes')
     expect(hash).toBe('#500')
-    expect(query).toEqual({})
+    expect(Object.fromEntries(searchParams)).toEqual({})
   })
 
   it('should redirect successfully with provided statusCode', async () => {
     const res = await fetchViaHTTP(appPort, '/redirect2', undefined, {
       redirect: 'manual',
     })
-    const { pathname, query } = url.parse(res.headers.get('location'), true)
+    const { pathname, searchParams } = new URL(
+      res.headers.get('location'),
+      'http://n'
+    )
     expect(res.status).toBe(301)
     expect(pathname).toBe('/')
-    expect(query).toEqual({})
+    expect(Object.fromEntries(searchParams)).toEqual({})
   })
 
   it('should redirect successfully with catchall', async () => {
@@ -529,10 +534,13 @@ const runTests = (isDev = false, isTurbo = false) => {
         redirect: 'manual',
       }
     )
-    const { pathname, query } = url.parse(res.headers.get('location'), true)
+    const { pathname, searchParams } = new URL(
+      res.headers.get('location'),
+      'http://n'
+    )
     expect(res.status).toBe(307)
     expect(pathname).toBe('/somewhere')
-    expect(query).toEqual({})
+    expect(Object.fromEntries(searchParams)).toEqual({})
   })
 
   it('should server static files through a rewrite', async () => {
@@ -623,10 +631,13 @@ const runTests = (isDev = false, isTurbo = false) => {
         redirect: 'manual',
       }
     )
-    const { pathname, query } = url.parse(res.headers.get('location'), true)
+    const { pathname, searchParams } = new URL(
+      res.headers.get('location'),
+      'http://n'
+    )
     expect(res.status).toBe(307)
     expect(pathname).toBe('/with-params')
-    expect(query).toEqual({
+    expect(Object.fromEntries(searchParams)).toEqual({
       first: 'hello',
       second: 'world',
       a: 'b',
@@ -645,11 +656,13 @@ const runTests = (isDev = false, isTurbo = false) => {
         redirect: 'manual',
       }
     )
-    const { pathname, query } = url.parse(res.headers.get('location'), true)
+    const { pathname, searchParams } = new URL(
+      res.headers.get('location'),
+      'http://n'
+    )
     expect(res.status).toBe(307)
     expect(pathname).toBe('/with-params')
-    expect(query).toEqual({
-      // this should be decoded since url.parse decodes query values
+    expect(Object.fromEntries(searchParams)).toEqual({
       first: 'hello world?w=24&focalpoint=center',
       second: 'world',
       a: 'b',
@@ -695,7 +708,7 @@ const runTests = (isDev = false, isTurbo = false) => {
     const res = await fetchViaHTTP(appPort, '/redirect-override', undefined, {
       redirect: 'manual',
     })
-    const { pathname } = url.parse(res.headers.get('location') || '')
+    const { pathname } = new URL(res.headers.get('location'), 'http://n')
     expect(res.status).toBe(307)
     expect(pathname).toBe('/thank-you-next')
   })
@@ -882,10 +895,10 @@ const runTests = (isDev = false, isTurbo = false) => {
     expect(res.status).toBe(200)
     expect(
       [...externalServerHits].map((u) => {
-        const { pathname, query } = url.parse(u, true)
+        const { pathname, searchParams } = new URL(u, 'http://n')
         return {
           pathname,
-          query,
+          query: Object.fromEntries(searchParams),
         }
       })
     ).toEqual([
@@ -906,7 +919,7 @@ const runTests = (isDev = false, isTurbo = false) => {
     const res = await fetchViaHTTP(appPort, '/unnamed/first/final', undefined, {
       redirect: 'manual',
     })
-    const { pathname } = url.parse(res.headers.get('location') || '')
+    const { pathname } = new URL(res.headers.get('location'), 'http://n')
     expect(res.status).toBe(307)
     expect(pathname).toBe('/got-unnamed')
   })
@@ -920,7 +933,7 @@ const runTests = (isDev = false, isTurbo = false) => {
         redirect: 'manual',
       }
     )
-    const { pathname } = url.parse(res.headers.get('location') || '')
+    const { pathname } = new URL(res.headers.get('location'), 'http://n')
     expect(res.status).toBe(307)
     expect(pathname).toBe('/first')
   })
@@ -988,14 +1001,13 @@ const runTests = (isDev = false, isTurbo = false) => {
       }
     )
 
-    const { pathname, hostname, query } = url.parse(
+    const { pathname, searchParams } = new URL(
       res.headers.get('location') || '',
-      true
+      'http://n'
     )
     expect(res.status).toBe(307)
     expect(pathname).toBe(encodeURI('/\\google.com/about'))
-    expect(hostname).not.toBe('google.com')
-    expect(query).toEqual({})
+    expect(Object.fromEntries(searchParams)).toEqual({})
   })
 
   it('should handle unnamed parameters with multi-match successfully', async () => {
@@ -1016,7 +1028,7 @@ const runTests = (isDev = false, isTurbo = false) => {
         redirect: 'manual',
       }
     )
-    const { pathname } = url.parse(res.headers.get('location') || '')
+    const { pathname } = new URL(res.headers.get('location'), 'http://n')
     expect(res.status).toBe(307)
     expect(pathname).toBe('/integrations/-some/thing')
   })
@@ -1369,10 +1381,10 @@ const runTests = (isDev = false, isTurbo = false) => {
     })
 
     expect(res.status).toBe(307)
-    const parsed = url.parse(res.headers.get('location'), true)
+    const parsed = new URL(res.headers.get('location'), 'http://n')
 
     expect(parsed.pathname).toBe('/another')
-    expect(parsed.query).toEqual({
+    expect(Object.fromEntries(parsed.searchParams)).toEqual({
       myHeader: 'hello world!!',
     })
 
@@ -1395,10 +1407,10 @@ const runTests = (isDev = false, isTurbo = false) => {
     )
 
     expect(res.status).toBe(307)
-    const parsed = url.parse(res.headers.get('location'), true)
+    const parsed = new URL(res.headers.get('location'), 'http://n')
 
     expect(parsed.pathname).toBe('/another')
-    expect(parsed.query).toEqual({
+    expect(Object.fromEntries(parsed.searchParams)).toEqual({
       value: 'hellooo',
       'my-query': 'hellooo',
     })
@@ -1418,10 +1430,10 @@ const runTests = (isDev = false, isTurbo = false) => {
     })
 
     expect(res.status).toBe(307)
-    const parsed = url.parse(res.headers.get('location'), true)
+    const parsed = new URL(res.headers.get('location'), 'http://n')
 
     expect(parsed.pathname).toBe('/another')
-    expect(parsed.query).toEqual({
+    expect(Object.fromEntries(parsed.searchParams)).toEqual({
       authorized: '1',
     })
 
@@ -1445,10 +1457,10 @@ const runTests = (isDev = false, isTurbo = false) => {
     })
 
     expect(res.status).toBe(307)
-    const parsed = url.parse(res.headers.get('location'), true)
+    const parsed = new URL(res.headers.get('location'), 'http://n')
 
     expect(parsed.pathname).toBe('/another')
-    expect(parsed.query).toEqual({
+    expect(Object.fromEntries(parsed.searchParams)).toEqual({
       host: '1',
     })
   })
@@ -1467,12 +1479,12 @@ const runTests = (isDev = false, isTurbo = false) => {
     })
 
     expect(res.status).toBe(307)
-    const parsed = url.parse(res.headers.get('location'), true)
+    const parsed = new URL(res.headers.get('location'), 'http://n')
 
     expect(parsed.protocol).toBe('https:')
     expect(parsed.hostname).toBe('hello.example.com')
     expect(parsed.pathname).toBe('/some-path/end')
-    expect(parsed.query).toEqual({
+    expect(Object.fromEntries(parsed.searchParams)).toEqual({
       a: 'b',
     })
   })
@@ -1487,13 +1499,17 @@ const runTests = (isDev = false, isTurbo = false) => {
       }
     )
     expect(res.status).toBe(307)
-    const parsed = url.parse(res.headers.get('location'), true)
+    const { pathname, searchParams } = new URL(
+      res.headers.get('location'),
+      'http://n'
+    )
 
-    expect(parsed.pathname).toBe('/somewhere')
-    expect(parsed.query).toEqual({
-      hello: ['world', 'another'],
-      value: 'another',
-    })
+    expect(pathname).toBe('/somewhere')
+    expect([...searchParams]).toEqual([
+      ['hello', 'world'],
+      ['hello', 'another'],
+      ['value', 'another'],
+    ])
   })
 
   it('should match has header for header correctly', async () => {
@@ -2959,7 +2975,7 @@ describe('Custom routes', () => {
         expect(res.headers.get('x-custom-header')).toBeFalsy()
         expect(res.headers.get('x-another-header')).toBeFalsy()
 
-        const { pathname } = url.parse(res2.headers.get('location'))
+        const { pathname } = new URL(res2.headers.get('location'), 'http://n')
         expect(res2.status).toBe(301)
         expect(pathname).toBe('/docs/v2/advanced/now-for-github')
 

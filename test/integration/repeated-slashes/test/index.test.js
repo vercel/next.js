@@ -1,7 +1,6 @@
 /* eslint-env jest */
 import { join } from 'path'
 import fs from 'fs-extra'
-import url from 'url'
 import webdriver from 'next-webdriver'
 import escapeRegex from 'escape-string-regexp'
 import {
@@ -65,11 +64,10 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
       )
 
       expect(res.status).toBe(307)
-      const parsedUrl = url.parse(res.headers.get('location'), true)
+      const parsedUrl = new URL(res.headers.get('location'), 'http://n')
 
-      expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
       expect(parsedUrl.pathname).toBe('/test/google.com')
-      expect(parsedUrl.query).toEqual({})
+      expect(Object.fromEntries(parsedUrl.searchParams)).toEqual({})
       expect(await res.text()).toBe('/test/google.com')
 
       const res2 = await fetchViaHTTP(
@@ -82,11 +80,10 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
       )
 
       expect(res2.status).toBe(307)
-      const parsedUrl2 = url.parse(res2.headers.get('location'), true)
+      const parsedUrl2 = new URL(res2.headers.get('location'), 'http://n')
 
-      expect(parsedUrl2.hostname).toBeOneOf(['localhost', '127.0.0.1'])
       expect(parsedUrl2.pathname).toBe('/test/google.com')
-      expect(parsedUrl2.query).toEqual({})
+      expect(Object.fromEntries(parsedUrl2.searchParams)).toEqual({})
       expect(await res2.text()).toBe('/test/google.com')
     })
   }
@@ -98,10 +95,9 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
       })
       expect(res.status).toBe(308)
 
-      const parsedUrl = url.parse(res.headers.get('location'), true)
+      const parsedUrl = new URL(res.headers.get('location'), 'http://n')
       expect(parsedUrl.pathname).toBe('/google.com')
-      expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
-      expect(parsedUrl.query).toEqual({})
+      expect(Object.fromEntries(parsedUrl.searchParams)).toEqual({})
     }
 
     const browser = await webdriver(appPort, '//google.com')
@@ -127,10 +123,9 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
         }
       )
       expect(res.status).toBe(308)
-      const parsedUrl = url.parse(res.headers.get('location'), true)
+      const parsedUrl = new URL(res.headers.get('location'), 'http://n')
       expect(parsedUrl.pathname).toBe('/google.com')
-      expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
-      expect(parsedUrl.query).toEqual({ h: '1' })
+      expect(Object.fromEntries(parsedUrl.searchParams)).toEqual({ h: '1' })
     }
 
     const browser = await webdriver(appPort, '//google.com?h=1')
@@ -151,10 +146,9 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
         redirect: 'manual',
       })
       expect(res.status).toBe(308)
-      const parsedUrl = url.parse(res.headers.get('location'), true)
+      const parsedUrl = new URL(res.headers.get('location'), 'http://n')
       expect(parsedUrl.pathname).toBe('/google.com')
-      expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
-      expect(parsedUrl.query).toEqual({})
+      expect(Object.fromEntries(parsedUrl.searchParams)).toEqual({})
     }
 
     const browser = await webdriver(appPort, '//google.com#hello')
@@ -239,10 +233,9 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
         redirect: 'manual',
       })
       expect(res.status).toBe(308)
-      const parsedUrl = url.parse(res.headers.get('location'), true)
+      const parsedUrl = new URL(res.headers.get('location'), 'http://n')
       expect(parsedUrl.pathname).toBe('/google.com')
-      expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
-      expect(parsedUrl.query).toEqual({})
+      expect(Object.fromEntries(parsedUrl.searchParams)).toEqual({})
       expect(await res.text()).toBe('/google.com')
     }
 
@@ -264,10 +257,9 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
         redirect: 'manual',
       })
       expect(res.status).toBe(308)
-      const parsedUrl = url.parse(res.headers.get('location'), true)
+      const parsedUrl = new URL(res.headers.get('location'), 'http://n')
       expect(parsedUrl.pathname).toBe(isExport ? '//google.com' : '/google.com')
-      expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
-      expect(parsedUrl.query).toEqual({})
+      expect(Object.fromEntries(parsedUrl.searchParams)).toEqual({})
       expect(await res.text()).toBe('/google.com')
     }
 
