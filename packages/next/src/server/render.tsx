@@ -31,7 +31,7 @@ import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-ma
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 
 import React from 'react'
-import ReactDOMServer from 'react-dom/server.edge'
+import ReactDOMServer from 'react-dom/server.browser'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import {
   GSP_NO_RETURNED_VALUE,
