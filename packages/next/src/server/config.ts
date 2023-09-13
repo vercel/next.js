@@ -701,10 +701,17 @@ function assignDefaults(
 export default async function loadConfig(
   phase: string,
   dir: string,
-  customConfig?: object | null,
-  rawConfig?: boolean,
-  silent?: boolean,
-  onLoadUserConfig?: (conf: NextConfig) => void
+  {
+    customConfig,
+    rawConfig,
+    logging,
+    onLoadUserConfig,
+  }: {
+    customConfig?: object | null
+    rawConfig?: boolean
+    logging?: boolean
+    onLoadUserConfig?: (conf: NextConfig) => void
+  } = {}
 ): Promise<NextConfigComplete> {
   if (!process.env.__NEXT_PRIVATE_RENDER_WORKER) {
     try {
@@ -732,13 +739,13 @@ export default async function loadConfig(
     return JSON.parse(process.env.__NEXT_PRIVATE_RENDER_WORKER_CONFIG)
   }
 
-  const curLog = silent
-    ? {
+  const curLog = logging
+    ? Log
+    : {
         warn: () => {},
         info: () => {},
         error: () => {},
       }
-    : Log
 
   loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, curLog)
 
@@ -752,7 +759,7 @@ export default async function loadConfig(
         configFileName,
         ...customConfig,
       },
-      silent
+      !logging
     ) as NextConfigComplete
   }
 
@@ -802,7 +809,7 @@ export default async function loadConfig(
 
     const validateResult = validateConfig(userConfig)
 
-    if (!silent && validateResult.errors) {
+    if (logging && validateResult.errors) {
       // Only load @segment/ajv-human-errors when invalid config is detected
       const { AggregateAjvError } =
         require('next/dist/compiled/@segment/ajv-human-errors') as typeof import('next/dist/compiled/@segment/ajv-human-errors')
@@ -861,7 +868,7 @@ export default async function loadConfig(
         configFileName,
         ...userConfig,
       },
-      silent
+      !logging
     ) as NextConfigComplete
     return completeConfig
   } else {
@@ -889,7 +896,7 @@ export default async function loadConfig(
   const completeConfig = assignDefaults(
     dir,
     defaultConfig,
-    silent
+    !logging
   ) as NextConfigComplete
   completeConfig.configFileName = configFileName
   setHttpClientAndAgentOptions(completeConfig)

@@ -145,6 +145,7 @@ store.subscribe((state) => {
       loadingLogTimer = null
     }
     Log.event(`Compiled ${trigger}${timeMessage}${modulesMessage}`)
+    trigger = ''
   }
 
   // Ensure traces are flushed after each compile in development mode

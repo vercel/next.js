@@ -119,7 +119,9 @@ export async function validateTurboNextConfig({
 
   try {
     rawNextConfig = interopDefault(
-      await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, undefined, true)
+      await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
+        rawConfig: true,
+      })
     ) as NextConfig
 
     if (typeof rawNextConfig === 'function') {
