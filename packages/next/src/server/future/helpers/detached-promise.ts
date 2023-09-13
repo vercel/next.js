@@ -3,7 +3,7 @@ type PromiseCallbacks<T = any> = {
   reject: (reason: any) => void
 }
 
-export class DetachedPromise<T = any> {
+export class DetachedPromise<T = any> implements PromiseLike<T> {
   private callbacks!: PromiseCallbacks<T>
   private promise: Promise<T>
 
@@ -14,7 +14,10 @@ export class DetachedPromise<T = any> {
   }
 
   public then<TResult1 = T, TResult2 = never>(
-    onfulfilled?: ((value: T) => TResult1) | undefined | null,
+    onfulfilled?:
+      | ((value: T) => TResult1 | PromiseLike<TResult1>)
+      | undefined
+      | null,
     onrejected?:
       | ((reason: any) => TResult2 | PromiseLike<TResult2>)
       | undefined

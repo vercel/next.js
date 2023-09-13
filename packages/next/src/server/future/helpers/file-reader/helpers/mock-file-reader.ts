@@ -12,8 +12,7 @@ export class MockFileReader implements FileReader {
    * @param files An optional array of file paths to be used for reading.
    */
   constructor(files: ReadonlyArray<string> = []) {
-    // Sort the files array for efficient matching
-    this.files = [...files].sort()
+    this.files = files
   }
 
   /**
@@ -22,14 +21,14 @@ export class MockFileReader implements FileReader {
    * @param options The FileReaderOptions object, including the 'recursive' flag.
    * @returns An async generator that yields file paths matching the directory and options.
    */
-  public async *read(
+  public read(
     dir: string,
     options: FileReaderOptions
-  ): AsyncGenerator<string, undefined, undefined> {
-    for (const file of this.files) {
-      if (!isFileInDirectory(file, dir, options.recursive)) continue
-
-      yield file
-    }
+  ): Promise<ReadonlyArray<string>> {
+    return Promise.resolve(
+      this.files.filter((file) => {
+        return isFileInDirectory(file, dir, options.recursive)
+      })
+    )
   }
 }

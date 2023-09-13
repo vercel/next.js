@@ -8,10 +8,12 @@ import path from 'path'
  * symbolic links and returns a sorted list of the files.
  */
 export class BaseRecursiveFileReader implements FileReader {
-  public async *read(
+  public async read(
     rootDirectory: string,
     { recursive }: FileReaderOptions
-  ): AsyncGenerator<string, undefined, undefined> {
+  ): Promise<ReadonlyArray<string>> {
+    const filenames: string[] = []
+
     // The queue of directories to scan.
     let directories: string[] = [rootDirectory]
     let links: string[] = []
@@ -27,10 +29,10 @@ export class BaseRecursiveFileReader implements FileReader {
           } = { directories: [], filenames: [], links: [] }
 
           // Read the directory.
-          const files = await fs.readdir(directory, { withFileTypes: true })
+          const files = await fs.opendir(directory)
 
           // Add all the files to the queue or yield them.
-          for (const file of files) {
+          for await (const file of files) {
             const filename = path.join(directory, file.name)
 
             if (file.isDirectory()) {
@@ -48,11 +50,9 @@ export class BaseRecursiveFileReader implements FileReader {
 
       directories = []
 
-      // Yield all the filenames.
       for (const result of results) {
-        for (const filename of result.filenames) {
-          yield filename
-        }
+        // Add all the files to the list of filenames.
+        filenames.push(...result.filenames)
 
         // Add all the directories to the queue.
         directories.push(...result.directories)
@@ -91,14 +91,17 @@ export class BaseRecursiveFileReader implements FileReader {
           if (stats.isDirectory()) {
             directories.push(filename)
           } else {
-            yield filename
+            filenames.push(filename)
           }
         }
 
         links = []
 
-        if (!recursive) return
+        // If the read operation is not recursive, we're done.
+        if (!recursive) break
       }
     }
+
+    return filenames
   }
 }

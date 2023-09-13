@@ -20,18 +20,12 @@ export abstract class FileCacheRouteMatcherProvider<
   protected abstract filter(filename: string): boolean
 
   protected async load(): Promise<ReadonlyArray<string>> {
-    const files = []
-
-    // Iterate over the files, if the file is a match, then add it to the list.
-    for await (const file of this.reader.read(this.dir, {
+    // Get all the files that are in the directory.
+    const files = await this.reader.read(this.dir, {
       recursive: this.recursive,
-    })) {
-      if (!this.filter(file)) continue
+    })
 
-      files.push(file)
-    }
-
-    return files
+    return files.filter((filename) => this.filter(filename))
   }
 
   protected compare(left: ReadonlyArray<string>, right: ReadonlyArray<string>) {

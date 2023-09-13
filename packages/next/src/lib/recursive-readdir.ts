@@ -78,8 +78,8 @@ export async function recursiveReadDir(
         const result: Result = { directories: [], pathnames: [], links: [] }
 
         try {
-          const dir = await fs.readdir(directory, { withFileTypes: true })
-          for (const file of dir) {
+          const dir = await fs.opendir(directory)
+          for await (const file of dir) {
             // If enabled, ignore the file if it matches the ignore filter.
             if (ignorePartFilter && ignorePartFilter(file.name)) {
               continue

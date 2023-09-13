@@ -29,42 +29,28 @@ describe('BatchedFileReader', () => {
   })
 
   it('should read a single file', async () => {
-    const iterator = reader.read('/root/q', { recursive: true })
-    const result = await iterator.next()
+    const results = await reader.read('/root/q', { recursive: true })
 
-    expect(result.done).toBe(false)
-    expect(result.value).toBe('/root/q/r')
-
-    expect(readSpy).toHaveBeenCalledTimes(1)
-
-    const result2 = await iterator.next()
-
-    expect(result2.done).toBe(true)
-    expect(result2.value).toBeUndefined()
-
+    expect(results).toEqual(['/root/q/r'])
     expect(readSpy).toHaveBeenCalledTimes(1)
   })
 
   it('should read non-recursive directory', async () => {
-    const iterator = reader.read('/root/e', { recursive: false })
+    const results = await reader.read('/root/e', { recursive: false })
 
-    let results = 0
     let i = files.findIndex((file) => file.startsWith('/root/e'))
-    for await (const file of iterator) {
-      expect(file).toBe(files[i])
-      results++
-      i++
+    for (; i < results.length; i++) {
+      expect(results[i]).toBe(files[i])
     }
 
-    expect(results).toBe(3)
+    expect(results).toHaveLength(3)
   })
 
   it('should handle empty directory', async () => {
-    const iterator = reader.read('/root/empty', { recursive: true })
-    const result = await iterator.next()
+    const results = await reader.read('/root/empty', { recursive: true })
 
-    expect(result.done).toBe(true)
-    expect(result.value).toBeUndefined()
+    expect(results).toHaveLength(0)
+    expect(readSpy).toHaveBeenCalledTimes(1)
   })
 
   it('should handle large directory and perform well', async () => {
@@ -77,86 +63,84 @@ describe('BatchedFileReader', () => {
     const largeMocked = new MockFileReader(largeDirFiles)
     const largeReader = new BatchedFileReader(largeMocked)
 
-    const iterator = largeReader.read('/root/large-dir', { recursive: true })
-
     const startTime = performance.now()
-    let count = 0
-
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    for await (const file of iterator) {
-      count++
-    }
+    const results = await largeReader.read('/root/large-dir', {
+      recursive: true,
+    })
 
     const endTime = performance.now()
     const elapsedTime = endTime - startTime
 
     // Verify that all files were processed
-    expect(count).toBe(largeDirFiles.length)
+    expect(results).toHaveLength(largeDirFiles.length)
 
     // Verify performance within a reasonable limit (arbitrary threshold of 500ms)
     expect(elapsedTime).toBeLessThan(500)
   })
 
-  it('it should re-use the same generator for the same directory', async () => {
-    const iterator1 = reader.read('/root', { recursive: true })
-    const iterator2 = reader.read('/root', { recursive: true })
+  it('it should re-use the same read for the same directory', async () => {
+    const promise1 = reader.read('/root', { recursive: true })
+    const promise2 = reader.read('/root', { recursive: true })
 
-    let i = 0
-    for await (const file of iterator1) {
-      expect(file).toBe(files[i++])
-    }
+    const [results1, results2] = await Promise.all([promise1, promise2])
 
-    i = 0
-    for await (const file of iterator2) {
-      expect(file).toBe(files[i++])
-    }
-
+    expect(results1).toBe(results2)
     expect(readSpy).toHaveBeenCalledTimes(1)
+
+    for (let i = 0; i < results1.length; i++) {
+      expect(results1[i]).toBe(files[i])
+    }
   })
 
-  it('should share the same generator for nested reads', async () => {
-    const iterator4 = reader.read('/root', { recursive: true })
-    const iterator5 = reader.read('/root/e', { recursive: true })
+  it('should share the same read for nested reads', async () => {
+    const promise1 = reader.read('/root', { recursive: true })
+    const promise2 = reader.read('/root/e', { recursive: true })
+
+    const [results1, results2] = await Promise.all([promise1, promise2])
 
     let i = 0
-    for await (const file of iterator4) {
+    for (const file of results1) {
       expect(file).toBe(files[i++])
     }
 
     i = files.findIndex((file) => file.startsWith('/root/e'))
-    for await (const file of iterator5) {
+    for (const file of results2) {
       expect(file).toBe(files[i++])
     }
 
     expect(readSpy).toHaveBeenCalledTimes(1)
 
-    const iterator6 = reader.read('/root/e', { recursive: true })
-    const iterator7 = reader.read('/root/e/i', { recursive: true })
+    const promise3 = reader.read('/root/e', { recursive: true })
+    const promise4 = reader.read('/root/e/i', { recursive: true })
+
+    const [results3, results4] = await Promise.all([promise3, promise4])
 
     i = files.findIndex((file) => file.startsWith('/root/e'))
-    for await (const file of iterator6) {
+    for (const file of results3) {
       expect(file).toBe(files[i++])
     }
 
     i = files.findIndex((file) => file.startsWith('/root/e/i'))
-    for await (const file of iterator7) {
+    for (const file of results4) {
       expect(file).toBe(files[i++])
     }
 
     expect(readSpy).toHaveBeenCalledTimes(2)
   })
 
-  it('should call the generator multiple times for unique reads', async () => {
-    const iterator8 = reader.read('/root/e', { recursive: true })
-    const iterator9 = reader.read('/root/m', { recursive: true })
+  it('should call the reader multiple times for unique reads', async () => {
+    const promise1 = reader.read('/root/e', { recursive: true })
+    const promise2 = reader.read('/root/m', { recursive: true })
+
+    const [results1, results2] = await Promise.all([promise1, promise2])
 
     let i = files.findIndex((file) => file.startsWith('/root/e'))
-    for await (const file of iterator8) {
+    for (const file of results1) {
       expect(file).toBe(files[i++])
     }
 
     i = files.findIndex((file) => file.startsWith('/root/m'))
-    for await (const file of iterator9) {
+    for (const file of results2) {
       expect(file).toBe(files[i++])
     }
 
