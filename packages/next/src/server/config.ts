@@ -810,7 +810,7 @@ export default async function loadConfig(
 
     const validateResult = validateConfig(userConfig)
 
-    if (!silent && validateResult.errors) {
+    if (validateResult.errors) {
       // Only load @segment/ajv-human-errors when invalid config is detected
       const { AggregateAjvError } =
         require('next/dist/compiled/@segment/ajv-human-errors') as typeof import('next/dist/compiled/@segment/ajv-human-errors')
@@ -819,7 +819,7 @@ export default async function loadConfig(
       })
 
       let shouldExit = false
-      let messages = [`Invalid ${configFileName} options detected: `]
+      const messages = [`Invalid ${configFileName} options detected: `]
 
       for (const error of aggregatedAjvErrors) {
         messages.push(`    ${error.message}`)

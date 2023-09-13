@@ -85,11 +85,7 @@ export async function initialize(opts: {
 
   const config = await loadConfig(
     opts.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
-    opts.dir,
-    // Log for next.config loading process on server side
-    {
-      silent: false,
-    }
+    opts.dir
   )
 
   let compress: ReturnType<typeof setupCompression> | undefined
