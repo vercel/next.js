@@ -314,8 +314,8 @@ async function startWatcher(opts: SetupOpts) {
     async function processResult(
       result: TurbopackResult<WrittenEndpoint>
     ): Promise<TurbopackResult<WrittenEndpoint>> {
-      const hasAppPaths = result.serverPaths.some((path) =>
-        path.startsWith('server/app')
+      const hasAppPaths = result.serverPaths.some((p) =>
+        p.startsWith('server/app')
       )
 
       if (hasAppPaths) {
