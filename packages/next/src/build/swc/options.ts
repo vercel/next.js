@@ -162,7 +162,7 @@ function getBaseSWCOptions({
       : undefined,
     relay: compilerOptions?.relay,
     // Always transform styled-jsx and error when `client-only` condition is triggered
-    styledJsx: true,
+    styledJsx: {},
     // Disable css-in-js libs (without client-only integration) transform on server layer for server components
     ...(!isServerLayer && {
       // eslint-disable-next-line @typescript-eslint/no-use-before-define
