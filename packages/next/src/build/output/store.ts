@@ -138,14 +138,13 @@ store.subscribe((state) => {
   }
 
   if (trigger === 'initial') {
-    Log.event('ready')
     trigger = ''
   } else if (trigger) {
     if (loadingLogTimer) {
       clearTimeout(loadingLogTimer)
       loadingLogTimer = null
     }
-    Log.event(`compiled ${trigger}${timeMessage}${modulesMessage}`)
+    Log.event(`Compiled ${trigger}${timeMessage}${modulesMessage}`)
   }
 
   // Ensure traces are flushed after each compile in development mode

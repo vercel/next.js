@@ -163,7 +163,10 @@ export interface ExperimentalConfig {
   useDeploymentId?: boolean
   useDeploymentIdServerActions?: boolean
   deploymentId?: string
-  logging?: 'verbose'
+  logging?: {
+    level?: 'verbose'
+    fullUrl?: false
+  }
   appDocumentPreloading?: boolean
   strictNextHead?: boolean
   clientRouterFilter?: boolean

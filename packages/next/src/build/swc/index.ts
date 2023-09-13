@@ -399,9 +399,14 @@ interface ProjectOptions {
   env: Record<string, string>
 
   /**
-   * Whether to watch he filesystem for file changes.
+   * Whether to watch the filesystem for file changes.
    */
   watch: boolean
+
+  /**
+   * The address of the dev server.
+   */
+  serverAddr: string
 }
 
 interface TurboEngineOptions {
