@@ -48,7 +48,7 @@ createNextDescribe(
     it('should warn the invalid next config', async () => {
       await next.fetch('/')
       const output = stripAnsi(next.cliOutput)
-      const warningTimes = /badKey/.exec(output)?.length
+      const warningTimes = output.split('badKey').length - 1
 
       expect(output).toContain('Invalid next.config.js options detected')
       expect(output).toContain('badKey')
