@@ -278,7 +278,7 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
           // instance if a WASM module is given. Utilize the fact to determine
           // if the WASM code generation happens.
           //
-          // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/instantiate#primary_overload_%E2%80%94_taking_wasm_binary_code
+          // https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/instantiate#primary_overload_%E2%80%94_taking_wasm_binary_code
           const instantiatedFromBuffer = result.hasOwnProperty('module')
 
           const key = fn.toString()

@@ -19,21 +19,21 @@ Out of the box, with no configuration, Next.js compiles CSS with the following t
 - [Autoprefixer](https://github.com/postcss/autoprefixer) automatically adds vendor prefixes to CSS rules (back to IE11).
 - [Cross-browser Flexbox bugs](https://github.com/philipwalton/flexbugs) are corrected to behave like [the spec](https://www.w3.org/TR/css-flexbox-1/).
 - New CSS features are automatically compiled for Internet Explorer 11 compatibility:
-  - [`all` Property](https://developer.mozilla.org/en-US/docs/Web/CSS/all)
-  - [Break Properties](https://developer.mozilla.org/en-US/docs/Web/CSS/break-after)
-  - [`font-variant` Property](https://developer.mozilla.org/en-US/docs/Web/CSS/font-variant)
-  - [Gap Properties](https://developer.mozilla.org/en-US/docs/Web/CSS/gap)
-  - [Media Query Ranges](https://developer.mozilla.org/en-US/docs/Web/CSS/Media_Queries/Using_media_queries#Syntax_improvements_in_Level_4)
+  - [`all` Property](https://developer.mozilla.org/docs/Web/CSS/all)
+  - [Break Properties](https://developer.mozilla.org/docs/Web/CSS/break-after)
+  - [`font-variant` Property](https://developer.mozilla.org/docs/Web/CSS/font-variant)
+  - [Gap Properties](https://developer.mozilla.org/docs/Web/CSS/gap)
+  - [Media Query Ranges](https://developer.mozilla.org/docs/Web/CSS/Media_Queries/Using_media_queries#Syntax_improvements_in_Level_4)
 
-By default, [CSS Grid](https://www.w3.org/TR/css-grid-1/) and [Custom Properties](https://developer.mozilla.org/en-US/docs/Web/CSS/var) (CSS variables) are **not compiled** for IE11 support.
+By default, [CSS Grid](https://www.w3.org/TR/css-grid-1/) and [Custom Properties](https://developer.mozilla.org/docs/Web/CSS/var) (CSS variables) are **not compiled** for IE11 support.
 
-To compile [CSS Grid Layout](https://developer.mozilla.org/en-US/docs/Web/CSS/grid) for IE11, you can place the following comment at the top of your CSS file:
+To compile [CSS Grid Layout](https://developer.mozilla.org/docs/Web/CSS/grid) for IE11, you can place the following comment at the top of your CSS file:
 
 ```css
 /* autoprefixer grid: autoplace */
 ```
 
-You can also enable IE11 support for [CSS Grid Layout](https://developer.mozilla.org/en-US/docs/Web/CSS/grid)
+You can also enable IE11 support for [CSS Grid Layout](https://developer.mozilla.org/docs/Web/CSS/grid)
 in your entire project by configuring autoprefixer with the configuration shown below (collapsed).
 See ["Customizing Plugins"](#customizing-plugins) below for more information.
 
