@@ -8,8 +8,15 @@ import {
   getReservedPortExplanation,
   isPortIsReserved,
 } from '../lib/helpers/get-reserved-port'
+import { hasRenderWorker } from '../lib/has-render-worker'
 
 const nextStart: CliCommand = async (args) => {
+  if (hasRenderWorker()) {
+    // Return immediately. A worker process will be spawned which will run this
+    // command instead.
+    return
+  }
+
   if (args['--help']) {
     console.log(`
       Description

@@ -23,7 +23,7 @@ import {
   isPortIsReserved,
 } from '../lib/helpers/get-reserved-port'
 import { validateTurboNextConfig } from '../lib/turbopack-warning'
-import { hasRenderWorker } from '../server/utils'
+import { hasRenderWorker } from '../lib/has-render-worker'
 
 let dir: string
 let config: NextConfigComplete

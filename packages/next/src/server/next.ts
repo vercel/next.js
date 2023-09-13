@@ -11,8 +11,8 @@ import {
   WorkerRequestHandler,
   WorkerUpgradeHandler,
 } from './lib/setup-server-worker'
-import { hasRenderWorker } from './utils'
 import deferredExit from '../lib/deferred-exit'
+import { hasRenderWorker } from '../lib/has-render-worker'
 
 let workerProcess: ChildProcess | undefined
 
