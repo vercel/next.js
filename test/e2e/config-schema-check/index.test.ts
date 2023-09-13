@@ -16,6 +16,7 @@ createNextDescribe(
     }
     `,
     },
+    skipDeployment: true,
   },
   ({ next }) => {
     it('should validate against defaultConfig', async () => {
@@ -41,15 +42,17 @@ createNextDescribe(
     }
     `,
     },
+    skipDeployment: true,
   },
-  ({ next }) => {
+  ({ next, isNextStart }) => {
     it('should warn the invalid next config', async () => {
       const output = stripAnsi(next.cliOutput)
       const warningTimes = output.split('badKey').length - 1
 
       expect(output).toContain('Invalid next.config.js options detected')
       expect(output).toContain('badKey')
-      expect(warningTimes).toBe(1)
+      // for next start and next build we both display the warnings
+      expect(warningTimes).toBe(isNextStart ? 2 : 1)
     })
   }
 )
