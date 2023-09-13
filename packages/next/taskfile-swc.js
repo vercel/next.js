@@ -18,7 +18,7 @@ module.exports = function (task) {
       serverOrClient,
       {
         stripExtension,
-        keepImportAssertions = false,
+        keepImportAttributes = false,
         interopClientDefaultExport = false,
         esm = false,
       } = {}
@@ -47,7 +47,8 @@ module.exports = function (task) {
             tsx: file.base.endsWith('.tsx'),
           },
           experimental: {
-            keepImportAssertions,
+            keepImportAttributes,
+            emitAssertForImportAttributes: keepImportAttributes,
           },
           transform: {
             react: {
@@ -88,7 +89,8 @@ module.exports = function (task) {
             tsx: file.base.endsWith('.tsx'),
           },
           experimental: {
-            keepImportAssertions,
+            keepImportAttributes,
+            emitAssertForImportAttributes: keepImportAttributes,
           },
           transform: {
             react: {
