@@ -328,7 +328,7 @@ function assignDefaults(
   warnOptionHasBeenDeprecated(
     result,
     'experimental.appDir',
-    'App router is enabled by default now, `experimental.appDir` option can be safely removed.',
+    'App router is available by default now, `experimental.appDir` option can be safely removed.',
     silent
   )
   warnOptionHasBeenMovedOutOfExperimental(

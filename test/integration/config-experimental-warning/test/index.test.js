@@ -135,7 +135,7 @@ describe('Config Experimental Warning', () => {
 
     const stderr = await collectStderr(appDir)
     expect(stderr).toMatch(
-      'App router is enabled by default now, `experimental.appDir` option can be safely removed.'
+      'App router is available by default now, `experimental.appDir` option can be safely removed.'
     )
   })
 })
