@@ -38,8 +38,11 @@ next-transform-dynamic = { path = "packages/next-swc/crates/next-transform-dynam
 next-transform-strip-page-exports = { path = "packages/next-swc/crates/next-transform-strip-page-exports" }
 
 # SWC crates
-swc_core = { version = "=0.79.55", features = ["ecma_loader_lru", "ecma_loader_parking_lot"] }
-testing = { version = "0.33.21" }
+swc_core = { version = "0.83.5", features = [
+  "ecma_loader_lru",
+  "ecma_loader_parking_lot",
+] }
+testing = { version = "0.34.1" }
 
 # Turbo crates
 turbopack-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230914.5" }
