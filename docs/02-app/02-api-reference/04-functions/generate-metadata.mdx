@@ -145,7 +145,7 @@ export default function Page({ params, searchParams }) {}
     | `app/shop/[tag]/[item]/page.js` | `/shop/1/2` | `{ tag: '1', item: '2' }` |
     | `app/shop/[...slug]/page.js`    | `/shop/1/2` | `{ slug: ['1', '2'] }`    |
 
-  - `searchParams` - An object containing the current URL's [search params](https://developer.mozilla.org/en-US/docs/Learn/Common_questions/What_is_a_URL#parameters). Examples:
+  - `searchParams` - An object containing the current URL's [search params](https://developer.mozilla.org/docs/Learn/Common_questions/What_is_a_URL#parameters). Examples:
 
     | URL             | `searchParams`       |
     | --------------- | -------------------- |
@@ -635,7 +635,7 @@ export const metadata = {
 
 ### `themeColor`
 
-Learn more about [theme-color](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/meta/name/theme-color).
+Learn more about [theme-color](https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/theme-color).
 
 **Simple theme color**
 
@@ -667,7 +667,7 @@ export const metadata = {
 
 ### `manifest`
 
-A web application manifest, as defined in the [Web Application Manifest specification](https://developer.mozilla.org/en-US/docs/Web/Manifest).
+A web application manifest, as defined in the [Web Application Manifest specification](https://developer.mozilla.org/docs/Web/Manifest).
 
 ```jsx filename="layout.js / page.js"
 export const metadata = {
@@ -1027,7 +1027,7 @@ export function PreloadResources() {
 
 ##### `<link rel="preload">`
 
-Start loading a resource early in the page rendering (browser) lifecycle. [MDN Docs](https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/rel/preload).
+Start loading a resource early in the page rendering (browser) lifecycle. [MDN Docs](https://developer.mozilla.org/docs/Web/HTML/Attributes/rel/preload).
 
 ```tsx
 ReactDOM.preload(href: string, options: { as: string })
@@ -1039,7 +1039,7 @@ ReactDOM.preload(href: string, options: { as: string })
 
 ##### `<link rel="preconnect">`
 
-Preemptively initiate a connection to an origin. [MDN Docs](https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/rel/preconnect).
+Preemptively initiate a connection to an origin. [MDN Docs](https://developer.mozilla.org/docs/Web/HTML/Attributes/rel/preconnect).
 
 ```tsx
 ReactDOM.preconnect(href: string, options?: { crossOrigin?: string })
@@ -1051,7 +1051,7 @@ ReactDOM.preconnect(href: string, options?: { crossOrigin?: string })
 
 ##### `<link rel="dns-prefetch">`
 
-Attempt to resolve a domain name before resources get requested. [MDN Docs](https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/rel/dns-prefetch).
+Attempt to resolve a domain name before resources get requested. [MDN Docs](https://developer.mozilla.org/docs/Web/HTML/Attributes/rel/dns-prefetch).
 
 ```tsx
 ReactDOM.prefetchDNS(href: string)
