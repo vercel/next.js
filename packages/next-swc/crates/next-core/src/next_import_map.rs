@@ -661,6 +661,12 @@ pub async fn insert_next_shared_aliases(
     import_map.insert_singleton_alias("react", project_path);
     import_map.insert_singleton_alias("react-dom", project_path);
 
+    //https://github.com/vercel/next.js/blob/f94d4f93e4802f951063cfa3351dd5a2325724b3/packages/next/src/build/webpack-config.ts#L1196
+    import_map.insert_exact_alias(
+        "setimmediate",
+        request_to_import_mapping(project_path, "next/dist/compiled/setimmediate"),
+    );
+
     insert_turbopack_dev_alias(import_map);
     insert_package_alias(
         import_map,
