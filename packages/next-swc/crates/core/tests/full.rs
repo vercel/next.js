@@ -67,7 +67,7 @@ fn test(input: &Path, minify: bool) {
                 is_server: false,
                 server_components: None,
                 styled_components: Some(assert_json("{}")),
-                styled_jsx: true,
+                styled_jsx: Some(assert_json("{}")),
                 remove_console: None,
                 react_remove_properties: None,
                 relay: None,
