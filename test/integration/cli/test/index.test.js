@@ -693,7 +693,7 @@ describe('CLI Usage', () => {
       expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
     })
 
-    test.only('should exit when SIGINT is signalled', async () => {
+    test('should exit when SIGINT is signalled', async () => {
       const port = await findPort()
       await testExitSignal('SIGINT', ['dev', dirBasic, '-p', port], /- Local:/)
     })
