@@ -49,6 +49,7 @@ export default function Test() {
         'og:image': expect.stringMatching(/^.+\/opengraph-image\.png\?.+$/),
         'og:image:width': '114',
         'og:image:height': '114',
+        'og:image:type': 'image/png',
         'og:image:alt': 'This is an alt text.',
       })
     })
