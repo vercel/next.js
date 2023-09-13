@@ -678,6 +678,7 @@ function assignDefaults(
     ...new Set([
       ...userProvidedOptimizePackageImports,
       'lucide-react',
+      'react-icons',
       '@headlessui/react',
       '@headlessui-float/react',
       '@heroicons/react/20/solid',
