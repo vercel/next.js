@@ -33,7 +33,6 @@ if (process.env.NEXT_CPU_PROF) {
 export interface StartServerOptions {
   dir: string
   port: number
-  logReady?: boolean
   isDev: boolean
   hostname: string
   allowRetry?: boolean
@@ -86,6 +85,54 @@ export async function getRequestHandlers({
   })
 }
 
+function logStartInfo({
+  port,
+  actualHostname,
+  appUrl,
+  hostname,
+  envInfo,
+  expFeatureInfo,
+}: {
+  port: number
+  actualHostname: string
+  appUrl: string
+  hostname: string
+  envInfo: string[] | undefined
+  expFeatureInfo: string[] | undefined
+}) {
+  Log.bootstrap(
+    chalk.bold(
+      chalk.hex('#ad7fa8')(
+        ` ${`${Log.prefixes.ready} Next.js`} ${process.env.__NEXT_VERSION}`
+      )
+    )
+  )
+  Log.bootstrap(` - Local:        ${appUrl}`)
+  if (hostname) {
+    Log.bootstrap(
+      ` - Network:      ${actualHostname}${
+        (port + '').startsWith(':') ? '' : ':'
+      }${port}`
+    )
+  }
+  if (envInfo?.length) Log.bootstrap(` - Environments: ${envInfo.join(', ')}`)
+
+  if (expFeatureInfo?.length) {
+    Log.bootstrap(` - Experiments (use at your own risk):`)
+    // only show maximum 3 flags
+    for (const exp of expFeatureInfo.slice(0, 3)) {
+      Log.bootstrap(`    · ${exp}`)
+    }
+    /* ${expFeatureInfo.length - 3} more */
+    if (expFeatureInfo.length > 3) {
+      Log.bootstrap(`    · ...`)
+    }
+  }
+
+  // New line after the bootstrap info
+  Log.info('')
+}
+
 export async function startServer({
   dir,
   port,
@@ -95,7 +142,6 @@ export async function startServer({
   allowRetry,
   keepAliveTimeout,
   isExperimentalTestProxy,
-  logReady = true,
   selfSignedCertificate,
   envInfo,
   expFeatureInfo,
@@ -229,44 +275,17 @@ export async function startServer({
         )
       }
 
-      if (logReady) {
-        Log.bootstrap(
-          chalk.bold(
-            chalk.hex('#ad7fa8')(
-              ` ${`${Log.prefixes.ready} Next.js`} ${
-                process.env.__NEXT_VERSION
-              }`
-            )
-          )
-        )
-        Log.bootstrap(` - Local:        ${appUrl}`)
-        if (hostname) {
-          Log.bootstrap(
-            ` - Network:      ${actualHostname}${
-              (port + '').startsWith(':') ? '' : ':'
-            }${port}`
-          )
-        }
-        if (envInfo?.length)
-          Log.bootstrap(` - Environments: ${envInfo.join(', ')}`)
+      logStartInfo({
+        port,
+        actualHostname,
+        appUrl,
+        hostname,
+        envInfo,
+        expFeatureInfo,
+      })
 
-        if (expFeatureInfo?.length) {
-          Log.bootstrap(` - Experiments (use at your own risk):`)
-          // only show maximum 3 flags
-          for (const exp of expFeatureInfo.slice(0, 3)) {
-            Log.bootstrap(`    · ${exp}`)
-          }
-          /* ${expFeatureInfo.length - 3} more */
-          if (expFeatureInfo.length > 3) {
-            Log.bootstrap(`    · ...`)
-          }
-        }
-        // expose the main port to render workers
-        process.env.PORT = port + ''
-
-        // New line after the bootstrap info
-        Log.info('')
-      }
+      // expose the main port to render workers
+      process.env.PORT = port + ''
 
       try {
         const cleanup = (code: number | null) => {
@@ -304,6 +323,8 @@ export async function startServer({
         console.error(err)
         process.exit(1)
       }
+
+      Log.event('ready')
 
       resolve()
     })
