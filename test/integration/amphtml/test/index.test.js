@@ -540,7 +540,7 @@ describe('AMP Usage', () => {
     })
 
     it('should not contain missing files warning', async () => {
-      expect(output).toContain('compiled /only-amp')
+      expect(output).toContain('Compiled /only-amp')
       expect(output).not.toContain('Could not find files for')
     })
   })

@@ -38,6 +38,7 @@ import {
   PHASE_DEVELOPMENT_SERVER,
   PERMANENT_REDIRECT_STATUS,
 } from '../../shared/lib/constants'
+import type { NextJsHotReloaderInterface } from '../dev/hot-reloader-types'
 
 const debug = setupDebug('next:router-server:main')
 
@@ -134,11 +135,7 @@ export async function initialize(opts: {
     ;(global as any)._nextDevHandlers = {
       async ensurePage(
         dir: string,
-        match: Parameters<
-          InstanceType<
-            typeof import('../dev/hot-reloader-webpack').default
-          >['ensurePage']
-        >[0]
+        match: Parameters<NextJsHotReloaderInterface['ensurePage']>[0]
       ) {
         const curDevInstance = devInstances[dir]
         // TODO: remove after ensure is pulled out of server
