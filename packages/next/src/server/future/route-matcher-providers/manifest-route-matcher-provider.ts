@@ -8,10 +8,18 @@ import { CachedRouteMatcherProvider } from './helpers/cached-route-matcher-provi
 export abstract class ManifestRouteMatcherProvider<
   M extends RouteMatcher = RouteMatcher
 > extends CachedRouteMatcherProvider<M, Manifest | null> {
-  constructor(manifestName: string, manifestLoader: ManifestLoader) {
-    super({
-      load: async () => manifestLoader.load(manifestName),
-      compare: (left, right) => left === right,
-    })
+  constructor(
+    private readonly manifestName: string,
+    private readonly manifestLoader: ManifestLoader
+  ) {
+    super()
+  }
+
+  protected async load() {
+    return this.manifestLoader.load(this.manifestName)
+  }
+
+  protected compare(left: Manifest | null, right: Manifest | null): boolean {
+    return left === right
   }
 }

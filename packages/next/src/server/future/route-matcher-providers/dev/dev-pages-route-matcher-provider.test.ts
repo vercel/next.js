@@ -2,7 +2,7 @@ import path from 'path'
 import { PagesRouteDefinition } from '../../route-definitions/pages-route-definition'
 import { RouteKind } from '../../route-kind'
 import { DevPagesRouteMatcherProvider } from './dev-pages-route-matcher-provider'
-import { FileReader } from '../../helpers/file-reader/file-reader'
+import { MockFileReader } from '../../helpers/file-reader/helpers/mock-file-reader'
 
 const normalizeSlashes = (p: string) => p.replace(/\//g, path.sep)
 
@@ -11,14 +11,13 @@ describe('DevPagesRouteMatcherProvider', () => {
   const extensions = ['ts', 'tsx', 'js', 'jsx']
 
   it('returns no routes with an empty filesystem', async () => {
-    const reader: FileReader = {
-      read: jest.fn(() => []),
-    }
+    const reader = new MockFileReader([])
+    const spy = jest.spyOn(reader, 'read')
     const matcher = new DevPagesRouteMatcherProvider(dir, extensions, reader)
     const matchers = await matcher.matchers()
     expect(matchers).toHaveLength(0)
-    expect(reader.read).toBeCalledTimes(1)
-    expect(reader.read).toBeCalledWith(dir, { recursive: true })
+    expect(spy).toBeCalledTimes(1)
+    expect(spy).toBeCalledWith(dir, { recursive: true })
   })
 
   describe('filename matching', () => {
@@ -69,14 +68,13 @@ describe('DevPagesRouteMatcherProvider', () => {
     ])(
       "matches the '$route.page' route specified with the provided files",
       async ({ files, route }) => {
-        const reader: FileReader = {
-          read: jest.fn(() => [
-            ...extensions.map((ext) =>
-              normalizeSlashes(`${dir}/api/other/page.${ext}`)
-            ),
-            ...files,
-          ]),
-        }
+        const reader = new MockFileReader([
+          ...extensions.map((ext) =>
+            normalizeSlashes(`${dir}/api/other/page.${ext}`)
+          ),
+          ...files,
+        ])
+        const spy = jest.spyOn(reader, 'read')
         const matcher = new DevPagesRouteMatcherProvider(
           dir,
           extensions,
@@ -84,7 +82,7 @@ describe('DevPagesRouteMatcherProvider', () => {
         )
         const matchers = await matcher.matchers()
         expect(matchers).toHaveLength(1)
-        expect(reader.read).toBeCalledWith(dir, { recursive: true })
+        expect(spy).toBeCalledWith(dir, { recursive: true })
         expect(matchers[0].definition).toEqual(route)
       }
     )

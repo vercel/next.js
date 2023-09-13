@@ -24,6 +24,18 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
     this.expression = new RegExp(`[/\\\\]page\\.(?:${extensions.join('|')})$`)
   }
 
+  protected filter(filename: string): boolean {
+    // If the file isn't a match for this matcher, then skip it.
+    if (!this.expression.test(filename)) return false
+
+    const page = this.normalizers.page.normalize(filename)
+
+    // Validate that this is not an ignored page.
+    if (page.includes('/_')) return false
+
+    return true
+  }
+
   protected async transform(
     files: ReadonlyArray<string>
   ): Promise<ReadonlyArray<AppPageRouteMatcher>> {
@@ -36,13 +48,7 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
     const routeFilenames = new Array<string>()
     const appPaths: Record<string, string[]> = {}
     for (const filename of files) {
-      // If the file isn't a match for this matcher, then skip it.
-      if (!this.expression.test(filename)) continue
-
       const page = this.normalizers.page.normalize(filename)
-
-      // Validate that this is not an ignored page.
-      if (page.includes('/_')) continue
 
       // This is a valid file that we want to create a matcher for.
       routeFilenames.push(filename)

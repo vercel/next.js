@@ -11,5 +11,5 @@ export interface FileReader {
   read(
     dir: string,
     options: FileReaderOptions
-  ): Promise<ReadonlyArray<string>> | ReadonlyArray<string>
+  ): AsyncGenerator<string, undefined, undefined>
 }

@@ -24,19 +24,24 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
     this.normalizers = new DevAppNormalizers(appDir, extensions)
   }
 
+  protected filter(filename: string): boolean {
+    const page = this.normalizers.page.normalize(filename)
+
+    // If the file isn't a match for this matcher, then skip it.
+    if (!isAppRouteRoute(page)) return false
+
+    // Validate that this is not an ignored page.
+    if (page.includes('/_')) return false
+
+    return true
+  }
+
   protected async transform(
     files: ReadonlyArray<string>
   ): Promise<ReadonlyArray<AppRouteRouteMatcher>> {
     const matchers: Array<AppRouteRouteMatcher> = []
     for (const filename of files) {
       const page = this.normalizers.page.normalize(filename)
-
-      // If the file isn't a match for this matcher, then skip it.
-      if (!isAppRouteRoute(page)) continue
-
-      // Validate that this is not an ignored page.
-      if (page.includes('/_')) continue
-
       const pathname = this.normalizers.pathname.normalize(filename)
       const bundlePath = this.normalizers.bundlePath.normalize(filename)
 

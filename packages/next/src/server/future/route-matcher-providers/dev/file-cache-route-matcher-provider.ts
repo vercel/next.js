@@ -9,19 +9,39 @@ import { CachedRouteMatcherProvider } from '../helpers/cached-route-matcher-prov
 export abstract class FileCacheRouteMatcherProvider<
   M extends RouteMatcher = RouteMatcher
 > extends CachedRouteMatcherProvider<M, ReadonlyArray<string>> {
-  constructor(dir: string, reader: FileReader, recursive: boolean) {
-    super({
-      load: async () => reader.read(dir, { recursive }),
-      compare: (left, right) => {
-        if (left.length !== right.length) return false
+  constructor(
+    private readonly dir: string,
+    private readonly reader: FileReader,
+    private readonly recursive: boolean
+  ) {
+    super()
+  }
 
-        // Assuming the file traversal order is deterministic...
-        for (let i = 0; i < left.length; i++) {
-          if (left[i] !== right[i]) return false
-        }
+  protected abstract filter(filename: string): boolean
 
-        return true
-      },
-    })
+  protected async load(): Promise<ReadonlyArray<string>> {
+    const files = []
+
+    // Iterate over the files, if the file is a match, then add it to the list.
+    for await (const file of this.reader.read(this.dir, {
+      recursive: this.recursive,
+    })) {
+      if (!this.filter(file)) continue
+
+      files.push(file)
+    }
+
+    return files
+  }
+
+  protected compare(left: ReadonlyArray<string>, right: ReadonlyArray<string>) {
+    if (left.length !== right.length) return false
+
+    // Assuming the file traversal order is deterministic...
+    for (let i = 0; i < left.length; i++) {
+      if (left[i] !== right[i]) return false
+    }
+
+    return true
   }
 }

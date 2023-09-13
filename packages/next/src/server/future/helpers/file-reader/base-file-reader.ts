@@ -2,87 +2,103 @@ import type { FileReader, FileReaderOptions } from './file-reader'
 
 import fs from 'fs/promises'
 import path from 'path'
-import { recursiveReadDir } from '../../../../lib/recursive-readdir'
 
 /**
  * Reads all the files in the directory and its subdirectories following any
  * symbolic links and returns a sorted list of the files.
  */
 export class BaseRecursiveFileReader implements FileReader {
-  public async read(
-    dir: string,
-    options: FileReaderOptions
-  ): Promise<ReadonlyArray<string>> {
-    if (options.recursive) {
-      return recursiveReadDir(dir, {
-        // FIXME: Currently the implementation relies on the OS sort of these files, this will be addressed in a future PR.
-        sortPathnames: false,
+  public async *read(
+    rootDirectory: string,
+    { recursive }: FileReaderOptions
+  ): AsyncGenerator<string, undefined, undefined> {
+    // The queue of directories to scan.
+    let directories: string[] = [rootDirectory]
+    let links: string[] = []
 
-        // We want absolute pathnames because we're going to be comparing them
-        // with other absolute pathnames.
-        relativePathnames: false,
-      })
-    }
+    // While there are directories to scan...
+    while (directories.length > 0) {
+      const results = await Promise.all(
+        directories.map(async (directory) => {
+          const result: {
+            directories: string[]
+            filenames: string[]
+            links: string[]
+          } = { directories: [], filenames: [], links: [] }
 
-    const filenames = new Array<string>()
+          // Read the directory.
+          const files = await fs.readdir(directory, { withFileTypes: true })
 
-    const links = new Array<string>()
-    const files = await fs.readdir(dir, { withFileTypes: true })
-    for (const file of files) {
-      // Skip directories, this isn't a recursive read.
-      if (file.isDirectory()) {
-        continue
-      }
+          // Add all the files to the queue or yield them.
+          for (const file of files) {
+            const filename = path.join(directory, file.name)
 
-      // If the symbolic link is a file, we should include it, so add it to the
-      // list of link so we can resolve them.
-      if (file.isSymbolicLink()) {
-        links.push(path.join(dir, file.name))
-        continue
-      }
-
-      // If the file isn't a file, then skip it.
-      if (!file.isFile()) {
-        continue
-      }
-
-      // Add the file to the list of filenames.
-      filenames.push(path.join(dir, file.name))
-    }
-
-    // Resolve all the links (if any).
-    if (links.length > 0) {
-      const resolved = await Promise.all(
-        links.map(async (link) => {
-          try {
-            return await fs.stat(link)
-          } catch (err: any) {
-            // This can only happen when the underlying link was removed. If
-            // anything other than this error occurs, re-throw it.
-            if (err.code !== 'ENOENT') throw err
-
-            // The error occurred, so abandon reading this directory.
-            return null
+            if (file.isDirectory()) {
+              result.directories.push(filename)
+            } else if (file.isSymbolicLink()) {
+              result.links.push(filename)
+            } else {
+              result.filenames.push(filename)
+            }
           }
+
+          return result
         })
       )
 
-      // Add any of the links that were resolved to the list of filenames.
-      for (let i = 0; i < links.length; i++) {
-        const link = links[i]
-        const stat = resolved[i]
+      directories = []
 
-        // If the file couldn't be resolved, then skip it.
-        if (!stat) continue
+      // Yield all the filenames.
+      for (const result of results) {
+        for (const filename of result.filenames) {
+          yield filename
+        }
 
-        // If the link wasn't a file, then skip it.
-        if (!stat.isFile()) continue
+        // Add all the directories to the queue.
+        directories.push(...result.directories)
 
-        // Add the file to the list of filenames.
-        filenames.push(link)
+        // Add all the links to the queue.
+        links.push(...result.links)
+      }
+
+      // Resolve all the links (if any).
+      if (links.length > 0) {
+        const resolved = await Promise.all(
+          links.map(async (filename) => {
+            try {
+              return await fs.stat(filename)
+            } catch (err: any) {
+              // This can only happen when the underlying link was removed. If
+              // anything other than this error occurs, re-throw it.
+              if (err.code !== 'ENOENT') throw err
+
+              // The error occurred, so abandon reading this directory.
+              return null
+            }
+          })
+        )
+
+        for (let i = 0; i < links.length; i++) {
+          const stats = resolved[i]
+
+          // If the link was removed, then skip it.
+          if (!stats) continue
+
+          // We would have already ignored the file if it matched the ignore
+          // filter, so we don't need to check it again.
+          const filename = links[i]
+
+          if (stats.isDirectory()) {
+            directories.push(filename)
+          } else {
+            yield filename
+          }
+        }
+
+        links = []
+
+        if (!recursive) return
       }
     }
-
-    return filenames
   }
 }
