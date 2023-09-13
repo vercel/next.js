@@ -37,14 +37,13 @@ createNextDescribe(
     `,
       'next.config.js': `
     module.exports = {
-        badKey: 'badValue'
+      badKey: 'badValue'
     }
     `,
     },
   },
   ({ next }) => {
     it('should warn the invalid next config', async () => {
-      await next.fetch('/')
       const output = stripAnsi(next.cliOutput)
       const warningTimes = output.split('badKey').length - 1
 
