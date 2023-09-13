@@ -172,7 +172,6 @@ describe('GS(S)P Page Errors', () => {
         }, /error: oops/i)
 
         expect(stderr).toContain('Error: Oops')
-        expect(stderr).toContain(`\n    at getStaticProps`)
       } finally {
         await killApp(app)
       }

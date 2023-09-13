@@ -96,7 +96,6 @@ createNextDescribe(
 
       await browser.loadPage(next.url + '/group-dynamic/404')
       expect(await browser.elementByCss('.next-error-h1').text()).toBe('404')
-      // Using default layout
       expect(await browser.elementByCss('html').getAttribute('class')).toBe(
         'group-root-layout'
       )

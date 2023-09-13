@@ -170,6 +170,8 @@ export default function Page() {
 }
 ```
 
+> **Good to know**: `<form action={create}>` takes the [FormData](https://developer.mozilla.org/en-US/docs/Web/API/FormData/FormData) data type. In the example above, the FormData submitted via the HTML [`form`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/form) is accessible in the server action `create`.
+
 ### Revalidating Data
 
 Server Actions allow you to invalidate the [Next.js Cache](/docs/app/building-your-application/caching) on demand. You can invalidate an entire route segment with [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath):
@@ -362,6 +364,20 @@ export default async function submit(formData) {
 Use the `useFormStatus` hook to show a loading state when a form is submitting on the server:
 
 ```tsx filename="app/page.tsx" switcher
+'use client'
+
+import { experimental_useFormStatus as useFormStatus } from 'react-dom'
+
+function SubmitButton() {
+  const { pending } = useFormStatus()
+
+  return (
+    <button disabled={pending}>{pending ? 'Submitting...' : 'Submit'}</button>
+  )
+}
+```
+
+```jsx filename="app/page.jsx" switcher
 'use client'
 
 import { experimental_useFormStatus as useFormStatus } from 'react-dom'
@@ -829,7 +845,7 @@ You can read cookies inside a Server Action using the [`cookies`](/docs/app/api-
 
 import { cookies } from 'next/headers'
 
-export async function create() {
+export async function read() {
   const auth = cookies().get('authorization')?.value
   // ...
 }
@@ -840,7 +856,7 @@ export async function create() {
 
 import { cookies } from 'next/headers'
 
-export async function create() {
+export async function read() {
   const auth = cookies().get('authorization')?.value
   // ...
 }
@@ -884,7 +900,7 @@ You can delete cookies inside a Server Action using the [`cookies`](/docs/app/ap
 
 import { cookies } from 'next/headers'
 
-export async function create() {
+export async function delete() {
   cookies().delete('name')
   // ...
 }
@@ -895,7 +911,7 @@ export async function create() {
 
 import { cookies } from 'next/headers'
 
-export async function create() {
+export async function delete() {
   cookies().delete('name')
   // ...
 }

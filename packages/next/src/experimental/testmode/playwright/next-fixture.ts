@@ -9,7 +9,7 @@ export interface NextFixture {
 }
 
 class NextFixtureImpl implements NextFixture {
-  private fetchHandler: FetchHandler | null = null
+  private fetchHandlers: FetchHandler[] = []
 
   constructor(
     public testId: string,
@@ -17,9 +17,15 @@ class NextFixtureImpl implements NextFixture {
     private worker: NextWorkerFixture,
     private page: Page
   ) {
+    const testHeaders = {
+      'Next-Test-Proxy-Port': String(worker.proxyPort),
+      'Next-Test-Data': testId,
+    }
     const handleFetch = this.handleFetch.bind(this)
     worker.onFetch(testId, handleFetch)
-    this.page.route('**', (route) => handleRoute(route, page, handleFetch))
+    this.page.route('**', (route) =>
+      handleRoute(route, page, testHeaders, handleFetch)
+    )
   }
 
   teardown(): void {
@@ -27,12 +33,11 @@ class NextFixtureImpl implements NextFixture {
   }
 
   onFetch(handler: FetchHandler): void {
-    this.fetchHandler = handler
+    this.fetchHandlers.push(handler)
   }
 
   private async handleFetch(request: Request): Promise<FetchHandlerResult> {
-    const handler = this.fetchHandler
-    if (handler) {
+    for (const handler of this.fetchHandlers.slice().reverse()) {
       const result = handler(request)
       if (result) {
         return result
@@ -52,13 +57,11 @@ export async function applyNextFixture(
     nextOptions,
     nextWorker,
     page,
-    extraHTTPHeaders,
   }: {
     testInfo: TestInfo
     nextOptions: NextOptions
     nextWorker: NextWorkerFixture
     page: Page
-    extraHTTPHeaders: Record<string, string> | undefined
   }
 ): Promise<void> {
   const fixture = new NextFixtureImpl(
@@ -67,11 +70,6 @@ export async function applyNextFixture(
     nextWorker,
     page
   )
-  page.setExtraHTTPHeaders({
-    ...extraHTTPHeaders,
-    'Next-Test-Proxy-Port': String(nextWorker.proxyPort),
-    'Next-Test-Data': fixture.testId,
-  })
 
   await use(fixture)
 

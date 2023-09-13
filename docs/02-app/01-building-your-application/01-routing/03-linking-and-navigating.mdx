@@ -121,6 +121,8 @@ The default behavior of the Next.js App Router is to scroll to the top of a new 
 // useRouter
 import { useRouter } from 'next/navigation'
 
+const router = useRouter()
+
 router.push('/dashboard', { scroll: false })
 ```
 
@@ -184,7 +186,7 @@ This means on navigation, the cache is reused as much as possible, instead of ma
 
 Learn more about how the [Router Cache](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#caching-data) works and how to configure it.
 
-#### 3. Partial Rendering
+### 3. Partial Rendering
 
 Partial rendering means only the route segments that change on navigation re-render on the client, and any shared segments are preserved.
 
@@ -200,10 +202,10 @@ For example, when navigating between two sibling routes, `/dashboard/settings` a
 
 Without partial rendering, each navigation would cause the full page to re-render on the server. Rendering only the segment that changes reduces the amount of data transferred and execution time, leading to improved performance.
 
-#### 4. Soft Navigation
+### 4. Soft Navigation
 
 By default, the browser performs a hard navigation between pages. This means the browser reloads the page and resets React state such as `useState` hooks in your app and browser state such as the user's scroll position or focused element. However, in Next.js, the App Router uses soft navigation. This means React only renders the segments that have changed while preserving React and browser state, and there is no full page reload.
 
-#### 5. Back and Forward Navigation
+### 5. Back and Forward Navigation
 
 By default, Next.js will maintain the scroll position for backwards and forwards navigation, and re-use route segments in the [Router Cache](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#caching-data).
