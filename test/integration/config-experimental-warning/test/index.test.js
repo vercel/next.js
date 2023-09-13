@@ -1,13 +1,7 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import {
-  killApp,
-  launchApp,
-  findPort,
-  File,
-  fetchViaHTTP,
-} from 'next-test-utils'
+import { killApp, launchApp, findPort, File } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
 const configFile = new File(join(appDir, '/next.config.js'))
