@@ -22,6 +22,30 @@ import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
+export function warnOptionHasBeenDeprecated(
+  config: NextConfig,
+  nestedPropertyKey: string,
+  reason: string,
+  silent: boolean
+) {
+  if (!silent) {
+    let current = config
+    let found = true
+    const nestedPropertyKeys = nestedPropertyKey.split('.')
+    for (const key of nestedPropertyKeys) {
+      if (current[key] !== undefined) {
+        current = current[key]
+      } else {
+        found = false
+        break
+      }
+    }
+    if (found) {
+      Log.warn(reason)
+    }
+  }
+}
+
 export function warnOptionHasBeenMovedOutOfExperimental(
   config: NextConfig,
   oldKey: string,
@@ -300,6 +324,12 @@ function assignDefaults(
     }
   }
 
+  warnOptionHasBeenDeprecated(
+    result,
+    'experimental.appDir',
+    'App router is enabled by default now, `experimental.appDir` option can be safely removed.',
+    silent
+  )
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'relay',

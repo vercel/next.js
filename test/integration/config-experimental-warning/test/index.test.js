@@ -22,8 +22,18 @@ async function collectStdout(appDir) {
       stdout += msg
     },
   })
-  await fetchViaHTTP(port, '/')
   return stdout
+}
+
+async function collectStderr(appDir) {
+  let stderr = ''
+  const port = await findPort()
+  app = await launchApp(appDir, port, {
+    onStderr(msg) {
+      stderr += msg
+    },
+  })
+  return stderr
 }
 
 describe('Config Experimental Warning', () => {
@@ -47,10 +57,6 @@ describe('Config Experimental Warning', () => {
       }
     `)
 
-    // await nextBuild(appDir, [])
-    // const { stdout } = await nextStart(appDir, await findPort(), {
-    //   stdout: true,
-    // })
     const stdout = await collectStdout(appDir)
     expect(stdout).not.toMatch(' - Experiments (use at your own risk):')
   })
@@ -61,10 +67,7 @@ describe('Config Experimental Warning', () => {
         images: {},
       }
     `)
-    // await nextBuild(appDir, [])
-    // const { stdout } = await nextStart(appDir, await findPort(), {
-    //   stdout: true,
-    // })
+
     const stdout = await collectStdout(appDir)
     expect(stdout).not.toMatch(' - Experiments (use at your own risk):')
   })
@@ -77,10 +80,7 @@ describe('Config Experimental Warning', () => {
         }
       }
     `)
-    // await nextBuild(appDir, [])
-    // const { stdout } = await nextStart(appDir, await findPort(), {
-    //   stdout: true,
-    // })
+
     const stdout = await collectStdout(appDir)
     expect(stdout).toMatch(' - Experiments (use at your own risk):')
     expect(stdout).toMatch(' · workerThreads')
@@ -94,10 +94,7 @@ describe('Config Experimental Warning', () => {
         }
       })
     `)
-    // await nextBuild(appDir, [])
-    // const { stdout } = await nextStart(appDir, await findPort(), {
-    //   stdout: true,
-    // })
+
     const stdout = await collectStdout(appDir)
     expect(stdout).toMatch(' - Experiments (use at your own risk):')
     expect(stdout).toMatch(' · workerThreads')
@@ -111,10 +108,7 @@ describe('Config Experimental Warning', () => {
         }
       })
     `)
-    // await nextBuild(appDir, [])
-    // const { stdout } = await nextStart(appDir, await findPort(), {
-    //   stdout: true,
-    // })
+
     const stdout = await collectStdout(appDir)
     expect(stdout).not.toMatch(' - Experiments (use at your own risk):')
     expect(stdout).not.toMatch(' · workerThreads')
@@ -129,10 +123,25 @@ describe('Config Experimental Warning', () => {
         }
       }
     `)
-    // const { stdout } = await nextBuild(appDir, [], { stdout: true })
+
     const stdout = await collectStdout(appDir)
     expect(stdout).toMatch(' - Experiments (use at your own risk):')
     expect(stdout).toMatch(' · workerThreads')
     expect(stdout).toMatch(' · scrollRestoration')
+  })
+
+  it('should show warning for dropped experimental.appDir option', async () => {
+    configFile.write(`
+      module.exports = {
+        experimental: {
+          appDir: true,
+        }
+      }
+    `)
+
+    const stderr = await collectStderr(appDir)
+    expect(stderr).toMatch(
+      'App router is enabled by default now, `experimental.appDir` option can be safely removed.'
+    )
   })
 })

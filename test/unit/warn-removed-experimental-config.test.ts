@@ -1,4 +1,7 @@
-import { warnOptionHasBeenMovedOutOfExperimental } from 'next/dist/server/config'
+import {
+  warnOptionHasBeenMovedOutOfExperimental,
+  warnOptionHasBeenDeprecated,
+} from 'next/dist/server/config'
 
 describe('warnOptionHasBeenMovedOutOfExperimental', () => {
   let spy: jest.SpyInstance
@@ -100,5 +103,27 @@ describe('warnOptionHasBeenMovedOutOfExperimental', () => {
 
     expect(config.experimental.foo).toBe('bar')
     expect(config.deep.prop.baz).toBe('bar')
+  })
+})
+
+describe('warnOptionHasBeenDeprecated', () => {
+  let spy: jest.SpyInstance
+  beforeAll(() => {
+    spy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+  })
+
+  it('should warn experimental.appDir has been deprecated', () => {
+    const config = {
+      experimental: {
+        appDir: true,
+      },
+    } as any
+    warnOptionHasBeenDeprecated(
+      config,
+      'experimental.appDir',
+      'experimental.appDir has been removed',
+      false
+    )
+    expect(spy).toBeCalled()
   })
 })
