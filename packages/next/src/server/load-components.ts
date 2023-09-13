@@ -49,7 +49,7 @@ export type LoadComponentsReturnType = {
   ComponentMod: any
   routeModule?: RouteModule
   isAppPath?: boolean
-  pathname: string
+  page: string
 }
 
 /**
@@ -89,11 +89,11 @@ async function loadJSManifest<T>(
 
 async function loadComponentsImpl({
   distDir,
-  pathname,
+  page,
   isAppPath,
 }: {
   distDir: string
-  pathname: string
+  page: string
   isAppPath: boolean
 }): Promise<LoadComponentsReturnType> {
   let DocumentMod = {}
@@ -105,15 +105,13 @@ async function loadComponentsImpl({
     ])
   }
   const ComponentMod = await Promise.resolve().then(() =>
-    requirePage(pathname, distDir, isAppPath)
+    requirePage(page, distDir, isAppPath)
   )
 
   // Make sure to avoid loading the manifest for Route Handlers
   const hasClientManifest =
     isAppPath &&
-    (pathname.endsWith('/page') ||
-      pathname === '/not-found' ||
-      pathname === '/_not-found')
+    (page.endsWith('/page') || page === '/not-found' || page === '/_not-found')
 
   const [
     buildManifest,
@@ -131,13 +129,10 @@ async function loadComponentsImpl({
             distDir,
             'server',
             'app',
-            pathname.replace(/%5F/g, '_') +
-              '_' +
-              CLIENT_REFERENCE_MANIFEST +
-              '.js'
+            page.replace(/%5F/g, '_') + '_' + CLIENT_REFERENCE_MANIFEST + '.js'
           ),
           '__RSC_MANIFEST',
-          pathname.replace(/%5F/g, '_')
+          page.replace(/%5F/g, '_')
         )
       : undefined,
     isAppPath
@@ -168,7 +163,7 @@ async function loadComponentsImpl({
     clientReferenceManifest,
     serverActionsManifest,
     isAppPath,
-    pathname,
+    page,
     routeModule,
   }
 }

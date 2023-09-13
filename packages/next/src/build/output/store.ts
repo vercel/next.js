@@ -138,7 +138,6 @@ store.subscribe((state) => {
   }
 
   if (trigger === 'initial') {
-    Log.event('ready')
     trigger = ''
   } else if (trigger) {
     if (loadingLogTimer) {

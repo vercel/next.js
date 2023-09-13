@@ -28,7 +28,7 @@ const runTests = (type) => {
     const stdout = await getStdout()
 
     if (type === 'dev') {
-      expect(stdout).toMatch(/- Local:/i)
+      expect(stdout).toMatch(/ready/i)
     } else {
       expect(stdout).toMatch(/Compiled successfully/i)
     }
@@ -53,7 +53,7 @@ const runTests = (type) => {
     const stdout = await getStdout()
 
     if (type === 'dev') {
-      expect(stdout).toMatch(/- Local:/i)
+      expect(stdout).toMatch(/ready/i)
     } else {
       expect(stdout).toMatch(/Compiled successfully/i)
     }

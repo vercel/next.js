@@ -150,6 +150,7 @@
     "form-data": "4.0.0",
     "fs-extra": "9.0.0",
     "get-port": "5.1.1",
+    "get-port-please": "3.1.1",
     "glob": "7.1.6",
     "gzip-size": "5.1.1",
     "html-validator": "5.1.18",
