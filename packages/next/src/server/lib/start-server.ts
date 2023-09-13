@@ -146,6 +146,7 @@ export async function startServer({
   envInfo,
   expFeatureInfo,
 }: StartServerOptions): Promise<void> {
+  const startServerProcessStartTime = Date.now()
   let handlersReady = () => {}
   let handlersError = () => {}
 
@@ -317,15 +318,21 @@ export async function startServer({
           expFeatureInfo,
         })
 
+        const startServerProcessDuration =
+          Date.now() - startServerProcessStartTime
+        const formatDuration =
+          startServerProcessDuration > 3000
+            ? `${Math.round(startServerProcessDuration / 100) / 10}s`
+            : `${startServerProcessDuration}ms`
+
         handlersReady()
+        Log.event(`ready [${formatDuration}]`)
       } catch (err) {
         // fatal error if we can't setup
         handlersError()
         console.error(err)
         process.exit(1)
       }
-
-      Log.event('ready')
 
       resolve()
     })

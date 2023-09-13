@@ -79,36 +79,30 @@ export class NextDevInstance extends NextInstance {
             )
           }
         })
-        const readyCb = (msg) => {
+        let stdoutMessage = ''
+        const readyCb = (currentMessage) => {
+          stdoutMessage += currentMessage
           const resolveServer = () => {
             try {
               this._parsedUrl = new URL(this._url)
             } catch (err) {
               reject({
                 err,
-                msg,
+                msg: currentMessage,
               })
             }
             // server might reload so we keep listening
             resolve()
           }
 
-          const colorStrippedMsg = stripAnsi(msg)
-          if (colorStrippedMsg.includes('- Local:')) {
-            // turbo devserver emits stdout in rust directly, can contain unexpected chars with color codes
-            // strip out again for the safety
-            this._url = msg
+          const colorStrippedMsg = stripAnsi(currentMessage)
+          if (colorStrippedMsg.includes('✓ ready')) {
+            this._url = stdoutMessage
               .split('\n')
               .find((line) => line.includes('- Local:'))
               .split(/\s*- Local:/)
               .pop()
               .trim()
-            resolveServer()
-          } else if (
-            msg.includes('started server on') &&
-            msg.includes('url:')
-          ) {
-            this._url = msg.split('url: ').pop().split(/\s/)[0].trim()
             resolveServer()
           }
         }

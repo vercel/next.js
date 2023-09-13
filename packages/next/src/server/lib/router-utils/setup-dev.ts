@@ -1302,7 +1302,7 @@ async function startWatcher(opts: SetupOpts) {
     const tsconfigPaths = [
       path.join(dir, 'tsconfig.json'),
       path.join(dir, 'jsconfig.json'),
-    ]
+    ] as const
     files.push(...tsconfigPaths)
 
     const wp = new Watchpack({
@@ -1355,7 +1355,10 @@ async function startWatcher(opts: SetupOpts) {
         const meta = knownFiles.get(fileName)
 
         const watchTime = fileWatchTimes.get(fileName)
-        const watchTimeChange = watchTime && watchTime !== meta?.timestamp
+        // If the file is showing up for the first time or the meta.timestamp is changed since last time
+        const watchTimeChange =
+          watchTime === undefined ||
+          (watchTime && watchTime !== meta?.timestamp)
         fileWatchTimes.set(fileName, meta.timestamp)
 
         if (envFiles.includes(fileName)) {
