@@ -480,7 +480,7 @@ impl NextDynamicPatcher {
                         ],
                         src: Box::new(specifier.into()),
                         type_only: false,
-                        asserts: None,
+                        with: None,
                     })));
                 }
                 TurbopackImport::DevelopmentId {
@@ -506,7 +506,7 @@ impl NextDynamicPatcher {
                         })],
                         src: Box::new(specifier.into()),
                         type_only: false,
-                        asserts: None,
+                        with: None,
                     })));
                 }
                 TurbopackImport::BuildTransition {
@@ -535,7 +535,7 @@ impl NextDynamicPatcher {
                         })],
                         src: Box::new(specifier.into()),
                         type_only: false,
-                        asserts: None,
+                        with: None,
                     })));
                 }
                 TurbopackImport::BuildId {
@@ -561,7 +561,7 @@ impl NextDynamicPatcher {
                         })],
                         src: Box::new(specifier.into()),
                         type_only: false,
-                        asserts: None,
+                        with: None,
                     })));
                 }
             }
