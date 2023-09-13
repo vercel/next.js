@@ -324,6 +324,7 @@ function assignDefaults(
     }
   }
 
+  // TODO: remove this in next major or minor version after 13.5
   warnOptionHasBeenDeprecated(
     result,
     'experimental.appDir',
