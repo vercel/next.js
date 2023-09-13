@@ -8,7 +8,7 @@ createNextDescribe(
   },
   ({ next }) => {
     it('should output config file change', async () => {
-      await check(async () => next.cliOutput, /ready/)
+      await check(async () => next.cliOutput, /ready/i)
 
       await check(async () => {
         await next.patchFile(

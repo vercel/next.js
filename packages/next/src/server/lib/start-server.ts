@@ -92,6 +92,7 @@ function logStartInfo({
   hostname,
   envInfo,
   expFeatureInfo,
+  formatDurationText,
 }: {
   port: number
   actualHostname: string
@@ -99,38 +100,40 @@ function logStartInfo({
   hostname: string
   envInfo: string[] | undefined
   expFeatureInfo: string[] | undefined
+  formatDurationText: string
 }) {
   Log.bootstrap(
     chalk.bold(
       chalk.hex('#ad7fa8')(
-        ` ${`${Log.prefixes.ready} Next.js`} ${process.env.__NEXT_VERSION}`
+        `${`${Log.prefixes.ready} Next.js`} ${process.env.__NEXT_VERSION}`
       )
     )
   )
-  Log.bootstrap(` - Local:        ${appUrl}`)
+  Log.bootstrap(`- Local:        ${appUrl}`)
   if (hostname) {
     Log.bootstrap(
-      ` - Network:      ${actualHostname}${
+      `- Network:      ${actualHostname}${
         (port + '').startsWith(':') ? '' : ':'
       }${port}`
     )
   }
-  if (envInfo?.length) Log.bootstrap(` - Environments: ${envInfo.join(', ')}`)
+  if (envInfo?.length) Log.bootstrap(`- Environments: ${envInfo.join(', ')}`)
 
   if (expFeatureInfo?.length) {
-    Log.bootstrap(` - Experiments (use at your own risk):`)
+    Log.bootstrap(`- Experiments (use at your own risk):`)
     // only show maximum 3 flags
     for (const exp of expFeatureInfo.slice(0, 3)) {
-      Log.bootstrap(`    · ${exp}`)
+      Log.bootstrap(`   · ${exp}`)
     }
     /* ${expFeatureInfo.length - 3} more */
     if (expFeatureInfo.length > 3) {
-      Log.bootstrap(`    · ...`)
+      Log.bootstrap(`   · ...`)
     }
   }
 
   // New line after the bootstrap info
   Log.info('')
+  Log.event(`Ready in ${formatDurationText}`)
 }
 
 export async function startServer({
@@ -146,6 +149,7 @@ export async function startServer({
   envInfo,
   expFeatureInfo,
 }: StartServerOptions): Promise<void> {
+  const startServerProcessStartTime = Date.now()
   let handlersReady = () => {}
   let handlersError = () => {}
 
@@ -275,15 +279,6 @@ export async function startServer({
         )
       }
 
-      logStartInfo({
-        port,
-        actualHostname,
-        appUrl,
-        hostname,
-        envInfo,
-        expFeatureInfo,
-      })
-
       // expose the main port to render workers
       process.env.PORT = port + ''
 
@@ -316,15 +311,30 @@ export async function startServer({
         })
         requestHandler = initResult[0]
         upgradeHandler = initResult[1]
+
+        const startServerProcessDuration =
+          Date.now() - startServerProcessStartTime
+        const formatDurationText =
+          startServerProcessDuration > 2000
+            ? `${Math.round(startServerProcessDuration / 100) / 10}s`
+            : `${startServerProcessDuration}ms`
+
         handlersReady()
+        logStartInfo({
+          port,
+          actualHostname,
+          appUrl,
+          hostname,
+          envInfo,
+          expFeatureInfo,
+          formatDurationText,
+        })
       } catch (err) {
         // fatal error if we can't setup
         handlersError()
         console.error(err)
         process.exit(1)
       }
-
-      Log.event('ready')
 
       resolve()
     })
@@ -350,8 +360,6 @@ export async function startServer({
         return
       }
 
-      // Adding a new line to avoid the logs going directly after the spinner in `next build`
-      Log.warn('')
       Log.warn(
         `Found a change in ${path.basename(
           filename

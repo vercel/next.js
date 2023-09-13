@@ -117,7 +117,7 @@ describe.each([[''], ['/docs']])(
               /This is the contact page/
             )
 
-            expect(next.cliOutput).toContain('compiled /_error')
+            expect(next.cliOutput).toContain('Compiled /_error')
           } finally {
             if (browser) {
               await browser.close()
@@ -387,7 +387,7 @@ describe.each([[''], ['/docs']])(
             /This page could not be found/
           )
 
-          expect(next.cliOutput).toContain('compiled /_error')
+          expect(next.cliOutput).toContain('Compiled /_error')
         } catch (err) {
           await next.deleteFile(newPage)
           throw err
@@ -424,7 +424,7 @@ describe.each([[''], ['/docs']])(
             /This page could not be found/
           )
 
-          expect(next.cliOutput).toContain('compiled /_error')
+          expect(next.cliOutput).toContain('Compiled /_error')
         } catch (err) {
           await next.deleteFile(newPage)
           throw err
@@ -505,7 +505,7 @@ describe.each([[''], ['/docs']])(
             /This is the about page/
           )
 
-          expect(next.cliOutput).toContain('compiled /_error')
+          expect(next.cliOutput).toContain('Compiled /_error')
         } catch (err) {
           await next.patchFile(aboutPage, aboutContent)
           if (browser) {
@@ -1146,12 +1146,12 @@ describe.each([[''], ['/docs']])(
         await next.patchFile(pageName, originalContent)
         await check(
           () => next.cliOutput.substring(outputLength),
-          /compiled.*?/i
+          /Compiled.*?/i
         )
         const compileTimeStr = next.cliOutput.substring(outputLength)
 
         const matches = [
-          ...compileTimeStr.match(/compiled.*? in ([\d.]{1,})\s?(?:s|ms)/i),
+          ...compileTimeStr.match(/Compiled.*? in ([\d.]{1,})\s?(?:s|ms)/i),
         ]
         const [, compileTime, timeUnit] = matches
         console.log('compileTime, timeUnit', compileTime, timeUnit)
