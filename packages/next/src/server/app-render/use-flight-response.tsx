@@ -21,9 +21,10 @@ export function useFlightResponse(
     return flightResponseRef.current
   }
   // react-server-dom-webpack/client.edge must not be hoisted for require cache clearing to work correctly
-  const {
-    createFromReadableStream,
-  } = require(`react-server-dom-webpack/client.edge`)
+  const { createFromReadableStream } = process.env.NEXT_MINIMAL
+    ? // @ts-ignore
+      __non_webpack_require__(`react-server-dom-webpack/client.edge`)
+    : require(`react-server-dom-webpack/client.edge`)
 
   const [renderStream, forwardStream] = req.tee()
   const res = createFromReadableStream(renderStream, {
