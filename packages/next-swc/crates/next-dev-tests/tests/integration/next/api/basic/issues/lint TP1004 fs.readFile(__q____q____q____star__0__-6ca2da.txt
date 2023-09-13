@@ -1,0 +1,17 @@
+warning - [parse] [project]/packages/next/dist/server/web/sandbox/context.js  /packages/next/dist/server/web/sandbox/context.js:65:56  lint TP1004 fs.readFile(???*0*) is very dynamic
+      61 | }
+      62 | async function loadWasm(wasm) {
+      63 |     const modules = {};
+      64 |     await Promise.all(wasm.map(async (binding)=>{
+         +                                                         v
+      65 +         const module1 = await WebAssembly.compile(await _fs.promises.readFile(binding.filePath));
+         +                                                         ^
+      66 |         modules[binding.name] = module1;
+      67 |     }));
+      68 |     return modules;
+      69 | }
+  
+  - *0* ???*1*["filePath"]
+    ⚠️  unknown object
+  - *1* binding
+    ⚠️  pattern without value
