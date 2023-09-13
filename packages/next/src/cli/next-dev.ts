@@ -39,15 +39,7 @@ const handleSessionStop = async () => {
     const { eventCliSessionStopped } =
       require('../telemetry/events/session-stopped') as typeof import('../telemetry/events/session-stopped')
 
-    config =
-      config ||
-      (await loadConfig(
-        PHASE_DEVELOPMENT_SERVER,
-        dir,
-        undefined,
-        undefined,
-        true
-      ))
+    config = config || (await loadConfig(PHASE_DEVELOPMENT_SERVER, dir))
 
     let telemetry =
       (traceGlobals.get('telemetry') as InstanceType<
@@ -188,21 +180,16 @@ const nextDev: CliCommand = async (args) => {
   const { loadedEnvFiles } = loadEnvConfig(dir, true, console, false)
 
   let expFeatureInfo: string[] = []
-  config = await loadConfig(
-    PHASE_DEVELOPMENT_SERVER,
-    dir,
-    undefined,
-    undefined,
-    undefined,
-    (userConfig) => {
+  config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
+    onLoadUserConfig(userConfig) {
       const userNextConfigExperimental = getEnabledExperimentalFeatures(
         userConfig.experimental
       )
       expFeatureInfo = userNextConfigExperimental.sort(
         (a, b) => a.length - b.length
       )
-    }
-  )
+    },
+  })
 
   let envInfo: string[] = []
   if (loadedEnvFiles.length > 0) {

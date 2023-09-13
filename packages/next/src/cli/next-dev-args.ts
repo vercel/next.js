@@ -6,7 +6,6 @@ export const validArgs: arg.Spec = {
   '--port': Number,
   '--hostname': String,
   '--turbo': Boolean,
-  '--experimental-turbo': Boolean,
   '--experimental-https': Boolean,
   '--experimental-https-key': String,
   '--experimental-https-cert': String,

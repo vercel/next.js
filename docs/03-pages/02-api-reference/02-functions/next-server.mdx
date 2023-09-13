@@ -7,7 +7,7 @@ description: Learn about the server-only helpers for Middleware and Edge API Rou
 
 ## NextRequest
 
-The `NextRequest` object is an extension of the native [`Request`](https://developer.mozilla.org/en-US/docs/Web/API/Request) interface, with the following added methods and properties:
+The `NextRequest` object is an extension of the native [`Request`](https://developer.mozilla.org/docs/Web/API/Request) interface, with the following added methods and properties:
 
 - `cookies` - A [RequestCookies](https://edge-runtime.vercel.app/packages/cookies#for-request) instance with cookies from the `Request`. It reads/mutates the `Cookie` header of the request. See also [Using cookies in Middleware](/docs/app/building-your-application/routing/middleware#using-cookies).
 
@@ -47,7 +47,7 @@ import type { NextRequest } from 'next/server'
 
 ## NextFetchEvent
 
-The `NextFetchEvent` object extends the native [`FetchEvent`](https://developer.mozilla.org/en-US/docs/Web/API/FetchEvent) object, and includes the [`waitUntil()`](https://developer.mozilla.org/en-US/docs/Web/API/ExtendableEvent/waitUntil) method.
+The `NextFetchEvent` object extends the native [`FetchEvent`](https://developer.mozilla.org/docs/Web/API/FetchEvent) object, and includes the [`waitUntil()`](https://developer.mozilla.org/docs/Web/API/ExtendableEvent/waitUntil) method.
 
 The `waitUntil()` method can be used to prolong the execution of the function if you have other background work to make.
 
@@ -75,7 +75,7 @@ import type { NextFetchEvent } from 'next/server'
 
 ## NextResponse
 
-The `NextResponse` class extends the native [`Response`](https://developer.mozilla.org/en-US/docs/Web/API/Response) interface, with the following:
+The `NextResponse` class extends the native [`Response`](https://developer.mozilla.org/docs/Web/API/Response) interface, with the following:
 
 ### Public Methods
 
@@ -157,7 +157,7 @@ The `redirect()` method uses a `307` by default, instead of a `302` temporary re
 
 If you want to cause a `GET` response to a `POST` request, use `303`.
 
-[Learn more](https://developer.mozilla.org/en-US/docs/Web/HTTP/Redirections) about HTTP Redirects.
+[Learn more](https://developer.mozilla.org/docs/Web/HTTP/Redirections) about HTTP Redirects.
 
 ### How do I access Environment Variables?
 
