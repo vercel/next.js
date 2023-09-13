@@ -11,7 +11,8 @@ describe('warnOptionHasBeenMovedOutOfExperimental', () => {
       {},
       'skipTrailingSlashRedirect',
       'skipTrailingSlashRedirect',
-      'next.config.js'
+      'next.config.js',
+      false
     )
 
     warnOptionHasBeenMovedOutOfExperimental(
@@ -20,7 +21,8 @@ describe('warnOptionHasBeenMovedOutOfExperimental', () => {
       },
       'skipTrailingSlashRedirect',
       'skipTrailingSlashRedirect',
-      'next.config.js'
+      'next.config.js',
+      false
     )
 
     expect(spy).not.toBeCalled()
@@ -35,7 +37,8 @@ describe('warnOptionHasBeenMovedOutOfExperimental', () => {
       } as any,
       'skipTrailingSlashRedirect',
       'skipTrailingSlashRedirect',
-      'next.config.js'
+      'next.config.js',
+      false
     )
 
     expect(spy).toHaveBeenCalledWith(
@@ -53,7 +56,8 @@ describe('warnOptionHasBeenMovedOutOfExperimental', () => {
       } as any,
       'relay',
       'compiler.relay',
-      'next.config.js'
+      'next.config.js',
+      false
     )
 
     expect(spy).toHaveBeenCalledWith(
@@ -72,7 +76,8 @@ describe('warnOptionHasBeenMovedOutOfExperimental', () => {
       config,
       'skipTrailingSlashRedirect',
       'skipTrailingSlashRedirect',
-      'next.config.js'
+      'next.config.js',
+      false
     )
 
     expect(config.experimental.skipTrailingSlashRedirect).toBe(true)
@@ -89,7 +94,8 @@ describe('warnOptionHasBeenMovedOutOfExperimental', () => {
       config,
       'foo',
       'deep.prop.baz',
-      'next.config.js'
+      'next.config.js',
+      false
     )
 
     expect(config.experimental.foo).toBe('bar')

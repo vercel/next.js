@@ -2,7 +2,6 @@ import { existsSync } from 'fs'
 import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import findUp from 'next/dist/compiled/find-up'
-import chalk from '../lib/chalk'
 import * as Log from '../build/output/log'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import {
@@ -28,7 +27,7 @@ export function warnOptionHasBeenMovedOutOfExperimental(
   oldKey: string,
   newKey: string,
   configFileName: string,
-  silent = false
+  silent: boolean
 ) {
   if (config.experimental && oldKey in config.experimental) {
     if (!silent) {
@@ -55,14 +54,15 @@ export function warnOptionHasBeenMovedOutOfExperimental(
 function assignDefaults(
   dir: string,
   userConfig: { [key: string]: any },
-  silent = false
+  silent: boolean
 ) {
   const configFileName = userConfig.configFileName
-  if (!silent && typeof userConfig.exportTrailingSlash !== 'undefined') {
-    console.warn(
-      chalk.yellow.bold('Warning: ') +
+  if (typeof userConfig.exportTrailingSlash !== 'undefined') {
+    if (!silent) {
+      Log.warn(
         `The "exportTrailingSlash" option has been renamed to "trailingSlash". Please update your ${configFileName}.`
-    )
+      )
+    }
     if (typeof userConfig.trailingSlash === 'undefined') {
       userConfig.trailingSlash = userConfig.exportTrailingSlash
     }
@@ -701,10 +701,17 @@ function assignDefaults(
 export default async function loadConfig(
   phase: string,
   dir: string,
-  customConfig?: object | null,
-  rawConfig?: boolean,
-  silent?: boolean,
-  onLoadUserConfig?: (conf: NextConfig) => void
+  {
+    customConfig,
+    rawConfig,
+    silent = true,
+    onLoadUserConfig,
+  }: {
+    customConfig?: object | null
+    rawConfig?: boolean
+    silent?: boolean
+    onLoadUserConfig?: (conf: NextConfig) => void
+  } = {}
 ): Promise<NextConfigComplete> {
   if (!process.env.__NEXT_PRIVATE_RENDER_WORKER) {
     try {
@@ -802,7 +809,7 @@ export default async function loadConfig(
 
     const validateResult = validateConfig(userConfig)
 
-    if (!silent && validateResult.errors) {
+    if (validateResult.errors) {
       // Only load @segment/ajv-human-errors when invalid config is detected
       const { AggregateAjvError } =
         require('next/dist/compiled/@segment/ajv-human-errors') as typeof import('next/dist/compiled/@segment/ajv-human-errors')
@@ -811,7 +818,7 @@ export default async function loadConfig(
       })
 
       let shouldExit = false
-      let messages = [`Invalid ${configFileName} options detected: `]
+      const messages = [`Invalid ${configFileName} options detected: `]
 
       for (const error of aggregatedAjvErrors) {
         messages.push(`    ${error.message}`)
