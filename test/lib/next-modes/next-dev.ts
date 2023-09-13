@@ -79,25 +79,24 @@ export class NextDevInstance extends NextInstance {
             )
           }
         })
-        let stdoutMessage = ''
-        const readyCb = (currentMessage) => {
-          stdoutMessage += currentMessage
+
+        const readyCb = (msg) => {
           const resolveServer = () => {
             try {
               this._parsedUrl = new URL(this._url)
             } catch (err) {
               reject({
                 err,
-                msg: currentMessage,
+                msg,
               })
             }
             // server might reload so we keep listening
             resolve()
           }
 
-          const colorStrippedMsg = stripAnsi(currentMessage)
-          if (colorStrippedMsg.includes('✓ ready')) {
-            this._url = stdoutMessage
+          const colorStrippedMsg = stripAnsi(msg)
+          if (colorStrippedMsg.includes('- Local:')) {
+            this._url = msg
               .split('\n')
               .find((line) => line.includes('- Local:'))
               .split(/\s*- Local:/)
@@ -105,14 +104,10 @@ export class NextDevInstance extends NextInstance {
               .trim()
             resolveServer()
           } else if (
-            currentMessage.includes('started server on') &&
-            currentMessage.includes('url:')
+            msg.includes('started server on') &&
+            msg.includes('url:')
           ) {
-            this._url = currentMessage
-              .split('url: ')
-              .pop()
-              .split(/\s/)[0]
-              .trim()
+            this._url = msg.split('url: ').pop().split(/\s/)[0].trim()
             resolveServer()
           }
         }

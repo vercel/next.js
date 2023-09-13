@@ -92,6 +92,7 @@ function logStartInfo({
   hostname,
   envInfo,
   expFeatureInfo,
+  formatDurationText,
 }: {
   port: number
   actualHostname: string
@@ -99,6 +100,7 @@ function logStartInfo({
   hostname: string
   envInfo: string[] | undefined
   expFeatureInfo: string[] | undefined
+  formatDurationText: string
 }) {
   Log.bootstrap(
     chalk.bold(
@@ -131,6 +133,7 @@ function logStartInfo({
 
   // New line after the bootstrap info
   Log.info('')
+  Log.event(`ready [${formatDurationText}]`)
 }
 
 export async function startServer({
@@ -309,6 +312,14 @@ export async function startServer({
         requestHandler = initResult[0]
         upgradeHandler = initResult[1]
 
+        const startServerProcessDuration =
+          Date.now() - startServerProcessStartTime
+        const formatDurationText =
+          startServerProcessDuration > 3000
+            ? `${Math.round(startServerProcessDuration / 100) / 10}s`
+            : `${startServerProcessDuration}ms`
+
+        handlersReady()
         logStartInfo({
           port,
           actualHostname,
@@ -316,17 +327,8 @@ export async function startServer({
           hostname,
           envInfo,
           expFeatureInfo,
+          formatDurationText,
         })
-
-        const startServerProcessDuration =
-          Date.now() - startServerProcessStartTime
-        const formatDuration =
-          startServerProcessDuration > 3000
-            ? `${Math.round(startServerProcessDuration / 100) / 10}s`
-            : `${startServerProcessDuration}ms`
-
-        handlersReady()
-        Log.event(`ready [${formatDuration}]`)
       } catch (err) {
         // fatal error if we can't setup
         handlersError()
