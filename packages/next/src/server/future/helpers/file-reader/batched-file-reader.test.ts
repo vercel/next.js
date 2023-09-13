@@ -17,7 +17,7 @@ describe('BatchedFileReader', () => {
     '/root/m/o',
     '/root/m/p',
     '/root/q/r',
-  ].sort()
+  ]
 
   let readSpy: jest.SpyInstance
   let reader: BatchedFileReader

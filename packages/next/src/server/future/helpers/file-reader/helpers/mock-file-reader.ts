@@ -1,19 +1,21 @@
-import { FileReader, FileReaderOptions } from '../file-reader'
+import type { FileReader, FileReaderOptions } from '../file-reader'
+
+import path from 'path'
 import { isFileInDirectory } from './is-file-in-directory'
 
 /**
  * Mock implementation of the `FileReader` interface for testing purposes.
  */
 export class MockFileReader implements FileReader {
-  private files: ReadonlyArray<string>
-
   /**
    * Constructs a new instance of the `MockFileReader` with the specified files.
    * @param files An optional array of file paths to be used for reading.
+   * @param pathSeparator The path separator to use, defaults to posix.
    */
-  constructor(files: ReadonlyArray<string> = []) {
-    this.files = files
-  }
+  constructor(
+    private readonly files: ReadonlyArray<string> = [],
+    private readonly pathSeparator: string = path.posix.sep
+  ) {}
 
   /**
    * Implementation of the `read` method that provides a mock file reading behavior.
@@ -27,7 +29,12 @@ export class MockFileReader implements FileReader {
   ): Promise<ReadonlyArray<string>> {
     return Promise.resolve(
       this.files.filter((file) => {
-        return isFileInDirectory(file, dir, options.recursive)
+        return isFileInDirectory(
+          file,
+          dir,
+          options.recursive,
+          this.pathSeparator
+        )
       })
     )
   }

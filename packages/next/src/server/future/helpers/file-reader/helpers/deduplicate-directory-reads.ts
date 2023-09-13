@@ -1,4 +1,3 @@
-import path from 'path'
 import { isFileInDirectory } from './is-file-in-directory'
 
 export interface DirectoryReadTask {
@@ -27,7 +26,8 @@ interface DirectoryReadSpec<T extends DirectoryReadTask>
 }
 
 export function groupDirectoryReads<T extends DirectoryReadTask>(
-  directories: ReadonlyArray<T>
+  directories: ReadonlyArray<T>,
+  pathSeparator: string
 ): ReadonlyArray<DirectoryReadSpec<T>> {
   // Let's sort the jobs by directory, eliminate the duplicates, and remove
   // those that are sub-directories of another directory if they are being
@@ -66,7 +66,7 @@ export function groupDirectoryReads<T extends DirectoryReadTask>(
     // sub-directories of this directory.
     for (let j = i + 1; j < unique.length; j++) {
       const other = unique[j]
-      if (!other.startsWith(dir + path.sep)) continue
+      if (!other.startsWith(dir + pathSeparator)) continue
 
       // Remove the directory from the queue and decrement the index so we
       // don't skip the next directory.
@@ -96,7 +96,8 @@ export interface DirectoryReadResult<T extends DirectoryReadTask>
 
 export function mergeDirectoryReadResults<T extends DirectoryReadTask>(
   specs: ReadonlyArray<T>,
-  results: ReadonlyArray<DirectoryReadResult<T>>
+  results: ReadonlyArray<DirectoryReadResult<T>>,
+  pathSeparator: string
 ): ReadonlyArray<ReadonlyArray<string> | Error> {
   return specs.map((spec) => {
     const found = results.find((result) => result.siblings.includes(spec))
@@ -120,7 +121,7 @@ export function mergeDirectoryReadResults<T extends DirectoryReadTask>(
     // Filter the files to only include those that are in this directory or
     // any sub-directories (depending on the recursive flag).
     return files.filter((file) => {
-      return isFileInDirectory(file, dir, recursive)
+      return isFileInDirectory(file, dir, recursive, pathSeparator)
     })
   })
 }

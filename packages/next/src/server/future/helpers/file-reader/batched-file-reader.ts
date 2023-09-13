@@ -1,5 +1,6 @@
 import type { FileReader, FileReaderOptions } from './file-reader'
 
+import path from 'path'
 import { DetachedPromise } from '../detached-promise'
 import {
   type DirectoryReadResult,
@@ -37,7 +38,14 @@ export class BatchedFileReader implements FileReader {
    */
   private batch?: Batch
 
-  constructor(private readonly reader: FileReader) {}
+  /**
+   * @param reader the file reader to use
+   * @param pathSeparator the path separator, used in testing, defaults to os-specific path separator
+   */
+  constructor(
+    private readonly reader: FileReader,
+    private readonly pathSeparator = path.sep
+  ) {}
 
   // This allows us to schedule the batches after all the promises associated
   // with loading files.
@@ -98,16 +106,16 @@ export class BatchedFileReader implements FileReader {
   private async load(
     directories: Array<Task>
   ): Promise<ReadonlyArray<ReadonlyArray<string> | Error>> {
-    const queue = groupDirectoryReads(directories)
+    const queue = groupDirectoryReads(directories, this.pathSeparator)
 
     const results = await Promise.all(
       queue.map<Promise<DirectoryReadResult<Task>>>(async (spec) => {
-        const { dir: path, recursive } = spec
+        const { dir, recursive } = spec
 
         let files: ReadonlyArray<string> | undefined
         let error: Error | undefined
         try {
-          files = await this.reader.read(path, { recursive })
+          files = await this.reader.read(dir, { recursive })
         } catch (err) {
           if (err instanceof Error) error = err
         }
@@ -116,7 +124,7 @@ export class BatchedFileReader implements FileReader {
       })
     )
 
-    return mergeDirectoryReadResults(directories, results)
+    return mergeDirectoryReadResults(directories, results, this.pathSeparator)
   }
 
   public read(
