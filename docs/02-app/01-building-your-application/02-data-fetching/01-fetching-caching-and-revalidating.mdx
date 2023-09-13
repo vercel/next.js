@@ -15,9 +15,9 @@ There are four ways you can fetch data:
 
 ## Fetching Data on the Server with `fetch`
 
-Next.js extends the native [`fetch` Web API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) to allow you to configure the [caching](#caching-data) and [revalidating](#revalidating-data) behavior for each fetch request on the server. React extends `fetch` to automatically [memoize](/docs/app/building-your-application/data-fetching/patterns#fetching-data-where-its-needed) fetch requests while rendering a React component tree.
+Next.js extends the native [`fetch` Web API](https://developer.mozilla.org/docs/Web/API/Fetch_API) to allow you to configure the [caching](#caching-data) and [revalidating](#revalidating-data) behavior for each fetch request on the server. React extends `fetch` to automatically [memoize](/docs/app/building-your-application/data-fetching/patterns#fetching-data-where-its-needed) fetch requests while rendering a React component tree.
 
-You can use `fetch` with [`async`/`await` in Server Components](https://github.com/acdlite/rfcs/blob/first-class-promises/text/0000-first-class-support-for-promises.md), in [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and in [Server Actions](/docs/app/building-your-application/data-fetching/server-actions).
+You can use `fetch` with [`async`/`await` in Server Components](https://github.com/acdlite/rfcs/blob/first-class-promises/text/0000-first-class-support-for-promises.md), in [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and in [Server Actions](/docs/app/building-your-application/data-fetching/forms-and-mutations).
 
 For example:
 
@@ -84,7 +84,7 @@ fetch('https://...', { cache: 'force-cache' })
 
 > **What is the Data Cache?**
 >
-> The Data Cache is a persistent [HTTP cache](https://developer.mozilla.org/en-US/docs/Web/HTTP/Caching). Depending on your platform, the cache can scale automatically and be [shared across multiple regions](https://vercel.com/docs/infrastructure/data-cache).
+> The Data Cache is a persistent [HTTP cache](https://developer.mozilla.org/docs/Web/HTTP/Caching). Depending on your platform, the cache can scale automatically and be [shared across multiple regions](https://vercel.com/docs/infrastructure/data-cache).
 >
 > Learn more about the [Data Cache](/docs/app/building-your-application/caching#data-cache).
 
@@ -275,7 +275,7 @@ There's an extensive list of Segment Config options, giving you fine-grained con
 
 In cases where you're using a third-party library that doesn't support or expose `fetch` (for example, a database, CMS, or ORM client), you can configure the caching and revalidating behavior of those requests using the [Route Segment Config Option](/docs/app/api-reference/file-conventions/route-segment-config) and React's `cache` function.
 
-Whether the data is cached or not will depend on whether the route segment is [statically or dynamically rendered](/docs/app/building-your-application/rendering/static-and-dynamic). If the segment is static (default), the output of the request will be cached and revalidated as part of the route segment. If the segment is dynamic, the output of the request will _not_ be cached and will be re-fetched on every request when the segment is rendered.
+Whether the data is cached or not will depend on whether the route segment is [statically or dynamically rendered](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies). If the segment is static (default), the output of the request will be cached and revalidated as part of the route segment. If the segment is dynamic, the output of the request will _not_ be cached and will be re-fetched on every request when the segment is rendered.
 
 > **Good to know:**
 >

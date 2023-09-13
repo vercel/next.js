@@ -1,21 +1,22 @@
-import type { RequestHandler } from '../next'
+import type { NextServer, RequestHandler } from '../next'
 
-// this must come first as it includes require hooks
-import { initializeServerWorker } from './setup-server-worker'
-import { formatHostname } from './format-hostname'
 import next from '../next'
 import { PropagateToWorkersField } from './router-utils/types'
 
-export const WORKER_SELF_EXIT_CODE = 77
-
-let result:
+const result: Record<
+  string,
   | undefined
   | {
-      port: number
-      hostname: string
+      requestHandler: ReturnType<
+        InstanceType<typeof NextServer>['getRequestHandler']
+      >
+      upgradeHandler: ReturnType<
+        InstanceType<typeof NextServer>['getUpgradeHandler']
+      >
     }
+> = {}
 
-let app: ReturnType<typeof next> | undefined
+let apps: Record<string, ReturnType<typeof next> | undefined> = {}
 
 let sandboxContext: undefined | typeof import('../web/sandbox/context')
 let requireCacheHotReloader:
@@ -42,9 +43,11 @@ export function deleteCache(filePaths: string[]) {
 }
 
 export async function propagateServerField(
+  dir: string,
   field: PropagateToWorkersField,
   value: any
 ) {
+  const app = apps[dir]
   if (!app) {
     throw new Error('Invariant cant propagate server field, no app initialized')
   }
@@ -72,49 +75,44 @@ export async function initialize(opts: {
   isNodeDebugging: boolean
   keepAliveTimeout?: number
   serverFields?: any
+  server?: any
   experimentalTestProxy: boolean
-}): Promise<NonNullable<typeof result>> {
+  _ipcPort?: string
+  _ipcKey?: string
+}) {
   // if we already setup the server return as we only need to do
   // this on first worker boot
-  if (result) {
-    return result
+  if (result[opts.dir]) {
+    return result[opts.dir]
   }
 
-  const type = process.env.__NEXT_PRIVATE_RENDER_WORKER!
-  process.title = 'next-render-worker-' + type
+  const type = process.env.__NEXT_PRIVATE_RENDER_WORKER
+  if (type) {
+    process.title = 'next-render-worker-' + type
+  }
 
   let requestHandler: RequestHandler
   let upgradeHandler: any
 
-  const { port, server, hostname } = await initializeServerWorker(
-    (...args) => {
-      return requestHandler(...args)
-    },
-    (...args) => {
-      return upgradeHandler(...args)
-    },
-    opts
-  )
-
-  app = next({
+  const app = next({
     ...opts,
     _routerWorker: opts.workerType === 'router',
     _renderWorker: opts.workerType === 'render',
-    hostname,
+    hostname: opts.hostname || 'localhost',
     customServer: false,
-    httpServer: server,
+    httpServer: opts.server,
     port: opts.port,
     isNodeDebugging: opts.isNodeDebugging,
   })
-
+  apps[opts.dir] = app
   requestHandler = app.getRequestHandler()
   upgradeHandler = app.getUpgradeHandler()
+
   await app.prepare(opts.serverFields)
 
-  result = {
-    port,
-    hostname: formatHostname(hostname),
+  result[opts.dir] = {
+    requestHandler,
+    upgradeHandler,
   }
-
-  return result
+  return result[opts.dir]
 }

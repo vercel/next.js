@@ -41,10 +41,7 @@ const http = require('http')
 
   server.listen(port, () => {
     const actualPort = server.address().port
-    console.log(
-      `> started server on url: http://localhost:${actualPort} as ${
-        dev ? 'development' : process.env.NODE_ENV
-      }`
-    )
+    console.log(` ▲ Next.js\n - Local: http://localhost:${actualPort}`)
+    console.log(`- Next mode: ${dev ? 'development' : process.env.NODE_ENV}`)
   })
 })()

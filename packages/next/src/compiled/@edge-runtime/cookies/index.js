@@ -232,13 +232,15 @@ var ResponseCookies = class {
   constructor(responseHeaders) {
     /** @internal */
     this._parsed = /* @__PURE__ */ new Map();
-    var _a, _b, _c;
+    var _a, _b;
     this._headers = responseHeaders;
-    const setCookie = (
-      // @ts-expect-error See https://github.com/whatwg/fetch/issues/973
-      (_c = (_b = (_a = responseHeaders.getAll) == null ? void 0 : _a.call(responseHeaders, "set-cookie")) != null ? _b : responseHeaders.get("set-cookie")) != null ? _c : []
+    const setCookie = (_a = responseHeaders.getSetCookie) == null ? void 0 : _a.call(responseHeaders);
+    (_b = responseHeaders.get("set-cookie")) != null ? _b : [];
+    const cookieStrings = Array.isArray(setCookie) ? setCookie : (
+      // TODO: remove splitCookiesString when `getSetCookie` adoption is high enough in Node.js
+      // https://developer.mozilla.org/en-US/docs/Web/API/Headers/getSetCookie#browser_compatibility
+      splitCookiesString(setCookie)
     );
-    const cookieStrings = Array.isArray(setCookie) ? setCookie : splitCookiesString(setCookie);
     for (const cookieString of cookieStrings) {
       const parsed = parseSetCookie(cookieString);
       if (parsed)

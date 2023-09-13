@@ -3,6 +3,8 @@ import crypto from 'crypto'
 import { check, getRedboxHeader, hasRedbox, waitFor } from 'next-test-utils'
 import cheerio from 'cheerio'
 import stripAnsi from 'strip-ansi'
+import { BrowserInterface } from 'test/lib/browsers/base'
+import { Request } from 'playwright-core'
 
 createNextDescribe(
   'app dir',
@@ -11,6 +13,59 @@ createNextDescribe(
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
     if (isNextStart) {
+      it('should use RSC prefetch data from build', async () => {
+        expect(
+          await next.readFile('.next/server/app/linking.prefetch.rsc')
+        ).toBeTruthy()
+        expect(
+          await next.readFile('.next/server/app/linking/about.prefetch.rsc')
+        ).toBeTruthy()
+        expect(
+          await next.readFile(
+            '.next/server/app/dashboard/deployments/breakdown.prefetch.rsc'
+          )
+        ).toBeTruthy()
+        expect(
+          await next
+            .readFile(
+              '.next/server/app/dashboard/deployments/[id].prefetch.rsc'
+            )
+            .catch(() => false)
+        ).toBeFalsy()
+
+        const outputStart = next.cliOutput.length
+        const browser: BrowserInterface = await next.browser('/')
+        const rscReqs = []
+
+        browser.on('request', (req: Request) => {
+          if (req.headers()['rsc']) {
+            rscReqs.push(req.url())
+          }
+        })
+
+        await browser.eval('window.location.href = "/linking"')
+
+        await check(async () => {
+          return rscReqs.length > 3 ? 'success' : JSON.stringify(rscReqs)
+        }, 'success')
+
+        const trimmedOutput = next.cliOutput.substring(outputStart)
+
+        expect(trimmedOutput).not.toContain(
+          'rendering dashboard/(custom)/deployments/breakdown'
+        )
+        expect(trimmedOutput).not.toContain(
+          'rendering /dashboard/deployments/[id]'
+        )
+        expect(trimmedOutput).not.toContain('rendering linking about page')
+
+        await browser.elementByCss('#breakdown').click()
+        await check(
+          () => next.cliOutput.substring(outputStart),
+          /rendering .*breakdown/
+        )
+      })
+
       it('should have correct size in build output', async () => {
         expect(next.cliOutput).toMatch(
           /\/dashboard\/another.*? [^0]{1,} [\w]{1,}B/
@@ -172,12 +227,7 @@ createNextDescribe(
         await next.fetch('/')
         expect(
           stripAnsi(next.cliOutput).match(
-            /You have enabled experimental feature/g
-          ).length
-        ).toBe(1)
-        expect(
-          stripAnsi(next.cliOutput).match(
-            /Experimental features are not covered by semver/g
+            /Experiments \(use at your own risk\):/g
           ).length
         ).toBe(1)
       })
@@ -255,9 +305,7 @@ createNextDescribe(
       const res = await next.fetch('/dashboard')
       expect(res.headers.get('x-edge-runtime')).toBe('1')
       expect(res.headers.get('vary')).toBe(
-        isNextDeploy
-          ? 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url'
-          : 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url, Accept-Encoding'
+        'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url'
       )
     })
 

@@ -1,32 +1,47 @@
+import '../next'
 import '../node-polyfill-fetch'
+import '../require-hook'
 
 import type { IncomingMessage, ServerResponse } from 'http'
 
+import fs from 'fs'
+import path from 'path'
 import http from 'http'
 import https from 'https'
+import Watchpack from 'watchpack'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
 import { getDebugPort } from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
-import fs from 'fs'
 import {
+  RESTART_EXIT_CODE,
   WorkerRequestHandler,
   WorkerUpgradeHandler,
 } from './setup-server-worker'
 import { checkIsNodeDebugging } from './is-node-debugging'
+import { CONFIG_FILES } from '../../shared/lib/constants'
+import chalk from '../../lib/chalk'
+
 const debug = setupDebug('next:start-server')
+
+if (process.env.NEXT_CPU_PROF) {
+  process.env.__NEXT_PRIVATE_CPU_PROFILE = `CPU.router`
+  require('./cpu-profile')
+}
 
 export interface StartServerOptions {
   dir: string
   port: number
-  logReady?: boolean
   isDev: boolean
   hostname: string
   allowRetry?: boolean
   customServer?: boolean
   minimalMode?: boolean
   keepAliveTimeout?: number
+  // logging info
+  envInfo?: string[]
+  expFeatureInfo?: string[]
   // this is dev-server only
   selfSignedCertificate?: {
     key: string
@@ -39,6 +54,7 @@ export async function getRequestHandlers({
   dir,
   port,
   isDev,
+  server,
   hostname,
   minimalMode,
   isNodeDebugging,
@@ -48,6 +64,7 @@ export async function getRequestHandlers({
   dir: string
   port: number
   isDev: boolean
+  server?: import('http').Server
   hostname: string
   minimalMode?: boolean
   isNodeDebugging?: boolean
@@ -60,11 +77,63 @@ export async function getRequestHandlers({
     hostname,
     dev: isDev,
     minimalMode,
+    server,
     workerType: 'router',
     isNodeDebugging: isNodeDebugging || false,
     keepAliveTimeout,
     experimentalTestProxy,
   })
+}
+
+function logStartInfo({
+  port,
+  actualHostname,
+  appUrl,
+  hostname,
+  envInfo,
+  expFeatureInfo,
+  formatDurationText,
+}: {
+  port: number
+  actualHostname: string
+  appUrl: string
+  hostname: string
+  envInfo: string[] | undefined
+  expFeatureInfo: string[] | undefined
+  formatDurationText: string
+}) {
+  Log.bootstrap(
+    chalk.bold(
+      chalk.hex('#ad7fa8')(
+        `${`${Log.prefixes.ready} Next.js`} ${process.env.__NEXT_VERSION}`
+      )
+    )
+  )
+  Log.bootstrap(`- Local:        ${appUrl}`)
+  if (hostname) {
+    Log.bootstrap(
+      `- Network:      ${actualHostname}${
+        (port + '').startsWith(':') ? '' : ':'
+      }${port}`
+    )
+  }
+  if (envInfo?.length) Log.bootstrap(`- Environments: ${envInfo.join(', ')}`)
+
+  if (expFeatureInfo?.length) {
+    Log.bootstrap(`- Experiments (use at your own risk):`)
+    // only show maximum 3 flags
+    for (const exp of expFeatureInfo.slice(0, 3)) {
+      Log.bootstrap(`   · ${exp}`)
+    }
+    /* ${expFeatureInfo.length - 3} more */
+    if (expFeatureInfo.length > 3) {
+      Log.bootstrap(`   · ...`)
+    }
+  }
+
+  // New line after the bootstrap info
+  Log.info('')
+  Log.event(`Ready in ${formatDurationText}`)
 }
 
 export async function startServer({
@@ -76,9 +145,11 @@ export async function startServer({
   allowRetry,
   keepAliveTimeout,
   isExperimentalTestProxy,
-  logReady = true,
   selfSignedCertificate,
+  envInfo,
+  expFeatureInfo,
 }: StartServerOptions): Promise<void> {
+  const startServerProcessStartTime = Date.now()
   let handlersReady = () => {}
   let handlersError = () => {}
 
@@ -208,28 +279,30 @@ export async function startServer({
         )
       }
 
-      if (logReady) {
-        Log.ready(`started server on ${actualHostname}:${port}, url: ${appUrl}`)
-        // expose the main port to render workers
-        process.env.PORT = port + ''
-      }
+      // expose the main port to render workers
+      process.env.PORT = port + ''
 
       try {
-        const cleanup = () => {
+        const cleanup = (code: number | null) => {
           debug('start-server process cleanup')
           server.close()
-          process.exit(0)
+          process.exit(code ?? 0)
+        }
+        const exception = (err: Error) => {
+          // This is the render worker, we keep the process alive
+          console.error(err)
         }
         process.on('exit', cleanup)
         process.on('SIGINT', cleanup)
         process.on('SIGTERM', cleanup)
-        process.on('uncaughtException', cleanup)
-        process.on('unhandledRejection', cleanup)
+        process.on('uncaughtException', exception)
+        process.on('unhandledRejection', exception)
 
         const initResult = await getRequestHandlers({
           dir,
           port,
           isDev,
+          server,
           hostname,
           minimalMode,
           isNodeDebugging: Boolean(isNodeDebugging),
@@ -238,7 +311,24 @@ export async function startServer({
         })
         requestHandler = initResult[0]
         upgradeHandler = initResult[1]
+
+        const startServerProcessDuration =
+          Date.now() - startServerProcessStartTime
+        const formatDurationText =
+          startServerProcessDuration > 2000
+            ? `${Math.round(startServerProcessDuration / 100) / 10}s`
+            : `${startServerProcessDuration}ms`
+
         handlersReady()
+        logStartInfo({
+          port,
+          actualHostname,
+          appUrl,
+          hostname,
+          envInfo,
+          expFeatureInfo,
+          formatDurationText,
+        })
       } catch (err) {
         // fatal error if we can't setup
         handlersError()
@@ -250,4 +340,32 @@ export async function startServer({
     })
     server.listen(port, hostname)
   })
+
+  if (isDev) {
+    function watchConfigFiles(
+      dirToWatch: string,
+      onChange: (filename: string) => void
+    ) {
+      const wp = new Watchpack()
+      wp.watch({
+        files: CONFIG_FILES.map((file) => path.join(dirToWatch, file)),
+      })
+      wp.on('change', onChange)
+    }
+    watchConfigFiles(dir, async (filename) => {
+      if (process.env.__NEXT_DISABLE_MEMORY_WATCHER) {
+        Log.info(
+          `Detected change, manual restart required due to '__NEXT_DISABLE_MEMORY_WATCHER' usage`
+        )
+        return
+      }
+
+      Log.warn(
+        `Found a change in ${path.basename(
+          filename
+        )}. Restarting the server to apply the changes...`
+      )
+      process.exit(RESTART_EXIT_CODE)
+    })
+  }
 }

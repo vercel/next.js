@@ -49,12 +49,16 @@ on:
         required: false
         description: 'if test trace needs uploading'
         type: string
+      rustCacheKey:
+        required: false
+        description: 'rustCacheKey to cache shared target assets'
+        type: string
 
 env:
   NAPI_CLI_VERSION: 2.14.7
   TURBO_VERSION: 1.10.9
   NODE_MAINTENANCE_VERSION: 16
-  NODE_LTS_VERSION: 18.16.1
+  NODE_LTS_VERSION: 18
   TEST_CONCURRENCY: 8
   # disable backtrace for test snapshots
   RUST_BACKTRACE: 0
@@ -114,6 +118,14 @@ jobs:
 
       - run: corepack prepare --activate yarn@1.22.19 && npm i -g "turbo@${TURBO_VERSION}" "@napi-rs/cli@${NAPI_CLI_VERSION}"
 
+      - name: Cache on ${{ github.ref_name }}
+        uses: ijjk/rust-cache@turbo-cache-v1.0.7
+        if: ${{ inputs.rustCacheKey }}
+        with:
+          cache-provider: 'turbo'
+          save-if: ${{ github.ref_name == 'canary' }}
+          shared-key: ${{ inputs.rustCacheKey }}-x86_64-unknown-linux-gnu-build-${{ hashFiles('.cargo/config.toml') }}
+
       # clean up any previous artifacts to avoid hitting disk space limits
       - run: git clean -xdf && rm -rf /tmp/next-repo-*; rm -rf /tmp/next-install-* /tmp/yarn-* /tmp/ncc-cache target
 
@@ -137,7 +149,7 @@ jobs:
       - run: node scripts/normalize-version-bump.js
         name: normalize versions
 
-      - run: turbo run build-native-release --remote-cache-timeout 90 --summarize -- --target x86_64-unknown-linux-gnu
+      - run: turbo run build-native-release -vvv --remote-cache-timeout 90 --summarize -- --target x86_64-unknown-linux-gnu
         if: ${{ inputs.skipNativeBuild != 'yes' && steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
 
       - name: Upload next-swc artifact

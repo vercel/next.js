@@ -1,7 +1,7 @@
 import {
   CacheNode,
   CacheStates,
-} from '../../../../shared/lib/app-router-context'
+} from '../../../../shared/lib/app-router-context.shared-runtime'
 import type {
   FlightRouterState,
   FlightSegmentPath,
@@ -199,7 +199,7 @@ export function navigateReducer(
       mutable.canonicalUrl = href
 
       state.prefetchCache.set(createHrefFromUrl(url, false), {
-        data: Promise.resolve(data),
+        data: createRecordFromThenable(Promise.resolve(data)),
         // this will make sure that the entry will be discarded after 30s
         kind: PrefetchKind.TEMPORARY,
         prefetchTime: Date.now(),
@@ -226,7 +226,7 @@ export function navigateReducer(
     )
 
     const newPrefetchValue = {
-      data: Promise.resolve(data),
+      data: createRecordFromThenable(Promise.resolve(data)),
       // this will make sure that the entry will be discarded after 30s
       kind:
         process.env.NODE_ENV === 'development'

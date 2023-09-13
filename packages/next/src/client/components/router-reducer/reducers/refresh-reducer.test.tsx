@@ -46,7 +46,7 @@ import { FlightRouterState } from '../../../../server/app-render/types'
 import {
   CacheNode,
   CacheStates,
-} from '../../../../shared/lib/app-router-context'
+} from '../../../../shared/lib/app-router-context.shared-runtime'
 import { createInitialRouterState } from '../create-initial-router-state'
 import { RefreshAction, ACTION_REFRESH } from '../router-reducer-types'
 import { refreshReducer } from './refresh-reducer'
@@ -65,6 +65,10 @@ const getInitialRouterStateTree = (): FlightRouterState => [
   undefined,
   true,
 ]
+
+const globalMutable = {
+  refresh: () => {},
+}
 
 async function runPromiseThrowChain(fn: any): Promise<any> {
   try {
@@ -139,7 +143,7 @@ describe('refreshReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: {},
+      mutable: { globalMutable },
       origin: new URL('/linking', 'https://localhost').origin,
     }
 
@@ -300,7 +304,7 @@ describe('refreshReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: {},
+      mutable: { globalMutable },
       origin: new URL('/linking', 'https://localhost').origin,
     }
 
@@ -487,7 +491,7 @@ describe('refreshReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: {},
+      mutable: { globalMutable },
       origin: new URL('/linking', 'https://localhost').origin,
     }
 
@@ -723,7 +727,7 @@ describe('refreshReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: {},
+      mutable: { globalMutable },
       origin: new URL('/linking', 'https://localhost').origin,
     }
 

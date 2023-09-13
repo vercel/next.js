@@ -291,9 +291,7 @@ describe.skip.each([
       )
       await fetchViaHTTP(nextUrl, '/unhandled-rejection', undefined, { agent })
       await check(() => stderr, /unhandledRejection/)
-      expect(stderr).toContain(
-        '- error unhandledRejection: Error: unhandled rejection'
-      )
+      expect(stderr).toContain('unhandledRejection: Error: unhandled rejection')
       expect(stderr).toContain('server.js:37:22')
     })
   })
