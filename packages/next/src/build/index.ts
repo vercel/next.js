@@ -131,6 +131,7 @@ import { flatReaddir } from '../lib/flat-readdir'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import {
+  ACTION,
   NEXT_ROUTER_PREFETCH,
   RSC,
   RSC_CONTENT_TYPE_HEADER,
@@ -169,6 +170,7 @@ export type DynamicSsgRoute = {
   fallback: string | null | false
   dataRoute: string | null
   dataRouteRegex: string | null
+  experimentalBypassFor?: RouteHas[]
 }
 
 export type PrerenderManifest = {
@@ -2678,6 +2680,17 @@ export default async function build(
 
             const isRouteHandler = isAppRouteRoute(originalAppPath)
 
+            // this flag is used to selectively bypass the static cache and invoke the lambda directly
+            // to enable server actions on static routes
+            const bypassFor: RouteHas[] = [
+              { type: 'header', key: ACTION },
+              {
+                type: 'header',
+                key: 'content-type',
+                value: 'multipart/form-data',
+              },
+            ]
+
             routes.forEach((route) => {
               if (isDynamicRoute(page) && route === page) return
               if (route === '/_not-found') return
@@ -2742,14 +2755,7 @@ export default async function build(
 
                 finalPrerenderRoutes[route] = {
                   ...routeMeta,
-                  experimentalBypassFor: [
-                    { type: 'header', key: 'Next-Action' },
-                    {
-                      type: 'header',
-                      key: 'content-type',
-                      value: 'multipart/form-data',
-                    },
-                  ],
+                  experimentalBypassFor: bypassFor,
                   initialRevalidateSeconds: revalidate,
                   srcRoute: page,
                   dataRoute,
@@ -2773,6 +2779,7 @@ export default async function build(
               // TODO: create a separate manifest to allow enforcing
               // dynamicParams for non-static paths?
               finalDynamicRoutes[page] = {
+                experimentalBypassFor: bypassFor,
                 routeRegex: normalizeRouteRegex(
                   getNamedRouteRegex(page, false).re.source
                 ),
