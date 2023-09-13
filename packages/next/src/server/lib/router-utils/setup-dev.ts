@@ -407,7 +407,6 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     const buildManifests = new Map<string, BuildManifest>()
-    const fallbackBuildManifests = new Map<string, BuildManifest>()
     const appBuildManifests = new Map<string, AppBuildManifest>()
     const pagesManifests = new Map<string, PagesManifest>()
     const appPathsManifests = new Map<string, PagesManifest>()
@@ -433,16 +432,6 @@ async function startWatcher(opts: SetupOpts) {
       type: 'app' | 'pages' = 'pages'
     ): Promise<void> {
       buildManifests.set(
-        pageName,
-        await loadPartialManifest(BUILD_MANIFEST, pageName, type)
-      )
-    }
-
-    async function loadFallbackBuildManifest(
-      pageName: string,
-      type: 'app' | 'pages' = 'pages'
-    ): Promise<void> {
-      fallbackBuildManifests.set(
         pageName,
         await loadPartialManifest(BUILD_MANIFEST, pageName, type)
       )
@@ -711,7 +700,9 @@ async function startWatcher(opts: SetupOpts) {
 
     async function writeFallbackBuildManifest(): Promise<void> {
       const fallbackBuildManifest = mergeBuildManifests(
-        fallbackBuildManifests.values()
+        [buildManifests.get('_app'), buildManifests.get('_error')].filter(
+          Boolean
+        ) as BuildManifest[]
       )
       const fallbackBuildManifestPath = path.join(
         distDir,
@@ -1015,7 +1006,6 @@ async function startWatcher(opts: SetupOpts) {
             processIssues('_app', writtenEndpoint)
           }
           await loadBuildManifest('_app')
-          await loadFallbackBuildManifest('_app')
           await loadPagesManifest('_app')
 
           if (globalEntries.document) {
@@ -1036,7 +1026,6 @@ async function startWatcher(opts: SetupOpts) {
             processIssues(page, writtenEndpoint)
           }
           await loadBuildManifest('_error')
-          await loadFallbackBuildManifest('_error')
           await loadPagesManifest('_error')
 
           await writeBuildManifest()
@@ -1110,7 +1099,6 @@ async function startWatcher(opts: SetupOpts) {
               processIssues('_app', writtenEndpoint)
             }
             await loadBuildManifest('_app')
-            await loadFallbackBuildManifest('_app')
             await loadPagesManifest('_app')
 
             if (globalEntries.document) {
