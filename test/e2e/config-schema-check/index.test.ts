@@ -37,9 +37,7 @@ createNextDescribe(
     `,
       'next.config.js': `
     module.exports = {
-      experimental: {
         badKey: 'badValue'
-      }
     }
     `,
     },
