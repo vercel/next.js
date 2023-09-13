@@ -60,10 +60,7 @@ async function getResolveRoute(
 ): Promise<Resolver> {
   const nextConfig = await loadConfig(
     PHASE_DEVELOPMENT_SERVER,
-    process.cwd(),
-    undefined,
-    undefined,
-    true
+    process.cwd()
   )
   const middlewareCfg = {
     files: middlewareChunkGroup.filter((f) => /\.[mc]?js$/.test(f)),
