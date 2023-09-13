@@ -245,6 +245,7 @@ export default function createHotReloader(
     webpackHotMiddleware!.publish(action)
   }) satisfies NextJsHotReloaderInterface['send']
 
+  const getHmrServerError = () => hmrServerError
   const setHmrServerError = ((error) => {
     hmrServerError = error
   }) satisfies NextJsHotReloaderInterface['setHmrServerError']
@@ -1301,7 +1302,7 @@ export default function createHotReloader(
     onHMR(req, _socket, head) {
       wsServer.handleUpgrade(req, req.socket, head, (client) => {
         webpackHotMiddleware?.onHMR(client)
-        onDemandEntries?.onHMR(client, () => hmrServerError)
+        onDemandEntries?.onHMR(client, getHmrServerError)
 
         client.addEventListener('message', ({ data }) => {
           data = typeof data !== 'string' ? data.toString() : data
