@@ -105,35 +105,35 @@ function logStartInfo({
   Log.bootstrap(
     chalk.bold(
       chalk.hex('#ad7fa8')(
-        ` ${`${Log.prefixes.ready} Next.js`} ${process.env.__NEXT_VERSION}`
+        `${`${Log.prefixes.ready} Next.js`} ${process.env.__NEXT_VERSION}`
       )
     )
   )
-  Log.bootstrap(` - Local:        ${appUrl}`)
+  Log.bootstrap(`- Local:        ${appUrl}`)
   if (hostname) {
     Log.bootstrap(
-      ` - Network:      ${actualHostname}${
+      `- Network:      ${actualHostname}${
         (port + '').startsWith(':') ? '' : ':'
       }${port}`
     )
   }
-  if (envInfo?.length) Log.bootstrap(` - Environments: ${envInfo.join(', ')}`)
+  if (envInfo?.length) Log.bootstrap(`- Environments: ${envInfo.join(', ')}`)
 
   if (expFeatureInfo?.length) {
-    Log.bootstrap(` - Experiments (use at your own risk):`)
+    Log.bootstrap(`- Experiments (use at your own risk):`)
     // only show maximum 3 flags
     for (const exp of expFeatureInfo.slice(0, 3)) {
-      Log.bootstrap(`    · ${exp}`)
+      Log.bootstrap(`   · ${exp}`)
     }
     /* ${expFeatureInfo.length - 3} more */
     if (expFeatureInfo.length > 3) {
-      Log.bootstrap(`    · ...`)
+      Log.bootstrap(`   · ...`)
     }
   }
 
   // New line after the bootstrap info
   Log.info('')
-  Log.event(`Ready [${formatDurationText}]`)
+  Log.event(`Ready in ${formatDurationText}`)
 }
 
 export async function startServer({
@@ -315,7 +315,7 @@ export async function startServer({
         const startServerProcessDuration =
           Date.now() - startServerProcessStartTime
         const formatDurationText =
-          startServerProcessDuration > 3000
+          startServerProcessDuration > 2000
             ? `${Math.round(startServerProcessDuration / 100) / 10}s`
             : `${startServerProcessDuration}ms`
 
