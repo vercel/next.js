@@ -265,7 +265,8 @@ export function watchCompilers(
     if (
       !status.loading &&
       !buildStore.getState().server.loading &&
-      !buildStore.getState().edgeServer.loading
+      !buildStore.getState().edgeServer.loading &&
+      status.totalModulesCount > 0
     ) {
       buildStore.setState({
         client: status,
@@ -281,7 +282,8 @@ export function watchCompilers(
     if (
       !status.loading &&
       !buildStore.getState().client.loading &&
-      !buildStore.getState().edgeServer.loading
+      !buildStore.getState().edgeServer.loading &&
+      status.totalModulesCount > 0
     ) {
       buildStore.setState({
         server: status,
@@ -297,7 +299,8 @@ export function watchCompilers(
     if (
       !status.loading &&
       !buildStore.getState().client.loading &&
-      !buildStore.getState().server.loading
+      !buildStore.getState().server.loading &&
+      status.totalModulesCount > 0
     ) {
       buildStore.setState({
         edgeServer: status,

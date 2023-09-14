@@ -66,7 +66,7 @@ export class ReadonlyURLSearchParams {
 
 /**
  * Get a read-only URLSearchParams object. For example searchParams.get('foo') would return 'bar' when ?foo=bar
- * Learn more about URLSearchParams here: https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams
+ * Learn more about URLSearchParams here: https://developer.mozilla.org/docs/Web/API/URLSearchParams
  */
 export function useSearchParams(): ReadonlyURLSearchParams {
   clientHookInServerComponentError('useSearchParams')

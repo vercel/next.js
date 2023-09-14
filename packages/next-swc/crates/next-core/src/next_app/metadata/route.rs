@@ -15,6 +15,7 @@ use turbopack_binding::{
     },
 };
 
+use super::get_content_type;
 use crate::{
     app_structure::MetadataItem,
     mode::NextMode,
@@ -61,38 +62,6 @@ pub fn get_app_metadata_route_entry(
         page,
         project_root,
     )
-}
-
-async fn get_content_type(path: Vc<FileSystemPath>) -> Result<String> {
-    let stem = &*path.file_stem().await?;
-    let ext = &*path.extension().await?;
-
-    let name = stem.as_deref().unwrap_or_default();
-    let mut ext = ext.as_str();
-    if ext == "jpg" {
-        ext = "jpeg"
-    }
-
-    if name == "favicon" && ext == "ico" {
-        return Ok("image/x-icon".to_string());
-    }
-    if name == "sitemap" {
-        return Ok("application/xml".to_string());
-    }
-    if name == "robots" {
-        return Ok("text/plain".to_string());
-    }
-    if name == "manifest" {
-        return Ok("application/manifest+json".to_string());
-    }
-
-    if ext == "png" || ext == "jpeg" || ext == "ico" || ext == "svg" {
-        return Ok(mime_guess::from_ext(ext)
-            .first_or_octet_stream()
-            .to_string());
-    }
-
-    Ok("text/plain".to_string())
 }
 
 const CACHE_HEADER_NONE: &str = "no-cache, no-store";
