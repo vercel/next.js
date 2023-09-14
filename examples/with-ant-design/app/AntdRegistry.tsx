@@ -10,7 +10,7 @@ interface StyledRegistryProps {
 }
 
 const StyledComponentsRegistry = ({ children }: StyledRegistryProps) => {
-  const cache = React.useMemo<Entity>(() => createCache(), [createCache])
+  const cache = React.useMemo<Entity>(() => createCache(), [])
   useServerInsertedHTML(() => (
     <style
       id="antd"
