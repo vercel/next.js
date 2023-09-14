@@ -9,6 +9,7 @@ const originalRequire = mod.prototype.require
 const resolveFilename = mod._resolveFilename
 
 const { hookPropertyMap } = require('./import-overrides')
+const { PHASE_PRODUCTION_BUILD } = require('../shared/lib/constants')
 
 mod._resolveFilename = function (
   originalResolveFilename,
@@ -34,15 +35,9 @@ mod._resolveFilename = function (
 // This can happen on `pages` when a user requires a dependency that uses next/image for example.
 mod.prototype.require = function (request) {
   if (
-    !(global.__NEXT_DATA__ && global.__NEXT_DATA__.nextExport) &&
+    process.env.NEXT_PHASE !== PHASE_PRODUCTION_BUILD &&
     request.endsWith('.shared-runtime')
   ) {
-    // const currentRuntime = `next/dist/compiled/next-server/pages${
-    //   process.env.TURBOPACK ? '-turbo' : ''
-    // }.runtime.${process.env.NODE_ENV === 'production' ? 'prod' : 'dev'}`
-    // const base = path.basename(request, '.shared-runtime')
-    // const instance = originalRequire.call(this, currentRuntime)
-    // return instance.vendored.contexts[base]
     return originalRequire.call(
       this,
       `next/dist/server/future/route-modules/pages/vendored/contexts/${path.basename(
