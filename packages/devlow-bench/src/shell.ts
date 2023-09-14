@@ -127,7 +127,7 @@ class CommandImpl {
         .filter((x) => x)
         .map((x) => (x as any).memory)
         .reduce((a, b) => a + b, 0);
-      reportMeasurement(metricName, memUsage, "bytes", options);
+      await reportMeasurement(metricName, memUsage, "bytes", options);
     } catch (e) {
       // ignore
     }

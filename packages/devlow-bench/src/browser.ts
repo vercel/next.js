@@ -93,37 +93,49 @@ async function withRequestMetrics(
     await Promise.all(activePromises);
     let totalDownload = 0;
     for (const [extension, size] of sizeByExtension.entries()) {
-      reportMeasurement(
+      await reportMeasurement(
         `${metricName}/responseSizes/${extension}`,
         size,
         "bytes"
       );
       totalDownload += size;
     }
-    reportMeasurement(`${metricName}/responseSizes`, totalDownload, "bytes");
+    await reportMeasurement(
+      `${metricName}/responseSizes`,
+      totalDownload,
+      "bytes"
+    );
     let totalRequests = 0;
     for (const [extension, count] of requestsByExtension.entries()) {
-      reportMeasurement(
+      await reportMeasurement(
         `${metricName}/requests/${extension}`,
         count,
         "requests"
       );
       totalRequests += count;
     }
-    reportMeasurement(`${metricName}/requests`, totalRequests, "requests");
-    reportMeasurement(`${metricName}/console/logs`, logCount, "messages");
-    reportMeasurement(
+    await reportMeasurement(
+      `${metricName}/requests`,
+      totalRequests,
+      "requests"
+    );
+    await reportMeasurement(`${metricName}/console/logs`, logCount, "messages");
+    await reportMeasurement(
       `${metricName}/console/warnings`,
       warningCount,
       "messages"
     );
-    reportMeasurement(`${metricName}/console/errors`, errorCount, "messages");
-    reportMeasurement(
+    await reportMeasurement(
+      `${metricName}/console/errors`,
+      errorCount,
+      "messages"
+    );
+    await reportMeasurement(
       `${metricName}/console/uncaught`,
       uncaughtCount,
       "messages"
     );
-    reportMeasurement(
+    await reportMeasurement(
       `${metricName}/console`,
       logCount + warningCount + errorCount + uncaughtCount,
       "messages"

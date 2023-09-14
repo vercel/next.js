@@ -86,7 +86,7 @@ export function withCurrent(
 
 export const PREVIOUS = Symbol("previous measurement with that unit");
 
-export function measureTime(
+export async function measureTime(
   name: string,
   options: {
     relativeTo?: string | typeof PREVIOUS;
@@ -96,10 +96,13 @@ export function measureTime(
   } = {}
 ) {
   const end = Date.now() - (options.offset || 0);
-  reportMeasurement(name, end, "ms", { relativeTo: PREVIOUS, ...options });
+  await reportMeasurement(name, end, "ms", {
+    relativeTo: PREVIOUS,
+    ...options,
+  });
 }
 
-export function reportMeasurement(
+export async function reportMeasurement(
   name: string,
   value: number,
   unit: string,
@@ -111,6 +114,31 @@ export function reportMeasurement(
 ) {
   if (!currentScenario) {
     throw new Error("reportMeasurement() must be called inside of describe()");
+  }
+  if (typeof name !== "string") {
+    throw new Error(
+      "reportMeasurement() must be called with a name that is a string"
+    );
+  }
+  if (typeof value !== "number") {
+    throw new Error(
+      "reportMeasurement() must be called with a value that is a number"
+    );
+  }
+  if (isNaN(value)) {
+    throw new Error(
+      "reportMeasurement() must be called with a value that is not NaN"
+    );
+  }
+  if (!isFinite(value)) {
+    throw new Error(
+      "reportMeasurement() must be called with a value that is finite"
+    );
+  }
+  if (typeof unit !== "string") {
+    throw new Error(
+      "reportMeasurement() must be called with a unit that is a string"
+    );
   }
   let { relativeTo, scenario, props } = options;
   if (relativeTo === PREVIOUS) {
@@ -131,14 +159,14 @@ export function reportMeasurement(
     if (!prev) {
       throw new Error(`No measurement named ${relativeTo} found`);
     }
-    if (prev.unit !== "ms") {
+    if (prev.unit !== unit) {
       throw new Error(
         `Measurement ${relativeTo} is not a "${unit}" measurement`
       );
     }
     reportedValue -= prev.value;
   }
-  currentScenario.iface.measurement(
+  await currentScenario.iface.measurement(
     scenario ?? currentScenario.scenario.scenario.name,
     props
       ? {
