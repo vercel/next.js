@@ -58,7 +58,7 @@ function getPackageVersion(packageName: string) {
 }
 
 async function getNextConfig() {
-  const config = await loadConfig(PHASE_INFO, dir, undefined, undefined, true)
+  const config = await loadConfig(PHASE_INFO, dir)
 
   return {
     output: config.output ?? 'N/A',

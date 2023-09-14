@@ -221,6 +221,9 @@ function onFastRefresh(updatedModules: string[]) {
         endTime: endLatency,
         page: window.location.pathname,
         updatedModules,
+        // Whether the page (tab) was hidden at the time the event occurred.
+        // This can impact the accuracy of the event's timing.
+        isPageHidden: document.visibilityState === 'hidden',
       })
     )
     if (self.__NEXT_HMR_LATENCY_CB) {
