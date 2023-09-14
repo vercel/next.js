@@ -1888,12 +1888,12 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected get serverDistDir(): string {
-    if (!this._serverDistDir) {
-      const serverDistDir = join(this.distDir, SERVER_DIRECTORY)
-      this._serverDistDir = serverDistDir
-      return serverDistDir
+    if (this._serverDistDir) {
+      return this._serverDistDir
     }
-    return this._serverDistDir
+    const serverDistDir = join(this.distDir, SERVER_DIRECTORY)
+    this._serverDistDir = serverDistDir
+    return serverDistDir
   }
 
   protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
