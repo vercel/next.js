@@ -34,16 +34,6 @@ export function createServerComponentRenderer<Props>(
   serverComponentsErrorHandler: ReturnType<typeof createErrorHandler>,
   nonce?: string
 ): (props: Props) => JSX.Element {
-  // We need to expose the bundled `require` API globally for
-  // react-server-dom-webpack. This is a hack until we find a better way.
-  if (ComponentMod.__next_app__) {
-    // @ts-ignore
-    globalThis.__next_require__ = ComponentMod.__next_app__.require
-
-    // @ts-ignore
-    globalThis.__next_chunk_load__ = ComponentMod.__next_app__.loadChunk
-  }
-
   let RSCStream: ReadableStream<Uint8Array>
   const createRSCStream = (props: Props) => {
     if (!RSCStream) {
