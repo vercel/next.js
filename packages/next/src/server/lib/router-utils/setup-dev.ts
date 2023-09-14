@@ -227,7 +227,7 @@ async function startWatcher(opts: SetupOpts) {
     let currentEntriesHandling = new Promise(
       (resolve) => (currentEntriesHandlingResolve = resolve)
     )
-    const hmrPayloads = new Map<string, HMR_ACTION_TYPES>()
+    const hmrPayloads = new Map<string, HMR_ACTION_TYPES[]>()
     let hmrBuilding = false
 
     const issues = new Map<string, Map<string, Issue>>()
@@ -344,7 +344,6 @@ async function startWatcher(opts: SetupOpts) {
         for (const [key, issue] of issueMap) {
           if (errors.has(key)) continue
 
-          console.log(issue)
           const message = formatIssue(issue)
 
           errors.set(key, {
@@ -363,8 +362,10 @@ async function startWatcher(opts: SetupOpts) {
       hmrBuilding = false
 
       if (errors.size === 0) {
-        for (const payload of hmrPayloads.values()) {
-          hotReloader.send(payload)
+        for (const payloads of hmrPayloads.values()) {
+          for (const payload of payloads) {
+            hotReloader.send(payload)
+          }
         }
         hmrPayloads.clear()
       }
@@ -378,7 +379,13 @@ async function startWatcher(opts: SetupOpts) {
         hotReloader.send({ action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING })
         hmrBuilding = true
       }
-      hmrPayloads.set(`${key}:${id}`, payload)
+      let k = `${key}:${id}`
+      let list = hmrPayloads.get(k)
+      if (!list) {
+        list = []
+        hmrPayloads.set(k, list)
+      }
+      list.push(payload)
       sendHmrDebounce()
     }
 

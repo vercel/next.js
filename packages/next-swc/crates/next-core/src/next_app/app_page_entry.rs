@@ -70,7 +70,7 @@ pub async fn get_app_page_entry(
     let original_name = page.to_string();
     let pathname = AppPath::from(page.clone()).to_string();
 
-    let template_file = "build/templates/app-page.js";
+    let template_file = "app-page.js";
 
     // Load the file from the next.js codebase.
     let file = load_next_js_template(project_root, template_file.to_string()).await?;
