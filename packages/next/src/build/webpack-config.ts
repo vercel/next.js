@@ -1454,7 +1454,6 @@ export default async function getBaseWebpackConfig(
       const notExternalModules =
         /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|legacy\/image|constants|dynamic|script|navigation|headers|router)$)|string-hash|private-next-rsc-action-validate|private-next-rsc-action-client-wrapper|private-next-rsc-action-proxy$)/
       if (notExternalModules.test(request)) {
-        console.log('notExternalModules', request)
         return
       }
     }
