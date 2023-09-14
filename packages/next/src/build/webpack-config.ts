@@ -252,6 +252,7 @@ export function getDefineEnv({
     'process.env.NEXT_RUNTIME': JSON.stringify(
       isEdgeServer ? 'edge' : isNodeServer ? 'nodejs' : undefined
     ),
+    'process.env.NEXT_MINIMAL': JSON.stringify(''),
     'process.env.__NEXT_ACTIONS_DEPLOYMENT_ID': JSON.stringify(
       config.experimental.useDeploymentIdServerActions
     ),

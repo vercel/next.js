@@ -102,6 +102,7 @@ import {
   ReloadPageAction,
   TurboPackConnectedAction,
 } from '../../dev/hot-reloader-types'
+import type { Update as TurbopackUpdate } from '../../../build/swc'
 import { debounce } from '../../utils'
 import {
   deleteAppClientCache,
@@ -227,7 +228,8 @@ async function startWatcher(opts: SetupOpts) {
     let currentEntriesHandling = new Promise(
       (resolve) => (currentEntriesHandlingResolve = resolve)
     )
-    const hmrPayloads = new Map<string, HMR_ACTION_TYPES[]>()
+    const hmrPayloads = new Map<string, HMR_ACTION_TYPES>()
+    const turbopackUpdates: TurbopackUpdate[] = []
     let hmrBuilding = false
 
     const issues = new Map<string, Map<string, Issue>>()
@@ -362,12 +364,17 @@ async function startWatcher(opts: SetupOpts) {
       hmrBuilding = false
 
       if (errors.size === 0) {
-        for (const payloads of hmrPayloads.values()) {
-          for (const payload of payloads) {
-            hotReloader.send(payload)
-          }
+        for (const payload of hmrPayloads.values()) {
+          hotReloader.send(payload)
         }
         hmrPayloads.clear()
+        if (turbopackUpdates.length > 0) {
+          hotReloader.send({
+            type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
+            data: turbopackUpdates,
+          })
+          turbopackUpdates.length = 0
+        }
       }
     }, 2)
 
@@ -379,13 +386,19 @@ async function startWatcher(opts: SetupOpts) {
         hotReloader.send({ action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING })
         hmrBuilding = true
       }
-      let k = `${key}:${id}`
-      let list = hmrPayloads.get(k)
-      if (!list) {
-        list = []
-        hmrPayloads.set(k, list)
+      hmrPayloads.set(`${key}:${id}`, payload)
+      sendHmrDebounce()
+    }
+
+    function sendTurbopackMessage(payload: TurbopackUpdate) {
+      // We've detected a change in some part of the graph. If nothing has
+      // been inserted into building yet, then this is the first change
+      // emitted, but their may be many more coming.
+      if (!hmrBuilding) {
+        hotReloader.send({ action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING })
+        hmrBuilding = true
       }
-      list.push(payload)
+      turbopackUpdates.push(payload)
       sendHmrDebounce()
     }
 
@@ -845,10 +858,7 @@ async function startWatcher(opts: SetupOpts) {
 
       for await (const data of subscription) {
         processIssues(id, data)
-        sendHmr('hmr-event', id, {
-          type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
-          data,
-        })
+        sendTurbopackMessage(data)
       }
     }
 
