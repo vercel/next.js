@@ -15,7 +15,7 @@ createNextDescribe(
   ({ next, isNextDev }) => {
     it('should run the instrumentation hook', async () => {
       await next.render('/')
-      await check(() => next.cliOutput, /instrumentation hook/)
+      await check(() => next.cliOutput, /instrumentation hook NextNodeServer/)
     })
     it('should not overlap with a instrumentation page', async () => {
       const page = await next.render('/instrumentation')
