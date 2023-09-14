@@ -1,4 +1,3 @@
-import type { IncomingMessage } from 'http'
 import type { Rewrite } from '../lib/load-custom-routes'
 import type { RouteMatchFn } from '../shared/lib/router/utils/route-matcher'
 import type { NextConfig } from './config'
