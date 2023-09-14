@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+
+import '../server/lib/cpu-profile'
 import type { StartServerOptions } from '../server/lib/start-server'
 import { getPort, printAndExit } from '../server/lib/utils'
 import * as Log from '../build/output/log'
@@ -18,6 +20,11 @@ import uploadTrace from '../trace/upload-trace'
 import { startServer } from '../server/lib/start-server'
 import { loadEnvConfig } from '@next/env'
 import { trace } from '../trace'
+import {
+  getReservedPortExplanation,
+  isPortIsReserved,
+} from '../lib/helpers/get-reserved-port'
+import { validateTurboNextConfig } from '../lib/turbopack-warning'
 
 let dir: string
 let config: NextConfigComplete
@@ -34,15 +41,7 @@ const handleSessionStop = async () => {
     const { eventCliSessionStopped } =
       require('../telemetry/events/session-stopped') as typeof import('../telemetry/events/session-stopped')
 
-    config =
-      config ||
-      (await loadConfig(
-        PHASE_DEVELOPMENT_SERVER,
-        dir,
-        undefined,
-        undefined,
-        true
-      ))
+    config = config || (await loadConfig(PHASE_DEVELOPMENT_SERVER, dir))
 
     let telemetry =
       (traceGlobals.get('telemetry') as InstanceType<
@@ -167,6 +166,11 @@ const nextDev: CliCommand = async (args) => {
   }
 
   const port = getPort(args)
+
+  if (isPortIsReserved(port)) {
+    printAndExit(getReservedPortExplanation(port), 1)
+  }
+
   // If neither --port nor PORT were specified, it's okay to retry new ports.
   const allowRetry =
     args['--port'] === undefined && process.env.PORT === undefined
@@ -178,21 +182,16 @@ const nextDev: CliCommand = async (args) => {
   const { loadedEnvFiles } = loadEnvConfig(dir, true, console, false)
 
   let expFeatureInfo: string[] = []
-  config = await loadConfig(
-    PHASE_DEVELOPMENT_SERVER,
-    dir,
-    undefined,
-    undefined,
-    undefined,
-    (userConfig) => {
+  config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
+    onLoadUserConfig(userConfig) {
       const userNextConfigExperimental = getEnabledExperimentalFeatures(
         userConfig.experimental
       )
       expFeatureInfo = userNextConfigExperimental.sort(
         (a, b) => a.length - b.length
       )
-    }
-  )
+    },
+  })
 
   let envInfo: string[] = []
   if (loadedEnvFiles.length > 0) {
@@ -218,6 +217,14 @@ const nextDev: CliCommand = async (args) => {
 
   if (args['--turbo']) {
     process.env.TURBOPACK = '1'
+  }
+
+  if (process.env.TURBOPACK) {
+    await validateTurboNextConfig({
+      isCustomTurbopack: !!process.env.__INTERNAL_CUSTOM_TURBOPACK_BINDINGS,
+      ...devServerOptions,
+      isDev: true,
+    })
   }
 
   const distDir = path.join(dir, config.distDir ?? '.next')

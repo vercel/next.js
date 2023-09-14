@@ -168,7 +168,7 @@ export default function startHandler({
         default: comp,
         ...namespace,
       },
-      pathname: renderData.path,
+      page: renderData.path,
       buildId: 'development',
 
       /* RenderOptsPartial */

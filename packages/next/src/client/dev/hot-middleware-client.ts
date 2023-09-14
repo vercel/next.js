@@ -1,8 +1,8 @@
 import connect from './error-overlay/hot-dev-client'
 import { sendMessage } from './error-overlay/websocket'
 
-export default () => {
-  const devClient = connect()
+export default (mode: 'webpack' | 'turbopack') => {
+  const devClient = connect(mode)
 
   devClient.subscribeToHmrEvent((obj: any) => {
     // if we're on an error/404 page, we can't reliably tell if the newly added/removed page

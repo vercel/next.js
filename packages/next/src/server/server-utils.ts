@@ -114,10 +114,7 @@ export function getUtils({
     defaultRouteMatches = dynamicRouteMatcher(page) as ParsedUrlQuery
   }
 
-  function handleRewrites(
-    req: BaseNextRequest | IncomingMessage,
-    parsedUrl: UrlWithParsedQuery
-  ) {
+  function handleRewrites(req: BaseNextRequest, parsedUrl: UrlWithParsedQuery) {
     const rewriteParams = {}
     let fsPathname = parsedUrl.pathname
 

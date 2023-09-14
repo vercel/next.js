@@ -1,9 +1,14 @@
 #!/usr/bin/env node
 
+import '../server/lib/cpu-profile'
 import { startServer } from '../server/lib/start-server'
 import { getPort, printAndExit } from '../server/lib/utils'
 import { getProjectDir } from '../lib/get-project-dir'
 import { CliCommand } from '../lib/commands'
+import {
+  getReservedPortExplanation,
+  isPortIsReserved,
+} from '../lib/helpers/get-reserved-port'
 
 const nextStart: CliCommand = async (args) => {
   if (args['--help']) {
@@ -30,6 +35,10 @@ const nextStart: CliCommand = async (args) => {
   const dir = getProjectDir(args._[0])
   const host = args['--hostname']
   const port = getPort(args)
+
+  if (isPortIsReserved(port)) {
+    printAndExit(getReservedPortExplanation(port), 1)
+  }
 
   const isExperimentalTestProxy = args['--experimental-test-proxy']
 

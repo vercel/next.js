@@ -19,6 +19,37 @@ import stripAnsi from 'strip-ansi'
 const dirBasic = join(__dirname, '../basic')
 const dirDuplicateSass = join(__dirname, '../duplicate-sass')
 
+const runAndCaptureOutput = async ({ port }) => {
+  let stdout = ''
+  let stderr = ''
+
+  let app = http.createServer((_, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' })
+    res.end('OK')
+  })
+
+  await new Promise((resolve, reject) => {
+    app.on('error', reject)
+    app.on('listening', () => resolve())
+    app.listen(port)
+  })
+
+  await launchApp(dirBasic, port, {
+    stdout: true,
+    stderr: true,
+    onStdout(msg) {
+      stdout += msg
+    },
+    onStderr(msg) {
+      stderr += msg
+    },
+  })
+
+  await new Promise((resolve) => app.close(resolve))
+
+  return { stdout, stderr }
+}
+
 const testExitSignal = async (
   killSignal = '',
   args = [],
@@ -109,16 +140,32 @@ describe('CLI Usage', () => {
     })
 
     test('should format IPv6 addresses correctly', async () => {
+      await nextBuild(dirBasic)
       const port = await findPort()
-      const output = await runNextCommand(
-        ['start', '--hostname', '::', '--port', port],
+
+      let stdout = ''
+      const app = await runNextCommandDev(
+        ['start', dirBasic, '--hostname', '::', '--port', port],
+        undefined,
         {
-          stdout: true,
+          nextStart: true,
+          onStdout(msg) {
+            stdout += msg
+          },
         }
       )
-      // Only display when hostname is provided
-      expect(output.stdout).toMatch(new RegExp(`Network:\\s*\\[::\\]:${port}`))
-      expect(output.stdout).toMatch(new RegExp(`http://\\[::1\\]:${port}`))
+
+      try {
+        await check(() => {
+          // Only display when hostname is provided
+          expect(stdout).toMatch(
+            new RegExp(`Network:\\s*http://\\[::\\]:${port}`)
+          )
+          expect(stdout).toMatch(new RegExp(`http://\\[::1\\]:${port}`))
+        })
+      } finally {
+        await killApp(app)
+      }
     })
 
     test('should warn when unknown argument provided', async () => {
@@ -206,6 +253,32 @@ describe('CLI Usage', () => {
       )
       expect(stderr).not.toContain(
         'Invalid keep alive timeout provided, expected a non negative number'
+      )
+    })
+
+    test('should not start on a port out of range', async () => {
+      const invalidPort = '300001'
+      const { stderr } = await runNextCommand(
+        ['start', '--port', invalidPort],
+        {
+          stderr: true,
+        }
+      )
+
+      expect(stderr).toContain(`options.port should be >= 0 and < 65536.`)
+    })
+
+    test('should not start on a reserved port', async () => {
+      const reservedPort = '4045'
+      const { stderr } = await runNextCommand(
+        ['start', '--port', reservedPort],
+        {
+          stderr: true,
+        }
+      )
+
+      expect(stderr).toContain(
+        `Bad port: "${reservedPort}" is reserved for npp`
       )
     })
   })
@@ -415,7 +488,7 @@ describe('CLI Usage', () => {
       try {
         await check(() => output, /- Local:/)
         // without --hostname, do not log Network: xxx
-        const matches = /Network:\\s*\[::\]:(\d+)/.exec(output)
+        const matches = /Network:\s*http:\/\/\[::\]:(\d+)/.exec(output)
         const _port = parseInt(matches)
         expect(matches).toBe(null)
         // Regression test: port 0 was interpreted as if no port had been
@@ -464,35 +537,25 @@ describe('CLI Usage', () => {
 
     test('-p conflict', async () => {
       const port = await findPort()
+      const { stderr, stdout } = await runAndCaptureOutput({ port })
 
-      let app = http.createServer((_, res) => {
-        res.writeHead(200, { 'Content-Type': 'text/plain' })
-        res.end('OK')
-      })
-      await new Promise((resolve, reject) => {
-        // This code catches EADDRINUSE error if the port is already in use
-        app.on('error', reject)
-        app.on('listening', () => resolve())
-        app.listen(port)
-      })
-      let stdout = '',
-        stderr = ''
-      await launchApp(dirBasic, port, {
-        stdout: true,
-        stderr: true,
-        onStdout(msg) {
-          stdout += msg
-        },
-        onStderr(msg) {
-          stderr += msg
-        },
-      })
-      await new Promise((resolve) => app.close(resolve))
       expect(stderr).toMatch('already in use')
-      expect(stdout).not.toMatch('ready')
+      expect(stdout).not.toMatch(/ready/i)
       expect(stdout).not.toMatch('started')
       expect(stdout).not.toMatch(`${port}`)
       expect(stripAnsi(stdout).trim()).toBeFalsy()
+    })
+
+    test('-p reserved', async () => {
+      const TCP_MUX_PORT = 1
+      const { stderr, stdout } = await runAndCaptureOutput({
+        port: TCP_MUX_PORT,
+      })
+
+      expect(stdout).toMatch('')
+      expect(stderr).toMatch(
+        `Bad port: "${TCP_MUX_PORT}" is reserved for tcpmux`
+      )
     })
 
     test('--hostname', async () => {
@@ -508,7 +571,10 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(() => output, new RegExp(`Network:\\s*0.0.0.0:${port}`))
+        await check(
+          () => output,
+          new RegExp(`Network:\\s*http://0.0.0.0:${port}`)
+        )
         await check(() => output, new RegExp(`http://localhost:${port}`))
       } finally {
         await killApp(app)
@@ -528,7 +594,10 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(() => output, new RegExp(`Network:\\s*0.0.0.0:${port}`))
+        await check(
+          () => output,
+          new RegExp(`Network:\\s*http://0.0.0.0:${port}`)
+        )
         await check(() => output, new RegExp(`http://localhost:${port}`))
       } finally {
         await killApp(app)
@@ -557,7 +626,7 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(() => output, /Network:\\s*\[::\]:(\d+)/)
+        await check(() => output, /Network:\s*http:\/\/\[::\]:(\d+)/)
         await check(() => output, /https:\/\/localhost:(\d+)/)
         await check(() => output, /Certificates created in/)
       } finally {
@@ -612,7 +681,10 @@ describe('CLI Usage', () => {
       )
       try {
         // Only display when hostname is provided
-        await check(() => output, new RegExp(`Network:\\s*\\[::\\]:${port}`))
+        await check(
+          () => output,
+          new RegExp(`Network:\\s*\\http://\\[::\\]:${port}`)
+        )
         await check(() => output, new RegExp(`http://\\[::1\\]:${port}`))
       } finally {
         await killApp(app).catch(() => {})

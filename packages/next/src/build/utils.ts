@@ -1456,7 +1456,7 @@ export async function isPageStatic({
       } else {
         componentsResult = await loadComponents({
           distDir,
-          pathname: originalAppPath || page,
+          page: originalAppPath || page,
           isAppPath: pageType === 'app',
         })
       }
@@ -1701,7 +1701,7 @@ export async function hasCustomGetInitialProps(
 
   const components = await loadComponents({
     distDir,
-    pathname: page,
+    page: page,
     isAppPath: false,
   })
   let mod = components.ComponentMod
@@ -1725,7 +1725,7 @@ export async function getDefinedNamedExports(
   )
   const components = await loadComponents({
     distDir,
-    pathname: page,
+    page: page,
     isAppPath: false,
   })
 
@@ -1984,7 +1984,7 @@ if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
 }
 
 const currentPort = parseInt(process.env.PORT, 10) || 3000
-const hostname = process.env.HOSTNAME || 'localhost'
+const hostname = process.env.HOSTNAME || '0.0.0.0'
 
 let keepAliveTimeout = parseInt(process.env.KEEP_ALIVE_TIMEOUT, 10)
 const nextConfig = ${JSON.stringify({
