@@ -59,7 +59,6 @@ export function deleteAppClientCache() {
   //   }
   //   deleteFromRequireCache(reactServerDomModId)
   // }
-  // clearChunkCache()
 }
 
 export function deleteCache(filePath: string) {
