@@ -167,6 +167,7 @@ export default async function exportPage({
     }
 
     try {
+      process.env.NEXT_IS_EXPORT_WORKER = 'true'
       if (renderOpts.deploymentId) {
         process.env.NEXT_DEPLOYMENT_ID = renderOpts.deploymentId
       }

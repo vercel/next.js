@@ -35,7 +35,8 @@ mod._resolveFilename = function (
 // This can happen on `pages` when a user requires a dependency that uses next/image for example.
 mod.prototype.require = function (request) {
   if (
-    process.env.NEXT_PHASE !== PHASE_PRODUCTION_BUILD &&
+    (process.env.NEXT_PHASE !== PHASE_PRODUCTION_BUILD ||
+      process.env.NEXT_IS_EXPORT_WORKER) &&
     request.endsWith('.shared-runtime')
   ) {
     return originalRequire.call(
