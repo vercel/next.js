@@ -164,14 +164,14 @@ function getSelectedParams(
  * Get the current parameters. For example useParams() on /dashboard/[team]
  * where pathname is /dashboard/nextjs would return { team: 'nextjs' }
  */
-export function useParams(): Params {
+export function useParams<T extends Params = Params>(): T {
   clientHookInServerComponentError('useParams')
   const globalLayoutRouterContext = useContext(GlobalLayoutRouterContext)
   if (!globalLayoutRouterContext) {
     // This only happens in `pages`. Type is overwritten in navigation.d.ts
     return null!
   }
-  return getSelectedParams(globalLayoutRouterContext.tree)
+  return getSelectedParams(globalLayoutRouterContext.tree) as T
 }
 
 // TODO-APP: handle parallel routes
