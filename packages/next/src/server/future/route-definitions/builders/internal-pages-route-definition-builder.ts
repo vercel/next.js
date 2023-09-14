@@ -6,7 +6,7 @@ import type {
 
 import { isInternalPagesRoute } from '../../../../lib/is-internal-pages-route'
 import { RouteKind } from '../../route-kind'
-import { RouteDefinitionBuilder } from './route-definition-builder'
+import { BuiltInRouteDefinitionBuilder } from './built-in-route-definition-builder'
 
 type InternalPagesRouteDefinitionBuilderInput = Pick<
   InternalPagesRouteDefinition | InternalLocalePagesRouteDefinition,
@@ -15,7 +15,7 @@ type InternalPagesRouteDefinitionBuilderInput = Pick<
   localeInfo: LocaleInfo | undefined
 }
 
-export class InternalPagesRouteDefinitionBuilder extends RouteDefinitionBuilder<
+export class InternalPagesRouteDefinitionBuilder extends BuiltInRouteDefinitionBuilder<
   InternalPagesRouteDefinition | InternalLocalePagesRouteDefinition,
   InternalPagesRouteDefinitionBuilderInput
 > {

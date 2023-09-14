@@ -2832,7 +2832,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         // Otherwise fallback to the 404 page from pages.
         specs.push({
           kind: RouteKind.INTERNAL_PAGES,
-          pathname: '/404',
+          page: statusPage,
         })
 
         // If all else fails, fall back to the `/_error` page.

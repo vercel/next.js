@@ -4,14 +4,14 @@ import { isInternalAppRoute } from '../../../../lib/is-internal-app-route'
 import { AppBundlePathNormalizer } from '../../normalizers/built/app/app-bundle-path-normalizer'
 import { AppPathnameNormalizer } from '../../normalizers/built/app/app-pathname-normalizer'
 import { RouteKind } from '../../route-kind'
-import { RouteDefinitionBuilder } from './route-definition-builder'
+import { BuiltInRouteDefinitionBuilder } from './built-in-route-definition-builder'
 
 type InternalAppRouteDefinitionBuilderInput = Pick<
   InternalAppRouteDefinition,
   'page' | 'filename' | 'builtIn'
 >
 
-export class InternalAppRouteDefinitionBuilder extends RouteDefinitionBuilder<
+export class InternalAppRouteDefinitionBuilder extends BuiltInRouteDefinitionBuilder<
   InternalAppRouteDefinition,
   InternalAppRouteDefinitionBuilderInput
 > {
@@ -21,14 +21,6 @@ export class InternalAppRouteDefinitionBuilder extends RouteDefinitionBuilder<
   }
 
   protected readonly definitions = new Array<InternalAppRouteDefinition>()
-
-  protected sort(
-    left: InternalAppRouteDefinition,
-    right: InternalAppRouteDefinition
-  ): number {
-    // Always put built-in routes last.
-    return right.builtIn === left.builtIn ? 0 : right.builtIn ? -1 : 1
-  }
 
   public add({
     page,
