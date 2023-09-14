@@ -1,6 +1,8 @@
 import { IncomingMessage } from 'http'
 
-export function detectLocaleCookie(req: IncomingMessage, locales: string[]) {
+import type { BaseNextRequest } from '../../../server/base-http'
+
+export function detectLocaleCookie(req: BaseNextRequest | IncomingMessage, locales: string[]) {
   const { NEXT_LOCALE } = (req as any).cookies || {}
   return NEXT_LOCALE
     ? locales.find(

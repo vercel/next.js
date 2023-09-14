@@ -44,6 +44,7 @@ export class I18NProvider {
       hostname: string
     }
   >
+  private lowerCaseCookieLocale: string
 
   constructor(public readonly config: Readonly<I18NConfig>) {
     if (!config.locales.length) {
@@ -61,6 +62,7 @@ export class I18NProvider {
         http: domainLocale.http,
       }
     })
+    this.lowerCaseCookieLocale = '';
   }
 
   /**
@@ -152,6 +154,12 @@ export class I18NProvider {
     // no detected locale.
     let inferredFromDefault = typeof detectedLocale === 'string'
 
+    // See if the cookie matches one of the locales.
+    let index = this.lowerCaseLocales.indexOf(this.lowerCaseCookieLocale)
+    if (index > -1) {
+      detectedLocale = this.lowerCaseCookieLocale
+    }
+
     // The first segment will be empty, because it has a leading `/`. If
     // there is no further segment, there is no locale (or it's the default).
     const segments = pathname.split('/')
@@ -167,7 +175,7 @@ export class I18NProvider {
 
     // See if the segment matches one of the locales. If it doesn't, there is
     // no locale (or it's the default).
-    const index = this.lowerCaseLocales.indexOf(segment)
+    index = this.lowerCaseLocales.indexOf(segment)
     if (index < 0)
       return {
         detectedLocale,
@@ -186,6 +194,16 @@ export class I18NProvider {
       detectedLocale,
       pathname,
       inferredFromDefault,
+    }
+  }
+
+  public get cookieLocale(): string {
+    return this.lowerCaseCookieLocale;
+  }
+
+  public set cookieLocale(value: string | undefined) {
+    if (typeof value === 'string' && value) {
+      this.lowerCaseCookieLocale = value.toLowerCase();
     }
   }
 }
