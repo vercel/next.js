@@ -16,11 +16,11 @@ import type {
 import type { ImageConfigComplete } from '../shared/lib/image-config'
 import type { Redirect } from '../lib/load-custom-routes'
 import {
-  getCookieParser,
   type NextApiRequestCookies,
   type __ApiPreviewProps,
   setLazyProp,
 } from './api-utils'
+import { getCookieParser } from './api-utils/get-cookie-parser'
 import type { FontManifest, FontConfig } from './font-utils'
 import type { LoadComponentsReturnType, ManifestItem } from './load-components'
 import type {
