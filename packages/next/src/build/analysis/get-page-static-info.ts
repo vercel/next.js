@@ -21,7 +21,7 @@ import type { RSCMeta } from '../webpack/loaders/get-module-build-info'
 
 // TODO: migrate preferredRegion here
 // Don't forget to update the next-types-plugin file as well
-const AUTHORIZED_EXTRA_PROPS = ['maxDuration']
+const AUTHORIZED_EXTRA_ROUTER_PROPS = ['maxDuration']
 
 export interface MiddlewareConfig {
   matchers?: MiddlewareMatcher[]
@@ -509,13 +509,11 @@ export async function getPageStaticInfo(params: {
       // `export config` doesn't exist, or other unknown error throw by swc, silence them
     }
 
-    let extraConfig: Record<string, any> | undefined
+    const extraConfig: Record<string, any> = {}
 
-    if (extraProperties) {
-      extraConfig = {}
-
+    if (extraProperties && pageType === 'app') {
       for (const prop of extraProperties) {
-        if (!AUTHORIZED_EXTRA_PROPS.includes(prop)) continue
+        if (!AUTHORIZED_EXTRA_ROUTER_PROPS.includes(prop)) continue
         try {
           extraConfig[prop] = extractExportedConstValue(swcAST, prop)
         } catch (e) {
@@ -523,6 +521,11 @@ export async function getPageStaticInfo(params: {
             warnAboutUnsupportedValue(pageFilePath, page, e)
           }
         }
+      }
+    } else if (pageType === 'pages') {
+      for (const key in config) {
+        if (!AUTHORIZED_EXTRA_ROUTER_PROPS.includes(key)) continue
+        extraConfig[key] = config[key]
       }
     }
 

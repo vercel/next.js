@@ -1,5 +1,4 @@
-// TODO: Remove use of `any` type.
-// Polyfill fetch() in the Node.js environment
+// TODO: Remove this file when Node.js 16 is not supported anymore
 
 if (typeof fetch === 'undefined' && typeof globalThis.fetch === 'undefined') {
   function getFetchImpl() {
@@ -7,9 +6,9 @@ if (typeof fetch === 'undefined' && typeof globalThis.fetch === 'undefined') {
   }
 
   function getRequestImpl() {
-    const OriginRequest = getFetchImpl().Request
-    return class Request extends OriginRequest {
-      constructor(input: any, init: any) {
+    const OriginalRequest = getFetchImpl().Request
+    return class extends OriginalRequest {
+      constructor(input: RequestInfo | URL, init: RequestInit) {
         super(input, init)
         this.next = init?.next
       }
@@ -17,16 +16,16 @@ if (typeof fetch === 'undefined' && typeof globalThis.fetch === 'undefined') {
   }
 
   // Due to limitation of global configuration, we have to do this resolution at runtime
-  globalThis.fetch = (...args: any[]) => {
+  globalThis.fetch = (...args: Parameters<typeof fetch>) => {
     const fetchImpl = getFetchImpl()
 
     // Undici does not support the `keepAlive` option,
     // instead we have to pass a custom dispatcher
     if (
-      !(global as any).__NEXT_HTTP_AGENT_OPTIONS?.keepAlive &&
-      !(global as any).__NEXT_UNDICI_AGENT_SET
+      !global.__NEXT_HTTP_AGENT_OPTIONS?.keepAlive &&
+      !global.__NEXT_UNDICI_AGENT_SET
     ) {
-      ;(global as any).__NEXT_UNDICI_AGENT_SET = true
+      global.__NEXT_UNDICI_AGENT_SET = true
       fetchImpl.setGlobalDispatcher(new fetchImpl.Agent({ pipelining: 0 }))
       console.warn(
         'Warning - Configuring `keepAlive: false` is deprecated. Use `{ headers: { connection: "close" } }` instead.'

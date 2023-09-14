@@ -895,7 +895,7 @@ createNextDescribe(
             initialHeaders: {
               'content-type': 'application/json',
               'x-next-cache-tags':
-                'thankyounext,/route-handler/revalidate-360-isr/route',
+                'thankyounext,_N_T_/layout,_N_T_/route-handler/layout,_N_T_/route-handler/revalidate-360-isr/layout,_N_T_/route-handler/revalidate-360-isr/route,_N_T_/route-handler/revalidate-360-isr',
             },
             initialRevalidateSeconds: 10,
             srcRoute: '/route-handler/revalidate-360-isr',
@@ -904,7 +904,8 @@ createNextDescribe(
             dataRoute: null,
             initialHeaders: {
               'set-cookie': 'theme=light; Path=/,my_company=ACME; Path=/',
-              'x-next-cache-tags': '/route-handler/static-cookies/route',
+              'x-next-cache-tags':
+                '_N_T_/layout,_N_T_/route-handler/layout,_N_T_/route-handler/static-cookies/layout,_N_T_/route-handler/static-cookies/route,_N_T_/route-handler/static-cookies',
             },
             initialRevalidateSeconds: false,
             srcRoute: '/route-handler/static-cookies',
@@ -1129,7 +1130,7 @@ createNextDescribe(
 
       if (!isNextDeploy) {
         expect(next.cliOutput).toContain(
-          'Warning: fetch for https://next-data-api-endpoint.vercel.app/api/random?d4 on /force-cache specified "cache: force-cache" and "revalidate: 3", only one should be specified.'
+          'fetch for https://next-data-api-endpoint.vercel.app/api/random?d4 on /force-cache specified "cache: force-cache" and "revalidate: 3", only one should be specified.'
         )
       }
     })
@@ -2262,7 +2263,7 @@ createNextDescribe(
             )
             const html = await res.text()
 
-            // Shouild not bail out to client rendering
+            // Should not bail out to client rendering
             expect(html).not.toInclude('<p>search params suspense</p>')
 
             // Use empty search params instead
@@ -2276,17 +2277,11 @@ createNextDescribe(
       }
     })
 
-    // TODO: needs updating as usePathname should not bail
-    describe.skip('usePathname', () => {
-      if (isDev) {
-        it('should bail out to client rendering during SSG', async () => {
-          const res = await next.fetch('/hooks/use-pathname/slug')
-          const html = await res.text()
-          expect(html).toInclude('<html id="__next_error__">')
-        })
-      }
-
+    describe('usePathname', () => {
       it('should have the correct values', async () => {
+        const $ = await next.render$('/hooks/use-pathname/slug')
+        expect($('#pathname').text()).toContain('/hooks/use-pathname/slug')
+
         const browser = await next.browser('/hooks/use-pathname/slug')
 
         expect(await browser.elementByCss('#pathname').text()).toBe(

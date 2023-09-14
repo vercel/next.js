@@ -42,7 +42,7 @@ There are other optional props you can pass to `<Link>`. See the [API reference]
 
 #### Linking to Dynamic Segments
 
-When linking to [dynamic segments](/docs/app/building-your-application/routing/dynamic-routes), you can use [template literals and interpolation](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals) to generate a list of links. For example, to generate a list of blog posts:
+When linking to [dynamic segments](/docs/app/building-your-application/routing/dynamic-routes), you can use [template literals and interpolation](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Template_literals) to generate a list of links. For example, to generate a list of blog posts:
 
 ```jsx filename="app/blog/PostList.js"
 import Link from 'next/link'
@@ -120,6 +120,8 @@ The default behavior of the Next.js App Router is to scroll to the top of a new 
 ```jsx
 // useRouter
 import { useRouter } from 'next/navigation'
+
+const router = useRouter()
 
 router.push('/dashboard', { scroll: false })
 ```

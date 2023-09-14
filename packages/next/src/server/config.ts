@@ -2,10 +2,8 @@ import { existsSync } from 'fs'
 import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import findUp from 'next/dist/compiled/find-up'
-import chalk from '../lib/chalk'
 import * as Log from '../build/output/log'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
-import { execOnce } from '../shared/lib/utils'
 import {
   defaultConfig,
   normalizeConfig,
@@ -20,34 +18,40 @@ import { loadEnvConfig, updateInitialEnv } from '@next/env'
 import { flushAndExit } from '../telemetry/flush-and-exit'
 import { findRootDir } from '../lib/find-root'
 import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
+import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
-const experimentalWarning = execOnce(
-  (configFileName: string, features: string[]) => {
-    const s = features.length > 1 ? 's' : ''
-    Log.warn(
-      chalk.bold(
-        `You have enabled experimental feature${s} (${features.join(
-          ', '
-        )}) in ${configFileName}.`
-      )
-    )
-    Log.warn(
-      `Experimental features are not covered by semver, and may cause unexpected or broken application behavior. ` +
-        `Use at your own risk.`
-    )
-
-    console.warn()
+export function warnOptionHasBeenDeprecated(
+  config: NextConfig,
+  nestedPropertyKey: string,
+  reason: string,
+  silent: boolean
+) {
+  if (!silent) {
+    let current = config
+    let found = true
+    const nestedPropertyKeys = nestedPropertyKey.split('.')
+    for (const key of nestedPropertyKeys) {
+      if (current[key] !== undefined) {
+        current = current[key]
+      } else {
+        found = false
+        break
+      }
+    }
+    if (found) {
+      Log.warn(reason)
+    }
   }
-)
+}
 
 export function warnOptionHasBeenMovedOutOfExperimental(
   config: NextConfig,
   oldKey: string,
   newKey: string,
   configFileName: string,
-  silent = false
+  silent: boolean
 ) {
   if (config.experimental && oldKey in config.experimental) {
     if (!silent) {
@@ -74,14 +78,15 @@ export function warnOptionHasBeenMovedOutOfExperimental(
 function assignDefaults(
   dir: string,
   userConfig: { [key: string]: any },
-  silent = false
+  silent: boolean
 ) {
   const configFileName = userConfig.configFileName
-  if (!silent && typeof userConfig.exportTrailingSlash !== 'undefined') {
-    console.warn(
-      chalk.yellow.bold('Warning: ') +
+  if (typeof userConfig.exportTrailingSlash !== 'undefined') {
+    if (!silent) {
+      Log.warn(
         `The "exportTrailingSlash" option has been renamed to "trailingSlash". Please update your ${configFileName}.`
-    )
+      )
+    }
     if (typeof userConfig.trailingSlash === 'undefined') {
       userConfig.trailingSlash = userConfig.exportTrailingSlash
     }
@@ -94,28 +99,6 @@ function assignDefaults(
 
       if (value === undefined || value === null) {
         return currentConfig
-      }
-
-      if (key === 'experimental' && typeof value === 'object') {
-        const enabledExperiments: (keyof ExperimentalConfig)[] = []
-
-        // defaultConfig.experimental is predefined and will never be undefined
-        // This is only a type guard for the typescript
-        if (defaultConfig.experimental) {
-          for (const featureName of Object.keys(
-            value
-          ) as (keyof ExperimentalConfig)[]) {
-            if (
-              value[featureName] !== defaultConfig.experimental[featureName]
-            ) {
-              enabledExperiments.push(featureName)
-            }
-          }
-        }
-
-        if (!silent && enabledExperiments.length > 0) {
-          experimentalWarning(configFileName, enabledExperiments)
-        }
       }
 
       if (key === 'distDir') {
@@ -308,19 +291,21 @@ function assignDefaults(
       )
     }
 
-    if (images.path === imageConfigDefault.path && result.basePath) {
+    if (
+      images.path === imageConfigDefault.path &&
+      result.basePath &&
+      !pathHasPrefix(images.path, result.basePath)
+    ) {
       images.path = `${result.basePath}${images.path}`
     }
 
     // Append trailing slash for non-default loaders and when trailingSlash is set
-    if (images.path) {
-      if (
-        (images.loader !== 'default' &&
-          images.path[images.path.length - 1] !== '/') ||
-        result.trailingSlash
-      ) {
-        images.path += '/'
-      }
+    if (
+      images.path &&
+      !images.path.endsWith('/') &&
+      (images.loader !== 'default' || result.trailingSlash)
+    ) {
+      images.path += '/'
     }
 
     if (images.loaderFile) {
@@ -339,6 +324,13 @@ function assignDefaults(
     }
   }
 
+  // TODO: remove this in next major or minor version after 13.5
+  warnOptionHasBeenDeprecated(
+    result,
+    'experimental.appDir',
+    'App router is available by default now, `experimental.appDir` option can be safely removed.',
+    silent
+  )
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'relay',
@@ -424,13 +416,6 @@ function assignDefaults(
     configFileName,
     silent
   )
-
-  if (
-    typeof userConfig.experimental?.clientRouterFilter === 'undefined' &&
-    result.experimental?.appDir
-  ) {
-    result.experimental.clientRouterFilter = true
-  }
 
   if (
     result.experimental?.outputFileTracingRoot &&
@@ -725,13 +710,19 @@ function assignDefaults(
       ...userProvidedOptimizePackageImports,
       'lucide-react',
       '@headlessui/react',
-      '@fortawesome/fontawesome-svg-core',
-      '@fortawesome/free-solid-svg-icons',
       '@headlessui-float/react',
-      'react-hot-toast',
       '@heroicons/react/20/solid',
       '@heroicons/react/24/solid',
       '@heroicons/react/24/outline',
+      '@visx/visx',
+      '@tremor/react',
+      'rxjs',
+      '@mui/material',
+      'recharts',
+      '@material-ui/core',
+      'react-use',
+      '@material-ui/icons',
+      '@tabler/icons-react',
     ]),
   ]
 
@@ -741,9 +732,17 @@ function assignDefaults(
 export default async function loadConfig(
   phase: string,
   dir: string,
-  customConfig?: object | null,
-  rawConfig?: boolean,
-  silent?: boolean
+  {
+    customConfig,
+    rawConfig,
+    silent = true,
+    onLoadUserConfig,
+  }: {
+    customConfig?: object | null
+    rawConfig?: boolean
+    silent?: boolean
+    onLoadUserConfig?: (conf: NextConfig) => void
+  } = {}
 ): Promise<NextConfigComplete> {
   if (!process.env.__NEXT_PRIVATE_RENDER_WORKER) {
     try {
@@ -841,7 +840,7 @@ export default async function loadConfig(
 
     const validateResult = validateConfig(userConfig)
 
-    if (!silent && validateResult.errors) {
+    if (validateResult.errors) {
       // Only load @segment/ajv-human-errors when invalid config is detected
       const { AggregateAjvError } =
         require('next/dist/compiled/@segment/ajv-human-errors') as typeof import('next/dist/compiled/@segment/ajv-human-errors')
@@ -850,7 +849,7 @@ export default async function loadConfig(
       })
 
       let shouldExit = false
-      let messages = [`Invalid ${configFileName} options detected: `]
+      const messages = [`Invalid ${configFileName} options detected: `]
 
       for (const error of aggregatedAjvErrors) {
         messages.push(`    ${error.message}`)
@@ -891,6 +890,7 @@ export default async function loadConfig(
           : canonicalBase) || ''
     }
 
+    onLoadUserConfig?.(userConfig)
     const completeConfig = assignDefaults(
       dir,
       {
@@ -932,4 +932,28 @@ export default async function loadConfig(
   completeConfig.configFileName = configFileName
   setHttpClientAndAgentOptions(completeConfig)
   return completeConfig
+}
+
+export function getEnabledExperimentalFeatures(
+  userNextConfigExperimental: NextConfig['experimental']
+) {
+  const enabledExperiments: (keyof ExperimentalConfig)[] = []
+
+  if (!userNextConfigExperimental) return enabledExperiments
+
+  // defaultConfig.experimental is predefined and will never be undefined
+  // This is only a type guard for the typescript
+  if (defaultConfig.experimental) {
+    for (const featureName of Object.keys(
+      userNextConfigExperimental
+    ) as (keyof ExperimentalConfig)[]) {
+      if (
+        userNextConfigExperimental[featureName] !==
+        defaultConfig.experimental[featureName]
+      ) {
+        enabledExperiments.push(featureName)
+      }
+    }
+  }
+  return enabledExperiments
 }

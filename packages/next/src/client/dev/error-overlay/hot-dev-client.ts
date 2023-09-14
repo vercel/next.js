@@ -38,6 +38,10 @@ import {
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { addMessageListener, sendMessage } from './websocket'
 import formatWebpackMessages from './format-webpack-messages'
+import {
+  HMR_ACTIONS_SENT_TO_BROWSER,
+  HMR_ACTION_TYPES,
+} from '../../../server/dev/hot-reloader-types'
 
 // This alternative WebpackDevServer combines the functionality of:
 // https://github.com/webpack/webpack-dev-server/blob/webpack-1/client/index.js
@@ -64,10 +68,12 @@ export default function connect() {
   register()
 
   addMessageListener((payload) => {
+    if (!('action' in payload)) {
+      return
+    }
+
     try {
-      if ('action' in payload) {
-        processMessage(payload)
-      }
+      processMessage(payload)
     } catch (err: any) {
       console.warn(
         '[HMR] Invalid message: ' + payload + '\n' + (err?.stack ?? '')
@@ -230,15 +236,19 @@ function handleAvailableHash(hash: string) {
 }
 
 // Handle messages from the server.
-function processMessage(obj: any) {
+function processMessage(obj: HMR_ACTION_TYPES) {
+  if (!('action' in obj)) {
+    return
+  }
+
   switch (obj.action) {
-    case 'building': {
+    case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING: {
       startLatency = Date.now()
       console.log('[Fast Refresh] rebuilding')
       break
     }
-    case 'built':
-    case 'sync': {
+    case HMR_ACTIONS_SENT_TO_BROWSER.BUILT:
+    case HMR_ACTIONS_SENT_TO_BROWSER.SYNC: {
       if (obj.hash) {
         handleAvailableHash(obj.hash)
       }
@@ -276,11 +286,11 @@ function processMessage(obj: any) {
       )
       return handleSuccess()
     }
-    case 'serverComponentChanges': {
+    case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES: {
       window.location.reload()
       return
     }
-    case 'serverError': {
+    case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR: {
       const { errorJSON } = obj
       if (errorJSON) {
         const { message, stack } = JSON.parse(errorJSON)

@@ -95,7 +95,7 @@ const createProgress = (total: number, label: string) => {
         '[==  ]',
         '[=   ]',
       ],
-      interval: 500,
+      interval: 200,
     },
   })
 
@@ -119,14 +119,19 @@ const createProgress = (total: number, label: string) => {
       lastProgressOutput = Date.now()
     }
 
-    const newText = `${label} (${curProgress}/${total})`
+    const isFinished = curProgress === total
+    // Use \r to reset current line with spinner.
+    // If it's 100% progressed, then we don't need to break a new line to avoid logging from routes while building.
+    const newText = `\r ${
+      isFinished ? Log.prefixes.event : Log.prefixes.info
+    } ${label} (${curProgress}/${total})${isFinished ? '' : '\n'}`
     if (progressSpinner) {
       progressSpinner.text = newText
     } else {
       console.log(newText)
     }
 
-    if (curProgress === total && progressSpinner) {
+    if (isFinished && progressSpinner) {
       progressSpinner.stop()
       console.log(newText)
     }
@@ -621,7 +626,7 @@ export default async function exportApp(
       !options.silent &&
       createProgress(
         filteredPaths.length,
-        `${Log.prefixes.info} ${options.statusMessage || 'Exporting'}`
+        `${options.statusMessage || 'Exporting'}`
       )
     const pagesDataDir = options.buildExport
       ? outDir
@@ -721,7 +726,7 @@ export default async function exportApp(
             httpAgentOptions: nextConfig.httpAgentOptions,
             debugOutput: options.debugOutput,
             isrMemoryCacheSize: nextConfig.experimental.isrMemoryCacheSize,
-            fetchCache: nextConfig.experimental.appDir,
+            fetchCache: true,
             fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
             incrementalCacheHandlerPath:
               nextConfig.experimental.incrementalCacheHandlerPath,

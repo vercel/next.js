@@ -46,7 +46,10 @@ use crate::{
         get_next_client_resolved_map, mdx_import_source_file,
     },
     next_shared::{
-        resolve::{ModuleFeatureReportResolvePlugin, UnsupportedModulesResolvePlugin},
+        resolve::{
+            ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin,
+            UnsupportedModulesResolvePlugin,
+        },
         transforms::{
             emotion::get_emotion_transform_plugin, get_relay_transform_plugin,
             styled_components::get_styled_components_transform_plugin,
@@ -134,7 +137,7 @@ pub async fn get_client_resolve_options_context(
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ResolveOptionsContext>> {
     let next_client_import_map =
-        get_next_client_import_map(project_path, ty, next_config, execution_context);
+        get_next_client_import_map(project_path, ty, mode, next_config, execution_context);
     let next_client_fallback_import_map = get_next_client_fallback_import_map(ty);
     let next_client_resolved_map = get_next_client_resolved_map(project_path, project_path, mode);
     let module_options_context = ResolveOptionsContext {
@@ -148,6 +151,7 @@ pub async fn get_client_resolve_options_context(
         plugins: vec![
             Vc::upcast(ModuleFeatureReportResolvePlugin::new(project_path)),
             Vc::upcast(UnsupportedModulesResolvePlugin::new(project_path)),
+            Vc::upcast(NextSharedRuntimeResolvePlugin::new(project_path)),
         ],
         ..Default::default()
     };

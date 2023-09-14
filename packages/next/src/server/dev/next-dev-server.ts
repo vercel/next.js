@@ -41,7 +41,7 @@ import {
   UnwrapPromise,
   withCoalescedInvoke,
 } from '../../lib/coalesced-function'
-import { loadDefaultErrorComponents } from '../load-components'
+import { loadDefaultErrorComponents } from '../load-default-error-components'
 import { DecodeError, MiddlewareNotFoundError } from '../../shared/lib/utils'
 import * as Log from '../../build/output/log'
 import isError, { getProperError } from '../../lib/is-error'
@@ -63,12 +63,7 @@ import { DefaultFileReader } from '../future/route-matcher-providers/dev/helpers
 import { NextBuildContext } from '../../build/build-context'
 import { IncrementalCache } from '../lib/incremental-cache'
 import LRUCache from 'next/dist/compiled/lru-cache'
-import { errorToJSON } from '../render'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
-import {
-  deserializeErr,
-  invokeIpcMethod,
-} from '../lib/server-ipc/request-utils'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -101,6 +96,10 @@ export default class DevServer extends Server {
     string,
     UnwrapPromise<ReturnType<DevServer['getStaticPaths']>>
   >
+
+  private invokeDevMethod({ method, args }: { method: string; args: any[] }) {
+    return (global as any)._nextDevHandlers[method](this.dir, ...args)
+  }
 
   protected staticPathsWorker?: { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -180,19 +179,13 @@ export default class DevServer extends Server {
       })
     }
 
-    const { pagesDir, appDir } = findPagesDir(
-      this.dir,
-      !!this.nextConfig.experimental.appDir
-    )
+    const { pagesDir, appDir } = findPagesDir(this.dir)
     this.pagesDir = pagesDir
     this.appDir = appDir
   }
 
   protected getRouteMatchers(): RouteMatcherManager {
-    const { pagesDir, appDir } = findPagesDir(
-      this.dir,
-      !!this.nextConfig.experimental.appDir
-    )
+    const { pagesDir, appDir } = findPagesDir(this.dir)
 
     const ensurer: RouteEnsurer = {
       ensure: async (match) => {
@@ -396,7 +389,7 @@ export default class DevServer extends Server {
       }
 
       response.statusCode = 500
-      this.renderError(err, request, response, parsedUrl.pathname)
+      await this.renderError(err, request, response, parsedUrl.pathname)
       return { finished: true }
     }
   }
@@ -425,7 +418,7 @@ export default class DevServer extends Server {
       const err = getProperError(error)
       const { req, res, page } = params
       res.statusCode = 500
-      this.renderError(err, req, res, page)
+      await this.renderError(err, req, res, page)
       return null
     }
   }
@@ -495,12 +488,9 @@ export default class DevServer extends Server {
     type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
   ): Promise<void> {
     if (this.isRenderWorker) {
-      await invokeIpcMethod({
-        fetchHostname: this.fetchHostname,
+      await this.invokeDevMethod({
         method: 'logErrorWithOriginalStack',
-        args: [errorToJSON(err as Error), type],
-        ipcPort: process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT,
-        ipcKey: process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY,
+        args: [err, type],
       })
       return
     }
@@ -632,17 +622,18 @@ export default class DevServer extends Server {
 
   protected async getStaticPaths({
     pathname,
-    originalAppPath,
     requestHeaders,
+    page,
+    isAppPath,
   }: {
     pathname: string
-    originalAppPath?: string
     requestHeaders: IncrementalCache['requestHeaders']
+    page: string
+    isAppPath: boolean
   }): Promise<{
     staticPaths?: string[]
     fallbackMode?: false | 'static' | 'blocking'
   }> {
-    const isAppPath = Boolean(originalAppPath)
     // we lazy load the staticPaths to prevent the user
     // from waiting on them for the page to load in dev mode
 
@@ -668,7 +659,7 @@ export default class DevServer extends Server {
           httpAgentOptions,
           locales,
           defaultLocale,
-          originalAppPath,
+          page,
           isAppPath,
           requestHeaders,
           incrementalCacheHandlerPath:
@@ -744,24 +735,21 @@ export default class DevServer extends Server {
       throw new Error('Invariant ensurePage called outside render worker')
     }
 
-    await invokeIpcMethod({
-      fetchHostname: this.fetchHostname,
+    await this.invokeDevMethod({
       method: 'ensurePage',
       args: [opts],
-      ipcPort: process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT,
-      ipcKey: process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY,
     })
   }
 
   protected async findPageComponents({
-    pathname,
+    page,
     query,
     params,
     isAppPath,
     appPaths = null,
     shouldEnsure,
   }: {
-    pathname: string
+    page: string
     query: NextParsedUrlQuery
     params: Params
     isAppPath: boolean
@@ -770,7 +758,7 @@ export default class DevServer extends Server {
     shouldEnsure: boolean
   }): Promise<FindComponentsResult | null> {
     await this.devReady
-    const compilationErr = await this.getCompilationError(pathname)
+    const compilationErr = await this.getCompilationError(page)
     if (compilationErr) {
       // Wrap build errors so that they don't get logged again
       throw new WrappedBuildError(compilationErr)
@@ -778,7 +766,7 @@ export default class DevServer extends Server {
     try {
       if (shouldEnsure || this.renderOpts.customServer) {
         await this.ensurePage({
-          page: pathname,
+          page,
           appPaths,
           clientOnly: false,
         })
@@ -792,7 +780,7 @@ export default class DevServer extends Server {
       this.restorePatchedGlobals()
 
       return await super.findPageComponents({
-        pathname,
+        page,
         query,
         params,
         isAppPath,
@@ -808,12 +796,9 @@ export default class DevServer extends Server {
 
   protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
     if (this.isRenderWorker) {
-      await invokeIpcMethod({
-        fetchHostname: this.fetchHostname,
+      await this.invokeDevMethod({
         method: 'getFallbackErrorComponents',
         args: [],
-        ipcPort: process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT,
-        ipcKey: process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY,
       })
       return await loadDefaultErrorComponents(this.distDir)
     }
@@ -824,14 +809,10 @@ export default class DevServer extends Server {
 
   async getCompilationError(page: string): Promise<any> {
     if (this.isRenderWorker) {
-      const err = await invokeIpcMethod({
-        fetchHostname: this.fetchHostname,
+      return await this.invokeDevMethod({
         method: 'getCompilationError',
         args: [page],
-        ipcPort: process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT,
-        ipcKey: process.env.__NEXT_PRIVATE_ROUTER_IPC_KEY,
       })
-      return deserializeErr(err)
     }
     throw new Error(
       'Invariant getCompilationError called outside render worker'

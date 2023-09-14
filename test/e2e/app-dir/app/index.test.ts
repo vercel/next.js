@@ -227,12 +227,7 @@ createNextDescribe(
         await next.fetch('/')
         expect(
           stripAnsi(next.cliOutput).match(
-            /You have enabled experimental feature/g
-          ).length
-        ).toBe(1)
-        expect(
-          stripAnsi(next.cliOutput).match(
-            /Experimental features are not covered by semver/g
+            /Experiments \(use at your own risk\):/g
           ).length
         ).toBe(1)
       })
@@ -310,9 +305,7 @@ createNextDescribe(
       const res = await next.fetch('/dashboard')
       expect(res.headers.get('x-edge-runtime')).toBe('1')
       expect(res.headers.get('vary')).toBe(
-        isNextDeploy
-          ? 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url'
-          : 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url, Accept-Encoding'
+        'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url'
       )
     })
 
