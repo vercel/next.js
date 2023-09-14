@@ -69,6 +69,9 @@ pub struct NapiProjectOptions {
 
     /// A map of environment variables to use when compiling code.
     pub env: Vec<NapiEnvVar>,
+
+    /// The address of the dev server.
+    pub server_addr: String,
 }
 
 #[napi(object)]
@@ -90,6 +93,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
                 .into_iter()
                 .map(|NapiEnvVar { name, value }| (name, value))
                 .collect(),
+            server_addr: val.server_addr,
         }
     }
 }

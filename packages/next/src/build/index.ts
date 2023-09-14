@@ -143,10 +143,16 @@ import { createClientRouterFilter } from '../lib/create-client-router-filter'
 import { createValidFileMatcher } from '../server/lib/find-page-file'
 import { startTypeChecking } from './type-check'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
+
 import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
-import { baseOverrides, experimentalOverrides } from '../server/require-hook'
-import { initialize } from '../server/lib/incremental-cache-server'
+import {
+  baseOverrides,
+  defaultOverrides,
+  experimentalOverrides,
+} from '../server/import-overrides'
+import { initialize as initializeIncrementalCache } from '../server/lib/incremental-cache-server'
 import { nodeFs } from '../server/lib/node-fs-methods'
+import { getEsmLoaderPath } from '../server/lib/get-esm-loader-path'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -350,7 +356,12 @@ export default async function build(
 
       const config: NextConfigComplete = await nextBuildSpan
         .traceChild('load-next-config')
-        .traceAsyncFn(() => loadConfig(PHASE_PRODUCTION_BUILD, dir))
+        .traceAsyncFn(() =>
+          loadConfig(PHASE_PRODUCTION_BUILD, dir, {
+            // Log for next.config loading process
+            silent: false,
+          })
+        )
       NextBuildContext.config = config
 
       let configOutDir = 'out'
@@ -1202,9 +1213,8 @@ export default async function build(
         : config.experimental.cpus || 4
 
       function createStaticWorker(
-        type: 'app' | 'pages',
-        ipcPort: number,
-        ipcValidationKey: string
+        incrementalCacheIpcPort: number,
+        incrementalCacheIpcValidationKey: string
       ) {
         let infoPrinted = false
 
@@ -1241,16 +1251,21 @@ export default async function build(
           },
           numWorkers,
           forkOptions: {
+            execArgv: [
+              '--experimental-loader',
+              getEsmLoaderPath(),
+              '--no-warnings',
+            ],
             env: {
               ...process.env,
-              __NEXT_INCREMENTAL_CACHE_IPC_PORT: ipcPort + '',
-              __NEXT_INCREMENTAL_CACHE_IPC_KEY: ipcValidationKey,
-              __NEXT_PRIVATE_PREBUNDLED_REACT:
-                type === 'app'
-                  ? config.experimental.serverActions
-                    ? 'experimental'
-                    : 'next'
-                  : '',
+              __NEXT_INCREMENTAL_CACHE_IPC_PORT: incrementalCacheIpcPort + '',
+              __NEXT_INCREMENTAL_CACHE_IPC_KEY:
+                incrementalCacheIpcValidationKey,
+              __NEXT_PRIVATE_PREBUNDLED_REACT: hasAppDir
+                ? config.experimental.serverActions
+                  ? 'experimental'
+                  : 'next'
+                : '',
             },
           },
           enableWorkerThreads: config.experimental.workerThreads,
@@ -1285,7 +1300,10 @@ export default async function build(
         CacheHandler = CacheHandler.default || CacheHandler
       }
 
-      const { ipcPort, ipcValidationKey } = await initialize({
+      const {
+        ipcPort: incrementalCacheIpcPort,
+        ipcValidationKey: incrementalCacheIpcValidationKey,
+      } = await initializeIncrementalCache({
         fs: nodeFs,
         dev: false,
         appDir: isAppDirEnabled,
@@ -1310,12 +1328,14 @@ export default async function build(
       })
 
       const pagesStaticWorkers = createStaticWorker(
-        'pages',
-        ipcPort,
-        ipcValidationKey
+        incrementalCacheIpcPort,
+        incrementalCacheIpcValidationKey
       )
       const appStaticWorkers = isAppDirEnabled
-        ? createStaticWorker('app', ipcPort, ipcValidationKey)
+        ? createStaticWorker(
+            incrementalCacheIpcPort,
+            incrementalCacheIpcValidationKey
+          )
         : undefined
 
       const analysisBegin = process.hrtime()
@@ -2030,6 +2050,10 @@ export default async function build(
               distDir,
               'cache/next-server.js.nft.json'
             )
+            const minimalCachedTracePath = path.join(
+              distDir,
+              'cache/next-minimal-server.js.nft.json'
+            )
 
             if (
               lockFiles.length > 0 &&
@@ -2057,9 +2081,19 @@ export default async function build(
                 const existingTrace = JSON.parse(
                   await fs.readFile(cachedTracePath, 'utf8')
                 )
+                const existingMinimalTrace = JSON.parse(
+                  await fs.readFile(minimalCachedTracePath, 'utf8')
+                )
 
-                if (existingTrace.cacheKey === cacheKey) {
+                if (
+                  existingTrace.cacheKey === cacheKey &&
+                  existingMinimalTrace.cacheKey === cacheKey
+                ) {
                   await fs.copyFile(cachedTracePath, nextServerTraceOutput)
+                  await fs.copyFile(
+                    minimalCachedTracePath,
+                    nextMinimalTraceOutput
+                  )
                   return
                 }
               } catch {}
@@ -2084,6 +2118,25 @@ export default async function build(
               ...Object.values(experimentalOverrides).map((override) =>
                 require.resolve(override)
               ),
+              ...(config.experimental.turbotrace
+                ? []
+                : Object.keys(defaultOverrides).map((value) =>
+                    require.resolve(value, {
+                      paths: [require.resolve('next/dist/server/require-hook')],
+                    })
+                  )),
+              require.resolve(
+                'next/dist/compiled/next-server/app-page.runtime.prod'
+              ),
+              require.resolve(
+                'next/dist/compiled/next-server/app-route.runtime.prod'
+              ),
+              require.resolve(
+                'next/dist/compiled/next-server/pages.runtime.prod'
+              ),
+              require.resolve(
+                'next/dist/compiled/next-server/pages-api.runtime.prod'
+              ),
             ]
 
             // ensure we trace any dependencies needed for custom
@@ -2100,19 +2153,21 @@ export default async function build(
 
             const vanillaServerEntries = [
               ...sharedEntriesSet,
-              isStandalone
-                ? require.resolve('next/dist/server/lib/start-server')
-                : null,
+              ...(isStandalone
+                ? [
+                    require.resolve('next/dist/server/lib/start-server'),
+                    require.resolve('next/dist/server/next'),
+                    require.resolve('next/dist/esm/server/esm-loader.mjs'),
+                    require.resolve('next/dist/server/import-overrides'),
+                  ]
+                : []),
               require.resolve('next/dist/server/next-server'),
             ].filter(Boolean) as string[]
 
             const minimalServerEntries = [
               ...sharedEntriesSet,
               require.resolve(
-                'next/dist/compiled/minimal-next-server/next-server-cached.js'
-              ),
-              require.resolve(
-                'next/dist/compiled/minimal-next-server/next-server.js'
+                'next/dist/compiled/next-server/server.runtime.prod'
               ),
             ].filter(Boolean)
 
@@ -2265,8 +2320,12 @@ export default async function build(
             ])
 
             await fs.unlink(cachedTracePath).catch(() => {})
+            await fs.unlink(minimalCachedTracePath).catch(() => {})
             await fs
               .copyFile(nextServerTraceOutput, cachedTracePath)
+              .catch(() => {})
+            await fs
+              .copyFile(nextMinimalTraceOutput, minimalCachedTracePath)
               .catch(() => {})
           })
       }
@@ -2381,7 +2440,8 @@ export default async function build(
               outputFileTracingRoot,
               requiredServerFiles.config,
               middlewareManifest,
-              hasInstrumentationHook
+              hasInstrumentationHook,
+              hasAppDir
             )
           })
       }
@@ -3294,11 +3354,13 @@ export default async function build(
           require('../export').default
 
         const pagesWorker = createStaticWorker(
-          'pages',
-          ipcPort,
-          ipcValidationKey
+          incrementalCacheIpcPort,
+          incrementalCacheIpcValidationKey
         )
-        const appWorker = createStaticWorker('app', ipcPort, ipcValidationKey)
+        const appWorker = createStaticWorker(
+          incrementalCacheIpcPort,
+          incrementalCacheIpcValidationKey
+        )
 
         const options: ExportOptions = {
           isInvokedFromCli: false,

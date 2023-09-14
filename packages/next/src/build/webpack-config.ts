@@ -68,6 +68,7 @@ import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plu
 import { getSupportedBrowsers } from './utils'
 import { MemoryWithGcCachePlugin } from './webpack/plugins/memory-with-gc-cache-plugin'
 import { getBabelConfigFile } from './get-babel-config-file'
+import { defaultOverrides } from '../server/import-overrides'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -102,6 +103,19 @@ const reactPackagesRegex = /^(react|react-dom|react-server-dom-webpack)($|\/)/
 
 const asyncStoragesRegex =
   /next[\\/]dist[\\/](esm[\\/])?client[\\/]components[\\/](static-generation-async-storage|action-async-storage|request-async-storage)/
+
+const pathSeparators = '[/\\\\]'
+const optionalEsmPart = `((${pathSeparators}esm)?${pathSeparators})`
+const sharedRuntimeFileEnd = '(\\.shared-runtime(\\.js)?)$'
+const externalFileEnd = '(\\.external(\\.js)?)$'
+const nextDist = `next${pathSeparators}dist`
+
+const sharedRuntimePattern = new RegExp(
+  `${nextDist}${optionalEsmPart}.*${sharedRuntimeFileEnd}`
+)
+const externalPattern = new RegExp(
+  `${nextDist}${optionalEsmPart}.*${externalFileEnd}`
+)
 
 // exports.<conditionName>
 const edgeConditionNames = [
@@ -238,6 +252,7 @@ export function getDefineEnv({
     'process.env.NEXT_RUNTIME': JSON.stringify(
       isEdgeServer ? 'edge' : isNodeServer ? 'nodejs' : undefined
     ),
+    'process.env.NEXT_MINIMAL': JSON.stringify(''),
     'process.env.__NEXT_ACTIONS_DEPLOYMENT_ID': JSON.stringify(
       config.experimental.useDeploymentIdServerActions
     ),
@@ -358,6 +373,7 @@ export function getDefineEnv({
           'global.GENTLY': JSON.stringify(false),
         }
       : undefined),
+    'process.env.TURBOPACK': JSON.stringify(false),
   }
 }
 
@@ -1011,7 +1027,7 @@ export default async function getBaseWebpackConfig(
   const customRootAliases: { [key: string]: string[] } = {}
 
   if (dev) {
-    const nextDist = 'next/dist/' + (isEdgeServer ? 'esm/' : '')
+    const nextDistPath = 'next/dist/' + (isEdgeServer ? 'esm/' : '')
     customAppAliases[`${PAGES_DIR_ALIAS}/_app`] = [
       ...(pagesDir
         ? pageExtensions.reduce((prev, ext) => {
@@ -1019,7 +1035,7 @@ export default async function getBaseWebpackConfig(
             return prev
           }, [] as string[])
         : []),
-      `${nextDist}pages/_app.js`,
+      `${nextDistPath}pages/_app.js`,
     ]
     customAppAliases[`${PAGES_DIR_ALIAS}/_error`] = [
       ...(pagesDir
@@ -1028,7 +1044,7 @@ export default async function getBaseWebpackConfig(
             return prev
           }, [] as string[])
         : []),
-      `${nextDist}pages/_error.js`,
+      `${nextDistPath}pages/_error.js`,
     ]
     customDocumentAliases[`${PAGES_DIR_ALIAS}/_document`] = [
       ...(pagesDir
@@ -1037,7 +1053,7 @@ export default async function getBaseWebpackConfig(
             return prev
           }, [] as string[])
         : []),
-      `${nextDist}pages/_document.js`,
+      `${nextDistPath}pages/_document.js`,
     ]
   }
 
@@ -1113,6 +1129,14 @@ export default async function getBaseWebpackConfig(
         '@opentelemetry/api': 'next/dist/compiled/@opentelemetry/api',
       }),
 
+      ...(hasAppDir
+        ? createRSCAliases(bundledReactChannel, {
+            reactSharedSubset: false,
+            reactDomServerRenderingStub: false,
+            reactProductionProfiling,
+          })
+        : {}),
+
       ...(config.images.loaderFile
         ? {
             'next/dist/shared/lib/image-loader': config.images.loaderFile,
@@ -1124,8 +1148,8 @@ export default async function getBaseWebpackConfig(
 
       next: NEXT_PROJECT_ROOT,
 
-      'styled-jsx/style$': require.resolve(`styled-jsx/style`),
-      'styled-jsx$': require.resolve(`styled-jsx`),
+      'styled-jsx/style$': defaultOverrides['styled-jsx/style'],
+      'styled-jsx$': defaultOverrides['styled-jsx'],
 
       ...customAppAliases,
       ...customErrorAlias,
@@ -1259,7 +1283,16 @@ export default async function getBaseWebpackConfig(
     }
   }
 
-  for (const packageName of ['react', 'react-dom']) {
+  for (const packageName of [
+    'react',
+    'react-dom',
+    ...(hasAppDir
+      ? [
+          `next/dist/compiled/react${bundledReactChannel}`,
+          `next/dist/compiled/react-dom${bundledReactChannel}`,
+        ]
+      : []),
+  ]) {
     addPackagePath(packageName, dir)
   }
 
@@ -1311,6 +1344,7 @@ export default async function getBaseWebpackConfig(
       WEBPACK_LAYERS.serverSideRendering,
       WEBPACK_LAYERS.appPagesBrowser,
       WEBPACK_LAYERS.actionBrowser,
+      WEBPACK_LAYERS.appRouteHandler,
     ].includes(layer!)
 
     if (
@@ -1367,7 +1401,7 @@ export default async function getBaseWebpackConfig(
       }
 
       const notExternalModules =
-        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|legacy\/image|constants|dynamic|script|navigation|headers)$)|string-hash|private-next-rsc-action-validate|private-next-rsc-action-client-wrapper|private-next-rsc-action-proxy$)/
+        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|legacy\/image|constants|dynamic|script|navigation|headers|router)$)|string-hash|private-next-rsc-action-validate|private-next-rsc-action-client-wrapper|private-next-rsc-action-proxy$)/
       if (notExternalModules.test(request)) {
         return
       }
@@ -1390,41 +1424,59 @@ export default async function getBaseWebpackConfig(
     // Also disable esm request when appDir is enabled
     const isEsmRequested = dependencyType === 'esm'
 
-    const isLocalCallback = (localRes: string) => {
-      // Makes sure dist/shared and dist/server are not bundled
-      // we need to process shared `router/router`, `head` and `dynamic`,
-      // so that the DefinePlugin can inject process.env values.
+    /**
+     * @param localRes the full path to the file
+     * @returns the externalized path
+     * @description returns an externalized path if the file is a Next.js file and ends with either `.shared-runtime.js` or `.external.js`
+     * This is used to ensure that files used across the rendering runtime(s) and the user code are one and the same. The logic in this function
+     * will rewrite the require to the correct bundle location depending on the layer at which the file is being used.
+     */
+    const resolveNextExternal = (localRes: string) => {
+      const isSharedRuntime = sharedRuntimePattern.test(localRes)
+      const isExternal = externalPattern.test(localRes)
 
-      // Treat next internals as non-external for server layer
-      if (isWebpackServerLayer(layer)) {
-        return
+      // if the file ends with .external, we need to make it a commonjs require in all cases
+      // this is used mainly to share the async local storage across the routing, rendering and user layers.
+      if (isExternal) {
+        // it's important we return the path that starts with `next/dist/` here instead of the absolute path
+        // otherwise NFT will get tripped up
+        return `commonjs ${localRes.replace(/.*?next[/\\]dist/, 'next/dist')}`
       }
+      // if the file ends with .shared-runtime, we need to make it point to the correct bundle depending on the layer
+      // this is because each shared-runtime files are unique per bundle, so if you use app-router context in pages,
+      // it'll be a different instance than the one used in the app-router runtime.
+      if (isSharedRuntime) {
+        if (dev) {
+          return `commonjs ${localRes}`
+        }
 
-      const isNextExternal =
-        /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic|app-dynamic|image-external|lazy-dynamic|head[^-]))/.test(
-          localRes
-        ) ||
-        // There's no need to bundle the dev overlay
-        (process.env.NODE_ENV === 'development' &&
-          /next[/\\]dist[/\\](esm[/\\])?client[/\\]components[/\\]react-dev-overlay[/\\]/.test(
-            localRes
-          ))
+        const name = path.parse(localRes).name.replace('.shared-runtime', '')
 
-      if (isNextExternal) {
-        // Generate Next.js external import
-        const externalRequest = path.posix.join(
-          'next',
-          'dist',
-          path
-            .relative(
-              // Root of Next.js package:
-              path.join(__dirname, '..'),
-              localRes
-            )
-            // Windows path normalization
-            .replace(/\\/g, '/')
+        const camelCaseName = name.replace(/-([a-z])/g, (_, w) =>
+          w.toUpperCase()
         )
-        return `commonjs ${externalRequest}`
+
+        // there's no externals for API routes but if need be, they'll need to be added here and have
+        // their own layer
+        const runtime =
+          layer === 'app-route-handler'
+            ? 'app-route'
+            : isAppLayer
+            ? 'app-page'
+            : 'pages'
+        return [
+          'commonjs ' +
+            path.posix.join(
+              'next',
+              'dist',
+              'compiled',
+              'next-server',
+              `${runtime}.runtime.${dev ? 'dev' : 'prod'}`
+            ),
+          'default',
+          'sharedModules',
+          camelCaseName,
+        ]
       }
     }
 
@@ -1445,6 +1497,10 @@ export default async function getBaseWebpackConfig(
         return
       }
 
+      if (/^next\/dist\/compiled\/next-server/.test(request)) {
+        return `commonjs ${request}`
+      }
+
       if (
         /^next\/dist\/shared\/(?!lib\/router\/router)/.test(request) ||
         /^next\/dist\/compiled\/.*\.c?js$/.test(request)
@@ -1459,8 +1515,7 @@ export default async function getBaseWebpackConfig(
         return `module ${request}`
       }
 
-      // Other Next.js internals need to be transpiled.
-      return
+      return resolveNextExternal(request)
     }
 
     // Early return if the request needs to be bundled, such as in the client layer.
@@ -1480,9 +1535,7 @@ export default async function getBaseWebpackConfig(
       const fullRequest = isRelative
         ? path.join(context, request).replace(/\\/g, '/')
         : request
-      const resolveNextExternal = isLocalCallback(fullRequest)
-
-      return resolveNextExternal
+      return resolveNextExternal(fullRequest)
     }
 
     // TODO-APP: Let's avoid this resolve call as much as possible, and eventually get rid of it.
@@ -1494,7 +1547,7 @@ export default async function getBaseWebpackConfig(
       isEsmRequested,
       hasAppDir,
       getResolve,
-      isLocal ? isLocalCallback : undefined
+      isLocal ? resolveNextExternal : undefined
     )
 
     if ('localRes' in resolveResult) {
@@ -1504,7 +1557,7 @@ export default async function getBaseWebpackConfig(
     // Forcedly resolve the styled-jsx installed by next.js,
     // since `resolveExternal` cannot find the styled-jsx dep with pnpm
     if (request === 'styled-jsx/style') {
-      resolveResult.res = require.resolve(request)
+      resolveResult.res = defaultOverrides['styled-jsx/style']
     }
 
     const { res, isEsm } = resolveResult
@@ -1555,7 +1608,7 @@ export default async function getBaseWebpackConfig(
           hasAppDir,
           isEsmRequested,
           getResolve,
-          isLocal ? isLocalCallback : undefined
+          isLocal ? resolveNextExternal : undefined
         )
         if (pkgRes.res) {
           resolvedExternalPackageDirs.set(pkg, path.dirname(pkgRes.res))
@@ -2032,6 +2085,14 @@ export default async function getBaseWebpackConfig(
         ...(hasAppDir
           ? [
               {
+                layer: WEBPACK_LAYERS.appRouteHandler,
+                test: new RegExp(
+                  `private-next-app-dir\\/.*\\/route\\.(${pageExtensions.join(
+                    '|'
+                  )})$`
+                ),
+              },
+              {
                 // Make sure that AsyncLocalStorage module instance is shared between server and client
                 // layers.
                 layer: WEBPACK_LAYERS.shared,
@@ -2071,11 +2132,6 @@ export default async function getBaseWebpackConfig(
                     [require.resolve('next/dynamic')]: require.resolve(
                       'next/dist/shared/lib/app-dynamic'
                     ),
-                    ...createRSCAliases(bundledReactChannel, {
-                      reactSharedSubset: false,
-                      reactDomServerRenderingStub: false,
-                      reactProductionProfiling,
-                    }),
                   },
                 },
               },
@@ -2239,7 +2295,7 @@ export default async function getBaseWebpackConfig(
                         WEBPACK_LAYERS.appPagesBrowser,
                       ],
                     },
-                    exclude: [asyncStoragesRegex, codeCondition.exclude],
+                    exclude: [codeCondition.exclude],
                     use: [
                       ...(dev && isClient
                         ? [

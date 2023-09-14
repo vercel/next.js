@@ -197,7 +197,7 @@ export default async function handler(req: NextRequest) {
 
 ### Explanation
 
-Based on beta feedback, we are changing the Cookies API in `NextRequest` and `NextResponse` to align more to a `get`/`set` model. The `Cookies` API extends Map, including methods like [entries](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map/entries) and [values](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map/entries).
+Based on beta feedback, we are changing the Cookies API in `NextRequest` and `NextResponse` to align more to a `get`/`set` model. The `Cookies` API extends Map, including methods like [entries](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Map/entries) and [values](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Map/entries).
 
 ### How to upgrade
 
@@ -312,7 +312,7 @@ export function middleware(request: NextRequest) {
 
 ### Summary of changes
 
-- Use [`URLPattern`](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) to check if a Middleware is being invoked for a certain page match
+- Use [`URLPattern`](https://developer.mozilla.org/docs/Web/API/URLPattern) to check if a Middleware is being invoked for a certain page match
 
 ### Explanation
 
@@ -322,7 +322,7 @@ To make page and asset matching more accurate, we are now using the web standard
 
 ### How to upgrade
 
-Use [`URLPattern`](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) to check if a Middleware is being invoked for a certain page match.
+Use [`URLPattern`](https://developer.mozilla.org/docs/Web/API/URLPattern) to check if a Middleware is being invoked for a certain page match.
 
 #### Before
 

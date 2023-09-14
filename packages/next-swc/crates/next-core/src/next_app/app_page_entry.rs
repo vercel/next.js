@@ -6,8 +6,8 @@ use turbopack_binding::{
     turbo::tasks_fs::{rope::RopeBuilder, File, FileSystemPath},
     turbopack::{
         core::{
-            asset::AssetContent, context::AssetContext, issue::IssueExt,
-            reference_type::ReferenceType, virtual_source::VirtualSource,
+            asset::AssetContent, context::AssetContext, reference_type::ReferenceType,
+            virtual_source::VirtualSource,
         },
         ecmascript::{chunk::EcmascriptChunkPlaceable, utils::StringifyJs},
         turbopack::ModuleAssetContext,
@@ -19,7 +19,7 @@ use crate::{
     app_structure::LoaderTree,
     loader_tree::{LoaderTreeModule, ServerComponentTransition},
     mode::NextMode,
-    next_app::{AppPage, AppPath, UnsupportedDynamicMetadataIssue},
+    next_app::{AppPage, AppPath},
     next_server_component::NextServerComponentTransition,
     parse_segment_config_from_loader_tree,
     util::{load_next_js_template, virtual_next_js_template_path, NextRuntime},
@@ -31,7 +31,6 @@ pub async fn get_app_page_entry(
     nodejs_context: Vc<ModuleAssetContext>,
     edge_context: Vc<ModuleAssetContext>,
     loader_tree: Vc<LoaderTree>,
-    app_dir: Vc<FileSystemPath>,
     page: AppPage,
     project_root: Vc<FileSystemPath>,
 ) -> Result<Vc<AppEntry>> {
@@ -57,18 +56,8 @@ pub async fn get_app_page_entry(
         inner_assets,
         imports,
         loader_tree_code,
-        unsupported_metadata,
         pages,
     } = loader_tree;
-
-    if !unsupported_metadata.is_empty() {
-        UnsupportedDynamicMetadataIssue {
-            app_dir,
-            files: unsupported_metadata,
-        }
-        .cell()
-        .emit();
-    }
 
     let mut result = RopeBuilder::default();
 
@@ -81,9 +70,7 @@ pub async fn get_app_page_entry(
     let original_name = page.to_string();
     let pathname = AppPath::from(page.clone()).to_string();
 
-    let original_page_name = get_original_page_name(&original_name);
-
-    let template_file = "build/templates/app-page.js";
+    let template_file = "app-page.js";
 
     // Load the file from the next.js codebase.
     let file = load_next_js_template(project_root, template_file.to_string()).await?;
@@ -100,7 +87,7 @@ pub async fn get_app_page_entry(
         )
         .replace(
             "\"VAR_ORIGINAL_PATHNAME\"",
-            &StringifyJs(&original_page_name).to_string(),
+            &StringifyJs(&original_name).to_string(),
         )
         // TODO(alexkirsz) Support custom global error.
         .replace(
@@ -154,20 +141,9 @@ pub async fn get_app_page_entry(
 
     Ok(AppEntry {
         pathname: pathname.to_string(),
-        original_name: original_page_name,
+        original_name,
         rsc_entry,
         config,
     }
     .cell())
-}
-
-// TODO(alexkirsz) This shouldn't be necessary. The loader tree should keep
-// track of this instead.
-fn get_original_page_name(pathname: &str) -> String {
-    match pathname {
-        "/" => "/page".to_string(),
-        "/_not-found" => "/_not-found".to_string(),
-        "/not-found" => "/not-found".to_string(),
-        _ => format!("{}/page", pathname),
-    }
 }
