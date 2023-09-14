@@ -429,31 +429,15 @@ async fn insert_next_server_special_aliases(
         (_, ServerContextType::PagesData { .. }) => {}
         // In development, we *always* use the bundled version of React, even in
         // SSR, since we're bundling Next.js alongside it.
-        (NextMode::DevServer, ServerContextType::AppSSR { app_dir }) => {
+        (
+            NextMode::DevServer | NextMode::Build | NextMode::Development,
+            ServerContextType::AppSSR { app_dir },
+        ) => {
             import_map.insert_exact_alias(
                 "@opentelemetry/api",
                 // TODO(WEB-625) this actually need to prefer the local version of
                 // @opentelemetry/api
                 request_to_import_mapping(app_dir, "next/dist/compiled/@opentelemetry/api"),
-            );
-            import_map.insert_exact_alias(
-                "react",
-                passthrough_external_if_node(app_dir, "next/dist/compiled/react"),
-            );
-            import_map.insert_wildcard_alias(
-                "react/",
-                passthrough_external_if_node(app_dir, "next/dist/compiled/react/*"),
-            );
-            import_map.insert_exact_alias(
-                "react-dom",
-                passthrough_external_if_node(
-                    app_dir,
-                    "next/dist/compiled/react-dom/server-rendering-stub.js",
-                ),
-            );
-            import_map.insert_wildcard_alias(
-                "react-dom/",
-                passthrough_external_if_node(app_dir, "next/dist/compiled/react-dom/*"),
             );
             import_map.insert_exact_alias(
                 "styled-jsx",
@@ -463,25 +447,64 @@ async fn insert_next_server_special_aliases(
                 "styled-jsx/",
                 passthrough_external_if_node(app_dir, "next/dist/compiled/styled-jsx/*"),
             );
-            import_map.insert_wildcard_alias(
-                "react-server-dom-webpack/",
-                passthrough_external_if_node(
+            import_map.insert_exact_alias(
+                "react/jsx-runtime",
+                request_to_import_mapping(
                     app_dir,
-                    "next/dist/compiled/react-server-dom-webpack/*",
+                    "next/dist/server/future/route-modules/app-page/vendored/shared/\
+                     react-jsx-runtime",
+                ),
+            );
+            import_map.insert_exact_alias(
+                "react/jsx-dev-runtime",
+                request_to_import_mapping(
+                    app_dir,
+                    "next/dist/server/future/route-modules/app-page/vendored/shared/\
+                     react-jsx-dev-runtime",
+                ),
+            );
+            import_map.insert_exact_alias(
+                "react",
+                request_to_import_mapping(
+                    app_dir,
+                    "next/dist/server/future/route-modules/app-page/vendored/ssr/react",
+                ),
+            );
+            import_map.insert_exact_alias(
+                "react-dom",
+                request_to_import_mapping(
+                    app_dir,
+                    "next/dist/server/future/route-modules/app-page/vendored/ssr/react-dom",
+                ),
+            );
+            import_map.insert_exact_alias(
+                "react-server-dom-webpack/server.edge",
+                request_to_import_mapping(
+                    app_dir,
+                    "next/dist/server/future/route-modules/app-page/vendored/ssr/\
+                     react-server-dom-webpack-server-edge",
+                ),
+            );
+            import_map.insert_exact_alias(
+                "react-server-dom-webpack/server.node",
+                request_to_import_mapping(
+                    app_dir,
+                    "next/dist/server/future/route-modules/app-page/vendored/ssr/\
+                     react-server-dom-webpack-server-node",
+                ),
+            );
+            // not essential but we're providing this alias for people who might use it.
+            // A note here is that this will point toward the ReactDOMServer on the SSR
+            // layer TODO: add the rests
+            import_map.insert_exact_alias(
+                "react-dom/server.edge",
+                request_to_import_mapping(
+                    app_dir,
+                    "next/dist/server/future/route-modules/app-page/vendored/ssr/\
+                     react-dom-server-edge",
                 ),
             );
         }
-
-        // NOTE(alexkirsz) This logic maps loosely to
-        // `next.js/packages/next/src/build/webpack-config.ts`, where:
-        //
-        // ## RSC
-        //
-        // * always bundles
-        // * maps react -> react/shared-subset (through the "react-server" exports condition)
-        // * maps react-dom -> react-dom/server-rendering-stub
-        // * passes through (react|react-dom|react-server-dom-webpack)/(.*) to
-        //   next/dist/compiled/$1/$2
         (
             NextMode::Build | NextMode::Development | NextMode::DevServer,
             ServerContextType::AppRSC { app_dir, .. } | ServerContextType::AppRoute { app_dir },
@@ -492,72 +515,64 @@ async fn insert_next_server_special_aliases(
                 // @opentelemetry/api
                 request_to_import_mapping(app_dir, "next/dist/compiled/@opentelemetry/api"),
             );
-            if matches!(ty, ServerContextType::AppRSC { .. }) {
-                import_map.insert_exact_alias(
-                    "react",
-                    request_to_import_mapping(
-                        app_dir,
-                        "next/dist/compiled/react/react.shared-subset",
-                    ),
-                );
-            } else {
-                import_map.insert_exact_alias(
-                    "react",
-                    request_to_import_mapping(app_dir, "next/dist/compiled/react"),
-                );
-            }
+
+            import_map.insert_exact_alias(
+                "react/jsx-runtime",
+                request_to_import_mapping(
+                    app_dir,
+                    "next/dist/server/future/route-modules/app-page/vendored/shared/\
+                     react-jsx-runtime",
+                ),
+            );
+            import_map.insert_exact_alias(
+                "react/jsx-dev-runtime",
+                request_to_import_mapping(
+                    app_dir,
+                    "next/dist/server/future/route-modules/app-page/vendored/shared/\
+                     react-jsx-dev-runtime",
+                ),
+            );
+            import_map.insert_exact_alias(
+                "react",
+                request_to_import_mapping(
+                    app_dir,
+                    "next/dist/server/future/route-modules/app-page/vendored/rsc/react",
+                ),
+            );
             import_map.insert_exact_alias(
                 "react-dom",
                 request_to_import_mapping(
                     app_dir,
-                    "next/dist/compiled/react-dom/server-rendering-stub",
+                    "next/dist/server/future/route-modules/app-page/vendored/rsc/react-dom",
                 ),
             );
-            for (wildcard_alias, request) in [
-                ("react/", "next/dist/compiled/react/*"),
-                ("react-dom/", "next/dist/compiled/react-dom/*"),
-                (
-                    "react-server-dom-webpack/",
-                    "next/dist/compiled/react-server-dom-webpack/*",
-                ),
-            ] {
-                import_map.insert_wildcard_alias(
-                    wildcard_alias,
-                    request_to_import_mapping(app_dir, request),
-                );
-            }
-        }
-        // ## SSR
-        //
-        // * always uses externals, to ensure we're using the same React instance as the Next.js
-        //   runtime
-        // * maps react-dom -> react-dom/server-rendering-stub
-        // * passes through react and (react|react-dom|react-server-dom-webpack)/(.*) to
-        //   next/dist/compiled/react and next/dist/compiled/$1/$2 resp.
-        (NextMode::Build | NextMode::Development, ServerContextType::AppSSR { app_dir }) => {
             import_map.insert_exact_alias(
-                "react",
-                external_if_node(app_dir, "next/dist/compiled/react"),
-            );
-            import_map.insert_exact_alias(
-                "react-dom",
-                external_if_node(
+                "react-server-dom-webpack/server.edge",
+                request_to_import_mapping(
                     app_dir,
-                    "next/dist/compiled/react-dom/server-rendering-stub",
+                    "next/dist/server/future/route-modules/app-page/vendored/rsc/\
+                     react-server-dom-webpack-server-edge",
                 ),
             );
-
-            for (wildcard_alias, request) in [
-                ("react/", "next/dist/compiled/react/*"),
-                ("react-dom/", "next/dist/compiled/react-dom/*"),
-                (
-                    "react-server-dom-webpack/",
-                    "next/dist/compiled/react-server-dom-webpack/*",
+            import_map.insert_exact_alias(
+                "react-server-dom-webpack/server.node",
+                request_to_import_mapping(
+                    app_dir,
+                    "next/dist/server/future/route-modules/app-page/vendored/rsc/\
+                     react-server-dom-webpack-server-node",
                 ),
-            ] {
-                let import_mapping = external_if_node(app_dir, request);
-                import_map.insert_wildcard_alias(wildcard_alias, import_mapping);
-            }
+            );
+            // not essential but we're providing this alias for people who might use it.
+            // A note here is that this will point toward the ReactDOMServer on the SSR
+            // layer TODO: add the rests
+            import_map.insert_exact_alias(
+                "react-dom/server.edge",
+                request_to_import_mapping(
+                    app_dir,
+                    "next/dist/server/future/route-modules/app-page/vendored/ssr/\
+                     react-dom-server-edge",
+                ),
+            );
         }
         (_, ServerContextType::Middleware) => {}
     }
