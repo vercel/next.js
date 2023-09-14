@@ -15,6 +15,7 @@ export type StaticGenerationContext = {
     nextExport?: boolean
     fetchCache?: StaticGenerationStore['fetchCache']
     isDraftMode?: boolean
+    isServerAction?: boolean
 
     /**
      * A hack around accessing the store value outside the context of the
@@ -49,11 +50,15 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
      *
      *    3.) If the request is in draft mode, we must generate dynamic HTML.
      *
+     *    4.) If the request is a server action, we must generate dynamic HTML.
+     *
      * These rules help ensure that other existing features like request caching,
      * coalescing, and ISR continue working as intended.
      */
     const isStaticGeneration =
-      !renderOpts.supportsDynamicHTML && !renderOpts.isDraftMode
+      !renderOpts.supportsDynamicHTML &&
+      !renderOpts.isDraftMode &&
+      !renderOpts.isServerAction
 
     const store: StaticGenerationStore = {
       isStaticGeneration,
