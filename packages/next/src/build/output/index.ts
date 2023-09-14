@@ -118,6 +118,7 @@ buildStore.subscribe((state) => {
       {
         bootstrap: false,
         appUrl: appUrl!,
+        // If it takes more than 3 seconds to compile, mark it as loading status
         loading: true,
         trigger,
       } as OutputState,
@@ -138,10 +139,6 @@ buildStore.subscribe((state) => {
     appUrl: appUrl!,
     loading: false,
     typeChecking: false,
-    partial:
-      clientWasLoading && (serverWasLoading || edgeServerWasLoading)
-        ? 'client and server'
-        : undefined,
     totalModulesCount:
       (clientWasLoading ? client.totalModulesCount : 0) +
       (serverWasLoading ? server.totalModulesCount : 0) +
@@ -268,7 +265,8 @@ export function watchCompilers(
     if (
       !status.loading &&
       !buildStore.getState().server.loading &&
-      !buildStore.getState().edgeServer.loading
+      !buildStore.getState().edgeServer.loading &&
+      status.totalModulesCount > 0
     ) {
       buildStore.setState({
         client: status,
@@ -284,7 +282,8 @@ export function watchCompilers(
     if (
       !status.loading &&
       !buildStore.getState().client.loading &&
-      !buildStore.getState().edgeServer.loading
+      !buildStore.getState().edgeServer.loading &&
+      status.totalModulesCount > 0
     ) {
       buildStore.setState({
         server: status,
@@ -300,7 +299,8 @@ export function watchCompilers(
     if (
       !status.loading &&
       !buildStore.getState().client.loading &&
-      !buildStore.getState().server.loading
+      !buildStore.getState().server.loading &&
+      status.totalModulesCount > 0
     ) {
       buildStore.setState({
         edgeServer: status,

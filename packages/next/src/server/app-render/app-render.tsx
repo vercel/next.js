@@ -11,9 +11,9 @@ import type {
   Segment,
 } from './types'
 
-import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
+import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
 import type { StaticGenerationBailout } from '../../client/components/static-generation-bailout'
-import type { RequestAsyncStorage } from '../../client/components/request-async-storage'
+import type { RequestAsyncStorage } from '../../client/components/request-async-storage.external'
 
 import React from 'react'
 import { createServerComponentRenderer } from './create-server-components-renderer'
@@ -182,7 +182,12 @@ export async function renderToHTMLOrFlight(
     supportsDynamicHTML,
     nextConfigOutput,
     serverActionsBodySizeLimit,
+    buildId,
+    deploymentId,
+    appDirDevErrorLogger,
   } = renderOpts
+
+  const extraRenderResultMeta: RenderResultMetadata = {}
 
   const appUsingSizeAdjust = !!nextFontManifest?.appUsingSizeAdjust
 
@@ -195,21 +200,21 @@ export async function renderToHTMLOrFlight(
     _source: 'serverComponentsRenderer',
     dev,
     isNextExport,
-    errorLogger: renderOpts.appDirDevErrorLogger,
+    errorLogger: appDirDevErrorLogger,
     capturedErrors,
   })
   const flightDataRendererErrorHandler = createErrorHandler({
     _source: 'flightDataRenderer',
     dev,
     isNextExport,
-    errorLogger: renderOpts.appDirDevErrorLogger,
+    errorLogger: appDirDevErrorLogger,
     capturedErrors,
   })
   const htmlRendererErrorHandler = createErrorHandler({
     _source: 'htmlRenderer',
     dev,
     isNextExport,
-    errorLogger: renderOpts.appDirDevErrorLogger,
+    errorLogger: appDirDevErrorLogger,
     capturedErrors,
     allCapturedErrors,
   })
@@ -246,7 +251,7 @@ export async function renderToHTMLOrFlight(
       )
     }
     staticGenerationStore.fetchMetrics = []
-    ;(renderOpts as any).fetchMetrics = staticGenerationStore.fetchMetrics
+    extraRenderResultMeta.fetchMetrics = staticGenerationStore.fetchMetrics
 
     const requestStore = requestAsyncStorage.getStore()
     if (!requestStore) {
@@ -281,10 +286,13 @@ export async function renderToHTMLOrFlight(
      * that we need to resolve the final metadata.
      */
 
-    const requestId =
-      process.env.NEXT_RUNTIME === 'edge'
-        ? crypto.randomUUID()
-        : require('next/dist/compiled/nanoid').nanoid()
+    let requestId: string
+
+    if (process.env.NEXT_RUNTIME === 'edge') {
+      requestId = crypto.randomUUID()
+    } else {
+      requestId = require('next/dist/compiled/nanoid').nanoid()
+    }
 
     const LayoutRouter =
       ComponentMod.LayoutRouter as typeof import('../../client/components/layout-router').default
@@ -392,8 +400,8 @@ export async function renderToHTMLOrFlight(
         qs += `?v=${DEV_REQUEST_TS}`
       }
 
-      if (renderOpts.deploymentId) {
-        qs += `${isDev ? '&' : '?'}dpl=${renderOpts.deploymentId}`
+      if (deploymentId) {
+        qs += `${isDev ? '&' : '?'}dpl=${deploymentId}`
       }
       return qs
     }
@@ -1247,7 +1255,7 @@ export async function renderToHTMLOrFlight(
         ).map((path) => path.slice(1)) // remove the '' (root) segment
       }
 
-      const buildIdFlightDataPair = [renderOpts.buildId, flightData]
+      const buildIdFlightDataPair = [buildId, flightData]
 
       // For app dir, use the bundled version of Fizz renderer (renderToReadableStream)
       // which contains the subset React.
@@ -1337,7 +1345,7 @@ export async function renderToHTMLOrFlight(
           const [MetadataTree, MetadataOutlet] = createMetadataComponents({
             tree: loaderTreeToRender,
             errorType: props.asNotFound ? 'not-found' : undefined,
-            pathname: pathname,
+            pathname,
             searchParams: providedSearchParams,
             getDynamicParamFromSegment: getDynamicParamFromSegment,
             appUsingSizeAdjust: appUsingSizeAdjust,
@@ -1360,7 +1368,7 @@ export async function renderToHTMLOrFlight(
             <>
               {styles}
               <AppRouter
-                buildId={renderOpts.buildId}
+                buildId={buildId}
                 assetPrefix={assetPrefix}
                 initialCanonicalUrl={pathname}
                 initialTree={initialTree}
@@ -1387,7 +1395,7 @@ export async function renderToHTMLOrFlight(
       )
 
     const { HeadManagerContext } =
-      require('../../shared/lib/head-manager-context') as typeof import('../../shared/lib/head-manager-context')
+      require('../../shared/lib/head-manager-context.shared-runtime') as typeof import('../../shared/lib/head-manager-context.shared-runtime')
 
     // On each render, create a new `ServerInsertedHTML` context to capture
     // injected nodes from user code (`useServerInsertedHTML`).
@@ -1650,7 +1658,7 @@ export async function renderToHTMLOrFlight(
               // so we create a not found page with AppRouter
               return (
                 <AppRouter
-                  buildId={renderOpts.buildId}
+                  buildId={buildId}
                   assetPrefix={assetPrefix}
                   initialCanonicalUrl={pathname}
                   initialTree={initialTree}
@@ -1709,7 +1717,7 @@ export async function renderToHTMLOrFlight(
       req,
       res,
       ComponentMod,
-      pathname: renderOpts.pathname,
+      page: renderOpts.page,
       serverActionsManifest,
       generateFlight,
       staticGenerationStore,
@@ -1723,9 +1731,11 @@ export async function renderToHTMLOrFlight(
         await bodyResult({
           asNotFound: true,
           tree: notFoundLoaderTree,
-        })
+        }),
+        { ...extraRenderResultMeta }
       )
     } else if (actionRequestResult) {
+      actionRequestResult.extendMetadata(extraRenderResultMeta)
       return actionRequestResult
     }
 
@@ -1733,14 +1743,18 @@ export async function renderToHTMLOrFlight(
       await bodyResult({
         asNotFound: pagePath === '/404',
         tree: loaderTree,
-      })
+      }),
+      { ...extraRenderResultMeta }
     )
 
     if (staticGenerationStore.pendingRevalidates) {
       await Promise.all(staticGenerationStore.pendingRevalidates)
     }
     addImplicitTags(staticGenerationStore)
-    ;(renderOpts as any).fetchTags = staticGenerationStore.tags?.join(',')
+    extraRenderResultMeta.fetchTags = staticGenerationStore.tags?.join(',')
+    renderResult.extendMetadata({
+      fetchTags: extraRenderResultMeta.fetchTags,
+    })
 
     if (staticGenerationStore.isStaticGeneration) {
       const htmlResult = await streamToBufferedResult(renderResult)
@@ -1761,10 +1775,9 @@ export async function renderToHTMLOrFlight(
         staticGenerationStore.revalidate = 0
       }
 
-      const extraRenderResultMeta: RenderResultMetadata = {
-        pageData: filteredFlightData,
-        revalidate: staticGenerationStore.revalidate ?? defaultRevalidate,
-      }
+      extraRenderResultMeta.pageData = filteredFlightData
+      extraRenderResultMeta.revalidate =
+        staticGenerationStore.revalidate ?? defaultRevalidate
 
       // provide bailout info for debugging
       if (extraRenderResultMeta.revalidate === 0) {

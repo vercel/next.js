@@ -10,16 +10,16 @@ import type {
 
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { HeadManagerContext } from '../shared/lib/head-manager-context'
+import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
 import mitt, { MittEmitter } from '../shared/lib/mitt'
-import { RouterContext } from '../shared/lib/router-context'
+import { RouterContext } from '../shared/lib/router-context.shared-runtime'
 import { handleSmoothScroll } from '../shared/lib/router/utils/handle-smooth-scroll'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import {
   urlQueryToSearchParams,
   assign,
 } from '../shared/lib/router/utils/querystring'
-import { setConfig } from '../shared/lib/runtime-config'
+import { setConfig } from '../shared/lib/runtime-config.shared-runtime'
 import {
   getURL,
   loadGetInitialProps,
@@ -34,17 +34,17 @@ import measureWebVitals from './performance-relayer'
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 import { getProperError } from '../lib/is-error'
-import { ImageConfigContext } from '../shared/lib/image-config-context'
+import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
 import { ImageConfigComplete } from '../shared/lib/image-config'
 import { removeBasePath } from './remove-base-path'
 import { hasBasePath } from './has-base-path'
-import { AppRouterContext } from '../shared/lib/app-router-context'
+import { AppRouterContext } from '../shared/lib/app-router-context.shared-runtime'
 import {
   adaptForAppRouterInstance,
   adaptForSearchParams,
   PathnameContextProviderAdapter,
-} from '../shared/lib/router/adapters'
-import { SearchParamsContext } from '../shared/lib/hooks-client-context'
+} from '../shared/lib/router/adapters.shared-runtime'
+import { SearchParamsContext } from '../shared/lib/hooks-client-context.shared-runtime'
 import onRecoverableError from './on-recoverable-error'
 import tracer from './tracing/tracer'
 import reportToSocket from './tracing/report-to-socket'
@@ -89,7 +89,7 @@ let initialMatchesMiddleware = false
 let lastAppProps: AppProps
 
 let lastRenderReject: (() => void) | null
-let webpackHMR: any
+let devClient: any
 
 let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
 let CachedComponent: React.ComponentType
@@ -185,14 +185,14 @@ class Container extends React.Component<{
   }
 }
 
-export async function initialize(opts: { webpackHMR?: any } = {}): Promise<{
+export async function initialize(opts: { devClient?: any } = {}): Promise<{
   assetPrefix: string
 }> {
   tracer.onSpanEnd(reportToSocket)
 
   // This makes sure this specific lines are removed in production
   if (process.env.NODE_ENV === 'development') {
-    webpackHMR = opts.webpackHMR
+    devClient = opts.devClient
   }
 
   initialData = JSON.parse(
@@ -357,7 +357,7 @@ function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
   if (process.env.NODE_ENV !== 'production') {
     // A Next.js rendering runtime error is always unrecoverable
     // FIXME: let's make this recoverable (error in GIP client-transition)
-    webpackHMR.onUnrecoverableError()
+    devClient.onUnrecoverableError()
 
     // We need to render an empty <App> so that the `<ReactDevOverlay>` can
     // render itself.
@@ -439,56 +439,82 @@ function Head({ callback }: { callback: () => void }): null {
   return null
 }
 
+const performanceMarks = {
+  navigationStart: 'navigationStart',
+  beforeRender: 'beforeRender',
+  afterRender: 'afterRender',
+  afterHydrate: 'afterHydrate',
+  routeChange: 'routeChange',
+} as const
+
+const performanceMeasures = {
+  hydration: 'Next.js-hydration',
+  beforeHydration: 'Next.js-before-hydration',
+  routeChangeToRender: 'Next.js-route-change-to-render',
+  render: 'Next.js-render',
+} as const
+
 let reactRoot: any = null
 // On initial render a hydrate should always happen
 let shouldHydrate: boolean = true
 
 function clearMarks(): void {
-  ;['beforeRender', 'afterHydrate', 'afterRender', 'routeChange'].forEach(
-    (mark) => performance.clearMarks(mark)
-  )
+  ;[
+    performanceMarks.beforeRender,
+    performanceMarks.afterHydrate,
+    performanceMarks.afterRender,
+    performanceMarks.routeChange,
+  ].forEach((mark) => performance.clearMarks(mark))
 }
 
 function markHydrateComplete(): void {
   if (!ST) return
 
-  performance.mark('afterHydrate') // mark end of hydration
+  performance.mark(performanceMarks.afterHydrate) // mark end of hydration
 
-  const beforeHydrationMeasure = performance.measure(
-    'Next.js-before-hydration',
-    'navigationStart',
-    'beforeRender'
-  )
+  const hasBeforeRenderMark = performance.getEntriesByName(
+    performanceMarks.beforeRender,
+    'mark'
+  ).length
+  if (hasBeforeRenderMark) {
+    const beforeHydrationMeasure = performance.measure(
+      performanceMeasures.beforeHydration,
+      performanceMarks.navigationStart,
+      performanceMarks.beforeRender
+    )
 
-  const hydrationMeasure = performance.measure(
-    'Next.js-hydration',
-    'beforeRender',
-    'afterHydrate'
-  )
+    const hydrationMeasure = performance.measure(
+      performanceMeasures.hydration,
+      performanceMarks.beforeRender,
+      performanceMarks.afterHydrate
+    )
 
-  if (
-    process.env.NODE_ENV === 'development' &&
-    // Old versions of Safari don't return `PerformanceMeasure`s from `performance.measure()`
-    beforeHydrationMeasure !== undefined &&
-    hydrationMeasure !== undefined
-  ) {
-    tracer
-      .startSpan('navigation-to-hydration', {
-        startTime: performance.timeOrigin + beforeHydrationMeasure.startTime,
-        attributes: {
-          pathname: location.pathname,
-          query: location.search,
-        },
-      })
-      .end(
-        performance.timeOrigin +
-          hydrationMeasure.startTime +
-          hydrationMeasure.duration
-      )
+    if (
+      process.env.NODE_ENV === 'development' &&
+      // Old versions of Safari don't return `PerformanceMeasure`s from `performance.measure()`
+      beforeHydrationMeasure !== undefined &&
+      hydrationMeasure !== undefined
+    ) {
+      tracer
+        .startSpan('navigation-to-hydration', {
+          startTime: performance.timeOrigin + beforeHydrationMeasure.startTime,
+          attributes: {
+            pathname: location.pathname,
+            query: location.search,
+          },
+        })
+        .end(
+          performance.timeOrigin +
+            hydrationMeasure.startTime +
+            hydrationMeasure.duration
+        )
+    }
   }
 
   if (onPerfEntry) {
-    performance.getEntriesByName('Next.js-hydration').forEach(onPerfEntry)
+    performance
+      .getEntriesByName(performanceMeasures.hydration)
+      .forEach(onPerfEntry)
   }
   clearMarks()
 }
@@ -496,31 +522,45 @@ function markHydrateComplete(): void {
 function markRenderComplete(): void {
   if (!ST) return
 
-  performance.mark('afterRender') // mark end of render
+  performance.mark(performanceMarks.afterRender) // mark end of render
   const navStartEntries: PerformanceEntryList = performance.getEntriesByName(
-    'routeChange',
+    performanceMarks.routeChange,
     'mark'
   )
 
   if (!navStartEntries.length) return
 
-  performance.measure(
-    'Next.js-route-change-to-render',
-    navStartEntries[0].name,
-    'beforeRender'
-  )
-  performance.measure('Next.js-render', 'beforeRender', 'afterRender')
-  if (onPerfEntry) {
-    performance.getEntriesByName('Next.js-render').forEach(onPerfEntry)
-    performance
-      .getEntriesByName('Next.js-route-change-to-render')
-      .forEach(onPerfEntry)
+  const hasBeforeRenderMark = performance.getEntriesByName(
+    performanceMarks.beforeRender,
+    'mark'
+  ).length
+
+  if (hasBeforeRenderMark) {
+    performance.measure(
+      performanceMeasures.routeChangeToRender,
+      navStartEntries[0].name,
+      performanceMarks.beforeRender
+    )
+    performance.measure(
+      performanceMeasures.render,
+      performanceMarks.beforeRender,
+      performanceMarks.afterRender
+    )
+    if (onPerfEntry) {
+      performance
+        .getEntriesByName(performanceMeasures.render)
+        .forEach(onPerfEntry)
+      performance
+        .getEntriesByName(performanceMeasures.routeChangeToRender)
+        .forEach(onPerfEntry)
+    }
   }
 
   clearMarks()
-  ;['Next.js-route-change-to-render', 'Next.js-render'].forEach((measure) =>
-    performance.clearMeasures(measure)
-  )
+  ;[
+    performanceMeasures.routeChangeToRender,
+    performanceMeasures.render,
+  ].forEach((measure) => performance.clearMeasures(measure))
 }
 
 function renderReactElement(
@@ -529,7 +569,7 @@ function renderReactElement(
 ): void {
   // mark start of hydrate/render
   if (ST) {
-    performance.mark('beforeRender')
+    performance.mark(performanceMarks.beforeRender)
   }
 
   const reactEl = fn(shouldHydrate ? markHydrateComplete : markRenderComplete)

@@ -1,21 +1,9 @@
 #!/usr/bin/env node
 import chalk from 'next/dist/compiled/chalk'
-import arg from 'next/dist/compiled/arg/index.js'
 import { CliCommand } from '../lib/commands'
 import { Telemetry } from '../telemetry/storage'
-import { getValidatedArgs } from '../lib/get-validated-args'
 
-const nextTelemetry: CliCommand = (argv) => {
-  const validArgs: arg.Spec = {
-    // Types
-    '--enable': Boolean,
-    '--disable': Boolean,
-    '--help': Boolean,
-    // Aliases
-    '-h': '--help',
-  }
-  const args = getValidatedArgs(validArgs, argv)
-
+const nextTelemetry: CliCommand = (args) => {
   if (args['--help']) {
     console.log(
       `

@@ -12,6 +12,8 @@ export const NEXT_CACHE_REVALIDATED_TAGS_HEADER = 'x-next-revalidated-tags'
 export const NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER =
   'x-next-revalidate-tag-token'
 
+export const NEXT_CACHE_TAG_MAX_LENGTH = 256
+export const NEXT_CACHE_SOFT_TAG_MAX_LENGTH = 1024
 export const NEXT_CACHE_IMPLICIT_TAG_ID = '_N_T_'
 
 // in seconds
@@ -63,9 +65,7 @@ export const NON_STANDARD_NODE_ENV = `You are using a non-standard "NODE_ENV" va
 
 export const SSG_FALLBACK_EXPORT_ERROR = `Pages with \`fallback\` enabled in \`getStaticPaths\` can not be exported. See more info here: https://nextjs.org/docs/messages/ssg-fallback-true-export`
 
-// Consolidate this consts when the `appDir` will be stable.
-export const ESLINT_DEFAULT_DIRS = ['pages', 'components', 'lib', 'src']
-export const ESLINT_DEFAULT_DIRS_WITH_APP = ['app', ...ESLINT_DEFAULT_DIRS]
+export const ESLINT_DEFAULT_DIRS = ['app', 'pages', 'components', 'lib', 'src']
 
 export const ESLINT_PROMPT_VALUES = [
   {
@@ -134,6 +134,10 @@ const WEBPACK_LAYERS_NAMES = {
    * The server bundle layer for metadata routes.
    */
   appMetadataRoute: 'app-metadata-route',
+  /**
+   * The layer for the server bundle for App Route handlers.
+   */
+  appRouteHandler: 'app-route-handler',
 }
 
 export const WEBPACK_LAYERS = {
@@ -143,6 +147,7 @@ export const WEBPACK_LAYERS = {
       WEBPACK_LAYERS_NAMES.reactServerComponents,
       WEBPACK_LAYERS_NAMES.actionBrowser,
       WEBPACK_LAYERS_NAMES.appMetadataRoute,
+      WEBPACK_LAYERS_NAMES.appRouteHandler,
     ],
   },
 }

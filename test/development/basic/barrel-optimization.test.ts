@@ -57,12 +57,12 @@ describe('optimizePackageImports', () => {
 
     const modules = [
       ...logs.matchAll(
-        /compiled client and server successfully in \d+(\.\d+)?(s| ms) \((\d+) modules\)/g
+        /Compiled (\/[\w-]+)*\s*in \d+(\.\d+)?(s|ms) \((\d+) modules\)/g
       ),
     ]
 
     expect(modules.length).toBeGreaterThanOrEqual(1)
-    for (const [, , , moduleCount] of modules) {
+    for (const [, , , , moduleCount] of modules) {
       // Ensure that the number of modules is less than 1000 - otherwise we're
       // importing the entire library.
       expect(parseInt(moduleCount)).toBeLessThan(1000)
@@ -82,12 +82,12 @@ describe('optimizePackageImports', () => {
 
     const modules = [
       ...logs.matchAll(
-        /compiled client and server successfully in \d+(\.\d+)?(s| ms) \((\d+) modules\)/g
+        /Compiled (\/[\w-]+)*\s*in \d+(\.\d+)?(s|ms) \((\d+) modules\)/g
       ),
     ]
 
     expect(modules.length).toBeGreaterThanOrEqual(1)
-    for (const [, , , moduleCount] of modules) {
+    for (const [, , , , moduleCount] of modules) {
       // Ensure that the number of modules is less than 1000 - otherwise we're
       // importing the entire library.
       expect(parseInt(moduleCount)).toBeLessThan(1000)

@@ -22,6 +22,12 @@ createNextDescribe(
       'styled-components': 'latest',
       'server-only': 'latest',
     },
+    resolutions: {
+      '@babel/core': '7.22.18',
+      '@babel/parser': '7.22.16',
+      '@babel/types': '7.22.17',
+      '@babel/traverse': '7.22.18',
+    },
   },
   ({ next, isNextDev, isNextStart, isTurbopack }) => {
     if (isNextDev && !isTurbopack) {
@@ -450,8 +456,8 @@ createNextDescribe(
       expect(await res.text()).toBe('Hello from import-test.js')
     })
 
-    it('should use stable react for pages', async () => {
-      const ssrPaths = ['/pages-react', '/pages-react-edge']
+    it('should use bundled react for pages with app', async () => {
+      const ssrPaths = ['/pages-react', '/edge-pages-react']
       const promises = ssrPaths.map(async (pathname) => {
         const resPages$ = await next.render$(pathname)
         const ssrPagesReactVersions = [
@@ -461,7 +467,7 @@ createNextDescribe(
         ]
 
         ssrPagesReactVersions.forEach((version) => {
-          expect(version).not.toMatch('-canary-')
+          expect(version).toMatch('-canary-')
         })
       })
       await Promise.all(promises)
@@ -496,10 +502,10 @@ createNextDescribe(
       `)
 
       browserPagesReactVersions.forEach((version) =>
-        expect(version).not.toMatch('-canary-')
+        expect(version).toMatch('-canary-')
       )
       browserEdgePagesReactVersions.forEach((version) =>
-        expect(version).not.toMatch('-canary-')
+        expect(version).toMatch('-canary-')
       )
     })
 

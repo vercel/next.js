@@ -1,12 +1,13 @@
 // TODO: Remove use of `any` type.
 import { initialize, version, router, emitter } from './'
-import initWebpackHMR from './dev/webpack-hot-middleware-client'
+import initHMR from './dev/hot-middleware-client'
 
 import './setup-hydration-warning'
 import { pageBootrap } from './page-bootstrap'
 import { addMessageListener, sendMessage } from './dev/error-overlay/websocket'
 //@ts-expect-error requires "moduleResolution": "node16" in tsconfig.json and not .ts extension
 import { connect } from '@vercel/turbopack-ecmascript-runtime/dev/client/hmr-client.ts'
+import { HMR_ACTION_TYPES } from '../server/dev/hot-reloader-types'
 
 window.next = {
   version: `${version}-turbo`,
@@ -17,14 +18,14 @@ window.next = {
   emitter,
 }
 ;(self as any).__next_set_public_path__ = () => {}
+;(self as any).__webpack_hash__ = ''
 
 // for the page loader
 declare let __turbopack_load__: any
 
-const webpackHMR = initWebpackHMR()
+const devClient = initHMR('turbopack')
 initialize({
-  // TODO the prop name is confusing as related to webpack
-  webpackHMR,
+  devClient,
 })
   .then(({ assetPrefix }) => {
     // for the page loader
@@ -55,8 +56,11 @@ initialize({
     }
 
     connect({
-      addMessageListener(cb: (msg: Record<string, string>) => void) {
+      addMessageListener(cb: (msg: HMR_ACTION_TYPES) => void) {
         addMessageListener((msg) => {
+          if (!('type' in msg)) {
+            return
+          }
           // Only call Turbopack's message listener for turbopack messages
           if (msg.type?.startsWith('turbopack-')) {
             cb(msg)

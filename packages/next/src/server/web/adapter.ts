@@ -18,7 +18,7 @@ import {
 import { NEXT_QUERY_PARAM_PREFIX } from '../../lib/constants'
 import { ensureInstrumentationRegistered } from './globals'
 import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
-import { requestAsyncStorage } from '../../client/components/request-async-storage'
+import { requestAsyncStorage } from '../../client/components/request-async-storage.external'
 import { PrerenderManifest } from '../../build'
 
 class NextRequestHint extends NextRequest {
@@ -186,7 +186,9 @@ export async function adapter(
   let cookiesFromResponse
 
   // we only care to make async storage available for middleware
-  if (params.page === '/middleware') {
+  const isMiddleware =
+    params.page === '/middleware' || params.page === '/src/middleware'
+  if (isMiddleware) {
     response = await RequestAsyncStorageWrapper.wrap(
       requestAsyncStorage,
       {
