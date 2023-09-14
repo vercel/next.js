@@ -87,7 +87,7 @@ const NEXT_PROJECT_ROOT_DIST_CLIENT = path.join(
 )
 
 const isWebpackServerLayer = (layer: WebpackLayerName | null) =>
-  Boolean(layer && WEBPACK_LAYERS.GROUP.server.includes(layer))
+  Boolean(layer && WEBPACK_LAYERS.GROUP.server.includes(layer as any))
 
 if (parseInt(React.version) < 18) {
   throw new Error('Next.js requires react >= 18.2.0 to be installed.')
