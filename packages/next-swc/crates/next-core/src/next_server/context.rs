@@ -175,7 +175,8 @@ fn defines(mode: NextMode) -> CompileTimeDefines {
         process.turbopack = true,
         process.env.NODE_ENV = mode.node_env(),
         process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false,
-        process.env.NEXT_RUNTIME = "nodejs"
+        process.env.NEXT_RUNTIME = "nodejs",
+        process.env.__NEXT_EXPERIMENTAL_REACT = false,
     )
     // TODO(WEB-937) there are more defines needed, see
     // packages/next/src/build/webpack-config.ts
