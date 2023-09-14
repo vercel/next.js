@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+
+import '../server/lib/cpu-profile'
 import type { StartServerOptions } from '../server/lib/start-server'
 import { getPort, printAndExit } from '../server/lib/utils'
 import * as Log from '../build/output/log'
@@ -215,6 +217,9 @@ const nextDev: CliCommand = async (args) => {
 
   if (args['--turbo']) {
     process.env.TURBOPACK = '1'
+  }
+
+  if (process.env.TURBOPACK) {
     await validateTurboNextConfig({
       isCustomTurbopack: !!process.env.__INTERNAL_CUSTOM_TURBOPACK_BINDINGS,
       ...devServerOptions,

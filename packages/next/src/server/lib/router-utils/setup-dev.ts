@@ -102,6 +102,7 @@ import {
   ReloadPageAction,
   TurboPackConnectedAction,
 } from '../../dev/hot-reloader-types'
+import type { Update as TurbopackUpdate } from '../../../build/swc'
 import { debounce } from '../../utils'
 import {
   deleteAppClientCache,
@@ -228,6 +229,7 @@ async function startWatcher(opts: SetupOpts) {
       (resolve) => (currentEntriesHandlingResolve = resolve)
     )
     const hmrPayloads = new Map<string, HMR_ACTION_TYPES>()
+    const turbopackUpdates: TurbopackUpdate[] = []
     let hmrBuilding = false
 
     const issues = new Map<string, Map<string, Issue>>()
@@ -344,7 +346,6 @@ async function startWatcher(opts: SetupOpts) {
         for (const [key, issue] of issueMap) {
           if (errors.has(key)) continue
 
-          console.log(issue)
           const message = formatIssue(issue)
 
           errors.set(key, {
@@ -367,6 +368,13 @@ async function startWatcher(opts: SetupOpts) {
           hotReloader.send(payload)
         }
         hmrPayloads.clear()
+        if (turbopackUpdates.length > 0) {
+          hotReloader.send({
+            type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
+            data: turbopackUpdates,
+          })
+          turbopackUpdates.length = 0
+        }
       }
     }, 2)
 
@@ -379,6 +387,18 @@ async function startWatcher(opts: SetupOpts) {
         hmrBuilding = true
       }
       hmrPayloads.set(`${key}:${id}`, payload)
+      sendHmrDebounce()
+    }
+
+    function sendTurbopackMessage(payload: TurbopackUpdate) {
+      // We've detected a change in some part of the graph. If nothing has
+      // been inserted into building yet, then this is the first change
+      // emitted, but their may be many more coming.
+      if (!hmrBuilding) {
+        hotReloader.send({ action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING })
+        hmrBuilding = true
+      }
+      turbopackUpdates.push(payload)
       sendHmrDebounce()
     }
 
@@ -838,10 +858,7 @@ async function startWatcher(opts: SetupOpts) {
 
       for await (const data of subscription) {
         processIssues(id, data)
-        sendHmr('hmr-event', id, {
-          type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
-          data,
-        })
+        sendTurbopackMessage(data)
       }
     }
 
