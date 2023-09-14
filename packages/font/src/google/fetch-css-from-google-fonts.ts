@@ -1,5 +1,4 @@
-// @ts-ignore
-import 'next/src/compiled/undici'
+import 'next/dist/compiled/undici'
 import { nextFontError } from '../next-font-error'
 import { getProxyAgent } from './get-proxy-agent'
 

@@ -1,4 +1,3 @@
-import 'next/types/misc'
 import { ProxyAgent } from 'next/dist/compiled/undici'
 
 /* If the http(s)_proxy environment variables are set, return a proxy agent. */
