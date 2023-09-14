@@ -791,8 +791,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         return
       }
 
-      setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
-
       // Parse url if parsedUrl not provided
       if (!parsedUrl || typeof parsedUrl !== 'object') {
         parsedUrl = parseUrl(req.url!, true)

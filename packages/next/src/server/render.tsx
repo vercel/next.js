@@ -15,7 +15,12 @@ import type {
 } from '../shared/lib/utils'
 import type { ImageConfigComplete } from '../shared/lib/image-config'
 import type { Redirect } from '../lib/load-custom-routes'
-import type { NextApiRequestCookies, __ApiPreviewProps } from './api-utils'
+import {
+  getCookieParser,
+  type NextApiRequestCookies,
+  type __ApiPreviewProps,
+  setLazyProp,
+} from './api-utils'
 import type { FontManifest, FontConfig } from './font-utils'
 import type { LoadComponentsReturnType, ManifestItem } from './load-components'
 import type {
@@ -386,6 +391,9 @@ export async function renderToHTMLImpl(
   renderOpts: Omit<RenderOpts, keyof RenderOptsExtra>,
   extra: RenderOptsExtra
 ): Promise<RenderResult> {
+  // Adds support for reading `cookies` in `getServerSideProps` when SSR.
+  setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
+
   const renderResultMeta: RenderResultMetadata = {}
 
   // In dev we invalidate the cache by appending a timestamp to the resource URL.
