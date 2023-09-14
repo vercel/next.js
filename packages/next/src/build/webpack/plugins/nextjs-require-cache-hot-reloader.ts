@@ -12,7 +12,7 @@ const originModules = [
   require.resolve('../../../server/require'),
   require.resolve('../../../server/load-components'),
   require.resolve('../../../server/next-server'),
-  require.resolve('../../../server/app-renderer/use-flight-response'),
+  require.resolve('../../../server/app-render/use-flight-response'),
   require.resolve('../../../compiled/react-server-dom-webpack/client.edge'),
   require.resolve(
     '../../../compiled/react-server-dom-webpack-experimental/client.edge'
