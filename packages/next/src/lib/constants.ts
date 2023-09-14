@@ -138,7 +138,10 @@ const WEBPACK_LAYERS_NAMES = {
    * The layer for the server bundle for App Route handlers.
    */
   appRouteHandler: 'app-route-handler',
-}
+} as const
+
+export type WebpackLayerName =
+  (typeof WEBPACK_LAYERS_NAMES)[keyof typeof WEBPACK_LAYERS_NAMES]
 
 export const WEBPACK_LAYERS = {
   ...WEBPACK_LAYERS_NAMES,

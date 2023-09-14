@@ -23,8 +23,8 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
 }
-          var React = require("next/dist/compiled/react");
-var Scheduler = require("next/dist/compiled/scheduler");
+          var React = require('react');
+var Scheduler = require('scheduler');
 
 var Internals = {
   usingClientEntryPoint: false,

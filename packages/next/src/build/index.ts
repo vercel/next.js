@@ -146,9 +146,9 @@ import { generateInterceptionRoutesRewrites } from '../lib/generate-interception
 
 import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
 import {
-  baseOverrides,
+  // baseOverrides,
   defaultOverrides,
-  experimentalOverrides,
+  // experimentalOverrides,
 } from '../server/import-overrides'
 import { initialize as initializeIncrementalCache } from '../server/lib/incremental-cache-server'
 import { nodeFs } from '../server/lib/node-fs-methods'
@@ -2107,12 +2107,12 @@ export default async function build(
             )
 
             const sharedEntriesSet = [
-              ...Object.values(baseOverrides).map((override) =>
-                require.resolve(override)
-              ),
-              ...Object.values(experimentalOverrides).map((override) =>
-                require.resolve(override)
-              ),
+              // ...Object.values(baseOverrides).map((override) =>
+              //   require.resolve(override)
+              // ),
+              // ...Object.values(experimentalOverrides).map((override) =>
+              //   require.resolve(override)
+              // ),
               ...(config.experimental.turbotrace
                 ? []
                 : Object.keys(defaultOverrides).map((value) =>

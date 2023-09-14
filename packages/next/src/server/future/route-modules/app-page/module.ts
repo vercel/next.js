@@ -12,6 +12,9 @@ import {
   type RouteModuleHandleContext,
 } from '../route-module'
 import * as sharedModules from './shared-modules'
+import * as vendoredReactRSC from './vendored/rsc/entrypoints'
+import * as vendoredReactSSR from './vendored/ssr/entrypoints'
+import * as vendoredReactShared from './vendored/shared/entrypoints'
 
 type AppPageUserlandModule = {
   /**
@@ -36,6 +39,8 @@ export class AppPageRouteModule extends RouteModule<
   AppPageUserlandModule
 > {
   static readonly sharedModules = sharedModules
+  // static readonly vendoredReact = vendoredReact
+  // static readonly vendoredReactSSR = vendoredReactSSR
 
   public render(
     req: IncomingMessage,
@@ -52,6 +57,12 @@ export class AppPageRouteModule extends RouteModule<
   }
 }
 
-export { renderToHTMLOrFlight }
+const vendored = {
+  'react-rsc': vendoredReactRSC,
+  'react-ssr': vendoredReactSSR,
+  'react-shared': vendoredReactShared,
+}
+
+export { renderToHTMLOrFlight, vendored }
 
 export default AppPageRouteModule

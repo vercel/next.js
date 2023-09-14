@@ -1738,14 +1738,14 @@ export async function copy_vendor_react(task_) {
     yield task
       .source(join(reactDir, 'cjs/**/*.js'))
       // eslint-disable-next-line require-yield
-      .run({ every: true }, function* (file) {
-        const source = file.data.toString()
-        // We replace the module/chunk loading code with our own implementation in Next.js.
-        file.data = source.replace(
-          /require\(["']react["']\)/g,
-          `require("next/dist/compiled/react${packageSuffix}")`
-        )
-      })
+      // .run({ every: true }, function* (file) {
+      //   const source = file.data.toString()
+      //   // We replace the module/chunk loading code with our own implementation in Next.js.
+      //   file.data = source.replace(
+      //     /require\(["']react["']\)/g,
+      //     `require("next/dist/compiled/react${packageSuffix}")`
+      //   )
+      // })
       .target(`src/compiled/react${packageSuffix}/cjs`)
 
     yield task
@@ -1763,22 +1763,22 @@ export async function copy_vendor_react(task_) {
     yield task
       .source(join(reactDomDir, 'cjs/**/*.js'))
       // eslint-disable-next-line require-yield
-      .run({ every: true }, function* (file) {
-        const source = file.data.toString()
-        // We replace the module/chunk loading code with our own implementation in Next.js.
-        file.data = source
-          .replace(
-            /require\(["']scheduler["']\)/g,
-            `require("next/dist/compiled/scheduler${packageSuffix}")`
-          )
-          .replace(
-            /require\(["']react["']\)/g,
-            `require("next/dist/compiled/react${packageSuffix}")`
-          )
+      // .run({ every: true }, function* (file) {
+      //   const source = file.data.toString()
+      //   // We replace the module/chunk loading code with our own implementation in Next.js.
+      //   file.data = source
+      //     .replace(
+      //       /require\(["']scheduler["']\)/g,
+      //       `require("next/dist/compiled/scheduler${packageSuffix}")`
+      //     )
+      //     .replace(
+      //       /require\(["']react["']\)/g,
+      //       `require("next/dist/compiled/react${packageSuffix}")`
+      //     )
 
-        // Note that we don't replace `react-dom` with `next/dist/compiled/react-dom`
-        // as it mighe be aliased to the server rendering stub.
-      })
+      //   // Note that we don't replace `react-dom` with `next/dist/compiled/react-dom`
+      //   // as it mighe be aliased to the server rendering stub.
+      // })
       .target(`src/compiled/react-dom${packageSuffix}/cjs`)
 
     // Remove unused files
@@ -2662,38 +2662,137 @@ export async function release(task) {
   await task.clear('dist').start('build')
 }
 
-export async function next_bundle_prod(task, opts) {
-  await task.source('dist').webpack({
-    watch: opts.dev,
-    config: require('./webpack.config')({
-      dev: false,
-    }),
-    name: 'next-bundle-prod',
-  })
-}
-
-export async function next_bundle_dev(task, opts) {
-  await task.source('dist').webpack({
-    watch: opts.dev,
-    config: require('./webpack.config')({
-      dev: true,
-    }),
-    name: 'next-bundle-dev',
-  })
-}
-
-export async function next_bundle_turbo_prod(task, opts) {
+export async function next_bundle_app_turbo(task, opts) {
   await task.source('dist').webpack({
     watch: opts.dev,
     config: require('./webpack.config')({
       turbo: true,
+      bundleType: 'app',
     }),
-    name: 'next-bundle-prod-turbo',
+    name: 'next-bundle-app-turbo',
   })
 }
+
+export async function next_bundle_app_prod(task, opts) {
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./webpack.config')({
+      dev: false,
+      bundleType: 'app',
+    }),
+    name: 'next-bundle-app-prod',
+  })
+}
+
+export async function next_bundle_app_dev(task, opts) {
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./webpack.config')({
+      dev: true,
+      bundleType: 'app',
+    }),
+    name: 'next-bundle-app-dev',
+  })
+}
+
+export async function next_bundle_app_turbo_experimental(task, opts) {
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./webpack.config')({
+      turbo: true,
+      bundleType: 'app',
+      experimental: true,
+    }),
+    name: 'next-bundle-app-turbo-experimental',
+  })
+}
+
+export async function next_bundle_app_prod_experimental(task, opts) {
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./webpack.config')({
+      dev: false,
+      bundleType: 'app',
+      experimental: true,
+    }),
+    name: 'next-bundle-app-prod-experimental',
+  })
+}
+
+export async function next_bundle_app_dev_experimental(task, opts) {
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./webpack.config')({
+      dev: true,
+      bundleType: 'app',
+      experimental: true,
+    }),
+    name: 'next-bundle-app-dev-experimental',
+  })
+}
+
+export async function next_bundle_pages_prod(task, opts) {
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./webpack.config')({
+      dev: false,
+      bundleType: 'pages',
+    }),
+    name: 'next-bundle-pages-prod',
+  })
+}
+
+export async function next_bundle_pages_dev(task, opts) {
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./webpack.config')({
+      dev: true,
+      bundleType: 'pages',
+    }),
+    name: 'next-bundle-pages-dev',
+  })
+}
+
+export async function next_bundle_pages_turbo(task, opts) {
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./webpack.config')({
+      turbo: true,
+      bundleType: 'pages',
+    }),
+    name: 'next-bundle-pages-turbo',
+  })
+}
+
+export async function next_bundle_server(task, opts) {
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./webpack.config')({
+      dev: false,
+      bundleType: 'server',
+    }),
+    name: 'next-bundle-server',
+  })
+}
+
 export async function next_bundle(task, opts) {
   await task.parallel(
-    ['next_bundle_prod', 'next_bundle_dev', 'next_bundle_turbo_prod'],
+    [
+      // builds the app (route/page) bundles
+      'next_bundle_app_turbo',
+      'next_bundle_app_prod',
+      'next_bundle_app_dev',
+      // builds the app (route/page) bundles with react experimental
+      'next_bundle_app_turbo_experimental',
+      'next_bundle_app_prod_experimental',
+      'next_bundle_app_dev_experimental',
+      // builds the pages (page/api) bundles
+      'next_bundle_pages_prod',
+      'next_bundle_pages_dev',
+      'next_bundle_pages_turbo',
+      // builds the minimal server
+      'next_bundle_server',
+    ],
     opts
   )
 }

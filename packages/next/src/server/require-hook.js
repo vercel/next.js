@@ -8,7 +8,7 @@ const mod = require('module')
 const originalRequire = mod.prototype.require
 const resolveFilename = mod._resolveFilename
 
-const { overrideReact, hookPropertyMap } = require('./import-overrides')
+const { hookPropertyMap } = require('./import-overrides')
 
 mod._resolveFilename = function (
   originalResolveFilename,
@@ -19,7 +19,7 @@ mod._resolveFilename = function (
   options
 ) {
   // In case the environment variable is set after the module is loaded.
-  overrideReact()
+  // overrideReact()
 
   const hookResolved = requestMap.get(request)
   if (hookResolved) request = hookResolved
