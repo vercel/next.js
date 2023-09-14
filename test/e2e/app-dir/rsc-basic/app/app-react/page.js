@@ -1,6 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
-import ReactDOMServer from 'react-dom/server.browser'
+import ReactDOMServer from 'react-dom/server.edge'
 import ClientReact from './client-react'
 
 export default function Page() {
