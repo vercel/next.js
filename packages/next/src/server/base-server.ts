@@ -50,11 +50,7 @@ import {
   TEMPORARY_REDIRECT_STATUS,
 } from '../shared/lib/constants'
 import { isDynamicRoute } from '../shared/lib/router/utils'
-import {
-  setLazyProp,
-  getCookieParser,
-  checkIsOnDemandRevalidate,
-} from './api-utils'
+import { checkIsOnDemandRevalidate } from './api-utils'
 import { setConfig } from '../shared/lib/runtime-config.shared-runtime'
 
 import { setRevalidateHeaders } from './send-payload/revalidate-headers'
@@ -790,8 +786,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         res.redirect(cleanUrl, 308).body(cleanUrl).send()
         return
       }
-
-      setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
 
       // Parse url if parsedUrl not provided
       if (!parsedUrl || typeof parsedUrl !== 'object') {
