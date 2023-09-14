@@ -49,17 +49,17 @@ function deleteFromRequireCache(filePath: string) {
 export function deleteAppClientCache() {
   // ensure we reset the cache for rsc components
   // loaded via react-server-dom-webpack
-  const reactServerDomModId = require.resolve(
-    'react-server-dom-webpack/client.edge'
-  )
-  const reactServerDomMod = require.cache[reactServerDomModId]
-
-  if (reactServerDomMod) {
-    for (const child of [...reactServerDomMod.children]) {
-      deleteFromRequireCache(child.id)
-    }
-    deleteFromRequireCache(reactServerDomModId)
-  }
+  // const reactServerDomModId = require.resolve(
+  //   'react-server-dom-webpack/client.edge'
+  // )
+  // const reactServerDomMod = require.cache[reactServerDomModId]
+  // if (reactServerDomMod) {
+  //   for (const child of [...reactServerDomMod.children]) {
+  //     deleteFromRequireCache(child.id)
+  //   }
+  //   deleteFromRequireCache(reactServerDomModId)
+  // }
+  // clearChunkCache()
 }
 
 export function deleteCache(filePath: string) {
