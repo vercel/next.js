@@ -24,13 +24,13 @@ export let ReactServerDOMWebpackClientEdge = require('react-server-dom-webpack/c
 
 export function clearChunkCache() {
   delete require.cache[require.resolve('react-server-dom-webpack/client.edge')]
-  if (process.env.NODE_ENV !== 'production') {
-    delete require.cache[
-      require.resolve(
-        'react-server-dom-webpack/cjs/react-server-dom-webpack-client.edge.development.js'
-      )
-    ]
-  }
+  //   if (process.env.NODE_ENV !== 'production') {
+  //     delete require.cache[
+  //       require.resolve(
+  //         'react-server-dom-webpack/cjs/react-server-dom-webpack-client.edge.development.js'
+  //       )
+  //     ]
+  //   }
   // eslint-disable-next-line import/no-extraneous-dependencies
   ReactServerDOMWebpackClientEdge = require('react-server-dom-webpack/client.edge')
 }

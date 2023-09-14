@@ -59,7 +59,7 @@ import {
   RSC,
 } from '../client/components/app-router-headers'
 
-const envConfig = require('../shared/lib/runtime-config.shared-runtime')
+const envConfig = require('../shared/lib/runtime-config.external')
 
 ;(globalThis as any).__NEXT_DATA__ = {
   nextExport: true,

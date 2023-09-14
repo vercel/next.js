@@ -8,5 +8,4 @@ export * as loadableContext from '../../../../shared/lib/loadable-context.shared
 export * as appRouterContext from '../../../../shared/lib/app-router-context.shared-runtime'
 export * as hooksClientContext from '../../../../shared/lib/hooks-client-context.shared-runtime'
 export * as imageConfigContext from '../../../../shared/lib/image-config-context.shared-runtime'
-export * as runtimeConfig from '../../../../shared/lib/runtime-config.shared-runtime'
 export * as loadable from '../../../../shared/lib/loadable.shared-runtime'
