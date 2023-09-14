@@ -8719,6 +8719,18 @@ export declare function Imprima<
   adjustFontFallback?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Inclusive_Sans<
+  T extends CssVariable | undefined = undefined
+>(options: {
+  weight: '400' | Array<'400'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
+}): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Inconsolata<
   T extends CssVariable | undefined = undefined
 >(options?: {
@@ -11410,7 +11422,7 @@ export declare function Mako<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'latin'>
+  subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Mali<
   T extends CssVariable | undefined = undefined
@@ -12411,6 +12423,18 @@ export declare function Moo_Lah_Lah<
   fallback?: string[]
   adjustFontFallback?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
+}): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Mooli<
+  T extends CssVariable | undefined = undefined
+>(options: {
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Moon_Dance<
   T extends CssVariable | undefined = undefined
@@ -14838,7 +14862,7 @@ export declare function Noto_Sans_Old_Hungarian<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'old-hungarian'>
+  subsets?: Array<'latin' | 'latin-ext' | 'old-hungarian'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Old_Italic<
   T extends CssVariable | undefined = undefined
@@ -14922,7 +14946,7 @@ export declare function Noto_Sans_Old_Turkic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'old-turkic'>
+  subsets?: Array<'latin' | 'latin-ext' | 'old-turkic'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Oriya<
   T extends CssVariable | undefined = undefined
@@ -15906,7 +15930,7 @@ export declare function Noto_Serif_Dogra<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'dogra'>
+  subsets?: Array<'dogra' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_Ethiopic<
   T extends CssVariable | undefined = undefined
