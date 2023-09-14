@@ -28,7 +28,16 @@ export function connect({
         handleSocketConnected(sendMessage);
         break;
       default:
-        handleSocketMessage(msg.data as ServerMessage);
+        if (Array.isArray(msg.data)) {
+          for (let i = 0; i < msg.data.length; i++) {
+            handleSocketMessage(
+              msg.data[i] as ServerMessage,
+              i !== msg.data.length - 1
+            );
+          }
+        } else {
+          handleSocketMessage(msg.data as ServerMessage);
+        }
         break;
     }
   });
@@ -499,13 +508,15 @@ export function setHooks(newHooks: typeof hooks) {
   Object.assign(hooks, newHooks);
 }
 
-function handleSocketMessage(msg: ServerMessage) {
+function handleSocketMessage(msg: ServerMessage, aggregate: boolean = false) {
   sortIssues(msg.issues);
 
   const hasCriticalIssues = handleIssues(msg);
 
   // TODO(WEB-582) Disable update aggregation for now.
-  const aggregate = /* hasCriticalIssues */ false;
+  // if(hasCriticalIssues) {
+  //   aggregate = true;
+  // }
   const aggregatedMsg = aggregateUpdates(msg, aggregate);
 
   if (aggregate) return;

@@ -126,11 +126,11 @@ async function loadWebAssemblyModule(
 
         const chunkUrl = `/${getChunkRelativeUrl(encodedChunkPath)}`;
 
-        const previousLink = document.querySelector(
+        const previousLinks = document.querySelectorAll(
           `link[rel=stylesheet][href^="${chunkUrl}"]`
         );
 
-        if (previousLink == null) {
+        if (previousLinks.length == 0) {
           reject(new Error(`No link element found for chunk ${chunkPath}`));
           return;
         }
@@ -142,10 +142,11 @@ async function loadWebAssemblyModule(
           reject();
         };
         link.onload = () => {
-          // First load the new CSS, then remove the old one. This prevents visible
+          // First load the new CSS, then remove the old ones. This prevents visible
           // flickering that would happen in-between removing the previous CSS and
           // loading the new one.
-          previousLink.remove();
+          for (const previousLink of Array.from(previousLinks))
+            previousLink.remove();
 
           // CSS chunks do not register themselves, and as such must be marked as
           // loaded instantly.
@@ -154,9 +155,9 @@ async function loadWebAssemblyModule(
 
         // Make sure to insert the new CSS right after the previous one, so that
         // its precedence is higher.
-        previousLink.parentElement!.insertBefore(
+        previousLinks[0].parentElement!.insertBefore(
           link,
-          previousLink.nextSibling
+          previousLinks[0].nextSibling
         );
       });
     },
