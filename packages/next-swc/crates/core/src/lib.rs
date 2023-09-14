@@ -46,7 +46,8 @@ use turbopack_binding::swc::{
             SyntaxContext,
         },
         ecma::{
-            ast::EsVersion, parser::parse_file_as_module, transforms::base::pass::noop, visit::Fold, atoms::JsWord,
+            ast::EsVersion, atoms::JsWord, parser::parse_file_as_module,
+            transforms::base::pass::noop, visit::Fold,
         },
     },
     custom_transform::modularize_imports,

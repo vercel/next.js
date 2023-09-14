@@ -188,7 +188,6 @@ function getBaseSWCOptions({
           isServer: !!isServerLayer,
         }
       : undefined,
-    // disableChecks: false,
     bundleTarget,
   }
 }
@@ -286,7 +285,6 @@ export function getJestSWCOptions({
 
   return {
     ...baseOptions,
-    // disableChecks: true,
     env: {
       targets: {
         // Targets the current version of Node.js
