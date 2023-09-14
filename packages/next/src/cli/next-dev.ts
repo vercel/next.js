@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+
+import '../server/lib/cpu-profile'
 import type { StartServerOptions } from '../server/lib/start-server'
 import { getPort, printAndExit } from '../server/lib/utils'
 import * as Log from '../build/output/log'
@@ -39,15 +41,7 @@ const handleSessionStop = async () => {
     const { eventCliSessionStopped } =
       require('../telemetry/events/session-stopped') as typeof import('../telemetry/events/session-stopped')
 
-    config =
-      config ||
-      (await loadConfig(
-        PHASE_DEVELOPMENT_SERVER,
-        dir,
-        undefined,
-        undefined,
-        true
-      ))
+    config = config || (await loadConfig(PHASE_DEVELOPMENT_SERVER, dir))
 
     let telemetry =
       (traceGlobals.get('telemetry') as InstanceType<
@@ -188,21 +182,16 @@ const nextDev: CliCommand = async (args) => {
   const { loadedEnvFiles } = loadEnvConfig(dir, true, console, false)
 
   let expFeatureInfo: string[] = []
-  config = await loadConfig(
-    PHASE_DEVELOPMENT_SERVER,
-    dir,
-    undefined,
-    undefined,
-    undefined,
-    (userConfig) => {
+  config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
+    onLoadUserConfig(userConfig) {
       const userNextConfigExperimental = getEnabledExperimentalFeatures(
         userConfig.experimental
       )
       expFeatureInfo = userNextConfigExperimental.sort(
         (a, b) => a.length - b.length
       )
-    }
-  )
+    },
+  })
 
   let envInfo: string[] = []
   if (loadedEnvFiles.length > 0) {
@@ -228,6 +217,9 @@ const nextDev: CliCommand = async (args) => {
 
   if (args['--turbo']) {
     process.env.TURBOPACK = '1'
+  }
+
+  if (process.env.TURBOPACK) {
     await validateTurboNextConfig({
       isCustomTurbopack: !!process.env.__INTERNAL_CUSTOM_TURBOPACK_BINDINGS,
       ...devServerOptions,

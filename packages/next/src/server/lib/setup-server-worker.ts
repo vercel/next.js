@@ -1,4 +1,3 @@
-import './cpu-profile'
 import v8 from 'v8'
 import http, { IncomingMessage, ServerResponse } from 'http'
 
