@@ -395,6 +395,14 @@ export function getResolveRoutes(
           if (invokedOutputs?.has(pathname) || checkLocaleApi(pathname)) {
             return
           }
+
+          // If we're in development mode, then we should trigger the definition
+          // reload now. We know this isn't for a static file because we've
+          // already checked that.
+          if (opts.dev && !pathname.startsWith('/_next/static/')) {
+            await fsChecker.definitions.forceReload()
+          }
+
           const output = await fsChecker.getItem(pathname)
 
           if (

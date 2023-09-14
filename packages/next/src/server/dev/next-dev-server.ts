@@ -9,11 +9,12 @@ import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { FallbackMode, MiddlewareRoutingItem } from '../base-server'
 import type { FunctionComponent } from 'react'
 import type { RouteMatch } from '../future/route-matches/route-match'
-import type { RouteMatcherManager } from '../future/route-matcher-managers/route-matcher-manager'
 import type {
   NextParsedUrlQuery,
   NextUrlWithParsedQuery,
 } from '../request-meta'
+import type { RouteDefinition } from '../future/route-definitions/route-definition'
+import type { InternalRootRouteDefinition } from '../future/route-definitions/internal-route-definition'
 
 import { Worker } from 'next/dist/compiled/jest-worker'
 import { join as pathJoin } from 'path'
@@ -48,22 +49,20 @@ import isError, { getProperError } from '../../lib/is-error'
 import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
 import { isMiddlewareFile } from '../../build/utils'
 import { formatServerError } from '../../lib/format-server-error'
-import {
-  DevRouteMatcherManager,
-  RouteEnsurer,
-} from '../future/route-matcher-managers/dev-route-matcher-manager'
-import { DevPagesRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-pages-route-matcher-provider'
-import { DevPagesAPIRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-pages-api-route-matcher-provider'
-import { DevAppPageRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-app-page-route-matcher-provider'
-import { DevAppRouteRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-app-route-route-matcher-provider'
 import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
-import { NodeManifestLoader } from '../future/route-matcher-providers/helpers/manifest-loaders/node-manifest-loader'
 import { NextBuildContext } from '../../build/build-context'
 import { IncrementalCache } from '../lib/incremental-cache'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
-import { BatchedFileReader } from '../future/helpers/file-reader/batched-file-reader'
-import { BaseFileReader } from '../future/helpers/file-reader/base-file-reader'
+import { NodeManifestLoader } from '../future/route-definitions/helpers/manifest-loaders/node-manifest-loader'
+import { BaseRouteComponentsLoader } from '../future/route-components-loader/base-route-components-loader'
+import { NextDevRouteDefinitionManagerBuilder } from '../future/route-definitions/managers/builders/next-dev-route-definition-manager-builder'
+import {
+  RouteEnsurer,
+  DevRouteManager,
+} from '../future/route-manager/dev-route-manager'
+import { NextRouteMatcherBuilder } from '../future/route-matchers/managers/builders/next-route-matcher-manager-builder'
+import { RouteKind } from '../future/route-kind'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -182,62 +181,35 @@ export default class DevServer extends Server {
     const { pagesDir, appDir } = findPagesDir(this.dir)
     this.pagesDir = pagesDir
     this.appDir = appDir
-  }
 
-  protected getRouteMatchers(): RouteMatcherManager {
-    const { pagesDir, appDir } = findPagesDir(this.dir)
+    const definitions = NextDevRouteDefinitionManagerBuilder.build(
+      this.dir,
+      this.nextConfig.pageExtensions,
+      this.i18nProvider
+    )
 
     const ensurer: RouteEnsurer = {
-      ensure: async (match) => {
-        await this.ensurePage({
-          match,
-          page: match.definition.page,
-          clientOnly: false,
-        })
+      ensure: async (definition: RouteDefinition) => {
+        try {
+          await this.ensurePage({
+            page: definition.page,
+            clientOnly: false,
+            definition,
+          })
+        } catch (err) {
+          throw err
+        }
       },
     }
 
-    const matchers = new DevRouteMatcherManager(
-      super.getRouteMatchers(),
+    // Configure the route manager to use the development definitions.
+    this.routes = new DevRouteManager(
+      this.routes,
       ensurer,
-      this.dir
+      new BaseRouteComponentsLoader(this.distDir),
+      definitions,
+      NextRouteMatcherBuilder.build(definitions)
     )
-    const extensions = this.nextConfig.pageExtensions
-
-    const fileReader = BatchedFileReader.findOrCreateShared(
-      BaseFileReader.findOrCreateShared()
-    )
-
-    // If the pages directory is available, then configure those matchers.
-    if (pagesDir) {
-      matchers.push(
-        new DevPagesRouteMatcherProvider(
-          pagesDir,
-          extensions,
-          fileReader,
-          this.localeNormalizer
-        )
-      )
-      matchers.push(
-        new DevPagesAPIRouteMatcherProvider(
-          pagesDir,
-          extensions,
-          fileReader,
-          this.localeNormalizer
-        )
-      )
-    }
-
-    if (appDir) {
-      matchers.push(
-        new DevAppPageRouteMatcherProvider(appDir, extensions, fileReader)
-      )
-      matchers.push(
-        new DevAppRouteRouteMatcherProvider(appDir, extensions, fileReader)
-      )
-    }
-
-    return matchers
   }
 
   protected getBuildId(): string {
@@ -252,7 +224,7 @@ export default class DevServer extends Server {
 
     await super.prepareImpl()
     await this.runInstrumentationHookIfAvailable()
-    await this.matchers.reload()
+    await this.routes.load()
     this.setDevReady!()
 
     // This is required by the tracing subsystem.
@@ -385,10 +357,18 @@ export default class DevServer extends Server {
     query: ParsedUrlQuery
     params: Params | undefined
     page: string
-    appPaths: string[] | null
+    match: RouteMatch | null
+    definition: RouteDefinition | null
     isAppPath: boolean
   }) {
+    const { page, match, definition } = params
+
     try {
+      // TODO: now that we ensure the definition once we've got it, maybe we can remove this?
+      if (!match) {
+        await this.ensureEdgeFunction({ page, definition })
+      }
+
       return super.runEdgeFunction({
         ...params,
         onWarning: (warn) => {
@@ -401,7 +381,7 @@ export default class DevServer extends Server {
       }
       this.logErrorWithOriginalStack(error, 'warning')
       const err = getProperError(error)
-      const { req, res, page } = params
+      const { req, res } = params
       res.statusCode = 500
       await this.renderError(err, req, res, page)
       return null
@@ -522,46 +502,67 @@ export default class DevServer extends Server {
   }
 
   protected async ensureMiddleware() {
-    return this.ensurePage({
-      page: this.actualMiddlewareFile!,
-      clientOnly: false,
-    })
+    try {
+      const definition = await this.routes.findDefinition(
+        {
+          kind: RouteKind.INTERNAL_ROOT,
+          page: '/middleware',
+        },
+        {
+          kind: RouteKind.INTERNAL_ROOT,
+          page: '/src/middleware',
+        }
+      )
+      if (!definition) return
+
+      return this.ensurePage({
+        page: definition.page,
+        clientOnly: false,
+        definition,
+      })
+    } catch (err) {
+      console.error(err)
+    }
   }
 
   private async runInstrumentationHookIfAvailable() {
-    if (
-      this.actualInstrumentationHookFile &&
-      (await this.ensurePage({
-        page: this.actualInstrumentationHookFile!,
-        clientOnly: false,
-      })
-        .then(() => true)
-        .catch(() => false))
-    ) {
-      NextBuildContext!.hasInstrumentationHook = true
+    let definition: InternalRootRouteDefinition | null = null
+    try {
+      definition =
+        await this.routes.findDefinition<InternalRootRouteDefinition>(
+          {
+            kind: RouteKind.INTERNAL_ROOT,
+            page: `/src/${INSTRUMENTATION_HOOK_FILENAME}`,
+          },
+          {
+            kind: RouteKind.INTERNAL_ROOT,
+            page: `/${INSTRUMENTATION_HOOK_FILENAME}`,
+          }
+        )
+    } catch {}
 
-      try {
-        const instrumentationHook = await require(pathJoin(
-          this.distDir,
-          'server',
-          INSTRUMENTATION_HOOK_FILENAME
-        ))
-        await instrumentationHook.register()
-      } catch (err: any) {
-        err.message = `An error occurred while loading instrumentation hook: ${err.message}`
-        throw err
-      }
+    // If the instrumentation hook doesn't exist, we don't need to run it.
+    if (!definition) return
+
+    NextBuildContext!.hasInstrumentationHook = true
+
+    try {
+      const instrumentationHook = await require(definition.filename)
+      await instrumentationHook.register()
+    } catch (err: any) {
+      err.message = `An error occurred while loading instrumentation hook: ${err.message}`
+      throw err
     }
   }
 
   protected async ensureEdgeFunction({
     page,
-    appPaths,
+    definition,
   }: {
     page: string
-    appPaths: string[] | null
+    definition: RouteDefinition | null
   }) {
-    return this.ensurePage({ page, appPaths, clientOnly: false })
+    return this.ensurePage({ page, clientOnly: false, definition })
   }
 
   generateRoutes(_dev?: boolean) {
@@ -713,8 +714,7 @@ export default class DevServer extends Server {
   protected async ensurePage(opts: {
     page: string
     clientOnly: boolean
-    appPaths?: ReadonlyArray<string> | null
-    match?: RouteMatch
+    definition: RouteDefinition | null
   }): Promise<void> {
     if (!this.isRenderWorker) {
       throw new Error('Invariant ensurePage called outside render worker')
@@ -730,16 +730,13 @@ export default class DevServer extends Server {
     page,
     query,
     params,
-    isAppPath,
-    appPaths = null,
+    definition,
     shouldEnsure,
   }: {
     page: string
     query: NextParsedUrlQuery
     params: Params
-    isAppPath: boolean
-    sriEnabled?: boolean
-    appPaths?: ReadonlyArray<string> | null
+    definition: RouteDefinition
     shouldEnsure: boolean
   }): Promise<FindComponentsResult | null> {
     await this.devReady
@@ -748,12 +745,13 @@ export default class DevServer extends Server {
       // Wrap build errors so that they don't get logged again
       throw new WrappedBuildError(compilationErr)
     }
+
     try {
       if (shouldEnsure || this.renderOpts.customServer) {
         await this.ensurePage({
-          page,
-          appPaths,
+          page: definition?.page ?? page,
           clientOnly: false,
+          definition,
         })
       }
 
@@ -765,10 +763,9 @@ export default class DevServer extends Server {
       this.restorePatchedGlobals()
 
       return await super.findPageComponents({
-        page,
+        definition,
         query,
         params,
-        isAppPath,
         shouldEnsure,
       })
     } catch (err) {

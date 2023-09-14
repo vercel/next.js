@@ -15,6 +15,7 @@ import { SERVER_RUNTIME } from '../../../../lib/constants'
 import { PrerenderManifest } from '../../..'
 import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
 import { SizeLimit } from '../../../../../types'
+import { WebRouteManager } from '../../../../server/future/route-manager/web-route-manager'
 
 export function getRender({
   dev,
@@ -91,53 +92,62 @@ export function getRender({
       },
       renderToHTML,
       incrementalCacheHandler,
-      loadComponent: async (inputPage) => {
-        if (inputPage === page) {
-          return {
-            ...baseLoadComponentResult,
-            Component: pageMod.default,
-            pageConfig: pageMod.config || {},
-            getStaticProps: pageMod.getStaticProps,
-            getServerSideProps: pageMod.getServerSideProps,
-            getStaticPaths: pageMod.getStaticPaths,
-            ComponentMod: pageMod,
-            isAppPath: !!pageMod.__next_app__,
-            page: inputPage,
-            routeModule: pageMod.routeModule,
-          }
-        }
+      routes: new WebRouteManager({
+        page,
+        pathname: isAppPath ? normalizeAppPath(page) : page,
+        pagesType,
+        componentsLoader: {
+          load: async (definition) => {
+            if (definition.page === page) {
+              return {
+                ...baseLoadComponentResult,
+                Component: pageMod.default,
+                pageConfig: pageMod.config || {},
+                getStaticProps: pageMod.getStaticProps,
+                getServerSideProps: pageMod.getServerSideProps,
+                getStaticPaths: pageMod.getStaticPaths,
+                ComponentMod: pageMod,
+                isAppPath: !!pageMod.__next_app__,
+                page: definition.page,
+                routeModule: pageMod.routeModule,
+              }
+            }
 
-        // If there is a custom 500 page, we need to handle it separately.
-        if (inputPage === '/500' && error500Mod) {
-          return {
-            ...baseLoadComponentResult,
-            Component: error500Mod.default,
-            pageConfig: error500Mod.config || {},
-            getStaticProps: error500Mod.getStaticProps,
-            getServerSideProps: error500Mod.getServerSideProps,
-            getStaticPaths: error500Mod.getStaticPaths,
-            ComponentMod: error500Mod,
-            page: inputPage,
-            routeModule: error500Mod.routeModule,
-          }
-        }
+            // If there is a custom 500 page, we need to handle it separately.
+            if (definition.page === '/500' && error500Mod) {
+              return {
+                ...baseLoadComponentResult,
+                Component: error500Mod.default,
+                pageConfig: error500Mod.config || {},
+                getStaticProps: error500Mod.getStaticProps,
+                getServerSideProps: error500Mod.getServerSideProps,
+                getStaticPaths: error500Mod.getStaticPaths,
+                ComponentMod: error500Mod,
+                page: definition.page,
+                routeModule: error500Mod.routeModule,
+              }
+            }
 
-        if (inputPage === '/_error') {
-          return {
-            ...baseLoadComponentResult,
-            Component: errorMod.default,
-            pageConfig: errorMod.config || {},
-            getStaticProps: errorMod.getStaticProps,
-            getServerSideProps: errorMod.getServerSideProps,
-            getStaticPaths: errorMod.getStaticPaths,
-            ComponentMod: errorMod,
-            page: inputPage,
-            routeModule: errorMod.routeModule,
-          }
-        }
+            if (definition.page === '/_error') {
+              return {
+                ...baseLoadComponentResult,
+                Component: errorMod.default,
+                pageConfig: errorMod.config || {},
+                getStaticProps: errorMod.getStaticProps,
+                getServerSideProps: errorMod.getServerSideProps,
+                getStaticPaths: errorMod.getStaticPaths,
+                ComponentMod: errorMod,
+                page: definition.page,
+                routeModule: errorMod.routeModule,
+              }
+            }
 
-        return null
-      },
+            return null
+          },
+        },
+        error500Mod,
+        errorMod,
+      }),
     },
   })
 

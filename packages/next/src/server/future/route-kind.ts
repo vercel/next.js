@@ -17,4 +17,22 @@ export const enum RouteKind {
    * filename of `route.{j,t}s{,x}`.
    */
   APP_ROUTE = 'APP_ROUTE',
+
+  /**
+   * `INTERNAL_APP` represents all the React pages that are under `app/` that
+   * is not directly routable but is used by the framework.
+   */
+  INTERNAL_APP = 'INTERNAL_APP',
+
+  /**
+   * `INTERNAL_PAGES` represents all the React pages that are under `pages/`
+   * that is not directly routable but is used by the framework.
+   */
+  INTERNAL_PAGES = 'INTERNAL_PAGES',
+
+  /**
+   * `INTERNAL_ROOT` represents all the files at the root that are not routable
+   * but are used by the framework.
+   */
+  INTERNAL_ROOT = 'INTERNAL_ROOT',
 }

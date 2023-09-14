@@ -1,3 +1,3 @@
-export interface Normalizer {
-  normalize(pathname: string): string
+export interface Normalizer<T = string> {
+  normalize(input: T): T
 }

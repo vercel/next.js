@@ -1,5 +1,5 @@
 import { DomainLocale } from '../../config'
-import { I18NProvider, LocaleAnalysisResult } from './i18n-provider'
+import { I18NProvider, LocaleInfo } from './i18n-provider'
 
 describe('I18NProvider', () => {
   const config = {
@@ -71,7 +71,7 @@ describe('I18NProvider', () => {
     it.each<{
       pathname: string
       defaultLocale: string | undefined
-      expected: LocaleAnalysisResult
+      expected: LocaleInfo
     }>([
       // Verify un-prefixed index routes.
       {

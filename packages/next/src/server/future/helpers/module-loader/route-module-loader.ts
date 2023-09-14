@@ -3,7 +3,7 @@ import type { ModuleLoader } from './module-loader'
 
 import { NodeModuleLoader } from './node-module-loader'
 
-export interface AppLoaderModule<M extends RouteModule = RouteModule> {
+interface RouteModuleExports<M extends RouteModule = RouteModule> {
   routeModule: M
 }
 
@@ -12,7 +12,7 @@ export class RouteModuleLoader {
     id: string,
     loader: ModuleLoader = new NodeModuleLoader()
   ): Promise<M> {
-    const module: AppLoaderModule<M> = await loader.load(id)
+    const module: RouteModuleExports<M> = await loader.load(id)
     if ('routeModule' in module) {
       return module.routeModule
     }

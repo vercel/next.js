@@ -38,6 +38,7 @@ import {
   PERMANENT_REDIRECT_STATUS,
 } from '../../shared/lib/constants'
 import type { NextJsHotReloaderInterface } from '../dev/hot-reloader-types'
+import { RouteKind } from '../future/route-kind'
 
 const debug = setupDebug('next:router-server:main')
 
@@ -149,11 +150,21 @@ export async function initialize(opts: {
       async getFallbackErrorComponents(dir: string) {
         const curDevInstance = devInstances[dir]
         await curDevInstance.hotReloader.buildFallbackError()
+
+        const definition = await fsChecker.definitions.find({
+          kind: RouteKind.INTERNAL_PAGES,
+          page: '/_error',
+        })
+        if (!definition) {
+          throw new Error('Invariant: failed to find /_error definition')
+        }
+
         // Build the error page to ensure the fallback is built too.
         // TODO: See if this can be moved into hotReloader or removed.
         await curDevInstance.hotReloader.ensurePage({
           page: '/_error',
           clientOnly: false,
+          definition,
         })
       },
       async getCompilationError(dir: string, page: string) {

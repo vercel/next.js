@@ -7,6 +7,7 @@ import type { PayloadOptions } from './send-payload'
 import type { LoadComponentsReturnType } from './load-components'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PrerenderManifest } from '../build'
+import type { RouteManager } from './future/route-manager/route-manager'
 
 import { byteLength } from './api-utils/web'
 import BaseServer, {
@@ -24,13 +25,13 @@ import { isDynamicRoute } from '../shared/lib/router/utils'
 import { interpolateDynamicPath, normalizeVercelUrl } from './server-utils'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { IncrementalCache } from './lib/incremental-cache'
+import { RouteDefinition } from './future/route-definitions/route-definition'
 
 interface WebServerOptions extends Options {
   webServerConfig: {
     page: string
     pathname: string
     pagesType: 'app' | 'pages' | 'root'
-    loadComponent: (page: string) => Promise<LoadComponentsReturnType | null>
     extendRenderOpts: Partial<BaseServer['renderOpts']> &
       Pick<BaseServer['renderOpts'], 'buildId'>
     renderToHTML:
@@ -38,12 +39,18 @@ interface WebServerOptions extends Options {
       | undefined
     incrementalCacheHandler?: any
     prerenderManifest: PrerenderManifest | undefined
+    routes: RouteManager
   }
 }
 
 export default class NextWebServer extends BaseServer<WebServerOptions> {
+  protected routes: RouteManager
+
   constructor(options: WebServerOptions) {
     super(options)
+
+    // Attach the routes manager.
+    this.routes = options.webServerConfig.routes
 
     // Extend `renderOpts`.
     Object.assign(this.renderOpts, options.webServerConfig.extendRenderOpts)
@@ -89,6 +96,16 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
 
   protected getHasAppDir() {
     return this.serverOptions.webServerConfig.pagesType === 'app'
+  }
+
+  protected async handleNextImageRequest(): Promise<{ finished: boolean }> {
+    return { finished: false }
+  }
+
+  protected async handleCatchallMiddlewareRequest(): Promise<{
+    finished: boolean
+  }> {
+    return { finished: false }
   }
 
   protected getPagesManifest() {
@@ -292,24 +309,24 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   }
 
   protected async findPageComponents({
-    page,
     query,
     params,
+    definition,
   }: {
-    page: string
+    definition: RouteDefinition
     query: NextParsedUrlQuery
-    params: Params | null
-    isAppPath: boolean
+    params: Params
   }) {
-    const result = await this.serverOptions.webServerConfig.loadComponent(page)
-    if (!result) return null
+    // Try to load the component.
+    const components = await this.routes.loadComponents(definition)
+    if (!components) return null
 
     return {
+      components,
       query: {
         ...(query || {}),
         ...(params || {}),
       },
-      components: result,
     }
   }
 

@@ -4,7 +4,6 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
 import type { BaseNextRequest } from './base-http'
 import type { CloneableBody } from './body-streams'
-import { RouteMatch } from './future/route-matches/route-match'
 import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 
 // FIXME: (wyattjoh) this is a temporary solution to allow us to pass data between bundled modules
@@ -37,7 +36,6 @@ export interface RequestMeta {
   _nextMiddlewareCookie?: string[]
   _protocol?: string
   _nextDataNormalizing?: boolean
-  _nextMatch?: RouteMatch
   _nextIncrementalCache?: any
   _nextMinimalMode?: boolean
 }
@@ -93,22 +91,6 @@ export function addRequestMeta<K extends keyof RequestMeta>(
 ) {
   const meta = getRequestMeta(request)
   meta[key] = value
-  return setRequestMeta(request, meta)
-}
-
-/**
- * Removes a key from the request metadata.
- *
- * @param request the request to mutate
- * @param key the key to remove
- * @returns the mutated request metadata
- */
-export function removeRequestMeta<K extends keyof RequestMeta>(
-  request: NextIncomingMessage,
-  key: K
-) {
-  const meta = getRequestMeta(request)
-  delete meta[key]
   return setRequestMeta(request, meta)
 }
 

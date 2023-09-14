@@ -1,7 +1,5 @@
-import { PagesAPIRouteDefinition } from '../route-definitions/pages-api-route-definition'
-import { LocaleRouteMatcher } from './locale-route-matcher'
-import { RouteMatcher } from './route-matcher'
+import type { PagesAPIRouteDefinition } from '../route-definitions/pages-api-route-definition'
 
-export class PagesAPIRouteMatcher extends RouteMatcher<PagesAPIRouteDefinition> {}
+import { BaseRouteMatcher } from './base-route-matcher'
 
-export class PagesAPILocaleRouteMatcher extends LocaleRouteMatcher<PagesAPIRouteDefinition> {}
+export class PagesAPIRouteMatcher extends BaseRouteMatcher<PagesAPIRouteDefinition> {}

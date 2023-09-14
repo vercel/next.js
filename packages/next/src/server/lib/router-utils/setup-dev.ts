@@ -109,6 +109,9 @@ import {
   deleteCache,
 } from '../../../build/webpack/plugins/nextjs-require-cache-hot-reloader'
 import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
+import { RouteKind } from '../../future/route-kind'
+import type { RouteDefinitionFilterSpec } from '../../future/route-definitions/providers/helpers/route-definition-filter'
+import { MIDDLEWARE_FILENAME } from '../../../lib/constants'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -169,7 +172,6 @@ async function startWatcher(opts: SetupOpts) {
   const serverFields: {
     actualMiddlewareFile?: string | undefined
     actualInstrumentationHookFile?: string | undefined
-    appPathRoutes?: Record<string, string | string[]>
     middleware?:
       | {
           page: string
@@ -923,12 +925,19 @@ async function startWatcher(opts: SetupOpts) {
               .map((param: string) => decodeURIComponent(param))
               .join('/')}`
 
-            await hotReloader
-              .ensurePage({
+            try {
+              const definition = await opts.fsChecker.definitions.find({
                 page: decodedPagePath,
-                clientOnly: false,
               })
-              .catch(console.error)
+
+              await hotReloader.ensurePage({
+                page: definition?.page ?? decodedPagePath,
+                clientOnly: false,
+                definition,
+              })
+            } catch (err) {
+              console.error(err)
+            }
           }
         }
         // Request was not finished.
@@ -1023,15 +1032,8 @@ async function startWatcher(opts: SetupOpts) {
       async buildFallbackError() {
         // Not implemented yet.
       },
-      async ensurePage({
-        page: inputPage,
-        // Unused parameters
-        // clientOnly,
-        // appPaths,
-        match,
-        isApp,
-      }) {
-        let page = match?.definition?.pathname ?? inputPage
+      async ensurePage({ page: inputPage, definition }) {
+        let page = definition?.pathname ?? inputPage
 
         if (page === '/_error') {
           if (globalEntries.app) {
@@ -1077,7 +1079,7 @@ async function startWatcher(opts: SetupOpts) {
           curEntries.get(page) ??
           curEntries.get(
             normalizeAppPath(
-              normalizeMetadataRoute(match?.definition?.page ?? inputPage)
+              normalizeMetadataRoute(definition?.page ?? inputPage)
             )
           )
 
@@ -1121,7 +1123,10 @@ async function startWatcher(opts: SetupOpts) {
 
         switch (route.type) {
           case 'page': {
-            if (isApp) {
+            if (
+              definition?.kind === RouteKind.APP_PAGE ||
+              definition?.kind === RouteKind.APP_ROUTE
+            ) {
               throw new Error(
                 `mis-matched route type: isApp && page for ${page}`
               )
@@ -1282,6 +1287,7 @@ async function startWatcher(opts: SetupOpts) {
     hotReloader = turbopackHotReloader
   } else {
     hotReloader = new HotReloader(opts.dir, {
+      definitions: opts.fsChecker.definitions,
       appDir,
       pagesDir,
       distDir: distDir,
@@ -1303,13 +1309,37 @@ async function startWatcher(opts: SetupOpts) {
   }
 
   opts.fsChecker.ensureCallback(async function ensure(item) {
-    if (item.type === 'appFile' || item.type === 'pageFile') {
-      await hotReloader.ensurePage({
-        clientOnly: false,
-        page: item.itemPath,
-        isApp: item.type === 'appFile',
-      })
+    if (item.type !== 'appFile' && item.type !== 'pageFile') {
+      return
     }
+
+    const specs: RouteDefinitionFilterSpec[] = []
+    if (item.type === 'appFile') {
+      specs.push(
+        { kind: RouteKind.APP_ROUTE, page: item.itemPath },
+        { kind: RouteKind.APP_PAGE, page: item.itemPath },
+        { kind: RouteKind.INTERNAL_APP, page: item.itemPath }
+      )
+    } else if (item.type === 'pageFile') {
+      specs.push(
+        { kind: RouteKind.PAGES, page: item.itemPath },
+        { kind: RouteKind.PAGES_API, page: item.itemPath },
+        { kind: RouteKind.INTERNAL_PAGES, page: item.itemPath }
+      )
+    }
+
+    const definition = await opts.fsChecker.definitions.find(...specs)
+    if (!definition) {
+      throw new Error(`Could not find definition for ${item.itemPath}`)
+    }
+
+    await hotReloader.ensurePage({
+      clientOnly: false,
+      page: definition.page,
+      definition,
+    })
+
+    await propagateToWorkers('forceReloadRoutes', undefined)
   })
 
   let resolved = false
@@ -1608,7 +1638,7 @@ async function startWatcher(opts: SetupOpts) {
           hotReloader.setHmrServerError(new Error(errorMessage))
         } else if (numConflicting === 0) {
           hotReloader.clearHmrServerError()
-          await propagateToWorkers('reloadMatchers', undefined)
+          await propagateToWorkers('forceReloadRoutes', undefined)
         }
       }
 
@@ -1761,12 +1791,6 @@ async function startWatcher(opts: SetupOpts) {
         nestedMiddleware = []
       }
 
-      // Make sure to sort parallel routes to make the result deterministic.
-      serverFields.appPathRoutes = Object.fromEntries(
-        Object.entries(appPaths).map(([k, v]) => [k, v.sort()])
-      )
-      await propagateToWorkers('appPathRoutes', serverFields.appPathRoutes)
-
       // TODO: pass this to fsChecker/next-dev-server?
       serverFields.middleware = middlewareMatchers
         ? {
@@ -1913,7 +1937,7 @@ async function startWatcher(opts: SetupOpts) {
       } finally {
         // Reload the matchers. The filesystem would have been written to,
         // and the matchers need to re-scan it to update the router.
-        await propagateToWorkers('reloadMatchers', undefined)
+        await propagateToWorkers('forceReloadRoutes', undefined)
       }
     })
 
@@ -2062,10 +2086,18 @@ async function startWatcher(opts: SetupOpts) {
     logErrorWithOriginalStack,
 
     async ensureMiddleware() {
-      if (!serverFields.actualMiddlewareFile) return
+      const definition = await opts.fsChecker.definitions.find(
+        { kind: RouteKind.INTERNAL_ROOT, page: `/src/${MIDDLEWARE_FILENAME}` },
+        { kind: RouteKind.INTERNAL_ROOT, page: `/${MIDDLEWARE_FILENAME}` }
+      )
+
+      // If there is no middleware file, we don't need to do anything.
+      if (!definition) return
+
       return hotReloader.ensurePage({
-        page: serverFields.actualMiddlewareFile,
+        page: definition.page,
         clientOnly: false,
+        definition,
       })
     },
   }

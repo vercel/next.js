@@ -4,6 +4,8 @@ import type { Duplex } from 'stream'
 import type { Telemetry } from '../../telemetry/storage'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { UrlObject } from 'url'
+import type { RouteDefinition } from '../future/route-definitions/route-definition'
+import type { RouteDefinitionManager } from '../future/route-definitions/managers/route-definition-manager'
 
 import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
 import { getOverlayMiddleware } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
@@ -61,7 +63,6 @@ import ws from 'next/dist/compiled/ws'
 import { promises as fs } from 'fs'
 import { UnwrapPromise } from '../../lib/coalesced-function'
 import { getRegistry } from '../../lib/helpers/get-registry'
-import { RouteMatch } from '../future/route-matches/route-match'
 import { parseVersionInfo, VersionInfo } from './parse-version-info'
 import { isAPIRoute } from '../../lib/is-api-route'
 import { getRouteLoaderEntry } from '../../build/webpack/loaders/next-route-loader'
@@ -221,6 +222,7 @@ export default class HotReloader implements NextJsHotReloaderInterface {
   public activeWebpackConfigs?: Array<
     UnwrapPromise<ReturnType<typeof getBaseWebpackConfig>>
   >
+  private definitions: RouteDefinitionManager
 
   constructor(
     dir: string,
@@ -233,6 +235,7 @@ export default class HotReloader implements NextJsHotReloaderInterface {
       rewrites,
       appDir,
       telemetry,
+      definitions,
     }: {
       config: NextConfigComplete
       pagesDir?: string
@@ -242,6 +245,7 @@ export default class HotReloader implements NextJsHotReloaderInterface {
       rewrites: CustomRoutes['rewrites']
       appDir?: string
       telemetry: Telemetry
+      definitions: RouteDefinitionManager
     }
   ) {
     this.hasAmpEntrypoints = false
@@ -258,6 +262,7 @@ export default class HotReloader implements NextJsHotReloaderInterface {
     this.edgeServerStats = null
     this.serverPrevDocumentHash = null
     this.telemetry = telemetry
+    this.definitions = definitions
 
     this.config = config
     this.previewProps = previewProps
@@ -309,20 +314,24 @@ export default class HotReloader implements NextJsHotReloaderInterface {
       }
 
       const page = denormalizePagePath(decodedPagePath)
+      if (page !== '/_error' && BLOCKED_PAGES.includes(page)) {
+        return {}
+      }
 
-      if (page === '/_error' || BLOCKED_PAGES.indexOf(page) === -1) {
-        try {
-          await this.ensurePage({ page, clientOnly: true })
-        } catch (error) {
-          return await renderScriptError(pageBundleRes, getProperError(error))
-        }
+      try {
+        // Find the definition so we may ensure it.
+        const definition = await this.definitions.find({ page })
 
-        const errors = await this.getCompilationErrors(page)
-        if (errors.length > 0) {
-          return await renderScriptError(pageBundleRes, errors[0], {
-            verbose: false,
-          })
-        }
+        await this.ensurePage({ page, clientOnly: true, definition })
+      } catch (error) {
+        return await renderScriptError(pageBundleRes, getProperError(error))
+      }
+
+      const errors = await this.getCompilationErrors(page)
+      if (errors.length > 0) {
+        return await renderScriptError(pageBundleRes, errors[0], {
+          verbose: false,
+        })
       }
 
       return {}
@@ -1467,20 +1476,17 @@ export default class HotReloader implements NextJsHotReloaderInterface {
   public async ensurePage({
     page,
     clientOnly,
-    appPaths,
-    match,
-    isApp,
+    definition,
   }: {
     page: string
     clientOnly: boolean
-    appPaths?: ReadonlyArray<string> | null
-    isApp?: boolean
-    match?: RouteMatch
+    definition: RouteDefinition | null
   }): Promise<void> {
     // Make sure we don't re-build or dispose prebuilt pages
     if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
       return
     }
+
     const error = clientOnly
       ? this.clientError
       : this.serverError || this.clientError
@@ -1491,9 +1497,7 @@ export default class HotReloader implements NextJsHotReloaderInterface {
     return this.onDemandEntries?.ensurePage({
       page,
       clientOnly,
-      appPaths,
-      match,
-      isApp,
+      definition,
     })
   }
 }

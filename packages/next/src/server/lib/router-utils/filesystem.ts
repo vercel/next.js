@@ -34,6 +34,7 @@ import {
 } from '../../../shared/lib/router/utils/middleware-route-matcher'
 
 import {
+  APP_PATHS_MANIFEST,
   APP_PATH_ROUTES_MANIFEST,
   BUILD_ID_FILE,
   MIDDLEWARE_MANIFEST,
@@ -43,6 +44,11 @@ import {
 } from '../../../shared/lib/constants'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
+import { RouteDefinitionManager } from '../../future/route-definitions/managers/route-definition-manager'
+import { NextRouteDefinitionManagerBuilder } from '../../future/route-definitions/managers/builders/next-route-definition-manager-builder'
+import { BaseManifestLoader } from '../../future/route-definitions/helpers/manifest-loaders/base-manifest-loader'
+import { I18NProvider } from '../../future/helpers/i18n-provider'
+import { NextDevRouteDefinitionManagerBuilder } from '../../future/route-definitions/managers/builders/next-dev-route-definition-manager-builder'
 
 export type FsOutput = {
   type:
@@ -151,6 +157,13 @@ export async function setupFsCheck(opts: {
   let buildId = 'development'
   let prerenderManifest: PrerenderManifest
 
+  const i18nProvider =
+    opts.config.i18n && opts.config.i18n.locales.length > 0
+      ? new I18NProvider(opts.config.i18n)
+      : null
+
+  let definitions: RouteDefinitionManager
+
   if (!opts.dev) {
     const buildIdPath = path.join(opts.dir, opts.config.distDir, BUILD_ID_FILE)
     buildId = await fs.readFile(buildIdPath, 'utf8')
@@ -200,6 +213,7 @@ export async function setupFsCheck(opts: {
     )
     const pagesManifestPath = path.join(distDir, 'server', PAGES_MANIFEST)
     const appRoutesManifestPath = path.join(distDir, APP_PATH_ROUTES_MANIFEST)
+    const appPathsManifestPath = path.join(distDir, APP_PATHS_MANIFEST)
 
     const routesManifest = JSON.parse(
       await fs.readFile(routesManifestPath, 'utf8')
@@ -218,6 +232,20 @@ export async function setupFsCheck(opts: {
     )
     const appRoutesManifest = JSON.parse(
       await fs.readFile(appRoutesManifestPath, 'utf8').catch(() => '{}')
+    )
+    const appPathsManifest = JSON.parse(
+      await fs.readFile(appPathsManifestPath, 'utf8').catch(() => '{}')
+    )
+
+    definitions = NextRouteDefinitionManagerBuilder.build(
+      distDir,
+      new BaseManifestLoader({
+        [PAGES_MANIFEST]: () => pagesManifest,
+        [APP_PATHS_MANIFEST]: () => appPathsManifest,
+        [MIDDLEWARE_MANIFEST]: () => middlewareManifest,
+      }),
+      Object.keys(appPathsManifest).length > 0,
+      i18nProvider
     )
 
     for (const key of Object.keys(pagesManifest)) {
@@ -309,7 +337,18 @@ export async function setupFsCheck(opts: {
           .toString('hex'),
       },
     }
+
+    definitions = NextDevRouteDefinitionManagerBuilder.build(
+      opts.dir,
+      opts.config.pageExtensions,
+      i18nProvider
+    )
   }
+
+  // Fire off the initial loading of the definitions.
+  void definitions.load().catch((err) => {
+    Log.error(err)
+  })
 
   const headers = customRoutes.headers.map((item) =>
     buildCustomRoute(
@@ -369,12 +408,14 @@ export async function setupFsCheck(opts: {
   debug('pageFiles', pageFiles)
   debug('appFiles', appFiles)
 
-  let ensureFn: (item: FsOutput) => Promise<void> | undefined
+  let ensureFn: ((item: FsOutput) => Promise<void>) | undefined
 
   return {
     headers,
     rewrites,
     redirects,
+
+    definitions,
 
     buildId,
     handleLocale,
@@ -579,17 +620,18 @@ export async function setupFsCheck(opts: {
                 }
               }
             } else if (type === 'pageFile' || type === 'appFile') {
-              const isAppFile = type === 'appFile'
-              if (
-                ensureFn &&
-                (await ensureFn({
-                  type,
-                  itemPath: isAppFile
-                    ? normalizeMetadataRoute(curItemPath)
-                    : curItemPath,
-                })?.catch(() => 'ENSURE_FAILED')) === 'ENSURE_FAILED'
-              ) {
-                continue
+              if (ensureFn) {
+                try {
+                  await ensureFn({
+                    type,
+                    itemPath:
+                      type === 'appFile'
+                        ? normalizeMetadataRoute(curItemPath)
+                        : curItemPath,
+                  })
+                } catch {
+                  continue
+                }
               }
             } else {
               continue

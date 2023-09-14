@@ -4,14 +4,15 @@ import type {
   AppRouteRouteModule,
 } from '../future/route-modules/app-route/module'
 import type { PrerenderManifest } from '../../build'
+import type { RouteMatcher } from '../future/route-matchers/route-matcher'
 
 import './globals'
 
 import { adapter, type AdapterOptions } from './adapter'
 import { IncrementalCache } from '../lib/incremental-cache'
-import { RouteMatcher } from '../future/route-matchers/route-matcher'
 import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
+import { BaseRouteMatcher } from '../future/route-matchers/base-route-matcher'
 
 type WrapOptions = Partial<Pick<AdapterOptions, 'page'>>
 
@@ -31,7 +32,7 @@ export class EdgeRouteModuleWrapper {
    */
   private constructor(private readonly routeModule: AppRouteRouteModule) {
     // TODO: (wyattjoh) possibly allow the module to define it's own matcher
-    this.matcher = new RouteMatcher(routeModule.definition)
+    this.matcher = new BaseRouteMatcher(routeModule.definition)
   }
 
   /**
@@ -75,7 +76,7 @@ export class EdgeRouteModuleWrapper {
     }
 
     // Get the match for this request.
-    const match = this.matcher.match(pathname)
+    const match = this.matcher.match({ pathname })
     if (!match) {
       throw new Error(
         `Invariant: no match found for request. Pathname '${pathname}' should have matched '${this.matcher.definition.pathname}'`
