@@ -31,6 +31,7 @@ async function setPnpmResolutionMode(cwd) {
 async function createNextInstall({
   parentSpan = null,
   dependencies = null,
+  resolutions = null,
   installCommand = null,
   packageJson = {},
   dirSuffix = '',
@@ -148,6 +149,8 @@ async function createNextInstall({
             ...packageJson,
             dependencies: combinedDependencies,
             private: true,
+            // Add resolutions if provided.
+            ...(resolutions ? { resolutions } : {}),
           },
           null,
           2
@@ -158,7 +161,10 @@ async function createNextInstall({
       if (installCommand) {
         const installString =
           typeof installCommand === 'function'
-            ? installCommand({ dependencies: combinedDependencies })
+            ? installCommand({
+                dependencies: combinedDependencies,
+                resolutions,
+              })
             : installCommand
 
         console.log('running install command', installString)
