@@ -28,4 +28,5 @@ if (isCpuProfileEnabled) {
   }
   process.on('SIGINT', saveProfile)
   process.on('SIGTERM', saveProfile)
+  process.on('exit', saveProfile)
 }
