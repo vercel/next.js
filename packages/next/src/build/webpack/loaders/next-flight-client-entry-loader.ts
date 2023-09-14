@@ -24,11 +24,11 @@ export default function transformSource(this: any) {
   const code = requests
     // Filter out CSS files in the SSR compilation
     .filter((request) => (isServer ? !regexCSS.test(request) : true))
+    .sort((a, b) => (regexCSS.test(b) ? 1 : a.localeCompare(b)))
     .map(
       (request) =>
         `import(/* webpackMode: "eager" */ ${JSON.stringify(request)})`
     )
-    .sort((a, b) => a.localeCompare(b))
     .join(';\n')
 
   const buildInfo = getModuleBuildInfo(this._module)
