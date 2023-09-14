@@ -408,41 +408,46 @@ function createRSCAliases(
     layer: WebpackLayerName & ('rsc' | 'ssr' | 'app-pages-browser')
     isEdgeServer: boolean
     reactProductionProfiling: boolean
-    // reactSharedSubset: boolean
-    // reactDomServerRenderingStub: boolean
     reactServerCondition?: boolean
   }
 ) {
-  const alias: Record<string, string> =
-    opts.layer === 'app-pages-browser' || opts.isEdgeServer
-      ? {
-          react$: `next/dist/compiled/react${bundledReactChannel}`,
-          'react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}`,
-          'react/jsx-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-runtime`,
-          'react/jsx-dev-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime`,
-          'react-dom/client$': `next/dist/compiled/react-dom${bundledReactChannel}/client`,
-          'react-dom/server$': `next/dist/compiled/react-dom${bundledReactChannel}/server`,
-          'react-dom/server.edge$': `next/dist/compiled/react-dom${bundledReactChannel}/server.edge`,
-          'react-dom/server.browser$': `next/dist/compiled/react-dom${bundledReactChannel}/server.browser`,
-          'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client`,
-          'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.edge`,
-          'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.edge`,
-          'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.node`,
-        }
-      : {
-          react$: `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react`,
-          'react-dom$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom`,
-          'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-runtime`,
-          'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-dev-runtime`,
-          'react-dom/client$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom-client`,
-          'react-dom/server$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom-server`,
-          'react-dom/server.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom-server-edge`,
-          'react-dom/server.browser$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom-server-browser`,
-          'react-server-dom-webpack/client$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-client`,
-          'react-server-dom-webpack/client.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-client-edge`,
-          'react-server-dom-webpack/server.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-server-edge`,
-          'react-server-dom-webpack/server.node$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-server-node`,
-        }
+  let alias: Record<string, string> = {}
+  if (opts.layer === 'app-pages-browser' || opts.isEdgeServer) {
+    alias = {
+      react$: `next/dist/compiled/react${bundledReactChannel}`,
+      'react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}`,
+      'react/jsx-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-runtime`,
+      'react/jsx-dev-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime`,
+      'react-dom/client$': `next/dist/compiled/react-dom${bundledReactChannel}/client`,
+      'react-dom/server$': `next/dist/compiled/react-dom${bundledReactChannel}/server`,
+      'react-dom/server.edge$': `next/dist/compiled/react-dom${bundledReactChannel}/server.edge`,
+      'react-dom/server.browser$': `next/dist/compiled/react-dom${bundledReactChannel}/server.browser`,
+      'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client`,
+      'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.edge`,
+      'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.edge`,
+      'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.node`,
+    }
+  } else if (opts.layer === 'ssr') {
+    alias = {
+      'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-runtime`,
+      'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-dev-runtime`,
+      react$: `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react`,
+      'react-dom$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom`,
+      'react-dom/server.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom-server-edge`,
+      'react-server-dom-webpack/client.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-client-edge`,
+    }
+  } else if (opts.layer === 'rsc') {
+    alias = {
+      'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-runtime`,
+      'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-dev-runtime`,
+      react$: `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react`,
+      'react-dom$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom`,
+      'react-server-dom-webpack/server.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-server-edge`,
+      'react-server-dom-webpack/server.node$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-server-node`,
+    }
+  } else {
+    throw new Error(`Unexpected layer: ${opts.layer}`)
+  }
 
   if (opts.isEdgeServer) {
     if (opts.layer === 'rsc') {
@@ -1175,16 +1180,16 @@ export default async function getBaseWebpackConfig(
         '@opentelemetry/api': 'next/dist/compiled/@opentelemetry/api',
       }),
 
-      ...(hasAppDir
-        ? createRSCAliases(bundledReactChannel, {
-            // reactSharedSubset: false,
-            // reactDomServerRenderingStub: false,
-            reactProductionProfiling,
-            // browser: true,
-            layer: 'app-pages-browser',
-            isEdgeServer,
-          })
-        : {}),
+      // ...(hasAppDir
+      //   ? createRSCAliases(bundledReactChannel, {
+      //       // reactSharedSubset: false,
+      //       // reactDomServerRenderingStub: false,
+      //       reactProductionProfiling,
+      //       // browser: true,
+      //       layer: 'app-pages-browser',
+      //       isEdgeServer,
+      //     })
+      //   : {}),
 
       ...(config.images.loaderFile
         ? {
@@ -1485,11 +1490,10 @@ export default async function getBaseWebpackConfig(
     const resolveNextExternal = (localRes: string) => {
       const isSharedRuntime = sharedRuntimePattern.test(localRes)
       const isExternal = externalPattern.test(localRes)
-      const isRenderRuntime = genericRuntimePattern.test(localRes)
 
       // if the file ends with .external, we need to make it a commonjs require in all cases
       // this is used mainly to share the async local storage across the routing, rendering and user layers.
-      if (isExternal || isRenderRuntime) {
+      if (isExternal) {
         // it's important we return the path that starts with `next/dist/` here instead of the absolute path
         // otherwise NFT will get tripped up
         return `commonjs ${localRes.replace(/.*?next[/\\]dist/, 'next/dist')}`
@@ -1498,9 +1502,9 @@ export default async function getBaseWebpackConfig(
       // this is because each shared-runtime files are unique per bundle, so if you use app-router context in pages,
       // it'll be a different instance than the one used in the app-router runtime.
       if (isSharedRuntime) {
-        if (dev) {
-          return `commonjs ${localRes}`
-        }
+        // if (dev) {
+        //   return `commonjs ${localRes}`
+        // }
 
         const name = path.parse(localRes).name.replace('.shared-runtime', '')
 

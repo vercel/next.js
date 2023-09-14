@@ -101,7 +101,7 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
   const externalHandler = ({ context, request, getResolve }, callback) => {
     ;(async () => {
       if (
-        ((dev || turbo) && request.endsWith('.shared-runtime')) ||
+        (turbo && request.endsWith('.shared-runtime')) ||
         request.endsWith('.external')
       ) {
         const resolve = getResolve()
