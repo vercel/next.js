@@ -64,7 +64,9 @@ window.__nextDevClientId = Math.round(Math.random() * 100 + Date.now())
 
 let hadRuntimeError = false
 let customHmrEventHandler: any
-export default function connect() {
+let MODE: 'webpack' | 'turbopack' = 'webpack'
+export default function connect(mode: 'webpack' | 'turbopack') {
+  MODE = mode
   register()
 
   addMessageListener((payload) => {
@@ -109,15 +111,17 @@ function clearOutdatedErrors() {
 function handleSuccess() {
   clearOutdatedErrors()
 
-  const isHotUpdate =
-    !isFirstCompilation ||
-    (window.__NEXT_DATA__.page !== '/_error' && isUpdateAvailable())
-  isFirstCompilation = false
-  hasCompileErrors = false
+  if (MODE === 'webpack') {
+    const isHotUpdate =
+      !isFirstCompilation ||
+      (window.__NEXT_DATA__.page !== '/_error' && isUpdateAvailable())
+    isFirstCompilation = false
+    hasCompileErrors = false
 
-  // Attempt to apply hot updates or reload.
-  if (isHotUpdate) {
-    tryApplyUpdates(onBeforeFastRefresh, onFastRefresh)
+    // Attempt to apply hot updates or reload.
+    if (isHotUpdate) {
+      tryApplyUpdates(onBeforeFastRefresh, onFastRefresh)
+    }
   }
 }
 
