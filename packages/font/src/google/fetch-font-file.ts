@@ -1,5 +1,3 @@
-// @ts-ignore
-import { fetch } from 'next/dist/compiled/undici'
 import { getProxyAgent } from './get-proxy-agent'
 
 /**
@@ -19,6 +17,7 @@ export async function fetchFontFile(url: string, isDev: boolean) {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), 3000)
   const arrayBuffer = await fetch(url, {
+    // @ts-ignore
     dispatcher: getProxyAgent(),
     // Add a timeout in dev
     signal: isDev ? controller.signal : undefined,

@@ -1,5 +1,4 @@
 import nextFontGoogleFontLoader from './loader'
-import 'next/src/server/node-polyfill-fetch'
 
 describe('next/font/google loader', () => {
   afterEach(() => {
