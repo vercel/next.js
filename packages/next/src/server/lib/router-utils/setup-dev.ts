@@ -1698,6 +1698,7 @@ async function startWatcher(opts: SetupOpts) {
                   isNodeServer,
                   middlewareMatchers: undefined,
                   previewModeId: undefined,
+                  useServerActions: !!nextConfig.experimental.serverActions,
                 })
 
                 Object.keys(plugin.definitions).forEach((key) => {

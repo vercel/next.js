@@ -202,6 +202,7 @@ export function getDefineEnv({
   isNodeServer,
   middlewareMatchers,
   previewModeId,
+  useServerActions,
 }: {
   allowedRevalidateHeaderKeys: string[] | undefined
   clientRouterFilters: Parameters<
@@ -218,6 +219,7 @@ export function getDefineEnv({
   isNodeServer: boolean
   middlewareMatchers: MiddlewareMatcher[] | undefined
   previewModeId: string | undefined
+  useServerActions: boolean
 }) {
   return {
     // internal field to identify the plugin config
@@ -382,6 +384,12 @@ export function getDefineEnv({
     ...(isNodeOrEdgeCompilation
       ? {
           'typeof window': JSON.stringify('undefined'),
+        }
+      : undefined),
+    ...(isNodeServer
+      ? {
+          'process.env.__NEXT_EXPERIMENTAL_REACT':
+            JSON.stringify(useServerActions),
         }
       : undefined),
   }
@@ -755,6 +763,7 @@ export async function loadProjectInfo({
 
 const UNSAFE_CACHE_REGEX = /[\\/]pages[\\/][^\\/]+(?:$|\?|#)/
 
+let count = 0
 export default async function getBaseWebpackConfig(
   dir: string,
   {
@@ -2564,6 +2573,7 @@ export default async function getBaseWebpackConfig(
           isNodeServer,
           middlewareMatchers,
           previewModeId,
+          useServerActions,
         })
       ),
       isClient &&
