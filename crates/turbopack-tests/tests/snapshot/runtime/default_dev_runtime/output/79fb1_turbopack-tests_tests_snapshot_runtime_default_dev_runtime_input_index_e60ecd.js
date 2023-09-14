@@ -1354,8 +1354,8 @@ async function loadWebAssemblyModule(_source1, wasmChunkPath1) {
                 }
                 const encodedChunkPath1 = chunkPath1.split("/").map((p1)=>encodeURIComponent(p1)).join("/");
                 const chunkUrl1 = `/${getChunkRelativeUrl(encodedChunkPath1)}`;
-                const previousLink1 = document.querySelector(`link[rel=stylesheet][href^="${chunkUrl1}"]`);
-                if (previousLink1 == null) {
+                const previousLinks1 = document.querySelectorAll(`link[rel=stylesheet][href^="${chunkUrl1}"]`);
+                if (previousLinks1.length == 0) {
                     reject1(new Error(`No link element found for chunk ${chunkPath1}`));
                     return;
                 }
@@ -1366,17 +1366,17 @@ async function loadWebAssemblyModule(_source1, wasmChunkPath1) {
                     reject1();
                 };
                 link1.onload = ()=>{
-                    // First load the new CSS, then remove the old one. This prevents visible
+                    // First load the new CSS, then remove the old ones. This prevents visible
                     // flickering that would happen in-between removing the previous CSS and
                     // loading the new one.
-                    previousLink1.remove();
+                    for (const previousLink1 of Array.from(previousLinks1))previousLink1.remove();
                     // CSS chunks do not register themselves, and as such must be marked as
                     // loaded instantly.
                     resolve1();
                 };
                 // Make sure to insert the new CSS right after the previous one, so that
                 // its precedence is higher.
-                previousLink1.parentElement.insertBefore(link1, previousLink1.nextSibling);
+                previousLinks1[0].parentElement.insertBefore(link1, previousLinks1[0].nextSibling);
             });
         },
         restart: ()=>self.location.reload()
