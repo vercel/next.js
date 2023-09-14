@@ -145,6 +145,7 @@ function getMiddlewareMatcher(
 }
 
 export default class NextNodeServer extends BaseServer {
+  private _serverDistDir: string | undefined
   private imageResponseCache?: ResponseCache
   protected renderWorkersPromises?: Promise<void>
   protected renderWorkerOpts?: Parameters<
@@ -1886,8 +1887,13 @@ export default class NextNodeServer extends BaseServer {
     return result
   }
 
-  protected get serverDistDir() {
-    return join(this.distDir, SERVER_DIRECTORY)
+  protected get serverDistDir(): string {
+    if (this._serverDistDir) {
+      return this._serverDistDir
+    }
+    const serverDistDir = join(this.distDir, SERVER_DIRECTORY)
+    this._serverDistDir = serverDistDir
+    return serverDistDir
   }
 
   protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
