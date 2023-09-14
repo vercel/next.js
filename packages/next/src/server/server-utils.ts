@@ -19,7 +19,7 @@ import { normalizeRscPath } from '../shared/lib/router/utils/app-paths'
 import { NEXT_QUERY_PARAM_PREFIX } from '../lib/constants'
 
 export function normalizeVercelUrl(
-  req: BaseNextRequest | IncomingMessage,
+  req: BaseNextRequest,
   trustQuery: boolean,
   paramKeys?: string[],
   pageIsDynamic?: boolean,
@@ -228,18 +228,8 @@ export function getUtils({
     return rewriteParams
   }
 
-  function handleBasePath(
-    req: BaseNextRequest | IncomingMessage,
-    parsedUrl: UrlWithParsedQuery
-  ) {
-    // always strip the basePath if configured since it is required
-    req.url = req.url!.replace(new RegExp(`^${basePath}`), '') || '/'
-    parsedUrl.pathname =
-      parsedUrl.pathname!.replace(new RegExp(`^${basePath}`), '') || '/'
-  }
-
   function getParamsFromRouteMatches(
-    req: BaseNextRequest | IncomingMessage,
+    req: BaseNextRequest,
     renderOpts?: any,
     detectedLocale?: string
   ) {
@@ -418,14 +408,13 @@ export function getUtils({
 
   return {
     handleRewrites,
-    handleBasePath,
     defaultRouteRegex,
     dynamicRouteMatcher,
     defaultRouteMatches,
     getParamsFromRouteMatches,
     normalizeDynamicRouteParams,
     normalizeVercelUrl: (
-      req: BaseNextRequest | IncomingMessage,
+      req: BaseNextRequest,
       trustQuery: boolean,
       paramKeys?: string[]
     ) =>
