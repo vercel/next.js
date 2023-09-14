@@ -158,7 +158,7 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
     },
     plugins: [
       new webpack.DefinePlugin({
-        // TODO: inject typeof window === 'undefined'
+        'typeof window': JSON.stringify('undefined'),
         'process.env.NEXT_MINIMAL': JSON.stringify('true'),
         'this.serverOptions.experimentalTestProxy': JSON.stringify(false),
         'this.minimalMode': JSON.stringify(true),

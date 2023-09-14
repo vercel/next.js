@@ -379,6 +379,11 @@ export function getDefineEnv({
         }
       : undefined),
     'process.env.TURBOPACK': JSON.stringify(false),
+    ...(isNodeOrEdgeCompilation
+      ? {
+          'typeof window': JSON.stringify('undefined'),
+        }
+      : undefined),
   }
 }
 
