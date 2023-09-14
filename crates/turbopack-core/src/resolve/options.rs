@@ -345,28 +345,26 @@ fn import_mapping_to_result_boxed(
     Box::pin(async move { import_mapping_to_result(mapping, lookup_path, request).await })
 }
 
-#[turbo_tasks::value_impl]
 impl ImportMap {
-    #[turbo_tasks::function]
+    // Not a turbo-tasks function: the map lookup should be cheaper than the cache
+    // lookup
     pub async fn lookup(
-        self: Vc<Self>,
+        &self,
         lookup_path: Vc<FileSystemPath>,
         request: Vc<Request>,
-    ) -> Result<Vc<ImportMapResult>> {
-        let this = self.await?;
+    ) -> Result<ImportMapResult> {
         // TODO lookup pattern
         if let Some(request_string) = request.await?.request() {
-            if let Some(result) = this.map.lookup(&request_string).next() {
-                return Ok(import_mapping_to_result(
+            if let Some(result) = self.map.lookup(&request_string).next() {
+                return import_mapping_to_result(
                     result.try_join_into_self().await?.into_owned(),
                     lookup_path,
                     request,
                 )
-                .await?
-                .into());
+                .await;
             }
         }
-        Ok(ImportMapResult::NoEntry.into())
+        Ok(ImportMapResult::NoEntry)
     }
 }
 
