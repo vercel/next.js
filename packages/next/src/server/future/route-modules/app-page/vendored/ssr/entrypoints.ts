@@ -23,7 +23,7 @@ export { React, ReactDOM, ReactDOMServerEdge }
 export let ReactServerDOMWebpackClientEdge = require('react-server-dom-webpack/client.edge')
 
 export function clearChunkCache() {
-  delete require.cache[require.resolve('react-server-dom-webpack/client.edge')]
+  //   delete require.cache[require.resolve('react-server-dom-webpack/client.edge')]
   //   if (process.env.NODE_ENV !== 'production') {
   //     delete require.cache[
   //       require.resolve(
