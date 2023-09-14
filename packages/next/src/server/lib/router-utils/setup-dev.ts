@@ -497,6 +497,14 @@ async function startWatcher(opts: SetupOpts) {
       changeSubscriptions.set(page, changed)
 
       for await (const change of changed) {
+        consoleStore.setState(
+          {
+            loading: true,
+            trigger: page,
+          } as OutputState,
+          true
+        )
+
         processIssues(page, change)
         const payload = makePayload(page, change)
         if (payload) sendHmr('endpoint-change', page, payload)
