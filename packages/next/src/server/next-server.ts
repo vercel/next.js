@@ -61,7 +61,7 @@ import BaseServer, {
   RequestContext,
   NormalizedRouteManifest,
 } from './base-server'
-import { getMaybePagePath, requireFontManifest } from './require'
+import { requireFontManifest } from './require'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { LoadComponentsReturnType, loadComponents } from './load-components'
@@ -376,15 +376,6 @@ export default class NextNodeServer extends BaseServer {
     if (!this.hasAppDir) return undefined
 
     return loadManifest(join(this.serverDistDir, APP_PATHS_MANIFEST))
-  }
-
-  protected async hasPage(pathname: string): Promise<boolean> {
-    return !!getMaybePagePath(
-      pathname,
-      this.distDir,
-      this.nextConfig.i18n?.locales,
-      this.hasAppDir
-    )
   }
 
   protected getBuildId(): string {

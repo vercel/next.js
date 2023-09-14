@@ -31,12 +31,10 @@ import {
   APP_PATHS_MANIFEST,
 } from '../../shared/lib/constants'
 import Server, { WrappedBuildError } from '../next-server'
-import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import { Telemetry } from '../../telemetry/storage'
 import { setGlobal } from '../../trace'
-import { findPageFile } from '../lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from '../lib/utils'
 import {
   UnwrapPromise,
@@ -47,7 +45,6 @@ import { DecodeError, MiddlewareNotFoundError } from '../../shared/lib/utils'
 import * as Log from '../../build/output/log'
 import isError, { getProperError } from '../../lib/is-error'
 import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
-import { isMiddlewareFile } from '../../build/utils'
 import { formatServerError } from '../../lib/format-server-error'
 import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
 import { NextBuildContext } from '../../build/build-context'
@@ -243,54 +240,6 @@ export default class DevServer extends Server {
   }
 
   protected async close(): Promise<void> {}
-
-  protected async hasPage(pathname: string): Promise<boolean> {
-    let normalizedPath: string
-    try {
-      normalizedPath = normalizePagePath(pathname)
-    } catch (err) {
-      console.error(err)
-      // if normalizing the page fails it means it isn't valid
-      // so it doesn't exist so don't throw and return false
-      // to ensure we return 404 instead of 500
-      return false
-    }
-
-    if (isMiddlewareFile(normalizedPath)) {
-      return findPageFile(
-        this.dir,
-        normalizedPath,
-        this.nextConfig.pageExtensions,
-        false
-      ).then(Boolean)
-    }
-
-    let appFile: string | null = null
-    let pagesFile: string | null = null
-
-    if (this.appDir) {
-      appFile = await findPageFile(
-        this.appDir,
-        normalizedPath + '/page',
-        this.nextConfig.pageExtensions,
-        true
-      )
-    }
-
-    if (this.pagesDir) {
-      pagesFile = await findPageFile(
-        this.pagesDir,
-        normalizedPath,
-        this.nextConfig.pageExtensions,
-        false
-      )
-    }
-    if (appFile && pagesFile) {
-      return false
-    }
-
-    return Boolean(appFile || pagesFile)
-  }
 
   async runMiddleware(params: {
     request: BaseNextRequest
@@ -498,7 +447,16 @@ export default class DevServer extends Server {
   }
 
   protected async hasMiddleware(): Promise<boolean> {
-    return this.hasPage(this.actualMiddlewareFile!)
+    return this.routes.hasDefinition(
+      {
+        kind: RouteKind.INTERNAL_ROOT,
+        page: '/middleware',
+      },
+      {
+        kind: RouteKind.INTERNAL_ROOT,
+        page: '/src/middleware',
+      }
+    )
   }
 
   protected async ensureMiddleware() {

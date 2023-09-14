@@ -79,6 +79,15 @@ export class WebRouteManager implements RouteManager {
     }
   }
 
+  public async hasDefinition<D extends RouteDefinition<RouteKind>>(
+    ...specs: Partial<D>[]
+  ): Promise<boolean> {
+    const definition = this.findDefinition(...specs)
+
+    // If the definition is null, then it doesn't exist.
+    return definition !== null
+  }
+
   public findDefinition<D extends RouteDefinition<RouteKind>>(
     ...specs: Partial<D>[]
   ): Promise<D | null> {

@@ -86,10 +86,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     return new WebResponseCache(this.minimalMode)
   }
 
-  protected async hasPage(page: string) {
-    return page === this.serverOptions.webServerConfig.page
-  }
-
   protected getBuildId() {
     return this.serverOptions.webServerConfig.extendRenderOpts.buildId
   }

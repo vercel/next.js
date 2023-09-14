@@ -1,4 +1,7 @@
-import type { LocaleRouteDefinition } from './locale-route-definition'
+import {
+  isLocaleRouteDefinition,
+  type LocaleRouteDefinition,
+} from './locale-route-definition'
 import type { RouteDefinition } from './route-definition'
 
 import { RouteKind } from '../route-kind'
@@ -34,9 +37,28 @@ export interface InternalPagesRouteDefinition
   extends RouteDefinition<RouteKind.INTERNAL_PAGES>,
     BuiltInRouteDefinition<RouteKind.INTERNAL_PAGES> {}
 
+export function isInternalPagesRouteDefinition(
+  definition: RouteDefinition
+): definition is InternalPagesRouteDefinition {
+  return (
+    definition.kind === RouteKind.INTERNAL_PAGES &&
+    isBuiltInRouteDefinition(definition)
+  )
+}
+
 export interface InternalLocalePagesRouteDefinition
   extends LocaleRouteDefinition<RouteKind.INTERNAL_PAGES>,
     BuiltInRouteDefinition<RouteKind.INTERNAL_PAGES> {}
+
+export function isInternalLocalePagesRouteDefinition(
+  definition: RouteDefinition
+): definition is InternalLocalePagesRouteDefinition {
+  return (
+    isInternalPagesRouteDefinition(definition) &&
+    isBuiltInRouteDefinition(definition) &&
+    isLocaleRouteDefinition(definition)
+  )
+}
 
 export interface InternalRootRouteDefinition
   extends RouteDefinition<RouteKind.INTERNAL_ROOT> {}

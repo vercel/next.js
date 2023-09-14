@@ -44,10 +44,22 @@ export class BaseRouteManager extends BaseLoadable implements RouteManager {
    * @param spec the specification of the definition to find.
    * @returns The definition for the page, or null if no definition was found.
    */
-  public async findDefinition<D extends RouteDefinition<RouteKind>>(
+  public findDefinition<D extends RouteDefinition<RouteKind>>(
     ...specs: RouteDefinitionFilterSpec<D>[]
   ): Promise<D | null> {
     return this.definitions.find(...specs)
+  }
+
+  /**
+   * Returns true if a route definition exists that matches one of the given
+   * specifications.
+   *
+   * @param specs The specification to match.
+   */
+  public hasDefinition<D extends RouteDefinition<RouteKind>>(
+    ...specs: Partial<D>[]
+  ): Promise<boolean> {
+    return this.definitions.has(...specs)
   }
 
   /**

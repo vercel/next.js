@@ -13,6 +13,21 @@ export interface RouteManager extends Loadable {
     ...specs: RouteDefinitionFilterSpec<D>[]
   ): Promise<D | null>
 
+  /**
+   * Returns true if a route definition exists that matches one of the given
+   * specifications.
+   *
+   * @param specs The specification to match.
+   */
+  hasDefinition<D extends RouteDefinition>(
+    ...specs: RouteDefinitionFilterSpec<D>[]
+  ): Promise<boolean>
+
+  /**
+   * Loads the components for the given route definition.
+   *
+   * @param definition the route definition to load components for
+   */
   loadComponents(definition: RouteDefinition): Promise<RouteComponents | null>
 
   /**

@@ -307,7 +307,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     parsedUrl: NextUrlWithParsedQuery
   ): void
   protected abstract getFallback(page: string): Promise<string>
-  protected abstract hasPage(pathname: string): Promise<boolean>
 
   protected abstract sendRenderResult(
     req: BaseNextRequest,
@@ -1406,7 +1405,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     if (
       this.renderOpts.customServer &&
       pathname === '/index' &&
-      !(await this.hasPage('/index'))
+      !(await this.routes.hasDefinition({ pathname: '/index' }))
     ) {
       // maintain backwards compatibility for custom server
       // (see custom-server integration tests)
@@ -2617,7 +2616,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       // if pages/500 is present we still need to trigger
       // /_error `getInitialProps` to allow reporting error
-      if (await this.hasPage('/500')) {
+      if (await this.routes.hasDefinition({ pathname: '/500' })) {
         ctx.query.__nextCustomErrorRender = '1'
         await this.renderErrorToResponse(ctx, err)
         delete ctx.query.__nextCustomErrorRender
@@ -2774,18 +2773,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         if (this.hasAppDir) {
           specs.push({
             kind: RouteKind.INTERNAL_APP,
-            page: this.renderOpts.dev ? '/not-found' : '/_not-found',
-          })
-        }
-
-        // Then if a locale was detected, try the locale 404 page from pages.
-        if (ctx.query.__nextLocale) {
-          specs.push({
-            kind: RouteKind.INTERNAL_PAGES,
-            i18n: {
-              detectedLocale: ctx.query.__nextLocale,
-              pathname: '/404',
-            },
+            pathname: this.renderOpts.dev ? '/not-found' : '/_not-found',
           })
         }
 
@@ -2794,34 +2782,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           kind: RouteKind.INTERNAL_PAGES,
           pathname: '/404',
         })
-
-        // If all else fails, fall back to the `/_error` page.
-        specs.push({
-          kind: RouteKind.INTERNAL_PAGES,
-          page: '/_error',
-        })
-
-        // Try to find the first matching page.
-        definition = await this.routes.findDefinition<
-          | InternalPagesRouteDefinition
-          | InternalLocalePagesRouteDefinition
-          | InternalAppRouteDefinition
-        >(...specs)
-        if (!definition) {
-          throw new Error('Invariant: failed to find error page')
-        }
-
-        // TODO: maybe move this into a provider?
-        // If we're in development and we ended up rendering a custom error page
-        // instead of a 404 page, warn about it.
-        if (
-          process.env.NODE_ENV !== 'production' &&
-          definition.page === '/_error' &&
-          isBuiltInRouteDefinition(definition) &&
-          !definition.builtIn
-        ) {
-          this.customErrorNo404Warn()
-        }
       } else if (
         !ctx.query.__nextCustomErrorRender &&
         STATIC_STATUS_PAGES.includes(statusPage) &&
@@ -2829,36 +2789,68 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         // is used instead
         (statusPage !== '/500' || !this.renderOpts.dev)
       ) {
-        // Otherwise fallback to the 404 page from pages.
+        // Try to load the status page from the pages directory.
         specs.push({
           kind: RouteKind.INTERNAL_PAGES,
-          page: statusPage,
+          pathname: statusPage,
         })
+      }
 
-        // If all else fails, fall back to the `/_error` page.
-        specs.push({
-          kind: RouteKind.INTERNAL_PAGES,
-          page: '/_error',
-        })
+      // If all else fails, fall back to the `/_error` page.
+      specs.push({
+        kind: RouteKind.INTERNAL_PAGES,
+        pathname: '/_error',
+      })
 
-        // Try to find the first matching page.
-        definition = await this.routes.findDefinition<
-          | InternalPagesRouteDefinition
-          | InternalLocalePagesRouteDefinition
-          | InternalAppRouteDefinition
-        >(...specs)
-        if (!definition) {
-          throw new Error('Invariant: failed to find error page')
+      // For each of the internal pages routes, if we have a locale, let's try
+      // to find the locale version of the page before it.
+      if (ctx.query.__nextLocale) {
+        for (let i = 0; i < specs.length; i++) {
+          const spec = specs[i]
+
+          // This only applies to pages.
+          if (spec.kind !== RouteKind.INTERNAL_PAGES) continue
+
+          // For pages, the page is the same as the detected locale.
+          const pathname = spec.pathname ?? spec.page
+
+          // If there was no pathname, we can't find the locale version.
+          if (!pathname) continue
+
+          specs.splice(i, 0, {
+            kind: RouteKind.INTERNAL_PAGES,
+            i18n: {
+              detectedLocale: ctx.query.__nextLocale,
+              pathname,
+            },
+          })
+
+          // Skip the next one since we just added it before this one.
+          i++
         }
-      } else {
-        // If we're not rendering a 404 page, try the `/_error` page first.
-        definition = await this.routes.findDefinition({
-          kind: RouteKind.INTERNAL_PAGES,
-          page: '/_error',
-        })
-        if (!definition) {
-          throw new Error('Invariant: failed to find error page')
-        }
+      }
+
+      // Try to find the first matching page.
+      definition = await this.routes.findDefinition<
+        | InternalPagesRouteDefinition
+        | InternalLocalePagesRouteDefinition
+        | InternalAppRouteDefinition
+      >(...specs)
+      if (!definition) {
+        throw new Error('Invariant: failed to find error page')
+      }
+
+      // TODO: maybe move this into a provider?
+      // If we're in development and we ended up rendering a custom error page
+      // instead of a 404 page, warn about it.
+      if (
+        res.statusCode === 404 &&
+        process.env.NODE_ENV !== 'production' &&
+        definition.page === '/_error' &&
+        isBuiltInRouteDefinition(definition) &&
+        !definition.builtIn
+      ) {
+        this.customErrorNo404Warn()
       }
 
       // Associate the definition with the request.

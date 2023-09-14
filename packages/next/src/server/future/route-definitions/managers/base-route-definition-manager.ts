@@ -58,6 +58,21 @@ export class BaseRouteDefinitionManager
     return null
   }
 
+  /**
+   * Returns true if a route definition exists that matches one of the given
+   * specifications.
+   *
+   * @param specs The specifications to match.
+   */
+  public async has<D extends RouteDefinition>(
+    ...specs: RouteDefinitionFilterSpec<D>[]
+  ): Promise<boolean> {
+    const definition = await this.find(...specs)
+
+    // If we found a definition, then it exists.
+    return definition !== null
+  }
+
   public with<
     K extends RouteKind,
     D extends RouteDefinition<K> = RouteDefinition<K>,

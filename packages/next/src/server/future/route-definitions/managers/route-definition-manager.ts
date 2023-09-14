@@ -15,6 +15,16 @@ export interface RouteDefinitionManager extends Loadable {
   ): Promise<D | null>
 
   /**
+   * Returns true if a route definition exists that matches one of the given
+   * specifications.
+   *
+   * @param specs The specification to match.
+   */
+  has<D extends RouteDefinition>(
+    ...specs: RouteDefinitionFilterSpec<D>[]
+  ): Promise<boolean>
+
+  /**
    * Finds a route definition provider that matches the given specification and
    * calls the given function with the provider. If no provider is found, then
    * null is returned.
