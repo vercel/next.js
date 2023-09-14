@@ -453,6 +453,9 @@ const configSchema = {
             loaders: {
               type: 'object',
             },
+            rules: {
+              type: 'object',
+            },
             resolveAlias: {
               type: 'object',
             },

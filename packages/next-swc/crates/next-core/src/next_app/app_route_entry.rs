@@ -56,7 +56,7 @@ pub async fn get_app_route_entry(
 
     let path = source.ident().path();
 
-    let template_file = "build/templates/app-route.js";
+    let template_file = "app-route.js";
 
     // Load the file from the next.js codebase.
     let file = load_next_js_template(project_root, template_file.to_string()).await?;
