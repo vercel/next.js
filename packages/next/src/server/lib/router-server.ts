@@ -1,5 +1,4 @@
 import type { IncomingMessage } from 'http'
-import type { createWorker } from './server-ipc'
 
 // this must come first as it includes require hooks
 import type {
@@ -52,8 +51,8 @@ export type RenderWorker = Pick<
 >
 
 export interface RenderWorkers {
-  app?: Awaited<ReturnType<typeof createWorker>>
-  pages?: Awaited<ReturnType<typeof createWorker>>
+  app?: RenderWorker
+  pages?: RenderWorker
 }
 
 const devInstances: Record<
