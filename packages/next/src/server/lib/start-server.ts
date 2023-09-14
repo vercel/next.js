@@ -109,7 +109,7 @@ function logStartInfo({
   )
   Log.bootstrap(`- Local:        ${appUrl}`)
   if (hostname) {
-    Log.bootstrap(` - Network: ${networkUrl}`)
+    Log.bootstrap(`- Network:      ${networkUrl}`)
   }
   if (envInfo?.length) Log.bootstrap(`- Environments: ${envInfo.join(', ')}`)
 
