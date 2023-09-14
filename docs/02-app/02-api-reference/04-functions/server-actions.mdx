@@ -34,7 +34,7 @@ Server Actions can be defined in two places:
 
 Create a Server Action by defining an asynchronous function with the [`"use server"`](https://react.dev/reference/react/use-server) directive at the top of the function body. `"use server"` ensures this function is only ever executed on the server.
 
-This function should have [serializable arguments](https://developer.mozilla.org/en-US/docs/Glossary/Serialization) and a [serializable return value](https://developer.mozilla.org/en-US/docs/Glossary/Serialization).
+This function should have [serializable arguments](https://developer.mozilla.org/docs/Glossary/Serialization) and a [serializable return value](https://developer.mozilla.org/docs/Glossary/Serialization).
 
 ```jsx filename="app/page.js" highlight={2}
 export default function ServerComponent() {

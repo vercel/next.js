@@ -12,6 +12,7 @@ const enabledTests = [
   'test/development/basic/legacy-decorators.test.ts',
   'test/development/basic/misc.test.ts',
   'test/development/basic/next-rs-api.test.ts',
+  'test/development/basic/tailwind-jit.test.ts',
   'test/development/basic/theme-ui.test.ts',
   'test/development/client-dev-overlay/index.test.ts',
   'test/development/correct-tsconfig-defaults/index.test.ts',
@@ -108,6 +109,10 @@ const enabledTests = [
   'test/e2e/typescript-version-no-warning/typescript-version-no-warning.test.ts',
   'test/e2e/typescript-version-warning/typescript-version-warning.test.ts',
   'test/e2e/undici-fetch/index.test.ts',
+  'test/integration/404-page/test/index.test.js',
+  'test/integration/404-page-app/test/index.test.js',
+  'test/integration/404-page-custom-error/test/index.test.js',
+  'test/integration/404-page-ssg/test/index.test.js',
   'test/integration/create-next-app/templates-app.test.ts',
   'test/integration/create-next-app/templates-pages.test.ts',
   'test/integration/custom-routes-i18n-index-redirect/test/index.test.js',
@@ -126,7 +131,6 @@ const enabledTests = [
   'test/integration/ssg-dynamic-routes-404-page/test/index.test.js',
   'test/integration/static-404/test/index.test.js',
   'test/integration/static-page-name/test/index.test.js',
-  'test/integration/trailing-slash-dist/test/index.test.js',
   'test/integration/trailing-slashes-href-resolving/test/index.test.js',
   'test/production/app-dir-hide-suppressed-error-during-next-export/index.test.ts',
   'test/production/app-dir-prefetch-non-iso-url/index.test.ts',
@@ -136,6 +140,9 @@ const enabledTests = [
   'test/production/jest/transpile-packages.test.ts',
   'test/production/postcss-plugin-config-as-string/index.test.ts',
   'test/production/suppo.ts',
+
+  // disabled due to nextConfig.distDir
+  //'test/integration/trailing-slash-dist/test/index.test.js',
 ]
 
 module.exports = { enabledTests }
@@ -158,7 +165,6 @@ module.exports = { enabledTests }
   'test/development/basic/emotion-swc.test.ts',
   'test/development/basic/legacy-decorators.test.ts',
   'test/development/basic/project-directory-rename.test.ts',
-  'test/development/basic/tailwind-jit.test.ts',
   'test/development/basic/theme-ui.test.ts',
   'test/development/dotenv-default-expansion/index.test.ts',
   'test/development/jsconfig-path-reloading/index.test.ts',

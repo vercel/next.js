@@ -79,6 +79,7 @@ export class NextDevInstance extends NextInstance {
             )
           }
         })
+
         const readyCb = (msg) => {
           const resolveServer = () => {
             try {
@@ -95,8 +96,6 @@ export class NextDevInstance extends NextInstance {
 
           const colorStrippedMsg = stripAnsi(msg)
           if (colorStrippedMsg.includes('- Local:')) {
-            // turbo devserver emits stdout in rust directly, can contain unexpected chars with color codes
-            // strip out again for the safety
             this._url = msg
               .split('\n')
               .find((line) => line.includes('- Local:'))

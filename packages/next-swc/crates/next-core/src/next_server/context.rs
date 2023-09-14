@@ -98,7 +98,8 @@ pub async fn get_server_resolve_options_context(
 ) -> Result<Vc<ResolveOptionsContext>> {
     let next_server_import_map =
         get_next_server_import_map(project_path, ty, mode, next_config, execution_context);
-    let foreign_code_context_condition = foreign_code_context_condition(next_config).await?;
+    let foreign_code_context_condition =
+        foreign_code_context_condition(next_config, project_path).await?;
     let root_dir = project_path.root().resolve().await?;
     let module_feature_report_resolve_plugin = ModuleFeatureReportResolvePlugin::new(project_path);
     let unsupported_modules_resolve_plugin = UnsupportedModulesResolvePlugin::new(project_path);
@@ -215,7 +216,8 @@ pub async fn get_server_module_options_context(
     let custom_rules = get_next_server_transforms_rules(next_config, ty.into_value(), mode).await?;
     let internal_custom_rules = get_next_server_internal_transforms_rules(ty.into_value()).await?;
 
-    let foreign_code_context_condition = foreign_code_context_condition(next_config).await?;
+    let foreign_code_context_condition =
+        foreign_code_context_condition(next_config, project_path).await?;
     let enable_postcss_transform = Some(PostCssTransformOptions {
         postcss_package: Some(get_postcss_package_mapping(project_path)),
         ..Default::default()

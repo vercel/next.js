@@ -1345,7 +1345,7 @@ export async function renderToHTMLOrFlight(
           const [MetadataTree, MetadataOutlet] = createMetadataComponents({
             tree: loaderTreeToRender,
             errorType: props.asNotFound ? 'not-found' : undefined,
-            pathname: pathname,
+            pathname,
             searchParams: providedSearchParams,
             getDynamicParamFromSegment: getDynamicParamFromSegment,
             appUsingSizeAdjust: appUsingSizeAdjust,
@@ -1717,7 +1717,7 @@ export async function renderToHTMLOrFlight(
       req,
       res,
       ComponentMod,
-      pathname: renderOpts.pathname,
+      page: renderOpts.page,
       serverActionsManifest,
       generateFlight,
       staticGenerationStore,
