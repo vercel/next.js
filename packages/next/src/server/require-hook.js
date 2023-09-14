@@ -33,7 +33,10 @@ mod._resolveFilename = function (
 // that needs to point to the rendering runtime version, it will point to the correct one.
 // This can happen on `pages` when a user requires a dependency that uses next/image for example.
 mod.prototype.require = function (request) {
-  if (request.endsWith('.shared-runtime')) {
+  if (
+    !(global.__NEXT_DATA__ && global.__NEXT_DATA__.nextExport) &&
+    request.endsWith('.shared-runtime')
+  ) {
     // const currentRuntime = `next/dist/compiled/next-server/pages${
     //   process.env.TURBOPACK ? '-turbo' : ''
     // }.runtime.${process.env.NODE_ENV === 'production' ? 'prod' : 'dev'}`
