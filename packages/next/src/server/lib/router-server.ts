@@ -510,6 +510,8 @@ export async function initialize(opts: {
         try {
           return await serveStatic(req, res, matchedOutput.itemPath, {
             root: matchedOutput.itemsRoot,
+            // Ensures that etags are not generated for static files when disabled.
+            etag: config.generateEtags,
           })
         } catch (err: any) {
           /**
