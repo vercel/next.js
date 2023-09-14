@@ -25,5 +25,10 @@ declare module 'next/navigation' {
    *
    * If used from `pages/`, the hook will return `null`.
    */
-  export function useParams(): Record<string, string | string[]> | null
+  export function useParams<
+    T extends Record<string, string | string[]> = Record<
+      string,
+      string | string[]
+    >
+  >(): T | null
 }
