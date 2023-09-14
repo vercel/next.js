@@ -829,7 +829,7 @@ async function startWatcher(opts: SetupOpts) {
       // The subscription will always emit once, which is the initial
       // computation. This is not a change, so swallow it.
       try {
-        console.log('first event', await subscription.next())
+        await subscription.next()
       } catch (e) {
         // The client is using an HMR session from a previous server, tell them
         // to fully reload the page to resolve the issue. We can't use
@@ -844,7 +844,6 @@ async function startWatcher(opts: SetupOpts) {
       }
 
       for await (const data of subscription) {
-        console.log('event', data)
         processIssues(id, data)
         sendHmr('hmr-event', id, {
           type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
