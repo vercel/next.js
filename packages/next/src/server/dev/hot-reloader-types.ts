@@ -30,7 +30,7 @@ interface ServerErrorAction {
 
 interface TurboPackMessageAction {
   type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE
-  data: TurbopackUpdate
+  data: TurbopackUpdate | TurbopackUpdate[]
 }
 
 interface BuildingAction {
