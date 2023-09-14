@@ -34,12 +34,19 @@ mod._resolveFilename = function (
 // This can happen on `pages` when a user requires a dependency that uses next/image for example.
 mod.prototype.require = function (request) {
   if (request.endsWith('.shared-runtime')) {
-    const currentRuntime = `next/dist/compiled/next-server/pages${
-      process.env.TURBOPACK ? '-turbo' : ''
-    }.runtime.${process.env.NODE_ENV === 'production' ? 'prod' : 'dev'}`
-    const base = path.basename(request, '.shared-runtime')
-    const instance = originalRequire.call(this, currentRuntime)
-    return instance.vendored.contexts[base]
+    // const currentRuntime = `next/dist/compiled/next-server/pages${
+    //   process.env.TURBOPACK ? '-turbo' : ''
+    // }.runtime.${process.env.NODE_ENV === 'production' ? 'prod' : 'dev'}`
+    // const base = path.basename(request, '.shared-runtime')
+    // const instance = originalRequire.call(this, currentRuntime)
+    // return instance.vendored.contexts[base]
+    return originalRequire.call(
+      this,
+      `next/dist/server/future/route-modules/pages/vendored/contexts/${path.basename(
+        request,
+        '.shared-runtime'
+      )}`
+    )
   }
 
   return originalRequire.call(this, request)

@@ -43,7 +43,7 @@ import {
   adaptForAppRouterInstance,
   adaptForSearchParams,
   PathnameContextProviderAdapter,
-} from '../shared/lib/router/adapters.shared-runtime'
+} from '../shared/lib/router/adapters'
 import { SearchParamsContext } from '../shared/lib/hooks-client-context.shared-runtime'
 import onRecoverableError from './on-recoverable-error'
 import tracer from './tracing/tracer'
