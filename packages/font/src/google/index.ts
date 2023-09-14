@@ -7,7 +7,6 @@ import type {
   NextFontWithVariable,
   Display,
 } from '../types'
-import 'next/types/misc'
 
 export declare function ABeeZee<
   T extends CssVariable | undefined = undefined
