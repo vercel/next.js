@@ -83,6 +83,7 @@ const enabledTests = [
   'test/e2e/edge-api-endpoi.ts',
   'test/e2e/edge-can-read-request-body/index.test.ts',
   'test/e2e/edge-compiler-module-expo.ts',
+  'test/e2e/edge-async-local-storage/index.test.ts',
   'test/e2e/handle-non-hoisted-swc-helpers/index.test.ts',
   'test/e2e/hello-world/hello-world.test.ts',
   'test/e2e/i18n-api-support/index.test.ts',
