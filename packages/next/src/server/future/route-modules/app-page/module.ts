@@ -12,9 +12,16 @@ import {
   type RouteModuleHandleContext,
 } from '../route-module'
 import * as sharedModules from './shared-modules'
-import * as vendoredReactRSC from './vendored/rsc/entrypoints'
-import * as vendoredReactSSR from './vendored/ssr/entrypoints'
-import * as vendoredReactShared from './vendored/shared/entrypoints'
+
+let vendoredReactRSC
+let vendoredReactSSR
+let vendoredReactShared
+
+if (process.env.NEXT_RUNTIME !== 'edge') {
+  vendoredReactRSC = require('./vendored/rsc/entrypoints')
+  vendoredReactSSR = require('./vendored/ssr/entrypoints')
+  vendoredReactShared = require('./vendored/shared/entrypoints')
+}
 
 type AppPageUserlandModule = {
   /**

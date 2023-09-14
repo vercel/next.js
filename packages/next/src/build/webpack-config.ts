@@ -393,6 +393,7 @@ function createRSCAliases(
   bundledReactChannel: string,
   opts: {
     layer: WebpackLayerName & ('rsc' | 'ssr' | 'app-pages-browser')
+    isEdgeServer: boolean
     reactProductionProfiling: boolean
     // reactSharedSubset: boolean
     // reactDomServerRenderingStub: boolean
@@ -400,7 +401,7 @@ function createRSCAliases(
   }
 ) {
   const alias: Record<string, string> =
-    opts.layer === 'app-pages-browser'
+    opts.layer === 'app-pages-browser' || opts.isEdgeServer
       ? {
           react$: `next/dist/compiled/react${bundledReactChannel}`,
           'react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}`,
@@ -430,24 +431,27 @@ function createRSCAliases(
           'react-server-dom-webpack/server.node$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-server-node`,
         }
 
-  // if (opts.reactSharedSubset) {
-  //   // alias[
-  //   //   'react$'
-  //   // ] = `next/dist/compiled/react${bundledReactChannel}/react.shared-subset`
-  //   alias[
-  //     'react$'
-  //   ] = `next/dist/server/future/route-modules/app-page/vendored/react-shared-subset`
-  // }
-  // // Use server rendering stub for RSC
-  // // x-ref: https://github.com/facebook/react/pull/25436
-  // if (opts.reactDomServerRenderingStub) {
-  //   // alias[
-  //   //   'react-dom$'
-  //   // ] = `next/dist/compiled/react-dom${bundledReactChannel}/server-rendering-stub`
-  //   alias[
-  //     'react-dom$'
-  //   ] = `next/dist/server/future/route-modules/app-page/vendored/react-server-rendering-stub`
-  // }
+  if (opts.isEdgeServer) {
+    if (opts.layer === 'rsc') {
+      alias[
+        'react$'
+      ] = `next/dist/compiled/react${bundledReactChannel}/react.shared-subset`
+    }
+    // alias[
+    //   'react$'
+    // ] = `next/dist/server/future/route-modules/app-page/vendored/react-shared-subset`
+    // }
+    // Use server rendering stub for RSC
+    // x-ref: https://github.com/facebook/react/pull/25436
+    // if (opts.reactDomServerRenderingStub) {
+    alias[
+      'react-dom$'
+    ] = `next/dist/compiled/react-dom${bundledReactChannel}/server-rendering-stub`
+    // alias[
+    //   'react-dom$'
+    // ] = `next/dist/server/future/route-modules/app-page/vendored/react-server-rendering-stub`
+    // }
+  }
 
   // Alias `server-only` and `client-only` modules to their server/client only, vendored versions.
   // These aliases are necessary if the user doesn't have those two packages installed manually.
@@ -1164,6 +1168,7 @@ export default async function getBaseWebpackConfig(
             reactProductionProfiling,
             // browser: true,
             layer: 'app-pages-browser',
+            isEdgeServer,
           })
         : {}),
 
@@ -2198,6 +2203,7 @@ export default async function getBaseWebpackConfig(
                     reactProductionProfiling,
                     // browser: false,
                     layer: WEBPACK_LAYERS.reactServerComponents,
+                    isEdgeServer,
                   }),
                 },
                 use: {
@@ -2262,6 +2268,7 @@ export default async function getBaseWebpackConfig(
                         reactProductionProfiling,
                         // browser: false,
                         layer: WEBPACK_LAYERS.reactServerComponents,
+                        isEdgeServer,
                       }),
                     },
                   },
@@ -2276,6 +2283,7 @@ export default async function getBaseWebpackConfig(
                         reactProductionProfiling,
                         // browser: true,
                         layer: WEBPACK_LAYERS.serverSideRendering,
+                        isEdgeServer,
                       }),
                     },
                   },
@@ -2293,6 +2301,7 @@ export default async function getBaseWebpackConfig(
                     reactProductionProfiling,
                     // browser: isClient,
                     layer: WEBPACK_LAYERS.appPagesBrowser,
+                    isEdgeServer,
                   }),
                 },
               },

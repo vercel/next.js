@@ -20,7 +20,7 @@ const pagesExternals = [
   'react-server-dom-webpack/server.node',
 ]
 
-function makeAppAliases(reactChannel) {
+function makeAppAliases(reactChannel = '') {
   const alias = {
     react$: `next/dist/compiled/react${reactChannel}`,
     'react/shared-subset$': `next/dist/compiled/react${reactChannel}/react.shared-subset`,
@@ -41,7 +41,7 @@ function makeAppAliases(reactChannel) {
   return alias
 }
 
-const appAliases = makeAppAliases('')
+const appAliases = makeAppAliases()
 const appExperimentalAliases = makeAppAliases('-experimental')
 
 const sharedExternals = [
