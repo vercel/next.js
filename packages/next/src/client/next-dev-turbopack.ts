@@ -1,6 +1,6 @@
 // TODO: Remove use of `any` type.
 import { initialize, version, router, emitter } from './'
-import initWebpackHMR from './dev/webpack-hot-middleware-client'
+import initHMR from './dev/hot-middleware-client'
 
 import './setup-hydration-warning'
 import { pageBootrap } from './page-bootstrap'
@@ -18,15 +18,14 @@ window.next = {
   emitter,
 }
 ;(self as any).__next_set_public_path__ = () => {}
-;(self as any).__webpack_hash__ = 0
+;(self as any).__webpack_hash__ = ''
 
 // for the page loader
 declare let __turbopack_load__: any
 
-const webpackHMR = initWebpackHMR()
+const devClient = initHMR('turbopack')
 initialize({
-  // TODO the prop name is confusing as related to webpack
-  webpackHMR,
+  devClient,
 })
   .then(({ assetPrefix }) => {
     // for the page loader

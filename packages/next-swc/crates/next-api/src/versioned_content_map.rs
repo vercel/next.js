@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::{bail, Result};
+use next_core::emit_client_assets;
 use turbo_tasks::{State, TryFlatJoinIterExt, TryJoinIterExt, ValueDefault, ValueToString, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::FileSystemPath,
@@ -53,7 +54,7 @@ impl VersionedContentMap {
         let assets = assets_operation.await?;
         let entries: Vec<_> = assets
             .iter()
-            .map(|asset| async move {
+            .map(|&asset| async move {
                 // NOTE(alexkirsz) `.versioned_content()` should not be resolved, to ensure that
                 // it always points to the task that computes the versioned
                 // content.
@@ -73,21 +74,20 @@ impl VersionedContentMap {
 
     #[turbo_tasks::function]
     pub async fn get(&self, path: Vc<FileSystemPath>) -> Result<Vc<Box<dyn VersionedContent>>> {
-        let result = {
-            // NOTE(alexkirsz) This is to avoid Rust marking this method as !Send because a
-            // StateRef to the map is captured across an await boundary below, even though
-            // it does not look like it would.
-            // I think this is a similar issue as https://fasterthanli.me/articles/a-rust-match-made-in-hell
-            let map = self.map.get();
-            map.get(&path).copied()
-        };
-        let Some((content, assets_operation)) = result else {
-            let path = path.to_string().await?;
-            bail!("could not find versioned content for path {}", path);
-        };
-        // NOTE(alexkirsz) This is necessary to mark the task as active again.
-        Vc::connect(assets_operation);
-        Vc::connect(content);
+        let (content, _) = self.get_internal(path).await?;
+        Ok(content)
+    }
+
+    #[turbo_tasks::function]
+    pub async fn get_and_write(
+        &self,
+        path: Vc<FileSystemPath>,
+        client_relative_path: Vc<FileSystemPath>,
+        client_output_path: Vc<FileSystemPath>,
+    ) -> Result<Vc<Box<dyn VersionedContent>>> {
+        let (content, assets_operation) = self.get_internal(path).await?;
+        // Make sure all written client assets are up-to-date
+        emit_client_assets(assets_operation, client_relative_path, client_output_path).await?;
         Ok(content)
     }
 
@@ -104,5 +104,29 @@ impl VersionedContentMap {
             .try_flat_join()
             .await?;
         Ok(Vc::cell(keys))
+    }
+}
+
+impl VersionedContentMap {
+    async fn get_internal(
+        &self,
+        path: Vc<FileSystemPath>,
+    ) -> Result<(Vc<Box<dyn VersionedContent>>, Vc<OutputAssets>)> {
+        let result = {
+            // NOTE(alexkirsz) This is to avoid Rust marking this method as !Send because a
+            // StateRef to the map is captured across an await boundary below, even though
+            // it does not look like it would.
+            // I think this is a similar issue as https://fasterthanli.me/articles/a-rust-match-made-in-hell
+            let map = self.map.get();
+            map.get(&path).copied()
+        };
+        let Some((content, assets_operation)) = result else {
+            let path = path.to_string().await?;
+            bail!("could not find versioned content for path {}", path);
+        };
+        // NOTE(alexkirsz) This is necessary to mark the task as active again.
+        Vc::connect(assets_operation);
+        Vc::connect(content);
+        Ok((content, assets_operation))
     }
 }

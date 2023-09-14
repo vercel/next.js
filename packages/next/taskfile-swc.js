@@ -140,7 +140,10 @@ module.exports = function (task) {
       if (ext) {
         const extRegex = new RegExp(ext.replace('.', '\\.') + '$', 'i')
         // Remove the extension if stripExtension is enabled or replace it with `.js`
-        file.base = file.base.replace(extRegex, stripExtension ? '' : '.js')
+        file.base = file.base.replace(
+          extRegex,
+          stripExtension ? '' : `.${ext === '.mts' ? 'm' : ''}js`
+        )
       }
 
       if (output.map) {

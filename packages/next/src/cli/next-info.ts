@@ -4,14 +4,12 @@ import os from 'os'
 import childProcess from 'child_process'
 
 import chalk from 'next/dist/compiled/chalk'
-import arg from 'next/dist/compiled/arg/index.js'
 const { fetch } = require('next/dist/compiled/undici') as {
   fetch: typeof global.fetch
 }
 import { CliCommand } from '../lib/commands'
 import { PHASE_INFO } from '../shared/lib/constants'
 import loadConfig from '../server/config'
-import { getValidatedArgs } from '../lib/get-validated-args'
 
 const dir = process.cwd()
 
@@ -51,18 +49,6 @@ type PlatformTaskScript =
       darwin?: TaskScript
     }
 
-/**
- * Supported CLI arguments.
- */
-const validArgs: arg.Spec = {
-  // Types
-  '--help': Boolean,
-  // Aliases
-  '-h': '--help',
-  // Detailed diagnostics
-  '--verbose': Boolean,
-}
-
 function getPackageVersion(packageName: string) {
   try {
     return require(`${packageName}/package.json`).version
@@ -72,7 +58,7 @@ function getPackageVersion(packageName: string) {
 }
 
 async function getNextConfig() {
-  const config = await loadConfig(PHASE_INFO, dir, undefined, undefined, true)
+  const config = await loadConfig(PHASE_INFO, dir)
 
   return {
     output: config.output ?? 'N/A',
@@ -590,9 +576,7 @@ async function printVerbose() {
  * There are 2 modes, by default it collects basic next.js installation with runtime information. If
  * `--verbose` mode is enabled it'll try to collect, verify more data for next-swc installation and others.
  */
-const nextInfo: CliCommand = async (argv) => {
-  const args = getValidatedArgs(validArgs, argv)
-
+const nextInfo: CliCommand = async (args) => {
   if (args['--help']) {
     printHelp()
     return

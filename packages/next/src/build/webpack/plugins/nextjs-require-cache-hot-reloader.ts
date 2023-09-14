@@ -20,16 +20,7 @@ const originModules = [
 
 const RUNTIME_NAMES = ['webpack-runtime', 'webpack-api-runtime']
 
-const nextDeleteCacheRpc = async (filePaths: string[]) => {
-  if ((global as any)._nextDeleteCache) {
-    return (global as any)._nextDeleteCache(filePaths)
-  }
-}
-
 export function deleteAppClientCache() {
-  if ((global as any)._nextDeleteAppClientCache) {
-    return (global as any)._nextDeleteAppClientCache()
-  }
   // ensure we reset the cache for rsc components
   // loaded via react-server-dom-webpack
   const reactServerDomModId = require.resolve(
@@ -88,43 +79,41 @@ export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
 
   apply(compiler: Compiler) {
     compiler.hooks.assetEmitted.tap(PLUGIN_NAME, (_file, { targetPath }) => {
-      nextDeleteCacheRpc([targetPath])
-
-      // Clear module context in other processes
-      if ((global as any)._nextClearModuleContext) {
-        ;(global as any)._nextClearModuleContext(targetPath)
-      }
       // Clear module context in this process
       clearModuleContext(targetPath)
+      deleteCache(targetPath)
     })
 
     compiler.hooks.afterEmit.tapPromise(PLUGIN_NAME, async (compilation) => {
-      const cacheEntriesToDelete = []
-
       for (const name of RUNTIME_NAMES) {
         const runtimeChunkPath = path.join(
           compilation.outputOptions.path!,
           `${name}.js`
         )
-        cacheEntriesToDelete.push(runtimeChunkPath)
+        deleteCache(runtimeChunkPath)
       }
 
       // we need to make sure to clear all server entries from cache
       // since they can have a stale webpack-runtime cache
       // which needs to always be in-sync
+      let hasAppEntry = false
       const entries = [...compilation.entries.keys()].filter((entry) => {
         const isAppPath = entry.toString().startsWith('app/')
+        if (isAppPath) hasAppEntry = true
         return entry.toString().startsWith('pages/') || isAppPath
       })
+
+      if (hasAppEntry) {
+        deleteAppClientCache()
+      }
 
       for (const page of entries) {
         const outputPath = path.join(
           compilation.outputOptions.path!,
           page + '.js'
         )
-        cacheEntriesToDelete.push(outputPath)
+        deleteCache(outputPath)
       }
-      await nextDeleteCacheRpc(cacheEntriesToDelete)
     })
   }
 }
