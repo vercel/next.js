@@ -1489,7 +1489,6 @@ export default async function getBaseWebpackConfig(
      * will rewrite the require to the correct bundle location depending on the layer at which the file is being used.
      */
     const resolveNextExternal = (localRes: string) => {
-      const isSharedRuntime = sharedRuntimePattern.test(localRes)
       const isExternal = externalPattern.test(localRes)
 
       // if the file ends with .external, we need to make it a commonjs require in all cases
@@ -1502,39 +1501,40 @@ export default async function getBaseWebpackConfig(
       // if the file ends with .shared-runtime, we need to make it point to the correct bundle depending on the layer
       // this is because each shared-runtime files are unique per bundle, so if you use app-router context in pages,
       // it'll be a different instance than the one used in the app-router runtime.
-      if (isSharedRuntime) {
-        // if (dev) {
-        //   return `commonjs ${localRes}`
-        // }
+      // const isSharedRuntime = sharedRuntimePattern.test(localRes)
+      // if (isSharedRuntime) {
+      //   // if (dev) {
+      //   //   return `commonjs ${localRes}`
+      //   // }
 
-        const name = path.parse(localRes).name.replace('.shared-runtime', '')
+      //   const name = path.parse(localRes).name.replace('.shared-runtime', '')
 
-        const camelCaseName = name.replace(/-([a-z])/g, (_, w) =>
-          w.toUpperCase()
-        )
+      //   const camelCaseName = name.replace(/-([a-z])/g, (_, w) =>
+      //     w.toUpperCase()
+      //   )
 
-        // there's no externals for API routes but if need be, they'll need to be added here and have
-        // their own layer
-        const runtime =
-          layer === 'app-route-handler'
-            ? 'app-route'
-            : isAppLayer
-            ? 'app-page'
-            : 'pages'
-        return [
-          'commonjs ' +
-            path.posix.join(
-              'next',
-              'dist',
-              'compiled',
-              'next-server',
-              `${runtime}.runtime.${dev ? 'dev' : 'prod'}`
-            ),
-          'default',
-          'sharedModules',
-          camelCaseName,
-        ]
-      }
+      //   // there's no externals for API routes but if need be, they'll need to be added here and have
+      //   // their own layer
+      //   const runtime =
+      //     layer === 'app-route-handler'
+      //       ? 'app-route'
+      //       : isAppLayer
+      //       ? 'app-page'
+      //       : 'pages'
+      //   return [
+      //     'commonjs ' +
+      //       path.posix.join(
+      //         'next',
+      //         'dist',
+      //         'compiled',
+      //         'next-server',
+      //         `${runtime}.runtime.${dev ? 'dev' : 'prod'}`
+      //       ),
+      //     'default',
+      //     'sharedModules',
+      //     camelCaseName,
+      //   ]
+      // }
     }
 
     // Don't bundle @vercel/og nodejs bundle for nodejs runtime.
@@ -2552,6 +2552,32 @@ export default async function getBaseWebpackConfig(
       ].filter(Boolean),
     },
     plugins: [
+      isNodeServer &&
+        new webpack.NormalModuleReplacementPlugin(
+          /\.\/(.+)\.shared-runtime$/,
+          function (resource) {
+            const moduleName = path.basename(
+              resource.request,
+              '.shared-runtime'
+            )
+            const layer = resource.contextInfo.issuerLayer
+
+            const runtime =
+              layer === 'app-route-handler'
+                ? 'app-route'
+                : [
+                    WEBPACK_LAYERS.reactServerComponents,
+                    WEBPACK_LAYERS.serverSideRendering,
+                    WEBPACK_LAYERS.appPagesBrowser,
+                    WEBPACK_LAYERS.actionBrowser,
+                    WEBPACK_LAYERS.appRouteHandler,
+                  ].includes(layer as any)
+                ? 'app-page'
+                : 'pages'
+
+            resource.request = `next/dist/server/future/route-modules/${runtime}/vendored/contexts/${moduleName}`
+          }
+        ),
       dev && new MemoryWithGcCachePlugin({ maxGenerations: 5 }),
       dev && isClient && new ReactRefreshWebpackPlugin(webpack),
       // Makes sure `Buffer` and `process` are polyfilled in client and flight bundles (same behavior as webpack 4)

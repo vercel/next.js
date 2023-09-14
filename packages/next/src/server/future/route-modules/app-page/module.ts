@@ -11,12 +11,13 @@ import {
   type RouteModuleOptions,
   type RouteModuleHandleContext,
 } from '../route-module'
-import * as sharedModules from './shared-modules'
+import * as vendoredContexts from './vendored/contexts/entrypoints'
 
 let vendoredReactRSC
 let vendoredReactSSR
 let vendoredReactShared
 
+// the vendored Reacts are loaded from their original source in the edge runtime
 if (process.env.NEXT_RUNTIME !== 'edge') {
   vendoredReactRSC = require('./vendored/rsc/entrypoints')
   vendoredReactSSR = require('./vendored/ssr/entrypoints')
@@ -45,10 +46,6 @@ export class AppPageRouteModule extends RouteModule<
   AppPageRouteDefinition,
   AppPageUserlandModule
 > {
-  static readonly sharedModules = sharedModules
-  // static readonly vendoredReact = vendoredReact
-  // static readonly vendoredReactSSR = vendoredReactSSR
-
   public render(
     req: IncomingMessage,
     res: ServerResponse,
@@ -68,6 +65,7 @@ const vendored = {
   'react-rsc': vendoredReactRSC,
   'react-ssr': vendoredReactSSR,
   'react-shared': vendoredReactShared,
+  contexts: vendoredContexts,
 }
 
 export { renderToHTMLOrFlight, vendored }

@@ -32,21 +32,15 @@ mod._resolveFilename = function (
 // This is a hack to make sure that if a user requires a Next.js module that wasn't bundled
 // that needs to point to the rendering runtime version, it will point to the correct one.
 // This can happen on `pages` when a user requires a dependency that uses next/image for example.
-// This is only needed in production as in development we fallback to the external version.
-if (!process.env.TURBOPACK) {
-  mod.prototype.require = function (request) {
-    if (request.endsWith('.shared-runtime')) {
-      const isAppRequire = process.env.__NEXT_PRIVATE_RUNTIME_TYPE === 'app'
-      const currentRuntime = `${
-        isAppRequire
-          ? 'next/dist/compiled/next-server/app-page.runtime'
-          : 'next/dist/compiled/next-server/pages.runtime'
-      }.${process.env.NODE_ENV === 'production' ? 'prod' : 'dev'}`
-      const base = path.basename(request, '.shared-runtime')
-      const camelized = base.replace(/-([a-z])/g, (g) => g[1].toUpperCase())
-      const instance = originalRequire.call(this, currentRuntime)
-      return instance.default.sharedModules[camelized]
-    }
-    return originalRequire.call(this, request)
+mod.prototype.require = function (request) {
+  if (request.endsWith('.shared-runtime')) {
+    const currentRuntime = `next/dist/compiled/next-server/pages${
+      process.env.TURBOPACK ? '-turbo' : ''
+    }.runtime.${process.env.NODE_ENV === 'production' ? 'prod' : 'dev'}`
+    const base = path.basename(request, '.shared-runtime')
+    const instance = originalRequire.call(this, currentRuntime)
+    return instance.vendored.contexts[base]
   }
+
+  return originalRequire.call(this, request)
 }
