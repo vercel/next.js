@@ -50,7 +50,7 @@ struct ReactServerComponents<C: Comments> {
     invalid_client_imports: Vec<JsWord>,
     invalid_server_react_apis: Vec<JsWord>,
     invalid_server_react_dom_apis: Vec<JsWord>,
-    disable_checks: bool,
+    bundle_target: String,
 }
 
 struct ModuleImports {
@@ -67,14 +67,24 @@ impl<C: Comments> VisitMut for ReactServerComponents<C> {
         let is_cjs = contains_cjs(module);
 
         if self.is_server {
-            if !is_client_entry {
-                self.assert_server_graph(&imports, module);
-            } else {
+            if is_client_entry {
                 self.to_module_ref(module, is_cjs);
                 return;
+            } else if self.bundle_target == "server" {
+                // Only assert server graph if file's bundle target is "server"
+                // e.g.
+                // * server components pages
+                // * pages bundles on SSR layer
+                // * middleware
+                // * app/pages api routes
+                self.assert_server_graph(&imports, module);
             }
         } else {
-            if !is_action_file {
+            // Only assert client graph if the file is not an action file, and bundle target is "client"
+            // e.g.
+            // * client components pages
+            // * pages bundles on browser layer
+            if !is_action_file && self.bundle_target == "client" {
                 self.assert_client_graph(&imports, module);
             }
             if is_client_entry {
@@ -129,7 +139,7 @@ impl<C: Comments> ReactServerComponents<C> {
                                             if is_action_file {
                                                 panic_both_directives(expr_stmt.span)
                                             }
-                                        } else if !self.disable_checks {
+                                        } else if self.bundle_target == "default" {
                                             HANDLER.with(|handler| {
                                                 handler
                                                     .struct_span_err(
@@ -334,9 +344,6 @@ impl<C: Comments> ReactServerComponents<C> {
     }
 
     fn assert_server_graph(&self, imports: &[ModuleImports], module: &Module) {
-        if self.disable_checks {
-            return;
-        }
         for import in imports {
             let source = import.source.0.clone();
             if self.invalid_server_imports.contains(&source) {
@@ -409,9 +416,6 @@ impl<C: Comments> ReactServerComponents<C> {
     }
 
     fn assert_client_graph(&self, imports: &[ModuleImports], module: &Module) {
-        if self.disable_checks {
-            return;
-        }
         for import in imports {
             let source = import.source.0.clone();
             if self.invalid_client_imports.contains(&source) {
@@ -567,17 +571,17 @@ pub fn server_components<C: Comments>(
     config: Config,
     comments: C,
     app_dir: Option<PathBuf>,
-    disable_checks: bool,
+    bundle_target: JsWord,
 ) -> impl Fold + VisitMut {
     let is_server: bool = match &config {
         Config::WithOptions(x) => x.is_server,
         _ => true,
     };
     as_folder(ReactServerComponents {
-        disable_checks,
         is_server,
         comments,
         filepath: filename.to_string(),
+        bundle_target: bundle_target.to_string(),
         app_dir,
         export_names: vec![],
         invalid_server_imports: vec![
