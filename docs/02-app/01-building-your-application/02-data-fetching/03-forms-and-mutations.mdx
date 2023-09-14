@@ -702,8 +702,8 @@ export function Thread({ messages }: { messages: Message[] }) {
 
   return (
     <div>
-      {optimisticMessages.map((m) => (
-        <div>{m.message}</div>
+      {optimisticMessages.map((m, k) => (
+        <div key={k}>{m.message}</div>
       ))}
       <form
         action={async (formData: FormData) => {
