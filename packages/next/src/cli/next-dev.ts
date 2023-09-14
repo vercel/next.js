@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+
+import '../server/lib/cpu-profile'
 import type { StartServerOptions } from '../server/lib/start-server'
 import { getPort, printAndExit } from '../server/lib/utils'
 import * as Log from '../build/output/log'
