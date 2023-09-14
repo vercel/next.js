@@ -28,6 +28,7 @@ export default function transformSource(this: any) {
       (request) =>
         `import(/* webpackMode: "eager" */ ${JSON.stringify(request)})`
     )
+    .sort((a, b) => a.localeCompare(b))
     .join(';\n')
 
   const buildInfo = getModuleBuildInfo(this._module)
