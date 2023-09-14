@@ -356,7 +356,12 @@ export default async function build(
 
       const config: NextConfigComplete = await nextBuildSpan
         .traceChild('load-next-config')
-        .traceAsyncFn(() => loadConfig(PHASE_PRODUCTION_BUILD, dir))
+        .traceAsyncFn(() =>
+          loadConfig(PHASE_PRODUCTION_BUILD, dir, {
+            // Log for next.config loading process
+            silent: false,
+          })
+        )
       NextBuildContext.config = config
 
       let configOutDir = 'out'

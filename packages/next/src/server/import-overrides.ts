@@ -32,7 +32,8 @@ export const baseOverrides = {
   'react-dom/package.json': 'next/dist/compiled/react-dom/package.json',
   'react-dom/client': 'next/dist/compiled/react-dom/client',
   'react-dom/server': 'next/dist/compiled/react-dom/server',
-  'react-dom/server.browser': 'next/dist/compiled/react-dom/server.browser',
+  // when the require hook applies, we want to use the edge version, for both app and pages
+  'react-dom/server.browser': 'next/dist/compiled/react-dom/server.edge',
   'react-dom/server.edge': 'next/dist/compiled/react-dom/server.edge',
   'react-server-dom-webpack/client':
     'next/dist/compiled/react-server-dom-webpack/client',
@@ -56,8 +57,9 @@ export const experimentalOverrides = {
     'next/dist/compiled/react-dom-experimental/package.json',
   'react-dom/client': 'next/dist/compiled/react-dom-experimental/client',
   'react-dom/server': 'next/dist/compiled/react-dom-experimental/server',
+  // when the require hook applies, we want to use the edge version, for both app and pages
   'react-dom/server.browser':
-    'next/dist/compiled/react-dom-experimental/server.browser',
+    'next/dist/compiled/react-dom-experimental/server.edge',
   'react-dom/server.edge':
     'next/dist/compiled/react-dom-experimental/server.edge',
   'react-server-dom-webpack/client':
