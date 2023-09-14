@@ -5,7 +5,6 @@ let source: WebSocket
 type ActionCallback = (action: HMR_ACTION_TYPES) => void
 
 const eventCallbacks: Array<ActionCallback> = []
-let lastActivity = Date.now()
 
 function getSocketProtocol(assetPrefix: string): string {
   let protocol = location.protocol
@@ -27,26 +26,15 @@ export function sendMessage(data: string) {
   return source.send(data)
 }
 
-export function connectHMR(options: {
-  path: string
-  assetPrefix: string
-  timeout?: number
-}) {
-  if (!options.timeout) {
-    options.timeout = 5 * 1000
-  }
-
+export function connectHMR(options: { path: string; assetPrefix: string }) {
   function init() {
     if (source) source.close()
 
     function handleOnline() {
       window.console.log('[HMR] connected')
-      lastActivity = Date.now()
     }
 
     function handleMessage(event: MessageEvent<string>) {
-      lastActivity = Date.now()
-
       // Coerce into HMR_ACTION_TYPES as that is the format.
       const msg: HMR_ACTION_TYPES = JSON.parse(event.data)
       for (const eventCallback of eventCallbacks) {
@@ -54,18 +42,12 @@ export function connectHMR(options: {
       }
     }
 
-    let timer: NodeJS.Timeout
     function handleDisconnect() {
-      clearInterval(timer)
       source.onerror = null
+      source.onclose = null
       source.close()
-      setTimeout(init, options.timeout)
+      init()
     }
-    timer = setInterval(function () {
-      if (Date.now() - lastActivity > (options.timeout as any)) {
-        handleDisconnect()
-      }
-    }, (options.timeout as any) / 2)
 
     const { hostname, port } = location
     const protocol = getSocketProtocol(options.assetPrefix || '')
@@ -82,6 +64,7 @@ export function connectHMR(options: {
     source = new window.WebSocket(`${url}${options.path}`)
     source.onopen = handleOnline
     source.onerror = handleDisconnect
+    source.onclose = handleDisconnect
     source.onmessage = handleMessage
   }
 

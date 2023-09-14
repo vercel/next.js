@@ -23,7 +23,10 @@ use crate::{
         MetadataWithAltItem,
     },
     mode::NextMode,
-    next_app::{metadata::image::dynamic_image_metadata_source, AppPage},
+    next_app::{
+        metadata::{get_content_type, image::dynamic_image_metadata_source},
+        AppPage,
+    },
     next_image::module::{BlurPlaceholderMode, StructuredImageModuleType},
 };
 
@@ -291,6 +294,7 @@ impl LoaderTreeBuilder {
         let helper_import = "import { fillMetadataSegment } from \
                              \"next/dist/lib/metadata/get-metadata-route\""
             .to_string();
+
         if !self.imports.contains(&helper_import) {
             self.imports.push(helper_import);
         }
@@ -328,6 +332,9 @@ impl LoaderTreeBuilder {
                 "{s}  sizes: `${{{identifier}.width}}x${{{identifier}.height}}`,"
             )?;
         }
+
+        let content_type = get_content_type(path).await?;
+        writeln!(self.loader_tree_code, "{s}  type: `{content_type}`,")?;
 
         if let Some(alt_path) = alt_path {
             let identifier = magic_identifier::mangle(&format!("{name} alt text #{i}"));

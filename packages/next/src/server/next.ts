@@ -228,9 +228,10 @@ export class NextServer {
       loadConfig(
         this.options.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
         resolve(this.options.dir || '.'),
-        this.options.conf,
-        undefined,
-        !!this.options._renderWorker
+        {
+          customConfig: this.options.conf,
+          silent: !!this.options._renderWorker,
+        }
       )
     )
   }

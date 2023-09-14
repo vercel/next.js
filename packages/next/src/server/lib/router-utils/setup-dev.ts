@@ -102,8 +102,12 @@ import {
   ReloadPageAction,
   TurboPackConnectedAction,
 } from '../../dev/hot-reloader-types'
+import type { Update as TurbopackUpdate } from '../../../build/swc'
 import { debounce } from '../../utils'
-import { deleteCache } from '../../../build/webpack/plugins/nextjs-require-cache-hot-reloader'
+import {
+  deleteAppClientCache,
+  deleteCache,
+} from '../../../build/webpack/plugins/nextjs-require-cache-hot-reloader'
 import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
 
 const wsServer = new ws.Server({ noServer: true })
@@ -225,6 +229,7 @@ async function startWatcher(opts: SetupOpts) {
       (resolve) => (currentEntriesHandlingResolve = resolve)
     )
     const hmrPayloads = new Map<string, HMR_ACTION_TYPES>()
+    const turbopackUpdates: TurbopackUpdate[] = []
     let hmrBuilding = false
 
     const issues = new Map<string, Map<string, Issue>>()
@@ -311,20 +316,18 @@ async function startWatcher(opts: SetupOpts) {
     async function processResult(
       result: TurbopackResult<WrittenEndpoint>
     ): Promise<TurbopackResult<WrittenEndpoint>> {
-      for (const file of result.serverPaths
-        .map((p) => path.join(distDir, p))
-        .concat([
-          // We need to clear the chunk cache in react
-          require.resolve(
-            'next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.edge.development.js'
-          ),
-          // And this redirecting module as well
-          require.resolve(
-            'next/dist/compiled/react-server-dom-webpack/client.edge.js'
-          ),
-        ])) {
+      const hasAppPaths = result.serverPaths.some((p) =>
+        p.startsWith('server/app')
+      )
+
+      if (hasAppPaths) {
+        deleteAppClientCache()
+      }
+
+      for (const file of result.serverPaths.map((p) => path.join(distDir, p))) {
         deleteCache(file)
       }
+
       return result
     }
 
@@ -337,12 +340,12 @@ async function startWatcher(opts: SetupOpts) {
         moduleTrace?: Array<{ moduleName: string }>
         stack?: string
       }
+
       const errors = new Map<string, HmrError>()
       for (const [, issueMap] of issues) {
         for (const [key, issue] of issueMap) {
           if (errors.has(key)) continue
 
-          console.log(issue)
           const message = formatIssue(issue)
 
           errors.set(key, {
@@ -365,6 +368,13 @@ async function startWatcher(opts: SetupOpts) {
           hotReloader.send(payload)
         }
         hmrPayloads.clear()
+        if (turbopackUpdates.length > 0) {
+          hotReloader.send({
+            type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
+            data: turbopackUpdates,
+          })
+          turbopackUpdates.length = 0
+        }
       }
     }, 2)
 
@@ -380,7 +390,17 @@ async function startWatcher(opts: SetupOpts) {
       sendHmrDebounce()
     }
 
-    const clearCache = (filePath: string) => deleteCache(filePath)
+    function sendTurbopackMessage(payload: TurbopackUpdate) {
+      // We've detected a change in some part of the graph. If nothing has
+      // been inserted into building yet, then this is the first change
+      // emitted, but their may be many more coming.
+      if (!hmrBuilding) {
+        hotReloader.send({ action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING })
+        hmrBuilding = true
+      }
+      turbopackUpdates.push(payload)
+      sendHmrDebounce()
+    }
 
     async function loadPartialManifest<T>(
       name: string,
@@ -482,6 +502,7 @@ async function startWatcher(opts: SetupOpts) {
         if (payload) sendHmr('endpoint-change', page, payload)
       }
     }
+
     function clearChangeSubscription(page: string) {
       const subscription = changeSubscriptions.get(page)
       if (subscription) {
@@ -583,6 +604,7 @@ async function startWatcher(opts: SetupOpts) {
           currentEntriesHandlingResolve = undefined
         }
       }
+
       handleEntries().catch((err) => {
         console.error(err)
         process.exit(1)
@@ -665,7 +687,7 @@ async function startWatcher(opts: SetupOpts) {
     async function writeBuildManifest(): Promise<void> {
       const buildManifest = mergeBuildManifests(buildManifests.values())
       const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
-      await clearCache(buildManifestPath)
+      deleteCache(buildManifestPath)
       await writeFile(
         buildManifestPath,
         JSON.stringify(buildManifest, null, 2),
@@ -696,12 +718,30 @@ async function startWatcher(opts: SetupOpts) {
       )
     }
 
+    async function writeFallbackBuildManifest(): Promise<void> {
+      const fallbackBuildManifest = mergeBuildManifests(
+        [buildManifests.get('_app'), buildManifests.get('_error')].filter(
+          Boolean
+        ) as BuildManifest[]
+      )
+      const fallbackBuildManifestPath = path.join(
+        distDir,
+        `fallback-${BUILD_MANIFEST}`
+      )
+      deleteCache(fallbackBuildManifestPath)
+      await writeFile(
+        fallbackBuildManifestPath,
+        JSON.stringify(fallbackBuildManifest, null, 2),
+        'utf-8'
+      )
+    }
+
     async function writeAppBuildManifest(): Promise<void> {
       const appBuildManifest = mergeAppBuildManifests(
         appBuildManifests.values()
       )
       const appBuildManifestPath = path.join(distDir, APP_BUILD_MANIFEST)
-      await clearCache(appBuildManifestPath)
+      deleteCache(appBuildManifestPath)
       await writeFile(
         appBuildManifestPath,
         JSON.stringify(appBuildManifest, null, 2),
@@ -712,7 +752,7 @@ async function startWatcher(opts: SetupOpts) {
     async function writePagesManifest(): Promise<void> {
       const pagesManifest = mergePagesManifests(pagesManifests.values())
       const pagesManifestPath = path.join(distDir, 'server', PAGES_MANIFEST)
-      await clearCache(pagesManifestPath)
+      deleteCache(pagesManifestPath)
       await writeFile(
         pagesManifestPath,
         JSON.stringify(pagesManifest, null, 2),
@@ -727,7 +767,7 @@ async function startWatcher(opts: SetupOpts) {
         'server',
         APP_PATHS_MANIFEST
       )
-      await clearCache(appPathsManifestPath)
+      deleteCache(appPathsManifestPath)
       await writeFile(
         appPathsManifestPath,
         JSON.stringify(appPathsManifest, null, 2),
@@ -743,7 +783,7 @@ async function startWatcher(opts: SetupOpts) {
         distDir,
         'server/middleware-manifest.json'
       )
-      await clearCache(middlewareManifestPath)
+      deleteCache(middlewareManifestPath)
       await writeFile(
         middlewareManifestPath,
         JSON.stringify(middlewareManifest, null, 2),
@@ -759,7 +799,7 @@ async function startWatcher(opts: SetupOpts) {
         'server',
         NEXT_FONT_MANIFEST + '.json'
       )
-      await clearCache(fontManifestPath)
+      deleteCache(fontManifestPath)
       await writeFile(
         fontManifestPath,
         JSON.stringify(
@@ -780,7 +820,7 @@ async function startWatcher(opts: SetupOpts) {
         distDir,
         'react-loadable-manifest.json'
       )
-      await clearCache(loadableManifestPath)
+      deleteCache(loadableManifestPath)
       await writeFile(
         loadableManifestPath,
         JSON.stringify({}, null, 2),
@@ -818,10 +858,7 @@ async function startWatcher(opts: SetupOpts) {
 
       for await (const data of subscription) {
         processIssues(id, data)
-        sendHmr('hmr-event', id, {
-          type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
-          data,
-        })
+        sendTurbopackMessage(data)
       }
     }
 
@@ -847,6 +884,7 @@ async function startWatcher(opts: SetupOpts) {
     await currentEntriesHandling
     await writeBuildManifest()
     await writeAppBuildManifest()
+    await writeFallbackBuildManifest()
     await writePagesManifest()
     await writeAppPathsManifest()
     await writeMiddlewareManifest()
@@ -1008,6 +1046,7 @@ async function startWatcher(opts: SetupOpts) {
           await loadPagesManifest('_error')
 
           await writeBuildManifest()
+          await writeFallbackBuildManifest()
           await writePagesManifest()
           await writeMiddlewareManifest()
           await writeOtherManifests()
@@ -1118,6 +1157,7 @@ async function startWatcher(opts: SetupOpts) {
             }
 
             await writeBuildManifest()
+            await writeFallbackBuildManifest()
             await writePagesManifest()
             await writeMiddlewareManifest()
             await writeOtherManifests()

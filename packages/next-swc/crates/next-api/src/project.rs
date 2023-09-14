@@ -598,6 +598,18 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    async fn hmr_content_and_write(
+        self: Vc<Self>,
+        identifier: String,
+    ) -> Result<Vc<Box<dyn VersionedContent>>> {
+        Ok(self.await?.versioned_content_map.get_and_write(
+            self.client_relative_path().join(identifier),
+            self.client_relative_path(),
+            self.node_root(),
+        ))
+    }
+
+    #[turbo_tasks::function]
     async fn hmr_version(self: Vc<Self>, identifier: String) -> Result<Vc<Box<dyn Version>>> {
         let content = self.hmr_content(identifier);
 
@@ -633,7 +645,7 @@ impl Project {
         from: Vc<VersionState>,
     ) -> Result<Vc<Update>> {
         let from = from.get();
-        Ok(self.hmr_content(identifier).update(from))
+        Ok(self.hmr_content_and_write(identifier).update(from))
     }
 
     /// Gets a list of all HMR identifiers that can be subscribed to. This is

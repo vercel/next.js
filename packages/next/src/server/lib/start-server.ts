@@ -16,8 +16,8 @@ import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
 import {
   RESTART_EXIT_CODE,
-  WorkerRequestHandler,
-  WorkerUpgradeHandler,
+  type WorkerRequestHandler,
+  type WorkerUpgradeHandler,
 } from './setup-server-worker'
 import { checkIsNodeDebugging } from './is-node-debugging'
 import { CONFIG_FILES } from '../../shared/lib/constants'
@@ -25,11 +25,6 @@ import chalk from '../../lib/chalk'
 import deferredExit from '../../lib/deferred-exit'
 
 const debug = setupDebug('next:start-server')
-
-if (process.env.NEXT_CPU_PROF) {
-  process.env.__NEXT_PRIVATE_CPU_PROFILE = `CPU.router`
-  require('./cpu-profile')
-}
 
 export interface StartServerOptions {
   dir: string
@@ -87,16 +82,14 @@ export async function getRequestHandlers({
 }
 
 function logStartInfo({
-  port,
-  actualHostname,
+  networkUrl,
   appUrl,
   hostname,
   envInfo,
   expFeatureInfo,
   formatDurationText,
 }: {
-  port: number
-  actualHostname: string
+  networkUrl: string
   appUrl: string
   hostname: string
   envInfo: string[] | undefined
@@ -112,11 +105,7 @@ function logStartInfo({
   )
   Log.bootstrap(`- Local:        ${appUrl}`)
   if (hostname) {
-    Log.bootstrap(
-      `- Network:      ${actualHostname}${
-        (port + '').startsWith(':') ? '' : ':'
-      }${port}`
-    )
+    Log.bootstrap(`- Network:      ${networkUrl}`)
   }
   if (envInfo?.length) Log.bootstrap(`- Environments: ${envInfo.join(', ')}`)
 
@@ -258,15 +247,16 @@ export async function startServer({
           ? addr?.address || hostname || 'localhost'
           : addr
       )
-
       const formattedHostname =
-        !hostname || hostname === '0.0.0.0'
+        !hostname || actualHostname === '0.0.0.0'
           ? 'localhost'
           : actualHostname === '[::]'
           ? '[::1]'
-          : actualHostname
+          : formatHostname(hostname)
 
       port = typeof addr === 'object' ? addr?.port || port : port
+
+      const networkUrl = `http://${actualHostname}:${port}`
       const appUrl = `${
         selfSignedCertificate ? 'https' : 'http'
       }://${formattedHostname}:${port}`
@@ -322,8 +312,7 @@ export async function startServer({
 
         handlersReady()
         logStartInfo({
-          port,
-          actualHostname,
+          networkUrl,
           appUrl,
           hostname,
           envInfo,

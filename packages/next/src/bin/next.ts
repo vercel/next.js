@@ -140,7 +140,10 @@ async function main() {
     // un-necessarily
     const config = await loadConfig(
       command === 'dev' ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
-      dir
+      dir,
+      {
+        silent: false,
+      }
     )
     let dirsResult: ReturnType<typeof findPagesDir> | undefined = undefined
 
