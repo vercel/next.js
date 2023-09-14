@@ -81,12 +81,9 @@ impl Issue for ResolvingIssue {
             request_type = self.request_type,
         )?;
         if let Some(import_map) = &self.resolve_options.await?.import_map {
-            let result = import_map
-                .await?
-                .lookup(self.file_path, self.request)
-                .await?;
+            let result = import_map.lookup(self.file_path, self.request);
 
-            match result.cell().to_string().await {
+            match result.to_string().await {
                 Ok(str) => writeln!(detail, "Import map: {}", str)?,
                 Err(err) => {
                     writeln!(

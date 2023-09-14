@@ -1300,16 +1300,19 @@ pub async fn rebase(
     Ok(new_base.fs.root().join(new_path))
 }
 
-// Not turbo-tasks functions, only delegating
+#[turbo_tasks::value_impl]
 impl FileSystemPath {
-    pub fn read(self: Vc<Self>) -> Vc<FileContent> {
+    #[turbo_tasks::function]
+    pub async fn read(self: Vc<Self>) -> Vc<FileContent> {
         self.fs().read(self)
     }
 
-    pub fn read_link(self: Vc<Self>) -> Vc<LinkContent> {
+    #[turbo_tasks::function]
+    pub async fn read_link(self: Vc<Self>) -> Vc<LinkContent> {
         self.fs().read_link(self)
     }
 
+    #[turbo_tasks::function]
     pub fn read_json(self: Vc<Self>) -> Vc<FileJsonContent> {
         self.fs().read(self).parse_json()
     }
@@ -1318,41 +1321,26 @@ impl FileSystemPath {
     ///
     /// DETERMINISM: Result is in random order. Either sort result or do not
     /// depend on the order.
-    pub fn read_dir(self: Vc<Self>) -> Vc<DirectoryContent> {
+    #[turbo_tasks::function]
+    pub async fn read_dir(self: Vc<Self>) -> Vc<DirectoryContent> {
         self.fs().read_dir(self)
     }
 
-    pub fn track(self: Vc<Self>) -> Vc<Completion> {
+    #[turbo_tasks::function]
+    pub async fn track(self: Vc<Self>) -> Vc<Completion> {
         self.fs().track(self)
     }
 
+    #[turbo_tasks::function]
     pub fn write(self: Vc<Self>, content: Vc<FileContent>) -> Vc<Completion> {
         self.fs().write(self, content)
     }
 
+    #[turbo_tasks::function]
     pub fn write_link(self: Vc<Self>, target: Vc<LinkContent>) -> Vc<Completion> {
         self.fs().write_link(self, target)
     }
 
-    pub fn metadata(self: Vc<Self>) -> Vc<FileMeta> {
-        self.fs().metadata(self)
-    }
-
-    pub fn realpath(self: Vc<Self>) -> Vc<FileSystemPath> {
-        self.realpath_with_links().path()
-    }
-
-    pub fn rebase(
-        fs_path: Vc<FileSystemPath>,
-        old_base: Vc<FileSystemPath>,
-        new_base: Vc<FileSystemPath>,
-    ) -> Vc<FileSystemPath> {
-        rebase(fs_path, old_base, new_base)
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl FileSystemPath {
     #[turbo_tasks::function]
     pub async fn parent(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
@@ -1365,6 +1353,11 @@ impl FileSystemPath {
             None => "".to_string(),
         };
         Ok(FileSystemPath::new_normalized(this.fs, p))
+    }
+
+    #[turbo_tasks::function]
+    pub fn metadata(self: Vc<Self>) -> Vc<FileMeta> {
+        self.fs().metadata(self)
     }
 
     #[turbo_tasks::function]
@@ -1396,6 +1389,11 @@ impl FileSystemPath {
                 }
             }
         }
+    }
+
+    #[turbo_tasks::function]
+    pub fn realpath(self: Vc<Self>) -> Vc<FileSystemPath> {
+        self.realpath_with_links().path()
     }
 
     #[turbo_tasks::function]
@@ -1441,6 +1439,16 @@ impl FileSystemPath {
             symlinks,
         }
         .into())
+    }
+}
+
+impl FileSystemPath {
+    pub fn rebase(
+        fs_path: Vc<FileSystemPath>,
+        old_base: Vc<FileSystemPath>,
+        new_base: Vc<FileSystemPath>,
+    ) -> Vc<FileSystemPath> {
+        rebase(fs_path, old_base, new_base)
     }
 }
 
