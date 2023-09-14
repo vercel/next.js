@@ -61,7 +61,7 @@ export async function fetchCSSFromGoogleFonts(
 
       const res = await fetch(url, {
         // @ts-ignore
-        agent: getProxyAgent(),
+        dispatcher: getProxyAgent(),
         // Add a timeout in dev
         signal,
         headers: {
