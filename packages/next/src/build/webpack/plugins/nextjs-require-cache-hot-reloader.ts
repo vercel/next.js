@@ -12,29 +12,30 @@ const originModules = [
   require.resolve('../../../server/require'),
   require.resolve('../../../server/load-components'),
   require.resolve('../../../server/next-server'),
-  require.resolve('../../../compiled/react-server-dom-webpack/client.edge'),
-  require.resolve(
-    '../../../compiled/react-server-dom-webpack-experimental/client.edge'
-  ),
+  // require.resolve('../../../compiled/react-server-dom-webpack/client.edge'),
+  // require.resolve(
+  //   '../../../compiled/react-server-dom-webpack-experimental/client.edge'
+  // ),
 ]
 
 const RUNTIME_NAMES = ['webpack-runtime', 'webpack-api-runtime']
 
 export function deleteAppClientCache() {
-  // ensure we reset the cache for rsc components
-  // loaded via react-server-dom-webpack
-  const reactServerDomModId = require.resolve(
-    'react-server-dom-webpack/client.edge'
-  )
-  const reactServerDomMod = require.cache[reactServerDomModId]
+  return
+  // // ensure we reset the cache for rsc components
+  // // loaded via react-server-dom-webpack
+  // const reactServerDomModId = require.resolve(
+  //   'react-server-dom-webpack/client.edge'
+  // )
+  // const reactServerDomMod = require.cache[reactServerDomModId]
 
-  if (reactServerDomMod) {
-    for (const child of reactServerDomMod.children) {
-      child.parent = null
-      delete require.cache[child.id]
-    }
-  }
-  delete require.cache[reactServerDomModId]
+  // if (reactServerDomMod) {
+  //   for (const child of reactServerDomMod.children) {
+  //     child.parent = null
+  //     delete require.cache[child.id]
+  //   }
+  // }
+  // delete require.cache[reactServerDomModId]
 }
 
 export function deleteCache(filePath: string) {
