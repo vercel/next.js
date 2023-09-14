@@ -129,5 +129,6 @@ export function createMetadataComponents({
     return null
   }
 
+  // @ts-expect-error async server components
   return [MetadataTree, MetadataOutlet]
 }
