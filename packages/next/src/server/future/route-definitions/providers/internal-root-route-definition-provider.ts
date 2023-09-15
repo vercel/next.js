@@ -1,7 +1,8 @@
 import type { InternalRootRouteDefinition } from '../internal-route-definition'
 import type { MiddlewareManifest } from '../../../../build/webpack/plugins/middleware-plugin'
 import type { FileReader } from '../../helpers/file-reader/file-reader'
-import type { MiddlewareManifestLoader } from '../helpers/manifest-loaders/manifest-loader'
+import type { ManifestLoader } from '../../manifests/loaders/manifest-loader'
+import type { MiddlewareManifests } from '../../manifests/manifests'
 
 import path from 'path'
 import {
@@ -17,12 +18,11 @@ import { INSTRUMENTATION_HOOK_FILENAME } from '../../../../lib/constants'
 
 export class InternalRootMiddlewareRouteDefinitionProvider extends ManifestRouteDefinitionProvider<
   InternalRootRouteDefinition,
-  typeof MIDDLEWARE_MANIFEST,
-  MiddlewareManifest
+  MiddlewareManifests
 > {
   public readonly kind = RouteKind.INTERNAL_ROOT
 
-  constructor(manifestLoader: MiddlewareManifestLoader) {
+  constructor(manifestLoader: ManifestLoader<MiddlewareManifests>) {
     super(MIDDLEWARE_MANIFEST, manifestLoader)
   }
 
@@ -88,7 +88,7 @@ export class InternalRootRouteDefinitionProvider extends MultiRouteDefinitionPro
   constructor(
     distDir: string,
     fileReader: FileReader,
-    manifestLoader: MiddlewareManifestLoader
+    manifestLoader: ManifestLoader<MiddlewareManifests>
   ) {
     super([
       new InternalRootMiddlewareRouteDefinitionProvider(manifestLoader),

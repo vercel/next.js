@@ -1,13 +1,13 @@
 import type { RouteDefinition } from '../../route-definition'
 import type { RouteDefinitionProvider } from '../route-definition-provider'
 
-import { CachedTransformerProvider } from '../../../helpers/cached-transformer'
+import { MemoizedTransformerProvider } from '../../../helpers/memoized-transformer'
 
 export abstract class BaseRouteDefinitionProvider<
     D extends RouteDefinition = RouteDefinition,
     Data = unknown
   >
-  extends CachedTransformerProvider<Data, ReadonlyArray<D>>
+  extends MemoizedTransformerProvider<Data, ReadonlyArray<D>>
   implements RouteDefinitionProvider<D>
 {
   public abstract readonly kind: D['kind']

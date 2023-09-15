@@ -51,6 +51,19 @@ export class DevRouteManager extends BaseRouteManager implements RouteManager {
     }
   }
 
+  /**
+   * Returns true if a route definition exists that matches one of the given
+   * specifications. This doesn't ensure the definitions, it will only check
+   * the development definitions.
+   *
+   * @param specs The specification to match.
+   */
+  public hasDefinition<D extends RouteDefinition>(
+    ...specs: Partial<D>[]
+  ): Promise<boolean> {
+    return this.definitions.has(...specs)
+  }
+
   public async findDefinition<D extends RouteDefinition>(
     ...specs: RouteDefinitionFilterSpec<D>[]
   ): Promise<D | null> {

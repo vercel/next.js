@@ -1,7 +1,8 @@
-import type { PagesManifestLoader } from '../helpers/manifest-loaders/manifest-loader'
 import type { I18NProvider } from '../../helpers/i18n-provider'
 import type { InternalPagesRouteDefinition } from '../internal-route-definition'
 import type { PagesManifest } from '../../../../build/webpack/plugins/pages-manifest-plugin'
+import type { ManifestLoader } from '../../manifests/loaders/manifest-loader'
+import type { PagesManifests } from '../../manifests/manifests'
 
 import { isInternalPagesRoute } from '../../../../lib/is-internal-pages-route'
 import { PAGES_MANIFEST } from '../../../../shared/lib/constants'
@@ -12,15 +13,14 @@ import { ManifestRouteDefinitionProvider } from './helpers/manifest-route-defini
 
 export class InternalPagesRouteDefinitionProvider extends ManifestRouteDefinitionProvider<
   InternalPagesRouteDefinition,
-  typeof PAGES_MANIFEST,
-  PagesManifest
+  PagesManifests
 > {
   public readonly kind = RouteKind.INTERNAL_PAGES
   private readonly normalizer: AppFilenameNormalizer
 
   constructor(
     distDir: string,
-    manifestLoader: PagesManifestLoader,
+    manifestLoader: ManifestLoader<PagesManifests>,
     private readonly i18nProvider: I18NProvider | null
   ) {
     super(PAGES_MANIFEST, manifestLoader)
@@ -29,7 +29,7 @@ export class InternalPagesRouteDefinitionProvider extends ManifestRouteDefinitio
   }
 
   protected transform(
-    manifest: Record<string, string>
+    manifest: PagesManifest
   ): ReadonlyArray<InternalPagesRouteDefinition> {
     // The manifest consists of a map of all the pages to their bundles. Let's
     // filter out all the pages that are not app pages.

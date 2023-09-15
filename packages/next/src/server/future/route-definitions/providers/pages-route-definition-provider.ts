@@ -3,8 +3,9 @@ import type {
   PagesRouteDefinition,
   PagesLocaleRouteDefinition,
 } from '../pages-route-definition'
-import type { PagesManifestLoader } from '../helpers/manifest-loaders/manifest-loader'
 import type { PagesManifest } from '../../../../build/webpack/plugins/pages-manifest-plugin'
+import type { PagesManifests } from '../../manifests/manifests'
+import type { ManifestLoader } from '../../manifests/loaders/manifest-loader'
 
 import { isAPIRoute } from '../../../../lib/is-api-route'
 import { BLOCKED_PAGES, PAGES_MANIFEST } from '../../../../shared/lib/constants'
@@ -15,15 +16,14 @@ import { RouteKind } from '../../route-kind'
 
 export class PagesRouteDefinitionProvider extends ManifestRouteDefinitionProvider<
   PagesRouteDefinition | PagesLocaleRouteDefinition,
-  typeof PAGES_MANIFEST,
-  PagesManifest
+  PagesManifests
 > {
   public readonly kind = RouteKind.PAGES
   private readonly normalizer: PagesFilenameNormalizer
 
   constructor(
     distDir: string,
-    manifestLoader: PagesManifestLoader,
+    manifestLoader: ManifestLoader<PagesManifests>,
     private readonly i18nProvider: I18NProvider | null
   ) {
     super(PAGES_MANIFEST, manifestLoader)

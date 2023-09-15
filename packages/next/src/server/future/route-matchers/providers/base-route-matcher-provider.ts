@@ -2,13 +2,14 @@ import type { RouteDefinitionProvider } from '../../route-definitions/providers/
 import type { RouteDefinition } from '../../route-definitions/route-definition'
 import type { RouteMatcherProvider } from './route-matcher-provider'
 import type { RouteMatcher } from '../route-matcher'
-import { CachedTransformerProvider } from '../../helpers/cached-transformer'
+
+import { MemoizedTransformerProvider } from '../../helpers/memoized-transformer'
 
 export abstract class BaseRouteMatcherProvider<
     D extends RouteDefinition = RouteDefinition,
     M extends RouteMatcher<D> = RouteMatcher<D>
   >
-  extends CachedTransformerProvider<ReadonlyArray<D>, ReadonlyArray<M>>
+  extends MemoizedTransformerProvider<ReadonlyArray<D>, ReadonlyArray<M>>
   implements RouteMatcherProvider<D, M>
 {
   constructor(private readonly definitions: RouteDefinitionProvider<D>) {

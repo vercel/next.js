@@ -24,11 +24,7 @@ import {
 } from '../../lib/constants'
 import { fileExists } from '../../lib/file-exists'
 import { findPagesDir } from '../../lib/find-pages-dir'
-import {
-  PHASE_DEVELOPMENT_SERVER,
-  PAGES_MANIFEST,
-  APP_PATHS_MANIFEST,
-} from '../../shared/lib/constants'
+import { PHASE_DEVELOPMENT_SERVER } from '../../shared/lib/constants'
 import Server, { WrappedBuildError } from '../next-server'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
@@ -45,12 +41,10 @@ import * as Log from '../../build/output/log'
 import isError, { getProperError } from '../../lib/is-error'
 import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
 import { formatServerError } from '../../lib/format-server-error'
-import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
 import { NextBuildContext } from '../../build/build-context'
 import { IncrementalCache } from '../lib/incremental-cache'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
-import { NodeManifestLoader } from '../future/route-definitions/helpers/manifest-loaders/node-manifest-loader'
 import { BaseRouteComponentsLoader } from '../future/route-components-loader/base-route-components-loader'
 import { NextDevRouteDefinitionManagerBuilder } from '../future/route-definitions/managers/builders/next-dev-route-definition-manager-builder'
 import {
@@ -406,24 +400,6 @@ export default class DevServer extends Server {
     }
     throw new Error(
       'Invariant logErrorWithOriginalStack called outside render worker'
-    )
-  }
-
-  protected getPagesManifest(): PagesManifest | undefined {
-    return (
-      NodeManifestLoader.require(
-        pathJoin(this.serverDistDir, PAGES_MANIFEST)
-      ) ?? undefined
-    )
-  }
-
-  protected getAppPathsManifest(): PagesManifest | undefined {
-    if (!this.hasAppDir) return undefined
-
-    return (
-      NodeManifestLoader.require(
-        pathJoin(this.serverDistDir, APP_PATHS_MANIFEST)
-      ) ?? undefined
     )
   }
 

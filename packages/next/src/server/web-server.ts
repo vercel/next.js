@@ -104,21 +104,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     return { finished: false }
   }
 
-  protected getPagesManifest() {
-    return {
-      // keep same theme but server path doesn't need to be accurate
-      [this.serverOptions.webServerConfig
-        .pathname]: `server${this.serverOptions.webServerConfig.page}.js`,
-    }
-  }
-
-  protected getAppPathsManifest() {
-    const page = this.serverOptions.webServerConfig.page
-    return {
-      [this.serverOptions.webServerConfig.page]: `app${page}.js`,
-    }
-  }
-
   protected attachRequestMeta(
     req: WebNextRequest,
     parsedUrl: NextUrlWithParsedQuery

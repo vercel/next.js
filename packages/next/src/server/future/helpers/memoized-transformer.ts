@@ -1,6 +1,6 @@
 import { Provider } from './provider'
 
-export abstract class CachedTransformerProvider<D, T>
+export abstract class MemoizedTransformerProvider<D, T>
   implements Provider<T | null>
 {
   private cached?: D

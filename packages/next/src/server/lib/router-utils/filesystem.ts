@@ -5,6 +5,7 @@ import type {
 } from '../../../build'
 import type { NextConfigComplete } from '../../config-shared'
 import type { MiddlewareManifest } from '../../../build/webpack/plugins/middleware-plugin'
+import type { PagesManifest } from '../../../build/webpack/plugins/pages-manifest-plugin'
 
 import path from 'path'
 import fs from 'fs/promises'
@@ -46,9 +47,9 @@ import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-s
 import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
 import { RouteDefinitionManager } from '../../future/route-definitions/managers/route-definition-manager'
 import { NextRouteDefinitionManagerBuilder } from '../../future/route-definitions/managers/builders/next-route-definition-manager-builder'
-import { BaseManifestLoader } from '../../future/route-definitions/helpers/manifest-loaders/base-manifest-loader'
 import { I18NProvider } from '../../future/helpers/i18n-provider'
 import { NextDevRouteDefinitionManagerBuilder } from '../../future/route-definitions/managers/builders/next-dev-route-definition-manager-builder'
+import { MapManifestLoader } from '../../future/manifests/loaders/map-manifest-loader'
 
 export type FsOutput = {
   type:
@@ -239,13 +240,13 @@ export async function setupFsCheck(opts: {
 
     definitions = NextRouteDefinitionManagerBuilder.build(
       distDir,
-      new BaseManifestLoader({
-        [PAGES_MANIFEST]: () => pagesManifest,
-        [APP_PATHS_MANIFEST]: () => appPathsManifest,
-        [MIDDLEWARE_MANIFEST]: () => middlewareManifest,
-      }),
       Object.keys(appPathsManifest).length > 0,
-      i18nProvider
+      i18nProvider,
+      new MapManifestLoader({
+        [PAGES_MANIFEST]: pagesManifest as PagesManifest,
+        [APP_PATHS_MANIFEST]: appPathsManifest as PagesManifest,
+        [MIDDLEWARE_MANIFEST]: middlewareManifest,
+      })
     )
 
     for (const key of Object.keys(pagesManifest)) {

@@ -67,6 +67,9 @@ export class BaseRouteDefinitionManager
   public async has<D extends RouteDefinition>(
     ...specs: RouteDefinitionFilterSpec<D>[]
   ): Promise<boolean> {
+    // Ensure we've loaded the definitions.
+    if (!this.isLoaded) await this.load()
+
     const definition = await this.find(...specs)
 
     // If we found a definition, then it exists.

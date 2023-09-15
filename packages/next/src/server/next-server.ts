@@ -17,7 +17,6 @@ import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
 import type { PrerenderManifest } from '../build'
 import { BaseNextRequest, BaseNextResponse } from './base-http'
-import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { PayloadOptions } from './send-payload'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import {
@@ -33,13 +32,11 @@ import { IncomingMessage, ServerResponse } from 'http'
 import type { PagesAPIRouteModule } from './future/route-modules/pages-api/module'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import {
-  PAGES_MANIFEST,
   BUILD_ID_FILE,
   MIDDLEWARE_MANIFEST,
   PRERENDER_MANIFEST,
   ROUTES_MANIFEST,
   CLIENT_PUBLIC_FILES_PATH,
-  APP_PATHS_MANIFEST,
   SERVER_DIRECTORY,
   NEXT_FONT_MANIFEST,
   PHASE_PRODUCTION_BUILD,
@@ -100,7 +97,6 @@ import { RouteModuleLoader } from './future/helpers/module-loader/route-module-l
 import { loadManifest } from './load-manifest'
 import { RouteDefinition } from './future/route-definitions/route-definition'
 import { RouteManager } from './future/route-manager/route-manager'
-import { BaseManifestLoader } from './future/route-definitions/helpers/manifest-loaders/base-manifest-loader'
 import { BaseRouteManager } from './future/route-manager/base-route-manager'
 import { BaseRouteComponentsLoader } from './future/route-components-loader/base-route-components-loader'
 import { NextRouteMatcherBuilder } from './future/route-matchers/managers/builders/next-route-matcher-manager-builder'
@@ -108,6 +104,9 @@ import { NextRouteDefinitionManagerBuilder } from './future/route-definitions/ma
 import { isAppRouteRouteDefinition } from './future/route-definitions/app-route-route-definition'
 import { isAppPageRouteDefinition } from './future/route-definitions/app-page-route-definition'
 import { RouteKind } from './future/route-kind'
+import { NodeManifestLoader } from './future/manifests/loaders/node-manifest-loader'
+import { DevManifestLoader } from './future/manifests/loaders/dev-manifest-loader'
+import { CachedManifestLoader } from './future/manifests/loaders/cached-manifest-loader'
 
 export * from './base-server'
 
@@ -246,19 +245,21 @@ export default class NextNodeServer extends BaseServer {
 
     this.middlewareManifestPath = join(this.serverDistDir, MIDDLEWARE_MANIFEST)
 
-    // Create a new manifest loader that get's the manifests from the server.
-    const manifestLoader = new BaseManifestLoader({
-      [PAGES_MANIFEST]: () => this.getPagesManifest(),
-      [APP_PATHS_MANIFEST]: () => this.getAppPathsManifest(),
-      [MIDDLEWARE_MANIFEST]: () => this.getMiddlewareManifest(),
-    })
-
     // Configure the matchers and handlers.
     const definitions = NextRouteDefinitionManagerBuilder.build(
       this.distDir,
-      manifestLoader,
       this.hasAppDir,
-      this.i18nProvider
+      this.i18nProvider,
+      // If we're in development, we should use the dev loader which will retry
+      // loading the manifest multiple times. In production, we'll use the
+      // cached loader which will cache the result in memory.
+      options.dev
+        ? new DevManifestLoader(
+            new NodeManifestLoader(join(this.distDir, SERVER_DIRECTORY))
+          )
+        : new CachedManifestLoader(
+            new NodeManifestLoader(join(this.distDir, SERVER_DIRECTORY))
+          )
     )
 
     // Configure the route manager.
@@ -366,16 +367,6 @@ export default class NextNodeServer extends BaseServer {
 
   protected getHasStaticDir(): boolean {
     return fs.existsSync(join(this.dir, 'static'))
-  }
-
-  protected getPagesManifest(): PagesManifest | undefined {
-    return loadManifest(join(this.serverDistDir, PAGES_MANIFEST))
-  }
-
-  protected getAppPathsManifest(): PagesManifest | undefined {
-    if (!this.hasAppDir) return undefined
-
-    return loadManifest(join(this.serverDistDir, APP_PATHS_MANIFEST))
   }
 
   protected getBuildId(): string {

@@ -1,6 +1,7 @@
-import type { PagesManifestLoader } from '../helpers/manifest-loaders/manifest-loader'
 import type { PagesAPIRouteDefinition } from '../pages-api-route-definition'
 import type { PagesManifest } from '../../../../build/webpack/plugins/pages-manifest-plugin'
+import type { ManifestLoader } from '../../manifests/loaders/manifest-loader'
+import type { PagesManifests } from '../../manifests/manifests'
 
 import { isAPIRoute } from '../../../../lib/is-api-route'
 import { PAGES_MANIFEST } from '../../../../shared/lib/constants'
@@ -11,13 +12,12 @@ import { RouteKind } from '../../route-kind'
 
 export class PagesAPIRouteDefinitionProvider extends ManifestRouteDefinitionProvider<
   PagesAPIRouteDefinition,
-  typeof PAGES_MANIFEST,
-  PagesManifest
+  PagesManifests
 > {
   public readonly kind = RouteKind.PAGES_API
   private readonly normalizer: PagesFilenameNormalizer
 
-  constructor(distDir: string, manifestLoader: PagesManifestLoader) {
+  constructor(distDir: string, manifestLoader: ManifestLoader<PagesManifests>) {
     super(PAGES_MANIFEST, manifestLoader)
 
     this.normalizer = new PagesFilenameNormalizer(distDir)

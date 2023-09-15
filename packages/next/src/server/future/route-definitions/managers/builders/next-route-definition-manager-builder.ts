@@ -1,13 +1,7 @@
-import type { ManifestsLoader } from '../../helpers/manifest-loaders/manifest-loader'
 import type { I18NProvider } from '../../../helpers/i18n-provider'
 import type { RouteDefinitionProvider } from '../../providers/route-definition-provider'
-import type { PagesManifest } from '../../../../../build/webpack/plugins/pages-manifest-plugin'
-import type { MiddlewareManifest } from '../../../../../build/webpack/plugins/middleware-plugin'
-import type {
-  APP_PATHS_MANIFEST,
-  MIDDLEWARE_MANIFEST,
-  PAGES_MANIFEST,
-} from '../../../../../shared/lib/constants'
+import type { Manifests } from '../../../manifests/manifests'
+import type { ManifestLoader } from '../../../manifests/loaders/manifest-loader'
 
 import { AppPageRouteDefinitionProvider } from '../../providers/app-page-route-definition-provider'
 import { AppRouteRouteDefinitionProvider } from '../../providers/app-route-route-definition-provider'
@@ -20,18 +14,12 @@ import { InternalRootRouteDefinitionProvider } from '../../providers/internal-ro
 import { BatchedFileReader } from '../../../helpers/file-reader/batched-file-reader'
 import { BaseFileReader } from '../../../helpers/file-reader/base-file-reader'
 
-type ManifestLoader = ManifestsLoader<{
-  [PAGES_MANIFEST]: PagesManifest
-  [APP_PATHS_MANIFEST]: PagesManifest
-  [MIDDLEWARE_MANIFEST]: MiddlewareManifest
-}>
-
 export class NextRouteDefinitionManagerBuilder {
   public static build(
     distDir: string,
-    manifestLoader: ManifestLoader,
     hasAppDir: boolean,
-    i18nProvider: I18NProvider | null
+    i18nProvider: I18NProvider | null,
+    manifestLoader: ManifestLoader<Manifests>
   ): BaseRouteDefinitionManager {
     const definitions = new Array<RouteDefinitionProvider>()
 

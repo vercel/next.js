@@ -1,6 +1,7 @@
-import type { AppPathsManifestLoader } from '../helpers/manifest-loaders/manifest-loader'
 import type { AppPageRouteDefinition } from '../app-page-route-definition'
 import type { PagesManifest } from '../../../../build/webpack/plugins/pages-manifest-plugin'
+import type { ManifestLoader } from '../../manifests/loaders/manifest-loader'
+import type { AppPathManifests } from '../../manifests/manifests'
 
 import { isAppPageRoute } from '../../../../lib/is-app-page-route'
 import { AppPageRouteDefinitionBuilder } from '../builders/app-page-route-definition-builder'
@@ -11,13 +12,15 @@ import { RouteKind } from '../../route-kind'
 
 export class AppPageRouteDefinitionProvider extends ManifestRouteDefinitionProvider<
   AppPageRouteDefinition,
-  typeof APP_PATHS_MANIFEST,
-  PagesManifest
+  AppPathManifests
 > {
   public readonly kind = RouteKind.APP_PAGE
   private readonly normalizer: AppFilenameNormalizer
 
-  constructor(distDir: string, manifestLoader: AppPathsManifestLoader) {
+  constructor(
+    distDir: string,
+    manifestLoader: ManifestLoader<AppPathManifests>
+  ) {
     super(APP_PATHS_MANIFEST, manifestLoader)
 
     this.normalizer = new AppFilenameNormalizer(distDir)

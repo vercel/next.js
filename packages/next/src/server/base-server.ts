@@ -17,7 +17,6 @@ import {
   MissingStaticPage,
 } from '../shared/lib/utils'
 import type { PreviewData, ServerRuntime, SizeLimit } from 'next/types'
-import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { OutgoingHttpHeaders } from 'http2'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PayloadOptions } from './send-payload'
@@ -236,8 +235,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected readonly publicDir: string
   protected readonly hasStaticDir: boolean
   protected readonly hasAppDir: boolean
-  protected readonly pagesManifest?: PagesManifest
-  protected readonly appPathsManifest?: PagesManifest
   protected readonly buildId: string
   protected readonly minimalMode: boolean
   protected readonly renderOpts: {
@@ -288,8 +285,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getPublicDir(): string
   protected abstract getHasStaticDir(): boolean
   protected abstract getHasAppDir(dev: boolean): boolean
-  protected abstract getPagesManifest(): PagesManifest | undefined
-  protected abstract getAppPathsManifest(): PagesManifest | undefined
   protected abstract getBuildId(): string
 
   protected abstract findPageComponents(params: {
@@ -473,9 +468,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       serverRuntimeConfig,
       publicRuntimeConfig,
     })
-
-    this.pagesManifest = this.getPagesManifest()
-    this.appPathsManifest = this.getAppPathsManifest()
 
     this.setAssetPrefix(assetPrefix)
     this.responseCache = this.getResponseCache({ dev })
