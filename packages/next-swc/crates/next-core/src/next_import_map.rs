@@ -247,8 +247,9 @@ pub async fn get_next_server_import_map(
         | ServerContextType::AppRoute { .. } => {
             match mode {
                 NextMode::Build => {
-                    import_map.insert_wildcard_alias("next/dist/server/", external);
-                    import_map.insert_wildcard_alias("next/dist/shared/", external);
+                    // import_map.insert_wildcard_alias("next/dist/server/",
+                    // external); import_map.
+                    // insert_wildcard_alias("next/dist/shared/", external);
                 }
                 NextMode::DevServer => {
                     // The sandbox can't be bundled and needs to be external
