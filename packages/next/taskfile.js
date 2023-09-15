@@ -1738,14 +1738,14 @@ export async function copy_vendor_react(task_) {
     yield task
       .source(join(reactDir, 'cjs/**/*.js'))
       // eslint-disable-next-line require-yield
-      // .run({ every: true }, function* (file) {
-      //   const source = file.data.toString()
-      //   // We replace the module/chunk loading code with our own implementation in Next.js.
-      //   file.data = source.replace(
-      //     /require\(["']react["']\)/g,
-      //     `require("next/dist/compiled/react${packageSuffix}")`
-      //   )
-      // })
+      .run({ every: true }, function* (file) {
+        const source = file.data.toString()
+        // We replace the module/chunk loading code with our own implementation in Next.js.
+        file.data = source.replace(
+          /require\(["']react["']\)/g,
+          `require("next/dist/compiled/react${packageSuffix}")`
+        )
+      })
       .target(`src/compiled/react${packageSuffix}/cjs`)
 
     yield task
@@ -1766,14 +1766,15 @@ export async function copy_vendor_react(task_) {
       .run({ every: true }, function* (file) {
         const source = file.data.toString()
         // We replace the module/chunk loading code with our own implementation in Next.js.
-        file.data = source.replace(
-          /require\(["']scheduler["']\)/g,
-          `require("next/dist/compiled/scheduler${packageSuffix}")`
-        )
-        // .replace(
-        //   /require\(["']react["']\)/g,
-        //   `require("next/dist/compiled/react${packageSuffix}")`
-        // )
+        file.data = source
+          .replace(
+            /require\(["']scheduler["']\)/g,
+            `require("next/dist/compiled/scheduler${packageSuffix}")`
+          )
+          .replace(
+            /require\(["']react["']\)/g,
+            `require("next/dist/compiled/react${packageSuffix}")`
+          )
 
         // Note that we don't replace `react-dom` with `next/dist/compiled/react-dom`
         // as it mighe be aliased to the server rendering stub.

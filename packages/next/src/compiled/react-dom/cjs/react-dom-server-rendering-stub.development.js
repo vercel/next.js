@@ -14,7 +14,7 @@ if (process.env.NODE_ENV !== "production") {
   (function() {
 'use strict';
 
-var React = require('react');
+var React = require("next/dist/compiled/react");
 
 var ReactVersion = '18.3.0-canary-d6dcad6a8-20230914';
 
