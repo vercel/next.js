@@ -13,6 +13,9 @@ const originModules = [
   require.resolve('../../../server/load-components'),
   require.resolve('../../../server/next-server'),
   require.resolve('next/dist/compiled/next-server/app-page.runtime.dev.js'),
+  require.resolve('next/dist/compiled/next-server/app-route.runtime.dev.js'),
+  require.resolve('next/dist/compiled/next-server/pages.runtime.dev.js'),
+  require.resolve('next/dist/compiled/next-server/pages-api.runtime.dev.js'),
 ]
 
 const RUNTIME_NAMES = ['webpack-runtime', 'webpack-api-runtime']
@@ -41,22 +44,6 @@ function deleteFromRequireCache(filePath: string) {
     return true
   }
   return false
-}
-
-export function deleteAppClientCache() {
-  // ensure we reset the cache for rsc components
-  // loaded via react-server-dom-webpack
-  const reactServerDomModId = require.resolve(
-    'next/dist/compiled/next-server/app-page.runtime.dev.js'
-  )
-
-  const reactServerDomMod = require.cache[reactServerDomModId]
-  if (reactServerDomMod) {
-    for (const child of [...reactServerDomMod.children]) {
-      deleteFromRequireCache(child.id)
-    }
-    deleteFromRequireCache(reactServerDomModId)
-  }
 }
 
 export function deleteCache(filePath: string) {
@@ -104,7 +91,11 @@ export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
       })
 
       if (hasAppEntry) {
-        deleteAppClientCache()
+        deleteFromRequireCache(
+          require.resolve(
+            'next/dist/compiled/next-server/app-page.runtime.dev.js'
+          )
+        )
       }
 
       for (const page of entries) {
