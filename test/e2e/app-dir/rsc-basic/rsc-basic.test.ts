@@ -456,7 +456,7 @@ createNextDescribe(
       expect(await res.text()).toBe('Hello from import-test.js')
     })
 
-    it('should use bundled react for pages with app', async () => {
+    it('should not use bundled react for pages with app', async () => {
       const ssrPaths = ['/pages-react', '/edge-pages-react']
       const promises = ssrPaths.map(async (pathname) => {
         const resPages$ = await next.render$(pathname)
@@ -467,7 +467,7 @@ createNextDescribe(
         ]
 
         ssrPagesReactVersions.forEach((version) => {
-          expect(version).toMatch('-canary-')
+          expect(version).not.toMatch('-canary-')
         })
       })
       await Promise.all(promises)
@@ -502,10 +502,10 @@ createNextDescribe(
       `)
 
       browserPagesReactVersions.forEach((version) =>
-        expect(version).toMatch('-canary-')
+        expect(version).not.toMatch('-canary-')
       )
       browserEdgePagesReactVersions.forEach((version) =>
-        expect(version).toMatch('-canary-')
+        expect(version).not.toMatch('-canary-')
       )
     })
 
