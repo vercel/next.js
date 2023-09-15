@@ -7,9 +7,6 @@ export function resolve(specifier: string, context: any, nextResolve: any) {
     ? './import-overrides'
     : 'next/dist/server/import-overrides') as typeof import('./import-overrides')
 
-  // In case the environment variable is set after the module is loaded.
-  // overrideReact()s
-
   const hookResolved = hookPropertyMap.get(specifier)
   if (hookResolved) {
     specifier = hookResolved
