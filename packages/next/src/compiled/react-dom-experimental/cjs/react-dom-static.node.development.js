@@ -15,7 +15,7 @@ if (process.env.NODE_ENV !== "production") {
 'use strict';
 
 var stream = require('stream');
-var React = require('react');
+var React = require("next/dist/compiled/react-experimental");
 var util = require('util');
 var async_hooks = require('async_hooks');
 var ReactDOM = require('react-dom');
