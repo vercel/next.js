@@ -1919,7 +1919,7 @@ async function startWatcher(opts: SetupOpts) {
   async function requestHandler(req: IncomingMessage, res: ServerResponse) {
     const parsedUrl = url.parse(req.url || '/')
 
-    if (parsedUrl.pathname === clientPagesManifestPath) {
+    if (parsedUrl.pathname?.includes(clientPagesManifestPath)) {
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
       res.end(
@@ -1932,7 +1932,7 @@ async function startWatcher(opts: SetupOpts) {
       return { finished: true }
     }
 
-    if (parsedUrl.pathname === devMiddlewareManifestPath) {
+    if (parsedUrl.pathname?.includes(devMiddlewareManifestPath)) {
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
       res.end(JSON.stringify(serverFields.middleware?.matchers || []))
