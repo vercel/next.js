@@ -40,9 +40,9 @@ class NextFixtureImpl implements NextFixture {
   }
 
   private async handleFetch(request: Request): Promise<FetchHandlerResult> {
-    return reportFetch(this.testInfo, request, (req) => {
+    return reportFetch(this.testInfo, request, async (req) => {
       for (const handler of this.fetchHandlers.slice().reverse()) {
-        const result = handler(req.clone())
+        const result = await handler(req.clone())
         if (result) {
           return result
         }
