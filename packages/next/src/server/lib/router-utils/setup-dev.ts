@@ -85,7 +85,7 @@ import {
   parseStack,
 } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
 import { BuildManifest } from '../../get-page-files'
-import { mkdir, readFile, writeFile } from 'fs/promises'
+import { mkdir, readFile, writeFile, rename, unlink } from 'fs/promises'
 import { PagesManifest } from '../../../build/webpack/plugins/pages-manifest-plugin'
 import { AppBuildManifest } from '../../../build/webpack/plugins/app-build-manifest-plugin'
 import { PageNotFoundError } from '../../../shared/lib/utils'
@@ -692,14 +692,31 @@ async function startWatcher(opts: SetupOpts) {
       return manifest
     }
 
+    async function writeFileAtomic(
+      filePath: string,
+      content: string
+    ): Promise<void> {
+      const tempPath = filePath + '.tmp.' + Math.random().toString(36).slice(2)
+      try {
+        await writeFile(tempPath, content, 'utf-8')
+        await rename(tempPath, filePath)
+      } catch (e) {
+        try {
+          await unlink(tempPath)
+        } catch {
+          // ignore
+        }
+        throw e
+      }
+    }
+
     async function writeBuildManifest(): Promise<void> {
       const buildManifest = mergeBuildManifests(buildManifests.values())
       const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
       deleteCache(buildManifestPath)
-      await writeFile(
+      await writeFileAtomic(
         buildManifestPath,
-        JSON.stringify(buildManifest, null, 2),
-        'utf-8'
+        JSON.stringify(buildManifest, null, 2)
       )
       const content = {
         __rewrites: { afterFiles: [], beforeFiles: [], fallback: [] },
@@ -714,15 +731,13 @@ async function startWatcher(opts: SetupOpts) {
       const buildManifestJs = `self.__BUILD_MANIFEST = ${JSON.stringify(
         content
       )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
-      await writeFile(
+      await writeFileAtomic(
         path.join(distDir, 'static', 'development', '_buildManifest.js'),
-        buildManifestJs,
-        'utf-8'
+        buildManifestJs
       )
-      await writeFile(
+      await writeFileAtomic(
         path.join(distDir, 'static', 'development', '_ssgManifest.js'),
-        srcEmptySsgManifest,
-        'utf-8'
+        srcEmptySsgManifest
       )
     }
 
@@ -737,10 +752,9 @@ async function startWatcher(opts: SetupOpts) {
         `fallback-${BUILD_MANIFEST}`
       )
       deleteCache(fallbackBuildManifestPath)
-      await writeFile(
+      await writeFileAtomic(
         fallbackBuildManifestPath,
-        JSON.stringify(fallbackBuildManifest, null, 2),
-        'utf-8'
+        JSON.stringify(fallbackBuildManifest, null, 2)
       )
     }
 
@@ -750,10 +764,9 @@ async function startWatcher(opts: SetupOpts) {
       )
       const appBuildManifestPath = path.join(distDir, APP_BUILD_MANIFEST)
       deleteCache(appBuildManifestPath)
-      await writeFile(
+      await writeFileAtomic(
         appBuildManifestPath,
-        JSON.stringify(appBuildManifest, null, 2),
-        'utf-8'
+        JSON.stringify(appBuildManifest, null, 2)
       )
     }
 
@@ -761,10 +774,9 @@ async function startWatcher(opts: SetupOpts) {
       const pagesManifest = mergePagesManifests(pagesManifests.values())
       const pagesManifestPath = path.join(distDir, 'server', PAGES_MANIFEST)
       deleteCache(pagesManifestPath)
-      await writeFile(
+      await writeFileAtomic(
         pagesManifestPath,
-        JSON.stringify(pagesManifest, null, 2),
-        'utf-8'
+        JSON.stringify(pagesManifest, null, 2)
       )
     }
 
@@ -776,10 +788,9 @@ async function startWatcher(opts: SetupOpts) {
         APP_PATHS_MANIFEST
       )
       deleteCache(appPathsManifestPath)
-      await writeFile(
+      await writeFileAtomic(
         appPathsManifestPath,
-        JSON.stringify(appPathsManifest, null, 2),
-        'utf-8'
+        JSON.stringify(appPathsManifest, null, 2)
       )
     }
 
@@ -792,10 +803,9 @@ async function startWatcher(opts: SetupOpts) {
         'server/middleware-manifest.json'
       )
       deleteCache(middlewareManifestPath)
-      await writeFile(
+      await writeFileAtomic(
         middlewareManifestPath,
-        JSON.stringify(middlewareManifest, null, 2),
-        'utf-8'
+        JSON.stringify(middlewareManifest, null, 2)
       )
     }
 
@@ -808,7 +818,7 @@ async function startWatcher(opts: SetupOpts) {
         NEXT_FONT_MANIFEST + '.json'
       )
       deleteCache(fontManifestPath)
-      await writeFile(
+      await writeFileAtomic(
         fontManifestPath,
         JSON.stringify(
           {
@@ -829,11 +839,7 @@ async function startWatcher(opts: SetupOpts) {
         'react-loadable-manifest.json'
       )
       deleteCache(loadableManifestPath)
-      await writeFile(
-        loadableManifestPath,
-        JSON.stringify({}, null, 2),
-        'utf-8'
-      )
+      await writeFileAtomic(loadableManifestPath, JSON.stringify({}, null, 2))
     }
 
     async function subscribeToHmrEvents(id: string, client: ws) {
