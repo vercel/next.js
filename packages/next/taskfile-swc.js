@@ -29,11 +29,15 @@ module.exports = function (task) {
       const isClient = serverOrClient === 'client'
       /** @type {import('@swc/core').Options} */
       const swcClientOptions = {
-        module: {
-          type: esm ? 'es6' : 'commonjs',
-          ignoreDynamic: true,
-          exportInteropAnnotation: true,
-        },
+        module: esm
+          ? {
+              type: 'es6',
+            }
+          : {
+              type: 'commonjs',
+              ignoreDynamic: true,
+              exportInteropAnnotation: true,
+            },
         env: {
           targets: MODERN_BROWSERSLIST_TARGET,
         },
@@ -64,11 +68,15 @@ module.exports = function (task) {
 
       /** @type {import('@swc/core').Options} */
       const swcServerOptions = {
-        module: {
-          type: esm ? 'es6' : 'commonjs',
-          ignoreDynamic: true,
-          exportInteropAnnotation: true,
-        },
+        module: esm
+          ? {
+              type: 'es6',
+            }
+          : {
+              type: 'commonjs',
+              ignoreDynamic: true,
+              exportInteropAnnotation: true,
+            },
         env: {
           targets: {
             // Ideally, should be same version defined in packages/next/package.json#engines
