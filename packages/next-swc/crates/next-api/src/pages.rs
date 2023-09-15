@@ -37,7 +37,6 @@ use turbopack_binding::{
         build::BuildChunkingContext,
         core::{
             asset::AssetContent,
-            changed::any_content_changed_of_output_assets,
             chunk::{ChunkableModule, ChunkingContext, EvaluatableAssets},
             context::AssetContext,
             file_source::FileSource,
@@ -944,13 +943,21 @@ impl Endpoint for PageEndpoint {
     }
 
     #[turbo_tasks::function]
-    fn server_changed(self: Vc<Self>) -> Vc<Completion> {
-        any_content_changed_of_output_assets(self.output().server_assets())
+    async fn server_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
+        Ok(self
+            .await?
+            .pages_project
+            .project()
+            .server_changed(self.output().server_assets()))
     }
 
     #[turbo_tasks::function]
-    fn client_changed(self: Vc<Self>) -> Vc<Completion> {
-        any_content_changed_of_output_assets(self.output().client_assets())
+    async fn client_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
+        Ok(self
+            .await?
+            .pages_project
+            .project()
+            .client_changed(self.output().client_assets()))
     }
 }
 

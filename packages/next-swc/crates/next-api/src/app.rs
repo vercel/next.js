@@ -40,7 +40,6 @@ use turbopack_binding::{
     turbopack::{
         core::{
             asset::{Asset, AssetContent},
-            changed::any_content_changed_of_output_assets,
             chunk::{ChunkableModule, ChunkingContext, EvaluatableAssets},
             file_source::FileSource,
             output::{OutputAsset, OutputAssets},
@@ -905,13 +904,21 @@ impl Endpoint for AppEndpoint {
     }
 
     #[turbo_tasks::function]
-    fn server_changed(self: Vc<Self>) -> Vc<Completion> {
-        any_content_changed_of_output_assets(self.output().server_assets())
+    async fn server_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
+        Ok(self
+            .await?
+            .app_project
+            .project()
+            .server_changed(self.output().server_assets()))
     }
 
     #[turbo_tasks::function]
-    fn client_changed(self: Vc<Self>) -> Vc<Completion> {
-        any_content_changed_of_output_assets(self.output().client_assets())
+    async fn client_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
+        Ok(self
+            .await?
+            .app_project
+            .project()
+            .client_changed(self.output().client_assets()))
     }
 }
 

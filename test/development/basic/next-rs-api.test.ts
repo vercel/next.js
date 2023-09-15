@@ -353,8 +353,7 @@ describe('next.rs api', () => {
       file: 'pages/index.js',
       content: pagesIndexCode('hello world2'),
       expectedUpdate: '/pages/index.js',
-      // TODO(sokra) this should be false, but source maps change on server side
-      expectedServerSideChange: true,
+      expectedServerSideChange: false,
     },
     {
       name: 'server-side change on a page',
