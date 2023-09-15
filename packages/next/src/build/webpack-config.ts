@@ -2064,11 +2064,11 @@ export default async function getBaseWebpackConfig(
             alias: {
               'server-only$': 'next/dist/compiled/server-only/empty',
               'client-only$': 'next/dist/compiled/client-only/error',
-              'next/dist/compiled/server-only':
+              'next/dist/compiled/server-only$':
                 'next/dist/compiled/server-only/empty',
-              'next/dist/compiled/client-only':
-                'next/dist/compiled/client-only/error',
-              // 'next/dist/compiled/client-only': `next-invalid-import-error-loader?${JSON.stringify({
+              // 'next/dist/compiled/client-only':
+              //   'next/dist/compiled/client-only/error',
+              // 'next/dist/compiled/client-only$': `next-invalid-import-error-loader?${JSON.stringify({
               //   message: `'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.`
               // })}`,
               // 'client-only': `next-invalid-import-error-loader?${JSON.stringify({
@@ -2084,17 +2084,22 @@ export default async function getBaseWebpackConfig(
           resolve: {
             // Error on server-only but allow client-only
             alias: {
-              'server-only': 'next/dist/compiled/server-only/index',
-              'client-only': 'next/dist/compiled/client-only/index',
+              'server-only$': 'next/dist/compiled/server-only/index',
+              'client-only$': 'next/dist/compiled/client-only/index',
+              // 'next/dist/compiled/server-only$': `next-invalid-import-error-loader?${JSON.stringify({
+              //   message: `'server-only' cannot be imported from a Client Component module. It should only be used from a Server Component.`
+              // })}`,
+              'next/dist/compiled/client-only$':
+                'next/dist/compiled/client-only/index',
               'next/dist/compiled/server-only':
                 'next/dist/compiled/server-only/index',
-              'next/dist/compiled/client-only':
-                'next/dist/compiled/client-only/index',
+              // 'next/dist/compiled/client-only':
+              //   'next/dist/compiled/client-only/index',
             },
           },
         },
         {
-          test: /(node_modules|next[/\\]dist[/\\]compiled)[/\\]client-only[/\\]error.js/,
+          test: /client-only$|next[\\/]dist[\\/]compiled[\\/]client-only[\\/]error/,
           loader: 'next-invalid-import-error-loader',
           issuerLayer: isWebpackServerLayer,
           options: {
@@ -2103,13 +2108,16 @@ export default async function getBaseWebpackConfig(
           },
         },
         {
-          test: /(node_modules|next[/\\]dist[/\\]compiled)[/\\]server-only[/\\]index.js/,
+          test: /server-only$|next[\\/]dist[\\/]compiled[\\/]server-only[\\/]index/,
           loader: 'next-invalid-import-error-loader',
-          issuerLayer: [
-            WEBPACK_LAYERS.actionBrowser,
-            WEBPACK_LAYERS.appPagesBrowser,
-            WEBPACK_LAYERS.serverSideRendering,
-          ],
+          issuerLayer(layer: string | null) {
+            return !layer || !isWebpackServerLayer(layer)
+          },
+          // issuerLayer: [
+          //   WEBPACK_LAYERS.actionBrowser,
+          //   WEBPACK_LAYERS.appPagesBrowser,
+          //   WEBPACK_LAYERS.serverSideRendering,
+          // ],
           options: {
             message:
               "'server-only' cannot be imported from a Client Component module. It should only be used from a Server Component.",

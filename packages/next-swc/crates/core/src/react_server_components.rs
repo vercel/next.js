@@ -84,7 +84,7 @@ impl<C: Comments> VisitMut for ReactServerComponents<C> {
             // is "client" e.g.
             // * client components pages
             // * pages bundles on browser layer
-            if !is_action_file && self.bundle_target == "client" {
+            if !is_action_file && self.bundle_target != "server" {
                 self.assert_client_graph(&imports, module);
             }
             if is_client_entry {
