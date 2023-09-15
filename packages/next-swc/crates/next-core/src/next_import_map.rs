@@ -110,6 +110,10 @@ pub async fn get_next_client_import_map(
                 request_to_import_mapping(app_dir, "next/dist/compiled/react-server-dom-webpack/*"),
             );
             import_map.insert_exact_alias(
+                "next/head",
+                request_to_import_mapping(project_path, "next/dist/client/components/noop-head"),
+            );
+            import_map.insert_exact_alias(
                 "next/dynamic",
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
