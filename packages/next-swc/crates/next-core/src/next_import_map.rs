@@ -246,11 +246,7 @@ pub async fn get_next_server_import_map(
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. } => {
             match mode {
-                NextMode::Build => {
-                    // import_map.insert_wildcard_alias("next/dist/server/",
-                    // external); import_map.
-                    // insert_wildcard_alias("next/dist/shared/", external);
-                }
+                NextMode::Build => {}
                 NextMode::DevServer => {
                     // The sandbox can't be bundled and needs to be external
                     import_map.insert_exact_alias("next/dist/server/web/sandbox", external);
@@ -432,8 +428,7 @@ async fn insert_next_server_special_aliases(
             );
         }
         (_, ServerContextType::PagesData { .. }) => {}
-        // In development, we *always* use the bundled version of React, even in
-        // SSR, since we're bundling Next.js alongside it.
+        // the logic closely follows the one in createRSCAliases in webpack-config.ts
         (
             NextMode::DevServer | NextMode::Build | NextMode::Development,
             ServerContextType::AppSSR { app_dir },

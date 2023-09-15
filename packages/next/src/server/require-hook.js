@@ -19,9 +19,6 @@ mod._resolveFilename = function (
   isMain,
   options
 ) {
-  // In case the environment variable is set after the module is loaded.
-  // overrideReact()
-
   const hookResolved = requestMap.get(request)
   if (hookResolved) request = hookResolved
 

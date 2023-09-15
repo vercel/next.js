@@ -1,17 +1,3 @@
-// module.exports = {
-//   React: require('react'),
-//   ReactDOM: require('react-dom/server-rendering-stub'),
-
-//   // todo move higher
-//   ReactJsxRuntime: require('react/jsx-runtime'),
-//   ReactJsxDevRuntime: require('react/jsx-dev-runtime'),
-
-//   // ReactDOMServerEdge: require('react-dom/cjs/react-dom-server.browser.production.min'),
-//   ReactDOMServerEdge: require('react-dom/cjs/react-dom-server.node.production.min'),
-//   // eslint-disable-next-line import/no-extraneous-dependencies
-//   ReactServerDOMWebpackClientEdge: require('react-server-dom-webpack/client.edge'),
-// }
-
 import * as React from 'react'
 import * as ReactDOM from 'react-dom/server-rendering-stub'
 

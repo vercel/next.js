@@ -46,6 +46,12 @@ function deleteFromRequireCache(filePath: string) {
   return false
 }
 
+export function deleteAppClientCache() {
+  deleteFromRequireCache(
+    require.resolve('next/dist/compiled/next-server/app-page.runtime.dev.js')
+  )
+}
+
 export function deleteCache(filePath: string) {
   // try to clear it from the fs cache
   clearManifestCache(filePath)
@@ -91,11 +97,7 @@ export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
       })
 
       if (hasAppEntry) {
-        deleteFromRequireCache(
-          require.resolve(
-            'next/dist/compiled/next-server/app-page.runtime.dev.js'
-          )
-        )
+        deleteAppClientCache()
       }
 
       for (const page of entries) {

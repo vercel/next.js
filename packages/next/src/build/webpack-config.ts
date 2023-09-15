@@ -453,20 +453,11 @@ function createRSCAliases(
         'react$'
       ] = `next/dist/compiled/react${bundledReactChannel}/react.shared-subset`
     }
-    // alias[
-    //   'react$'
-    // ] = `next/dist/server/future/route-modules/app-page/vendored/react-shared-subset`
-    // }
-    // Use server rendering stub for RSC
+    // Use server rendering stub for RSC and SSR
     // x-ref: https://github.com/facebook/react/pull/25436
-    // if (opts.reactDomServerRenderingStub) {
     alias[
       'react-dom$'
     ] = `next/dist/compiled/react-dom${bundledReactChannel}/server-rendering-stub`
-    // alias[
-    //   'react-dom$'
-    // ] = `next/dist/server/future/route-modules/app-page/vendored/react-server-rendering-stub`
-    // }
   }
 
   // Alias `server-only` and `client-only` modules to their server/client only, vendored versions.
@@ -1177,17 +1168,6 @@ export default async function getBaseWebpackConfig(
         '@opentelemetry/api': 'next/dist/compiled/@opentelemetry/api',
       }),
 
-      // ...(hasAppDir
-      //   ? createRSCAliases(bundledReactChannel, {
-      //       // reactSharedSubset: false,
-      //       // reactDomServerRenderingStub: false,
-      //       reactProductionProfiling,
-      //       // browser: true,
-      //       layer: 'app-pages-browser',
-      //       isEdgeServer,
-      //     })
-      //   : {}),
-
       ...(config.images.loaderFile
         ? {
             'next/dist/shared/lib/image-loader': config.images.loaderFile,
@@ -1400,28 +1380,6 @@ export default async function getBaseWebpackConfig(
       ] as WebpackLayerName[]
     ).includes(layer!)
 
-    // if (
-    //   request === 'react/jsx-dev-runtime' ||
-    //   request === 'react/jsx-runtime'
-    // ) {
-    //   if (isAppLayer) {
-    //     return `commonjs next/dist/compiled/${request.replace(
-    //       'react',
-    //       'react' + bundledReactChannel
-    //     )}`
-    //   }
-    //   return
-    // }
-
-    // Special internal modules that must be bundled for Server Components.
-    // if (layer === WEBPACK_LAYERS.reactServerComponents) {
-    //   // React needs to be bundled for Server Components so the special
-    //   // `react-server` export condition can be used.
-    //   if (reactPackagesRegex.test(request)) {
-    //     return
-    //   }
-    // }
-
     // Relative requires don't need custom resolution, because they
     // are relative to requests we've already resolved here.
     // Absolute requires (require('/foo')) are extremely uncommon, but
@@ -1432,24 +1390,6 @@ export default async function getBaseWebpackConfig(
       }
 
       if (reactPackagesRegex.test(request) && !isAppLayer) {
-        // override react-dom to server-rendering-stub for server
-        // if (
-        //   request === 'react-dom' &&
-        //   (layer === WEBPACK_LAYERS.serverSideRendering ||
-        //     layer === WEBPACK_LAYERS.reactServerComponents ||
-        //     layer === WEBPACK_LAYERS.actionBrowser)
-        // ) {
-        //   request = `next/dist/compiled/react-dom${bundledReactChannel}/server-rendering-stub`
-        // } else if (isAppLayer) {
-        //   request =
-        //     'next/dist/compiled/' +
-        //     request.replace(
-        //       /^(react-server-dom-webpack|react-dom|react)/,
-        //       (name) => {
-        //         return name + bundledReactChannel
-        //       }
-        //     )
-        // }
         return `commonjs ${request}`
       }
 
@@ -1494,43 +1434,6 @@ export default async function getBaseWebpackConfig(
         // otherwise NFT will get tripped up
         return `commonjs ${localRes.replace(/.*?next[/\\]dist/, 'next/dist')}`
       }
-      // if the file ends with .shared-runtime, we need to make it point to the correct bundle depending on the layer
-      // this is because each shared-runtime files are unique per bundle, so if you use app-router context in pages,
-      // it'll be a different instance than the one used in the app-router runtime.
-      // const isSharedRuntime = sharedRuntimePattern.test(localRes)
-      // if (isSharedRuntime) {
-      //   // if (dev) {
-      //   //   return `commonjs ${localRes}`
-      //   // }
-
-      //   const name = path.parse(localRes).name.replace('.shared-runtime', '')
-
-      //   const camelCaseName = name.replace(/-([a-z])/g, (_, w) =>
-      //     w.toUpperCase()
-      //   )
-
-      //   // there's no externals for API routes but if need be, they'll need to be added here and have
-      //   // their own layer
-      //   const runtime =
-      //     layer === 'app-route-handler'
-      //       ? 'app-route'
-      //       : isAppLayer
-      //       ? 'app-page'
-      //       : 'pages'
-      //   return [
-      //     'commonjs ' +
-      //       path.posix.join(
-      //         'next',
-      //         'dist',
-      //         'compiled',
-      //         'next-server',
-      //         `${runtime}.runtime.${dev ? 'dev' : 'prod'}`
-      //       ),
-      //     'default',
-      //     'sharedModules',
-      //     camelCaseName,
-      //   ]
-      // }
     }
 
     // Don't bundle @vercel/og nodejs bundle for nodejs runtime.
@@ -1575,15 +1478,6 @@ export default async function getBaseWebpackConfig(
     // Treat react packages and next internals as external for SSR layer,
     // also map react to builtin ones with require-hook.
     if (layer === WEBPACK_LAYERS.serverSideRendering) {
-      // if (reactPackagesRegex.test(request)) {
-      //   return `commonjs next/dist/compiled/${request.replace(
-      //     /^(react-server-dom-webpack|react-dom|react)/,
-      //     (name) => {
-      //       return name + bundledReactChannel
-      //     }
-      //   )}`
-      // }
-
       const isRelative = request.startsWith('.')
       const fullRequest = isRelative
         ? path.join(context, request).replace(/\\/g, '/')
@@ -2210,12 +2104,9 @@ export default async function getBaseWebpackConfig(
                   // react to the direct file path, not the package name. In that case the condition
                   // will be ignored completely.
                   alias: createRSCAliases(bundledReactChannel, {
-                    // reactSharedSubset: true,
-                    // reactDomServerRenderingStub: true,
                     reactServerCondition: true,
                     // No server components profiling
                     reactProductionProfiling,
-                    // browser: false,
                     layer: WEBPACK_LAYERS.reactServerComponents,
                     isEdgeServer,
                   }),
@@ -2276,11 +2167,8 @@ export default async function getBaseWebpackConfig(
                       // It needs `conditionNames` here to require the proper asset,
                       // when react is acting as dependency of compiled/react-dom.
                       alias: createRSCAliases(bundledReactChannel, {
-                        // reactSharedSubset: true,
-                        // reactDomServerRenderingStub: true,
                         reactServerCondition: true,
                         reactProductionProfiling,
-                        // browser: false,
                         layer: WEBPACK_LAYERS.reactServerComponents,
                         isEdgeServer,
                       }),
@@ -2291,11 +2179,8 @@ export default async function getBaseWebpackConfig(
                     issuerLayer: WEBPACK_LAYERS.serverSideRendering,
                     resolve: {
                       alias: createRSCAliases(bundledReactChannel, {
-                        // reactSharedSubset: false,
-                        // reactDomServerRenderingStub: true,
                         reactServerCondition: false,
                         reactProductionProfiling,
-                        // browser: true,
                         layer: WEBPACK_LAYERS.serverSideRendering,
                         isEdgeServer,
                       }),
