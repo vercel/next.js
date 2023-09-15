@@ -6,7 +6,7 @@ use swc_core::{
     ecma::ast::{ArrayLit, ArrayPat, Expr, Ident, Pat, Program},
     quote,
 };
-use turbo_tasks::{primitives::Bools, trace::TraceRawVcs, TryFlatJoinIterExt, Value, Vc};
+use turbo_tasks::{trace::TraceRawVcs, TryFlatJoinIterExt, Value, Vc};
 use turbopack_core::chunk::availability_info::AvailabilityInfo;
 
 use super::esm::base::ReferencedAsset;
@@ -102,17 +102,6 @@ struct AsyncModuleScc {
 #[turbo_tasks::value(transparent)]
 struct OptionAsyncModuleScc(Option<Vc<AsyncModuleScc>>);
 
-#[turbo_tasks::function]
-async fn is_placeable_self_async(
-    placeable: Vc<Box<dyn EcmascriptChunkPlaceable>>,
-) -> Result<Vc<bool>> {
-    let Some(async_module) = &*placeable.get_async_module().await? else {
-        return Ok(Vc::cell(false));
-    };
-
-    Ok(async_module.is_self_async())
-}
-
 #[turbo_tasks::value_impl]
 impl AsyncModuleScc {
     #[turbo_tasks::function]
@@ -124,19 +113,23 @@ impl AsyncModuleScc {
     async fn is_async(self: Vc<Self>) -> Result<Vc<bool>> {
         let this = self.await?;
 
-        let mut bools = Vec::new();
-
         for placeable in &*this.scc.await? {
-            bools.push(is_placeable_self_async(*placeable));
+            if let Some(async_module) = &*placeable.get_async_module().await? {
+                if *async_module.is_self_async().await? {
+                    return Ok(Vc::cell(true));
+                }
+            }
         }
 
         for scc in &*this.scope.get_scc_children(this.scc).await? {
             // Because we generated SCCs there can be no loops in the children, so calling
             // recursively is fine.
-            bools.push(AsyncModuleScc::new(*scc, this.scope).is_async());
+            if *AsyncModuleScc::new(*scc, this.scope).is_async().await? {
+                return Ok(Vc::cell(true));
+            }
         }
 
-        Ok(Vc::<Bools>::cell(bools).any())
+        Ok(Vc::cell(false))
     }
 }
 
