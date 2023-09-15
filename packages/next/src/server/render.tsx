@@ -274,6 +274,7 @@ export type RenderOptsPartial = {
   strictNextHead: boolean
   isDraftMode?: boolean
   deploymentId?: string
+  isServerAction?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
