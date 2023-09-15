@@ -278,6 +278,7 @@ export function getJestSWCOptions({
     resolvedBaseUrl,
     // Don't apply server layer transformations for Jest
     isServerLayer: false,
+    // Disable server / client graph assertions for Jest
     bundleTarget: 'default',
   })
 
@@ -321,7 +322,7 @@ export function getLoaderSWCOptions({
   isServerLayer,
   isServerActionsEnabled,
   optimizeBarrelExports,
-  bundleTarget,
+  bundleTarget = 'client',
 }: // This is not passed yet as "paths" resolving is handled by webpack currently.
 // resolvedBaseUrl,
 {
@@ -363,7 +364,7 @@ export function getLoaderSWCOptions({
     hasServerComponents,
     isServerLayer,
     isServerActionsEnabled,
-    bundleTarget: bundleTarget || 'client',
+    bundleTarget,
   })
   baseOptions.fontLoaders = {
     fontLoaders: [

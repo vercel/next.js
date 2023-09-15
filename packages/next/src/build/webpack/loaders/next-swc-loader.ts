@@ -87,7 +87,7 @@ async function loaderTransform(
     isServerActionsEnabled: nextConfig?.experimental?.serverActions,
     isServerLayer,
     optimizeBarrelExports,
-    bundleTarget: bundleTarget || 'default',
+    bundleTarget,
   })
 
   const programmaticOptions = {
