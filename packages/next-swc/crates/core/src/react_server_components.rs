@@ -84,8 +84,13 @@ impl<C: Comments> VisitMut for ReactServerComponents<C> {
             // is "client" e.g.
             // * client components pages
             // * pages bundles on browser layer
-            if !is_action_file && self.bundle_target == "client" {
-                self.assert_client_graph(&imports, module);
+            if !is_action_file {
+                if self.bundle_target == "client" {
+                    self.assert_client_graph(&imports);
+                }
+                if self.bundle_target != "server" {
+                    self.assert_invalid_api(module, true);
+                }
             }
             if is_client_entry {
                 self.prepend_comment_node(module, is_cjs);
@@ -415,7 +420,7 @@ impl<C: Comments> ReactServerComponents<C> {
         }
     }
 
-    fn assert_client_graph(&self, imports: &[ModuleImports], module: &Module) {
+    fn assert_client_graph(&self, imports: &[ModuleImports]) {
         for import in imports {
             let source = import.source.0.clone();
             if self.invalid_client_imports.contains(&source) {
@@ -429,8 +434,6 @@ impl<C: Comments> ReactServerComponents<C> {
                 })
             }
         }
-
-        self.assert_invalid_api(module, true);
     }
 
     fn assert_invalid_api(&self, module: &Module, is_client_entry: bool) {
