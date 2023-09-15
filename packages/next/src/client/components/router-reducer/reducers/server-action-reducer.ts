@@ -17,7 +17,7 @@ import { readRecordValue } from '../read-record-value'
 // // eslint-disable-next-line import/no-extraneous-dependencies
 // import { encodeReply } from 'react-server-dom-webpack/client'
 const { createFromFetch, encodeReply } = (
-  typeof window === 'undefined'
+  !!process.env.NEXT_RUNTIME
     ? // eslint-disable-next-line import/no-extraneous-dependencies
       require('react-server-dom-webpack/client.edge')
     : // eslint-disable-next-line import/no-extraneous-dependencies
