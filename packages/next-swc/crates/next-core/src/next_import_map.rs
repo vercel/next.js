@@ -455,38 +455,65 @@ async fn insert_next_server_special_aliases(
                 "react/jsx-runtime",
                 request_to_import_mapping(
                     app_dir,
-                    "next/dist/server/future/route-modules/app-page/vendored/shared/\
-                     react-jsx-runtime",
+                    match runtime {
+                        NextRuntime::Edge => "next/dist/compiled/react/jsx-runtime",
+                        NextRuntime::NodeJs => {
+                            "next/dist/server/future/route-modules/app-page/vendored/shared/\
+                             react-jsx-runtime"
+                        }
+                    },
                 ),
             );
             import_map.insert_exact_alias(
                 "react/jsx-dev-runtime",
                 request_to_import_mapping(
                     app_dir,
-                    "next/dist/server/future/route-modules/app-page/vendored/shared/\
-                     react-jsx-dev-runtime",
+                    match runtime {
+                        NextRuntime::Edge => "next/dist/compiled/react/jsx-dev-runtime",
+                        NextRuntime::NodeJs => {
+                            "next/dist/server/future/route-modules/app-page/vendored/shared/\
+                             react-jsx-dev-runtime"
+                        }
+                    },
                 ),
             );
             import_map.insert_exact_alias(
                 "react",
                 request_to_import_mapping(
                     app_dir,
-                    "next/dist/server/future/route-modules/app-page/vendored/ssr/react",
+                    match runtime {
+                        NextRuntime::Edge => "next/dist/compiled/react",
+                        NextRuntime::NodeJs => {
+                            "next/dist/server/future/route-modules/app-page/vendored/ssr/react"
+                        }
+                    },
                 ),
             );
             import_map.insert_exact_alias(
                 "react-dom",
                 request_to_import_mapping(
                     app_dir,
-                    "next/dist/server/future/route-modules/app-page/vendored/ssr/react-dom",
+                    match runtime {
+                        NextRuntime::Edge => "next/dist/compiled/react-dom",
+                        NextRuntime::NodeJs => {
+                            "next/dist/server/future/route-modules/app-page/vendored/ssr/react-dom"
+                        }
+                    },
                 ),
             );
             import_map.insert_exact_alias(
                 "react-server-dom-webpack/client.edge",
                 request_to_import_mapping(
                     app_dir,
-                    "next/dist/server/future/route-modules/app-page/vendored/ssr/\
-                     react-server-dom-webpack-client-edge",
+                    match runtime {
+                        NextRuntime::Edge => {
+                            "next/dist/compiled/react-server-dom-webpack/client.edge"
+                        }
+                        NextRuntime::NodeJs => {
+                            "next/dist/server/future/route-modules/app-page/vendored/ssr/\
+                             react-server-dom-webpack-client-edge"
+                        }
+                    },
                 ),
             );
             // some code also imports react-server-dom-webpack/client on the server
@@ -496,8 +523,15 @@ async fn insert_next_server_special_aliases(
                 "react-server-dom-webpack/client",
                 request_to_import_mapping(
                     app_dir,
-                    "next/dist/server/future/route-modules/app-page/vendored/ssr/\
-                     react-server-dom-webpack-client-edge",
+                    match runtime {
+                        NextRuntime::Edge => {
+                            "next/dist/compiled/react-server-dom-webpack/client.edge"
+                        }
+                        NextRuntime::NodeJs => {
+                            "next/dist/server/future/route-modules/app-page/vendored/ssr/\
+                             react-server-dom-webpack-client-edge"
+                        }
+                    },
                 ),
             );
             // not essential but we're providing this alias for people who might use it.
@@ -507,8 +541,26 @@ async fn insert_next_server_special_aliases(
                 "react-dom/server",
                 request_to_import_mapping(
                     app_dir,
-                    "next/dist/server/future/route-modules/app-page/vendored/ssr/\
-                     react-dom-server-edge",
+                    match runtime {
+                        NextRuntime::Edge => "next/dist/compiled/react-dom/server.edge",
+                        NextRuntime::NodeJs => {
+                            "next/dist/server/future/route-modules/app-page/vendored/ssr/\
+                             react-dom-server-edge"
+                        }
+                    },
+                ),
+            );
+            import_map.insert_exact_alias(
+                "react-dom/server.edge",
+                request_to_import_mapping(
+                    app_dir,
+                    match runtime {
+                        NextRuntime::Edge => "next/dist/compiled/react-dom/server.edge",
+                        NextRuntime::NodeJs => {
+                            "next/dist/server/future/route-modules/app-page/vendored/ssr/\
+                             react-dom-server-edge"
+                        }
+                    },
                 ),
             );
         }
@@ -527,46 +579,80 @@ async fn insert_next_server_special_aliases(
                 "react/jsx-runtime",
                 request_to_import_mapping(
                     app_dir,
-                    "next/dist/server/future/route-modules/app-page/vendored/shared/\
-                     react-jsx-runtime",
+                    match runtime {
+                        NextRuntime::Edge => "next/dist/compiled/react/jsx-runtime",
+                        NextRuntime::NodeJs => {
+                            "next/dist/server/future/route-modules/app-page/vendored/shared/\
+                             react-jsx-runtime"
+                        }
+                    },
                 ),
             );
             import_map.insert_exact_alias(
                 "react/jsx-dev-runtime",
                 request_to_import_mapping(
                     app_dir,
-                    "next/dist/server/future/route-modules/app-page/vendored/shared/\
-                     react-jsx-dev-runtime",
+                    match runtime {
+                        NextRuntime::Edge => "next/dist/compiled/react/jsx-dev-runtime",
+                        NextRuntime::NodeJs => {
+                            "next/dist/server/future/route-modules/app-page/vendored/shared/\
+                             react-jsx-dev-runtime"
+                        }
+                    },
                 ),
             );
             import_map.insert_exact_alias(
                 "react",
                 request_to_import_mapping(
                     app_dir,
-                    "next/dist/server/future/route-modules/app-page/vendored/rsc/react",
+                    match runtime {
+                        NextRuntime::Edge => "next/dist/compiled/react",
+                        NextRuntime::NodeJs => {
+                            "next/dist/server/future/route-modules/app-page/vendored/rsc/react"
+                        }
+                    },
                 ),
             );
             import_map.insert_exact_alias(
                 "react-dom",
                 request_to_import_mapping(
                     app_dir,
-                    "next/dist/server/future/route-modules/app-page/vendored/rsc/react-dom",
+                    match runtime {
+                        NextRuntime::Edge => "next/dist/compiled/react-dom",
+                        NextRuntime::NodeJs => {
+                            "next/dist/server/future/route-modules/app-page/vendored/rsc/react-dom"
+                        }
+                    },
                 ),
             );
             import_map.insert_exact_alias(
                 "react-server-dom-webpack/server.edge",
                 request_to_import_mapping(
                     app_dir,
-                    "next/dist/server/future/route-modules/app-page/vendored/rsc/\
-                     react-server-dom-webpack-server-edge",
+                    match runtime {
+                        NextRuntime::Edge => {
+                            "next/dist/compiled/react-server-dom-webpack/server.edge"
+                        }
+                        NextRuntime::NodeJs => {
+                            "next/dist/server/future/route-modules/app-page/vendored/rsc/\
+                             react-server-dom-webpack-server-edge"
+                        }
+                    },
                 ),
             );
             import_map.insert_exact_alias(
                 "react-server-dom-webpack/server.node",
                 request_to_import_mapping(
                     app_dir,
-                    "next/dist/server/future/route-modules/app-page/vendored/rsc/\
-                     react-server-dom-webpack-server-node",
+                    match runtime {
+                        NextRuntime::Edge => {
+                            "next/dist/compiled/react-server-dom-webpack/server.edge"
+                        }
+                        NextRuntime::NodeJs => {
+                            "next/dist/server/future/route-modules/app-page/vendored/rsc/\
+                             react-server-dom-webpack-server-node"
+                        }
+                    },
                 ),
             );
             // not essential but we're providing this alias for people who might use it.
@@ -576,8 +662,13 @@ async fn insert_next_server_special_aliases(
                 "react-dom/server.edge",
                 request_to_import_mapping(
                     app_dir,
-                    "next/dist/server/future/route-modules/app-page/vendored/ssr/\
-                     react-dom-server-edge",
+                    match runtime {
+                        NextRuntime::Edge => "next/dist/compiled/react-dom/server.edge",
+                        NextRuntime::NodeJs => {
+                            "next/dist/server/future/route-modules/app-page/vendored/ssr/\
+                             react-dom-server-edge"
+                        }
+                    },
                 ),
             );
         }
