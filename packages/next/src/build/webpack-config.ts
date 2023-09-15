@@ -2443,18 +2443,21 @@ export default async function getBaseWebpackConfig(
             )
             const layer = resource.contextInfo.issuerLayer
 
-            const runtime =
-              layer === 'app-route-handler'
-                ? 'app-route'
-                : [
-                    WEBPACK_LAYERS.reactServerComponents,
-                    WEBPACK_LAYERS.serverSideRendering,
-                    WEBPACK_LAYERS.appPagesBrowser,
-                    WEBPACK_LAYERS.actionBrowser,
-                    WEBPACK_LAYERS.appRouteHandler,
-                  ].includes(layer as any)
-                ? 'app-page'
-                : 'pages'
+            let runtime
+
+            switch (layer) {
+              case WEBPACK_LAYERS.appRouteHandler:
+                runtime = 'app-route'
+                break
+              case WEBPACK_LAYERS.serverSideRendering:
+              case WEBPACK_LAYERS.reactServerComponents:
+              case WEBPACK_LAYERS.appPagesBrowser:
+              case WEBPACK_LAYERS.actionBrowser:
+                runtime = 'app-page'
+                break
+              default:
+                runtime = 'pages'
+            }
 
             resource.request = `next/dist/server/future/route-modules/${runtime}/vendored/contexts/${moduleName}`
           }

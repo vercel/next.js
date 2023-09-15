@@ -205,7 +205,7 @@ impl ResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
 
         let (base, _) = path.split_at(starting_index);
 
-        let new_path = fs_path.root().join(base.to_string()).join(resource_request);
+        let new_path = fs_path.root().join(format!("{base}/{resource_request}"));
 
         Ok(Vc::cell(Some(
             ResolveResult::source(Vc::upcast(FileSource::new(new_path))).into(),
