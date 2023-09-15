@@ -48,7 +48,7 @@ use crate::{
     next_shared::{
         resolve::{
             ModuleFeatureReportResolvePlugin, NextExternalResolvePlugin,
-            UnsupportedModulesResolvePlugin,
+            NextNodeSharedRuntimeResolvePlugin, UnsupportedModulesResolvePlugin,
         },
         transforms::{
             emotion::get_emotion_transform_plugin, get_relay_transform_plugin,
@@ -125,6 +125,8 @@ pub async fn get_server_resolve_options_context(
     );
 
     let next_external_plugin = NextExternalResolvePlugin::new(project_path);
+    let next_node_shared_runtime_plugin =
+        NextNodeSharedRuntimeResolvePlugin::new(project_path, Value::new(ty));
 
     let plugins = match ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
@@ -133,6 +135,7 @@ pub async fn get_server_resolve_options_context(
                 Vc::upcast(external_cjs_modules_plugin),
                 Vc::upcast(unsupported_modules_resolve_plugin),
                 Vc::upcast(next_external_plugin),
+                Vc::upcast(next_node_shared_runtime_plugin),
             ]
         }
         ServerContextType::AppSSR { .. }
@@ -144,6 +147,7 @@ pub async fn get_server_resolve_options_context(
                 Vc::upcast(server_component_externals_plugin),
                 Vc::upcast(unsupported_modules_resolve_plugin),
                 Vc::upcast(next_external_plugin),
+                Vc::upcast(next_node_shared_runtime_plugin),
             ]
         }
     };
