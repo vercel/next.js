@@ -915,7 +915,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         raw: None,
                     }),
                     type_only: false,
-                    asserts: None,
+                    with: None,
                 })));
             }
 
@@ -1001,7 +1001,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         raw: None,
                     }),
                     type_only: false,
-                    asserts: None,
+                    with: None,
                 })));
                 new.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                     span: DUMMY_SP,
@@ -1076,7 +1076,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     raw: None,
                 }),
                 type_only: false,
-                asserts: None,
+                with: None,
             })));
             // Make it the first item
             new.rotate_right(1);
