@@ -5,6 +5,7 @@ import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type getBaseWebpackConfig from '../../build/webpack-config'
 import type { RouteMatch } from '../future/route-matches/route-match'
 import type { Update as TurbopackUpdate } from '../../build/swc'
+import type { VersionInfo } from './parse-version-info'
 
 export const enum HMR_ACTIONS_SENT_TO_BROWSER {
   ADDED_PAGE = 'addedPage',
@@ -13,12 +14,13 @@ export const enum HMR_ACTIONS_SENT_TO_BROWSER {
   SERVER_COMPONENT_CHANGES = 'serverComponentChanges',
   MIDDLEWARE_CHANGES = 'middlewareChanges',
   SERVER_ONLY_CHANGES = 'serverOnlyChanges',
+  SYNC = 'sync',
   BUILT = 'built',
   BUILDING = 'building',
-  PONG = 'pong',
   DEV_PAGES_MANIFEST_UPDATE = 'devPagesManifestUpdate',
   TURBOPACK_MESSAGE = 'turbopack-message',
   SERVER_ERROR = 'serverError',
+  TURBOPACK_CONNECTED = 'turbopack-connected',
 }
 
 interface ServerErrorAction {
@@ -28,13 +30,20 @@ interface ServerErrorAction {
 
 interface TurboPackMessageAction {
   type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE
-  data: TurbopackUpdate
+  data: TurbopackUpdate | TurbopackUpdate[]
 }
 
 interface BuildingAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING
 }
 
+interface SyncAction {
+  action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC
+  hash: string
+  errors: ReadonlyArray<unknown>
+  warnings: ReadonlyArray<unknown>
+  versionInfo: VersionInfo
+}
 interface BuiltAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT
   hash: string
@@ -52,7 +61,7 @@ interface RemovedPageAction {
   data: [page: string | null]
 }
 
-interface ReloadPageAction {
+export interface ReloadPageAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE
 }
 
@@ -69,16 +78,6 @@ interface ServerOnlyChangesAction {
   pages: ReadonlyArray<string>
 }
 
-interface PongActionAppRouter {
-  action: HMR_ACTIONS_SENT_TO_BROWSER.PONG
-  success: boolean
-}
-
-interface PongActionPagesRouter {
-  event: HMR_ACTIONS_SENT_TO_BROWSER.PONG
-  success: boolean
-}
-
 interface DevPagesManifestUpdateAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE
   data: [
@@ -88,12 +87,14 @@ interface DevPagesManifestUpdateAction {
   ]
 }
 
-type PongAction = PongActionAppRouter | PongActionPagesRouter
+export interface TurboPackConnectedAction {
+  type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED
+}
 
 export type HMR_ACTION_TYPES =
   | TurboPackMessageAction
-  | PongAction
   | BuildingAction
+  | SyncAction
   | BuiltAction
   | AddedPageAction
   | RemovedPageAction

@@ -19,10 +19,10 @@ import {
   isRedirectError,
 } from '../../client/components/redirect'
 import RenderResult from '../render-result'
-import { StaticGenerationStore } from '../../client/components/static-generation-async-storage'
+import { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import { FlightRenderResult } from './flight-render-result'
 import { ActionResult } from './types'
-import { ActionAsyncStorage } from '../../client/components/action-async-storage'
+import { ActionAsyncStorage } from '../../client/components/action-async-storage.external'
 import {
   filterReqHeaders,
   actionsForbiddenHeaders,
@@ -31,7 +31,8 @@ import {
   appendMutableCookies,
   getModifiedCookieValues,
 } from '../web/spec-extension/adapters/request-cookies'
-import { RequestStore } from '../../client/components/request-async-storage'
+
+import { RequestStore } from '../../client/components/request-async-storage.external'
 import {
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
@@ -239,7 +240,7 @@ export async function handleAction({
   req,
   res,
   ComponentMod,
-  pathname,
+  page,
   serverActionsManifest,
   generateFlight,
   staticGenerationStore,
@@ -249,7 +250,7 @@ export async function handleAction({
   req: IncomingMessage
   res: ServerResponse
   ComponentMod: any
-  pathname: string
+  page: string
   serverActionsManifest: any
   generateFlight: (options: {
     actionResult: ActionResult
@@ -280,7 +281,7 @@ export async function handleAction({
     )
     let bound = []
 
-    const workerName = 'app' + pathname
+    const workerName = 'app' + page
     const serverModuleMap = new Proxy(
       {},
       {
@@ -405,7 +406,7 @@ export async function handleAction({
 
         // actions.js
         // app/page.js
-        //   action woker1
+        //   action worker1
         //     appRender1
 
         // app/foo/page.js

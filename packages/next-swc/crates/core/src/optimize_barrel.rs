@@ -255,7 +255,7 @@ impl Fold for OptimizeBarrel {
                             .into(),
                         raw: None,
                     }),
-                    with: None,
+                    asserts: None,
                     type_only: false,
                 })));
             }

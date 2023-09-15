@@ -14,8 +14,10 @@ import { loadComponents } from '../load-components'
 import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
 import { IncrementalCache } from '../lib/incremental-cache'
 import * as serverHooks from '../../client/components/hooks-server-context'
-import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
-import { AppRouteRouteModule } from '../future/route-modules/app-route/module'
+import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
+
+const { AppRouteRouteModule } =
+  require('../future/route-modules/app-route/module.compiled') as typeof import('../future/route-modules/app-route/module')
 
 type RuntimeConfig = any
 
@@ -30,7 +32,7 @@ export async function loadStaticPaths({
   locales,
   defaultLocale,
   isAppPath,
-  originalAppPath,
+  page,
   isrFlushToDisk,
   fetchCacheKeyPrefix,
   maxMemoryCacheSize,
@@ -43,8 +45,8 @@ export async function loadStaticPaths({
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   locales?: string[]
   defaultLocale?: string
-  isAppPath?: boolean
-  originalAppPath?: string
+  isAppPath: boolean
+  page: string
   isrFlushToDisk?: boolean
   fetchCacheKeyPrefix?: string
   maxMemoryCacheSize?: number
@@ -56,15 +58,16 @@ export async function loadStaticPaths({
   fallback?: boolean | 'blocking'
 }> {
   // update work memory runtime-config
-  require('../../shared/lib/runtime-config').setConfig(config)
+  require('../../shared/lib/runtime-config.shared-runtime').setConfig(config)
   setHttpClientAndAgentOptions({
     httpAgentOptions,
   })
 
   const components = await loadComponents({
     distDir,
-    pathname: originalAppPath || pathname,
-    isAppPath: !!isAppPath,
+    // In `pages/`, the page is the same as the pathname.
+    page: page || pathname,
+    isAppPath,
   })
 
   if (!components.getStaticPaths && !isAppPath) {

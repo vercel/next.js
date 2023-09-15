@@ -72,6 +72,7 @@ import {
 import { RouteKind } from '../future/route-kind'
 import {
   HMR_ACTIONS_SENT_TO_BROWSER,
+  HMR_ACTION_TYPES,
   type NextJsHotReloaderInterface,
 } from './hot-reloader-types'
 
@@ -407,6 +408,7 @@ export default class HotReloader implements NextJsHotReloaderInterface {
                     m.replace(/^\.\//, '[project]/')
                   ),
                   page: payload.page,
+                  isPageHidden: payload.isPageHidden,
                 },
               }
               break
@@ -713,9 +715,11 @@ export default class HotReloader implements NextJsHotReloaderInterface {
     const startSpan = this.hotReloaderSpan.traceChild('start')
     startSpan.stop() // Stop immediately to create an artificial parent span
 
+    const testMode = process.env.NEXT_TEST_MODE || process.env.__NEXT_TEST_MODE
+
     this.versionInfo = await this.getVersionInfo(
       startSpan,
-      !!process.env.NEXT_TEST_MODE || this.telemetry.isEnabled
+      !!testMode || this.telemetry.isEnabled
     )
 
     await this.clean(startSpan)
@@ -1456,7 +1460,7 @@ export default class HotReloader implements NextJsHotReloaderInterface {
     }
   }
 
-  public send(action: Parameters<NextJsHotReloaderInterface['send']>[0]): void {
+  public send(action: HMR_ACTION_TYPES): void {
     this.webpackHotMiddleware!.publish(action)
   }
 

@@ -84,6 +84,7 @@ pub struct NextConfig {
     pub transpile_packages: Option<Vec<String>>,
     pub modularize_imports: Option<IndexMap<String, ModularizeImportPackageConfig>>,
     sass_options: Option<serde_json::Value>,
+    trailing_slash: bool,
 
     // Partially supported
     pub compiler: Option<CompilerConfig>,
@@ -119,7 +120,6 @@ pub struct NextConfig {
     static_page_generation_timeout: f64,
     swc_minify: Option<bool>,
     target: Option<String>,
-    trailing_slash: bool,
     typescript: TypeScriptConfig,
     use_file_system_public_routes: bool,
     webpack: Option<serde_json::Value>,
@@ -376,7 +376,7 @@ pub enum RemotePatternProtocal {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct ExperimentalTurboConfig {
-    /// This option has been replace by `rules`.
+    /// This option has been replaced by `rules`.
     pub loaders: Option<JsonValue>,
     pub rules: Option<IndexMap<String, RuleConfigItem>>,
     pub resolve_alias: Option<IndexMap<String, JsonValue>>,
@@ -413,7 +413,7 @@ pub struct ExperimentalConfig {
     pub swc_plugins: Option<Vec<(String, serde_json::Value)>>,
 
     // unsupported
-    adjust_font_fallbacks: Option<bool>,
+    optimize_package_imports: Option<Vec<String>>,
     adjust_font_fallbacks_with_size_adjust: Option<bool>,
     allow_middleware_response_body: Option<bool>,
     amp: Option<serde_json::Value>,
