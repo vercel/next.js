@@ -2272,6 +2272,30 @@ export default async function build(
                 }
               }
             }
+
+            const moduleTypes = ['app-page', 'pages']
+
+            for (const type of moduleTypes) {
+              const contextDir = path.join(
+                path.dirname(
+                  require.resolve(
+                    `next/dist/server/future/route-modules/${type}/module`
+                  )
+                ),
+                'vendored',
+                'contexts'
+              )
+
+              for (const item of await fs.readdir(contextDir)) {
+                addToTracedFiles(root, path.join(contextDir, item), tracedFiles)
+                addToTracedFiles(
+                  root,
+                  path.join(contextDir, item),
+                  minimalTracedFiles
+                )
+              }
+            }
+
             await Promise.all([
               fs.writeFile(
                 nextServerTraceOutput,
