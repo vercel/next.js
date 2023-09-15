@@ -8,5 +8,3 @@ export * as HeadManagerContext from '../../../../../../shared/lib/head-manager-c
 export * as AppRouterContext from '../../../../../../shared/lib/app-router-context.shared-runtime'
 export * as AmpContext from '../../../../../../shared/lib/amp-context.shared-runtime'
 export * as ServerInsertedHtml from '../../../../../../shared/lib/server-inserted-html.shared-runtime'
-// export * as runtimeConfig from '../../../../../../shared/lib/runtime-config.external'
-// export * as adapters from '../../../../../../shared/lib/router/adapters.shared-runtime'
