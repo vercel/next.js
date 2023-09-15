@@ -962,6 +962,7 @@ export default async function getBaseWebpackConfig(
       ? useSWCLoader
         ? [
             getSwcLoader({
+              bundleTarget: 'client',
               hasServerComponents,
               isServerLayer: false,
             }),
@@ -972,6 +973,7 @@ export default async function getBaseWebpackConfig(
           // acceptable as Babel will not be recommended.
           [
             getSwcLoader({
+              bundleTarget: 'client',
               isServerLayer: false,
             }),
             getBabelLoader(),
@@ -988,8 +990,8 @@ export default async function getBaseWebpackConfig(
           loader: 'next-swc-loader',
           options: {
             ...getSwcLoader().options,
-            hasServerComponents: false,
             bundleTarget: 'server',
+            hasServerComponents: false,
           },
         }
       : defaultLoaders.babel
@@ -2107,11 +2109,6 @@ export default async function getBaseWebpackConfig(
           issuerLayer(layer: string | null) {
             return !layer || !isWebpackServerLayer(layer)
           },
-          // issuerLayer: [
-          //   WEBPACK_LAYERS.actionBrowser,
-          //   WEBPACK_LAYERS.appPagesBrowser,
-          //   WEBPACK_LAYERS.serverSideRendering,
-          // ],
           options: {
             message:
               "'server-only' cannot be imported from a Client Component module. It should only be used from a Server Component.",

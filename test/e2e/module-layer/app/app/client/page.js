@@ -3,5 +3,5 @@
 import 'client-only'
 
 export default function Page() {
-  return 'page.js'
+  return 'app/client/page.js'
 }

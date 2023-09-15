@@ -157,6 +157,7 @@ export const WEBPACK_LAYERS = {
       WEBPACK_LAYERS_NAMES.actionBrowser,
       WEBPACK_LAYERS_NAMES.appMetadataRoute,
       WEBPACK_LAYERS_NAMES.appRouteHandler,
+      // Different from GROUP.server.bundleAll strategy, but still target as server-only bundle
       WEBPACK_LAYERS_NAMES.middleware,
       WEBPACK_LAYERS_NAMES.api,
     ],

@@ -87,8 +87,6 @@ impl<C: Comments> VisitMut for ReactServerComponents<C> {
             if !is_action_file {
                 if self.bundle_target == "client" {
                     self.assert_client_graph(&imports);
-                }
-                if self.bundle_target != "server" {
                     self.assert_invalid_api(module, true);
                 }
             }
