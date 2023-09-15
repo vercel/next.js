@@ -2,6 +2,7 @@ import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { check, shouldRunTurboDevTest } from 'next-test-utils'
+import { BrowserInterface } from 'test/lib/browsers/base'
 
 // [TODO]: It is unclear why turbopack takes longer to run this test
 // remove once it's fixed
@@ -27,7 +28,7 @@ describe('TailwindCSS JIT', () => {
   })
 
   it('works with JIT enabled', async () => {
-    let browser
+    let browser: BrowserInterface
     try {
       browser = await webdriver(next.url, '/')
       const text = await browser.elementByCss('.text-6xl').text()
@@ -44,6 +45,7 @@ describe('TailwindCSS JIT', () => {
         '<a className="text-blue-600" href="https://nextjs.org" id="test-link">',
         '<a className="text-red-600" href="https://nextjs.org" id="test-link">'
       )
+      await browser.eval('window.REAL_HMR = 1;')
 
       // change the content
       try {
@@ -52,6 +54,7 @@ describe('TailwindCSS JIT', () => {
           () => browser.elementByCss('#test-link').getComputedCss('color'),
           /rgb\(220, 38, 38\)/
         )
+        expect(await browser.eval('window.REAL_HMR')).toBe(1)
       } finally {
         // add the original content
         await next.patchFile(aboutPagePath, originalContent)
