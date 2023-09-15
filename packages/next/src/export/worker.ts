@@ -412,7 +412,7 @@ export default async function exportPage({
           // functions during runtime just for prefetching
 
           const { renderToHTMLOrFlight } =
-            require('../server/app-render/app-render') as typeof import('../server/app-render/app-render')
+            require('../server/future/route-modules/app-page/module.compiled') as typeof import('../server/app-render/app-render')
           req.headers[RSC.toLowerCase()] = '1'
           req.headers[NEXT_URL.toLowerCase()] = path
           req.headers[NEXT_ROUTER_PREFETCH.toLowerCase()] = '1'
