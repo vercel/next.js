@@ -964,7 +964,6 @@ export default async function getBaseWebpackConfig(
             getSwcLoader({
               hasServerComponents,
               isServerLayer: false,
-              bundleTarget: 'client',
             }),
           ]
         : // When using Babel, we will have to add the SWC loader
@@ -974,7 +973,6 @@ export default async function getBaseWebpackConfig(
           [
             getSwcLoader({
               isServerLayer: false,
-              bundleTarget: 'client',
             }),
             getBabelLoader(),
           ]

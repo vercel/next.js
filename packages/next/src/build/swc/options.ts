@@ -363,7 +363,7 @@ export function getLoaderSWCOptions({
     hasServerComponents,
     isServerLayer,
     isServerActionsEnabled,
-    bundleTarget,
+    bundleTarget: bundleTarget || 'client',
   })
   baseOptions.fontLoaders = {
     fontLoaders: [

@@ -84,7 +84,7 @@ impl<C: Comments> VisitMut for ReactServerComponents<C> {
             // is "client" e.g.
             // * client components pages
             // * pages bundles on browser layer
-            if !is_action_file && self.bundle_target != "server" {
+            if !is_action_file && self.bundle_target == "client" {
                 self.assert_client_graph(&imports, module);
             }
             if is_client_entry {
@@ -139,7 +139,7 @@ impl<C: Comments> ReactServerComponents<C> {
                                             if is_action_file {
                                                 panic_both_directives(expr_stmt.span)
                                             }
-                                        } else if self.bundle_target == "default" {
+                                        } else if self.bundle_target != "default" {
                                             HANDLER.with(|handler| {
                                                 handler
                                                     .struct_span_err(
