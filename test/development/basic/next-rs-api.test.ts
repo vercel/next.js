@@ -381,8 +381,7 @@ describe('next.rs api', () => {
       file: 'app/app/client.ts',
       content: '"use client";\nexport default () => <div>hello world2</div>',
       expectedUpdate: '/app/app/client.ts',
-      // TODO(sokra) this should be false, not sure why it's true
-      expectedServerSideChange: true,
+      expectedServerSideChange: false,
     },
     {
       name: 'server-side change on a app page',
