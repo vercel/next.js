@@ -2287,12 +2287,12 @@ export default async function build(
               )
 
               for (const item of await fs.readdir(contextDir)) {
-                addToTracedFiles(root, path.join(contextDir, item), tracedFiles)
-                addToTracedFiles(
+                const itemPath = path.relative(
                   root,
-                  path.join(contextDir, item),
-                  minimalTracedFiles
+                  path.join(contextDir, item)
                 )
+                addToTracedFiles(root, itemPath, tracedFiles)
+                addToTracedFiles(root, itemPath, minimalTracedFiles)
               }
             }
 
