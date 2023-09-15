@@ -56,6 +56,9 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
+      - name: update pnpm
+        run: pnpm i -g pnpm
+
       - id: get-store-path
         run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
 
