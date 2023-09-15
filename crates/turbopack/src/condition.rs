@@ -55,8 +55,7 @@ impl ContextCondition {
             }
             ContextCondition::Not(condition) => condition.matches(path).await.map(|b| !b),
             ContextCondition::InPath(other_path) => {
-                let other_path = &*other_path.await?;
-                Ok(path == other_path || path.is_inside_ref(other_path))
+                Ok(path.is_inside_or_equal_ref(&*other_path.await?))
             }
             ContextCondition::InDirectory(dir) => Ok(path.path.starts_with(&format!("{dir}/"))
                 || path.path.contains(&format!("/{dir}/"))
