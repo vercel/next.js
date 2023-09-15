@@ -79,9 +79,13 @@ async function loadClientReferenceManifest(
     ? // @ts-ignore
       __non_webpack_require__(manifestPath)
     : require(manifestPath)
-  return (globalThis as any).__RSC_MANIFEST[
-    entryName
-  ] as ClientReferenceManifest
+  try {
+    return (globalThis as any).__RSC_MANIFEST[
+      entryName
+    ] as ClientReferenceManifest
+  } catch (err) {
+    return undefined
+  }
 }
 
 async function loadComponentsImpl({
