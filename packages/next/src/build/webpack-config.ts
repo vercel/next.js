@@ -2103,7 +2103,7 @@ export default async function getBaseWebpackConfig(
           loader: 'next-invalid-import-error-loader',
           issuerLayer: {
             not: [
-              null,
+              (layer: string | null) => layer === null,
               WEBPACK_LAYERS.isWebpackServerLayer,
               WEBPACK_LAYERS.api,
               WEBPACK_LAYERS.middleware,
