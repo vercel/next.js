@@ -71,8 +71,7 @@ impl<C: Comments> VisitMut for ReactServerComponents<C> {
                 self.to_module_ref(module, is_cjs);
                 return;
             } else if self.bundle_target == "server" {
-                // Only assert server graph if file's bundle target is "server"
-                // e.g.
+                // Only assert server graph if file's bundle target is "server", e.g.
                 // * server components pages
                 // * pages bundles on SSR layer
                 // * middleware
@@ -80,15 +79,13 @@ impl<C: Comments> VisitMut for ReactServerComponents<C> {
                 self.assert_server_graph(&imports, module);
             }
         } else {
-            // Only assert client graph if the file is not an action file, and bundle target
-            // is "client" e.g.
+            // Only assert client graph if the file is not an action file,
+            // and bundle target is "client" e.g.
             // * client components pages
             // * pages bundles on browser layer
-            if !is_action_file {
-                if self.bundle_target == "client" {
-                    self.assert_client_graph(&imports);
-                    self.assert_invalid_api(module, true);
-                }
+            if !is_action_file && self.bundle_target == "client" {
+                self.assert_client_graph(&imports);
+                self.assert_invalid_api(module, true);
             }
             if is_client_entry {
                 self.prepend_comment_node(module, is_cjs);
