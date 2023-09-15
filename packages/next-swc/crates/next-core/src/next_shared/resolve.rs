@@ -186,7 +186,7 @@ impl ResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
         let stem = stem.replace(".shared-runtime", "");
 
         let resource_request = format!(
-            "next/dist/server/future/route-modules/{}/vendored/contexts/{}",
+            "next/dist/server/future/route-modules/{}/vendored/contexts/{}.js",
             match self.context {
                 ServerContextType::Pages { .. } => "pages",
                 ServerContextType::AppRoute { .. } => "app-route",

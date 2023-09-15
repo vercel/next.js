@@ -482,26 +482,29 @@ async fn insert_next_server_special_aliases(
                 ),
             );
             import_map.insert_exact_alias(
-                "react-server-dom-webpack/server.edge",
+                "react-server-dom-webpack/client.edge",
                 request_to_import_mapping(
                     app_dir,
                     "next/dist/server/future/route-modules/app-page/vendored/ssr/\
-                     react-server-dom-webpack-server-edge",
+                     react-server-dom-webpack-client-edge",
                 ),
             );
+            // some code also imports react-server-dom-webpack/client on the server
+            // it should never run so it's fine to just point it to the same place as
+            // react-server-dom-webpack/client.edge
             import_map.insert_exact_alias(
-                "react-server-dom-webpack/server.node",
+                "react-server-dom-webpack/client",
                 request_to_import_mapping(
                     app_dir,
                     "next/dist/server/future/route-modules/app-page/vendored/ssr/\
-                     react-server-dom-webpack-server-node",
+                     react-server-dom-webpack-client-edge",
                 ),
             );
             // not essential but we're providing this alias for people who might use it.
             // A note here is that this will point toward the ReactDOMServer on the SSR
             // layer TODO: add the rests
             import_map.insert_exact_alias(
-                "react-dom/server.edge",
+                "react-dom/server",
                 request_to_import_mapping(
                     app_dir,
                     "next/dist/server/future/route-modules/app-page/vendored/ssr/\
