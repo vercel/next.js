@@ -138,10 +138,7 @@ fn print_program(
             )))) as Box<dyn WriteJs>;
 
             let mut emitter = Emitter {
-                cfg: swc_core::ecma::codegen::Config {
-                    minify: true,
-                    ..Default::default()
-                },
+                cfg: swc_core::ecma::codegen::Config::default().with_minify(true),
                 comments: None,
                 cm: cm.clone(),
                 wr,
