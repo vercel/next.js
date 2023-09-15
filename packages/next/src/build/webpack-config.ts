@@ -107,18 +107,9 @@ const asyncStoragesRegex =
 
 const pathSeparators = '[/\\\\]'
 const optionalEsmPart = `((${pathSeparators}esm)?${pathSeparators})`
-const sharedRuntimeFileEnd = '(\\.shared-runtime(\\.js)?)$'
 const externalFileEnd = '(\\.external(\\.js)?)$'
 const nextDist = `next${pathSeparators}dist`
-const genericRuntimeFileEnd = '(\\.[\\w-]+\\.runtime\\.[\\w-]+(\\.js)?)$'
 
-const genericRuntimePattern = new RegExp(
-  `${nextDist}.*${genericRuntimeFileEnd}`
-)
-
-const sharedRuntimePattern = new RegExp(
-  `${nextDist}${optionalEsmPart}.*${sharedRuntimeFileEnd}`
-)
 const externalPattern = new RegExp(
   `${nextDist}${optionalEsmPart}.*${externalFileEnd}`
 )
@@ -775,7 +766,6 @@ export async function loadProjectInfo({
 
 const UNSAFE_CACHE_REGEX = /[\\/]pages[\\/][^\\/]+(?:$|\?|#)/
 
-let count = 0
 export default async function getBaseWebpackConfig(
   dir: string,
   {
