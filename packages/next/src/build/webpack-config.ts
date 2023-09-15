@@ -2058,7 +2058,7 @@ export default async function getBaseWebpackConfig(
         {
           issuerLayer: {
             not: [
-              null,
+              (layer: string | null) => layer === null,
               WEBPACK_LAYERS.isWebpackServerLayer,
               WEBPACK_LAYERS.api,
               WEBPACK_LAYERS.middleware,
