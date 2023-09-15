@@ -13,6 +13,7 @@ import type { OutgoingHttpHeaders } from 'http'
 // Polyfill fetch for the export worker.
 import '../server/node-polyfill-fetch'
 import '../server/node-environment'
+process.env.NEXT_IS_EXPORT_WORKER = 'true'
 
 import { extname, join, dirname, sep, posix } from 'path'
 import fs, { promises } from 'fs'
@@ -167,7 +168,6 @@ export default async function exportPage({
     }
 
     try {
-      process.env.NEXT_IS_EXPORT_WORKER = 'true'
       if (renderOpts.deploymentId) {
         process.env.NEXT_DEPLOYMENT_ID = renderOpts.deploymentId
       }
