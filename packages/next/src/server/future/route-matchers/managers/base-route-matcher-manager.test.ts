@@ -1,5 +1,5 @@
 import { AppPageRouteDefinition } from '../../route-definitions/app-page-route-definition'
-import { LocaleRouteDefinition } from '../../route-definitions/locale-route-definition'
+import { LocaleRouteDefinition } from '../../route-definitions/locale-route-info'
 import { PagesLocaleRouteDefinition } from '../../route-definitions/pages-route-definition'
 import { RouteKind } from '../../route-kind'
 import { RouteMatcherProvider } from '../providers/route-matcher-provider'

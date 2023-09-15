@@ -33,13 +33,29 @@ export interface RouteDefinition<K extends RouteKind = RouteKind> {
   readonly pathname: string
 }
 
+export function isRouteDefinition(
+  definition: object
+): definition is RouteDefinition {
+  return (
+    'kind' in definition &&
+    typeof definition.kind === 'string' &&
+    'bundlePath' in definition &&
+    typeof definition.bundlePath === 'string' &&
+    'filename' in definition &&
+    typeof definition.filename === 'string' &&
+    'page' in definition &&
+    typeof definition.page === 'string' &&
+    'pathname' in definition &&
+    typeof definition.pathname === 'string'
+  )
+}
+
 /**
  * In development, the definitions emitted by the route definition managers
  * will be wrapped in this interface to provide additional information about
  * the development route.
  */
-export interface DevRouteDefinition<K extends RouteKind = RouteKind>
-  extends RouteDefinition<K> {
+export interface DevRouteInfo<K extends RouteKind = RouteKind> {
   /**
    * The development route definition associated with this route definition.
    */
@@ -48,6 +64,11 @@ export interface DevRouteDefinition<K extends RouteKind = RouteKind>
 
 export function isDevRouteDefinition(
   definition: RouteDefinition
-): definition is DevRouteDefinition {
-  return 'development' in definition
+): definition is RouteDefinition & DevRouteInfo {
+  return (
+    'development' in definition &&
+    typeof definition.development === 'object' &&
+    definition.development !== null &&
+    isRouteDefinition(definition.development)
+  )
 }

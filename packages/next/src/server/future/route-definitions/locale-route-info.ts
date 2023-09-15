@@ -1,8 +1,6 @@
-import type { RouteKind } from '../route-kind'
-import type { RouteDefinition } from './route-definition'
+import { RouteDefinition } from './route-definition'
 
-export interface LocaleRouteDefinition<K extends RouteKind = RouteKind>
-  extends RouteDefinition<K> {
+export interface LocaleRouteInfo {
   /**
    * When defined it means that this route is locale aware. When undefined,
    * it means no special handling has to occur to process locales.
@@ -19,6 +17,21 @@ export interface LocaleRouteDefinition<K extends RouteKind = RouteKind>
      */
     pathname: string
   }
+}
+
+export type LocaleRouteDefinition = RouteDefinition & LocaleRouteInfo
+
+export function isLocaleRouteInfo(info: object): info is LocaleRouteDefinition {
+  return (
+    'i18n' in info &&
+    typeof info.i18n === 'object' &&
+    info.i18n !== null &&
+    'detectedLocale' in info.i18n &&
+    (typeof info.i18n.detectedLocale === 'string' ||
+      typeof info.i18n.detectedLocale === 'undefined') &&
+    'pathname' in info.i18n &&
+    typeof info.i18n.pathname === 'string'
+  )
 }
 
 export function isLocaleRouteDefinition(

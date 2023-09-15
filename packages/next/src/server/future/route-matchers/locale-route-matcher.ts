@@ -1,5 +1,5 @@
 import type { LocaleInfo } from '../helpers/i18n-provider'
-import type { LocaleRouteDefinition } from '../route-definitions/locale-route-definition'
+import type { LocaleRouteDefinition } from '../route-definitions/locale-route-info'
 import type { LocaleRouteMatch } from '../route-matches/locale-route-match'
 import type { PathnameMatcher } from './helpers/pathname-matcher'
 

@@ -2,8 +2,8 @@ import type { RouteDefinition } from './route-definition'
 
 import {
   isLocaleRouteDefinition,
-  type LocaleRouteDefinition,
-} from './locale-route-definition'
+  type LocaleRouteInfo,
+} from './locale-route-info'
 import { RouteKind } from '../route-kind'
 
 export interface PagesRouteDefinition
@@ -16,7 +16,8 @@ export function isPagesRouteDefinition(
 }
 
 export interface PagesLocaleRouteDefinition
-  extends LocaleRouteDefinition<RouteKind.PAGES> {}
+  extends RouteDefinition<RouteKind.PAGES>,
+    LocaleRouteInfo {}
 
 export function isPagesLocaleRouteDefinition(
   definition: RouteDefinition

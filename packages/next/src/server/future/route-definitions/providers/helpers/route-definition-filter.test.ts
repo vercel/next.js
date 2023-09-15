@@ -1,30 +1,78 @@
-import { createMatcher } from './route-definition-filter'
+import type { RouteDefinition } from '../../route-definition'
+
+import { RouteKind } from '../../../route-kind'
+import { createRouteDefinitionFilter } from './route-definition-filter'
+import { LocaleRouteDefinition } from '../../locale-route-info'
+
+function createMock(
+  partial: Partial<RouteDefinition | LocaleRouteDefinition>
+): RouteDefinition | LocaleRouteDefinition {
+  return {
+    kind: RouteKind.APP_PAGE,
+    bundlePath: '/foo',
+    filename: '/foo',
+    page: '/foo',
+    pathname: '/foo',
+    ...partial,
+  }
+}
 
 describe('createRouteDefinitionFilter', () => {
   it('should filter object with a single key', () => {
-    const filter = createMatcher({ page: '/foo' })
+    const filter = createRouteDefinitionFilter({ page: '/foo' })
 
-    expect(filter({ page: '/foo' })).toBe(true)
-    expect(filter({ page: '/bar' })).toBe(false)
+    expect(filter(createMock({ page: '/foo' }))).toBe(true)
+    expect(filter(createMock({ page: '/bar' }))).toBe(false)
   })
 
   it('should filter object with multiple keys', () => {
-    const filter = createMatcher({ page: '/foo', foo: 'bar' })
+    const filter = createRouteDefinitionFilter({
+      page: '/foo',
+      pathname: '/bar',
+    })
 
-    expect(filter({ page: '/foo', foo: 'bar' })).toBe(true)
-    expect(filter({ page: '/foo', foo: 'baz' })).toBe(false)
-    expect(filter({ page: '/bar', foo: 'bar' })).toBe(false)
-  })
-
-  it('should error when the spec includes an array', () => {
-    expect(() => createMatcher({ page: ['/foo'] })).toThrowError()
+    expect(filter(createMock({ page: '/foo', pathname: '/bar' }))).toBe(true)
+    expect(filter(createMock({ page: '/foo', pathname: '/baz' }))).toBe(false)
+    expect(filter(createMock({ page: '/bar', pathname: '/bar' }))).toBe(false)
   })
 
   it('should filter nested objects', () => {
-    const filter = createMatcher({ page: '/foo', foo: { bar: 'baz' } })
+    const filter = createRouteDefinitionFilter({
+      page: '/foo',
+      i18n: { pathname: '/baz', detectedLocale: undefined },
+    })
 
-    expect(filter({ page: '/foo', foo: { bar: 'baz' } })).toBe(true)
-    expect(filter({ page: '/foo', foo: { bar: 'qux' } })).toBe(false)
-    expect(filter({ page: '/bar', foo: { bar: 'baz' } })).toBe(false)
+    expect(
+      filter(
+        createMock({
+          page: '/foo',
+          i18n: { pathname: '/baz', detectedLocale: undefined },
+        })
+      )
+    ).toBe(true)
+    expect(
+      filter(
+        createMock({
+          page: '/foo',
+          i18n: { pathname: '/qux', detectedLocale: undefined },
+        })
+      )
+    ).toBe(false)
+    expect(
+      filter(
+        createMock({
+          page: '/bar',
+          i18n: { pathname: '/baz', detectedLocale: undefined },
+        })
+      )
+    ).toBe(false)
+    expect(
+      filter(
+        createMock({
+          page: '/foo',
+          i18n: { pathname: '/baz', detectedLocale: 'en-US' },
+        })
+      )
+    ).toBe(false)
   })
 })

@@ -7,6 +7,7 @@ import type { RouteManager } from './route-manager'
 import type { InternalPagesRouteDefinition } from '../route-definitions/internal-route-definition'
 import type { RouteComponentsLoader } from '../route-components-loader/route-components-loader'
 import type { RouteMatcher } from '../route-matchers/route-matcher'
+import type { RouteDefinitionFilterSpec } from '../route-definitions/providers/helpers/route-definition-filter'
 
 import { RouteKind } from '../route-kind'
 import { BaseRouteMatcher } from '../route-matchers/base-route-matcher'
@@ -84,7 +85,7 @@ export class WebRouteManager implements RouteManager {
   }
 
   public async hasDefinition<D extends RouteDefinition<RouteKind>>(
-    ...specs: Partial<D>[]
+    ...specs: RouteDefinitionFilterSpec<D>[]
   ): Promise<boolean> {
     const definition = this.findDefinition(...specs)
 
@@ -93,7 +94,7 @@ export class WebRouteManager implements RouteManager {
   }
 
   public findDefinition<D extends RouteDefinition<RouteKind>>(
-    ...specs: Partial<D>[]
+    ...specs: RouteDefinitionFilterSpec<D>[]
   ): Promise<D | null> {
     for (const spec of specs) {
       for (const definition of this.definitions) {
