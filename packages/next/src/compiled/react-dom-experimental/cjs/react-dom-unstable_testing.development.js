@@ -15,7 +15,7 @@ if (process.env.NODE_ENV !== "production") {
 'use strict';
 
 var React = require('react');
-var Scheduler = require('scheduler');
+var Scheduler = require("next/dist/compiled/scheduler-experimental");
 
 var Internals = {
   usingClientEntryPoint: false,

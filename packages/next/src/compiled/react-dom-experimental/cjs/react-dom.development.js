@@ -24,7 +24,7 @@ if (
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
 }
           var React = require('react');
-var Scheduler = require('scheduler');
+var Scheduler = require("next/dist/compiled/scheduler-experimental");
 
 var Internals = {
   usingClientEntryPoint: false,
