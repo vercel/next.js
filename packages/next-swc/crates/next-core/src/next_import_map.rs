@@ -646,7 +646,7 @@ async fn insert_next_server_special_aliases(
                     app_dir,
                     match runtime {
                         NextRuntime::Edge => {
-                            "next/dist/compiled/react-server-dom-webpack/server.edge"
+                            "next/dist/compiled/react-server-dom-webpack/server.node"
                         }
                         NextRuntime::NodeJs => {
                             "next/dist/server/future/route-modules/app-page/vendored/rsc/\
