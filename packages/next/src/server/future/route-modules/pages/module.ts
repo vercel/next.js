@@ -84,7 +84,7 @@ export interface PagesRouteHandlerContext extends RouteModuleHandleContext {
   /**
    * The page for the given route.
    */
-  page: string
+  pathname: string
 
   /**
    * The parsed URL query for the given request.
@@ -119,7 +119,7 @@ export class PagesRouteModule extends RouteModule<
     return renderToHTMLImpl(
       req,
       res,
-      context.page,
+      context.pathname,
       context.query,
       context.renderOpts,
       {

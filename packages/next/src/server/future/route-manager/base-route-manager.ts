@@ -22,6 +22,13 @@ export class BaseRouteManager extends BaseLoadable implements RouteManager {
     super()
   }
 
+  /**
+   * Loads the components for the given definition.
+   *
+   * @param definition the definition to load the components for.
+   * @returns The components for the definition, or null if no components were
+   * found.
+   */
   public loadComponents(
     definition: RouteDefinition<RouteKind>
   ): Promise<LoadComponentsReturnType | null> {
@@ -32,6 +39,11 @@ export class BaseRouteManager extends BaseLoadable implements RouteManager {
    * Loads the definitions and matchers in order.
    */
   protected async loader(): Promise<void> {
+    // Because both of the definition and matcher manager both implement the
+    // Loadable interface, we have to force the load of both of them. This
+    // will ensure that the extra layer of caching we have in place for them
+    // is not used because this manager already itself implements the Loadable
+    // interface.
     await this.definitions.forceReload()
     await this.matchers.forceReload()
   }
@@ -74,6 +86,7 @@ export class BaseRouteManager extends BaseLoadable implements RouteManager {
     pathname: string,
     options: MatchOptions
   ): Promise<RouteMatch | null> {
+    // Find the first match, and return it.
     for await (const match of this.matchAll(pathname, options)) {
       return match
     }

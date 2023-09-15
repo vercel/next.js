@@ -6,8 +6,10 @@ import type { RouteMatch } from '../route-matches/route-match'
 import type { RouteManager } from './route-manager'
 import type { InternalPagesRouteDefinition } from '../route-definitions/internal-route-definition'
 import type { RouteComponentsLoader } from '../route-components-loader/route-components-loader'
+import type { RouteMatcher } from '../route-matchers/route-matcher'
 
 import { RouteKind } from '../route-kind'
+import { BaseRouteMatcher } from '../route-matchers/base-route-matcher'
 
 export type WebRouteManagerOptions = {
   page: string
@@ -24,6 +26,7 @@ type SupportedRouteDefinitions =
   | InternalPagesRouteDefinition
 
 export class WebRouteManager implements RouteManager {
+  private readonly matcher: RouteMatcher
   private readonly definition: SupportedRouteDefinitions
   private readonly definitions = new Array<SupportedRouteDefinitions>()
 
@@ -52,6 +55,7 @@ export class WebRouteManager implements RouteManager {
       throw new Error(`Unsupported pages type: ${options.pagesType}`)
     }
 
+    this.matcher = new BaseRouteMatcher(this.definition)
     this.definitions.push(this.definition)
 
     if (options.error500Mod) {
@@ -112,24 +116,34 @@ export class WebRouteManager implements RouteManager {
     return this.options.componentsLoader.load(definition)
   }
 
-  public async match(): Promise<RouteMatch<RouteDefinition<RouteKind>> | null> {
-    return {
-      definition: this.definition,
-      // Params are actually provided via query params.
-      params: undefined,
-    }
+  /**
+   * Return the single match for the given pathname.
+   *
+   * @param pathname The pathname to match.
+   * @returns The single match.
+   */
+  public async match(
+    pathname: string
+  ): Promise<RouteMatch<RouteDefinition<RouteKind>> | null> {
+    const match = this.matcher.match({ pathname })
+    if (!match) return null
+
+    return match
   }
 
-  public async *matchAll(): AsyncGenerator<
-    RouteMatch<RouteDefinition<RouteKind>>,
-    void,
-    void
-  > {
-    yield {
-      definition: this.definition,
-      // Params are actually provided via query params.
-      params: undefined,
-    }
+  /**
+   * Yield the single match for the given pathname.
+   *
+   * @param pathname The pathname to match.
+   * @returns An async generator that yields the single match.
+   */
+  public async *matchAll(
+    pathname: string
+  ): AsyncGenerator<RouteMatch<RouteDefinition<RouteKind>>, void, void> {
+    const match = this.matcher.match({ pathname })
+    if (!match) return
+
+    yield match
   }
 
   public invalidate(): void {

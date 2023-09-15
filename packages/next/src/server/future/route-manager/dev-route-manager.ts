@@ -99,7 +99,7 @@ export class DevRouteManager extends BaseRouteManager implements RouteManager {
     pathname: string,
     options: MatchOptions
   ): AsyncGenerator<RouteMatch, void, void> {
-    const seen = new Set<string>()
+    const seen = new Set<RouteDefinition>()
 
     // Try to find the route in the development routes as it's the source of
     // truth. If we can't find it here, we can't find it in the production
@@ -110,7 +110,9 @@ export class DevRouteManager extends BaseRouteManager implements RouteManager {
       await this.ensurer.ensure(development.definition)
       await this.production.forceReload()
 
-      // Find the production route that matches the development route.
+      // Find the production route that matches the development route. This
+      // isn't technically necessary, but it ensures that the production route
+      // is loaded and ready to go.
       const definition = await this.production.findDefinition({
         pathname: development.definition.pathname,
       })
@@ -120,21 +122,16 @@ export class DevRouteManager extends BaseRouteManager implements RouteManager {
         )
       }
 
-      // Ensure that the options are requesting the specific route that we
-      // found.
-      options = {
-        ...options,
-        pathname: definition.pathname,
-      }
-
       // Try to find the route in the production routes.
-      for await (const production of this.production.matchAll(
-        pathname,
-        options
-      )) {
+      for await (const production of this.production.matchAll(pathname, {
+        ...options,
+        // Ensure that the options are requesting the specific route that we
+        // found.
+        pathname: definition.pathname,
+      })) {
         // If we've already seen this production route, skip it. It means we've
         // already yielded it.
-        if (seen.has(production.definition.pathname)) {
+        if (seen.has(production.definition)) {
           throw new Error(
             `Invariant: expected production route to be unique, but found duplicate`
           )
@@ -144,7 +141,7 @@ export class DevRouteManager extends BaseRouteManager implements RouteManager {
         yield production
 
         // Mark this production route as seen so we don't yield it again.
-        seen.add(production.definition.pathname)
+        seen.add(production.definition)
       }
     }
   }

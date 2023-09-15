@@ -8,7 +8,6 @@ import type { UrlWithParsedQuery } from 'url'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { FallbackMode, MiddlewareRoutingItem } from '../base-server'
 import type { FunctionComponent } from 'react'
-import type { RouteMatch } from '../future/route-matches/route-match'
 import type {
   NextParsedUrlQuery,
   NextUrlWithParsedQuery,
@@ -84,8 +83,6 @@ export default class DevServer extends Server {
   protected sortedRoutes?: string[]
   private pagesDir?: string
   private appDir?: string
-  private actualMiddlewareFile?: string
-  private actualInstrumentationHookFile?: string
   private middleware?: MiddlewareRoutingItem
   private originalFetch: typeof fetch
   private staticPathsCache: LRUCache<
@@ -186,16 +183,24 @@ export default class DevServer extends Server {
     )
 
     const ensurer: RouteEnsurer = {
-      ensure: async (definition: RouteDefinition) => {
-        try {
-          await this.ensurePage({
-            page: definition.page,
-            clientOnly: false,
-            definition,
-          })
-        } catch (err) {
-          throw err
-        }
+      ensure: async (definition) => {
+        // Ensure the page. Once this is finished we have to check if there is a
+        // compilation error. If there is, we throw it so that the route manager
+        // can handle it.
+        await this.ensurePage({
+          page: definition.page,
+          clientOnly: false,
+          definition,
+        })
+
+        // If there is a compilation error, we throw it so that the route
+        // manager can handle it.
+        // TODO: maybe we can have the ensure method throw the error instead?
+        const err = await this.getCompilationError(definition.page)
+        if (!err) return
+
+        // Wrap build errors so that they don't get logged again
+        throw new WrappedBuildError(err)
       },
     }
 
@@ -300,39 +305,30 @@ export default class DevServer extends Server {
     }
   }
 
-  async runEdgeFunction(params: {
+  protected async runEdgeFunction(params: {
     req: BaseNextRequest
     res: BaseNextResponse
     query: ParsedUrlQuery
     params: Params | undefined
     page: string
-    match: RouteMatch | null
-    definition: RouteDefinition | null
-    isAppPath: boolean
   }) {
-    const { page, match, definition } = params
-
     try {
-      // TODO: now that we ensure the definition once we've got it, maybe we can remove this?
-      if (!match) {
-        await this.ensureEdgeFunction({ page, definition })
-      }
-
       return super.runEdgeFunction({
         ...params,
         onWarning: (warn) => {
           this.logErrorWithOriginalStack(warn, 'warning')
         },
       })
-    } catch (error) {
-      if (error instanceof DecodeError) {
-        throw error
+    } catch (err) {
+      if (err instanceof DecodeError) {
+        throw err
       }
-      this.logErrorWithOriginalStack(error, 'warning')
-      const err = getProperError(error)
+
+      this.logErrorWithOriginalStack(err, 'warning')
       const { req, res } = params
+
       res.statusCode = 500
-      await this.renderError(err, req, res, page)
+      await this.renderError(getProperError(err), req, res, params.page)
       return null
     }
   }
@@ -459,6 +455,16 @@ export default class DevServer extends Server {
     )
   }
 
+  protected async handleCatchallMiddlewareRequest(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    parsed: NextUrlWithParsedQuery
+  ) {
+    await this.ensureMiddleware()
+
+    return super.handleCatchallMiddlewareRequest(req, res, parsed)
+  }
+
   protected async ensureMiddleware() {
     try {
       const definition = await this.routes.findDefinition(
@@ -511,16 +517,6 @@ export default class DevServer extends Server {
       err.message = `An error occurred while loading instrumentation hook: ${err.message}`
       throw err
     }
-  }
-
-  protected async ensureEdgeFunction({
-    page,
-    definition,
-  }: {
-    page: string
-    definition: RouteDefinition | null
-  }) {
-    return this.ensurePage({ page, clientOnly: false, definition })
   }
 
   generateRoutes(_dev?: boolean) {
@@ -689,15 +685,14 @@ export default class DevServer extends Server {
     query,
     params,
     definition,
-    shouldEnsure,
   }: {
     page: string
     query: NextParsedUrlQuery
     params: Params
     definition: RouteDefinition
-    shouldEnsure: boolean
   }): Promise<FindComponentsResult | null> {
     await this.devReady
+
     const compilationErr = await this.getCompilationError(page)
     if (compilationErr) {
       // Wrap build errors so that they don't get logged again
@@ -705,14 +700,6 @@ export default class DevServer extends Server {
     }
 
     try {
-      if (shouldEnsure || this.renderOpts.customServer) {
-        await this.ensurePage({
-          page: definition?.page ?? page,
-          clientOnly: false,
-          definition,
-        })
-      }
-
       this.nextFontManifest = super.getNextFontManifest()
       // before we re-evaluate a route module, we want to restore globals that might
       // have been patched previously to their original state so that we don't
@@ -724,7 +711,6 @@ export default class DevServer extends Server {
         definition,
         query,
         params,
-        shouldEnsure,
       })
     } catch (err) {
       if ((err as any).code !== 'ENOENT') {

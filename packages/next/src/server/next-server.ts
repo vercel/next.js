@@ -105,9 +105,9 @@ import { BaseRouteManager } from './future/route-manager/base-route-manager'
 import { BaseRouteComponentsLoader } from './future/route-components-loader/base-route-components-loader'
 import { NextRouteMatcherBuilder } from './future/route-matchers/managers/builders/next-route-matcher-manager-builder'
 import { NextRouteDefinitionManagerBuilder } from './future/route-definitions/managers/builders/next-route-definition-manager-builder'
-import { RouteKind } from './future/route-kind'
 import { isAppRouteRouteDefinition } from './future/route-definitions/app-route-route-definition'
 import { isAppPageRouteDefinition } from './future/route-definitions/app-page-route-definition'
+import { RouteKind } from './future/route-kind'
 
 export * from './base-server'
 
@@ -430,9 +430,7 @@ export default class NextNodeServer extends BaseServer {
           res,
           query,
           params: match.params,
-          page: match.definition.pathname,
-          match,
-          definition: match.definition,
+          page: match.definition.page,
         })
 
         if (handledAsEdgeFunction) {
@@ -594,40 +592,26 @@ export default class NextNodeServer extends BaseServer {
 
   protected async renderPageComponent(
     ctx: RequestContext,
+    definition: RouteDefinition,
     bubbleNoFallback: boolean
   ) {
-    const edgeFunctionsPages = this.getEdgeFunctionsPages()
-    if (edgeFunctionsPages.length === 0) {
-      return super.renderPageComponent(ctx, bubbleNoFallback)
+    const pages = this.getEdgeFunctionsPages()
+
+    for (const page of pages) {
+      if (page !== definition.page) continue
+
+      await this.runEdgeFunction({
+        req: ctx.req,
+        res: ctx.res,
+        query: ctx.query,
+        params: ctx.renderOpts.params,
+        page: definition.page,
+      })
+
+      return null
     }
 
-    const { pathname } = ctx
-
-    // TODO: see if we can remove this
-    // Find the definition if we don't have it yet.
-    if (!ctx.definition) {
-      ctx.definition = await this.routes.findDefinition({ pathname })
-    }
-
-    // By default, the page is the pathname provided.
-    const page = ctx.definition?.page ?? pathname
-
-    for (const edgeFunctionsPage of edgeFunctionsPages) {
-      if (edgeFunctionsPage === page) {
-        await this.runEdgeFunction({
-          req: ctx.req,
-          res: ctx.res,
-          query: ctx.query,
-          params: ctx.renderOpts.params,
-          page,
-          match: ctx.match,
-          definition: ctx.definition,
-        })
-        return null
-      }
-    }
-
-    return super.renderPageComponent(ctx, bubbleNoFallback)
+    return super.renderPageComponent(ctx, definition, bubbleNoFallback)
   }
 
   protected async findPageComponents({
@@ -638,8 +622,6 @@ export default class NextNodeServer extends BaseServer {
     definition: RouteDefinition
     query: NextParsedUrlQuery
     params: Params
-    // This is used by the development implementation of this method.
-    shouldEnsure: boolean
   }): Promise<FindComponentsResult | null> {
     return getTracer().trace(
       NextNodeServerSpan.findPageComponents,
@@ -893,8 +875,6 @@ export default class NextNodeServer extends BaseServer {
           query,
           params: match.params,
           page: match.definition.page,
-          match,
-          definition: match.definition,
         })
 
         // If we handled the request, we can return early.
@@ -1262,31 +1242,31 @@ export default class NextNodeServer extends BaseServer {
     err: Error | null
   ) {
     const { req, res, query } = ctx
-    const is404 = res.statusCode === 404
-
-    if (is404 && this.hasAppDir && this.isRenderWorker) {
-      const notFoundPathname = this.renderOpts.dev
-        ? '/not-found'
-        : '/_not-found'
-      if (this.getEdgeFunctionsPages().includes(notFoundPathname)) {
-        const definition = await this.routes.findDefinition({
-          kind: RouteKind.INTERNAL_APP,
-          pathname: notFoundPathname,
-        })
-
-        await this.runEdgeFunction({
-          req: req as BaseNextRequest,
-          res: res as BaseNextResponse,
-          query: query || {},
-          params: {},
-          page: notFoundPathname,
-          match: null,
-          definition,
-        })
-
-        return null
-      }
+    if (res.statusCode !== 404 || !this.hasAppDir || !this.isRenderWorker) {
+      return super.renderErrorToResponseImpl(ctx, err)
     }
+
+    // This will automatically ensure these pages if they have not been already.
+    const definition = await this.routes.findDefinition({
+      kind: RouteKind.INTERNAL_APP,
+      page: this.renderOpts.dev ? '/not-found' : '/_not-found',
+    })
+    if (!definition) {
+      return super.renderErrorToResponseImpl(ctx, err)
+    }
+
+    if (this.getEdgeFunctionsPages().includes(definition.page)) {
+      await this.runEdgeFunction({
+        req: req as BaseNextRequest,
+        res: res as BaseNextResponse,
+        query: query || {},
+        params: {},
+        page: definition.page,
+      })
+
+      return null
+    }
+
     return super.renderErrorToResponseImpl(ctx, err)
   }
 
@@ -1426,6 +1406,9 @@ export default class NextNodeServer extends BaseServer {
    * Checks if a middleware exists. This method is useful for the development
    * server where we need to check the filesystem. Here we just check the
    * middleware manifest.
+   *
+   * The development server will ensure that the middleware exists as it
+   * verifies it.
    */
   protected async hasMiddleware(pathname: string): Promise<boolean> {
     const info = this.getEdgeFunctionInfo({ page: pathname, middleware: true })
@@ -1459,17 +1442,17 @@ export default class NextNodeServer extends BaseServer {
     }
 
     // Middleware is skipped for on-demand revalidate requests
-    if (
-      checkIsOnDemandRevalidate(params.request, this.renderOpts.previewProps)
-        .isOnDemandRevalidate
-    ) {
+    const { isOnDemandRevalidate } = checkIsOnDemandRevalidate(
+      params.request,
+      this.renderOpts.previewProps
+    )
+    if (isOnDemandRevalidate) {
       return {
         response: new Response(null, { headers: { 'x-middleware-next': '1' } }),
       } as FetchEventResult
     }
 
     let url: string
-
     if (this.nextConfig.skipMiddlewareUrlNormalize) {
       url = getRequestMeta(params.request, '__NEXT_INIT_URL')!
     } else {
@@ -1490,20 +1473,14 @@ export default class NextNodeServer extends BaseServer {
       )
     }
 
-    const page: {
-      name?: string
-      params?: { [key: string]: string | string[] }
-    } = {}
-
     const middleware = this.getMiddleware()
-    if (!middleware) {
-      return { finished: false }
-    }
-    if (!(await this.hasMiddleware(middleware.page))) {
-      return { finished: false }
-    }
+    if (!middleware) return { finished: false }
 
-    await this.ensureMiddleware()
+    const hasMiddleware = await this.hasMiddleware(middleware.page)
+
+    // If we don't have a middleware, we can return early.
+    if (!hasMiddleware) return { finished: false }
+
     const middlewareInfo = this.getEdgeFunctionInfo({
       page: middleware.page,
       middleware: true,
@@ -1530,7 +1507,7 @@ export default class NextNodeServer extends BaseServer {
           trailingSlash: this.nextConfig.trailingSlash,
         },
         url: url,
-        page,
+        page: {},
         body: getRequestMeta(params.request, '__NEXT_CLONABLE_BODY'),
         signal: signalFromNodeResponse(
           (params.response as NodeNextResponse).originalResponse
@@ -1596,6 +1573,11 @@ export default class NextNodeServer extends BaseServer {
       return handleFinished()
     }
 
+    const hasMiddleware = await this.hasMiddleware(middleware.page)
+    if (!hasMiddleware) {
+      return handleFinished()
+    }
+
     const initUrl = getRequestMeta(req, '__NEXT_INIT_URL')!
     const parsedUrl = parseUrl(initUrl)
     const pathnameInfo = getNextPathnameInfo(parsedUrl.pathname, {
@@ -1622,8 +1604,6 @@ export default class NextNodeServer extends BaseServer {
     this.stripInternalHeaders(req)
 
     try {
-      await this.ensureMiddleware()
-
       result = await this.runMiddleware({
         request: req,
         response: res,
@@ -1777,8 +1757,6 @@ export default class NextNodeServer extends BaseServer {
     query: ParsedUrlQuery
     params: Params | undefined
     page: string
-    match: RouteMatch | null
-    definition: RouteDefinition | null
     onWarning?: (warning: Error) => void
   }): Promise<FetchEventResult | null> {
     if (process.env.NEXT_MINIMAL) {
@@ -1786,18 +1764,14 @@ export default class NextNodeServer extends BaseServer {
         'Middleware is not supported in minimal mode. Please remove the `NEXT_MINIMAL` environment variable.'
       )
     }
-    let edgeInfo: ReturnType<typeof this.getEdgeFunctionInfo> | undefined
 
     const { query, page } = params
 
-    edgeInfo = this.getEdgeFunctionInfo({
+    const edgeInfo = this.getEdgeFunctionInfo({
       page,
       middleware: false,
     })
-
-    if (!edgeInfo) {
-      return null
-    }
+    if (!edgeInfo) return null
 
     // For edge to "fetch" we must always provide an absolute URL
     const isDataReq = !!query.__nextDataReq

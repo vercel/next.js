@@ -199,7 +199,6 @@ export type RequestContext = {
   req: BaseNextRequest
   res: BaseNextResponse
   pathname: string
-  definition: RouteDefinition | null
   match: RouteMatch | null
   query: NextParsedUrlQuery
   renderOpts: RenderOptsPartial
@@ -1435,7 +1434,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       res,
       pathname,
       query,
-      definition: match?.definition ?? null,
       match,
     })
   }
@@ -2039,7 +2037,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           (req as NodeNextRequest).originalRequest ?? (req as WebNextRequest),
           (res as NodeNextResponse).originalResponse ??
             (res as WebNextResponse),
-          { page: pathname, params: opts.params, query, renderOpts }
+          { pathname, params: opts.params, query, renderOpts }
         )
       } else if (
         components.routeModule?.definition.kind === RouteKind.APP_PAGE
@@ -2465,37 +2463,36 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
   protected async renderPageComponent(
     ctx: RequestContext,
+    definition: RouteDefinition,
     bubbleNoFallback: boolean
   ) {
-    const { query, pathname } = ctx
-
-    // Find the definition if we don't have it yet.
-    if (!ctx.definition) {
-      ctx.definition = await this.routes.findDefinition({ pathname })
-
-      //
-      if (!ctx.definition) {
-        throw new Error('Invariant: failed to find page definition')
-      }
-    }
+    const {
+      query,
+      renderOpts: { params = {} },
+    } = ctx
 
     const result = await this.findPageComponents({
       query,
-      params: ctx.renderOpts.params || {},
-      definition: ctx.definition,
+      params,
+      definition,
     })
-    if (result) {
-      try {
-        return await this.renderToResponseWithComponents(ctx, result)
-      } catch (err) {
-        const isNoFallbackError = err instanceof NoFallbackError
 
-        if (!isNoFallbackError || (isNoFallbackError && bubbleNoFallback)) {
-          throw err
-        }
+    // If we didn't find the page components, we should return false.
+    if (!result) return false
+
+    try {
+      return await this.renderToResponseWithComponents(ctx, result)
+    } catch (err) {
+      // If this is a no-fallback error and we are not bubbling no-fallback errors,
+      // then we should return false.
+      if (err instanceof NoFallbackError && !bubbleNoFallback) {
+        return false
       }
+
+      // If it's not a no-fallback error or we are bubbling no-fallback errors,
+      // we should throw the error.
+      throw err
     }
-    return false
   }
 
   private async renderToResponse(
@@ -2554,8 +2551,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           params: match.params ?? ctx.renderOpts.params,
         },
         match,
-        definition: match.definition,
       },
+      match.definition,
       bubbleNoFallback
     )
   }
@@ -2570,11 +2567,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     delete query._nextBubbleNoFallback
 
     try {
+      // If a match is found directly, use that.
       if (ctx.match) {
         const result = await this.renderMatch(ctx, ctx.match, bubbleNoFallback)
         if (result !== false) return result
       }
 
+      // Otherwise, attempt to match the page.
       for await (const match of this.routes.matchAll(
         pathname,
         this.getMatchOptions(ctx)
@@ -2683,7 +2682,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       res,
       pathname,
       query,
-      definition: null,
       match: null,
     })
   }
@@ -2724,7 +2722,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
         return response
       },
-      { req, res, pathname, query, definition: null, match: null }
+      { req, res, pathname, query, match: null }
     )
   }
 
@@ -2755,6 +2753,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         body: new RenderResult(''),
       }
     }
+
     const { res, query } = ctx
 
     try {
@@ -2855,7 +2854,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       // Associate the definition with the request.
       ctx.match = { definition, params: undefined }
-      ctx.definition = ctx.match.definition
 
       // Update the status page to the one we found.
       statusPage = definition.page
@@ -2905,7 +2903,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           definition: fallbackComponents.routeModule!.definition,
           params: undefined,
         }
-        ctx.definition = ctx.match.definition
 
         return this.renderToResponseWithComponents(
           {
@@ -2945,7 +2942,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       res,
       pathname,
       query,
-      definition: null,
       match: null,
     })
   }
