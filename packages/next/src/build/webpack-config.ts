@@ -933,29 +933,6 @@ export default async function getBaseWebpackConfig(
         ]
     : []
 
-  // for SSR and browser bundles
-  const createSwcLoaderForClientLayer = (isBrowser: boolean) =>
-    hasServerComponents
-      ? useSWCLoader
-        ? [
-            getSwcLoader({
-              hasServerComponents,
-              isServerLayer: false,
-              bundleTarget: isBrowser ? 'client' : 'server',
-            }),
-          ]
-        : // When using Babel, we will have to add the SWC loader
-          // as an additional pass to handle RSC correctly.
-          // This will cause some performance overhead but
-          // acceptable as Babel will not be recommended.
-          [
-            getSwcLoader({
-              isServerLayer: false,
-              bundleTarget: isBrowser ? 'client' : 'server',
-            }),
-            getBabelLoader(),
-          ]
-      : []
   const swcLoaderForMiddlewareLayer = useSWCLoader
     ? getSwcLoader({ hasServerComponents: false, bundleTarget: 'server' })
     : // When using Babel, we will have to use SWC to do the optimization
@@ -967,23 +944,42 @@ export default async function getBaseWebpackConfig(
         getBabelLoader(),
       ]
 
-  function createClientLoader(isBrowser: boolean) {
-    return [
-      ...(dev && isClient
+  // client components layers: SSR + browser
+  const swcLoaderForClientLayers = [
+    ...(dev && isClient
+      ? [
+          require.resolve(
+            'next/dist/compiled/@next/react-refresh-utils/dist/loader'
+          ),
+        ]
+      : []),
+    {
+      // This loader handles actions and client entries
+      // in the client layer.
+      loader: 'next-flight-client-module-loader',
+    },
+    ...(hasServerComponents
+      ? useSWCLoader
         ? [
-            require.resolve(
-              'next/dist/compiled/@next/react-refresh-utils/dist/loader'
-            ),
+            getSwcLoader({
+              hasServerComponents,
+              isServerLayer: false,
+              bundleTarget: 'client',
+            }),
           ]
-        : []),
-      {
-        // This loader handles actions and client entries
-        // in the client layer.
-        loader: 'next-flight-client-module-loader',
-      },
-      ...createSwcLoaderForClientLayer(isBrowser),
-    ]
-  }
+        : // When using Babel, we will have to add the SWC loader
+          // as an additional pass to handle RSC correctly.
+          // This will cause some performance overhead but
+          // acceptable as Babel will not be recommended.
+          [
+            getSwcLoader({
+              isServerLayer: false,
+              bundleTarget: 'client',
+            }),
+            getBabelLoader(),
+          ]
+      : []),
+  ]
 
   // Loader for API routes needs to be differently configured as it shouldn't
   // have RSC transpiler enabled, so syntax checks such as invalid imports won't
@@ -2333,15 +2329,12 @@ export default async function getBaseWebpackConfig(
                   },
                   {
                     ...codeCondition,
-                    issuerLayer: WEBPACK_LAYERS.appPagesBrowser,
+                    issuerLayer: [
+                      WEBPACK_LAYERS.appPagesBrowser,
+                      WEBPACK_LAYERS.serverSideRendering,
+                    ],
                     exclude: [codeCondition.exclude],
-                    use: createClientLoader(true),
-                  },
-                  {
-                    ...codeCondition,
-                    issuerLayer: WEBPACK_LAYERS.serverSideRendering,
-                    exclude: [codeCondition.exclude],
-                    use: createClientLoader(false),
+                    use: swcLoaderForClientLayers,
                   },
                 ]
               : []),
