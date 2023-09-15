@@ -214,10 +214,7 @@ mod tests {
     fn to_js(m: &Module, cm: &Arc<SourceMap>) -> String {
         let mut bytes = Vec::new();
         let mut emitter = Emitter {
-            cfg: swc_core::ecma::codegen::Config {
-                minify: true,
-                ..Default::default()
-            },
+            cfg: swc_core::ecma::codegen::Config::default().with_minify(true),
             cm: cm.clone(),
             comments: None,
             wr: JsWriter::new(cm.clone(), "\n", &mut bytes, None),

@@ -649,9 +649,7 @@ async fn gen_content_with_visitors(
         let comments = comments.consumable();
 
         let mut emitter = Emitter {
-            cfg: swc_core::ecma::codegen::Config {
-                ..Default::default()
-            },
+            cfg: swc_core::ecma::codegen::Config::default(),
             cm: source_map.clone(),
             comments: Some(&comments),
             wr: JsWriter::new(source_map.clone(), "\n", &mut bytes, Some(&mut srcmap)),

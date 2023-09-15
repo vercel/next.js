@@ -49,7 +49,7 @@ where
                     // Try to prepend the content of module
 
                     let part_id = import
-                        .asserts
+                        .with
                         .as_deref()
                         .and_then(find_turbopack_chunk_id_in_asserts);
 

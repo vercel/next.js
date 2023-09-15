@@ -31,7 +31,7 @@ pub fn create_proxy_module(transition_name: &str, target_import: &str) -> Progra
                 })],
                 src: Box::new(target_import.into()),
                 type_only: false,
-                asserts: Some(Box::new(ObjectLit {
+                with: Some(Box::new(ObjectLit {
                     span: DUMMY_SP,
                     props: vec![PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
                         key: PropName::Ident(Ident::new(TURBOPACK_HELPER.into(), DUMMY_SP)),
