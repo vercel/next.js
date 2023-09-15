@@ -1206,8 +1206,8 @@ export default async function getBaseWebpackConfig(
 
       'styled-jsx/style$': defaultOverrides['styled-jsx/style'],
       'styled-jsx$': defaultOverrides['styled-jsx'],
-      'server-only$': 'next/dist/compiled/server-only',
-      'client-only$': 'next/dist/compiled/client-only',
+      // 'server-only$': 'next/dist/compiled/server-only',
+      // 'client-only$': 'next/dist/compiled/client-only',
 
       ...customAppAliases,
       ...customErrorAlias,
@@ -2056,6 +2056,65 @@ export default async function getBaseWebpackConfig(
             ]
           },
         },
+        {
+          // test: /next[\\/]dist[\\/]compiled[\\/]server-only/,
+          issuerLayer: isWebpackServerLayer,
+          resolve: {
+            // Error on client-only but allow server-only
+            alias: {
+              'server-only$': 'next/dist/compiled/server-only/empty',
+              'client-only$': 'next/dist/compiled/client-only/error',
+              'next/dist/compiled/server-only':
+                'next/dist/compiled/server-only/empty',
+              'next/dist/compiled/client-only':
+                'next/dist/compiled/client-only/error',
+              // 'next/dist/compiled/client-only': `next-invalid-import-error-loader?${JSON.stringify({
+              //   message: `'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.`
+              // })}`,
+              // 'client-only': `next-invalid-import-error-loader?${JSON.stringify({
+              //   message: `'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.`
+              // })}`,
+            },
+          },
+        },
+        {
+          issuerLayer(layer: string | null) {
+            return !layer || !isWebpackServerLayer(layer)
+          },
+          resolve: {
+            // Error on server-only but allow client-only
+            alias: {
+              'server-only': 'next/dist/compiled/server-only/index',
+              'client-only': 'next/dist/compiled/client-only/index',
+              'next/dist/compiled/server-only':
+                'next/dist/compiled/server-only/index',
+              'next/dist/compiled/client-only':
+                'next/dist/compiled/client-only/index',
+            },
+          },
+        },
+        {
+          test: /(node_modules|next[/\\]dist[/\\]compiled)[/\\]client-only[/\\]error.js/,
+          loader: 'next-invalid-import-error-loader',
+          issuerLayer: isWebpackServerLayer,
+          options: {
+            message:
+              "'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.",
+          },
+        },
+        {
+          test: /(node_modules|next[/\\]dist[/\\]compiled)[/\\]server-only[/\\]index.js/,
+          loader: 'next-invalid-import-error-loader',
+          issuerLayer: [
+            WEBPACK_LAYERS.actionBrowser,
+            WEBPACK_LAYERS.appPagesBrowser,
+            WEBPACK_LAYERS.serverSideRendering,
+          ],
+          options: {
+            message:
+              "'server-only' cannot be imported from a Client Component module. It should only be used from a Server Component.",
+          },
+        },
         ...(hasAppDir
           ? [
               {
@@ -2156,29 +2215,6 @@ export default async function getBaseWebpackConfig(
               } as any,
             ]
           : []),
-        {
-          issuerLayer: [isWebpackServerLayer],
-          resolve: {
-            // Error on client-only but allow server-only
-            alias: {
-              ['server-only$']: 'next/dist/compiled/server-only/empty',
-              ['client-only$']: 'next/dist/compiled/client-only/error',
-            },
-          },
-        },
-        {
-          issuerLayer: [
-            WEBPACK_LAYERS.appPagesBrowser,
-            WEBPACK_LAYERS.actionBrowser,
-          ],
-          resolve: {
-            // Error on server-only but allow client-only
-            alias: {
-              ['server-only$']: 'next/dist/compiled/server-only/index',
-              ['client-only$']: 'next/dist/compiled/client-only/index',
-            },
-          },
-        },
         ...(hasAppDir && isEdgeServer
           ? [
               // The Edge bundle includes the server in its entrypoint, so it has to

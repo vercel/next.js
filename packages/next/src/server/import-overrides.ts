@@ -21,6 +21,12 @@ export const defaultOverrides = {
   'styled-jsx/style': process.env.NEXT_MINIMAL
     ? resolve('styled-jsx/style')
     : resolve('styled-jsx/style', nextPaths),
+  'server-only': process.env.NEXT_MINIMAL
+    ? resolve('next/dist/compiled/server-only')
+    : resolve('next/dist/compiled/server-only', nextPaths),
+  'client-only': process.env.NEXT_MINIMAL
+    ? resolve('next/dist/compiled/client-only')
+    : resolve('next/dist/compiled/client-only', nextPaths),
 }
 
 const toResolveMap = (map: Record<string, string>): [string, string][] =>

@@ -321,7 +321,7 @@ export function getLoaderSWCOptions({
   isServerLayer,
   isServerActionsEnabled,
   optimizeBarrelExports,
-  bundleTarget = 'default',
+  bundleTarget,
 }: // This is not passed yet as "paths" resolving is handled by webpack currently.
 // resolvedBaseUrl,
 {
