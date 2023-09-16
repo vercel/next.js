@@ -2564,14 +2564,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         const result = await this.renderMatch(ctx, ctx.match, bubbleNoFallback)
         if (result !== false) return result
       }
-
       // Otherwise, attempt to match the page.
-      for await (const match of this.routes.matchAll(
-        pathname,
-        this.getMatchOptions(ctx)
-      )) {
-        const result = await this.renderMatch(ctx, match, bubbleNoFallback)
-        if (result !== false) return result
+      else {
+        for await (const match of this.routes.matchAll(
+          pathname,
+          this.getMatchOptions(ctx)
+        )) {
+          const result = await this.renderMatch(ctx, match, bubbleNoFallback)
+          if (result !== false) return result
+        }
       }
     } catch (error) {
       const err = getProperError(error)
@@ -2855,7 +2856,34 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         definition,
       })
       if (!result) {
-        throw new Error('Invariant: failed to find error page')
+        // this can occur when a project directory has been moved/deleted
+        // which is handled in the parent process in development
+        if (this.renderOpts.dev) {
+          return {
+            type: 'html',
+            // wait for dev-server to restart before refreshing
+            body: RenderResult.fromStatic(
+              `
+              <pre>missing required error components, refreshing...</pre>
+              <script>
+                async function check() {
+                  const res = await fetch(location.href).catch(() => ({}))
+
+                  if (res.status === 200) {
+                    location.reload()
+                  } else {
+                    setTimeout(check, 1000)
+                  }
+                }
+                check()
+              </script>`
+            ),
+          }
+        }
+
+        throw new WrappedBuildError(
+          new Error('missing required error components')
+        )
       }
 
       try {

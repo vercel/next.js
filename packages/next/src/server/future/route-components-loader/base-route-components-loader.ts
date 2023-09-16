@@ -8,6 +8,7 @@ import { loadComponents } from '../../load-components'
 import { isAppRouteRouteDefinition } from '../route-definitions/app-route-route-definition'
 import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
 import { isInternalAppRouteDefinition } from '../route-definitions/internal-route-definition'
+import { PageNotFoundError } from '../../../shared/lib/utils'
 
 /**
  * A route components loader that loads components from the file system.
@@ -33,8 +34,11 @@ export class BaseRouteComponentsLoader implements RouteComponentsLoader {
           isAppRouteRouteDefinition(definition) ||
           isInternalAppRouteDefinition(definition),
       })
-    } catch {
-      return null
+    } catch (err) {
+      // If the error was anything other than ENOENT, rethrow it.
+      if (err instanceof PageNotFoundError) return null
+
+      throw err
     }
   }
 }
