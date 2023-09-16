@@ -2116,3 +2116,15 @@ export function getSupportedBrowsers(
   // Uses modern browsers as the default.
   return MODERN_BROWSERSLIST_TARGET
 }
+
+export function isWebpackServerLayer(
+  layer: WebpackLayerName | null | undefined
+): boolean {
+  return Boolean(layer && WEBPACK_LAYERS.GROUP.server.includes(layer as any))
+}
+
+export function isWebpackDefaultLayer(
+  layer: WebpackLayerName | null | undefined
+): boolean {
+  return layer === null || layer === undefined
+}

@@ -19,6 +19,7 @@ import {
   WEBPACK_RESOURCE_QUERIES,
   WebpackLayerName,
 } from '../lib/constants'
+import { isWebpackDefaultLayer, isWebpackServerLayer } from './utils'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import {
@@ -1452,7 +1453,7 @@ export default async function getBaseWebpackConfig(
     // Don't bundle @vercel/og nodejs bundle for nodejs runtime.
     // TODO-APP: bundle route.js with different layer that externals common node_module deps.
     if (
-      WEBPACK_LAYERS.isWebpackServerLayer(layer) &&
+      isWebpackServerLayer(layer) &&
       request === 'next/dist/compiled/@vercel/og/index.node.js'
     ) {
       return `module ${request}`
@@ -1588,7 +1589,7 @@ export default async function getBaseWebpackConfig(
       (isEsm && isAppLayer)
 
     if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
-      if (WEBPACK_LAYERS.isWebpackServerLayer(layer)) {
+      if (isWebpackServerLayer(layer)) {
         // All packages should be bundled for the server layer if they're not opted out.
         // This option takes priority over the transpilePackages option.
 
@@ -1796,9 +1797,7 @@ export default async function getBaseWebpackConfig(
               chunks: 'all',
               name: 'framework',
               // Ensures the framework chunk is not created for App Router.
-              layer(layer: any) {
-                return layer === null || layer === undefined
-              },
+              layer: isWebpackDefaultLayer,
               test(module: any) {
                 const resource = module.nameForCondition?.()
                 return resource
@@ -2044,7 +2043,9 @@ export default async function getBaseWebpackConfig(
         },
         // Alias server-only and client-only to proper exports based on bundling layers
         {
-          issuerLayer: WEBPACK_LAYERS.isWebpackServerLayer,
+          issuerLayer: {
+            or: WEBPACK_LAYERS.GROUP.serverTarget,
+          },
           resolve: {
             // Error on client-only but allow server-only
             alias: {
@@ -2057,12 +2058,7 @@ export default async function getBaseWebpackConfig(
         },
         {
           issuerLayer: {
-            not: [
-              (layer: string | null) => layer === null,
-              WEBPACK_LAYERS.isWebpackServerLayer,
-              WEBPACK_LAYERS.api,
-              WEBPACK_LAYERS.middleware,
-            ],
+            not: WEBPACK_LAYERS.GROUP.serverTarget,
           },
           resolve: {
             // Error on server-only but allow client-only
@@ -2079,16 +2075,12 @@ export default async function getBaseWebpackConfig(
         // Detect server-only / client-only imports and error in build time
         {
           test: [
-            /client-only$/,
+            /^client-only$/,
             /next[\\/]dist[\\/]compiled[\\/]client-only[\\/]error/,
           ],
           loader: 'next-invalid-import-error-loader',
           issuerLayer: {
-            or: [
-              WEBPACK_LAYERS.isWebpackServerLayer,
-              WEBPACK_LAYERS.api,
-              WEBPACK_LAYERS.middleware,
-            ],
+            or: WEBPACK_LAYERS.GROUP.serverTarget,
           },
           options: {
             message:
@@ -2097,17 +2089,12 @@ export default async function getBaseWebpackConfig(
         },
         {
           test: [
-            /server-only/,
+            /^server-only$/,
             /next[\\/]dist[\\/]compiled[\\/]server-only[\\/]index/,
           ],
           loader: 'next-invalid-import-error-loader',
           issuerLayer: {
-            not: [
-              (layer: string | null) => layer === null,
-              WEBPACK_LAYERS.isWebpackServerLayer,
-              WEBPACK_LAYERS.api,
-              WEBPACK_LAYERS.middleware,
-            ],
+            not: WEBPACK_LAYERS.GROUP.serverTarget,
           },
           options: {
             message:
@@ -2172,7 +2159,7 @@ export default async function getBaseWebpackConfig(
         ...(hasAppDir && !isClient
           ? [
               {
-                issuerLayer: WEBPACK_LAYERS.isWebpackServerLayer,
+                issuerLayer: isWebpackServerLayer,
                 test: {
                   // Resolve it if it is a source code file, and it has NOT been
                   // opted out of bundling.
@@ -2235,7 +2222,7 @@ export default async function getBaseWebpackConfig(
                 oneOf: [
                   {
                     exclude: [asyncStoragesRegex],
-                    issuerLayer: WEBPACK_LAYERS.isWebpackServerLayer,
+                    issuerLayer: isWebpackServerLayer,
                     test: {
                       // Resolve it if it is a source code file, and it has NOT been
                       // opted out of bundling.
@@ -2309,7 +2296,7 @@ export default async function getBaseWebpackConfig(
               ? [
                   {
                     test: codeCondition.test,
-                    issuerLayer: WEBPACK_LAYERS.isWebpackServerLayer,
+                    issuerLayer: isWebpackServerLayer,
                     exclude: [asyncStoragesRegex],
                     use: swcLoaderForServerLayer,
                   },

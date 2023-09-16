@@ -25,7 +25,7 @@ createNextDescribe(
 
       for (const route of routes) {
         const { status } = await next.fetch(route)
-        expect(status).toBe(200)
+        expect([route, status]).toEqual([route, 200])
       }
     })
 

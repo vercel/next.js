@@ -152,9 +152,16 @@ const WEBPACK_LAYERS = {
       WEBPACK_LAYERS_NAMES.appMetadataRoute,
       WEBPACK_LAYERS_NAMES.appRouteHandler,
     ],
-  },
-  isWebpackServerLayer(layer: WebpackLayerName | null): boolean {
-    return Boolean(layer && WEBPACK_LAYERS.GROUP.server.includes(layer as any))
+    serverTarget: [
+      // all GROUP.server
+      WEBPACK_LAYERS_NAMES.reactServerComponents,
+      WEBPACK_LAYERS_NAMES.actionBrowser,
+      WEBPACK_LAYERS_NAMES.appMetadataRoute,
+      WEBPACK_LAYERS_NAMES.appRouteHandler,
+      // plus middleware and pages api
+      WEBPACK_LAYERS_NAMES.middleware,
+      WEBPACK_LAYERS_NAMES.api,
+    ],
   },
 }
 
