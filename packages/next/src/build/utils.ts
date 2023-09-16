@@ -15,6 +15,7 @@ import type {
   MiddlewareManifest,
 } from './webpack/plugins/middleware-plugin'
 import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage.external'
+import type { WebpackLayerName } from '../lib/constants'
 
 import '../server/require-hook'
 import '../server/node-polyfill-fetch'
@@ -35,6 +36,7 @@ import {
   SERVER_PROPS_SSG_CONFLICT,
   MIDDLEWARE_FILENAME,
   INSTRUMENTATION_HOOK_FILENAME,
+  WEBPACK_LAYERS,
 } from '../lib/constants'
 import { MODERN_BROWSERSLIST_TARGET } from '../shared/lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
