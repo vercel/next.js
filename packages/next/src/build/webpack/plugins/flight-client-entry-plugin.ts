@@ -26,6 +26,7 @@ import {
   getActions,
   isClientComponentEntryModule,
   isCSSMod,
+  regexCSS,
 } from '../loaders/utils'
 import { traverseModules, forEachEntryModule } from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
@@ -668,7 +669,9 @@ export class FlightClientEntryPlugin {
     let shouldInvalidate = false
 
     const loaderOptions: NextFlightClientEntryLoaderOptions = {
-      modules: clientImports,
+      modules: clientImports.sort((a, b) =>
+        regexCSS.test(b) ? 1 : a.localeCompare(b)
+      ),
       server: false,
     }
 
