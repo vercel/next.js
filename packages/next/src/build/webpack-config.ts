@@ -940,7 +940,7 @@ export default async function getBaseWebpackConfig(
       ]
 
   // client components layers: SSR + browser
-  const swcLoaderForClientLayers = [
+  const swcLoaderForClientLayer = [
     ...(dev && isClient
       ? [
           require.resolve(
@@ -2314,7 +2314,7 @@ export default async function getBaseWebpackConfig(
                       WEBPACK_LAYERS.serverSideRendering,
                     ],
                     exclude: [codeCondition.exclude],
-                    use: swcLoaderForClientLayers,
+                    use: swcLoaderForClientLayer,
                   },
                 ]
               : []),
