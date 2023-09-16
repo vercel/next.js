@@ -11,7 +11,7 @@ export interface RouteManager extends Loadable {
    */
   findDefinition<D extends RouteDefinition>(
     ...specs: RouteDefinitionFilterSpec<D>[]
-  ): Promise<D | null>
+  ): PromiseLike<D | null> | D | null
 
   /**
    * Returns true if a route definition exists that matches one of the given
@@ -21,14 +21,16 @@ export interface RouteManager extends Loadable {
    */
   hasDefinition<D extends RouteDefinition>(
     ...specs: RouteDefinitionFilterSpec<D>[]
-  ): Promise<boolean>
+  ): PromiseLike<boolean> | boolean
 
   /**
    * Loads the components for the given route definition.
    *
    * @param definition the route definition to load components for
    */
-  loadComponents(definition: RouteDefinition): Promise<RouteComponents | null>
+  loadComponents(
+    definition: RouteDefinition
+  ): PromiseLike<RouteComponents | null> | RouteComponents | null
 
   /**
    * Finds the first route definition that matches the given specification.
@@ -38,7 +40,10 @@ export interface RouteManager extends Loadable {
    * @returns a promise that resolves to the first route match or `null` if no
    * route matches the given pathname and options
    */
-  match(pathname: string, options: MatchOptions): Promise<RouteMatch | null>
+  match(
+    pathname: string,
+    options: MatchOptions
+  ): PromiseLike<RouteMatch | null> | RouteMatch | null
 
   /**
    * Finds all route definitions that match the given specification.

@@ -84,6 +84,8 @@ export class DevRouteManager extends BaseRouteManager implements RouteManager {
     if (!exists) return false
 
     try {
+      this.debug('ensuring route: %s', definition.pathname)
+
       // Let's ensure that the definition exists in the production routes.
       await this.ensurer.ensure(definition)
     } catch (err) {
@@ -216,12 +218,16 @@ export class DevRouteManager extends BaseRouteManager implements RouteManager {
     pathname: string,
     options: MatchOptions
   ): AsyncGenerator<RouteMatch, void, void> {
+    this.debug('matching all: %s', pathname)
+
     const seen = new Set<RouteDefinition>()
 
     // Try to find the route in the development routes as it's the source of
     // truth. If we can't find it here, we can't find it in the production
     // definitions either.
     for await (const development of this.matchers.matchAll(pathname, options)) {
+      this.debug('matched development: %s', development.definition.page)
+
       // We found a development route, let's ensure it to validate that it
       // exists in the production routes and then reload them.
       const exists = await this.ensureDefinition(development.definition)
@@ -253,6 +259,8 @@ export class DevRouteManager extends BaseRouteManager implements RouteManager {
             `Invariant: expected production route to be unique, but found duplicate`
           )
         }
+
+        this.debug('matched production: %s', production.definition.page)
 
         // We found a production route, so yield it and exit.
         yield production

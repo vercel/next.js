@@ -6,12 +6,12 @@ export interface Loadable {
    * True indicates that the data was updated, false indicates that the data
    * was not updated.
    */
-  load(): Promise<boolean | void>
+  load(): PromiseLike<boolean | void> | boolean | void
 
   /**
    * Forces a reload of the data, even if it has already been loaded.
    */
-  forceReload(): Promise<void>
+  forceReload(): PromiseLike<void> | void
 
   /**
    * Marks the data as stale, so that the next time `load` is called, it will

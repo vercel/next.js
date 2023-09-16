@@ -7,8 +7,11 @@ import type { RouteManager } from './route-manager'
 import type { InternalPagesRouteDefinition } from '../route-definitions/internal-route-definition'
 import type { RouteComponentsLoader } from '../route-components-loader/route-components-loader'
 import type { RouteMatcher } from '../route-matchers/route-matcher'
-import type { RouteDefinitionFilterSpec } from '../route-definitions/providers/helpers/route-definition-filter'
 
+import {
+  createRouteDefinitionFilter,
+  type RouteDefinitionFilterSpec,
+} from '../route-definitions/providers/helpers/route-definition-filter'
 import { RouteKind } from '../route-kind'
 import { BaseRouteMatcher } from '../route-matchers/base-route-matcher'
 
@@ -84,9 +87,9 @@ export class WebRouteManager implements RouteManager {
     }
   }
 
-  public async hasDefinition<D extends RouteDefinition<RouteKind>>(
+  public hasDefinition<D extends RouteDefinition<RouteKind>>(
     ...specs: RouteDefinitionFilterSpec<D>[]
-  ): Promise<boolean> {
+  ): boolean {
     const definition = this.findDefinition(...specs)
 
     // If the definition is null, then it doesn't exist.
@@ -95,20 +98,17 @@ export class WebRouteManager implements RouteManager {
 
   public findDefinition<D extends RouteDefinition<RouteKind>>(
     ...specs: RouteDefinitionFilterSpec<D>[]
-  ): Promise<D | null> {
+  ): D | null {
     for (const spec of specs) {
-      for (const definition of this.definitions) {
-        for (const [key, value] of Object.entries(spec)) {
-          if (definition[key as keyof SupportedRouteDefinitions] !== value) {
-            continue
-          }
-        }
+      const filter = createRouteDefinitionFilter(spec)
 
-        return Promise.resolve(definition as D)
-      }
+      // Loop through all the definitions and find the first one that matches
+      // the filter.
+      const definition = this.definitions.find((d) => filter(d as D))
+      if (definition) return definition as D
     }
 
-    return Promise.resolve(null)
+    return null
   }
 
   public loadComponents(
@@ -123,9 +123,9 @@ export class WebRouteManager implements RouteManager {
    * @param pathname The pathname to match.
    * @returns The single match.
    */
-  public async match(
+  public match(
     pathname: string
-  ): Promise<RouteMatch<RouteDefinition<RouteKind>> | null> {
+  ): RouteMatch<RouteDefinition<RouteKind>> | null {
     const match = this.matcher.match({ pathname })
     if (!match) return null
 
@@ -147,17 +147,8 @@ export class WebRouteManager implements RouteManager {
     yield match
   }
 
-  public invalidate(): void {
-    // This is a no-op.
-  }
-
-  public load(): Promise<void> {
-    // This is a no-op.
-    return Promise.resolve()
-  }
-
-  public forceReload(): Promise<void> {
-    // This is a no-op.
-    return Promise.resolve()
-  }
+  // The following are not used by the WebRouteManager.
+  public invalidate(): void {}
+  public load(): void {}
+  public forceReload(): void {}
 }

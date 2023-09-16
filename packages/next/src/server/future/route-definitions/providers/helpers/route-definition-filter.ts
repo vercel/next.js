@@ -1,8 +1,8 @@
 import type { RouteDefinition } from '../../route-definition'
 
 import {
-  LocaleRouteDefinition,
-  LocaleRouteInfo,
+  type LocaleRouteDefinition,
+  type LocaleRouteInfo,
   isLocaleRouteInfo,
 } from '../../locale-route-info'
 

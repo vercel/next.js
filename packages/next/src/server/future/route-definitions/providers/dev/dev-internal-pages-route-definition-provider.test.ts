@@ -33,7 +33,7 @@ describe('DevInternalPagesRouteDefinitionProvider', () => {
           pathname: '/_error',
           filename: `${dir}/_error.ts`,
           page: '/_error',
-          bundlePath: '/_error',
+          bundlePath: 'pages/_error',
           builtIn: false,
         },
       },

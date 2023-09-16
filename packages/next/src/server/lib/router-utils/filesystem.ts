@@ -347,7 +347,7 @@ export async function setupFsCheck(opts: {
   }
 
   // Fire off the initial loading of the definitions.
-  void definitions.load().catch((err) => {
+  void Promise.resolve(definitions.load()).catch((err) => {
     Log.error(err)
   })
 

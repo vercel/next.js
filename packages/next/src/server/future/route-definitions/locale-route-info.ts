@@ -1,4 +1,4 @@
-import { RouteDefinition } from './route-definition'
+import type { RouteDefinition } from './route-definition'
 
 export interface LocaleRouteInfo {
   /**
