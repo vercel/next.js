@@ -477,11 +477,6 @@ export default function HotReload({
 
   useEffect(() => {
     const handler = (event: MessageEvent<any>) => {
-      // webpack's heartbeat event.
-      if (event.data === '\uD83D\uDC93') {
-        return
-      }
-
       try {
         const obj = JSON.parse(event.data)
         const handledByTurbopack = processTurbopackMessage?.(obj)
