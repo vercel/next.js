@@ -1,4 +1,4 @@
-import { ReactNode, useRef } from 'react'
+import { ReactNode } from 'react'
 import React, {
   useCallback,
   useEffect,
@@ -39,8 +39,6 @@ import type { VersionInfo } from '../../../server/dev/parse-version-info'
 import {
   HMR_ACTIONS_SENT_TO_BROWSER,
   HMR_ACTION_TYPES,
-  TurbopackConnectedAction,
-  TurbopackMessageAction,
 } from '../../../server/dev/hot-reloader-types'
 
 interface Dispatcher {

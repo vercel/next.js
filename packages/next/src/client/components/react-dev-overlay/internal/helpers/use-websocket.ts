@@ -38,7 +38,6 @@ export function useSendMessage(webSocketRef: ReturnType<typeof useWebsocket>) {
 }
 
 export function useTurbopack(sendMessage: ReturnType<typeof useSendMessage>) {
-  console.log('useTurbopack')
   const turbopackState = useRef<{
     init: boolean
     queue: Array<TurbopackConnectedAction | TurbopackMessageAction> | undefined
@@ -54,10 +53,8 @@ export function useTurbopack(sendMessage: ReturnType<typeof useSendMessage>) {
     if ('type' in msg && msg.type?.startsWith('turbopack-')) {
       const { callback, queue } = turbopackState.current
       if (callback) {
-        console.log('received', msg)
         callback(msg)
       } else {
-        console.log('queueing', msg)
         queue!.push(msg)
       }
       return true
@@ -67,11 +64,10 @@ export function useTurbopack(sendMessage: ReturnType<typeof useSendMessage>) {
 
   useEffect(() => {
     const { current } = turbopackState
-    // TODO: only install if `process.turbopack` set.
+    // TODO(WEB-1589): only install if `process.turbopack` set.
     if (current.init) {
       return
     }
-    console.log('initializing turbopack hmr')
     current.init = true
 
     import(
@@ -79,15 +75,12 @@ export function useTurbopack(sendMessage: ReturnType<typeof useSendMessage>) {
       '@vercel/turbopack-ecmascript-runtime/dev/client/hmr-client.ts'
     ).then(({ connect }) => {
       const { current } = turbopackState
-      console.log('imported turbopack hmr')
       connect({
         addMessageListener(cb: (msg: HMR_ACTION_TYPES) => void) {
-          console.log('turbopack hmr setup')
           current.callback = cb
 
           // Replay all Turbopack messages before we were able to establish the HMR client.
           for (const msg of current.queue!) {
-            console.log('replaying', msg)
             cb(msg)
           }
           current.queue = undefined
