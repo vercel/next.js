@@ -5,14 +5,13 @@ import {
   GlobalLayoutRouterContext,
   LayoutRouterContext,
 } from '../../shared/lib/app-router-context.shared-runtime'
-import { RouterContext } from '../../shared/lib/router-context.shared-runtime'
 import {
   SearchParamsContext,
   PathnameContext,
+  PathParamsContext,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { clientHookInServerComponentError } from './client-hook-in-server-component-error'
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
-import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 
 const INTERNAL_URLSEARCHPARAMS_INSTANCE = Symbol(
   'internal for urlsearchparams readonly'
@@ -168,25 +167,17 @@ function getSelectedParams(
  */
 export function useParams<T extends Params = Params>(): T {
   clientHookInServerComponentError('useParams')
-  const globalLayoutRouterContext = useContext(GlobalLayoutRouterContext)
-  const pagesRouter = useContext(RouterContext)
+  const globalLayoutRouter = useContext(GlobalLayoutRouterContext)
 
   // When it's under app router
-  if (globalLayoutRouterContext) {
-    return getSelectedParams(globalLayoutRouterContext.tree) as T
+  if (globalLayoutRouter) {
+    return getSelectedParams(globalLayoutRouter.tree) as T
   }
 
-  // When it's under pages router,
-  if (pagesRouter) {
-    const routeRegex = getRouteRegex(pagesRouter.pathname)
-    const pathParams: Params = {}
-    const keys = Object.keys(routeRegex.groups)
-    for (const key of keys) {
-      pathParams[key] = pagesRouter.query[key]!
-    }
-    return pathParams as T
-  }
-  return {} as T
+  const pathParams = useContext(PathParamsContext)
+
+  // When it's under client side pages router
+  return pathParams as T
 }
 
 // TODO-APP: handle parallel routes

@@ -7,6 +7,8 @@ import { PathnameContext } from '../hooks-client-context.shared-runtime'
 import type { NextRouter } from './router'
 import { isDynamicRoute } from './utils'
 import { asPathToSearchParams } from './utils/as-path-to-search-params'
+import { Params } from './utils/route-matcher'
+import { getRouteRegex } from './utils/route-regex'
 
 /**
  * adaptForAppRouterInstance implements the AppRouterInstance with a NextRouter.
@@ -53,6 +55,21 @@ export function adaptForSearchParams(
   }
 
   return asPathToSearchParams(router.asPath)
+}
+
+export function adaptForPathParams(
+  router: Pick<NextRouter, 'isReady' | 'pathname' | 'query' | 'asPath'>
+): Params | null {
+  if (!router.isReady || !router.query) {
+    return null
+  }
+  const pathParams: Params = {}
+  const routeRegex = getRouteRegex(router.pathname)
+  const keys = Object.keys(routeRegex.groups)
+  for (const key of keys) {
+    pathParams[key] = router.query[key]!
+  }
+  return pathParams
 }
 
 export function PathnameContextProviderAdapter({
