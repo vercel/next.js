@@ -2802,10 +2802,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           // This only applies to pages.
           if (spec.kind !== RouteKind.INTERNAL_PAGES) continue
 
-          // For pages, the page is the same as the detected locale.
-          const pathname = spec.pathname ?? spec.page
-
           // If there was no pathname, we can't find the locale version.
+          const pathname = spec.pathname
           if (!pathname) continue
 
           specs.splice(i, 0, {

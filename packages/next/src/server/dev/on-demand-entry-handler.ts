@@ -38,6 +38,7 @@ import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
 import HotReloader from './hot-reloader-webpack'
 import { scheduleOnNextTick } from '../lib/schedule-on-next-tick'
 import { RouteDefinition } from '../future/route-definitions/route-definition'
+import { fileExists } from '../../lib/file-exists'
 
 // This module uses the `Promise.withResolvers` polyfill.
 import '../node-environment'
@@ -701,6 +702,15 @@ export function onDemandEntryHandler({
         }
 
         pagePathData = definition
+
+        // Validate that the file still exists now. This handles the case where
+        // the cache is stale and the file has been removed since calling ensure.
+        // There is multiple async await's between this and the actual usage of
+        // the file so it's possible the file is removed during that time.
+        const exists = await fileExists(definition.filename)
+        if (!exists) {
+          throw new PageNotFoundError(definition.page)
+        }
       } else {
         pagePathData = await findPagePathData(
           rootDir,
@@ -872,8 +882,6 @@ export function onDemandEntryHandler({
         curInvalidator.invalidate([...added.keys()])
         await invalidatePromise
       }
-    } catch (err) {
-      throw err
     } finally {
       clearTimeout(stalledEnsureTimeout)
     }
