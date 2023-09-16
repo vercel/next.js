@@ -15,7 +15,12 @@ import type {
 } from '../shared/lib/utils'
 import type { ImageConfigComplete } from '../shared/lib/image-config'
 import type { Redirect } from '../lib/load-custom-routes'
-import type { NextApiRequestCookies, __ApiPreviewProps } from './api-utils'
+import {
+  type NextApiRequestCookies,
+  type __ApiPreviewProps,
+  setLazyProp,
+} from './api-utils'
+import { getCookieParser } from './api-utils/get-cookie-parser'
 import type { FontManifest, FontConfig } from './font-utils'
 import type { LoadComponentsReturnType, ManifestItem } from './load-components'
 import type {
@@ -86,7 +91,7 @@ import {
   adaptForAppRouterInstance,
   adaptForSearchParams,
   PathnameContextProviderAdapter,
-} from '../shared/lib/router/adapters.shared-runtime'
+} from '../shared/lib/router/adapters'
 import { AppRouterContext } from '../shared/lib/app-router-context.shared-runtime'
 import { SearchParamsContext } from '../shared/lib/hooks-client-context.shared-runtime'
 import { getTracer } from './lib/trace/tracer'
@@ -269,6 +274,7 @@ export type RenderOptsPartial = {
   strictNextHead: boolean
   isDraftMode?: boolean
   deploymentId?: string
+  isServerAction?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -386,6 +392,9 @@ export async function renderToHTMLImpl(
   renderOpts: Omit<RenderOpts, keyof RenderOptsExtra>,
   extra: RenderOptsExtra
 ): Promise<RenderResult> {
+  // Adds support for reading `cookies` in `getServerSideProps` when SSR.
+  setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
+
   const renderResultMeta: RenderResultMetadata = {}
 
   // In dev we invalidate the cache by appending a timestamp to the resource URL.
@@ -1349,13 +1358,13 @@ export async function renderToHTMLImpl(
     }
   }
 
-  getTracer().getRootSpanAttributes()?.set('next.route', renderOpts.pathname)
+  getTracer().getRootSpanAttributes()?.set('next.route', renderOpts.page)
   const documentResult = await getTracer().trace(
     RenderSpan.renderDocument,
     {
-      spanName: `render route (pages) ${renderOpts.pathname}`,
+      spanName: `render route (pages) ${renderOpts.page}`,
       attributes: {
-        'next.route': renderOpts.pathname,
+        'next.route': renderOpts.page,
       },
     },
     async () => renderDocument()

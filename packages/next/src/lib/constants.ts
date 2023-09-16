@@ -12,6 +12,8 @@ export const NEXT_CACHE_REVALIDATED_TAGS_HEADER = 'x-next-revalidated-tags'
 export const NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER =
   'x-next-revalidate-tag-token'
 
+export const NEXT_CACHE_TAG_MAX_LENGTH = 256
+export const NEXT_CACHE_SOFT_TAG_MAX_LENGTH = 1024
 export const NEXT_CACHE_IMPLICIT_TAG_ID = '_N_T_'
 
 // in seconds
@@ -136,7 +138,10 @@ const WEBPACK_LAYERS_NAMES = {
    * The layer for the server bundle for App Route handlers.
    */
   appRouteHandler: 'app-route-handler',
-}
+} as const
+
+export type WebpackLayerName =
+  (typeof WEBPACK_LAYERS_NAMES)[keyof typeof WEBPACK_LAYERS_NAMES]
 
 export const WEBPACK_LAYERS = {
   ...WEBPACK_LAYERS_NAMES,

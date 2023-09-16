@@ -384,7 +384,7 @@ impl<C: Comments> ReactServerComponents<C> {
     }
 
     fn assert_server_filename(&self, module: &Module) {
-        let is_error_file = Regex::new(r"/error\.(ts|js)x?$")
+        let is_error_file = Regex::new(r"[\\/]error\.(ts|js)x?$")
             .unwrap()
             .is_match(&self.filepath);
         if is_error_file {
@@ -430,7 +430,7 @@ impl<C: Comments> ReactServerComponents<C> {
     }
 
     fn assert_invalid_api(&self, module: &Module, is_client_entry: bool) {
-        let is_layout_or_page = Regex::new(r"/(page|layout)\.(ts|js)x?$")
+        let is_layout_or_page = Regex::new(r"[\\/](page|layout)\.(ts|js)x?$")
             .unwrap()
             .is_match(&self.filepath);
 
@@ -592,7 +592,7 @@ pub fn server_components<C: Comments>(
             JsWord::from("flushSync"),
             JsWord::from("unstable_batchedUpdates"),
             JsWord::from("experimental_useFormStatus"),
-            JsWord::from("experimental_useOptimistic"),
+            JsWord::from("experimental_useFormState"),
         ],
         invalid_server_react_apis: vec![
             JsWord::from("Component"),
@@ -609,6 +609,7 @@ pub fn server_components<C: Comments>(
             JsWord::from("useState"),
             JsWord::from("useSyncExternalStore"),
             JsWord::from("useTransition"),
+            JsWord::from("experimental_useOptimistic"),
         ],
     })
 }

@@ -90,7 +90,7 @@ Your headless CMS might allow you to include a variable in the preview URL so th
 - Check that the secret matches and that the `slug` parameter exists (if not, the request should fail).
 -
 - Call `res.setPreviewData`.
-- Then redirect the browser to the path specified by `slug`. (The following example uses a [307 redirect](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/307)).
+- Then redirect the browser to the path specified by `slug`. (The following example uses a [307 redirect](https://developer.mozilla.org/docs/Web/HTTP/Status/307)).
 
 ```js
 export default async (req, res) => {
