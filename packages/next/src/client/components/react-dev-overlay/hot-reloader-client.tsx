@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { ReactNode, useRef } from 'react'
 import React, {
   useCallback,
   useEffect,
@@ -30,6 +30,7 @@ import {
 } from './internal/helpers/use-error-handler'
 import {
   useSendMessage,
+  useTurbopack,
   useWebsocket,
   useWebsocketPing,
 } from './internal/helpers/use-websocket'
@@ -38,6 +39,8 @@ import type { VersionInfo } from '../../../server/dev/parse-version-info'
 import {
   HMR_ACTIONS_SENT_TO_BROWSER,
   HMR_ACTION_TYPES,
+  TurbopackConnectedAction,
+  TurbopackMessageAction,
 } from '../../../server/dev/hot-reloader-types'
 
 interface Dispatcher {
@@ -204,17 +207,12 @@ function tryApplyUpdates(
 }
 
 function processMessage(
-  e: any,
+  obj: HMR_ACTION_TYPES,
   sendMessage: any,
   router: ReturnType<typeof useRouter>,
   dispatcher: Dispatcher
 ) {
-  let obj: HMR_ACTION_TYPES | undefined
-  try {
-    obj = JSON.parse(e.data)
-  } catch {}
-
-  if (!obj || !('action' in obj)) {
+  if (!('action' in obj)) {
     return
   }
 
@@ -475,13 +473,23 @@ export default function HotReload({
   const webSocketRef = useWebsocket(assetPrefix)
   useWebsocketPing(webSocketRef)
   const sendMessage = useSendMessage(webSocketRef)
+  const processTurbopackMessage = useTurbopack(sendMessage)
 
   const router = useRouter()
 
   useEffect(() => {
     const handler = (event: MessageEvent<any>) => {
+      // webpack's heartbeat event.
+      if (event.data === '\uD83D\uDC93') {
+        return
+      }
+
       try {
-        processMessage(event, sendMessage, router, dispatcher)
+        const obj = JSON.parse(event.data)
+        const handledByTurbopack = processTurbopackMessage?.(obj)
+        if (!handledByTurbopack) {
+          processMessage(obj, sendMessage, router, dispatcher)
+        }
       } catch (err: any) {
         console.warn(
           '[HMR] Invalid message: ' + event.data + '\n' + (err?.stack ?? '')

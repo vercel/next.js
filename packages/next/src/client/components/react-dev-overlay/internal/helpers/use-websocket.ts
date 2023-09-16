@@ -1,6 +1,11 @@
 import { useCallback, useContext, useEffect, useRef } from 'react'
 import { GlobalLayoutRouterContext } from '../../../../../shared/lib/app-router-context.shared-runtime'
 import { getSocketUrl } from './get-socket-url'
+import type {
+  HMR_ACTION_TYPES,
+  TurbopackConnectedAction,
+  TurbopackMessageAction,
+} from '../../../../../server/dev/hot-reloader-types'
 
 export function useWebsocket(assetPrefix: string) {
   const webSocketRef = useRef<WebSocket>()
@@ -30,6 +35,69 @@ export function useSendMessage(webSocketRef: ReturnType<typeof useWebsocket>) {
     [webSocketRef]
   )
   return sendMessage
+}
+
+export function useTurbopack(sendMessage: ReturnType<typeof useSendMessage>) {
+  console.log('useTurbopack')
+  const turbopackState = useRef<{
+    init: boolean
+    queue: Array<TurbopackConnectedAction | TurbopackMessageAction> | undefined
+    callback: ((msg: HMR_ACTION_TYPES) => void) | undefined
+  }>({
+    init: false,
+    // Until the dynamic import resolves, queue any turbopack messages which will be replayed.
+    queue: [],
+    callback: undefined,
+  })
+
+  const processTurbopackMessage = useCallback((msg: HMR_ACTION_TYPES) => {
+    if ('type' in msg && msg.type?.startsWith('turbopack-')) {
+      const { callback, queue } = turbopackState.current
+      if (callback) {
+        console.log('received', msg)
+        callback(msg)
+      } else {
+        console.log('queueing', msg)
+        queue!.push(msg)
+      }
+      return true
+    }
+    return false
+  }, [])
+
+  useEffect(() => {
+    const { current } = turbopackState
+    // TODO: only install if `process.turbopack` set.
+    if (current.init) {
+      return
+    }
+    console.log('initializing turbopack hmr')
+    current.init = true
+
+    import(
+      // @ts-expect-error requires "moduleResolution": "node16" in tsconfig.json and not .ts extension
+      '@vercel/turbopack-ecmascript-runtime/dev/client/hmr-client.ts'
+    ).then(({ connect }) => {
+      const { current } = turbopackState
+      console.log('imported turbopack hmr')
+      connect({
+        addMessageListener(cb: (msg: HMR_ACTION_TYPES) => void) {
+          console.log('turbopack hmr setup')
+          current.callback = cb
+
+          // Replay all Turbopack messages before we were able to establish the HMR client.
+          for (const msg of current.queue!) {
+            console.log('replaying', msg)
+            cb(msg)
+          }
+          current.queue = undefined
+        },
+        sendMessage,
+      })
+    })
+  }, [])
+
+  return processTurbopackMessage
 }
 
 export function useWebsocketPing(
