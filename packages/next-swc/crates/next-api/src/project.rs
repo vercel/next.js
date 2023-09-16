@@ -19,8 +19,11 @@ use next_core::{
 };
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, IntoTraitRef, State, TaskInput,
-    TransientInstance, Value, Vc,
+    debug::ValueDebugFormat,
+    graph::{AdjacencyMap, GraphTraversal},
+    trace::TraceRawVcs,
+    Completion, Completions, IntoTraitRef, State, TaskInput, TransientInstance, TryFlatJoinIterExt,
+    Value, Vc,
 };
 use turbopack_binding::{
     turbo::{
@@ -30,13 +33,14 @@ use turbopack_binding::{
     turbopack::{
         build::BuildChunkingContext,
         core::{
+            changed::content_changed,
             chunk::ChunkingContext,
             compile_time_info::CompileTimeInfo,
             context::AssetContext,
             diagnostics::DiagnosticExt,
             environment::ServerAddr,
             file_source::FileSource,
-            output::OutputAssets,
+            output::{OutputAsset, OutputAssets},
             reference_type::{EntryReferenceSubType, ReferenceType},
             resolve::{find_context_file, FindContextFileResult},
             source::Source,
@@ -598,6 +602,18 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    async fn hmr_content_and_write(
+        self: Vc<Self>,
+        identifier: String,
+    ) -> Result<Vc<Box<dyn VersionedContent>>> {
+        Ok(self.await?.versioned_content_map.get_and_write(
+            self.client_relative_path().join(identifier),
+            self.client_relative_path(),
+            self.node_root(),
+        ))
+    }
+
+    #[turbo_tasks::function]
     async fn hmr_version(self: Vc<Self>, identifier: String) -> Result<Vc<Box<dyn Version>>> {
         let content = self.hmr_content(identifier);
 
@@ -633,7 +649,7 @@ impl Project {
         from: Vc<VersionState>,
     ) -> Result<Vc<Update>> {
         let from = from.get();
-        Ok(self.hmr_content(identifier).update(from))
+        Ok(self.hmr_content_and_write(identifier).update(from))
     }
 
     /// Gets a list of all HMR identifiers that can be subscribed to. This is
@@ -645,6 +661,55 @@ impl Project {
             .versioned_content_map
             .keys_in_path(self.client_relative_path()))
     }
+
+    /// Completion when server side changes are detected in output assets
+    /// referenced from the roots
+    #[turbo_tasks::function]
+    pub fn server_changed(self: Vc<Self>, roots: Vc<OutputAssets>) -> Vc<Completion> {
+        let path = self.node_root();
+        any_output_changed(roots, path)
+    }
+
+    /// Completion when client side changes are detected in output assets
+    /// referenced from the roots
+    #[turbo_tasks::function]
+    pub fn client_changed(self: Vc<Self>, roots: Vc<OutputAssets>) -> Vc<Completion> {
+        let path = self.client_root();
+        any_output_changed(roots, path)
+    }
+}
+
+#[turbo_tasks::function]
+async fn any_output_changed(
+    roots: Vc<OutputAssets>,
+    path: Vc<FileSystemPath>,
+) -> Result<Vc<Completion>> {
+    let path = &path.await?;
+    let completions = AdjacencyMap::new()
+        .skip_duplicates()
+        .visit(roots.await?.iter().copied(), get_referenced_output_assets)
+        .await
+        .completed()?
+        .into_inner()
+        .into_reverse_topological()
+        .map(|m| async move {
+            let asset_path = m.ident().path().await?;
+            if !asset_path.path.ends_with(".map") && asset_path.is_inside_ref(path) {
+                Ok(Some(content_changed(Vc::upcast(m))))
+            } else {
+                Ok(None)
+            }
+        })
+        .try_flat_join()
+        .await?;
+
+    Ok(Vc::<Completions>::cell(completions).completed())
+}
+
+async fn get_referenced_output_assets(
+    parent: Vc<Box<dyn OutputAsset>>,
+) -> Result<impl Iterator<Item = Vc<Box<dyn OutputAsset>>> + Send> {
+    Ok(parent.references().await?.clone_value().into_iter())
 }
 
 #[turbo_tasks::function]

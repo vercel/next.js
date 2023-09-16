@@ -162,6 +162,7 @@ export const styles = css`
     width: auto;
     height: var(--size-font-small);
     margin-left: var(--size-gap);
+    flex-shrink: 0;
 
     display: none;
   }
