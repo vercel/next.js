@@ -4,7 +4,6 @@ createNextDescribe(
   'module layer',
   {
     files: __dirname,
-    skipDeployment: true,
   },
   ({ next, isNextStart }) => {
     it('should render routes marked with restriction marks without errors', async () => {
