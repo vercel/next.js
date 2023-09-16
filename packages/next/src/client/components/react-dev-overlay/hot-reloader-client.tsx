@@ -501,7 +501,7 @@ export default function HotReload({
     }
 
     return () => websocket && websocket.removeEventListener('message', handler)
-  }, [sendMessage, router, webSocketRef, dispatcher])
+  }, [sendMessage, router, webSocketRef, dispatcher, processTurbopackMessage])
 
   return (
     <ReactDevOverlay onReactError={handleOnReactError} state={state}>

@@ -63,12 +63,12 @@ export function useTurbopack(sendMessage: ReturnType<typeof useSendMessage>) {
   }, [])
 
   useEffect(() => {
-    const { current } = turbopackState
+    const { current: initCurrent } = turbopackState
     // TODO(WEB-1589): only install if `process.turbopack` set.
-    if (current.init) {
+    if (initCurrent.init) {
       return
     }
-    current.init = true
+    initCurrent.init = true
 
     import(
       // @ts-expect-error requires "moduleResolution": "node16" in tsconfig.json and not .ts extension
@@ -88,7 +88,7 @@ export function useTurbopack(sendMessage: ReturnType<typeof useSendMessage>) {
         sendMessage,
       })
     })
-  }, [])
+  }, [sendMessage])
 
   return processTurbopackMessage
 }
