@@ -887,7 +887,7 @@ export default class NextNodeServer extends BaseServer {
         if (handled) return { finished: true }
       }
 
-      await this.render(req, res, pathname, query, parsedUrl, true)
+      await this.render(req, res, pathname, query, parsedUrl, true, match)
 
       return {
         finished: true,
