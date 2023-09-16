@@ -7,6 +7,7 @@ import type {
 import { isInternalPagesRoute } from '../../../../lib/is-internal-pages-route'
 import { RouteKind } from '../../route-kind'
 import { BuiltInRouteDefinitionBuilder } from './built-in-route-definition-builder'
+import { PagesBundlePathNormalizer } from '../../normalizers/built/pages/pages-bundle-path-normalizer'
 
 type InternalPagesRouteDefinitionBuilderInput = Pick<
   InternalPagesRouteDefinition | InternalLocalePagesRouteDefinition,
@@ -19,6 +20,10 @@ export class InternalPagesRouteDefinitionBuilder extends BuiltInRouteDefinitionB
   InternalPagesRouteDefinition | InternalLocalePagesRouteDefinition,
   InternalPagesRouteDefinitionBuilderInput
 > {
+  private static readonly normalizers = {
+    bundlePath: new PagesBundlePathNormalizer(),
+  }
+
   protected readonly definitions = new Array<
     InternalPagesRouteDefinition | InternalLocalePagesRouteDefinition
   >()
@@ -37,10 +42,13 @@ export class InternalPagesRouteDefinitionBuilder extends BuiltInRouteDefinitionB
       throw new Error(`Invariant: page is not an internal pages route: ${page}`)
     }
 
+    const bundlePath =
+      InternalPagesRouteDefinitionBuilder.normalizers.bundlePath.normalize(page)
+
     if (localeInfo) {
       this.definitions.push({
         kind: RouteKind.INTERNAL_PAGES,
-        bundlePath: page,
+        bundlePath,
         filename,
         page,
         pathname: localeInfo.pathname,
@@ -53,7 +61,7 @@ export class InternalPagesRouteDefinitionBuilder extends BuiltInRouteDefinitionB
     } else {
       this.definitions.push({
         kind: RouteKind.INTERNAL_PAGES,
-        bundlePath: page,
+        bundlePath,
         filename,
         page,
         pathname: page,
