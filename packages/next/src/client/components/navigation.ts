@@ -168,13 +168,12 @@ function getSelectedParams(
 export function useParams<T extends Params = Params>(): T {
   clientHookInServerComponentError('useParams')
   const globalLayoutRouter = useContext(GlobalLayoutRouterContext)
+  const pathParams = useContext(PathParamsContext)
 
   // When it's under app router
   if (globalLayoutRouter) {
     return getSelectedParams(globalLayoutRouter.tree) as T
   }
-
-  const pathParams = useContext(PathParamsContext)
 
   // When it's under client side pages router
   return pathParams as T
