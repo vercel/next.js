@@ -93,7 +93,6 @@ const item = await getItem() // cache HIT
 > **Good to know**:
 >
 > - Request memoization is a React feature, not a Next.js feature. It's included here to show how it interacts with the other caching mechanisms.
-> - Memoization only applies to the `GET` method in `fetch` requests.
 > - Memoization only applies to the React Component tree, this means:
 >   - It applies to `fetch` requests in `generateMetadata`, `generateStaticParams`, Layouts, Pages, and other Server Components.
 >   - It doesn't apply to `fetch` requests in Route Handlers as they are not a part of the React component tree.
