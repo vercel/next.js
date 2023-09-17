@@ -4,7 +4,7 @@ import { step } from './step'
 
 async function parseBody(
   r: Pick<Request, 'headers' | 'json' | 'text' | 'arrayBuffer' | 'formData'>
-): Promise<Record<string, unknown>> {
+): Promise<Record<string, string>> {
   const contentType = r.headers.get('content-type')
   let error: string | undefined
   let text: string | undefined
@@ -37,7 +37,6 @@ async function parseBody(
     }
   }
   return {
-    ...(contentType ? { contentType } : null),
     ...(error ? { error } : null),
     ...(text ? { text } : null),
     ...(json ? { json: JSON.stringify(json) } : null),
@@ -46,6 +45,16 @@ async function parseBody(
       ? { buffer: `base64;${Buffer.from(buffer).toString('base64')}` }
       : null),
   }
+}
+
+function parseHeaders(headers: Headers): Record<string, string> {
+  return Object.fromEntries(
+    Array.from(headers)
+      .sort(([key1], [key2]) => key1.localeCompare(key2))
+      .map(([key, value]) => {
+        return [`header.${key}`, value]
+      })
+  )
 }
 
 export async function reportFetch(
@@ -63,6 +72,7 @@ export async function reportFetch(
         method: req.method,
         url: req.url,
         ...(await parseBody(req.clone())),
+        ...parseHeaders(req.headers),
       },
     },
     async (complete) => {
@@ -81,6 +91,7 @@ export async function reportFetch(
             status,
             ...(statusText ? { statusText } : null),
             ...(await parseBody(res.clone())),
+            ...parseHeaders(res.headers),
           }
         }
         await step(
