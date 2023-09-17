@@ -2129,7 +2129,6 @@ export default async function build(
                 ? [
                     require.resolve('next/dist/server/lib/start-server'),
                     require.resolve('next/dist/server/next'),
-                    require.resolve('next/dist/esm/server/esm-loader.mjs'),
                     require.resolve('next/dist/server/require-hook'),
                   ]
                 : []),
