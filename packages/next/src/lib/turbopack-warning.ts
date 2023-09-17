@@ -6,6 +6,7 @@ import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 const supportedTurbopackNextConfigOptions = [
   'configFileName',
   'env',
+  'basePath',
   'modularizeImports',
   'compiler.emotion',
   'compiler.relay',
@@ -19,6 +20,9 @@ const supportedTurbopackNextConfigOptions = [
   'reactStrictMode',
   'swcMinify',
   'transpilePackages',
+  'trailingSlash',
+  'i18n.locales',
+  'i18n.defaultLocale',
   'sassOptions.includePaths',
   'experimental.serverComponentsExternalPackages',
   'experimental.turbo',
@@ -94,7 +98,13 @@ export async function validateTurboNextConfig({
       : '>>> TURBOPACK'
   )} ${chalk.dim('(beta)')}\n\n`
 
-  let thankYouMsg = `Thank you for trying Next.js v13 with Turbopack! As a reminder,\nTurbopack is currently in beta and not yet ready for production.\nWe appreciate your ongoing support as we work to make it ready\nfor everyone.\n`
+  let thankYouMessage =
+    [
+      'Thank you for trying Next.js v13 with Turbopack! As a reminder',
+      'Turbopack is currently in beta and not yet ready for production.',
+      'We appreciate your ongoing support as we work to make it ready',
+      'for everyone.',
+    ].join('\n') + '\n\n'
 
   let unsupportedParts = ''
   let babelrc = await getBabelConfigFile(dir)
@@ -108,7 +118,9 @@ export async function validateTurboNextConfig({
 
   try {
     rawNextConfig = interopDefault(
-      await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, undefined, true)
+      await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
+        rawConfig: true,
+      })
     ) as NextConfig
 
     if (typeof rawNextConfig === 'function') {
@@ -181,10 +193,10 @@ export async function validateTurboNextConfig({
 
   const hasWarningOrError = babelrc || unsupportedConfig.length
   if (!hasWarningOrError) {
-    thankYouMsg = chalk.dim(thankYouMsg)
+    thankYouMessage = chalk.dim(thankYouMessage)
   }
   if (!isCustomTurbopack) {
-    console.log(turbopackGradient + thankYouMsg)
+    console.log(turbopackGradient + thankYouMessage)
   }
 
   let feedbackMessage = `Learn more about Next.js v13 and Turbopack: ${chalk.underline(
@@ -193,45 +205,43 @@ export async function validateTurboNextConfig({
     'https://nextjs.link/turbopack-feedback'
   )}\n`
 
-  if (!hasWarningOrError) {
-    feedbackMessage = chalk.dim(feedbackMessage)
-  }
-
   if (hasWebpack && !hasTurbo) {
     console.warn(
       `\n${chalk.yellow(
         'Warning:'
       )} Webpack is configured while Turbopack is not, which may cause problems.\n
-  ${chalk.dim(
-    `See instructions if you need to configure Turbopack:\n  https://turbo.build/pack/docs/features/customizing-turbopack\n`
-  )}`
+  ${`See instructions if you need to configure Turbopack:\n  https://turbo.build/pack/docs/features/customizing-turbopack\n`}`
     )
   }
 
   if (babelrc) {
     unsupportedParts += `\n- Babel detected (${chalk.cyan(
       babelrc
-    )})\n  ${chalk.dim(
-      `Babel is not yet supported. To use Turbopack at the moment,\n  you'll need to remove your usage of Babel.`
-    )}`
+    )})\n  Babel is not yet supported. To use Turbopack at the moment,\n  you'll need to remove your usage of Babel.`
   }
-  if (unsupportedConfig.length) {
+
+  if (
+    unsupportedConfig.length === 1 &&
+    unsupportedConfig[0] === 'experimental.optimizePackageImports'
+  ) {
+    console.warn(
+      `\n${chalk.yellow('Warning:')} ${chalk.cyan(
+        'experimental.optimizePackageImports'
+      )} is not yet supported by Turbopack and will be ignored.`
+    )
+  } else if (unsupportedConfig.length) {
     unsupportedParts += `\n\n- Unsupported Next.js configuration option(s) (${chalk.cyan(
       'next.config.js'
-    )})\n  ${chalk.dim(
-      `To use Turbopack, remove the following configuration options:\n${unsupportedConfig
-        .map((name) => `    - ${chalk.red(name)}\n`)
-        .join('')}  `
-    )}   `
+    )})\n  To use Turbopack, remove the following configuration options:\n${unsupportedConfig
+      .map((name) => `    - ${chalk.red(name)}\n`)
+      .join('')}`
   }
 
   if (unsupportedParts && !isCustomTurbopack) {
     const pkgManager = getPkgManager(dir)
 
     console.error(
-      `${chalk.bold.red(
-        'Error:'
-      )} You are using configuration and/or tools that are not yet\nsupported by Next.js v13 with Turbopack:\n${unsupportedParts}\n
+      `Error: You are using configuration and/or tools that are not yet\nsupported by Next.js v13 with Turbopack:\n${unsupportedParts}\n
 If you cannot make the changes above, but still want to try out\nNext.js v13 with Turbopack, create the Next.js v13 playground app\nby running the following commands:
 
   ${chalk.bold.cyan(
@@ -249,8 +259,9 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
 
       process.exit(1)
     } else {
+      console.warn('\n')
       console.warn(
-        `\n${chalk.bold.yellow(
+        `${chalk.bold.yellow(
           'Warning:'
         )} Unsupported config found; but continuing with custom Turbopack binary.\n`
       )

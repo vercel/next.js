@@ -50,6 +50,7 @@ struct ReactServerComponents<C: Comments> {
     invalid_client_imports: Vec<JsWord>,
     invalid_server_react_apis: Vec<JsWord>,
     invalid_server_react_dom_apis: Vec<JsWord>,
+    disable_checks: bool,
 }
 
 struct ModuleImports {
@@ -128,7 +129,7 @@ impl<C: Comments> ReactServerComponents<C> {
                                             if is_action_file {
                                                 panic_both_directives(expr_stmt.span)
                                             }
-                                        } else {
+                                        } else if !self.disable_checks {
                                             HANDLER.with(|handler| {
                                                 handler
                                                     .struct_span_err(
@@ -333,6 +334,9 @@ impl<C: Comments> ReactServerComponents<C> {
     }
 
     fn assert_server_graph(&self, imports: &[ModuleImports], module: &Module) {
+        if self.disable_checks {
+            return;
+        }
         for import in imports {
             let source = import.source.0.clone();
             if self.invalid_server_imports.contains(&source) {
@@ -380,7 +384,7 @@ impl<C: Comments> ReactServerComponents<C> {
     }
 
     fn assert_server_filename(&self, module: &Module) {
-        let is_error_file = Regex::new(r"/error\.(ts|js)x?$")
+        let is_error_file = Regex::new(r"[\\/]error\.(ts|js)x?$")
             .unwrap()
             .is_match(&self.filepath);
         if is_error_file {
@@ -405,6 +409,9 @@ impl<C: Comments> ReactServerComponents<C> {
     }
 
     fn assert_client_graph(&self, imports: &[ModuleImports], module: &Module) {
+        if self.disable_checks {
+            return;
+        }
         for import in imports {
             let source = import.source.0.clone();
             if self.invalid_client_imports.contains(&source) {
@@ -423,7 +430,7 @@ impl<C: Comments> ReactServerComponents<C> {
     }
 
     fn assert_invalid_api(&self, module: &Module, is_client_entry: bool) {
-        let is_layout_or_page = Regex::new(r"/(page|layout)\.(ts|js)x?$")
+        let is_layout_or_page = Regex::new(r"[\\/](page|layout)\.(ts|js)x?$")
             .unwrap()
             .is_match(&self.filepath);
 
@@ -560,12 +567,14 @@ pub fn server_components<C: Comments>(
     config: Config,
     comments: C,
     app_dir: Option<PathBuf>,
+    disable_checks: bool,
 ) -> impl Fold + VisitMut {
-    let is_server: bool = match config {
+    let is_server: bool = match &config {
         Config::WithOptions(x) => x.is_server,
         _ => true,
     };
     as_folder(ReactServerComponents {
+        disable_checks,
         is_server,
         comments,
         filepath: filename.to_string(),
@@ -583,7 +592,7 @@ pub fn server_components<C: Comments>(
             JsWord::from("flushSync"),
             JsWord::from("unstable_batchedUpdates"),
             JsWord::from("experimental_useFormStatus"),
-            JsWord::from("experimental_useOptimistic"),
+            JsWord::from("experimental_useFormState"),
         ],
         invalid_server_react_apis: vec![
             JsWord::from("Component"),
@@ -600,6 +609,7 @@ pub fn server_components<C: Comments>(
             JsWord::from("useState"),
             JsWord::from("useSyncExternalStore"),
             JsWord::from("useTransition"),
+            JsWord::from("experimental_useOptimistic"),
         ],
     })
 }

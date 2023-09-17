@@ -86,7 +86,8 @@ function getBaseSWCOptions({
       externalHelpers: !process.versions.pnp && !jest,
       parser: parserConfig,
       experimental: {
-        keepImportAssertions: true,
+        keepImportAttributes: true,
+        emitAssertForImportAttributes: true,
         plugins,
         cacheRoot: swcCacheDir,
       },
@@ -162,7 +163,7 @@ function getBaseSWCOptions({
       : undefined,
     relay: compilerOptions?.relay,
     // Always transform styled-jsx and error when `client-only` condition is triggered
-    styledJsx: true,
+    styledJsx: {},
     // Disable css-in-js libs (without client-only integration) transform on server layer for server components
     ...(!isServerLayer && {
       // eslint-disable-next-line @typescript-eslint/no-use-before-define
@@ -183,6 +184,7 @@ function getBaseSWCOptions({
           isServer: !!isServerLayer,
         }
       : undefined,
+    disableChecks: false,
   }
 }
 
@@ -270,13 +272,15 @@ export function getJestSWCOptions({
     jsConfig,
     hasServerComponents,
     resolvedBaseUrl,
-    isServerLayer: isServer,
+    // Don't apply server layer transformations for Jest
+    isServerLayer: false,
   })
 
   const isNextDist = nextDistPath.test(filename)
 
   return {
     ...baseOptions,
+    disableChecks: true,
     env: {
       targets: {
         // Targets the current version of Node.js
@@ -301,6 +305,7 @@ export function getLoaderSWCOptions({
   isPageFile,
   hasReactRefresh,
   modularizeImports,
+  optimizeServerReact,
   optimizePackageImports,
   swcPlugins,
   compilerOptions,
@@ -322,6 +327,7 @@ export function getLoaderSWCOptions({
   appDir: string
   isPageFile: boolean
   hasReactRefresh: boolean
+  optimizeServerReact?: boolean
   modularizeImports: NextConfig['modularizeImports']
   optimizePackageImports?: NonNullable<
     NextConfig['experimental']
@@ -375,6 +381,12 @@ export function getLoaderSWCOptions({
         },
       },
     },
+  }
+
+  if (optimizeServerReact && isServer && !development) {
+    baseOptions.optimizeServerReact = {
+      optimize_use_state: true,
+    }
   }
 
   // Modularize import optimization for barrel files

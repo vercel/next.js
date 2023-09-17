@@ -10,16 +10,16 @@ import type {
 
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { HeadManagerContext } from '../shared/lib/head-manager-context'
+import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
 import mitt, { MittEmitter } from '../shared/lib/mitt'
-import { RouterContext } from '../shared/lib/router-context'
+import { RouterContext } from '../shared/lib/router-context.shared-runtime'
 import { handleSmoothScroll } from '../shared/lib/router/utils/handle-smooth-scroll'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import {
   urlQueryToSearchParams,
   assign,
 } from '../shared/lib/router/utils/querystring'
-import { setConfig } from '../shared/lib/runtime-config'
+import { setConfig } from '../shared/lib/runtime-config.external'
 import {
   getURL,
   loadGetInitialProps,
@@ -34,17 +34,17 @@ import measureWebVitals from './performance-relayer'
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 import { getProperError } from '../lib/is-error'
-import { ImageConfigContext } from '../shared/lib/image-config-context'
+import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
 import { ImageConfigComplete } from '../shared/lib/image-config'
 import { removeBasePath } from './remove-base-path'
 import { hasBasePath } from './has-base-path'
-import { AppRouterContext } from '../shared/lib/app-router-context'
+import { AppRouterContext } from '../shared/lib/app-router-context.shared-runtime'
 import {
   adaptForAppRouterInstance,
   adaptForSearchParams,
   PathnameContextProviderAdapter,
 } from '../shared/lib/router/adapters'
-import { SearchParamsContext } from '../shared/lib/hooks-client-context'
+import { SearchParamsContext } from '../shared/lib/hooks-client-context.shared-runtime'
 import onRecoverableError from './on-recoverable-error'
 import tracer from './tracing/tracer'
 import reportToSocket from './tracing/report-to-socket'
@@ -89,7 +89,7 @@ let initialMatchesMiddleware = false
 let lastAppProps: AppProps
 
 let lastRenderReject: (() => void) | null
-let webpackHMR: any
+let devClient: any
 
 let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
 let CachedComponent: React.ComponentType
@@ -185,14 +185,14 @@ class Container extends React.Component<{
   }
 }
 
-export async function initialize(opts: { webpackHMR?: any } = {}): Promise<{
+export async function initialize(opts: { devClient?: any } = {}): Promise<{
   assetPrefix: string
 }> {
   tracer.onSpanEnd(reportToSocket)
 
   // This makes sure this specific lines are removed in production
   if (process.env.NODE_ENV === 'development') {
-    webpackHMR = opts.webpackHMR
+    devClient = opts.devClient
   }
 
   initialData = JSON.parse(
@@ -357,7 +357,7 @@ function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
   if (process.env.NODE_ENV !== 'production') {
     // A Next.js rendering runtime error is always unrecoverable
     // FIXME: let's make this recoverable (error in GIP client-transition)
-    webpackHMR.onUnrecoverableError()
+    devClient.onUnrecoverableError()
 
     // We need to render an empty <App> so that the `<ReactDevOverlay>` can
     // render itself.

@@ -20,14 +20,6 @@ createNextDescribe(
     },
   },
   ({ next, isNextDev, isNextStart, isNextDeploy }) => {
-    if (isNextStart) {
-      it('should warn for server actions + ISR incompat', async () => {
-        expect(next.cliOutput).toContain(
-          'Using server actions on a page currently disables static generation for that page'
-        )
-      })
-    }
-
     it('should handle basic actions correctly', async () => {
       const browser = await next.browser('/server')
 
@@ -499,6 +491,17 @@ createNextDescribe(
     })
 
     describe('fetch actions', () => {
+      it('should handle a fetch action initiated from a static page', async () => {
+        const browser = await next.browser('/client-static')
+        await check(() => browser.elementByCss('#count').text(), '0')
+
+        await browser.elementByCss('#increment').click()
+        await check(() => browser.elementByCss('#count').text(), '1')
+
+        await browser.elementByCss('#increment').click()
+        await check(() => browser.elementByCss('#count').text(), '2')
+      })
+
       it('should handle redirect to a relative URL in a single pass', async () => {
         const browser = await next.browser('/client')
 

@@ -4,11 +4,11 @@ import {
   AppRouterContext,
   GlobalLayoutRouterContext,
   LayoutRouterContext,
-} from '../../shared/lib/app-router-context'
+} from '../../shared/lib/app-router-context.shared-runtime'
 import {
   SearchParamsContext,
   PathnameContext,
-} from '../../shared/lib/hooks-client-context'
+} from '../../shared/lib/hooks-client-context.shared-runtime'
 import { clientHookInServerComponentError } from './client-hook-in-server-component-error'
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
 
@@ -66,7 +66,7 @@ export class ReadonlyURLSearchParams {
 
 /**
  * Get a read-only URLSearchParams object. For example searchParams.get('foo') would return 'bar' when ?foo=bar
- * Learn more about URLSearchParams here: https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams
+ * Learn more about URLSearchParams here: https://developer.mozilla.org/docs/Web/API/URLSearchParams
  */
 export function useSearchParams(): ReadonlyURLSearchParams {
   clientHookInServerComponentError('useSearchParams')
@@ -111,12 +111,12 @@ export function usePathname(): string {
 export {
   ServerInsertedHTMLContext,
   useServerInsertedHTML,
-} from '../../shared/lib/server-inserted-html'
+} from '../../shared/lib/server-inserted-html.shared-runtime'
 
 /**
  * Get the router methods. For example router.push('/dashboard')
  */
-export function useRouter(): import('../../shared/lib/app-router-context').AppRouterInstance {
+export function useRouter(): import('../../shared/lib/app-router-context.shared-runtime').AppRouterInstance {
   clientHookInServerComponentError('useRouter')
   const router = useContext(AppRouterContext)
   if (router === null) {
@@ -164,14 +164,14 @@ function getSelectedParams(
  * Get the current parameters. For example useParams() on /dashboard/[team]
  * where pathname is /dashboard/nextjs would return { team: 'nextjs' }
  */
-export function useParams(): Params {
+export function useParams<T extends Params = Params>(): T {
   clientHookInServerComponentError('useParams')
   const globalLayoutRouterContext = useContext(GlobalLayoutRouterContext)
   if (!globalLayoutRouterContext) {
     // This only happens in `pages`. Type is overwritten in navigation.d.ts
     return null!
   }
-  return getSelectedParams(globalLayoutRouterContext.tree)
+  return getSelectedParams(globalLayoutRouterContext.tree) as T
 }
 
 // TODO-APP: handle parallel routes

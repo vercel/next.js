@@ -67,7 +67,7 @@ fn test(input: &Path, minify: bool) {
                 is_server: false,
                 server_components: None,
                 styled_components: Some(assert_json("{}")),
-                styled_jsx: true,
+                styled_jsx: Some(assert_json("{}")),
                 remove_console: None,
                 react_remove_properties: None,
                 relay: None,
@@ -80,6 +80,8 @@ fn test(input: &Path, minify: bool) {
                 cjs_require_optimizer: None,
                 auto_modularize_imports: None,
                 optimize_barrel_exports: None,
+                optimize_server_react: None,
+                disable_checks: false,
             };
 
             let unresolved_mark = Mark::new();

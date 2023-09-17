@@ -28,12 +28,11 @@ describe('Image with middleware in edge func', () => {
 
     it('should not error', async () => {
       /**
-        - wait compiling /middleware (client and server)...
-        - warn ../../../../packages/next/dist/esm/client/image-component.js
+        ⚠️ ../../../../packages/next/dist/esm/client/image-component.js
         Attempted import error: 'preload' is not exported from 'react-dom' (imported as 'preload').
        */
       await webdriver(appPort, '/')
-      await check(() => output, /compiled client and server successfully/)
+      await check(() => output, /compiled \//i)
       expect(output).not.toContain(`'preload' is not exported from 'react-dom'`)
     })
   })

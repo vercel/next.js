@@ -1,8 +1,5 @@
 import type { RouteMatch } from './route-match'
-import type {
-  AppPageInterceptingRouteDefinition,
-  AppPageRouteDefinition,
-} from '../route-definitions/app-page-route-definition'
+import type { AppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
 
 import { RouteKind } from '../route-kind'
 
@@ -18,6 +15,3 @@ export function isAppPageRouteMatch(
 ): match is AppPageRouteMatch {
   return match.definition.kind === RouteKind.APP_PAGE
 }
-
-export interface AppPageInterceptingRouteMatch
-  extends RouteMatch<AppPageInterceptingRouteDefinition> {}

@@ -1,7 +1,8 @@
 import '../../server/node-polyfill-headers'
 
 // @ts-ignore this need to be imported from next/dist to be external
-import * as module from 'next/dist/server/future/route-modules/app-route/module'
+import * as module from 'next/dist/server/future/route-modules/app-route/module.compiled'
+
 import type { AppRouteRouteModuleOptions } from '../../server/future/route-modules/app-route/module'
 import { RouteKind } from '../../server/future/route-kind'
 
