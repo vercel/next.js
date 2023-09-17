@@ -152,7 +152,7 @@ jobs:
             #   to ensure it did not change unexpectedly if docker image, or other dependency changed
             # - zig linker with portable glibc is avoided as it has known issues with static tls + node.js + multi threaded
             #   environment.
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-x64
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2023-09-17-x64
             build: >-
               set -e &&
               apt update &&
@@ -173,7 +173,7 @@ jobs:
               - 'metal'
 
             target: 'x86_64-unknown-linux-musl'
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-alpine
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2023-09-17-alpine
             build: >-
               set -e &&
               apk update &&
@@ -192,7 +192,7 @@ jobs:
               - 'metal'
 
             target: 'aarch64-unknown-linux-gnu'
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-aarch64
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2023-09-17-aarch64
             build: >-
               set -e &&
               apt update &&
@@ -214,7 +214,7 @@ jobs:
               - 'metal'
 
             target: 'aarch64-unknown-linux-musl'
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-alpine
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2023-09-17-alpine
             build: >-
               set -e &&
               apk update &&
