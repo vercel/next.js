@@ -146,6 +146,7 @@ function getMiddlewareMatcher(
 
 export default class NextNodeServer extends BaseServer {
   protected middlewareManifestPath: string
+  protected middlewareManifest: MiddlewareManifest | undefined
   private _serverDistDir: string | undefined
   private imageResponseCache?: ResponseCache
   protected renderWorkersPromises?: Promise<void>
@@ -1338,7 +1339,13 @@ export default class NextNodeServer extends BaseServer {
 
   protected getMiddlewareManifest(): MiddlewareManifest | null {
     if (this.minimalMode) return null
+
+    if (this.middlewareManifest) {
+      return this.middlewareManifest
+    }
+
     const manifest: MiddlewareManifest = require(this.middlewareManifestPath)
+    this.middlewareManifest = manifest
     return manifest
   }
 
