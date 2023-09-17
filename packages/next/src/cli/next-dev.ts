@@ -17,14 +17,15 @@ import { fileExists, FileType } from '../lib/file-exists'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
 import { createSelfSignedCertificate } from '../lib/mkcert'
 import uploadTrace from '../trace/upload-trace'
-import { startServer } from '../server/lib/start-server'
-import { loadEnvConfig } from '@next/env'
+import { initialEnv, loadEnvConfig } from '@next/env'
 import { trace } from '../trace'
+import { validateTurboNextConfig } from '../lib/turbopack-warning'
+import { fork } from 'child_process'
+import { RESTART_EXIT_CODE } from '../server/lib/setup-server-worker'
 import {
   getReservedPortExplanation,
   isPortIsReserved,
 } from '../lib/helpers/get-reserved-port'
-import { validateTurboNextConfig } from '../lib/turbopack-warning'
 
 let dir: string
 let config: NextConfigComplete
@@ -230,6 +231,40 @@ const nextDev: CliCommand = async (args) => {
   const distDir = path.join(dir, config.distDir ?? '.next')
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
   setGlobal('distDir', distDir)
+
+  const startServerPath = require.resolve('../server/lib/start-server')
+
+  async function startServer(options: StartServerOptions) {
+    return new Promise<void>((resolve) => {
+      let resolved = false
+
+      const child = fork(startServerPath, {
+        stdio: 'inherit',
+        env: {
+          ...((initialEnv || process.env) as typeof process.env),
+          NEXT_PRIVATE_WORKER: '1',
+        },
+      })
+
+      child.on('message', (msg: any) => {
+        if (msg && typeof msg === 'object') {
+          if (msg.nextWorkerReady) {
+            child.send({ nextWorkerOptions: options })
+          } else if (msg.nextServerReady && !resolved) {
+            resolved = true
+            resolve()
+          }
+        }
+      })
+
+      child.on('exit', async (code) => {
+        if (code === RESTART_EXIT_CODE) {
+          return startServer(options)
+        }
+        await handleSessionStop()
+      })
+    })
+  }
 
   const runDevServer = async (reboot: boolean) => {
     try {

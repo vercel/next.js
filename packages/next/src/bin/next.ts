@@ -126,10 +126,7 @@ async function main() {
   const currentArgsSpec = commandArgs[command]()
   const validatedArgs = getValidatedArgs(currentArgsSpec, forwardedArgs)
 
-  if (
-    (command === 'start' || command === 'dev') &&
-    !process.env.NEXT_PRIVATE_WORKER
-  ) {
+  if (command === 'dev') {
     const dir = getProjectDir(
       process.env.NEXT_PRIVATE_DEV_DIR || validatedArgs._[0]
     )

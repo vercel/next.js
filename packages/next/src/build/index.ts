@@ -147,10 +147,9 @@ import { startTypeChecking } from './type-check'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
 
 import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
-import { defaultOverrides } from '../server/import-overrides'
+import { defaultOverrides } from '../server/require-hook'
 import { initialize as initializeIncrementalCache } from '../server/lib/incremental-cache-server'
 import { nodeFs } from '../server/lib/node-fs-methods'
-import { getEsmLoaderPath } from '../server/lib/get-esm-loader-path'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -1251,11 +1250,6 @@ export default async function build(
           },
           numWorkers,
           forkOptions: {
-            execArgv: [
-              '--experimental-loader',
-              getEsmLoaderPath(),
-              '--no-warnings',
-            ],
             env: {
               ...process.env,
               __NEXT_INCREMENTAL_CACHE_IPC_PORT: incrementalCacheIpcPort + '',
@@ -2136,7 +2130,7 @@ export default async function build(
                     require.resolve('next/dist/server/lib/start-server'),
                     require.resolve('next/dist/server/next'),
                     require.resolve('next/dist/esm/server/esm-loader.mjs'),
-                    require.resolve('next/dist/server/import-overrides'),
+                    require.resolve('next/dist/server/require-hook'),
                   ]
                 : []),
               require.resolve('next/dist/server/next-server'),
