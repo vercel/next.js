@@ -27,13 +27,14 @@ mod._resolveFilename = function (
   // We use `bind` here to avoid referencing outside variables to create potential memory leaks.
 }.bind(null, resolveFilename, hookPropertyMap)
 
+const isProductionBuild = process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD
+const isNextExportWorker = process.env.NEXT_IS_EXPORT_WORKER
 // This is a hack to make sure that if a user requires a Next.js module that wasn't bundled
 // that needs to point to the rendering runtime version, it will point to the correct one.
 // This can happen on `pages` when a user requires a dependency that uses next/image for example.
 mod.prototype.require = function (request) {
   if (
-    (process.env.NEXT_PHASE !== PHASE_PRODUCTION_BUILD ||
-      process.env.NEXT_IS_EXPORT_WORKER) &&
+    (!isProductionBuild || isNextExportWorker) &&
     request.endsWith('.shared-runtime')
   ) {
     return originalRequire.call(
