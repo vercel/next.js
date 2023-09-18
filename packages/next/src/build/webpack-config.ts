@@ -2041,7 +2041,10 @@ export default async function getBaseWebpackConfig(
         // Alias server-only and client-only to proper exports based on bundling layers
         {
           issuerLayer: {
-            or: WEBPACK_LAYERS.GROUP.server,
+            or: [
+              ...WEBPACK_LAYERS.GROUP.server,
+              ...WEBPACK_LAYERS.GROUP.nonClientServerTarget,
+            ],
           },
           resolve: {
             // Error on client-only but allow server-only
@@ -2050,12 +2053,17 @@ export default async function getBaseWebpackConfig(
               'client-only$': 'next/dist/compiled/client-only/error',
               'next/dist/compiled/server-only$':
                 'next/dist/compiled/server-only/empty',
+              'next/dist/compiled/client-only$':
+                'next/dist/compiled/client-only/error',
             },
           },
         },
         {
           issuerLayer: {
-            not: WEBPACK_LAYERS.GROUP.server,
+            not: [
+              ...WEBPACK_LAYERS.GROUP.server,
+              ...WEBPACK_LAYERS.GROUP.nonClientServerTarget,
+            ],
           },
           resolve: {
             // Error on server-only but allow client-only
@@ -2091,7 +2099,10 @@ export default async function getBaseWebpackConfig(
           ],
           loader: 'next-invalid-import-error-loader',
           issuerLayer: {
-            not: WEBPACK_LAYERS.GROUP.server,
+            not: [
+              ...WEBPACK_LAYERS.GROUP.server,
+              ...WEBPACK_LAYERS.GROUP.nonClientServerTarget,
+            ],
           },
           options: {
             message:
