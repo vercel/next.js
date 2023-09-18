@@ -69,7 +69,7 @@ import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plu
 import { getSupportedBrowsers } from './utils'
 import { MemoryWithGcCachePlugin } from './webpack/plugins/memory-with-gc-cache-plugin'
 import { getBabelConfigFile } from './get-babel-config-file'
-import { defaultOverrides } from '../server/import-overrides'
+import { defaultOverrides } from '../server/require-hook'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -476,6 +476,10 @@ function createRSCAliases(
       'scheduler/tracing'
     ] = `next/dist/compiled/scheduler${bundledReactChannel}/tracing-profiling`
   }
+
+  alias[
+    '@vercel/turbopack-ecmascript-runtime/dev/client/hmr-client.ts'
+  ] = `next/dist/client/dev/noop-turbopack-hmr`
 
   return alias
 }
