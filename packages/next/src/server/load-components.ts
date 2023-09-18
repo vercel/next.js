@@ -71,17 +71,18 @@ export async function loadManifestWithRetries<T>(
   }
 }
 
-async function loadJSManifest<T>(
+async function loadClientReferenceManifest(
   manifestPath: string,
-  name: string,
   entryName: string
-): Promise<T | undefined> {
+): Promise<ClientReferenceManifest | undefined> {
   process.env.NEXT_MINIMAL
     ? // @ts-ignore
       __non_webpack_require__(manifestPath)
     : require(manifestPath)
   try {
-    return JSON.parse((globalThis as any)[name][entryName]) as T
+    return (globalThis as any).__RSC_MANIFEST[
+      entryName
+    ] as ClientReferenceManifest
   } catch (err) {
     return undefined
   }
@@ -124,14 +125,13 @@ async function loadComponentsImpl({
       join(distDir, REACT_LOADABLE_MANIFEST)
     ),
     hasClientManifest
-      ? loadJSManifest<ClientReferenceManifest>(
+      ? loadClientReferenceManifest(
           join(
             distDir,
             'server',
             'app',
             page.replace(/%5F/g, '_') + '_' + CLIENT_REFERENCE_MANIFEST + '.js'
           ),
-          '__RSC_MANIFEST',
           page.replace(/%5F/g, '_')
         )
       : undefined,

@@ -1,4 +1,4 @@
-import { adaptForAppRouterInstance } from './adapters.shared-runtime'
+import { adaptForAppRouterInstance } from './adapters'
 import { NextRouter } from './router'
 
 describe('adaptForAppRouterInstance', () => {

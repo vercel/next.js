@@ -91,7 +91,7 @@ import {
   adaptForAppRouterInstance,
   adaptForSearchParams,
   PathnameContextProviderAdapter,
-} from '../shared/lib/router/adapters.shared-runtime'
+} from '../shared/lib/router/adapters'
 import { AppRouterContext } from '../shared/lib/app-router-context.shared-runtime'
 import { SearchParamsContext } from '../shared/lib/hooks-client-context.shared-runtime'
 import { getTracer } from './lib/trace/tracer'

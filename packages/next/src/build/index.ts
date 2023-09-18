@@ -147,11 +147,7 @@ import { startTypeChecking } from './type-check'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
 
 import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
-import {
-  baseOverrides,
-  defaultOverrides,
-  experimentalOverrides,
-} from '../server/import-overrides'
+import { defaultOverrides } from '../server/import-overrides'
 import { initialize as initializeIncrementalCache } from '../server/lib/incremental-cache-server'
 import { nodeFs } from '../server/lib/node-fs-methods'
 import { getEsmLoaderPath } from '../server/lib/get-esm-loader-path'
@@ -2100,12 +2096,6 @@ export default async function build(
             )
 
             const sharedEntriesSet = [
-              ...Object.values(baseOverrides).map((override) =>
-                require.resolve(override)
-              ),
-              ...Object.values(experimentalOverrides).map((override) =>
-                require.resolve(override)
-              ),
               ...(config.experimental.turbotrace
                 ? []
                 : Object.keys(defaultOverrides).map((value) =>
@@ -2282,6 +2272,30 @@ export default async function build(
                 }
               }
             }
+
+            const moduleTypes = ['app-page', 'pages']
+
+            for (const type of moduleTypes) {
+              const contextDir = path.join(
+                path.dirname(
+                  require.resolve(
+                    `next/dist/server/future/route-modules/${type}/module`
+                  )
+                ),
+                'vendored',
+                'contexts'
+              )
+
+              for (const item of await fs.readdir(contextDir)) {
+                const itemPath = path.relative(
+                  root,
+                  path.join(contextDir, item)
+                )
+                addToTracedFiles(root, itemPath, tracedFiles)
+                addToTracedFiles(root, itemPath, minimalTracedFiles)
+              }
+            }
+
             await Promise.all([
               fs.writeFile(
                 nextServerTraceOutput,
