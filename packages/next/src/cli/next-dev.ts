@@ -28,13 +28,17 @@ import {
 } from '../lib/helpers/get-reserved-port'
 
 let dir: string
+let child: undefined | ReturnType<typeof fork>
 let config: NextConfigComplete
 let isTurboSession = false
 let traceUploadUrl: string
 let sessionStopHandled = false
 let sessionStarted = Date.now()
 
-const handleSessionStop = async () => {
+const handleSessionStop = async (signal: string | null) => {
+  if (child) {
+    child.kill(signal as any)
+  }
   if (sessionStopHandled) return
   sessionStopHandled = true
 
@@ -97,8 +101,8 @@ const handleSessionStop = async () => {
   process.exit(0)
 }
 
-process.on('SIGINT', handleSessionStop)
-process.on('SIGTERM', handleSessionStop)
+process.on('SIGINT', () => handleSessionStop('SIGINT'))
+process.on('SIGTERM', () => handleSessionStop('SIGTERM'))
 
 const nextDev: CliCommand = async (args) => {
   if (args['--help']) {
@@ -194,6 +198,14 @@ const nextDev: CliCommand = async (args) => {
     },
   })
 
+  process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = config.experimental
+    .serverActions
+    ? 'experimental'
+    : 'next'
+
+  // we need to reset env if we are going to create
+  // the worker process with the esm loader so that the
+  // initial env state is correct
   let envInfo: string[] = []
   if (loadedEnvFiles.length > 0) {
     envInfo = loadedEnvFiles.map((f) => f.path)
@@ -233,12 +245,11 @@ const nextDev: CliCommand = async (args) => {
   setGlobal('distDir', distDir)
 
   const startServerPath = require.resolve('../server/lib/start-server')
-
   async function startServer(options: StartServerOptions) {
     return new Promise<void>((resolve) => {
       let resolved = false
 
-      const child = fork(startServerPath, {
+      child = fork(startServerPath, {
         stdio: 'inherit',
         env: {
           ...((initialEnv || process.env) as typeof process.env),
@@ -249,7 +260,7 @@ const nextDev: CliCommand = async (args) => {
       child.on('message', (msg: any) => {
         if (msg && typeof msg === 'object') {
           if (msg.nextWorkerReady) {
-            child.send({ nextWorkerOptions: options })
+            child?.send({ nextWorkerOptions: options })
           } else if (msg.nextServerReady && !resolved) {
             resolved = true
             resolve()
@@ -257,11 +268,14 @@ const nextDev: CliCommand = async (args) => {
         }
       })
 
-      child.on('exit', async (code) => {
+      child.on('exit', async (code, signal) => {
+        if (sessionStopHandled || signal) {
+          return
+        }
         if (code === RESTART_EXIT_CODE) {
           return startServer(options)
         }
-        await handleSessionStop()
+        await handleSessionStop(signal)
       })
     })
   }
