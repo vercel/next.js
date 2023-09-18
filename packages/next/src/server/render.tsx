@@ -15,7 +15,12 @@ import type {
 } from '../shared/lib/utils'
 import type { ImageConfigComplete } from '../shared/lib/image-config'
 import type { Redirect } from '../lib/load-custom-routes'
-import type { NextApiRequestCookies, __ApiPreviewProps } from './api-utils'
+import {
+  type NextApiRequestCookies,
+  type __ApiPreviewProps,
+  setLazyProp,
+} from './api-utils'
+import { getCookieParser } from './api-utils/get-cookie-parser'
 import type { FontManifest, FontConfig } from './font-utils'
 import type { LoadComponentsReturnType, ManifestItem } from './load-components'
 import type {
@@ -84,11 +89,15 @@ import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { stripInternalQueries } from './internal-utils'
 import {
   adaptForAppRouterInstance,
+  adaptForPathParams,
   adaptForSearchParams,
   PathnameContextProviderAdapter,
-} from '../shared/lib/router/adapters.shared-runtime'
+} from '../shared/lib/router/adapters'
 import { AppRouterContext } from '../shared/lib/app-router-context.shared-runtime'
-import { SearchParamsContext } from '../shared/lib/hooks-client-context.shared-runtime'
+import {
+  SearchParamsContext,
+  PathParamsContext,
+} from '../shared/lib/hooks-client-context.shared-runtime'
 import { getTracer } from './lib/trace/tracer'
 import { RenderSpan } from './lib/trace/constants'
 import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
@@ -269,6 +278,7 @@ export type RenderOptsPartial = {
   strictNextHead: boolean
   isDraftMode?: boolean
   deploymentId?: string
+  isServerAction?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -386,6 +396,9 @@ export async function renderToHTMLImpl(
   renderOpts: Omit<RenderOpts, keyof RenderOptsExtra>,
   extra: RenderOptsExtra
 ): Promise<RenderResult> {
+  // Adds support for reading `cookies` in `getServerSideProps` when SSR.
+  setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
+
   const renderResultMeta: RenderResultMetadata = {}
 
   // In dev we invalidate the cache by appending a timestamp to the resource URL.
@@ -651,32 +664,36 @@ export async function renderToHTMLImpl(
           router={router}
           isAutoExport={isAutoExport}
         >
-          <RouterContext.Provider value={router}>
-            <AmpStateContext.Provider value={ampState}>
-              <HeadManagerContext.Provider
-                value={{
-                  updateHead: (state) => {
-                    head = state
-                  },
-                  updateScripts: (scripts) => {
-                    scriptLoader = scripts
-                  },
-                  scripts: initialScripts,
-                  mountedInstances: new Set(),
-                }}
-              >
-                <LoadableContext.Provider
-                  value={(moduleName) => reactLoadableModules.push(moduleName)}
+          <PathParamsContext.Provider value={adaptForPathParams(router)}>
+            <RouterContext.Provider value={router}>
+              <AmpStateContext.Provider value={ampState}>
+                <HeadManagerContext.Provider
+                  value={{
+                    updateHead: (state) => {
+                      head = state
+                    },
+                    updateScripts: (scripts) => {
+                      scriptLoader = scripts
+                    },
+                    scripts: initialScripts,
+                    mountedInstances: new Set(),
+                  }}
                 >
-                  <StyleRegistry registry={jsxStyleRegistry}>
-                    <ImageConfigContext.Provider value={images}>
-                      {children}
-                    </ImageConfigContext.Provider>
-                  </StyleRegistry>
-                </LoadableContext.Provider>
-              </HeadManagerContext.Provider>
-            </AmpStateContext.Provider>
-          </RouterContext.Provider>
+                  <LoadableContext.Provider
+                    value={(moduleName) =>
+                      reactLoadableModules.push(moduleName)
+                    }
+                  >
+                    <StyleRegistry registry={jsxStyleRegistry}>
+                      <ImageConfigContext.Provider value={images}>
+                        {children}
+                      </ImageConfigContext.Provider>
+                    </StyleRegistry>
+                  </LoadableContext.Provider>
+                </HeadManagerContext.Provider>
+              </AmpStateContext.Provider>
+            </RouterContext.Provider>
+          </PathParamsContext.Provider>
         </PathnameContextProviderAdapter>
       </SearchParamsContext.Provider>
     </AppRouterContext.Provider>
