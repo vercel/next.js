@@ -119,10 +119,6 @@ if (!process.env.NEXT_MANUAL_SIG_HANDLE && command !== 'dev') {
 async function main() {
   const currentArgsSpec = commandArgs[command]()
   const validatedArgs = getValidatedArgs(currentArgsSpec, forwardedArgs)
-  const dir = getProjectDir(
-    process.env.NEXT_PRIVATE_DEV_DIR || validatedArgs._[0]
-  )
-  process.env.NEXT_PRIVATE_DIR = dir
 
   for (const dependency of ['react', 'react-dom']) {
     try {
