@@ -122,6 +122,8 @@ const enabledTests = [
   'test/integration/index-index/test/index.test.js',
   'test/integration/next-image-new/middleware/test/index.test.ts',
   'test/integration/next-image-new/react-virtualized/test/index.test.ts',
+  'test/integration/next-image-new/typescript/test/index.test.ts',
+  'test/integration/next-image-new/unoptimized/test/index.test.ts',
   'test/integration/revalidate-as-path/test/index.test.js',
   'test/integration/rewrites-destination-query-array/test/index.test.js',
   'test/integration/root-optional-revalidate/test/index.test.js',
