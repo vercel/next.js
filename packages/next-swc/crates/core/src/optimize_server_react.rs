@@ -145,16 +145,22 @@ impl Fold for OptimizeServerReact {
         for decl in d {
             if let Pat::Array(array_pat) = &decl.name {
                 if array_pat.elems.len() == 2 {
-                    if let (Some(array_pat_1), Some(array_pat_2)) = (&array_pat.elems[0], &array_pat.elems[1]) {
+                    if let (Some(array_pat_1), Some(array_pat_2)) =
+                        (&array_pat.elems[0], &array_pat.elems[1])
+                    {
                         if let Some(box Expr::Call(call)) = &decl.init {
                             if let Callee::Expr(box Expr::Ident(f)) = &call.callee {
                                 if let Some(use_state_ident) = &self.use_state_ident {
                                     if &f.to_id() == use_state_ident && call.args.len() == 1 {
-                                        // We do the optimization only if the arg is a literal or a type
-                                        // that we can be sure is not a function (e.g. {} or [] lit).
-                                        // This is because useState allows a function as the initialiser.
+                                        // We do the optimization only if the arg is a literal or a
+                                        // type that we can
+                                        // be sure is not a function (e.g. {} or [] lit).
+                                        // This is because useState allows a function as the
+                                        // initialiser.
                                         match &call.args[0].expr {
-                                            box Expr::Lit(_) | box Expr::Object(_) | box Expr::Array(_) => {
+                                            box Expr::Lit(_)
+                                            | box Expr::Object(_)
+                                            | box Expr::Array(_) => {
                                                 // const state = x, setState = () => {};
                                                 new_d.push(VarDeclarator {
                                                     definite: false,
@@ -182,7 +188,7 @@ impl Fold for OptimizeServerReact {
                                                 });
                                                 continue;
                                             }
-                                            _ => {},
+                                            _ => {}
                                         }
                                     }
                                 }
