@@ -5,7 +5,6 @@ import arg from 'next/dist/compiled/arg/index.js'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 import { commands } from '../lib/commands'
 import { commandArgs } from '../lib/command-args'
-import { getProjectDir } from '../lib/get-project-dir'
 import { getValidatedArgs } from '../lib/get-validated-args'
 
 const defaultCommand = 'dev'
