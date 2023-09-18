@@ -420,8 +420,8 @@ function createRSCAliases(
       'react-dom$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom`,
       'react-dom/server.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom-server-edge`,
       'react-server-dom-webpack/client.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-client-edge`,
-      // not essential but we're providing this alias for people who might use it
-      'react-dom/server$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom-server-edge`,
+      // not essential but we're providing this alias for people who might use it for backwards compatibility
+      'react-dom/server$': `next/dist/compiled/react-dom${bundledReactChannel}/server`,
     }
   } else if (opts.layer === 'rsc') {
     alias = {
@@ -431,10 +431,10 @@ function createRSCAliases(
       'react-dom$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom`,
       'react-server-dom-webpack/server.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-server-edge`,
       'react-server-dom-webpack/server.node$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-server-node`,
-      // not essential but we're providing this alias for people who might use it.
-      // A note here is that this will point toward the ReactDOMServer on the SSR layer
-      // TODO: add the rests
-      'react-dom/server.edge$': `next/dist/server/future/route-modules/app-page/vendored/ssr/react-dom-server-edge`,
+      // not essential but we're providing these aliases for people who might use it.
+      // for backwards compatibility
+      'react-dom/server$': `next/dist/compiled/react-dom${bundledReactChannel}/server`,
+      'react-dom/server.edge$': `next/dist/compiled/react-dom${bundledReactChannel}/server.edge`,
     }
   } else {
     throw new Error(`Unexpected layer: ${opts.layer}`)

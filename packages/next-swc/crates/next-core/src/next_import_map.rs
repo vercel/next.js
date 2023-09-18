@@ -535,16 +535,7 @@ async fn insert_next_server_special_aliases(
             // layer TODO: add the rests
             import_map.insert_exact_alias(
                 "react-dom/server",
-                request_to_import_mapping(
-                    app_dir,
-                    match runtime {
-                        NextRuntime::Edge => "next/dist/compiled/react-dom/server.edge",
-                        NextRuntime::NodeJs => {
-                            "next/dist/server/future/route-modules/app-page/vendored/ssr/\
-                             react-dom-server-edge"
-                        }
-                    },
-                ),
+                request_to_import_mapping(app_dir, "next/dist/compiled/react-dom/server"),
             );
             import_map.insert_exact_alias(
                 "react-dom/server.edge",
@@ -656,16 +647,11 @@ async fn insert_next_server_special_aliases(
             // layer TODO: add the rests
             import_map.insert_exact_alias(
                 "react-dom/server.edge",
-                request_to_import_mapping(
-                    app_dir,
-                    match runtime {
-                        NextRuntime::Edge => "next/dist/compiled/react-dom/server.edge",
-                        NextRuntime::NodeJs => {
-                            "next/dist/server/future/route-modules/app-page/vendored/ssr/\
-                             react-dom-server-edge"
-                        }
-                    },
-                ),
+                request_to_import_mapping(app_dir, "next/dist/compiled/react-dom/server.edge"),
+            );
+            import_map.insert_exact_alias(
+                "react-dom/server",
+                request_to_import_mapping(app_dir, "next/dist/compiled/react-dom/server"),
             );
         }
         (_, ServerContextType::Middleware) => {}
