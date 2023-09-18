@@ -1,5 +1,3 @@
-'use client'
-
 import React from 'react'
 import type { NextRouter } from './router/router'
 

@@ -44,7 +44,6 @@ import { createHrefFromUrl } from './router-reducer/create-href-from-url'
 import {
   SearchParamsContext,
   PathnameContext,
-  PathParamsContext,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { useReducerWithReduxDevtools } from './use-reducer-with-devtools'
 import { ErrorBoundary } from './error-boundary'
@@ -501,31 +500,29 @@ function Router({
       />
       <PathnameContext.Provider value={pathname}>
         <SearchParamsContext.Provider value={searchParams}>
-          <PathParamsContext.Provider value={null}>
-            <GlobalLayoutRouterContext.Provider
-              value={{
-                buildId,
-                changeByServerResponse,
-                tree,
-                focusAndScrollRef,
-                nextUrl,
-              }}
-            >
-              <AppRouterContext.Provider value={appRouter}>
-                <LayoutRouterContext.Provider
-                  value={{
-                    childNodes: cache.parallelRoutes,
-                    tree: tree,
-                    // Root node always has `url`
-                    // Provided in AppTreeContext to ensure it can be overwritten in layout-router
-                    url: canonicalUrl,
-                  }}
-                >
-                  {content}
-                </LayoutRouterContext.Provider>
-              </AppRouterContext.Provider>
-            </GlobalLayoutRouterContext.Provider>
-          </PathParamsContext.Provider>
+          <GlobalLayoutRouterContext.Provider
+            value={{
+              buildId,
+              changeByServerResponse,
+              tree,
+              focusAndScrollRef,
+              nextUrl,
+            }}
+          >
+            <AppRouterContext.Provider value={appRouter}>
+              <LayoutRouterContext.Provider
+                value={{
+                  childNodes: cache.parallelRoutes,
+                  tree: tree,
+                  // Root node always has `url`
+                  // Provided in AppTreeContext to ensure it can be overwritten in layout-router
+                  url: canonicalUrl,
+                }}
+              >
+                {content}
+              </LayoutRouterContext.Provider>
+            </AppRouterContext.Provider>
+          </GlobalLayoutRouterContext.Provider>
         </SearchParamsContext.Provider>
       </PathnameContext.Provider>
     </>
