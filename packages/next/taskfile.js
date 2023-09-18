@@ -1798,32 +1798,83 @@ export async function copy_vendor_react(task_) {
     // react-server-dom-webpack
     // Currently, this `next` and `experimental` channels are always in sync so
     // we can use the same version for both.
-    const reactServerDomDir = dirname(
+    const reactServerDomWebpackDir = dirname(
       relative(
         __dirname,
         require.resolve(`react-server-dom-webpack${packageSuffix}/package.json`)
       )
     )
     yield task
-      .source(join(reactServerDomDir, 'LICENSE'))
+      .source(join(reactServerDomWebpackDir, 'LICENSE'))
       .target(`src/compiled/react-server-dom-webpack${packageSuffix}`)
     yield task
-      .source(join(reactServerDomDir, '{package.json,*.js,cjs/**/*.js}'))
+      .source(join(reactServerDomWebpackDir, '{package.json,*.js,cjs/**/*.js}'))
       // eslint-disable-next-line require-yield
       .run({ every: true }, function* (file) {
-        const source = file.data.toString()
         // We replace the module/chunk loading code with our own implementation in Next.js.
-        // NOTE: We don't alias react and react-dom here since they could change while bundling,
-        // let bundling picking logic controlled by webpack.
-        file.data = source
-          .replace(/__webpack_chunk_load__/g, 'globalThis.__next_chunk_load__')
-          .replace(/__webpack_require__/g, 'globalThis.__next_require__')
-
-        if (file.base === 'package.json') {
+        // NOTE: We only replace module/chunk loading for server builds because the server
+        // bundles have unique constraints like a runtime bundle. For browser builds this
+        // package will be bundled alongside user code and we don't need to introduce the extra
+        // indirection
+        if (
+          (file.base.startsWith('react-server-dom-webpack-client') &&
+            !file.base.startsWith('react-server-dom-webpack-client.browser')) ||
+          (file.base.startsWith('react-server-dom-webpack-server') &&
+            !file.base.startsWith('react-server-dom-webpack-server.browser'))
+        ) {
+          const source = file.data.toString()
+          file.data = source.replace(
+            /__webpack_require__/g,
+            'globalThis.__next_require__'
+          )
+        } else if (file.base === 'package.json') {
           file.data = overridePackageName(file.data)
         }
       })
       .target(`src/compiled/react-server-dom-webpack${packageSuffix}`)
+
+    // react-server-dom-turbopack
+    // Currently, this `next` and `experimental` channels are always in sync so
+    // we can use the same version for both.
+    const reactServerDomTurbopackDir = dirname(
+      relative(
+        __dirname,
+        require.resolve(
+          `react-server-dom-turbopack${packageSuffix}/package.json`
+        )
+      )
+    )
+    yield task
+      .source(join(reactServerDomTurbopackDir, 'LICENSE'))
+      .target(`src/compiled/react-server-dom-turbopack${packageSuffix}`)
+    yield task
+      .source(
+        join(reactServerDomTurbopackDir, '{package.json,*.js,cjs/**/*.js}')
+      )
+      // eslint-disable-next-line require-yield
+      .run({ every: true }, function* (file) {
+        // We replace the module loading code with our own implementation in Next.js.
+        // NOTE: We only replace module loading for server builds because the server
+        // bundles have unique constraints like a runtime bundle. For browser builds this
+        // package will be bundled alongside user code and we don't need to introduce the extra
+        // indirection
+        if (
+          (file.base.startsWith('react-server-dom-turbopack-client') &&
+            !file.base.startsWith(
+              'react-server-dom-turbopack-client.browser'
+            )) ||
+          (file.base.startsWith('react-server-dom-turbopack-server') &&
+            !file.base.startsWith('react-server-dom-turbopack-server.browser'))
+        ) {
+          const source = file.data.toString()
+          file.data = source
+            .replace(/__turbopack_load__/g, 'globalThis.__next_chunk_load__')
+            .replace(/__turbopack_require__/g, 'globalThis.__next_require__')
+        } else if (file.base === 'package.json') {
+          file.data = overridePackageName(file.data)
+        }
+      })
+      .target(`src/compiled/react-server-dom-turbopack${packageSuffix}`)
   }
 
   // As taskr transpiles async functions into generators, to reuse the same logic
