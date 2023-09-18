@@ -29,6 +29,7 @@ describe('DevPagesAPIRouteDefinitionProvider', () => {
         files: [`${dir}/api/other/route.ts`],
         route: {
           kind: RouteKind.PAGES_API,
+          identity: '/api/other/route',
           pathname: '/api/other/route',
           filename: `${dir}/api/other/route.ts`,
           page: '/api/other/route',
@@ -39,6 +40,7 @@ describe('DevPagesAPIRouteDefinitionProvider', () => {
         files: [`${dir}/api/other/index.ts`],
         route: {
           kind: RouteKind.PAGES_API,
+          identity: '/api/other',
           pathname: '/api/other',
           filename: `${dir}/api/other/index.ts`,
           page: '/api/other',
@@ -49,6 +51,7 @@ describe('DevPagesAPIRouteDefinitionProvider', () => {
         files: [`${dir}/api.ts`],
         route: {
           kind: RouteKind.PAGES_API,
+          identity: '/api',
           pathname: '/api',
           filename: `${dir}/api.ts`,
           page: '/api',
@@ -59,6 +62,7 @@ describe('DevPagesAPIRouteDefinitionProvider', () => {
         files: [`${dir}/api/index.ts`],
         route: {
           kind: RouteKind.PAGES_API,
+          identity: '/api',
           pathname: '/api',
           filename: `${dir}/api/index.ts`,
           page: '/api',

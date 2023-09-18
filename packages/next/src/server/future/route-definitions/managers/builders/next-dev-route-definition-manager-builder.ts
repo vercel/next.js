@@ -10,13 +10,13 @@ import {
 } from '../../providers/dev/dev-internal-pages-route-definition-provider'
 import { DevPagesAPIRouteDefinitionProvider } from '../../providers/dev/dev-pages-api-route-definition-provider'
 import { DevPagesRouteDefinitionProvider } from '../../providers/dev/dev-pages-route-definition-provider'
-import { BaseRouteDefinitionManager } from '../base-route-definition-manager'
 import { RouteDefinitionManager } from '../route-definition-manager'
 import { BaseFileReader } from '../../../helpers/file-reader/base-file-reader'
 import { BatchedFileReader } from '../../../helpers/file-reader/batched-file-reader'
 import { DevInternalAppRouteDefinitionProvider } from '../../providers/dev/dev-internal-app-route-definition-provider'
 import { DevMultiInternalRootRouteDefinitionProvider } from '../../providers/dev/dev-internal-root-route-definition-provider'
 import { findPagesDir } from '../../../../../lib/find-pages-dir'
+import { DevRouteDefinitionManager } from '../dev-route-definition-manager'
 
 export class NextDevRouteDefinitionManagerBuilder {
   public static build(
@@ -105,6 +105,6 @@ export class NextDevRouteDefinitionManagerBuilder {
       )
     )
 
-    return new BaseRouteDefinitionManager(providers)
+    return new DevRouteDefinitionManager(dir, providers)
   }
 }

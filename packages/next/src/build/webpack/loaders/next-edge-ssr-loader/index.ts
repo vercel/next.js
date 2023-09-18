@@ -48,6 +48,7 @@ function getRouteModuleOptions(page: string) {
       page: normalizePagePath(page),
       pathname: page,
       // The following aren't used in production.
+      identity: '',
       bundlePath: '',
       filename: '',
     },

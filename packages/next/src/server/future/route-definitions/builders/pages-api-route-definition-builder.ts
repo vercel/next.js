@@ -28,6 +28,7 @@ export class PagesAPIRouteDefinitionBuilder extends RouteDefinitionBuilder<
       page,
       // For API routes, the page is the pathname.
       pathname: page,
+      identity: page,
       bundlePath,
       filename,
     })

@@ -30,6 +30,7 @@ describe('DevInternalPagesRouteDefinitionProvider', () => {
         files: [`${dir}/_error.ts`],
         route: {
           kind: RouteKind.INTERNAL_PAGES,
+          identity: '/_error',
           pathname: '/_error',
           filename: `${dir}/_error.ts`,
           page: '/_error',

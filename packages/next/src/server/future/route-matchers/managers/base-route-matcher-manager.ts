@@ -29,12 +29,6 @@ type RouteMatchers = {
   dynamic: ReadonlyArray<RouteMatcher>
 
   /**
-   * A map of all the duplicate matchers, keyed by the pathname of the
-   * definition. This is used to warn about duplicate matchers in development.
-   */
-  duplicates: ReadonlyMap<string, ReadonlyArray<RouteMatcher>>
-
-  /**
    * A map of all the matchers, keyed by the pathname of the definition. This
    * is used to match against a specific definition pathname when a specific
    * output is requested.
@@ -57,7 +51,6 @@ export class BaseRouteMatcherManager
   protected readonly matchers: RouteMatchers = {
     static: [],
     dynamic: [],
-    duplicates: new Map(),
     all: new Map(),
   }
 
@@ -102,13 +95,6 @@ export class BaseRouteMatcherManager
       // Flatten the matchers into a single array.
       const matchers: ReadonlyArray<RouteMatcher> = providersMatchers.flat()
 
-      // Group the matchers and find any duplicates.
-      const { all, duplicates } = groupMatcherResults(matchers)
-
-      // Update the duplicate matchers. This is used in the development manager
-      // to warn about duplicates.
-      this.matchers.duplicates = duplicates
-
       // If the cache is the same as what we just parsed, we can exit now. We
       // can tell by using the `===` which compares object identity, which for
       // the manifest matchers, will return the same matcher each time.
@@ -121,9 +107,8 @@ export class BaseRouteMatcherManager
         return
       }
       this.previousMatchers = matchers
-
       // Update the matcher outputs reference.
-      this.matchers.all = all
+      this.matchers.all = groupMatcherResults(matchers)
 
       // For matchers that are for static routes, filter them now.
       this.matchers.static = matchers.filter((matcher) => !matcher.isDynamic)
@@ -235,13 +220,7 @@ export class BaseRouteMatcherManager
         const match = this.validate(matcher, normalized)
         if (!match) continue
 
-        // // We found a match, so yield it and exit.
-        // yield extendInvokedRouteMatch(
-        //   match,
-        //   // Attach the matched output pathname to the match to indicate that
-        //   // this match was created via a specific output.
-        //   normalized.options.pathname
-        // )
+        // We found a match, so yield it and exit.
         yield match
 
         return

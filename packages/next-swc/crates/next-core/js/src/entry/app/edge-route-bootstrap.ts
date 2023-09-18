@@ -13,6 +13,7 @@ const routeModule = new AppRouteRouteModule({
     page: PAGE,
     pathname: PATHNAME,
     // The following aren't used in production.
+    identity: '',
     filename: '',
     bundlePath: '',
   },

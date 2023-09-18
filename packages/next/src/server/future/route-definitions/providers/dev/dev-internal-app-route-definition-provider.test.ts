@@ -30,6 +30,7 @@ describe('DevInternalAppRouteDefinitionProvider', () => {
         files: [`${dir}/not-found.ts`],
         route: {
           kind: RouteKind.INTERNAL_APP,
+          identity: '/not-found',
           pathname: '/not-found',
           filename: `${dir}/not-found.ts`,
           page: '/not-found',

@@ -41,6 +41,7 @@ export class WebRouteManager implements RouteManager {
         page: options.page,
         pathname: options.pathname,
         // The following properties are not used by the WebRouteManager.
+        identity: '',
         filename: '',
         bundlePath: '',
       }
@@ -50,6 +51,7 @@ export class WebRouteManager implements RouteManager {
         page: options.page,
         pathname: options.pathname,
         // The following properties are not used by the WebRouteManager.
+        identity: '',
         filename: '',
         bundlePath: '',
         appPaths: [],
@@ -68,6 +70,7 @@ export class WebRouteManager implements RouteManager {
         page: '/500',
         pathname: '/500',
         // The following properties are not used by the WebRouteManager.
+        identity: '',
         filename: '',
         bundlePath: '',
         builtIn: false,
@@ -80,6 +83,7 @@ export class WebRouteManager implements RouteManager {
         page: '/_error',
         pathname: '/_error',
         // The following properties are not used by the WebRouteManager.
+        identity: '',
         filename: '',
         bundlePath: '',
         builtIn: false,

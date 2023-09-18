@@ -29,6 +29,7 @@ describe('DevAppPageRouteDefinitionProvider', () => {
         files: [`${dir}/(marketing)/about/page.ts`],
         route: {
           kind: RouteKind.APP_PAGE,
+          identity: '/about',
           pathname: '/about',
           filename: `${dir}/(marketing)/about/page.ts`,
           page: '/(marketing)/about/page',
@@ -40,6 +41,7 @@ describe('DevAppPageRouteDefinitionProvider', () => {
         files: [`${dir}/(marketing)/about/page.ts`],
         route: {
           kind: RouteKind.APP_PAGE,
+          identity: '/about',
           pathname: '/about',
           filename: `${dir}/(marketing)/about/page.ts`,
           page: '/(marketing)/about/page',
@@ -51,6 +53,7 @@ describe('DevAppPageRouteDefinitionProvider', () => {
         files: [`${dir}/some/other/page.ts`],
         route: {
           kind: RouteKind.APP_PAGE,
+          identity: '/some/other',
           pathname: '/some/other',
           filename: `${dir}/some/other/page.ts`,
           page: '/some/other/page',
@@ -62,6 +65,7 @@ describe('DevAppPageRouteDefinitionProvider', () => {
         files: [`${dir}/page.ts`],
         route: {
           kind: RouteKind.APP_PAGE,
+          identity: '/',
           pathname: '/',
           filename: `${dir}/page.ts`,
           page: '/page',

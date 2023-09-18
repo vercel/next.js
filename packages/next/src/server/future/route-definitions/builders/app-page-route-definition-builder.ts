@@ -66,6 +66,7 @@ export class AppPageRouteDefinitionBuilder extends RouteDefinitionBuilder<
 
     this.definitions.push({
       kind: RouteKind.APP_PAGE,
+      identity: pathname,
       bundlePath,
       filename,
       page,

@@ -23,10 +23,11 @@ export class InternalRootRouteDefinitionBuilder extends RouteDefinitionBuilder<
 
     this.definitions.push({
       kind: RouteKind.INTERNAL_ROOT,
+      identity: page,
+      pathname: page,
       bundlePath,
       filename,
       page,
-      pathname: page,
     })
   }
 }

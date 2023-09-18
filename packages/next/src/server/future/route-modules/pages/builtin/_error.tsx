@@ -12,6 +12,7 @@ export const routeModule = new PagesRouteModule({
     kind: RouteKind.PAGES,
     page: '/_error',
     pathname: '/_error',
+    identity: '/_error',
     filename: '',
     bundlePath: '',
   },

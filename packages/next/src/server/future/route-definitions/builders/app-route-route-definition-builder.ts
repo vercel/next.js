@@ -34,6 +34,7 @@ export class AppRouteRouteDefinitionBuilder extends RouteDefinitionBuilder<
 
     this.definitions.push({
       kind: RouteKind.APP_ROUTE,
+      identity: pathname,
       bundlePath,
       filename,
       page,

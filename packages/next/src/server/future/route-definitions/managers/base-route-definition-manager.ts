@@ -14,9 +14,9 @@ export class BaseRouteDefinitionManager
   implements RouteDefinitionManager
 {
   private readonly providers = new Array<RouteDefinitionProvider>()
-  private definitions: ReadonlyArray<RouteDefinition> = []
+  protected definitions: ReadonlyArray<RouteDefinition> = []
 
-  constructor(providers = new Array<RouteDefinitionProvider>()) {
+  constructor(providers: ReadonlyArray<RouteDefinitionProvider>) {
     super()
 
     // Validate that there are no duplicate providers for each kind.

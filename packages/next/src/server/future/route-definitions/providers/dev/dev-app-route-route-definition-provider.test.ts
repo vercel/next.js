@@ -29,6 +29,7 @@ describe('DevAppRouteRouteDefinitionProvider', () => {
         files: [`${dir}/some/other/route.ts`],
         route: {
           kind: RouteKind.APP_ROUTE,
+          identity: '/some/other',
           pathname: '/some/other',
           filename: `${dir}/some/other/route.ts`,
           page: '/some/other/route',
@@ -39,6 +40,7 @@ describe('DevAppRouteRouteDefinitionProvider', () => {
         files: [`${dir}/route.ts`],
         route: {
           kind: RouteKind.APP_ROUTE,
+          identity: '/',
           pathname: '/',
           filename: `${dir}/route.ts`,
           page: '/route',

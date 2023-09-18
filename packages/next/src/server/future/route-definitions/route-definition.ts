@@ -21,6 +21,12 @@ export interface RouteDefinition<K extends RouteKind = RouteKind> {
   readonly filename: string
 
   /**
+   * The identity of the route. This combines the pathname of the route with
+   * it's unique features. The intent is to use this for duplicate detection.
+   */
+  readonly identity: string
+
+  /**
    * Describes the pathname including all internal modifiers such as
    * intercepting routes, parallel routes and route/page suffixes that are not
    * part of the pathname.

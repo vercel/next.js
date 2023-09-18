@@ -55,6 +55,7 @@ export const routeModule = new PagesRouteModule({
     page: 'VAR_DEFINITION_PAGE',
     pathname: 'VAR_DEFINITION_PATHNAME',
     // The following aren't used in production.
+    identity: '',
     bundlePath: '',
     filename: '',
   },

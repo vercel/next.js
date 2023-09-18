@@ -31,6 +31,7 @@ describe('DevPagesRouteDefinitionProvider', () => {
         files: [`${dir}/index.ts`],
         route: {
           kind: RouteKind.PAGES,
+          identity: '/',
           pathname: '/',
           filename: `${dir}/index.ts`,
           page: '/',
@@ -41,6 +42,7 @@ describe('DevPagesRouteDefinitionProvider', () => {
         files: [`${dir}/some/api/route.ts`],
         route: {
           kind: RouteKind.PAGES,
+          identity: '/some/api/route',
           pathname: '/some/api/route',
           filename: `${dir}/some/api/route.ts`,
           page: '/some/api/route',
@@ -51,6 +53,7 @@ describe('DevPagesRouteDefinitionProvider', () => {
         files: [`${dir}/some/other/route/index.ts`],
         route: {
           kind: RouteKind.PAGES,
+          identity: '/some/other/route',
           pathname: '/some/other/route',
           filename: `${dir}/some/other/route/index.ts`,
           page: '/some/other/route',
@@ -61,6 +64,7 @@ describe('DevPagesRouteDefinitionProvider', () => {
         files: [`${dir}/some/other/route/index/route.ts`],
         route: {
           kind: RouteKind.PAGES,
+          identity: '/some/other/route/index/route',
           pathname: '/some/other/route/index/route',
           filename: `${dir}/some/other/route/index/route.ts`,
           page: '/some/other/route/index/route',

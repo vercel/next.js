@@ -8,6 +8,7 @@ import { isInternalPagesRoute } from '../../../../lib/is-internal-pages-route'
 import { RouteKind } from '../../route-kind'
 import { BuiltInRouteDefinitionBuilder } from './built-in-route-definition-builder'
 import { PagesBundlePathNormalizer } from '../../normalizers/built/pages/pages-bundle-path-normalizer'
+import { createIdentity } from './helpers/create-identity'
 
 type InternalPagesRouteDefinitionBuilderInput = Pick<
   InternalPagesRouteDefinition | InternalLocalePagesRouteDefinition,
@@ -48,6 +49,9 @@ export class InternalPagesRouteDefinitionBuilder extends BuiltInRouteDefinitionB
     if (localeInfo) {
       this.definitions.push({
         kind: RouteKind.INTERNAL_PAGES,
+        identity: createIdentity(localeInfo.pathname, {
+          locale: localeInfo.detectedLocale,
+        }),
         bundlePath,
         filename,
         page,
@@ -61,6 +65,7 @@ export class InternalPagesRouteDefinitionBuilder extends BuiltInRouteDefinitionB
     } else {
       this.definitions.push({
         kind: RouteKind.INTERNAL_PAGES,
+        identity: page,
         bundlePath,
         filename,
         page,

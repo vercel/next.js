@@ -7,6 +7,7 @@ import type { LocaleInfo } from '../../helpers/i18n-provider'
 import { PagesBundlePathNormalizer } from '../../normalizers/built/pages/pages-bundle-path-normalizer'
 import { RouteDefinitionBuilder } from './route-definition-builder'
 import { RouteKind } from '../../route-kind'
+import { createIdentity } from './helpers/create-identity'
 
 type PagesRouteDefinitionBuilderInput = Pick<
   PagesRouteDefinition | PagesLocaleRouteDefinition,
@@ -35,6 +36,9 @@ export class PagesRouteDefinitionBuilder extends RouteDefinitionBuilder<
     if (localeInfo) {
       this.definitions.push({
         kind: RouteKind.PAGES,
+        identity: createIdentity(localeInfo.pathname, {
+          locale: localeInfo.detectedLocale,
+        }),
         pathname,
         page,
         bundlePath,
@@ -44,6 +48,7 @@ export class PagesRouteDefinitionBuilder extends RouteDefinitionBuilder<
     } else {
       this.definitions.push({
         kind: RouteKind.PAGES,
+        identity: pathname,
         page,
         pathname,
         bundlePath,

@@ -23,6 +23,7 @@ describe('DevInternalRootRouteDefinitionProvider', () => {
         Object {
           "bundlePath": "instrumentation",
           "filename": "/foo/bar/instrumentation.js",
+          "identity": "/instrumentation",
           "kind": "INTERNAL_ROOT",
           "page": "/instrumentation",
           "pathname": "/instrumentation",
@@ -30,6 +31,7 @@ describe('DevInternalRootRouteDefinitionProvider', () => {
         Object {
           "bundlePath": "middleware",
           "filename": "/foo/bar/middleware.js",
+          "identity": "/middleware",
           "kind": "INTERNAL_ROOT",
           "page": "/middleware",
           "pathname": "/middleware",
@@ -61,6 +63,7 @@ describe('DevMultiInternalRootRouteDefinitionProvider', () => {
         Object {
           "bundlePath": "instrumentation",
           "filename": "/foo/bar/instrumentation.js",
+          "identity": "/instrumentation",
           "kind": "INTERNAL_ROOT",
           "page": "/instrumentation",
           "pathname": "/instrumentation",
@@ -68,6 +71,7 @@ describe('DevMultiInternalRootRouteDefinitionProvider', () => {
         Object {
           "bundlePath": "instrumentation",
           "filename": "/foo/bar/src/instrumentation.js",
+          "identity": "/instrumentation",
           "kind": "INTERNAL_ROOT",
           "page": "/instrumentation",
           "pathname": "/instrumentation",
@@ -75,6 +79,7 @@ describe('DevMultiInternalRootRouteDefinitionProvider', () => {
         Object {
           "bundlePath": "middleware",
           "filename": "/foo/bar/middleware.js",
+          "identity": "/middleware",
           "kind": "INTERNAL_ROOT",
           "page": "/middleware",
           "pathname": "/middleware",
@@ -82,6 +87,7 @@ describe('DevMultiInternalRootRouteDefinitionProvider', () => {
         Object {
           "bundlePath": "middleware",
           "filename": "/foo/bar/src/middleware.js",
+          "identity": "/middleware",
           "kind": "INTERNAL_ROOT",
           "page": "/middleware",
           "pathname": "/middleware",

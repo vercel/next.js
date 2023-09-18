@@ -24,6 +24,7 @@ declare const nextConfigOutput: AppRouteRouteModuleOptions['nextConfigOutput']
 const routeModule = new AppRouteRouteModule({
   definition: {
     kind: RouteKind.APP_ROUTE,
+    identity: '',
     page: 'VAR_DEFINITION_PAGE',
     pathname: 'VAR_DEFINITION_PATHNAME',
     filename: 'VAR_DEFINITION_FILENAME',

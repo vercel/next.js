@@ -37,6 +37,7 @@ export class InternalAppRouteDefinitionBuilder extends BuiltInRouteDefinitionBui
       InternalAppRouteDefinitionBuilder.normalizers.bundlePath.normalize(page)
 
     this.definitions.push({
+      identity: pathname,
       kind: RouteKind.INTERNAL_APP,
       bundlePath,
       filename,

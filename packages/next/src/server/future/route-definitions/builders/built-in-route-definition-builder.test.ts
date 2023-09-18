@@ -15,6 +15,7 @@ describe('BuiltInRouteDefinitionBuilder', () => {
 
     builder.add({
       kind: RouteKind.INTERNAL_APP,
+      identity: '/_app',
       page: '/_app',
       bundlePath: '_app',
       pathname: '/_app',
@@ -23,6 +24,7 @@ describe('BuiltInRouteDefinitionBuilder', () => {
     })
     builder.add({
       kind: RouteKind.INTERNAL_APP,
+      identity: '/_app',
       page: '/_app',
       bundlePath: '_app',
       pathname: '/_app',
@@ -41,6 +43,7 @@ describe('BuiltInRouteDefinitionBuilder', () => {
 
     builder.add({
       kind: RouteKind.INTERNAL_APP,
+      identity: '/_document',
       page: '/_document',
       bundlePath: '_document',
       pathname: '/_document',
@@ -49,6 +52,7 @@ describe('BuiltInRouteDefinitionBuilder', () => {
     })
     builder.add({
       kind: RouteKind.INTERNAL_APP,
+      identity: '/_app',
       page: '/_app',
       bundlePath: '_app',
       pathname: '/_app',
@@ -57,6 +61,7 @@ describe('BuiltInRouteDefinitionBuilder', () => {
     })
     builder.add({
       kind: RouteKind.INTERNAL_APP,
+      identity: '/_app',
       page: '/_app',
       bundlePath: '_app',
       pathname: '/_app',

@@ -13,6 +13,7 @@ function createMock(
     filename: '/foo',
     page: '/foo',
     pathname: '/foo',
+    identity: '',
     ...partial,
   }
 }

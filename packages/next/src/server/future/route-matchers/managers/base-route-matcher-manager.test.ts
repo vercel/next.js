@@ -67,6 +67,7 @@ describe('BaseRouteMatcherManager', () => {
         bundlePath: '',
         page: '',
         pathname: '/nl-NL/some/path',
+        identity: '',
         i18n: {
           pathname: '/some/path',
           detectedLocale: 'nl-NL',
@@ -88,6 +89,7 @@ describe('BaseRouteMatcherManager', () => {
         filename: '',
         bundlePath: '',
         page: '',
+        identity: '',
         pathname: '/en-US/some/path',
         i18n: {
           detectedLocale: 'en-US',
@@ -110,6 +112,7 @@ describe('BaseRouteMatcherManager', () => {
         filename: '',
         bundlePath: '',
         page: '',
+        identity: '',
         pathname: '/en-US/some/path',
         i18n: {
           detectedLocale: 'en-US',
@@ -141,6 +144,7 @@ describe('BaseRouteMatcherManager', () => {
       filename: '',
       bundlePath: '',
       page: '',
+      identity: '',
       pathname: '/en-US/some/path',
       i18n: {
         detectedLocale: 'en-US',
@@ -173,6 +177,7 @@ describe('BaseRouteMatcherManager', () => {
       filename: '',
       bundlePath: '',
       page: '',
+      identity: '',
       pathname: '/some/path',
       appPaths: [],
     }
