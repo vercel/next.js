@@ -84,7 +84,8 @@ export async function initialize(opts: {
 
   const config = await loadConfig(
     opts.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
-    opts.dir
+    opts.dir,
+    { silent: false }
   )
 
   let compress: ReturnType<typeof setupCompression> | undefined
@@ -509,6 +510,8 @@ export async function initialize(opts: {
         try {
           return await serveStatic(req, res, matchedOutput.itemPath, {
             root: matchedOutput.itemsRoot,
+            // Ensures that etags are not generated for static files when disabled.
+            etag: config.generateEtags,
           })
         } catch (err: any) {
           /**

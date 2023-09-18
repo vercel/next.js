@@ -28,7 +28,7 @@ interface ServerErrorAction {
   errorJSON: string
 }
 
-interface TurboPackMessageAction {
+export interface TurbopackMessageAction {
   type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE
   data: TurbopackUpdate | TurbopackUpdate[]
 }
@@ -87,12 +87,13 @@ interface DevPagesManifestUpdateAction {
   ]
 }
 
-export interface TurboPackConnectedAction {
+export interface TurbopackConnectedAction {
   type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED
 }
 
 export type HMR_ACTION_TYPES =
-  | TurboPackMessageAction
+  | TurbopackMessageAction
+  | TurbopackConnectedAction
   | BuildingAction
   | SyncAction
   | BuiltAction

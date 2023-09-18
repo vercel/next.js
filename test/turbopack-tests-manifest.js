@@ -5,6 +5,7 @@ const enabledTests = [
   'test/development/acceptance-app/server-components.test.ts',
   'test/development/acceptance/hydration-error.test.ts',
   'test/development/api-cors-with-rewrite/index.test.ts',
+  'test/development/app-dir/basic/basic.test.ts',
   'test/development/app-dir/multiple-compiles-single-route/multiple-compiles-single-route.test.ts',
   'test/development/app-dir/strict-mode-enabled-by-default/strict-mode-enabled-by-default.test.ts',
   'test/development/basic/define-class-fields.test.ts',
