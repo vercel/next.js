@@ -14,7 +14,7 @@
   ],
   "license": "MIT",
   "scripts": {
-    "build": "rm -rf dist && tsc -d -p tsconfig.json",
+    "build": "rimraf dist && tsc -d -p tsconfig.json",
     "prepublishOnly": "cd ../../ && turbo run build",
     "dev": "tsc -d -w -p tsconfig.json",
     "typescript": "tsec --noEmit -p tsconfig.json"
@@ -25,7 +25,8 @@
   "devDependencies": {
     "next": "13.4.20-canary.38",
     "outdent": "0.8.0",
-    "prettier": "2.5.1"
+    "prettier": "2.5.1",
+    "rimraf": "^3.0.2"
   },
   "peerDependencies": {
     "next": "^13.0.0",
