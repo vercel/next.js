@@ -2041,7 +2041,7 @@ export default async function getBaseWebpackConfig(
         // Alias server-only and client-only to proper exports based on bundling layers
         {
           issuerLayer: {
-            or: WEBPACK_LAYERS.GROUP.serverTarget,
+            or: WEBPACK_LAYERS.GROUP.server,
           },
           resolve: {
             // Error on client-only but allow server-only
@@ -2055,7 +2055,7 @@ export default async function getBaseWebpackConfig(
         },
         {
           issuerLayer: {
-            not: WEBPACK_LAYERS.GROUP.serverTarget,
+            not: WEBPACK_LAYERS.GROUP.server,
           },
           resolve: {
             // Error on server-only but allow client-only
@@ -2077,7 +2077,7 @@ export default async function getBaseWebpackConfig(
           ],
           loader: 'next-invalid-import-error-loader',
           issuerLayer: {
-            or: WEBPACK_LAYERS.GROUP.serverTarget,
+            or: WEBPACK_LAYERS.GROUP.server,
           },
           options: {
             message:
@@ -2091,11 +2091,24 @@ export default async function getBaseWebpackConfig(
           ],
           loader: 'next-invalid-import-error-loader',
           issuerLayer: {
-            not: WEBPACK_LAYERS.GROUP.serverTarget,
+            not: WEBPACK_LAYERS.GROUP.server,
           },
           options: {
             message:
               "'server-only' cannot be imported from a Client Component module. It should only be used from a Server Component.",
+          },
+        },
+        // Potential the bundle introduced into middleware and api can be poisoned by client-only
+        // but not being used, so we disabled the `client-only` erroring on these layers.
+        // `server-only` is still available.
+        {
+          test: [
+            /^client-only$/,
+            /next[\\/]dist[\\/]compiled[\\/]client-only[\\/]error/,
+          ],
+          loader: 'noop-loader',
+          issuerLayer: {
+            or: WEBPACK_LAYERS.GROUP.nonClientServerTarget,
           },
         },
         ...(hasAppDir
