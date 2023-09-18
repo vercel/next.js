@@ -5,14 +5,7 @@ import arg from 'next/dist/compiled/arg/index.js'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 import { commands } from '../lib/commands'
 import { commandArgs } from '../lib/command-args'
-import loadConfig from '../server/config'
-import {
-  PHASE_PRODUCTION_SERVER,
-  PHASE_DEVELOPMENT_SERVER,
-} from '../shared/lib/constants'
-import { getProjectDir } from '../lib/get-project-dir'
 import { getValidatedArgs } from '../lib/get-validated-args'
-import { findPagesDir } from '../lib/find-pages-dir'
 
 const defaultCommand = 'dev'
 const args = arg(
@@ -125,48 +118,6 @@ if (!process.env.NEXT_MANUAL_SIG_HANDLE && command !== 'dev') {
 async function main() {
   const currentArgsSpec = commandArgs[command]()
   const validatedArgs = getValidatedArgs(currentArgsSpec, forwardedArgs)
-
-  if (
-    (command === 'start' || command === 'dev') &&
-    !process.env.NEXT_PRIVATE_WORKER
-  ) {
-    const dir = getProjectDir(
-      process.env.NEXT_PRIVATE_DEV_DIR || validatedArgs._[0]
-    )
-    process.env.NEXT_PRIVATE_DIR = dir
-    const origEnv = Object.assign({}, process.env)
-
-    // TODO: set config to env variable to be re-used so we don't reload
-    // un-necessarily
-    const config = await loadConfig(
-      command === 'dev' ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
-      dir,
-      {
-        silent: false,
-      }
-    )
-    let dirsResult: ReturnType<typeof findPagesDir> | undefined = undefined
-
-    try {
-      dirsResult = findPagesDir(dir)
-    } catch (_) {
-      // handle this error further down
-    }
-
-    if (dirsResult?.appDir || process.env.NODE_ENV === 'development') {
-      process.env = origEnv
-    }
-
-    if (dirsResult?.appDir) {
-      // we need to reset env if we are going to create
-      // the worker process with the esm loader so that the
-      // initial env state is correct
-      process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = config.experimental
-        .serverActions
-        ? 'experimental'
-        : 'next'
-    }
-  }
 
   for (const dependency of ['react', 'react-dom']) {
     try {
