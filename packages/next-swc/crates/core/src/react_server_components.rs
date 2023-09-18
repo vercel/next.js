@@ -592,7 +592,7 @@ pub fn server_components<C: Comments>(
             JsWord::from("flushSync"),
             JsWord::from("unstable_batchedUpdates"),
             JsWord::from("experimental_useFormStatus"),
-            JsWord::from("experimental_useOptimistic"),
+            JsWord::from("experimental_useFormState"),
         ],
         invalid_server_react_apis: vec![
             JsWord::from("Component"),
@@ -609,6 +609,7 @@ pub fn server_components<C: Comments>(
             JsWord::from("useState"),
             JsWord::from("useSyncExternalStore"),
             JsWord::from("useTransition"),
+            JsWord::from("experimental_useOptimistic"),
         ],
     })
 }

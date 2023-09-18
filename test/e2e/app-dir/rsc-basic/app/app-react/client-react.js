@@ -2,7 +2,7 @@
 
 import React from 'react'
 import ReactDOM from 'react-dom'
-import ReactDOMServer from 'react-dom/server'
+import ReactDOMServer from 'react-dom/server.edge'
 
 export default function ClientReact() {
   return (

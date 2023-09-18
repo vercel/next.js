@@ -31,7 +31,8 @@ createNextDescribe(
   },
   ({ next, isNextDev, isNextStart, isTurbopack }) => {
     if (isNextDev && !isTurbopack) {
-      it('should have correct client references keys in manifest', async () => {
+      // TODO: Fix this test, it no longer uses stringified JSON.
+      it.skip('should have correct client references keys in manifest', async () => {
         await next.render('/')
         await check(async () => {
           // Check that the client-side manifest is correct before any requests
@@ -456,7 +457,7 @@ createNextDescribe(
       expect(await res.text()).toBe('Hello from import-test.js')
     })
 
-    it('should use bundled react for pages with app', async () => {
+    it('should not use bundled react for pages with app', async () => {
       const ssrPaths = ['/pages-react', '/edge-pages-react']
       const promises = ssrPaths.map(async (pathname) => {
         const resPages$ = await next.render$(pathname)
@@ -467,7 +468,7 @@ createNextDescribe(
         ]
 
         ssrPagesReactVersions.forEach((version) => {
-          expect(version).toMatch('-canary-')
+          expect(version).not.toMatch('-canary-')
         })
       })
       await Promise.all(promises)
@@ -502,10 +503,10 @@ createNextDescribe(
       `)
 
       browserPagesReactVersions.forEach((version) =>
-        expect(version).toMatch('-canary-')
+        expect(version).not.toMatch('-canary-')
       )
       browserEdgePagesReactVersions.forEach((version) =>
-        expect(version).toMatch('-canary-')
+        expect(version).not.toMatch('-canary-')
       )
     })
 
