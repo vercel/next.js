@@ -926,13 +926,13 @@ export default async function getBaseWebpackConfig(
     : []
 
   const swcLoaderForMiddlewareLayer = useSWCLoader
-    ? getSwcLoader({ hasServerComponents: false, bundleTarget: 'server' })
+    ? getSwcLoader({ hasServerComponents: false, bundleTarget: 'default' })
     : // When using Babel, we will have to use SWC to do the optimization
       // for middleware to tree shake the unused default optimized imports like "next/server".
       // This will cause some performance overhead but
       // acceptable as Babel will not be recommended.
       [
-        getSwcLoader({ hasServerComponents: false, bundleTarget: 'server' }),
+        getSwcLoader({ hasServerComponents: false, bundleTarget: 'default' }),
         getBabelLoader(),
       ]
 
@@ -980,7 +980,7 @@ export default async function getBaseWebpackConfig(
           loader: 'next-swc-loader',
           options: {
             ...getSwcLoader().options,
-            bundleTarget: 'server',
+            bundleTarget: 'default',
             hasServerComponents: false,
           },
         }
@@ -1965,6 +1965,7 @@ export default async function getBaseWebpackConfig(
         'next-flight-action-entry-loader',
         'next-flight-client-module-loader',
         'noop-loader',
+        'empty-loader',
         'next-middleware-loader',
         'next-edge-function-loader',
         'next-edge-app-route-loader',
@@ -2117,7 +2118,7 @@ export default async function getBaseWebpackConfig(
             /^client-only$/,
             /next[\\/]dist[\\/]compiled[\\/]client-only[\\/]error/,
           ],
-          loader: 'noop-loader',
+          loader: 'empty-loader',
           issuerLayer: {
             or: WEBPACK_LAYERS.GROUP.nonClientServerTarget,
           },

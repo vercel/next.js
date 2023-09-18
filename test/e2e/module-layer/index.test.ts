@@ -5,7 +5,7 @@ createNextDescribe(
   {
     files: __dirname,
   },
-  ({ next, isNextDev, isNextStart }) => {
+  ({ next, isNextStart }) => {
     function runTests() {
       it('should render routes marked with restriction marks without errors', async () => {
         const routes = [
@@ -21,6 +21,7 @@ createNextDescribe(
           // pages/api
           '/api/hello',
           '/api/hello-edge',
+          '/api/mixed',
         ]
 
         for (const route of routes) {
@@ -61,39 +62,38 @@ createNextDescribe(
 
     describe('no server-only in server targets', () => {
       const middlewareFile = 'middleware.js'
-      const pagesApiFile = 'pages/api/hello.js'
+      // const pagesApiFile = 'pages/api/hello.js'
       let middlewareContent = ''
-      let pagesApiContent = ''
+      // let pagesApiContent = ''
 
       beforeAll(async () => {
         await next.stop()
 
         middlewareContent = await next.readFile(middlewareFile)
+        // pagesApiContent = await next.readFile(pagesApiFile)
+
         await next.patchFile(
           middlewareFile,
           middlewareContent
             .replace("import 'server-only'", "// import 'server-only'")
-            .replace(
-              "// import { sharedComponentValue } from './lib/mixed-lib'",
-              "import { sharedComponentValue } from './lib/mixed-lib'"
-            )
+            .replace("// import './lib/mixed-lib'", "import './lib/mixed-lib'")
         )
-        pagesApiContent = await next.readFile(pagesApiFile)
-        await next.patchFile(
-          pagesApiFile,
-          pagesApiContent
-            .replace("import 'server-only'", "// import 'server-only'")
-            .replace(
-              "// import { sharedComponentValue } from '../../lib/mixed-lib'",
-              "import { sharedComponentValue } from '../../lib/mixed-lib'"
-            )
-        )
+
+        // await next.patchFile(
+        //   pagesApiFile,
+        //   pagesApiContent
+        //     .replace("import 'server-only'", "// import 'server-only'")
+        //     .replace(
+        //       "// import '../../lib/mixed-lib'",
+        //       "import '../../lib/mixed-lib'"
+        //     )
+        // )
 
         await next.start()
       })
       afterAll(async () => {
         await next.patchFile(middlewareFile, middlewareContent)
-        await next.patchFile(pagesApiFile, pagesApiContent)
+        // await next.patchFile(pagesApiFile, pagesApiContent)
       })
       runTests()
     })
