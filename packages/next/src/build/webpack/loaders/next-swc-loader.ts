@@ -54,6 +54,7 @@ async function loaderTransform(
     hasServerComponents,
     isServerLayer,
     optimizeBarrelExports,
+    bundleTarget,
   } = loaderOptions
   const isPageFile = filename.startsWith(pagesDir)
   const relativeFilePathFromRoot = path.relative(rootDir, filename)
@@ -86,6 +87,7 @@ async function loaderTransform(
     isServerActionsEnabled: nextConfig?.experimental?.serverActions,
     isServerLayer,
     optimizeBarrelExports,
+    bundleTarget,
   })
 
   const programmaticOptions = {
