@@ -700,6 +700,10 @@ createNextDescribe(
             'variable-revalidate-edge/post-method-request/page_client-reference-manifest.js',
             'partial-gen-params-no-additional-lang/[lang]/[slug]/page_client-reference-manifest.js',
             'partial-gen-params-no-additional-slug/[lang]/[slug]/page_client-reference-manifest.js',
+            'articles/[slug]/page.js',
+            'articles/[slug]/page_client-reference-manifest.js',
+            'articles/works.html',
+            'articles/works.rsc',
           ].sort()
         )
       })
@@ -751,6 +755,22 @@ createNextDescribe(
               ],
               "initialRevalidateSeconds": false,
               "srcRoute": "/",
+            },
+            "/articles/works": Object {
+              "dataRoute": "/articles/works.rsc",
+              "experimentalBypassFor": Array [
+                Object {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                Object {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": 1,
+              "srcRoute": "/articles/[slug]",
             },
             "/blog/seb": Object {
               "dataRoute": "/blog/seb.rsc",
@@ -1404,6 +1424,23 @@ createNextDescribe(
         `)
         expect(curManifest.dynamicRoutes).toMatchInlineSnapshot(`
           Object {
+            "/articles/[slug]": Object {
+              "dataRoute": "/articles/[slug].rsc",
+              "dataRouteRegex": "^\\\\/articles\\\\/([^\\\\/]+?)\\\\.rsc$",
+              "experimentalBypassFor": Array [
+                Object {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                Object {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "fallback": null,
+              "routeRegex": "^\\\\/articles\\\\/([^\\\\/]+?)(?:\\\\/)?$",
+            },
             "/blog/[author]": Object {
               "dataRoute": "/blog/[author].rsc",
               "dataRouteRegex": "^\\\\/blog\\\\/([^\\\\/]+?)\\\\.rsc$",
@@ -1589,6 +1626,15 @@ createNextDescribe(
         )
       })
     }
+
+    it('should correctly handle statusCode with notFound + ISR', async () => {
+      for (let i = 0; i < 5; i++) {
+        const res = await next.fetch('/articles/non-existent')
+        expect(res.status).toBe(404)
+        expect(await res.text()).toContain('This page could not be found')
+        await waitFor(500)
+      }
+    })
 
     it('should cache correctly for fetchCache = default-cache', async () => {
       const res = await next.fetch('/default-cache')
