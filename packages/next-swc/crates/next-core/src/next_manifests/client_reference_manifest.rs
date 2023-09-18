@@ -187,7 +187,7 @@ impl ClientReferenceManifest {
                         globalThis.__RSC_MANIFEST[{entry_name}] = {manifest}
                     "#,
                     entry_name = StringifyJs(&entry_name),
-                    manifest = StringifyJs(&client_reference_manifest_json)
+                    manifest = &client_reference_manifest_json
                 })
                 .into(),
             ),

@@ -145,6 +145,7 @@ function getMiddlewareMatcher(
 }
 
 export default class NextNodeServer extends BaseServer {
+  protected middlewareManifestPath: string
   private _serverDistDir: string | undefined
   private imageResponseCache?: ResponseCache
   protected renderWorkersPromises?: Promise<void>
@@ -231,6 +232,8 @@ export default class NextNodeServer extends BaseServer {
       const { interceptTestApis } = require('../experimental/testmode/server')
       interceptTestApis()
     }
+
+    this.middlewareManifestPath = join(this.serverDistDir, MIDDLEWARE_MANIFEST)
   }
 
   protected async handleUpgrade(): Promise<void> {
@@ -1335,10 +1338,7 @@ export default class NextNodeServer extends BaseServer {
 
   protected getMiddlewareManifest(): MiddlewareManifest | null {
     if (this.minimalMode) return null
-    const manifest: MiddlewareManifest = require(join(
-      this.serverDistDir,
-      MIDDLEWARE_MANIFEST
-    ))
+    const manifest: MiddlewareManifest = require(this.middlewareManifestPath)
     return manifest
   }
 
