@@ -411,24 +411,26 @@ function createRSCAliases(
     'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.node`,
   }
 
-  if (opts.layer === 'ssr') {
-    alias = Object.assign(alias, {
-      'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-runtime`,
-      'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-dev-runtime`,
-      react$: `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react`,
-      'react-dom$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom`,
-      'react-dom/server.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom-server-edge`,
-      'react-server-dom-webpack/client.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-client-edge`,
-    })
-  } else if (opts.layer === 'rsc') {
-    alias = Object.assign(alias, {
-      'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-runtime`,
-      'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-dev-runtime`,
-      react$: `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react`,
-      'react-dom$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom`,
-      'react-server-dom-webpack/server.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-server-edge`,
-      'react-server-dom-webpack/server.node$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-server-node`,
-    })
+  if (!opts.isEdgeServer) {
+    if (opts.layer === 'ssr') {
+      alias = Object.assign(alias, {
+        'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-runtime`,
+        'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-dev-runtime`,
+        react$: `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react`,
+        'react-dom$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom`,
+        'react-dom/server.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom-server-edge`,
+        'react-server-dom-webpack/client.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-client-edge`,
+      })
+    } else if (opts.layer === 'rsc') {
+      alias = Object.assign(alias, {
+        'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-runtime`,
+        'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-dev-runtime`,
+        react$: `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react`,
+        'react-dom$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom`,
+        'react-server-dom-webpack/server.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-server-edge`,
+        'react-server-dom-webpack/server.node$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-server-node`,
+      })
+    }
   }
 
   if (opts.isEdgeServer) {
