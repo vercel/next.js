@@ -73,6 +73,7 @@ native-tls = ["turbopack-binding/__turbo_tasks_fetch_native-tls"]
 rustls-tls = ["turbopack-binding/__turbo_tasks_fetch_rustls-tls"]
 plugin = ["turbopack-binding/__swc_core_binding_napi_plugin"]
 image-webp = ["turbopack-binding/__turbopack_image_webp"]
+image-avif = ["turbopack-binding/__turbopack_image_avif"]
 
 # enable "HMR" for embedded assets
 dynamic_embed_contents = [
