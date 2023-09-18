@@ -396,48 +396,39 @@ function createRSCAliases(
     reactServerCondition?: boolean
   }
 ) {
-  let alias: Record<string, string> = {}
-  if (opts.layer === 'app-pages-browser' || opts.isEdgeServer) {
-    alias = {
-      react$: `next/dist/compiled/react${bundledReactChannel}`,
-      'react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}`,
-      'react/jsx-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-runtime`,
-      'react/jsx-dev-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime`,
-      'react-dom/client$': `next/dist/compiled/react-dom${bundledReactChannel}/client`,
-      'react-dom/server$': `next/dist/compiled/react-dom${bundledReactChannel}/server`,
-      'react-dom/server.edge$': `next/dist/compiled/react-dom${bundledReactChannel}/server.edge`,
-      'react-dom/server.browser$': `next/dist/compiled/react-dom${bundledReactChannel}/server.browser`,
-      'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client`,
-      'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.edge`,
-      'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.edge`,
-      'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.node`,
-    }
-  } else if (opts.layer === 'ssr') {
-    alias = {
+  let alias: Record<string, string> = {
+    react$: `next/dist/compiled/react${bundledReactChannel}`,
+    'react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}`,
+    'react/jsx-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-runtime`,
+    'react/jsx-dev-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime`,
+    'react-dom/client$': `next/dist/compiled/react-dom${bundledReactChannel}/client`,
+    'react-dom/server$': `next/dist/compiled/react-dom${bundledReactChannel}/server`,
+    'react-dom/server.edge$': `next/dist/compiled/react-dom${bundledReactChannel}/server.edge`,
+    'react-dom/server.browser$': `next/dist/compiled/react-dom${bundledReactChannel}/server.browser`,
+    'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client`,
+    'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.edge`,
+    'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.edge`,
+    'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.node`,
+  }
+
+  if (opts.layer === 'ssr') {
+    alias = Object.assign(alias, {
       'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-runtime`,
       'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-dev-runtime`,
       react$: `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react`,
       'react-dom$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom`,
       'react-dom/server.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom-server-edge`,
       'react-server-dom-webpack/client.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-client-edge`,
-      // not essential but we're providing this alias for people who might use it for backwards compatibility
-      'react-dom/server$': `next/dist/compiled/react-dom${bundledReactChannel}/server`,
-    }
+    })
   } else if (opts.layer === 'rsc') {
-    alias = {
+    alias = Object.assign(alias, {
       'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-runtime`,
       'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-dev-runtime`,
       react$: `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react`,
       'react-dom$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom`,
       'react-server-dom-webpack/server.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-server-edge`,
       'react-server-dom-webpack/server.node$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-server-node`,
-      // not essential but we're providing these aliases for people who might use it.
-      // for backwards compatibility
-      'react-dom/server$': `next/dist/compiled/react-dom${bundledReactChannel}/server`,
-      'react-dom/server.edge$': `next/dist/compiled/react-dom${bundledReactChannel}/server.edge`,
-    }
-  } else {
-    throw new Error(`Unexpected layer: ${opts.layer}`)
+    })
   }
 
   if (opts.isEdgeServer) {
