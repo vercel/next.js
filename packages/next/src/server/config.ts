@@ -870,7 +870,7 @@ export default async function loadConfig(
         await flushAndExit(1)
       } else {
         for (const message of messages) {
-          console.warn(message)
+          curLog.warn(message)
         }
       }
     }
