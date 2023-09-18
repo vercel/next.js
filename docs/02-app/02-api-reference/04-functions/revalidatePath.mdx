@@ -39,6 +39,8 @@ This will revalidate one specific URL on the next page visit.
 ```ts
 import { revalidatePath } from 'next/cache'
 revalidatePath('/blog/[slug]', 'page')
+// or with route groups
+revalidatePath('/(main)/post/[slug]', 'page')
 ```
 
 This will revalidate any URL that matches the provided `page` file on the next page visit. This will _not_ invalidate pages beneath the specific page. For example, `/blog/[slug]` won't invalidate `/blog/[slug]/[author]`.
@@ -48,6 +50,8 @@ This will revalidate any URL that matches the provided `page` file on the next p
 ```ts
 import { revalidatePath } from 'next/cache'
 revalidatePath('/blog/[slug]', 'layout')
+// or with route groups
+revalidatePath('/(main)/post/[slug]', 'layout')
 ```
 
 This will revalidate any URL that matches the provided `layout` file on the next page visit. This will cause pages beneath with the same layout to revalidate on the next visit. For example, in the above case, `/blog/[slug]/[another]` would also revalidate on the next visit.

@@ -2269,12 +2269,13 @@ export default async function build(
             const moduleTypes = ['app-page', 'pages']
 
             for (const type of moduleTypes) {
+              const modulePath = require.resolve(
+                `next/dist/server/future/route-modules/${type}/module.compiled`
+              )
+              const relativeModulePath = path.relative(root, modulePath)
+
               const contextDir = path.join(
-                path.dirname(
-                  require.resolve(
-                    `next/dist/server/future/route-modules/${type}/module`
-                  )
-                ),
+                path.dirname(modulePath),
                 'vendored',
                 'contexts'
               )
@@ -2287,6 +2288,8 @@ export default async function build(
                 addToTracedFiles(root, itemPath, tracedFiles)
                 addToTracedFiles(root, itemPath, minimalTracedFiles)
               }
+              addToTracedFiles(root, relativeModulePath, tracedFiles)
+              addToTracedFiles(root, relativeModulePath, minimalTracedFiles)
             }
 
             await Promise.all([
