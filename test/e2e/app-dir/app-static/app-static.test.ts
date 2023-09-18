@@ -47,15 +47,6 @@ createNextDescribe(
       })
     }
 
-    it('should correctly handle statusCode with notFound + ISR', async () => {
-      for (let i = 0; i < 5; i++) {
-        const res = await next.fetch('/articles/non-existent')
-        expect(res.status).toBe(404)
-        expect(await res.text()).toContain('This page could not be found')
-        await waitFor(500)
-      }
-    })
-
     it('should correctly include headers instance in cache key', async () => {
       const res = await next.fetch('/variable-revalidate/headers-instance')
       expect(res.status).toBe(200)
@@ -711,8 +702,6 @@ createNextDescribe(
             'partial-gen-params-no-additional-slug/[lang]/[slug]/page_client-reference-manifest.js',
             'articles/[slug]/page.js',
             'articles/[slug]/page_client-reference-manifest.js',
-            'articles/non-existent.html',
-            'articles/non-existent.rsc',
             'articles/works.html',
             'articles/works.rsc',
           ].sort()
@@ -1637,6 +1626,15 @@ createNextDescribe(
         )
       })
     }
+
+    it('should correctly handle statusCode with notFound + ISR', async () => {
+      for (let i = 0; i < 5; i++) {
+        const res = await next.fetch('/articles/non-existent')
+        expect(res.status).toBe(404)
+        expect(await res.text()).toContain('This page could not be found')
+        await waitFor(500)
+      }
+    })
 
     it('should cache correctly for fetchCache = default-cache', async () => {
       const res = await next.fetch('/default-cache')
