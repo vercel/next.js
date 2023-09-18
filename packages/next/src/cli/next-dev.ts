@@ -37,7 +37,7 @@ let sessionStarted = Date.now()
 
 const handleSessionStop = async (signal: string | null) => {
   if (child) {
-    child.kill(signal as any)
+    child.kill((signal as any) || 0)
   }
   if (sessionStopHandled) return
   sessionStopHandled = true
