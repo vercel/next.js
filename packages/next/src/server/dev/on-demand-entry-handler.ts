@@ -726,9 +726,12 @@ export function onDemandEntryHandler({
       const isInsideAppDir =
         !!appDir && pagePathData.absolutePagePath.startsWith(appDir)
 
-      if (typeof isApp === 'boolean' && !(isApp === isInsideAppDir)) {
+      if (typeof isApp === 'boolean' && isApp !== isInsideAppDir) {
+        Error.stackTraceLimit = 15
         throw new Error(
-          'Ensure bailed, found path does not match ensure type (pages/app)'
+          `Ensure bailed, found path "${
+            pagePathData.page
+          }" does not match ensure type (${isApp ? 'app' : 'pages'})`
         )
       }
 
@@ -912,7 +915,7 @@ export function onDemandEntryHandler({
       match?: RouteMatch
       isApp?: boolean
     }) {
-      if (curEnsurePage.has(page)) {
+      if (typeof isApp !== 'boolean' && curEnsurePage.has(page)) {
         return curEnsurePage.get(page)
       }
       const promise = ensurePageImpl({
@@ -921,7 +924,12 @@ export function onDemandEntryHandler({
         appPaths,
         match,
         isApp,
-      }).finally(() => {
+      })
+
+      if (typeof isApp === 'boolean') {
+        return promise
+      }
+      promise.finally(() => {
         curEnsurePage.delete(page)
       })
       curEnsurePage.set(page, promise)
