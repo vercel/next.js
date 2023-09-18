@@ -149,7 +149,6 @@ export const WEBPACK_LAYERS = {
     server: [
       WEBPACK_LAYERS_NAMES.reactServerComponents,
       WEBPACK_LAYERS_NAMES.actionBrowser,
-      WEBPACK_LAYERS_NAMES.appMetadataRoute,
       WEBPACK_LAYERS_NAMES.appRouteHandler,
     ],
   },
