@@ -9,18 +9,18 @@ export class AbsoluteFilenameNormalizer implements Normalizer {
   /**
    *
    * @param dir the directory for which the files should be made relative to
-   * @param extensions the extensions the file could have
+   * @param pageExtensions the extensions the file could have
    * @param keepIndex when `true` the trailing `/index` is _not_ removed
    */
   constructor(
     private readonly dir: string,
-    private readonly extensions: ReadonlyArray<string>,
+    private readonly pageExtensions: ReadonlyArray<string>,
     private readonly pagesType: 'pages' | 'app' | 'root'
   ) {}
 
   public normalize(filename: string): string {
     return absolutePathToPage(filename, {
-      extensions: this.extensions,
+      pageExtensions: this.pageExtensions,
       keepIndex: false,
       dir: this.dir,
       pagesType: this.pagesType,

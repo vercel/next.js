@@ -247,6 +247,7 @@ export default class NextNodeServer extends BaseServer {
     // Configure the matchers and handlers.
     const definitions = NextRouteDefinitionManagerBuilder.build(
       this.distDir,
+      this.nextConfig.pageExtensions,
       this.hasAppDir,
       this.i18nProvider,
       // If we're in development, we should use the dev loader which will retry

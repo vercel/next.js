@@ -7,7 +7,7 @@ import { RouteKind } from '../../route-kind'
 
 describe('AppPAgeRouteMatcherProvider', () => {
   it('does not provide duplicate matchers for matching app paths', async () => {
-    const builder = new AppPageRouteDefinitionBuilder()
+    const builder = new AppPageRouteDefinitionBuilder([])
 
     // Added out of sort order here to test that the builder will sort them
     // when it returns the definition.

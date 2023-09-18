@@ -18,10 +18,14 @@ export class AppRouteRouteDefinitionProvider extends ManifestRouteDefinitionProv
   public readonly kind = RouteKind.APP_ROUTE
   private readonly normalizer: AppFilenameNormalizer
 
-  constructor(appDir: string, manifestLoader: ManifestLoader<AppManifests>) {
+  constructor(
+    distDir: string,
+    private readonly pageExtensions: ReadonlyArray<string>,
+    manifestLoader: ManifestLoader<AppManifests>
+  ) {
     super(APP_PATHS_MANIFEST, manifestLoader)
 
-    this.normalizer = new AppFilenameNormalizer(appDir)
+    this.normalizer = new AppFilenameNormalizer(distDir)
   }
 
   protected transform(
@@ -31,7 +35,7 @@ export class AppRouteRouteDefinitionProvider extends ManifestRouteDefinitionProv
     // filter out all the pages that are not app routes.
     const pages = Object.keys(manifest).filter((page) => isAppRouteRoute(page))
 
-    const builder = new AppRouteRouteDefinitionBuilder()
+    const builder = new AppRouteRouteDefinitionBuilder(this.pageExtensions)
     for (const page of pages) {
       const filename = this.normalizer.normalize(manifest[page])
 

@@ -19,6 +19,7 @@ export class AppPageRouteDefinitionProvider extends ManifestRouteDefinitionProvi
 
   constructor(
     distDir: string,
+    private readonly pageExtensions: ReadonlyArray<string>,
     manifestLoader: ManifestLoader<AppPathManifests>
   ) {
     super(APP_PATHS_MANIFEST, manifestLoader)
@@ -33,7 +34,7 @@ export class AppPageRouteDefinitionProvider extends ManifestRouteDefinitionProvi
     // filter out all the pages that are not app pages.
     const pages = Object.keys(manifest).filter((page) => isAppPageRoute(page))
 
-    const builder = new AppPageRouteDefinitionBuilder()
+    const builder = new AppPageRouteDefinitionBuilder(this.pageExtensions)
     for (const page of pages) {
       const filename = this.normalizer.normalize(manifest[page])
 

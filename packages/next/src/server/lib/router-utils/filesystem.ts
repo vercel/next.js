@@ -240,6 +240,7 @@ export async function setupFsCheck(opts: {
 
     definitions = NextRouteDefinitionManagerBuilder.build(
       distDir,
+      opts.config.pageExtensions,
       Object.keys(appPathsManifest).length > 0,
       i18nProvider,
       new MapManifestLoader({

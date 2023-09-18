@@ -2,7 +2,7 @@ import { AppPageRouteDefinitionBuilder } from './app-page-route-definition-build
 
 describe('AppPageRouteDefinitionBuilder', () => {
   it('sorts the app paths correctly', () => {
-    const builder = new AppPageRouteDefinitionBuilder()
+    const builder = new AppPageRouteDefinitionBuilder([])
 
     // Added out of sort order here to test that the builder will sort them
     // when it returns the definition.

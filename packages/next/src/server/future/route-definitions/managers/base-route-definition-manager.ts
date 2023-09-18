@@ -51,7 +51,12 @@ export class BaseRouteDefinitionManager
       // Loop through all the definitions and find the first one that matches
       // the filter.
       const definition = this.definitions.find((d) => filter(d as D))
-      if (definition) return definition as D
+      if (definition) {
+        this.debug('found definition %s', definition.filename)
+
+        // If we found a definition, then return it.
+        return definition as D
+      }
     }
 
     // Otherwise, return null.

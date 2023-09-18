@@ -15,10 +15,10 @@ export class DevInternalPagesRouteDefinitionProvider extends FileReaderRouteDefi
 
   constructor(
     pagesDir: string,
-    pageExtensions: ReadonlyArray<string>,
-    reader: FileReader
+    private readonly pageExtensions: ReadonlyArray<string>,
+    fileReader: FileReader
   ) {
-    super(pagesDir, reader)
+    super(pagesDir, fileReader)
 
     this.normalizer = new DevPagesPageNormalizer(pagesDir, pageExtensions)
   }
@@ -33,7 +33,7 @@ export class DevInternalPagesRouteDefinitionProvider extends FileReaderRouteDefi
   protected transform(
     filenames: ReadonlyArray<string>
   ): ReadonlyArray<InternalPagesRouteDefinition> {
-    const builder = new InternalPagesRouteDefinitionBuilder()
+    const builder = new InternalPagesRouteDefinitionBuilder(this.pageExtensions)
 
     for (const filename of filenames) {
       const page = this.normalizer.normalize(filename)
@@ -59,7 +59,7 @@ export class DevInternalBuiltInPagesRouteDefinitionProvider
   public readonly kind = RouteKind.INTERNAL_PAGES
 
   public provide(): ReadonlyArray<InternalPagesRouteDefinition> {
-    const builder = new InternalPagesRouteDefinitionBuilder()
+    const builder = new InternalPagesRouteDefinitionBuilder([])
 
     // Provide the built-in error page.
     builder.add({

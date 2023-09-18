@@ -19,13 +19,15 @@ export class DevAppRouteRouteDefinitionProvider extends FileReaderRouteDefinitio
 
   constructor(
     appDir: string,
-    extensions: ReadonlyArray<string>,
-    reader: FileReader
+    private readonly pageExtensions: ReadonlyArray<string>,
+    fileReader: FileReader
   ) {
-    super(appDir, reader)
+    super(appDir, fileReader)
 
-    this.expression = new RegExp(`[/\\\\]route\\.(?:${extensions.join('|')})$`)
-    this.normalizer = new DevAppPageNormalizer(appDir, extensions)
+    this.expression = new RegExp(
+      `[/\\\\]route\\.(?:${pageExtensions.join('|')})$`
+    )
+    this.normalizer = new DevAppPageNormalizer(appDir, pageExtensions)
   }
 
   protected filterFilename(filename: string): boolean {
@@ -46,7 +48,7 @@ export class DevAppRouteRouteDefinitionProvider extends FileReaderRouteDefinitio
   protected transform(
     filenames: ReadonlyArray<string>
   ): ReadonlyArray<AppRouteRouteDefinition> {
-    const builder = new AppRouteRouteDefinitionBuilder()
+    const builder = new AppRouteRouteDefinitionBuilder(this.pageExtensions)
 
     for (const filename of filenames) {
       const page = normalizeMetadataRoute(this.normalizer.normalize(filename))

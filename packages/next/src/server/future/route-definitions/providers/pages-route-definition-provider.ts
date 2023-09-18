@@ -24,6 +24,7 @@ export class PagesRouteDefinitionProvider extends ManifestRouteDefinitionProvide
   constructor(
     distDir: string,
     manifestLoader: ManifestLoader<PagesManifests>,
+    private readonly pageExtensions: ReadonlyArray<string>,
     private readonly i18nProvider: I18NProvider | null
   ) {
     super(PAGES_MANIFEST, manifestLoader)
@@ -36,7 +37,7 @@ export class PagesRouteDefinitionProvider extends ManifestRouteDefinitionProvide
   ): ReadonlyArray<PagesRouteDefinition | PagesLocaleRouteDefinition> {
     const pages = Object.keys(manifest).filter((page) => !isAPIRoute(page))
 
-    const builder = new PagesRouteDefinitionBuilder()
+    const builder = new PagesRouteDefinitionBuilder(this.pageExtensions)
     for (const page of pages) {
       // If enabled, we should analyze the page for locale information.
       const localeInfo = this.i18nProvider?.analyze(page)

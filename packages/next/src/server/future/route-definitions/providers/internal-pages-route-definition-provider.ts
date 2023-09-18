@@ -20,6 +20,7 @@ export class InternalPagesRouteDefinitionProvider extends ManifestRouteDefinitio
 
   constructor(
     distDir: string,
+    private readonly pageExtensions: ReadonlyArray<string>,
     manifestLoader: ManifestLoader<PagesManifests>,
     private readonly i18nProvider: I18NProvider | null
   ) {
@@ -41,7 +42,7 @@ export class InternalPagesRouteDefinitionProvider extends ManifestRouteDefinitio
       return isInternalPagesRoute(localeInfo.pathname)
     })
 
-    const builder = new InternalPagesRouteDefinitionBuilder()
+    const builder = new InternalPagesRouteDefinitionBuilder(this.pageExtensions)
     for (const page of pages) {
       const filename = this.normalizer.normalize(manifest[page])
       const localeInfo = this.i18nProvider?.analyze(page)

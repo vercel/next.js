@@ -11,7 +11,7 @@ class MockBuiltInRouteDefinitionBuilder extends BuiltInRouteDefinitionBuilder {
 
 describe('BuiltInRouteDefinitionBuilder', () => {
   it('should sort built-in routes after non-built-in routes', () => {
-    const builder = new MockBuiltInRouteDefinitionBuilder()
+    const builder = new MockBuiltInRouteDefinitionBuilder([])
 
     builder.add({
       kind: RouteKind.INTERNAL_APP,
@@ -39,7 +39,7 @@ describe('BuiltInRouteDefinitionBuilder', () => {
   })
 
   it('also sorts by page but only if the built-in flag is the same', () => {
-    const builder = new MockBuiltInRouteDefinitionBuilder()
+    const builder = new MockBuiltInRouteDefinitionBuilder([])
 
     builder.add({
       kind: RouteKind.INTERNAL_APP,

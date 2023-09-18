@@ -419,16 +419,10 @@ export default class DevServer extends Server {
   }
 
   protected async hasMiddleware(): Promise<boolean> {
-    return this.routes.hasDefinition(
-      {
-        kind: RouteKind.INTERNAL_ROOT,
-        page: '/middleware',
-      },
-      {
-        kind: RouteKind.INTERNAL_ROOT,
-        page: '/src/middleware',
-      }
-    )
+    return this.routes.hasDefinition({
+      kind: RouteKind.INTERNAL_ROOT,
+      pathname: '/middleware',
+    })
   }
 
   protected async handleCatchallMiddlewareRequest(
@@ -443,16 +437,10 @@ export default class DevServer extends Server {
 
   protected async ensureMiddleware() {
     try {
-      const definition = await this.routes.findDefinition(
-        {
-          kind: RouteKind.INTERNAL_ROOT,
-          page: '/middleware',
-        },
-        {
-          kind: RouteKind.INTERNAL_ROOT,
-          page: '/src/middleware',
-        }
-      )
+      const definition = await this.routes.findDefinition({
+        kind: RouteKind.INTERNAL_ROOT,
+        pathname: '/middleware',
+      })
       if (!definition) return
 
       return this.ensurePage({
@@ -469,16 +457,10 @@ export default class DevServer extends Server {
     let definition: InternalRootRouteDefinition | null = null
     try {
       definition =
-        await this.routes.findDefinition<InternalRootRouteDefinition>(
-          {
-            kind: RouteKind.INTERNAL_ROOT,
-            page: `/src/${INSTRUMENTATION_HOOK_FILENAME}`,
-          },
-          {
-            kind: RouteKind.INTERNAL_ROOT,
-            page: `/${INSTRUMENTATION_HOOK_FILENAME}`,
-          }
-        )
+        await this.routes.findDefinition<InternalRootRouteDefinition>({
+          kind: RouteKind.INTERNAL_ROOT,
+          pathname: `/${INSTRUMENTATION_HOOK_FILENAME}`,
+        })
     } catch {}
 
     // If the instrumentation hook doesn't exist, we don't need to run it.

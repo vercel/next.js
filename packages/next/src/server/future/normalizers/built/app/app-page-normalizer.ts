@@ -5,7 +5,7 @@ import { AbsoluteFilenameNormalizer } from '../../absolute-filename-normalizer'
  * to a page in the `app` directory.
  */
 export class DevAppPageNormalizer extends AbsoluteFilenameNormalizer {
-  constructor(appDir: string, extensions: ReadonlyArray<string>) {
-    super(appDir, extensions, 'app')
+  constructor(appDir: string, pageExtensions: ReadonlyArray<string>) {
+    super(appDir, pageExtensions, 'app')
   }
 }

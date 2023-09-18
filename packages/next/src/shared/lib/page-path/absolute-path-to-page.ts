@@ -22,7 +22,7 @@ import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route
 export function absolutePathToPage(
   pagePath: string,
   options: {
-    extensions: string[] | readonly string[]
+    pageExtensions: string[] | readonly string[]
     keepIndex: boolean
     dir: string
     pagesType: 'pages' | 'app' | 'root'
@@ -32,7 +32,7 @@ export function absolutePathToPage(
   const page = removePagePathTail(
     normalizePathSep(ensureLeadingSlash(path.relative(options.dir, pagePath))),
     {
-      extensions: options.extensions,
+      extensions: options.pageExtensions,
       keepIndex: options.keepIndex,
     }
   )

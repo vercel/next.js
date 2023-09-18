@@ -12,13 +12,13 @@ export class DevInternalAppRouteDefinitionProvider extends FileReaderRouteDefini
   private readonly normalizer: DevAppPageNormalizer
 
   constructor(
-    pagesDir: string,
-    extensions: ReadonlyArray<string>,
-    reader: FileReader
+    appDir: string,
+    private readonly pageExtensions: ReadonlyArray<string>,
+    fileReader: FileReader
   ) {
-    super(pagesDir, reader)
+    super(appDir, fileReader)
 
-    this.normalizer = new DevAppPageNormalizer(pagesDir, extensions)
+    this.normalizer = new DevAppPageNormalizer(appDir, pageExtensions)
   }
 
   protected filterFilename(filename: string): boolean {
@@ -31,7 +31,7 @@ export class DevInternalAppRouteDefinitionProvider extends FileReaderRouteDefini
   protected transform(
     filenames: ReadonlyArray<string>
   ): ReadonlyArray<InternalAppRouteDefinition> {
-    const builder = new InternalAppRouteDefinitionBuilder()
+    const builder = new InternalAppRouteDefinitionBuilder(this.pageExtensions)
 
     for (const filename of filenames) {
       const page = this.normalizer.normalize(filename)

@@ -19,6 +19,7 @@ export class InternalAppRouteDefinitionProvider extends ManifestRouteDefinitionP
 
   constructor(
     distDir: string,
+    private readonly pageExtensions: ReadonlyArray<string>,
     manifestLoader: ManifestLoader<AppPathManifests>
   ) {
     super(APP_PATHS_MANIFEST, manifestLoader)
@@ -35,7 +36,7 @@ export class InternalAppRouteDefinitionProvider extends ManifestRouteDefinitionP
       isInternalAppRoute(page)
     )
 
-    const builder = new InternalAppRouteDefinitionBuilder()
+    const builder = new InternalAppRouteDefinitionBuilder(this.pageExtensions)
     for (const page of pages) {
       const filename = this.normalizer.normalize(manifest[page])
 

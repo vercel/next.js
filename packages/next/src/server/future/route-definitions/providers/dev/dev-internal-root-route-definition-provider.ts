@@ -21,14 +21,18 @@ export class DevInternalRootRouteDefinitionProvider extends FileReaderRouteDefin
 
   constructor(
     dir: string,
-    extensions: ReadonlyArray<string>,
-    reader: FileReader
+    private readonly pageExtensions: ReadonlyArray<string>,
+    fileReader: FileReader
   ) {
-    super(dir, reader, { recursive: false })
+    super(dir, fileReader, { recursive: false })
 
-    this.normalizer = new AbsoluteFilenameNormalizer(dir, extensions, 'root')
+    this.normalizer = new AbsoluteFilenameNormalizer(
+      dir,
+      pageExtensions,
+      'root'
+    )
     this.expression = new RegExp(
-      `[/\\\\](?:${MIDDLEWARE_FILENAME}|${INSTRUMENTATION_HOOK_FILENAME})\\.(?:${extensions.join(
+      `[/\\\\](?:${MIDDLEWARE_FILENAME}|${INSTRUMENTATION_HOOK_FILENAME})\\.(?:${pageExtensions.join(
         '|'
       )})$`
     )
@@ -42,7 +46,7 @@ export class DevInternalRootRouteDefinitionProvider extends FileReaderRouteDefin
     filenames: ReadonlyArray<string>
   ): Promise<ReadonlyArray<InternalRootRouteDefinition>> {
     // Create the builder, we'll use this to build the definitions.
-    const builder = new InternalRootRouteDefinitionBuilder()
+    const builder = new InternalRootRouteDefinitionBuilder(this.pageExtensions)
 
     // Loop over all the files,
     for (const filename of filenames) {
@@ -59,21 +63,46 @@ export class DevInternalRootRouteDefinitionProvider extends FileReaderRouteDefin
 export class DevMultiInternalRootRouteDefinitionProvider extends MultiRouteDefinitionProvider<InternalRootRouteDefinition> {
   public readonly kind = RouteKind.INTERNAL_ROOT
 
+  private readonly srcDir: string
+
   constructor(
-    dir: string,
-    extensions: ReadonlyArray<string>,
-    reader: FileReader
+    protected dir: string,
+    pageExtensions: ReadonlyArray<string>,
+    fileReader: FileReader
   ) {
-    super([
+    const srcDir = path.join(dir, 'src')
+
+    super(pageExtensions, [
+      new DevInternalRootRouteDefinitionProvider(
+        dir,
+        pageExtensions,
+        fileReader
+      ),
       // We're looking for two files, `middleware` and `instrumentation`. Let's
       // look inside the provided directory first, and then in the `src/`
       // directory (if it exists).
       new DevInternalRootRouteDefinitionProvider(
-        path.join(dir, 'src'),
-        extensions,
-        reader
+        srcDir,
+        pageExtensions,
+        fileReader
       ),
-      new DevInternalRootRouteDefinitionProvider(dir, extensions, reader),
     ])
+
+    this.srcDir = srcDir
+  }
+
+  protected sort(
+    left: InternalRootRouteDefinition,
+    right: InternalRootRouteDefinition
+  ): number {
+    let ls = left.filename.startsWith(this.srcDir + path.sep)
+    let rs = right.filename.startsWith(this.srcDir + path.sep)
+
+    // Always ensure that any `src/` files are selected first.
+    if (ls !== rs) {
+      return rs ? -1 : 1
+    }
+
+    return super.sort(left, right)
   }
 }

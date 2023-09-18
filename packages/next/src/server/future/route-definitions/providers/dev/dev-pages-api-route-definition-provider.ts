@@ -15,15 +15,15 @@ export class DevPagesAPIRouteDefinitionProvider extends FileReaderRouteDefinitio
 
   constructor(
     private readonly pagesDir: string,
-    private extensions: ReadonlyArray<string>,
-    reader: FileReader
+    private pageExtensions: ReadonlyArray<string>,
+    fileReader: FileReader
   ) {
-    super(pagesDir, reader)
+    super(pagesDir, fileReader)
 
     // Match any route file that ends with `/${filename}.${extension}` under the
     // pages directory.
-    this.expression = new RegExp(`\\.(?:${extensions.join('|')})$`)
-    this.normalizer = new DevPagesPageNormalizer(pagesDir, extensions)
+    this.expression = new RegExp(`\\.(?:${pageExtensions.join('|')})$`)
+    this.normalizer = new DevPagesPageNormalizer(pagesDir, pageExtensions)
   }
 
   protected filterFilename(filename: string): boolean {
@@ -38,7 +38,7 @@ export class DevPagesAPIRouteDefinitionProvider extends FileReaderRouteDefinitio
     if (!matched) {
       // We can also match if we have `pages/api.${extension}`, so check to
       // see if it's a match.
-      for (const extension of this.extensions) {
+      for (const extension of this.pageExtensions) {
         matched = filename === path.join(this.pagesDir, `api.${extension}`)
         if (matched) break
       }
@@ -50,7 +50,7 @@ export class DevPagesAPIRouteDefinitionProvider extends FileReaderRouteDefinitio
   protected transform(
     filenames: ReadonlyArray<string>
   ): ReadonlyArray<PagesAPIRouteDefinition> {
-    const builder = new PagesAPIRouteDefinitionBuilder()
+    const builder = new PagesAPIRouteDefinitionBuilder(this.pageExtensions)
     for (const filename of filenames) {
       const page = this.normalizer.normalize(filename)
 

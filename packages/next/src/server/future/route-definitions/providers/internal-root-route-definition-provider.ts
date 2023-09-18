@@ -22,7 +22,10 @@ export class InternalRootMiddlewareRouteDefinitionProvider extends ManifestRoute
 > {
   public readonly kind = RouteKind.INTERNAL_ROOT
 
-  constructor(manifestLoader: ManifestLoader<MiddlewareManifests>) {
+  constructor(
+    private readonly pageExtensions: ReadonlyArray<string>,
+    manifestLoader: ManifestLoader<MiddlewareManifests>
+  ) {
     super(MIDDLEWARE_MANIFEST, manifestLoader)
   }
 
@@ -32,7 +35,7 @@ export class InternalRootMiddlewareRouteDefinitionProvider extends ManifestRoute
     const middleware = manifest.middleware?.['/']
     if (!middleware) return []
 
-    const builder = new InternalRootRouteDefinitionBuilder()
+    const builder = new InternalRootRouteDefinitionBuilder(this.pageExtensions)
 
     builder.add({
       page: '/middleware',
@@ -46,7 +49,11 @@ export class InternalRootMiddlewareRouteDefinitionProvider extends ManifestRoute
 export class InternalRootInstrumentationRouteDefinitionProvider extends FileReaderRouteDefinitionProvider<InternalRootRouteDefinition> {
   public readonly kind = RouteKind.INTERNAL_ROOT
 
-  constructor(distDir: string, fileReader: FileReader) {
+  constructor(
+    distDir: string,
+    private readonly pageExtensions: ReadonlyArray<string>,
+    fileReader: FileReader
+  ) {
     super(path.join(distDir, SERVER_DIRECTORY), fileReader, {
       recursive: false,
     })
@@ -74,7 +81,7 @@ export class InternalRootInstrumentationRouteDefinitionProvider extends FileRead
 
     const filename = filenames[0]
 
-    const builder = new InternalRootRouteDefinitionBuilder()
+    const builder = new InternalRootRouteDefinitionBuilder(this.pageExtensions)
 
     builder.add({ page: '/instrumentation', filename })
 
@@ -87,13 +94,18 @@ export class InternalRootRouteDefinitionProvider extends MultiRouteDefinitionPro
 
   constructor(
     distDir: string,
+    pageExtensions: ReadonlyArray<string>,
     fileReader: FileReader,
     manifestLoader: ManifestLoader<MiddlewareManifests>
   ) {
-    super([
-      new InternalRootMiddlewareRouteDefinitionProvider(manifestLoader),
+    super(pageExtensions, [
+      new InternalRootMiddlewareRouteDefinitionProvider(
+        pageExtensions,
+        manifestLoader
+      ),
       new InternalRootInstrumentationRouteDefinitionProvider(
         distDir,
+        pageExtensions,
         fileReader
       ),
     ])

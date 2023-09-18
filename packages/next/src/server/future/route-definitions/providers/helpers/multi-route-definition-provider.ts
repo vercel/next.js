@@ -9,11 +9,12 @@ export abstract class MultiRouteDefinitionProvider<
   public abstract readonly kind: D['kind']
 
   constructor(
+    protected readonly pageExtensions: ReadonlyArray<string>,
     private readonly providers: readonly RouteDefinitionProvider<D>[]
   ) {}
 
   protected sort(left: D, right: D): number {
-    return routeDefinitionSorter(left, right)
+    return routeDefinitionSorter(left, right, this.pageExtensions)
   }
 
   public async provide(): Promise<ReadonlyArray<D>> {

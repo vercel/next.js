@@ -1480,7 +1480,7 @@ async function startWatcher(opts: SetupOpts) {
 
         const rootFile = absolutePathToPage(fileName, {
           dir: dir,
-          extensions: nextConfig.pageExtensions,
+          pageExtensions: nextConfig.pageExtensions,
           keepIndex: false,
           pagesType: 'root',
         })
@@ -1527,7 +1527,7 @@ async function startWatcher(opts: SetupOpts) {
 
         let pageName = absolutePathToPage(fileName, {
           dir: isAppPath ? appDir! : pagesDir!,
-          extensions: nextConfig.pageExtensions,
+          pageExtensions: nextConfig.pageExtensions,
           keepIndex: isAppPath,
           pagesType: isAppPath ? 'app' : 'pages',
         })
@@ -2068,10 +2068,10 @@ async function startWatcher(opts: SetupOpts) {
     logErrorWithOriginalStack,
 
     async ensureMiddleware() {
-      const definition = await opts.fsChecker.definitions.find(
-        { kind: RouteKind.INTERNAL_ROOT, page: `/src/${MIDDLEWARE_FILENAME}` },
-        { kind: RouteKind.INTERNAL_ROOT, page: `/${MIDDLEWARE_FILENAME}` }
-      )
+      const definition = await opts.fsChecker.definitions.find({
+        kind: RouteKind.INTERNAL_ROOT,
+        pathname: `/${MIDDLEWARE_FILENAME}`,
+      })
 
       // If there is no middleware file, we don't need to do anything.
       if (!definition) return

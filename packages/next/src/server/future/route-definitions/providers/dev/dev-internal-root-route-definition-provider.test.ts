@@ -69,20 +69,20 @@ describe('DevMultiInternalRootRouteDefinitionProvider', () => {
           "pathname": "/instrumentation",
         },
         Object {
-          "bundlePath": "instrumentation",
-          "filename": "/foo/bar/src/instrumentation.js",
-          "identity": "/instrumentation",
-          "kind": "INTERNAL_ROOT",
-          "page": "/instrumentation",
-          "pathname": "/instrumentation",
-        },
-        Object {
           "bundlePath": "middleware",
           "filename": "/foo/bar/middleware.js",
           "identity": "/middleware",
           "kind": "INTERNAL_ROOT",
           "page": "/middleware",
           "pathname": "/middleware",
+        },
+        Object {
+          "bundlePath": "instrumentation",
+          "filename": "/foo/bar/src/instrumentation.js",
+          "identity": "/instrumentation",
+          "kind": "INTERNAL_ROOT",
+          "page": "/instrumentation",
+          "pathname": "/instrumentation",
         },
         Object {
           "bundlePath": "middleware",

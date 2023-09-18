@@ -8,6 +8,8 @@ export abstract class RouteDefinitionBuilder<
 > {
   protected readonly definitions = new Array<D>()
 
+  constructor(private readonly pageExtensions: ReadonlyArray<string>) {}
+
   /**
    * Add a new route definition to the builder.
    *
@@ -16,7 +18,7 @@ export abstract class RouteDefinitionBuilder<
   public abstract add(input: I): void
 
   protected sort(left: D, right: D): number {
-    return routeDefinitionSorter(left, right)
+    return routeDefinitionSorter(left, right, this.pageExtensions)
   }
 
   /**

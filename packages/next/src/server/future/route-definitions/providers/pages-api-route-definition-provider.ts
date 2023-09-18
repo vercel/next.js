@@ -17,7 +17,11 @@ export class PagesAPIRouteDefinitionProvider extends ManifestRouteDefinitionProv
   public readonly kind = RouteKind.PAGES_API
   private readonly normalizer: PagesFilenameNormalizer
 
-  constructor(distDir: string, manifestLoader: ManifestLoader<PagesManifests>) {
+  constructor(
+    distDir: string,
+    private readonly pageExtensions: ReadonlyArray<string>,
+    manifestLoader: ManifestLoader<PagesManifests>
+  ) {
     super(PAGES_MANIFEST, manifestLoader)
 
     this.normalizer = new PagesFilenameNormalizer(distDir)
@@ -30,7 +34,7 @@ export class PagesAPIRouteDefinitionProvider extends ManifestRouteDefinitionProv
     // filter out all the pages that are API pages.
     const pages = Object.keys(manifest).filter((page) => isAPIRoute(page))
 
-    const builder = new PagesAPIRouteDefinitionBuilder()
+    const builder = new PagesAPIRouteDefinitionBuilder(this.pageExtensions)
     for (const page of pages) {
       const filename = this.normalizer.normalize(manifest[page])
 

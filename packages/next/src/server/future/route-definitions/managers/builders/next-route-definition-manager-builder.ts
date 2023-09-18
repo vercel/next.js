@@ -17,6 +17,7 @@ import { BaseFileReader } from '../../../helpers/file-reader/base-file-reader'
 export class NextRouteDefinitionManagerBuilder {
   public static build(
     distDir: string,
+    pageExtensions: ReadonlyArray<string>,
     hasAppDir: boolean,
     i18nProvider: I18NProvider | null,
     manifestLoader: ManifestLoader<Manifests>
@@ -27,6 +28,7 @@ export class NextRouteDefinitionManagerBuilder {
     definitions.push(
       new InternalPagesRouteDefinitionProvider(
         distDir,
+        pageExtensions,
         manifestLoader,
         i18nProvider
       )
@@ -34,28 +36,49 @@ export class NextRouteDefinitionManagerBuilder {
 
     // Add support for pages in the `pages/` directory.
     definitions.push(
-      new PagesRouteDefinitionProvider(distDir, manifestLoader, i18nProvider)
+      new PagesRouteDefinitionProvider(
+        distDir,
+        manifestLoader,
+        pageExtensions,
+        i18nProvider
+      )
     )
 
     // Add support for API routes in the `pages/api/` directory.
     definitions.push(
-      new PagesAPIRouteDefinitionProvider(distDir, manifestLoader)
+      new PagesAPIRouteDefinitionProvider(
+        distDir,
+        pageExtensions,
+        manifestLoader
+      )
     )
 
     // If the app directory is enabled, then add the app matchers.
     if (hasAppDir) {
       definitions.push(
-        new InternalAppRouteDefinitionProvider(distDir, manifestLoader)
+        new InternalAppRouteDefinitionProvider(
+          distDir,
+          pageExtensions,
+          manifestLoader
+        )
       )
 
       // Match app pages under `app/`.
       definitions.push(
-        new AppPageRouteDefinitionProvider(distDir, manifestLoader)
+        new AppPageRouteDefinitionProvider(
+          distDir,
+          pageExtensions,
+          manifestLoader
+        )
       )
 
       // Match app routes under `app/`.
       definitions.push(
-        new AppRouteRouteDefinitionProvider(distDir, manifestLoader)
+        new AppRouteRouteDefinitionProvider(
+          distDir,
+          pageExtensions,
+          manifestLoader
+        )
       )
     }
 
@@ -66,6 +89,7 @@ export class NextRouteDefinitionManagerBuilder {
     definitions.push(
       new InternalRootRouteDefinitionProvider(
         distDir,
+        pageExtensions,
         fileReader,
         manifestLoader
       )
