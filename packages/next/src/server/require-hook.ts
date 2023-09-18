@@ -8,8 +8,6 @@ const mod = require('module')
 const originalRequire = mod.prototype.require
 const resolveFilename = mod._resolveFilename
 
-const { PHASE_PRODUCTION_BUILD } = require('../shared/lib/constants')
-
 let resolve: typeof require.resolve = process.env.NEXT_MINIMAL
   ? // @ts-ignore
     __non_webpack_require__.resolve
