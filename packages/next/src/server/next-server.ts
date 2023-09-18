@@ -81,7 +81,6 @@ import {
   PagesAPIRouteMatch,
   isPagesAPIRouteMatch,
 } from './future/route-matches/pages-api-route-match'
-import { MatchOptions } from './future/route-matchers/managers/route-matcher-manager'
 import { INSTRUMENTATION_HOOK_FILENAME } from '../lib/constants'
 import { getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
@@ -832,12 +831,10 @@ export default class NextNodeServer extends BaseServer {
       pathname = removeTrailingSlash(pathname)
 
       if (!match) {
-        const options: MatchOptions = {
-          i18n: this.i18nProvider?.fromQuery(pathname, query),
-          pathname: undefined,
-        }
-
-        match = await this.routes.match(pathname, options)
+        match = await this.routes.match(
+          pathname,
+          this.getMatchOptions({ req, pathname, query })
+        )
       }
 
       // If we don't have a match, try to render it anyways.
