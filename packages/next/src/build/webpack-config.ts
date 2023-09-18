@@ -926,13 +926,13 @@ export default async function getBaseWebpackConfig(
     : []
 
   const swcLoaderForMiddlewareLayer = useSWCLoader
-    ? getSwcLoader({ hasServerComponents: false, bundleTarget: 'server' })
+    ? getSwcLoader({ hasServerComponents: false, bundleTarget: 'default' })
     : // When using Babel, we will have to use SWC to do the optimization
       // for middleware to tree shake the unused default optimized imports like "next/server".
       // This will cause some performance overhead but
       // acceptable as Babel will not be recommended.
       [
-        getSwcLoader({ hasServerComponents: false, bundleTarget: 'server' }),
+        getSwcLoader({ hasServerComponents: false, bundleTarget: 'default' }),
         getBabelLoader(),
       ]
 
@@ -980,7 +980,7 @@ export default async function getBaseWebpackConfig(
           loader: 'next-swc-loader',
           options: {
             ...getSwcLoader().options,
-            bundleTarget: 'server',
+            bundleTarget: 'default',
             hasServerComponents: false,
           },
         }
@@ -1965,6 +1965,7 @@ export default async function getBaseWebpackConfig(
         'next-flight-action-entry-loader',
         'next-flight-client-module-loader',
         'noop-loader',
+        'empty-loader',
         'next-middleware-loader',
         'next-edge-function-loader',
         'next-edge-app-route-loader',
@@ -2041,7 +2042,10 @@ export default async function getBaseWebpackConfig(
         // Alias server-only and client-only to proper exports based on bundling layers
         {
           issuerLayer: {
-            or: WEBPACK_LAYERS.GROUP.serverTarget,
+            or: [
+              ...WEBPACK_LAYERS.GROUP.server,
+              ...WEBPACK_LAYERS.GROUP.nonClientServerTarget,
+            ],
           },
           resolve: {
             // Error on client-only but allow server-only
@@ -2050,12 +2054,17 @@ export default async function getBaseWebpackConfig(
               'client-only$': 'next/dist/compiled/client-only/error',
               'next/dist/compiled/server-only$':
                 'next/dist/compiled/server-only/empty',
+              'next/dist/compiled/client-only$':
+                'next/dist/compiled/client-only/error',
             },
           },
         },
         {
           issuerLayer: {
-            not: WEBPACK_LAYERS.GROUP.serverTarget,
+            not: [
+              ...WEBPACK_LAYERS.GROUP.server,
+              ...WEBPACK_LAYERS.GROUP.nonClientServerTarget,
+            ],
           },
           resolve: {
             // Error on server-only but allow client-only
@@ -2077,7 +2086,7 @@ export default async function getBaseWebpackConfig(
           ],
           loader: 'next-invalid-import-error-loader',
           issuerLayer: {
-            or: WEBPACK_LAYERS.GROUP.serverTarget,
+            or: WEBPACK_LAYERS.GROUP.server,
           },
           options: {
             message:
@@ -2091,11 +2100,27 @@ export default async function getBaseWebpackConfig(
           ],
           loader: 'next-invalid-import-error-loader',
           issuerLayer: {
-            not: WEBPACK_LAYERS.GROUP.serverTarget,
+            not: [
+              ...WEBPACK_LAYERS.GROUP.server,
+              ...WEBPACK_LAYERS.GROUP.nonClientServerTarget,
+            ],
           },
           options: {
             message:
               "'server-only' cannot be imported from a Client Component module. It should only be used from a Server Component.",
+          },
+        },
+        // Potential the bundle introduced into middleware and api can be poisoned by client-only
+        // but not being used, so we disabled the `client-only` erroring on these layers.
+        // `server-only` is still available.
+        {
+          test: [
+            /^client-only$/,
+            /next[\\/]dist[\\/]compiled[\\/]client-only[\\/]error/,
+          ],
+          loader: 'empty-loader',
+          issuerLayer: {
+            or: WEBPACK_LAYERS.GROUP.nonClientServerTarget,
           },
         },
         ...(hasAppDir
