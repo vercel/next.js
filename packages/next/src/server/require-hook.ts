@@ -8,8 +8,6 @@ const mod = require('module')
 const originalRequire = mod.prototype.require
 const resolveFilename = mod._resolveFilename
 
-const { PHASE_PRODUCTION_BUILD } = require('../shared/lib/constants')
-
 let resolve: typeof require.resolve = process.env.NEXT_MINIMAL
   ? // @ts-ignore
     __non_webpack_require__.resolve
@@ -58,11 +56,7 @@ mod._resolveFilename = function (
 // that needs to point to the rendering runtime version, it will point to the correct one.
 // This can happen on `pages` when a user requires a dependency that uses next/image for example.
 mod.prototype.require = function (request: string) {
-  if (
-    (process.env.NEXT_PHASE !== PHASE_PRODUCTION_BUILD ||
-      process.env.NEXT_IS_EXPORT_WORKER) &&
-    request.endsWith('.shared-runtime')
-  ) {
+  if (request.endsWith('.shared-runtime')) {
     return originalRequire.call(
       this,
       `next/dist/server/future/route-modules/pages/vendored/contexts/${path.basename(
