@@ -1,5 +1,4 @@
 import type { IncomingMessage } from 'http'
-import type { createWorker } from './server-ipc'
 
 // this must come first as it includes require hooks
 import type {
@@ -38,6 +37,7 @@ import {
   PHASE_DEVELOPMENT_SERVER,
   PERMANENT_REDIRECT_STATUS,
 } from '../../shared/lib/constants'
+import type { NextJsHotReloaderInterface } from '../dev/hot-reloader-types'
 
 const debug = setupDebug('next:router-server:main')
 
@@ -51,8 +51,8 @@ export type RenderWorker = Pick<
 >
 
 export interface RenderWorkers {
-  app?: Awaited<ReturnType<typeof createWorker>>
-  pages?: Awaited<ReturnType<typeof createWorker>>
+  app?: RenderWorker
+  pages?: RenderWorker
 }
 
 const devInstances: Record<
@@ -84,7 +84,8 @@ export async function initialize(opts: {
 
   const config = await loadConfig(
     opts.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
-    opts.dir
+    opts.dir,
+    { silent: false }
   )
 
   let compress: ReturnType<typeof setupCompression> | undefined
@@ -134,11 +135,7 @@ export async function initialize(opts: {
     ;(global as any)._nextDevHandlers = {
       async ensurePage(
         dir: string,
-        match: Parameters<
-          InstanceType<
-            typeof import('../dev/hot-reloader-webpack').default
-          >['ensurePage']
-        >[0]
+        match: Parameters<NextJsHotReloaderInterface['ensurePage']>[0]
       ) {
         const curDevInstance = devInstances[dir]
         // TODO: remove after ensure is pulled out of server
@@ -513,6 +510,8 @@ export async function initialize(opts: {
         try {
           return await serveStatic(req, res, matchedOutput.itemPath, {
             root: matchedOutput.itemsRoot,
+            // Ensures that etags are not generated for static files when disabled.
+            etag: config.generateEtags,
           })
         } catch (err: any) {
           /**

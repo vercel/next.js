@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+
+import '../server/lib/cpu-profile'
 import type { StartServerOptions } from '../server/lib/start-server'
 import { getPort, printAndExit } from '../server/lib/utils'
 import * as Log from '../build/output/log'
@@ -15,23 +17,28 @@ import { fileExists, FileType } from '../lib/file-exists'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
 import { createSelfSignedCertificate } from '../lib/mkcert'
 import uploadTrace from '../trace/upload-trace'
-import { startServer } from '../server/lib/start-server'
-import { loadEnvConfig } from '@next/env'
+import { initialEnv, loadEnvConfig } from '@next/env'
 import { trace } from '../trace'
+import { validateTurboNextConfig } from '../lib/turbopack-warning'
+import { fork } from 'child_process'
+import { RESTART_EXIT_CODE } from '../server/lib/setup-server-worker'
 import {
   getReservedPortExplanation,
   isPortIsReserved,
 } from '../lib/helpers/get-reserved-port'
-import { validateTurboNextConfig } from '../lib/turbopack-warning'
 
 let dir: string
+let child: undefined | ReturnType<typeof fork>
 let config: NextConfigComplete
 let isTurboSession = false
 let traceUploadUrl: string
 let sessionStopHandled = false
 let sessionStarted = Date.now()
 
-const handleSessionStop = async () => {
+const handleSessionStop = async (signal: string | null) => {
+  if (child) {
+    child.kill((signal as any) || 0)
+  }
   if (sessionStopHandled) return
   sessionStopHandled = true
 
@@ -39,15 +46,7 @@ const handleSessionStop = async () => {
     const { eventCliSessionStopped } =
       require('../telemetry/events/session-stopped') as typeof import('../telemetry/events/session-stopped')
 
-    config =
-      config ||
-      (await loadConfig(
-        PHASE_DEVELOPMENT_SERVER,
-        dir,
-        undefined,
-        undefined,
-        true
-      ))
+    config = config || (await loadConfig(PHASE_DEVELOPMENT_SERVER, dir))
 
     let telemetry =
       (traceGlobals.get('telemetry') as InstanceType<
@@ -102,8 +101,8 @@ const handleSessionStop = async () => {
   process.exit(0)
 }
 
-process.on('SIGINT', handleSessionStop)
-process.on('SIGTERM', handleSessionStop)
+process.on('SIGINT', () => handleSessionStop('SIGINT'))
+process.on('SIGTERM', () => handleSessionStop('SIGTERM'))
 
 const nextDev: CliCommand = async (args) => {
   if (args['--help']) {
@@ -188,22 +187,25 @@ const nextDev: CliCommand = async (args) => {
   const { loadedEnvFiles } = loadEnvConfig(dir, true, console, false)
 
   let expFeatureInfo: string[] = []
-  config = await loadConfig(
-    PHASE_DEVELOPMENT_SERVER,
-    dir,
-    undefined,
-    undefined,
-    undefined,
-    (userConfig) => {
+  config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
+    onLoadUserConfig(userConfig) {
       const userNextConfigExperimental = getEnabledExperimentalFeatures(
         userConfig.experimental
       )
       expFeatureInfo = userNextConfigExperimental.sort(
         (a, b) => a.length - b.length
       )
-    }
-  )
+    },
+  })
 
+  process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = config.experimental
+    .serverActions
+    ? 'experimental'
+    : 'next'
+
+  // we need to reset env if we are going to create
+  // the worker process with the esm loader so that the
+  // initial env state is correct
   let envInfo: string[] = []
   if (loadedEnvFiles.length > 0) {
     envInfo = loadedEnvFiles.map((f) => f.path)
@@ -228,6 +230,9 @@ const nextDev: CliCommand = async (args) => {
 
   if (args['--turbo']) {
     process.env.TURBOPACK = '1'
+  }
+
+  if (process.env.TURBOPACK) {
     await validateTurboNextConfig({
       isCustomTurbopack: !!process.env.__INTERNAL_CUSTOM_TURBOPACK_BINDINGS,
       ...devServerOptions,
@@ -238,6 +243,42 @@ const nextDev: CliCommand = async (args) => {
   const distDir = path.join(dir, config.distDir ?? '.next')
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
   setGlobal('distDir', distDir)
+
+  const startServerPath = require.resolve('../server/lib/start-server')
+  async function startServer(options: StartServerOptions) {
+    return new Promise<void>((resolve) => {
+      let resolved = false
+
+      child = fork(startServerPath, {
+        stdio: 'inherit',
+        env: {
+          ...((initialEnv || process.env) as typeof process.env),
+          NEXT_PRIVATE_WORKER: '1',
+        },
+      })
+
+      child.on('message', (msg: any) => {
+        if (msg && typeof msg === 'object') {
+          if (msg.nextWorkerReady) {
+            child?.send({ nextWorkerOptions: options })
+          } else if (msg.nextServerReady && !resolved) {
+            resolved = true
+            resolve()
+          }
+        }
+      })
+
+      child.on('exit', async (code, signal) => {
+        if (sessionStopHandled || signal) {
+          return
+        }
+        if (code === RESTART_EXIT_CODE) {
+          return startServer(options)
+        }
+        await handleSessionStop(signal)
+      })
+    })
+  }
 
   const runDevServer = async (reboot: boolean) => {
     try {

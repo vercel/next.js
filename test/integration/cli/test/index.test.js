@@ -8,7 +8,6 @@ import {
   nextBuild,
   runNextCommand,
   runNextCommandDev,
-  killProcess,
 } from 'next-test-utils'
 import fs from 'fs-extra'
 import path, { join } from 'path'
@@ -53,8 +52,7 @@ const runAndCaptureOutput = async ({ port }) => {
 const testExitSignal = async (
   killSignal = '',
   args = [],
-  readyRegex = /Creating an optimized production/,
-  expectedExitSignal
+  readyRegex = /Creating an optimized production/
 ) => {
   let instance
   const killSigint = (inst) => {
@@ -71,18 +69,14 @@ const testExitSignal = async (
   }).catch((err) => expect.fail(err.message))
 
   await check(() => output, readyRegex)
-  await killProcess(instance.pid, killSignal)
+  instance.kill(killSignal)
 
   const { code, signal } = await cmdPromise
-
-  if (!expectedExitSignal) {
-    // Node can only partially emulate signals on Windows. Our signal handlers won't affect the exit code.
-    // See: https://nodejs.org/api/process.html#process_signal_events
-    expectedExitSignal = process.platform === `win32` ? killSignal : null
-    expect(code).toBe(0)
-  } else {
-    expect(signal).toBe(expectedExitSignal)
-  }
+  // Node can only partially emulate signals on Windows. Our signal handlers won't affect the exit code.
+  // See: https://nodejs.org/api/process.html#process_signal_events
+  const expectedExitSignal = process.platform === `win32` ? killSignal : null
+  expect(signal).toBe(expectedExitSignal)
+  expect(code).toBe(0)
 }
 
 describe('CLI Usage', () => {
@@ -140,16 +134,32 @@ describe('CLI Usage', () => {
     })
 
     test('should format IPv6 addresses correctly', async () => {
+      await nextBuild(dirBasic)
       const port = await findPort()
-      const output = await runNextCommand(
-        ['start', '--hostname', '::', '--port', port],
+
+      let stdout = ''
+      const app = await runNextCommandDev(
+        ['start', dirBasic, '--hostname', '::', '--port', port],
+        undefined,
         {
-          stdout: true,
+          nextStart: true,
+          onStdout(msg) {
+            stdout += msg
+          },
         }
       )
-      // Only display when hostname is provided
-      expect(output.stdout).toMatch(new RegExp(`Network:\\s*\\[::\\]:${port}`))
-      expect(output.stdout).toMatch(new RegExp(`http://\\[::1\\]:${port}`))
+
+      try {
+        await check(() => {
+          // Only display when hostname is provided
+          expect(stdout).toMatch(
+            new RegExp(`Network:\\s*http://\\[::\\]:${port}`)
+          )
+          expect(stdout).toMatch(new RegExp(`http://\\[::1\\]:${port}`))
+        })
+      } finally {
+        await killApp(app)
+      }
     })
 
     test('should warn when unknown argument provided', async () => {
@@ -472,7 +482,7 @@ describe('CLI Usage', () => {
       try {
         await check(() => output, /- Local:/)
         // without --hostname, do not log Network: xxx
-        const matches = /Network:\\s*\[::\]:(\d+)/.exec(output)
+        const matches = /Network:\s*http:\/\/\[::\]:(\d+)/.exec(output)
         const _port = parseInt(matches)
         expect(matches).toBe(null)
         // Regression test: port 0 was interpreted as if no port had been
@@ -524,7 +534,7 @@ describe('CLI Usage', () => {
       const { stderr, stdout } = await runAndCaptureOutput({ port })
 
       expect(stderr).toMatch('already in use')
-      expect(stdout).not.toMatch('ready')
+      expect(stdout).not.toMatch(/ready/i)
       expect(stdout).not.toMatch('started')
       expect(stdout).not.toMatch(`${port}`)
       expect(stripAnsi(stdout).trim()).toBeFalsy()
@@ -555,7 +565,10 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(() => output, new RegExp(`Network:\\s*0.0.0.0:${port}`))
+        await check(
+          () => output,
+          new RegExp(`Network:\\s*http://0.0.0.0:${port}`)
+        )
         await check(() => output, new RegExp(`http://localhost:${port}`))
       } finally {
         await killApp(app)
@@ -575,7 +588,10 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(() => output, new RegExp(`Network:\\s*0.0.0.0:${port}`))
+        await check(
+          () => output,
+          new RegExp(`Network:\\s*http://0.0.0.0:${port}`)
+        )
         await check(() => output, new RegExp(`http://localhost:${port}`))
       } finally {
         await killApp(app)
@@ -604,7 +620,7 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(() => output, /Network:\\s*\[::\]:(\d+)/)
+        await check(() => output, /Network:\s*http:\/\/\[::\]:(\d+)/)
         await check(() => output, /https:\/\/localhost:(\d+)/)
         await check(() => output, /Certificates created in/)
       } finally {
@@ -659,7 +675,10 @@ describe('CLI Usage', () => {
       )
       try {
         // Only display when hostname is provided
-        await check(() => output, new RegExp(`Network:\\s*\\[::\\]:${port}`))
+        await check(
+          () => output,
+          new RegExp(`Network:\\s*\\http://\\[::\\]:${port}`)
+        )
         await check(() => output, new RegExp(`http://\\[::1\\]:${port}`))
       } finally {
         await killApp(app).catch(() => {})
@@ -681,21 +700,11 @@ describe('CLI Usage', () => {
 
     test('should exit when SIGINT is signalled', async () => {
       const port = await findPort()
-      await testExitSignal(
-        'SIGINT',
-        ['dev', dirBasic, '-p', port],
-        /- Local:/,
-        'SIGINT'
-      )
+      await testExitSignal('SIGINT', ['dev', dirBasic, '-p', port], /- Local:/)
     })
     test('should exit when SIGTERM is signalled', async () => {
       const port = await findPort()
-      await testExitSignal(
-        'SIGTERM',
-        ['dev', dirBasic, '-p', port],
-        /- Local:/,
-        'SIGTERM'
-      )
+      await testExitSignal('SIGTERM', ['dev', dirBasic, '-p', port], /- Local:/)
     })
 
     test('invalid directory', async () => {

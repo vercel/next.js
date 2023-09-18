@@ -730,6 +730,7 @@ export default async function exportApp(
             fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
             incrementalCacheHandlerPath:
               nextConfig.experimental.incrementalCacheHandlerPath,
+            serverActions: nextConfig.experimental.serverActions,
           })
 
           for (const validation of result.ampValidations || []) {

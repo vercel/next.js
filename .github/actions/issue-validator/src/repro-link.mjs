@@ -22,8 +22,7 @@ async function run() {
 
   // https://github.com/vercel/next.js/blob/canary/.github/ISSUE_TEMPLATE/1.bug_report.yml?plain=1
 
-  const start =
-    '### Link to the code that reproduces this issue or a replay of the bug'
+  const start = '### Link to the code that reproduces this issue'
   const end = '### To Reproduce'
   const linkRe = new RegExp(`${start}(.*)${end}`, 'is')
   const match = issue_body.match(linkRe)?.[1]?.trim()
@@ -78,10 +77,7 @@ async function hasRepro(link) {
   if (!link) return false
   try {
     const url = new URL(link)
-    if (
-      !['github.com', 'codesandbox.io', 'app.replay.io'].includes(url.hostname)
-    )
-      return false
+    if (!['github.com', 'codesandbox.io'].includes(url.hostname)) return false
     const { status } = await fetch(link)
     // Verify that it's not a private repo/sandbox
     // We allow 500, in case it's downtime on one of the services

@@ -38,15 +38,18 @@ next-transform-dynamic = { path = "packages/next-swc/crates/next-transform-dynam
 next-transform-strip-page-exports = { path = "packages/next-swc/crates/next-transform-strip-page-exports" }
 
 # SWC crates
-swc_core = { version = "=0.79.55", features = ["ecma_loader_lru", "ecma_loader_parking_lot"] }
-testing = { version = "0.33.21" }
+swc_core = { version = "0.83.12", features = [
+  "ecma_loader_lru",
+  "ecma_loader_parking_lot",
+] }
+testing = { version = "0.34.1" }
 
 # Turbo crates
-turbopack-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230908.2" }
+turbopack-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230917.1" }
 # [TODO]: need to refactor embed_directory! macro usages, as well as resolving turbo_tasks::function, macros..
-turbo-tasks= { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230908.2" }
+turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230917.1" }
 # [TODO]: need to refactor embed_directory! macro usage in next-core
-turbo-tasks-fs= { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230908.2" }
+turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230917.1" }
 
 # General Deps
 
@@ -90,7 +93,7 @@ dialoguer = "0.10.3"
 dunce = "1.0.3"
 futures = "0.3.26"
 futures-retry = "0.6.0"
-httpmock = { version = "0.6.7", default-features = false }
+httpmock = { version = "0.6.8", default-features = false }
 indexmap = "1.9.2"
 indicatif = "0.17.3"
 indoc = "2.0.0"

@@ -5,6 +5,8 @@ import type {
   StyledComponentsConfig,
 } from '../../server/config-shared'
 
+type BundleType = 'client' | 'server' | 'default'
+
 const nextDistPath =
   /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
 
@@ -42,6 +44,7 @@ function getBaseSWCOptions({
   jsConfig,
   swcCacheDir,
   isServerLayer,
+  bundleTarget,
   hasServerComponents,
   isServerActionsEnabled,
 }: {
@@ -55,6 +58,7 @@ function getBaseSWCOptions({
   compilerOptions: NextConfig['compiler']
   resolvedBaseUrl?: string
   jsConfig: any
+  bundleTarget: BundleType
   swcCacheDir?: string
   isServerLayer?: boolean
   hasServerComponents?: boolean
@@ -86,7 +90,8 @@ function getBaseSWCOptions({
       externalHelpers: !process.versions.pnp && !jest,
       parser: parserConfig,
       experimental: {
-        keepImportAssertions: true,
+        keepImportAttributes: true,
+        emitAssertForImportAttributes: true,
         plugins,
         cacheRoot: swcCacheDir,
       },
@@ -162,7 +167,7 @@ function getBaseSWCOptions({
       : undefined,
     relay: compilerOptions?.relay,
     // Always transform styled-jsx and error when `client-only` condition is triggered
-    styledJsx: true,
+    styledJsx: {},
     // Disable css-in-js libs (without client-only integration) transform on server layer for server components
     ...(!isServerLayer && {
       // eslint-disable-next-line @typescript-eslint/no-use-before-define
@@ -183,7 +188,7 @@ function getBaseSWCOptions({
           isServer: !!isServerLayer,
         }
       : undefined,
-    disableChecks: false,
+    bundleTarget,
   }
 }
 
@@ -273,13 +278,14 @@ export function getJestSWCOptions({
     resolvedBaseUrl,
     // Don't apply server layer transformations for Jest
     isServerLayer: false,
+    // Disable server / client graph assertions for Jest
+    bundleTarget: 'default',
   })
 
   const isNextDist = nextDistPath.test(filename)
 
   return {
     ...baseOptions,
-    disableChecks: true,
     env: {
       targets: {
         // Targets the current version of Node.js
@@ -316,6 +322,7 @@ export function getLoaderSWCOptions({
   isServerLayer,
   isServerActionsEnabled,
   optimizeBarrelExports,
+  bundleTarget = 'client',
 }: // This is not passed yet as "paths" resolving is handled by webpack currently.
 // resolvedBaseUrl,
 {
@@ -337,6 +344,7 @@ export function getLoaderSWCOptions({
   supportedBrowsers: string[]
   swcCacheDir: string
   relativeFilePathFromRoot: string
+  bundleTarget: BundleType
   hasServerComponents?: boolean
   isServerLayer: boolean
   isServerActionsEnabled?: boolean
@@ -356,6 +364,7 @@ export function getLoaderSWCOptions({
     hasServerComponents,
     isServerLayer,
     isServerActionsEnabled,
+    bundleTarget,
   })
   baseOptions.fontLoaders = {
     fontLoaders: [

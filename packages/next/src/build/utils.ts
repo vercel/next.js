@@ -15,6 +15,7 @@ import type {
   MiddlewareManifest,
 } from './webpack/plugins/middleware-plugin'
 import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage.external'
+import type { WebpackLayerName } from '../lib/constants'
 
 import '../server/require-hook'
 import '../server/node-polyfill-fetch'
@@ -35,6 +36,7 @@ import {
   SERVER_PROPS_SSG_CONFLICT,
   MIDDLEWARE_FILENAME,
   INSTRUMENTATION_HOOK_FILENAME,
+  WEBPACK_LAYERS,
 } from '../lib/constants'
 import { MODERN_BROWSERSLIST_TARGET } from '../shared/lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
@@ -1409,7 +1411,7 @@ export async function isPageStatic({
   const isPageStaticSpan = trace('is-page-static-utils', parentId)
   return isPageStaticSpan
     .traceAsyncFn(async () => {
-      require('../shared/lib/runtime-config.shared-runtime').setConfig(
+      require('../shared/lib/runtime-config.external').setConfig(
         runtimeEnvConfig
       )
       setHttpClientAndAgentOptions({
@@ -1695,9 +1697,7 @@ export async function hasCustomGetInitialProps(
   runtimeEnvConfig: any,
   checkingApp: boolean
 ): Promise<boolean> {
-  require('../shared/lib/runtime-config.shared-runtime').setConfig(
-    runtimeEnvConfig
-  )
+  require('../shared/lib/runtime-config.external').setConfig(runtimeEnvConfig)
 
   const components = await loadComponents({
     distDir,
@@ -1720,9 +1720,7 @@ export async function getDefinedNamedExports(
   distDir: string,
   runtimeEnvConfig: any
 ): Promise<ReadonlyArray<string>> {
-  require('../shared/lib/runtime-config.shared-runtime').setConfig(
-    runtimeEnvConfig
-  )
+  require('../shared/lib/runtime-config.external').setConfig(runtimeEnvConfig)
   const components = await loadComponents({
     distDir,
     page: page,
@@ -1984,7 +1982,7 @@ if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
 }
 
 const currentPort = parseInt(process.env.PORT, 10) || 3000
-const hostname = process.env.HOSTNAME || 'localhost'
+const hostname = process.env.HOSTNAME || '0.0.0.0'
 
 let keepAliveTimeout = parseInt(process.env.KEEP_ALIVE_TIMEOUT, 10)
 const nextConfig = ${JSON.stringify({
@@ -2119,4 +2117,16 @@ export function getSupportedBrowsers(
 
   // Uses modern browsers as the default.
   return MODERN_BROWSERSLIST_TARGET
+}
+
+export function isWebpackServerLayer(
+  layer: WebpackLayerName | null | undefined
+): boolean {
+  return Boolean(layer && WEBPACK_LAYERS.GROUP.server.includes(layer as any))
+}
+
+export function isWebpackDefaultLayer(
+  layer: WebpackLayerName | null | undefined
+): boolean {
+  return layer === null || layer === undefined
 }
