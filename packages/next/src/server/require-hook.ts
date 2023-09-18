@@ -8,16 +8,43 @@ const mod = require('module')
 const originalRequire = mod.prototype.require
 const resolveFilename = mod._resolveFilename
 
-const { hookPropertyMap } = require('./import-overrides')
 const { PHASE_PRODUCTION_BUILD } = require('../shared/lib/constants')
 
+let resolve: typeof require.resolve = process.env.NEXT_MINIMAL
+  ? // @ts-ignore
+    __non_webpack_require__.resolve
+  : require.resolve
+
+export const hookPropertyMap = new Map()
+
+export const defaultOverrides = {
+  'styled-jsx': path.dirname(resolve('styled-jsx/package.json')),
+  'styled-jsx/style': resolve('styled-jsx/style'),
+}
+
+const toResolveMap = (map: Record<string, string>): [string, string][] =>
+  Object.entries(map).map(([key, value]) => [key, resolve(value)])
+
+export function addHookAliases(aliases: [string, string][] = []) {
+  for (const [key, value] of aliases) {
+    hookPropertyMap.set(key, value)
+  }
+}
+
+addHookAliases(toResolveMap(defaultOverrides))
+
 mod._resolveFilename = function (
-  originalResolveFilename,
-  requestMap,
-  request,
-  parent,
-  isMain,
-  options
+  originalResolveFilename: (
+    request: string,
+    parent: string,
+    isMain: boolean,
+    opts: any
+  ) => string,
+  requestMap: Map<string, string>,
+  request: string,
+  parent: string,
+  isMain: boolean,
+  options: any
 ) {
   const hookResolved = requestMap.get(request)
   if (hookResolved) request = hookResolved
@@ -30,7 +57,7 @@ mod._resolveFilename = function (
 // This is a hack to make sure that if a user requires a Next.js module that wasn't bundled
 // that needs to point to the rendering runtime version, it will point to the correct one.
 // This can happen on `pages` when a user requires a dependency that uses next/image for example.
-mod.prototype.require = function (request) {
+mod.prototype.require = function (request: string) {
   if (
     (process.env.NEXT_PHASE !== PHASE_PRODUCTION_BUILD ||
       process.env.NEXT_IS_EXPORT_WORKER) &&

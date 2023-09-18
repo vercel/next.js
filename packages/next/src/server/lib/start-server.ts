@@ -358,3 +358,13 @@ export async function startServer({
     })
   }
 }
+
+if (process.env.NEXT_PRIVATE_WORKER && process.send) {
+  process.addListener('message', async (msg: any) => {
+    if (msg && typeof msg && msg.nextWorkerOptions && process.send) {
+      await startServer(msg.nextWorkerOptions)
+      process.send({ nextServerReady: true })
+    }
+  })
+  process.send({ nextWorkerReady: true })
+}
