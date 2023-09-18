@@ -112,6 +112,7 @@ const enabledTests = [
   'test/e2e/typescript-version-no-warning/typescript-version-no-warning.test.ts',
   'test/e2e/typescript-version-warning/typescript-version-warning.test.ts',
   'test/e2e/undici-fetch/index.test.ts',
+  'test/integration/api-support/test/index.test.js',
   'test/integration/404-page/test/index.test.js',
   'test/integration/404-page-app/test/index.test.js',
   'test/integration/404-page-custom-error/test/index.test.js',
