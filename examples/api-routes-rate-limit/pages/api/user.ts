@@ -12,7 +12,7 @@ export default async function handler(
   res: NextApiResponse
 ) {
   try {
-    await limiter.check(res, 10, 'CACHE_TOKEN') // 10 requests per minute
+    await limiter.check(res, 100000, 'CACHE_TOKEN') // 10 requests per minute
     res.status(200).json({ id: uuidv4() })
   } catch {
     res.status(429).json({ error: 'Rate limit exceeded' })
