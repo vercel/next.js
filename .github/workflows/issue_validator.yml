@@ -25,8 +25,8 @@ jobs:
           label-comments: |
             {
               "please add a complete reproduction": ".github/invalid-reproduction.md",
-              "please simplify reproduction": ".github/simplify-reproduction.md"
-              "please verify canary": ".github/verify-canary.md",
+              "please simplify reproduction": ".github/simplify-reproduction.md",
+              "please verify canary": ".github/verify-canary.md"
             }
           reproduction-comment: '.github/invalid-link.md'
           reproduction-hosts: 'github.com,codesandbox.io'
