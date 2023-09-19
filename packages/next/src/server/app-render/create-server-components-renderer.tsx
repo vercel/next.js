@@ -13,7 +13,10 @@ export function createServerComponentRenderer<Props>(
   ComponentToRender: (props: Props) => any,
   ComponentMod: {
     renderToReadableStream: any
-    createFromReadableStream: any
+    __next_app__?: {
+      require: any
+      loadChunk: any
+    }
   },
   {
     inlinedDataTransformStream,

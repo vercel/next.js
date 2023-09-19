@@ -1,5 +1,4 @@
 import { ClientShared, ClientDynamicShared } from './ClientShared'
-import 'server-only'
 
 import styles from './styles.module.css'
 

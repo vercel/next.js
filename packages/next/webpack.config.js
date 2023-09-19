@@ -197,6 +197,10 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
     module: {
       rules: [
         {
+          include: /[\\/]react-server.node/,
+          layer: 'react-server',
+        },
+        {
           include: /vendored[\\/]rsc[\\/]entrypoints/,
           resolve: {
             conditionNames: ['react-server', '...'],

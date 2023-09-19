@@ -1568,12 +1568,10 @@ export default async function getBaseWebpackConfig(
                 layer: WEBPACK_LAYERS.appMetadataRoute,
               },
               {
+                // Ensure that the app page module is in the client layers, this
+                // enables React to work correctly for RSC.
                 layer: WEBPACK_LAYERS.serverSideRendering,
-                test: [
-                  // Ensure that the app page module is in the client layers, this
-                  // enables React to work correctly for RSC.
-                  /next[\\/]dist[\\/](esm[\\/])?server[\\/]future[\\/]route-modules[\\/]app-page[\\/]module/,
-                ],
+                test: /next[\\/]dist[\\/](esm[\\/])?server[\\/]future[\\/]route-modules[\\/]app-page[\\/]module/,
               },
               {
                 // All app dir layers need to use this configured resolution logic
