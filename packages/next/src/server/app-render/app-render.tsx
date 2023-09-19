@@ -1314,6 +1314,7 @@ export async function renderToHTMLOrFlight(
       clientReferenceManifest,
       serverContexts,
       rscChunks: [],
+      formState: null,
     }
 
     const validateRootLayout = dev
@@ -1336,7 +1337,8 @@ export async function renderToHTMLOrFlight(
      */
     const createServerComponentsRenderer = (
       loaderTreeToRender: LoaderTree,
-      preinitScripts: () => void
+      preinitScripts: () => void,
+      formState: null | any
     ) =>
       createServerComponentRenderer<{
         asNotFound: boolean
@@ -1399,7 +1401,7 @@ export async function renderToHTMLOrFlight(
           )
         },
         ComponentMod,
-        serverComponentsRenderOpts,
+        { ...serverComponentsRenderOpts },
         serverComponentsErrorHandler,
         nonce
       )
@@ -1457,7 +1459,8 @@ export async function renderToHTMLOrFlight(
         )
         const ServerComponentsRenderer = createServerComponentsRenderer(
           tree,
-          preinitScripts
+          preinitScripts,
+          formState
         )
         const content = (
           <HeadManagerContext.Provider
@@ -1613,6 +1616,7 @@ export async function renderToHTMLOrFlight(
               transformStream: cloneTransformStream(
                 serverComponentsRenderOpts.transformStream
               ),
+              // formState,
             }
 
           const errorType = is404
@@ -1747,6 +1751,7 @@ export async function renderToHTMLOrFlight(
           await bodyResult({
             asNotFound: true,
             tree: notFoundLoaderTree,
+            formState,
           }),
           { ...extraRenderResultMeta }
         )

@@ -44,7 +44,7 @@ function nextServerDataCallback(
 ): number {
   if (seg[0] === 0) {
     initialServerDataBuffer = []
-  } else {
+  } else if (seg[0] === 1) {
     if (!initialServerDataBuffer)
       throw new Error('Unexpected server data: missing bootstrap script.')
 
