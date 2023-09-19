@@ -145,6 +145,7 @@ import { createClientRouterFilter } from '../lib/create-client-router-filter'
 import { createValidFileMatcher } from '../server/lib/find-page-file'
 import { startTypeChecking } from './type-check'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
+import { needsExperimentalReact } from '../lib/needs-experimental-react'
 
 import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
 import { defaultOverrides } from '../server/require-hook'
@@ -1255,11 +1256,9 @@ export default async function build(
               __NEXT_INCREMENTAL_CACHE_IPC_PORT: incrementalCacheIpcPort + '',
               __NEXT_INCREMENTAL_CACHE_IPC_KEY:
                 incrementalCacheIpcValidationKey,
-              __NEXT_PRIVATE_PREBUNDLED_REACT: hasAppDir
-                ? config.experimental.serverActions
-                  ? 'experimental'
-                  : 'next'
-                : '',
+              __NEXT_PRIVATE_PREBUNDLED_REACT: needsExperimentalReact(config)
+                ? 'experimental'
+                : 'next',
             },
           },
           enableWorkerThreads: config.experimental.workerThreads,
@@ -2438,8 +2437,7 @@ export default async function build(
               outputFileTracingRoot,
               requiredServerFiles.config,
               middlewareManifest,
-              hasInstrumentationHook,
-              hasAppDir
+              hasInstrumentationHook
             )
           })
       }

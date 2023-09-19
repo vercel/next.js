@@ -71,6 +71,7 @@ import { getSupportedBrowsers } from './utils'
 import { MemoryWithGcCachePlugin } from './webpack/plugins/memory-with-gc-cache-plugin'
 import { getBabelConfigFile } from './get-babel-config-file'
 import { defaultOverrides } from '../server/require-hook'
+import { needsExperimentalReact } from '../lib/needs-experimental-react'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -191,7 +192,6 @@ export function getDefineEnv({
   isNodeServer,
   middlewareMatchers,
   previewModeId,
-  useServerActions,
 }: {
   allowedRevalidateHeaderKeys: string[] | undefined
   clientRouterFilters: Parameters<
@@ -208,7 +208,6 @@ export function getDefineEnv({
   isNodeServer: boolean
   middlewareMatchers: MiddlewareMatcher[] | undefined
   previewModeId: string | undefined
-  useServerActions: boolean
 }) {
   return {
     // internal field to identify the plugin config
@@ -373,8 +372,9 @@ export function getDefineEnv({
     'process.env.TURBOPACK': JSON.stringify(false),
     ...(isNodeServer
       ? {
-          'process.env.__NEXT_EXPERIMENTAL_REACT':
-            JSON.stringify(useServerActions),
+          'process.env.__NEXT_EXPERIMENTAL_REACT': JSON.stringify(
+            needsExperimentalReact(config)
+          ),
         }
       : undefined),
   }
@@ -808,7 +808,9 @@ export default async function getBaseWebpackConfig(
   const disableOptimizedLoading = true
   const enableTypedRoutes = !!config.experimental.typedRoutes && hasAppDir
   const useServerActions = !!config.experimental.serverActions && hasAppDir
-  const bundledReactChannel = useServerActions ? '-experimental' : ''
+  const bundledReactChannel = needsExperimentalReact(config)
+    ? '-experimental'
+    : ''
 
   if (isClient) {
     if (
@@ -2543,7 +2545,6 @@ export default async function getBaseWebpackConfig(
           isNodeServer,
           middlewareMatchers,
           previewModeId,
-          useServerActions,
         })
       ),
       isClient &&
