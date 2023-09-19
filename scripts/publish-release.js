@@ -76,14 +76,15 @@ const cwd = process.cwd()
           setTimeout(resolve, retryDelaySeconds * 1000)
         )
         await publish(pkg, retry + 1)
+      } else {
+        throw err
       }
-      throw err
     } finally {
       publishSema.release()
     }
   }
 
-  await Promise.all(
+  await Promise.allSettled(
     packageDirs.map(async (packageDir) => {
       const pkgJson = await readJson(
         path.join(packagesDir, packageDir, 'package.json')
