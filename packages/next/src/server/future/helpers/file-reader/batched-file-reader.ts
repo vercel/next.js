@@ -3,11 +3,11 @@ import type { FileReader, FileReaderOptions } from './file-reader'
 import path from 'path'
 import { DetachedPromise } from '../detached-promise'
 import {
-  type DirectoryReadResult,
+  type GroupedDirectoryReadResult,
   type DirectoryReadTask,
   groupDirectoryReads,
   mergeDirectoryReadResults,
-} from './helpers/deduplicate-directory-reads'
+} from './helpers/group-directory-reads'
 import { Debuggable } from '../debuggable'
 
 interface Task extends DirectoryReadTask {
@@ -148,7 +148,7 @@ export class BatchedFileReader extends Debuggable implements FileReader {
     )
 
     const results = await Promise.all(
-      queue.map<Promise<DirectoryReadResult<Task>>>(async (spec) => {
+      queue.map<Promise<GroupedDirectoryReadResult<Task>>>(async (spec) => {
         const { dir, recursive } = spec
 
         let files: ReadonlyArray<string> | undefined

@@ -12,50 +12,50 @@ export interface DirectoryReadTask {
   recursive: boolean
 }
 
-interface DirectoryReadSpec<T extends DirectoryReadTask>
+export interface GroupedDirectoryReadTask<T extends DirectoryReadTask>
   extends DirectoryReadTask {
   /**
-   * The list of jobs that match this directory directly.
+   * The tasks that ll share this specific grouped task.
    */
-  siblings: ReadonlyArray<T>
+  shared: ReadonlyArray<T>
 
   /**
    * The list of jobs that match a sub-directory of this directory.
    */
-  decedents: ReadonlyArray<T>
+  subDirectories: ReadonlyArray<T>
 }
 
 export function groupDirectoryReads<T extends DirectoryReadTask>(
-  directories: ReadonlyArray<T>,
+  tasks: ReadonlyArray<T>,
   pathSeparator: string
-): ReadonlyArray<DirectoryReadSpec<T>> {
+): ReadonlyArray<GroupedDirectoryReadTask<T>> {
   // Let's sort the jobs by directory, eliminate the duplicates, and remove
   // those that are sub-directories of another directory if they are being
   // recursively loaded.
-  const unique = Array.from(new Set(directories.map((spec) => spec.dir))).sort()
+  const unique = Array.from(new Set(tasks.map((task) => task.dir))).sort()
 
   // Remove any directories that are sub-directories of another directory if
   // they are being recursively loaded. We're relying on the fact that the
   // array is sorted to do this.
-  const tasks = new Array<DirectoryReadSpec<T>>()
+  const grouped = new Array<GroupedDirectoryReadTask<T>>()
   for (let i = 0; i < unique.length; i++) {
     const dir = unique[i]
 
     // Find the jobs that match this directory.
-    const siblings = directories.filter((spec) => spec.dir === dir)
+    const shared = tasks.filter((task) => task.dir === dir)
 
     // If some of them are recursive, then we need to load this directory
     // recursively.
-    const recursive = siblings.some((spec) => spec.recursive)
+    const recursive = shared.some((task) => task.recursive)
 
-    const decedents: T[] = []
+    const subDirectories: T[] = []
 
     // Push the job into the queue.
-    tasks.push({
+    grouped.push({
       dir,
       recursive,
-      siblings,
-      decedents,
+      shared,
+      subDirectories: subDirectories,
     })
 
     // If this isn't a recursive job, then we can't benefit if there's any
@@ -74,15 +74,17 @@ export function groupDirectoryReads<T extends DirectoryReadTask>(
       j--
 
       // Add all the jobs for this directory to the duplicates array.
-      decedents.push(...directories.filter((job) => job.dir === other))
+      const duplicates = tasks.filter((task) => task.dir === other)
+      subDirectories.push(...duplicates)
+      shared.push(...duplicates)
     }
   }
 
-  return tasks
+  return grouped
 }
 
-export interface DirectoryReadResult<T extends DirectoryReadTask>
-  extends DirectoryReadSpec<T> {
+export interface GroupedDirectoryReadResult<T extends DirectoryReadTask>
+  extends GroupedDirectoryReadTask<T> {
   /**
    * The list of files in this directory, or undefined if there was an error.
    */
@@ -95,16 +97,16 @@ export interface DirectoryReadResult<T extends DirectoryReadTask>
 }
 
 export function mergeDirectoryReadResults<T extends DirectoryReadTask>(
-  specs: ReadonlyArray<T>,
-  results: ReadonlyArray<DirectoryReadResult<T>>,
+  tasks: ReadonlyArray<T>,
+  results: ReadonlyArray<GroupedDirectoryReadResult<T>>,
   pathSeparator: string
 ): ReadonlyArray<ReadonlyArray<string> | Error> {
-  return specs.map((spec) => {
-    const found = results.find((result) => result.siblings.includes(spec))
+  return tasks.map((task) => {
+    const found = results.find((result) => result.shared.includes(task))
     if (!found) return []
 
     const { files, error } = found
-    const { dir, recursive } = spec
+    const { dir, recursive } = task
 
     // If there was an error, then return it.
     if (error) return error
@@ -116,7 +118,7 @@ export function mergeDirectoryReadResults<T extends DirectoryReadTask>(
     if (!found.recursive) return files
 
     // If this job was not a duplicated job, then return the files.
-    if (!found.decedents.includes(spec)) return files
+    if (!found.subDirectories.includes(task)) return files
 
     // Filter the files to only include those that are in this directory or
     // any sub-directories (depending on the recursive flag).
