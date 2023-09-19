@@ -751,6 +751,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const origSetHeader = _res.setHeader.bind(_res)
 
       _res.setHeader = (name: string, val: string | string[]) => {
+        // When renders /_error after page is failed,
+        // it could attempt to set headers after headers
+        if (_res.headersSent) {
+          return
+        }
+        // @ts-ignore
+        // console.log('multi', '_res.finished', _res.finished, _res.pathname, '_res.headersSent', _res.headersSent, 'res.headersSent', res.headersSent)
         if (name.toLowerCase() === 'set-cookie') {
           const middlewareValue = getRequestMeta(req, '_nextMiddlewareCookie')
 

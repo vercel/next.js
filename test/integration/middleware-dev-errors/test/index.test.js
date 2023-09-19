@@ -249,10 +249,9 @@ describe('Middleware development errors', () => {
     it('logs the error correctly', async () => {
       await fetchViaHTTP(context.appPort, '/')
       expect(context.logs.output).toContain(`Expected '{', got '}'`)
-      // TODO: investigate occasional duplicate errors causing flakiness
-      // expect(context.logs.output.split(`Expected '{', got '}'`).length).toEqual(
-      //   2
-      // )
+      expect(context.logs.output.split(`Expected '{', got '}'`).length).toEqual(
+        2
+      )
     })
 
     it('renders the error correctly and recovers', async () => {
