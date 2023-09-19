@@ -3,26 +3,29 @@ import type { NextWorkerFixture, FetchHandler } from './next-worker-fixture'
 import type { NextOptions } from './next-options'
 import type { FetchHandlerResult } from '../proxy'
 import { handleRoute } from './page-route'
+import { reportFetch } from './report'
 
 export interface NextFixture {
   onFetch: (handler: FetchHandler) => void
 }
 
 class NextFixtureImpl implements NextFixture {
+  public readonly testId: string
   private fetchHandlers: FetchHandler[] = []
 
   constructor(
-    public testId: string,
+    private testInfo: TestInfo,
     private options: NextOptions,
     private worker: NextWorkerFixture,
     private page: Page
   ) {
+    this.testId = testInfo.testId
     const testHeaders = {
       'Next-Test-Proxy-Port': String(worker.proxyPort),
-      'Next-Test-Data': testId,
+      'Next-Test-Data': this.testId,
     }
     const handleFetch = this.handleFetch.bind(this)
-    worker.onFetch(testId, handleFetch)
+    worker.onFetch(this.testId, handleFetch)
     this.page.route('**', (route) =>
       handleRoute(route, page, testHeaders, handleFetch)
     )
@@ -37,16 +40,18 @@ class NextFixtureImpl implements NextFixture {
   }
 
   private async handleFetch(request: Request): Promise<FetchHandlerResult> {
-    for (const handler of this.fetchHandlers.slice().reverse()) {
-      const result = handler(request)
-      if (result) {
-        return result
+    return reportFetch(this.testInfo, request, async (req) => {
+      for (const handler of this.fetchHandlers.slice().reverse()) {
+        const result = await handler(req.clone())
+        if (result) {
+          return result
+        }
       }
-    }
-    if (this.options.fetchLoopback) {
-      return fetch(request)
-    }
-    return undefined
+      if (this.options.fetchLoopback) {
+        return fetch(req.clone())
+      }
+      return undefined
+    })
   }
 }
 
@@ -64,12 +69,7 @@ export async function applyNextFixture(
     page: Page
   }
 ): Promise<void> {
-  const fixture = new NextFixtureImpl(
-    testInfo.testId,
-    nextOptions,
-    nextWorker,
-    page
-  )
+  const fixture = new NextFixtureImpl(testInfo, nextOptions, nextWorker, page)
 
   await use(fixture)
 

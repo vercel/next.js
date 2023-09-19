@@ -1,6 +1,7 @@
 import { join } from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
+import { shouldRunTurboDevTest } from '../../lib/next-test-utils'
 
 describe('optimizePackageImports', () => {
   let next: NextInstance
@@ -27,7 +28,9 @@ describe('optimizePackageImports', () => {
         scripts: {
           setup: `cp -r ./node_modules_bak/* ./node_modules`,
           build: `yarn setup && next build`,
-          dev: `yarn setup && next dev`,
+          dev: `yarn setup && next ${
+            shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
+          }`,
           start: 'next start',
         },
       },

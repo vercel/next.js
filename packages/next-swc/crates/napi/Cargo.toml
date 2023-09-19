@@ -21,6 +21,13 @@ native-tls = ["next-dev/native-tls"]
 rustls-tls = ["next-dev/rustls-tls"]
 serializable = ["next-dev/serializable"]
 image-webp = ["next-core/image-webp"]
+image-avif = ["next-core/image-avif"]
+# Enable all the available image codec support.
+# Currently this is identical to `image-webp`, as we are not able to build
+# other codecs easily yet.
+image-extended = [
+  "image-webp",
+]
 
 # Enable dhat profiling allocator for heap profiling.
 __internal_dhat-heap = ["dhat"]

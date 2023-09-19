@@ -865,7 +865,7 @@ export default async function loadConfig(
 
       if (shouldExit) {
         for (const message of messages) {
-          curLog.error(message)
+          console.error(message)
         }
         await flushAndExit(1)
       } else {
