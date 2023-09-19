@@ -2131,3 +2131,9 @@ export function isWebpackDefaultLayer(
 ): boolean {
   return layer === null || layer === undefined
 }
+
+export function isWebpackAppLayer(
+  layer: WebpackLayerName | null | undefined
+): boolean {
+  return Boolean(layer && WEBPACK_LAYERS.GROUP.app.includes(layer as any))
+}
