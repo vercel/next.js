@@ -59,10 +59,9 @@ export function useFlightResponse(
           encodeText(
             `${startScriptTag}(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
               JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
-            )})</script>` +
-              `${startScriptTag}self.__next_f.push(${htmlEscapeJsonString(
-                JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
-              )})</script>`
+            )});self.__next_f.push(${htmlEscapeJsonString(
+              JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
+            )})</script>`
           )
         )
       }
