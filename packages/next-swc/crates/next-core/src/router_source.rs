@@ -2,7 +2,6 @@ use anyhow::{anyhow, bail, Context, Result};
 use futures::{Stream, TryStreamExt};
 use indexmap::IndexSet;
 use turbo_tasks::{Completion, Completions, Value, Vc};
-use turbo_tasks_fs::FileSystemPath;
 use turbopack_binding::turbopack::{
     core::{
         environment::ServerAddr,
@@ -32,7 +31,7 @@ pub struct NextRouterContentSource {
     server_addr: Vc<ServerAddr>,
     app_dir: Vc<OptionAppDir>,
     pages_structure: Vc<PagesStructure>,
-    dist_root: Vc<FileSystemPath>,
+    dist_root: Vc<String>,
 }
 
 #[turbo_tasks::value_impl]
@@ -45,7 +44,7 @@ impl NextRouterContentSource {
         server_addr: Vc<ServerAddr>,
         app_dir: Vc<OptionAppDir>,
         pages_structure: Vc<PagesStructure>,
-        dist_root: Vc<FileSystemPath>,
+        dist_root: Vc<String>,
     ) -> Vc<NextRouterContentSource> {
         NextRouterContentSource {
             inner,

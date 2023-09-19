@@ -213,7 +213,7 @@ fn route_executor(
 #[turbo_tasks::function]
 fn edge_transition_map(
     server_addr: Vc<ServerAddr>,
-    dist_root: Vc<FileSystemPath>,
+    dist_root: Vc<String>,
     project_path: Vc<FileSystemPath>,
     output_path: Vc<FileSystemPath>,
     next_config: Vc<NextConfig>,
@@ -276,7 +276,7 @@ fn edge_transition_map(
 pub async fn route(
     execution_context: Vc<ExecutionContext>,
     request: Vc<RouterRequest>,
-    dist_root: Vc<FileSystemPath>,
+    dist_root: Vc<String>,
     next_config: Vc<NextConfig>,
     server_addr: Vc<ServerAddr>,
     routes_changed: Vc<Completion>,
@@ -314,7 +314,7 @@ macro_rules! shared_anyhow {
 async fn route_internal(
     execution_context: Vc<ExecutionContext>,
     request: Vc<RouterRequest>,
-    dist_root: Vc<FileSystemPath>,
+    dist_root: Vc<String>,
     next_config: Vc<NextConfig>,
     server_addr: Vc<ServerAddr>,
     routes_changed: Vc<Completion>,

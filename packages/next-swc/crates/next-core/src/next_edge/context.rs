@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{Value, ValueToString, Vc};
+use turbo_tasks::{Value, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::FileSystemPath,
     turbopack::{
@@ -41,7 +41,14 @@ fn defines(dist_root_path: Option<String>) -> CompileTimeDefines {
     );
 
     if let Some(dist_root_path) = dist_root_path {
-        defines.0.insert(vec!["process".to_string(), "env".to_string(), "__NEXT_DIST_DIR".to_string()], dist_root_path.to_string().into());
+        defines.0.insert(
+            vec![
+                "process".to_string(),
+                "env".to_string(),
+                "__NEXT_DIST_DIR".to_string(),
+            ],
+            dist_root_path.to_string().into(),
+        );
     }
 
     // TODO(WEB-937) there are more defines needed, see
@@ -51,17 +58,17 @@ fn defines(dist_root_path: Option<String>) -> CompileTimeDefines {
 }
 
 #[turbo_tasks::function]
-async fn next_edge_defines(dist_root_path: Vc<FileSystemPath>) -> Result<Vc<CompileTimeDefines>> {
-    let dist_root_path = &*dist_root_path.to_string().await?;
+async fn next_edge_defines(dist_root_path: Vc<String>) -> Result<Vc<CompileTimeDefines>> {
+    let dist_root_path = &*dist_root_path.await?;
     Ok(defines(Some(dist_root_path.clone())).cell())
 }
 
 #[turbo_tasks::function]
 async fn next_edge_free_vars(
     project_path: Vc<FileSystemPath>,
-    dist_root_path: Vc<FileSystemPath>,
+    dist_root_path: Vc<String>,
 ) -> Result<Vc<FreeVarReferences>> {
-    let dist_root_path = &*dist_root_path.to_string().await?;
+    let dist_root_path = &*dist_root_path.await?;
     Ok(free_var_references!(
         ..defines(Some(dist_root_path.clone())).into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
@@ -82,7 +89,7 @@ async fn next_edge_free_vars(
 pub fn get_edge_compile_time_info(
     project_path: Vc<FileSystemPath>,
     server_addr: Vc<ServerAddr>,
-    dist_root_path: Vc<FileSystemPath>,
+    dist_root_path: Vc<String>,
 ) -> Vc<CompileTimeInfo> {
     CompileTimeInfo::builder(Environment::new(Value::new(
         ExecutionEnvironment::EdgeWorker(EdgeWorkerEnvironment { server_addr }.into()),

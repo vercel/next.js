@@ -82,7 +82,7 @@ use crate::{
 pub async fn create_page_source(
     pages_structure: Vc<PagesStructure>,
     project_root: Vc<FileSystemPath>,
-    dist_root: Vc<FileSystemPath>,
+    dist_root: Vc<String>,
     execution_context: Vc<ExecutionContext>,
     node_root: Vc<FileSystemPath>,
     client_root: Vc<FileSystemPath>,

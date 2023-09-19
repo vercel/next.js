@@ -1,7 +1,7 @@
 use core::{default::Default, result::Result::Ok};
 
 use anyhow::Result;
-use turbo_tasks::{Value, ValueToString, Vc};
+use turbo_tasks::{Value, Vc};
 use turbo_tasks_fs::FileSystem;
 use turbopack_binding::{
     turbo::{tasks_env::ProcessEnv, tasks_fs::FileSystemPath},
@@ -76,7 +76,14 @@ fn defines(mode: NextMode, dist_root_path: Option<String>) -> CompileTimeDefines
     );
 
     if let Some(dist_root_path) = dist_root_path {
-        defines.0.insert(vec!["process".to_string(), "env".to_string(), "__NEXT_DIST_DIR".to_string()], dist_root_path.to_string().into());
+        defines.0.insert(
+            vec![
+                "process".to_string(),
+                "env".to_string(),
+                "__NEXT_DIST_DIR".to_string(),
+            ],
+            dist_root_path.to_string().into(),
+        );
     }
 
     // TODO(WEB-937) there are more defines needed, see
@@ -88,18 +95,18 @@ fn defines(mode: NextMode, dist_root_path: Option<String>) -> CompileTimeDefines
 #[turbo_tasks::function]
 async fn next_client_defines(
     mode: NextMode,
-    dist_root_path: Vc<FileSystemPath>,
+    dist_root_path: Vc<String>,
 ) -> Result<Vc<CompileTimeDefines>> {
-    let dist_root_path = &*dist_root_path.to_string().await?;
+    let dist_root_path = &*dist_root_path.await?;
     Ok(defines(mode, Some(dist_root_path.clone())).cell())
 }
 
 #[turbo_tasks::function]
 async fn next_client_free_vars(
     mode: NextMode,
-    dist_root_path: Vc<FileSystemPath>,
+    dist_root_path: Vc<String>,
 ) -> Result<Vc<FreeVarReferences>> {
-    let dist_root_path = &*dist_root_path.to_string().await?;
+    let dist_root_path = &*dist_root_path.await?;
     Ok(free_var_references!(
         ..defines(mode, Some(dist_root_path.clone())).into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
@@ -120,7 +127,7 @@ async fn next_client_free_vars(
 pub fn get_client_compile_time_info(
     mode: NextMode,
     browserslist_query: String,
-    dist_root_path: Vc<FileSystemPath>,
+    dist_root_path: Vc<String>,
 ) -> Vc<CompileTimeInfo> {
     CompileTimeInfo::builder(Environment::new(Value::new(ExecutionEnvironment::Browser(
         BrowserEnvironment {

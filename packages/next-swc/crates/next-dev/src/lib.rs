@@ -40,7 +40,7 @@ use owo_colors::OwoColorize;
 use tracing_subscriber::{prelude::*, EnvFilter, Registry};
 use turbo_tasks::{
     util::FormatDuration, StatsType, TransientInstance, TurboTasks, TurboTasksBackendApi,
-    UpdateInfo, Value, Vc,
+    UpdateInfo, Value, ValueToString, Vc,
 };
 use turbopack_binding::{
     turbo::{
@@ -328,7 +328,7 @@ async fn source(
         .root()
         .join(dist_dir.clone())
         .join("build".to_string());
-    let dist_root = output_fs.root().join(dist_dir.clone());
+    let dist_root = output_fs.root().join(dist_dir.clone()).to_string();
 
     let build_chunking_context = DevChunkingContext::builder(
         project_path,

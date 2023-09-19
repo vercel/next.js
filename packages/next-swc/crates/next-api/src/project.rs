@@ -23,7 +23,7 @@ use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
     trace::TraceRawVcs,
     Completion, Completions, IntoTraitRef, State, TaskInput, TransientInstance, TryFlatJoinIterExt,
-    Value, Vc,
+    Value, ValueToString, Vc,
 };
 use turbopack_binding::{
     turbo::{
@@ -282,17 +282,18 @@ impl Project {
         self.project_fs().root()
     }
 
-    /// Returns a path to dist_dir resolved from project root path.
+    /// Returns a path to dist_dir resolved from project root path as string.
     /// Currently this is used to embed process.env.__NEXT_DIST_DIR.
     /// [Note] in webpack-config, it is being injected when
     /// dev && (isClient || isEdgeServer)
     #[turbo_tasks::function]
-    async fn dist_root_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+    async fn dist_root_string(self: Vc<Self>) -> Result<Vc<String>> {
         let this = self.await?;
         Ok(self
             .project_root_path()
             .root()
-            .join(this.dist_dir.to_string()))
+            .join(this.dist_dir.to_string())
+            .to_string())
     }
 
     #[turbo_tasks::function]
@@ -355,7 +356,7 @@ impl Project {
         Ok(get_client_compile_time_info(
             this.mode,
             this.browserslist_query.clone(),
-            self.dist_root_path(),
+            self.dist_root_string(),
         ))
     }
 
@@ -374,7 +375,7 @@ impl Project {
         get_edge_compile_time_info(
             self.project_path(),
             self.server_addr(),
-            self.dist_root_path(),
+            self.dist_root_string(),
         )
     }
 

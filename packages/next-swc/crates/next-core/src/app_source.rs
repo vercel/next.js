@@ -191,7 +191,7 @@ fn next_ssr_client_module_transition(
 #[turbo_tasks::function]
 fn next_edge_ssr_client_module_transition(
     project_path: Vc<FileSystemPath>,
-    dist_root: Vc<FileSystemPath>,
+    dist_root: Vc<String>,
     execution_context: Vc<ExecutionContext>,
     app_dir: Vc<FileSystemPath>,
     next_config: Vc<NextConfig>,
@@ -291,7 +291,7 @@ fn next_route_transition(
 #[turbo_tasks::function]
 fn next_edge_server_component_transition(
     project_path: Vc<FileSystemPath>,
-    dist_root: Vc<FileSystemPath>,
+    dist_root: Vc<String>,
     execution_context: Vc<ExecutionContext>,
     app_dir: Vc<FileSystemPath>,
     server_root: Vc<FileSystemPath>,
@@ -327,7 +327,7 @@ fn next_edge_server_component_transition(
 #[turbo_tasks::function]
 fn next_edge_route_transition(
     project_path: Vc<FileSystemPath>,
-    dist_root: Vc<FileSystemPath>,
+    dist_root: Vc<String>,
     app_dir: Vc<FileSystemPath>,
     server_root: Vc<FileSystemPath>,
     next_config: Vc<NextConfig>,
@@ -377,7 +377,7 @@ fn next_edge_route_transition(
 #[turbo_tasks::function]
 fn next_edge_page_transition(
     project_path: Vc<FileSystemPath>,
-    dist_root: Vc<FileSystemPath>,
+    dist_root: Vc<String>,
     app_dir: Vc<FileSystemPath>,
     server_root: Vc<FileSystemPath>,
     mode: NextMode,
@@ -426,7 +426,7 @@ fn next_edge_page_transition(
 #[turbo_tasks::function]
 fn app_context(
     project_path: Vc<FileSystemPath>,
-    dist_root: Vc<FileSystemPath>,
+    dist_root: Vc<String>,
     execution_context: Vc<ExecutionContext>,
     server_root: Vc<FileSystemPath>,
     app_dir: Vc<FileSystemPath>,
@@ -589,7 +589,7 @@ fn app_context(
 #[turbo_tasks::function]
 pub async fn create_app_source(
     app_dir: Vc<OptionAppDir>,
-    dist_root: Vc<FileSystemPath>,
+    dist_root: Vc<String>,
     project_path: Vc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,
     output_path: Vc<FileSystemPath>,
