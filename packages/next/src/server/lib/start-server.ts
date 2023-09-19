@@ -273,10 +273,12 @@ export async function startServer({
       process.env.PORT = port + ''
 
       try {
-        const cleanup = (code: number | null) => {
+        // Maybe change to NodeJS.Signals ?
+        const cleanup = (code: string | number | null) => {
           debug('start-server process cleanup')
           server.close()
-          process.exit(code ?? 0)
+          // signal code can also be string in newest node versions
+          process.exit(typeof code === 'number' ? code : 0)
         }
         const exception = (err: Error) => {
           // This is the render worker, we keep the process alive
