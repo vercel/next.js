@@ -10,7 +10,8 @@ export default async function Home() {
   const { rows: todos } = data
 
   return (
-    <div>
+    <main>
+      <h1 className="sr-only">Todos</h1>
       <AddForm />
       <ul>
         {todos.map((todo) => (
@@ -20,6 +21,6 @@ export default async function Home() {
           </li>
         ))}
       </ul>
-    </div>
+    </main>
   )
 }

@@ -23,7 +23,8 @@ export async function createTodo(prevState: any, formData: FormData) {
     VALUES (${data.todo})
   `
 
-    return revalidatePath('/')
+    revalidatePath('/')
+    return { message: `Added todo ${data.todo}` }
   } catch (e) {
     return { message: 'Failed to create todo' }
   }
@@ -43,7 +44,8 @@ export async function deleteTodo(prevState: any, formData: FormData) {
       WHERE id = ${data.id};
     `
 
-    return revalidatePath('/')
+    revalidatePath('/')
+    return { message: 'Deleted todo' }
   } catch (e) {
     return { message: 'Failed to delete todo' }
   }

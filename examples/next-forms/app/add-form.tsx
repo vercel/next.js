@@ -12,7 +12,7 @@ function SubmitButton() {
   const { pending } = useFormStatus()
 
   return (
-    <button type="submit" disabled={pending}>
+    <button type="submit" aria-disabled={pending}>
       Add
     </button>
   )
@@ -26,7 +26,9 @@ export function AddForm() {
       <label htmlFor="todo">Enter Task</label>
       <input type="text" id="todo" name="todo" required />
       <SubmitButton />
-      {state && <p aria-live="polite">{state.message}</p>}
+      <p aria-live="polite" className="sr-only">
+        {state?.message}
+      </p>
     </form>
   )
 }
