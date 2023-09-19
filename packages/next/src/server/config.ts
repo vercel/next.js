@@ -724,6 +724,7 @@ function assignDefaults(
       'react-use',
       '@material-ui/icons',
       '@tabler/icons-react',
+      'mui-core',
     ]),
   ]
 
