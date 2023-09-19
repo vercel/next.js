@@ -1,4 +1,4 @@
-import { MockFileReader } from '../../../helpers/file-reader/helpers/mock-file-reader'
+import { PosixMockFileReader } from '../../../helpers/file-reader/helpers/mock-file-reader'
 import { RouteKind } from '../../../route-kind'
 import { InternalPagesRouteDefinition } from '../../internal-route-definition'
 import { DevInternalPagesRouteDefinitionProvider } from './dev-internal-pages-route-definition-provider'
@@ -8,7 +8,7 @@ describe('DevInternalPagesRouteDefinitionProvider', () => {
   const extensions = ['ts', 'tsx', 'js', 'jsx']
 
   it('returns no routes with an empty filesystem', async () => {
-    const reader = new MockFileReader()
+    const reader = new PosixMockFileReader()
     const spy = jest.spyOn(reader, 'read')
     const provider = new DevInternalPagesRouteDefinitionProvider(
       dir,
@@ -41,7 +41,7 @@ describe('DevInternalPagesRouteDefinitionProvider', () => {
     ])(
       "matches the '$route.page' route specified with the provided files",
       async ({ files, route }) => {
-        const reader = new MockFileReader([
+        const reader = new PosixMockFileReader([
           ...extensions.map((ext) => `${dir}/some/route.${ext}`),
           ...extensions.map((ext) => `${dir}/api/other.${ext}`),
           ...files,

@@ -50,6 +50,7 @@ import { NextRouteDefinitionManagerBuilder } from '../../future/route-definition
 import { I18NProvider } from '../../future/helpers/i18n-provider'
 import { NextDevRouteDefinitionManagerBuilder } from '../../future/route-definitions/managers/builders/next-dev-route-definition-manager-builder'
 import { MapManifestLoader } from '../../future/manifests/loaders/map-manifest-loader'
+import { MiddlewareMatcher } from '../../../build/analysis/get-page-static-info'
 
 export type FsOutput = {
   type:
@@ -137,6 +138,8 @@ export async function setupFsCheck(opts: {
   const appFiles = new Set<string>()
   const pageFiles = new Set<string>()
   let dynamicRoutes: FilesystemDynamicRoute[] = []
+
+  let middlewareMatchers: Array<MiddlewareMatcher> = []
 
   let middlewareMatcher:
     | ReturnType<typeof getMiddlewareRouteMatcher>
@@ -298,9 +301,8 @@ export async function setupFsCheck(opts: {
     }
 
     if (middlewareManifest.middleware?.['/']?.matchers) {
-      middlewareMatcher = getMiddlewareRouteMatcher(
-        middlewareManifest.middleware?.['/']?.matchers
-      )
+      middlewareMatchers = middlewareManifest.middleware['/'].matchers
+      middlewareMatcher = getMiddlewareRouteMatcher(middlewareMatchers)
     }
 
     customRoutes = {
@@ -434,6 +436,7 @@ export async function setupFsCheck(opts: {
     devVirtualFsItems: new Set<string>(),
 
     prerenderManifest,
+    middlewareMatchers,
     middlewareMatcher: middlewareMatcher as MiddlewareRouteMatch | undefined,
 
     ensureCallback(fn: typeof ensureFn) {

@@ -1,4 +1,1 @@
-export type PropagateToWorkersField =
-  | 'forceReloadRoutes'
-  | 'loadEnvConfig'
-  | 'middleware'
+export type PropagateToWorkersField = 'forceReloadRoutes' | 'loadEnvConfig'

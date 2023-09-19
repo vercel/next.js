@@ -44,7 +44,6 @@ import { formatServerError } from '../../lib/format-server-error'
 import { NextBuildContext } from '../../build/build-context'
 import { IncrementalCache } from '../lib/incremental-cache'
 import LRUCache from 'next/dist/compiled/lru-cache'
-import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import { BaseRouteComponentsLoader } from '../future/route-components-loader/base-route-components-loader'
 import { NextDevRouteDefinitionManagerBuilder } from '../future/route-definitions/managers/builders/next-dev-route-definition-manager-builder'
 import {
@@ -53,6 +52,7 @@ import {
 } from '../future/route-manager/dev-route-manager'
 import { NextRouteMatcherBuilder } from '../future/route-matchers/managers/builders/next-route-matcher-manager-builder'
 import { RouteKind } from '../future/route-kind'
+import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -403,54 +403,30 @@ export default class DevServer extends Server {
     )
   }
 
-  protected getMiddleware() {
-    // We need to populate the match
-    // field as it isn't serializable
-    if (this.middleware?.match === null) {
-      this.middleware.match = getMiddlewareRouteMatcher(
-        this.middleware.matchers || []
-      )
+  protected async getMiddleware(): Promise<MiddlewareRoutingItem | null> {
+    const has = await this.routes.hasDefinition({
+      kind: RouteKind.INTERNAL_ROOT,
+      pathname: '/middleware',
+    })
+    if (!has) return null
+
+    const middleware = await super.getMiddleware()
+
+    // If we could get the middleware, then just return it!
+    if (middleware) return middleware
+
+    // Otherwise, we need to return a stub, the middleware likely had a
+    // compilation error.
+    return {
+      page: '/',
+      match: getMiddlewareRouteMatcher([
+        { regexp: '.*', originalSource: '/:path*' },
+      ]),
     }
-    return this.middleware
   }
 
   protected getNextFontManifest() {
     return undefined
-  }
-
-  protected async hasMiddleware(): Promise<boolean> {
-    return this.routes.hasDefinition({
-      kind: RouteKind.INTERNAL_ROOT,
-      pathname: '/middleware',
-    })
-  }
-
-  protected async handleCatchallMiddlewareRequest(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
-    parsed: NextUrlWithParsedQuery
-  ) {
-    await this.ensureMiddleware()
-
-    return super.handleCatchallMiddlewareRequest(req, res, parsed)
-  }
-
-  protected async ensureMiddleware() {
-    try {
-      const definition = await this.routes.findDefinition({
-        kind: RouteKind.INTERNAL_ROOT,
-        pathname: '/middleware',
-      })
-      if (!definition) return
-
-      return this.ensurePage({
-        page: definition.page,
-        clientOnly: false,
-        definition,
-      })
-    } catch (err) {
-      console.error(err)
-    }
   }
 
   private async runInstrumentationHookIfAvailable() {

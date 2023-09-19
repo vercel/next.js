@@ -25,6 +25,7 @@ import {
 } from '../shared/lib/router/utils/route-matcher'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { RouteMatch } from './future/route-matches/route-match'
+import type { InternalRootRouteDefinition } from './future/route-definitions/internal-route-definition'
 
 import fs from 'fs'
 import { join, resolve, isAbsolute } from 'path'
@@ -53,10 +54,10 @@ import * as Log from '../build/output/log'
 import BaseServer, {
   Options,
   FindComponentsResult,
-  MiddlewareRoutingItem,
   NoFallbackError,
   RequestContext,
   NormalizedRouteManifest,
+  MiddlewareRoutingItem,
 } from './base-server'
 import { requireFontManifest } from './require'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
@@ -106,6 +107,7 @@ import { RouteKind } from './future/route-kind'
 import { NodeManifestLoader } from './future/manifests/loaders/node-manifest-loader'
 import { DevManifestLoader } from './future/manifests/loaders/dev-manifest-loader'
 import { CachedManifestLoader } from './future/manifests/loaders/cached-manifest-loader'
+import { WeakCache } from './future/helpers/weak-cache'
 
 export * from './base-server'
 
@@ -127,29 +129,18 @@ export interface NodeRequestHandler {
   ): Promise<void>
 }
 
-const MiddlewareMatcherCache = new WeakMap<
+const getMiddlewareMatcher = new WeakCache<
   MiddlewareManifest['middleware'][string],
   MiddlewareRouteMatch
->()
-
-function getMiddlewareMatcher(
-  info: MiddlewareManifest['middleware'][string]
-): MiddlewareRouteMatch {
-  const stored = MiddlewareMatcherCache.get(info)
-  if (stored) {
-    return stored
-  }
-
+>((info) => {
   if (!Array.isArray(info.matchers)) {
     throw new Error(
       `Invariant: invalid matchers for middleware ${JSON.stringify(info)}`
     )
   }
 
-  const matcher = getMiddlewareRouteMatcher(info.matchers)
-  MiddlewareMatcherCache.set(info, matcher)
-  return matcher
-}
+  return getMiddlewareRouteMatcher(info.matchers)
+})
 
 export default class NextNodeServer extends BaseServer {
   protected middlewareManifestPath: string
@@ -1313,20 +1304,6 @@ export default class NextNodeServer extends BaseServer {
     return manifest
   }
 
-  /** Returns the middleware routing item if there is one. */
-  protected getMiddleware(): MiddlewareRoutingItem | undefined {
-    const manifest = this.getMiddlewareManifest()
-    const middleware = manifest?.middleware?.['/']
-    if (!middleware) {
-      return
-    }
-
-    return {
-      match: getMiddlewareMatcher(middleware),
-      page: '/',
-    }
-  }
-
   protected getEdgeFunctionsPages(): string[] {
     const manifest = this.getMiddlewareManifest()
     if (!manifest) {
@@ -1392,26 +1369,6 @@ export default class NextNodeServer extends BaseServer {
   }
 
   /**
-   * Checks if a middleware exists. This method is useful for the development
-   * server where we need to check the filesystem. Here we just check the
-   * middleware manifest.
-   *
-   * The development server will ensure that the middleware exists as it
-   * verifies it.
-   */
-  protected async hasMiddleware(pathname: string): Promise<boolean> {
-    const info = this.getEdgeFunctionInfo({ page: pathname, middleware: true })
-    return Boolean(info && info.paths.length > 0)
-  }
-
-  /**
-   * A placeholder for a function to be defined in the development server.
-   * It will make sure that the root middleware or an edge function has been compiled
-   * so that we can run it.
-   */
-  protected async ensureMiddleware() {}
-
-  /**
    * This method gets all middleware matchers and execute them when the request
    * matches. It will make sure that each middleware exists and is compiled and
    * ready to be invoked. The development server will decorate it to add warns
@@ -1462,16 +1419,13 @@ export default class NextNodeServer extends BaseServer {
       )
     }
 
-    const middleware = this.getMiddleware()
-    if (!middleware) return { finished: false }
-
-    const hasMiddleware = await this.hasMiddleware(middleware.page)
+    const middleware = await this.getMiddleware()
 
     // If we don't have a middleware, we can return early.
-    if (!hasMiddleware) return { finished: false }
+    if (!middleware) return { finished: false }
 
     const middlewareInfo = this.getEdgeFunctionInfo({
-      page: middleware.page,
+      page: '/',
       middleware: true,
     })
 
@@ -1536,6 +1490,32 @@ export default class NextNodeServer extends BaseServer {
     return result
   }
 
+  protected async getMiddleware(): Promise<MiddlewareRoutingItem | null> {
+    // Ensure that we can get the middleware. In development this will also
+    // trigger a compilation of the middleware.
+    try {
+      const definition =
+        await this.routes.findDefinition<InternalRootRouteDefinition>({
+          kind: RouteKind.INTERNAL_ROOT,
+          pathname: '/middleware',
+        })
+      if (!definition) return null
+    } catch {
+      return null
+    }
+
+    const manifest = this.getMiddlewareManifest()
+    if (!manifest) return null
+
+    const middleware = manifest.middleware['/']
+    if (!middleware) return null
+
+    return {
+      page: '/',
+      match: getMiddlewareMatcher.get(middleware),
+    }
+  }
+
   protected async handleCatchallMiddlewareRequest(
     req: BaseNextRequest,
     res: BaseNextResponse,
@@ -1543,6 +1523,10 @@ export default class NextNodeServer extends BaseServer {
   ) {
     const isMiddlewareInvoke =
       this.isRenderWorker && req.headers['x-middleware-invoke']
+
+    if (this.isRenderWorker && !isMiddlewareInvoke) {
+      return { finished: false }
+    }
 
     const handleFinished = (finished: boolean = false) => {
       if (isMiddlewareInvoke && !finished) {
@@ -1553,17 +1537,8 @@ export default class NextNodeServer extends BaseServer {
       return { finished }
     }
 
-    if (this.isRenderWorker && !isMiddlewareInvoke) {
-      return { finished: false }
-    }
-
-    const middleware = this.getMiddleware()
+    const middleware = await this.getMiddleware()
     if (!middleware) {
-      return handleFinished()
-    }
-
-    const hasMiddleware = await this.hasMiddleware(middleware.page)
-    if (!hasMiddleware) {
       return handleFinished()
     }
 

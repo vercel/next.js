@@ -43,7 +43,6 @@ import { verifyPartytownSetup } from '../../../lib/verify-partytown-setup'
 import { getRouteRegex } from '../../../shared/lib/router/utils/route-regex'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { buildDataRoute } from './build-data-route'
-import { MiddlewareMatcher } from '../../../build/analysis/get-page-static-info'
 import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { createClientRouterFilter } from '../../../lib/create-client-router-filter'
@@ -65,10 +64,7 @@ import {
   PHASE_DEVELOPMENT_SERVER,
 } from '../../../shared/lib/constants'
 
-import {
-  MiddlewareRouteMatch,
-  getMiddlewareRouteMatcher,
-} from '../../../shared/lib/router/utils/middleware-route-matcher'
+import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
 import { NextBuildContext } from '../../../build/build-context'
 
 import {
@@ -170,13 +166,6 @@ async function startWatcher(opts: SetupOpts) {
   }
 
   const serverFields: {
-    middleware?:
-      | {
-          page: string
-          match: MiddlewareRouteMatch
-          matchers?: MiddlewareMatcher[]
-        }
-      | undefined
     hasAppNotFound?: boolean
     interceptionRoutes?: ReturnType<
       typeof import('./filesystem').buildCustomRoute
@@ -588,12 +577,6 @@ async function startWatcher(opts: SetupOpts) {
             )
             processIssues('middleware', writtenEndpoint)
             await loadMiddlewareManifest('middleware', 'middleware')
-            serverFields.middleware = {
-              match: null as any,
-              page: '/',
-              matchers:
-                middlewareManifests.get('middleware')?.middleware['/'].matchers,
-            }
 
             changeSubscription('middleware', middleware.endpoint, () => {
               return { event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES }
@@ -601,10 +584,8 @@ async function startWatcher(opts: SetupOpts) {
             prevMiddleware = true
           } else {
             middlewareManifests.delete('middleware')
-            serverFields.middleware = undefined
             prevMiddleware = false
           }
-          await propagateToWorkers('middleware', serverFields.middleware)
 
           currentEntriesHandlingResolve!()
           currentEntriesHandlingResolve = undefined
@@ -1401,7 +1382,6 @@ async function startWatcher(opts: SetupOpts) {
     let previousConflictingPagePaths: Set<string> = new Set()
 
     wp.on('aggregated', async () => {
-      let middlewareMatchers: MiddlewareMatcher[] | undefined
       const routedPages: string[] = []
       const knownFiles = wp.getTimeInfoEntries()
       const appPaths: Record<string, string[]> = {}
@@ -1420,6 +1400,7 @@ async function startWatcher(opts: SetupOpts) {
       appFiles.clear()
       pageFiles.clear()
       devPageFiles.clear()
+      opts.fsChecker.middlewareMatchers = []
 
       const sortedKnownFiles: string[] = [...knownFiles.keys()].sort(
         sortByPageExts(nextConfig.pageExtensions)
@@ -1501,9 +1482,8 @@ async function startWatcher(opts: SetupOpts) {
             )
             continue
           }
-          middlewareMatchers = staticInfo.middleware?.matchers || [
-            { regexp: '.*', originalSource: '/:path*' },
-          ]
+          opts.fsChecker.middlewareMatchers = staticInfo.middleware
+            ?.matchers || [{ regexp: '.*', originalSource: '/:path*' }]
           continue
         }
         if (
@@ -1773,20 +1753,10 @@ async function startWatcher(opts: SetupOpts) {
         nestedMiddleware = []
       }
 
-      // TODO: pass this to fsChecker/next-dev-server?
-      serverFields.middleware = middlewareMatchers
-        ? {
-            match: null as any,
-            page: '/',
-            matchers: middlewareMatchers,
-          }
-        : undefined
-
-      await propagateToWorkers('middleware', serverFields.middleware)
       serverFields.hasAppNotFound = hasRootAppNotFound
 
-      opts.fsChecker.middlewareMatcher = serverFields.middleware?.matchers
-        ? getMiddlewareRouteMatcher(serverFields.middleware?.matchers)
+      opts.fsChecker.middlewareMatcher = opts.fsChecker.middlewareMatchers
+        ? getMiddlewareRouteMatcher(opts.fsChecker.middlewareMatchers)
         : undefined
 
       opts.fsChecker.interceptionRoutes =
@@ -1951,7 +1921,7 @@ async function startWatcher(opts: SetupOpts) {
     if (parsedUrl.pathname?.includes(devMiddlewareManifestPath)) {
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
-      res.end(JSON.stringify(serverFields.middleware?.matchers || []))
+      res.end(JSON.stringify(opts.fsChecker.middlewareMatchers || []))
       return { finished: true }
     }
     return { finished: false }

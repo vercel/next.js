@@ -1,6 +1,8 @@
 import { Debuggable } from '../debuggable'
-import { DetachedPromise } from '../detached-promise'
 import { Loadable } from './loadable'
+
+// This module uses the `Promise.withResolvers` polyfill.
+import '../../../node-environment'
 
 export abstract class BaseLoadable extends Debuggable implements Loadable {
   private loaded = false
@@ -14,7 +16,7 @@ export abstract class BaseLoadable extends Debuggable implements Loadable {
    */
   protected abstract loader(isForceReload: boolean): Promise<boolean | void>
 
-  private reloadingPromise?: DetachedPromise<boolean>
+  private reloadingPromise?: Promise<boolean>
 
   /**
    * Reload the underlying data. This also ensures that multiple concurrent
@@ -30,7 +32,8 @@ export abstract class BaseLoadable extends Debuggable implements Loadable {
 
     // Otherwise, create a new promise that will be resolved or rejected when
     // the loader is done.
-    this.reloadingPromise = new DetachedPromise()
+    const { promise, resolve, reject } = Promise.withResolvers<boolean>()
+    this.reloadingPromise = promise
 
     // Set the loaded flag to true so that the next time `load` is called it
     // will not reload.
@@ -44,13 +47,13 @@ export abstract class BaseLoadable extends Debuggable implements Loadable {
 
       // Resolve the promise, letting any pending `reload` calls know that the
       // data has been reloaded.
-      this.reloadingPromise.resolve(updated)
+      resolve(updated)
 
       return updated
     } catch (err) {
       // Reject the promise, letting any pending `reload` calls know that the
       // data failed to reload.
-      this.reloadingPromise.reject(err)
+      reject(err)
       return false
     } finally {
       // Reset the `reloadingPromise` so that the next `reload` call can start.

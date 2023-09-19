@@ -482,7 +482,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     res: BaseNextResponse,
     parsedUrl: NextUrlWithParsedQuery
   ): Promise<{ finished: boolean }> {
-    const middleware = this.getMiddleware()
+    const hasMiddleware = await this.hasMiddleware()
     const params = matchNextDataPathname(parsedUrl.pathname)
 
     // ignore for non-next data URLs
@@ -522,7 +522,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     pathname = getRouteFromAssetPath(pathname, '.json')
 
     // ensure trailing slash is normalized per config
-    if (middleware) {
+    if (hasMiddleware) {
       if (this.nextConfig.trailingSlash && !pathname.endsWith('/')) {
         pathname += '/'
       }
@@ -563,7 +563,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       // If no locale was detected and we don't have middleware, we need
       // to render a 404 page.
-      if (!localePathResult.detectedLocale && !middleware) {
+      if (!localePathResult.detectedLocale && !hasMiddleware) {
         parsedUrl.query.__nextLocale = defaultLocale
         await this.render404(req, res, parsedUrl)
         return { finished: true }
@@ -1231,7 +1231,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       if (this.minimalMode || this.renderOpts.dev || (err as any).bubble) {
         throw err
       }
-      this.logError(getProperError(err))
+
+      if (!(err instanceof WrappedBuildError)) {
+        this.logError(getProperError(err))
+      }
+
       res.statusCode = 500
       res.body('Internal Server Error').send()
     }
@@ -2504,7 +2508,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     )
   }
 
-  protected abstract getMiddleware(): MiddlewareRoutingItem | undefined
   protected abstract getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null>
   protected abstract getRoutesManifest(): NormalizedRouteManifest | undefined
 
@@ -2529,6 +2532,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     return options
+  }
+
+  private async hasMiddleware(): Promise<boolean> {
+    return this.routes.hasDefinition({
+      kind: RouteKind.INTERNAL_ROOT,
+      pathname: '/middleware',
+    })
   }
 
   private async renderMatch(
@@ -2636,7 +2646,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     if (
-      this.getMiddleware() &&
+      (await this.hasMiddleware()) &&
       !!ctx.req.headers['x-nextjs-data'] &&
       (!res.statusCode || res.statusCode === 200 || res.statusCode === 404)
     ) {

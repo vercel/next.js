@@ -1,4 +1,4 @@
-import { MockFileReader } from '../../../helpers/file-reader/helpers/mock-file-reader'
+import { PosixMockFileReader } from '../../../helpers/file-reader/helpers/mock-file-reader'
 import {
   DevInternalRootRouteDefinitionProvider,
   DevMultiInternalRootRouteDefinitionProvider,
@@ -9,7 +9,7 @@ describe('DevInternalRootRouteDefinitionProvider', () => {
     const provider = new DevInternalRootRouteDefinitionProvider(
       '/foo/bar',
       ['js'],
-      new MockFileReader([
+      new PosixMockFileReader([
         '/foo/bar/middleware.js',
         '/foo/bar/middleware.js.map',
         '/foo/bar/instrumentation.js',
@@ -46,7 +46,7 @@ describe('DevMultiInternalRootRouteDefinitionProvider', () => {
     const provider = new DevMultiInternalRootRouteDefinitionProvider(
       '/foo/bar',
       ['js'],
-      new MockFileReader([
+      new PosixMockFileReader([
         '/foo/bar/middleware.js',
         '/foo/bar/middleware.js.map',
         '/foo/bar/instrumentation.js',
