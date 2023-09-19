@@ -39,10 +39,16 @@ export async function deleteTodo(formData: FormData) {
     id: formData.get('id'),
   })
 
-  await sql`
-    DELETE FROM todos
-    WHERE id = ${data.id};
-  `
+  try {
+    await sql`
+      DELETE FROM todos
+      WHERE id = ${data.id};
+    `
 
-  revalidatePath('/')
+    revalidatePath('/')
+
+    return { message: 'Deleted successfully' }
+  } catch (e) {
+    return { message: 'Failed to delete todo' }
+  }
 }
