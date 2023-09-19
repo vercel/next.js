@@ -899,7 +899,7 @@ export function onDemandEntryHandler({
   }
 
   // Make sure that we won't have multiple invalidations ongoing concurrently.
-  const curEnsurePage = new Map<string, Promise<void | { err: Error }>>()
+  const active = new Map<string, Promise<void>>()
 
   return {
     async ensurePage({
@@ -915,35 +915,26 @@ export function onDemandEntryHandler({
       match?: RouteMatch
       isApp?: boolean
     }) {
-      const ensureKey = JSON.stringify({ page, clientOnly, match, appPaths })
-      const pendingEnsure = curEnsurePage.get(ensureKey)
+      // See if we're already building this page.
+      const pending = active.get(page)
+      if (pending) return pending
 
-      if (pendingEnsure) {
-        const res = await pendingEnsure
-
-        if (res && res.err) {
-          throw res.err
-        }
-      }
-
+      // If not, start building it.
       const promise = ensurePageImpl({
         page,
         clientOnly,
-        appPaths,
         match,
+        appPaths,
         isApp,
-        // we have to catch the error since we are memoizing
-        // otherwise we can hit random unhandledRejections
       })
-        .catch((err) => {
-          return { err }
-        })
-        .finally(() => {
-          curEnsurePage.delete(ensureKey)
-        })
+      active.set(page, promise)
 
-      curEnsurePage.set(ensureKey, promise)
-      return promise
+      // Wait for it to be done, then remove it from the set of building pages.
+      try {
+        await promise
+      } finally {
+        active.delete(page)
+      }
     },
     onHMR(client: ws, getHmrServerError: () => Error | null) {
       let bufferedHmrServerError: Error | null = null
