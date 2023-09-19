@@ -276,7 +276,6 @@ export async function startServer({
         const cleanup = (code: number | null) => {
           debug('start-server process cleanup')
           server.close()
-          // signal code can also be string in newest node versions
           process.exit(code ?? 0)
         }
         const exception = (err: Error) => {
