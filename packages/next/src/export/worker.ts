@@ -97,7 +97,7 @@ interface ExportPageInput {
   incrementalCacheHandlerPath?: string
   fetchCacheKeyPrefix?: string
   nextConfigOutput?: NextConfigComplete['output']
-  serverActions?: boolean
+  enableExperimentalReact?: boolean
 }
 
 interface ExportPageResults {
@@ -154,7 +154,7 @@ export default async function exportPage({
   fetchCache,
   fetchCacheKeyPrefix,
   incrementalCacheHandlerPath,
-  serverActions,
+  enableExperimentalReact,
 }: ExportPageInput): Promise<ExportPageResults> {
   setHttpClientAndAgentOptions({
     httpAgentOptions,
@@ -171,7 +171,7 @@ export default async function exportPage({
       if (renderOpts.deploymentId) {
         process.env.NEXT_DEPLOYMENT_ID = renderOpts.deploymentId
       }
-      if (serverActions) {
+      if (enableExperimentalReact) {
         process.env.__NEXT_EXPERIMENTAL_REACT = 'true'
       }
       const { query: originalQuery = {} } = pathMap
