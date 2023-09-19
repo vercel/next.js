@@ -19,7 +19,11 @@ import {
   WEBPACK_RESOURCE_QUERIES,
   WebpackLayerName,
 } from '../lib/constants'
-import { isWebpackDefaultLayer, isWebpackServerLayer } from './utils'
+import {
+  isWebpackAppLayer,
+  isWebpackDefaultLayer,
+  isWebpackServerLayer,
+} from './utils'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import {
@@ -412,7 +416,7 @@ function createRSCAliases(
   }
 
   if (!opts.isEdgeServer) {
-    if (opts.layer === 'ssr') {
+    if (opts.layer === WEBPACK_LAYERS.serverSideRendering) {
       alias = Object.assign(alias, {
         'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-runtime`,
         'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-dev-runtime`,
@@ -421,7 +425,7 @@ function createRSCAliases(
         'react-dom/server.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom-server-edge`,
         'react-server-dom-webpack/client.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-client-edge`,
       })
-    } else if (opts.layer === 'rsc') {
+    } else if (opts.layer === WEBPACK_LAYERS.reactServerComponents) {
       alias = Object.assign(alias, {
         'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-runtime`,
         'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-dev-runtime`,
@@ -434,7 +438,7 @@ function createRSCAliases(
   }
 
   if (opts.isEdgeServer) {
-    if (opts.layer === 'rsc') {
+    if (opts.layer === WEBPACK_LAYERS.reactServerComponents) {
       alias[
         'react$'
       ] = `next/dist/compiled/react${bundledReactChannel}/react.shared-subset`
@@ -1383,15 +1387,7 @@ export default async function getBaseWebpackConfig(
       return `commonjs next/dist/lib/import-next-warning`
     }
 
-    const isAppLayer = (
-      [
-        WEBPACK_LAYERS.reactServerComponents,
-        WEBPACK_LAYERS.serverSideRendering,
-        WEBPACK_LAYERS.appPagesBrowser,
-        WEBPACK_LAYERS.actionBrowser,
-        WEBPACK_LAYERS.appRouteHandler,
-      ] as WebpackLayerName[]
-    ).includes(layer!)
+    const isAppLayer = isWebpackAppLayer(layer)
 
     // Relative requires don't need custom resolution, because they
     // are relative to requests we've already resolved here.
@@ -1461,25 +1457,30 @@ export default async function getBaseWebpackConfig(
     // Specific Next.js imports that should remain external
     // TODO-APP: Investigate if we can remove this.
     if (request.startsWith('next/dist/')) {
+      // Non external that needs to be transpiled
       // Image loader needs to be transpiled
-      if (/^next\/dist\/shared\/lib\/image-loader/.test(request)) {
+      if (/^next[\\/]dist[\\/]shared[\\/]lib[\\/]image-loader/.test(request)) {
         return
       }
 
-      if (/^next\/dist\/compiled\/next-server/.test(request)) {
+      if (/^next[\\/]dist[\\/]compiled[\\/]next-server/.test(request)) {
         return `commonjs ${request}`
       }
 
       if (
-        /^next\/dist\/shared\/(?!lib\/router\/router)/.test(request) ||
-        /^next\/dist\/compiled\/.*\.c?js$/.test(request)
+        /^next[\\/]dist[\\/]shared[\\/](?!lib[\\/]router[\\/]router)/.test(
+          request
+        ) ||
+        /^next[\\/]dist[\\/]compiled[\\/].*\.c?js$/.test(request)
       ) {
         return `commonjs ${request}`
       }
 
       if (
-        /^next\/dist\/esm\/shared\/(?!lib\/router\/router)/.test(request) ||
-        /^next\/dist\/compiled\/.*\.mjs$/.test(request)
+        /^next[\\/]dist[\\/]esm[\\/]shared[\\/](?!lib[\\/]router[\\/]router)/.test(
+          request
+        ) ||
+        /^next[\\/]dist[\\/]compiled[\\/].*\.mjs$/.test(request)
       ) {
         return `module ${request}`
       }
