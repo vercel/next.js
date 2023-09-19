@@ -56,6 +56,8 @@ const cwd = process.cwd()
         ],
         { stdio: 'inherit' }
       )
+      // Return here to avoid retry logic
+      return;
     } catch (err) {
       console.error(`Failed to publish ${pkg}`, err)
 
@@ -69,19 +71,19 @@ const cwd = process.cwd()
         return
       }
 
-      if (retry < 3) {
-        const retryDelaySeconds = 15
-        console.log(`retrying in ${retryDelaySeconds}s`)
-        await new Promise((resolve) =>
-          setTimeout(resolve, retryDelaySeconds * 1000)
-        )
-        await publish(pkg, retry + 1)
-      } else {
+      if (retry >= 3) {
         throw err
       }
     } finally {
       publishSema.release()
     }
+    // Recursive call need to be outside of the publishSema
+    const retryDelaySeconds = 15
+    console.log(`retrying in ${retryDelaySeconds}s`)
+    await new Promise((resolve) =>
+      setTimeout(resolve, retryDelaySeconds * 1000)
+    )
+    await publish(pkg, retry + 1)
   }
 
   await Promise.allSettled(
