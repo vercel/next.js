@@ -1,7 +1,6 @@
 import type { FileReader, FileReaderOptions } from './file-reader'
 
 import path from 'path'
-import { DetachedPromise } from '../detached-promise'
 import {
   type GroupedDirectoryReadResult,
   type DirectoryReadTask,
@@ -10,11 +9,24 @@ import {
 } from './helpers/group-directory-reads'
 import { Debuggable } from '../debuggable'
 
+// This module uses the `Promise.withResolvers` polyfill.
+import '../../../node-environment'
+
 interface Task extends DirectoryReadTask {
   /**
    * The promise to resolve when this
    */
-  promise: DetachedPromise<ReadonlyArray<string>>
+  promise: Promise<ReadonlyArray<string>>
+
+  /**
+   * The resolver for the promise.
+   */
+  resolve: (value: ReadonlyArray<string>) => void
+
+  /**
+   * The rejector for the promise.
+   */
+  reject: (error: unknown) => void
 }
 
 type Batch = {
@@ -116,8 +128,8 @@ export class BatchedFileReader extends Debuggable implements FileReader {
         values = await this.load(batch.tasks)
       } catch (err) {
         // Reject all the callbacks.
-        for (const { promise } of batch.tasks) {
-          promise.reject(err)
+        for (const { reject } of batch.tasks) {
+          reject(err)
         }
         return
       }
@@ -126,9 +138,9 @@ export class BatchedFileReader extends Debuggable implements FileReader {
       for (let i = 0; i < batch.tasks.length; i++) {
         const value = values[i]
         if (value instanceof Error) {
-          batch.tasks[i].promise.reject(value)
+          batch.tasks[i].reject(value)
         } else {
-          batch.tasks[i].promise.resolve(value)
+          batch.tasks[i].resolve(value)
         }
       }
     })
@@ -175,10 +187,11 @@ export class BatchedFileReader extends Debuggable implements FileReader {
     // Get or create a new file reading batch.
     const batch = this.getOrCreateBatch()
 
-    const promise = new DetachedPromise<ReadonlyArray<string>>()
+    const { promise, resolve, reject } =
+      Promise.withResolvers<ReadonlyArray<string>>()
 
     // Push this directory into the batch to resolve.
-    batch.tasks.push({ dir, recursive, promise })
+    batch.tasks.push({ dir, recursive, promise, resolve, reject })
 
     return promise
   }
