@@ -37,6 +37,8 @@ import { RouteMatch } from '../future/route-matches/route-match'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
 import HotReloader from './hot-reloader-webpack'
 import { isAppPageRouteDefinition } from '../future/route-definitions/app-page-route-definition'
+import { DetachedPromise } from '../lib/detached-promise'
+import { scheduleOnNextTick } from '../lib/schedule-on-next-tick'
 
 const debug = origDebug('next:on-demand-entry-handler')
 
@@ -906,7 +908,7 @@ export function onDemandEntryHandler({
   }
 
   // Make sure that we won't have multiple invalidations ongoing concurrently.
-  const active = new Map<string, Promise<void>>()
+  const active = new Map<string, DetachedPromise<void>>()
 
   return {
     async ensurePage(params: {
@@ -930,16 +932,23 @@ export function onDemandEntryHandler({
       const pending = active.get(key)
       if (pending) return pending
 
-      // Queue up the promise to ensure this page, but don't attach any handlers
-      // or await it before we add it to the active map.
-      const promise = ensurePageImpl(params)
+      const promise = new DetachedPromise<void>()
       active.set(key, promise)
 
-      try {
-        await promise
-      } finally {
-        active.delete(key)
-      }
+      // Schedule the build to occur on the next tick, but don't wait and
+      // instead return the promise immediately.
+      scheduleOnNextTick(async () => {
+        try {
+          await ensurePageImpl(params)
+          promise.resolve()
+        } catch (err) {
+          promise.reject(err)
+        } finally {
+          active.delete(key)
+        }
+      })
+
+      return promise
     },
     onHMR(client: ws, getHmrServerError: () => Error | null) {
       let bufferedHmrServerError: Error | null = null
