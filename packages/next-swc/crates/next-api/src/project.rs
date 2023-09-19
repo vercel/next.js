@@ -121,17 +121,41 @@ impl ProjectContainer {
     #[turbo_tasks::function]
     pub async fn project(self: Vc<Self>) -> Result<Vc<Project>> {
         let this = self.await?;
-        let options = this.options_state.get();
-        let next_config = NextConfig::from_string(Vc::cell(options.next_config.clone()));
-        let js_config = JsConfig::from_string(Vc::cell(options.js_config.clone()));
-        let env: Vc<EnvMap> = Vc::cell(options.env.iter().cloned().collect());
+
+        let (env, next_config, js_config, root_path, project_path, watch, server_addr) = {
+            let options = this.options_state.get();
+            let env: Vc<EnvMap> = Vc::cell(options.env.iter().cloned().collect());
+            let next_config = NextConfig::from_string(Vc::cell(options.next_config.clone()));
+            let js_config = JsConfig::from_string(Vc::cell(options.js_config.clone()));
+            let root_path = options.root_path.clone();
+            let project_path = options.project_path.clone();
+            let watch = options.watch;
+            let server_addr = options.server_addr.parse()?;
+            (
+                env,
+                next_config,
+                js_config,
+                root_path,
+                project_path,
+                watch,
+                server_addr,
+            )
+        };
+
+        let dist_dir = next_config
+            .await?
+            .dist_dir
+            .as_ref()
+            .map_or_else(|| ".next".to_string(), |d| d.to_string());
+
         Ok(Project {
-            root_path: options.root_path.clone(),
-            project_path: options.project_path.clone(),
-            watch: options.watch,
-            server_addr: options.server_addr.parse()?,
+            root_path,
+            project_path,
+            watch,
+            server_addr,
             next_config,
             js_config,
+            dist_dir,
             env: Vc::upcast(env),
             browserslist_query: "last 1 Chrome versions, last 1 Firefox versions, last 1 Safari \
                                  versions, last 1 Edge versions"
@@ -160,6 +184,8 @@ pub struct Project {
     /// A root path from which all files must be nested under. Trying to access
     /// a file outside this root will fail. Think of this as a chroot.
     root_path: String,
+
+    dist_dir: String,
 
     /// A path inside the root_path which contains the app/pages directories.
     project_path: String,
@@ -240,8 +266,9 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) fn node_root(self: Vc<Self>) -> Vc<FileSystemPath> {
-        self.node_fs().root().join(".next".to_string())
+    pub(super) async fn node_root(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        let this = self.await?;
+        Ok(self.node_fs().root().join(this.dist_dir.to_string()))
     }
 
     #[turbo_tasks::function]

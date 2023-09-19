@@ -90,12 +90,17 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
         log_level: options.log_level.unwrap_or(IssueSeverity::Warning),
     };
 
+    let dist_dir = options
+        .dist_dir
+        .as_ref()
+        .map_or_else(|| ".next".to_string(), |d| d.to_string());
+
     let issue_reporter: Vc<Box<dyn IssueReporter>> =
         Vc::upcast(ConsoleUi::new(TransientInstance::new(log_options)));
     let node_fs = node_fs(project_root.clone(), issue_reporter);
-    let node_root = node_fs.root().join(".next".to_string());
+    let node_root = node_fs.root().join(dist_dir.clone());
     let client_fs = client_fs(project_root.clone(), issue_reporter);
-    let client_root = client_fs.root().join(".next".to_string());
+    let client_root = client_fs.root().join(dist_dir);
     // TODO(alexkirsz) This should accept a URL for assetPrefix.
     // let client_public_fs = VirtualFileSystem::new();
     // let client_public_root = client_public_fs.root();

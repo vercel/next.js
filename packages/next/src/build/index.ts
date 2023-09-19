@@ -1013,6 +1013,7 @@ export default async function build(
         await binding.turbo.nextBuild({
           ...NextBuildContext,
           root,
+          distDir: config.distDir,
         })
 
         const [duration] = process.hrtime(turboNextBuildStart)
