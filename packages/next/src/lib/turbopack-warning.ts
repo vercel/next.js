@@ -29,6 +29,7 @@ const supportedTurbopackNextConfigOptions = [
   'useFileSystemPublicRoutes',
   'generateEtags',
   'assetPrefix',
+  'distDir',
   'experimental.serverComponentsExternalPackages',
   'experimental.turbo',
   'experimental.mdxRs',
