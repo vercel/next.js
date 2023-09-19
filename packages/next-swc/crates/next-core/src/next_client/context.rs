@@ -67,27 +67,22 @@ use crate::{
 
 fn defines(mode: NextMode, dist_root_path: Option<String>) -> CompileTimeDefines {
     // [TODO] macro may need to allow dynamically expand from some iterable values
+    let mut defines = compile_time_defines!(
+        process.turbopack = true,
+        process.env.NODE_ENV = mode.node_env(),
+        process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false,
+        process.env.__NEXT_HAS_REWRITES = true,
+        process.env.__NEXT_I18N_SUPPORT = false,
+    );
+
     if let Some(dist_root_path) = dist_root_path {
-        compile_time_defines!(
-            process.turbopack = true,
-            process.env.NODE_ENV = mode.node_env(),
-            process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false,
-            process.env.__NEXT_HAS_REWRITES = true,
-            process.env.__NEXT_I18N_SUPPORT = false,
-            process.env.__NEXT_DIST_DIR = dist_root_path
-        )
-    } else {
-        compile_time_defines!(
-            process.turbopack = true,
-            process.env.NODE_ENV = mode.node_env(),
-            process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false,
-            process.env.__NEXT_HAS_REWRITES = true,
-            process.env.__NEXT_I18N_SUPPORT = false,
-        )
+        defines.0.insert(vec!["process".to_string(), "env".to_string(), "__NEXT_DIST_DIR".to_string()], dist_root_path.to_string().into());
     }
 
     // TODO(WEB-937) there are more defines needed, see
     // packages/next/src/build/webpack-config.ts
+
+    defines
 }
 
 #[turbo_tasks::function]
