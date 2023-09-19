@@ -36,3 +36,7 @@ const original = async () => {
   console.log('action')
 }
 export { original as renamed }
+
+export async function logForm(state, formData) {
+  return state + ':' + formData.get('name')
+}

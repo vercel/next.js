@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { experimental_useFormState } from 'react-dom'
 
 import double, {
   inc,
@@ -9,13 +10,26 @@ import double, {
   getHeaders,
   renamed,
   slowInc,
+  logForm,
 } from './actions'
 import { test } from './actions-lib'
 
 export default function Counter() {
   const [count, setCount] = useState(0)
+
+  const [state, logFormAction] = experimental_useFormState(
+    logForm,
+    'initial-state'
+  )
+
   return (
     <div>
+      <form action={logFormAction}>
+        state = {state}
+        <input name="name" />
+        <button type="submit">log</button>
+      </form>
+      <hr />
       <h1>{count}</h1>
       <button
         id="inc"

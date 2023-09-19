@@ -1424,6 +1424,7 @@ export async function renderToHTMLOrFlight(
       async ({
         asNotFound,
         tree,
+        formState,
       }: {
         /**
          * This option is used to indicate that the page should be rendered as
@@ -1433,6 +1434,7 @@ export async function renderToHTMLOrFlight(
          */
         asNotFound: boolean
         tree: LoaderTree
+        formState: any
       }) => {
         const polyfills = buildManifest.polyfillFiles
           .filter(
@@ -1545,6 +1547,7 @@ export async function renderToHTMLOrFlight(
               nonce,
               // Include hydration scripts in the HTML
               bootstrapScripts: [bootstrapScript],
+              experimental_formState: formState,
             },
           })
 
@@ -1696,6 +1699,7 @@ export async function renderToHTMLOrFlight(
                 nonce,
                 // Include hydration scripts in the HTML
                 bootstrapScripts: [errorBootstrapScript],
+                experimental_formState: formState,
               },
             })
 
@@ -1735,24 +1739,32 @@ export async function renderToHTMLOrFlight(
       serverActionsBodySizeLimit,
     })
 
-    if (actionRequestResult === 'not-found') {
-      const notFoundLoaderTree = createNotFoundLoaderTree(loaderTree)
-      return new RenderResult(
-        await bodyResult({
-          asNotFound: true,
-          tree: notFoundLoaderTree,
-        }),
-        { ...extraRenderResultMeta }
-      )
-    } else if (actionRequestResult) {
-      actionRequestResult.extendMetadata(extraRenderResultMeta)
-      return actionRequestResult
+    let formState: null | any = null
+    if (actionRequestResult) {
+      if (actionRequestResult.type === 'not-found') {
+        const notFoundLoaderTree = createNotFoundLoaderTree(loaderTree)
+        return new RenderResult(
+          await bodyResult({
+            asNotFound: true,
+            tree: notFoundLoaderTree,
+          }),
+          { ...extraRenderResultMeta }
+        )
+      } else if (actionRequestResult.type === 'done') {
+        if (actionRequestResult.result) {
+          actionRequestResult.result.extendMetadata(extraRenderResultMeta)
+          return actionRequestResult.result
+        } else if (actionRequestResult.formState) {
+          formState = actionRequestResult.formState
+        }
+      }
     }
 
     const renderResult = new RenderResult(
       await bodyResult({
         asNotFound: pagePath === '/404',
         tree: loaderTree,
+        formState,
       }),
       { ...extraRenderResultMeta }
     )
