@@ -253,6 +253,7 @@ const nextDev: CliCommand = async (args) => {
         stdio: 'inherit',
         env: {
           ...((initialEnv || process.env) as typeof process.env),
+          TURBOPACK: process.env.TURBOPACK,
           NEXT_PRIVATE_WORKER: '1',
         },
       })

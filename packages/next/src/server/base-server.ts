@@ -2238,6 +2238,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           html: result,
           pageData: metadata.pageData,
           headers,
+          status: isAppPath ? res.statusCode : undefined,
         },
         revalidate: metadata.revalidate,
       }
@@ -2491,6 +2492,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               typeof cachedData.pageData +
               '. This is a bug in Next.js.'
           )
+        }
+
+        if (cachedData.status) {
+          res.statusCode = cachedData.status
         }
 
         return {
