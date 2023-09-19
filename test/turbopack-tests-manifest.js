@@ -89,6 +89,7 @@ const enabledTests = [
   'test/e2e/typescript-version-warning/typescript-version-warning.test.ts',
   'test/e2e/undici-fetch/index.test.ts',
   'test/integration/api-support/test/index.test.js',
+  'test/integration/app-dir-export/test/config.test.ts',
   'test/integration/404-page/test/index.test.js',
   'test/integration/404-page-app/test/index.test.js',
   'test/integration/404-page-custom-error/test/index.test.js',
@@ -123,9 +124,6 @@ const enabledTests = [
   'test/production/jest/rsc/lib/utils.test.js',
   'test/production/jest/transpile-packages.test.ts',
   'test/production/postcss-plugin-config-as-string/index.test.ts',
-
-  // disabled due to nextConfig.distDir
-  //'test/integration/trailing-slash-dist/test/index.test.js',
 ]
 
 /// Naive check to ensure that the enabled tests actually exist
