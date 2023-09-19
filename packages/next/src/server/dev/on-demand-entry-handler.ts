@@ -34,9 +34,9 @@ import {
   RSC_MODULE_TYPES,
 } from '../../shared/lib/constants'
 import { RouteMatch } from '../future/route-matches/route-match'
-import { isAppPageRouteMatch } from '../future/route-matches/app-page-route-match'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
 import HotReloader from './hot-reloader-webpack'
+import { isAppPageRouteDefinition } from '../future/route-definitions/app-page-route-definition'
 
 const debug = origDebug('next:on-demand-entry-handler')
 
@@ -482,7 +482,7 @@ async function findRoutePathData(
   extensions: string[],
   pagesDir?: string,
   appDir?: string,
-  match?: RouteMatch
+  match?: Pick<RouteMatch, 'definition'>
 ): ReturnType<typeof findPagePathData> {
   if (match) {
     // If the match is available, we don't have to discover the data from the
@@ -697,7 +697,10 @@ export function onDemandEntryHandler({
     page: string
     clientOnly: boolean
     appPaths?: ReadonlyArray<string> | null
-    match?: RouteMatch
+    // We pick only the definition from the match as we only need the definition
+    // from it. This ensures that this function can't use anything besides the
+    // definition it
+    match?: Pick<RouteMatch, 'definition'>
     isApp?: boolean
   }): Promise<void> {
     const stalledTime = 60
@@ -709,7 +712,11 @@ export function onDemandEntryHandler({
 
     // If the route is actually an app page route, then we should have access
     // to the app route match, and therefore, the appPaths from it.
-    if (!appPaths && match && isAppPageRouteMatch(match)) {
+    if (
+      !appPaths &&
+      match?.definition &&
+      isAppPageRouteDefinition(match.definition)
+    ) {
       appPaths = match.definition.appPaths
     }
 
@@ -902,38 +909,36 @@ export function onDemandEntryHandler({
   const active = new Map<string, Promise<void>>()
 
   return {
-    async ensurePage({
-      page,
-      clientOnly,
-      appPaths = null,
-      match,
-      isApp,
-    }: {
+    async ensurePage(params: {
       page: string
       clientOnly: boolean
       appPaths?: ReadonlyArray<string> | null
       match?: RouteMatch
       isApp?: boolean
     }) {
+      // The cache key here is composed of the elements that affect the
+      // compilation, namely, the page, whether it's client only, and whether
+      // it's an app page. This ensures that we don't have multiple compilations
+      // for the same page happening concurrently.
+      //
+      // We don't include the whole match because it contains match specific
+      // parameters (like route params) that would just bust this cache. Any
+      // details that would possibly bust the cache should be listed here.
+      const key = `${params.page}:${params.clientOnly}:${params.isApp}`
+
       // See if we're already building this page.
-      const pending = active.get(page)
+      const pending = active.get(key)
       if (pending) return pending
 
-      // If not, start building it.
-      const promise = ensurePageImpl({
-        page,
-        clientOnly,
-        match,
-        appPaths,
-        isApp,
-      })
-      active.set(page, promise)
+      // Queue up the promise to ensure this page, but don't attach any handlers
+      // or await it before we add it to the active map.
+      const promise = ensurePageImpl(params)
+      active.set(key, promise)
 
-      // Wait for it to be done, then remove it from the set of building pages.
       try {
         await promise
       } finally {
-        active.delete(page)
+        active.delete(key)
       }
     },
     onHMR(client: ws, getHmrServerError: () => Error | null) {

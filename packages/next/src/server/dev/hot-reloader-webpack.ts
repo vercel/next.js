@@ -1485,7 +1485,7 @@ export default class HotReloader implements NextJsHotReloaderInterface {
       ? this.clientError
       : this.serverError || this.clientError
     if (error) {
-      return Promise.reject(error)
+      throw error
     }
 
     return this.onDemandEntries?.ensurePage({
