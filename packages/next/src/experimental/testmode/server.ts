@@ -20,6 +20,24 @@ type Fetch = typeof fetch
 type FetchInputArg = Parameters<Fetch>[0]
 type FetchInitArg = Parameters<Fetch>[1]
 
+function getTestStack(): string {
+  let stack = (new Error().stack ?? '').split('\n')
+  // Skip the first line and find first non-empty line.
+  for (let i = 1; i < stack.length; i++) {
+    if (stack[i].length > 0) {
+      stack = stack.slice(i)
+      break
+    }
+  }
+  // Filter out franmework lines.
+  stack = stack.filter((f) => !f.includes('/next/dist/'))
+  // At most 5 lines.
+  stack = stack.slice(0, 5)
+  // Cleanup some internal info and trim.
+  stack = stack.map((s) => s.replace('webpack-internal:///(rsc)/', '').trim())
+  return stack.join('    ')
+}
+
 async function buildProxyRequest(
   testData: string,
   request: Request
@@ -43,7 +61,7 @@ async function buildProxyRequest(
     request: {
       url,
       method,
-      headers: Array.from(headers),
+      headers: [...Array.from(headers), ['next-test-stack', getTestStack()]],
       body: body
         ? Buffer.from(await request.arrayBuffer()).toString('base64')
         : null,

@@ -4,7 +4,7 @@ console.time('next-wall-time')
 
 process.env.NODE_ENV = 'production'
 
-// Change this to 'experimental' for server actions
+// Change this to 'experimental' to opt into the React experimental channel (needed for server actions, ppr)
 process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = 'next'
 
 if (process.env.LOG_REQUIRE) {
