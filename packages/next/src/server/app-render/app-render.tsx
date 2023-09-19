@@ -1401,7 +1401,7 @@ export async function renderToHTMLOrFlight(
           )
         },
         ComponentMod,
-        { ...serverComponentsRenderOpts },
+        { ...serverComponentsRenderOpts, formState },
         serverComponentsErrorHandler,
         nonce
       )
@@ -1616,7 +1616,7 @@ export async function renderToHTMLOrFlight(
               transformStream: cloneTransformStream(
                 serverComponentsRenderOpts.transformStream
               ),
-              // formState,
+              formState,
             }
 
           const errorType = is404

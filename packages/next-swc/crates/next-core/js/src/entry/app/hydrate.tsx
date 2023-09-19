@@ -39,8 +39,13 @@ let initialServerDataWriter: ReadableStreamDefaultController | undefined =
 let initialServerDataLoaded = false
 let initialServerDataFlushed = false
 
+let initialFormStateData: null | any = null
+
 function nextServerDataCallback(
-  seg: [isBootStrap: 0] | [isNotBootstrap: 1, responsePartial: string]
+  seg:
+    | [isBootStrap: 0]
+    | [isNotBootstrap: 1, responsePartial: string]
+    | [isFormState: 2, formState: any]
 ): number {
   if (seg[0] === 0) {
     initialServerDataBuffer = []
@@ -53,6 +58,8 @@ function nextServerDataCallback(
     } else {
       initialServerDataBuffer.push(seg[1])
     }
+  } else if (seg[0] === 2) {
+    initialFormStateData = seg[1]
   }
   return 0
 }
@@ -149,7 +156,9 @@ function hydrate() {
     reactRoot.render(reactEl)
   } else {
     React.startTransition(() => {
-      ReactDOMClient.hydrateRoot(appElement, reactEl)
+      ;(ReactDOMClient as any).hydrateRoot(appElement, reactEl, {
+        experimental_formState: initialFormStateData,
+      })
     })
   }
 

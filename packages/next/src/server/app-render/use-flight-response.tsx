@@ -78,7 +78,7 @@ export function useFlightResponse(
       } else {
         const responsePartial = decodeText(value, textDecoder)
         const scripts = `${startScriptTag}self.__next_f.push(${htmlEscapeJsonString(
-          JSON.stringify([INLINE_FLIGHT_PAYLOAD_DATA, , responsePartial])
+          JSON.stringify([INLINE_FLIGHT_PAYLOAD_DATA, responsePartial])
         )})</script>`
 
         writer.write(encodeText(scripts))
