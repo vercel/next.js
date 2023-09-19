@@ -1389,6 +1389,7 @@ export default async function getBaseWebpackConfig(
         WEBPACK_LAYERS.serverSideRendering,
         WEBPACK_LAYERS.appPagesBrowser,
         WEBPACK_LAYERS.actionBrowser,
+        WEBPACK_LAYERS.appMetadataRoute,
         WEBPACK_LAYERS.appRouteHandler,
       ] as WebpackLayerName[]
     ).includes(layer!)
@@ -1461,25 +1462,30 @@ export default async function getBaseWebpackConfig(
     // Specific Next.js imports that should remain external
     // TODO-APP: Investigate if we can remove this.
     if (request.startsWith('next/dist/')) {
+      // Non external that needs to be transpiled
       // Image loader needs to be transpiled
-      if (/^next\/dist\/shared\/lib\/image-loader/.test(request)) {
+      if (/^next[\\/]dist[\\/]shared[\\/]lib[\\/]image-loader/.test(request)) {
         return
       }
 
-      if (/^next\/dist\/compiled\/next-server/.test(request)) {
+      if (/^next[\\/]dist[\\/]compiled[\\/]next-server/.test(request)) {
         return `commonjs ${request}`
       }
 
       if (
-        /^next\/dist\/shared\/(?!lib\/router\/router)/.test(request) ||
-        /^next\/dist\/compiled\/.*\.c?js$/.test(request)
+        /^next[\\/]dist[\\/]shared[\\/](?!lib[\\/]router[\\/]router)/.test(
+          request
+        ) ||
+        /^next[\\/]dist[\\/]compiled[\\/].*\.c?js$/.test(request)
       ) {
         return `commonjs ${request}`
       }
 
       if (
-        /^next\/dist\/esm\/shared\/(?!lib\/router\/router)/.test(request) ||
-        /^next\/dist\/compiled\/.*\.mjs$/.test(request)
+        /^next[\\/]dist[\\/]esm[\\/]shared[\\/](?!lib[\\/]router[\\/]router)/.test(
+          request
+        ) ||
+        /^next[\\/]dist[\\/]compiled[\\/].*\.mjs$/.test(request)
       ) {
         return `module ${request}`
       }
