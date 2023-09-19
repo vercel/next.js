@@ -213,6 +213,7 @@ fn route_executor(
 #[turbo_tasks::function]
 fn edge_transition_map(
     server_addr: Vc<ServerAddr>,
+    dist_root: Vc<FileSystemPath>,
     project_path: Vc<FileSystemPath>,
     output_path: Vc<FileSystemPath>,
     next_config: Vc<NextConfig>,
@@ -220,7 +221,7 @@ fn edge_transition_map(
 ) -> Vc<TransitionsByName> {
     let mode = NextMode::DevServer;
 
-    let edge_compile_time_info = get_edge_compile_time_info(project_path, server_addr);
+    let edge_compile_time_info = get_edge_compile_time_info(project_path, server_addr, dist_root);
 
     let edge_chunking_context = Vc::upcast(
         DevChunkingContext::builder(
@@ -275,6 +276,7 @@ fn edge_transition_map(
 pub async fn route(
     execution_context: Vc<ExecutionContext>,
     request: Vc<RouterRequest>,
+    dist_root: Vc<FileSystemPath>,
     next_config: Vc<NextConfig>,
     server_addr: Vc<ServerAddr>,
     routes_changed: Vc<Completion>,
@@ -287,6 +289,7 @@ pub async fn route(
     route_internal(
         execution_context,
         request,
+        dist_root,
         next_config,
         server_addr,
         routes_changed,
@@ -311,6 +314,7 @@ macro_rules! shared_anyhow {
 async fn route_internal(
     execution_context: Vc<ExecutionContext>,
     request: Vc<RouterRequest>,
+    dist_root: Vc<FileSystemPath>,
     next_config: Vc<NextConfig>,
     server_addr: Vc<ServerAddr>,
     routes_changed: Vc<Completion>,
@@ -326,6 +330,7 @@ async fn route_internal(
         Some(get_next_build_import_map()),
         Some(edge_transition_map(
             server_addr,
+            dist_root,
             project_path,
             chunking_context.output_root(),
             next_config,

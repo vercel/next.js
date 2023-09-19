@@ -191,6 +191,7 @@ fn next_ssr_client_module_transition(
 #[turbo_tasks::function]
 fn next_edge_ssr_client_module_transition(
     project_path: Vc<FileSystemPath>,
+    dist_root: Vc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,
     app_dir: Vc<FileSystemPath>,
     next_config: Vc<NextConfig>,
@@ -214,7 +215,7 @@ fn next_edge_ssr_client_module_transition(
                 next_config,
                 execution_context,
             ),
-            ssr_environment: get_edge_compile_time_info(project_path, server_addr),
+            ssr_environment: get_edge_compile_time_info(project_path, server_addr, dist_root),
         }
         .cell(),
     )
@@ -290,6 +291,7 @@ fn next_route_transition(
 #[turbo_tasks::function]
 fn next_edge_server_component_transition(
     project_path: Vc<FileSystemPath>,
+    dist_root: Vc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,
     app_dir: Vc<FileSystemPath>,
     server_root: Vc<FileSystemPath>,
@@ -305,7 +307,7 @@ fn next_edge_server_component_transition(
             ecmascript_client_reference_transition_name,
         ),
     });
-    let rsc_compile_time_info = get_edge_compile_time_info(project_path, server_addr);
+    let rsc_compile_time_info = get_edge_compile_time_info(project_path, server_addr, dist_root);
     let rsc_resolve_options_context =
         get_edge_resolve_options_context(project_path, ty, mode, next_config, execution_context);
     let rsc_module_options_context =
@@ -325,6 +327,7 @@ fn next_edge_server_component_transition(
 #[turbo_tasks::function]
 fn next_edge_route_transition(
     project_path: Vc<FileSystemPath>,
+    dist_root: Vc<FileSystemPath>,
     app_dir: Vc<FileSystemPath>,
     server_root: Vc<FileSystemPath>,
     next_config: Vc<NextConfig>,
@@ -335,7 +338,7 @@ fn next_edge_route_transition(
     let mode = NextMode::DevServer;
     let server_ty = Value::new(ServerContextType::AppRoute { app_dir });
 
-    let edge_compile_time_info = get_edge_compile_time_info(project_path, server_addr);
+    let edge_compile_time_info = get_edge_compile_time_info(project_path, server_addr, dist_root);
 
     let edge_chunking_context = Vc::upcast(
         DevChunkingContext::builder(
@@ -374,6 +377,7 @@ fn next_edge_route_transition(
 #[turbo_tasks::function]
 fn next_edge_page_transition(
     project_path: Vc<FileSystemPath>,
+    dist_root: Vc<FileSystemPath>,
     app_dir: Vc<FileSystemPath>,
     server_root: Vc<FileSystemPath>,
     mode: NextMode,
@@ -384,7 +388,7 @@ fn next_edge_page_transition(
 ) -> Vc<Box<dyn Transition>> {
     let server_ty = Value::new(ServerContextType::AppSSR { app_dir });
 
-    let edge_compile_time_info = get_edge_compile_time_info(project_path, server_addr);
+    let edge_compile_time_info = get_edge_compile_time_info(project_path, server_addr, dist_root);
 
     let edge_chunking_context = Vc::upcast(
         DevChunkingContext::builder(
@@ -422,6 +426,7 @@ fn next_edge_page_transition(
 #[turbo_tasks::function]
 fn app_context(
     project_path: Vc<FileSystemPath>,
+    dist_root: Vc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,
     server_root: Vc<FileSystemPath>,
     app_dir: Vc<FileSystemPath>,
@@ -439,6 +444,7 @@ fn app_context(
         "next-edge-route".to_string(),
         next_edge_route_transition(
             project_path,
+            dist_root,
             app_dir,
             server_root,
             next_config,
@@ -462,6 +468,7 @@ fn app_context(
         "next-edge-page".to_string(),
         next_edge_page_transition(
             project_path,
+            dist_root,
             app_dir,
             server_root,
             mode,
@@ -494,6 +501,7 @@ fn app_context(
         "next-edge-server-component".to_string(),
         next_edge_server_component_transition(
             project_path,
+            dist_root,
             execution_context,
             app_dir,
             server_root,
@@ -547,6 +555,7 @@ fn app_context(
         "next-edge-ssr-client-module".to_string(),
         next_edge_ssr_client_module_transition(
             project_path,
+            dist_root,
             execution_context,
             app_dir,
             next_config,
@@ -580,6 +589,7 @@ fn app_context(
 #[turbo_tasks::function]
 pub async fn create_app_source(
     app_dir: Vc<OptionAppDir>,
+    dist_root: Vc<FileSystemPath>,
     project_path: Vc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,
     output_path: Vc<FileSystemPath>,
@@ -599,6 +609,7 @@ pub async fn create_app_source(
 
     let context_ssr = app_context(
         project_path,
+        dist_root,
         execution_context,
         server_root,
         app_dir,
@@ -613,6 +624,7 @@ pub async fn create_app_source(
     );
     let context = app_context(
         project_path,
+        dist_root,
         execution_context,
         server_root,
         app_dir,

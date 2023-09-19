@@ -185,6 +185,7 @@ pub struct Project {
     /// a file outside this root will fail. Think of this as a chroot.
     root_path: String,
 
+    /// A path where to emit the build outputs. next.config.js's distDir.
     dist_dir: String,
 
     /// A path inside the root_path which contains the app/pages directories.
@@ -281,6 +282,19 @@ impl Project {
         self.project_fs().root()
     }
 
+    /// Returns a path to dist_dir resolved from project root path.
+    /// Currently this is used to embed process.env.__NEXT_DIST_DIR.
+    /// [Note] in webpack-config, it is being injected when
+    /// dev && (isClient || isEdgeServer)
+    #[turbo_tasks::function]
+    async fn dist_root_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        let this = self.await?;
+        Ok(self
+            .project_root_path()
+            .root()
+            .join(this.dist_dir.to_string()))
+    }
+
     #[turbo_tasks::function]
     pub(super) fn client_relative_path(self: Vc<Self>) -> Vc<FileSystemPath> {
         self.client_root().join("_next".to_string())
@@ -336,8 +350,13 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) fn client_compile_time_info(&self) -> Vc<CompileTimeInfo> {
-        get_client_compile_time_info(self.mode, self.browserslist_query.clone())
+    pub(super) async fn client_compile_time_info(self: Vc<Self>) -> Result<Vc<CompileTimeInfo>> {
+        let this = self.await?;
+        Ok(get_client_compile_time_info(
+            this.mode,
+            this.browserslist_query.clone(),
+            self.dist_root_path(),
+        ))
     }
 
     #[turbo_tasks::function]
@@ -352,7 +371,11 @@ impl Project {
 
     #[turbo_tasks::function]
     pub(super) fn edge_compile_time_info(self: Vc<Self>) -> Vc<CompileTimeInfo> {
-        get_edge_compile_time_info(self.project_path(), self.server_addr())
+        get_edge_compile_time_info(
+            self.project_path(),
+            self.server_addr(),
+            self.dist_root_path(),
+        )
     }
 
     #[turbo_tasks::function]

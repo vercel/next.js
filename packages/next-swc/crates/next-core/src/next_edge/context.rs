@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{Value, ValueToString, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::FileSystemPath,
     turbopack::{
@@ -31,26 +31,43 @@ use crate::{
     util::foreign_code_context_condition,
 };
 
-fn defines() -> CompileTimeDefines {
-    compile_time_defines!(
-        process.turbopack = true,
-        process.env.NODE_ENV = "development",
-        process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false,
-        process.env.NEXT_RUNTIME = "edge"
-    )
+fn defines(dist_root_path: Option<String>) -> CompileTimeDefines {
+    // [TODO] macro may need to allow dynamically expand from some iterable values
+    if let Some(dist_root_path) = dist_root_path {
+        compile_time_defines!(
+            process.turbopack = true,
+            process.env.NODE_ENV = "development",
+            process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false,
+            process.env.NEXT_RUNTIME = "edge",
+            process.env.__NEXT_DIST_DIR = dist_root_path
+        )
+    } else {
+        compile_time_defines!(
+            process.turbopack = true,
+            process.env.NODE_ENV = "development",
+            process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false,
+            process.env.NEXT_RUNTIME = "edge",
+        )
+    }
+
     // TODO(WEB-937) there are more defines needed, see
     // packages/next/src/build/webpack-config.ts
 }
 
 #[turbo_tasks::function]
-fn next_edge_defines() -> Vc<CompileTimeDefines> {
-    defines().cell()
+async fn next_edge_defines(dist_root_path: Vc<FileSystemPath>) -> Result<Vc<CompileTimeDefines>> {
+    let dist_root_path = &*dist_root_path.to_string().await?;
+    Ok(defines(Some(dist_root_path.clone())).cell())
 }
 
 #[turbo_tasks::function]
-fn next_edge_free_vars(project_path: Vc<FileSystemPath>) -> Vc<FreeVarReferences> {
-    free_var_references!(
-        ..defines().into_iter(),
+async fn next_edge_free_vars(
+    project_path: Vc<FileSystemPath>,
+    dist_root_path: Vc<FileSystemPath>,
+) -> Result<Vc<FreeVarReferences>> {
+    let dist_root_path = &*dist_root_path.to_string().await?;
+    Ok(free_var_references!(
+        ..defines(Some(dist_root_path.clone())).into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
             request: "next/dist/compiled/buffer".to_string(),
             lookup_path: Some(project_path),
@@ -62,19 +79,20 @@ fn next_edge_free_vars(project_path: Vc<FileSystemPath>) -> Vc<FreeVarReferences
             export: Some("default".to_string()),
         },
     )
-    .cell()
+    .cell())
 }
 
 #[turbo_tasks::function]
 pub fn get_edge_compile_time_info(
     project_path: Vc<FileSystemPath>,
     server_addr: Vc<ServerAddr>,
+    dist_root_path: Vc<FileSystemPath>,
 ) -> Vc<CompileTimeInfo> {
     CompileTimeInfo::builder(Environment::new(Value::new(
         ExecutionEnvironment::EdgeWorker(EdgeWorkerEnvironment { server_addr }.into()),
     )))
-    .defines(next_edge_defines())
-    .free_var_references(next_edge_free_vars(project_path))
+    .defines(next_edge_defines(dist_root_path))
+    .free_var_references(next_edge_free_vars(project_path, dist_root_path))
     .cell()
 }
 

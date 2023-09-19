@@ -82,6 +82,7 @@ use crate::{
 pub async fn create_page_source(
     pages_structure: Vc<PagesStructure>,
     project_root: Vc<FileSystemPath>,
+    dist_root: Vc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,
     node_root: Vc<FileSystemPath>,
     client_root: Vc<FileSystemPath>,
@@ -139,7 +140,7 @@ pub async fn create_page_source(
         .cell(),
     );
 
-    let edge_compile_time_info = get_edge_compile_time_info(project_root, server_addr);
+    let edge_compile_time_info = get_edge_compile_time_info(project_root, server_addr, dist_root);
 
     let edge_chunking_context = Vc::upcast(
         DevChunkingContext::builder(

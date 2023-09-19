@@ -318,9 +318,17 @@ async fn source(
 
     let server_addr = ServerAddr::new(*server_addr).cell();
 
+    // [Note]: this is to conform changed signature to inject process.env.__NEXT_DIST_DIR,
+    // while we don't use this devserver for now
+    let dist_dir = ".next".to_string();
+
     let env = load_env(project_path);
     let env = server_env(env, server_addr);
-    let build_output_root = output_fs.root().join(".next/build".to_string());
+    let build_output_root = output_fs
+        .root()
+        .join(dist_dir.clone())
+        .join("build".to_string());
+    let dist_root = output_fs.root().join(dist_dir.clone());
 
     let build_chunking_context = DevChunkingContext::builder(
         project_path,
@@ -339,7 +347,10 @@ async fn source(
     let next_config = load_next_config(next_config_execution_context);
     let rewrites = load_rewrites(next_config_execution_context);
 
-    let output_root = output_fs.root().join(".next/server".to_string());
+    let output_root = output_fs
+        .root()
+        .join(dist_dir.clone())
+        .join("server".to_string());
 
     let dev_server_fs = Vc::upcast::<Box<dyn FileSystem>>(ServerFileSystem::new());
     let dev_server_root = dev_server_fs.root();
@@ -364,7 +375,8 @@ async fn source(
         browserslist_query.clone(),
         next_config,
     );
-    let client_compile_time_info = get_client_compile_time_info(mode, browserslist_query);
+    let client_compile_time_info =
+        get_client_compile_time_info(mode, browserslist_query, dist_root);
     let client_chunking_context = get_client_chunking_context(
         project_path,
         dev_server_root,
@@ -376,6 +388,7 @@ async fn source(
     let page_source = create_page_source(
         pages_structure,
         project_path,
+        dist_root,
         execution_context,
         output_root.join("pages".to_string()),
         dev_server_root,
@@ -388,6 +401,7 @@ async fn source(
     let app_dir = find_app_dir_if_enabled(project_path);
     let app_source = create_app_source(
         app_dir,
+        dist_root,
         project_path,
         execution_context,
         output_root.join("app".to_string()),
@@ -433,6 +447,7 @@ async fn source(
         server_addr,
         app_dir,
         pages_structure,
+        dist_root,
     ));
     let source = Vc::upcast(
         PrefixedRouterContentSource {

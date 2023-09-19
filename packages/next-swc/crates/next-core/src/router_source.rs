@@ -2,6 +2,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use futures::{Stream, TryStreamExt};
 use indexmap::IndexSet;
 use turbo_tasks::{Completion, Completions, Value, Vc};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_binding::turbopack::{
     core::{
         environment::ServerAddr,
@@ -31,6 +32,7 @@ pub struct NextRouterContentSource {
     server_addr: Vc<ServerAddr>,
     app_dir: Vc<OptionAppDir>,
     pages_structure: Vc<PagesStructure>,
+    dist_root: Vc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
@@ -43,6 +45,7 @@ impl NextRouterContentSource {
         server_addr: Vc<ServerAddr>,
         app_dir: Vc<OptionAppDir>,
         pages_structure: Vc<PagesStructure>,
+        dist_root: Vc<FileSystemPath>,
     ) -> Vc<NextRouterContentSource> {
         NextRouterContentSource {
             inner,
@@ -51,6 +54,7 @@ impl NextRouterContentSource {
             server_addr,
             app_dir,
             pages_structure,
+            dist_root,
         }
         .cell()
     }
@@ -144,6 +148,7 @@ impl GetContentSourceContent for NextRouterContentSource {
         let res = route(
             this.execution_context,
             request,
+            this.dist_root,
             this.next_config,
             this.server_addr,
             routes_changed(this.app_dir, this.pages_structure, this.next_config),

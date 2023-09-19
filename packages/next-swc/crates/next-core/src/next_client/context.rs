@@ -1,7 +1,7 @@
 use core::{default::Default, result::Result::Ok};
 
 use anyhow::Result;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystem;
 use turbopack_binding::{
     turbo::{tasks_env::ProcessEnv, tasks_fs::FileSystemPath},
@@ -65,27 +65,48 @@ use crate::{
     util::foreign_code_context_condition,
 };
 
-fn defines(mode: NextMode) -> CompileTimeDefines {
-    compile_time_defines!(
-        process.turbopack = true,
-        process.env.NODE_ENV = mode.node_env(),
-        process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false,
-        process.env.__NEXT_HAS_REWRITES = true,
-        process.env.__NEXT_I18N_SUPPORT = false,
-    )
+fn defines(mode: NextMode, dist_root_path: Option<String>) -> CompileTimeDefines {
+    // [TODO] macro may need to allow dynamically expand from some iterable values
+    if let Some(dist_root_path) = dist_root_path {
+        compile_time_defines!(
+            process.turbopack = true,
+            process.env.NODE_ENV = mode.node_env(),
+            process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false,
+            process.env.__NEXT_HAS_REWRITES = true,
+            process.env.__NEXT_I18N_SUPPORT = false,
+            process.env.__NEXT_DIST_DIR = dist_root_path
+        )
+    } else {
+        compile_time_defines!(
+            process.turbopack = true,
+            process.env.NODE_ENV = mode.node_env(),
+            process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false,
+            process.env.__NEXT_HAS_REWRITES = true,
+            process.env.__NEXT_I18N_SUPPORT = false,
+        )
+    }
+
     // TODO(WEB-937) there are more defines needed, see
     // packages/next/src/build/webpack-config.ts
 }
 
 #[turbo_tasks::function]
-fn next_client_defines(mode: NextMode) -> Vc<CompileTimeDefines> {
-    defines(mode).cell()
+async fn next_client_defines(
+    mode: NextMode,
+    dist_root_path: Vc<FileSystemPath>,
+) -> Result<Vc<CompileTimeDefines>> {
+    let dist_root_path = &*dist_root_path.to_string().await?;
+    Ok(defines(mode, Some(dist_root_path.clone())).cell())
 }
 
 #[turbo_tasks::function]
-async fn next_client_free_vars(mode: NextMode) -> Result<Vc<FreeVarReferences>> {
+async fn next_client_free_vars(
+    mode: NextMode,
+    dist_root_path: Vc<FileSystemPath>,
+) -> Result<Vc<FreeVarReferences>> {
+    let dist_root_path = &*dist_root_path.to_string().await?;
     Ok(free_var_references!(
-        ..defines(mode).into_iter(),
+        ..defines(mode, Some(dist_root_path.clone())).into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
             request: "node:buffer".to_string(),
             lookup_path: None,
@@ -104,6 +125,7 @@ async fn next_client_free_vars(mode: NextMode) -> Result<Vc<FreeVarReferences>> 
 pub fn get_client_compile_time_info(
     mode: NextMode,
     browserslist_query: String,
+    dist_root_path: Vc<FileSystemPath>,
 ) -> Vc<CompileTimeInfo> {
     CompileTimeInfo::builder(Environment::new(Value::new(ExecutionEnvironment::Browser(
         BrowserEnvironment {
@@ -114,8 +136,8 @@ pub fn get_client_compile_time_info(
         }
         .into(),
     ))))
-    .defines(next_client_defines(mode))
-    .free_var_references(next_client_free_vars(mode))
+    .defines(next_client_defines(mode, dist_root_path))
+    .free_var_references(next_client_free_vars(mode, dist_root_path))
     .cell()
 }
 
