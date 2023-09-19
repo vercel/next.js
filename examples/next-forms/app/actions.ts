@@ -9,7 +9,7 @@ import { z } from 'zod'
 //   text TEXT NOT NULL
 // );
 
-export async function createTodo(formData: FormData) {
+export async function createTodo(prevState: any, formData: FormData) {
   const schema = z.object({
     todo: z.string().nonempty(),
   })
@@ -23,15 +23,13 @@ export async function createTodo(formData: FormData) {
     VALUES (${data.todo})
   `
 
-    revalidatePath('/')
-
-    return { message: 'Saved successfully' }
+    return revalidatePath('/')
   } catch (e) {
     return { message: 'Failed to create todo' }
   }
 }
 
-export async function deleteTodo(formData: FormData) {
+export async function deleteTodo(prevState: any, formData: FormData) {
   const schema = z.object({
     id: z.string().nonempty(),
   })
@@ -45,9 +43,7 @@ export async function deleteTodo(formData: FormData) {
       WHERE id = ${data.id};
     `
 
-    revalidatePath('/')
-
-    return { message: 'Deleted successfully' }
+    return revalidatePath('/')
   } catch (e) {
     return { message: 'Failed to delete todo' }
   }
