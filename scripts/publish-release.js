@@ -57,7 +57,7 @@ const cwd = process.cwd()
         { stdio: 'inherit' }
       )
       // Return here to avoid retry logic
-      return;
+      return
     } catch (err) {
       console.error(`Failed to publish ${pkg}`, err)
 
