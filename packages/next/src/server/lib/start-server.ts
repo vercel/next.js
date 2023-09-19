@@ -273,20 +273,20 @@ export async function startServer({
       process.env.PORT = port + ''
 
       try {
-        // Maybe change to NodeJS.Signals ?
-        const cleanup = (code: string | number | null) => {
+        const cleanup = (code: number | null) => {
           debug('start-server process cleanup')
           server.close()
           // signal code can also be string in newest node versions
-          process.exit(typeof code === 'number' ? code : 0)
+          process.exit(code ?? 0)
         }
         const exception = (err: Error) => {
           // This is the render worker, we keep the process alive
           console.error(err)
         }
-        process.on('exit', cleanup)
-        process.on('SIGINT', cleanup)
-        process.on('SIGTERM', cleanup)
+        process.on('exit', (code) => cleanup(code))
+        // callback value is signal string, exit with 0
+        process.on('SIGINT', () => cleanup(0))
+        process.on('SIGTERM', () => cleanup(0))
         process.on('uncaughtException', exception)
         process.on('unhandledRejection', exception)
 
