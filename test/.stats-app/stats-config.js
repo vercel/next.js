@@ -109,15 +109,15 @@ module.exports = {
         'http://localhost:$PORT/withRouter',
       ],
       // TODO: investigate replacing "ab" for this
-      // pagesToBench: [
-      //   'http://localhost:$PORT/',
-      //   'http://localhost:$PORT/error-in-render',
-      // ],
-      // benchOptions: {
-      //   reqTimeout: 60,
-      //   concurrency: 50,
-      //   numRequests: 2500,
-      // },
+      pagesToBench: [
+        'http://localhost:$PORT/',
+        'http://localhost:$PORT/error-in-render',
+      ],
+      benchOptions: {
+        reqTimeout: 60,
+        concurrency: 50,
+        numRequests: 2500,
+      },
     },
   ],
 }
