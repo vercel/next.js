@@ -1487,12 +1487,16 @@ export default class HotReloader implements NextJsHotReloaderInterface {
     if (error) {
       return Promise.reject(error)
     }
-    return this.onDemandEntries?.ensurePage({
+    const res = (await this.onDemandEntries?.ensurePage({
       page,
       clientOnly,
       appPaths,
       match,
       isApp,
-    }) as any
+    })) as any
+
+    if (res && res.err) {
+      throw res.err
+    }
   }
 }

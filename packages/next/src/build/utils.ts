@@ -1,4 +1,4 @@
-import type { NextConfigComplete } from '../server/config-shared'
+import type { NextConfig, NextConfigComplete } from '../server/config-shared'
 import type { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
 import type { AssetBinding } from './webpack/loaders/get-module-build-info'
 import type { GetStaticPaths, PageConfig, ServerRuntime } from 'next/types'
@@ -67,7 +67,8 @@ import { nodeFs } from '../server/lib/node-fs-methods'
 import * as ciEnvironment from '../telemetry/ci-info'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { denormalizeAppPagePath } from '../shared/lib/page-path/denormalize-app-path'
-// import { AppRouteRouteModule } from '../server/future/route-modules/app-route/module'
+import { needsExperimentalReact } from '../lib/needs-experimental-react'
+
 const { AppRouteRouteModule } =
   require('../server/future/route-modules/app-route/module.compiled') as typeof import('../server/future/route-modules/app-route/module')
 
@@ -1826,13 +1827,17 @@ export async function copyTracedFiles(
   pageKeys: readonly string[],
   appPageKeys: readonly string[] | undefined,
   tracingRoot: string,
-  serverConfig: { [key: string]: any },
+  serverConfig: NextConfig,
   middlewareManifest: MiddlewareManifest,
-  hasInstrumentationHook: boolean,
-  hasAppDir: boolean
+  hasInstrumentationHook: boolean
 ) {
   const outputPath = path.join(distDir, 'standalone')
   let moduleType = false
+  const nextConfig = {
+    ...serverConfig,
+    distDir: `./${path.relative(dir, distDir)}`,
+  }
+  const hasExperimentalReact = needsExperimentalReact(nextConfig)
   try {
     const packageJsonPath = path.join(distDir, '../package.json')
     const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf8'))
@@ -1956,6 +1961,7 @@ export async function copyTracedFiles(
     'server.js'
   )
   await fs.mkdir(path.dirname(serverOutputPath), { recursive: true })
+
   await fs.writeFile(
     serverOutputPath,
     `${
@@ -1985,17 +1991,12 @@ const currentPort = parseInt(process.env.PORT, 10) || 3000
 const hostname = process.env.HOSTNAME || '0.0.0.0'
 
 let keepAliveTimeout = parseInt(process.env.KEEP_ALIVE_TIMEOUT, 10)
-const nextConfig = ${JSON.stringify({
-      ...serverConfig,
-      distDir: `./${path.relative(dir, distDir)}`,
-    })}
+const nextConfig = ${JSON.stringify(nextConfig)}
 
 process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(nextConfig)
-process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = ${hasAppDir}
-  ? nextConfig.experimental && nextConfig.experimental.serverActions
-    ? 'experimental'
-    : 'next'
-  : '';
+process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = ${hasExperimentalReact}
+  ? 'experimental'
+  : 'next'
 
 require('next')
 const { startServer } = require('next/dist/server/lib/start-server')
@@ -2129,4 +2130,10 @@ export function isWebpackDefaultLayer(
   layer: WebpackLayerName | null | undefined
 ): boolean {
   return layer === null || layer === undefined
+}
+
+export function isWebpackAppLayer(
+  layer: WebpackLayerName | null | undefined
+): boolean {
+  return Boolean(layer && WEBPACK_LAYERS.GROUP.app.includes(layer as any))
 }
