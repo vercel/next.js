@@ -384,6 +384,9 @@ const configSchema = {
         outputFileTracingIncludes: {
           type: 'object',
         },
+        ppr: {
+          type: 'boolean',
+        },
         proxyTimeout: {
           minimum: 0,
           type: 'number',
