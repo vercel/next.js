@@ -389,11 +389,6 @@ async fn insert_next_server_special_aliases(
         NextRuntime::Edge => request_to_import_mapping(context_dir, request),
         NextRuntime::NodeJs => external_request_to_import_mapping(request),
     };
-    let passthrough_external_if_node =
-        move |context_dir: Vc<FileSystemPath>, request: &str| match runtime {
-            NextRuntime::Edge => request_to_import_mapping(context_dir, request),
-            NextRuntime::NodeJs => ImportMapping::External(None).cell(),
-        };
     match (mode, ty) {
         (_, ServerContextType::Pages { pages_dir }) => {
             import_map.insert_exact_alias(
@@ -441,11 +436,11 @@ async fn insert_next_server_special_aliases(
             );
             import_map.insert_exact_alias(
                 "styled-jsx",
-                passthrough_external_if_node(app_dir, "next/dist/compiled/styled-jsx"),
+                request_to_import_mapping(get_next_package(app_dir), "styled-jsx"),
             );
             import_map.insert_wildcard_alias(
                 "styled-jsx/",
-                passthrough_external_if_node(app_dir, "next/dist/compiled/styled-jsx/*"),
+                request_to_import_mapping(get_next_package(app_dir), "styled-jsx/*"),
             );
             import_map.insert_exact_alias(
                 "react/jsx-runtime",
@@ -560,6 +555,14 @@ async fn insert_next_server_special_aliases(
                 // TODO(WEB-625) this actually need to prefer the local version of
                 // @opentelemetry/api
                 request_to_import_mapping(app_dir, "next/dist/compiled/@opentelemetry/api"),
+            );
+            import_map.insert_exact_alias(
+                "styled-jsx",
+                request_to_import_mapping(get_next_package(app_dir), "styled-jsx"),
+            );
+            import_map.insert_wildcard_alias(
+                "styled-jsx/",
+                request_to_import_mapping(get_next_package(app_dir), "styled-jsx/*"),
             );
 
             import_map.insert_exact_alias(
