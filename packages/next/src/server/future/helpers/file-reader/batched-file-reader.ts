@@ -8,6 +8,7 @@ import {
   groupDirectoryReads,
   mergeDirectoryReadResults,
 } from './helpers/deduplicate-directory-reads'
+import { Debuggable } from '../debuggable'
 
 interface Task extends DirectoryReadTask {
   /**
@@ -32,7 +33,7 @@ type Batch = {
  * BatchedFileReader will deduplicate requests made to the same folder structure
  * to scan for files.
  */
-export class BatchedFileReader implements FileReader {
+export class BatchedFileReader extends Debuggable implements FileReader {
   /**
    * The current batch of file reading tasks.
    */
@@ -45,7 +46,34 @@ export class BatchedFileReader implements FileReader {
   constructor(
     private readonly reader: FileReader,
     private readonly pathSeparator = path.sep
-  ) {}
+  ) {
+    super()
+  }
+
+  /**
+   * The shared readers for each filer reader. This is stored as a WeakMap so
+   * that the file reader can be garbage collected when it's no longer in use.
+   */
+  private static readonly shared: WeakMap<FileReader, BatchedFileReader> =
+    new WeakMap()
+
+  /**
+   * Finds or creates a shared batched file reader for the given file reader.
+   *
+   * @param reader the file reader to use
+   * @returns the shared batched file reader for the given file reader
+   */
+  public static findOrCreateShared(reader: FileReader): BatchedFileReader {
+    let batched = BatchedFileReader.shared.get(reader)
+    if (!batched) {
+      batched = new BatchedFileReader(reader)
+
+      // If this reader exists scope, then so will the batched file reader.
+      BatchedFileReader.shared.set(reader, batched)
+    }
+
+    return batched
+  }
 
   // This allows us to schedule the batches after all the promises associated
   // with loading files.
@@ -62,8 +90,11 @@ export class BatchedFileReader implements FileReader {
   private getOrCreateBatch(): Batch {
     // If there is an existing batch and it's not completed, then reuse it.
     if (this.batch && !this.batch.completed) {
+      this.debug('reusing existing batch')
       return this.batch
     }
+
+    this.debug('creating new batch')
 
     const batch: Batch = {
       completed: false,
@@ -73,6 +104,8 @@ export class BatchedFileReader implements FileReader {
     this.batch = batch
 
     this.schedule(async () => {
+      this.debug('running batch')
+
       batch.completed = true
       if (batch.tasks.length === 0) return
 
@@ -108,6 +141,12 @@ export class BatchedFileReader implements FileReader {
   ): Promise<ReadonlyArray<ReadonlyArray<string> | Error>> {
     const queue = groupDirectoryReads(directories, this.pathSeparator)
 
+    this.debug(
+      'batching %d directories into %d groups',
+      directories.length,
+      queue.length
+    )
+
     const results = await Promise.all(
       queue.map<Promise<DirectoryReadResult<Task>>>(async (spec) => {
         const { dir, recursive } = spec
@@ -123,6 +162,8 @@ export class BatchedFileReader implements FileReader {
         return { ...spec, files, error }
       })
     )
+
+    this.debug('reading complete, merging %d results', results.length)
 
     return mergeDirectoryReadResults(directories, results, this.pathSeparator)
   }

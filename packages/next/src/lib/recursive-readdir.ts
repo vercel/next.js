@@ -1,5 +1,8 @@
 import fs from 'fs/promises'
 import path from 'path'
+import createDebug from 'next/dist/compiled/debug'
+
+const debug = createDebug('next:recursive-readdir')
 
 type Filter = (pathname: string) => boolean
 
@@ -42,6 +45,12 @@ export type RecursiveReadDirOptions = {
    * recurse indefinitely.
    */
   maxDepth?: number
+
+  /**
+   * When true, throw when the root directory doesn't exist. Otherwise, return
+   * an empty array. Defaults to true.
+   */
+  throwOnMissing?: boolean
 }
 
 /**
@@ -63,7 +72,14 @@ export async function recursiveReadDir(
     sortFilenames = true,
     relativeFilenames = true,
     maxDepth = Infinity,
+    throwOnMissing = true,
   } = options
+
+  debug(
+    'reading directory %o (recursive %s)',
+    rootDirectory,
+    maxDepth > 1 ? 'yes' : 'no'
+  )
 
   // The list of pathnames to return.
   const filenames: string[] = []
@@ -115,8 +131,11 @@ export async function recursiveReadDir(
         } catch (err: any) {
           // This can only happen when the underlying directory was removed. If
           // anything other than this error occurs, re-throw it.
-          // if (err.code !== 'ENOENT') throw err
-          if (err.code !== 'ENOENT' || directory === rootDirectory) throw err
+          if (
+            err.code !== 'ENOENT' ||
+            (throwOnMissing && directory === rootDirectory)
+          )
+            throw err
 
           // The error occurred, so abandon reading this directory.
           return null

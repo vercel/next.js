@@ -63,7 +63,7 @@ import { IncrementalCache } from '../lib/incremental-cache'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import { BatchedFileReader } from '../future/helpers/file-reader/batched-file-reader'
-import { BaseRecursiveFileReader } from '../future/helpers/file-reader/base-file-reader'
+import { BaseFileReader } from '../future/helpers/file-reader/base-file-reader'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -204,7 +204,9 @@ export default class DevServer extends Server {
     )
     const extensions = this.nextConfig.pageExtensions
 
-    const fileReader = new BatchedFileReader(new BaseRecursiveFileReader())
+    const fileReader = BatchedFileReader.findOrCreateShared(
+      BaseFileReader.findOrCreateShared()
+    )
 
     // If the pages directory is available, then configure those matchers.
     if (pagesDir) {
