@@ -59,7 +59,9 @@ USER nextjs
 EXPOSE 3000
 
 ENV PORT 3000
-# set hostname to localhost
-ENV HOSTNAME "0.0.0.0"
+
+# Uncomment the following line if you'd like to change the default value
+# for process.env.HOSTNAME used to start your server
+#ENV HOSTNAME "0.0.0.0"
 
 CMD ["node", "server.js"]
