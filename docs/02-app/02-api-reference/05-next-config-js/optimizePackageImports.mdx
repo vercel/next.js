@@ -7,11 +7,13 @@ description:
 
 Some packages can export hundreds or thousands of modules, which can cause performance issues in development and production.
 
-Adding a package to `optimizePackageImports` will only load the modules you are actually using, while still giving you the convenience of writing import statements with many named exports.
+Adding a package to `experimental.optimizePackageImports` will only load the modules you are actually using, while still giving you the convenience of writing import statements with many named exports.
 
 ```js filename="next.config.js"
 module.exports = {
-  optimizePackageImports: ['package-name'],
+  experimental: {
+    optimizePackageImports: ['package-name'],
+  },
 }
 ```
 
