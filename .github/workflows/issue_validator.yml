@@ -21,7 +21,7 @@ jobs:
         uses: balazsorban44/nissuer@1.3.3
         with:
           label-area-prefix: 'area:'
-          label-area-section: 'Which area\\(s\\) are affected\\? \\(Select all that apply\\)(.*)### Additional context'
+          label-area-section: 'Which area\(s\) are affected\? \(Select all that apply\)(.*)### Additional context'
           label-comments: |
             {
               "please add a complete reproduction": ".github/invalid-reproduction.md",
