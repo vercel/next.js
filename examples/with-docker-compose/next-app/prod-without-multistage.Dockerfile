@@ -37,10 +37,8 @@ ENV NEXT_PUBLIC_ENV_VARIABLE=${NEXT_PUBLIC_ENV_VARIABLE}
 # Uncomment the following line to disable telemetry at build time
 # ENV NEXT_TELEMETRY_DISABLED 1
 
-# Required to deploy on Google Cloud Run
 EXPOSE 3000
 ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
 
 # Build Next.js based on the preferred package manager
 RUN \

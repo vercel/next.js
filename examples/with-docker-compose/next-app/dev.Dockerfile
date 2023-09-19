@@ -33,10 +33,8 @@ USER nextjs
 # Uncomment the following line to disable telemetry at run time
 # ENV NEXT_TELEMETRY_DISABLED 1
 
-# Required to deploy on Google Cloud Run
 EXPOSE 3000
 ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
 
 # Start Next.js in development mode based on the preferred package manager
 CMD \
