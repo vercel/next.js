@@ -29,13 +29,13 @@ createNextDescribe(
       it('logs the error correctly', async () => {
         await next.fetch('/')
         const output = stripAnsi(next.cliOutput)
-        await check(
-          () => stripAnsi(next.cliOutput),
-          new RegExp(
-            `middleware.js \\(\\d+:\\d+\\) @ Object.default \\[as handler\\]\\s*\\w+\\s*boom`,
-            'm'
+        await check(() => {
+          expect(stripAnsi(next.cliOutput)).toMatch(
+            /middleware.js \(\d+:\d+\) @ Object.default \[as handler\]/
           )
-        )
+          expect(stripAnsi(next.cliOutput)).toMatch(/boom/)
+          return 'success'
+        }, 'success')
         expect(output).not.toContain(
           'webpack-internal:///(middleware)/./middleware.js'
         )
@@ -103,13 +103,13 @@ createNextDescribe(
       it('logs the error correctly', async () => {
         await next.fetch('/')
         const output = stripAnsi(next.cliOutput)
-        await check(
-          () => stripAnsi(next.cliOutput),
-          new RegExp(
-            `middleware.js \\(\\d+:\\d+\\) @ eval\\s*\\w+\\s*test is not defined`,
-            'm'
+        await check(() => {
+          expect(stripAnsi(next.cliOutput)).toMatch(
+            /middleware.js \(\d+:\d+\) @ eval/
           )
-        )
+          expect(stripAnsi(next.cliOutput)).toMatch(/test is not defined/)
+          return 'success'
+        }, 'success')
         expect(output).not.toContain(
           'webpack-internal:///(middleware)/./middleware.js'
         )
@@ -141,13 +141,13 @@ createNextDescribe(
       it('logs the error correctly', async () => {
         await next.fetch('/')
         const output = stripAnsi(next.cliOutput)
-        await check(
-          () => stripAnsi(next.cliOutput),
-          new RegExp(
-            `middleware.js \\(\\d+:\\d+\\) @ <unknown>\\s*\\w+\\s*booooom!`,
-            'm'
+        await check(() => {
+          expect(stripAnsi(next.cliOutput)).toMatch(
+            /middleware.js \(\d+:\d+\) @ <unknown>/
           )
-        )
+          expect(stripAnsi(next.cliOutput)).toMatch(/booooom!/)
+          return 'success'
+        }, 'success')
         expect(output).not.toContain(
           'webpack-internal:///(middleware)/./middleware.js'
         )
@@ -247,8 +247,14 @@ createNextDescribe(
 
       it('logs the error correctly', async () => {
         await next.fetch('/')
-        expect(next.cliOutput).toContain(`Expected '{', got '}'`)
-        expect(next.cliOutput.split(`Expected '{', got '}'`).length).toEqual(2)
+        await check(async () => {
+          expect(next.cliOutput).toContain(`Expected '{', got '}'`)
+          expect(next.cliOutput.split(`Expected '{', got '}'`).length).toEqual(
+            2
+          )
+
+          return 'success'
+        }, 'success')
       })
 
       it('renders the error correctly and recovers', async () => {
