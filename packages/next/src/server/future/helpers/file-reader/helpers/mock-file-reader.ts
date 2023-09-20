@@ -1,6 +1,6 @@
 import type { FileReader, FileReaderOptions } from '../file-reader'
 
-import path from 'path'
+import { posix } from 'path'
 import { isFileInDirectory } from './is-file-in-directory'
 
 /**
@@ -14,7 +14,7 @@ export class MockFileReader implements FileReader {
    */
   constructor(
     private readonly files: ReadonlyArray<string> = [],
-    private readonly pathSeparator: string = path.posix.sep
+    private readonly pathSeparator: string
   ) {}
 
   /**
@@ -37,5 +37,11 @@ export class MockFileReader implements FileReader {
         )
       })
     )
+  }
+}
+
+export class PosixMockFileReader extends MockFileReader {
+  constructor(files: ReadonlyArray<string> = []) {
+    super(files, posix.sep)
   }
 }

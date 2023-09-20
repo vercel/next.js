@@ -1,53 +1,69 @@
+import path from 'path'
 import { isFileInDirectory } from './is-file-in-directory'
 
 describe('isFileInDirectory', () => {
-  test('should return true if the file is within the directory', () => {
-    const file = '/path/to/directory/file.txt'
-    const dir = '/path/to/directory'
-    const recursive = false
+  describe.each([
+    { name: 'win32', sep: path.win32.sep, normalize: path.win32.normalize },
+    { name: 'posix', sep: path.posix.sep, normalize: path.posix.normalize },
+  ])('on $name', ({ sep, normalize }) => {
+    describe('recursive', () => {
+      describe('positive', () => {
+        test.each([
+          ['/file.txt', '/'],
+          ['/path/file.txt', '/'],
+          ['/path/to/file.txt', '/'],
+          ['/path/to/directory/file.txt', '/'],
+          ['/path/to/directory/file.txt', '/path'],
+          ['/path/to/directory/file.txt', '/path/to'],
+          ['/path/to/directory/file.txt', '/path/to/directory'],
+        ])(`%s is in %s`, (file, dir) => {
+          expect(
+            isFileInDirectory(normalize(file), normalize(dir), true, sep)
+          ).toBe(true)
+        })
+      })
 
-    const result = isFileInDirectory(file, dir, recursive)
+      describe('negative', () => {
+        test.each([
+          ['/file.txt', '/path'],
+          ['/path/file.txt', '/path/to'],
+          ['/path/to/file.txt', '/path/to/directory'],
+          ['/path/to/directory/file.txt', '/path/to/directory/subdirectory'],
+          ['/path/to/directory/file.txt', '/path/to/directory/subdirectory/'],
+        ])(`%s is not in %s`, (file, dir) => {
+          expect(
+            isFileInDirectory(normalize(file), normalize(dir), true, sep)
+          ).toBe(false)
+        })
+      })
+    })
 
-    expect(result).toBe(true)
-  })
+    describe('non-recursive', () => {
+      describe('positive', () => {
+        test.each([
+          ['/file.txt', '/'],
+          ['/path/file.txt', '/path'],
+          ['/path/to/file.txt', '/path/to'],
+          ['/path/to/directory/file.txt', '/path/to/directory'],
+        ])('%s is in %s', (file, dir) => {
+          expect(
+            isFileInDirectory(normalize(file), normalize(dir), false, sep)
+          ).toBe(true)
+        })
+      })
 
-  test('should return false if the file is not within the directory', () => {
-    const file = '/path/to/other-directory/file.txt'
-    const dir = '/path/to/directory'
-    const recursive = false
-
-    const result = isFileInDirectory(file, dir, recursive)
-
-    expect(result).toBe(false)
-  })
-
-  test('should return true if the file is in a subdirectory when recursive is true', () => {
-    const file = '/path/to/directory/subdirectory/file.txt'
-    const dir = '/path/to/directory'
-    const recursive = true
-
-    const result = isFileInDirectory(file, dir, recursive)
-
-    expect(result).toBe(true)
-  })
-
-  test('should return true if the file is in the same directory when recursive is false', () => {
-    const file = '/path/to/directory/file.txt'
-    const dir = '/path/to/directory'
-    const recursive = false
-
-    const result = isFileInDirectory(file, dir, recursive)
-
-    expect(result).toBe(true)
-  })
-
-  test('should return false if the file is in a subdirectory when recursive is false', () => {
-    const file = '/path/to/directory/subdirectory/file.txt'
-    const dir = '/path/to/directory'
-    const recursive = false
-
-    const result = isFileInDirectory(file, dir, recursive)
-
-    expect(result).toBe(false)
+      describe('negative', () => {
+        test.each([
+          ['/file.txt', '/path'],
+          ['/path/file.txt', '/path/to'],
+          ['/path/to/file.txt', '/path'],
+          ['/path/to/directory/file.txt', '/path/to'],
+        ])('%s is not in %s', (file, dir) => {
+          expect(
+            isFileInDirectory(normalize(file), normalize(dir), false, sep)
+          ).toBe(false)
+        })
+      })
+    })
   })
 })

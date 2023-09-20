@@ -1,5 +1,3 @@
-import path from 'path'
-
 /**
  * Checks if a file path is within a directory.
  * @param file The file path to check.
@@ -12,7 +10,7 @@ export function isFileInDirectory(
   file: string,
   dir: string,
   recursive: boolean,
-  pathSeparator: string = path.sep
+  pathSeparator: string
 ): boolean {
   if (!file.startsWith(dir) || file === dir) {
     // If the file does not start with the directory path, it is not in the directory
