@@ -43,8 +43,8 @@ export default function () {
       // A module can be accepted automatically based on its exports, e.g. when
       // it is a Refresh Boundary.
       if (self.$RefreshHelpers$.isReactRefreshBoundary(currentExports)) {
-        // Save the previous exports on update so we can compare the boundary
-        // signatures.
+        // Save the previous exports signature on update so we can compare the boundary
+        // signatures. We avoid saving exports themselves since it causes memory leaks (https://github.com/vercel/next.js/pull/53797)
         __webpack_module__.hot.dispose(function (data) {
           data.prevSignature =
             self.$RefreshHelpers$.getRefreshBoundarySignature(currentExports)
