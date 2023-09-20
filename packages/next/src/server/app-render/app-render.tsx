@@ -990,14 +990,11 @@ export async function renderToHTMLOrFlight(
             <>
               {isPage ? metadataOutlet : null}
               {/* <Component /> needs to be the first element because we use `findDOMNode` in layout router to locate it. */}
-              {isPage && isClientComponent && isStaticGeneration ? (
-                <StaticGenerationSearchParamsBailoutProvider
-                  propsForComponent={props}
-                  Component={Component}
-                />
-              ) : (
-                <Component {...props} />
-              )}
+              <StaticGenerationSearchParamsBailoutProvider
+                propsForComponent={props}
+                Component={Component}
+                enabled={isPage && isClientComponent && isStaticGeneration}
+              />
               {/* This null is currently critical. The wrapped Component can render null and if there was not fragment
                 surrounding it this would look like a pending tree data state on the client which will cause an errror
                 and break the app. Long-term we need to move away from using null as a partial tree identifier since it
