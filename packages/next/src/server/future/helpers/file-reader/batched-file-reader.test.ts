@@ -1,8 +1,27 @@
 import path from 'path'
 import { BatchedFileReader } from './batched-file-reader'
-import { MockFileReader } from './helpers/mock-file-reader'
+import { MockFileReader, PosixMockFileReader } from './helpers/mock-file-reader'
 
 describe('BatchedFileReader', () => {
+  describe('findOrCreateShared', () => {
+    it('returns the same instance for the same reader', () => {
+      const reader1 = new PosixMockFileReader()
+      const batched1 = BatchedFileReader.findOrCreateShared(reader1)
+      const batched2 = BatchedFileReader.findOrCreateShared(reader1)
+
+      expect(batched1).toBe(batched2)
+    })
+
+    it('returns different instances for different readers', () => {
+      const reader1 = new PosixMockFileReader()
+      const reader2 = new PosixMockFileReader()
+      const batched1 = BatchedFileReader.findOrCreateShared(reader1)
+      const batched2 = BatchedFileReader.findOrCreateShared(reader2)
+
+      expect(batched1).not.toBe(batched2)
+    })
+  })
+
   describe.each([
     { name: 'win32', sep: path.win32.sep, normalize: path.win32.normalize },
     { name: 'posix', sep: path.posix.sep, normalize: path.posix.normalize },

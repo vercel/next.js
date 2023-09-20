@@ -8,6 +8,7 @@ import {
   mergeDirectoryReadResults,
 } from './helpers/group-directory-reads'
 import { Debuggable } from '../debuggable'
+import { scheduleOnNextTick } from '../../../lib/schedule-on-next-tick'
 
 // This module uses the `Promise.withResolvers` polyfill.
 import '../../../node-environment'
@@ -87,18 +88,6 @@ export class BatchedFileReader extends Debuggable implements FileReader {
     return batched
   }
 
-  // This allows us to schedule the batches after all the promises associated
-  // with loading files.
-  private schedulePromise?: Promise<void>
-  private schedule(callback: Function) {
-    if (!this.schedulePromise) {
-      this.schedulePromise = Promise.resolve()
-    }
-    this.schedulePromise.then(() => {
-      process.nextTick(callback)
-    })
-  }
-
   private getOrCreateBatch(): Batch {
     // If there is an existing batch and it's not completed, then reuse it.
     if (this.batch && !this.batch.completed) {
@@ -115,7 +104,7 @@ export class BatchedFileReader extends Debuggable implements FileReader {
 
     this.batch = batch
 
-    this.schedule(async () => {
+    scheduleOnNextTick(async () => {
       this.debug('running batch')
 
       batch.completed = true
