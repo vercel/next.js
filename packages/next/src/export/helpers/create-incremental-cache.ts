@@ -1,8 +1,7 @@
 import path from 'path'
 import fs from 'fs'
 import { IncrementalCache } from '../../server/lib/incremental-cache'
-
-import * as ciEnvironment from '../../telemetry/ci-info'
+import { hasNextSupport } from '../../telemetry/ci-info'
 
 export function createIncrementalCache(
   incrementalCacheHandlerPath: string | undefined,
@@ -44,7 +43,7 @@ export function createIncrementalCache(
     },
     serverDistDir: path.join(distDir, 'server'),
     CurCacheHandler: CacheHandler,
-    minimalMode: ciEnvironment.hasNextSupport,
+    minimalMode: hasNextSupport,
   })
 
   ;(globalThis as any).__incrementalCache = incrementalCache

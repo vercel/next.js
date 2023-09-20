@@ -16,8 +16,7 @@ import { toNodeOutgoingHttpHeaders } from '../../server/web/utils'
 import { MockedRequest, MockedResponse } from '../../server/lib/mock-request'
 import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
 import { SERVER_DIRECTORY } from '../../shared/lib/constants'
-
-import * as ciEnvironment from '../../telemetry/ci-info'
+import { hasNextSupport } from '../../telemetry/ci-info'
 
 export async function exportAppRoute(
   req: MockedRequest,
@@ -57,12 +56,11 @@ export async function exportAppRoute(
       nextExport: true,
       supportsDynamicHTML: false,
       incrementalCache,
-      ...(ciEnvironment.hasNextSupport
-        ? {
-            isRevalidate: true,
-          }
-        : {}),
     },
+  }
+
+  if (hasNextSupport) {
+    context.staticGenerationContext.isRevalidate = true
   }
 
   // This is a route handler, which means it has it's handler in the

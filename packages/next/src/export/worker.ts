@@ -28,7 +28,7 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
 import { createRequestResponseMocks } from '../server/lib/mock-request'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
-import * as ciEnvironment from '../telemetry/ci-info'
+import { hasNextSupport } from '../telemetry/ci-info'
 import { exportAppRoute } from './routes/app-route'
 import { exportAppPage } from './routes/app-page'
 import { exportPages } from './routes/pages'
@@ -289,7 +289,7 @@ async function exportPageImpl(input: ExportPageInput) {
       originalPathname: page,
     }
 
-    if (ciEnvironment.hasNextSupport) {
+    if (hasNextSupport) {
       renderOpts.isRevalidate = true
     }
 

@@ -13,8 +13,7 @@ import {
 } from '../../client/components/app-router-headers'
 import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
 import { NEXT_CACHE_TAGS_HEADER } from '../../lib/constants'
-
-import * as ciEnvironment from '../../telemetry/ci-info'
+import { hasNextSupport } from '../../telemetry/ci-info'
 
 /**
  * Lazily loads and runs the app page render function.
@@ -156,7 +155,7 @@ export async function exportAppPage(
     return {
       fromBuildExportRevalidate: revalidate,
       // Only include the metadata if the environment has next support.
-      fromBuildExportMeta: ciEnvironment.hasNextSupport ? meta : undefined,
+      fromBuildExportMeta: hasNextSupport ? meta : undefined,
     }
   } catch (err: any) {
     if (!isDynamicUsageError(err)) {
