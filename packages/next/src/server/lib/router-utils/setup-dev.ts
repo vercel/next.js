@@ -1755,9 +1755,10 @@ async function startWatcher(opts: SetupOpts) {
 
       serverFields.hasAppNotFound = hasRootAppNotFound
 
-      opts.fsChecker.middlewareMatcher = opts.fsChecker.middlewareMatchers
-        ? getMiddlewareRouteMatcher(opts.fsChecker.middlewareMatchers)
-        : undefined
+      opts.fsChecker.middlewareMatcher =
+        opts.fsChecker.middlewareMatchers.length > 0
+          ? getMiddlewareRouteMatcher(opts.fsChecker.middlewareMatchers)
+          : undefined
 
       opts.fsChecker.interceptionRoutes =
         generateInterceptionRoutesRewrites(Object.keys(appPaths))?.map((item) =>

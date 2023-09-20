@@ -140,10 +140,7 @@ export async function setupFsCheck(opts: {
   let dynamicRoutes: FilesystemDynamicRoute[] = []
 
   let middlewareMatchers: Array<MiddlewareMatcher> = []
-
-  let middlewareMatcher:
-    | ReturnType<typeof getMiddlewareRouteMatcher>
-    | undefined = () => false
+  let middlewareMatcher: MiddlewareRouteMatch | undefined
 
   const distDir = path.join(opts.dir, opts.config.distDir)
   const publicFolderPath = path.join(opts.dir, 'public')

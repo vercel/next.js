@@ -359,7 +359,8 @@ export function getResolveRoutes(
         }
 
         if (route.name === 'middleware_next_data') {
-          if (fsChecker.getMiddlewareMatchers()?.length) {
+          const middleware = fsChecker.getMiddlewareMatchers()
+          if (middleware && middleware.length > 0) {
             const nextDataPrefix = addPathPrefix(
               `/_next/data/${fsChecker.buildId}/`,
               config.basePath
