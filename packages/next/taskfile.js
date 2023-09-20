@@ -2603,8 +2603,7 @@ export async function build(task, opts) {
 
 export async function generate_types(task, opts) {
   await execa.command(`pnpm run types${opts.dev ? ' --watch' : ''}`, {
-    stdio: 'inherit',
-    detached: opts.dev,
+    stdio: opts.dev ? 'ignore' : 'inherit',
   })
 }
 
