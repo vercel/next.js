@@ -73,8 +73,7 @@ export async function pipeReadable(
       }
 
       if (value) {
-        // TODO: maybe we can remove this buffer?
-        writable.write(Buffer.from(value))
+        writable.write(value)
         writable.flush?.()
       }
     }

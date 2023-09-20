@@ -283,6 +283,11 @@ export type RenderOptsPartial = {
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
 
+/**
+ * RenderOptsExtra is being used to split away functionality that's within the
+ * renderOpts. Eventually we can have more explicit render options for each
+ * route kind.
+ */
 export type RenderOptsExtra = {
   App: AppType
   Document: DocumentType
@@ -1551,6 +1556,6 @@ export const renderToHTML: PagesRender = (
   pathname,
   query,
   renderOpts
-): Promise<RenderResult> => {
+) => {
   return renderToHTMLImpl(req, res, pathname, query, renderOpts, renderOpts)
 }
