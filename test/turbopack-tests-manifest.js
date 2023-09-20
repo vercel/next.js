@@ -126,7 +126,23 @@ const enabledTests = [
   //'test/integration/trailing-slash-dist/test/index.test.js',
 ]
 
-module.exports = { enabledTests }
+/// Naive check to ensure that the enabled tests actually exist
+const verifyEnabledTestPath = () => {
+  const fs = require('fs')
+  const nonExistTests = enabledTests.filter(
+    (testPath) => !fs.existsSync(testPath)
+  )
+
+  if (Array.isArray(nonExistTests) && nonExistTests.length > 0) {
+    console.error(
+      `The following tests are enabled but do not exist:`,
+      nonExistTests
+    )
+    throw new Error('Invalid test path(s) found')
+  }
+}
+
+module.exports = { enabledTests, verifyEnabledTestPath }
 
 /* Old turbopack enabled tests:
 

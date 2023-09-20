@@ -33,6 +33,9 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipInstallBuild: 'yes'
+      # Ensure all of the tests listed in turbopack test manifest actually exists;
+      # i.e after removing an actual test and if it still stays in the manifest
+      afterBuild: node -e 'require(\"./test/turbopack-tests-manifest.js\").verifyEnabledTestPath()'
     secrets: inherit
 
   build-next:
