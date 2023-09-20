@@ -160,6 +160,18 @@ jobs:
       afterBuild: rustup target add wasm32-unknown-unknown && curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh && node ./scripts/normalize-version-bump.js && turbo run build-wasm -- --target nodejs --features tracing/release_max_level_info && git checkout . && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-nodejs && node ./scripts/setup-wasm.mjs && NEXT_TEST_MODE=start TEST_WASM=true node run-tests.js test/integration/production/test/index.test.js test/e2e/streaming-ssr/index.test.ts
     secrets: inherit
 
+  test-unit:
+    name: test unit
+    strategy:
+      fail-fast: false
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      skipForDocsOnly: 'yes'
+      afterBuild: node run-tests.js -c ${TEST_CONCURRENCY} --type unit
+
+    secrets: inherit
+
   test-dev:
     name: test dev
     needs: ['build-native', 'build-next']
@@ -215,7 +227,7 @@ jobs:
     secrets: inherit
 
   report-test-results:
-    needs: ['test-dev', 'test-prod', 'test-integration']
+    needs: ['test-unit', 'test-dev', 'test-prod', 'test-integration']
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
@@ -230,6 +242,7 @@ jobs:
         'lint',
         'validate-docs-links',
         'check-types-precompiled',
+        'test-unit',
         'test-dev',
         'test-prod',
         'test-integration',

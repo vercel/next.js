@@ -218,8 +218,6 @@ export async function validateTurboNextConfig({
 
   let feedbackMessage = `Learn more about Next.js v13 and Turbopack: ${chalk.underline(
     'https://nextjs.link/with-turbopack'
-  )}\nPlease direct feedback to: ${chalk.underline(
-    'https://nextjs.link/turbopack-feedback'
   )}\n`
 
   if (hasWebpack && !hasTurbo) {
