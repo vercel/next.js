@@ -170,7 +170,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
-      afterBuild: node run-tests.js --timings -g ${{ matrix.group }}/3 -c ${TEST_CONCURRENCY} --type unit
+      afterBuild: node run-tests.js -g ${{ matrix.group }}/3 -c ${TEST_CONCURRENCY} --type unit
 
     secrets: inherit
 
