@@ -309,38 +309,40 @@ pub async fn get_client_module_options_context(
 }
 
 #[turbo_tasks::function]
-pub fn get_client_chunking_context(
+pub async fn get_client_chunking_context(
     project_path: Vc<FileSystemPath>,
     client_root: Vc<FileSystemPath>,
+    asset_prefix: Vc<String>,
     environment: Vc<Environment>,
     mode: NextMode,
-) -> Vc<Box<dyn EcmascriptChunkingContext>> {
-    let output_root = match mode {
-        NextMode::DevServer => client_root,
-        NextMode::Development | NextMode::Build => client_root.join("_next".to_string()),
-    };
+) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
     let builder = DevChunkingContext::builder(
         project_path,
-        output_root,
-        client_root.join("_next/static/chunks".to_string()),
+        client_root,
+        client_root.join("static/chunks".to_string()),
         get_client_assets_path(client_root),
         environment,
     );
 
+    let asset_prefix = &*asset_prefix.await?;
+    let asset_prefix: Vc<Option<String>> = Vc::cell(Some(asset_prefix.to_owned()));
     let builder = match mode {
         NextMode::DevServer => builder.hot_module_replacement(),
         NextMode::Development => builder
             .hot_module_replacement()
-            .chunk_base_path(Vc::cell(Some("_next/".to_string()))),
-        NextMode::Build => builder.chunk_base_path(Vc::cell(Some("_next/".to_string()))),
+            .chunk_base_path(asset_prefix)
+            .asset_prefix(asset_prefix),
+        NextMode::Build => builder
+            .chunk_base_path(asset_prefix)
+            .asset_prefix(asset_prefix),
     };
 
-    Vc::upcast(builder.build())
+    Ok(Vc::upcast(builder.build()))
 }
 
 #[turbo_tasks::function]
 pub fn get_client_assets_path(client_root: Vc<FileSystemPath>) -> Vc<FileSystemPath> {
-    client_root.join("_next/static/media".to_string())
+    client_root.join("static/media".to_string())
 }
 
 #[turbo_tasks::function]
