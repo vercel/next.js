@@ -5,6 +5,7 @@ const glob = require('glob')
 const fs = require('fs-extra')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const resolveFrom = require('resolve-from')
+const execa = require('execa')
 
 export async function next__polyfill_nomodule(task, opts) {
   await task
@@ -2594,7 +2595,14 @@ export async function trace(task, opts) {
 }
 
 export async function build(task, opts) {
-  await task.serial(['precompile', 'compile', 'compile_config_schema'], opts)
+  await task.serial(
+    ['precompile', 'compile', 'compile_config_schema', 'generate_types'],
+    opts
+  )
+}
+
+export async function generate_types() {
+  await execa.command('pnpm run types', { stdio: 'inherit' })
 }
 
 export default async function (task) {
