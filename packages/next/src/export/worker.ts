@@ -13,6 +13,7 @@ import type { OutgoingHttpHeaders } from 'http'
 // Polyfill fetch for the export worker.
 import '../server/node-polyfill-fetch'
 import '../server/node-environment'
+process.env.NEXT_IS_EXPORT_WORKER = 'true'
 
 import { extname, join, dirname, sep, posix } from 'path'
 import fs, { promises } from 'fs'
@@ -59,7 +60,7 @@ import {
   RSC,
 } from '../client/components/app-router-headers'
 
-const envConfig = require('../shared/lib/runtime-config.shared-runtime')
+const envConfig = require('../shared/lib/runtime-config.external')
 
 ;(globalThis as any).__NEXT_DATA__ = {
   nextExport: true,
@@ -96,6 +97,7 @@ interface ExportPageInput {
   incrementalCacheHandlerPath?: string
   fetchCacheKeyPrefix?: string
   nextConfigOutput?: NextConfigComplete['output']
+  enableExperimentalReact?: boolean
 }
 
 interface ExportPageResults {
@@ -152,6 +154,7 @@ export default async function exportPage({
   fetchCache,
   fetchCacheKeyPrefix,
   incrementalCacheHandlerPath,
+  enableExperimentalReact,
 }: ExportPageInput): Promise<ExportPageResults> {
   setHttpClientAndAgentOptions({
     httpAgentOptions,
@@ -167,6 +170,9 @@ export default async function exportPage({
     try {
       if (renderOpts.deploymentId) {
         process.env.NEXT_DEPLOYMENT_ID = renderOpts.deploymentId
+      }
+      if (enableExperimentalReact) {
+        process.env.__NEXT_EXPERIMENTAL_REACT = 'true'
       }
       const { query: originalQuery = {} } = pathMap
       const { page } = pathMap
@@ -406,7 +412,7 @@ export default async function exportPage({
           // functions during runtime just for prefetching
 
           const { renderToHTMLOrFlight } =
-            require('../server/app-render/app-render') as typeof import('../server/app-render/app-render')
+            require('../server/future/route-modules/app-page/module.compiled') as typeof import('../server/app-render/app-render')
           req.headers[RSC.toLowerCase()] = '1'
           req.headers[NEXT_URL.toLowerCase()] = path
           req.headers[NEXT_ROUTER_PREFETCH.toLowerCase()] = '1'

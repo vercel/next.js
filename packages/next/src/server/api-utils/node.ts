@@ -15,7 +15,6 @@ import isError from '../../lib/is-error'
 import { isResSent } from '../../shared/lib/utils'
 import { interopDefault } from '../../lib/interop-default'
 import {
-  getCookieParser,
   setLazyProp,
   sendStatusCode,
   redirect,
@@ -27,6 +26,7 @@ import {
   SYMBOL_PREVIEW_DATA,
   RESPONSE_LIMIT_DEFAULT,
 } from './index'
+import { getCookieParser } from './get-cookie-parser'
 import { getTracer } from '../lib/trace/tracer'
 import { NodeSpan } from '../lib/trace/constants'
 import { RequestCookies } from '../web/spec-extension/cookies'

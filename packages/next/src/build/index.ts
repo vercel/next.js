@@ -36,6 +36,7 @@ import loadCustomRoutes, {
   normalizeRouteRegex,
   Redirect,
   Rewrite,
+  RouteHas,
   RouteType,
 } from '../lib/load-custom-routes'
 import { getRedirectStatus, modifyRouteRegex } from '../lib/redirect-status'
@@ -130,6 +131,7 @@ import { flatReaddir } from '../lib/flat-readdir'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import {
+  ACTION,
   NEXT_ROUTER_PREFETCH,
   RSC,
   RSC_CONTENT_TYPE_HEADER,
@@ -143,16 +145,12 @@ import { createClientRouterFilter } from '../lib/create-client-router-filter'
 import { createValidFileMatcher } from '../server/lib/find-page-file'
 import { startTypeChecking } from './type-check'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
+import { needsExperimentalReact } from '../lib/needs-experimental-react'
 
 import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
-import {
-  baseOverrides,
-  defaultOverrides,
-  experimentalOverrides,
-} from '../server/import-overrides'
+import { defaultOverrides } from '../server/require-hook'
 import { initialize as initializeIncrementalCache } from '../server/lib/incremental-cache-server'
 import { nodeFs } from '../server/lib/node-fs-methods'
-import { getEsmLoaderPath } from '../server/lib/get-esm-loader-path'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -160,6 +158,7 @@ export type SsgRoute = {
   dataRoute: string | null
   initialStatus?: number
   initialHeaders?: Record<string, string>
+  experimentalBypassFor?: RouteHas[]
 }
 
 export type DynamicSsgRoute = {
@@ -167,6 +166,7 @@ export type DynamicSsgRoute = {
   fallback: string | null | false
   dataRoute: string | null
   dataRouteRegex: string | null
+  experimentalBypassFor?: RouteHas[]
 }
 
 export type PrerenderManifest = {
@@ -356,7 +356,12 @@ export default async function build(
 
       const config: NextConfigComplete = await nextBuildSpan
         .traceChild('load-next-config')
-        .traceAsyncFn(() => loadConfig(PHASE_PRODUCTION_BUILD, dir))
+        .traceAsyncFn(() =>
+          loadConfig(PHASE_PRODUCTION_BUILD, dir, {
+            // Log for next.config loading process
+            silent: false,
+          })
+        )
       NextBuildContext.config = config
 
       let configOutDir = 'out'
@@ -1246,21 +1251,14 @@ export default async function build(
           },
           numWorkers,
           forkOptions: {
-            execArgv: [
-              '--experimental-loader',
-              getEsmLoaderPath(),
-              '--no-warnings',
-            ],
             env: {
               ...process.env,
               __NEXT_INCREMENTAL_CACHE_IPC_PORT: incrementalCacheIpcPort + '',
               __NEXT_INCREMENTAL_CACHE_IPC_KEY:
                 incrementalCacheIpcValidationKey,
-              __NEXT_PRIVATE_PREBUNDLED_REACT: hasAppDir
-                ? config.experimental.serverActions
-                  ? 'experimental'
-                  : 'next'
-                : '',
+              __NEXT_PRIVATE_PREBUNDLED_REACT: needsExperimentalReact(config)
+                ? 'experimental'
+                : 'next',
             },
           },
           enableWorkerThreads: config.experimental.workerThreads,
@@ -1607,14 +1605,6 @@ export default async function build(
                             `Using edge runtime on a page currently disables static generation for that page`
                           )
                         } else {
-                          // If a page has action and it is static, we need to
-                          // change it to SSG to keep the worker created.
-                          // TODO: This is a workaround for now, we should have a
-                          // dedicated worker defined in a heuristic way.
-                          const hasAction = entriesWithAction?.has(
-                            'app' + originalAppPath
-                          )
-
                           if (
                             workerResult.encodedPrerenderRoutes &&
                             workerResult.prerenderRoutes
@@ -1633,47 +1623,39 @@ export default async function build(
 
                           const appConfig = workerResult.appConfig || {}
                           if (appConfig.revalidate !== 0) {
-                            if (hasAction) {
-                              Log.warnOnce(
-                                `Using server actions on a page currently disables static generation for that page`
+                            const isDynamic = isDynamicRoute(page)
+                            const hasGenerateStaticParams =
+                              !!workerResult.prerenderRoutes?.length
+
+                            if (
+                              config.output === 'export' &&
+                              isDynamic &&
+                              !hasGenerateStaticParams
+                            ) {
+                              throw new Error(
+                                `Page "${page}" is missing "generateStaticParams()" so it cannot be used with "output: export" config.`
                               )
-                            } else {
-                              const isDynamic = isDynamicRoute(page)
-                              const hasGenerateStaticParams =
-                                !!workerResult.prerenderRoutes?.length
+                            }
 
-                              if (
-                                config.output === 'export' &&
-                                isDynamic &&
-                                !hasGenerateStaticParams
-                              ) {
-                                throw new Error(
-                                  `Page "${page}" is missing "generateStaticParams()" so it cannot be used with "output: export" config.`
-                                )
-                              }
-
-                              if (
-                                // Mark the app as static if:
-                                // - It has no dynamic param
-                                // - It doesn't have generateStaticParams but `dynamic` is set to
-                                //   `error` or `force-static`
-                                !isDynamic
-                              ) {
-                                appStaticPaths.set(originalAppPath, [page])
-                                appStaticPathsEncoded.set(originalAppPath, [
-                                  page,
-                                ])
-                                isStatic = true
-                              } else if (
-                                isDynamic &&
-                                !hasGenerateStaticParams &&
-                                (appConfig.dynamic === 'error' ||
-                                  appConfig.dynamic === 'force-static')
-                              ) {
-                                appStaticPaths.set(originalAppPath, [])
-                                appStaticPathsEncoded.set(originalAppPath, [])
-                                isStatic = true
-                              }
+                            if (
+                              // Mark the app as static if:
+                              // - It has no dynamic param
+                              // - It doesn't have generateStaticParams but `dynamic` is set to
+                              //   `error` or `force-static`
+                              !isDynamic
+                            ) {
+                              appStaticPaths.set(originalAppPath, [page])
+                              appStaticPathsEncoded.set(originalAppPath, [page])
+                              isStatic = true
+                            } else if (
+                              isDynamic &&
+                              !hasGenerateStaticParams &&
+                              (appConfig.dynamic === 'error' ||
+                                appConfig.dynamic === 'force-static')
+                            ) {
+                              appStaticPaths.set(originalAppPath, [])
+                              appStaticPathsEncoded.set(originalAppPath, [])
+                              isStatic = true
                             }
                           }
 
@@ -2107,12 +2089,6 @@ export default async function build(
             )
 
             const sharedEntriesSet = [
-              ...Object.values(baseOverrides).map((override) =>
-                require.resolve(override)
-              ),
-              ...Object.values(experimentalOverrides).map((override) =>
-                require.resolve(override)
-              ),
               ...(config.experimental.turbotrace
                 ? []
                 : Object.keys(defaultOverrides).map((value) =>
@@ -2152,8 +2128,7 @@ export default async function build(
                 ? [
                     require.resolve('next/dist/server/lib/start-server'),
                     require.resolve('next/dist/server/next'),
-                    require.resolve('next/dist/esm/server/esm-loader.mjs'),
-                    require.resolve('next/dist/server/import-overrides'),
+                    require.resolve('next/dist/server/require-hook'),
                   ]
                 : []),
               require.resolve('next/dist/server/next-server'),
@@ -2289,6 +2264,33 @@ export default async function build(
                 }
               }
             }
+
+            const moduleTypes = ['app-page', 'pages']
+
+            for (const type of moduleTypes) {
+              const modulePath = require.resolve(
+                `next/dist/server/future/route-modules/${type}/module.compiled`
+              )
+              const relativeModulePath = path.relative(root, modulePath)
+
+              const contextDir = path.join(
+                path.dirname(modulePath),
+                'vendored',
+                'contexts'
+              )
+
+              for (const item of await fs.readdir(contextDir)) {
+                const itemPath = path.relative(
+                  root,
+                  path.join(contextDir, item)
+                )
+                addToTracedFiles(root, itemPath, tracedFiles)
+                addToTracedFiles(root, itemPath, minimalTracedFiles)
+              }
+              addToTracedFiles(root, relativeModulePath, tracedFiles)
+              addToTracedFiles(root, relativeModulePath, minimalTracedFiles)
+            }
+
             await Promise.all([
               fs.writeFile(
                 nextServerTraceOutput,
@@ -2435,8 +2437,7 @@ export default async function build(
               outputFileTracingRoot,
               requiredServerFiles.config,
               middlewareManifest,
-              hasInstrumentationHook,
-              hasAppDir
+              hasInstrumentationHook
             )
           })
       }
@@ -2676,6 +2677,17 @@ export default async function build(
 
             const isRouteHandler = isAppRouteRoute(originalAppPath)
 
+            // this flag is used to selectively bypass the static cache and invoke the lambda directly
+            // to enable server actions on static routes
+            const bypassFor: RouteHas[] = [
+              { type: 'header', key: ACTION },
+              {
+                type: 'header',
+                key: 'content-type',
+                value: 'multipart/form-data',
+              },
+            ]
+
             routes.forEach((route) => {
               if (isDynamicRoute(page) && route === page) return
               if (route === '/_not-found') return
@@ -2703,10 +2715,7 @@ export default async function build(
                   ? null
                   : path.posix.join(`${normalizedRoute}.rsc`)
 
-                const routeMeta: {
-                  initialStatus?: SsgRoute['initialStatus']
-                  initialHeaders?: SsgRoute['initialHeaders']
-                } = {}
+                const routeMeta: Partial<SsgRoute> = {}
 
                 const exportRouteMeta: {
                   status?: number
@@ -2743,6 +2752,7 @@ export default async function build(
 
                 finalPrerenderRoutes[route] = {
                   ...routeMeta,
+                  experimentalBypassFor: bypassFor,
                   initialRevalidateSeconds: revalidate,
                   srcRoute: page,
                   dataRoute,
@@ -2766,6 +2776,7 @@ export default async function build(
               // TODO: create a separate manifest to allow enforcing
               // dynamicParams for non-static paths?
               finalDynamicRoutes[page] = {
+                experimentalBypassFor: bypassFor,
                 routeRegex: normalizeRouteRegex(
                   getNamedRouteRegex(page, false).re.source
                 ),

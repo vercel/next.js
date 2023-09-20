@@ -50,12 +50,8 @@ import {
   TEMPORARY_REDIRECT_STATUS,
 } from '../shared/lib/constants'
 import { isDynamicRoute } from '../shared/lib/router/utils'
-import {
-  setLazyProp,
-  getCookieParser,
-  checkIsOnDemandRevalidate,
-} from './api-utils'
-import { setConfig } from '../shared/lib/runtime-config.shared-runtime'
+import { checkIsOnDemandRevalidate } from './api-utils'
+import { setConfig } from '../shared/lib/runtime-config.external'
 
 import { setRevalidateHeaders } from './send-payload/revalidate-headers'
 import { execOnce } from '../shared/lib/utils'
@@ -89,6 +85,7 @@ import {
   RSC_VARY_HEADER,
   FLIGHT_PARAMETERS,
   NEXT_RSC_UNION_QUERY,
+  ACTION,
   NEXT_ROUTER_PREFETCH,
   RSC_CONTENT_TYPE_HEADER,
 } from '../client/components/app-router-headers'
@@ -790,8 +787,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         res.redirect(cleanUrl, 308).body(cleanUrl).send()
         return
       }
-
-      setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
 
       // Parse url if parsedUrl not provided
       if (!parsedUrl || typeof parsedUrl !== 'object') {
@@ -1594,7 +1589,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const isAppPath = components.isAppPath === true
     const hasServerProps = !!components.getServerSideProps
     let hasStaticPaths = !!components.getStaticPaths
-
+    const actionId = req.headers[ACTION.toLowerCase()] as string
+    const contentType = req.headers['content-type']
+    const isMultipartAction =
+      req.method === 'POST' && contentType?.startsWith('multipart/form-data')
+    const isFetchAction =
+      actionId !== undefined &&
+      typeof actionId === 'string' &&
+      req.method === 'POST'
+    const isServerAction = isFetchAction || isMultipartAction
     const hasGetInitialProps = !!components.Component?.getInitialProps
     let isSSG = !!components.getStaticProps
 
@@ -1731,6 +1734,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // requests so ensure we respond with 405 for
     // invalid requests
     if (
+      !isServerAction &&
       !is404Page &&
       !is500Page &&
       pathname !== '/_error' &&
@@ -1885,8 +1889,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     let ssgCacheKey =
-      isPreviewMode || !isSSG || opts.supportsDynamicHTML
-        ? null // Preview mode, on-demand revalidate, flight request can bypass the cache
+      isPreviewMode || !isSSG || opts.supportsDynamicHTML || isServerAction
+        ? null // Preview mode, on-demand revalidate, server actions, flight request can bypass the cache
         : `${locale ? `/${locale}` : ''}${
             (pathname === '/' || resolvedUrlPathname === '/') && locale
               ? ''
@@ -2002,6 +2006,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         supportsDynamicHTML,
         isOnDemandRevalidate,
         isDraftMode: isPreviewMode,
+        isServerAction,
       }
 
       // Legacy render methods will return a render result that needs to be
@@ -2233,6 +2238,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           html: result,
           pageData: metadata.pageData,
           headers,
+          status: isAppPath ? res.statusCode : undefined,
         },
         revalidate: metadata.revalidate,
       }
@@ -2486,6 +2492,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               typeof cachedData.pageData +
               '. This is a bug in Next.js.'
           )
+        }
+
+        if (cachedData.status) {
+          res.statusCode = cachedData.status
         }
 
         return {

@@ -156,7 +156,7 @@ jobs:
             build: >-
               set -e &&
               apt update &&
-              apt install -y pkg-config xz-utils &&
+              apt install -y pkg-config xz-utils dav1d libdav1d-dev &&
               rustup toolchain install "${RUST_TOOLCHAIN}" &&
               rustup default "${RUST_TOOLCHAIN}" &&
               rustup target add x86_64-unknown-linux-gnu &&
@@ -177,7 +177,7 @@ jobs:
             build: >-
               set -e &&
               apk update &&
-              apk add --no-cache libc6-compat pkgconfig &&
+              apk add --no-cache libc6-compat pkgconfig dav1d libdav1d dav1d-dev &&
               rustup toolchain install "${RUST_TOOLCHAIN}" &&
               rustup default "${RUST_TOOLCHAIN}" &&
               rustup target add x86_64-unknown-linux-musl &&
@@ -196,7 +196,7 @@ jobs:
             build: >-
               set -e &&
               apt update &&
-              apt install -y pkg-config xz-utils &&
+              apt install -y pkg-config xz-utils dav1d libdav1d-dev &&
               export JEMALLOC_SYS_WITH_LG_PAGE=16 &&
               rustup toolchain install "${RUST_TOOLCHAIN}" &&
               rustup default "${RUST_TOOLCHAIN}" &&
@@ -218,7 +218,7 @@ jobs:
             build: >-
               set -e &&
               apk update &&
-              apk add --no-cache libc6-compat pkgconfig &&
+              apk add --no-cache libc6-compat pkgconfig dav1d libdav1d dav1d-dev &&
               export JEMALLOC_SYS_WITH_LG_PAGE=16 &&
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" &&
               rustup toolchain install "${RUST_TOOLCHAIN}" &&

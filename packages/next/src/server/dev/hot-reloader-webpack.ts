@@ -408,6 +408,7 @@ export default class HotReloader implements NextJsHotReloaderInterface {
                     m.replace(/^\.\//, '[project]/')
                   ),
                   page: payload.page,
+                  isPageHidden: payload.isPageHidden,
                 },
               }
               break
@@ -1484,14 +1485,15 @@ export default class HotReloader implements NextJsHotReloaderInterface {
       ? this.clientError
       : this.serverError || this.clientError
     if (error) {
-      return Promise.reject(error)
+      throw error
     }
+
     return this.onDemandEntries?.ensurePage({
       page,
       clientOnly,
       appPaths,
       match,
       isApp,
-    }) as any
+    })
   }
 }

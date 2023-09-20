@@ -3,7 +3,7 @@ import type { ReadonlyURLSearchParams } from 'next/navigation'
 declare module 'next/navigation' {
   /**
    * Get a read-only URLSearchParams object. For example searchParams.get('foo') would return 'bar' when ?foo=bar
-   * Learn more about URLSearchParams here: https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams
+   * Learn more about URLSearchParams here: https://developer.mozilla.org/docs/Web/API/URLSearchParams
    *
    * If used from `pages/`, the hook may return `null` when the router is not
    * ready.
@@ -25,5 +25,10 @@ declare module 'next/navigation' {
    *
    * If used from `pages/`, the hook will return `null`.
    */
-  export function useParams(): Record<string, string | string[]> | null
+  export function useParams<
+    T extends Record<string, string | string[]> = Record<
+      string,
+      string | string[]
+    >
+  >(): T | null
 }

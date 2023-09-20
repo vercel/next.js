@@ -19,7 +19,7 @@ import {
   urlQueryToSearchParams,
   assign,
 } from '../shared/lib/router/utils/querystring'
-import { setConfig } from '../shared/lib/runtime-config.shared-runtime'
+import { setConfig } from '../shared/lib/runtime-config.external'
 import {
   getURL,
   loadGetInitialProps,
@@ -41,10 +41,14 @@ import { hasBasePath } from './has-base-path'
 import { AppRouterContext } from '../shared/lib/app-router-context.shared-runtime'
 import {
   adaptForAppRouterInstance,
+  adaptForPathParams,
   adaptForSearchParams,
   PathnameContextProviderAdapter,
-} from '../shared/lib/router/adapters.shared-runtime'
-import { SearchParamsContext } from '../shared/lib/hooks-client-context.shared-runtime'
+} from '../shared/lib/router/adapters'
+import {
+  SearchParamsContext,
+  PathParamsContext,
+} from '../shared/lib/hooks-client-context.shared-runtime'
 import onRecoverableError from './on-recoverable-error'
 import tracer from './tracing/tracer'
 import reportToSocket from './tracing/report-to-socket'
@@ -89,7 +93,7 @@ let initialMatchesMiddleware = false
 let lastAppProps: AppProps
 
 let lastRenderReject: (() => void) | null
-let webpackHMR: any
+let devClient: any
 
 let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
 let CachedComponent: React.ComponentType
@@ -185,14 +189,14 @@ class Container extends React.Component<{
   }
 }
 
-export async function initialize(opts: { webpackHMR?: any } = {}): Promise<{
+export async function initialize(opts: { devClient?: any } = {}): Promise<{
   assetPrefix: string
 }> {
   tracer.onSpanEnd(reportToSocket)
 
   // This makes sure this specific lines are removed in production
   if (process.env.NODE_ENV === 'development') {
-    webpackHMR = opts.webpackHMR
+    devClient = opts.devClient
   }
 
   initialData = JSON.parse(
@@ -316,17 +320,20 @@ function AppContainer({
             router={router}
             isAutoExport={self.__NEXT_DATA__.autoExport ?? false}
           >
-            <RouterContext.Provider value={makePublicRouterInstance(router)}>
-              <HeadManagerContext.Provider value={headManager}>
-                <ImageConfigContext.Provider
-                  value={
-                    process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
-                  }
-                >
-                  {children}
-                </ImageConfigContext.Provider>
-              </HeadManagerContext.Provider>
-            </RouterContext.Provider>
+            <PathParamsContext.Provider value={adaptForPathParams(router)}>
+              <RouterContext.Provider value={makePublicRouterInstance(router)}>
+                <HeadManagerContext.Provider value={headManager}>
+                  <ImageConfigContext.Provider
+                    value={
+                      process.env
+                        .__NEXT_IMAGE_OPTS as any as ImageConfigComplete
+                    }
+                  >
+                    {children}
+                  </ImageConfigContext.Provider>
+                </HeadManagerContext.Provider>
+              </RouterContext.Provider>
+            </PathParamsContext.Provider>
           </PathnameContextProviderAdapter>
         </SearchParamsContext.Provider>
       </AppRouterContext.Provider>
@@ -357,7 +364,7 @@ function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
   if (process.env.NODE_ENV !== 'production') {
     // A Next.js rendering runtime error is always unrecoverable
     // FIXME: let's make this recoverable (error in GIP client-transition)
-    webpackHMR.onUnrecoverableError()
+    devClient.onUnrecoverableError()
 
     // We need to render an empty <App> so that the `<ReactDevOverlay>` can
     // render itself.

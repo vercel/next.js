@@ -1154,7 +1154,6 @@ describe.each([[''], ['/docs']])(
           ...compileTimeStr.match(/Compiled.*? in ([\d.]{1,})\s?(?:s|ms)/i),
         ]
         const [, compileTime, timeUnit] = matches
-        console.log('compileTime, timeUnit', compileTime, timeUnit)
 
         let compileTimeMs = parseFloat(compileTime[1])
         if (timeUnit === 's') {

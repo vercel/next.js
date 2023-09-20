@@ -73,7 +73,6 @@ pub fn root_task_dispose(
 ) -> napi::Result<()> {
     // TODO(alexkirsz) Implement. Not panicking here to avoid crashing the process
     // when testing.
-    eprintln!("root_task_dispose not yet implemented");
     Ok(())
 }
 
