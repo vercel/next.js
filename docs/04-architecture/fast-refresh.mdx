@@ -91,10 +91,8 @@ state to be preserved in more cases.
   edit.
 - You can put `console.log` or `debugger;` into the components you edit during
   development.
-- Remember that imports are CASE SENSITIVE.  Both fast and full refresh can fail,
-when your import doesn't match the actual filename, even when the initial import
-seems to work. If your component isn't updating, check to ensure this. For instance,
-if the filename is 'Header.tsx', make sure you aren't accidently importing './header', for example.
+- Remember that imports are case sensitive.  Both fast and full refresh can fail,
+when your import doesn't match the actual filename. For example, `'./header'` vs `'./Header'`.
 
 ## Fast Refresh and Hooks
 
