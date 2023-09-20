@@ -403,7 +403,8 @@ export function runNextCommandDev(
     }
 
     function handleStderr(data) {
-      const message = stripAnsi(data.toString()) as any
+      const message = data.toString()
+
       if (typeof opts.onStderr === 'function') {
         opts.onStderr(message)
       }

@@ -322,4 +322,16 @@ const nextDev: CliCommand = async (args) => {
   })
 }
 
+function cleanup() {
+  if (!child) {
+    return
+  }
+
+  child.kill('SIGTERM')
+}
+
+process.on('exit', cleanup)
+process.on('SIGINT', cleanup)
+process.on('SIGTERM', cleanup)
+
 export { nextDev }
