@@ -2,7 +2,7 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use indexmap::indexmap;
-use turbo_tasks::{TryJoinIterExt, Value, Vc};
+use turbo_tasks::{debug::ValueDebug, TryJoinIterExt, Value, Vc};
 use turbo_tasks_fs::FileSystemPathOption;
 use turbopack_binding::{
     turbo::tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPath},
@@ -156,6 +156,15 @@ impl PageLoaderAsset {
         // remove that prefix.
         if let Some(rebase_path) = &*rebase_prefix_path.await? {
             let root_path = rebase_path.root();
+            let c = chunks.await?.first().unwrap().ident().path();
+            dbg!(c.dbg().await?);
+            dbg!(rebase_path.dbg().await?);
+            dbg!(root_path.dbg().await?);
+            dbg!(
+                FileSystemPath::rebase(c, *rebase_path, root_path)
+                    .dbg()
+                    .await?
+            );
             let rebased = chunks
                 .await?
                 .iter()
@@ -182,8 +191,12 @@ fn page_loader_chunk_reference_description() -> Vc<String> {
 impl OutputAsset for PageLoaderAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(AssetIdent::from_path(self.server_root.join(format!(
-            "_next/static/chunks/pages{}",
+        let root = match *self.rebase_prefix_path.await? {
+            Some(prefix) => prefix,
+            None => self.server_root,
+        };
+        Ok(AssetIdent::from_path(root.join(format!(
+            "static/chunks/pages{}",
             get_asset_path_from_pathname(&self.pathname.await?, ".js")
         ))))
     }

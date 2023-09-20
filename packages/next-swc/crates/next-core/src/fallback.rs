@@ -51,6 +51,7 @@ pub async fn get_fallback_page(
     let chunking_context = get_client_chunking_context(
         project_path,
         dev_server_root,
+        Vc::cell("/".to_string()),
         client_compile_time_info.environment(),
         mode,
     );

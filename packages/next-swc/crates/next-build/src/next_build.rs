@@ -239,6 +239,7 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
     let client_chunking_context = get_client_chunking_context(
         project_root,
         client_root,
+        Vc::cell("/".to_string()),
         client_compile_time_info.environment(),
         mode,
     );
@@ -247,6 +248,7 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
         project_root,
         node_root,
         client_root,
+        next_config.computed_asset_prefix(),
         server_compile_time_info.environment(),
     );
     // TODO(alexkirsz) This should be the same chunking context. The layer should

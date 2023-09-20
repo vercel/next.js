@@ -31,16 +31,9 @@ initialize({
     // for the page loader
     async function loadPageChunk(chunkData: any) {
       if (typeof chunkData === 'string') {
-        const fullPath = assetPrefix + chunkData
-
-        await __turbopack_load__(fullPath)
+        await __turbopack_load__(chunkData)
       } else {
-        let fullChunkData = {
-          ...chunkData,
-          path: assetPrefix + chunkData.path,
-        }
-
-        await __turbopack_load__(fullChunkData)
+        await __turbopack_load__(chunkData)
       }
     }
 

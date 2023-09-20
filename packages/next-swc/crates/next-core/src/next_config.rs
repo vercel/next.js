@@ -73,6 +73,8 @@ struct CustomRoutes {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NextConfig {
+    pub asset_prefix: String,
+    pub base_path: String,
     pub config_file: Option<String>,
     pub config_file_name: String,
 
@@ -95,8 +97,6 @@ pub struct NextConfig {
     cross_origin: Option<String>,
     amp: AmpConfig,
     analytics_id: String,
-    asset_prefix: String,
-    base_path: String,
     clean_dist_dir: bool,
     compress: bool,
     dev_indicators: DevIndicatorsConfig,
@@ -649,6 +649,29 @@ impl NextConfig {
         Ok(Vc::cell(
             self.await?.skip_trailing_slash_redirect.unwrap_or(false),
         ))
+    }
+
+    /// Returns the final asset prefix. If an assetPrefix is set, it's used.
+    /// Otherwise, the basePath is used. Finally, _next is appended.
+    #[turbo_tasks::function]
+    pub async fn computed_asset_prefix(self: Vc<Self>) -> Result<Vc<String>> {
+        let this = self.await?;
+        let prefix = if this.asset_prefix.is_empty() {
+            this.base_path.clone()
+        } else {
+            this.asset_prefix.clone()
+        };
+
+        Ok(Vc::cell(prefix + "/"))
+    }
+
+    /// Returns the client asset path -- where assets should be served by the
+    /// server. Note this may or may not be the same as the computed asset
+    /// prefix.
+    #[turbo_tasks::function]
+    pub async fn client_asset_path(self: Vc<Self>) -> Result<Vc<String>> {
+        let this = self.await?;
+        Ok(Vc::cell(this.base_path.clone() + "/_next"))
     }
 }
 

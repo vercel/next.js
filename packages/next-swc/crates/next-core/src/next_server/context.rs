@@ -602,6 +602,7 @@ pub fn get_server_chunking_context(
     // TODO(alexkirsz) Is this even necessary? Are assets not always on the client chunking context
     // anyway?
     client_root: Vc<FileSystemPath>,
+    asset_prefix: Vc<String>,
     environment: Vc<Environment>,
 ) -> Vc<BuildChunkingContext> {
     // TODO(alexkirsz) This should return a trait that can be implemented by the
@@ -610,8 +611,10 @@ pub fn get_server_chunking_context(
     BuildChunkingContext::builder(
         project_path,
         node_root,
+        client_root,
         node_root.join("server/chunks".to_string()),
         client_root.join("_next/static/media".to_string()),
+        asset_prefix,
         environment,
     )
     .minify_type(MinifyType::NoMinify)

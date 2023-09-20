@@ -1,7 +1,7 @@
 use core::{default::Default, result::Result::Ok};
 
 use anyhow::Result;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{debug::ValueDebug, Value, Vc};
 use turbo_tasks_fs::FileSystem;
 use turbopack_binding::{
     turbo::{tasks_env::ProcessEnv, tasks_fs::FileSystemPath},
@@ -280,38 +280,50 @@ pub async fn get_client_module_options_context(
 }
 
 #[turbo_tasks::function]
-pub fn get_client_chunking_context(
+pub async fn get_client_chunking_context(
     project_path: Vc<FileSystemPath>,
     client_root: Vc<FileSystemPath>,
+    asset_prefix: Vc<String>,
     environment: Vc<Environment>,
     mode: NextMode,
-) -> Vc<Box<dyn EcmascriptChunkingContext>> {
+) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
     let output_root = match mode {
         NextMode::DevServer => client_root,
-        NextMode::Development | NextMode::Build => client_root.join("_next".to_string()),
+        NextMode::Development | NextMode::Build => client_root,
     };
+
+    dbg!(client_root.dbg().await?, asset_prefix.dbg().await?);
+
     let builder = DevChunkingContext::builder(
         project_path,
         output_root,
-        client_root.join("_next/static/chunks".to_string()),
+        client_root.join("static/chunks".to_string()),
         get_client_assets_path(client_root),
         environment,
     );
 
+    let chunk_base_path: Vc<Option<String>> =
+        Vc::cell(Some(asset_prefix.await?.to_string() + "_next/"));
+    let asset_base_path: Vc<Option<String>> =
+        Vc::cell(Some(asset_prefix.await?.to_string() + "_next/static/media"));
+    dbg!(chunk_base_path.dbg().await?);
     let builder = match mode {
         NextMode::DevServer => builder.hot_module_replacement(),
         NextMode::Development => builder
             .hot_module_replacement()
-            .chunk_base_path(Vc::cell(Some("_next/".to_string()))),
-        NextMode::Build => builder.chunk_base_path(Vc::cell(Some("_next/".to_string()))),
+            .chunk_base_path(chunk_base_path)
+            .asset_base_path(asset_base_path),
+        NextMode::Build => builder
+            .chunk_base_path(chunk_base_path)
+            .asset_base_path(asset_base_path),
     };
 
-    Vc::upcast(builder.build())
+    Ok(Vc::upcast(builder.build()))
 }
 
 #[turbo_tasks::function]
 pub fn get_client_assets_path(client_root: Vc<FileSystemPath>) -> Vc<FileSystemPath> {
-    client_root.join("_next/static/media".to_string())
+    client_root.join("static/media".to_string())
 }
 
 #[turbo_tasks::function]

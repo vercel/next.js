@@ -376,6 +376,7 @@ async fn create_page_source_for_file(
     let client_chunking_context = get_client_chunking_context(
         project_path,
         client_root,
+        Vc::cell("/".to_string()),
         client_context.compile_time_info().environment(),
         mode,
     );
