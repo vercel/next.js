@@ -164,13 +164,11 @@ jobs:
     name: test unit
     strategy:
       fail-fast: false
-      matrix:
-        group: [1, 2, 3]
 
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
-      afterBuild: node run-tests.js -g ${{ matrix.group }}/3 -c ${TEST_CONCURRENCY} --type unit
+      afterBuild: node run-tests.js -c ${TEST_CONCURRENCY} --type unit
 
     secrets: inherit
 
