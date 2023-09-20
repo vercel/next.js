@@ -12,7 +12,7 @@
   "dependencies": {
     "@szmarczak/http-timer": "5.0.1",
     "asciichart": "1.5.25",
-    "commander": "2.20.0",
+    "commander": "2.20.3",
     "dotenv": "10.0.0",
     "downsample-lttb": "0.0.1",
     "listr2": "5.0.8",
