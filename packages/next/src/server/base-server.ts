@@ -756,8 +756,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         if (_res.headersSent) {
           return
         }
-        // @ts-ignore
-        // console.log('multi', '_res.finished', _res.finished, _res.pathname, '_res.headersSent', _res.headersSent, 'res.headersSent', res.headersSent)
         if (name.toLowerCase() === 'set-cookie') {
           const middlewareValue = getRequestMeta(req, '_nextMiddlewareCookie')
 

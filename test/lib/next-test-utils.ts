@@ -373,7 +373,6 @@ export function runNextCommandDev(
       opts.nextStart || stdOut ? 'start' : opts?.turbo ? 'turbo' : 'dev'
 
     function handleStdout(data) {
-      // console.log('handleStdout', data.toString())
       const message = data.toString()
       const bootupMarkers = {
         dev: /✓ ready/i,

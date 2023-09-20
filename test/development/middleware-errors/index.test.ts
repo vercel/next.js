@@ -1,25 +1,6 @@
-import {
-  check,
-  fetchViaHTTP,
-  File,
-  findPort,
-  getRedboxSource,
-  hasRedbox,
-  killApp,
-  launchApp,
-} from 'next-test-utils'
-import { join } from 'path'
+import { check, getRedboxSource, hasRedbox } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
-import webdriver from 'next-webdriver'
 import { createNextDescribe } from 'e2e-utils'
-
-// const context = {
-//   appDir: join(__dirname, '../'),
-//   buildLogs: { output: '', stdout: '', stderr: '' },
-//   logs: { output: '', stdout: '', stderr: '' },
-//   middleware: new File(join(__dirname, '../middleware.js')),
-//   page: new File(join(__dirname, '../pages/index.js')),
-// }
 
 createNextDescribe(
   'middleware - development errors',
@@ -31,33 +12,6 @@ createNextDescribe(
     beforeEach(async () => {
       await next.stop()
     })
-    // beforeEach(async () => {
-    //   context.logs = { output: '', stdout: '', stderr: '' }
-    //   context.appPort = await findPort()
-    //   context.app = await launchApp(context.appDir, context.appPort, {
-    //     env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
-    //     stderr: false,
-    //     stdout: false,
-    //     onStdout(msg) {
-    //       // console.trace('onStdout', msg)
-    //       next.cliOutput += msg
-    //       context.logs.stdout += msg
-    //     },
-    //     onStderr(msg) {
-    //       // console.trace('onStderr', msg)
-    //       next.cliOutput += msg
-    //       context.logs.stderr += msg
-    //     },
-    //   })
-    // })
-
-    // afterEach(async () => {
-    //   context.middleware.restore()
-    //   context.page.restore()
-    //   if (context.app) {
-    //     await killApp(context.app)
-    //   }
-    // })
 
     describe('when middleware throws synchronously', () => {
       beforeEach(async () => {
