@@ -1,10 +1,9 @@
-pub(crate) mod app_client_references_chunks;
-pub(crate) mod app_client_shared_chunks;
-pub(crate) mod app_entry;
-pub(crate) mod app_favicon_entry;
-pub(crate) mod app_page_entry;
-pub(crate) mod app_route_entry;
-pub(crate) mod unsupported_dynamic_metadata_issue;
+pub mod app_client_references_chunks;
+pub mod app_client_shared_chunks;
+pub mod app_entry;
+pub mod app_page_entry;
+pub mod app_route_entry;
+pub mod metadata;
 
 use std::{
     fmt::{Display, Formatter, Write},
@@ -21,20 +20,27 @@ pub use crate::next_app::{
     },
     app_client_shared_chunks::get_app_client_shared_chunks,
     app_entry::AppEntry,
-    app_favicon_entry::get_app_route_favicon_entry,
     app_page_entry::get_app_page_entry,
     app_route_entry::get_app_route_entry,
-    unsupported_dynamic_metadata_issue::UnsupportedDynamicMetadataIssue,
 };
 
+/// See [AppPage].
 #[derive(Clone, Debug, Hash, Serialize, Deserialize, PartialEq, Eq, TaskInput, TraceRawVcs)]
 pub enum PageSegment {
+    /// e.g. `/dashboard`
     Static(String),
+    /// e.g. `/[id]`
     Dynamic(String),
+    /// e.g. `/[...slug]`
     CatchAll(String),
+    /// e.g. `/[[...slug]]`
     OptionalCatchAll(String),
+    /// e.g. `/(shop)`
     Group(String),
+    /// e.g. `/@auth`
     Parallel(String),
+    /// The final page type appended. (e.g. `/dashboard/page`,
+    /// `/api/hello/route`)
     PageType(PageType),
 }
 
@@ -151,6 +157,13 @@ impl AppPage {
             )
         }
 
+        if self.is_complete() {
+            bail!(
+                "Invalid segment {}, this page path already has the final PageType appended",
+                segment
+            )
+        }
+
         self.0.push(segment);
         Ok(())
     }
@@ -184,6 +197,18 @@ impl AppPage {
 
         Ok(app_page)
     }
+
+    pub fn is_root(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn is_complete(&self) -> bool {
+        matches!(self.0.last(), Some(PageSegment::PageType(..)))
+    }
+
+    pub fn complete(self, page_type: PageType) -> Result<Self> {
+        self.clone_push(PageSegment::PageType(page_type))
+    }
 }
 
 impl Display for AppPage {
@@ -209,11 +234,18 @@ impl Deref for AppPage {
     }
 }
 
+/// Path segments for a router path (not including parallel routes and groups).
+///
+/// Also see [AppPath].
 #[derive(Clone, Debug, Hash, Serialize, Deserialize, PartialEq, Eq, TaskInput, TraceRawVcs)]
 pub enum PathSegment {
+    /// e.g. `/dashboard`
     Static(String),
+    /// e.g. `/[id]`
     Dynamic(String),
+    /// e.g. `/[...slug]`
     CatchAll(String),
+    /// e.g. `/[[...slug]]`
     OptionalCatchAll(String),
 }
 
@@ -240,7 +272,11 @@ impl Display for PathSegment {
     }
 }
 
-/// The pathname (including dynamic placeholders) for a route to resolve.
+/// The pathname (including dynamic placeholders) for the next.js router to
+/// resolve.
+///
+/// Does not include internal modifiers as it's the equivalent of the http
+/// request path.
 #[derive(
     Clone, Debug, Hash, PartialEq, Eq, Default, Serialize, Deserialize, TaskInput, TraceRawVcs,
 )]

@@ -66,6 +66,13 @@ createNextDescribe(
           "
         `)
       })
+
+      it('should not throw if client components are imported but not used', async () => {
+        const { status } = await next.fetch(
+          '/client-ref-dependency/sitemap.xml'
+        )
+        expect(status).toBe(200)
+      })
     })
 
     describe('social image routes', () => {

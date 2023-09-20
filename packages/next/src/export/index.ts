@@ -50,6 +50,7 @@ import { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { isAppPageRoute } from '../lib/is-app-page-route'
 import isError from '../lib/is-error'
+import { needsExperimentalReact } from '../lib/needs-experimental-react'
 
 const exists = promisify(existsOrig)
 
@@ -730,6 +731,7 @@ export default async function exportApp(
             fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
             incrementalCacheHandlerPath:
               nextConfig.experimental.incrementalCacheHandlerPath,
+            enableExperimentalReact: needsExperimentalReact(nextConfig),
           })
 
           for (const validation of result.ampValidations || []) {

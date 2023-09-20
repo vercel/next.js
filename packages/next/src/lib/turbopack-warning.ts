@@ -6,6 +6,7 @@ import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 const supportedTurbopackNextConfigOptions = [
   'configFileName',
   'env',
+  'basePath',
   'modularizeImports',
   'compiler.emotion',
   'compiler.relay',
@@ -19,21 +20,34 @@ const supportedTurbopackNextConfigOptions = [
   'reactStrictMode',
   'swcMinify',
   'transpilePackages',
-  'sassOptions.includePaths',
+  'trailingSlash',
+  'i18n.locales',
+  'i18n.defaultLocale',
+  'sassOptions',
+  'configOrigin',
+  'httpAgentOptions',
+  'useFileSystemPublicRoutes',
+  'generateEtags',
+  'assetPrefix',
   'experimental.serverComponentsExternalPackages',
   'experimental.turbo',
   'experimental.mdxRs',
   'experimental.forceSwcTransforms',
+  'experimental.serverActionsBodySizeLimit',
+  'experimental.memoryBasedWorkersCount',
   // options below are not really supported, but ignored
   'webpack',
   'devIndicators',
   'onDemandEntries',
+  'excludeDefaultMomentLocales',
   'experimental.cpus',
   'experimental.sharedPool',
   'experimental.proxyTimeout',
   'experimental.isrFlushToDisk',
   'experimental.workerThreads',
   'experimental.caseSensitiveRoutes',
+  'experimental.optimizePackageImports',
+  'experimental.optimizeServerReact',
 ]
 
 // The following will need to be supported by `next build --turbo`
@@ -50,6 +64,8 @@ const prodSpecificTurboNextConfigOptions = [
   'optimizeFonts',
   'poweredByHeader',
   'staticPageGenerationTimeout',
+  'reactProductionProfiling',
+  'cleanDistDir',
   'compiler.reactRemoveProperties',
   'compiler.removeConsole',
   'experimental.turbotrace',
@@ -58,6 +74,12 @@ const prodSpecificTurboNextConfigOptions = [
   'experimental.outputFileTracingIgnores',
   'experiemental.outputFileTracingIncludes',
   'experimental.gzipSize',
+  'experimental.useDeploymentId',
+  'experimental.useDeploymentIdServerActions',
+  'experimental.deploymentId',
+  'experimental.serverMinification',
+  'experimental.serverSourceMaps',
+  'experimenta.trustHostHeader',
 ]
 
 // check for babelrc, swc plugins
@@ -95,13 +117,11 @@ export async function validateTurboNextConfig({
 
   let thankYouMessage =
     [
-      `Thank you for trying Next.js v13 with Turbopack! As a reminder`,
-      `Turbopack is currently in beta and not yet ready for production.`,
-      `We appreciate your ongoing support as we work to make it ready`,
-      `for everyone.`,
-    ]
-      .map((line) => `${line}`)
-      .join('\n') + '\n\n'
+      'Thank you for trying Next.js v13 with Turbopack! As a reminder',
+      'Turbopack is currently in beta and not yet ready for production.',
+      'We appreciate your ongoing support as we work to make it ready',
+      'for everyone.',
+    ].join('\n') + '\n\n'
 
   let unsupportedParts = ''
   let babelrc = await getBabelConfigFile(dir)
@@ -115,7 +135,9 @@ export async function validateTurboNextConfig({
 
   try {
     rawNextConfig = interopDefault(
-      await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, undefined, true)
+      await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
+        rawConfig: true,
+      })
     ) as NextConfig
 
     if (typeof rawNextConfig === 'function') {
@@ -196,8 +218,6 @@ export async function validateTurboNextConfig({
 
   let feedbackMessage = `Learn more about Next.js v13 and Turbopack: ${chalk.underline(
     'https://nextjs.link/with-turbopack'
-  )}\nPlease direct feedback to: ${chalk.underline(
-    'https://nextjs.link/turbopack-feedback'
   )}\n`
 
   if (hasWebpack && !hasTurbo) {
@@ -212,21 +232,31 @@ export async function validateTurboNextConfig({
   if (babelrc) {
     unsupportedParts += `\n- Babel detected (${chalk.cyan(
       babelrc
-    )})\n  ${`Babel is not yet supported. To use Turbopack at the moment,\n  you'll need to remove your usage of Babel.`}`
+    )})\n  Babel is not yet supported. To use Turbopack at the moment,\n  you'll need to remove your usage of Babel.`
   }
-  if (unsupportedConfig.length) {
+
+  if (
+    unsupportedConfig.length === 1 &&
+    unsupportedConfig[0] === 'experimental.optimizePackageImports'
+  ) {
+    console.warn(
+      `\n${chalk.yellow('Warning:')} ${chalk.cyan(
+        'experimental.optimizePackageImports'
+      )} is not yet supported by Turbopack and will be ignored.`
+    )
+  } else if (unsupportedConfig.length) {
     unsupportedParts += `\n\n- Unsupported Next.js configuration option(s) (${chalk.cyan(
       'next.config.js'
-    )})\n  ${`To use Turbopack, remove the following configuration options:\n${unsupportedConfig
+    )})\n  To use Turbopack, remove the following configuration options:\n${unsupportedConfig
       .map((name) => `    - ${chalk.red(name)}\n`)
-      .join('')}  `}   `
+      .join('')}`
   }
 
   if (unsupportedParts && !isCustomTurbopack) {
     const pkgManager = getPkgManager(dir)
 
     console.error(
-      `${'Error:'} You are using configuration and/or tools that are not yet\nsupported by Next.js v13 with Turbopack:\n${unsupportedParts}\n
+      `Error: You are using configuration and/or tools that are not yet\nsupported by Next.js v13 with Turbopack:\n${unsupportedParts}\n
 If you cannot make the changes above, but still want to try out\nNext.js v13 with Turbopack, create the Next.js v13 playground app\nby running the following commands:
 
   ${chalk.bold.cyan(
