@@ -37,7 +37,6 @@ use turbopack_binding::{
         build::BuildChunkingContext,
         core::{
             asset::AssetContent,
-            changed::any_content_changed_of_output_assets,
             chunk::{ChunkableModule, ChunkingContext, EvaluatableAssets},
             context::AssetContext,
             file_source::FileSource,
@@ -842,29 +841,30 @@ impl PageEndpoint {
                 let pathname = this.pathname.await?;
                 let named_regex = get_named_middleware_regex(&pathname);
                 let matchers = MiddlewareMatcher {
-                    regexp: named_regex,
+                    regexp: Some(named_regex),
                     original_source: pathname.to_string(),
                     ..Default::default()
                 };
                 let original_name = this.original_name.await?;
                 let edge_function_definition = EdgeFunctionDefinition {
                     files: files_paths_from_root,
-                    name: original_name.to_string(),
+                    name: pathname.to_string(),
                     page: original_name.to_string(),
                     regions: None,
                     matchers: vec![matchers],
                     ..Default::default()
                 };
                 let middleware_manifest_v2 = MiddlewaresManifestV2 {
-                    sorted_middleware: vec![original_name.to_string()],
+                    sorted_middleware: vec![pathname.to_string()],
                     middleware: Default::default(),
-                    functions: [(original_name.to_string(), edge_function_definition)]
+                    functions: [(pathname.to_string(), edge_function_definition)]
                         .into_iter()
                         .collect(),
                 };
+                let manifest_path_prefix = get_asset_prefix_from_pathname(&this.pathname.await?);
                 let middleware_manifest_v2 = Vc::upcast(VirtualOutputAsset::new(
                     node_root.join(format!(
-                        "server/pages{original_name}/middleware-manifest.json"
+                        "server/pages{manifest_path_prefix}/middleware-manifest.json"
                     )),
                     AssetContent::file(
                         FileContent::Content(File::from(serde_json::to_string_pretty(
@@ -943,13 +943,21 @@ impl Endpoint for PageEndpoint {
     }
 
     #[turbo_tasks::function]
-    fn server_changed(self: Vc<Self>) -> Vc<Completion> {
-        any_content_changed_of_output_assets(self.output().server_assets())
+    async fn server_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
+        Ok(self
+            .await?
+            .pages_project
+            .project()
+            .server_changed(self.output().server_assets()))
     }
 
     #[turbo_tasks::function]
-    fn client_changed(self: Vc<Self>) -> Vc<Completion> {
-        any_content_changed_of_output_assets(self.output().client_assets())
+    async fn client_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
+        Ok(self
+            .await?
+            .pages_project
+            .project()
+            .client_changed(self.output().client_assets()))
     }
 }
 

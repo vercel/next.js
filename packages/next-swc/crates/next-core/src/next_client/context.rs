@@ -46,7 +46,10 @@ use crate::{
         get_next_client_resolved_map, mdx_import_source_file,
     },
     next_shared::{
-        resolve::{ModuleFeatureReportResolvePlugin, UnsupportedModulesResolvePlugin},
+        resolve::{
+            ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin,
+            UnsupportedModulesResolvePlugin,
+        },
         transforms::{
             emotion::get_emotion_transform_plugin, get_relay_transform_plugin,
             styled_components::get_styled_components_transform_plugin,
@@ -134,9 +137,9 @@ pub async fn get_client_resolve_options_context(
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ResolveOptionsContext>> {
     let next_client_import_map =
-        get_next_client_import_map(project_path, ty, next_config, execution_context);
+        get_next_client_import_map(project_path, ty, mode, next_config, execution_context);
     let next_client_fallback_import_map = get_next_client_fallback_import_map(ty);
-    let next_client_resolved_map = get_next_client_resolved_map(project_path, project_path);
+    let next_client_resolved_map = get_next_client_resolved_map(project_path, project_path, mode);
     let module_options_context = ResolveOptionsContext {
         enable_node_modules: Some(project_path.root().resolve().await?),
         custom_conditions: vec![mode.node_env().to_string()],
@@ -148,6 +151,7 @@ pub async fn get_client_resolve_options_context(
         plugins: vec![
             Vc::upcast(ModuleFeatureReportResolvePlugin::new(project_path)),
             Vc::upcast(UnsupportedModulesResolvePlugin::new(project_path)),
+            Vc::upcast(NextSharedRuntimeResolvePlugin::new(project_path)),
         ],
         ..Default::default()
     };
@@ -155,7 +159,7 @@ pub async fn get_client_resolve_options_context(
         enable_typescript: true,
         enable_react: true,
         rules: vec![(
-            foreign_code_context_condition(next_config).await?,
+            foreign_code_context_condition(next_config, project_path).await?,
             module_options_context.clone().cell(),
         )],
         ..module_options_context
@@ -252,7 +256,7 @@ pub async fn get_client_module_options_context(
         decorators: Some(decorators_options),
         rules: vec![
             (
-                foreign_code_context_condition(next_config).await?,
+                foreign_code_context_condition(next_config, project_path).await?,
                 module_options_context.clone().cell(),
             ),
             // If the module is an internal asset (i.e overlay, fallback) coming from the embedded

@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { check, waitFor } from 'next-test-utils'
 import type { Request } from 'playwright-chromium'
 
 createNextDescribe(
@@ -421,6 +421,12 @@ createNextDescribe(
           })
           expect(res.status).toBe(307)
         })
+        it('should respond with 308 status code if permanent flag is set', async () => {
+          const res = await next.fetch('/redirect/servercomponent-2', {
+            redirect: 'manual',
+          })
+          expect(res.status).toBe(308)
+        })
       })
     })
 
@@ -491,6 +497,33 @@ createNextDescribe(
           .waitForElementByCss('#link-to-app')
         expect(await browser.url()).toBe(next.url + '/some')
       })
+
+      if (!isNextDev) {
+        // this test is pretty hard to test in playwright, so most of the heavy lifting is in the page component itself
+        // it triggers a hover on a link to initiate a prefetch request every second, and so we check that
+        // it doesn't repeatedly initiate the mpa navigation request
+        it('should not continously initiate a mpa navigation to the same URL when router state changes', async () => {
+          let requestCount = 0
+          const browser = await next.browser('/mpa-nav-test', {
+            beforePageLoad(page) {
+              page.on('request', (request) => {
+                const url = new URL(request.url())
+                // skip rsc prefetches
+                if (url.pathname === '/slow-page' && !url.search) {
+                  requestCount++
+                }
+              })
+            },
+          })
+
+          await browser.waitForElementByCss('#link-to-slow-page')
+
+          // wait a few seconds since prefetches are triggered in 1s intervals in the page component
+          await waitFor(5000)
+
+          expect(requestCount).toBe(1)
+        })
+      }
     })
 
     describe('nested navigation', () => {
@@ -551,6 +584,13 @@ createNextDescribe(
 
       it('should emit refresh meta tag for redirect page when streaming', async () => {
         const html = await next.render('/redirect/suspense')
+        expect(html).toContain(
+          '<meta http-equiv="refresh" content="1;url=/redirect/result"/>'
+        )
+      })
+
+      it('should emit refresh meta tag (permanent) for redirect page when streaming', async () => {
+        const html = await next.render('/redirect/suspense-2')
         expect(html).toContain(
           '<meta http-equiv="refresh" content="0;url=/redirect/result"/>'
         )
