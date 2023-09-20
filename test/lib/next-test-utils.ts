@@ -373,6 +373,7 @@ export function runNextCommandDev(
       opts.nextStart || stdOut ? 'start' : opts?.turbo ? 'turbo' : 'dev'
 
     function handleStdout(data) {
+      // console.log('handleStdout', data.toString())
       const message = data.toString()
       const bootupMarkers = {
         dev: /✓ ready/i,
@@ -403,7 +404,8 @@ export function runNextCommandDev(
     }
 
     function handleStderr(data) {
-      const message = stripAnsi(data.toString()) as any
+      const message = data.toString()
+
       if (typeof opts.onStderr === 'function') {
         opts.onStderr(message)
       }
