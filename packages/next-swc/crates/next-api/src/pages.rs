@@ -756,15 +756,10 @@ impl PageEndpoint {
                         let client_relative_path_ref = client_relative_path_ref.clone();
                         async move {
                             let chunk_path = chunk.ident().path().await?;
-                            let p = client_relative_path_ref
+                            Ok(client_relative_path_ref
                                 .get_path_to(&chunk_path)
-                                .context("client chunk entry path must be inside the client root");
-
-                            if p.is_err() {
-                                dbg!(client_relative_path_ref.clone(), chunk_path.clone(), &p);
-                            }
-
-                            Ok(p?.to_string())
+                                .context("client chunk entry path must be inside the client root")?
+                                .to_string())
                         }
                     })
                     .try_join()

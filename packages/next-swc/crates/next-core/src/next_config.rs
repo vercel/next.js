@@ -652,7 +652,7 @@ impl NextConfig {
     }
 
     /// Returns the final asset prefix. If an assetPrefix is set, it's used.
-    /// Otherwise, the basePath is used. Finally, _next is appended.
+    /// Otherwise, the basePath is used.
     #[turbo_tasks::function]
     pub async fn computed_asset_prefix(self: Vc<Self>) -> Result<Vc<String>> {
         let this = self.await?;
@@ -663,15 +663,6 @@ impl NextConfig {
         };
 
         Ok(Vc::cell(prefix + "/"))
-    }
-
-    /// Returns the client asset path -- where assets should be served by the
-    /// server. Note this may or may not be the same as the computed asset
-    /// prefix.
-    #[turbo_tasks::function]
-    pub async fn client_asset_path(self: Vc<Self>) -> Result<Vc<String>> {
-        let this = self.await?;
-        Ok(Vc::cell(this.base_path.clone() + "/_next"))
     }
 }
 

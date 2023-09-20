@@ -12,7 +12,6 @@ export function getRequiredScripts(
   let preinitScripts: () => void
   let preinitScriptCommands: string[] = []
   let bootstrapScript: string | { src: string; integrity: string } = ''
-  console.log('manifest', buildManifest)
   const files = buildManifest.rootMainFiles
   if (files.length === 0) {
     throw new Error(

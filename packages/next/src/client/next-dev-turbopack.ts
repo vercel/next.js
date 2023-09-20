@@ -29,19 +29,11 @@ initialize({
 })
   .then(({ assetPrefix }) => {
     // for the page loader
-    async function loadPageChunk(chunkData: any) {
-      if (typeof chunkData === 'string') {
-        await __turbopack_load__(chunkData)
-      } else {
-        await __turbopack_load__(chunkData)
-      }
-    }
-
     ;(self as any).__turbopack_load_page_chunks__ = (
       page: string,
       chunksData: any
     ) => {
-      const chunkPromises = chunksData.map(loadPageChunk)
+      const chunkPromises = chunksData.map(__turbopack_load__)
 
       Promise.all(chunkPromises).catch((err) =>
         console.error('failed to load chunks for page ' + page, err)

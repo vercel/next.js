@@ -1,7 +1,7 @@
 use core::{default::Default, result::Result::Ok};
 
 use anyhow::Result;
-use turbo_tasks::{debug::ValueDebug, Value, Vc};
+use turbo_tasks::{Value, Vc};
 use turbo_tasks_fs::FileSystem;
 use turbopack_binding::{
     turbo::{tasks_env::ProcessEnv, tasks_fs::FileSystemPath},
@@ -287,35 +287,26 @@ pub async fn get_client_chunking_context(
     environment: Vc<Environment>,
     mode: NextMode,
 ) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
-    let output_root = match mode {
-        NextMode::DevServer => client_root,
-        NextMode::Development | NextMode::Build => client_root,
-    };
-
-    dbg!(client_root.dbg().await?, asset_prefix.dbg().await?);
-
     let builder = DevChunkingContext::builder(
         project_path,
-        output_root,
+        client_root,
         client_root.join("static/chunks".to_string()),
         get_client_assets_path(client_root),
         environment,
     );
 
-    let chunk_base_path: Vc<Option<String>> =
-        Vc::cell(Some(asset_prefix.await?.to_string() + "_next/"));
-    let asset_base_path: Vc<Option<String>> =
-        Vc::cell(Some(asset_prefix.await?.to_string() + "_next/static/media"));
-    dbg!(chunk_base_path.dbg().await?);
+    let asset_prefix = asset_prefix.await?.to_string();
+    let chunk_base_path: Vc<Option<String>> = Vc::cell(Some(asset_prefix.clone() + "_next/"));
+    let asset_prefix: Vc<Option<String>> = Vc::cell(Some(asset_prefix + "_next/static/media"));
     let builder = match mode {
         NextMode::DevServer => builder.hot_module_replacement(),
         NextMode::Development => builder
             .hot_module_replacement()
             .chunk_base_path(chunk_base_path)
-            .asset_base_path(asset_base_path),
+            .asset_prefix(asset_prefix),
         NextMode::Build => builder
             .chunk_base_path(chunk_base_path)
-            .asset_base_path(asset_base_path),
+            .asset_prefix(asset_prefix),
     };
 
     Ok(Vc::upcast(builder.build()))

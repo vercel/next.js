@@ -2,7 +2,7 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use indexmap::indexmap;
-use turbo_tasks::{debug::ValueDebug, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{TryJoinIterExt, Value, Vc};
 use turbo_tasks_fs::FileSystemPathOption;
 use turbopack_binding::{
     turbo::tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPath},
@@ -156,15 +156,6 @@ impl PageLoaderAsset {
         // remove that prefix.
         if let Some(rebase_path) = &*rebase_prefix_path.await? {
             let root_path = rebase_path.root();
-            let c = chunks.await?.first().unwrap().ident().path();
-            dbg!(c.dbg().await?);
-            dbg!(rebase_path.dbg().await?);
-            dbg!(root_path.dbg().await?);
-            dbg!(
-                FileSystemPath::rebase(c, *rebase_path, root_path)
-                    .dbg()
-                    .await?
-            );
             let rebased = chunks
                 .await?
                 .iter()
