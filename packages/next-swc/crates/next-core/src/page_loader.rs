@@ -182,8 +182,12 @@ fn page_loader_chunk_reference_description() -> Vc<String> {
 impl OutputAsset for PageLoaderAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(AssetIdent::from_path(self.server_root.join(format!(
-            "_next/static/chunks/pages{}",
+        let root = match *self.rebase_prefix_path.await? {
+            Some(prefix) => prefix,
+            None => self.server_root,
+        };
+        Ok(AssetIdent::from_path(root.join(format!(
+            "static/chunks/pages{}",
             get_asset_path_from_pathname(&self.pathname.await?, ".js")
         ))))
     }

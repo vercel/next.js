@@ -655,6 +655,23 @@ impl NextConfig {
             self.await?.skip_trailing_slash_redirect.unwrap_or(false),
         ))
     }
+
+    /// Returns the final asset prefix. If an assetPrefix is set, it's used.
+    /// Otherwise, the basePath is used.
+    #[turbo_tasks::function]
+    pub async fn computed_asset_prefix(self: Vc<Self>) -> Result<Vc<String>> {
+        let this = self.await?;
+
+        Ok(Vc::cell(
+            if let Some(asset_prefix) = &this.asset_prefix {
+                asset_prefix.to_string()
+            } else if let Some(base_path) = &this.base_path {
+                base_path.to_string()
+            } else {
+                "".to_string()
+            } + "/_next/",
+        ))
+    }
 }
 
 fn next_configs() -> Vc<Vec<String>> {
