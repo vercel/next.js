@@ -191,7 +191,7 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
     module: {
       rules: [
         {
-          include: /vendored\/rsc\/entrypoints/,
+          include: /vendored[\\/]rsc[\\/]entrypoints/,
           resolve: {
             conditionNames: ['react-server', '...'],
             alias: {

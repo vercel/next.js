@@ -19,6 +19,11 @@ import {
   WEBPACK_RESOURCE_QUERIES,
   WebpackLayerName,
 } from '../lib/constants'
+import {
+  isWebpackAppLayer,
+  isWebpackDefaultLayer,
+  isWebpackServerLayer,
+} from './utils'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import {
@@ -69,7 +74,8 @@ import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plu
 import { getSupportedBrowsers } from './utils'
 import { MemoryWithGcCachePlugin } from './webpack/plugins/memory-with-gc-cache-plugin'
 import { getBabelConfigFile } from './get-babel-config-file'
-import { defaultOverrides } from '../server/import-overrides'
+import { defaultOverrides } from '../server/require-hook'
+import { needsExperimentalReact } from '../lib/needs-experimental-react'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -85,9 +91,6 @@ const NEXT_PROJECT_ROOT_DIST_CLIENT = path.join(
   NEXT_PROJECT_ROOT_DIST,
   'client'
 )
-
-const isWebpackServerLayer = (layer: WebpackLayerName | null) =>
-  Boolean(layer && WEBPACK_LAYERS.GROUP.server.includes(layer as any))
 
 if (parseInt(React.version) < 18) {
   throw new Error('Next.js requires react >= 18.2.0 to be installed.')
@@ -193,7 +196,6 @@ export function getDefineEnv({
   isNodeServer,
   middlewareMatchers,
   previewModeId,
-  useServerActions,
 }: {
   allowedRevalidateHeaderKeys: string[] | undefined
   clientRouterFilters: Parameters<
@@ -210,7 +212,6 @@ export function getDefineEnv({
   isNodeServer: boolean
   middlewareMatchers: MiddlewareMatcher[] | undefined
   previewModeId: string | undefined
-  useServerActions: boolean
 }) {
   return {
     // internal field to identify the plugin config
@@ -375,8 +376,9 @@ export function getDefineEnv({
     'process.env.TURBOPACK': JSON.stringify(false),
     ...(isNodeServer
       ? {
-          'process.env.__NEXT_EXPERIMENTAL_REACT':
-            JSON.stringify(useServerActions),
+          'process.env.__NEXT_EXPERIMENTAL_REACT': JSON.stringify(
+            needsExperimentalReact(config)
+          ),
         }
       : undefined),
   }
@@ -398,52 +400,45 @@ function createRSCAliases(
     reactServerCondition?: boolean
   }
 ) {
-  let alias: Record<string, string> = {}
-  if (opts.layer === 'app-pages-browser' || opts.isEdgeServer) {
-    alias = {
-      react$: `next/dist/compiled/react${bundledReactChannel}`,
-      'react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}`,
-      'react/jsx-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-runtime`,
-      'react/jsx-dev-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime`,
-      'react-dom/client$': `next/dist/compiled/react-dom${bundledReactChannel}/client`,
-      'react-dom/server$': `next/dist/compiled/react-dom${bundledReactChannel}/server`,
-      'react-dom/server.edge$': `next/dist/compiled/react-dom${bundledReactChannel}/server.edge`,
-      'react-dom/server.browser$': `next/dist/compiled/react-dom${bundledReactChannel}/server.browser`,
-      'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client`,
-      'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.edge`,
-      'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.edge`,
-      'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.node`,
+  let alias: Record<string, string> = {
+    react$: `next/dist/compiled/react${bundledReactChannel}`,
+    'react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}`,
+    'react/jsx-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-runtime`,
+    'react/jsx-dev-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime`,
+    'react-dom/client$': `next/dist/compiled/react-dom${bundledReactChannel}/client`,
+    'react-dom/server$': `next/dist/compiled/react-dom${bundledReactChannel}/server`,
+    'react-dom/server.edge$': `next/dist/compiled/react-dom${bundledReactChannel}/server.edge`,
+    'react-dom/server.browser$': `next/dist/compiled/react-dom${bundledReactChannel}/server.browser`,
+    'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client`,
+    'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.edge`,
+    'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.edge`,
+    'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.node`,
+  }
+
+  if (!opts.isEdgeServer) {
+    if (opts.layer === WEBPACK_LAYERS.serverSideRendering) {
+      alias = Object.assign(alias, {
+        'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-runtime`,
+        'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-dev-runtime`,
+        react$: `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react`,
+        'react-dom$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom`,
+        'react-dom/server.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom-server-edge`,
+        'react-server-dom-webpack/client.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-client-edge`,
+      })
+    } else if (opts.layer === WEBPACK_LAYERS.reactServerComponents) {
+      alias = Object.assign(alias, {
+        'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-runtime`,
+        'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-dev-runtime`,
+        react$: `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react`,
+        'react-dom$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom`,
+        'react-server-dom-webpack/server.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-server-edge`,
+        'react-server-dom-webpack/server.node$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-server-node`,
+      })
     }
-  } else if (opts.layer === 'ssr') {
-    alias = {
-      'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-runtime`,
-      'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-dev-runtime`,
-      react$: `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react`,
-      'react-dom$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom`,
-      'react-dom/server.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom-server-edge`,
-      'react-server-dom-webpack/client.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-client-edge`,
-      // not essential but we're providing this alias for people who might use it
-      'react-dom/server$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom-server-edge`,
-    }
-  } else if (opts.layer === 'rsc') {
-    alias = {
-      'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-runtime`,
-      'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-dev-runtime`,
-      react$: `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react`,
-      'react-dom$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom`,
-      'react-server-dom-webpack/server.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-server-edge`,
-      'react-server-dom-webpack/server.node$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-server-node`,
-      // not essential but we're providing this alias for people who might use it.
-      // A note here is that this will point toward the ReactDOMServer on the SSR layer
-      // TODO: add the rests
-      'react-dom/server.edge$': `next/dist/server/future/route-modules/app-page/vendored/ssr/react-dom-server-edge`,
-    }
-  } else {
-    throw new Error(`Unexpected layer: ${opts.layer}`)
   }
 
   if (opts.isEdgeServer) {
-    if (opts.layer === 'rsc') {
+    if (opts.layer === WEBPACK_LAYERS.reactServerComponents) {
       alias[
         'react$'
       ] = `next/dist/compiled/react${bundledReactChannel}/react.shared-subset`
@@ -455,19 +450,6 @@ function createRSCAliases(
     ] = `next/dist/compiled/react-dom${bundledReactChannel}/server-rendering-stub`
   }
 
-  // Alias `server-only` and `client-only` modules to their server/client only, vendored versions.
-  // These aliases are necessary if the user doesn't have those two packages installed manually.
-  if (typeof opts.reactServerCondition !== 'undefined') {
-    if (opts.reactServerCondition) {
-      // Alias to the `react-server` exports.
-      alias['server-only$'] = 'next/dist/compiled/server-only/empty'
-      alias['client-only$'] = 'next/dist/compiled/client-only/error'
-    } else {
-      alias['server-only$'] = 'next/dist/compiled/server-only/index'
-      alias['client-only$'] = 'next/dist/compiled/client-only/index'
-    }
-  }
-
   if (opts.reactProductionProfiling) {
     alias[
       'react-dom$'
@@ -476,6 +458,10 @@ function createRSCAliases(
       'scheduler/tracing'
     ] = `next/dist/compiled/scheduler${bundledReactChannel}/tracing-profiling`
   }
+
+  alias[
+    '@vercel/turbopack-ecmascript-runtime/dev/client/hmr-client.ts'
+  ] = `next/dist/client/dev/noop-turbopack-hmr`
 
   return alias
 }
@@ -826,7 +812,9 @@ export default async function getBaseWebpackConfig(
   const disableOptimizedLoading = true
   const enableTypedRoutes = !!config.experimental.typedRoutes && hasAppDir
   const useServerActions = !!config.experimental.serverActions && hasAppDir
-  const bundledReactChannel = useServerActions ? '-experimental' : ''
+  const bundledReactChannel = needsExperimentalReact(config)
+    ? '-experimental'
+    : ''
 
   if (isClient) {
     if (
@@ -932,29 +920,62 @@ export default async function getBaseWebpackConfig(
 
   const swcLoaderForServerLayer = hasServerComponents
     ? useSWCLoader
-      ? [getSwcLoader({ isServerLayer: true })]
+      ? [getSwcLoader({ isServerLayer: true, bundleTarget: 'server' })]
       : // When using Babel, we will have to add the SWC loader
         // as an additional pass to handle RSC correctly.
         // This will cause some performance overhead but
         // acceptable as Babel will not be recommended.
-        [getSwcLoader({ isServerLayer: true }), getBabelLoader()]
+        [
+          getSwcLoader({ isServerLayer: true, bundleTarget: 'server' }),
+          getBabelLoader(),
+        ]
     : []
-  const swcLoaderForClientLayer = hasServerComponents
-    ? useSWCLoader
-      ? [getSwcLoader({ hasServerComponents, isServerLayer: false })]
-      : // When using Babel, we will have to add the SWC loader
-        // as an additional pass to handle RSC correctly.
-        // This will cause some performance overhead but
-        // acceptable as Babel will not be recommended.
-        [getSwcLoader({ isServerLayer: false }), getBabelLoader()]
-    : []
+
   const swcLoaderForMiddlewareLayer = useSWCLoader
-    ? getSwcLoader({ hasServerComponents: false })
+    ? getSwcLoader({ hasServerComponents: false, bundleTarget: 'default' })
     : // When using Babel, we will have to use SWC to do the optimization
       // for middleware to tree shake the unused default optimized imports like "next/server".
       // This will cause some performance overhead but
       // acceptable as Babel will not be recommended.
-      [getSwcLoader({ hasServerComponents: false }), getBabelLoader()]
+      [
+        getSwcLoader({ hasServerComponents: false, bundleTarget: 'default' }),
+        getBabelLoader(),
+      ]
+
+  // client components layers: SSR + browser
+  const swcLoaderForClientLayer = [
+    ...(dev && isClient
+      ? [
+          require.resolve(
+            'next/dist/compiled/@next/react-refresh-utils/dist/loader'
+          ),
+        ]
+      : []),
+    {
+      // This loader handles actions and client entries
+      // in the client layer.
+      loader: 'next-flight-client-module-loader',
+    },
+    ...(hasServerComponents
+      ? useSWCLoader
+        ? [
+            getSwcLoader({
+              hasServerComponents,
+              isServerLayer: false,
+            }),
+          ]
+        : // When using Babel, we will have to add the SWC loader
+          // as an additional pass to handle RSC correctly.
+          // This will cause some performance overhead but
+          // acceptable as Babel will not be recommended.
+          [
+            getSwcLoader({
+              isServerLayer: false,
+            }),
+            getBabelLoader(),
+          ]
+      : []),
+  ]
 
   // Loader for API routes needs to be differently configured as it shouldn't
   // have RSC transpiler enabled, so syntax checks such as invalid imports won't
@@ -965,6 +986,7 @@ export default async function getBaseWebpackConfig(
           loader: 'next-swc-loader',
           options: {
             ...getSwcLoader().options,
+            bundleTarget: 'default',
             hasServerComponents: false,
           },
         }
@@ -1365,15 +1387,7 @@ export default async function getBaseWebpackConfig(
       return `commonjs next/dist/lib/import-next-warning`
     }
 
-    const isAppLayer = (
-      [
-        WEBPACK_LAYERS.reactServerComponents,
-        WEBPACK_LAYERS.serverSideRendering,
-        WEBPACK_LAYERS.appPagesBrowser,
-        WEBPACK_LAYERS.actionBrowser,
-        WEBPACK_LAYERS.appRouteHandler,
-      ] as WebpackLayerName[]
-    ).includes(layer!)
+    const isAppLayer = isWebpackAppLayer(layer)
 
     // Relative requires don't need custom resolution, because they
     // are relative to requests we've already resolved here.
@@ -1443,25 +1457,30 @@ export default async function getBaseWebpackConfig(
     // Specific Next.js imports that should remain external
     // TODO-APP: Investigate if we can remove this.
     if (request.startsWith('next/dist/')) {
+      // Non external that needs to be transpiled
       // Image loader needs to be transpiled
-      if (/^next\/dist\/shared\/lib\/image-loader/.test(request)) {
+      if (/^next[\\/]dist[\\/]shared[\\/]lib[\\/]image-loader/.test(request)) {
         return
       }
 
-      if (/^next\/dist\/compiled\/next-server/.test(request)) {
+      if (/^next[\\/]dist[\\/]compiled[\\/]next-server/.test(request)) {
         return `commonjs ${request}`
       }
 
       if (
-        /^next\/dist\/shared\/(?!lib\/router\/router)/.test(request) ||
-        /^next\/dist\/compiled\/.*\.c?js$/.test(request)
+        /^next[\\/]dist[\\/]shared[\\/](?!lib[\\/]router[\\/]router)/.test(
+          request
+        ) ||
+        /^next[\\/]dist[\\/]compiled[\\/].*\.c?js$/.test(request)
       ) {
         return `commonjs ${request}`
       }
 
       if (
-        /^next\/dist\/esm\/shared\/(?!lib\/router\/router)/.test(request) ||
-        /^next\/dist\/compiled\/.*\.mjs$/.test(request)
+        /^next[\\/]dist[\\/]esm[\\/]shared[\\/](?!lib[\\/]router[\\/]router)/.test(
+          request
+        ) ||
+        /^next[\\/]dist[\\/]compiled[\\/].*\.mjs$/.test(request)
       ) {
         return `module ${request}`
       }
@@ -1778,9 +1797,7 @@ export default async function getBaseWebpackConfig(
               chunks: 'all',
               name: 'framework',
               // Ensures the framework chunk is not created for App Router.
-              layer(layer: any) {
-                return layer === null || layer === undefined
-              },
+              layer: isWebpackDefaultLayer,
               test(module: any) {
                 const resource = module.nameForCondition?.()
                 return resource
@@ -1951,6 +1968,7 @@ export default async function getBaseWebpackConfig(
         'next-flight-action-entry-loader',
         'next-flight-client-module-loader',
         'noop-loader',
+        'empty-loader',
         'next-middleware-loader',
         'next-edge-function-loader',
         'next-edge-app-route-loader',
@@ -2022,6 +2040,90 @@ export default async function getBaseWebpackConfig(
                 ident: 'next-barrel-loader:' + resourceQuery,
               },
             ]
+          },
+        },
+        // Alias server-only and client-only to proper exports based on bundling layers
+        {
+          issuerLayer: {
+            or: [
+              ...WEBPACK_LAYERS.GROUP.server,
+              ...WEBPACK_LAYERS.GROUP.nonClientServerTarget,
+            ],
+          },
+          resolve: {
+            // Error on client-only but allow server-only
+            alias: {
+              'server-only$': 'next/dist/compiled/server-only/empty',
+              'client-only$': 'next/dist/compiled/client-only/error',
+              'next/dist/compiled/server-only$':
+                'next/dist/compiled/server-only/empty',
+              'next/dist/compiled/client-only$':
+                'next/dist/compiled/client-only/error',
+            },
+          },
+        },
+        {
+          issuerLayer: {
+            not: [
+              ...WEBPACK_LAYERS.GROUP.server,
+              ...WEBPACK_LAYERS.GROUP.nonClientServerTarget,
+            ],
+          },
+          resolve: {
+            // Error on server-only but allow client-only
+            alias: {
+              'server-only$': 'next/dist/compiled/server-only/index',
+              'client-only$': 'next/dist/compiled/client-only/index',
+              'next/dist/compiled/client-only$':
+                'next/dist/compiled/client-only/index',
+              'next/dist/compiled/server-only':
+                'next/dist/compiled/server-only/index',
+            },
+          },
+        },
+        // Detect server-only / client-only imports and error in build time
+        {
+          test: [
+            /^client-only$/,
+            /next[\\/]dist[\\/]compiled[\\/]client-only[\\/]error/,
+          ],
+          loader: 'next-invalid-import-error-loader',
+          issuerLayer: {
+            or: WEBPACK_LAYERS.GROUP.server,
+          },
+          options: {
+            message:
+              "'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.",
+          },
+        },
+        {
+          test: [
+            /^server-only$/,
+            /next[\\/]dist[\\/]compiled[\\/]server-only[\\/]index/,
+          ],
+          loader: 'next-invalid-import-error-loader',
+          issuerLayer: {
+            not: [
+              ...WEBPACK_LAYERS.GROUP.server,
+              ...WEBPACK_LAYERS.GROUP.nonClientServerTarget,
+            ],
+          },
+          options: {
+            message:
+              "'server-only' cannot be imported from a Client Component module. It should only be used from a Server Component.",
+          },
+        },
+        // Potential the bundle introduced into middleware and api can be poisoned by client-only
+        // but not being used, so we disabled the `client-only` erroring on these layers.
+        // `server-only` is still available.
+        {
+          test: [
+            /^client-only$/,
+            /next[\\/]dist[\\/]compiled[\\/]client-only[\\/]error/,
+          ],
+          loader: 'empty-loader',
+          issuerLayer: {
+            or: WEBPACK_LAYERS.GROUP.nonClientServerTarget,
           },
         },
         ...(hasAppDir
@@ -2145,9 +2247,7 @@ export default async function getBaseWebpackConfig(
                 oneOf: [
                   {
                     exclude: [asyncStoragesRegex],
-                    issuerLayer: {
-                      or: [isWebpackServerLayer],
-                    },
+                    issuerLayer: isWebpackServerLayer,
                     test: {
                       // Resolve it if it is a source code file, and it has NOT been
                       // opted out of bundling.
@@ -2234,28 +2334,12 @@ export default async function getBaseWebpackConfig(
                   },
                   {
                     ...codeCondition,
-                    issuerLayer: {
-                      or: [
-                        WEBPACK_LAYERS.serverSideRendering,
-                        WEBPACK_LAYERS.appPagesBrowser,
-                      ],
-                    },
-                    exclude: [codeCondition.exclude],
-                    use: [
-                      ...(dev && isClient
-                        ? [
-                            require.resolve(
-                              'next/dist/compiled/@next/react-refresh-utils/dist/loader'
-                            ),
-                          ]
-                        : []),
-                      {
-                        // This loader handles actions and client entries
-                        // in the client layer.
-                        loader: 'next-flight-client-module-loader',
-                      },
-                      ...swcLoaderForClientLayer,
+                    issuerLayer: [
+                      WEBPACK_LAYERS.appPagesBrowser,
+                      WEBPACK_LAYERS.serverSideRendering,
                     ],
+                    exclude: [codeCondition.exclude],
+                    use: swcLoaderForClientLayer,
                   },
                 ]
               : []),
@@ -2400,26 +2484,6 @@ export default async function getBaseWebpackConfig(
             ]
           : []),
         {
-          test: /(node_modules|next[/\\]dist[/\\]compiled)[/\\]client-only[/\\]error.js/,
-          loader: 'next-invalid-import-error-loader',
-          issuerLayer: {
-            or: [isWebpackServerLayer],
-          },
-          options: {
-            message:
-              "'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.",
-          },
-        },
-        {
-          test: /(node_modules|next[/\\]dist[/\\]compiled)[/\\]server-only[/\\]index.js/,
-          loader: 'next-invalid-import-error-loader',
-          issuerLayer: WEBPACK_LAYERS.serverSideRendering,
-          options: {
-            message:
-              "'server-only' cannot be imported from a Client Component module. It should only be used from a Server Component.",
-          },
-        },
-        {
           // Mark `image-response.js` as side-effects free to make sure we can
           // tree-shake it if not used.
           test: /[\\/]next[\\/]dist[\\/](esm[\\/])?server[\\/]web[\\/]exports[\\/]image-response\.js/,
@@ -2482,7 +2546,6 @@ export default async function getBaseWebpackConfig(
           isNodeServer,
           middlewareMatchers,
           previewModeId,
-          useServerActions,
         })
       ),
       isClient &&

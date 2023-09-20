@@ -72,7 +72,11 @@ impl ClientReferenceManifest {
                             client_chunks_paths
                                 .iter()
                                 .filter_map(|chunk_path| {
-                                    client_relative_path.get_path_to(chunk_path)
+                                    if chunk_path.extension_ref() == Some("css") {
+                                        client_relative_path.get_path_to(chunk_path)
+                                    } else {
+                                        None
+                                    }
                                 })
                                 .map(ToString::to_string),
                         );

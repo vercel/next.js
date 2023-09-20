@@ -282,9 +282,10 @@ export async function startServer({
           // This is the render worker, we keep the process alive
           console.error(err)
         }
-        process.on('exit', cleanup)
-        process.on('SIGINT', cleanup)
-        process.on('SIGTERM', cleanup)
+        process.on('exit', (code) => cleanup(code))
+        // callback value is signal string, exit with 0
+        process.on('SIGINT', () => cleanup(0))
+        process.on('SIGTERM', () => cleanup(0))
         process.on('uncaughtException', exception)
         process.on('unhandledRejection', exception)
 
@@ -357,4 +358,14 @@ export async function startServer({
       process.exit(RESTART_EXIT_CODE)
     })
   }
+}
+
+if (process.env.NEXT_PRIVATE_WORKER && process.send) {
+  process.addListener('message', async (msg: any) => {
+    if (msg && typeof msg && msg.nextWorkerOptions && process.send) {
+      await startServer(msg.nextWorkerOptions)
+      process.send({ nextServerReady: true })
+    }
+  })
+  process.send({ nextWorkerReady: true })
 }

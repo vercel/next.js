@@ -89,11 +89,15 @@ import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { stripInternalQueries } from './internal-utils'
 import {
   adaptForAppRouterInstance,
+  adaptForPathParams,
   adaptForSearchParams,
   PathnameContextProviderAdapter,
 } from '../shared/lib/router/adapters'
 import { AppRouterContext } from '../shared/lib/app-router-context.shared-runtime'
-import { SearchParamsContext } from '../shared/lib/hooks-client-context.shared-runtime'
+import {
+  SearchParamsContext,
+  PathParamsContext,
+} from '../shared/lib/hooks-client-context.shared-runtime'
 import { getTracer } from './lib/trace/tracer'
 import { RenderSpan } from './lib/trace/constants'
 import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
@@ -241,7 +245,7 @@ export type RenderOptsPartial = {
   ampOptimizerConfig?: { [key: string]: any }
   isDataReq?: boolean
   params?: ParsedUrlQuery
-  previewProps: __ApiPreviewProps
+  previewProps: __ApiPreviewProps | undefined
   basePath: string
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
@@ -279,6 +283,11 @@ export type RenderOptsPartial = {
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
 
+/**
+ * RenderOptsExtra is being used to split away functionality that's within the
+ * renderOpts. Eventually we can have more explicit render options for each
+ * route kind.
+ */
 export type RenderOptsExtra = {
   App: AppType
   Document: DocumentType
@@ -598,7 +607,8 @@ export async function renderToHTMLImpl(
   if (
     (isSSG || getServerSideProps) &&
     !isFallback &&
-    process.env.NEXT_RUNTIME !== 'edge'
+    process.env.NEXT_RUNTIME !== 'edge' &&
+    previewProps
   ) {
     // Reads of this are cached on the `req` object, so this should resolve
     // instantly. There's no need to pass this data down from a previous
@@ -660,32 +670,36 @@ export async function renderToHTMLImpl(
           router={router}
           isAutoExport={isAutoExport}
         >
-          <RouterContext.Provider value={router}>
-            <AmpStateContext.Provider value={ampState}>
-              <HeadManagerContext.Provider
-                value={{
-                  updateHead: (state) => {
-                    head = state
-                  },
-                  updateScripts: (scripts) => {
-                    scriptLoader = scripts
-                  },
-                  scripts: initialScripts,
-                  mountedInstances: new Set(),
-                }}
-              >
-                <LoadableContext.Provider
-                  value={(moduleName) => reactLoadableModules.push(moduleName)}
+          <PathParamsContext.Provider value={adaptForPathParams(router)}>
+            <RouterContext.Provider value={router}>
+              <AmpStateContext.Provider value={ampState}>
+                <HeadManagerContext.Provider
+                  value={{
+                    updateHead: (state) => {
+                      head = state
+                    },
+                    updateScripts: (scripts) => {
+                      scriptLoader = scripts
+                    },
+                    scripts: initialScripts,
+                    mountedInstances: new Set(),
+                  }}
                 >
-                  <StyleRegistry registry={jsxStyleRegistry}>
-                    <ImageConfigContext.Provider value={images}>
-                      {children}
-                    </ImageConfigContext.Provider>
-                  </StyleRegistry>
-                </LoadableContext.Provider>
-              </HeadManagerContext.Provider>
-            </AmpStateContext.Provider>
-          </RouterContext.Provider>
+                  <LoadableContext.Provider
+                    value={(moduleName) =>
+                      reactLoadableModules.push(moduleName)
+                    }
+                  >
+                    <StyleRegistry registry={jsxStyleRegistry}>
+                      <ImageConfigContext.Provider value={images}>
+                        {children}
+                      </ImageConfigContext.Provider>
+                    </StyleRegistry>
+                  </LoadableContext.Provider>
+                </HeadManagerContext.Provider>
+              </AmpStateContext.Provider>
+            </RouterContext.Provider>
+          </PathParamsContext.Provider>
         </PathnameContextProviderAdapter>
       </SearchParamsContext.Provider>
     </AppRouterContext.Provider>
@@ -1528,12 +1542,20 @@ export async function renderToHTMLImpl(
   return new RenderResult(optimizedHtml, renderResultMeta)
 }
 
-export async function renderToHTML(
+export type PagesRender = (
   req: IncomingMessage,
   res: ServerResponse,
   pathname: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts
-): Promise<RenderResult> {
+) => Promise<RenderResult>
+
+export const renderToHTML: PagesRender = (
+  req,
+  res,
+  pathname,
+  query,
+  renderOpts
+) => {
   return renderToHTMLImpl(req, res, pathname, query, renderOpts, renderOpts)
 }

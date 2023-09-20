@@ -326,7 +326,7 @@ fn react_server_components_server_graph_fixture(input: PathBuf) {
                 ),
                 tr.comments.as_ref().clone(),
                 None,
-                false,
+                String::from("default").into(),
             )
         },
         &input,
@@ -348,7 +348,7 @@ fn react_server_components_no_checks_server_graph_fixture(input: PathBuf) {
                 ),
                 tr.comments.as_ref().clone(),
                 None,
-                true,
+                String::from("default").into(),
             )
         },
         &input,
@@ -370,7 +370,7 @@ fn react_server_components_client_graph_fixture(input: PathBuf) {
                 ),
                 tr.comments.as_ref().clone(),
                 None,
-                false,
+                String::from("default").into(),
             )
         },
         &input,
@@ -392,7 +392,7 @@ fn react_server_components_no_checks_client_graph_fixture(input: PathBuf) {
                 ),
                 tr.comments.as_ref().clone(),
                 None,
-                true,
+                String::from("default").into(),
             )
         },
         &input,
