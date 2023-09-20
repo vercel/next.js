@@ -6,7 +6,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "next": "13.4.7",
+    "next": "13.4.19",
     "next-translate": "2.4.0",
     "react": "18.2.0",
     "react-dom": "18.2.0"
