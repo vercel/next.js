@@ -5,6 +5,7 @@ const glob = require('glob')
 const fs = require('fs-extra')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const resolveFrom = require('resolve-from')
+const execa = require('execa')
 
 export async function next__polyfill_nomodule(task, opts) {
   await task
@@ -2594,7 +2595,33 @@ export async function trace(task, opts) {
 }
 
 export async function build(task, opts) {
-  await task.serial(['precompile', 'compile', 'compile_config_schema'], opts)
+  await task.serial(
+    ['precompile', 'compile', 'compile_config_schema', 'generate_types'],
+    opts
+  )
+}
+
+export async function generate_types(task, opts) {
+  // running this detached so that --watch doesn't hijack the other tasks watchers
+  const detached = !!opts.dev
+  const subprocess = await execa.command(
+    `pnpm run types${opts.dev ? ' --watch' : ''}`,
+    {
+      stdio: 'inherit',
+      detached,
+    }
+  )
+
+  if (detached) {
+    function cleanup() {
+      subprocess.kill('SIGTERM', { forceKillAfterTimeout: 2000 })
+    }
+
+    // since we're runnning in detached mode, make sure the subprocess is killed
+    process.on('SIGINT', cleanup)
+    process.on('SIGTERM', cleanup)
+    process.on('exit', cleanup)
+  }
 }
 
 export default async function (task) {
