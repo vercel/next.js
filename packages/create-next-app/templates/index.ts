@@ -205,7 +205,7 @@ export const installTemplate = async ({
   if (tailwind) {
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
-      autoprefixer: 'latest',
+
       postcss: 'latest',
       tailwindcss: 'latest',
     }
@@ -220,6 +220,9 @@ export const installTemplate = async ({
     }
   }
 
+  const devDeps = Object.keys(packageJson.devDependencies).length
+  if (!devDeps) delete packageJson.devDependencies
+
   await fs.writeFile(
     path.join(root, 'package.json'),
     JSON.stringify(packageJson, null, 2) + os.EOL
@@ -230,13 +233,10 @@ export const installTemplate = async ({
   for (const dependency in packageJson.dependencies)
     console.log(`- ${cyan(dependency)}`)
 
-  const devDeps = Object.keys(packageJson.devDependencies).length
   if (devDeps) {
     console.log('\nInstalling devDependencies:')
     for (const dependency in packageJson.devDependencies)
       console.log(`- ${cyan(dependency)}`)
-  } else {
-    delete packageJson.devDependencies
   }
 
   console.log()
