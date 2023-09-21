@@ -663,7 +663,7 @@ impl IssueReporter for TestIssueReporter {
     #[turbo_tasks::function]
     async fn report_issues(
         &self,
-        captured_issues: TransientInstance<ReadRef<CapturedIssues>>,
+        captured_issues: TransientInstance<CapturedIssues>,
         _source: TransientValue<RawVc>,
         _min_failing_severity: Vc<IssueSeverity>,
     ) -> Result<Vc<bool>> {
