@@ -65,7 +65,7 @@ use crate::{
     util::foreign_code_context_condition,
 };
 
-fn defines(mode: NextMode, dist_root_path: Option<String>) -> CompileTimeDefines {
+fn defines(mode: NextMode, dist_root_path: Option<&str>) -> CompileTimeDefines {
     // [TODO] macro may need to allow dynamically expand from some iterable values
     let mut defines = compile_time_defines!(
         process.turbopack = true,
@@ -98,7 +98,7 @@ async fn next_client_defines(
     dist_root_path: Vc<String>,
 ) -> Result<Vc<CompileTimeDefines>> {
     let dist_root_path = &*dist_root_path.await?;
-    Ok(defines(mode, Some(dist_root_path.clone())).cell())
+    Ok(defines(mode, Some(dist_root_path.as_str())).cell())
 }
 
 #[turbo_tasks::function]
@@ -108,7 +108,7 @@ async fn next_client_free_vars(
 ) -> Result<Vc<FreeVarReferences>> {
     let dist_root_path = &*dist_root_path.await?;
     Ok(free_var_references!(
-        ..defines(mode, Some(dist_root_path.clone())).into_iter(),
+        ..defines(mode, Some(dist_root_path.as_str())).into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
             request: "node:buffer".to_string(),
             lookup_path: None,

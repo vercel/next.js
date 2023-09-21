@@ -31,7 +31,7 @@ use crate::{
     util::foreign_code_context_condition,
 };
 
-fn defines(dist_root_path: Option<String>) -> CompileTimeDefines {
+fn defines(dist_root_path: Option<&str>) -> CompileTimeDefines {
     // [TODO] macro may need to allow dynamically expand from some iterable values
     let mut defines = compile_time_defines!(
         process.turbopack = true,
@@ -60,7 +60,7 @@ fn defines(dist_root_path: Option<String>) -> CompileTimeDefines {
 #[turbo_tasks::function]
 async fn next_edge_defines(dist_root_path: Vc<String>) -> Result<Vc<CompileTimeDefines>> {
     let dist_root_path = &*dist_root_path.await?;
-    Ok(defines(Some(dist_root_path.clone())).cell())
+    Ok(defines(Some(dist_root_path.as_str())).cell())
 }
 
 #[turbo_tasks::function]
@@ -70,7 +70,7 @@ async fn next_edge_free_vars(
 ) -> Result<Vc<FreeVarReferences>> {
     let dist_root_path = &*dist_root_path.await?;
     Ok(free_var_references!(
-        ..defines(Some(dist_root_path.clone())).into_iter(),
+        ..defines(Some(dist_root_path.as_str())).into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
             request: "next/dist/compiled/buffer".to_string(),
             lookup_path: Some(project_path),
