@@ -6,7 +6,6 @@ use turbopack_binding::turbopack::{
         module::Module,
         reference_type::{EntryReferenceSubType, ReferenceType},
         source::Source,
-        virtual_source::VirtualSource,
     },
     ecmascript::chunk::EcmascriptChunkPlaceable,
     turbopack::{
