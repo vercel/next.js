@@ -10,6 +10,7 @@
 /// <reference path="./head.d.ts" />
 /// <reference path="./image.d.ts" />
 /// <reference path="./link.d.ts" />
+/// <reference path="./navigation.d.ts" />
 /// <reference path="./router.d.ts" />
 /// <reference path="./script.d.ts" />
 /// <reference path="./server.d.ts" />
