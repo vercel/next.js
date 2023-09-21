@@ -2,6 +2,7 @@
 // Only tests that are actively testing against Turbopack should
 // be enabled here
 const enabledTests = [
+  'test/e2e/app-dir/app-edge-root-layout/index.test.ts',
   'test/development/acceptance-app/server-components.test.ts',
   'test/development/acceptance/hydration-error.test.ts',
   'test/development/api-cors-with-rewrite/index.test.ts',
