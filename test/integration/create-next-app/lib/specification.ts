@@ -41,7 +41,7 @@ export const projectSpecification: ProjectSpecification = {
         'pages/api/hello.js',
         'jsconfig.json',
       ],
-      deps: ['next', 'react', 'react-dom'],
+      deps: [],
       devDeps: [],
     },
     ts: {
@@ -52,7 +52,7 @@ export const projectSpecification: ProjectSpecification = {
         'tsconfig.json',
         'next-env.d.ts',
       ],
-      deps: ['next', 'react', 'react-dom'],
+      deps: [],
       devDeps: [
         '@types/node',
         '@types/react',
@@ -71,7 +71,7 @@ export const projectSpecification: ProjectSpecification = {
         'postcss.config.js',
         'tailwind.config.js',
       ],
-      deps: ['next', 'react', 'react-dom'],
+      deps: [],
       devDeps: ['postcss', 'tailwindcss'],
     },
     ts: {
@@ -84,7 +84,7 @@ export const projectSpecification: ProjectSpecification = {
         'tailwind.config.ts',
         'tsconfig.json',
       ],
-      deps: ['next', 'react', 'react-dom'],
+      deps: [],
       devDeps: [
         '@types/node',
         '@types/react-dom',
@@ -97,12 +97,12 @@ export const projectSpecification: ProjectSpecification = {
   },
   app: {
     js: {
-      deps: ['next', 'react', 'react-dom'],
+      deps: [],
       devDeps: [],
       files: ['app/page.js', 'app/layout.js', 'jsconfig.json'],
     },
     ts: {
-      deps: ['next', 'react', 'react-dom'],
+      deps: [],
       devDeps: [
         '@types/node',
         '@types/react',
@@ -119,7 +119,7 @@ export const projectSpecification: ProjectSpecification = {
   },
   'app-tw': {
     js: {
-      deps: ['next', 'react', 'react-dom'],
+      deps: [],
       devDeps: ['postcss', 'tailwindcss'],
       files: [
         'app/layout.js',
@@ -130,7 +130,7 @@ export const projectSpecification: ProjectSpecification = {
       ],
     },
     ts: {
-      deps: ['next', 'react', 'react-dom'],
+      deps: [],
       devDeps: [
         '@types/node',
         '@types/react-dom',
