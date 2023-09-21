@@ -51,6 +51,7 @@ interface Dispatcher {
 
 let mostRecentCompilationHash: any = null
 let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
+let reloading = false
 
 function onBeforeFastRefresh(dispatcher: Dispatcher, hasUpdates: boolean) {
   if (hasUpdates) {
@@ -115,6 +116,8 @@ function performFullReload(err: any, sendMessage: any) {
     })
   )
 
+  if (reloading) return
+  reloading = true
   window.location.reload()
 }
 
@@ -357,6 +360,8 @@ function processMessage(
         })
       )
       if (RuntimeErrorHandler.hadRuntimeError) {
+        if (reloading) return
+        reloading = true
         return window.location.reload()
       }
       startTransition(() => {
@@ -381,6 +386,8 @@ function processMessage(
           clientId: __nextDevClientId,
         })
       )
+      if (reloading) return
+      reloading = true
       return window.location.reload()
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.REMOVED_PAGE: {
