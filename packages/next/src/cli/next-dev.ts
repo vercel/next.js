@@ -26,6 +26,7 @@ import {
   getReservedPortExplanation,
   isPortIsReserved,
 } from '../lib/helpers/get-reserved-port'
+import { needsExperimentalReact } from '../lib/needs-experimental-react'
 
 let dir: string
 let child: undefined | ReturnType<typeof fork>
@@ -198,8 +199,7 @@ const nextDev: CliCommand = async (args) => {
     },
   })
 
-  process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = config.experimental
-    .serverActions
+  process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = needsExperimentalReact(config)
     ? 'experimental'
     : 'next'
 
@@ -321,5 +321,17 @@ const nextDev: CliCommand = async (args) => {
     await runDevServer(false)
   })
 }
+
+function cleanup() {
+  if (!child) {
+    return
+  }
+
+  child.kill('SIGTERM')
+}
+
+process.on('exit', cleanup)
+process.on('SIGINT', cleanup)
+process.on('SIGTERM', cleanup)
 
 export { nextDev }
