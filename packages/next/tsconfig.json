@@ -9,6 +9,7 @@
     "jsx": "react",
     "stripInternal": true
   },
+  "include": ["src"],
   "exclude": [
     "dist",
     "./*.d.ts",

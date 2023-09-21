@@ -86,7 +86,8 @@
       "./taskfile-webpack.js",
       "./taskfile-ncc.js",
       "./taskfile-swc.js",
-      "./taskfile-watch.js"
+      "./taskfile-watch.js",
+      "./taskfile-typescript.js"
     ]
   },
   "dependencies": {
