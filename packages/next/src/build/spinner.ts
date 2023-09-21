@@ -15,7 +15,7 @@ export default function createSpinner(
 
   const prefixText = ` ${Log.prefixes.info} ${text}`
   // Add \r at beginning to reset the current line of loading status text
-  const suffixText = `\r ${Log.prefixes.event} ${text}`
+  const suffixText = `\r\x1b[K ${Log.prefixes.event} ${text}`
 
   if (process.stdout.isTTY) {
     spinner = ora({
