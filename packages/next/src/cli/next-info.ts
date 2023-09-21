@@ -83,17 +83,17 @@ function getBinaryVersion(binaryName: string) {
 function printHelp() {
   console.log(
     `
-    Description
-      Prints relevant details about the current system which can be used to report Next.js bugs
+Description
+  Prints relevant details about the current system which can be used to report Next.js bugs
 
-    Usage
-      $ next info
+Usage
+  $ next info
 
-    Options
-      --help, -h    Displays this message
-      --verbose     Collect additional information for debugging
+Options
+  --help, -h    Displays this message
+  --verbose     Collect additional information for debugging
 
-    Learn more: ${chalk.cyan('https://nextjs.org/docs/api-reference/cli#info')}`
+Learn more: ${chalk.cyan('https://nextjs.org/docs/api-reference/cli#info')}`
   )
 }
 
@@ -105,23 +105,23 @@ async function printDefaultInfo() {
   const nextConfig = await getNextConfig()
 
   console.log(`
-    Operating System:
-      Platform: ${os.platform()}
-      Arch: ${os.arch()}
-      Version: ${os.version()}
-    Binaries:
-      Node: ${process.versions.node}
-      npm: ${getBinaryVersion('npm')}
-      Yarn: ${getBinaryVersion('yarn')}
-      pnpm: ${getBinaryVersion('pnpm')}
-    Relevant Packages:
-      next: ${installedRelease}
-      eslint-config-next: ${getPackageVersion('eslint-config-next')}
-      react: ${getPackageVersion('react')}
-      react-dom: ${getPackageVersion('react-dom')}
-      typescript: ${getPackageVersion('typescript')}
-    Next.js Config:
-      output: ${nextConfig.output}
+Operating System:
+  Platform: ${os.platform()}
+  Arch: ${os.arch()}
+  Version: ${os.version()}
+Binaries:
+  Node: ${process.versions.node}
+  npm: ${getBinaryVersion('npm')}
+  Yarn: ${getBinaryVersion('yarn')}
+  pnpm: ${getBinaryVersion('pnpm')}
+Relevant Packages:
+  next: ${installedRelease}
+  eslint-config-next: ${getPackageVersion('eslint-config-next')}
+  react: ${getPackageVersion('react')}
+  react-dom: ${getPackageVersion('react-dom')}
+  typescript: ${getPackageVersion('typescript')}
+Next.js Config:
+  output: ${nextConfig.output}
 
 `)
 
