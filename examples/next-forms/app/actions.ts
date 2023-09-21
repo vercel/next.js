@@ -45,7 +45,7 @@ export async function deleteTodo(prevState: any, formData: FormData) {
     `
 
     revalidatePath('/')
-    return { message: 'Deleted todo' }
+    return { message: `Deleted todo ${data.todo}` }
   } catch (e) {
     return { message: 'Failed to delete todo' }
   }

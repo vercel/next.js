@@ -24,8 +24,8 @@ export function DeleteForm({ id }: { id: number }) {
   return (
     <form action={formAction}>
       <input type="hidden" name="id" value={id} />
-      <DeleteButton {...state} />
-      <p aria-live="polite" className="sr-only">
+      <DeleteButton />
+      <p aria-live="polite" className="sr-only" role="status">
         {state?.message}
       </p>
     </form>

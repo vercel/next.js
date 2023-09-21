@@ -26,7 +26,7 @@ export function AddForm() {
       <label htmlFor="todo">Enter Task</label>
       <input type="text" id="todo" name="todo" required />
       <SubmitButton />
-      <p aria-live="polite" className="sr-only">
+      <p aria-live="polite" className="sr-only" role="status">
         {state?.message}
       </p>
     </form>
