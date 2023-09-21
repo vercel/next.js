@@ -234,7 +234,6 @@ const nextDev: CliCommand = async (args) => {
 
   if (process.env.TURBOPACK) {
     await validateTurboNextConfig({
-      isCustomTurbopack: !!process.env.__INTERNAL_CUSTOM_TURBOPACK_BINDINGS,
       ...devServerOptions,
       isDev: true,
     })
