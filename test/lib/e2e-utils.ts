@@ -196,7 +196,12 @@ export async function createNext(
     try {
       nextInstance.destroy()
     } catch (_) {}
-    process.exit(1)
+
+    if (process.env.NEXT_TEST_CONTINUE_ON_ERROR) {
+      throw err
+    } else {
+      process.exit(1)
+    }
   } finally {
     flushAllTraces()
   }
