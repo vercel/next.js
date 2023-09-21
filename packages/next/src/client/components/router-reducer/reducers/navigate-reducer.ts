@@ -319,7 +319,14 @@ export function navigateReducer(
           treePatch,
           // eslint-disable-next-line no-loop-func
           () =>
-            fetchServerResponse(url, currentTree, state.nextUrl, state.buildId)
+            createRecordFromThenable(
+              fetchServerResponse(
+                url,
+                currentTree,
+                state.nextUrl,
+                state.buildId
+              )
+            )
         )
       }
 
