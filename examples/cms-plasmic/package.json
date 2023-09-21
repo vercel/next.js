@@ -8,8 +8,8 @@
   "dependencies": {
     "@plasmicapp/loader-nextjs": "1.0.136",
     "next": "latest",
-    "react": "18.1.0",
-    "react-dom": "18.1.0"
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
   },
   "devDependencies": {
     "@types/node": "17.0.41",
