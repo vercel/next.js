@@ -285,7 +285,7 @@ impl ResolvePlugin for NextSharedRuntimeResolvePlugin {
     fn after_resolve_condition(&self) -> Vc<ResolvePluginCondition> {
         ResolvePluginCondition::new(
             self.root.root(),
-            Glob::new("**/node_modules/next/dist/**/*.shared-runtime.js".to_string()),
+            Glob::new("**/next/dist/esm/**/*.shared-runtime.js".to_string()),
         )
     }
 
@@ -297,24 +297,8 @@ impl ResolvePlugin for NextSharedRuntimeResolvePlugin {
         _request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
         let raw_fs_path = &*fs_path.await?;
-        let path = raw_fs_path.path.to_string();
-
-        // Find the starting index of 'next/dist' and slice from that point. It should
-        // always be found since the glob pattern above is specific enough.
-        let starting_index = path.find("next/dist").unwrap();
-
-        let (base, path) = path.split_at(starting_index);
-
-        // Replace '/esm/' with '/' to match the CJS version of the file.
-        let modified_path = path.replace("/esm/", "/");
-
-        // If there were no replacements, then the original resolved to the CJS module
-        // and we don't need to do anything special
-        if modified_path == path {
-            return Ok(ResolveResultOption::none());
-        }
-
-        let new_path = fs_path.root().join(base.to_string()).join(modified_path);
+        let modified_path = raw_fs_path.path.replace("next/dist/esm/", "next/dist/");
+        let new_path = fs_path.root().join(modified_path);
         Ok(Vc::cell(Some(
             ResolveResult::source(Vc::upcast(FileSource::new(new_path))).into(),
         )))

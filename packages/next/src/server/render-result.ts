@@ -14,7 +14,7 @@ export type RenderResultMetadata = {
   fetchTags?: string
 }
 
-type RenderResultResponse = string | ReadableStream<Uint8Array> | null
+type RenderResultResponse = ReadableStream<Uint8Array> | string | null
 
 export default class RenderResult {
   /**
@@ -97,7 +97,7 @@ export default class RenderResult {
     return this.response
   }
 
-  public async pipe(res: PipeTarget): Promise<void> {
+  public async pipe(res: PipeTarget<Uint8Array>): Promise<void> {
     if (this.response === null) {
       throw new Error('Invariant: response is null. This is a bug in Next.js')
     }
