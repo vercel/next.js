@@ -22,7 +22,10 @@ function test(context: ReturnType<typeof createContext>) {
     await waitFor(200)
     await check(
       () => stripAnsi(context.output),
-      new RegExp(`The first argument must be of type string`, 'm')
+      new RegExp(
+        `The "chunk" argument must be of type string or an instance of Buffer or Uint8Array. Received type boolean`,
+        'm'
+      )
     )
     expect(stripAnsi(context.output)).not.toContain('webpack-internal:')
   }
