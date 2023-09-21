@@ -104,17 +104,17 @@ pub fn endpoint_server_changed_subscribe(
         func,
         move || async move {
             let changed = endpoint.server_changed();
-            let issues = get_issues(changed).await?;
-            let diags = get_diagnostics(changed).await?;
+            // We don't capture issues and diagonistics here since we don't want to be
+            // notified when they change
             changed.strongly_consistent().await?;
-            Ok((issues, diags))
+            Ok(())
         },
         |ctx| {
-            let (issues, diags) = ctx.value;
+            let () = ctx.value;
             Ok(vec![TurbopackResult {
                 result: (),
-                issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
-                diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
+                issues: vec![],
+                diagnostics: vec![],
             }])
         },
     )
@@ -132,17 +132,17 @@ pub fn endpoint_client_changed_subscribe(
         func,
         move || async move {
             let changed = endpoint.client_changed();
-            let issues = get_issues(changed).await?;
-            let diags = get_diagnostics(changed).await?;
+            // We don't capture issues and diagonistics here since we don't want to be
+            // notified when they change
             changed.strongly_consistent().await?;
-            Ok((issues, diags))
+            Ok(())
         },
         |ctx| {
-            let (issues, diags) = ctx.value;
+            let () = ctx.value;
             Ok(vec![TurbopackResult {
                 result: (),
-                issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
-                diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
+                issues: vec![],
+                diagnostics: vec![],
             }])
         },
     )
