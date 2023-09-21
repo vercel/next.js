@@ -228,7 +228,6 @@ export const installTemplate = async ({
     JSON.stringify(packageJson, null, 2) + os.EOL
   )
 
-  /* Install package.json dependencies */
   console.log('\nInstalling dependencies:')
   for (const dependency in packageJson.dependencies)
     console.log(`- ${cyan(dependency)}`)
