@@ -6,7 +6,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@apollo/client": "3.3.11",
+    "@apollo/client": "3.8.1",
     "@nhost/react-apollo": "1.0.7",
     "@nhost/react-auth": "1.0.5",
     "graphql": "15.5.0",
