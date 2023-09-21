@@ -46,5 +46,22 @@ createNextDescribe(
           : 'false'
       }, 'true')
     })
+
+    it('should support hydrating the app from progressively enhanced form request', async () => {
+      const browser = await next.browser('/client/form-state')
+
+      // Simulate a progressively enhanced form request
+      await browser.eval(`document.getElementById('name-input').value = 'test'`)
+      await browser.eval(`document.getElementById('form-state-form').submit()`)
+
+      await check(() => {
+        return browser.elementByCss('#form-state').text()
+      }, 'initial-state:test')
+
+      // Should hydrate successfully
+      await check(() => {
+        return browser.elementByCss('#hydrated').text()
+      }, 'hydrated')
+    })
   }
 )
