@@ -110,7 +110,6 @@ pub fn endpoint_server_changed_subscribe(
             Ok(())
         },
         |ctx| {
-            let () = ctx.value;
             Ok(vec![TurbopackResult {
                 result: (),
                 issues: vec![],
@@ -138,7 +137,6 @@ pub fn endpoint_client_changed_subscribe(
             Ok(())
         },
         |ctx| {
-            let () = ctx.value;
             Ok(vec![TurbopackResult {
                 result: (),
                 issues: vec![],
