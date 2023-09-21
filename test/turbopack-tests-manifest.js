@@ -25,32 +25,20 @@ const enabledTests = [
   'test/development/jsconfig-path-reloading/index.test.ts',
   'test/development/middleware-warnings/index.test.ts',
   'test/development/next-font/deprecated-package.test.ts',
-  'test/development/project-directory-with-styled.jsx',
   'test/development/repeated-dev-edits/repeated-dev-edits.test.ts',
   'test/development/tsconfig-path-reloading/index.test.ts',
   'test/development/typescript-auto-install/index.test.ts',
   'test/development/watch-config-file/index.test.ts',
-  'test/e2e/404-page-router/index.test.ts',
-  'test/e2e/app-dir/actions/app-action-export.test.ts',
-  'test/e2e/app-dir/actions/app-action-invalid.test.ts',
-  'test/e2e/app-dir/actions/app-action-size-limit-invalid.test.ts',
-  'test/e2e/app-dir/app-edge-root-layout/index.test.ts',
   'test/e2e/app-dir/app-fetch-deduping/app-fetch-deduping.test.ts',
-  'test/e2e/app-dir/app-routes-trailing-slash/app-routes-trailing-slash.test.ts',
-  'test/e2e/app-dir/app-simple-routes/app-simple-routes.test.ts',
   'test/e2e/app-dir/app-static/app-fetch-logging.test.ts',
-  'test/e2e/app-dir/app-static/app-static-custom-cache-handler-esm.test.ts',
   'test/e2e/app-dir/app-validation/validation.test.ts',
   'test/e2e/app-dir/asset-prefix/asset-prefix.test.ts',
   'test/e2e/app-dir/async-component-preload/async-component-preload.test.ts',
   'test/e2e/app-dir/autoscroll-with-css-modules/index.test.ts',
-  'test/e2e/app-dir/base-path/index.test.ts',
   'test/e2e/app-dir/build-size/index.test.ts',
   'test/e2e/app-dir/crypto-globally-available/crypto-globally-available.test.ts',
   'test/e2e/app-dir/deopted-into-client-rendering-warning/deopted-into-client-rendering-warning.test.ts',
   'test/e2e/app-dir/front-redirect-issue/front-redirect-issue.test.ts',
-  'test/e2e/app-dir/global-error/basic/index.test.ts',
-  'test/e2e/app-dir/global-error/layout-error/index.test.ts',
   'test/e2e/app-dir/headers-static-bailout/headers-static-bailout.test.ts',
   'test/e2e/app-dir/hello-world/hello-world.test.ts',
   'test/e2e/app-dir/i18n-hybrid/i18n-hybrid.test.js',
@@ -59,32 +47,20 @@ const enabledTests = [
   'test/e2e/app-dir/layout-params/layout-params.test.ts',
   'test/e2e/app-dir/metadata-missing-metadata-base/index.test.ts',
   'test/e2e/app-dir/metadata-suspense/index.test.ts',
-  'test/e2e/app-dir/navigation/navigation.test.ts',
   'test/e2e/app-dir/next-config/index.test.ts',
-  'test/e2e/app-dir/not-found/css-precedence/index.test.ts',
-  'test/e2e/app-dir/not-found/group-route-root-not-found/index.test.ts',
-  'test/e2e/app-dir/rewrites-redirects/rewrites-redirects.test.ts',
-  'test/e2e/app-dir/root-layout-redirect/root-layout-redirect.test.ts',
   'test/e2e/app-dir/route-page-manifest-bug/route-page-manifest-bug.test.ts',
   'test/e2e/app-dir/router-stuck-dynamic-static-segment/router-stuck-dynamic-static-segment.test.ts',
-  'test/e2e/app-dir/search-params-react-key/layout-params.test.ts',
   'test/e2e/app-dir/searchparams-static-bailout/searchparams-static-bailout.test.ts',
   'test/e2e/app-dir/similar-pages-paths/similar-pages-paths.test.ts',
   'test/e2e/app-dir/test-template/{{ toFileName name }}/{{ toFileName name }}.test.ts',
   'test/e2e/app-dir/third-parties/basic.test.ts',
   'test/e2e/app-dir/use-params/use-params.test.ts',
   'test/e2e/app-dir/use-selected-layout-segment-s/use-selected-layout-segment-s.test.ts',
-  'test/e2e/app-dir/with-exported-function-config/with-exported-function-config.test.ts',
   'test/e2e/browserslist-extends/index.test.ts',
   'test/e2e/children-page/index.test.ts',
   'test/e2e/config-promise-export/async-function.test.ts',
   'test/e2e/config-promise-export/promise.test.ts',
-  'test/e2e/disable.js',
   'test/e2e/dynamic-route-interpolation/index.test.ts',
-  'test/e2e/edge-api-endpoi.ts',
-  'test/e2e/edge-can-read-request-body/index.test.ts',
-  'test/e2e/edge-compiler-module-expo.ts',
-  'test/e2e/edge-async-local-storage/index.test.ts',
   'test/e2e/handle-non-hoisted-swc-helpers/index.test.ts',
   'test/e2e/hello-world/hello-world.test.ts',
   'test/e2e/i18n-api-support/index.test.ts',
@@ -145,13 +121,28 @@ const enabledTests = [
   'test/production/jest/rsc/lib/utils.test.js',
   'test/production/jest/transpile-packages.test.ts',
   'test/production/postcss-plugin-config-as-string/index.test.ts',
-  'test/production/suppo.ts',
 
   // disabled due to nextConfig.distDir
   //'test/integration/trailing-slash-dist/test/index.test.js',
 ]
 
-module.exports = { enabledTests }
+/// Naive check to ensure that the enabled tests actually exist
+const verifyEnabledTestPath = () => {
+  const fs = require('fs')
+  const nonExistTests = enabledTests.filter(
+    (testPath) => !fs.existsSync(testPath)
+  )
+
+  if (Array.isArray(nonExistTests) && nonExistTests.length > 0) {
+    console.error(
+      `The following tests are enabled but do not exist:`,
+      nonExistTests
+    )
+    throw new Error('Invalid test path(s) found')
+  }
+}
+
+module.exports = { enabledTests, verifyEnabledTestPath }
 
 /* Old turbopack enabled tests:
 
