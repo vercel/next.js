@@ -205,7 +205,6 @@ export const installTemplate = async ({
   if (tailwind) {
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
-
       postcss: 'latest',
       tailwindcss: 'latest',
     }
