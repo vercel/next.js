@@ -213,7 +213,10 @@ async function startWatcher(opts: SetupOpts) {
     })
     const iter = project.entrypointsSubscribe()
     const curEntries: Map<string, Route> = new Map()
-    const changeSubscriptions: Map<string, AsyncIterator<any>> = new Map()
+    const changeSubscriptions: Map<
+      string,
+      Promise<AsyncIterator<any>>
+    > = new Map()
     let prevMiddleware: boolean | undefined = undefined
     const globalEntries: {
       app: Endpoint | undefined
@@ -497,8 +500,9 @@ async function startWatcher(opts: SetupOpts) {
     ) {
       if (!endpoint || changeSubscriptions.has(page)) return
 
-      const changed = await endpoint.changed()
-      changeSubscriptions.set(page, changed)
+      const changedPromise = endpoint.changed()
+      changeSubscriptions.set(page, changedPromise)
+      const changed = await changedPromise
 
       for await (const change of changed) {
         consoleStore.setState(
@@ -515,8 +519,8 @@ async function startWatcher(opts: SetupOpts) {
       }
     }
 
-    function clearChangeSubscription(page: string) {
-      const subscription = changeSubscriptions.get(page)
+    async function clearChangeSubscription(page: string) {
+      const subscription = await changeSubscriptions.get(page)
       if (subscription) {
         subscription.return?.()
         changeSubscriptions.delete(page)
@@ -554,13 +558,14 @@ async function startWatcher(opts: SetupOpts) {
             }
           }
 
-          for (const [pathname, subscription] of changeSubscriptions) {
+          for (const [pathname, subscriptionPromise] of changeSubscriptions) {
             if (pathname === '') {
               // middleware is handled below
               continue
             }
 
             if (!curEntries.has(pathname)) {
+              const subscription = await subscriptionPromise
               subscription.return?.()
               changeSubscriptions.delete(pathname)
             }
@@ -572,7 +577,7 @@ async function startWatcher(opts: SetupOpts) {
           // unnecessary during the first serve)
           if (prevMiddleware === true && !middleware) {
             // Went from middleware to no middleware
-            clearChangeSubscription('middleware')
+            await clearChangeSubscription('middleware')
             sendHmr('entrypoint-change', 'middleware', {
               event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
             })
