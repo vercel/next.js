@@ -58,7 +58,7 @@ export async function pipeReadable(
     // will also ensure the read promise rejects and frees our resources.
     if (!readerDone) {
       readerDone = true
-      if (!reader.closed) reader.cancel().catch(() => {})
+      reader.cancel().catch(() => {})
     }
   }
   writable.on('close', onClose)
@@ -88,7 +88,7 @@ export async function pipeReadable(
     // If we broke out of the loop because of a client disconnect, and the
     // close event hasn't yet fired, we can early cancel.
     if (!readerDone) {
-      if (!reader.closed) reader.cancel().catch(() => {})
+      reader.cancel().catch(() => {})
     }
 
     // If the client hasn't disconnected yet, end the writable so that the
