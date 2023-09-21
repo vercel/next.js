@@ -78,22 +78,14 @@ pub fn root_task_dispose(
 }
 
 pub async fn get_issues<T: Send>(source: Vc<T>) -> Result<Vec<ReadRef<PlainIssue>>> {
-    let issues = source
-        .peek_issues_with_path()
-        .await?
-        .strongly_consistent()
-        .await?;
+    let issues = source.peek_issues_with_path().await?;
     issues.get_plain_issues().await
 }
 
 /// Collect [turbopack::core::diagnostics::Diagnostic] from given source,
 /// returns [turbopack::core::diagnostics::PlainDiagnostic]
 pub async fn get_diagnostics<T: Send>(source: Vc<T>) -> Result<Vec<ReadRef<PlainDiagnostic>>> {
-    let captured_diags = source
-        .peek_diagnostics()
-        .await?
-        .strongly_consistent()
-        .await?;
+    let captured_diags = source.peek_diagnostics().await?;
 
     captured_diags
         .diagnostics
