@@ -283,17 +283,12 @@ impl Project {
     }
 
     /// Returns a path to dist_dir resolved from project root path as string.
-    /// Currently this is used to embed process.env.__NEXT_DIST_DIR.
+    /// Currently this is only for embedding process.env.__NEXT_DIST_DIR.
     /// [Note] in webpack-config, it is being injected when
     /// dev && (isClient || isEdgeServer)
     #[turbo_tasks::function]
     async fn dist_root_string(self: Vc<Self>) -> Result<Vc<String>> {
-        let this = self.await?;
-        Ok(self
-            .project_root_path()
-            .root()
-            .join(this.dist_dir.to_string())
-            .to_string())
+        Ok(self.node_root().to_string())
     }
 
     #[turbo_tasks::function]
