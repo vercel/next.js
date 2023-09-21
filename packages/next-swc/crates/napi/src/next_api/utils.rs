@@ -69,10 +69,11 @@ impl Drop for RootTask {
 
 #[napi]
 pub fn root_task_dispose(
-    #[napi(ts_arg_type = "{ __napiType: \"RootTask\" }")] _root_task: External<RootTask>,
+    #[napi(ts_arg_type = "{ __napiType: \"RootTask\" }")] mut root_task: External<RootTask>,
 ) -> napi::Result<()> {
-    // TODO(alexkirsz) Implement. Not panicking here to avoid crashing the process
-    // when testing.
+    if let Some(task) = root_task.task_id.take() {
+        root_task.turbo_tasks.dispose_root_task(task);
+    }
     Ok(())
 }
 
