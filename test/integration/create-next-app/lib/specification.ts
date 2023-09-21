@@ -66,7 +66,7 @@ export const projectSpecification: ProjectSpecification = {
         'postcss.config.js',
         'tailwind.config.js',
       ],
-      deps: ['autoprefixer', 'postcss', 'tailwindcss'],
+      deps: ['postcss', 'tailwindcss'],
       devDeps: [],
     },
     ts: {
@@ -83,7 +83,6 @@ export const projectSpecification: ProjectSpecification = {
         '@types/node',
         '@types/react-dom',
         '@types/react',
-        'autoprefixer',
         'postcss',
         'tailwindcss',
         'typescript',
@@ -110,7 +109,7 @@ export const projectSpecification: ProjectSpecification = {
   },
   'app-tw': {
     js: {
-      deps: ['autoprefixer', 'postcss', 'tailwindcss'],
+      deps: ['postcss', 'tailwindcss'],
       devDeps: [],
       files: [
         'app/layout.js',
@@ -125,7 +124,6 @@ export const projectSpecification: ProjectSpecification = {
         '@types/node',
         '@types/react-dom',
         '@types/react',
-        'autoprefixer',
         'postcss',
         'tailwindcss',
         'typescript',
