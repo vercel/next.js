@@ -249,12 +249,12 @@ where
         relay_plugin,
         match &opts.remove_console {
             Some(config) if config.truthy() =>
-                Either::Left(remove_console::remove_console(config.clone())),
+                Either::Left(remove_console::remove_console(config.clone(),SyntaxContext::empty().apply_mark(unresolved_mark))),
             _ => Either::Right(noop()),
         },
         match &opts.react_remove_properties {
             Some(config) if config.truthy() =>
-                Either::Left(react_remove_properties::remove_properties(config.clone())),
+                Either::Left(react_remove_properties::react_remove_properties(config.clone())),
             _ => Either::Right(noop()),
         },
         match &opts.shake_exports {
