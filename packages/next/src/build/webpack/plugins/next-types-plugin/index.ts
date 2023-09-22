@@ -111,7 +111,7 @@ if ('${method}' in entry) {
     Diff<
       {
         __tag__: '${method}',
-        __return_type__: Response | Promise<Response>
+        __return_type__: Response | void | never | Promise<Response | void | never>
       },
       {
         __tag__: '${method}',
@@ -428,7 +428,7 @@ declare module 'next/link' {
   import type { LinkProps as OriginalLinkProps } from 'next/dist/client/link.js'
   import type { AnchorHTMLAttributes, DetailedHTMLProps } from 'react'
   import type { UrlObject } from 'url'
-  
+
   type LinkRestProps = Omit<
     Omit<
       DetailedHTMLProps<
