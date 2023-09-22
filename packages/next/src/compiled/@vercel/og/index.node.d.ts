@@ -2,7 +2,7 @@
 import type { ReactElement } from 'react';
 import type { ImageResponseNodeOptions, ImageResponseOptions } from './types';
 import { Readable } from 'stream';
-export declare class ImageResponse {
+export declare class ImageResponse extends Response {
     constructor(element: ReactElement, options?: ImageResponseOptions);
 }
 /**

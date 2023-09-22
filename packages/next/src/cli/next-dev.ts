@@ -26,7 +26,6 @@ import {
   getReservedPortExplanation,
   isPortIsReserved,
 } from '../lib/helpers/get-reserved-port'
-import { needsExperimentalReact } from '../lib/needs-experimental-react'
 
 let dir: string
 let child: undefined | ReturnType<typeof fork>
@@ -199,10 +198,6 @@ const nextDev: CliCommand = async (args) => {
     },
   })
 
-  process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = needsExperimentalReact(config)
-    ? 'experimental'
-    : 'next'
-
   // we need to reset env if we are going to create
   // the worker process with the esm loader so that the
   // initial env state is correct
@@ -234,7 +229,6 @@ const nextDev: CliCommand = async (args) => {
 
   if (process.env.TURBOPACK) {
     await validateTurboNextConfig({
-      isCustomTurbopack: !!process.env.__INTERNAL_CUSTOM_TURBOPACK_BINDINGS,
       ...devServerOptions,
       isDev: true,
     })
@@ -321,5 +315,17 @@ const nextDev: CliCommand = async (args) => {
     await runDevServer(false)
   })
 }
+
+function cleanup() {
+  if (!child) {
+    return
+  }
+
+  child.kill('SIGTERM')
+}
+
+process.on('exit', cleanup)
+process.on('SIGINT', cleanup)
+process.on('SIGTERM', cleanup)
 
 export { nextDev }

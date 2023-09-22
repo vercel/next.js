@@ -45,7 +45,7 @@ const TIMINGS_API_HEADERS = {
 
 const testFilters = {
   development: new RegExp(
-    '^(test/(development|e2e|unit)|packages/.*/src/.*)/.*\\.test\\.(js|jsx|ts|tsx)$'
+    '^(test/(development|e2e)|packages/.*/src/.*)/.*\\.test\\.(js|jsx|ts|tsx)$'
   ),
   production: new RegExp(
     '^(test/(production|e2e))/.*\\.test\\.(js|jsx|ts|tsx)$'
@@ -325,6 +325,8 @@ ${ENDGROUP}`)
     '.bin',
     `jest${process.platform === 'win32' ? '.CMD' : ''}`
   )
+  let firstError = true
+  let killed = false
 
   const runTest = (test = '', isFinalRun, isRetry) =>
     new Promise((resolve, reject) => {
@@ -411,13 +413,26 @@ ${ENDGROUP}`)
         if (code !== 0 || signal !== null) {
           if (hideOutput) {
             await outputSema.acquire()
-            process.stdout.write(`${GROUP}${test} output\n`)
+            const isExpanded =
+              firstError && !killed && !shouldContinueTestsOnError
+            if (isExpanded) {
+              firstError = false
+              process.stdout.write(`❌ ${test} output:\n`)
+            } else if (killed) {
+              process.stdout.write(`${GROUP}${test} output (killed)\n`)
+            } else {
+              process.stdout.write(`${GROUP}❌ ${test} output\n`)
+            }
             // limit out to last 64kb so that we don't
             // run out of log room in CI
             for (const { chunk } of outputChunks) {
               process.stdout.write(chunk)
             }
-            process.stdout.write(`end of ${test} output\n${ENDGROUP}\n`)
+            if (isExpanded) {
+              process.stdout.write(`end of ${test} output\n`)
+            } else {
+              process.stdout.write(`end of ${test} output\n${ENDGROUP}\n`)
+            }
             outputSema.release()
           }
           const err = new Error(
@@ -511,6 +526,7 @@ ${ENDGROUP}`)
         console.error(`${test} failed to pass within ${numRetries} retries`)
 
         if (!shouldContinueTestsOnError) {
+          killed = true
           children.forEach((child) => child.kill())
           cleanUpAndExit(1)
         } else {
