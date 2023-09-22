@@ -167,20 +167,6 @@ describe('serverPatchReducer', () => {
     const action: ServerPatchAction = {
       type: ACTION_SERVER_PATCH,
       flightData: flightDataForPatch,
-      previousTree: [
-        '',
-        {
-          children: [
-            'linking',
-            {
-              children: ['about', { children: ['', {}] }],
-            },
-          ],
-        },
-        undefined,
-        undefined,
-        true,
-      ],
       overrideCanonicalUrl: undefined,
       cache: {
         status: CacheStates.LAZY_INITIALIZED,
@@ -358,20 +344,6 @@ describe('serverPatchReducer', () => {
     const action: ServerPatchAction = {
       type: ACTION_SERVER_PATCH,
       flightData: flightDataForPatch,
-      previousTree: [
-        '',
-        {
-          children: [
-            'linking',
-            {
-              children: ['somewhere-else', { children: ['', {}] }],
-            },
-          ],
-        },
-        undefined,
-        undefined,
-        true,
-      ],
       overrideCanonicalUrl: undefined,
       cache: {
         status: CacheStates.LAZY_INITIALIZED,
@@ -407,6 +379,28 @@ describe('serverPatchReducer', () => {
                         Linking page
                       </React.Fragment>,
                     },
+                    "somewhere-else" => Object {
+                      "data": null,
+                      "parallelRoutes": Map {
+                        "children" => Map {
+                          "" => Object {
+                            "data": null,
+                            "head": <React.Fragment>
+                              <title>
+                                Somewhere page!
+                              </title>
+                            </React.Fragment>,
+                            "parallelRoutes": Map {},
+                            "status": "LAZYINITIALIZED",
+                            "subTreeData": null,
+                          },
+                        },
+                      },
+                      "status": "READY",
+                      "subTreeData": <h1>
+                        Somewhere Page!
+                      </h1>,
+                    },
                   },
                 },
                 "status": "READY",
@@ -431,7 +425,7 @@ describe('serverPatchReducer', () => {
           "onlyHashChange": false,
           "segmentPaths": Array [],
         },
-        "nextUrl": "/linking/about",
+        "nextUrl": "/linking/somewhere-else",
         "prefetchCache": Map {},
         "pushRef": Object {
           "mpaNavigation": false,
@@ -444,7 +438,7 @@ describe('serverPatchReducer', () => {
               "linking",
               Object {
                 "children": Array [
-                  "about",
+                  "somewhere-else",
                   Object {
                     "children": Array [
                       "",
@@ -455,8 +449,8 @@ describe('serverPatchReducer', () => {
               },
             ],
           },
-          undefined,
-          undefined,
+          ,
+          ,
           true,
         ],
       }
@@ -539,20 +533,6 @@ describe('serverPatchReducer', () => {
     const action: ServerPatchAction = {
       type: ACTION_SERVER_PATCH,
       flightData: flightDataForPatch,
-      previousTree: [
-        '',
-        {
-          children: [
-            'linking',
-            {
-              children: ['about', { children: ['', {}] }],
-            },
-          ],
-        },
-        undefined,
-        undefined,
-        true,
-      ],
       overrideCanonicalUrl: undefined,
       cache: {
         status: CacheStates.LAZY_INITIALIZED,

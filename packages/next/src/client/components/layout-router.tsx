@@ -428,7 +428,7 @@ function InnerLayoutRouter({
     // setTimeout is used to start a new transition during render, this is an intentional hack around React.
     setTimeout(() => {
       startTransition(() => {
-        changeByServerResponse(fullTree, flightData, overrideCanonicalUrl)
+        changeByServerResponse(flightData, overrideCanonicalUrl)
       })
     })
     // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.

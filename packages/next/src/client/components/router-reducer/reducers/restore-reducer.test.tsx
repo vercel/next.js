@@ -38,8 +38,8 @@ async function runPromiseThrowChain(fn: any): Promise<any> {
   }
 }
 
-describe('serverPatchReducer', () => {
-  it('should apply server patch', async () => {
+describe('restoreReducer', () => {
+  it('should apply restoration', async () => {
     const initialTree = getInitialRouterStateTree()
     const initialCanonicalUrl = '/linking'
     const children = (
@@ -193,7 +193,7 @@ describe('serverPatchReducer', () => {
     expect(newState).toMatchObject(expectedState)
   })
 
-  it('should apply server patch (concurrent)', async () => {
+  it('should apply restoration (concurrent)', async () => {
     const initialTree = getInitialRouterStateTree()
     const initialCanonicalUrl = '/linking'
     const children = (

@@ -119,7 +119,6 @@ export const GlobalLayoutRouterContext = React.createContext<{
   buildId: string
   tree: FlightRouterState
   changeByServerResponse: (
-    previousTree: FlightRouterState,
     flightData: FlightData,
     overrideCanonicalUrl: URL | undefined
   ) => void

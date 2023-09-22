@@ -124,8 +124,6 @@ export function navigateReducer(
   const { pathname, hash } = url
   const href = createHrefFromUrl(url)
   const pendingPush = navigateType === 'push'
-  // we want to prune the prefetch cache on every navigation to avoid it growing too large
-  prunePrefetchCache(state.prefetchCache)
 
   const isForCurrentTree =
     JSON.stringify(mutable.previousTree) === JSON.stringify(state.tree)
@@ -137,6 +135,9 @@ export function navigateReducer(
   if (isExternalUrl) {
     return handleExternalUrl(state, mutable, url.toString(), pendingPush)
   }
+
+  // we want to prune the prefetch cache on every navigation to avoid it growing too large
+  prunePrefetchCache(state.prefetchCache)
 
   let prefetchValues = state.prefetchCache.get(createHrefFromUrl(url, false))
 

@@ -19,10 +19,7 @@ import type {
   CacheNode,
   AppRouterInstance,
 } from '../../shared/lib/app-router-context.shared-runtime'
-import type {
-  FlightRouterState,
-  FlightData,
-} from '../../server/app-render/types'
+import type { FlightData } from '../../server/app-render/types'
 import type { ErrorComponent } from './error-boundary'
 import { reducer } from './router-reducer/router-reducer'
 import {
@@ -162,16 +159,11 @@ function useChangeByServerResponse(
   dispatch: React.Dispatch<ReducerActions>
 ): RouterChangeByServerResponse {
   return useCallback(
-    (
-      previousTree: FlightRouterState,
-      flightData: FlightData,
-      overrideCanonicalUrl: URL | undefined
-    ) => {
+    (flightData: FlightData, overrideCanonicalUrl: URL | undefined) => {
       startTransition(() => {
         dispatch({
           type: ACTION_SERVER_PATCH,
           flightData,
-          previousTree,
           overrideCanonicalUrl,
           cache: createEmptyCacheNode(),
           mutable: { globalMutable },

@@ -20,7 +20,6 @@ export const ACTION_FAST_REFRESH = 'fast-refresh'
 export const ACTION_SERVER_ACTION = 'server-action'
 
 export type RouterChangeByServerResponse = (
-  previousTree: FlightRouterState,
   flightData: FlightData,
   overrideCanonicalUrl: URL | undefined
 ) => void
@@ -159,7 +158,6 @@ export interface RestoreAction {
 export interface ServerPatchAction {
   type: typeof ACTION_SERVER_PATCH
   flightData: FlightData
-  previousTree: FlightRouterState
   overrideCanonicalUrl: URL | undefined
   cache: CacheNode
   mutable: Mutable

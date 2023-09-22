@@ -14,22 +14,12 @@ export function serverPatchReducer(
   state: ReadonlyReducerState,
   action: ServerPatchAction
 ): ReducerState {
-  const { flightData, previousTree, overrideCanonicalUrl, cache, mutable } =
-    action
+  const { flightData, overrideCanonicalUrl, cache, mutable } = action
 
   const isForCurrentTree =
-    JSON.stringify(previousTree) === JSON.stringify(state.tree)
+    JSON.stringify(mutable.previousTree) === JSON.stringify(state.tree)
 
-  // When a fetch is slow to resolve it could be that you navigated away while the request was happening or before the reducer runs.
-  // In that case opt-out of applying the patch given that the data could be stale.
-  if (!isForCurrentTree) {
-    // TODO-APP: Handle tree mismatch
-    console.log('TREE MISMATCH')
-    // Keep everything as-is.
-    return state
-  }
-
-  if (mutable.previousTree) {
+  if (isForCurrentTree) {
     return handleMutable(state, mutable)
   }
 
