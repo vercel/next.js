@@ -176,9 +176,6 @@ importers:
       '@vercel/og':
         specifier: 0.5.15
         version: 0.5.15
-      '@zeit/next-typescript':
-        specifier: 1.1.2-canary.0
-        version: 1.1.2-canary.0(@babel/core@7.18.0)
       abort-controller:
         specifier: 3.0.0
         version: 3.0.0
@@ -4422,6 +4419,7 @@ packages:
       '@babel/plugin-syntax-typescript': 7.21.4(@babel/core@7.18.0)
     transitivePeerDependencies:
       - supports-color
+    dev: false
 
   /@babel/plugin-transform-typescript@7.18.4(@babel/core@7.18.0):
     resolution: {integrity: sha512-l4vHuSLUajptpHNEOUDEGsnpl9pfRLsN1XUoDQDD/YBuXTM+v37SHGS+c6n4jdcZy96QtuUuSvZYMLSSsjH8Mw==}
@@ -4899,6 +4897,7 @@ packages:
       '@babel/plugin-transform-typescript': 7.16.8(@babel/core@7.18.0)
     transitivePeerDependencies:
       - supports-color
+    dev: false
 
   /@babel/preset-typescript@7.17.12(@babel/core@7.18.0):
     resolution: {integrity: sha512-S1ViF8W2QwAKUGJXxP9NAfNaqGDdEBJKpYkxHf5Yy2C4NPPzXGeR3Lhk7G8xJaaLcFTRfNjVbtbVtm8Gb0mqvg==}
@@ -9048,15 +9047,6 @@ packages:
       '@types/node': 20.2.5
       async-retry: 1.2.3
       lru-cache: 5.1.1
-    dev: true
-
-  /@zeit/next-typescript@1.1.2-canary.0(@babel/core@7.18.0):
-    resolution: {integrity: sha512-DxBzRYBFG7FvoU7nyf7nBP4gr0CdM/7noMCirVbFpfWVg7csOEBIVxWcAeUmlJRaxDBPplZ9W5BvtbxL3A8DRQ==}
-    dependencies:
-      '@babel/preset-typescript': 7.16.7(@babel/core@7.18.0)
-    transitivePeerDependencies:
-      - '@babel/core'
-      - supports-color
     dev: true
 
   /@zxing/text-encoding@0.9.0:
