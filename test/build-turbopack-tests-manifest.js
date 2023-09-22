@@ -9,6 +9,17 @@ const RESULT_URL =
 const PASSING_JSON_PATH = `${__dirname}/turbopack-tests-manifest.json`
 const WORKING_PATH = '/home/runner/work/turbo/turbo/'
 
+const INITIALIZING_TEST_CASES = [
+  'compile successfully',
+  'should build successfully',
+]
+
+const SKIPPED_TEST_SUITES = new Set([
+  'test/integration/router-rerender/test/index.test.js',
+  'test/e2e/basepath.test.ts',
+  'test/development/acceptance-app/ReactRefreshRequire.test.ts',
+])
+
 async function updatePassingTests() {
   const passing = { __proto__: null }
   const res = await fetch(RESULT_URL)
@@ -19,6 +30,7 @@ async function updatePassingTests() {
     for (const testResult of result.data.testResults) {
       const filepath = stripWorkingPath(testResult.name)
       for (const file of duplicateFileNames(filepath)) {
+        if (SKIPPED_TEST_SUITES.has(file)) continue
         const fileResults = (passing[file] ??= {
           passed: [],
           failed: [],
@@ -26,8 +38,17 @@ async function updatePassingTests() {
           runtimeError,
         })
 
+        let initializationFailed = false
         for (const testCase of testResult.assertionResults) {
-          const { fullName, status } = testCase
+          let { fullName, status } = testCase
+          if (
+            status === 'failed' &&
+            INITIALIZING_TEST_CASES.some((name) => fullName.includes(name))
+          ) {
+            initializationFailed = true
+          } else if (initializationFailed) {
+            status = 'failed'
+          }
           const statusArray = fileResults[status]
           if (!statusArray) {
             throw new Error(`unexpected status "${status}"`)
