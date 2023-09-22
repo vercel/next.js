@@ -3205,34 +3205,6 @@ export default async function getBaseWebpackConfig(
     attachReactRefresh(webpackConfig, defaultLoaders.babel)
   }
 
-  // check if using @zeit/next-typescript and show warning
-  if (
-    isNodeOrEdgeCompilation &&
-    webpackConfig.module &&
-    Array.isArray(webpackConfig.module.rules)
-  ) {
-    let foundTsRule = false
-
-    webpackConfig.module.rules = webpackConfig.module.rules.filter(
-      (rule): boolean => {
-        if (!rule || typeof rule !== 'object') return true
-        if (!(rule.test instanceof RegExp)) return true
-        if (rule.test.test('noop.ts') && !rule.test.test('noop.js')) {
-          // remove if it matches @zeit/next-typescript
-          foundTsRule = rule.use === defaultLoaders.babel
-          return !foundTsRule
-        }
-        return true
-      }
-    )
-
-    if (foundTsRule) {
-      console.warn(
-        `\n@zeit/next-typescript is no longer needed since Next.js has built-in support for TypeScript now. Please remove it from your ${config.configFileName} and your .babelrc\n`
-      )
-    }
-  }
-
   // Backwards compat for `main.js` entry key
   // and setup of dependencies between entries
   // we can't do that in the initial entry for
