@@ -23,7 +23,7 @@ use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
     trace::TraceRawVcs,
     Completion, Completions, IntoTraitRef, State, TaskInput, TransientInstance, TryFlatJoinIterExt,
-    Value, Vc,
+    Value, ValueToString, Vc,
 };
 use turbopack_binding::{
     turbo::{
@@ -121,17 +121,41 @@ impl ProjectContainer {
     #[turbo_tasks::function]
     pub async fn project(self: Vc<Self>) -> Result<Vc<Project>> {
         let this = self.await?;
-        let options = this.options_state.get();
-        let next_config = NextConfig::from_string(Vc::cell(options.next_config.clone()));
-        let js_config = JsConfig::from_string(Vc::cell(options.js_config.clone()));
-        let env: Vc<EnvMap> = Vc::cell(options.env.iter().cloned().collect());
+
+        let (env, next_config, js_config, root_path, project_path, watch, server_addr) = {
+            let options = this.options_state.get();
+            let env: Vc<EnvMap> = Vc::cell(options.env.iter().cloned().collect());
+            let next_config = NextConfig::from_string(Vc::cell(options.next_config.clone()));
+            let js_config = JsConfig::from_string(Vc::cell(options.js_config.clone()));
+            let root_path = options.root_path.clone();
+            let project_path = options.project_path.clone();
+            let watch = options.watch;
+            let server_addr = options.server_addr.parse()?;
+            (
+                env,
+                next_config,
+                js_config,
+                root_path,
+                project_path,
+                watch,
+                server_addr,
+            )
+        };
+
+        let dist_dir = next_config
+            .await?
+            .dist_dir
+            .as_ref()
+            .map_or_else(|| ".next".to_string(), |d| d.to_string());
+
         Ok(Project {
-            root_path: options.root_path.clone(),
-            project_path: options.project_path.clone(),
-            watch: options.watch,
-            server_addr: options.server_addr.parse()?,
+            root_path,
+            project_path,
+            watch,
+            server_addr,
             next_config,
             js_config,
+            dist_dir,
             env: Vc::upcast(env),
             browserslist_query: "last 1 Chrome versions, last 1 Firefox versions, last 1 Safari \
                                  versions, last 1 Edge versions"
@@ -160,6 +184,9 @@ pub struct Project {
     /// A root path from which all files must be nested under. Trying to access
     /// a file outside this root will fail. Think of this as a chroot.
     root_path: String,
+
+    /// A path where to emit the build outputs. next.config.js's distDir.
+    dist_dir: String,
 
     /// A path inside the root_path which contains the app/pages directories.
     project_path: String,
@@ -240,8 +267,9 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) fn node_root(self: Vc<Self>) -> Vc<FileSystemPath> {
-        self.node_fs().root().join(".next".to_string())
+    pub(super) async fn node_root(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        let this = self.await?;
+        Ok(self.node_fs().root().join(this.dist_dir.to_string()))
     }
 
     #[turbo_tasks::function]
@@ -252,6 +280,15 @@ impl Project {
     #[turbo_tasks::function]
     fn project_root_path(self: Vc<Self>) -> Vc<FileSystemPath> {
         self.project_fs().root()
+    }
+
+    /// Returns a path to dist_dir resolved from project root path as string.
+    /// Currently this is only for embedding process.env.__NEXT_DIST_DIR.
+    /// [Note] in webpack-config, it is being injected when
+    /// dev && (isClient || isEdgeServer)
+    #[turbo_tasks::function]
+    async fn dist_root_string(self: Vc<Self>) -> Result<Vc<String>> {
+        Ok(self.node_root().to_string())
     }
 
     #[turbo_tasks::function]
@@ -309,8 +346,13 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) fn client_compile_time_info(&self) -> Vc<CompileTimeInfo> {
-        get_client_compile_time_info(self.mode, self.browserslist_query.clone())
+    pub(super) async fn client_compile_time_info(self: Vc<Self>) -> Result<Vc<CompileTimeInfo>> {
+        let this = self.await?;
+        Ok(get_client_compile_time_info(
+            this.mode,
+            this.browserslist_query.clone(),
+            self.dist_root_string(),
+        ))
     }
 
     #[turbo_tasks::function]
@@ -325,7 +367,11 @@ impl Project {
 
     #[turbo_tasks::function]
     pub(super) fn edge_compile_time_info(self: Vc<Self>) -> Vc<CompileTimeInfo> {
-        get_edge_compile_time_info(self.project_path(), self.server_addr())
+        get_edge_compile_time_info(
+            self.project_path(),
+            self.server_addr(),
+            self.dist_root_string(),
+        )
     }
 
     #[turbo_tasks::function]
