@@ -42,9 +42,11 @@ async function updatePassingTests() {
     const newData = passing[file]
     const oldData = oldPassingData[file]
     if (!newData) continue
-    newData.passed = newData.passed.filter(
-      (name) => !newData.failed.includes(name)
-    )
+    newData.passed = [
+      ...new Set(
+        newData.passed.filter((name) => !newData.failed.includes(name))
+      ),
+    ]
     const shouldPass = new Set(
       oldData.passed.filter((name) => newData.failed.includes(name))
     )

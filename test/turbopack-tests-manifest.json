@@ -110,12 +110,7 @@
   "packages/font/src/google/loader.test.ts": {
     "passed": [
       "next/font/google loader URL from options Inter",
-      "next/font/google loader URL from options Inter",
-      "next/font/google loader URL from options Inter",
       "next/font/google loader URL from options Source_Sans_3",
-      "next/font/google loader URL from options Source_Sans_3",
-      "next/font/google loader URL from options Roboto_Flex",
-      "next/font/google loader URL from options Roboto_Flex",
       "next/font/google loader URL from options Roboto_Flex",
       "next/font/google loader URL from options Oooh_Baby",
       "next/font/google loader URL from options Albert_Sans",
@@ -123,9 +118,7 @@
       "next/font/google loader URL from options Molle",
       "next/font/google loader URL from options Roboto",
       "next/font/google loader URL from options Roboto Mono",
-      "next/font/google loader URL from options Fraunces",
       "next/font/google loader URL from options Poppins",
-      "next/font/google loader URL from options Nabla",
       "next/font/google loader URL from options Nabla",
       "next/font/google loader URL from options Ballet"
     ],
@@ -135,12 +128,7 @@
   "packages/font/dist/google/loader.test.js": {
     "passed": [
       "next/font/google loader URL from options Inter",
-      "next/font/google loader URL from options Inter",
-      "next/font/google loader URL from options Inter",
       "next/font/google loader URL from options Source_Sans_3",
-      "next/font/google loader URL from options Source_Sans_3",
-      "next/font/google loader URL from options Roboto_Flex",
-      "next/font/google loader URL from options Roboto_Flex",
       "next/font/google loader URL from options Roboto_Flex",
       "next/font/google loader URL from options Oooh_Baby",
       "next/font/google loader URL from options Albert_Sans",
@@ -148,9 +136,7 @@
       "next/font/google loader URL from options Molle",
       "next/font/google loader URL from options Roboto",
       "next/font/google loader URL from options Roboto Mono",
-      "next/font/google loader URL from options Fraunces",
       "next/font/google loader URL from options Poppins",
-      "next/font/google loader URL from options Nabla",
       "next/font/google loader URL from options Nabla",
       "next/font/google loader URL from options Ballet"
     ],
@@ -554,7 +540,6 @@
       "AppPageRouteMatcherProvider manifest matching returns the correct routes for /",
       "AppPageRouteMatcherProvider manifest matching returns the correct routes for /about",
       "AppPageRouteMatcherProvider manifest matching returns the correct routes for /dashboard/users/[id]",
-      "AppPageRouteMatcherProvider manifest matching returns the correct routes for /dashboard/users",
       "AppPageRouteMatcherProvider manifest matching returns the correct routes for /dashboard/users"
     ],
     "failed": [],
@@ -573,7 +558,6 @@
   "packages/next/src/server/future/route-matcher-providers/dev/dev-app-page-route-matcher-provider.test.ts": {
     "passed": [
       "DevAppPageRouteMatcher returns no routes with an empty filesystem",
-      "DevAppPageRouteMatcher filename matching matches the '/(marketing)/about/page' route specified with the provided files",
       "DevAppPageRouteMatcher filename matching matches the '/(marketing)/about/page' route specified with the provided files",
       "DevAppPageRouteMatcher filename matching matches the '/some/other/page' route specified with the provided files",
       "DevAppPageRouteMatcher filename matching matches the '/page' route specified with the provided files"
@@ -606,7 +590,6 @@
       "DevPagesAPIRouteMatcherProvider returns no routes with an empty filesystem",
       "DevPagesAPIRouteMatcherProvider filename matching matches the '/api/other/route' route specified with the provided files",
       "DevPagesAPIRouteMatcherProvider filename matching matches the '/api/other' route specified with the provided files",
-      "DevPagesAPIRouteMatcherProvider filename matching matches the '/api' route specified with the provided files",
       "DevPagesAPIRouteMatcherProvider filename matching matches the '/api' route specified with the provided files"
     ],
     "failed": [],
@@ -635,10 +618,6 @@
       "PagesRouteMatcherProvider returns no routes with an empty manifest",
       "PagesRouteMatcherProvider locale matching locale has the match for /blog/[slug]",
       "PagesRouteMatcherProvider locale matching locale has the match for /",
-      "PagesRouteMatcherProvider locale matching locale has the match for /",
-      "PagesRouteMatcherProvider locale matching locale has the match for /",
-      "PagesRouteMatcherProvider locale matching locale has the match for /404",
-      "PagesRouteMatcherProvider locale matching locale has the match for /404",
       "PagesRouteMatcherProvider locale matching locale has the match for /404",
       "PagesRouteMatcherProvider manifest matching returns the correct routes for /users/[id]",
       "PagesRouteMatcherProvider manifest matching returns the correct routes for /users",
@@ -1640,22 +1619,10 @@
       "404-page-router 404-page-router with basePath of false and i18n of false and middleware false for /not/a/real/page?with=query should have the correct router parameters after it is ready",
       "404-page-router 404-page-router with basePath of false and i18n of false and middleware false for /not/a/real/page should have the correct router parameters after it is ready",
       "404-page-router 404-page-router with basePath of false and i18n of false and middleware false should not throw any errors when re-fetching the route info",
-      "404-page-router 404-page-router with basePath of false and i18n of true and middleware false for /not/a/real/page?with=query should have the correct router parameters after it is ready",
-      "404-page-router 404-page-router with basePath of false and i18n of true and middleware false for /not/a/real/page should have the correct router parameters after it is ready",
       "404-page-router 404-page-router with basePath of false and i18n of true and middleware false for /error?with=query should have the correct router parameters after it is ready",
       "404-page-router 404-page-router with basePath of false and i18n of true and middleware false for /error should have the correct router parameters after it is ready",
-      "404-page-router 404-page-router with basePath of false and i18n of true and middleware false should not throw any errors when re-fetching the route info",
-      "404-page-router 404-page-router with basePath of true and i18n of false and middleware false for /not/a/real/page?with=query should have the correct router parameters after it is ready",
-      "404-page-router 404-page-router with basePath of true and i18n of false and middleware false for /not/a/real/page should have the correct router parameters after it is ready",
-      "404-page-router 404-page-router with basePath of true and i18n of false and middleware false should not throw any errors when re-fetching the route info",
-      "404-page-router 404-page-router with basePath of true and i18n of true and middleware false for /not/a/real/page?with=query should have the correct router parameters after it is ready",
-      "404-page-router 404-page-router with basePath of true and i18n of true and middleware false for /not/a/real/page should have the correct router parameters after it is ready",
-      "404-page-router 404-page-router with basePath of true and i18n of true and middleware false should not throw any errors when re-fetching the route info",
-      "404-page-router 404-page-router with basePath of false and i18n of false and middleware false for /not/a/real/page?with=query should have the correct router parameters after it is ready",
-      "404-page-router 404-page-router with basePath of false and i18n of false and middleware false for /not/a/real/page should have the correct router parameters after it is ready",
       "404-page-router 404-page-router with basePath of false and i18n of false and middleware false for /error?with=query should have the correct router parameters after it is ready",
       "404-page-router 404-page-router with basePath of false and i18n of false and middleware false for /error should have the correct router parameters after it is ready",
-      "404-page-router 404-page-router with basePath of false and i18n of false and middleware false should not throw any errors when re-fetching the route info",
       "404-page-router 404-page-router with basePath of false and i18n of false and middleware true for /not/a/real/page?with=query should have the correct router parameters after it is ready",
       "404-page-router 404-page-router with basePath of false and i18n of false and middleware true for /not/a/real/page should have the correct router parameters after it is ready",
       "404-page-router 404-page-router with basePath of false and i18n of false and middleware true for /error?with=query should have the correct router parameters after it is ready",
@@ -1672,8 +1639,6 @@
   },
   "test/e2e/app-dir/_allow-underscored-root-directory/_allow-underscored-root-directory.test.ts": {
     "passed": [
-      "_allow-underscored-root-directory should not serve app path with underscore",
-      "_allow-underscored-root-directory should pages path with a underscore at the root",
       "_allow-underscored-root-directory should not serve app path with underscore",
       "_allow-underscored-root-directory should pages path with a underscore at the root"
     ],
@@ -1789,9 +1754,7 @@
       "app-dir alias should handle typescript paths alias correctly",
       "app-dir alias should resolve css imports from outside with src folder presented",
       "app-dir alias should not contain installed react/react-dom version in client chunks",
-      "app-dir alias should generate app-build-manifest correctly",
-      "app-dir alias should handle typescript paths alias correctly",
-      "app-dir alias should resolve css imports from outside with src folder presented"
+      "app-dir alias should generate app-build-manifest correctly"
     ],
     "failed": [],
     "pending": []
@@ -1806,7 +1769,6 @@
   },
   "test/e2e/app-dir/app-css-pageextensions/index.test.ts": {
     "passed": [
-      "app dir css with pageextensions css support with pageextensions page in app directory with pageextention, css should work should support global css inside layout",
       "app dir css with pageextensions css support with pageextensions page in app directory with pageextention, css should work should support global css inside layout"
     ],
     "failed": [],
@@ -1814,22 +1776,6 @@
   },
   "test/e2e/app-dir/app-external/app-external.test.ts": {
     "passed": [
-      "app dir - external dependency should handle external async module libraries correctly",
-      "app dir - external dependency should transpile specific external packages with the `transpilePackages` option",
-      "app dir - external dependency should resolve the subset react in server components based on the react-server condition",
-      "app dir - external dependency should resolve 3rd party package exports based on the react-server condition",
-      "app dir - external dependency should correctly collect global css imports and mark them as side effects",
-      "app dir - external dependency should handle external css modules",
-      "app dir - external dependency should use the same export type for packages in both ssr and client",
-      "app dir - external dependency should handle external css modules in pages",
-      "app dir - external dependency should handle external next/font",
-      "app dir - external dependency react in external esm packages should use the same react in client app",
-      "app dir - external dependency react in external esm packages should use the same react in server app",
-      "app dir - external dependency react in external esm packages should use the same react in edge server app",
-      "app dir - external dependency react in external esm packages should use the same react in pages",
-      "app dir - external dependency should export client module references in esm",
-      "app dir - external dependency should support exporting multiple star re-exports",
-      "app dir - external dependency should use the same async storages if imported directly",
       "app dir - external dependency should handle external async module libraries correctly",
       "app dir - external dependency should transpile specific external packages with the `transpilePackages` option",
       "app dir - external dependency should resolve the subset react in server components based on the react-server condition",
@@ -1866,10 +1812,7 @@
     "pending": []
   },
   "test/e2e/app-dir/app-basepath/index.test.ts": {
-    "passed": [
-      "app dir - basepath should support `basePath`",
-      "app dir - basepath should support `basePath`"
-    ],
+    "passed": ["app dir - basepath should support `basePath`"],
     "failed": [
       "app dir - basepath should support Link with basePath prefixed",
       "app dir - basepath should prefix metadata og image with basePath",
@@ -1922,12 +1865,7 @@
       "app dir rendering static only should run data in layout and page",
       "app dir rendering static only should run data in parallel and use cached version for production",
       "app dir rendering ISR should revalidate the page when revalidate is configured",
-      "app dir rendering should serve app/page.server.js at /",
-      "app dir rendering SSR only should run data in layout and page",
-      "app dir rendering SSR only should run data fetch in parallel",
-      "app dir rendering static only should run data in layout and page",
-      "app dir rendering static only should run data in parallel during development",
-      "app dir rendering ISR should revalidate the page when revalidate is configured"
+      "app dir rendering static only should run data in parallel during development"
     ],
     "failed": [],
     "pending": [
@@ -1955,11 +1893,9 @@
     "passed": [
       "app-dir - data fetching with cache logging with verbose logging should only log requests in dev mode",
       "app-dir - data fetching with cache logging with default logging should not log fetch requests at all",
-      "app-dir - data fetching with cache logging with verbose logging should only log requests in dev mode",
       "app-dir - data fetching with cache logging with verbose logging should log 'skip' cache status with a reason when cache: 'no-cache' is used",
       "app-dir - data fetching with cache logging with verbose logging should log 'skip' cache status with a reason when revalidate: 0 is used",
-      "app-dir - data fetching with cache logging with verbose logging should log 'skip' cache status with a reason when the browser indicates caching should be ignored",
-      "app-dir - data fetching with cache logging with default logging should not log fetch requests at all"
+      "app-dir - data fetching with cache logging with verbose logging should log 'skip' cache status with a reason when the browser indicates caching should be ignored"
     ],
     "failed": [],
     "pending": []
@@ -2009,7 +1945,6 @@
   },
   "test/e2e/app-dir/app-validation/validation.test.ts": {
     "passed": [
-      "app dir validation should error when passing invalid router state tree",
       "app dir validation should error when passing invalid router state tree"
     ],
     "failed": [],
@@ -2036,10 +1971,6 @@
       "app-dir assetPrefix handling should redirect route when requesting it directly",
       "app-dir assetPrefix handling should render link",
       "app-dir assetPrefix handling should redirect route when requesting it directly by browser",
-      "app-dir assetPrefix handling should redirect route when clicking link",
-      "app-dir assetPrefix handling should redirect route when requesting it directly",
-      "app-dir assetPrefix handling should render link",
-      "app-dir assetPrefix handling should redirect route when requesting it directly by browser",
       "app-dir assetPrefix handling should redirect route when clicking link"
     ],
     "failed": [],
@@ -2047,7 +1978,6 @@
   },
   "test/e2e/app-dir/async-component-preload/async-component-preload.test.ts": {
     "passed": [
-      "async-component-preload should handle redirect in an async page",
       "async-component-preload should handle redirect in an async page"
     ],
     "failed": [],
@@ -2086,25 +2016,18 @@
   "test/e2e/app-dir/autoscroll-with-css-modules/index.test.ts": {
     "passed": [
       "router autoscrolling on navigation vertical scroll when page imports css modules should scroll to top of document when navigating between to pages without layout when",
-      "router autoscrolling on navigation vertical scroll when page imports css modules should scroll when clicking in JS",
-      "router autoscrolling on navigation vertical scroll when page imports css modules should scroll to top of document when navigating between to pages without layout when",
       "router autoscrolling on navigation vertical scroll when page imports css modules should scroll when clicking in JS"
     ],
     "failed": [],
     "pending": []
   },
   "test/e2e/app-dir/deopted-into-client-rendering-warning/deopted-into-client-rendering-warning.test.ts": {
-    "passed": [
-      "should not show deopted into client rendering warning",
-      "should not show deopted into client rendering warning"
-    ],
+    "passed": ["should not show deopted into client rendering warning"],
     "failed": [],
     "pending": []
   },
   "test/e2e/app-dir/crypto-globally-available/crypto-globally-available.test.ts": {
     "passed": [
-      "Web Crypto API is available globally should be available in Server Components",
-      "Web Crypto API is available globally should be available in Route Handlers",
       "Web Crypto API is available globally should be available in Server Components",
       "Web Crypto API is available globally should be available in Route Handlers"
     ],
@@ -2130,10 +2053,7 @@
     "pending": []
   },
   "test/e2e/app-dir/front-redirect-issue/front-redirect-issue.test.ts": {
-    "passed": [
-      "app dir - front redirect issue should redirect",
-      "app dir - front redirect issue should redirect"
-    ],
+    "passed": ["app dir - front redirect issue should redirect"],
     "failed": [],
     "pending": []
   },
@@ -2732,10 +2652,6 @@
       "hello-world should work using cheerio",
       "hello-world should work using browser",
       "hello-world should work with html",
-      "hello-world should work with fetch",
-      "hello-world should work using cheerio",
-      "hello-world should work using browser",
-      "hello-world should work with html",
       "hello-world should work with fetch"
     ],
     "failed": [],
@@ -2743,16 +2659,6 @@
   },
   "test/e2e/app-dir/i18n-hybrid/i18n-hybrid.test.js": {
     "passed": [
-      "i18n-hybrid does not resolve /en-CA/blog/first-post",
-      "i18n-hybrid does not resolve /en-US/blog/first-post",
-      "i18n-hybrid does not resolve /fr-CA/blog/first-post",
-      "i18n-hybrid does not resolve /fr-FR/blog/first-post",
-      "i18n-hybrid does resolve /blog/first-post",
-      "i18n-hybrid does resolve /about",
-      "i18n-hybrid does resolve /en-CA/about",
-      "i18n-hybrid does resolve /en-US/about",
-      "i18n-hybrid does resolve /fr-CA/about",
-      "i18n-hybrid does resolve /fr-FR/about",
       "i18n-hybrid does not resolve /en-CA/blog/first-post",
       "i18n-hybrid does not resolve /en-US/blog/first-post",
       "i18n-hybrid does not resolve /fr-CA/blog/first-post",
@@ -2772,10 +2678,6 @@
       "app dir imports we can import all components from .js",
       "app dir imports we can import all components from .jsx",
       "app dir imports we can import all components from .ts",
-      "app dir imports we can import all components from .tsx",
-      "app dir imports we can import all components from .js",
-      "app dir imports we can import all components from .jsx",
-      "app dir imports we can import all components from .ts",
       "app dir imports we can import all components from .tsx"
     ],
     "failed": [],
@@ -2783,10 +2685,6 @@
   },
   "test/e2e/app-dir/interoperability-with-pages/navigation.test.ts": {
     "passed": [
-      "navigation between pages and app dir It should be able to navigate app -> pages",
-      "navigation between pages and app dir It should be able to navigate pages -> app",
-      "navigation between pages and app dir It should be able to navigate pages -> app and go back an forward",
-      "navigation between pages and app dir It should be able to navigate app -> pages and go back and forward",
       "navigation between pages and app dir It should be able to navigate app -> pages",
       "navigation between pages and app dir It should be able to navigate pages -> app",
       "navigation between pages and app dir It should be able to navigate pages -> app and go back an forward",
@@ -2809,12 +2707,6 @@
       "app dir - layout params basic params check topmost layout renders all params",
       "app dir - layout params catchall params should give catchall params just to last layout",
       "app dir - layout params catchall params should give optional catchall params just to last layout",
-      "app dir - layout params catchall params should give empty optional catchall params won't give params to any layout",
-      "app dir - layout params basic params check layout without params get no params",
-      "app dir - layout params basic params check layout renders just it's params",
-      "app dir - layout params basic params check topmost layout renders all params",
-      "app dir - layout params catchall params should give catchall params just to last layout",
-      "app dir - layout params catchall params should give optional catchall params just to last layout",
       "app dir - layout params catchall params should give empty optional catchall params won't give params to any layout"
     ],
     "failed": [],
@@ -2829,7 +2721,6 @@
   },
   "test/e2e/app-dir/metadata-missing-metadata-base/index.test.ts": {
     "passed": [
-      "app dir - metadata missing metadataBase should fallback to localhost if metadataBase is missing for absolute urls resolving",
       "app dir - metadata missing metadataBase should fallback to localhost if metadataBase is missing for absolute urls resolving"
     ],
     "failed": [],
@@ -2906,22 +2797,6 @@
       "app dir - hooks useSelectedLayoutSegment should have the correct layout segment at /hooks/use-selected-layout-segment/first",
       "app dir - hooks useSelectedLayoutSegment should have the correct layout segment at /hooks/use-selected-layout-segment/first/slug1",
       "app dir - hooks useSelectedLayoutSegment should have the correct layout segment at /hooks/use-selected-layout-segment/first/slug2/second/a/b",
-      "app dir - hooks useSelectedLayoutSegment should return null in pages",
-      "app dir - hooks usePathname should have the correct pathname",
-      "app dir - hooks usePathname should have the canonical url pathname on rewrite",
-      "app dir - hooks useSearchParams should have the correct search params",
-      "app dir - hooks useSearchParams should have the canonical url search params on rewrite",
-      "app dir - hooks useDraftMode should use initial rand when draft mode be disabled",
-      "app dir - hooks useDraftMode should genenerate rand when draft mode enabled",
-      "app dir - hooks useSelectedLayoutSegments should have the correct layout segments at /hooks/use-selected-layout-segment/first",
-      "app dir - hooks useSelectedLayoutSegments should have the correct layout segments at /hooks/use-selected-layout-segment/first/slug1",
-      "app dir - hooks useSelectedLayoutSegments should have the correct layout segments at /hooks/use-selected-layout-segment/first/slug2/second",
-      "app dir - hooks useSelectedLayoutSegments should have the correct layout segments at /hooks/use-selected-layout-segment/first/slug2/second/a/b",
-      "app dir - hooks useSelectedLayoutSegments should have the correct layout segments at /hooks/use-selected-layout-segment/rewritten",
-      "app dir - hooks useSelectedLayoutSegments should return an empty array in pages",
-      "app dir - hooks useSelectedLayoutSegment should have the correct layout segment at /hooks/use-selected-layout-segment/first",
-      "app dir - hooks useSelectedLayoutSegment should have the correct layout segment at /hooks/use-selected-layout-segment/first/slug1",
-      "app dir - hooks useSelectedLayoutSegment should have the correct layout segment at /hooks/use-selected-layout-segment/first/slug2/second/a/b",
       "app dir - hooks useSelectedLayoutSegment should return null in pages"
     ],
     "failed": [
@@ -2936,7 +2811,6 @@
   },
   "test/e2e/app-dir/metadata-suspense/index.test.ts": {
     "passed": [
-      "app dir - metadata dynamic routes should render metadata in head even root layout is wrapped with Suspense",
       "app dir - metadata dynamic routes should render metadata in head even root layout is wrapped with Suspense"
     ],
     "failed": [],
@@ -2944,7 +2818,6 @@
   },
   "test/e2e/app-dir/next-config/index.test.ts": {
     "passed": [
-      "app dir - next config should support importing webpack in next.config",
       "app dir - next config should support importing webpack in next.config"
     ],
     "failed": [],
@@ -3062,30 +2935,6 @@
       "app dir - navigation SEO should emit refresh meta tag (permanent) for redirect page when streaming",
       "app dir - navigation SEO should contain default meta tags in error page",
       "app dir - navigation SEO should not log 404 errors in ipc server",
-      "app dir - navigation navigations when attaching a Proxy to `window.Promise` should navigate without issue",
-      "app dir - navigation query string should set query correctly",
-      "app dir - navigation hash should scroll to the specified hash",
-      "app dir - navigation hash should not scroll to hash when scroll={false} is set",
-      "app dir - navigation hash-link-back-to-same-page should scroll to the specified hash",
-      "app dir - navigation relative hashes and queries should work with a hash-only href",
-      "app dir - navigation relative hashes and queries should work with a query-only href",
-      "app dir - navigation bots should block rendering for bots and return 404 status",
-      "app dir - navigation redirect components should redirect in a server component",
-      "app dir - navigation redirect components should redirect in a client component",
-      "app dir - navigation redirect components should redirect to external url",
-      "app dir - navigation redirect next.config.js redirects should redirect from next.config.js",
-      "app dir - navigation redirect next.config.js redirects should redirect from next.config.js with link navigation",
-      "app dir - navigation redirect status code should respond with 307 status code in server component",
-      "app dir - navigation redirect status code should respond with 307 status code in client component",
-      "app dir - navigation redirect status code should respond with 308 status code if permanent flag is set",
-      "app dir - navigation navigation between pages and app should not contain _rsc query while navigating from app to pages",
-      "app dir - navigation navigation between pages and app should not contain _rsc query while navigating from pages to app",
-      "app dir - navigation nested navigation should navigate to nested pages",
-      "app dir - navigation SEO should emit noindex meta tag for not found page when streaming",
-      "app dir - navigation SEO should emit refresh meta tag for redirect page when streaming",
-      "app dir - navigation SEO should emit refresh meta tag (permanent) for redirect page when streaming",
-      "app dir - navigation SEO should contain default meta tags in error page",
-      "app dir - navigation SEO should not log 404 errors in ipc server",
       "app dir - navigation navigations when attaching a Proxy to `window.Promise` should navigate without issue"
     ],
     "failed": [
@@ -3174,8 +3023,6 @@
   "test/e2e/app-dir/params-hooks-compat/index.test.ts": {
     "passed": [
       "app-dir - params hooks compat should only access search params with useSearchParams",
-      "app-dir - params hooks compat should only access path params with useParams",
-      "app-dir - params hooks compat should only access search params with useSearchParams",
       "app-dir - params hooks compat should only access path params with useParams"
     ],
     "failed": [],
@@ -3188,9 +3035,6 @@
   },
   "test/e2e/app-dir/rewrites-redirects/rewrites-redirects.test.ts": {
     "passed": [
-      "redirects and rewrites navigation using link should rewrite from next.config.js correctly",
-      "redirects and rewrites navigation using link should redirect from next.config.js correctly",
-      "redirects and rewrites navigation using link should redirect using catchall from next.config.js correctly",
       "redirects and rewrites navigation using link should rewrite from next.config.js correctly",
       "redirects and rewrites navigation using link should redirect from next.config.js correctly",
       "redirects and rewrites navigation using link should redirect using catchall from next.config.js correctly"
@@ -3239,7 +3083,6 @@
   },
   "test/e2e/app-dir/route-page-manifest-bug/route-page-manifest-bug.test.ts": {
     "passed": [
-      "route-page-manifest-bug should work when requesting route handler after page",
       "route-page-manifest-bug should work when requesting route handler after page"
     ],
     "failed": [],
@@ -3247,7 +3090,6 @@
   },
   "test/e2e/app-dir/router-stuck-dynamic-static-segment/router-stuck-dynamic-static-segment.test.ts": {
     "passed": [
-      "router-stuck-dynamic-static-segment should allow navigation between dynamic parameter and static parameter of the same value",
       "router-stuck-dynamic-static-segment should allow navigation between dynamic parameter and static parameter of the same value"
     ],
     "failed": [],
@@ -3255,13 +3097,6 @@
   },
   "test/e2e/app-dir/router-autoscroll/router-autoscroll.test.ts": {
     "passed": [
-      "router autoscrolling on navigation vertical scroll should not scroll when the top of the page is in the viewport",
-      "router autoscrolling on navigation vertical scroll should not scroll to top of document if page in viewport",
-      "router autoscrolling on navigation router.refresh() should not scroll when called alone",
-      "router autoscrolling on navigation bugs Should scroll to the top of the layout when the first child is display none",
-      "router autoscrolling on navigation bugs Should scroll to the top of the layout when the first child is position fixed",
-      "router autoscrolling on navigation bugs Should scroll to the top of the layout when the first child is position sticky",
-      "router autoscrolling on navigation bugs Should apply scroll when loading.js is used",
       "router autoscrolling on navigation vertical scroll should not scroll when the top of the page is in the viewport",
       "router autoscrolling on navigation vertical scroll should not scroll to top of document if page in viewport",
       "router autoscrolling on navigation router.refresh() should not scroll when called alone",
@@ -3292,11 +3127,6 @@
   },
   "test/e2e/app-dir/searchparams-static-bailout/searchparams-static-bailout.test.ts": {
     "passed": [
-      "searchparams-static-bailout server component should bailout when using searchParams",
-      "searchparams-static-bailout server component should not bailout when not using searchParams",
-      "searchparams-static-bailout client component should bailout when using searchParams",
-      "searchparams-static-bailout client component should bailout when using searchParams is passed to client component",
-      "searchparams-static-bailout client component should not bailout when not using searchParams",
       "searchparams-static-bailout server component should bailout when using searchParams",
       "searchparams-static-bailout server component should not bailout when not using searchParams",
       "searchparams-static-bailout client component should bailout when using searchParams",
@@ -3381,7 +3211,6 @@
   },
   "test/e2e/app-dir/similar-pages-paths/similar-pages-paths.test.ts": {
     "passed": [
-      "app-dir similar pages paths should not have conflicts for similar pattern page paths between app and pages",
       "app-dir similar pages paths should not have conflicts for similar pattern page paths between app and pages"
     ],
     "failed": [],
@@ -3389,10 +3218,6 @@
   },
   "test/e2e/app-dir/test-template/{{ toFileName name }}/{{ toFileName name }}.test.ts": {
     "passed": [
-      "{{name}} should work using cheerio",
-      "{{name}} should work using browser",
-      "{{name}} should work with html",
-      "{{name}} should work with fetch",
       "{{name}} should work using cheerio",
       "{{name}} should work using browser",
       "{{name}} should work with html",
@@ -3404,8 +3229,6 @@
   "test/e2e/app-dir/third-parties/basic.test.ts": {
     "passed": [
       "@next/third-parties basic usage renders YoutubeEmbed",
-      "@next/third-parties basic usage renders GoogleMapsEmbed",
-      "@next/third-parties basic usage renders YoutubeEmbed",
       "@next/third-parties basic usage renders GoogleMapsEmbed"
     ],
     "failed": [],
@@ -3413,9 +3236,6 @@
   },
   "test/e2e/app-dir/trailingslash/trailingslash.test.ts": {
     "passed": [
-      "app-dir trailingSlash handling should redirect route when requesting it directly",
-      "app-dir trailingSlash handling should redirect route when requesting it directly by browser",
-      "app-dir trailingSlash handling should redirect route when clicking link",
       "app-dir trailingSlash handling should redirect route when requesting it directly",
       "app-dir trailingSlash handling should redirect route when requesting it directly by browser",
       "app-dir trailingSlash handling should redirect route when clicking link"
@@ -3429,8 +3249,6 @@
   "test/e2e/app-dir/underscore-ignore-app-paths/underscore-ignore-app-paths.test.ts": {
     "passed": [
       "underscore-ignore-app-paths should not serve app path with underscore",
-      "underscore-ignore-app-paths should serve pages path with underscore",
-      "underscore-ignore-app-paths should not serve app path with underscore",
       "underscore-ignore-app-paths should serve pages path with underscore"
     ],
     "failed": ["underscore-ignore-app-paths should serve app path with %5F"],
@@ -3438,11 +3256,6 @@
   },
   "test/e2e/app-dir/use-params/use-params.test.ts": {
     "passed": [
-      "use-params should work for single dynamic param",
-      "use-params should work for nested dynamic params",
-      "use-params should work for catch all params",
-      "use-params should work for single dynamic param client navigating",
-      "use-params should work for nested dynamic params client navigating",
       "use-params should work for single dynamic param",
       "use-params should work for nested dynamic params",
       "use-params should work for catch all params",
@@ -3469,14 +3282,6 @@
       "useSelectedLayoutSegment(s) should return correct values in layout after last segment",
       "useSelectedLayoutSegment(s) should correctly update when changing static segment",
       "useSelectedLayoutSegment(s) should correctly update when changing param segment",
-      "useSelectedLayoutSegment(s) should correctly update when changing catchall segment",
-      "useSelectedLayoutSegment(s) should return correct values for root layout",
-      "useSelectedLayoutSegment(s) should return correct values in layout before static segment",
-      "useSelectedLayoutSegment(s) should return correct values in layout before param segment",
-      "useSelectedLayoutSegment(s) should return correct values in layout before catchall segment",
-      "useSelectedLayoutSegment(s) should return correct values in layout after last segment",
-      "useSelectedLayoutSegment(s) should correctly update when changing static segment",
-      "useSelectedLayoutSegment(s) should correctly update when changing param segment",
       "useSelectedLayoutSegment(s) should correctly update when changing catchall segment"
     ],
     "failed": [],
@@ -3495,10 +3300,7 @@
     "pending": []
   },
   "test/e2e/browserslist-extends/index.test.ts": {
-    "passed": [
-      "browserslist-extends should work",
-      "browserslist-extends should work"
-    ],
+    "passed": ["browserslist-extends should work"],
     "failed": [],
     "pending": []
   },
@@ -3547,20 +3349,18 @@
   "test/e2e/children-page/index.test.ts": {
     "passed": [
       "children-page with app dir should show the content if you have a page named children",
-      "children-page with pages dir should show the content if you have a page named children",
-      "children-page with app dir should show the content if you have a page named children",
       "children-page with pages dir should show the content if you have a page named children"
     ],
     "failed": [],
     "pending": []
   },
   "test/e2e/config-promise-export/async-function.test.ts": {
-    "passed": ["async export should work", "async export should work"],
+    "passed": ["async export should work"],
     "failed": [],
     "pending": []
   },
   "test/e2e/config-promise-export/promise.test.ts": {
-    "passed": ["promise export should work", "promise export should work"],
+    "passed": ["promise export should work"],
     "failed": [],
     "pending": []
   },
@@ -3577,8 +3377,6 @@
   "test/e2e/config-schema-check/index.test.ts": {
     "passed": [
       "next.config.js schema validating - defaultConfig should validate against defaultConfig",
-      "next.config.js schema validating - invalid config should warn the invalid next config",
-      "next.config.js schema validating - defaultConfig should validate against defaultConfig",
       "next.config.js schema validating - invalid config should warn the invalid next config"
     ],
     "failed": [],
@@ -3587,8 +3385,6 @@
   "test/e2e/disable-js-preload/test/index.test.js": {
     "passed": [
       "disabled JS preloads should render the page",
-      "disabled JS preloads should not have JS preload links",
-      "disabled JS preloads should render the page",
       "disabled JS preloads should not have JS preload links"
     ],
     "failed": [],
@@ -3596,13 +3392,6 @@
   },
   "test/e2e/dynamic-route-interpolation/index.test.ts": {
     "passed": [
-      "Dynamic Route Interpolation should work",
-      "Dynamic Route Interpolation should work with parameter itself",
-      "Dynamic Route Interpolation should work with brackets",
-      "Dynamic Route Interpolation should work with parameter itself in API routes",
-      "Dynamic Route Interpolation should work with brackets in API routes",
-      "Dynamic Route Interpolation should bust data cache",
-      "Dynamic Route Interpolation should bust data cache with symbol",
       "Dynamic Route Interpolation should work",
       "Dynamic Route Interpolation should work with parameter itself",
       "Dynamic Route Interpolation should work with brackets",
@@ -3637,8 +3426,6 @@
   },
   "test/e2e/edge-can-read-request-body/index.test.ts": {
     "passed": [
-      "Edge can read request body renders the static page",
-      "Edge can read request body middleware reads a text body",
       "Edge can read request body renders the static page",
       "Edge can read request body middleware reads a text body"
     ],
@@ -3799,10 +3586,7 @@
     "pending": []
   },
   "test/e2e/handle-non-hoisted-swc-helpers/index.test.ts": {
-    "passed": [
-      "handle-non-hoisted-swc-helpers should work",
-      "handle-non-hoisted-swc-helpers should work"
-    ],
+    "passed": ["handle-non-hoisted-swc-helpers should work"],
     "failed": [],
     "pending": []
   },
@@ -3859,40 +3643,6 @@
       "getServerSideProps should show error for accessing res after gssp returns",
       "getServerSideProps should show error for accessing res through props promise after gssp returns",
       "getServerSideProps should only warn for accessing res if not streaming",
-      "getServerSideProps should work with early request ending",
-      "getServerSideProps should allow POST request for getServerSideProps page",
-      "getServerSideProps should render correctly when notFound is false (non-dynamic)",
-      "getServerSideProps should render 404 correctly when notFound is returned (non-dynamic)",
-      "getServerSideProps should render correctly when notFound is false (dynamic)",
-      "getServerSideProps should render 404 correctly when notFound is returned (dynamic)",
-      "getServerSideProps should SSR normal page correctly",
-      "getServerSideProps should SSR getServerSideProps page correctly",
-      "getServerSideProps should handle throw ENOENT correctly",
-      "getServerSideProps should have gssp in __NEXT_DATA__",
-      "getServerSideProps should not have gssp in __NEXT_DATA__ for non-GSSP page",
-      "getServerSideProps should supply query values SSR",
-      "getServerSideProps should supply params values for catchall correctly",
-      "getServerSideProps should have original req.url for /_next/data request dynamic page",
-      "getServerSideProps should have original req.url for /_next/data request dynamic page with query",
-      "getServerSideProps should have original req.url for /_next/data request",
-      "getServerSideProps should have original req.url for /_next/data request with query",
-      "getServerSideProps should have correct req.url and query for direct visit dynamic page",
-      "getServerSideProps should have correct req.url and query for direct visit dynamic page rewrite direct",
-      "getServerSideProps should have correct req.url and query for direct visit dynamic page rewrite direct with internal query",
-      "getServerSideProps should have correct req.url and query for direct visit dynamic page rewrite param",
-      "getServerSideProps should have correct req.url and query for direct visit dynamic page with query",
-      "getServerSideProps should have correct req.url and query for direct visit",
-      "getServerSideProps should return data correctly",
-      "getServerSideProps should pass query for data request",
-      "getServerSideProps should return data correctly for dynamic page",
-      "getServerSideProps should return data correctly when props is a promise",
-      "getServerSideProps should navigate to a normal page and back",
-      "getServerSideProps should load a fast refresh page",
-      "getServerSideProps should provide correct query value for dynamic page",
-      "getServerSideProps should parse query values on mount correctly",
-      "getServerSideProps should reload page on failed data request",
-      "getServerSideProps should always call getServerSideProps without caching",
-      "getServerSideProps should not re-call getServerSideProps when updating query",
       "getServerSideProps should not fetch data on mount",
       "getServerSideProps should output routes-manifest correctly",
       "getServerSideProps should set default caching header",
@@ -3917,10 +3667,6 @@
       "hello-world should work using cheerio",
       "hello-world should work using browser",
       "hello-world should work with html",
-      "hello-world should work with fetch",
-      "hello-world should work using cheerio",
-      "hello-world should work using browser",
-      "hello-world should work with html",
       "hello-world should work with fetch"
     ],
     "failed": [],
@@ -3928,9 +3674,6 @@
   },
   "test/e2e/i18n-api-support/index.test.ts": {
     "passed": [
-      "i18n API support should respond to normal API request",
-      "i18n API support should respond to normal dynamic API request",
-      "i18n API support should fallback rewrite non-matching API request",
       "i18n API support should respond to normal API request",
       "i18n API support should respond to normal dynamic API request",
       "i18n API support should fallback rewrite non-matching API request"
@@ -3951,18 +3694,6 @@
       "i18n-data-route without locale prefix should render /about via /about",
       "i18n-data-route without locale prefix should render /[slug]/about via /blog/about",
       "i18n-data-route without locale prefix should serve data for /about",
-      "i18n-data-route without locale prefix should serve data for /[slug]/about",
-      "i18n-data-route with locale prefix /en-CA should render /about via /en-CA/about",
-      "i18n-data-route with locale prefix /en-CA should render /[slug]/about via /en-CA/blog/about",
-      "i18n-data-route with locale prefix /en-CA should serve data for /about",
-      "i18n-data-route with locale prefix /en-CA should serve data for /[slug]/about",
-      "i18n-data-route with locale prefix /fr-CA should render /about via /fr-CA/about",
-      "i18n-data-route with locale prefix /fr-CA should render /[slug]/about via /fr-CA/blog/about",
-      "i18n-data-route with locale prefix /fr-CA should serve data for /about",
-      "i18n-data-route with locale prefix /fr-CA should serve data for /[slug]/about",
-      "i18n-data-route without locale prefix should render /about via /about",
-      "i18n-data-route without locale prefix should render /[slug]/about via /blog/about",
-      "i18n-data-route without locale prefix should serve data for /about",
       "i18n-data-route without locale prefix should serve data for /[slug]/about"
     ],
     "failed": [],
@@ -3970,7 +3701,6 @@
   },
   "test/e2e/i18n-default-locale-redirect/i18n-default-locale-redirect.test.ts": {
     "passed": [
-      "i18-default-locale-redirect should not request a path prefixed with default locale",
       "i18-default-locale-redirect should not request a path prefixed with default locale"
     ],
     "failed": [
@@ -3981,63 +3711,6 @@
   },
   "test/e2e/i18n-disallow-multiple-locales/i18n-disallow-multiple-locales.test.ts": {
     "passed": [
-      "i18n-disallow-multiple-locales should verify the default locale works",
-      "i18n-disallow-multiple-locales /en-US should 200",
-      "i18n-disallow-multiple-locales /en should 200",
-      "i18n-disallow-multiple-locales /nl-NL should 200",
-      "i18n-disallow-multiple-locales /nl-BE should 200",
-      "i18n-disallow-multiple-locales /nl should 200",
-      "i18n-disallow-multiple-locales /fr-BE should 200",
-      "i18n-disallow-multiple-locales /fr should 200",
-      "i18n-disallow-multiple-locales /en-US/en-US should 404",
-      "i18n-disallow-multiple-locales /en-US/en should 404",
-      "i18n-disallow-multiple-locales /en-US/nl-NL should 404",
-      "i18n-disallow-multiple-locales /en-US/nl-BE should 404",
-      "i18n-disallow-multiple-locales /en-US/nl should 404",
-      "i18n-disallow-multiple-locales /en-US/fr-BE should 404",
-      "i18n-disallow-multiple-locales /en-US/fr should 404",
-      "i18n-disallow-multiple-locales /en/en-US should 404",
-      "i18n-disallow-multiple-locales /en/en should 404",
-      "i18n-disallow-multiple-locales /en/nl-NL should 404",
-      "i18n-disallow-multiple-locales /en/nl-BE should 404",
-      "i18n-disallow-multiple-locales /en/nl should 404",
-      "i18n-disallow-multiple-locales /en/fr-BE should 404",
-      "i18n-disallow-multiple-locales /en/fr should 404",
-      "i18n-disallow-multiple-locales /nl-NL/en-US should 404",
-      "i18n-disallow-multiple-locales /nl-NL/en should 404",
-      "i18n-disallow-multiple-locales /nl-NL/nl-NL should 404",
-      "i18n-disallow-multiple-locales /nl-NL/nl-BE should 404",
-      "i18n-disallow-multiple-locales /nl-NL/nl should 404",
-      "i18n-disallow-multiple-locales /nl-NL/fr-BE should 404",
-      "i18n-disallow-multiple-locales /nl-NL/fr should 404",
-      "i18n-disallow-multiple-locales /nl-BE/en-US should 404",
-      "i18n-disallow-multiple-locales /nl-BE/en should 404",
-      "i18n-disallow-multiple-locales /nl-BE/nl-NL should 404",
-      "i18n-disallow-multiple-locales /nl-BE/nl-BE should 404",
-      "i18n-disallow-multiple-locales /nl-BE/nl should 404",
-      "i18n-disallow-multiple-locales /nl-BE/fr-BE should 404",
-      "i18n-disallow-multiple-locales /nl-BE/fr should 404",
-      "i18n-disallow-multiple-locales /nl/en-US should 404",
-      "i18n-disallow-multiple-locales /nl/en should 404",
-      "i18n-disallow-multiple-locales /nl/nl-NL should 404",
-      "i18n-disallow-multiple-locales /nl/nl-BE should 404",
-      "i18n-disallow-multiple-locales /nl/nl should 404",
-      "i18n-disallow-multiple-locales /nl/fr-BE should 404",
-      "i18n-disallow-multiple-locales /nl/fr should 404",
-      "i18n-disallow-multiple-locales /fr-BE/en-US should 404",
-      "i18n-disallow-multiple-locales /fr-BE/en should 404",
-      "i18n-disallow-multiple-locales /fr-BE/nl-NL should 404",
-      "i18n-disallow-multiple-locales /fr-BE/nl-BE should 404",
-      "i18n-disallow-multiple-locales /fr-BE/nl should 404",
-      "i18n-disallow-multiple-locales /fr-BE/fr-BE should 404",
-      "i18n-disallow-multiple-locales /fr-BE/fr should 404",
-      "i18n-disallow-multiple-locales /fr/en-US should 404",
-      "i18n-disallow-multiple-locales /fr/en should 404",
-      "i18n-disallow-multiple-locales /fr/nl-NL should 404",
-      "i18n-disallow-multiple-locales /fr/nl-BE should 404",
-      "i18n-disallow-multiple-locales /fr/nl should 404",
-      "i18n-disallow-multiple-locales /fr/fr-BE should 404",
-      "i18n-disallow-multiple-locales /fr/fr should 404",
       "i18n-disallow-multiple-locales should verify the default locale works",
       "i18n-disallow-multiple-locales /en-US should 200",
       "i18n-disallow-multiple-locales /en should 200",
@@ -4138,14 +3811,6 @@
       "i18n-ignore-rewrite-source-locale with basepath call api by skipping locale in rewrite, locale: ",
       "i18n-ignore-rewrite-source-locale with basepath call api by skipping locale in rewrite, locale: /en",
       "i18n-ignore-rewrite-source-locale with basepath call api by skipping locale in rewrite, locale: /sv",
-      "i18n-ignore-rewrite-source-locale with basepath call api by skipping locale in rewrite, locale: /nl",
-      "i18n-ignore-rewrite-source-locale with basepath get public file by skipping locale in rewrite, locale: ",
-      "i18n-ignore-rewrite-source-locale with basepath get public file by skipping locale in rewrite, locale: /en",
-      "i18n-ignore-rewrite-source-locale with basepath get public file by skipping locale in rewrite, locale: /sv",
-      "i18n-ignore-rewrite-source-locale with basepath get public file by skipping locale in rewrite, locale: /nl",
-      "i18n-ignore-rewrite-source-locale with basepath call api by skipping locale in rewrite, locale: ",
-      "i18n-ignore-rewrite-source-locale with basepath call api by skipping locale in rewrite, locale: /en",
-      "i18n-ignore-rewrite-source-locale with basepath call api by skipping locale in rewrite, locale: /sv",
       "i18n-ignore-rewrite-source-locale with basepath call api by skipping locale in rewrite, locale: /nl"
     ],
     "failed": [
@@ -4162,14 +3827,6 @@
   },
   "test/e2e/i18n-ignore-rewrite-source-locale/rewrites.test.ts": {
     "passed": [
-      "i18n-ignore-rewrite-source-locale get public file by skipping locale in rewrite, locale: ",
-      "i18n-ignore-rewrite-source-locale get public file by skipping locale in rewrite, locale: /en",
-      "i18n-ignore-rewrite-source-locale get public file by skipping locale in rewrite, locale: /sv",
-      "i18n-ignore-rewrite-source-locale get public file by skipping locale in rewrite, locale: /nl",
-      "i18n-ignore-rewrite-source-locale call api by skipping locale in rewrite, locale: ",
-      "i18n-ignore-rewrite-source-locale call api by skipping locale in rewrite, locale: /en",
-      "i18n-ignore-rewrite-source-locale call api by skipping locale in rewrite, locale: /sv",
-      "i18n-ignore-rewrite-source-locale call api by skipping locale in rewrite, locale: /nl",
       "i18n-ignore-rewrite-source-locale get public file by skipping locale in rewrite, locale: ",
       "i18n-ignore-rewrite-source-locale get public file by skipping locale in rewrite, locale: /en",
       "i18n-ignore-rewrite-source-locale get public file by skipping locale in rewrite, locale: /sv",
@@ -4224,8 +3881,6 @@
   },
   "test/e2e/link-with-api-rewrite/index.test.ts": {
     "passed": [
-      "link-with-api-rewrite should perform hard navigation for rewritten urls",
-      "link-with-api-rewrite should perform hard navigation for direct urls",
       "link-with-api-rewrite should perform hard navigation for rewritten urls",
       "link-with-api-rewrite should perform hard navigation for direct urls"
     ],
@@ -4296,10 +3951,7 @@
     "pending": []
   },
   "test/e2e/manual-client-base-path/index.test.ts": {
-    "passed": [
-      "manual-client-base-path should not warn for flag in output",
-      "manual-client-base-path should not warn for flag in output"
-    ],
+    "passed": ["manual-client-base-path should not warn for flag in output"],
     "failed": [
       "manual-client-base-path should not update with basePath on mount /",
       "manual-client-base-path should not update with basePath on mount /another",
@@ -4317,12 +3969,7 @@
     "pending": []
   },
   "test/e2e/middleware-custom-matchers-basepath/test/index.test.ts": {
-    "passed": [
-      "Middleware custom matchers basePath should not match",
-      "Middleware custom matchers basePath should not match",
-      "Middleware custom matchers basePath should not match",
-      "Middleware custom matchers basePath should not match"
-    ],
+    "passed": ["Middleware custom matchers basePath should not match"],
     "failed": [
       "Middleware custom matchers basePath should match has query on client routing",
       "Middleware custom matchers basePath should match",
@@ -4409,14 +4056,6 @@
   "test/e2e/middleware-custom-matchers-i18n/test/index.test.ts": {
     "passed": [
       "Middleware custom matchers i18n should not match",
-      "Middleware custom matchers i18n should not match",
-      "Middleware custom matchers i18n should not match",
-      "Middleware custom matchers i18n should not match",
-      "Middleware custom matchers with root should not match",
-      "Middleware custom matchers i18n should not match",
-      "Middleware custom matchers i18n should not match",
-      "Middleware custom matchers i18n should not match",
-      "Middleware custom matchers i18n should not match",
       "Middleware custom matchers with root should not match"
     ],
     "failed": [
@@ -4437,8 +4076,6 @@
   },
   "test/e2e/middleware-custom-matchers/test/index.test.ts": {
     "passed": [
-      "Middleware custom matchers should match missing header correctly",
-      "Middleware custom matchers should match missing query correctly",
       "Middleware custom matchers should match missing header correctly",
       "Middleware custom matchers should match missing query correctly"
     ],
@@ -4465,10 +4102,6 @@
   "test/e2e/middleware-dynamic-basepath-matcher/test/index.test.ts": {
     "passed": [
       "Middleware custom matchers basePath should match",
-      "Middleware custom matchers basePath should not match",
-      "Middleware custom matchers basePath should not match",
-      "Middleware custom matchers basePath should match",
-      "Middleware custom matchers basePath should not match",
       "Middleware custom matchers basePath should not match"
     ],
     "failed": [
@@ -4516,45 +4149,8 @@
       "basePath should have basePath field on Router",
       "basePath should allow URL query strings without refresh",
       "basePath should allow URL query strings on index without refresh",
-      "basePath should navigate to external site and back",
-      "basePath should handle query/hash correctly during query updating #hello? $search",
-      "basePath should handle query/hash correctly during query updating #? $search",
-      "basePath should handle query/hash correctly during query updating ## $search",
-      "basePath should handle query/hash correctly during query updating ##? $search",
-      "basePath should handle query/hash correctly during query updating ##hello? $search",
-      "basePath should handle query/hash correctly during query updating ##hello $search",
-      "basePath should handle query/hash correctly during query updating #hello?world $search",
-      "basePath should handle query/hash correctly during query updating #a ?hello=world",
-      "basePath should handle query/hash correctly during query updating #a ?hello",
-      "basePath should handle query/hash correctly during query updating #a ?hello=",
-      "basePath should respect basePath in amphtml link rel",
       "basePath should add basePath to routes-manifest",
-      "basePath should prefetch pages correctly when manually called",
-      "basePath should 404 for public file without basePath",
-      "basePath should serve public file with basePath correctly",
-      "basePath should rewrite with basePath by default",
-      "basePath should not rewrite without basePath without disabling",
-      "basePath should not rewrite with basePath when set to false",
-      "basePath should rewrite without basePath when set to false",
-      "basePath should redirect with basePath by default",
-      "basePath should not redirect without basePath without disabling",
-      "basePath should not redirect with basePath when set to false",
-      "basePath should redirect without basePath when set to false",
-      "basePath should add header with basePath by default",
-      "basePath should not add header without basePath without disabling",
-      "basePath should not add header with basePath when set to false",
-      "basePath should add header without basePath when set to false",
-      "basePath should not update URL for a 404",
-      "basePath should handle 404 urls that start with basePath",
-      "basePath should redirect trailing slash correctly",
-      "basePath should redirect trailing slash on root correctly",
-      "basePath should navigate an absolute url",
-      "basePath should show the hello page under the /docs prefix",
-      "basePath should show 404 for page not under the /docs prefix",
-      "basePath should show the other-page page under the /docs prefix",
-      "basePath should have basePath field on Router",
-      "basePath should allow URL query strings without refresh",
-      "basePath should allow URL query strings on index without refresh"
+      "basePath should prefetch pages correctly when manually called"
     ],
     "failed": [
       "basePath should navigate to /404 correctly client-side",
@@ -5163,16 +4759,6 @@
       "Middleware fetches with body with custom bodyParser sizeLimit (5mb) should be able to send and return body size equal to 5mb",
       "Middleware fetches with body with bodyParser = false should be able to send and return with body size equal to 16KiB",
       "Middleware fetches with body with bodyParser = false should be able to send and return with body greater than 16KiB",
-      "Middleware fetches with body should return 413 for body equal to 10mb",
-      "Middleware fetches with body with default bodyParser sizeLimit (1mb) should return 413 for body greater than 1mb",
-      "Middleware fetches with body with default bodyParser sizeLimit (1mb) should be able to send and return body size equal to 1mb",
-      "Middleware fetches with body with default bodyParser sizeLimit (1mb) should be able to send and return body greater than default highWaterMark (16KiB)",
-      "Middleware fetches with body with custom bodyParser sizeLimit (5kb) should return 413 for body greater than 5kb",
-      "Middleware fetches with body with custom bodyParser sizeLimit (5kb) should be able to send and return body size equal to 5kb",
-      "Middleware fetches with body with custom bodyParser sizeLimit (5mb) should return 413 for body greater than 5mb",
-      "Middleware fetches with body with custom bodyParser sizeLimit (5mb) should be able to send and return body size equal to 5mb",
-      "Middleware fetches with body with bodyParser = false should be able to send and return with body size equal to 16KiB",
-      "Middleware fetches with body with bodyParser = false should be able to send and return with body greater than 16KiB",
       "Middleware fetches with body should return 413 for body equal to 10mb"
     ],
     "failed": [],
@@ -5180,7 +4766,6 @@
   },
   "test/e2e/middleware-redirects/test/index.test.ts": {
     "passed": [
-      "Middleware Redirect should redirect correctly with redirect in next.config.js",
       "Middleware Redirect should redirect correctly with redirect in next.config.js"
     ],
     "failed": [
@@ -5207,10 +4792,7 @@
     "pending": []
   },
   "test/e2e/middleware-shallow-link/index.test.ts": {
-    "passed": [
-      "browser-shallow-navigation should render the correct page",
-      "browser-shallow-navigation should render the correct page"
-    ],
+    "passed": ["browser-shallow-navigation should render the correct page"],
     "failed": [],
     "pending": []
   },
@@ -5235,7 +4817,6 @@
   },
   "test/e2e/new-link-behavior/child-a-tag-error.test.ts": {
     "passed": [
-      "New Link Behavior with <a> child should throw error with <a> child",
       "New Link Behavior with <a> child should throw error with <a> child"
     ],
     "failed": [],
@@ -5252,17 +4833,8 @@
       "Middleware Runtime trailing slash should redirect the same for direct visit and client-transition",
       "Middleware Runtime trailing slash should rewrite correctly for non-SSG/SSP page",
       "Middleware Runtime trailing slash should respond with 400 on decode failure",
-      "Middleware Runtime trailing slash with .html extension should work when requesting the page directly",
-      "Middleware Runtime trailing slash with .html extension should work using browser",
-      "Middleware Runtime trailing slash with .html extension should work when navigating",
-      "Middleware Runtime trailing slash without .html extension should work when requesting the page directly",
-      "Middleware Runtime trailing slash without .html extension should work using browser",
-      "Middleware Runtime trailing slash without .html extension should work when navigating",
       "Middleware Runtime trailing slash should have correct files in manifest",
-      "Middleware Runtime trailing slash should not run middleware for on-demand revalidate",
-      "Middleware Runtime trailing slash should redirect the same for direct visit and client-transition",
-      "Middleware Runtime trailing slash should rewrite correctly for non-SSG/SSP page",
-      "Middleware Runtime trailing slash should respond with 400 on decode failure"
+      "Middleware Runtime trailing slash should not run middleware for on-demand revalidate"
     ],
     "failed": [
       "Middleware Runtime trailing slash refreshes the page when middleware changes ",
@@ -5297,13 +4869,6 @@
       "New Link Behavior should handle preventdefault",
       "New Link Behavior should render link with id",
       "New Link Behavior should render link with classname",
-      "New Link Behavior should render link with multiple children",
-      "New Link Behavior should render link with <a>",
-      "New Link Behavior should navigate to /about",
-      "New Link Behavior should handle onclick",
-      "New Link Behavior should handle preventdefault",
-      "New Link Behavior should render link with id",
-      "New Link Behavior should render link with classname",
       "New Link Behavior should render link with multiple children"
     ],
     "failed": [],
@@ -5311,24 +4876,18 @@
   },
   "test/e2e/new-link-behavior/material-ui.test.ts": {
     "passed": [
-      "New Link Behavior with material-ui should render MuiLink with <a>",
       "New Link Behavior with material-ui should render MuiLink with <a>"
     ],
     "failed": [],
     "pending": []
   },
   "test/e2e/new-link-behavior/stitches.test.ts": {
-    "passed": [
-      "New Link Behavior with stitches should render <a>",
-      "New Link Behavior with stitches should render <a>"
-    ],
+    "passed": ["New Link Behavior with stitches should render <a>"],
     "failed": [],
     "pending": []
   },
   "test/e2e/new-link-behavior/typescript.test.ts": {
     "passed": [
-      "New Link Behavior should render link with <a>",
-      "New Link Behavior should apply ref on link",
       "New Link Behavior should render link with <a>",
       "New Link Behavior should apply ref on link"
     ],
@@ -5370,14 +4929,6 @@
   },
   "test/e2e/middleware-matcher/index.test.ts": {
     "passed": [
-      "Middleware can set the matcher in its config should navigate correctly with matchers",
-      "using a single matcher does not add the header for root request",
-      "using a single matcher does not add the header for root data request",
-      "using a single matcher does not add the header for an unmatched path",
-      "using a single matcher with i18n does not add the header for an unmatched path",
-      "using a single matcher with i18n and trailingSlash does not add the header for an unmatched path",
-      "using a single matcher with i18n and basePath does not add the header for an unmatched path",
-      "using a single matcher with i18n and basePath and trailingSlash does not add the header for an unmatched path",
       "Middleware can set the matcher in its config should navigate correctly with matchers",
       "using a single matcher does not add the header for root request",
       "using a single matcher does not add the header for root data request",
@@ -5466,8 +5017,7 @@
       "Middleware Rewrite /fr should rewrite when not using localhost",
       "Middleware Rewrite /fr should rewrite to Vercel",
       "Middleware Rewrite /fr should not call middleware with shallow push",
-      "Middleware Rewrite /fr should correctly rewriting to a different dynamic path",
-      "Middleware Rewrite should not have unexpected errors"
+      "Middleware Rewrite /fr should correctly rewriting to a different dynamic path"
     ],
     "failed": [
       "Middleware Rewrite should handle static rewrite from next.config.js correctly",
@@ -5482,28 +5032,6 @@
   },
   "test/e2e/next-font/index.test.ts": {
     "passed": [
-      "next/font app import values page with font",
-      "next/font app import values page with local fonts",
-      "next/font app import values Variable font without weight range",
-      "next/font app computed styles page with fonts",
-      "next/font app computed styles page using variables",
-      "next/font app computed styles page using fallback fonts",
-      "next/font app Fallback fontfaces local Indie flower",
-      "next/font app Fallback fontfaces local Fraunces",
-      "next/font app Fallback fontfaces local Roboto multiple weights and styles",
-      "next/font app Fallback fontfaces local Roboto multiple weights and styles - variable 1",
-      "next/font app Fallback fontfaces local Roboto multiple weights and styles - variable 2",
-      "next/font app-old import values page with font",
-      "next/font app-old import values page with local fonts",
-      "next/font app-old import values Variable font without weight range",
-      "next/font app-old computed styles page with fonts",
-      "next/font app-old computed styles page using variables",
-      "next/font app-old computed styles page using fallback fonts",
-      "next/font app-old Fallback fontfaces local Indie flower",
-      "next/font app-old Fallback fontfaces local Fraunces",
-      "next/font app-old Fallback fontfaces local Roboto multiple weights and styles",
-      "next/font app-old Fallback fontfaces local Roboto multiple weights and styles - variable 1",
-      "next/font app-old Fallback fontfaces local Roboto multiple weights and styles - variable 2",
       "next/font app import values page with font",
       "next/font app import values page with local fonts",
       "next/font app import values Variable font without weight range",
@@ -5567,11 +5095,6 @@
       "should set-up next should have correct head tags in initial document",
       "should set-up next should have correct head tags from a fragment",
       "should set-up next should have correct head tags after hydration",
-      "should set-up next should have current head tags from a _document getInitialProps",
-      "should set-up next should place charset element at the top of <head>",
-      "should set-up next should have correct head tags in initial document",
-      "should set-up next should have correct head tags from a fragment",
-      "should set-up next should have correct head tags after hydration",
       "should set-up next should have current head tags from a _document getInitialProps"
     ],
     "failed": [],
@@ -5579,7 +5102,6 @@
   },
   "test/e2e/next-image-forward-ref/index.test.ts": {
     "passed": [
-      "next-image-forward-ref allows framer-motion to animate opacity",
       "next-image-forward-ref allows framer-motion to animate opacity"
     ],
     "failed": [],
@@ -5587,8 +5109,6 @@
   },
   "test/e2e/no-eslint-warn-with-no-eslint-config/index.test.ts": {
     "passed": [
-      "no-eslint-warn-with-no-eslint-config should render",
-      "no-eslint-warn-with-no-eslint-config should not have eslint warnings when no eslint config",
       "no-eslint-warn-with-no-eslint-config should render",
       "no-eslint-warn-with-no-eslint-config should not have eslint warnings when no eslint config",
       "no-eslint-warn-with-no-eslint-config should warn with empty eslintrc",
@@ -5600,7 +5120,6 @@
   },
   "test/e2e/next-font/without-preloaded-fonts.test.ts": {
     "passed": [
-      "next/font/google without-preloaded-fonts without _app without fonts",
       "next/font/google without-preloaded-fonts without _app without fonts"
     ],
     "failed": [
@@ -5627,16 +5146,8 @@
       "Middleware Runtime without i18n hard-navigates when the data request failed",
       "Middleware Runtime with i18n should have correct files in manifest",
       "Middleware Runtime with i18n should not run middleware for on-demand revalidate",
-      "Middleware Runtime with i18n should have correct dynamic route params on client-transition to dynamic route",
-      "Middleware Runtime with i18n should respond with 400 on decode failure",
-      "Middleware Runtime with i18n hard-navigates when the data request failed",
       "Middleware Runtime without i18n should have correct files in manifest",
-      "Middleware Runtime without i18n should not run middleware for on-demand revalidate",
-      "Middleware Runtime without i18n should have correct dynamic route params on client-transition to dynamic route",
-      "Middleware Runtime without i18n should redirect the same for direct visit and client-transition",
-      "Middleware Runtime without i18n should rewrite correctly for non-SSG/SSP page",
-      "Middleware Runtime without i18n should respond with 400 on decode failure",
-      "Middleware Runtime without i18n hard-navigates when the data request failed"
+      "Middleware Runtime without i18n should not run middleware for on-demand revalidate"
     ],
     "failed": [
       "Middleware Runtime with i18n refreshes the page when middleware changes ",
@@ -5718,8 +5229,6 @@
   "test/e2e/nonce-head-manager/index.test.ts": {
     "passed": [
       "should set-up next should not re-execute the script when re-rendering",
-      "should set-up next should not re-execute the script when re-rendering with CSP header",
-      "should set-up next should not re-execute the script when re-rendering",
       "should set-up next should not re-execute the script when re-rendering with CSP header"
     ],
     "failed": [],
@@ -5744,12 +5253,6 @@
       "Optimized loading page / should load scripts with defer in head",
       "Optimized loading page /page1 should render the page /page1",
       "Optimized loading page /page1 should not have JS preload links",
-      "Optimized loading page /page1 should load scripts with defer in head",
-      "Optimized loading page / should render the page /",
-      "Optimized loading page / should not have JS preload links",
-      "Optimized loading page / should load scripts with defer in head",
-      "Optimized loading page /page1 should render the page /page1",
-      "Optimized loading page /page1 should not have JS preload links",
       "Optimized loading page /page1 should load scripts with defer in head"
     ],
     "failed": [],
@@ -5757,25 +5260,18 @@
   },
   "test/e2e/pages-performance-mark/index.test.ts": {
     "passed": [
-      "pages performance mark should render the page correctly without crashing with performance mark",
       "pages performance mark should render the page correctly without crashing with performance mark"
     ],
     "failed": [],
     "pending": []
   },
   "test/e2e/postcss-config-cjs/index.test.ts": {
-    "passed": [
-      "postcss-config-cjs works with postcss.config.cjs files",
-      "postcss-config-cjs works with postcss.config.cjs files"
-    ],
+    "passed": ["postcss-config-cjs works with postcss.config.cjs files"],
     "failed": [],
     "pending": []
   },
   "test/e2e/prerender-crawler.test.ts": {
     "passed": [
-      "Prerender crawler handling should return prerendered page for correctly",
-      "Prerender crawler handling should return fallback for non-crawler correctly",
-      "Prerender crawler handling should block for crawler correctly",
       "Prerender crawler handling should return prerendered page for correctly",
       "Prerender crawler handling should return fallback for non-crawler correctly",
       "Prerender crawler handling should block for crawler correctly"
@@ -5787,9 +5283,6 @@
     "passed": [
       "prerender native module should render index correctly",
       "prerender native module should render /blog/first correctly",
-      "prerender native module should render /blog/second correctly",
-      "prerender native module should render index correctly",
-      "prerender native module should render /blog/first correctly",
       "prerender native module should render /blog/second correctly"
     ],
     "failed": ["prerender native module should output traces"],
@@ -5797,8 +5290,6 @@
   },
   "test/e2e/proxy-request-with-middleware/test/index.test.ts": {
     "passed": [
-      "Requests not effected when middleware used should proxy GET request ",
-      "Requests not effected when middleware used should proxy POST request with body",
       "Requests not effected when middleware used should proxy GET request ",
       "Requests not effected when middleware used should proxy POST request with body"
     ],
@@ -5817,7 +5308,6 @@
   },
   "test/e2e/repeated-forward-slashes-error/repeated-forward-slashes-error.test.ts": {
     "passed": [
-      "repeated-forward-slashes-error should log error when href has repeated forward-slashes",
       "repeated-forward-slashes-error should log error when href has repeated forward-slashes"
     ],
     "failed": [],
@@ -5827,9 +5317,7 @@
     "passed": [
       "React Context should render a page with context",
       "React Context should render correctly with context consumer",
-      "React Context should render with context after change",
-      "React Context should render a page with context",
-      "React Context should render correctly with context consumer"
+      "React Context should render with context after change"
     ],
     "failed": [],
     "pending": []
@@ -5848,19 +5336,7 @@
       "skip-trailing-slash-redirect app dir should respond to index correctly",
       "skip-trailing-slash-redirect app dir should respond to dynamic route correctly",
       "skip-trailing-slash-redirect app dir should navigate client side correctly",
-      "skip-trailing-slash-redirect should not have trailing slash redirects in manifest",
-      "skip-trailing-slash-redirect should apply config redirect correctly",
-      "skip-trailing-slash-redirect should apply config rewrites correctly",
-      "skip-trailing-slash-redirect pages dir should not apply trailing slash redirect (with slash)",
-      "skip-trailing-slash-redirect pages dir should not apply trailing slash redirect (without slash)",
-      "skip-trailing-slash-redirect pages dir should respond to index correctly",
-      "skip-trailing-slash-redirect pages dir should respond to dynamic route correctly",
-      "skip-trailing-slash-redirect pages dir should navigate client side correctly",
-      "skip-trailing-slash-redirect app dir should not apply trailing slash redirect (with slash)",
-      "skip-trailing-slash-redirect app dir should not apply trailing slash redirect (without slash)",
-      "skip-trailing-slash-redirect app dir should respond to index correctly",
-      "skip-trailing-slash-redirect app dir should respond to dynamic route correctly",
-      "skip-trailing-slash-redirect app dir should navigate client side correctly"
+      "skip-trailing-slash-redirect should not have trailing slash redirects in manifest"
     ],
     "failed": [
       "skip-trailing-slash-redirect should parse locale info for data request correctly",
@@ -5910,10 +5386,6 @@
       "styled-jsx should contain styled-jsx styles during SSR",
       "styled-jsx should render styles during CSR",
       "styled-jsx should render styles during CSR (AMP)",
-      "styled-jsx should render styles during SSR (AMP)",
-      "styled-jsx should contain styled-jsx styles during SSR",
-      "styled-jsx should render styles during CSR",
-      "styled-jsx should render styles during CSR (AMP)",
       "styled-jsx should render styles during SSR (AMP)"
     ],
     "failed": [],
@@ -5926,10 +5398,6 @@
   },
   "test/e2e/test-template/{{ toFileName name }}/{{ toFileName name }}.test.ts": {
     "passed": [
-      "{{name}} should work using cheerio",
-      "{{name}} should work using browser",
-      "{{name}} should work with html",
-      "{{name}} should work with fetch",
       "{{name}} should work using cheerio",
       "{{name}} should work using browser",
       "{{name}} should work with html",
@@ -5961,17 +5429,12 @@
     ]
   },
   "test/e2e/test-utils-tests/basic/basic.test.ts": {
-    "passed": [
-      "createNextDescribe should work",
-      "createNextDescribe should work"
-    ],
+    "passed": ["createNextDescribe should work"],
     "failed": [],
     "pending": []
   },
   "test/e2e/third-parties/index.test.ts": {
     "passed": [
-      "@next/third-parties basic usage renders YoutubeEmbed",
-      "@next/third-parties basic usage renders GoogleMapsEmbed",
       "@next/third-parties basic usage renders YoutubeEmbed",
       "@next/third-parties basic usage renders GoogleMapsEmbed"
     ],
@@ -6038,47 +5501,7 @@
       "Prerender should not fail to update incremental cache",
       "Prerender should not have experimental undici warning",
       "Prerender should not have attempted sending invalid payload",
-      "Prerender should respond with 405 for POST to static page",
-      "Prerender should SSR normal page correctly",
-      "Prerender should SSR incremental page correctly",
-      "Prerender should SSR blocking path correctly (blocking)",
-      "Prerender should SSR blocking path correctly (pre-rendered)",
-      "Prerender should have gsp in __NEXT_DATA__",
-      "Prerender should not have gsp in __NEXT_DATA__ for non-GSP page",
-      "Prerender should not supply query values to params or useRouter non-dynamic page SSR",
-      "Prerender should not supply query values to params in /_next/data request",
-      "Prerender should not supply query values to params or useRouter dynamic page SSR",
-      "Prerender should return data correctly",
-      "Prerender should return data correctly for dynamic page",
-      "Prerender should return data correctly for dynamic page (non-seeded)",
       "Prerender should use correct caching headers for a revalidate page",
-      "Prerender should navigate to a normal page and back",
-      "Prerender should parse query values on mount correctly",
-      "Prerender should reload page on failed data request",
-      "Prerender should SSR dynamic page with brackets in param as object",
-      "Prerender should navigate to dynamic page with brackets in param as object",
-      "Prerender should SSR dynamic page with brackets in param as string",
-      "Prerender should navigate to dynamic page with brackets in param as string",
-      "Prerender should not return data for fallback: false and missing dynamic page",
-      "Prerender should server prerendered path correctly for SSG pages that starts with api-docs",
-      "Prerender should render correctly for SSG pages that starts with api-docs",
-      "Prerender should return data correctly for SSG pages that starts with api-docs",
-      "Prerender should SSR catch-all page with brackets in param as string",
-      "Prerender should navigate to catch-all page with brackets in param as string",
-      "Prerender should SSR catch-all page with brackets in param as object",
-      "Prerender should navigate to catch-all page with brackets in param as object",
-      "Prerender should support prerendered catchall route",
-      "Prerender should support lazy catchall route",
-      "Prerender should support nested lazy catchall route",
-      "Prerender should support prerendered catchall-explicit route (nested)",
-      "Prerender should support prerendered catchall-explicit route (single)",
-      "Prerender should handle fallback only page correctly HTML",
-      "Prerender should handle fallback only page correctly data",
-      "Prerender should 404 for a missing catchall explicit route",
-      "Prerender should 404 for an invalid data url",
-      "Prerender should allow rewriting to SSG page with fallback: false",
-      "Prerender should allow rewriting to SSG page with fallback: 'blocking'",
-      "Prerender should show warning when large amount of page data is returned",
       "Prerender should only show warning once per page when large amount of page data is returned",
       "Prerender should use correct caching headers for a no-revalidate page",
       "Prerender should not show error for invalid JSON returned from getStaticProps on SSR",
@@ -6107,11 +5530,7 @@
       "Prerender should on-demand revalidate for fallback: blocking with onlyGenerated if generated",
       "Prerender should on-demand revalidate for revalidate: false",
       "Prerender should on-demand revalidate that returns notFound: true",
-      "Prerender should handle on-demand revalidate for fallback: false",
-      "Prerender should respond for catch-all deep folder",
-      "Prerender should not fail to update incremental cache",
-      "Prerender should not have experimental undici warning",
-      "Prerender should not have attempted sending invalid payload"
+      "Prerender should handle on-demand revalidate for fallback: false"
     ],
     "failed": [
       "Prerender should not error when rewriting to fallback dynamic SSG page",
@@ -6129,7 +5548,6 @@
   },
   "test/e2e/trailingslash-with-rewrite/index.test.ts": {
     "passed": [
-      "trailingSlash:true with rewrites and getStaticProps should work",
       "trailingSlash:true with rewrites and getStaticProps should work"
     ],
     "failed": [],
@@ -6137,10 +5555,6 @@
   },
   "test/e2e/next-script/index.test.ts": {
     "passed": [
-      "beforeInteractive in document Head Script is injected server-side",
-      "beforeInteractive in document body Script is injected server-side",
-      "experimental.nextScriptWorkers: false with no Partytown dependency Partytown snippet is not injected to head if not enabled in configuration",
-      "experimental.nextScriptWorkers: true with config override Partytown config script is overwritten",
       "beforeInteractive in document Head Script is injected server-side",
       "beforeInteractive in document body Script is injected server-side",
       "experimental.nextScriptWorkers: false with no Partytown dependency Partytown snippet is not injected to head if not enabled in configuration",
@@ -6160,10 +5574,6 @@
   },
   "test/e2e/transpile-packages/index.test.ts": {
     "passed": [
-      "transpile packages css should handle global css imports inside transpiled modules",
-      "transpile packages css should handle global scss imports inside transpiled modules",
-      "transpile packages css should handle css modules imports inside transpiled modules",
-      "transpile packages css should handle scss modules imports inside transpiled modules",
       "transpile packages css should handle global css imports inside transpiled modules",
       "transpile packages css should handle global scss imports inside transpiled modules",
       "transpile packages css should handle css modules imports inside transpiled modules",
@@ -6190,10 +5600,6 @@
   },
   "test/e2e/type-module-interop/index.test.ts": {
     "passed": [
-      "Type module interop should render server-side",
-      "Type module interop should render client-side",
-      "Type module interop should render server-side with modules",
-      "Type module interop should render client-side with modules",
       "Type module interop should render server-side",
       "Type module interop should render client-side",
       "Type module interop should render server-side with modules",
@@ -6264,10 +5670,6 @@
   },
   "test/e2e/undici-fetch/index.test.ts": {
     "passed": [
-      "undici fetch undici global fetch should return true when undici is used",
-      "undici fetch undici global Headers should return true when undici is used",
-      "undici fetch undici global Request should return true when undici is used",
-      "undici fetch undici global Response should return true when undici is used",
       "undici fetch undici global fetch should return true when undici is used",
       "undici fetch undici global Headers should return true when undici is used",
       "undici fetch undici global Request should return true when undici is used",
@@ -6472,14 +5874,8 @@
   "test/unit/eslint-plugin-next/no-document-import-in-page.test.ts": {
     "passed": [
       "no-document-import-in-page valid import Document from \"next/document\"\n\n    export default class MyDocument extends Document {\n      render() {\n        return (\n          <Html>\n          </Html>\n        );\n      }\n    }\n    ",
-      "no-document-import-in-page valid import Document from \"next/document\"\n\n    export default class MyDocument extends Document {\n      render() {\n        return (\n          <Html>\n          </Html>\n        );\n      }\n    }\n    ",
       "no-document-import-in-page valid import NextDocument from \"next/document\"\n\n    export default class MyDocument extends NextDocument {\n      render() {\n        return (\n          <Html>\n          </Html>\n        );\n      }\n    }\n    ",
-      "no-document-import-in-page valid import Document from \"next/document\"\n\n    export default class MyDocument extends Document {\n      render() {\n        return (\n          <Html>\n          </Html>\n        );\n      }\n    }\n    ",
       "no-document-import-in-page valid import NDocument from \"next/document\"\n\n    export default class Document extends NDocument {\n      render() {\n        return (\n          <Html>\n          </Html>\n        );\n      }\n    }\n    ",
-      "no-document-import-in-page valid import NDocument from \"next/document\"\n\n    export default class Document extends NDocument {\n      render() {\n        return (\n          <Html>\n          </Html>\n        );\n      }\n    }\n    ",
-      "no-document-import-in-page valid import Document from \"next/document\"\n\n    export default class MyDocument extends Document {\n      render() {\n        return (\n          <Html>\n          </Html>\n        );\n      }\n    }\n    ",
-      "no-document-import-in-page invalid import Document from \"next/document\"\n\n      export const Test = () => <p>Test</p>\n      ",
-      "no-document-import-in-page invalid import Document from \"next/document\"\n\n      export const Test = () => <p>Test</p>\n      ",
       "no-document-import-in-page invalid import Document from \"next/document\"\n\n      export const Test = () => <p>Test</p>\n      "
     ],
     "failed": [],
@@ -6498,7 +5894,6 @@
   "test/unit/eslint-plugin-next/no-head-element.test.ts": {
     "passed": [
       "no-head-element valid import Head from 'next/head';\n\n      export class MyComponent {\n        render() {\n          return (\n            <div>\n              <Head>\n                <title>My page title</title>\n              </Head>\n            </div>\n          );\n        }\n      }\n    ",
-      "no-head-element valid import Head from 'next/head';\n\n      export class MyComponent {\n        render() {\n          return (\n            <div>\n              <Head>\n                <title>My page title</title>\n              </Head>\n            </div>\n          );\n        }\n      }\n    ",
       "no-head-element valid \n      export default function Layout({ children }) {\n        return (\n          <html>\n            <head>\n              <title>layout</title>\n            </head>\n            <body>{children}</body>\n          </html>\n        );\n      }\n    ",
       "no-head-element invalid \n      export class MyComponent {\n        render() {\n          return (\n            <div>\n              <head>\n                <title>My page title</title>\n              </head>\n            </div>\n          );\n        }\n      }",
       "no-head-element invalid import Head from 'next/head';\n\n      export class MyComponent {\n        render() {\n          return (\n            <div>\n              <head>\n                <title>My page title</title>\n              </head>\n              <Head>\n                <title>My page title</title>\n              </Head>\n            </div>\n          );\n        }\n      }"
@@ -6510,9 +5905,6 @@
     "passed": [
       "no-head-import-in-document valid import Document, { Html, Head, Main, NextScript } from 'next/document'\n\n      class MyDocument extends Document {\n        static async getInitialProps(ctx) {\n          //...\n        }\n\n        render() {\n          return (\n            <Html>\n              <Head>\n              </Head>\n            </Html>\n          )\n        }\n      }\n\n      export default MyDocument\n    ",
       "no-head-import-in-document valid import Head from \"next/head\";\n\n      export default function IndexPage() {\n        return (\n          <Head>\n            <title>My page title</title>\n            <meta name=\"viewport\" content=\"initial-scale=1.0, width=device-width\" />\n          </Head>\n        );\n      }\n    ",
-      "no-head-import-in-document invalid \n      import Document, { Html, Main, NextScript } from 'next/document'\n      import Head from 'next/head'\n\n      class MyDocument extends Document {\n        render() {\n          return (\n            <Html>\n              <Head />\n              <body>\n                <Main />\n                <NextScript />\n              </body>\n            </Html>\n          )\n        }\n      }\n\n      export default MyDocument\n      ",
-      "no-head-import-in-document invalid \n      import Document, { Html, Main, NextScript } from 'next/document'\n      import Head from 'next/head'\n\n      class MyDocument extends Document {\n        render() {\n          return (\n            <Html>\n              <Head />\n              <body>\n                <Main />\n                <NextScript />\n              </body>\n            </Html>\n          )\n        }\n      }\n\n      export default MyDocument\n      ",
-      "no-head-import-in-document invalid \n      import Document, { Html, Main, NextScript } from 'next/document'\n      import Head from 'next/head'\n\n      class MyDocument extends Document {\n        render() {\n          return (\n            <Html>\n              <Head />\n              <body>\n                <Main />\n                <NextScript />\n              </body>\n            </Html>\n          )\n        }\n      }\n\n      export default MyDocument\n      ",
       "no-head-import-in-document invalid \n      import Document, { Html, Main, NextScript } from 'next/document'\n      import Head from 'next/head'\n\n      class MyDocument extends Document {\n        render() {\n          return (\n            <Html>\n              <Head />\n              <body>\n                <Main />\n                <NextScript />\n              </body>\n            </Html>\n          )\n        }\n      }\n\n      export default MyDocument\n      "
     ],
     "failed": [],
@@ -10163,14 +9555,6 @@
       "File Serving dev mode should prevent traversing with /..%%35%63..%%35%63..%%35%63..%%35%63..%%35%63..%%35%63test-file.txt",
       "File Serving dev mode should prevent traversing with /..%%35%63..%%35%63..%%35%63..%%35%63..%%35%63..%%35%63..%%35%63test-file.txt",
       "File Serving dev mode should prevent traversing with /..%%35%63..%%35%63..%%35%63..%%35%63..%%35%63..%%35%63..%%35%63..%%35%63test-file.txt",
-      "File Serving dev mode should prevent traversing with /%%32%65%%32%65/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%%32%65%%32%65/%%32%65%%32%65/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/test-file.txt",
       "File Serving dev mode should prevent traversing with /%%32%65%%32%65%%35%63test-file.txt",
       "File Serving dev mode should prevent traversing with /%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63test-file.txt",
       "File Serving dev mode should prevent traversing with /%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63test-file.txt",
@@ -10179,230 +9563,7 @@
       "File Serving dev mode should prevent traversing with /%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63test-file.txt",
       "File Serving dev mode should prevent traversing with /%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63test-file.txt",
       "File Serving dev mode should prevent traversing with /%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63test-file.txt",
-      "File Serving dev mode should prevent traversing with /../test-file.txt",
-      "File Serving dev mode should prevent traversing with /../../test-file.txt",
-      "File Serving dev mode should prevent traversing with /../../../test-file.txt",
-      "File Serving dev mode should prevent traversing with /../../../../test-file.txt",
-      "File Serving dev mode should prevent traversing with /../../../../../test-file.txt",
-      "File Serving dev mode should prevent traversing with /../../../../../../test-file.txt",
-      "File Serving dev mode should prevent traversing with /../../../../../../../test-file.txt",
-      "File Serving dev mode should prevent traversing with /../../../../../../../../test-file.txt",
-      "File Serving dev mode should prevent traversing with /..%2ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%2f..%2ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%2f..%2f..%2ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%2f..%2f..%2f..%2ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%2f..%2f..%2f..%2f..%2ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%2f..%2f..%2f..%2f..%2f..%2ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%2f..%2f..%2f..%2f..%2f..%2f..%2ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%2f..%2f..%2f..%2f..%2f..%2f..%2f..%2ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e/%2e%2e/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e/%2e%2e/%2e%2e/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e%2ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e%2f%2e%2e%2ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%252ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%252f..%252ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%252f..%252f..%252ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%252f..%252f..%252f..%252ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%252f..%252f..%252f..%252f..%252ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%252f..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e/%252e%252e/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e/%252e%252e/%252e%252e/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e%252ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e%252f%252e%252e%252ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /..\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /..\\..\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /..\\..\\..\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /..\\..\\..\\..\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /..\\..\\..\\..\\..\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /..\\..\\..\\..\\..\\..\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /..\\..\\..\\..\\..\\..\\..\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /..\\..\\..\\..\\..\\..\\..\\..\\test-file.txt",
       "File Serving dev mode should prevent traversing with /..%5ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%5c..%5ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%5c..%5c..%5ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%5c..%5c..%5c..%5ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%5c..%5c..%5c..%5c..%5ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%5c..%5c..%5c..%5c..%5c..%5ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%5c..%5c..%5c..%5c..%5c..%5c..%5ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e\\%2e%2e\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e%5ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e%5c%2e%2e%5ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%255ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%255c..%255ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%255c..%255c..%255ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%255c..%255c..%255c..%255ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%255c..%255c..%255c..%255c..%255ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%255c..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%255c..%255c..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e\\%252e%252e\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e%255ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e%255c%252e%252e%255ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /../test-file.txt",
-      "File Serving dev mode should prevent traversing with /../../test-file.txt",
-      "File Serving dev mode should prevent traversing with /../../../test-file.txt",
-      "File Serving dev mode should prevent traversing with /../../../../test-file.txt",
-      "File Serving dev mode should prevent traversing with /../../../../../test-file.txt",
-      "File Serving dev mode should prevent traversing with /../../../../../../test-file.txt",
-      "File Serving dev mode should prevent traversing with /../../../../../../../test-file.txt",
-      "File Serving dev mode should prevent traversing with /../../../../../../../../test-file.txt",
-      "File Serving dev mode should prevent traversing with /..%2ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%2f..%2ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%2f..%2f..%2ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%2f..%2f..%2f..%2ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%2f..%2f..%2f..%2f..%2ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%2f..%2f..%2f..%2f..%2f..%2ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%2f..%2f..%2f..%2f..%2f..%2f..%2ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%2f..%2f..%2f..%2f..%2f..%2f..%2f..%2ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e/%2e%2e/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e/%2e%2e/%2e%2e/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e%2ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e%2f%2e%2e%2ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%252ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%252f..%252ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%252f..%252f..%252ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%252f..%252f..%252f..%252ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%252f..%252f..%252f..%252f..%252ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%252f..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e/%252e%252e/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e/%252e%252e/%252e%252e/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e%252ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e%252f%252e%252e%252ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt",
-      "File Serving dev mode should prevent traversing with /..\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /..\\..\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /..\\..\\..\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /..\\..\\..\\..\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /..\\..\\..\\..\\..\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /..\\..\\..\\..\\..\\..\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /..\\..\\..\\..\\..\\..\\..\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /..\\..\\..\\..\\..\\..\\..\\..\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /..%5ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%5c..%5ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%5c..%5c..%5ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%5c..%5c..%5c..%5ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%5c..%5c..%5c..%5c..%5ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%5c..%5c..%5c..%5c..%5c..%5ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%5c..%5c..%5c..%5c..%5c..%5c..%5ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e\\%2e%2e\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e%5ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e%5c%2e%2e%5ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%255ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%255c..%255ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%255c..%255c..%255ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%255c..%255c..%255c..%255ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%255c..%255c..%255c..%255c..%255ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%255c..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /..%255c..%255c..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e\\%252e%252e\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e%255ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e%255c%252e%252e%255ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt",
-      "File Serving dev mode should prevent traversing with /%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt",
       "File Serving dev mode should prevent traversing with /\\../test-file.txt",
       "File Serving dev mode should prevent traversing with /\\../\\../test-file.txt",
       "File Serving dev mode should prevent traversing with /\\../\\../\\../test-file.txt",
@@ -10771,7 +9932,6 @@
       "File Serving dev mode should prevent traversing with /.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\test-file.txt",
       "File Serving dev mode should prevent traversing with /.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\test-file.txt",
       "File Serving dev mode should prevent traversing with /.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /../test-file.txt",
       "File Serving dev mode should prevent traversing with /../..//test-file.txt",
       "File Serving dev mode should prevent traversing with /../..//../test-file.txt",
       "File Serving dev mode should prevent traversing with /../..//../..//test-file.txt",
@@ -10779,7 +9939,6 @@
       "File Serving dev mode should prevent traversing with /../..//../..//../..//test-file.txt",
       "File Serving dev mode should prevent traversing with /../..//../..//../..//../test-file.txt",
       "File Serving dev mode should prevent traversing with /../..//../..//../..//../..//test-file.txt",
-      "File Serving dev mode should prevent traversing with /..\\test-file.txt",
       "File Serving dev mode should prevent traversing with /..\\..\\\\test-file.txt",
       "File Serving dev mode should prevent traversing with /..\\..\\\\..\\test-file.txt",
       "File Serving dev mode should prevent traversing with /..\\..\\\\..\\..\\\\test-file.txt",
@@ -10787,7 +9946,6 @@
       "File Serving dev mode should prevent traversing with /..\\..\\\\..\\..\\\\..\\..\\\\test-file.txt",
       "File Serving dev mode should prevent traversing with /..\\..\\\\..\\..\\\\..\\..\\\\..\\test-file.txt",
       "File Serving dev mode should prevent traversing with /..\\..\\\\..\\..\\\\..\\..\\\\..\\..\\\\test-file.txt",
-      "File Serving dev mode should prevent traversing with /..///test-file.txt",
       "File Serving dev mode should prevent traversing with /../..///test-file.txt",
       "File Serving dev mode should prevent traversing with /../..//..///test-file.txt",
       "File Serving dev mode should prevent traversing with /../..//../..///test-file.txt",
@@ -10795,7 +9953,6 @@
       "File Serving dev mode should prevent traversing with /../..//../..//../..///test-file.txt",
       "File Serving dev mode should prevent traversing with /../..//../..//../..//..///test-file.txt",
       "File Serving dev mode should prevent traversing with /../..//../..//../..//../..///test-file.txt",
-      "File Serving dev mode should prevent traversing with /..\\\\\\test-file.txt",
       "File Serving dev mode should prevent traversing with /..\\..\\\\\\test-file.txt",
       "File Serving dev mode should prevent traversing with /..\\..\\\\..\\\\\\test-file.txt",
       "File Serving dev mode should prevent traversing with /..\\..\\\\..\\..\\\\\\test-file.txt",
@@ -11054,14 +10211,6 @@
       "File Serving production mode should prevent traversing with /..%%35%63..%%35%63..%%35%63..%%35%63..%%35%63..%%35%63test-file.txt",
       "File Serving production mode should prevent traversing with /..%%35%63..%%35%63..%%35%63..%%35%63..%%35%63..%%35%63..%%35%63test-file.txt",
       "File Serving production mode should prevent traversing with /..%%35%63..%%35%63..%%35%63..%%35%63..%%35%63..%%35%63..%%35%63..%%35%63test-file.txt",
-      "File Serving production mode should prevent traversing with /%%32%65%%32%65/test-file.txt",
-      "File Serving production mode should prevent traversing with /%%32%65%%32%65/%%32%65%%32%65/test-file.txt",
-      "File Serving production mode should prevent traversing with /%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/test-file.txt",
-      "File Serving production mode should prevent traversing with /%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/test-file.txt",
-      "File Serving production mode should prevent traversing with /%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/test-file.txt",
-      "File Serving production mode should prevent traversing with /%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/test-file.txt",
-      "File Serving production mode should prevent traversing with /%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/test-file.txt",
-      "File Serving production mode should prevent traversing with /%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/%%32%65%%32%65/test-file.txt",
       "File Serving production mode should prevent traversing with /%%32%65%%32%65%%35%63test-file.txt",
       "File Serving production mode should prevent traversing with /%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63test-file.txt",
       "File Serving production mode should prevent traversing with /%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63test-file.txt",
@@ -11070,230 +10219,7 @@
       "File Serving production mode should prevent traversing with /%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63test-file.txt",
       "File Serving production mode should prevent traversing with /%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63test-file.txt",
       "File Serving production mode should prevent traversing with /%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63%%32%65%%32%65%%35%63test-file.txt",
-      "File Serving production mode should prevent traversing with /../test-file.txt",
-      "File Serving production mode should prevent traversing with /../../test-file.txt",
-      "File Serving production mode should prevent traversing with /../../../test-file.txt",
-      "File Serving production mode should prevent traversing with /../../../../test-file.txt",
-      "File Serving production mode should prevent traversing with /../../../../../test-file.txt",
-      "File Serving production mode should prevent traversing with /../../../../../../test-file.txt",
-      "File Serving production mode should prevent traversing with /../../../../../../../test-file.txt",
-      "File Serving production mode should prevent traversing with /../../../../../../../../test-file.txt",
-      "File Serving production mode should prevent traversing with /..%2ftest-file.txt",
-      "File Serving production mode should prevent traversing with /..%2f..%2ftest-file.txt",
-      "File Serving production mode should prevent traversing with /..%2f..%2f..%2ftest-file.txt",
-      "File Serving production mode should prevent traversing with /..%2f..%2f..%2f..%2ftest-file.txt",
-      "File Serving production mode should prevent traversing with /..%2f..%2f..%2f..%2f..%2ftest-file.txt",
-      "File Serving production mode should prevent traversing with /..%2f..%2f..%2f..%2f..%2f..%2ftest-file.txt",
-      "File Serving production mode should prevent traversing with /..%2f..%2f..%2f..%2f..%2f..%2f..%2ftest-file.txt",
-      "File Serving production mode should prevent traversing with /..%2f..%2f..%2f..%2f..%2f..%2f..%2f..%2ftest-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e/test-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e/%2e%2e/test-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e/%2e%2e/%2e%2e/test-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e%2ftest-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e%2f%2e%2e%2ftest-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt",
-      "File Serving production mode should prevent traversing with /..%252ftest-file.txt",
-      "File Serving production mode should prevent traversing with /..%252f..%252ftest-file.txt",
-      "File Serving production mode should prevent traversing with /..%252f..%252f..%252ftest-file.txt",
-      "File Serving production mode should prevent traversing with /..%252f..%252f..%252f..%252ftest-file.txt",
-      "File Serving production mode should prevent traversing with /..%252f..%252f..%252f..%252f..%252ftest-file.txt",
-      "File Serving production mode should prevent traversing with /..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt",
-      "File Serving production mode should prevent traversing with /..%252f..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt",
-      "File Serving production mode should prevent traversing with /..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e/test-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e/%252e%252e/test-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e/%252e%252e/%252e%252e/test-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e%252ftest-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e%252f%252e%252e%252ftest-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt",
-      "File Serving production mode should prevent traversing with /..\\test-file.txt",
-      "File Serving production mode should prevent traversing with /..\\..\\test-file.txt",
-      "File Serving production mode should prevent traversing with /..\\..\\..\\test-file.txt",
-      "File Serving production mode should prevent traversing with /..\\..\\..\\..\\test-file.txt",
-      "File Serving production mode should prevent traversing with /..\\..\\..\\..\\..\\test-file.txt",
-      "File Serving production mode should prevent traversing with /..\\..\\..\\..\\..\\..\\test-file.txt",
-      "File Serving production mode should prevent traversing with /..\\..\\..\\..\\..\\..\\..\\test-file.txt",
-      "File Serving production mode should prevent traversing with /..\\..\\..\\..\\..\\..\\..\\..\\test-file.txt",
       "File Serving production mode should prevent traversing with /..%5ctest-file.txt",
-      "File Serving production mode should prevent traversing with /..%5c..%5ctest-file.txt",
-      "File Serving production mode should prevent traversing with /..%5c..%5c..%5ctest-file.txt",
-      "File Serving production mode should prevent traversing with /..%5c..%5c..%5c..%5ctest-file.txt",
-      "File Serving production mode should prevent traversing with /..%5c..%5c..%5c..%5c..%5ctest-file.txt",
-      "File Serving production mode should prevent traversing with /..%5c..%5c..%5c..%5c..%5c..%5ctest-file.txt",
-      "File Serving production mode should prevent traversing with /..%5c..%5c..%5c..%5c..%5c..%5c..%5ctest-file.txt",
-      "File Serving production mode should prevent traversing with /..%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5ctest-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e\\test-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e\\%2e%2e\\test-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e%5ctest-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e%5c%2e%2e%5ctest-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt",
-      "File Serving production mode should prevent traversing with /..%255ctest-file.txt",
-      "File Serving production mode should prevent traversing with /..%255c..%255ctest-file.txt",
-      "File Serving production mode should prevent traversing with /..%255c..%255c..%255ctest-file.txt",
-      "File Serving production mode should prevent traversing with /..%255c..%255c..%255c..%255ctest-file.txt",
-      "File Serving production mode should prevent traversing with /..%255c..%255c..%255c..%255c..%255ctest-file.txt",
-      "File Serving production mode should prevent traversing with /..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt",
-      "File Serving production mode should prevent traversing with /..%255c..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt",
-      "File Serving production mode should prevent traversing with /..%255c..%255c..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e\\test-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e\\%252e%252e\\test-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e%255ctest-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e%255c%252e%252e%255ctest-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt",
-      "File Serving production mode should prevent traversing with /../test-file.txt",
-      "File Serving production mode should prevent traversing with /../../test-file.txt",
-      "File Serving production mode should prevent traversing with /../../../test-file.txt",
-      "File Serving production mode should prevent traversing with /../../../../test-file.txt",
-      "File Serving production mode should prevent traversing with /../../../../../test-file.txt",
-      "File Serving production mode should prevent traversing with /../../../../../../test-file.txt",
-      "File Serving production mode should prevent traversing with /../../../../../../../test-file.txt",
-      "File Serving production mode should prevent traversing with /../../../../../../../../test-file.txt",
-      "File Serving production mode should prevent traversing with /..%2ftest-file.txt",
-      "File Serving production mode should prevent traversing with /..%2f..%2ftest-file.txt",
-      "File Serving production mode should prevent traversing with /..%2f..%2f..%2ftest-file.txt",
-      "File Serving production mode should prevent traversing with /..%2f..%2f..%2f..%2ftest-file.txt",
-      "File Serving production mode should prevent traversing with /..%2f..%2f..%2f..%2f..%2ftest-file.txt",
-      "File Serving production mode should prevent traversing with /..%2f..%2f..%2f..%2f..%2f..%2ftest-file.txt",
-      "File Serving production mode should prevent traversing with /..%2f..%2f..%2f..%2f..%2f..%2f..%2ftest-file.txt",
-      "File Serving production mode should prevent traversing with /..%2f..%2f..%2f..%2f..%2f..%2f..%2f..%2ftest-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e/test-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e/%2e%2e/test-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e/%2e%2e/%2e%2e/test-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/test-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e%2ftest-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e%2f%2e%2e%2ftest-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2ftest-file.txt",
-      "File Serving production mode should prevent traversing with /..%252ftest-file.txt",
-      "File Serving production mode should prevent traversing with /..%252f..%252ftest-file.txt",
-      "File Serving production mode should prevent traversing with /..%252f..%252f..%252ftest-file.txt",
-      "File Serving production mode should prevent traversing with /..%252f..%252f..%252f..%252ftest-file.txt",
-      "File Serving production mode should prevent traversing with /..%252f..%252f..%252f..%252f..%252ftest-file.txt",
-      "File Serving production mode should prevent traversing with /..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt",
-      "File Serving production mode should prevent traversing with /..%252f..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt",
-      "File Serving production mode should prevent traversing with /..%252f..%252f..%252f..%252f..%252f..%252f..%252f..%252ftest-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e/test-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e/%252e%252e/test-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e/%252e%252e/%252e%252e/test-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/%252e%252e/test-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e%252ftest-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e%252f%252e%252e%252ftest-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252f%252e%252e%252ftest-file.txt",
-      "File Serving production mode should prevent traversing with /..\\test-file.txt",
-      "File Serving production mode should prevent traversing with /..\\..\\test-file.txt",
-      "File Serving production mode should prevent traversing with /..\\..\\..\\test-file.txt",
-      "File Serving production mode should prevent traversing with /..\\..\\..\\..\\test-file.txt",
-      "File Serving production mode should prevent traversing with /..\\..\\..\\..\\..\\test-file.txt",
-      "File Serving production mode should prevent traversing with /..\\..\\..\\..\\..\\..\\test-file.txt",
-      "File Serving production mode should prevent traversing with /..\\..\\..\\..\\..\\..\\..\\test-file.txt",
-      "File Serving production mode should prevent traversing with /..\\..\\..\\..\\..\\..\\..\\..\\test-file.txt",
-      "File Serving production mode should prevent traversing with /..%5ctest-file.txt",
-      "File Serving production mode should prevent traversing with /..%5c..%5ctest-file.txt",
-      "File Serving production mode should prevent traversing with /..%5c..%5c..%5ctest-file.txt",
-      "File Serving production mode should prevent traversing with /..%5c..%5c..%5c..%5ctest-file.txt",
-      "File Serving production mode should prevent traversing with /..%5c..%5c..%5c..%5c..%5ctest-file.txt",
-      "File Serving production mode should prevent traversing with /..%5c..%5c..%5c..%5c..%5c..%5ctest-file.txt",
-      "File Serving production mode should prevent traversing with /..%5c..%5c..%5c..%5c..%5c..%5c..%5ctest-file.txt",
-      "File Serving production mode should prevent traversing with /..%5c..%5c..%5c..%5c..%5c..%5c..%5c..%5ctest-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e\\test-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e\\%2e%2e\\test-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\%2e%2e\\test-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e%5ctest-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e%5c%2e%2e%5ctest-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt",
-      "File Serving production mode should prevent traversing with /%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5ctest-file.txt",
-      "File Serving production mode should prevent traversing with /..%255ctest-file.txt",
-      "File Serving production mode should prevent traversing with /..%255c..%255ctest-file.txt",
-      "File Serving production mode should prevent traversing with /..%255c..%255c..%255ctest-file.txt",
-      "File Serving production mode should prevent traversing with /..%255c..%255c..%255c..%255ctest-file.txt",
-      "File Serving production mode should prevent traversing with /..%255c..%255c..%255c..%255c..%255ctest-file.txt",
-      "File Serving production mode should prevent traversing with /..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt",
-      "File Serving production mode should prevent traversing with /..%255c..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt",
-      "File Serving production mode should prevent traversing with /..%255c..%255c..%255c..%255c..%255c..%255c..%255c..%255ctest-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e\\test-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e\\%252e%252e\\test-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\%252e%252e\\test-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e%255ctest-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e%255c%252e%252e%255ctest-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt",
-      "File Serving production mode should prevent traversing with /%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255c%252e%252e%255ctest-file.txt",
       "File Serving production mode should prevent traversing with /\\../test-file.txt",
       "File Serving production mode should prevent traversing with /\\../\\../test-file.txt",
       "File Serving production mode should prevent traversing with /\\../\\../\\../test-file.txt",
@@ -11662,7 +10588,6 @@
       "File Serving production mode should prevent traversing with /.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\test-file.txt",
       "File Serving production mode should prevent traversing with /.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\test-file.txt",
       "File Serving production mode should prevent traversing with /.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\.\\\\..\\\\test-file.txt",
-      "File Serving production mode should prevent traversing with /../test-file.txt",
       "File Serving production mode should prevent traversing with /../..//test-file.txt",
       "File Serving production mode should prevent traversing with /../..//../test-file.txt",
       "File Serving production mode should prevent traversing with /../..//../..//test-file.txt",
@@ -11670,7 +10595,6 @@
       "File Serving production mode should prevent traversing with /../..//../..//../..//test-file.txt",
       "File Serving production mode should prevent traversing with /../..//../..//../..//../test-file.txt",
       "File Serving production mode should prevent traversing with /../..//../..//../..//../..//test-file.txt",
-      "File Serving production mode should prevent traversing with /..\\test-file.txt",
       "File Serving production mode should prevent traversing with /..\\..\\\\test-file.txt",
       "File Serving production mode should prevent traversing with /..\\..\\\\..\\test-file.txt",
       "File Serving production mode should prevent traversing with /..\\..\\\\..\\..\\\\test-file.txt",
@@ -11678,7 +10602,6 @@
       "File Serving production mode should prevent traversing with /..\\..\\\\..\\..\\\\..\\..\\\\test-file.txt",
       "File Serving production mode should prevent traversing with /..\\..\\\\..\\..\\\\..\\..\\\\..\\test-file.txt",
       "File Serving production mode should prevent traversing with /..\\..\\\\..\\..\\\\..\\..\\\\..\\..\\\\test-file.txt",
-      "File Serving production mode should prevent traversing with /..///test-file.txt",
       "File Serving production mode should prevent traversing with /../..///test-file.txt",
       "File Serving production mode should prevent traversing with /../..//..///test-file.txt",
       "File Serving production mode should prevent traversing with /../..//../..///test-file.txt",
@@ -11686,7 +10609,6 @@
       "File Serving production mode should prevent traversing with /../..//../..//../..///test-file.txt",
       "File Serving production mode should prevent traversing with /../..//../..//../..//..///test-file.txt",
       "File Serving production mode should prevent traversing with /../..//../..//../..//../..///test-file.txt",
-      "File Serving production mode should prevent traversing with /..\\\\\\test-file.txt",
       "File Serving production mode should prevent traversing with /..\\..\\\\\\test-file.txt",
       "File Serving production mode should prevent traversing with /..\\..\\\\..\\\\\\test-file.txt",
       "File Serving production mode should prevent traversing with /..\\..\\\\..\\..\\\\\\test-file.txt",
@@ -11748,9 +10670,6 @@
       "Next Lint First Time Setup  shows a successful message when completed",
       "Next Lint should generate next-env.d.ts before lint command",
       "Next Lint should not generate next-env.d.ts without typescript",
-      "Next Lint should not generate next-env.d.ts without typescript",
-      "Next Lint should not generate next-env.d.ts without typescript",
-      "Next Lint should not generate next-env.d.ts without typescript",
       "Next Lint should add relative path for dist types in tsconfig.json when app dir exist",
       "Next Lint shows warnings and errors",
       "Next Lint base directories are linted by default",
@@ -11766,7 +10685,6 @@
       "Next Lint format flag supports additional user-defined formats",
       "Next Lint file flag can selectively lint only a single file",
       "Next Lint file flag can selectively lints multiple files",
-      "Next Lint output flag create a file respecting the chosen format",
       "Next Lint output flag create a file respecting the chosen format",
       "Next Lint show error message when the file path is a directory",
       "Next Lint lint files with cjs and mjs file extension"
