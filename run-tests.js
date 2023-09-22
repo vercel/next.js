@@ -12,6 +12,10 @@ const { createNextInstall } = require('./test/lib/create-next-install')
 const glob = promisify(_glob)
 const exec = promisify(execOrig)
 
+function escapeRegexp(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
 /**
  * @typedef {{ file: string, cases: 'all' | string[] }} TestFile
  */
@@ -230,7 +234,12 @@ async function main() {
     tests = tests
       .filter((test) => externalTestsFilterLists[test.file]?.passed.length > 0)
       .map((test) => {
-        test.cases = externalTestsFilterLists[test.file].passed
+        const info = externalTestsFilterLists[test.file]
+        // only run filtered mode when there are failing tests.
+        // When the whole test suite passes we can run all tests, including newly added ones.
+        if (info.failed.length > 0) {
+          test.cases = info.passed.filter((p) => !info.failed.includes(p))
+        }
         return test
       })
   }
@@ -372,7 +381,10 @@ ${ENDGROUP}`)
         test.file,
         ...(test.cases === 'all'
           ? []
-          : ['--testNamePattern', `'${test.cases.join('|')}'`]),
+          : [
+              '--testNamePattern',
+              `^(${test.cases.map(escapeRegexp).join('|')})$`,
+            ]),
       ])
       const child = spawn(
         jestPath,
@@ -390,7 +402,10 @@ ${ENDGROUP}`)
           test.file,
           ...(test.cases === 'all'
             ? []
-            : ['--testNamePattern', `'${test.cases.join('|')}'`]),
+            : [
+                '--testNamePattern',
+                `^(${test.cases.map(escapeRegexp).join('|')})$`,
+              ]),
         ],
         {
           stdio: ['ignore', 'pipe', 'pipe'],
