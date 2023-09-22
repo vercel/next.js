@@ -1341,7 +1341,7 @@ pub fn with_turbo_tasks<T>(func: impl FnOnce(&Arc<dyn TurboTasksApi>) -> T) -> T
 }
 
 pub fn weak_turbo_tasks() -> Weak<dyn TurboTasksApi> {
-    TURBO_TASKS.with(|arc| Arc::downgrade(arc))
+    TURBO_TASKS.with(Arc::downgrade)
 }
 
 pub fn with_turbo_tasks_for_testing<T>(

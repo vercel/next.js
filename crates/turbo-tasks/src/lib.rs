@@ -29,7 +29,6 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 #![feature(result_flattening)]
 #![feature(error_generic_member_access)]
-#![feature(provide_any)]
 #![feature(new_uninit)]
 #![feature(arbitrary_self_types)]
 #![feature(async_fn_in_trait)]

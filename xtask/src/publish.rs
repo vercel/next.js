@@ -249,8 +249,8 @@ pub fn run_bump(names: HashSet<String>, dry_run: bool) {
         .collect::<Vec<PackageJson>>();
     let mut workspaces_to_bump = workspaces
         .iter()
+        .filter(|&p| names.contains(&p.name))
         .cloned()
-        .filter(|p| names.contains(&p.name))
         .collect::<Vec<_>>();
     if workspaces_to_bump.is_empty() {
         fn name_to_title(package: &PackageJson) -> String {
