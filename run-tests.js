@@ -370,7 +370,7 @@ ${ENDGROUP}`)
 
       const shouldRecordTestWithReplay = process.env.RECORD_REPLAY && isRetry
 
-      console.log([
+      const args = [
         ...(shouldRecordTestWithReplay
           ? [`--config=jest.replay.config.js`]
           : []),
@@ -388,73 +388,48 @@ ${ENDGROUP}`)
               '--testNamePattern',
               `^(${test.cases.map(escapeRegexp).join('|')})$`,
             ]),
-      ])
-      const child = spawn(
-        jestPath,
-        [
-          ...(shouldRecordTestWithReplay
-            ? [`--config=jest.replay.config.js`]
-            : []),
-          '--runInBand',
-          '--forceExit',
-          '--verbose',
-          '--silent',
-          ...(isTestJob
-            ? ['--json', `--outputFile=${test.file}${RESULTS_EXT}`]
-            : []),
+      ]
+      const env = {
+        IS_RETRY: isRetry ? 'true' : undefined,
+        RECORD_REPLAY: shouldRecordTestWithReplay,
+        // run tests in headless mode by default
+        HEADLESS: 'true',
+        TRACE_PLAYWRIGHT: 'true',
+        NEXT_TELEMETRY_DISABLED: '1',
+        // unset CI env so CI behavior is only explicitly
+        // tested when enabled
+        CI: '',
+        CIRCLECI: '',
+        GITHUB_ACTIONS: '',
+        CONTINUOUS_INTEGRATION: '',
+        RUN_ID: '',
+        BUILD_NUMBER: '',
+        // Format the output of junit report to include the test name
+        // For the debugging purpose to compare actual run list to the generated reports
+        // [NOTE]: This won't affect if junit reporter is not enabled
+        JEST_JUNIT_OUTPUT_NAME: test.file.replaceAll('/', '_'),
+        // Specify suite name for the test to avoid unexpected merging across different env / grouped tests
+        // This is not individual suites name (corresponding 'describe'), top level suite name which have redundant names by default
+        // [NOTE]: This won't affect if junit reporter is not enabled
+        JEST_SUITE_NAME: [
+          `${process.env.NEXT_TEST_MODE ?? 'default'}`,
+          groupArg,
+          testType,
           test.file,
-          ...(test.cases === 'all'
-            ? []
-            : [
-                '--testNamePattern',
-                `^(${test.cases.map(escapeRegexp).join('|')})$`,
-              ]),
-        ],
-        {
-          stdio: ['ignore', 'pipe', 'pipe'],
-          env: {
-            ...process.env,
-            IS_RETRY: isRetry ? 'true' : undefined,
-            RECORD_REPLAY: shouldRecordTestWithReplay,
-            // run tests in headless mode by default
-            HEADLESS: 'true',
-            TRACE_PLAYWRIGHT: 'true',
-            NEXT_TELEMETRY_DISABLED: '1',
-            // unset CI env so CI behavior is only explicitly
-            // tested when enabled
-            CI: '',
-            CIRCLECI: '',
-            GITHUB_ACTIONS: '',
-            CONTINUOUS_INTEGRATION: '',
-            RUN_ID: '',
-            BUILD_NUMBER: '',
-            // Format the output of junit report to include the test name
-            // For the debugging purpose to compare actual run list to the generated reports
-            // [NOTE]: This won't affect if junit reporter is not enabled
-            JEST_JUNIT_OUTPUT_NAME: test.file.replaceAll('/', '_'),
-            // Specify suite name for the test to avoid unexpected merging across different env / grouped tests
-            // This is not individual suites name (corresponding 'describe'), top level suite name which have redundant names by default
-            // [NOTE]: This won't affect if junit reporter is not enabled
-            JEST_SUITE_NAME: [
-              `${process.env.NEXT_TEST_MODE ?? 'default'}`,
-              groupArg,
-              testType,
-              test.file,
-            ]
-              .filter(Boolean)
-              .join(':'),
-            ...(isFinalRun
-              ? {
-                  // Events can be finicky in CI. This switches to a more
-                  // reliable polling method.
-                  // CHOKIDAR_USEPOLLING: 'true',
-                  // CHOKIDAR_INTERVAL: 500,
-                  // WATCHPACK_POLLING: 500,
-                }
-              : {}),
-          },
-        }
-      )
+        ]
+          .filter(Boolean)
+          .join(':'),
+        ...(isFinalRun
+          ? {
+              // Events can be finicky in CI. This switches to a more
+              // reliable polling method.
+              // CHOKIDAR_USEPOLLING: 'true',
+              // CHOKIDAR_INTERVAL: 500,
+              // WATCHPACK_POLLING: 500,
+            }
+          : {}),
+      }
+
       const handleOutput = (type) => (chunk) => {
         if (hideOutput) {
           outputChunks.push({ type, chunk })
@@ -462,7 +437,23 @@ ${ENDGROUP}`)
           process.stdout.write(chunk)
         }
       }
-      child.stdout.on('data', handleOutput('stdout'))
+      const stdout = handleOutput('stdout')
+      stdout(
+        [
+          ...Object.entries(env).map((e) => `${e[0]}=${e[1]}`),
+          jestPath,
+          ...args.map((a) => `'${a}'`),
+        ].join(' ')
+      )
+
+      const child = spawn(jestPath, args, {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: {
+          ...process.env,
+          ...env,
+        },
+      })
+      child.stdout.on('data', stdout)
       child.stderr.on('data', handleOutput('stderr'))
 
       children.add(child)
