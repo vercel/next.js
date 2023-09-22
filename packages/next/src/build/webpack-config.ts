@@ -193,7 +193,7 @@ function getReactProfilingInProduction() {
 function createRSCAliases(
   bundledReactChannel: string,
   opts: {
-    layer: WebpackLayerName & ('rsc' | 'ssr' | 'app-pages-browser')
+    layer: WebpackLayerName
     isEdgeServer: boolean
     reactProductionProfiling: boolean
     reactServerCondition?: boolean
