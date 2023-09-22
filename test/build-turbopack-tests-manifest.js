@@ -59,10 +59,10 @@ async function updatePassingTests() {
       if (shouldPass.size > 0) {
         const list = JSON.stringify([...shouldPass], 0, 2)
         console.log(
-          `${file} has ${shouldPass.size} tests should pass but failed: ${list}`
+          `${file} has ${shouldPass.size} test(s) that should pass but failed: ${list}`
         )
       }
-      newData.passed = [...new Set([...newData.passed, ...shouldPass])]
+      newData.passed = [...new Set([...oldData.passed, ...newData.passed])]
       newData.failed = newData.failed.filter((name) => !shouldPass.has(name))
     }
   }
