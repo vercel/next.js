@@ -397,15 +397,9 @@ impl IssueReporter for ConsoleUi {
             let category = &plain_issue.category;
             let title = &plain_issue.title;
             let processing_path = &*plain_issue.processing_path;
-            let severity_map = grouped_issues
-                .entry(severity)
-                .or_insert_with(Default::default);
-            let category_map = severity_map
-                .entry(category.clone())
-                .or_insert_with(Default::default);
-            let issues = category_map
-                .entry(context_path.to_string())
-                .or_insert_with(Default::default);
+            let severity_map = grouped_issues.entry(severity).or_default();
+            let category_map = severity_map.entry(category.clone()).or_default();
+            let issues = category_map.entry(context_path.to_string()).or_default();
 
             let mut styled_issue = if let Some(source) = &plain_issue.source {
                 let mut styled_issue = format!(

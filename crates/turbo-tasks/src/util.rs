@@ -38,7 +38,7 @@ impl StdError for SharedError {
         self.inner.source()
     }
 
-    fn provide<'a>(&'a self, req: &mut std::any::Demand<'a>) {
+    fn provide<'a>(&'a self, req: &mut std::error::Request<'a>) {
         self.inner.provide(req);
     }
 }

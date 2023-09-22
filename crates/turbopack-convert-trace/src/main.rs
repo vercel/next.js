@@ -599,7 +599,7 @@ fn main() {
                                             );
                                             add_to_span_counter();
                                         } else {
-                                            let group = groups.entry(key).or_insert_with(Vec::new);
+                                            let group = groups.entry(key).or_default();
                                             if !group.is_empty() {
                                                 add_to_span_counter();
                                             }

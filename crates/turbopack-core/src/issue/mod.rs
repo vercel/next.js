@@ -391,7 +391,7 @@ impl CapturedIssues {
             })
             .try_join()
             .await?;
-        list.sort_by(|a, b| ReadRef::ptr_cmp(a, b));
+        list.sort_by(ReadRef::ptr_cmp);
         Ok(list)
     }
 }

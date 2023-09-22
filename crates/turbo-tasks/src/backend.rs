@@ -2,7 +2,7 @@ use std::{
     any::Any,
     borrow::Cow,
     fmt,
-    fmt::{Debug, Display},
+    fmt::{Debug, Display, Write},
     future::Future,
     pin::Pin,
     sync::Arc,
@@ -383,11 +383,14 @@ impl PersistentTaskType {
                 }
                 Err(name) => {
                     if !this_value.has_trait(trait_type) {
-                        let traits = this_value
-                            .traits()
-                            .iter()
-                            .map(|t| format!(" {}", t))
-                            .collect::<String>();
+                        let traits =
+                            this_value
+                                .traits()
+                                .iter()
+                                .fold(String::new(), |mut out, t| {
+                                    let _ = write!(out, " {}", t);
+                                    out
+                                });
                         Err(anyhow!(
                             "{} doesn't implement {} (only{})",
                             this_value,
