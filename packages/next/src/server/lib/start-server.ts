@@ -3,6 +3,7 @@ import '../node-polyfill-fetch'
 import '../require-hook'
 
 import type { IncomingMessage, ServerResponse } from 'http'
+import type { SelfSignedCertificate } from '../../lib/mkcert'
 
 import fs from 'fs'
 import path from 'path'
@@ -38,10 +39,7 @@ export interface StartServerOptions {
   envInfo?: string[]
   expFeatureInfo?: string[]
   // this is dev-server only
-  selfSignedCertificate?: {
-    key: string
-    cert: string
-  }
+  selfSignedCertificate?: SelfSignedCertificate
   isExperimentalTestProxy?: boolean
 }
 
