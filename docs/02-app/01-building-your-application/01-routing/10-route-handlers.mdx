@@ -391,7 +391,7 @@ export async function GET(request, { params }) {
 The request object passed to the route handler is a `NextRequest` instance, which has [some additional convenient methods](/docs/app/api-reference/functions/next-request#nexturl), including for handling query parameters.
 
 ```ts filename="app/test/route.ts" switcher
-import { NextRequest } from 'next/server'
+import { type NextRequest } from 'next/server'
 
 export function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
