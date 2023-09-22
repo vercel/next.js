@@ -2,13 +2,14 @@
 
 import fs from 'fs-extra'
 import { join } from 'path'
-import { BUILD_ID_FILE } from 'next/constants'
+import { BUILD_ID_FILE, BUILD_MANIFEST } from 'next/constants'
 import {
   nextStart,
   nextBuild,
   findPort,
   killApp,
   renderViaHTTP,
+  launchApp,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -35,6 +36,30 @@ describe('distDir', () => {
     it('should build the app within the given `dist` directory', async () => {
       expect(
         await fs.exists(join(__dirname, `/../dist/${BUILD_ID_FILE}`))
+      ).toBeTruthy()
+    })
+    it('should not build the app within the default `.next` directory', async () => {
+      expect(await fs.exists(join(__dirname, '/../.next'))).toBeFalsy()
+    })
+  })
+
+  describe('dev mode', () => {
+    beforeAll(async () => {
+      await fs.remove(join(appDir, '.next'))
+      await fs.remove(join(appDir, 'dist'))
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
+
+    it('should render the page', async () => {
+      const html = await renderViaHTTP(appPort, '/')
+      expect(html).toMatch(/Hello World/)
+    })
+
+    it('should build the app within the given `dist` directory', async () => {
+      expect(
+        await fs.exists(join(__dirname, `/../dist/${BUILD_MANIFEST}`))
       ).toBeTruthy()
     })
     it('should not build the app within the default `.next` directory', async () => {
