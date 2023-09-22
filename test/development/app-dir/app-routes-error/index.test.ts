@@ -29,7 +29,7 @@ createNextDescribe(
               `Export the uppercase '${method.toUpperCase()}' method name to fix this error.`
             )
             expect(next.cliOutput).toMatch(
-              /Detected lowercase method '.+' in '.+\/route\.ts'\. Export the uppercase '.+' method name to fix this error\./
+              /Detected lowercase method '.+' in '.+\/route\.js'\. Export the uppercase '.+' method name to fix this error\./
             )
             return 'yes'
           }, 'yes')
