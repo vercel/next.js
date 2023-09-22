@@ -11,12 +11,13 @@ export function autoImplementMethods(
   // Loop through all the HTTP methods to create the initial methods object.
   // Each of the methods will be set to the the 405 response handler.
   const methods: Record<HTTP_METHOD, AppRouteHandlerFn> = HTTP_METHODS.reduce(
-    (acc, method) => ({
-      ...acc,
+    (acc, method) => {
       // If the userland module implements the method, then use it. Otherwise,
       // use the 405 response handler.
-      [method]: handlers[method] ?? handleMethodNotAllowedResponse,
-    }),
+      acc[method] = handlers[method] ?? handleMethodNotAllowedResponse
+
+      return acc
+    },
     {} as Record<HTTP_METHOD, AppRouteHandlerFn>
   )
 

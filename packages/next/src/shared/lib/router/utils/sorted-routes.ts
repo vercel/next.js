@@ -27,7 +27,11 @@ class UrlNode {
 
     const routes = childrenPaths
       .map((c) => this.children.get(c)!._smoosh(`${prefix}${c}/`))
-      .reduce((prev, curr) => [...prev, ...curr], [])
+      .reduce((prev, curr) => {
+        prev.push(...curr)
+
+        return prev
+      }, [])
 
     if (this.slugName !== null) {
       routes.push(

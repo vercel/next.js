@@ -145,7 +145,9 @@ function getEntrypointsFromTree(
         ...currentPath,
         key,
       ])
-      return [...paths, ...childPages]
+      paths.push(...childPages)
+
+      return paths
     },
     []
   )
