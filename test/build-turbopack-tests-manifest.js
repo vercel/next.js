@@ -53,9 +53,11 @@ async function updatePassingTests() {
       const newData = passing[file]
       const oldData = oldPassingData[file]
       if (!newData) continue
+      // We only want to keep test cases from the old data that are still exiting
       oldData.passed = oldData.passed.filter(
         (name) => newData.failed.includes(name) || newData.passed.includes(name)
       )
+      // Grab test cases that passed before, but fail now
       const shouldPass = new Set(
         oldData.passed.filter((name) => newData.failed.includes(name))
       )
@@ -65,7 +67,9 @@ async function updatePassingTests() {
           `${file} has ${shouldPass.size} test(s) that should pass but failed: ${list}`
         )
       }
+      // Merge the old passing tests with the new ones
       newData.passed = [...new Set([...oldData.passed, ...newData.passed])]
+      // but remove them also from the failed list
       newData.failed = newData.failed.filter((name) => !shouldPass.has(name))
     }
   }
