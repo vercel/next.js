@@ -1580,38 +1580,6 @@ export async function isPageStatic({
       const hasStaticProps = !!componentsResult.getStaticProps
       const hasStaticPaths = !!componentsResult.getStaticPaths
       const hasServerProps = !!componentsResult.getServerSideProps
-      const hasLegacyServerProps = !!(await componentsResult.ComponentMod
-        .unstable_getServerProps)
-      const hasLegacyStaticProps = !!(await componentsResult.ComponentMod
-        .unstable_getStaticProps)
-      const hasLegacyStaticPaths = !!(await componentsResult.ComponentMod
-        .unstable_getStaticPaths)
-      const hasLegacyStaticParams = !!(await componentsResult.ComponentMod
-        .unstable_getStaticParams)
-
-      if (hasLegacyStaticParams) {
-        throw new Error(
-          `unstable_getStaticParams was replaced with getStaticPaths. Please update your code.`
-        )
-      }
-
-      if (hasLegacyStaticPaths) {
-        throw new Error(
-          `unstable_getStaticPaths was replaced with getStaticPaths. Please update your code.`
-        )
-      }
-
-      if (hasLegacyStaticProps) {
-        throw new Error(
-          `unstable_getStaticProps was replaced with getStaticProps. Please update your code.`
-        )
-      }
-
-      if (hasLegacyServerProps) {
-        throw new Error(
-          `unstable_getServerProps was replaced with getServerSideProps. Please update your code.`
-        )
-      }
 
       // A page cannot be prerendered _and_ define a data requirement. That's
       // contradictory!
