@@ -231,6 +231,7 @@ const nextDev: CliCommand = async (args) => {
   }
 
   if (process.env.TURBOPACK) {
+    isTurboSession = true
     await validateTurboNextConfig({
       ...devServerOptions,
       isDev: true,
