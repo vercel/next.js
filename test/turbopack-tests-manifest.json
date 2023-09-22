@@ -1620,9 +1620,7 @@
     "pending": []
   },
   "test/e2e/app-dir-legacy-edge-runtime-config/index.test.ts": {
-    "passed": [
-      "app-dir edge runtime config should warn the legacy object config export"
-    ],
+    "passed": [],
     "failed": [
       "app-dir edge runtime config should warn the legacy object config export"
     ],
@@ -1677,8 +1675,7 @@
       "_allow-underscored-root-directory should not serve app path with underscore",
       "_allow-underscored-root-directory should pages path with a underscore at the root",
       "_allow-underscored-root-directory should not serve app path with underscore",
-      "_allow-underscored-root-directory should pages path with a underscore at the root",
-      "_allow-underscored-root-directory should serve app path with %5F"
+      "_allow-underscored-root-directory should pages path with a underscore at the root"
     ],
     "failed": [
       "_allow-underscored-root-directory should serve app path with %5F"
@@ -1859,12 +1856,7 @@
     "pending": []
   },
   "test/e2e/app-dir/app-a11y/index.test.ts": {
-    "passed": [
-      "app a11y features route announcer should not announce the initital title",
-      "app a11y features route announcer should announce document.title changes",
-      "app a11y features route announcer should announce h1 changes",
-      "app a11y features route announcer should announce route changes when h1 changes inside an inner layout"
-    ],
+    "passed": [],
     "failed": [
       "app a11y features route announcer should not announce the initital title",
       "app a11y features route announcer should announce document.title changes",
@@ -1876,9 +1868,7 @@
   "test/e2e/app-dir/app-basepath/index.test.ts": {
     "passed": [
       "app dir - basepath should support `basePath`",
-      "app dir - basepath should render usePathname without the basePath",
-      "app dir - basepath should support `basePath`",
-      "app dir - basepath should prefix redirect() with basePath"
+      "app dir - basepath should support `basePath`"
     ],
     "failed": [
       "app dir - basepath should support Link with basePath prefixed",
@@ -1975,7 +1965,7 @@
     "pending": []
   },
   "test/e2e/app-dir/app-middleware/app-middleware.test.ts": {
-    "passed": ["app dir middleware without pages dir Updates headers"],
+    "passed": [],
     "failed": [
       "app-dir with middleware should filter correctly after middleware rewrite",
       "app-dir with middleware Mutate request headers for Serverless Functions Adds new headers",
@@ -2148,13 +2138,7 @@
     "pending": []
   },
   "test/e2e/app-dir/global-error/basic/index.test.ts": {
-    "passed": [
-      "app dir - global error should trigger error component when an error happens during rendering",
-      "app dir - global error should render global error for error in server components",
-      "app dir - global error should render global error for error in client components",
-      "app dir - global error should catch metadata error in error boundary if presented",
-      "app dir - global error should catch metadata error in global-error if no error boundary is presented"
-    ],
+    "passed": [],
     "failed": [
       "app dir - global error should trigger error component when an error happens during rendering",
       "app dir - global error should render global error for error in server components",
@@ -2165,15 +2149,7 @@
     "pending": []
   },
   "test/e2e/app-dir/error-boundary-navigation/index.test.ts": {
-    "passed": [
-      "app dir - not found navigation should allow navigation on not-found",
-      "app dir - not found navigation should allow navigation on error",
-      "app dir - not found navigation should allow navigation to other routes on route that was initially not-found",
-      "app dir - not found navigation should allow navigation back to route that was initially not-found",
-      "app dir - not found navigation should allow navigating to a page calling notfound",
-      "app dir - not found navigation should allow navigating to a non-existent page",
-      "app dir - not found navigation should be able to navigate to other page from root not-found page"
-    ],
+    "passed": [],
     "failed": [
       "app dir - not found navigation should allow navigation on not-found",
       "app dir - not found navigation should allow navigation on error",
@@ -2186,22 +2162,7 @@
     "pending": []
   },
   "test/e2e/app-dir/error-boundary-navigation/override-node-env.test.ts": {
-    "passed": [
-      "app dir - not found navigation should allow navigation on not-found",
-      "app dir - not found navigation should allow navigation on error",
-      "app dir - not found navigation should allow navigation to other routes on route that was initially not-found",
-      "app dir - not found navigation should allow navigation back to route that was initially not-found",
-      "app dir - not found navigation should allow navigating to a page calling notfound",
-      "app dir - not found navigation should allow navigating to a non-existent page",
-      "app dir - not found navigation should be able to navigate to other page from root not-found page",
-      "app dir - not found navigation - with overridden node env should allow navigation on not-found",
-      "app dir - not found navigation - with overridden node env should allow navigation on error",
-      "app dir - not found navigation - with overridden node env should allow navigation to other routes on route that was initially not-found",
-      "app dir - not found navigation - with overridden node env should allow navigation back to route that was initially not-found",
-      "app dir - not found navigation - with overridden node env should allow navigating to a page calling notfound",
-      "app dir - not found navigation - with overridden node env should allow navigating to a non-existent page",
-      "app dir - not found navigation - with overridden node env should be able to navigate to other page from root not-found page"
-    ],
+    "passed": [],
     "failed": [
       "app dir - not found navigation should allow navigation on not-found",
       "app dir - not found navigation should allow navigation on error",
@@ -2760,9 +2721,7 @@
     "pending": []
   },
   "test/e2e/app-dir/global-error/layout-error/index.test.ts": {
-    "passed": [
-      "app dir - global error - layout error should render global error for error in server components"
-    ],
+    "passed": [],
     "failed": [
       "app dir - global error - layout error should render global error for error in server components"
     ],
@@ -2932,36 +2891,22 @@
   },
   "test/e2e/app-dir/hooks/hooks.test.ts": {
     "passed": [
-      "app dir - hooks from pages should have the correct hooks",
-      "app dir - hooks from pages should have the correct hooks",
-      "app dir - hooks from pages should have the correct hooks",
-      "app dir - hooks from pages should have the correct hooks",
-      "app dir - hooks from pages should have the correct hooks",
-      "app dir - hooks from pages should have the correct hooks",
       "app dir - hooks usePathname should have the correct pathname",
       "app dir - hooks usePathname should have the canonical url pathname on rewrite",
       "app dir - hooks useSearchParams should have the correct search params",
       "app dir - hooks useSearchParams should have the canonical url search params on rewrite",
       "app dir - hooks useDraftMode should use initial rand when draft mode be disabled",
       "app dir - hooks useDraftMode should genenerate rand when draft mode enabled",
-      "app dir - hooks useRouter should allow access to the router",
       "app dir - hooks useSelectedLayoutSegments should have the correct layout segments at /hooks/use-selected-layout-segment/first",
       "app dir - hooks useSelectedLayoutSegments should have the correct layout segments at /hooks/use-selected-layout-segment/first/slug1",
       "app dir - hooks useSelectedLayoutSegments should have the correct layout segments at /hooks/use-selected-layout-segment/first/slug2/second",
       "app dir - hooks useSelectedLayoutSegments should have the correct layout segments at /hooks/use-selected-layout-segment/first/slug2/second/a/b",
       "app dir - hooks useSelectedLayoutSegments should have the correct layout segments at /hooks/use-selected-layout-segment/rewritten",
-      "app dir - hooks useSelectedLayoutSegments should have the correct layout segments at /hooks/use-selected-layout-segment/rewritten-middleware",
       "app dir - hooks useSelectedLayoutSegments should return an empty array in pages",
       "app dir - hooks useSelectedLayoutSegment should have the correct layout segment at /hooks/use-selected-layout-segment/first",
       "app dir - hooks useSelectedLayoutSegment should have the correct layout segment at /hooks/use-selected-layout-segment/first/slug1",
       "app dir - hooks useSelectedLayoutSegment should have the correct layout segment at /hooks/use-selected-layout-segment/first/slug2/second/a/b",
       "app dir - hooks useSelectedLayoutSegment should return null in pages",
-      "app dir - hooks from pages should have the correct hooks",
-      "app dir - hooks from pages should have the correct hooks",
-      "app dir - hooks from pages should have the correct hooks",
-      "app dir - hooks from pages should have the correct hooks",
-      "app dir - hooks from pages should have the correct hooks",
-      "app dir - hooks from pages should have the correct hooks",
       "app dir - hooks usePathname should have the correct pathname",
       "app dir - hooks usePathname should have the canonical url pathname on rewrite",
       "app dir - hooks useSearchParams should have the correct search params",
@@ -3095,33 +3040,20 @@
   "test/e2e/app-dir/navigation/navigation.test.ts": {
     "passed": [
       "app dir - navigation query string should set query correctly",
-      "app dir - navigation query string should handle unicode search params",
       "app dir - navigation hash should scroll to the specified hash",
       "app dir - navigation hash should not scroll to hash when scroll={false} is set",
-      "app dir - navigation hash-with-scroll-offset should scroll to the specified hash",
       "app dir - navigation hash-link-back-to-same-page should scroll to the specified hash",
       "app dir - navigation relative hashes and queries should work with a hash-only href",
-      "app dir - navigation relative hashes and queries should work with a hash-only `router.push(...)`",
       "app dir - navigation relative hashes and queries should work with a query-only href",
-      "app dir - navigation relative hashes and queries should work with both relative hashes and queries",
-      "app dir - navigation not-found should trigger not-found in a server component",
-      "app dir - navigation not-found should trigger not-found in a client component",
-      "app dir - navigation not-found should trigger not-found client-side",
-      "app dir - navigation not-found should trigger not-found while streaming",
       "app dir - navigation bots should block rendering for bots and return 404 status",
       "app dir - navigation redirect components should redirect in a server component",
       "app dir - navigation redirect components should redirect in a client component",
-      "app dir - navigation redirect components should redirect client-side",
       "app dir - navigation redirect components should redirect to external url",
-      "app dir - navigation redirect components should redirect to external url, initiating only once",
       "app dir - navigation redirect next.config.js redirects should redirect from next.config.js",
       "app dir - navigation redirect next.config.js redirects should redirect from next.config.js with link navigation",
-      "app dir - navigation redirect middleware redirects should redirect from middleware",
-      "app dir - navigation redirect middleware redirects should redirect from middleware with link navigation",
       "app dir - navigation redirect status code should respond with 307 status code in server component",
       "app dir - navigation redirect status code should respond with 307 status code in client component",
       "app dir - navigation redirect status code should respond with 308 status code if permanent flag is set",
-      "app dir - navigation external push should push external url without affecting hooks",
       "app dir - navigation navigation between pages and app should not contain _rsc query while navigating from app to pages",
       "app dir - navigation navigation between pages and app should not contain _rsc query while navigating from pages to app",
       "app dir - navigation nested navigation should navigate to nested pages",
@@ -3186,19 +3118,14 @@
     "pending": []
   },
   "test/e2e/app-dir/not-found/css-precedence/index.test.ts": {
-    "passed": [
-      "app dir css should load css while navigation between not-found and page"
-    ],
+    "passed": [],
     "failed": [
       "app dir css should load css while navigation between not-found and page"
     ],
     "pending": []
   },
   "test/e2e/app-dir/not-found/group-route-root-not-found/index.test.ts": {
-    "passed": [
-      "app dir - group routes with root not-found should render default 404 with root layout for non-existent page",
-      "app dir - group routes with root not-found should render root not found for group routes if hit 404"
-    ],
+    "passed": [],
     "failed": [
       "app dir - group routes with root not-found should render default 404 with root layout for non-existent page",
       "app dir - group routes with root not-found should render root not found for group routes if hit 404"
@@ -3206,9 +3133,7 @@
     "pending": []
   },
   "test/e2e/app-dir/not-found/group-route/index.test.ts": {
-    "passed": [
-      "app dir - not-found - group route with default runtime should use the not-found page under group routes"
-    ],
+    "passed": [],
     "failed": [
       "app dir - not-found - group route with runtime = edge should use the not-found page under group routes",
       "app dir - not-found - group route with default runtime should use the not-found page under group routes",
@@ -3232,11 +3157,7 @@
     "pending": []
   },
   "test/e2e/app-dir/not-found-default/index.test.ts": {
-    "passed": [
-      "app dir - not found with default 404 page should error on client notFound from root layout in browser",
-      "app dir - not found with default 404 page should error on server notFound from root layout on server-side",
-      "app dir - not found with default 404 page should render default 404 with root layout for non-existent page"
-    ],
+    "passed": [],
     "failed": [
       "app dir - not found with default 404 page should render default 404 with root layout for non-existent page",
       "app dir - not found with default 404 page should be able to navigate to page calling not-found",
@@ -3261,22 +3182,15 @@
     "pending": []
   },
   "test/e2e/app-dir/root-layout-redirect/root-layout-redirect.test.ts": {
-    "passed": ["root-layout-redirect should work using browser"],
+    "passed": [],
     "failed": ["root-layout-redirect should work using browser"],
     "pending": []
   },
   "test/e2e/app-dir/rewrites-redirects/rewrites-redirects.test.ts": {
     "passed": [
-      "redirects and rewrites navigation using link should rewrite from middleware correctly",
-      "redirects and rewrites navigation using link should redirect from middleware correctly",
       "redirects and rewrites navigation using link should rewrite from next.config.js correctly",
       "redirects and rewrites navigation using link should redirect from next.config.js correctly",
       "redirects and rewrites navigation using link should redirect using catchall from next.config.js correctly",
-      "redirects and rewrites navigation using button should rewrite from middleware correctly",
-      "redirects and rewrites navigation using button should redirect from middleware correctly",
-      "redirects and rewrites navigation using button should rewrite from next.config.js correctly",
-      "redirects and rewrites navigation using button should redirect from next.config.js correctly",
-      "redirects and rewrites navigation using button should redirect using catchall from next.config.js correctly",
       "redirects and rewrites navigation using link should rewrite from next.config.js correctly",
       "redirects and rewrites navigation using link should redirect from next.config.js correctly",
       "redirects and rewrites navigation using link should redirect using catchall from next.config.js correctly"
@@ -3293,9 +3207,7 @@
     "pending": []
   },
   "test/e2e/app-dir/root-layout-render-once/index.test.ts": {
-    "passed": [
-      "app-dir root layout render once should only render root layout once"
-    ],
+    "passed": [],
     "failed": [
       "app-dir root layout render once should only render root layout once"
     ],
@@ -3303,9 +3215,6 @@
   },
   "test/e2e/app-dir/not-found/basic/index.test.ts": {
     "passed": [
-      "app dir - not-found - basic with default runtime should use the not-found page for non-matching routes",
-      "app dir - not-found - basic with default runtime should match dynamic route not-found boundary correctly",
-      "app dir - not-found - basic with default runtime should escalate notFound to parent layout if no not-found boundary present in current layer",
       "app dir - not-found - basic with default runtime should not reload the page",
       "app dir - not-found - basic should not output /404 in tree view logs",
       "app dir - not-found - basic should use root not-found content for 404 html",
@@ -3346,15 +3255,9 @@
   },
   "test/e2e/app-dir/router-autoscroll/router-autoscroll.test.ts": {
     "passed": [
-      "router autoscrolling on navigation vertical scroll should scroll to top of document when navigating between to pages without layout",
-      "router autoscrolling on navigation vertical scroll should scroll to top of page when scrolling to phe top of the document wouldn't have the page in the viewport",
-      "router autoscrolling on navigation vertical scroll should scroll down to the navigated page when it's below viewort",
       "router autoscrolling on navigation vertical scroll should not scroll when the top of the page is in the viewport",
       "router autoscrolling on navigation vertical scroll should not scroll to top of document if page in viewport",
-      "router autoscrolling on navigation vertical scroll should scroll to top of document if possible while giving focus to page",
-      "router autoscrolling on navigation horizontal scroll should't scroll horizontally",
       "router autoscrolling on navigation router.refresh() should not scroll when called alone",
-      "router autoscrolling on navigation router.refresh() should not stop router.push() from scrolling",
       "router autoscrolling on navigation bugs Should scroll to the top of the layout when the first child is display none",
       "router autoscrolling on navigation bugs Should scroll to the top of the layout when the first child is position fixed",
       "router autoscrolling on navigation bugs Should scroll to the top of the layout when the first child is position sticky",
@@ -3381,9 +3284,7 @@
     ]
   },
   "test/e2e/app-dir/search-params-react-key/layout-params.test.ts": {
-    "passed": [
-      "app dir - search params keys should keep the React router instance the same when changing the search params"
-    ],
+    "passed": [],
     "failed": [
       "app dir - search params keys should keep the React router instance the same when changing the search params"
     ],
@@ -3530,8 +3431,7 @@
       "underscore-ignore-app-paths should not serve app path with underscore",
       "underscore-ignore-app-paths should serve pages path with underscore",
       "underscore-ignore-app-paths should not serve app path with underscore",
-      "underscore-ignore-app-paths should serve pages path with underscore",
-      "underscore-ignore-app-paths should serve app path with %5F"
+      "underscore-ignore-app-paths should serve pages path with underscore"
     ],
     "failed": ["underscore-ignore-app-paths should serve app path with %5F"],
     "pending": []
@@ -3715,10 +3615,7 @@
     "pending": []
   },
   "test/e2e/edge-api-endpoints-can-receive-body/index.test.ts": {
-    "passed": [
-      "Edge API endpoints can receive body reads the body as text",
-      "Edge API endpoints can receive body reads the body from index"
-    ],
+    "passed": [],
     "failed": [
       "Edge API endpoints can receive body reads the body as text",
       "Edge API endpoints can receive body reads the body from index"
@@ -3741,10 +3638,7 @@
   "test/e2e/edge-can-read-request-body/index.test.ts": {
     "passed": [
       "Edge can read request body renders the static page",
-      "Edge can read request body middleware reads a JSON body",
       "Edge can read request body middleware reads a text body",
-      "Edge can read request body middleware reads an URL encoded form data",
-      "Edge can read request body middleware reads a multipart form data",
       "Edge can read request body renders the static page",
       "Edge can read request body middleware reads a text body"
     ],
@@ -3756,10 +3650,7 @@
     "pending": []
   },
   "test/e2e/edge-async-local-storage/index.test.ts": {
-    "passed": [
-      "edge api can use async local storage cans use a single instance per request",
-      "edge api can use async local storage cans use multiple instances per request"
-    ],
+    "passed": [],
     "failed": [
       "edge api can use async local storage cans use a single instance per request",
       "edge api can use async local storage cans use multiple instances per request"
@@ -3767,12 +3658,7 @@
     "pending": []
   },
   "test/e2e/edge-compiler-can-import-blob-assets/index.test.ts": {
-    "passed": [
-      "Edge Compiler can import asset assets allows to fetch a remote URL",
-      "Edge Compiler can import asset assets allows to fetch a remote URL with a path and basename",
-      "Edge Compiler can import asset assets allows to fetch text assets",
-      "Edge Compiler can import asset assets allows to assets from node_modules"
-    ],
+    "passed": [],
     "failed": [
       "Edge Compiler can import asset assets allows to fetch image assets",
       "Edge Compiler can import asset assets extracts all the assets from the bundle",
@@ -3786,9 +3672,7 @@
     "pending": []
   },
   "test/e2e/edge-compiler-module-exports-preference/index.test.ts": {
-    "passed": [
-      "Edge compiler module exports preference favors the browser export"
-    ],
+    "passed": [],
     "failed": [
       "Edge compiler module exports preference favors the browser export"
     ],
@@ -3934,15 +3818,12 @@
   },
   "test/e2e/getserversideprops/test/index.test.ts": {
     "passed": [
-      "getServerSideProps should navigate between pages successfully",
       "getServerSideProps should work with early request ending",
       "getServerSideProps should allow POST request for getServerSideProps page",
       "getServerSideProps should render correctly when notFound is false (non-dynamic)",
       "getServerSideProps should render 404 correctly when notFound is returned (non-dynamic)",
-      "getServerSideProps should render 404 correctly when notFound is returned client-transition (non-dynamic)",
       "getServerSideProps should render correctly when notFound is false (dynamic)",
       "getServerSideProps should render 404 correctly when notFound is returned (dynamic)",
-      "getServerSideProps should render 404 correctly when notFound is returned client-transition (dynamic)",
       "getServerSideProps should SSR normal page correctly",
       "getServerSideProps should SSR getServerSideProps page correctly",
       "getServerSideProps should handle throw ENOENT correctly",
@@ -3968,7 +3849,6 @@
       "getServerSideProps should load a fast refresh page",
       "getServerSideProps should provide correct query value for dynamic page",
       "getServerSideProps should parse query values on mount correctly",
-      "getServerSideProps should pass query for data request on navigation",
       "getServerSideProps should reload page on failed data request",
       "getServerSideProps should always call getServerSideProps without caching",
       "getServerSideProps should not re-call getServerSideProps when updating query",
@@ -4312,9 +4192,7 @@
     "pending": []
   },
   "test/e2e/ignore-invalid-popstateevent/with-i18n.test.ts": {
-    "passed": [
-      "i18n: Event with stale state - static route previously was dynamic Don't ignore event with different locale"
-    ],
+    "passed": [],
     "failed": [
       "i18n: Event with stale state - static route previously was dynamic Ignore event without query param",
       "i18n: Event with stale state - static route previously was dynamic Ignore event with query param",
@@ -4325,10 +4203,7 @@
     "pending": []
   },
   "test/e2e/ignore-invalid-popstateevent/without-i18n.test.ts": {
-    "passed": [
-      "Event with stale state - static route previously was dynamic Ignore event without query param",
-      "Event with stale state - static route previously was dynamic Ignore event with query param"
-    ],
+    "passed": [],
     "failed": [
       "Event with stale state - static route previously was dynamic Ignore event without query param",
       "Event with stale state - static route previously was dynamic Ignore event with query param"
@@ -4412,7 +4287,7 @@
     "pending": []
   },
   "test/e2e/middleware-base-path/test/index.test.ts": {
-    "passed": ["Middleware base tests should execute from absolute paths"],
+    "passed": [],
     "failed": [
       "Middleware base tests router.query must exist when Link clicked page routing",
       "Middleware base tests should execute from absolute paths",
@@ -4443,7 +4318,6 @@
   },
   "test/e2e/middleware-custom-matchers-basepath/test/index.test.ts": {
     "passed": [
-      "Middleware custom matchers basePath should match",
       "Middleware custom matchers basePath should not match",
       "Middleware custom matchers basePath should not match",
       "Middleware custom matchers basePath should not match",
@@ -4534,10 +4408,6 @@
   },
   "test/e2e/middleware-custom-matchers-i18n/test/index.test.ts": {
     "passed": [
-      "Middleware custom matchers i18n should match",
-      "Middleware custom matchers i18n should match",
-      "Middleware custom matchers i18n should match",
-      "Middleware custom matchers i18n should match",
       "Middleware custom matchers i18n should not match",
       "Middleware custom matchers i18n should not match",
       "Middleware custom matchers i18n should not match",
@@ -4569,14 +4439,6 @@
     "passed": [
       "Middleware custom matchers should match missing header correctly",
       "Middleware custom matchers should match missing query correctly",
-      "Middleware custom matchers should match source path",
-      "Middleware custom matchers should match has header",
-      "Middleware custom matchers should match has query",
-      "Middleware custom matchers should match has cookie",
-      "Middleware custom matchers should match has host",
-      "Middleware custom matchers should match has header value",
-      "Middleware custom matchers should match has query on client routing",
-      "Middleware custom matchers should match has cookie on client routing",
       "Middleware custom matchers should match missing header correctly",
       "Middleware custom matchers should match missing query correctly"
     ],
@@ -4593,10 +4455,7 @@
     "pending": []
   },
   "test/e2e/middleware-fetches-with-any-http-method/index.test.ts": {
-    "passed": [
-      "Middleware fetches with any HTTP method passes the method on a direct fetch request",
-      "Middleware fetches with any HTTP method passes the method when providing a Request object"
-    ],
+    "passed": [],
     "failed": [
       "Middleware fetches with any HTTP method passes the method on a direct fetch request",
       "Middleware fetches with any HTTP method passes the method when providing a Request object"
@@ -4687,12 +4546,9 @@
       "basePath should add header without basePath when set to false",
       "basePath should not update URL for a 404",
       "basePath should handle 404 urls that start with basePath",
-      "basePath should work with hash links",
       "basePath should redirect trailing slash correctly",
       "basePath should redirect trailing slash on root correctly",
       "basePath should navigate an absolute url",
-      "basePath should navigate an absolute local url without basePath",
-      "basePath should 404 when manually adding basePath with <Link>",
       "basePath should show the hello page under the /docs prefix",
       "basePath should show 404 for page not under the /docs prefix",
       "basePath should show the other-page page under the /docs prefix",
@@ -5262,17 +5118,7 @@
     "pending": []
   },
   "test/e2e/middleware-request-header-overrides/test/index.test.ts": {
-    "passed": [
-      "Middleware Request Headers Overrides Serverless Functions Backend Adds new headers",
-      "Middleware Request Headers Overrides Serverless Functions Backend Deletes headers",
-      "Middleware Request Headers Overrides Serverless Functions Backend Updates headers",
-      "Middleware Request Headers Overrides Edge Functions Backend Adds new headers",
-      "Middleware Request Headers Overrides Edge Functions Backend Deletes headers",
-      "Middleware Request Headers Overrides Edge Functions Backend Updates headers",
-      "Middleware Request Headers Overrides getServerSideProps Backend Adds new headers",
-      "Middleware Request Headers Overrides getServerSideProps Backend Deletes headers",
-      "Middleware Request Headers Overrides getServerSideProps Backend Updates headers"
-    ],
+    "passed": [],
     "failed": [
       "Middleware Request Headers Overrides Serverless Functions Backend Adds new headers",
       "Middleware Request Headers Overrides Serverless Functions Backend Deletes headers",
@@ -5287,22 +5133,7 @@
     "pending": []
   },
   "test/e2e/middleware-responses/test/index.test.ts": {
-    "passed": [
-      "Middleware Responses responds with multiple cookies",
-      "Middleware Responses should not fail when returning a stream",
-      "Middleware Responses should not fail when returning a text body",
-      "Middleware Responses should respond with a 401 status code",
-      "Middleware Responses should respond with one header",
-      "Middleware Responses should respond with two headers",
-      "Middleware Responses should respond appending headers headers",
-      "Middleware Responses /fr responds with multiple cookies",
-      "Middleware Responses /fr should not fail when returning a stream",
-      "Middleware Responses /fr should not fail when returning a text body",
-      "Middleware Responses /fr should respond with a 401 status code",
-      "Middleware Responses /fr should respond with one header",
-      "Middleware Responses /fr should respond with two headers",
-      "Middleware Responses /fr should respond appending headers headers"
-    ],
+    "passed": [],
     "failed": [
       "Middleware Responses responds with multiple cookies",
       "Middleware Responses should not fail when returning a stream",
@@ -5350,21 +5181,6 @@
   "test/e2e/middleware-redirects/test/index.test.ts": {
     "passed": [
       "Middleware Redirect should redirect correctly with redirect in next.config.js",
-      "Middleware Redirect does not include the locale in redirects by default",
-      "Middleware Redirect should redirect to data urls with data requests and internal redirects",
-      "Middleware Redirect should redirect to external urls with data requests and external redirects",
-      "Middleware Redirect should redirect",
-      "Middleware Redirect should redirect cleanly with the original url param",
-      "Middleware Redirect should redirect multiple times",
-      "Middleware Redirect should redirect (infinite-loop)",
-      "Middleware Redirect should redirect to api route with locale",
-      "Middleware Redirect should redirect with a fragment",
-      "Middleware Redirect /fr should redirect",
-      "Middleware Redirect /fr should redirect cleanly with the original url param",
-      "Middleware Redirect /fr should redirect multiple times",
-      "Middleware Redirect /fr should redirect (infinite-loop)",
-      "Middleware Redirect /fr should redirect to api route with locale",
-      "Middleware Redirect /fr should redirect with a fragment",
       "Middleware Redirect should redirect correctly with redirect in next.config.js"
     ],
     "failed": [
@@ -5433,16 +5249,9 @@
       "Middleware Runtime trailing slash without .html extension should work when requesting the page directly",
       "Middleware Runtime trailing slash without .html extension should work using browser",
       "Middleware Runtime trailing slash without .html extension should work when navigating",
-      "Middleware Runtime trailing slash should have init header for NextResponse.redirect",
       "Middleware Runtime trailing slash should redirect the same for direct visit and client-transition",
-      "Middleware Runtime trailing slash should rewrite the same for direct visit and client-transition",
       "Middleware Runtime trailing slash should rewrite correctly for non-SSG/SSP page",
       "Middleware Runtime trailing slash should respond with 400 on decode failure",
-      "Middleware Runtime trailing slash should validate & parse request url from any route",
-      "Middleware Runtime trailing slash should trigger middleware for data requests",
-      "Middleware Runtime trailing slash should normalize data requests into page requests",
-      "Middleware Runtime trailing slash should keep non data requests in their original shape",
-      "Middleware Runtime trailing slash should add a rewrite header on data requests for rewrites",
       "Middleware Runtime trailing slash with .html extension should work when requesting the page directly",
       "Middleware Runtime trailing slash with .html extension should work using browser",
       "Middleware Runtime trailing slash with .html extension should work when navigating",
@@ -5451,8 +5260,6 @@
       "Middleware Runtime trailing slash without .html extension should work when navigating",
       "Middleware Runtime trailing slash should have correct files in manifest",
       "Middleware Runtime trailing slash should not run middleware for on-demand revalidate",
-      "Middleware Runtime trailing slash should have correct route params for rewrite from config dynamic route",
-      "Middleware Runtime trailing slash should have correct route params for rewrite from config non-dynamic route",
       "Middleware Runtime trailing slash should redirect the same for direct visit and client-transition",
       "Middleware Runtime trailing slash should rewrite correctly for non-SSG/SSP page",
       "Middleware Runtime trailing slash should respond with 400 on decode failure"
@@ -5563,40 +5370,13 @@
   },
   "test/e2e/middleware-matcher/index.test.ts": {
     "passed": [
-      "Middleware can set the matcher in its config does add the header for root request",
-      "Middleware can set the matcher in its config adds the header for a matched path",
-      "Middleware can set the matcher in its config adds the header for a matched data path (with header)",
-      "Middleware can set the matcher in its config adds the header for a matched data path (without header)",
-      "Middleware can set the matcher in its config adds the header for another matched path",
-      "Middleware can set the matcher in its config adds the header for another matched data path",
-      "Middleware can set the matcher in its config does add the header for root data request",
-      "Middleware can set the matcher in its config should load matches in client matchers correctly",
       "Middleware can set the matcher in its config should navigate correctly with matchers",
       "using a single matcher does not add the header for root request",
       "using a single matcher does not add the header for root data request",
-      "using a single matcher adds the header for a matched path",
-      "using a single matcher adds the headers for a matched data path (with header)",
-      "using a single matcher adds the header for a matched data path (without header)",
       "using a single matcher does not add the header for an unmatched path",
-      "using root matcher adds the header to the /",
-      "using root matcher adds the header to the /index",
-      "using root matcher adds the header for a matched data path (with header)",
-      "using root matcher adds the header for a matched data path (without header)",
-      "using a single matcher with i18n adds the header for a matched path",
-      "using a single matcher with i18n adds the header for a mathed root path with /index",
-      "using a single matcher with i18n adds the headers for a matched data path",
       "using a single matcher with i18n does not add the header for an unmatched path",
-      "using a single matcher with i18n and trailingSlash adds the header for a matched path",
-      "using a single matcher with i18n and trailingSlash adds the header for a mathed root path with /index",
-      "using a single matcher with i18n and trailingSlash adds the headers for a matched data path",
       "using a single matcher with i18n and trailingSlash does not add the header for an unmatched path",
-      "using a single matcher with i18n and basePath adds the header for a matched path",
-      "using a single matcher with i18n and basePath adds the header for a mathed root path with /index",
-      "using a single matcher with i18n and basePath adds the headers for a matched data path",
       "using a single matcher with i18n and basePath does not add the header for an unmatched path",
-      "using a single matcher with i18n and basePath and trailingSlash adds the header for a matched path",
-      "using a single matcher with i18n and basePath and trailingSlash adds the header for a mathed root path with /index",
-      "using a single matcher with i18n and basePath and trailingSlash adds the headers for a matched data path",
       "using a single matcher with i18n and basePath and trailingSlash does not add the header for an unmatched path",
       "Middleware can set the matcher in its config should navigate correctly with matchers",
       "using a single matcher does not add the header for root request",
@@ -5735,7 +5515,6 @@
       "next/font app Fallback fontfaces local Roboto multiple weights and styles",
       "next/font app Fallback fontfaces local Roboto multiple weights and styles - variable 1",
       "next/font app Fallback fontfaces local Roboto multiple weights and styles - variable 2",
-      "next/font app Fallback fontfaces google Fraunces",
       "next/font app-old import values page with font",
       "next/font app-old import values page with local fonts",
       "next/font app-old import values Variable font without weight range",
@@ -5746,8 +5525,7 @@
       "next/font app-old Fallback fontfaces local Fraunces",
       "next/font app-old Fallback fontfaces local Roboto multiple weights and styles",
       "next/font app-old Fallback fontfaces local Roboto multiple weights and styles - variable 1",
-      "next/font app-old Fallback fontfaces local Roboto multiple weights and styles - variable 2",
-      "next/font app-old Fallback fontfaces google Fraunces"
+      "next/font app-old Fallback fontfaces local Roboto multiple weights and styles - variable 2"
     ],
     "failed": [
       "next/font app preload page with fonts",
@@ -5837,81 +5615,24 @@
   },
   "test/e2e/middleware-general/test/index.test.ts": {
     "passed": [
-      "Middleware Runtime with i18n should work with notFound: true correctly",
-      "Middleware Runtime with i18n should be able to rewrite on _next/static/chunks/pages/ 404",
       "Middleware Runtime with i18n should only contain middleware route in dev middleware manifest",
-      "Middleware Runtime with i18n passes search params with rewrites",
-      "Middleware Runtime with i18n should have init header for NextResponse.redirect",
       "Middleware Runtime with i18n should have correct dynamic route params on client-transition to dynamic route",
-      "Middleware Runtime with i18n should have correct dynamic route params for middleware rewrite to dynamic route",
-      "Middleware Runtime with i18n should have correct route params for chained rewrite from middleware to config rewrite",
       "Middleware Runtime with i18n should respond with 400 on decode failure",
-      "Middleware Runtime with i18n should set fetch user agent correctly",
-      "Middleware Runtime with i18n allows to access env variables",
-      "Middleware Runtime with i18n should contain `globalThis`",
-      "Middleware Runtime with i18n should contain crypto APIs",
-      "Middleware Runtime with i18n should accept a URL instance for fetch",
-      "Middleware Runtime with i18n should allow to abort a fetch request",
-      "Middleware Runtime with i18n should validate & parse request url from any route",
-      "Middleware Runtime with i18n should validate & parse request url from a dynamic route with params",
-      "Middleware Runtime with i18n should validate & parse request url from a dynamic route with params and no query",
-      "Middleware Runtime with i18n should validate & parse request url from a dynamic route with params and query",
-      "Middleware Runtime with i18n should throw when using URL with a relative URL",
-      "Middleware Runtime with i18n should throw when using NextRequest with a relative URL",
-      "Middleware Runtime with i18n should throw when using Request with a relative URL",
-      "Middleware Runtime with i18n should warn when using Response.redirect with a relative URL",
-      "Middleware Runtime with i18n should warn when using NextResponse.redirect with a relative URL",
-      "Middleware Runtime with i18n should throw when using NextResponse.rewrite with a relative URL",
-      "Middleware Runtime with i18n should trigger middleware for data requests",
-      "Middleware Runtime with i18n should normalize data requests into page requests",
-      "Middleware Runtime with i18n should keep non data requests in their original shape",
-      "Middleware Runtime with i18n should add a rewrite header on data requests for rewrites",
       "Middleware Runtime with i18n hard-navigates when the data request failed",
-      "Middleware Runtime without i18n should work with notFound: true correctly",
-      "Middleware Runtime without i18n should be able to rewrite on _next/static/chunks/pages/ 404",
       "Middleware Runtime without i18n should only contain middleware route in dev middleware manifest",
-      "Middleware Runtime without i18n passes search params with rewrites",
-      "Middleware Runtime without i18n should have init header for NextResponse.redirect",
-      "Middleware Runtime without i18n should have correct query values for rewrite to ssg page",
       "Middleware Runtime without i18n should have correct dynamic route params on client-transition to dynamic route",
-      "Middleware Runtime without i18n should have correct dynamic route params for middleware rewrite to dynamic route",
       "Middleware Runtime without i18n should redirect the same for direct visit and client-transition",
-      "Middleware Runtime without i18n should rewrite the same for direct visit and client-transition",
       "Middleware Runtime without i18n should rewrite correctly for non-SSG/SSP page",
       "Middleware Runtime without i18n should respond with 400 on decode failure",
-      "Middleware Runtime without i18n should set fetch user agent correctly",
-      "Middleware Runtime without i18n allows to access env variables",
-      "Middleware Runtime without i18n should contain `globalThis`",
-      "Middleware Runtime without i18n should contain crypto APIs",
-      "Middleware Runtime without i18n should accept a URL instance for fetch",
-      "Middleware Runtime without i18n should allow to abort a fetch request",
-      "Middleware Runtime without i18n should validate & parse request url from any route",
-      "Middleware Runtime without i18n should validate & parse request url from a dynamic route with params and query",
-      "Middleware Runtime without i18n should throw when using URL with a relative URL",
-      "Middleware Runtime without i18n should throw when using NextRequest with a relative URL",
-      "Middleware Runtime without i18n should throw when using Request with a relative URL",
-      "Middleware Runtime without i18n should warn when using Response.redirect with a relative URL",
-      "Middleware Runtime without i18n should warn when using NextResponse.redirect with a relative URL",
-      "Middleware Runtime without i18n should throw when using NextResponse.rewrite with a relative URL",
-      "Middleware Runtime without i18n should trigger middleware for data requests",
-      "Middleware Runtime without i18n should normalize data requests into page requests",
-      "Middleware Runtime without i18n should keep non data requests in their original shape",
-      "Middleware Runtime without i18n should add a rewrite header on data requests for rewrites",
       "Middleware Runtime without i18n hard-navigates when the data request failed",
       "Middleware Runtime with i18n should have correct files in manifest",
       "Middleware Runtime with i18n should not run middleware for on-demand revalidate",
       "Middleware Runtime with i18n should have correct dynamic route params on client-transition to dynamic route",
-      "Middleware Runtime with i18n should have correct route params for rewrite from config dynamic route",
-      "Middleware Runtime with i18n should have correct route params for rewrite from config non-dynamic route",
-      "Middleware Runtime with i18n should redirect the same for direct visit and client-transition",
-      "Middleware Runtime with i18n should rewrite correctly for non-SSG/SSP page",
       "Middleware Runtime with i18n should respond with 400 on decode failure",
       "Middleware Runtime with i18n hard-navigates when the data request failed",
       "Middleware Runtime without i18n should have correct files in manifest",
       "Middleware Runtime without i18n should not run middleware for on-demand revalidate",
       "Middleware Runtime without i18n should have correct dynamic route params on client-transition to dynamic route",
-      "Middleware Runtime without i18n should have correct route params for rewrite from config dynamic route",
-      "Middleware Runtime without i18n should have correct route params for rewrite from config non-dynamic route",
       "Middleware Runtime without i18n should redirect the same for direct visit and client-transition",
       "Middleware Runtime without i18n should rewrite correctly for non-SSG/SSP page",
       "Middleware Runtime without i18n should respond with 400 on decode failure",
@@ -6115,15 +5836,6 @@
   },
   "test/e2e/skip-trailing-slash-redirect/index.test.ts": {
     "passed": [
-      "skip-trailing-slash-redirect should handle external rewrite correctly /chained-rewrite-ssg",
-      "skip-trailing-slash-redirect should handle external rewrite correctly /chained-rewrite-static",
-      "skip-trailing-slash-redirect should handle external rewrite correctly /chained-rewrite-ssr",
-      "skip-trailing-slash-redirect should handle external rewrite correctly /docs/first",
-      "skip-trailing-slash-redirect should handle external rewrite correctly /docs-auto-static/first",
-      "skip-trailing-slash-redirect should handle external rewrite correctly /docs-ssr/first",
-      "skip-trailing-slash-redirect should allow response body from middleware with flag",
-      "skip-trailing-slash-redirect should merge cookies from middleware and API routes correctly",
-      "skip-trailing-slash-redirect should merge cookies from middleware and edge API routes correctly",
       "skip-trailing-slash-redirect should apply config redirect correctly",
       "skip-trailing-slash-redirect should apply config rewrites correctly",
       "skip-trailing-slash-redirect pages dir should not apply trailing slash redirect (with slash)",
@@ -6139,7 +5851,6 @@
       "skip-trailing-slash-redirect should not have trailing slash redirects in manifest",
       "skip-trailing-slash-redirect should apply config redirect correctly",
       "skip-trailing-slash-redirect should apply config rewrites correctly",
-      "skip-trailing-slash-redirect should not apply trailing slash on load on client",
       "skip-trailing-slash-redirect pages dir should not apply trailing slash redirect (with slash)",
       "skip-trailing-slash-redirect pages dir should not apply trailing slash redirect (without slash)",
       "skip-trailing-slash-redirect pages dir should respond to index correctly",
@@ -6269,7 +5980,6 @@
   },
   "test/e2e/prerender.test.ts": {
     "passed": [
-      "Prerender should navigate between pages successfully",
       "Prerender should respond with 405 for POST to static page",
       "Prerender should SSR normal page correctly",
       "Prerender should SSR incremental page correctly",
@@ -6309,7 +6019,6 @@
       "Prerender should 404 for an invalid data url",
       "Prerender should allow rewriting to SSG page with fallback: false",
       "Prerender should allow rewriting to SSG page with fallback: 'blocking'",
-      "Prerender should fetch /_next/data correctly with mismatched href and as",
       "Prerender should show warning when large amount of page data is returned",
       "Prerender should show warning every time page with large amount of page data is returned",
       "Prerender should not show warning from url prop being returned",

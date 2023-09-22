@@ -1,9 +1,11 @@
 const fetch = require('node-fetch')
 const fs = require('fs')
 
+const override = process.argv.includes('--override')
+
 // TODO: Switch to nextjs-integration-test-data branch once https://github.com/vercel/turbo/pull/5999 is merged.
 const RESULT_URL =
-  'https://raw.githubusercontent.com/vercel/turbo/jrl-known-location-nextjs-integration-test-data/test-results/main/nextjs-test-results.json'
+  'https://raw.githubusercontent.com/vercel/turbo/nextjs-integration-test-data/test-results/main/nextjs-test-results.json'
 const PASSING_JSON_PATH = `${__dirname}/turbopack-tests-manifest.json`
 const WORKING_PATH = '/home/runner/work/turbo/turbo/'
 
@@ -31,6 +33,31 @@ async function updatePassingTests() {
           statusArray.push(fullName)
         }
       }
+    }
+  }
+
+  const oldPassingData = JSON.parse(fs.readFileSync(PASSING_JSON_PATH, 'utf8'))
+
+  for (const file of Object.keys(oldPassingData)) {
+    const newData = passing[file]
+    const oldData = oldPassingData[file]
+    if (!newData) continue
+    newData.passed = newData.passed.filter(
+      (name) => !newData.failed.includes(name)
+    )
+    const shouldPass = new Set(
+      oldData.passed.filter((name) => newData.failed.includes(name))
+    )
+    if (override) {
+    } else {
+      if (shouldPass.size > 0) {
+        const list = JSON.stringify([...shouldPass], 0, 2)
+        console.log(
+          `${file} has ${shouldPass.size} tests should pass but failed: ${list}`
+        )
+      }
+      newData.passed = [...new Set([...newData.passed, ...shouldPass])]
+      newData.failed = newData.failed.filter((name) => !shouldPass.has(name))
     }
   }
 

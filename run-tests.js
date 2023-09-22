@@ -238,7 +238,7 @@ async function main() {
         // only run filtered mode when there are failing tests.
         // When the whole test suite passes we can run all tests, including newly added ones.
         if (info.failed.length > 0) {
-          test.cases = info.passed.filter((p) => !info.failed.includes(p))
+          test.cases = info.passed
         }
         return test
       })
