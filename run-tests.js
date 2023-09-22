@@ -12,6 +12,10 @@ const { createNextInstall } = require('./test/lib/create-next-install')
 const glob = promisify(_glob)
 const exec = promisify(execOrig)
 
+/**
+ * @typedef {{ file: string, cases: 'all' | string[] }} TestFile
+ */
+
 const GROUP = process.env.CI ? '##[group]' : ''
 const ENDGROUP = process.env.CI ? '##[endgroup]' : ''
 
@@ -19,7 +23,7 @@ const ENDGROUP = process.env.CI ? '##[endgroup]' : ''
 // If process.argv contains a test to be executed, this'll append it to the list.
 const externalTestsFilterLists = process.env.NEXT_EXTERNAL_TESTS_FILTERS
   ? require(process.env.NEXT_EXTERNAL_TESTS_FILTERS)
-  : { enabledTests: [] }
+  : null
 const timings = []
 const DEFAULT_NUM_RETRIES = os.platform() === 'win32' ? 2 : 1
 const DEFAULT_CONCURRENCY = 2
@@ -80,11 +84,11 @@ const cleanUpAndExit = async (code) => {
   }, 1)
 }
 
-const isMatchingPattern = (pattern, test) => {
+const isMatchingPattern = (pattern, file) => {
   if (pattern instanceof RegExp) {
-    return pattern.test(test)
+    return pattern.test(file)
   } else {
-    return test.startsWith(pattern)
+    return file.startsWith(pattern)
   }
 }
 
@@ -149,7 +153,13 @@ async function main() {
 
   console.log('Running tests with concurrency:', concurrency)
 
-  let tests = process.argv.filter((arg) => arg.match(/\.test\.(js|ts|tsx)/))
+  /** @type TestFile[] */
+  let tests = process.argv
+    .filter((arg) => arg.match(/\.test\.(js|ts|tsx)/))
+    .map((file) => ({
+      file,
+      cases: 'all',
+    }))
   let prevTimings
 
   if (tests.length === 0) {
@@ -165,20 +175,27 @@ async function main() {
         cwd: __dirname,
         ignore: '**/node_modules/**',
       })
-    ).filter((test) => {
-      if (testPatternRegex) {
-        return testPatternRegex.test(test)
-      }
-      if (filterTestsBy) {
-        // only include the specified type
-        if (filterTestsBy === 'none') {
-          return true
+    )
+      .filter((file) => {
+        if (testPatternRegex) {
+          return testPatternRegex.test(file)
         }
-        return isMatchingPattern(filterTestsBy, test)
-      }
-      // include all except the separately configured types
-      return !configuredTestTypes.some((type) => isMatchingPattern(type, test))
-    })
+        if (filterTestsBy) {
+          // only include the specified type
+          if (filterTestsBy === 'none') {
+            return true
+          }
+          return isMatchingPattern(filterTestsBy, file)
+        }
+        // include all except the separately configured types
+        return !configuredTestTypes.some((type) =>
+          isMatchingPattern(type, file)
+        )
+      })
+      .map((file) => ({
+        file,
+        cases: 'all',
+      }))
   }
 
   if (outputTimings && groupArg) {
@@ -209,21 +226,26 @@ async function main() {
   }
 
   // If there are external manifest contains list of tests, apply it to the test lists.
-  if (externalTestsFilterLists?.enabledTests.length > 0) {
-    tests = tests.filter((test) =>
-      externalTestsFilterLists.enabledTests.some((enabled) =>
-        enabled.includes(test)
-      )
-    )
+  if (externalTestsFilterLists) {
+    tests = tests
+      .filter((test) => externalTestsFilterLists[test.file]?.passed.length > 0)
+      .map((test) => {
+        test.cases = externalTestsFilterLists[test.file].passed
+        return test
+      })
   }
 
-  let testNames = [
-    ...new Set(
-      tests.map((f) => {
-        return `${f.replace(/\\/g, '/').replace(/\/test$/, '')}`
-      })
-    ),
-  ]
+  let testSet = new Set()
+  tests = tests
+    .map((test) => {
+      test.file = test.file.replace(/\\/g, '/').replace(/\/test$/, '')
+      return test
+    })
+    .filter((test) => {
+      if (testSet.has(test.file)) return false
+      testSet.add(test.file)
+      return true
+    })
 
   if (groupArg) {
     const groupParts = groupArg.split('/')
@@ -234,7 +256,7 @@ async function main() {
       const groups = [[]]
       const groupTimes = [0]
 
-      for (const testName of testNames) {
+      for (const test of tests) {
         let smallestGroup = groupTimes[0]
         let smallestGroupIdx = 0
 
@@ -251,38 +273,39 @@ async function main() {
             smallestGroupIdx = i
           }
         }
-        groups[smallestGroupIdx].push(testName)
-        groupTimes[smallestGroupIdx] += prevTimings[testName] || 1
+        groups[smallestGroupIdx].push(test)
+        groupTimes[smallestGroupIdx] += prevTimings[test.file] || 1
       }
 
       const curGroupIdx = groupPos - 1
-      testNames = groups[curGroupIdx]
+      tests = groups[curGroupIdx]
 
       console.log(
         'Current group previous accumulated times:',
         Math.round(groupTimes[curGroupIdx]) + 's'
       )
     } else {
-      const numPerGroup = Math.ceil(testNames.length / groupTotal)
+      const numPerGroup = Math.ceil(tests.length / groupTotal)
       let offset = (groupPos - 1) * numPerGroup
-      testNames = testNames.slice(offset, offset + numPerGroup)
+      tests = tests.slice(offset, offset + numPerGroup)
       console.log('Splitting without timings')
     }
   }
 
-  if (testNames.length === 0) {
+  if (tests.length === 0) {
     console.log('No tests found for', testType, 'exiting..')
     return cleanUpAndExit(1)
   }
 
   console.log(`${GROUP}Running tests:
-${testNames.join('\n')}
+${tests.map((t) => t.file).join('\n')}
 ${ENDGROUP}`)
-  console.log(`total: ${testNames.length}`)
+  console.log(`total: ${tests.length}`)
 
-  const hasIsolatedTests = testNames.some((test) => {
+  const hasIsolatedTests = tests.some((test) => {
     return configuredTestTypes.some(
-      (type) => type !== testFilters.unit && test.startsWith(`test/${type}`)
+      (type) =>
+        type !== testFilters.unit && test.file.startsWith(`test/${type}`)
     )
   })
 
@@ -316,8 +339,8 @@ ${ENDGROUP}`)
     console.log(`${ENDGROUP}`)
   }
 
-  const sema = new Sema(concurrency, { capacity: testNames.length })
-  const outputSema = new Sema(1, { capacity: testNames.length })
+  const sema = new Sema(concurrency, { capacity: tests.length })
+  const outputSema = new Sema(1, { capacity: tests.length })
   const children = new Set()
   const jestPath = path.join(
     __dirname,
@@ -328,13 +351,29 @@ ${ENDGROUP}`)
   let firstError = true
   let killed = false
 
-  const runTest = (test = '', isFinalRun, isRetry) =>
+  const runTest = (/** @type {TestFile} */ test, isFinalRun, isRetry) =>
     new Promise((resolve, reject) => {
       const start = new Date().getTime()
       let outputChunks = []
 
       const shouldRecordTestWithReplay = process.env.RECORD_REPLAY && isRetry
 
+      console.log([
+        ...(shouldRecordTestWithReplay
+          ? [`--config=jest.replay.config.js`]
+          : []),
+        '--runInBand',
+        '--forceExit',
+        '--verbose',
+        '--silent',
+        ...(isTestJob
+          ? ['--json', `--outputFile=${test.file}${RESULTS_EXT}`]
+          : []),
+        test.file,
+        ...(test.cases === 'all'
+          ? []
+          : ['--testNamePattern', `'${test.cases.join('|')}'`]),
+      ])
       const child = spawn(
         jestPath,
         [
@@ -346,9 +385,12 @@ ${ENDGROUP}`)
           '--verbose',
           '--silent',
           ...(isTestJob
-            ? ['--json', `--outputFile=${test}${RESULTS_EXT}`]
+            ? ['--json', `--outputFile=${test.file}${RESULTS_EXT}`]
             : []),
-          test,
+          test.file,
+          ...(test.cases === 'all'
+            ? []
+            : ['--testNamePattern', `'${test.cases.join('|')}'`]),
         ],
         {
           stdio: ['ignore', 'pipe', 'pipe'],
@@ -371,8 +413,7 @@ ${ENDGROUP}`)
             // Format the output of junit report to include the test name
             // For the debugging purpose to compare actual run list to the generated reports
             // [NOTE]: This won't affect if junit reporter is not enabled
-            JEST_JUNIT_OUTPUT_NAME:
-              test && test.length > 0 ? test.replaceAll('/', '_') : undefined,
+            JEST_JUNIT_OUTPUT_NAME: test.file.replaceAll('/', '_'),
             // Specify suite name for the test to avoid unexpected merging across different env / grouped tests
             // This is not individual suites name (corresponding 'describe'), top level suite name which have redundant names by default
             // [NOTE]: This won't affect if junit reporter is not enabled
@@ -380,7 +421,7 @@ ${ENDGROUP}`)
               `${process.env.NEXT_TEST_MODE ?? 'default'}`,
               groupArg,
               testType,
-              test,
+              test.file,
             ]
               .filter(Boolean)
               .join(':'),
@@ -417,11 +458,11 @@ ${ENDGROUP}`)
               firstError && !killed && !shouldContinueTestsOnError
             if (isExpanded) {
               firstError = false
-              process.stdout.write(`❌ ${test} output:\n`)
+              process.stdout.write(`❌ ${test.file} output:\n`)
             } else if (killed) {
-              process.stdout.write(`${GROUP}${test} output (killed)\n`)
+              process.stdout.write(`${GROUP}${test.file} output (killed)\n`)
             } else {
-              process.stdout.write(`${GROUP}❌ ${test} output\n`)
+              process.stdout.write(`${GROUP}❌ ${test.file} output\n`)
             }
             // limit out to last 64kb so that we don't
             // run out of log room in CI
@@ -429,9 +470,9 @@ ${ENDGROUP}`)
               process.stdout.write(chunk)
             }
             if (isExpanded) {
-              process.stdout.write(`end of ${test} output\n`)
+              process.stdout.write(`end of ${test.file} output\n`)
             } else {
-              process.stdout.write(`end of ${test} output\n${ENDGROUP}\n`)
+              process.stdout.write(`end of ${test.file} output\n${ENDGROUP}\n`)
             }
             outputSema.release()
           }
@@ -450,7 +491,7 @@ ${ENDGROUP}`)
               __dirname,
               'test/traces',
               path
-                .relative(path.join(__dirname, 'test'), test)
+                .relative(path.join(__dirname, 'test'), test.file)
                 .replace(/\//g, '-')
             )
           )
@@ -463,13 +504,13 @@ ${ENDGROUP}`)
 
   const originalRetries = numRetries
   await Promise.all(
-    testNames.map(async (test) => {
-      const dirName = path.dirname(test)
+    tests.map(async (test) => {
+      const dirName = path.dirname(test.file)
       let dirSema = directorySemas.get(dirName)
 
       // we only restrict 1 test per directory for
       // legacy integration tests
-      if (test.startsWith('test/integration') && dirSema === undefined) {
+      if (test.file.startsWith('test/integration') && dirSema === undefined) {
         directorySemas.set(dirName, (dirSema = new Sema(1)))
       }
       if (dirSema) await dirSema.acquire()
@@ -478,34 +519,38 @@ ${ENDGROUP}`)
       let passed = false
 
       const shouldSkipRetries = skipRetryTestManifest.find((t) =>
-        t.includes(test)
+        t.includes(test.file)
       )
       const numRetries = shouldSkipRetries ? 0 : originalRetries
       if (shouldSkipRetries) {
-        console.log(`Skipping retry for ${test} due to skipRetryTestManifest`)
+        console.log(
+          `Skipping retry for ${test.file} due to skipRetryTestManifest`
+        )
       }
 
       for (let i = 0; i < numRetries + 1; i++) {
         try {
-          console.log(`Starting ${test} retry ${i}/${numRetries}`)
+          console.log(`Starting ${test.file} retry ${i}/${numRetries}`)
           const time = await runTest(
             test,
             shouldSkipRetries || i === numRetries,
             shouldSkipRetries || i > 0
           )
           timings.push({
-            file: test,
+            file: test.file,
             time,
           })
           passed = true
           console.log(
-            `Finished ${test} on retry ${i}/${numRetries} in ${time / 1000}s`
+            `Finished ${test.file} on retry ${i}/${numRetries} in ${
+              time / 1000
+            }s`
           )
           break
         } catch (err) {
           if (i < numRetries) {
             try {
-              let testDir = path.dirname(path.join(__dirname, test))
+              let testDir = path.dirname(path.join(__dirname, test.file))
 
               // if test is nested in a test folder traverse up a dir to ensure
               // we clean up relevant test files
@@ -517,13 +562,15 @@ ${ENDGROUP}`)
               await exec(`git checkout "${testDir}"`)
             } catch (err) {}
           } else {
-            console.error(`${test} failed due to ${err}`)
+            console.error(`${test.file} failed due to ${err}`)
           }
         }
       }
 
       if (!passed) {
-        console.error(`${test} failed to pass within ${numRetries} retries`)
+        console.error(
+          `${test.file} failed to pass within ${numRetries} retries`
+        )
 
         if (!shouldContinueTestsOnError) {
           killed = true
@@ -531,7 +578,7 @@ ${ENDGROUP}`)
           cleanUpAndExit(1)
         } else {
           console.log(
-            `CONTINUE_ON_ERROR enabled, continuing tests after ${test} failed`
+            `CONTINUE_ON_ERROR enabled, continuing tests after ${test.file} failed`
           )
         }
       }
@@ -539,7 +586,10 @@ ${ENDGROUP}`)
       // Emit test output if test failed or if we're continuing tests on error
       if ((!passed || shouldContinueTestsOnError) && isTestJob) {
         try {
-          const testsOutput = await fs.readFile(`${test}${RESULTS_EXT}`, 'utf8')
+          const testsOutput = await fs.readFile(
+            `${test.file}${RESULTS_EXT}`,
+            'utf8'
+          )
           const obj = JSON.parse(testsOutput)
           obj.processEnv = {
             NEXT_TEST_MODE: process.env.NEXT_TEST_MODE,
