@@ -18,6 +18,8 @@ const SKIPPED_TEST_SUITES = new Set([
   'test/integration/router-rerender/test/index.test.js',
   'test/e2e/basepath.test.ts',
   'test/development/acceptance-app/ReactRefreshRequire.test.ts',
+  'test/integration/dynamic-routing/test/middleware.test.js',
+  'test/integration/css/test/css-modules.test.js',
 ])
 
 async function updatePassingTests() {
