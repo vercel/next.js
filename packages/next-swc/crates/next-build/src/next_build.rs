@@ -25,7 +25,7 @@ use next_core::{
 use serde::Serialize;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    Completion, Completions, TransientInstance, TryJoinIterExt, Vc,
+    Completion, Completions, TransientInstance, TryJoinIterExt, ValueToString, Vc,
 };
 use turbopack_binding::{
     turbo::tasks_fs::{rebase, DiskFileSystem, FileContent, FileSystem, FileSystemPath},
@@ -90,12 +90,17 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
         log_level: options.log_level.unwrap_or(IssueSeverity::Warning),
     };
 
+    let dist_dir = options
+        .dist_dir
+        .as_ref()
+        .map_or_else(|| ".next".to_string(), |d| d.to_string());
+
     let issue_reporter: Vc<Box<dyn IssueReporter>> =
         Vc::upcast(ConsoleUi::new(TransientInstance::new(log_options)));
     let node_fs = node_fs(project_root.clone(), issue_reporter);
-    let node_root = node_fs.root().join(".next".to_string());
+    let node_root = node_fs.root().join(dist_dir.clone());
     let client_fs = client_fs(project_root.clone(), issue_reporter);
-    let client_root = client_fs.root().join(".next".to_string());
+    let client_root = client_fs.root().join(dist_dir);
     // TODO(alexkirsz) This should accept a URL for assetPrefix.
     // let client_public_fs = VirtualFileSystem::new();
     // let client_public_root = client_public_fs.root();
@@ -127,7 +132,8 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
     let next_config = load_next_config(execution_context.with_layer("next_config".to_string()));
 
     let mode = NextMode::Build;
-    let client_compile_time_info = get_client_compile_time_info(mode, browserslist_query);
+    let client_compile_time_info =
+        get_client_compile_time_info(mode, browserslist_query, node_root.to_string());
     let server_compile_time_info = get_server_compile_time_info(mode, env, ServerAddr::empty());
 
     // TODO(alexkirsz) Pages should build their own routes, outside of a FS.
