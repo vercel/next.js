@@ -232,7 +232,10 @@ async function main() {
   // If there are external manifest contains list of tests, apply it to the test lists.
   if (externalTestsFilterLists) {
     tests = tests
-      .filter((test) => externalTestsFilterLists[test.file]?.passed.length > 0)
+      .filter((test) => {
+        const info = externalTestsFilterLists[test.file]
+        return info && info.passed.length > 0 && !info.runtimeError
+      })
       .map((test) => {
         const info = externalTestsFilterLists[test.file]
         // only run filtered mode when there are failing tests.

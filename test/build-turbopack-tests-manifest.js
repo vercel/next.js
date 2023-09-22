@@ -15,6 +15,7 @@ async function updatePassingTests() {
   const results = await res.json()
 
   for (const result of results.result) {
+    const runtimeError = result.data.numRuntimeErrorTestSuites > 0
     for (const testResult of result.data.testResults) {
       const filepath = stripWorkingPath(testResult.name)
       for (const file of duplicateFileNames(filepath)) {
@@ -22,6 +23,7 @@ async function updatePassingTests() {
           passed: [],
           failed: [],
           pending: [],
+          runtimeError,
         })
 
         for (const testCase of testResult.assertionResults) {
