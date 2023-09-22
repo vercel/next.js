@@ -13,7 +13,7 @@ Forms enable you to create and update data in web applications. Next.js provides
 > **Good to know:**
 >
 > - We will soon recommend [incrementally adopting](/docs/app/building-your-application/upgrading/app-router-migration) the App Router and using [Server Actions](/docs/app/building-your-application/data-fetching/forms-and-mutations#how-server-actions-work) for handling form submissions and data mutations. Server Actions allow you to define asynchronous server functions that can be called directly from your components, without needing to manually create an API Route.
-> - API Routes [do not specify CORS headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS), meaning they are same-origin only by default.
+> - API Routes [do not specify CORS headers](https://developer.mozilla.org/docs/Web/HTTP/CORS), meaning they are same-origin only by default.
 > - Since API Routes run on the server, we're able to use sensitive values (like API keys) through [Environment Variables](/docs/pages/building-your-application/configuring/environment-variables) without exposing them to the client. This is critical for the security of your application.
 
 </PagesOnly>
@@ -43,7 +43,6 @@ module.exports = {
 > - Forms calling Server Actions from Server Components can function without JavaScript.
 > - Forms calling Server Actions from Client Components will queue submissions if JavaScript isn't loaded yet, prioritizing client hydration.
 > - Server Actions inherit the [runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes) from the page or layout they are used on.
-> - Currently, if a route uses a Server Action, it is required to [render dynamically](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies).
 
 ## Revalidating Cached Data
 
@@ -170,7 +169,7 @@ export default function Page() {
 }
 ```
 
-> **Good to know**: `<form action={create}>` takes the [FormData](https://developer.mozilla.org/en-US/docs/Web/API/FormData/FormData) data type. In the example above, the FormData submitted via the HTML [`form`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/form) is accessible in the server action `create`.
+> **Good to know**: `<form action={create}>` takes the [FormData](https://developer.mozilla.org/docs/Web/API/FormData/FormData) data type. In the example above, the FormData submitted via the HTML [`form`](https://developer.mozilla.org/docs/Web/HTML/Element/form) is accessible in the server action `create`.
 
 ### Revalidating Data
 
@@ -485,7 +484,7 @@ export default function Page() {
 
 <AppOnly>
 
-Server Actions can also return [serializable objects](https://developer.mozilla.org/en-US/docs/Glossary/Serialization). For example, your Server Action might handle errors from creating a new item, returning either a success or error message:
+Server Actions can also return [serializable objects](https://developer.mozilla.org/docs/Glossary/Serialization). For example, your Server Action might handle errors from creating a new item, returning either a success or error message:
 
 ```ts filename="app/actions.ts" switcher
 'use server'
@@ -702,8 +701,8 @@ export function Thread({ messages }: { messages: Message[] }) {
 
   return (
     <div>
-      {optimisticMessages.map((m) => (
-        <div>{m.message}</div>
+      {optimisticMessages.map((m, k) => (
+        <div key={k}>{m.message}</div>
       ))}
       <form
         action={async (formData: FormData) => {

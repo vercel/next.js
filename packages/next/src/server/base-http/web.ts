@@ -70,7 +70,7 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
   }
 
   getHeaderValues(name: string): string[] | undefined {
-    // https://developer.mozilla.org/en-US/docs/Web/API/Headers/get#example
+    // https://developer.mozilla.org/docs/Web/API/Headers/get#example
     return this.getHeader(name)
       ?.split(',')
       .map((v) => v.trimStart())

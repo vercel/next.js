@@ -1,4 +1,4 @@
-import { promises as fs } from 'fs'
+import { promises as fs, existsSync } from 'fs'
 import chalk from 'next/dist/compiled/chalk'
 import path from 'path'
 
@@ -12,7 +12,7 @@ import { hasEslintConfiguration } from './hasEslintConfiguration'
 import { writeOutputFile } from './writeOutputFile'
 
 import { ESLINT_PROMPT_VALUES } from '../constants'
-import { existsSync, findPagesDir } from '../find-pages-dir'
+import { findPagesDir } from '../find-pages-dir'
 import { installDependencies } from '../install-dependencies'
 import { hasNecessaryDependencies } from '../has-necessary-dependencies'
 

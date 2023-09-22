@@ -2,6 +2,7 @@ import path from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import webdriver from 'next-webdriver'
+import { shouldRunTurboDevTest } from '../../lib/next-test-utils'
 
 describe('transpile packages', () => {
   let next: NextInstance
@@ -23,7 +24,9 @@ describe('transpile packages', () => {
         scripts: {
           setup: `cp -r ./node_modules_bak/* ./node_modules`,
           build: 'yarn setup && next build',
-          dev: 'yarn setup && next dev',
+          dev: `yarn setup && next ${
+            shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
+          }`,
           start: 'next start',
         },
       },

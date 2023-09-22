@@ -8,7 +8,7 @@ import { getParserOptions } from './options'
 import { eventSwcLoadFailure } from '../../telemetry/events/swc-load-failure'
 import { patchIncorrectLockfile } from '../../lib/patch-incorrect-lockfile'
 import { downloadWasmSwc, downloadNativeNextSwc } from '../../lib/download-swc'
-import { NextConfigComplete, TurboLoaderItem } from '../../server/config-shared'
+import { NextConfigComplete, TurboRule } from '../../server/config-shared'
 import { isDeepStrictEqual } from 'util'
 
 const nextVersion = process.env.__NEXT_VERSION as string
@@ -399,9 +399,14 @@ interface ProjectOptions {
   env: Record<string, string>
 
   /**
-   * Whether to watch he filesystem for file changes.
+   * Whether to watch the filesystem for file changes.
    */
   watch: boolean
+
+  /**
+   * The address of the dev server.
+   */
+  serverAddr: string
 }
 
 interface TurboEngineOptions {
@@ -943,10 +948,8 @@ function bindingToApi(binding: any, _wasm: boolean) {
     nextConfigSerializable.exportPathMap = {}
     nextConfigSerializable.webpack = nextConfig.webpack && {}
 
-    if (nextConfig.experimental?.turbo?.loaders) {
-      ensureLoadersHaveSerializableOptions(
-        nextConfig.experimental.turbo.loaders
-      )
+    if (nextConfig.experimental?.turbo?.rules) {
+      ensureLoadersHaveSerializableOptions(nextConfig.experimental.turbo?.rules)
     }
 
     nextConfigSerializable.modularizeImports =
@@ -974,16 +977,17 @@ function bindingToApi(binding: any, _wasm: boolean) {
   }
 
   function ensureLoadersHaveSerializableOptions(
-    turbopackLoaders: Record<string, TurboLoaderItem[]>
+    turbopackRules: Record<string, TurboRule>
   ) {
-    for (const [ext, loaderItems] of Object.entries(turbopackLoaders)) {
+    for (const [glob, rule] of Object.entries(turbopackRules)) {
+      const loaderItems = Array.isArray(rule) ? rule : rule.loaders
       for (const loaderItem of loaderItems) {
         if (
           typeof loaderItem !== 'string' &&
           !isDeepStrictEqual(loaderItem, JSON.parse(JSON.stringify(loaderItem)))
         ) {
           throw new Error(
-            `loader ${loaderItem.loader} for match "${ext}" does not have serializable options. Ensure that options passed are plain JavaScript objects and values.`
+            `loader ${loaderItem.loader} for match "${glob}" does not have serializable options. Ensure that options passed are plain JavaScript objects and values.`
           )
         }
       }
