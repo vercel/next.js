@@ -11,6 +11,7 @@ use std::{
 use anyhow::{bail, Context, Result};
 use dunce::canonicalize;
 use serde::Deserialize;
+use serde_json::json;
 use turbo_tasks::{ReadRef, TryJoinIterExt, TurboTasks, Value, ValueToString, Vc};
 use turbo_tasks_env::DotenvProcessEnv;
 use turbo_tasks_fs::{
@@ -34,6 +35,7 @@ use turbopack_core::{
     context::AssetContext,
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
+    free_var_references,
     issue::{Issue, IssueDescriptionExt},
     module::Module,
     output::OutputAsset,
@@ -209,17 +211,18 @@ async fn run_test(resource: String) -> Result<Vc<FileSystemPath>> {
             )
         }
     }));
+
+    let defines = compile_time_defines!(
+        process.turbopack = true,
+        process.env.NODE_ENV = "development",
+        DEFINED_VALUE = "value",
+        DEFINED_TRUE = true,
+        A.VERY.LONG.DEFINED.VALUE = json!({ "test": true }),
+    );
+
     let compile_time_info = CompileTimeInfo::builder(env)
-        .defines(
-            compile_time_defines!(
-                process.turbopack = true,
-                process.env.NODE_ENV = "development",
-                DEFINED_VALUE = "value",
-                DEFINED_TRUE = true,
-                A.VERY.LONG.DEFINED.VALUE = "value",
-            )
-            .cell(),
-        )
+        .defines(defines.clone().cell())
+        .free_var_references(free_var_references!(..defines.into_iter()).cell())
         .cell();
 
     let custom_ecma_transform_plugins = Some(CustomEcmascriptTransformPlugins::cell(

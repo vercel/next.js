@@ -502,6 +502,7 @@ impl From<&CompileTimeDefineValue> for JsValue {
         match v {
             CompileTimeDefineValue::String(s) => JsValue::Constant(s.as_str().into()),
             CompileTimeDefineValue::Bool(b) => JsValue::Constant((*b).into()),
+            CompileTimeDefineValue::JSON(_) => JsValue::unknown_empty("compile time injected JSON"),
         }
     }
 }

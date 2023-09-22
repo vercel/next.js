@@ -35,17 +35,20 @@ impl CodeGenerateable for ConstantValue {
         _context: Vc<Box<dyn EcmascriptChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let value = self.value.clone();
-        let visitors = [
-            create_visitor!(exact &self.path.await?, visit_mut_expr(expr: &mut Expr) {
-                *expr = match value {
-                    CompileTimeDefineValue::Bool(true) => quote!("(\"TURBOPACK compile-time value\", true)" as Expr),
-                    CompileTimeDefineValue::Bool(false) => quote!("(\"TURBOPACK compile-time value\", false)" as Expr),
-                    CompileTimeDefineValue::String(ref s) => quote!("(\"TURBOPACK compile-time value\", $e)" as Expr, e: Expr = s.to_string().into()),
-                };
-            }),
-        ]
-        .into();
+        let path = &self.path.await?;
 
-        Ok(CodeGeneration { visitors }.cell())
+        let visitor = create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
+            *expr = match value {
+                CompileTimeDefineValue::Bool(true) => quote!("(\"TURBOPACK compile-time value\", true)" as Expr),
+                CompileTimeDefineValue::Bool(false) => quote!("(\"TURBOPACK compile-time value\", false)" as Expr),
+                CompileTimeDefineValue::String(ref s) => quote!("(\"TURBOPACK compile-time value\", $e)" as Expr, e: Expr = s.to_string().into()),
+                CompileTimeDefineValue::JSON(ref s) => quote!("(\"TURBOPACK compile-time value\", JSON.parse($e))" as Expr, e: Expr = s.to_string().into()),
+            };
+        });
+
+        Ok(CodeGeneration {
+            visitors: vec![visitor],
+        }
+        .cell())
     }
 }
