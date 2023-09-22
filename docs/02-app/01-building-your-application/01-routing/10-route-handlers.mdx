@@ -386,6 +386,28 @@ export async function GET(request, { params }) {
 | `app/items/[slug]/route.js` | `/items/b`  | `{ slug: 'b' }` |
 | `app/items/[slug]/route.js` | `/items/c`  | `{ slug: 'c' }` |
 
+### URL Query Parameters
+
+The request object passed to the route handler is a `NextRequest` instance, which has [some additional convenient methods](/docs/app/api-reference/functions/next-request#nexturl), including for handling query parameters.
+
+```ts filename="app/test/route.ts" switcher
+import { NextRequest } from 'next/server'
+
+export function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams
+  const name = searchParams.get('name')
+  return new Response(name ? `Hello ${name}!` : '`name` is not provided.')
+}
+```
+
+```js filename="app/test/route.js" switcher
+export function GET(request) {
+  const searchParams = request.nextUrl.searchParams
+  const name = searchParams.get('name')
+  return new Response(name ? `Hello ${name}!` : '`name` is not provided.')
+}
+```
+
 ### Streaming
 
 Streaming is commonly used in combination with Large Language Models (LLMs), such as OpenAI, for AI-generated content. Learn more about the [AI SDK](https://sdk.vercel.ai/docs).
