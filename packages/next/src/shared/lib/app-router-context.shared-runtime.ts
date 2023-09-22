@@ -1,10 +1,11 @@
 'use client'
 
-import {
+import type {
   FocusAndScrollRef,
   PrefetchKind,
+  ThenableRecord,
 } from '../../client/components/router-reducer/router-reducer-types'
-import type { fetchServerResponse } from '../../client/components/router-reducer/fetch-server-response'
+import type { FetchServerResponseResult } from '../../client/components/router-reducer/fetch-server-response'
 import type {
   FlightRouterState,
   FlightData,
@@ -29,7 +30,7 @@ export type CacheNode =
       /**
        * In-flight request for this node.
        */
-      data: ReturnType<typeof fetchServerResponse> | null
+      data: ThenableRecord<FetchServerResponseResult> | null
       head?: React.ReactNode
       /**
        * React Component for this node.
