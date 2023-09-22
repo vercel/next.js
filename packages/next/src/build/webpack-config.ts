@@ -77,6 +77,7 @@ import { getBabelConfigFile } from './get-babel-config-file'
 import { defaultOverrides } from '../server/require-hook'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 import { getDefineEnvPlugin } from './webpack/plugins/define-env-plugin'
+import { SWCLoaderOptions } from './webpack/loaders/next-swc-loader'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -680,7 +681,12 @@ export default async function getBaseWebpackConfig(
   }
 
   let swcTraceProfilingInitialized = false
-  const getSwcLoader = (extraOptions?: any) => {
+  const getSwcLoader = (
+    extraOptions: Partial<SWCLoaderOptions> & {
+      bundleTarget: SWCLoaderOptions['bundleTarget']
+      isServerLayer: SWCLoaderOptions['isServerLayer']
+    }
+  ) => {
     if (
       config?.experimental?.swcTraceProfiling &&
       !swcTraceProfilingInitialized
@@ -709,12 +715,14 @@ export default async function getBaseWebpackConfig(
         supportedBrowsers,
         swcCacheDir: path.join(dir, config?.distDir ?? '.next', 'cache', 'swc'),
         ...extraOptions,
-      },
+      } satisfies SWCLoaderOptions,
     }
   }
 
   const defaultLoaders = {
-    babel: useSWCLoader ? getSwcLoader() : getBabelLoader(),
+    babel: useSWCLoader
+      ? getSwcLoader({ bundleTarget: 'client', isServerLayer: false })
+      : getBabelLoader(),
   }
 
   const swcLoaderForServerLayer = hasServerComponents
@@ -731,13 +739,21 @@ export default async function getBaseWebpackConfig(
     : []
 
   const swcLoaderForMiddlewareLayer = useSWCLoader
-    ? getSwcLoader({ hasServerComponents: false, bundleTarget: 'default' })
+    ? getSwcLoader({
+        isServerLayer: false,
+        hasServerComponents: false,
+        bundleTarget: 'default',
+      })
     : // When using Babel, we will have to use SWC to do the optimization
       // for middleware to tree shake the unused default optimized imports like "next/server".
       // This will cause some performance overhead but
       // acceptable as Babel will not be recommended.
       [
-        getSwcLoader({ hasServerComponents: false, bundleTarget: 'default' }),
+        getSwcLoader({
+          isServerLayer: false,
+          hasServerComponents: false,
+          bundleTarget: 'default',
+        }),
         getBabelLoader(),
       ]
 
@@ -761,6 +777,7 @@ export default async function getBaseWebpackConfig(
             getSwcLoader({
               hasServerComponents,
               isServerLayer: false,
+              bundleTarget: 'client',
             }),
           ]
         : // When using Babel, we will have to add the SWC loader
@@ -770,6 +787,7 @@ export default async function getBaseWebpackConfig(
           [
             getSwcLoader({
               isServerLayer: false,
+              bundleTarget: 'client',
             }),
             getBabelLoader(),
           ]
@@ -781,14 +799,11 @@ export default async function getBaseWebpackConfig(
   // be performed.
   const loaderForAPIRoutes =
     hasServerComponents && useSWCLoader
-      ? {
-          loader: 'next-swc-loader',
-          options: {
-            ...getSwcLoader().options,
-            bundleTarget: 'default',
-            hasServerComponents: false,
-          },
-        }
+      ? getSwcLoader({
+          isServerLayer: false,
+          bundleTarget: 'default',
+          hasServerComponents: false,
+        })
       : defaultLoaders.babel
 
   const pageExtensions = config.pageExtensions
@@ -1806,6 +1821,8 @@ export default async function getBaseWebpackConfig(
 
             return [
               getSwcLoader({
+                isServerLayer: false,
+                bundleTarget: 'client',
                 hasServerComponents: false,
                 optimizeBarrelExports: {
                   wildcard: isFromWildcardExport,
