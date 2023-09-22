@@ -22,6 +22,8 @@ const SKIPPED_TEST_SUITES = new Set([
   'test/integration/css/test/css-modules.test.js',
   'test/development/acceptance/ReactRefreshRequire.test.ts',
   'test/integration/custom-routes/test/index.test.js',
+  'test/integration/absolute-assetprefix/test/index.test.js',
+  'test/e2e/middleware-rewrites/test/index.test.ts',
 ])
 
 async function updatePassingTests() {

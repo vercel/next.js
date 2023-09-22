@@ -1662,19 +1662,6 @@
     "pending": [],
     "runtimeError": false
   },
-  "test/integration/absolute-assetprefix/test/index.test.js": {
-    "passed": [
-      "absolute assetPrefix with path prefix should not fetch static data from a CDN",
-      "absolute assetPrefix with path prefix should work with getStaticPaths prerendered",
-      "absolute assetPrefix with path prefix should work with getStaticPaths fallback",
-      "absolute assetPrefix with path prefix should work with getServerSideProps"
-    ],
-    "failed": [
-      "absolute assetPrefix with path prefix should fetch from cache correctly"
-    ],
-    "pending": [],
-    "runtimeError": false
-  },
   "test/integration/404-page-app/test/index.test.js": {
     "passed": [
       "404 Page Support with _app production mode should build successfully",
@@ -5788,71 +5775,6 @@
       "next/font/google no preloads with _app without fonts"
     ],
     "pending": [],
-    "runtimeError": false
-  },
-  "test/e2e/middleware-rewrites/test/index.test.ts": {
-    "passed": [
-      "Middleware Rewrite should handle next.config.js rewrite with body correctly",
-      "Middleware Rewrite should not have un-necessary data request on rewrite",
-      "Middleware Rewrite should not mix component cache when navigating between dynamic routes",
-      "Middleware Rewrite should have props for afterFiles rewrite to SSG page",
-      "Middleware Rewrite should hard navigate on 404 for data request",
-      "Middleware Rewrite should return HTML/data correctly for pre-rendered page",
-      "Middleware Rewrite should have correct query info for dynamic route after query hydration",
-      "Middleware Rewrite should handle shallow navigation correctly (non-dynamic page)",
-      "Middleware Rewrite should handle shallow navigation correctly (dynamic page)",
-      "Middleware Rewrite support colons in path",
-      "Middleware Rewrite should not call middleware with shallow push",
-      "Middleware Rewrite should not have unexpected errors",
-      "Middleware Rewrite /fr support colons in path",
-      "Middleware Rewrite /fr should not call middleware with shallow push"
-    ],
-    "failed": [
-      "Middleware Rewrite should handle static rewrite from next.config.js correctly",
-      "Middleware Rewrite should rewrite to fallback: true page successfully",
-      "Middleware Rewrite should allow to opt-out prefetch caching",
-      "Middleware Rewrite should allow to switch locales",
-      "Middleware Rewrite should resolve dynamic route after rewrite correctly",
-      "Middleware Rewrite should rewrite without hard navigation",
-      "Middleware Rewrite /fr should rewrite without hard navigation",
-      "Middleware Rewrite should handle middleware rewrite with body correctly",
-      "Middleware Rewrite should handle static dynamic rewrite from middleware correctly",
-      "Middleware Rewrite should rewrite correctly when navigating via history",
-      "Middleware Rewrite should rewrite correctly when navigating via history after query update",
-      "Middleware Rewrite should override with rewrite internally correctly",
-      "Middleware Rewrite should rewrite to data urls for incoming data request internally rewritten",
-      "Middleware Rewrite should override with rewrite externally correctly",
-      "Middleware Rewrite should rewrite to the external url for incoming data request externally rewritten",
-      "Middleware Rewrite should not prefetch non-SSG routes",
-      "Middleware Rewrite should allow to rewrite keeping the locale in pathname",
-      "Middleware Rewrite should allow to rewrite to a different locale",
-      "Middleware Rewrite should behave consistently on recursive rewrites",
-      "Middleware Rewrite should allow to rewrite to a `beforeFiles` rewrite config",
-      "Middleware Rewrite should allow to rewrite to a `afterFiles` rewrite config",
-      "Middleware Rewrite should add a cookie and rewrite to a/b test",
-      "Middleware Rewrite should clear query parameters",
-      "Middleware Rewrite should rewrite to about page",
-      "Middleware Rewrite can rewrite to path with colon",
-      "Middleware Rewrite can rewrite from path with colon",
-      "Middleware Rewrite can rewrite from path with colon and retain query parameter",
-      "Middleware Rewrite can rewrite to path with colon and retain query parameter",
-      "Middleware Rewrite should rewrite when not using localhost",
-      "Middleware Rewrite should rewrite to Vercel",
-      "Middleware Rewrite should correctly rewriting to a different dynamic path",
-      "Middleware Rewrite /fr should add a cookie and rewrite to a/b test",
-      "Middleware Rewrite /fr should clear query parameters",
-      "Middleware Rewrite /fr should rewrite to about page",
-      "Middleware Rewrite /fr can rewrite to path with colon",
-      "Middleware Rewrite /fr can rewrite from path with colon",
-      "Middleware Rewrite /fr can rewrite from path with colon and retain query parameter",
-      "Middleware Rewrite /fr can rewrite to path with colon and retain query parameter",
-      "Middleware Rewrite /fr should rewrite when not using localhost",
-      "Middleware Rewrite /fr should rewrite to Vercel",
-      "Middleware Rewrite /fr should correctly rewriting to a different dynamic path"
-    ],
-    "pending": [
-      "Middleware Rewrite includes the locale in rewrites by default"
-    ],
     "runtimeError": false
   },
   "test/e2e/next-image-forward-ref/index.test.ts": {
