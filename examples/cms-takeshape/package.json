@@ -11,7 +11,7 @@
     "next": "latest",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "remark": "14.0.2",
+    "remark": "14.0.3",
     "remark-html": "15.0.1",
     "takeshape-routing": "4.86.0"
   },
