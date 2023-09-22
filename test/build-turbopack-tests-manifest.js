@@ -36,17 +36,20 @@ async function updatePassingTests() {
     }
   }
 
+  for (const info of Object.values(passing)) {
+    info.failed = [...new Set(info.failed)]
+    info.pending = [...new Set(info.pending)]
+    info.passed = [
+      ...new Set(info.passed.filter((name) => !info.failed.includes(name))),
+    ]
+  }
+
   const oldPassingData = JSON.parse(fs.readFileSync(PASSING_JSON_PATH, 'utf8'))
 
   for (const file of Object.keys(oldPassingData)) {
     const newData = passing[file]
     const oldData = oldPassingData[file]
     if (!newData) continue
-    newData.passed = [
-      ...new Set(
-        newData.passed.filter((name) => !newData.failed.includes(name))
-      ),
-    ]
     const shouldPass = new Set(
       oldData.passed.filter((name) => newData.failed.includes(name))
     )

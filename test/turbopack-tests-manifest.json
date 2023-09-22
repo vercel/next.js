@@ -1795,8 +1795,6 @@
     ],
     "failed": [
       "app dir - external dependency should be able to opt-out 3rd party packages being bundled in server components",
-      "app dir - external dependency should have proper tree-shaking for known modules in CJS",
-      "app dir - external dependency should be able to opt-out 3rd party packages being bundled in server components",
       "app dir - external dependency should have proper tree-shaking for known modules in CJS"
     ],
     "pending": []
@@ -1817,8 +1815,6 @@
       "app dir - basepath should support Link with basePath prefixed",
       "app dir - basepath should prefix metadata og image with basePath",
       "app dir - basepath should prefix redirect() with basePath",
-      "app dir - basepath should support Link with basePath prefixed",
-      "app dir - basepath should prefix metadata og image with basePath",
       "app dir - basepath should render usePathname without the basePath"
     ],
     "pending": []
@@ -1869,7 +1865,6 @@
     ],
     "failed": [],
     "pending": [
-      "app dir rendering mixed static and dynamic should generate static data during build and use it",
       "app dir rendering mixed static and dynamic should generate static data during build and use it"
     ]
   },
@@ -1917,20 +1912,6 @@
       "app-dir with middleware Mutate request headers for next/headers Updates headers",
       "app-dir with middleware Mutate request headers for next/headers Supports draft mode",
       "app dir middleware without pages dir Updates headers",
-      "app dir middleware with middleware in src dir works without crashing when using requestAsyncStorage",
-      "app-dir with middleware should filter correctly after middleware rewrite",
-      "app-dir with middleware Mutate request headers for Serverless Functions Adds new headers",
-      "app-dir with middleware Mutate request headers for Serverless Functions Deletes headers",
-      "app-dir with middleware Mutate request headers for Serverless Functions Updates headers",
-      "app-dir with middleware Mutate request headers for Serverless Functions Supports draft mode",
-      "app-dir with middleware Mutate request headers for Edge Functions Adds new headers",
-      "app-dir with middleware Mutate request headers for Edge Functions Deletes headers",
-      "app-dir with middleware Mutate request headers for Edge Functions Updates headers",
-      "app-dir with middleware Mutate request headers for Edge Functions Supports draft mode",
-      "app-dir with middleware Mutate request headers for next/headers Adds new headers",
-      "app-dir with middleware Mutate request headers for next/headers Deletes headers",
-      "app-dir with middleware Mutate request headers for next/headers Updates headers",
-      "app-dir with middleware Mutate request headers for next/headers Supports draft mode",
       "app dir middleware with middleware in src dir works without crashing when using requestAsyncStorage"
     ],
     "pending": []
@@ -1954,14 +1935,12 @@
     "passed": [],
     "failed": [],
     "pending": [
-      "app-dir back button download bug app-dir back button download bug should redirect route when clicking link",
       "app-dir back button download bug app-dir back button download bug should redirect route when clicking link"
     ]
   },
   "test/e2e/app-dir/app/useReportWebVitals.test.ts": {
     "passed": [],
     "failed": [
-      "useReportWebVitals hook should send web-vitals to vercel-insights",
       "useReportWebVitals hook should send web-vitals to vercel-insights"
     ],
     "pending": []
@@ -2047,7 +2026,6 @@
   "test/e2e/app-dir/emotion-js/index.test.ts": {
     "passed": [],
     "failed": [
-      "app dir - emotion-js should render emotion-js css with compiler.emotion option correctly",
       "app dir - emotion-js should render emotion-js css with compiler.emotion option correctly"
     ],
     "pending": []
@@ -2515,10 +2493,6 @@
       "app dir should have correct searchParams and params (client)",
       "app dir should encode chunk path correctly",
       "app dir should match redirects in pages correctly $path",
-      "app dir should match redirects in pages correctly $path",
-      "app dir should match redirects in pages correctly $path",
-      "app dir should match redirects in pages correctly $path",
-      "app dir should match redirects in pages correctly $path",
       "app dir should not apply client router filter on shallow",
       "app dir should not have duplicate config warnings",
       "app dir should not share edge workers",
@@ -2801,9 +2775,6 @@
     ],
     "failed": [
       "app dir - hooks from pages should have the correct hooks",
-      "app dir - hooks from pages should have the correct hooks",
-      "app dir - hooks from pages should have the correct hooks",
-      "app dir - hooks from pages should have the correct hooks",
       "app dir - hooks useRouter should allow access to the router",
       "app dir - hooks useSelectedLayoutSegments should have the correct layout segments at /hooks/use-selected-layout-segment/rewritten-middleware"
     ],
@@ -2985,8 +2956,7 @@
     "passed": [],
     "failed": [
       "app dir - not-found - group route with runtime = edge should use the not-found page under group routes",
-      "app dir - not-found - group route with default runtime should use the not-found page under group routes",
-      "app dir - not-found - group route with runtime = edge should use the not-found page under group routes"
+      "app dir - not-found - group route with default runtime should use the not-found page under group routes"
     ],
     "pending": []
   },
@@ -2999,10 +2969,7 @@
   },
   "test/e2e/app-dir/pages-to-app-routing/pages-to-app-routing.test.ts": {
     "passed": [],
-    "failed": [
-      "pages-to-app-routing should work using browser",
-      "pages-to-app-routing should work using browser"
-    ],
+    "failed": ["pages-to-app-routing should work using browser"],
     "pending": []
   },
   "test/e2e/app-dir/not-found-default/index.test.ts": {
@@ -3013,10 +2980,7 @@
       "app dir - not found with default 404 page should be able to navigate to page with calling not-found in metadata",
       "app dir - not found with default 404 page should render default not found for group routes if not found is not defined",
       "app dir - not found with default 404 page should error on client notFound from root layout in browser",
-      "app dir - not found with default 404 page should error on server notFound from root layout on server-side",
-      "app dir - not found with default 404 page should be able to navigate to page calling not-found",
-      "app dir - not found with default 404 page should be able to navigate to page with calling not-found in metadata",
-      "app dir - not found with default 404 page should render default not found for group routes if not found is not defined"
+      "app dir - not found with default 404 page should error on server notFound from root layout on server-side"
     ],
     "pending": []
   },
@@ -3074,10 +3038,7 @@
       "app dir - not-found - basic should include not found client reference manifest in the file trace",
       "app dir - not-found - basic with default runtime should use the not-found page for non-matching routes",
       "app dir - not-found - basic with default runtime should match dynamic route not-found boundary correctly",
-      "app dir - not-found - basic with default runtime should escalate notFound to parent layout if no not-found boundary present in current layer",
-      "app dir - not-found - basic with runtime = edge should use the not-found page for non-matching routes",
-      "app dir - not-found - basic with runtime = edge should match dynamic route not-found boundary correctly",
-      "app dir - not-found - basic with runtime = edge should escalate notFound to parent layout if no not-found boundary present in current layer"
+      "app dir - not-found - basic with default runtime should escalate notFound to parent layout if no not-found boundary present in current layer"
     ],
     "pending": []
   },
@@ -3114,7 +3075,6 @@
       "router autoscrolling on navigation router.refresh() should not stop router.push() from scrolling"
     ],
     "pending": [
-      "router autoscrolling on navigation router.refresh() should not scroll the page when we hot reload",
       "router autoscrolling on navigation router.refresh() should not scroll the page when we hot reload"
     ]
   },
@@ -3241,7 +3201,6 @@
       "app-dir trailingSlash handling should redirect route when clicking link"
     ],
     "failed": [
-      "app-dir trailingSlash handling should render link with trailing slash",
       "app-dir trailingSlash handling should render link with trailing slash"
     ],
     "pending": []
@@ -3306,18 +3265,12 @@
   },
   "test/e2e/browserslist/browserslist.test.ts": {
     "passed": [],
-    "failed": [
-      "Browserslist should apply browserslist target",
-      "Browserslist should apply browserslist target"
-    ],
+    "failed": ["Browserslist should apply browserslist target"],
     "pending": []
   },
   "test/e2e/basepath-trailing-slash.test.ts": {
     "passed": [],
     "failed": [
-      "basePath + trailingSlash should allow URL query strings without refresh",
-      "basePath + trailingSlash should allow URL query strings on index without refresh",
-      "basePath + trailingSlash should correctly replace state when same asPath but different url",
       "basePath + trailingSlash should allow URL query strings without refresh",
       "basePath + trailingSlash should allow URL query strings on index without refresh",
       "basePath + trailingSlash should correctly replace state when same asPath but different url"
@@ -3367,8 +3320,6 @@
   "test/e2e/custom-app-render/custom-app-render.test.ts": {
     "passed": [],
     "failed": [
-      "custom-app-render should render /",
-      "custom-app-render should render /render",
       "custom-app-render should render /",
       "custom-app-render should render /render"
     ],
@@ -3452,9 +3403,7 @@
       "Edge Compiler can import asset assets allows to fetch a remote URL",
       "Edge Compiler can import asset assets allows to fetch a remote URL with a path and basename",
       "Edge Compiler can import asset assets allows to fetch text assets",
-      "Edge Compiler can import asset assets allows to fetch image assets",
-      "Edge Compiler can import asset assets allows to assets from node_modules",
-      "Edge Compiler can import asset assets extracts all the assets from the bundle"
+      "Edge Compiler can import asset assets allows to assets from node_modules"
     ],
     "pending": []
   },
@@ -3475,11 +3424,6 @@
   "test/e2e/edge-can-use-wasm-files/index.test.ts": {
     "passed": [],
     "failed": [
-      "edge api endpoints can use wasm files uses the wasm file",
-      "middleware can use wasm files uses the wasm file",
-      "middleware can use wasm files can be called twice",
-      "middleware can use wasm files lists the necessary wasm bindings in the manifest",
-      "middleware can use wasm files with the experimental modes on uses the wasm file",
       "edge api endpoints can use wasm files uses the wasm file",
       "middleware can use wasm files uses the wasm file",
       "middleware can use wasm files can be called twice",
@@ -3594,8 +3538,6 @@
     "passed": [],
     "failed": [
       "fetch failures have good stack traces in edge runtime when awaiting `fetch` using an unknown domain, stack traces are preserved",
-      "fetch failures have good stack traces in edge runtime when returning `fetch` using an unknown domain, stack traces are preserved",
-      "fetch failures have good stack traces in edge runtime when awaiting `fetch` using an unknown domain, stack traces are preserved",
       "fetch failures have good stack traces in edge runtime when returning `fetch` using an unknown domain, stack traces are preserved"
     ],
     "pending": []
@@ -3657,8 +3599,7 @@
       "getServerSideProps should navigate between pages successfully",
       "getServerSideProps should render 404 correctly when notFound is returned client-transition (non-dynamic)",
       "getServerSideProps should render 404 correctly when notFound is returned client-transition (dynamic)",
-      "getServerSideProps should pass query for data request on navigation",
-      "getServerSideProps should dedupe server data requests"
+      "getServerSideProps should pass query for data request on navigation"
     ],
     "pending": []
   },
@@ -3704,7 +3645,6 @@
       "i18-default-locale-redirect should not request a path prefixed with default locale"
     ],
     "failed": [
-      "i18-default-locale-redirect should request a path prefixed with non-default locale",
       "i18-default-locale-redirect should request a path prefixed with non-default locale"
     ],
     "pending": []
@@ -3817,10 +3757,6 @@
       "i18n-ignore-rewrite-source-locale with basepath get _next/static/ files by skipping locale in rewrite, locale: ",
       "i18n-ignore-rewrite-source-locale with basepath get _next/static/ files by skipping locale in rewrite, locale: /en",
       "i18n-ignore-rewrite-source-locale with basepath get _next/static/ files by skipping locale in rewrite, locale: /sv",
-      "i18n-ignore-rewrite-source-locale with basepath get _next/static/ files by skipping locale in rewrite, locale: /nl",
-      "i18n-ignore-rewrite-source-locale with basepath get _next/static/ files by skipping locale in rewrite, locale: ",
-      "i18n-ignore-rewrite-source-locale with basepath get _next/static/ files by skipping locale in rewrite, locale: /en",
-      "i18n-ignore-rewrite-source-locale with basepath get _next/static/ files by skipping locale in rewrite, locale: /sv",
       "i18n-ignore-rewrite-source-locale with basepath get _next/static/ files by skipping locale in rewrite, locale: /nl"
     ],
     "pending": []
@@ -3840,10 +3776,6 @@
       "i18n-ignore-rewrite-source-locale get _next/static/ files by skipping locale in rewrite, locale: ",
       "i18n-ignore-rewrite-source-locale get _next/static/ files by skipping locale in rewrite, locale: /en",
       "i18n-ignore-rewrite-source-locale get _next/static/ files by skipping locale in rewrite, locale: /sv",
-      "i18n-ignore-rewrite-source-locale get _next/static/ files by skipping locale in rewrite, locale: /nl",
-      "i18n-ignore-rewrite-source-locale get _next/static/ files by skipping locale in rewrite, locale: ",
-      "i18n-ignore-rewrite-source-locale get _next/static/ files by skipping locale in rewrite, locale: /en",
-      "i18n-ignore-rewrite-source-locale get _next/static/ files by skipping locale in rewrite, locale: /sv",
       "i18n-ignore-rewrite-source-locale get _next/static/ files by skipping locale in rewrite, locale: /nl"
     ],
     "pending": []
@@ -3851,8 +3783,6 @@
   "test/e2e/ignore-invalid-popstateevent/with-i18n.test.ts": {
     "passed": [],
     "failed": [
-      "i18n: Event with stale state - static route previously was dynamic Ignore event without query param",
-      "i18n: Event with stale state - static route previously was dynamic Ignore event with query param",
       "i18n: Event with stale state - static route previously was dynamic Ignore event without query param",
       "i18n: Event with stale state - static route previously was dynamic Ignore event with query param",
       "i18n: Event with stale state - static route previously was dynamic Don't ignore event with different locale"
@@ -3913,30 +3843,6 @@
       "i18n-data-fetching-redirect Redirect to locale from context next/link gsp-blocking-redirect en",
       "i18n-data-fetching-redirect Redirect to locale from context next/link gsp-blocking-redirect sv",
       "i18n-data-fetching-redirect Redirect to locale from context next/link gsp-fallback-redirect en",
-      "i18n-data-fetching-redirect Redirect to locale from context next/link gsp-fallback-redirect sv",
-      "i18n-data-fetching-redirect Redirect to another locale gssp-redirect en -> sv",
-      "i18n-data-fetching-redirect Redirect to another locale gssp-redirect sv -> en",
-      "i18n-data-fetching-redirect Redirect to another locale gsp-blocking-redirect en -> sv",
-      "i18n-data-fetching-redirect Redirect to another locale gsp-blocking-redirect sv -> en",
-      "i18n-data-fetching-redirect Redirect to another locale gsp-fallback-redirect en -> sv",
-      "i18n-data-fetching-redirect Redirect to another locale gsp-fallback-redirect sv -> en",
-      "i18n-data-fetching-redirect Redirect to another locale next/link gssp-redirect en -> sv",
-      "i18n-data-fetching-redirect Redirect to another locale next/link gssp-redirect sv -> en",
-      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-blocking-redirect en -> sv",
-      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-blocking-redirect sv -> en",
-      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-fallback-redirect en -> sv",
-      "i18n-data-fetching-redirect Redirect to another locale next/link gsp-fallback-redirect sv -> en",
-      "i18n-data-fetching-redirect Redirect to locale from context gssp-redirect en",
-      "i18n-data-fetching-redirect Redirect to locale from context gssp-redirect sv",
-      "i18n-data-fetching-redirect Redirect to locale from context gsp-blocking-redirect en",
-      "i18n-data-fetching-redirect Redirect to locale from context gsp-blocking-redirect sv",
-      "i18n-data-fetching-redirect Redirect to locale from context gsp-fallback-redirect en",
-      "i18n-data-fetching-redirect Redirect to locale from context gsp-fallback-redirect sv",
-      "i18n-data-fetching-redirect Redirect to locale from context next/link gssp-redirect en",
-      "i18n-data-fetching-redirect Redirect to locale from context next/link gssp-redirect sv",
-      "i18n-data-fetching-redirect Redirect to locale from context next/link gsp-blocking-redirect en",
-      "i18n-data-fetching-redirect Redirect to locale from context next/link gsp-blocking-redirect sv",
-      "i18n-data-fetching-redirect Redirect to locale from context next/link gsp-fallback-redirect en",
       "i18n-data-fetching-redirect Redirect to locale from context next/link gsp-fallback-redirect sv"
     ],
     "pending": []
@@ -3945,20 +3851,13 @@
     "passed": [],
     "failed": [
       "Middleware base tests router.query must exist when Link clicked page routing",
-      "Middleware base tests should execute from absolute paths",
-      "Middleware base tests router.query must exist when Link clicked page routing"
+      "Middleware base tests should execute from absolute paths"
     ],
     "pending": []
   },
   "test/e2e/manual-client-base-path/index.test.ts": {
     "passed": ["manual-client-base-path should not warn for flag in output"],
     "failed": [
-      "manual-client-base-path should not update with basePath on mount /",
-      "manual-client-base-path should not update with basePath on mount /another",
-      "manual-client-base-path should not update with basePath on mount /dynamic/first",
-      "manual-client-base-path should not update with basePath on mount /dynamic/second",
-      "manual-client-base-path should navigate correctly from index",
-      "manual-client-base-path should navigate correctly from another",
       "manual-client-base-path should not update with basePath on mount /",
       "manual-client-base-path should not update with basePath on mount /another",
       "manual-client-base-path should not update with basePath on mount /dynamic/first",
@@ -3972,30 +3871,13 @@
     "passed": ["Middleware custom matchers basePath should not match"],
     "failed": [
       "Middleware custom matchers basePath should match has query on client routing",
-      "Middleware custom matchers basePath should match",
-      "Middleware custom matchers basePath should match has query on client routing"
+      "Middleware custom matchers basePath should match"
     ],
     "pending": []
   },
   "test/e2e/i18n-ignore-redirect-source-locale/redirects-with-basepath.test.ts": {
     "passed": [],
     "failed": [
-      "i18n-ignore-redirect-source-locale with basepath get redirected to the new page, from:  to: sv",
-      "i18n-ignore-redirect-source-locale with basepath get redirected to the new page, from: /en to: sv",
-      "i18n-ignore-redirect-source-locale with basepath get redirected to the new page, from: /sv to: sv",
-      "i18n-ignore-redirect-source-locale with basepath get redirected to the new page, from: /nl to: sv",
-      "i18n-ignore-redirect-source-locale with basepath get redirected to the new page, from:  to: en",
-      "i18n-ignore-redirect-source-locale with basepath get redirected to the new page, from: /en to: en",
-      "i18n-ignore-redirect-source-locale with basepath get redirected to the new page, from: /sv to: en",
-      "i18n-ignore-redirect-source-locale with basepath get redirected to the new page, from: /nl to: en",
-      "i18n-ignore-redirect-source-locale with basepath get redirected to the new page, from:  to: /",
-      "i18n-ignore-redirect-source-locale with basepath get redirected to the new page, from: /en to: /",
-      "i18n-ignore-redirect-source-locale with basepath get redirected to the new page, from: /sv to: /",
-      "i18n-ignore-redirect-source-locale with basepath get redirected to the new page, from: /nl to: /",
-      "i18n-ignore-redirect-source-locale with basepath get redirected to the new page, from and to: ",
-      "i18n-ignore-redirect-source-locale with basepath get redirected to the new page, from and to: /en",
-      "i18n-ignore-redirect-source-locale with basepath get redirected to the new page, from and to: /sv",
-      "i18n-ignore-redirect-source-locale with basepath get redirected to the new page, from and to: /nl",
       "i18n-ignore-redirect-source-locale with basepath get redirected to the new page, from:  to: sv",
       "i18n-ignore-redirect-source-locale with basepath get redirected to the new page, from: /en to: sv",
       "i18n-ignore-redirect-source-locale with basepath get redirected to the new page, from: /sv to: sv",
@@ -4033,22 +3915,6 @@
       "i18n-ignore-redirect-source-locale get redirected to the new page, from and to: ",
       "i18n-ignore-redirect-source-locale get redirected to the new page, from and to: /en",
       "i18n-ignore-redirect-source-locale get redirected to the new page, from and to: /sv",
-      "i18n-ignore-redirect-source-locale get redirected to the new page, from and to: /nl",
-      "i18n-ignore-redirect-source-locale get redirected to the new page, from:  to: sv",
-      "i18n-ignore-redirect-source-locale get redirected to the new page, from: /en to: sv",
-      "i18n-ignore-redirect-source-locale get redirected to the new page, from: /sv to: sv",
-      "i18n-ignore-redirect-source-locale get redirected to the new page, from: /nl to: sv",
-      "i18n-ignore-redirect-source-locale get redirected to the new page, from:  to: en",
-      "i18n-ignore-redirect-source-locale get redirected to the new page, from: /en to: en",
-      "i18n-ignore-redirect-source-locale get redirected to the new page, from: /sv to: en",
-      "i18n-ignore-redirect-source-locale get redirected to the new page, from: /nl to: en",
-      "i18n-ignore-redirect-source-locale get redirected to the new page, from:  to: /",
-      "i18n-ignore-redirect-source-locale get redirected to the new page, from: /en to: /",
-      "i18n-ignore-redirect-source-locale get redirected to the new page, from: /sv to: /",
-      "i18n-ignore-redirect-source-locale get redirected to the new page, from: /nl to: /",
-      "i18n-ignore-redirect-source-locale get redirected to the new page, from and to: ",
-      "i18n-ignore-redirect-source-locale get redirected to the new page, from and to: /en",
-      "i18n-ignore-redirect-source-locale get redirected to the new page, from and to: /sv",
       "i18n-ignore-redirect-source-locale get redirected to the new page, from and to: /nl"
     ],
     "pending": []
@@ -4060,17 +3926,7 @@
     ],
     "failed": [
       "Middleware custom matchers i18n should match has query on client routing",
-      "Middleware custom matchers i18n should match has query on client routing",
-      "Middleware custom matchers i18n should match has query on client routing",
-      "Middleware custom matchers i18n should match has query on client routing",
-      "Middleware custom matchers i18n should match",
-      "Middleware custom matchers i18n should match",
-      "Middleware custom matchers i18n should match",
-      "Middleware custom matchers i18n should match",
-      "Middleware custom matchers i18n should match has query on client routing",
-      "Middleware custom matchers i18n should match has query on client routing",
-      "Middleware custom matchers i18n should match has query on client routing",
-      "Middleware custom matchers i18n should match has query on client routing"
+      "Middleware custom matchers i18n should match"
     ],
     "pending": []
   },
@@ -4104,10 +3960,7 @@
       "Middleware custom matchers basePath should match",
       "Middleware custom matchers basePath should not match"
     ],
-    "failed": [
-      "Middleware custom matchers basePath should match query path",
-      "Middleware custom matchers basePath should match query path"
-    ],
+    "failed": ["Middleware custom matchers basePath should match query path"],
     "pending": []
   },
   "test/e2e/basepath.test.ts": {
@@ -4179,34 +4032,9 @@
       "basePath should use urls with basepath in router events for cancelled routes",
       "basePath should use urls with basepath in router events for failed route change",
       "basePath should correctly replace state when same asPath but different url",
-      "basePath should navigate to /404 correctly client-side",
-      "basePath should navigate to /_error correctly client-side",
-      "basePath should navigate back correctly to a dynamic route",
-      "basePath should prefetch pages correctly in viewport with <Link>",
-      "basePath should update dynamic params after mount correctly",
-      "basePath should navigate to index page with getStaticProps",
-      "basePath should work with nested folder with same name as basePath",
-      "basePath should work with normal dynamic page",
-      "basePath should work with catch-all page",
-      "basePath should navigate an absolute local url with basePath",
-      "basePath should 404 when manually adding basePath with router.push",
-      "basePath should 404 when manually adding basePath with router.replace",
-      "basePath should have correct router paths on first load of /",
-      "basePath should have correct router paths on first load of /hello",
-      "basePath should fetch data for getStaticProps without reloading",
-      "basePath should fetch data for getServerSideProps without reloading",
-      "basePath should have correct href for a link",
-      "basePath should have correct href for a link to /",
-      "basePath should navigate to the page without refresh",
-      "basePath should use urls with basepath in router events",
-      "basePath should use urls with basepath in router events for hash changes",
-      "basePath should use urls with basepath in router events for cancelled routes",
-      "basePath should use urls with basepath in router events for failed route change",
-      "basePath should correctly replace state when same asPath but different url"
+      "basePath should prefetch pages correctly in viewport with <Link>"
     ],
     "pending": [
-      "basePath should navigate back to a non-basepath 404 that starts with basepath",
-      "basePath should navigate to nested index page with getStaticProps",
       "basePath should navigate back to a non-basepath 404 that starts with basepath",
       "basePath should navigate to nested index page with getStaticProps"
     ]
@@ -4775,14 +4603,12 @@
       "Middleware Redirect should redirect to data urls with data requests and internal redirects",
       "Middleware Redirect should redirect to external urls with data requests and external redirects",
       "Middleware Redirect should redirect",
-      "Middleware Redirect should implement internal redirects",
       "Middleware Redirect should redirect cleanly with the original url param",
       "Middleware Redirect should redirect multiple times",
       "Middleware Redirect should redirect (infinite-loop)",
       "Middleware Redirect should redirect to api route with locale",
       "Middleware Redirect should redirect with a fragment",
       "Middleware Redirect /fr should redirect",
-      "Middleware Redirect /fr should implement internal redirects",
       "Middleware Redirect /fr should redirect cleanly with the original url param",
       "Middleware Redirect /fr should redirect multiple times",
       "Middleware Redirect /fr should redirect (infinite-loop)",
@@ -4847,17 +4673,12 @@
       "Middleware Runtime trailing slash allows shallow linking with middleware",
       "Middleware Runtime trailing slash should have valid middleware field in manifest",
       "Middleware Runtime trailing slash should have init header for NextResponse.redirect",
-      "Middleware Runtime trailing slash should have correct query values for rewrite to ssg page",
-      "Middleware Runtime trailing slash should have correct dynamic route params on client-transition to dynamic route",
-      "Middleware Runtime trailing slash should have correct dynamic route params for middleware rewrite to dynamic route",
-      "Middleware Runtime trailing slash should have correct route params for chained rewrite from middleware to config rewrite",
       "Middleware Runtime trailing slash should rewrite the same for direct visit and client-transition",
       "Middleware Runtime trailing slash should validate & parse request url from any route",
       "Middleware Runtime trailing slash should trigger middleware for data requests",
       "Middleware Runtime trailing slash should normalize data requests into page requests",
       "Middleware Runtime trailing slash should keep non data requests in their original shape",
-      "Middleware Runtime trailing slash should add a rewrite header on data requests for rewrites",
-      "Middleware Runtime trailing slash allows shallow linking with middleware"
+      "Middleware Runtime trailing slash should add a rewrite header on data requests for rewrites"
     ],
     "pending": []
   },
@@ -4896,10 +4717,7 @@
   },
   "test/e2e/next-font/basepath.test.ts": {
     "passed": [],
-    "failed": [
-      "next/font/google basepath preload correct files",
-      "next/font/google basepath preload correct files"
-    ],
+    "failed": ["next/font/google basepath preload correct files"],
     "pending": []
   },
   "test/e2e/next-font/google-fetch-error.test.ts": {
@@ -4922,7 +4740,6 @@
   "test/e2e/next-font/with-proxy.test.ts": {
     "passed": [],
     "failed": [
-      "next/font/google with proxy should use a proxy agent when proxy environment variable is set",
       "next/font/google with proxy should use a proxy agent when proxy environment variable is set"
     ],
     "pending": []
@@ -5071,21 +4888,7 @@
       "next/font app-old preload font without preloadable subsets",
       "next/font app-old preload font without size adjust",
       "next/font app-old Fallback fontfaces google Indie flower",
-      "next/font app-old Fallback fontfaces google Fraunces",
-      "next/font app preload page with fonts",
-      "next/font app preload page without fonts",
-      "next/font app preload page with local fonts",
-      "next/font app preload google fonts with multiple weights/styles",
-      "next/font app preload font without preloadable subsets",
-      "next/font app preload font without size adjust",
-      "next/font app Fallback fontfaces google Indie flower",
-      "next/font app-old preload page with fonts",
-      "next/font app-old preload page without fonts",
-      "next/font app-old preload page with local fonts",
-      "next/font app-old preload google fonts with multiple weights/styles",
-      "next/font app-old preload font without preloadable subsets",
-      "next/font app-old preload font without size adjust",
-      "next/font app-old Fallback fontfaces google Indie flower"
+      "next/font app-old Fallback fontfaces google Fraunces"
     ],
     "pending": []
   },
@@ -5123,9 +4926,6 @@
       "next/font/google without-preloaded-fonts without _app without fonts"
     ],
     "failed": [
-      "next/font/google without-preloaded-fonts without _app without preload",
-      "next/font/google no preloads with _app without preload",
-      "next/font/google no preloads with _app without fonts",
       "next/font/google without-preloaded-fonts without _app without preload",
       "next/font/google no preloads with _app without preload",
       "next/font/google no preloads with _app without fonts"
@@ -5169,10 +4969,8 @@
       "Middleware Runtime with i18n should have the custom config in the manifest",
       "Middleware Runtime with i18n passes search params with rewrites",
       "Middleware Runtime with i18n should have init header for NextResponse.redirect",
-      "Middleware Runtime with i18n should have correct query values for rewrite to ssg page",
       "Middleware Runtime with i18n should have correct dynamic route params for middleware rewrite to dynamic route",
       "Middleware Runtime with i18n should have correct route params for chained rewrite from middleware to config rewrite",
-      "Middleware Runtime with i18n should rewrite the same for direct visit and client-transition",
       "Middleware Runtime with i18n should set fetch user agent correctly",
       "Middleware Runtime with i18n allows to access env variables",
       "Middleware Runtime with i18n should contain `globalThis`",
@@ -5193,7 +4991,6 @@
       "Middleware Runtime with i18n should normalize data requests into page requests",
       "Middleware Runtime with i18n should keep non data requests in their original shape",
       "Middleware Runtime with i18n should add a rewrite header on data requests for rewrites",
-      "Middleware Runtime with i18n allows shallow linking with middleware",
       "Middleware Runtime without i18n should work with notFound: true correctly",
       "Middleware Runtime without i18n should be able to rewrite on _next/static/chunks/pages/ 404",
       "Middleware Runtime without i18n should have valid middleware field in manifest",
@@ -5202,7 +4999,6 @@
       "Middleware Runtime without i18n should have init header for NextResponse.redirect",
       "Middleware Runtime without i18n should have correct query values for rewrite to ssg page",
       "Middleware Runtime without i18n should have correct dynamic route params for middleware rewrite to dynamic route",
-      "Middleware Runtime without i18n should have correct route params for chained rewrite from middleware to config rewrite",
       "Middleware Runtime without i18n should rewrite the same for direct visit and client-transition",
       "Middleware Runtime without i18n should set fetch user agent correctly",
       "Middleware Runtime without i18n allows to access env variables",
@@ -5221,8 +5017,7 @@
       "Middleware Runtime without i18n should trigger middleware for data requests",
       "Middleware Runtime without i18n should normalize data requests into page requests",
       "Middleware Runtime without i18n should keep non data requests in their original shape",
-      "Middleware Runtime without i18n should add a rewrite header on data requests for rewrites",
-      "Middleware Runtime without i18n allows shallow linking with middleware"
+      "Middleware Runtime without i18n should add a rewrite header on data requests for rewrites"
     ],
     "pending": []
   },
@@ -5300,8 +5095,6 @@
     "passed": [],
     "failed": [
       "reload-scroll-back-restoration should restore the scroll position on navigating back",
-      "reload-scroll-back-restoration should restore the scroll position on navigating forward",
-      "reload-scroll-back-restoration should restore the scroll position on navigating back",
       "reload-scroll-back-restoration should restore the scroll position on navigating forward"
     ],
     "pending": []
@@ -5341,30 +5134,21 @@
     "failed": [
       "skip-trailing-slash-redirect should parse locale info for data request correctly",
       "skip-trailing-slash-redirect should be able to redirect locale casing $1",
-      "skip-trailing-slash-redirect should be able to redirect locale casing $1",
       "skip-trailing-slash-redirect should allow rewriting invalid buildId correctly",
       "skip-trailing-slash-redirect should provide original _next/data URL with skipMiddlewareUrlNormalize",
       "skip-trailing-slash-redirect should correct skip URL normalizing in middleware",
       "skip-trailing-slash-redirect should not apply trailing slash on load on client",
       "skip-trailing-slash-redirect pages dir should preserve original trailing slashes to links on client",
       "skip-trailing-slash-redirect app dir should preserve original trailing slashes to links on client",
-      "skip-trailing-slash-redirect should parse locale info for data request correctly",
-      "skip-trailing-slash-redirect should be able to redirect locale casing $1",
-      "skip-trailing-slash-redirect should be able to redirect locale casing $1",
       "skip-trailing-slash-redirect should handle external rewrite correctly /chained-rewrite-ssg",
       "skip-trailing-slash-redirect should handle external rewrite correctly /chained-rewrite-static",
       "skip-trailing-slash-redirect should handle external rewrite correctly /chained-rewrite-ssr",
       "skip-trailing-slash-redirect should handle external rewrite correctly /docs/first",
       "skip-trailing-slash-redirect should handle external rewrite correctly /docs-auto-static/first",
       "skip-trailing-slash-redirect should handle external rewrite correctly /docs-ssr/first",
-      "skip-trailing-slash-redirect should allow rewriting invalid buildId correctly",
-      "skip-trailing-slash-redirect should provide original _next/data URL with skipMiddlewareUrlNormalize",
       "skip-trailing-slash-redirect should allow response body from middleware with flag",
       "skip-trailing-slash-redirect should merge cookies from middleware and API routes correctly",
-      "skip-trailing-slash-redirect should merge cookies from middleware and edge API routes correctly",
-      "skip-trailing-slash-redirect should correct skip URL normalizing in middleware",
-      "skip-trailing-slash-redirect pages dir should preserve original trailing slashes to links on client",
-      "skip-trailing-slash-redirect app dir should preserve original trailing slashes to links on client"
+      "skip-trailing-slash-redirect should merge cookies from middleware and edge API routes correctly"
     ],
     "pending": []
   },
@@ -5539,7 +5323,6 @@
       "Prerender should show error for invalid JSON returned from getStaticProps on CST",
       "Prerender should navigate between pages successfully",
       "Prerender should fetch /_next/data correctly with mismatched href and as",
-      "Prerender should not error when rewriting to fallback dynamic SSG page",
       "Prerender should output traces"
     ],
     "pending": [
@@ -5561,10 +5344,6 @@
       "experimental.nextScriptWorkers: true with config override Partytown config script is overwritten"
     ],
     "failed": [
-      "experimental.nextScriptWorkers: true with required Partytown dependency for external script Partytown snippets are injected to head if enabled in configuration",
-      "experimental.nextScriptWorkers: true with required Partytown dependency for external script Worker scripts are modified by Partytown to execute on a worker thread",
-      "experimental.nextScriptWorkers: true with required Partytown dependency for inline script Inline worker script through children is modified by Partytown to execute on a worker thread",
-      "experimental.nextScriptWorkers: true with required Partytown dependency for inline script Inline worker script through dangerouslySetInnerHtml is modified by Partytown to execute on a worker thread",
       "experimental.nextScriptWorkers: true with required Partytown dependency for external script Partytown snippets are injected to head if enabled in configuration",
       "experimental.nextScriptWorkers: true with required Partytown dependency for external script Worker scripts are modified by Partytown to execute on a worker thread",
       "experimental.nextScriptWorkers: true with required Partytown dependency for inline script Inline worker script through children is modified by Partytown to execute on a worker thread",
@@ -6656,11 +6435,6 @@
   "test/e2e/opentelemetry/opentelemetry.test.ts": {
     "passed": [],
     "failed": [
-      "opentelemetry app router should handle RSC with fetch",
-      "opentelemetry app router should handle route handlers in app router",
-      "opentelemetry pages should handle getServerSideProps",
-      "opentelemetry pages should handle getStaticProps when fallback: 'blocking'",
-      "opentelemetry pages should handle api routes in pages",
       "opentelemetry app router should handle RSC with fetch",
       "opentelemetry app router should handle route handlers in app router",
       "opentelemetry pages should handle getServerSideProps",
