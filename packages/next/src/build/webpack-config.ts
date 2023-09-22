@@ -866,7 +866,7 @@ export default async function getBaseWebpackConfig(
                   ],
             }
           : {}),
-      } as ClientEntries)
+      } satisfies ClientEntries)
     : undefined
 
   // tell webpack where to look for _app and _document
