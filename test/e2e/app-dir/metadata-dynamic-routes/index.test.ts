@@ -55,6 +55,8 @@ createNextDescribe(
           <url>
           <loc>https://example.com</loc>
           <lastmod>2021-01-01</lastmod>
+          <changefreq>weekly</changefreq>
+          <priority>0.5</priority>
           </url>
           <url>
           <loc>https://example.com/about</loc>
@@ -63,6 +65,13 @@ createNextDescribe(
           </urlset>
           "
         `)
+      })
+
+      it('should not throw if client components are imported but not used', async () => {
+        const { status } = await next.fetch(
+          '/client-ref-dependency/sitemap.xml'
+        )
+        expect(status).toBe(200)
       })
     })
 
@@ -111,6 +120,23 @@ createNextDescribe(
         expect(res.headers.get('cache-control')).toBe(
           isNextDev ? CACHE_HEADERS.NONE : CACHE_HEADERS.LONG
         )
+
+        if (isNextDev) {
+          await check(async () => {
+            next.hasFile('.next/server/app-paths-manifest.json')
+            return 'success'
+          }, /success/)
+
+          const appPathsManifest = JSON.parse(
+            await next.readFile('.next/server/app-paths-manifest.json')
+          )
+          const entryKeys = Object.keys(appPathsManifest)
+          // Only has one route for twitter-image with catch-all routes in dev
+          expect(entryKeys).not.toContain('/twitter-image')
+          expect(entryKeys).toContain(
+            '/twitter-image/[[...__metadata_id__]]/route'
+          )
+        }
 
         // edge runtime
         res = await next.fetch('/twitter-image2')
@@ -221,6 +247,16 @@ createNextDescribe(
         expect(ogImageUrl).toMatch('/static/opengraph-image')
         // should already normalize the parallel routes segment to url
         expect(ogImageUrl).not.toContain('(group)')
+      })
+
+      it('should handle custom fonts in both edge and nodejs runtime', async () => {
+        const resOgEdge = await next.fetch('/font/opengraph-image')
+        const resOgNodejs = await next.fetch('/font/opengraph-image2')
+
+        expect(resOgEdge.status).toBe(200)
+        expect(resOgEdge.headers.get('content-type')).toBe('image/png')
+        expect(resOgNodejs.status).toBe(200)
+        expect(resOgNodejs.headers.get('content-type')).toBe('image/png')
       })
     })
 

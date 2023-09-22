@@ -5,7 +5,10 @@ import treeKill from 'tree-kill'
 import type { NextConfig } from 'next'
 import { FileRef } from '../e2e-utils'
 import { ChildProcess } from 'child_process'
-import { createNextInstall } from '../create-next-install'
+import {
+  createNextInstall,
+  setPnpmResolutionMode,
+} from '../create-next-install'
 import { Span } from 'next/src/trace'
 import webdriver from '../next-webdriver'
 import { renderViaHTTP, fetchViaHTTP } from 'next-test-utils'
@@ -25,6 +28,7 @@ export type PackageJson = {
 export interface NextInstanceOpts {
   files: FileRef | string | { [filename: string]: string | FileRef }
   dependencies?: { [name: string]: string }
+  resolutions?: { [name: string]: string }
   packageJson?: PackageJson
   nextConfig?: NextConfig
   installCommand?: InstallCommand
@@ -53,6 +57,7 @@ export class NextInstance {
   protected buildCommand?: string
   protected startCommand?: string
   protected dependencies?: PackageJson['dependencies'] = {}
+  protected resolutions?: PackageJson['resolutions']
   protected events: { [eventName: string]: Set<any> } = {}
   public testDir: string
   protected isStopping: boolean = false
@@ -165,6 +170,7 @@ export class NextInstance {
                     process.env.NEXT_TEST_VERSION ||
                     require('next/package.json').version,
                 },
+                ...(this.resolutions ? { resolutions: this.resolutions } : {}),
                 scripts: {
                   // since we can't get the build id as a build artifact, make it
                   // available under the static files
@@ -179,6 +185,7 @@ export class NextInstance {
               2
             )
           )
+          await setPnpmResolutionMode(this.testDir)
         } else {
           if (
             process.env.NEXT_TEST_STARTER &&
@@ -192,6 +199,7 @@ export class NextInstance {
             this.testDir = await createNextInstall({
               parentSpan: rootSpan,
               dependencies: finalDependencies,
+              resolutions: this.resolutions ?? null,
               installCommand: this.installCommand,
               packageJson: this.packageJson,
               dirSuffix: this.dirSuffix,
@@ -362,36 +370,40 @@ export class NextInstance {
   }
 
   public async destroy(): Promise<void> {
-    if (this.isDestroyed) {
-      throw new Error(`next instance already destroyed`)
-    }
-    this.isDestroyed = true
-    this.emit('destroy', [])
-    await this.stop()
+    try {
+      if (this.isDestroyed) {
+        throw new Error(`next instance already destroyed`)
+      }
+      this.isDestroyed = true
+      this.emit('destroy', [])
+      await this.stop().catch(console.error)
 
-    if (process.env.TRACE_PLAYWRIGHT) {
-      await fs
-        .copy(
-          path.join(this.testDir, '.next/trace'),
-          path.join(
-            __dirname,
-            '../../traces',
-            `${path
-              .relative(
-                path.join(__dirname, '../../'),
-                process.env.TEST_FILE_PATH
-              )
-              .replace(/\//g, '-')}`,
-            `next-trace`
+      if (process.env.TRACE_PLAYWRIGHT) {
+        await fs
+          .copy(
+            path.join(this.testDir, '.next/trace'),
+            path.join(
+              __dirname,
+              '../../traces',
+              `${path
+                .relative(
+                  path.join(__dirname, '../../'),
+                  process.env.TEST_FILE_PATH
+                )
+                .replace(/\//g, '-')}`,
+              `next-trace`
+            )
           )
-        )
-        .catch(() => {})
-    }
+          .catch(() => {})
+      }
 
-    if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
-      await fs.remove(this.testDir)
+      if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
+        await fs.remove(this.testDir)
+      }
+      require('console').log(`destroyed next instance`)
+    } catch (err) {
+      require('console').error('Error while destroying', err)
     }
-    require('console').log(`destroyed next instance`)
   }
 
   public get url() {
@@ -420,25 +432,47 @@ export class NextInstance {
   public async readJSON(filename: string) {
     return fs.readJSON(path.join(this.testDir, filename))
   }
+  private async handleDevWatchDelay(filename: string) {
+    // to help alleviate flakiness with tests that create
+    // dynamic routes // and then request it we give a buffer
+    // of 500ms to allow WatchPack to detect the changed files
+    // TODO: replace this with an event directly from WatchPack inside
+    // router-server for better accuracy
+    if (
+      (global as any).isNextDev &&
+      (filename.startsWith('app/') || filename.startsWith('pages/'))
+    ) {
+      require('console').log('fs dev delay', filename)
+      await new Promise((resolve) => setTimeout(resolve, 500))
+    }
+  }
   public async patchFile(filename: string, content: string) {
     const outputPath = path.join(this.testDir, filename)
+    const newFile = !(await fs.pathExists(outputPath))
     await fs.ensureDir(path.dirname(outputPath))
-    return fs.writeFile(outputPath, content)
+    await fs.writeFile(outputPath, content)
+
+    if (newFile) {
+      await this.handleDevWatchDelay(filename)
+    }
   }
   public async renameFile(filename: string, newFilename: string) {
-    return fs.rename(
+    await fs.rename(
       path.join(this.testDir, filename),
       path.join(this.testDir, newFilename)
     )
+    await this.handleDevWatchDelay(filename)
   }
   public async renameFolder(foldername: string, newFoldername: string) {
-    return fs.move(
+    await fs.move(
       path.join(this.testDir, foldername),
       path.join(this.testDir, newFoldername)
     )
+    await this.handleDevWatchDelay(foldername)
   }
   public async deleteFile(filename: string) {
-    return fs.remove(path.join(this.testDir, filename))
+    await fs.remove(path.join(this.testDir, filename))
+    await this.handleDevWatchDelay(filename)
   }
 
   /**

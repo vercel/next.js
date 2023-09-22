@@ -4,6 +4,9 @@
 /// <reference types="react-dom" />
 /// <reference types="react-dom/experimental" />
 
+import type { Agent as HttpAgent } from 'http'
+import type { Agent as HttpsAgent } from 'https'
+
 import React from 'react'
 import { ParsedUrlQuery } from 'querystring'
 import { IncomingMessage, ServerResponse } from 'http'
@@ -47,7 +50,11 @@ export type {
  * router.push(returnToPath as Route)
  * ```
  */
-export type Route = string & {}
+
+// `RouteInferType` is a stub here to avoid breaking `typedRoutes` when the type
+// isn't generated yet. It will be replaced when the webpack plugin runs.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export type Route<RouteInferType = any> = string & {}
 
 // Extend the React types with missing properties
 declare module 'react' {
@@ -310,6 +317,26 @@ declare global {
     ): T
     randomUUID(): string
   }
+
+  // TODO: remove this polyfill when it is adopted into the spec.
+  interface PromiseConstructor {
+    /**
+     * Creates a new promise with exposed resolvers to resolve/reject. This will
+     * be adopted into the spec as `Promise.withResolvers`.
+     *
+     * @see https://tc39.es/proposal-promise-with-resolvers/
+     */
+    withResolvers<T>(): {
+      promise: Promise<T>
+      resolve: (value: T | PromiseLike<T>) => void
+      reject: (reason?: unknown) => void
+    }
+  }
+
+  var __NEXT_HTTP_AGENT_OPTIONS: { keepAlive?: boolean } | undefined
+  var __NEXT_UNDICI_AGENT_SET: boolean
+  var __NEXT_HTTP_AGENT: HttpAgent
+  var __NEXT_HTTPS_AGENT: HttpsAgent
 }
 
 export default next

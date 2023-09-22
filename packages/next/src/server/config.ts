@@ -1,13 +1,9 @@
 import { existsSync } from 'fs'
 import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
-import { Agent as HttpAgent } from 'http'
-import { Agent as HttpsAgent } from 'https'
 import findUp from 'next/dist/compiled/find-up'
-import chalk from '../lib/chalk'
 import * as Log from '../build/output/log'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
-import { execOnce } from '../shared/lib/utils'
 import {
   defaultConfig,
   normalizeConfig,
@@ -15,54 +11,40 @@ import {
   NextConfigComplete,
   validateConfig,
   NextConfig,
+  TurboLoaderItem,
 } from './config-shared'
 import { loadWebpackHook } from './config-utils'
 import { ImageConfig, imageConfigDefault } from '../shared/lib/image-config'
 import { loadEnvConfig, updateInitialEnv } from '@next/env'
 import { flushAndExit } from '../telemetry/flush-and-exit'
 import { findRootDir } from '../lib/find-root'
+import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
+import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
-const experimentalWarning = execOnce(
-  (configFileName: string, features: string[]) => {
-    const s = features.length > 1 ? 's' : ''
-    Log.warn(
-      chalk.bold(
-        `You have enabled experimental feature${s} (${features.join(
-          ', '
-        )}) in ${configFileName}.`
-      )
-    )
-    Log.warn(
-      `Experimental features are not covered by semver, and may cause unexpected or broken application behavior. ` +
-        `Use at your own risk.`
-    )
-
-    console.warn()
+export function warnOptionHasBeenDeprecated(
+  config: NextConfig,
+  nestedPropertyKey: string,
+  reason: string,
+  silent: boolean
+) {
+  if (!silent) {
+    let current = config
+    let found = true
+    const nestedPropertyKeys = nestedPropertyKey.split('.')
+    for (const key of nestedPropertyKeys) {
+      if (current[key] !== undefined) {
+        current = current[key]
+      } else {
+        found = false
+        break
+      }
+    }
+    if (found) {
+      Log.warn(reason)
+    }
   }
-)
-
-export function setHttpClientAndAgentOptions(config: {
-  httpAgentOptions?: NextConfig['httpAgentOptions']
-}) {
-  if ((globalThis as any).__NEXT_HTTP_AGENT) {
-    // We only need to assign once because we want
-    // to reuse the same agent for all requests.
-    return
-  }
-
-  if (!config) {
-    throw new Error('Expected config.httpAgentOptions to be an object')
-  }
-
-  ;(globalThis as any).__NEXT_HTTP_AGENT_OPTIONS = config.httpAgentOptions
-  ;(globalThis as any).__NEXT_HTTP_AGENT = new HttpAgent(
-    config.httpAgentOptions
-  )
-  ;(globalThis as any).__NEXT_HTTPS_AGENT = new HttpsAgent(
-    config.httpAgentOptions
-  )
 }
 
 export function warnOptionHasBeenMovedOutOfExperimental(
@@ -70,7 +52,7 @@ export function warnOptionHasBeenMovedOutOfExperimental(
   oldKey: string,
   newKey: string,
   configFileName: string,
-  silent = false
+  silent: boolean
 ) {
   if (config.experimental && oldKey in config.experimental) {
     if (!silent) {
@@ -97,14 +79,15 @@ export function warnOptionHasBeenMovedOutOfExperimental(
 function assignDefaults(
   dir: string,
   userConfig: { [key: string]: any },
-  silent = false
+  silent: boolean
 ) {
   const configFileName = userConfig.configFileName
-  if (!silent && typeof userConfig.exportTrailingSlash !== 'undefined') {
-    console.warn(
-      chalk.yellow.bold('Warning: ') +
+  if (typeof userConfig.exportTrailingSlash !== 'undefined') {
+    if (!silent) {
+      Log.warn(
         `The "exportTrailingSlash" option has been renamed to "trailingSlash". Please update your ${configFileName}.`
-    )
+      )
+    }
     if (typeof userConfig.trailingSlash === 'undefined') {
       userConfig.trailingSlash = userConfig.exportTrailingSlash
     }
@@ -117,28 +100,6 @@ function assignDefaults(
 
       if (value === undefined || value === null) {
         return currentConfig
-      }
-
-      if (key === 'experimental' && typeof value === 'object') {
-        const enabledExperiments: (keyof ExperimentalConfig)[] = []
-
-        // defaultConfig.experimental is predefined and will never be undefined
-        // This is only a type guard for the typescript
-        if (defaultConfig.experimental) {
-          for (const featureName of Object.keys(
-            value
-          ) as (keyof ExperimentalConfig)[]) {
-            if (
-              value[featureName] !== defaultConfig.experimental[featureName]
-            ) {
-              enabledExperiments.push(featureName)
-            }
-          }
-        }
-
-        if (!silent && enabledExperiments.length > 0) {
-          experimentalWarning(configFileName, enabledExperiments)
-        }
       }
 
       if (key === 'distDir') {
@@ -331,19 +292,21 @@ function assignDefaults(
       )
     }
 
-    if (images.path === imageConfigDefault.path && result.basePath) {
+    if (
+      images.path === imageConfigDefault.path &&
+      result.basePath &&
+      !pathHasPrefix(images.path, result.basePath)
+    ) {
       images.path = `${result.basePath}${images.path}`
     }
 
     // Append trailing slash for non-default loaders and when trailingSlash is set
-    if (images.path) {
-      if (
-        (images.loader !== 'default' &&
-          images.path[images.path.length - 1] !== '/') ||
-        result.trailingSlash
-      ) {
-        images.path += '/'
-      }
+    if (
+      images.path &&
+      !images.path.endsWith('/') &&
+      (images.loader !== 'default' || result.trailingSlash)
+    ) {
+      images.path += '/'
     }
 
     if (images.loaderFile) {
@@ -358,11 +321,17 @@ function assignDefaults(
           `Specified images.loaderFile does not exist at "${absolutePath}".`
         )
       }
-      images.loader = 'custom'
       images.loaderFile = absolutePath
     }
   }
 
+  // TODO: remove this in next major or minor version after 13.5
+  warnOptionHasBeenDeprecated(
+    result,
+    'experimental.appDir',
+    'App router is available by default now, `experimental.appDir` option can be safely removed.',
+    silent
+  )
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'relay',
@@ -422,7 +391,7 @@ function assignDefaults(
     )
     if (isNaN(value) || value < 1) {
       throw new Error(
-        'Server Actions Size Limit must be a valid number or filesize format lager than 1MB: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions'
+        'Server Actions Size Limit must be a valid number or filesize format lager than 1MB: https://nextjs.org/docs/app/api-reference/server-actions#size-limitation'
       )
     }
   }
@@ -448,13 +417,6 @@ function assignDefaults(
     configFileName,
     silent
   )
-
-  if (
-    typeof userConfig.experimental?.clientRouterFilter === 'undefined' &&
-    result.experimental?.appDir
-  ) {
-    result.experimental.clientRouterFilter = true
-  }
 
   if (
     result.experimental?.outputFileTracingRoot &&
@@ -702,27 +664,105 @@ function assignDefaults(
     'lodash-es': {
       transform: 'lodash-es/{{member}}',
     },
-    // TODO: Enable this once we have a way to remove the "-icon" suffix from the import path.
-    // Related discussion: https://github.com/vercel/next.js/pull/50900#discussion_r1239656782
-    // 'lucide-react': {
-    //   transform: 'lucide-react/dist/esm/icons/{{ kebabCase member }}',
-    // },
     ramda: {
       transform: 'ramda/es/{{member}}',
     },
     'react-bootstrap': {
-      transform: 'react-bootstrap/{{member}}',
+      transform: {
+        useAccordionButton:
+          'modularize-import-loader?name=useAccordionButton&from=named&as=default!react-bootstrap/AccordionButton',
+        '*': 'react-bootstrap/{{member}}',
+      },
     },
     antd: {
-      transform: 'antd/es/{{kebabCase member}}',
+      transform: 'antd/lib/{{kebabCase member}}',
     },
     ahooks: {
-      transform: 'ahooks/es/{{member}}',
+      transform: {
+        createUpdateEffect:
+          'modularize-import-loader?name=createUpdateEffect&from=named&as=default!ahooks/es/createUpdateEffect',
+        '*': 'ahooks/es/{{member}}',
+      },
     },
     '@ant-design/icons': {
-      transform: '@ant-design/icons/{{member}}',
+      transform: {
+        IconProvider:
+          'modularize-import-loader?name=IconProvider&from=named&as=default!@ant-design/icons',
+        createFromIconfontCN: '@ant-design/icons/es/components/IconFont',
+        getTwoToneColor:
+          'modularize-import-loader?name=getTwoToneColor&from=named&as=default!@ant-design/icons/es/components/twoTonePrimaryColor',
+        setTwoToneColor:
+          'modularize-import-loader?name=setTwoToneColor&from=named&as=default!@ant-design/icons/es/components/twoTonePrimaryColor',
+        '*': '@ant-design/icons/lib/icons/{{member}}',
+      },
+    },
+    'next/server': {
+      transform: 'next/dist/server/web/exports/{{ kebabCase member }}',
     },
   }
+
+  const userProvidedOptimizePackageImports =
+    result.experimental?.optimizePackageImports || []
+  if (!result.experimental) {
+    result.experimental = {}
+  }
+  result.experimental.optimizePackageImports = [
+    ...new Set([
+      ...userProvidedOptimizePackageImports,
+      'lucide-react',
+      '@headlessui/react',
+      '@headlessui-float/react',
+      '@heroicons/react/20/solid',
+      '@heroicons/react/24/solid',
+      '@heroicons/react/24/outline',
+      '@visx/visx',
+      '@tremor/react',
+      'rxjs',
+      '@mui/material',
+      'recharts',
+      '@material-ui/core',
+      'react-use',
+      '@material-ui/icons',
+      '@tabler/icons-react',
+      'mui-core',
+      // We don't support wildcard imports for these configs, e.g. `react-icons/*`
+      // so we need to add them manually.
+      // In the future, we should consider automatically detecting packages that
+      // need to be optimized.
+      'react-icons/ai',
+      'react-icons/bi',
+      'react-icons/bs',
+      'react-icons/cg',
+      'react-icons/ci',
+      'react-icons/di',
+      'react-icons/fa',
+      'react-icons/fa6',
+      'react-icons/fc',
+      'react-icons/fi',
+      'react-icons/gi',
+      'react-icons/go',
+      'react-icons/gr',
+      'react-icons/hi',
+      'react-icons/hi2',
+      'react-icons/im',
+      'react-icons/io',
+      'react-icons/io5',
+      'react-icons/lia',
+      'react-icons/lib',
+      'react-icons/lu',
+      'react-icons/md',
+      'react-icons/pi',
+      'react-icons/ri',
+      'react-icons/rx',
+      'react-icons/si',
+      'react-icons/sl',
+      'react-icons/tb',
+      'react-icons/tfi',
+      'react-icons/ti',
+      'react-icons/vsc',
+      'react-icons/wi',
+    ]),
+  ]
 
   return result
 }
@@ -730,12 +770,42 @@ function assignDefaults(
 export default async function loadConfig(
   phase: string,
   dir: string,
-  customConfig?: object | null,
-  rawConfig?: boolean,
-  silent?: boolean
+  {
+    customConfig,
+    rawConfig,
+    silent = true,
+    onLoadUserConfig,
+  }: {
+    customConfig?: object | null
+    rawConfig?: boolean
+    silent?: boolean
+    onLoadUserConfig?: (conf: NextConfig) => void
+  } = {}
 ): Promise<NextConfigComplete> {
+  if (!process.env.__NEXT_PRIVATE_RENDER_WORKER) {
+    try {
+      loadWebpackHook()
+    } catch (err) {
+      // this can fail in standalone mode as the files
+      // aren't traced/included
+      if (!process.env.__NEXT_PRIVATE_STANDALONE_CONFIG) {
+        throw err
+      }
+    }
+  }
+
   if (process.env.__NEXT_PRIVATE_STANDALONE_CONFIG) {
     return JSON.parse(process.env.__NEXT_PRIVATE_STANDALONE_CONFIG)
+  }
+
+  // For the render worker, we directly return the serialized config from the
+  // parent worker (router worker) to avoid loading it again.
+  // This is because loading the config might be expensive especiall when people
+  // have Webpack plugins added.
+  // Because of this change, unserializable fields like `.webpack` won't be
+  // existing here but the render worker shouldn't use these as well.
+  if (process.env.__NEXT_PRIVATE_RENDER_WORKER_CONFIG) {
+    return JSON.parse(process.env.__NEXT_PRIVATE_RENDER_WORKER_CONFIG)
   }
 
   const curLog = silent
@@ -746,11 +816,7 @@ export default async function loadConfig(
       }
     : Log
 
-  await loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, curLog)
-
-  if (!process.env.__NEXT_PRIVATE_RENDER_WORKER) {
-    loadWebpackHook()
-  }
+  loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, curLog)
 
   let configFileName = 'next.config.js'
 
@@ -812,7 +878,7 @@ export default async function loadConfig(
 
     const validateResult = validateConfig(userConfig)
 
-    if (!silent && validateResult.errors) {
+    if (validateResult.errors) {
       // Only load @segment/ajv-human-errors when invalid config is detected
       const { AggregateAjvError } =
         require('next/dist/compiled/@segment/ajv-human-errors') as typeof import('next/dist/compiled/@segment/ajv-human-errors')
@@ -821,7 +887,7 @@ export default async function loadConfig(
       })
 
       let shouldExit = false
-      let messages = [`Invalid ${configFileName} options detected: `]
+      const messages = [`Invalid ${configFileName} options detected: `]
 
       for (const error of aggregatedAjvErrors) {
         messages.push(`    ${error.message}`)
@@ -836,7 +902,7 @@ export default async function loadConfig(
 
       if (shouldExit) {
         for (const message of messages) {
-          curLog.error(message)
+          console.error(message)
         }
         await flushAndExit(1)
       } else {
@@ -862,6 +928,28 @@ export default async function loadConfig(
           : canonicalBase) || ''
     }
 
+    if (
+      userConfig.experimental?.turbo?.loaders &&
+      !userConfig.experimental?.turbo?.rules
+    ) {
+      curLog.warn(
+        'experimental.turbo.loaders is now deprecated. Please update next.config.js to use experimental.turbo.rules as soon as possible.\n' +
+          'The new option is similar, but the key should be a glob instead of an extension.\n' +
+          'Example: loaders: { ".mdx": ["mdx-loader"] } -> rules: { "*.mdx": ["mdx-loader"] }" }\n' +
+          'See more info here https://nextjs.org/docs/app/api-reference/next-config-js/turbo'
+      )
+
+      const rules: Record<string, TurboLoaderItem[]> = {}
+      for (const [ext, loaders] of Object.entries(
+        userConfig.experimental.turbo.loaders
+      )) {
+        rules['*' + ext] = loaders as TurboLoaderItem[]
+      }
+
+      userConfig.experimental.turbo.rules = rules
+    }
+
+    onLoadUserConfig?.(userConfig)
     const completeConfig = assignDefaults(
       dir,
       {
@@ -903,4 +991,28 @@ export default async function loadConfig(
   completeConfig.configFileName = configFileName
   setHttpClientAndAgentOptions(completeConfig)
   return completeConfig
+}
+
+export function getEnabledExperimentalFeatures(
+  userNextConfigExperimental: NextConfig['experimental']
+) {
+  const enabledExperiments: (keyof ExperimentalConfig)[] = []
+
+  if (!userNextConfigExperimental) return enabledExperiments
+
+  // defaultConfig.experimental is predefined and will never be undefined
+  // This is only a type guard for the typescript
+  if (defaultConfig.experimental) {
+    for (const featureName of Object.keys(
+      userNextConfigExperimental
+    ) as (keyof ExperimentalConfig)[]) {
+      if (
+        userNextConfigExperimental[featureName] !==
+        defaultConfig.experimental[featureName]
+      ) {
+        enabledExperiments.push(featureName)
+      }
+    }
+  }
+  return enabledExperiments
 }

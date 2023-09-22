@@ -5,6 +5,9 @@ createNextDescribe(
   {
     files: __dirname,
     startCommand: 'node server.js',
+    dependencies: {
+      'get-port': '5.1.1',
+    },
   },
   ({ next }) => {
     it.each(['a', 'b', 'c'])('can navigate to /%s', async (page) => {
@@ -18,7 +21,7 @@ createNextDescribe(
         expect($('body').text()).toMatch(/app: .+-canary/)
       })
 
-      it('should render pages with react stable', async () => {
+      it('should not render pages with react canary', async () => {
         const $ = await next.render$(`/2`)
         expect($('body').text()).toMatch(/pages:/)
         expect($('body').text()).not.toMatch(/canary/)

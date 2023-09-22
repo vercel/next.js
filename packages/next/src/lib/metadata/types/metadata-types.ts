@@ -100,11 +100,12 @@ export type IconDescriptor = {
   url: string | URL
   type?: string
   sizes?: string
+  color?: string
   /** defaults to rel="icon" unless superseded by Icons map */
   rel?: string
   media?: string
   /**
-   * @see https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/fetchPriority
+   * @see https://developer.mozilla.org/docs/Web/API/HTMLImageElement/fetchPriority
    */
   fetchPriority?: 'high' | 'low' | 'auto'
 }

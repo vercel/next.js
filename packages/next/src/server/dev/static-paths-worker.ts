@@ -1,9 +1,9 @@
 import type { NextConfigComplete } from '../config-shared'
-import type { AppRouteUserlandModule } from '../future/route-modules/app-route/module'
 
 import '../require-hook'
 import '../node-polyfill-fetch'
 import '../node-environment'
+
 import {
   buildAppStaticPaths,
   buildStaticPaths,
@@ -11,10 +11,13 @@ import {
   GenerateParams,
 } from '../../build/utils'
 import { loadComponents } from '../load-components'
-import { setHttpClientAndAgentOptions } from '../config'
+import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
 import { IncrementalCache } from '../lib/incremental-cache'
 import * as serverHooks from '../../client/components/hooks-server-context'
-import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
+import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
+
+const { AppRouteRouteModule } =
+  require('../future/route-modules/app-route/module.compiled') as typeof import('../future/route-modules/app-route/module')
 
 type RuntimeConfig = any
 
@@ -29,7 +32,7 @@ export async function loadStaticPaths({
   locales,
   defaultLocale,
   isAppPath,
-  originalAppPath,
+  page,
   isrFlushToDisk,
   fetchCacheKeyPrefix,
   maxMemoryCacheSize,
@@ -42,8 +45,8 @@ export async function loadStaticPaths({
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   locales?: string[]
   defaultLocale?: string
-  isAppPath?: boolean
-  originalAppPath?: string
+  isAppPath: boolean
+  page: string
   isrFlushToDisk?: boolean
   fetchCacheKeyPrefix?: string
   maxMemoryCacheSize?: number
@@ -55,16 +58,16 @@ export async function loadStaticPaths({
   fallback?: boolean | 'blocking'
 }> {
   // update work memory runtime-config
-  require('../../shared/lib/runtime-config').setConfig(config)
+  require('../../shared/lib/runtime-config.external').setConfig(config)
   setHttpClientAndAgentOptions({
     httpAgentOptions,
   })
 
   const components = await loadComponents({
     distDir,
-    pathname: originalAppPath || pathname,
-    hasServerComponents: false,
-    isAppPath: !!isAppPath,
+    // In `pages/`, the page is the same as the pathname.
+    page: page || pathname,
+    isAppPath,
   })
 
   if (!components.getStaticPaths && !isAppPath) {
@@ -76,21 +79,21 @@ export async function loadStaticPaths({
   }
 
   if (isAppPath) {
-    const userland: AppRouteUserlandModule | undefined =
-      components.routeModule?.userland
-    const generateParams: GenerateParams = userland
-      ? [
-          {
-            config: {
-              revalidate: userland.revalidate,
-              dynamic: userland.dynamic,
-              dynamicParams: userland.dynamicParams,
+    const { routeModule } = components
+    const generateParams: GenerateParams =
+      routeModule && AppRouteRouteModule.is(routeModule)
+        ? [
+            {
+              config: {
+                revalidate: routeModule.userland.revalidate,
+                dynamic: routeModule.userland.dynamic,
+                dynamicParams: routeModule.userland.dynamicParams,
+              },
+              generateStaticParams: routeModule.userland.generateStaticParams,
+              segmentPath: pathname,
             },
-            generateStaticParams: userland.generateStaticParams,
-            segmentPath: pathname,
-          },
-        ]
-      : await collectGenerateParams(components.ComponentMod.tree)
+          ]
+        : await collectGenerateParams(components.ComponentMod.tree)
 
     return await buildAppStaticPaths({
       page: pathname,

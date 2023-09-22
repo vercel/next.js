@@ -23,7 +23,7 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
 }
-          var ReactVersion = '18.3.0-experimental-1cea38448-20230530';
+          var ReactVersion = '18.3.0-experimental-2807d781a-20230918';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -46,6 +46,7 @@ var REACT_DEBUG_TRACING_MODE_TYPE = Symbol.for('react.debug_trace_mode');
 var REACT_OFFSCREEN_TYPE = Symbol.for('react.offscreen');
 var REACT_CACHE_TYPE = Symbol.for('react.cache');
 var REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
+var REACT_POSTPONE_TYPE = Symbol.for('react.postpone');
 var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 var FAUX_ITERATOR_SYMBOL = '@@iterator';
 function getIteratorFn(maybeIterable) {
@@ -1718,6 +1719,13 @@ function cache(fn) {
   };
 }
 
+function postpone(reason) {
+  // eslint-disable-next-line react-internal/prod-error-codes
+  var postponeInstance = new Error(reason);
+  postponeInstance.$$typeof = REACT_POSTPONE_TYPE;
+  throw postponeInstance;
+}
+
 function resolveDispatcher() {
   var dispatcher = ReactCurrentDispatcher$1.current;
 
@@ -2059,7 +2067,14 @@ function describeNativeComponentFrame(fn, construct) {
       // in simple components too
 
 
-      fn();
+      var maybePromise = fn(); // If the function component returns a promise, it's likely an async
+      // component, which we don't yet support. Attach a noop catch handler to
+      // silence the error.
+      // TODO: Implement component stacks for async client components?
+
+      if (maybePromise && typeof maybePromise.catch === 'function') {
+        maybePromise.catch(function () {});
+      }
     }
   } catch (sample) {
     // This is inlined manually because closure doesn't do it for us.
@@ -3048,7 +3063,6 @@ exports.Profiler = REACT_PROFILER_TYPE;
 exports.PureComponent = PureComponent;
 exports.StrictMode = REACT_STRICT_MODE_TYPE;
 exports.Suspense = REACT_SUSPENSE_TYPE;
-exports.SuspenseList = REACT_SUSPENSE_LIST_TYPE;
 exports.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = ReactSharedInternals;
 exports.cache = cache;
 exports.cloneElement = cloneElement;
@@ -3067,9 +3081,11 @@ exports.startTransition = startTransition;
 exports.unstable_Cache = REACT_CACHE_TYPE;
 exports.unstable_DebugTracingMode = REACT_DEBUG_TRACING_MODE_TYPE;
 exports.unstable_Offscreen = REACT_OFFSCREEN_TYPE;
+exports.unstable_SuspenseList = REACT_SUSPENSE_LIST_TYPE;
 exports.unstable_act = act;
 exports.unstable_getCacheForType = getCacheForType;
 exports.unstable_getCacheSignal = getCacheSignal;
+exports.unstable_postpone = postpone;
 exports.unstable_useCacheRefresh = useCacheRefresh;
 exports.unstable_useMemoCache = useMemoCache;
 exports.use = use;

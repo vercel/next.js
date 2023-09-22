@@ -25,7 +25,7 @@ export const metadata: Metadata = {
   authors: [{ name: 'huozhi' }, { name: 'tree', url: 'https://tree.com' }],
   themeColor: { color: 'cyan', media: '(prefers-color-scheme: dark)' },
   colorScheme: 'dark',
-  manifest: 'https://www.google.com/manifest',
+  manifest: '/api/manifest',
   viewport: {
     width: 'device-width',
     initialScale: 1,

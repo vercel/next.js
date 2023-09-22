@@ -1,7 +1,11 @@
+import type { FetchServerResponseResult } from './fetch-server-response'
+import type { ThenableRecord } from './router-reducer-types'
 import { FlightSegmentPath } from '../../../server/app-render/types'
-import { CacheNode, CacheStates } from '../../../shared/lib/app-router-context'
+import {
+  CacheNode,
+  CacheStates,
+} from '../../../shared/lib/app-router-context.shared-runtime'
 import { createRouterCacheKey } from './create-router-cache-key'
-import { fetchServerResponse } from './fetch-server-response'
 
 /**
  * Kick off fetch based on the common layout between two routes. Fill cache with data property holding the in-progress fetch.
@@ -10,7 +14,7 @@ export function fillCacheWithDataProperty(
   newCache: CacheNode,
   existingCache: CacheNode,
   flightSegmentPath: FlightSegmentPath,
-  fetchResponse: () => ReturnType<typeof fetchServerResponse>,
+  fetchResponse: () => ThenableRecord<FetchServerResponseResult>,
   bailOnParallelRoutes: boolean = false
 ): { bailOptimistic: boolean } | undefined {
   const isLastEntry = flightSegmentPath.length <= 2

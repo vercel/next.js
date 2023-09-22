@@ -196,7 +196,14 @@ export async function createNext(
     try {
       nextInstance.destroy()
     } catch (_) {}
-    process.exit(1)
+
+    if (process.env.NEXT_TEST_CONTINUE_ON_ERROR) {
+      // Other test should continue to create new instance if NEXT_TEST_CONTINUE_ON_ERROR explicitly specified.
+      nextInstance = undefined
+      throw err
+    } else {
+      process.exit(1)
+    }
   } finally {
     flushAllTraces()
   }
@@ -233,7 +240,12 @@ export function nextTestSetup(
       next = await createNext(options)
     })
     afterAll(async () => {
-      await next.destroy()
+      // Gracefully destroy the instance if `createNext` success.
+      // If next instance is not available, it's likely beforeAll hook failed and unnecessarily throws another error
+      // by attempting to destroy on undefined.
+      if (next) {
+        await next.destroy()
+      }
     })
   }
 

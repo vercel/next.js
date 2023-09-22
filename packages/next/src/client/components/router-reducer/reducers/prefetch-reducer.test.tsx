@@ -36,7 +36,7 @@ import { FlightRouterState } from '../../../../server/app-render/types'
 import {
   CacheNode,
   CacheStates,
-} from '../../../../shared/lib/app-router-context'
+} from '../../../../shared/lib/app-router-context.shared-runtime'
 import { createInitialRouterState } from '../create-initial-router-state'
 import {
   PrefetchAction,
@@ -182,6 +182,7 @@ describe('prefetchReducer', () => {
       },
       focusAndScrollRef: {
         apply: false,
+        onlyHashChange: false,
         hashFragment: null,
         segmentPaths: [],
       },
@@ -337,6 +338,7 @@ describe('prefetchReducer', () => {
       },
       focusAndScrollRef: {
         apply: false,
+        onlyHashChange: false,
         hashFragment: null,
         segmentPaths: [],
       },

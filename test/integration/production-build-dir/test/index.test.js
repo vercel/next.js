@@ -2,10 +2,10 @@
 
 import { join } from 'path'
 import {
-  nextServer,
   runNextCommand,
-  startApp,
-  stopApp,
+  nextStart,
+  killApp,
+  findPort,
   renderViaHTTP,
 } from 'next-test-utils'
 
@@ -19,19 +19,13 @@ describe('Production Custom Build Directory', () => {
       })
       expect(result.stderr).toBe('')
 
-      const app = nextServer({
-        dir: join(__dirname, '../build'),
-        dev: false,
-        quiet: true,
-      })
-
-      const server = await startApp(app)
-      const appPort = server.address().port
+      const appPort = await findPort()
+      const app = await nextStart(join(__dirname, '../build'), appPort)
 
       const html = await renderViaHTTP(appPort, '/')
       expect(html).toMatch(/Hello World/)
 
-      await stopApp(server)
+      await killApp(app)
     })
   })
 })

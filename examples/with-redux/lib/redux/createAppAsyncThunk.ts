@@ -5,7 +5,7 @@ import { createAsyncThunk } from '@reduxjs/toolkit'
 import type { ReduxState, ReduxDispatch } from './store'
 
 /**
- * ? A utility function to create a typed Async Thnuk Actions.
+ * ? A utility function to create a typed Async Thunk Actions.
  */
 export const createAppAsyncThunk = createAsyncThunk.withTypes<{
   state: ReduxState

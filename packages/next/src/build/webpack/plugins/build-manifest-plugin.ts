@@ -22,6 +22,11 @@ type DeepMutable<T> = { -readonly [P in keyof T]: DeepMutable<T[P]> }
 
 export type ClientBuildManifest = Record<string, string[]>
 
+// Add the runtime ssg manifest file as a lazy-loaded file dependency.
+// We also stub this file out for development mode (when it is not
+// generated).
+export const srcEmptySsgManifest = `self.__SSG_MANIFEST=new Set;self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
+
 // This function takes the asset map generated in BuildManifestPlugin and creates a
 // reduced version to send to the client.
 function generateClientManifest(
@@ -35,10 +40,27 @@ function generateClientManifest(
     'NextJsBuildManifest-generateClientManifest'
   )
 
+  const normalizeRewrite = (item: {
+    source: string
+    destination: string
+    has?: any
+  }) => {
+    return {
+      has: item.has,
+      source: item.source,
+      destination: item.destination,
+    }
+  }
+
   return genClientManifestSpan?.traceFn(() => {
     const clientManifest: ClientBuildManifest = {
-      // TODO: update manifest type to include rewrites
-      __rewrites: rewrites as any,
+      __rewrites: {
+        afterFiles: rewrites.afterFiles?.map((item) => normalizeRewrite(item)),
+        beforeFiles: rewrites.beforeFiles?.map((item) =>
+          normalizeRewrite(item)
+        ),
+        fallback: rewrites.fallback?.map((item) => normalizeRewrite(item)),
+      } as any,
     }
     const appDependencies = new Set(assetMap.pages['/_app'])
     const sortedPageKeys = getSortedRoutes(Object.keys(assetMap.pages))
@@ -209,12 +231,8 @@ export default class BuildManifestPlugin {
         assetMap.lowPriorityFiles.push(
           `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`
         )
-        // Add the runtime ssg manifest file as a lazy-loaded file dependency.
-        // We also stub this file out for development mode (when it is not
-        // generated).
-        const srcEmptySsgManifest = `self.__SSG_MANIFEST=new Set;self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
-
         const ssgManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_ssgManifest.js`
+
         assetMap.lowPriorityFiles.push(ssgManifestPath)
         assets[ssgManifestPath] = new sources.RawSource(srcEmptySsgManifest)
       }

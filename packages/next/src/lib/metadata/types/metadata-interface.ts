@@ -69,7 +69,7 @@ interface Metadata extends DeprecatedMetadataFields {
   description?: null | string
 
   // Standard metadata names
-  // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/meta/name
+  // https://developer.mozilla.org/docs/Web/HTML/Element/meta/name
 
   /**
    * The application name.
@@ -191,12 +191,12 @@ interface Metadata extends DeprecatedMetadataFields {
    */
   publisher?: null | string
 
-  // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/meta/name#other_metadata_names
+  // https://developer.mozilla.org/docs/Web/HTML/Element/meta/name#other_metadata_names
 
   /**
    * The robots setting for the document.
    *
-   * @see https://developer.mozilla.org/en-US/docs/Glossary/Robots.txt
+   * @see https://developer.mozilla.org/docs/Glossary/Robots.txt
    * @example
    * ```tsx
    * "index, follow"
@@ -241,7 +241,7 @@ interface Metadata extends DeprecatedMetadataFields {
   /**
    * The icons for the document. Defaults to rel="icon".
    *
-   * @see https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/rel#attr-icon
+   * @see https://developer.mozilla.org/docs/Web/HTML/Attributes/rel#attr-icon
    * @example
    * ```tsx
    * "https://example.com/icon.png"
@@ -261,7 +261,7 @@ interface Metadata extends DeprecatedMetadataFields {
   /**
    * A web application manifest, as defined in the Web Application Manifest specification.
    *
-   * @see https://developer.mozilla.org/en-US/docs/Web/Manifest
+   * @see https://developer.mozilla.org/docs/Web/Manifest
    * @example
    * ```tsx
    * "https://example.com/manifest.json"
@@ -465,7 +465,7 @@ interface ResolvedMetadata extends DeprecatedMetadataFields {
   description: null | string
 
   // Standard metadata names
-  // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/meta/name
+  // https://developer.mozilla.org/docs/Web/HTML/Element/meta/name
   applicationName: null | string
   authors: null | Array<Author>
   generator: null | string
@@ -478,7 +478,7 @@ interface ResolvedMetadata extends DeprecatedMetadataFields {
   creator: null | string
   publisher: null | string
 
-  // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/meta/name#other_metadata_names
+  // https://developer.mozilla.org/docs/Web/HTML/Element/meta/name#other_metadata_names
   robots: null | ResolvedRobots
 
   // The canonical and alternate URLs for this location
@@ -558,10 +558,20 @@ type RobotsFile = {
 type SitemapFile = Array<{
   url: string
   lastModified?: string | Date
+  changeFrequency?:
+    | 'always'
+    | 'hourly'
+    | 'daily'
+    | 'weekly'
+    | 'monthly'
+    | 'yearly'
+    | 'never'
+  priority?: number
 }>
 
 type ResolvingMetadata = Promise<ResolvedMetadata>
 declare namespace MetadataRoute {
+  // eslint-disable-next-line @typescript-eslint/no-shadow
   export type Robots = RobotsFile
   export type Sitemap = SitemapFile
   export type Manifest = ManifestFile

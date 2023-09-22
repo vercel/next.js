@@ -16,13 +16,28 @@ const loadNextConfig = async (silent) => {
 
   const customRoutes = await loadCustomRoutes(nextConfig)
 
-  nextConfig.headers = customRoutes.headers
-  nextConfig.rewrites = customRoutes.rewrites
-  nextConfig.redirects = customRoutes.redirects
-
   // TODO: these functions takes arguments, have to be supported in a different way
   nextConfig.exportPathMap = nextConfig.exportPathMap && {}
   nextConfig.webpack = nextConfig.webpack && {}
+
+  // Transform the `modularizeImports` option
+  nextConfig.modularizeImports = nextConfig.modularizeImports
+    ? Object.fromEntries(
+        Object.entries(nextConfig.modularizeImports).map(([mod, config]) => [
+          mod,
+          {
+            ...config,
+            transform:
+              typeof config.transform === 'string'
+                ? config.transform
+                : Object.entries(config.transform).map(([key, value]) => [
+                    key,
+                    value,
+                  ]),
+          },
+        ])
+      )
+    : undefined
 
   if (nextConfig.experimental?.turbopack?.loaders) {
     ensureLoadersHaveSerializableOptions(
@@ -30,7 +45,10 @@ const loadNextConfig = async (silent) => {
     )
   }
 
-  return nextConfig
+  return {
+    customRoutes: customRoutes,
+    config: nextConfig,
+  }
 }
 
 export { loadNextConfig as default }

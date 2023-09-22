@@ -26,6 +26,7 @@ import {
   getActions,
   isClientComponentEntryModule,
   isCSSMod,
+  regexCSS,
 } from '../loaders/utils'
 import { traverseModules, forEachEntryModule } from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
@@ -48,7 +49,7 @@ export type ActionManifest = {
       workers: {
         [name: string]: string | number
       }
-      // Record which layer the action is in (sc_server or sc_action), in the specific entry.
+      // Record which layer the action is in (rsc or sc_action), in the specific entry.
       layer: {
         [name: string]: string
       }
@@ -186,9 +187,15 @@ export class FlightClientEntryPlugin {
 
     compiler.hooks.afterCompile.tap(PLUGIN_NAME, (compilation) => {
       const recordModule = (modId: string, mod: any) => {
-        const modResource = mod.resourceResolveData?.path || mod.resource
+        // Match Resource is undefined unless an import is using the inline match resource syntax
+        // https://webpack.js.org/api/loaders/#inline-matchresource
+        const modPath = mod.matchResource || mod.resourceResolveData?.path
+        const modQuery = mod.resourceResolveData?.query || ''
+        // query is already part of mod.resource
+        // so it's only neccessary to add it for matchResource or mod.resourceResolveData
+        const modResource = modPath ? modPath + modQuery : mod.resource
 
-        if (mod.layer !== WEBPACK_LAYERS.client) {
+        if (mod.layer !== WEBPACK_LAYERS.serverSideRendering) {
           return
         }
 
@@ -265,14 +272,13 @@ export class FlightClientEntryPlugin {
         entryModule
       )) {
         // Entry can be any user defined entry files such as layout, page, error, loading, etc.
-        const entryDependency = connection.dependency
         const entryRequest = connection.dependency.request
 
         const { clientComponentImports, actionImports, cssImports } =
           this.collectComponentInfoFromServerEntryDependency({
             entryRequest,
             compilation,
-            dependency: entryDependency,
+            resolvedModule: connection.resolvedModule,
           })
 
         actionImports.forEach(([dep, names]) =>
@@ -493,14 +499,12 @@ export class FlightClientEntryPlugin {
 
     const collectActions = ({
       entryRequest,
-      dependency,
+      resolvedModule,
     }: {
       entryRequest: string
-      dependency: any /* Dependency */
+      resolvedModule: any
     }) => {
-      const collectActionsInDep = (dependencyToFilter: any): void => {
-        const mod: webpack.NormalModule =
-          compilation.moduleGraph.getResolvedModule(dependencyToFilter)
+      const collectActionsInDep = (mod: webpack.NormalModule): void => {
         if (!mod) return
 
         // We have to always use the resolved request here to make sure the
@@ -520,14 +524,14 @@ export class FlightClientEntryPlugin {
         compilation.moduleGraph
           .getOutgoingConnections(mod)
           .forEach((connection: any) => {
-            collectActionsInDep(connection.dependency)
+            collectActionsInDep(connection.resolvedModule)
           })
       }
 
       // Don't traverse the module graph anymore once hitting the action layer.
       if (!entryRequest.includes('next-flight-action-entry-loader')) {
         // Traverse the module graph to find all client components.
-        collectActionsInDep(dependency)
+        collectActionsInDep(resolvedModule)
       }
     }
 
@@ -547,7 +551,7 @@ export class FlightClientEntryPlugin {
 
         collectActions({
           entryRequest: request,
-          dependency,
+          resolvedModule: connection.resolvedModule,
         })
       }
     }
@@ -558,11 +562,11 @@ export class FlightClientEntryPlugin {
   collectComponentInfoFromServerEntryDependency({
     entryRequest,
     compilation,
-    dependency,
+    resolvedModule,
   }: {
     entryRequest: string
     compilation: any
-    dependency: any /* Dependency */
+    resolvedModule: any /* Dependency */
   }): {
     cssImports: CssImports
     clientComponentImports: ClientComponentImports
@@ -576,9 +580,7 @@ export class FlightClientEntryPlugin {
     const actionImports: [string, string[]][] = []
     const CSSImports = new Set<string>()
 
-    const filterClientComponents = (dependencyToFilter: any): void => {
-      const mod: webpack.NormalModule =
-        compilation.moduleGraph.getResolvedModule(dependencyToFilter)
+    const filterClientComponents = (mod: webpack.NormalModule): void => {
       if (!mod) return
 
       const isCSS = isCSSMod(mod)
@@ -586,8 +588,13 @@ export class FlightClientEntryPlugin {
       // We have to always use the resolved request here to make sure the
       // server and client are using the same module path (required by RSC), as
       // the server compiler and client compiler have different resolve configs.
-      const modRequest: string | undefined =
+      let modRequest: string | undefined =
         mod.resourceResolveData?.path + mod.resourceResolveData?.query
+
+      // Context modules don't have a resource path, we use the identifier instead.
+      if (mod.constructor.name === 'ContextModule') {
+        modRequest = (mod as any)._identifier
+      }
 
       if (!modRequest || visited.has(modRequest)) return
       visited.add(modRequest)
@@ -622,12 +629,12 @@ export class FlightClientEntryPlugin {
       compilation.moduleGraph
         .getOutgoingConnections(mod)
         .forEach((connection: any) => {
-          filterClientComponents(connection.dependency)
+          filterClientComponents(connection.resolvedModule)
         })
     }
 
     // Traverse the module graph to find all client components.
-    filterClientComponents(dependency)
+    filterClientComponents(resolvedModule)
 
     return {
       clientComponentImports,
@@ -662,7 +669,9 @@ export class FlightClientEntryPlugin {
     let shouldInvalidate = false
 
     const loaderOptions: NextFlightClientEntryLoaderOptions = {
-      modules: clientImports,
+      modules: clientImports.sort((a, b) =>
+        regexCSS.test(b) ? 1 : a.localeCompare(b)
+      ),
       server: false,
     }
 
@@ -720,7 +729,7 @@ export class FlightClientEntryPlugin {
       pluginState.injectedClientEntries[bundlePath] = clientLoader
     }
 
-    // Inject the entry to the server compiler (__sc_client__).
+    // Inject the entry to the server compiler (__ssr__).
     const clientComponentEntryDep = webpack.EntryPlugin.createDependency(
       clientSSRLoader,
       {
@@ -743,7 +752,7 @@ export class FlightClientEntryPlugin {
           name: entryName,
           // Layer should be client for the SSR modules
           // This ensures the client components are bundled on client layer
-          layer: WEBPACK_LAYERS.client,
+          layer: WEBPACK_LAYERS.serverSideRendering,
         }
       ),
       clientComponentEntryDep,
@@ -785,8 +794,8 @@ export class FlightClientEntryPlugin {
         }
         currentCompilerServerActions[id].workers[bundlePath] = ''
         currentCompilerServerActions[id].layer[bundlePath] = fromClient
-          ? WEBPACK_LAYERS.action
-          : WEBPACK_LAYERS.server
+          ? WEBPACK_LAYERS.actionBrowser
+          : WEBPACK_LAYERS.reactServerComponents
       }
     }
 
@@ -802,7 +811,9 @@ export class FlightClientEntryPlugin {
       actionEntryDep,
       {
         name: entryName,
-        layer: fromClient ? WEBPACK_LAYERS.action : WEBPACK_LAYERS.server,
+        layer: fromClient
+          ? WEBPACK_LAYERS.actionBrowser
+          : WEBPACK_LAYERS.reactServerComponents,
       }
     )
   }
@@ -869,7 +880,9 @@ export class FlightClientEntryPlugin {
         for (let name in action.workers) {
           const modId =
             pluginState.actionModServerId[name][
-              action.layer[name] === WEBPACK_LAYERS.action ? 'client' : 'server'
+              action.layer[name] === WEBPACK_LAYERS.actionBrowser
+                ? 'client'
+                : 'server'
             ]
           action.workers[name] = modId!
         }
@@ -881,7 +894,9 @@ export class FlightClientEntryPlugin {
         for (let name in action.workers) {
           const modId =
             pluginState.actionModEdgeServerId[name][
-              action.layer[name] === WEBPACK_LAYERS.action ? 'client' : 'server'
+              action.layer[name] === WEBPACK_LAYERS.actionBrowser
+                ? 'client'
+                : 'server'
             ]
           action.workers[name] = modId!
         }

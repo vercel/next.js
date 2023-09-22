@@ -17,10 +17,10 @@ import {
   CLIENT_REFERENCE_MANIFEST,
   MIDDLEWARE_MANIFEST,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
-  NEXT_CLIENT_SSR_ENTRY_SUFFIX,
   SUBRESOURCE_INTEGRITY_MANIFEST,
   NEXT_FONT_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
+  PRERENDER_MANIFEST,
 } from '../../../shared/lib/constants'
 import { MiddlewareConfig } from '../../analysis/get-page-static-info'
 import { Telemetry } from '../../../telemetry/storage'
@@ -99,7 +99,6 @@ function getEntryFiles(
   if (meta.edgeSSR) {
     if (meta.edgeSSR.isServerComponent) {
       files.push(`server/${SERVER_REFERENCE_MANIFEST}.js`)
-      files.push(`server/${CLIENT_REFERENCE_MANIFEST}.js`)
       if (opts.sriEnabled) {
         files.push(`server/${SUBRESOURCE_INTEGRITY_MANIFEST}.js`)
       }
@@ -107,13 +106,12 @@ function getEntryFiles(
         ...entryFiles
           .filter(
             (file) =>
-              file.startsWith('pages/') && !file.endsWith('.hot-update.js')
+              file.startsWith('app/') && !file.endsWith('.hot-update.js')
           )
           .map(
             (file) =>
               'server/' +
-              // TODO-APP: seems this should be removed.
-              file.replace('.js', NEXT_CLIENT_SSR_ENTRY_SUFFIX + '.js')
+              file.replace('.js', '_' + CLIENT_REFERENCE_MANIFEST + '.js')
           )
       )
     }
@@ -130,11 +128,16 @@ function getEntryFiles(
     files.push(`server/edge-${INSTRUMENTATION_HOOK_FILENAME}.js`)
   }
 
+  if (process.env.NODE_ENV === 'production') {
+    files.push(PRERENDER_MANIFEST.replace('json', 'js'))
+  }
+
   files.push(
     ...entryFiles
       .filter((file) => !file.endsWith('.hot-update.js'))
       .map((file) => 'server/' + file)
   )
+
   return files
 }
 
@@ -467,7 +470,7 @@ function getCodeAnalyzer(params: {
           buildInfo.importLocByPath = new Map()
         }
 
-        const importedModule = node.source.value?.toString()!
+        const importedModule = node.source.value?.toString()
         buildInfo.importLocByPath.set(importedModule, {
           sourcePosition: {
             ...node.loc.start,

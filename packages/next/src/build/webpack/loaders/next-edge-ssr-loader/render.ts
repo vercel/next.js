@@ -4,7 +4,7 @@ import type { DocumentType, AppType } from '../../../../shared/lib/utils'
 import type { BuildManifest } from '../../../../server/get-page-files'
 import type { ReactLoadableManifest } from '../../../../server/load-components'
 import type { ClientReferenceManifest } from '../../plugins/flight-manifest-plugin'
-import type { NextFontManifestPlugin } from '../../plugins/next-font-manifest-plugin'
+import type { NextFontManifest } from '../../plugins/next-font-manifest-plugin'
 
 import WebServer from '../../../../server/web-server'
 import {
@@ -57,19 +57,18 @@ export function getRender({
   appServerMod: any
   config: NextConfigComplete
   buildId: string
-  nextFontManifest: NextFontManifestPlugin
+  nextFontManifest: NextFontManifest
   incrementalCacheHandler?: any
 }) {
   const isAppPath = pagesType === 'app'
   const baseLoadComponentResult = {
     dev,
     buildManifest,
-    prerenderManifest,
     reactLoadableManifest,
     subresourceIntegrityManifest,
-    nextFontManifest,
     Document,
     App: appMod?.default as AppType,
+    clientReferenceManifest,
   }
 
   const server = new WebServer({
@@ -78,7 +77,7 @@ export function getRender({
     minimalMode: true,
     webServerConfig: {
       page,
-      normalizedPage: isAppPath ? normalizeAppPath(page) : page,
+      pathname: isAppPath ? normalizeAppPath(page) : page,
       pagesType,
       prerenderManifest,
       extendRenderOpts: {
@@ -86,14 +85,14 @@ export function getRender({
         runtime: SERVER_RUNTIME.experimentalEdge,
         supportsDynamicHTML: true,
         disableOptimizedLoading: true,
-        clientReferenceManifest,
         serverActionsManifest,
         serverActionsBodySizeLimit,
+        nextFontManifest,
       },
       renderToHTML,
       incrementalCacheHandler,
-      loadComponent: async (pathname) => {
-        if (pathname === page) {
+      loadComponent: async (inputPage) => {
+        if (inputPage === page) {
           return {
             ...baseLoadComponentResult,
             Component: pageMod.default,
@@ -103,13 +102,13 @@ export function getRender({
             getStaticPaths: pageMod.getStaticPaths,
             ComponentMod: pageMod,
             isAppPath: !!pageMod.__next_app__,
-            pathname,
+            page: inputPage,
             routeModule: pageMod.routeModule,
           }
         }
 
         // If there is a custom 500 page, we need to handle it separately.
-        if (pathname === '/500' && error500Mod) {
+        if (inputPage === '/500' && error500Mod) {
           return {
             ...baseLoadComponentResult,
             Component: error500Mod.default,
@@ -118,12 +117,12 @@ export function getRender({
             getServerSideProps: error500Mod.getServerSideProps,
             getStaticPaths: error500Mod.getStaticPaths,
             ComponentMod: error500Mod,
-            pathname,
+            page: inputPage,
             routeModule: error500Mod.routeModule,
           }
         }
 
-        if (pathname === '/_error') {
+        if (inputPage === '/_error') {
           return {
             ...baseLoadComponentResult,
             Component: errorMod.default,
@@ -132,7 +131,7 @@ export function getRender({
             getServerSideProps: errorMod.getServerSideProps,
             getStaticPaths: errorMod.getStaticPaths,
             ComponentMod: errorMod,
-            pathname,
+            page: inputPage,
             routeModule: errorMod.routeModule,
           }
         }

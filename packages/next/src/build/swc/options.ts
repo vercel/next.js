@@ -5,6 +5,8 @@ import type {
   StyledComponentsConfig,
 } from '../../server/config-shared'
 
+type BundleType = 'client' | 'server' | 'default'
+
 const nextDistPath =
   /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
 
@@ -42,6 +44,7 @@ function getBaseSWCOptions({
   jsConfig,
   swcCacheDir,
   isServerLayer,
+  bundleTarget,
   hasServerComponents,
   isServerActionsEnabled,
 }: {
@@ -55,6 +58,7 @@ function getBaseSWCOptions({
   compilerOptions: NextConfig['compiler']
   resolvedBaseUrl?: string
   jsConfig: any
+  bundleTarget: BundleType
   swcCacheDir?: string
   isServerLayer?: boolean
   hasServerComponents?: boolean
@@ -86,7 +90,8 @@ function getBaseSWCOptions({
       externalHelpers: !process.versions.pnp && !jest,
       parser: parserConfig,
       experimental: {
-        keepImportAssertions: true,
+        keepImportAttributes: true,
+        emitAssertForImportAttributes: true,
         plugins,
         cacheRoot: swcCacheDir,
       },
@@ -105,7 +110,9 @@ function getBaseSWCOptions({
         react: {
           importSource:
             jsConfig?.compilerOptions?.jsxImportSource ??
-            (compilerOptions?.emotion ? '@emotion/react' : 'react'),
+            (compilerOptions?.emotion && !isServerLayer
+              ? '@emotion/react'
+              : 'react'),
           runtime: 'automatic',
           pragma: 'React.createElement',
           pragmaFrag: 'React.Fragment',
@@ -140,10 +147,27 @@ function getBaseSWCOptions({
     reactRemoveProperties: jest
       ? false
       : compilerOptions?.reactRemoveProperties,
-    modularizeImports,
+    // Map the k-v map to an array of pairs.
+    modularizeImports: modularizeImports
+      ? Object.fromEntries(
+          Object.entries(modularizeImports).map(([mod, config]) => [
+            mod,
+            {
+              ...config,
+              transform:
+                typeof config.transform === 'string'
+                  ? config.transform
+                  : Object.entries(config.transform).map(([key, value]) => [
+                      key,
+                      value,
+                    ]),
+            },
+          ])
+        )
+      : undefined,
     relay: compilerOptions?.relay,
     // Always transform styled-jsx and error when `client-only` condition is triggered
-    styledJsx: true,
+    styledJsx: {},
     // Disable css-in-js libs (without client-only integration) transform on server layer for server components
     ...(!isServerLayer && {
       // eslint-disable-next-line @typescript-eslint/no-use-before-define
@@ -164,6 +188,7 @@ function getBaseSWCOptions({
           isServer: !!isServerLayer,
         }
       : undefined,
+    bundleTarget,
   }
 }
 
@@ -251,6 +276,10 @@ export function getJestSWCOptions({
     jsConfig,
     hasServerComponents,
     resolvedBaseUrl,
+    // Don't apply server layer transformations for Jest
+    isServerLayer: false,
+    // Disable server / client graph assertions for Jest
+    bundleTarget: 'default',
   })
 
   const isNextDist = nextDistPath.test(filename)
@@ -281,6 +310,8 @@ export function getLoaderSWCOptions({
   isPageFile,
   hasReactRefresh,
   modularizeImports,
+  optimizeServerReact,
+  optimizePackageImports,
   swcPlugins,
   compilerOptions,
   jsConfig,
@@ -290,6 +321,8 @@ export function getLoaderSWCOptions({
   hasServerComponents,
   isServerLayer,
   isServerActionsEnabled,
+  optimizeBarrelExports,
+  bundleTarget = 'client',
 }: // This is not passed yet as "paths" resolving is handled by webpack currently.
 // resolvedBaseUrl,
 {
@@ -300,16 +333,22 @@ export function getLoaderSWCOptions({
   appDir: string
   isPageFile: boolean
   hasReactRefresh: boolean
+  optimizeServerReact?: boolean
   modularizeImports: NextConfig['modularizeImports']
+  optimizePackageImports?: NonNullable<
+    NextConfig['experimental']
+  >['optimizePackageImports']
   swcPlugins: ExperimentalConfig['swcPlugins']
   compilerOptions: NextConfig['compiler']
   jsConfig: any
   supportedBrowsers: string[]
   swcCacheDir: string
   relativeFilePathFromRoot: string
+  bundleTarget: BundleType
   hasServerComponents?: boolean
   isServerLayer: boolean
   isServerActionsEnabled?: boolean
+  optimizeBarrelExports?: string[]
 }) {
   let baseOptions: any = getBaseSWCOptions({
     filename,
@@ -325,6 +364,7 @@ export function getLoaderSWCOptions({
     hasServerComponents,
     isServerLayer,
     isServerActionsEnabled,
+    bundleTarget,
   })
   baseOptions.fontLoaders = {
     fontLoaders: [
@@ -351,6 +391,22 @@ export function getLoaderSWCOptions({
     },
   }
 
+  if (optimizeServerReact && isServer && !development) {
+    baseOptions.optimizeServerReact = {
+      optimize_use_state: true,
+    }
+  }
+
+  // Modularize import optimization for barrel files
+  if (optimizePackageImports) {
+    baseOptions.autoModularizeImports = {
+      packages: optimizePackageImports,
+    }
+  }
+  if (optimizeBarrelExports) {
+    baseOptions.optimizeBarrelExports = optimizeBarrelExports
+  }
+
   const isNextDist = nextDistPath.test(filename)
 
   if (isServer) {
@@ -372,9 +428,7 @@ export function getLoaderSWCOptions({
       },
     }
   } else {
-    // Matches default @babel/preset-env behavior
-    baseOptions.jsc.target = 'es5'
-    return {
+    const options = {
       ...baseOptions,
       // Ensure Next.js internals are output as commonjs modules
       ...(isNextDist
@@ -398,5 +452,10 @@ export function getLoaderSWCOptions({
           }
         : {}),
     }
+    if (!options.env) {
+      // Matches default @babel/preset-env behavior
+      options.jsc.target = 'es5'
+    }
+    return options
   }
 }

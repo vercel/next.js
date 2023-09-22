@@ -1,12 +1,15 @@
 import {
   CacheNode,
   CacheStates,
-} from '../../../../shared/lib/app-router-context'
+} from '../../../../shared/lib/app-router-context.shared-runtime'
 import type {
   FlightRouterState,
   FlightSegmentPath,
 } from '../../../../server/app-render/types'
-import { fetchServerResponse } from '../fetch-server-response'
+import {
+  FetchServerResponseResult,
+  fetchServerResponse,
+} from '../fetch-server-response'
 import { createRecordFromThenable } from '../create-record-from-thenable'
 import { readRecordValue } from '../read-record-value'
 import { createHrefFromUrl } from '../create-href-from-url'
@@ -22,6 +25,7 @@ import {
   PrefetchKind,
   ReadonlyReducerState,
   ReducerState,
+  ThenableRecord,
 } from '../router-reducer-types'
 import { handleMutable } from '../handle-mutable'
 import { applyFlightData } from '../apply-flight-data'
@@ -30,6 +34,7 @@ import {
   getPrefetchEntryCacheStatus,
 } from '../get-prefetch-cache-entry-status'
 import { prunePrefetchCache } from './prune-prefetch-cache'
+import { prefetchQueue } from './prefetch-reducer'
 
 export function handleExternalUrl(
   state: ReadonlyReducerState,
@@ -77,7 +82,7 @@ function addRefetchToLeafSegments(
   currentCache: CacheNode,
   flightSegmentPath: FlightSegmentPath,
   treePatch: FlightRouterState,
-  data: () => ReturnType<typeof fetchServerResponse>
+  data: () => ThenableRecord<FetchServerResponseResult>
 ) {
   let appliedPatch = false
 
@@ -158,7 +163,7 @@ export function navigateReducer(
     temporaryCacheNode.subTreeData = state.cache.subTreeData
     temporaryCacheNode.parallelRoutes = new Map(state.cache.parallelRoutes)
 
-    let data: ReturnType<typeof createRecordFromThenable> | undefined
+    let data: ThenableRecord<FetchServerResponseResult> | null = null
 
     const fetchResponse = () => {
       if (!data) {
@@ -198,7 +203,7 @@ export function navigateReducer(
       mutable.canonicalUrl = href
 
       state.prefetchCache.set(createHrefFromUrl(url, false), {
-        data: Promise.resolve(data),
+        data: data ? createRecordFromThenable(Promise.resolve(data)) : null,
         // this will make sure that the entry will be discarded after 30s
         kind: PrefetchKind.TEMPORARY,
         prefetchTime: Date.now(),
@@ -225,7 +230,7 @@ export function navigateReducer(
     )
 
     const newPrefetchValue = {
-      data: Promise.resolve(data),
+      data: createRecordFromThenable(Promise.resolve(data)),
       // this will make sure that the entry will be discarded after 30s
       kind:
         process.env.NODE_ENV === 'development'
@@ -245,11 +250,16 @@ export function navigateReducer(
   // The one before last item is the router state tree patch
   const { treeAtTimeOfPrefetch, data } = prefetchValues
 
+  prefetchQueue.bump(data!)
+
   // Unwrap cache data with `use` to suspend here (in the reducer) until the fetch resolves.
   const [flightData, canonicalUrlOverride] = readRecordValue(data!)
 
-  // important: we should only mark the cache node as dirty after we unsuspend from the call above
-  prefetchValues.lastUsedTime = Date.now()
+  // we only want to mark this once
+  if (!prefetchValues.lastUsedTime) {
+    // important: we should only mark the cache node as dirty after we unsuspend from the call above
+    prefetchValues.lastUsedTime = Date.now()
+  }
 
   // Handle case when navigating to page in `pages` from `app`
   if (typeof flightData === 'string') {
@@ -313,7 +323,14 @@ export function navigateReducer(
           treePatch,
           // eslint-disable-next-line no-loop-func
           () =>
-            fetchServerResponse(url, currentTree, state.nextUrl, state.buildId)
+            createRecordFromThenable(
+              fetchServerResponse(
+                url,
+                currentTree,
+                state.nextUrl,
+                state.buildId
+              )
+            )
         )
       }
 

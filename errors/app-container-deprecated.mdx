@@ -1,15 +1,17 @@
 ---
-title: App Container Deprecated
+title: Addressing "App Container Deprecated" Error in Next.js
+description: This document guides developers on how to resolve the "App Container Deprecated" error in Next.js by updating their custom App component.
 ---
 
 ## Why This Error Occurred
 
-In versions prior to v9.0.4 the `<Container>` component was used in `./pages/_app.js` to handle scrolling to hashes.
-This handling has been moved up the tree so the `<Container>` component is no longer needed in your custom `<App>`!
+The "App Container Deprecated" error usually occurs when you are using the `<Container>` component in your custom `<App>` (`pages/_app.js`). Prior to version `9.0.4` of Next.js, the `<Container>` component was used to handle scrolling to hashes.
+
+From version `9.0.4` onwards, this functionality was moved up the component tree, rendering the `<Container>` component unnecessary in your custom `<App>`.
 
 ## Possible Ways to Fix It
 
-Remove the `<Container>` component from your Custom `<App>` (`./pages/_app.js`).
+To resolve this issue, you need to remove the `<Container>` component from your custom `<App>` (`pages/_app.js`).
 
 **Before**
 
@@ -46,3 +48,9 @@ class MyApp extends App {
 
 export default MyApp
 ```
+
+After making this change, your custom `<App>` should work as expected without the `<Container>` component.
+
+## Useful Links
+
+- [Custom App](/docs/pages/building-your-application/routing/custom-app)

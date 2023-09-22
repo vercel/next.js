@@ -111,7 +111,7 @@ var assign = Object.assign;
 // -----------------------------------------------------------------------------
 // TODO: Finish rolling out in www
 
-var enableClientRenderFallbackOnTextMismatch = true; // Recoil still uses useMutableSource in www, need to delete
+var enableClientRenderFallbackOnTextMismatch = true; // Not sure if www still uses this. We don't have a replacement but whatever we
 // Slated for removal in the future (significant effort)
 //
 // These are experiments that didn't work out, and never shipped, but we can't
@@ -127,6 +127,7 @@ var enableClientRenderFallbackOnTextMismatch = true; // Recoil still uses useMut
 // This will eventually be replaced by the Transition Tracing proposal.
 
 var enableSuspenseCallback = false; // Experimental Scope support.
+var enableFormActions = false;
 
 var enableLazyContextPropagation = false; // FB-only usage. The new API has different semantics.
 
@@ -939,6 +940,9 @@ var StrictLegacyMode =
 var StrictEffectsMode =
 /*              */
 16;
+var NoStrictPassiveEffectsMode =
+/*     */
+64;
 
 // TODO: This is pretty well supported by browsers. Maybe we can drop it.
 var clz32 = Math.clz32 ? Math.clz32 : clz32Fallback; // Count leading zeros.
@@ -1292,8 +1296,8 @@ function getNextLanes(root, wipLanes) {
   // time it takes to show the final state, which is what they are actually
   // waiting for.
   //
-  // For those exceptions where entanglement is semantically important, like
-  // useMutableSource, we should ensure that there is no partial work at the
+  // For those exceptions where entanglement is semantically important,
+  // we should ensure that there is no partial work at the
   // time we apply the entanglement.
 
 
@@ -1591,9 +1595,9 @@ function markRootFinished(root, remainingLanes) {
   root.suspendedLanes = NoLanes;
   root.pingedLanes = NoLanes;
   root.expiredLanes &= remainingLanes;
-  root.mutableReadLanes &= remainingLanes;
   root.entangledLanes &= remainingLanes;
   root.errorRecoveryDisabledLanes &= remainingLanes;
+  root.shellSuspendCounter = 0;
   var entanglements = root.entanglements;
   var expirationTimes = root.expirationTimes;
   var hiddenUpdates = root.hiddenUpdates; // Clear the lanes that no longer have pending work
@@ -2531,7 +2535,14 @@ function describeNativeComponentFrame(fn, construct) {
       // in simple components too
 
 
-      fn();
+      var maybePromise = fn(); // If the function component returns a promise, it's likely an async
+      // component, which we don't yet support. Attach a noop catch handler to
+      // silence the error.
+      // TODO: Implement component stacks for async client components?
+
+      if (maybePromise && typeof maybePromise.catch === 'function') {
+        maybePromise.catch(function () {});
+      }
     }
   } catch (sample) {
     // This is inlined manually because closure doesn't do it for us.
@@ -6799,16 +6810,6 @@ function tryToClaimNextHydratableInstance(fiber) {
     return;
   }
 
-  {
-    if (!isHydratableType(fiber.type, fiber.pendingProps)) {
-      // This fiber never hydrates from the DOM and always does an insert
-      fiber.flags = fiber.flags & ~Hydrating | Placement;
-      isHydrating = false;
-      hydrationParentFiber = fiber;
-      return;
-    }
-  }
-
   var initialInstance = nextHydratableInstance;
   var nextInstance = nextHydratableInstance;
 
@@ -8225,7 +8226,11 @@ var SuspenseyCommitException = new Error('Suspense Exception: This is not a real
 // for now this will do.
 
 var noopSuspenseyCommitThenable = {
-  then: function () {}
+  then: function () {
+    {
+      error('Internal React error: A listener was unexpectedly attached to a ' + '"noop" thenable. This is a bug in React. Please file an issue.');
+    }
+  }
 };
 function createThenableState() {
   // The ThenableState is created the first time a component suspends. If it
@@ -8275,6 +8280,7 @@ function trackUsedThenable(thenableState, thenable, index) {
     case 'rejected':
       {
         var rejectedError = thenable.reason;
+        checkIfUseWrappedInAsyncCatch(rejectedError);
         throw rejectedError;
       }
 
@@ -8288,6 +8294,27 @@ function trackUsedThenable(thenableState, thenable, index) {
           // happen. Flight lazily parses JSON when the value is actually awaited.
           thenable.then(noop$2, noop$2);
         } else {
+          // This is an uncached thenable that we haven't seen before.
+          // Detect infinite ping loops caused by uncached promises.
+          var root = getWorkInProgressRoot();
+
+          if (root !== null && root.shellSuspendCounter > 100) {
+            // This root has suspended repeatedly in the shell without making any
+            // progress (i.e. committing something). This is highly suggestive of
+            // an infinite ping loop, often caused by an accidental Async Client
+            // Component.
+            //
+            // During a transition, we can suspend the work loop until the promise
+            // to resolve, but this is a sync render, so that's not an option. We
+            // also can't show a fallback, because none was provided. So our last
+            // resort is to throw an error.
+            //
+            // TODO: Remove this error in a future release. Other ways of handling
+            // this case include forcing a concurrent render, or putting the whole
+            // root into offscreen mode.
+            throw new Error('async/await is not yet supported in Client Components, only ' + 'Server Components. This error is often caused by accidentally ' + "adding `'use client'` to a module that was originally written " + 'for the server.');
+          }
+
           var pendingThenable = thenable;
           pendingThenable.status = 'pending';
           pendingThenable.then(function (fulfilledValue) {
@@ -8302,22 +8329,23 @@ function trackUsedThenable(thenableState, thenable, index) {
               rejectedThenable.status = 'rejected';
               rejectedThenable.reason = error;
             }
-          });
-        } // Check one more time in case the thenable resolved synchronously.
+          }); // Check one more time in case the thenable resolved synchronously.
 
+          switch (thenable.status) {
+            case 'fulfilled':
+              {
+                var fulfilledThenable = thenable;
+                return fulfilledThenable.value;
+              }
 
-        switch (thenable.status) {
-          case 'fulfilled':
-            {
-              var fulfilledThenable = thenable;
-              return fulfilledThenable.value;
-            }
-
-          case 'rejected':
-            {
-              var rejectedThenable = thenable;
-              throw rejectedThenable.reason;
-            }
+            case 'rejected':
+              {
+                var rejectedThenable = thenable;
+                var _rejectedError = rejectedThenable.reason;
+                checkIfUseWrappedInAsyncCatch(_rejectedError);
+                throw _rejectedError;
+              }
+          }
         } // Suspend.
         //
         // Throwing here is an implementation detail that allows us to unwind the
@@ -8379,6 +8407,18 @@ function checkIfUseWrappedInTryCatch() {
   }
 
   return false;
+}
+function checkIfUseWrappedInAsyncCatch(rejectedReason) {
+  // This check runs in prod, too, because it prevents a more confusing
+  // downstream error, where SuspenseException is caught by a promise and
+  // thrown asynchronously.
+  // TODO: Another way to prevent SuspenseException from leaking into an async
+  // execution context is to check the dispatcher every time `use` is called,
+  // or some equivalent. That might be preferable for other reasons, too, since
+  // it matches how we prevent similar mistakes for other hooks.
+  if (rejectedReason === SuspenseException) {
+    throw new Error('Hooks are not supported inside an async component. This ' + "error is often caused by accidentally adding `'use client'` " + 'to a module that was originally written for the server.');
+  }
 }
 
 var thenableState$1 = null;
@@ -9830,37 +9870,6 @@ var Passive =
 /*   */
 8;
 
-// and should be reset before starting a new render.
-// This tracks which mutable sources need to be reset after a render.
-
-var workInProgressSources = [];
-function resetWorkInProgressVersions() {
-  for (var i = 0; i < workInProgressSources.length; i++) {
-    var mutableSource = workInProgressSources[i];
-
-    {
-      mutableSource._workInProgressVersionPrimary = null;
-    }
-  }
-
-  workInProgressSources.length = 0;
-}
-// This ensures that the version used for server rendering matches the one
-// that is eventually read during hydration.
-// If they don't match there's a potential tear and a full deopt render is required.
-
-function registerMutableSourceForHydration(root, mutableSource) {
-  var getVersion = mutableSource._getVersion;
-  var version = getVersion(mutableSource._source); // TODO Clear this data once all pending hydration work is finished.
-  // Retaining it forever may interfere with GC.
-
-  if (root.mutableSourceEagerHydrationData == null) {
-    root.mutableSourceEagerHydrationData = [mutableSource, version];
-  } else {
-    root.mutableSourceEagerHydrationData.push(mutableSource, version);
-  }
-}
-
 var ReactCurrentActQueue$2 = ReactSharedInternals.ReactCurrentActQueue; // A linked list of all the roots with pending work. In an idiomatic app,
 // there's only a single root, but we do support multi root apps, hence this
 // extra complexity. But this module is optimized for the single root case.
@@ -10270,90 +10279,95 @@ var currentEntangledListeners = null; // The number of pending async actions in 
 var currentEntangledPendingCount = 0; // The transition lane shared by all updates in the entangled scope.
 
 var currentEntangledLane = NoLane;
-function requestAsyncActionContext(actionReturnValue, finishedState) {
-  if (actionReturnValue !== null && typeof actionReturnValue === 'object' && typeof actionReturnValue.then === 'function') {
-    // This is an async action.
-    //
-    // Return a thenable that resolves once the action scope (i.e. the async
-    // function passed to startTransition) has finished running.
-    var thenable = actionReturnValue;
-    var entangledListeners;
+function requestAsyncActionContext(actionReturnValue, // If this is provided, this resulting thenable resolves to this value instead
+// of the return value of the action. This is a perf trick to avoid composing
+// an extra async function.
+overrideReturnValue) {
+  // This is an async action.
+  //
+  // Return a thenable that resolves once the action scope (i.e. the async
+  // function passed to startTransition) has finished running.
+  var thenable = actionReturnValue;
+  var entangledListeners;
 
-    if (currentEntangledListeners === null) {
-      // There's no outer async action scope. Create a new one.
-      entangledListeners = currentEntangledListeners = [];
-      currentEntangledPendingCount = 0;
-      currentEntangledLane = requestTransitionLane();
-    } else {
-      entangledListeners = currentEntangledListeners;
+  if (currentEntangledListeners === null) {
+    // There's no outer async action scope. Create a new one.
+    entangledListeners = currentEntangledListeners = [];
+    currentEntangledPendingCount = 0;
+    currentEntangledLane = requestTransitionLane();
+  } else {
+    entangledListeners = currentEntangledListeners;
+  }
+
+  currentEntangledPendingCount++; // Create a thenable that represents the result of this action, but doesn't
+  // resolve until the entire entangled scope has finished.
+  //
+  // Expressed using promises:
+  //   const [thisResult] = await Promise.all([thisAction, entangledAction]);
+  //   return thisResult;
+
+  var resultThenable = createResultThenable(entangledListeners);
+  var resultStatus = 'pending';
+  var resultValue;
+  var rejectedReason;
+  thenable.then(function (value) {
+    resultStatus = 'fulfilled';
+    resultValue = overrideReturnValue !== null ? overrideReturnValue : value;
+    pingEngtangledActionScope();
+  }, function (error) {
+    resultStatus = 'rejected';
+    rejectedReason = error;
+    pingEngtangledActionScope();
+  }); // Attach a listener to fill in the result.
+
+  entangledListeners.push(function () {
+    switch (resultStatus) {
+      case 'fulfilled':
+        {
+          var fulfilledThenable = resultThenable;
+          fulfilledThenable.status = 'fulfilled';
+          fulfilledThenable.value = resultValue;
+          break;
+        }
+
+      case 'rejected':
+        {
+          var rejectedThenable = resultThenable;
+          rejectedThenable.status = 'rejected';
+          rejectedThenable.reason = rejectedReason;
+          break;
+        }
+
+      case 'pending':
+      default:
+        {
+          // The listener above should have been called first, so `resultStatus`
+          // should already be set to the correct value.
+          throw new Error('Thenable should have already resolved. This ' + 'is a bug in React.');
+        }
     }
+  });
+  return resultThenable;
+}
+function requestSyncActionContext(actionReturnValue, // If this is provided, this resulting thenable resolves to this value instead
+// of the return value of the action. This is a perf trick to avoid composing
+// an extra async function.
+overrideReturnValue) {
+  var resultValue = overrideReturnValue !== null ? overrideReturnValue : actionReturnValue; // This is not an async action, but it may be part of an outer async action.
 
-    currentEntangledPendingCount++;
-    var resultStatus = 'pending';
-    var rejectedReason;
-    thenable.then(function () {
-      resultStatus = 'fulfilled';
-      pingEngtangledActionScope();
-    }, function (error) {
-      resultStatus = 'rejected';
-      rejectedReason = error;
-      pingEngtangledActionScope();
-    }); // Create a thenable that represents the result of this action, but doesn't
-    // resolve until the entire entangled scope has finished.
-    //
-    // Expressed using promises:
-    //   const [thisResult] = await Promise.all([thisAction, entangledAction]);
-    //   return thisResult;
-
-    var resultThenable = createResultThenable(entangledListeners); // Attach a listener to fill in the result.
-
+  if (currentEntangledListeners === null) {
+    return resultValue;
+  } else {
+    // Return a thenable that does not resolve until the entangled actions
+    // have finished.
+    var entangledListeners = currentEntangledListeners;
+    var resultThenable = createResultThenable(entangledListeners);
     entangledListeners.push(function () {
-      switch (resultStatus) {
-        case 'fulfilled':
-          {
-            var fulfilledThenable = resultThenable;
-            fulfilledThenable.status = 'fulfilled';
-            fulfilledThenable.value = finishedState;
-            break;
-          }
-
-        case 'rejected':
-          {
-            var rejectedThenable = resultThenable;
-            rejectedThenable.status = 'rejected';
-            rejectedThenable.reason = rejectedReason;
-            break;
-          }
-
-        case 'pending':
-        default:
-          {
-            // The listener above should have been called first, so `resultStatus`
-            // should already be set to the correct value.
-            throw new Error('Thenable should have already resolved. This ' + 'is a bug in React.');
-          }
-      }
+      var fulfilledThenable = resultThenable;
+      fulfilledThenable.status = 'fulfilled';
+      fulfilledThenable.value = resultValue;
     });
     return resultThenable;
-  } else {
-    // This is not an async action, but it may be part of an outer async action.
-    if (currentEntangledListeners === null) {
-      return finishedState;
-    } else {
-      // Return a thenable that does not resolve until the entangled actions
-      // have finished.
-      var _entangledListeners = currentEntangledListeners;
-
-      var _resultThenable = createResultThenable(_entangledListeners);
-
-      _entangledListeners.push(function () {
-        var fulfilledThenable = _resultThenable;
-        fulfilledThenable.status = 'fulfilled';
-        fulfilledThenable.value = finishedState;
-      });
-
-      return _resultThenable;
-    }
   }
 }
 
@@ -10404,10 +10418,12 @@ var ReactCurrentDispatcher$1 = ReactSharedInternals.ReactCurrentDispatcher,
 var didWarnAboutMismatchedHooksForComponent;
 var didWarnUncachedGetSnapshot;
 var didWarnAboutUseWrappedInTryCatch;
+var didWarnAboutAsyncClientComponent;
 
 {
   didWarnAboutMismatchedHooksForComponent = new Set();
   didWarnAboutUseWrappedInTryCatch = new Set();
+  didWarnAboutAsyncClientComponent = new Set();
 } // The effect "instance" is a shared object that remains the same for the entire
 // lifetime of an effect. In Rust terms, a RefCell. We use it to store the
 // "destroy" function that is returned from an effect, because that is stateful.
@@ -10530,6 +10546,48 @@ function warnOnHookMismatchInDev(currentHookName) {
         }
 
         error('React has detected a change in the order of Hooks called by %s. ' + 'This will lead to bugs and errors if not fixed. ' + 'For more information, read the Rules of Hooks: https://reactjs.org/link/rules-of-hooks\n\n' + '   Previous render            Next render\n' + '   ------------------------------------------------------\n' + '%s' + '   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n', componentName, table);
+      }
+    }
+  }
+}
+
+function warnIfAsyncClientComponent(Component, componentDoesIncludeHooks) {
+  {
+    // This dev-only check only works for detecting native async functions,
+    // not transpiled ones. There's also a prod check that we use to prevent
+    // async client components from crashing the app; the prod one works even
+    // for transpiled async functions. Neither mechanism is completely
+    // bulletproof but together they cover the most common cases.
+    var isAsyncFunction = // $FlowIgnore[method-unbinding]
+    Object.prototype.toString.call(Component) === '[object AsyncFunction]';
+
+    if (isAsyncFunction) {
+      // Encountered an async Client Component. This is not yet supported,
+      // except in certain constrained cases, like during a route navigation.
+      var componentName = getComponentNameFromFiber(currentlyRenderingFiber$1);
+
+      if (!didWarnAboutAsyncClientComponent.has(componentName)) {
+        didWarnAboutAsyncClientComponent.add(componentName); // Check if this is a sync update. We use the "root" render lanes here
+        // because the "subtree" render lanes may include additional entangled
+        // lanes related to revealing previously hidden content.
+
+        var root = getWorkInProgressRoot();
+        var rootRenderLanes = getWorkInProgressRootRenderLanes();
+
+        if (root !== null && includesBlockingLane(root, rootRenderLanes)) {
+          error('async/await is not yet supported in Client Components, only ' + 'Server Components. This error is often caused by accidentally ' + "adding `'use client'` to a module that was originally written " + 'for the server.');
+        } else {
+          // This is a concurrent (Transition, Retry, etc) render. We don't
+          // warn in these cases.
+          //
+          // However, Async Components are forbidden to include hooks, even
+          // during a transition, so let's check for that here.
+          //
+          // TODO: Add a corresponding warning to Server Components runtime.
+          if (componentDoesIncludeHooks) {
+            error('Hooks are not supported inside an async component. This ' + "error is often caused by accidentally adding `'use client'` " + 'to a module that was originally written for the server.');
+          }
+        }
       }
     }
   }
@@ -10666,20 +10724,21 @@ function renderWithHooks(current, workInProgress, Component, props, secondArg, n
     }
   }
 
-  finishRenderingHooks(current, workInProgress);
+  finishRenderingHooks(current, workInProgress, Component);
   return children;
 }
 
-function finishRenderingHooks(current, workInProgress) {
-  // We can assume the previous dispatcher is always this one, since we set it
-  // at the beginning of the render phase and there's no re-entrance.
-  ReactCurrentDispatcher$1.current = ContextOnlyDispatcher;
-
+function finishRenderingHooks(current, workInProgress, Component) {
   {
     workInProgress._debugHookTypes = hookTypesDev;
-  } // This check uses currentHook so that it works the same in DEV and prod bundles.
-  // hookTypesDev could catch more cases (e.g. context) but only in DEV bundles.
+    var componentDoesIncludeHooks = workInProgressHook !== null || thenableIndexCounter !== 0;
+    warnIfAsyncClientComponent(Component, componentDoesIncludeHooks);
+  } // We can assume the previous dispatcher is always this one, since we set it
+  // at the beginning of the render phase and there's no re-entrance.
 
+
+  ReactCurrentDispatcher$1.current = ContextOnlyDispatcher; // This check uses currentHook so that it works the same in DEV and prod bundles.
+  // hookTypesDev could catch more cases (e.g. context) but only in DEV bundles.
 
   var didRenderTooFewHooks = currentHook !== null && currentHook.next !== null;
   renderLanes$1 = NoLanes;
@@ -10719,7 +10778,10 @@ function finishRenderingHooks(current, workInProgress) {
     if (checkIfUseWrappedInTryCatch()) {
       var componentName = getComponentNameFromFiber(workInProgress) || 'Unknown';
 
-      if (!didWarnAboutUseWrappedInTryCatch.has(componentName)) {
+      if (!didWarnAboutUseWrappedInTryCatch.has(componentName) && // This warning also fires if you suspend with `use` inside an
+      // async component. Since we warn for that above, we'll silence this
+      // second warning by checking here.
+      !didWarnAboutAsyncClientComponent.has(componentName)) {
         didWarnAboutUseWrappedInTryCatch.add(componentName);
 
         error('`use` was called from inside a try/catch block. This is not allowed ' + 'and can lead to unexpected behavior. To handle errors triggered ' + 'by `use`, wrap your component in a error boundary.');
@@ -10743,7 +10805,7 @@ function replaySuspendedComponentWithHooks(current, workInProgress, Component, p
   }
 
   var children = renderWithHooksAgain(workInProgress, Component, props, secondArg);
-  finishRenderingHooks(current, workInProgress);
+  finishRenderingHooks(current, workInProgress, Component);
   return children;
 }
 
@@ -11252,18 +11314,6 @@ function rerenderReducer(reducer, initialArg, init) {
   return [newState, dispatch];
 }
 
-function mountMutableSource(source, getSnapshot, subscribe) {
-  {
-    return undefined;
-  }
-}
-
-function updateMutableSource(source, getSnapshot, subscribe) {
-  {
-    return undefined;
-  }
-}
-
 function mountSyncExternalStore(subscribe, getSnapshot, getServerSnapshot) {
   var fiber = currentlyRenderingFiber$1;
   var hook = mountWorkInProgressHook();
@@ -11600,7 +11650,7 @@ function updateEffectImpl(fiberFlags, hookFlags, create, deps) {
 }
 
 function mountEffect(create, deps) {
-  if ((currentlyRenderingFiber$1.mode & StrictEffectsMode) !== NoMode) {
+  if ((currentlyRenderingFiber$1.mode & StrictEffectsMode) !== NoMode && (currentlyRenderingFiber$1.mode & NoStrictPassiveEffectsMode) === NoMode) {
     mountEffectImpl(MountPassiveDev | Passive$1 | PassiveStatic, Passive, create, deps);
   } else {
     mountEffectImpl(Passive$1 | PassiveStatic, Passive, create, deps);
@@ -11839,7 +11889,7 @@ function startTransition(fiber, queue, pendingState, finishedState, callback, op
   }
 
   try {
-    var returnValue, maybeThenable; if (enableAsyncActions) ; else {
+    var returnValue, thenable, entangledResult, _entangledResult; if (enableAsyncActions) ; else {
       // Async actions are not enabled.
       dispatchSetState(fiber, queue, finishedState);
       callback();
@@ -12171,7 +12221,6 @@ var ContextOnlyDispatcher = {
   useDebugValue: throwInvalidHookError,
   useDeferredValue: throwInvalidHookError,
   useTransition: throwInvalidHookError,
-  useMutableSource: throwInvalidHookError,
   useSyncExternalStore: throwInvalidHookError,
   useId: throwInvalidHookError
 };
@@ -12294,11 +12343,6 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       mountHookTypesDev();
       return mountTransition();
     },
-    useMutableSource: function (source, getSnapshot, subscribe) {
-      currentHookNameInDev = 'useMutableSource';
-      mountHookTypesDev();
-      return mountMutableSource();
-    },
     useSyncExternalStore: function (subscribe, getSnapshot, getServerSnapshot) {
       currentHookNameInDev = 'useSyncExternalStore';
       mountHookTypesDev();
@@ -12409,11 +12453,6 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       currentHookNameInDev = 'useTransition';
       updateHookTypesDev();
       return mountTransition();
-    },
-    useMutableSource: function (source, getSnapshot, subscribe) {
-      currentHookNameInDev = 'useMutableSource';
-      updateHookTypesDev();
-      return mountMutableSource();
     },
     useSyncExternalStore: function (subscribe, getSnapshot, getServerSnapshot) {
       currentHookNameInDev = 'useSyncExternalStore';
@@ -12526,11 +12565,6 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       updateHookTypesDev();
       return updateTransition();
     },
-    useMutableSource: function (source, getSnapshot, subscribe) {
-      currentHookNameInDev = 'useMutableSource';
-      updateHookTypesDev();
-      return updateMutableSource();
-    },
     useSyncExternalStore: function (subscribe, getSnapshot, getServerSnapshot) {
       currentHookNameInDev = 'useSyncExternalStore';
       updateHookTypesDev();
@@ -12641,11 +12675,6 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       currentHookNameInDev = 'useTransition';
       updateHookTypesDev();
       return rerenderTransition();
-    },
-    useMutableSource: function (source, getSnapshot, subscribe) {
-      currentHookNameInDev = 'useMutableSource';
-      updateHookTypesDev();
-      return updateMutableSource();
     },
     useSyncExternalStore: function (subscribe, getSnapshot, getServerSnapshot) {
       currentHookNameInDev = 'useSyncExternalStore';
@@ -12774,12 +12803,6 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       warnInvalidHookAccess();
       mountHookTypesDev();
       return mountTransition();
-    },
-    useMutableSource: function (source, getSnapshot, subscribe) {
-      currentHookNameInDev = 'useMutableSource';
-      warnInvalidHookAccess();
-      mountHookTypesDev();
-      return mountMutableSource();
     },
     useSyncExternalStore: function (subscribe, getSnapshot, getServerSnapshot) {
       currentHookNameInDev = 'useSyncExternalStore';
@@ -12911,12 +12934,6 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       updateHookTypesDev();
       return updateTransition();
     },
-    useMutableSource: function (source, getSnapshot, subscribe) {
-      currentHookNameInDev = 'useMutableSource';
-      warnInvalidHookAccess();
-      updateHookTypesDev();
-      return updateMutableSource();
-    },
     useSyncExternalStore: function (subscribe, getSnapshot, getServerSnapshot) {
       currentHookNameInDev = 'useSyncExternalStore';
       warnInvalidHookAccess();
@@ -13046,12 +13063,6 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       warnInvalidHookAccess();
       updateHookTypesDev();
       return rerenderTransition();
-    },
-    useMutableSource: function (source, getSnapshot, subscribe) {
-      currentHookNameInDev = 'useMutableSource';
-      warnInvalidHookAccess();
-      updateHookTypesDev();
-      return updateMutableSource();
     },
     useSyncExternalStore: function (subscribe, getSnapshot, getServerSnapshot) {
       currentHookNameInDev = 'useSyncExternalStore';
@@ -13819,13 +13830,11 @@ function mountClassInstance(workInProgress, ctor, newProps, renderLanes) {
   }
 
   if (typeof instance.componentDidMount === 'function') {
-    var fiberFlags = Update | LayoutStatic;
+    workInProgress.flags |= Update | LayoutStatic;
+  }
 
-    if ((workInProgress.mode & StrictEffectsMode) !== NoMode) {
-      fiberFlags |= MountLayoutDev;
-    }
-
-    workInProgress.flags |= fiberFlags;
+  if ((workInProgress.mode & StrictEffectsMode) !== NoMode) {
+    workInProgress.flags |= MountLayoutDev;
   }
 }
 
@@ -13867,13 +13876,11 @@ function resumeMountClassInstance(workInProgress, ctor, newProps, renderLanes) {
     // If an update was already in progress, we should schedule an Update
     // effect even though we're bailing out, so that cWU/cDU are called.
     if (typeof instance.componentDidMount === 'function') {
-      var fiberFlags = Update | LayoutStatic;
+      workInProgress.flags |= Update | LayoutStatic;
+    }
 
-      if ((workInProgress.mode & StrictEffectsMode) !== NoMode) {
-        fiberFlags |= MountLayoutDev;
-      }
-
-      workInProgress.flags |= fiberFlags;
+    if ((workInProgress.mode & StrictEffectsMode) !== NoMode) {
+      workInProgress.flags |= MountLayoutDev;
     }
 
     return false;
@@ -13900,25 +13907,21 @@ function resumeMountClassInstance(workInProgress, ctor, newProps, renderLanes) {
     }
 
     if (typeof instance.componentDidMount === 'function') {
-      var _fiberFlags = Update | LayoutStatic;
+      workInProgress.flags |= Update | LayoutStatic;
+    }
 
-      if ((workInProgress.mode & StrictEffectsMode) !== NoMode) {
-        _fiberFlags |= MountLayoutDev;
-      }
-
-      workInProgress.flags |= _fiberFlags;
+    if ((workInProgress.mode & StrictEffectsMode) !== NoMode) {
+      workInProgress.flags |= MountLayoutDev;
     }
   } else {
     // If an update was already in progress, we should schedule an Update
     // effect even though we're bailing out, so that cWU/cDU are called.
     if (typeof instance.componentDidMount === 'function') {
-      var _fiberFlags2 = Update | LayoutStatic;
+      workInProgress.flags |= Update | LayoutStatic;
+    }
 
-      if ((workInProgress.mode & StrictEffectsMode) !== NoMode) {
-        _fiberFlags2 |= MountLayoutDev;
-      }
-
-      workInProgress.flags |= _fiberFlags2;
+    if ((workInProgress.mode & StrictEffectsMode) !== NoMode) {
+      workInProgress.flags |= MountLayoutDev;
     } // If shouldComponentUpdate returned false, we should still update the
     // memoized state to indicate that this work can be reused.
 
@@ -14362,188 +14365,188 @@ function throwException(root, returnFiber, sourceFiber, value, rootRenderLanes) 
     }
   }
 
-  if (value !== null && typeof value === 'object' && typeof value.then === 'function') {
-    // This is a wakeable. The component suspended.
-    var wakeable = value;
-    resetSuspendedComponent(sourceFiber);
+  if (value !== null && typeof value === 'object') {
 
-    {
-      if (getIsHydrating() && sourceFiber.mode & ConcurrentMode) {
-        markDidThrowWhileHydratingDEV();
+    if (typeof value.then === 'function') {
+      // This is a wakeable. The component suspended.
+      var wakeable = value;
+      resetSuspendedComponent(sourceFiber);
+
+      {
+        if (getIsHydrating() && sourceFiber.mode & ConcurrentMode) {
+          markDidThrowWhileHydratingDEV();
+        }
       }
-    }
 
 
-    var suspenseBoundary = getSuspenseHandler();
+      var suspenseBoundary = getSuspenseHandler();
 
-    if (suspenseBoundary !== null) {
-      switch (suspenseBoundary.tag) {
-        case SuspenseComponent:
-          {
-            // If this suspense boundary is not already showing a fallback, mark
-            // the in-progress render as suspended. We try to perform this logic
-            // as soon as soon as possible during the render phase, so the work
-            // loop can know things like whether it's OK to switch to other tasks,
-            // or whether it can wait for data to resolve before continuing.
-            // TODO: Most of these checks are already performed when entering a
-            // Suspense boundary. We should track the information on the stack so
-            // we don't have to recompute it on demand. This would also allow us
-            // to unify with `use` which needs to perform this logic even sooner,
-            // before `throwException` is called.
-            if (sourceFiber.mode & ConcurrentMode) {
-              if (getShellBoundary() === null) {
-                // Suspended in the "shell" of the app. This is an undesirable
-                // loading state. We should avoid committing this tree.
-                renderDidSuspendDelayIfPossible();
-              } else {
-                // If we suspended deeper than the shell, we don't need to delay
-                // the commmit. However, we still call renderDidSuspend if this is
-                // a new boundary, to tell the work loop that a new fallback has
-                // appeared during this render.
-                // TODO: Theoretically we should be able to delete this branch.
-                // It's currently used for two things: 1) to throttle the
-                // appearance of successive loading states, and 2) in
-                // SuspenseList, to determine whether the children include any
-                // pending fallbacks. For 1, we should apply throttling to all
-                // retries, not just ones that render an additional fallback. For
-                // 2, we should check subtreeFlags instead. Then we can delete
-                // this branch.
-                var current = suspenseBoundary.alternate;
-
-                if (current === null) {
-                  renderDidSuspend();
-                }
-              }
-            }
-
-            suspenseBoundary.flags &= ~ForceClientRender;
-            markSuspenseBoundaryShouldCapture(suspenseBoundary, returnFiber, sourceFiber, root, rootRenderLanes); // Retry listener
-            //
-            // If the fallback does commit, we need to attach a different type of
-            // listener. This one schedules an update on the Suspense boundary to
-            // turn the fallback state off.
-            //
-            // Stash the wakeable on the boundary fiber so we can access it in the
-            // commit phase.
-            //
-            // When the wakeable resolves, we'll attempt to render the boundary
-            // again ("retry").
-            // Check if this is a Suspensey resource. We do not attach retry
-            // listeners to these, because we don't actually need them for
-            // rendering. Only for committing. Instead, if a fallback commits
-            // and the only thing that suspended was a Suspensey resource, we
-            // retry immediately.
-            // TODO: Refactor throwException so that we don't have to do this type
-            // check. The caller already knows what the cause was.
-
-            var isSuspenseyResource = wakeable === noopSuspenseyCommitThenable;
-
-            if (isSuspenseyResource) {
-              suspenseBoundary.flags |= ScheduleRetry;
-            } else {
-              var retryQueue = suspenseBoundary.updateQueue;
-
-              if (retryQueue === null) {
-                suspenseBoundary.updateQueue = new Set([wakeable]);
-              } else {
-                retryQueue.add(wakeable);
-              }
-            }
-
-            break;
-          }
-
-        case OffscreenComponent:
-          {
-            if (suspenseBoundary.mode & ConcurrentMode) {
-              suspenseBoundary.flags |= ShouldCapture;
-
-              var _isSuspenseyResource = wakeable === noopSuspenseyCommitThenable;
-
-              if (_isSuspenseyResource) {
-                suspenseBoundary.flags |= ScheduleRetry;
-              } else {
-                var offscreenQueue = suspenseBoundary.updateQueue;
-
-                if (offscreenQueue === null) {
-                  var newOffscreenQueue = {
-                    transitions: null,
-                    markerInstances: null,
-                    retryQueue: new Set([wakeable])
-                  };
-                  suspenseBoundary.updateQueue = newOffscreenQueue;
+      if (suspenseBoundary !== null) {
+        switch (suspenseBoundary.tag) {
+          case SuspenseComponent:
+            {
+              // If this suspense boundary is not already showing a fallback, mark
+              // the in-progress render as suspended. We try to perform this logic
+              // as soon as soon as possible during the render phase, so the work
+              // loop can know things like whether it's OK to switch to other tasks,
+              // or whether it can wait for data to resolve before continuing.
+              // TODO: Most of these checks are already performed when entering a
+              // Suspense boundary. We should track the information on the stack so
+              // we don't have to recompute it on demand. This would also allow us
+              // to unify with `use` which needs to perform this logic even sooner,
+              // before `throwException` is called.
+              if (sourceFiber.mode & ConcurrentMode) {
+                if (getShellBoundary() === null) {
+                  // Suspended in the "shell" of the app. This is an undesirable
+                  // loading state. We should avoid committing this tree.
+                  renderDidSuspendDelayIfPossible();
                 } else {
-                  var _retryQueue = offscreenQueue.retryQueue;
+                  // If we suspended deeper than the shell, we don't need to delay
+                  // the commmit. However, we still call renderDidSuspend if this is
+                  // a new boundary, to tell the work loop that a new fallback has
+                  // appeared during this render.
+                  // TODO: Theoretically we should be able to delete this branch.
+                  // It's currently used for two things: 1) to throttle the
+                  // appearance of successive loading states, and 2) in
+                  // SuspenseList, to determine whether the children include any
+                  // pending fallbacks. For 1, we should apply throttling to all
+                  // retries, not just ones that render an additional fallback. For
+                  // 2, we should check subtreeFlags instead. Then we can delete
+                  // this branch.
+                  var current = suspenseBoundary.alternate;
 
-                  if (_retryQueue === null) {
-                    offscreenQueue.retryQueue = new Set([wakeable]);
-                  } else {
-                    _retryQueue.add(wakeable);
+                  if (current === null) {
+                    renderDidSuspend();
                   }
                 }
               }
 
-              break;
-            } // Fall through
+              suspenseBoundary.flags &= ~ForceClientRender;
+              markSuspenseBoundaryShouldCapture(suspenseBoundary, returnFiber, sourceFiber, root, rootRenderLanes); // Retry listener
+              //
+              // If the fallback does commit, we need to attach a different type of
+              // listener. This one schedules an update on the Suspense boundary to
+              // turn the fallback state off.
+              //
+              // Stash the wakeable on the boundary fiber so we can access it in the
+              // commit phase.
+              //
+              // When the wakeable resolves, we'll attempt to render the boundary
+              // again ("retry").
+              // Check if this is a Suspensey resource. We do not attach retry
+              // listeners to these, because we don't actually need them for
+              // rendering. Only for committing. Instead, if a fallback commits
+              // and the only thing that suspended was a Suspensey resource, we
+              // retry immediately.
+              // TODO: Refactor throwException so that we don't have to do this type
+              // check. The caller already knows what the cause was.
 
-          }
+              var isSuspenseyResource = wakeable === noopSuspenseyCommitThenable;
 
-        default:
-          {
-            throw new Error("Unexpected Suspense handler tag (" + suspenseBoundary.tag + "). This " + 'is a bug in React.');
-          }
-      } // We only attach ping listeners in concurrent mode. Legacy Suspense always
-      // commits fallbacks synchronously, so there are no pings.
+              if (isSuspenseyResource) {
+                suspenseBoundary.flags |= ScheduleRetry;
+              } else {
+                var retryQueue = suspenseBoundary.updateQueue;
 
-
-      if (suspenseBoundary.mode & ConcurrentMode) {
-        attachPingListener(root, wakeable, rootRenderLanes);
-      }
-
-      return;
-    } else {
-      // No boundary was found. Unless this is a sync update, this is OK.
-      // We can suspend and wait for more data to arrive.
-      if (root.tag === ConcurrentRoot) {
-        // In a concurrent root, suspending without a Suspense boundary is
-        // allowed. It will suspend indefinitely without committing.
-        //
-        // TODO: Should we have different behavior for discrete updates? What
-        // about flushSync? Maybe it should put the tree into an inert state,
-        // and potentially log a warning. Revisit this for a future release.
-        attachPingListener(root, wakeable, rootRenderLanes);
-        renderDidSuspendDelayIfPossible();
-        return;
-      } else {
-        // In a legacy root, suspending without a boundary is always an error.
-        var uncaughtSuspenseError = new Error('A component suspended while responding to synchronous input. This ' + 'will cause the UI to be replaced with a loading indicator. To ' + 'fix, updates that suspend should be wrapped ' + 'with startTransition.');
-        value = uncaughtSuspenseError;
-      }
-    }
-  } else {
-    // This is a regular error, not a Suspense wakeable.
-    if (getIsHydrating() && sourceFiber.mode & ConcurrentMode) {
-      markDidThrowWhileHydratingDEV();
-
-      var _suspenseBoundary = getSuspenseHandler(); // If the error was thrown during hydration, we may be able to recover by
-      // discarding the dehydrated content and switching to a client render.
-      // Instead of surfacing the error, find the nearest Suspense boundary
-      // and render it again without hydration.
+                if (retryQueue === null) {
+                  suspenseBoundary.updateQueue = new Set([wakeable]);
+                } else {
+                  retryQueue.add(wakeable);
+                } // We only attach ping listeners in concurrent mode. Legacy
+                // Suspense always commits fallbacks synchronously, so there are
+                // no pings.
 
 
-      if (_suspenseBoundary !== null) {
-        if ((_suspenseBoundary.flags & ShouldCapture) === NoFlags$1) {
-          // Set a flag to indicate that we should try rendering the normal
-          // children again, not the fallback.
-          _suspenseBoundary.flags |= ForceClientRender;
+                if (suspenseBoundary.mode & ConcurrentMode) {
+                  attachPingListener(root, wakeable, rootRenderLanes);
+                }
+              }
+
+              return;
+            }
+
+          case OffscreenComponent:
+            {
+              if (suspenseBoundary.mode & ConcurrentMode) {
+                suspenseBoundary.flags |= ShouldCapture;
+
+                var _isSuspenseyResource = wakeable === noopSuspenseyCommitThenable;
+
+                if (_isSuspenseyResource) {
+                  suspenseBoundary.flags |= ScheduleRetry;
+                } else {
+                  var offscreenQueue = suspenseBoundary.updateQueue;
+
+                  if (offscreenQueue === null) {
+                    var newOffscreenQueue = {
+                      transitions: null,
+                      markerInstances: null,
+                      retryQueue: new Set([wakeable])
+                    };
+                    suspenseBoundary.updateQueue = newOffscreenQueue;
+                  } else {
+                    var _retryQueue = offscreenQueue.retryQueue;
+
+                    if (_retryQueue === null) {
+                      offscreenQueue.retryQueue = new Set([wakeable]);
+                    } else {
+                      _retryQueue.add(wakeable);
+                    }
+                  }
+
+                  attachPingListener(root, wakeable, rootRenderLanes);
+                }
+
+                return;
+              }
+            }
         }
 
-        markSuspenseBoundaryShouldCapture(_suspenseBoundary, returnFiber, sourceFiber, root, rootRenderLanes); // Even though the user may not be affected by this error, we should
-        // still log it so it can be fixed.
-
-        queueHydrationError(createCapturedValueAtFiber(value, sourceFiber));
-        return;
+        throw new Error("Unexpected Suspense handler tag (" + suspenseBoundary.tag + "). This " + 'is a bug in React.');
+      } else {
+        // No boundary was found. Unless this is a sync update, this is OK.
+        // We can suspend and wait for more data to arrive.
+        if (root.tag === ConcurrentRoot) {
+          // In a concurrent root, suspending without a Suspense boundary is
+          // allowed. It will suspend indefinitely without committing.
+          //
+          // TODO: Should we have different behavior for discrete updates? What
+          // about flushSync? Maybe it should put the tree into an inert state,
+          // and potentially log a warning. Revisit this for a future release.
+          attachPingListener(root, wakeable, rootRenderLanes);
+          renderDidSuspendDelayIfPossible();
+          return;
+        } else {
+          // In a legacy root, suspending without a boundary is always an error.
+          var uncaughtSuspenseError = new Error('A component suspended while responding to synchronous input. This ' + 'will cause the UI to be replaced with a loading indicator. To ' + 'fix, updates that suspend should be wrapped ' + 'with startTransition.');
+          value = uncaughtSuspenseError;
+        }
       }
+    }
+  } // This is a regular error, not a Suspense wakeable.
+
+
+  if (getIsHydrating() && sourceFiber.mode & ConcurrentMode) {
+    markDidThrowWhileHydratingDEV();
+
+    var _suspenseBoundary = getSuspenseHandler(); // If the error was thrown during hydration, we may be able to recover by
+    // discarding the dehydrated content and switching to a client render.
+    // Instead of surfacing the error, find the nearest Suspense boundary
+    // and render it again without hydration.
+
+
+    if (_suspenseBoundary !== null) {
+      if ((_suspenseBoundary.flags & ShouldCapture) === NoFlags$1) {
+        // Set a flag to indicate that we should try rendering the normal
+        // children again, not the fallback.
+        _suspenseBoundary.flags |= ForceClientRender;
+      }
+
+      markSuspenseBoundaryShouldCapture(_suspenseBoundary, returnFiber, sourceFiber, root, rootRenderLanes); // Even though the user may not be affected by this error, we should
+      // still log it so it can be fixed.
+
+      queueHydrationError(createCapturedValueAtFiber(value, sourceFiber));
+      return;
     }
   }
 
@@ -14756,7 +14759,7 @@ function updateMemoComponent(current, workInProgress, Component, nextProps, rend
       }
     }
 
-    var child = createFiberFromTypeAndProps(Component.type, null, nextProps, workInProgress, workInProgress.mode, renderLanes);
+    var child = createFiberFromTypeAndProps(Component.type, null, nextProps, null, workInProgress, workInProgress.mode, renderLanes);
     child.ref = workInProgress.ref;
     child.return = workInProgress;
     workInProgress.child = child;
@@ -15481,7 +15484,6 @@ function updateHostRoot(current, workInProgress, renderLanes) {
     } else {
       // The outermost shell has not hydrated yet. Start hydrating.
       enterHydrationState(workInProgress);
-
       var child = mountChildFibers(workInProgress, null, nextChildren, renderLanes);
       workInProgress.child = child;
       var node = child;
@@ -16339,7 +16341,8 @@ function updateDehydratedSuspenseComponent(current, workInProgress, didSuspend, 
       // This boundary is in a permanent fallback state. In this case, we'll never
       // get an update and we'll never be able to hydrate the final content. Let's just try the
       // client side render instead.
-      var digest, message, stack;
+      var digest;
+      var message, stack;
 
       {
         var _getSuspenseInstanceF = getSuspenseInstanceFallbackErrorDetails(suspenseInstance);
@@ -16349,17 +16352,22 @@ function updateDehydratedSuspenseComponent(current, workInProgress, didSuspend, 
         stack = _getSuspenseInstanceF.stack;
       }
 
-      var error;
+      var capturedValue = null; // TODO: Figure out a better signal than encoding a magic digest value.
 
-      if (message) {
-        // eslint-disable-next-line react-internal/prod-error-codes
-        error = new Error(message);
-      } else {
-        error = new Error('The server could not finish this Suspense boundary, likely ' + 'due to an error during server rendering. Switched to ' + 'client rendering.');
+      {
+        var error;
+
+        if (message) {
+          // eslint-disable-next-line react-internal/prod-error-codes
+          error = new Error(message);
+        } else {
+          error = new Error('The server could not finish this Suspense boundary, likely ' + 'due to an error during server rendering. Switched to ' + 'client rendering.');
+        }
+
+        error.digest = digest;
+        capturedValue = createCapturedValue(error, digest, stack);
       }
 
-      error.digest = digest;
-      var capturedValue = createCapturedValue(error, digest, stack);
       return retrySuspenseComponentWithoutHydrating(current, workInProgress, renderLanes, capturedValue);
     }
     // any context has changed, we need to treat is as if the input might have changed.
@@ -16404,7 +16412,10 @@ function updateDehydratedSuspenseComponent(current, workInProgress, didSuspend, 
       // reapply the update afterwards.
 
 
-      renderDidSuspendDelayIfPossible();
+      if (isSuspenseInstancePending(suspenseInstance)) ; else {
+        renderDidSuspendDelayIfPossible();
+      }
+
       return retrySuspenseComponentWithoutHydrating(current, workInProgress, renderLanes, null);
     } else if (isSuspenseInstancePending(suspenseInstance)) {
       // This component is still pending more data from the server, so we can't hydrate its
@@ -17248,7 +17259,7 @@ function beginWork$1(current, workInProgress, renderLanes) {
   {
     if (workInProgress._debugNeedsRemount && current !== null) {
       // This will restart the begin phase with a new fiber.
-      return remountFiber(current, workInProgress, createFiberFromTypeAndProps(workInProgress.type, workInProgress.key, workInProgress.pendingProps, workInProgress._debugOwner || null, workInProgress.mode, workInProgress.lanes));
+      return remountFiber(current, workInProgress, createFiberFromTypeAndProps(workInProgress.type, workInProgress.key, workInProgress.pendingProps, workInProgress._debugSource || null, workInProgress._debugOwner || null, workInProgress.mode, workInProgress.lanes));
     }
   }
 
@@ -17779,6 +17790,7 @@ function readContextForConsumer(consumer, context) {
 // replace it with a lightweight shim that only has the features we use.
 
 var AbortControllerLocal = typeof AbortController !== 'undefined' ? AbortController : // $FlowFixMe[missing-this-annot]
+// $FlowFixMe[prop-missing]
 function AbortControllerShim() {
   var listeners = [];
   var signal = this.signal = {
@@ -18451,7 +18463,6 @@ function completeWork(current, workInProgress, renderLanes) {
         }
         popHostContainer(workInProgress);
         popTopLevelContextObject(workInProgress);
-        resetWorkInProgressVersions();
 
         if (fiberRoot.pendingContext) {
           fiberRoot.context = fiberRoot.pendingContext;
@@ -18554,11 +18565,13 @@ function completeWork(current, workInProgress, renderLanes) {
               return null;
             } else {
               // This is a Hoistable Instance
-              //
-              // We may have props to update on the Hoistable instance. We use the
-              // updateHostComponent path becuase it produces the update queue
-              // we need for Hoistables.
-              updateHostComponent(current, workInProgress, type, newProps); // This must come at the very end of the complete phase.
+              // We may have props to update on the Hoistable instance.
+              {
+                // We use the updateHostComponent path becuase it produces
+                // the update queue we need for Hoistables.
+                updateHostComponent(current, workInProgress, type, newProps);
+              } // This must come at the very end of the complete phase.
+
 
               bubbleProperties(workInProgress);
               preloadInstanceAndSuspendIfNeeded(workInProgress);
@@ -18577,7 +18590,9 @@ function completeWork(current, workInProgress, renderLanes) {
           var _type = workInProgress.type;
 
           if (current !== null && workInProgress.stateNode != null) {
-            updateHostComponent(current, workInProgress, _type, newProps);
+            {
+              updateHostComponent(current, workInProgress, _type, newProps);
+            }
 
             if (current.ref !== workInProgress.ref) {
               markRef(workInProgress);
@@ -19197,7 +19212,6 @@ function unwindWork(current, workInProgress, renderLanes) {
         }
         popHostContainer(workInProgress);
         popTopLevelContextObject(workInProgress);
-        resetWorkInProgressVersions();
         var _flags = workInProgress.flags;
 
         if ((_flags & ShouldCapture) !== NoFlags$1 && (_flags & DidCapture) === NoFlags$1) {
@@ -19329,7 +19343,6 @@ function unwindInterruptedWork(current, interruptedWork, renderLanes) {
         }
         popHostContainer(interruptedWork);
         popTopLevelContextObject(interruptedWork);
-        resetWorkInProgressVersions();
         break;
       }
 
@@ -20636,6 +20649,7 @@ function detachFiberAfterEffects(fiber) {
   fiber.stateNode = null;
 
   {
+    fiber._debugSource = null;
     fiber._debugOwner = null;
   } // Theoretically, nothing in here should be necessary, because we already
   // disconnected the fiber from the tree. So even if something leaks this
@@ -21441,7 +21455,7 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
               var updatePayload = finishedWork.updateQueue;
               finishedWork.updateQueue = null;
 
-              if (updatePayload !== null) {
+              if (updatePayload !== null || diffInCommitPhase) {
                 try {
                   commitUpdate(finishedWork.stateNode, updatePayload, finishedWork.type, current.memoizedProps, finishedWork.memoizedProps, finishedWork);
                 } catch (error) {
@@ -22841,10 +22855,12 @@ function invokeLayoutEffectMountInDEV(fiber) {
         {
           var instance = fiber.stateNode;
 
-          try {
-            instance.componentDidMount();
-          } catch (error) {
-            captureCommitPhaseError(fiber, fiber.return, error);
+          if (typeof instance.componentDidMount === 'function') {
+            try {
+              instance.componentDidMount();
+            } catch (error) {
+              captureCommitPhaseError(fiber, fiber.return, error);
+            }
           }
 
           break;
@@ -23343,77 +23359,63 @@ function performConcurrentWorkOnRoot(root, didTimeout) {
   var exitStatus = shouldTimeSlice ? renderRootConcurrent(root, lanes) : renderRootSync(root, lanes);
 
   if (exitStatus !== RootInProgress) {
-    if (exitStatus === RootErrored) {
-      // If something threw an error, try rendering one more time. We'll
-      // render synchronously to block concurrent data mutations, and we'll
-      // includes all pending updates are included. If it still fails after
-      // the second attempt, we'll give up and commit the resulting tree.
-      var originallyAttemptedLanes = lanes;
-      var errorRetryLanes = getLanesToRetrySynchronouslyOnError(root, originallyAttemptedLanes);
+    var renderWasConcurrent = shouldTimeSlice;
 
-      if (errorRetryLanes !== NoLanes) {
-        lanes = errorRetryLanes;
-        exitStatus = recoverFromConcurrentError(root, originallyAttemptedLanes, errorRetryLanes);
-      }
-    }
+    do {
+      if (exitStatus === RootDidNotComplete) {
+        // The render unwound without completing the tree. This happens in special
+        // cases where need to exit the current render without producing a
+        // consistent tree or committing.
+        markRootSuspended(root, lanes);
+      } else {
+        // The render completed.
+        // Check if this render may have yielded to a concurrent event, and if so,
+        // confirm that any newly rendered stores are consistent.
+        // TODO: It's possible that even a concurrent render may never have yielded
+        // to the main thread, if it was fast enough, or if it expired. We could
+        // skip the consistency check in that case, too.
+        var finishedWork = root.current.alternate;
 
-    if (exitStatus === RootFatalErrored) {
-      var fatalError = workInProgressRootFatalError;
-      prepareFreshStack(root, NoLanes);
-      markRootSuspended(root, lanes);
-      ensureRootIsScheduled(root);
-      throw fatalError;
-    }
+        if (renderWasConcurrent && !isRenderConsistentWithExternalStores(finishedWork)) {
+          // A store was mutated in an interleaved event. Render again,
+          // synchronously, to block further mutations.
+          exitStatus = renderRootSync(root, lanes); // We assume the tree is now consistent because we didn't yield to any
+          // concurrent events.
 
-    if (exitStatus === RootDidNotComplete) {
-      // The render unwound without completing the tree. This happens in special
-      // cases where need to exit the current render without producing a
-      // consistent tree or committing.
-      markRootSuspended(root, lanes);
-    } else {
-      // The render completed.
-      // Check if this render may have yielded to a concurrent event, and if so,
-      // confirm that any newly rendered stores are consistent.
-      // TODO: It's possible that even a concurrent render may never have yielded
-      // to the main thread, if it was fast enough, or if it expired. We could
-      // skip the consistency check in that case, too.
-      var renderWasConcurrent = !includesBlockingLane(root, lanes);
-      var finishedWork = root.current.alternate;
+          renderWasConcurrent = false; // Need to check the exit status again.
 
-      if (renderWasConcurrent && !isRenderConsistentWithExternalStores(finishedWork)) {
-        // A store was mutated in an interleaved event. Render again,
-        // synchronously, to block further mutations.
-        exitStatus = renderRootSync(root, lanes); // We need to check again if something threw
+          continue;
+        } // Check if something threw
+
 
         if (exitStatus === RootErrored) {
-          var _originallyAttemptedLanes = lanes;
+          var originallyAttemptedLanes = lanes;
+          var errorRetryLanes = getLanesToRetrySynchronouslyOnError(root, originallyAttemptedLanes);
 
-          var _errorRetryLanes = getLanesToRetrySynchronouslyOnError(root, _originallyAttemptedLanes);
-
-          if (_errorRetryLanes !== NoLanes) {
-            lanes = _errorRetryLanes;
-            exitStatus = recoverFromConcurrentError(root, _originallyAttemptedLanes, _errorRetryLanes); // We assume the tree is now consistent because we didn't yield to any
-            // concurrent events.
+          if (errorRetryLanes !== NoLanes) {
+            lanes = errorRetryLanes;
+            exitStatus = recoverFromConcurrentError(root, originallyAttemptedLanes, errorRetryLanes);
+            renderWasConcurrent = false;
           }
         }
 
         if (exitStatus === RootFatalErrored) {
-          var _fatalError = workInProgressRootFatalError;
+          var fatalError = workInProgressRootFatalError;
           prepareFreshStack(root, NoLanes);
           markRootSuspended(root, lanes);
           ensureRootIsScheduled(root);
-          throw _fatalError;
-        } // FIXME: Need to check for RootDidNotComplete again. The factoring here
-        // isn't ideal.
-
-      } // We now have a consistent tree. The next step is either to commit it,
-      // or, if something suspended, wait to commit it after a timeout.
+          throw fatalError;
+        } // We now have a consistent tree. The next step is either to commit it,
+        // or, if something suspended, wait to commit it after a timeout.
 
 
-      root.finishedWork = finishedWork;
-      root.finishedLanes = lanes;
-      finishConcurrentRender(root, exitStatus, finishedWork, lanes);
-    }
+        root.finishedWork = finishedWork;
+        root.finishedLanes = lanes;
+        finishConcurrentRender(root, exitStatus, finishedWork, lanes);
+      }
+
+      break;
+    } while (true);
   }
 
   ensureRootIsScheduled(root);
@@ -24008,9 +24010,20 @@ function shouldRemainOnPreviousScreen() {
   // on the previous screen, versus showing a fallback as soon as possible. It
   // takes into account both the priority of render and also whether showing a
   // fallback would produce a desirable user experience.
-  // TODO: Once `use` has fully replaced the `throw promise` pattern, we should
+  var handler = getSuspenseHandler();
+
+  if (handler === null) {
+    // There's no Suspense boundary that can provide a fallback. We have no
+    // choice but to remain on the previous screen.
+    // NOTE: We do this even for sync updates, for lack of any better option. In
+    // the future, we may change how we handle this, like by putting the whole
+    // root into a "detached" mode.
+    return true;
+  } // TODO: Once `use` has fully replaced the `throw promise` pattern, we should
   // be able to remove the equivalent check in finishConcurrentRender, and rely
   // just on this one.
+
+
   if (includesOnlyTransitions(workInProgressRootRenderLanes)) {
     if (getShellBoundary() === null) {
       // We're rendering inside the "shell" of the app. Activating the nearest
@@ -24026,23 +24039,19 @@ function shouldRemainOnPreviousScreen() {
     }
   }
 
-  var handler = getSuspenseHandler();
-
-  if (handler === null) ; else {
-    if (includesOnlyRetries(workInProgressRootRenderLanes) || // In this context, an OffscreenLane counts as a Retry
-    // TODO: It's become increasingly clear that Retries and Offscreen are
-    // deeply connected. They probably can be unified further.
-    includesSomeLane(workInProgressRootRenderLanes, OffscreenLane)) {
-      // During a retry, we can suspend rendering if the nearest Suspense boundary
-      // is the boundary of the "shell", because we're guaranteed not to block
-      // any new content from appearing.
-      //
-      // The reason we must check if this is a retry is because it guarantees
-      // that suspending the work loop won't block an actual update, because
-      // retries don't "update" anything; they fill in fallbacks that were left
-      // behind by a previous transition.
-      return handler === getShellBoundary();
-    }
+  if (includesOnlyRetries(workInProgressRootRenderLanes) || // In this context, an OffscreenLane counts as a Retry
+  // TODO: It's become increasingly clear that Retries and Offscreen are
+  // deeply connected. They probably can be unified further.
+  includesSomeLane(workInProgressRootRenderLanes, OffscreenLane)) {
+    // During a retry, we can suspend rendering if the nearest Suspense boundary
+    // is the boundary of the "shell", because we're guaranteed not to block
+    // any new content from appearing.
+    //
+    // The reason we must check if this is a retry is because it guarantees
+    // that suspending the work loop won't block an actual update, because
+    // retries don't "update" anything; they fill in fallbacks that were left
+    // behind by a previous transition.
+    return handler === getShellBoundary();
   } // For all other Lanes besides Transitions and Retries, we should not wait
   // for the data to load.
 
@@ -24165,6 +24174,8 @@ function renderRootSync(root, lanes) {
     markRenderStarted(lanes);
   }
 
+  var didSuspendInShell = false;
+
   outer: do {
     try {
       if (workInProgressSuspendedReason !== NotSuspended && workInProgress !== null) {
@@ -24190,6 +24201,15 @@ function renderRootSync(root, lanes) {
               break outer;
             }
 
+          case SuspendedOnImmediate:
+          case SuspendedOnData:
+            {
+              if (!didSuspendInShell && getSuspenseHandler() === null) {
+                didSuspendInShell = true;
+              } // Intentional fallthrough
+
+            }
+
           default:
             {
               // Unwind then continue with the normal work loop.
@@ -24206,7 +24226,17 @@ function renderRootSync(root, lanes) {
     } catch (thrownValue) {
       handleThrow(root, thrownValue);
     }
-  } while (true);
+  } while (true); // Check if something suspended in the shell. We use this to detect an
+  // infinite ping loop caused by an uncached promise.
+  //
+  // Only increment this counter once per synchronous render attempt across the
+  // whole tree. Even if there are many sibling components that suspend, this
+  // counter only gets incremented once.
+
+
+  if (didSuspendInShell) {
+    root.shellSuspendCounter++;
+  }
 
   resetContextDependencies();
   executionContext = prevExecutionContext;
@@ -26557,7 +26587,7 @@ function createHostRootFiber(tag, isStrictMode, concurrentUpdatesByDefaultOverri
   return createFiber(HostRoot, null, null, mode);
 }
 function createFiberFromTypeAndProps(type, // React$ElementType
-key, pendingProps, owner, mode, lanes) {
+key, pendingProps, source, owner, mode, lanes) {
   var fiberTag = IndeterminateComponent; // The resolved type is set if we know what the final type will be. I.e. it's not lazy.
 
   var resolvedType = type;
@@ -26688,22 +26718,25 @@ key, pendingProps, owner, mode, lanes) {
   fiber.lanes = lanes;
 
   {
+    fiber._debugSource = source;
     fiber._debugOwner = owner;
   }
 
   return fiber;
 }
 function createFiberFromElement(element, mode, lanes) {
+  var source = null;
   var owner = null;
 
   {
+    source = element._source;
     owner = element._owner;
   }
 
   var type = element.type;
   var key = element.key;
   var pendingProps = element.props;
-  var fiber = createFiberFromTypeAndProps(type, key, pendingProps, owner, mode, lanes);
+  var fiber = createFiberFromTypeAndProps(type, key, pendingProps, source, owner, mode, lanes);
 
   {
     fiber._debugSource = element._source;
@@ -26857,7 +26890,7 @@ function assignFiberPropertiesInDEV(target, source) {
 }
 
 function FiberRootNode(containerInfo, // $FlowFixMe[missing-local-annot]
-tag, hydrate, identifierPrefix, onRecoverableError) {
+tag, hydrate, identifierPrefix, onRecoverableError, formState) {
   this.tag = tag;
   this.containerInfo = containerInfo;
   this.pendingChildren = null;
@@ -26876,9 +26909,9 @@ tag, hydrate, identifierPrefix, onRecoverableError) {
   this.suspendedLanes = NoLanes;
   this.pingedLanes = NoLanes;
   this.expiredLanes = NoLanes;
-  this.mutableReadLanes = NoLanes;
   this.finishedLanes = NoLanes;
   this.errorRecoveryDisabledLanes = NoLanes;
+  this.shellSuspendCounter = 0;
   this.entangledLanes = NoLanes;
   this.entanglements = createLaneMap(NoLanes);
   this.hiddenUpdates = createLaneMap(null);
@@ -26890,10 +26923,7 @@ tag, hydrate, identifierPrefix, onRecoverableError) {
     this.pooledCacheLanes = NoLanes;
   }
 
-  {
-    this.mutableSourceEagerHydrationData = null;
-  }
-
+  this.formState = formState;
   this.incompleteTransitions = new Map();
 
   {
@@ -26927,9 +26957,9 @@ function createFiberRoot(containerInfo, tag, hydrate, initialChildren, hydration
 // host config, but because they are passed in at runtime, we have to thread
 // them through the root constructor. Perhaps we should put them all into a
 // single type, like a DynamicHostConfig that is defined by the renderer.
-identifierPrefix, onRecoverableError, transitionCallbacks) {
+identifierPrefix, onRecoverableError, transitionCallbacks, formState) {
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  var root = new FiberRootNode(containerInfo, tag, hydrate, identifierPrefix, onRecoverableError);
+  var root = new FiberRootNode(containerInfo, tag, hydrate, identifierPrefix, onRecoverableError, formState);
   // stateNode is any.
 
 
@@ -26961,7 +26991,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks) {
   return root;
 }
 
-var ReactVersion = '18.3.0-canary-1cea38448-20230530';
+var ReactVersion = '18.3.0-canary-2807d781a-20230918';
 
 function createPortal$1(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {
@@ -27063,12 +27093,12 @@ function findHostInstanceWithWarning(component, methodName) {
 function createContainer(containerInfo, tag, hydrationCallbacks, isStrictMode, concurrentUpdatesByDefaultOverride, identifierPrefix, onRecoverableError, transitionCallbacks) {
   var hydrate = false;
   var initialChildren = null;
-  return createFiberRoot(containerInfo, tag, hydrate, initialChildren, hydrationCallbacks, isStrictMode, concurrentUpdatesByDefaultOverride, identifierPrefix, onRecoverableError);
+  return createFiberRoot(containerInfo, tag, hydrate, initialChildren, hydrationCallbacks, isStrictMode, concurrentUpdatesByDefaultOverride, identifierPrefix, onRecoverableError, transitionCallbacks, null);
 }
 function createHydrationContainer(initialChildren, // TODO: Remove `callback` when we delete legacy mode.
-callback, containerInfo, tag, hydrationCallbacks, isStrictMode, concurrentUpdatesByDefaultOverride, identifierPrefix, onRecoverableError, transitionCallbacks) {
+callback, containerInfo, tag, hydrationCallbacks, isStrictMode, concurrentUpdatesByDefaultOverride, identifierPrefix, onRecoverableError, transitionCallbacks, formState) {
   var hydrate = true;
-  var root = createFiberRoot(containerInfo, tag, hydrate, initialChildren, hydrationCallbacks, isStrictMode, concurrentUpdatesByDefaultOverride, identifierPrefix, onRecoverableError); // TODO: Move this to FiberRoot constructor
+  var root = createFiberRoot(containerInfo, tag, hydrate, initialChildren, hydrationCallbacks, isStrictMode, concurrentUpdatesByDefaultOverride, identifierPrefix, onRecoverableError, transitionCallbacks, formState); // TODO: Move this to FiberRoot constructor
 
   root.context = getContextForSubtree(null); // Schedule the initial render. In a hydration root, this is different from
   // a regular update because the initial render must match was was rendered
@@ -33561,85 +33591,6 @@ function propNamesListJoin(list, combinator) {
   }
 }
 
-function validatePreloadArguments(href, options) {
-  {
-    if (!href || typeof href !== 'string') {
-      var typeOfArg = getValueDescriptorExpectingObjectForWarning(href);
-
-      error('ReactDOM.preload() expected the first argument to be a string representing an href but found %s instead.', typeOfArg);
-    } else if (typeof options !== 'object' || options === null) {
-      var _typeOfArg = getValueDescriptorExpectingObjectForWarning(options);
-
-      error('ReactDOM.preload() expected the second argument to be an options argument containing at least an "as" property' + ' specifying the Resource type. It found %s instead. The href for the preload call where this warning originated is "%s".', _typeOfArg, href);
-    } else {
-      var as = options.as;
-
-      switch (as) {
-        // Font specific validation of options
-        case 'font':
-          {
-            if (options.crossOrigin === 'use-credentials') {
-              error('ReactDOM.preload() was called with an "as" type of "font" and with a "crossOrigin" option of "use-credentials".' + ' Fonts preloading must use crossOrigin "anonymous" to be functional. Please update your font preload to omit' + ' the crossOrigin option or change it to any other value than "use-credentials" (Browsers default all other values' + ' to anonymous mode). The href for the preload call where this warning originated is "%s"', href);
-            }
-
-            break;
-          }
-
-        case 'script':
-        case 'style':
-          {
-            break;
-          }
-        // We have an invalid as type and need to warn
-
-        default:
-          {
-            var typeOfAs = getValueDescriptorExpectingEnumForWarning(as);
-
-            error('ReactDOM.preload() expected a valid "as" type in the options (second) argument but found %s instead.' + ' Please use one of the following valid values instead: %s. The href for the preload call where this' + ' warning originated is "%s".', typeOfAs, '"style", "font", or "script"', href);
-          }
-      }
-    }
-  }
-}
-function validatePreinitArguments(href, options) {
-  {
-    if (!href || typeof href !== 'string') {
-      var typeOfArg = getValueDescriptorExpectingObjectForWarning(href);
-
-      error('ReactDOM.preinit() expected the first argument to be a string representing an href but found %s instead.', typeOfArg);
-    } else if (typeof options !== 'object' || options === null) {
-      var _typeOfArg2 = getValueDescriptorExpectingObjectForWarning(options);
-
-      error('ReactDOM.preinit() expected the second argument to be an options argument containing at least an "as" property' + ' specifying the Resource type. It found %s instead. The href for the preload call where this warning originated is "%s".', _typeOfArg2, href);
-    } else {
-      var as = options.as;
-
-      switch (as) {
-        case 'style':
-        case 'script':
-          {
-            break;
-          }
-        // We have an invalid as type and need to warn
-
-        default:
-          {
-            var typeOfAs = getValueDescriptorExpectingEnumForWarning(as);
-
-            error('ReactDOM.preinit() expected the second argument to be an options argument containing at least an "as" property' + ' specifying the Resource type. It found %s instead. Currently, valid resource types for for preinit are "style"' + ' and "script". The href for the preinit call where this warning originated is "%s".', typeOfAs, href);
-          }
-      }
-    }
-  }
-}
-function getValueDescriptorExpectingObjectForWarning(thing) {
-  return thing === null ? '`null`' : thing === undefined ? '`undefined`' : thing === '' ? 'an empty string' : "something with type \"" + typeof thing + "\"";
-}
-function getValueDescriptorExpectingEnumForWarning(thing) {
-  return thing === null ? '`null`' : thing === undefined ? '`undefined`' : thing === '' ? 'an empty string' : typeof thing === 'string' ? JSON.stringify(thing) : "something with type \"" + typeof thing + "\"";
-}
-
 var SUPPRESS_HYDRATION_WARNING = 'suppressHydrationWarning';
 var SUSPENSE_START_DATA = '$';
 var SUSPENSE_END_DATA = '/$';
@@ -34235,20 +34186,6 @@ function clearContainerSparingly(container) {
 
   return;
 } // Making this so we can eventually move all of the instance caching to the commit phase.
-// inserted without breaking hydration
-
-function isHydratableType(type, props) {
-  {
-    if (type === 'script') {
-      var async = props.async,
-          onLoad = props.onLoad,
-          onError = props.onError;
-      return !(async && (onLoad || onError));
-    }
-
-    return true;
-  }
-}
 function isHydratableText(text) {
   return text !== '';
 }
@@ -34334,12 +34271,13 @@ function canHydrateInstance(instance, type, props, inRootOrSingleton) {
             // if we learn it is problematic
             var srcAttr = element.getAttribute('src');
 
-            if (srcAttr && element.hasAttribute('async') && !element.hasAttribute('itemprop')) {
-              // This is an async script resource
-              break;
-            } else if (srcAttr !== (anyProps.src == null ? null : anyProps.src) || element.getAttribute('type') !== (anyProps.type == null ? null : anyProps.type) || element.getAttribute('crossorigin') !== (anyProps.crossOrigin == null ? null : anyProps.crossOrigin)) {
-              // This script is for a different src
-              break;
+            if (srcAttr !== (anyProps.src == null ? null : anyProps.src) || element.getAttribute('type') !== (anyProps.type == null ? null : anyProps.type) || element.getAttribute('crossorigin') !== (anyProps.crossOrigin == null ? null : anyProps.crossOrigin)) {
+              // This script is for a different src/type/crossOrigin. It may be a script resource
+              // or it may just be a mistmatch
+              if (srcAttr && element.hasAttribute('async') && !element.hasAttribute('itemprop')) {
+                // This is an async script resource
+                break;
+              }
             }
 
             return element;
@@ -34453,7 +34391,7 @@ function getNextHydratable(node) {
     if (nodeType === COMMENT_NODE) {
       var nodeData = node.data;
 
-      if (nodeData === SUSPENSE_START_DATA || nodeData === SUSPENSE_FALLBACK_START_DATA || nodeData === SUSPENSE_PENDING_START_DATA) {
+      if (nodeData === SUSPENSE_START_DATA || nodeData === SUSPENSE_FALLBACK_START_DATA || nodeData === SUSPENSE_PENDING_START_DATA || enableFormActions  ) {
         break;
       }
 
@@ -34809,7 +34747,10 @@ var ReactDOMClientDispatcher = {
   prefetchDNS: prefetchDNS$1,
   preconnect: preconnect$1,
   preload: preload$1,
-  preinit: preinit$1
+  preloadModule: preloadModule$1,
+  preinitStyle: preinitStyle,
+  preinitScript: preinitScript,
+  preinitModuleScript: preinitModuleScript
 }; // We expect this to get inlined. It is a function mostly to communicate the special nature of
 // how we resolve the HoistableRoot for ReactDOM.pre*() methods. Because we support calling
 // these methods outside of render there is no way to know which Document or ShadowRoot is 'scoped'
@@ -34821,7 +34762,7 @@ function getDocumentForImperativeFloatMethods() {
   return document;
 }
 
-function preconnectAs(rel, crossOrigin, href) {
+function preconnectAs(rel, href, crossOrigin) {
   var ownerDocument = getDocumentForImperativeFloatMethods();
 
   if (typeof href === 'string' && href) {
@@ -34850,53 +34791,39 @@ function preconnectAs(rel, crossOrigin, href) {
   }
 }
 
-function prefetchDNS$1(href, options) {
+function prefetchDNS$1(href) {
 
-  {
-    if (typeof href !== 'string' || !href) {
-      error('ReactDOM.prefetchDNS(): Expected the `href` argument (first) to be a non-empty string but encountered %s instead.', getValueDescriptorExpectingObjectForWarning(href));
-    } else if (options != null) {
-      if (typeof options === 'object' && hasOwnProperty.call(options, 'crossOrigin')) {
-        error('ReactDOM.prefetchDNS(): Expected only one argument, `href`, but encountered %s as a second argument instead. This argument is reserved for future options and is currently disallowed. It looks like the you are attempting to set a crossOrigin property for this DNS lookup hint. Browsers do not perform DNS queries using CORS and setting this attribute on the resource hint has no effect. Try calling ReactDOM.prefetchDNS() with just a single string argument, `href`.', getValueDescriptorExpectingEnumForWarning(options));
-      } else {
-        error('ReactDOM.prefetchDNS(): Expected only one argument, `href`, but encountered %s as a second argument instead. This argument is reserved for future options and is currently disallowed. Try calling ReactDOM.prefetchDNS() with just a single string argument, `href`.', getValueDescriptorExpectingEnumForWarning(options));
-      }
-    }
-  }
-
-  preconnectAs('dns-prefetch', null, href);
+  preconnectAs('dns-prefetch', href, null);
 }
 
-function preconnect$1(href, options) {
+function preconnect$1(href, crossOrigin) {
 
-  {
-    if (typeof href !== 'string' || !href) {
-      error('ReactDOM.preconnect(): Expected the `href` argument (first) to be a non-empty string but encountered %s instead.', getValueDescriptorExpectingObjectForWarning(href));
-    } else if (options != null && typeof options !== 'object') {
-      error('ReactDOM.preconnect(): Expected the `options` argument (second) to be an object but encountered %s instead. The only supported option at this time is `crossOrigin` which accepts a string.', getValueDescriptorExpectingEnumForWarning(options));
-    } else if (options != null && typeof options.crossOrigin !== 'string') {
-      error('ReactDOM.preconnect(): Expected the `crossOrigin` option (second argument) to be a string but encountered %s instead. Try removing this option or passing a string value instead.', getValueDescriptorExpectingObjectForWarning(options.crossOrigin));
-    }
-  }
-
-  var crossOrigin = options == null || typeof options.crossOrigin !== 'string' ? null : options.crossOrigin === 'use-credentials' ? 'use-credentials' : '';
-  preconnectAs('preconnect', crossOrigin, href);
+  preconnectAs('preconnect', href, crossOrigin);
 }
 
-function preload$1(href, options) {
-
-  {
-    validatePreloadArguments(href, options);
-  }
+function preload$1(href, as, options) {
 
   var ownerDocument = getDocumentForImperativeFloatMethods();
 
-  if (typeof href === 'string' && href && typeof options === 'object' && options !== null && ownerDocument) {
-    var as = options.as;
-    var limitedEscapedHref = escapeSelectorAttributeValueInsideDoubleQuotes(href);
-    var preloadSelector = "link[rel=\"preload\"][as=\"" + as + "\"][href=\"" + limitedEscapedHref + "\"]"; // Some preloads are keyed under their selector. This happens when the preload is for
+  if (href && as && ownerDocument) {
+    var preloadSelector = "link[rel=\"preload\"][as=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(as) + "\"]";
+
+    if (as === 'image') {
+      if (options && options.imageSrcSet) {
+        preloadSelector += "[imagesrcset=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(options.imageSrcSet) + "\"]";
+
+        if (typeof options.imageSizes === 'string') {
+          preloadSelector += "[imagesizes=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(options.imageSizes) + "\"]";
+        }
+      } else {
+        preloadSelector += "[href=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(href) + "\"]";
+      }
+    } else {
+      preloadSelector += "[href=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(href) + "\"]";
+    } // Some preloads are keyed under their selector. This happens when the preload is for
     // an arbitrary type. Other preloads are keyed under the resource key they represent a preload for.
     // Here we figure out which key to use to determine if we have a preload already.
+
 
     var key = preloadSelector;
 
@@ -34911,7 +34838,16 @@ function preload$1(href, options) {
     }
 
     if (!preloadPropsMap.has(key)) {
-      var preloadProps = preloadPropsFromPreloadOptions(href, as, options);
+      var preloadProps = assign({
+        rel: 'preload',
+        // There is a bug in Safari where imageSrcSet is not respected on preload links
+        // so we omit the href here if we have imageSrcSet b/c safari will load the wrong image.
+        // This harms older browers that do not support imageSrcSet by making their preloads not work
+        // but this population is shrinking fast and is already small so we accept this tradeoff.
+        href: as === 'image' && options && options.imageSrcSet ? undefined : href,
+        as: as
+      }, options);
+
       preloadPropsMap.set(key, preloadProps);
 
       if (null === ownerDocument.querySelector(preloadSelector)) {
@@ -34932,155 +34868,233 @@ function preload$1(href, options) {
   }
 }
 
-function preloadPropsFromPreloadOptions(href, as, options) {
-  return {
-    href: href,
-    rel: 'preload',
-    as: as,
-    crossOrigin: as === 'font' ? '' : options.crossOrigin,
-    integrity: options.integrity,
-    type: options.type
-  };
-}
-
-function preinit$1(href, options) {
-
-  {
-    validatePreinitArguments(href, options);
-  }
+function preloadModule$1(href, options) {
 
   var ownerDocument = getDocumentForImperativeFloatMethods();
 
-  if (typeof href === 'string' && href && typeof options === 'object' && options !== null) {
-    var as = options.as;
+  if (href) {
+    var as = options && typeof options.as === 'string' ? options.as : 'script';
+    var preloadSelector = "link[rel=\"modulepreload\"][as=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(as) + "\"][href=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(href) + "\"]"; // Some preloads are keyed under their selector. This happens when the preload is for
+    // an arbitrary type. Other preloads are keyed under the resource key they represent a preload for.
+    // Here we figure out which key to use to determine if we have a preload already.
+
+    var key = preloadSelector;
 
     switch (as) {
-      case 'style':
-        {
-          var styles = getResourcesFromRoot(ownerDocument).hoistableStyles;
-          var key = getStyleKey(href);
-          var precedence = options.precedence || 'default'; // Check if this resource already exists
-
-          var resource = styles.get(key);
-
-          if (resource) {
-            // We can early return. The resource exists and there is nothing
-            // more to do
-            return;
-          }
-
-          var state = {
-            loading: NotLoaded,
-            preload: null
-          }; // Attempt to hydrate instance from DOM
-
-          var instance = ownerDocument.querySelector(getStylesheetSelectorFromKey(key));
-
-          if (instance) {
-            state.loading = Loaded;
-          } else {
-            // Construct a new instance and insert it
-            var stylesheetProps = stylesheetPropsFromPreinitOptions(href, precedence, options);
-            var preloadProps = preloadPropsMap.get(key);
-
-            if (preloadProps) {
-              adoptPreloadPropsForStylesheet(stylesheetProps, preloadProps);
-            }
-
-            var link = instance = ownerDocument.createElement('link');
-            markNodeAsHoistable(link);
-            setInitialProperties(link, 'link', stylesheetProps);
-            link._p = new Promise(function (resolve, reject) {
-              link.onload = resolve;
-              link.onerror = reject;
-            });
-            link.addEventListener('load', function () {
-              state.loading |= Loaded;
-            });
-            link.addEventListener('error', function () {
-              state.loading |= Errored;
-            });
-            state.loading |= Inserted;
-            insertStylesheet(instance, precedence, ownerDocument);
-          } // Construct a Resource and cache it
-
-
-          resource = {
-            type: 'stylesheet',
-            instance: instance,
-            count: 1,
-            state: state
-          };
-          styles.set(key, resource);
-          return;
-        }
-
+      case 'audioworklet':
+      case 'paintworklet':
+      case 'serviceworker':
+      case 'sharedworker':
+      case 'worker':
       case 'script':
         {
-          var src = href;
-          var scripts = getResourcesFromRoot(ownerDocument).hoistableScripts;
-
-          var _key = getScriptKey(src); // Check if this resource already exists
-
-
-          var _resource = scripts.get(_key);
-
-          if (_resource) {
-            // We can early return. The resource exists and there is nothing
-            // more to do
-            return;
-          } // Attempt to hydrate instance from DOM
-
-
-          var _instance = ownerDocument.querySelector(getScriptSelectorFromKey(_key));
-
-          if (!_instance) {
-            // Construct a new instance and insert it
-            var scriptProps = scriptPropsFromPreinitOptions(src, options); // Adopt certain preload props
-
-            var _preloadProps = preloadPropsMap.get(_key);
-
-            if (_preloadProps) {
-              adoptPreloadPropsForScript(scriptProps, _preloadProps);
-            }
-
-            _instance = ownerDocument.createElement('script');
-            markNodeAsHoistable(_instance);
-            setInitialProperties(_instance, 'link', scriptProps);
-            ownerDocument.head.appendChild(_instance);
-          } // Construct a Resource and cache it
-
-
-          _resource = {
-            type: 'script',
-            instance: _instance,
-            count: 1,
-            state: null
-          };
-          scripts.set(_key, _resource);
-          return;
+          key = getScriptKey(href);
+          break;
         }
+    }
+
+    if (!preloadPropsMap.has(key)) {
+      var props = assign({
+        rel: 'modulepreload',
+        href: href
+      }, options);
+
+      preloadPropsMap.set(key, props);
+
+      if (null === ownerDocument.querySelector(preloadSelector)) {
+        switch (as) {
+          case 'audioworklet':
+          case 'paintworklet':
+          case 'serviceworker':
+          case 'sharedworker':
+          case 'worker':
+          case 'script':
+            {
+              if (ownerDocument.querySelector(getScriptSelectorFromKey(key))) {
+                return;
+              }
+            }
+        }
+
+        var instance = ownerDocument.createElement('link');
+        setInitialProperties(instance, 'link', props);
+        markNodeAsHoistable(instance);
+        ownerDocument.head.appendChild(instance);
+      }
     }
   }
 }
 
-function stylesheetPropsFromPreinitOptions(href, precedence, options) {
-  return {
-    rel: 'stylesheet',
-    href: href,
-    'data-precedence': precedence,
-    crossOrigin: options.crossOrigin
-  };
+function preinitStyle(href, precedence, options) {
+
+  var ownerDocument = getDocumentForImperativeFloatMethods();
+
+  if (href) {
+    var styles = getResourcesFromRoot(ownerDocument).hoistableStyles;
+    var key = getStyleKey(href);
+    precedence = precedence || 'default'; // Check if this resource already exists
+
+    var resource = styles.get(key);
+
+    if (resource) {
+      // We can early return. The resource exists and there is nothing
+      // more to do
+      return;
+    }
+
+    var state = {
+      loading: NotLoaded,
+      preload: null
+    }; // Attempt to hydrate instance from DOM
+
+    var instance = ownerDocument.querySelector(getStylesheetSelectorFromKey(key));
+
+    if (instance) {
+      state.loading = Loaded;
+    } else {
+      // Construct a new instance and insert it
+      var stylesheetProps = assign({
+        rel: 'stylesheet',
+        href: href,
+        'data-precedence': precedence
+      }, options);
+
+      var preloadProps = preloadPropsMap.get(key);
+
+      if (preloadProps) {
+        adoptPreloadPropsForStylesheet(stylesheetProps, preloadProps);
+      }
+
+      var link = instance = ownerDocument.createElement('link');
+      markNodeAsHoistable(link);
+      setInitialProperties(link, 'link', stylesheetProps);
+      link._p = new Promise(function (resolve, reject) {
+        link.onload = resolve;
+        link.onerror = reject;
+      });
+      link.addEventListener('load', function () {
+        state.loading |= Loaded;
+      });
+      link.addEventListener('error', function () {
+        state.loading |= Errored;
+      });
+      state.loading |= Inserted;
+      insertStylesheet(instance, precedence, ownerDocument);
+    } // Construct a Resource and cache it
+
+
+    resource = {
+      type: 'stylesheet',
+      instance: instance,
+      count: 1,
+      state: state
+    };
+    styles.set(key, resource);
+    return;
+  }
 }
 
-function scriptPropsFromPreinitOptions(src, options) {
-  return {
-    src: src,
-    async: true,
-    crossOrigin: options.crossOrigin,
-    integrity: options.integrity,
-    nonce: options.nonce
-  };
+function preinitScript(src, options) {
+
+  var ownerDocument = getDocumentForImperativeFloatMethods();
+
+  if (src) {
+    var scripts = getResourcesFromRoot(ownerDocument).hoistableScripts;
+    var key = getScriptKey(src); // Check if this resource already exists
+
+    var resource = scripts.get(key);
+
+    if (resource) {
+      // We can early return. The resource exists and there is nothing
+      // more to do
+      return;
+    } // Attempt to hydrate instance from DOM
+
+
+    var instance = ownerDocument.querySelector(getScriptSelectorFromKey(key));
+
+    if (!instance) {
+      // Construct a new instance and insert it
+      var scriptProps = assign({
+        src: src,
+        async: true
+      }, options); // Adopt certain preload props
+
+
+      var preloadProps = preloadPropsMap.get(key);
+
+      if (preloadProps) {
+        adoptPreloadPropsForScript(scriptProps, preloadProps);
+      }
+
+      instance = ownerDocument.createElement('script');
+      markNodeAsHoistable(instance);
+      setInitialProperties(instance, 'link', scriptProps);
+      ownerDocument.head.appendChild(instance);
+    } // Construct a Resource and cache it
+
+
+    resource = {
+      type: 'script',
+      instance: instance,
+      count: 1,
+      state: null
+    };
+    scripts.set(key, resource);
+    return;
+  }
+}
+
+function preinitModuleScript(src, options) {
+
+  var ownerDocument = getDocumentForImperativeFloatMethods();
+
+  if (src) {
+    var scripts = getResourcesFromRoot(ownerDocument).hoistableScripts;
+    var key = getScriptKey(src); // Check if this resource already exists
+
+    var resource = scripts.get(key);
+
+    if (resource) {
+      // We can early return. The resource exists and there is nothing
+      // more to do
+      return;
+    } // Attempt to hydrate instance from DOM
+
+
+    var instance = ownerDocument.querySelector(getScriptSelectorFromKey(key));
+
+    if (!instance) {
+      // Construct a new instance and insert it
+      var scriptProps = assign({
+        src: src,
+        async: true,
+        type: 'module'
+      }, options); // Adopt certain preload props
+
+
+      var preloadProps = preloadPropsMap.get(key);
+
+      if (preloadProps) {
+        adoptPreloadPropsForScript(scriptProps, preloadProps);
+      }
+
+      instance = ownerDocument.createElement('script');
+      markNodeAsHoistable(instance);
+      setInitialProperties(instance, 'link', scriptProps);
+      ownerDocument.head.appendChild(instance);
+    } // Construct a Resource and cache it
+
+
+    resource = {
+      type: 'script',
+      instance: instance,
+      count: 1,
+      state: null
+    };
+    scripts.set(key, resource);
+    return;
+  }
 } // This function is called in begin work and we should always have a currentDocument set
 
 
@@ -35131,16 +35145,16 @@ function getResource(type, currentProps, pendingProps) {
         if (pendingProps.rel === 'stylesheet' && typeof pendingProps.href === 'string' && typeof pendingProps.precedence === 'string') {
           var qualifiedProps = pendingProps;
 
-          var _key2 = getStyleKey(qualifiedProps.href);
+          var _key = getStyleKey(qualifiedProps.href);
 
           var _styles = getResourcesFromRoot(resourceRoot).hoistableStyles;
 
-          var _resource2 = _styles.get(_key2);
+          var _resource = _styles.get(_key);
 
-          if (!_resource2) {
+          if (!_resource) {
             // We asserted this above but Flow can't figure out that the type satisfies
             var ownerDocument = getDocumentFromRoot(resourceRoot);
-            _resource2 = {
+            _resource = {
               type: 'stylesheet',
               instance: null,
               count: 0,
@@ -35150,14 +35164,14 @@ function getResource(type, currentProps, pendingProps) {
               }
             };
 
-            _styles.set(_key2, _resource2);
+            _styles.set(_key, _resource);
 
-            if (!preloadPropsMap.has(_key2)) {
-              preloadStylesheet(ownerDocument, _key2, preloadPropsFromStylesheet(qualifiedProps), _resource2.state);
+            if (!preloadPropsMap.has(_key)) {
+              preloadStylesheet(ownerDocument, _key, preloadPropsFromStylesheet(qualifiedProps), _resource.state);
             }
           }
 
-          return _resource2;
+          return _resource;
         }
 
         return null;
@@ -35168,23 +35182,23 @@ function getResource(type, currentProps, pendingProps) {
         if (typeof pendingProps.src === 'string' && pendingProps.async === true) {
           var scriptProps = pendingProps;
 
-          var _key3 = getScriptKey(scriptProps.src);
+          var _key2 = getScriptKey(scriptProps.src);
 
           var scripts = getResourcesFromRoot(resourceRoot).hoistableScripts;
 
-          var _resource3 = scripts.get(_key3);
+          var _resource2 = scripts.get(_key2);
 
-          if (!_resource3) {
-            _resource3 = {
+          if (!_resource2) {
+            _resource2 = {
               type: 'script',
               instance: null,
               count: 0,
               state: null
             };
-            scripts.set(_key3, _resource3);
+            scripts.set(_key2, _resource2);
           }
 
-          return _resource3;
+          return _resource2;
         }
 
         return {
@@ -35326,12 +35340,12 @@ function acquireResource(hoistableRoot, resource, props) {
           var _qualifiedProps = props;
           var key = getStyleKey(_qualifiedProps.href); // Attempt to hydrate instance from DOM
 
-          var _instance2 = hoistableRoot.querySelector(getStylesheetSelectorFromKey(key));
+          var _instance = hoistableRoot.querySelector(getStylesheetSelectorFromKey(key));
 
-          if (_instance2) {
-            resource.instance = _instance2;
-            markNodeAsHoistable(_instance2);
-            return _instance2;
+          if (_instance) {
+            resource.instance = _instance;
+            markNodeAsHoistable(_instance);
+            return _instance;
           }
 
           var stylesheetProps = stylesheetPropsFromRawProps(props);
@@ -35344,18 +35358,18 @@ function acquireResource(hoistableRoot, resource, props) {
 
           var _ownerDocument = getDocumentFromRoot(hoistableRoot);
 
-          _instance2 = _ownerDocument.createElement('link');
-          markNodeAsHoistable(_instance2);
-          var linkInstance = _instance2;
+          _instance = _ownerDocument.createElement('link');
+          markNodeAsHoistable(_instance);
+          var linkInstance = _instance;
           linkInstance._p = new Promise(function (resolve, reject) {
             linkInstance.onload = resolve;
             linkInstance.onerror = reject;
           });
-          setInitialProperties(_instance2, 'link', stylesheetProps);
+          setInitialProperties(_instance, 'link', stylesheetProps);
           resource.state.loading |= Inserted;
-          insertStylesheet(_instance2, _qualifiedProps.precedence, hoistableRoot);
-          resource.instance = _instance2;
-          return _instance2;
+          insertStylesheet(_instance, _qualifiedProps.precedence, hoistableRoot);
+          resource.instance = _instance;
+          return _instance;
         }
 
       case 'script':
@@ -35365,37 +35379,37 @@ function acquireResource(hoistableRoot, resource, props) {
           // this cast still makes sense;
           var borrowedScriptProps = props;
 
-          var _key4 = getScriptKey(borrowedScriptProps.src); // Attempt to hydrate instance from DOM
+          var _key3 = getScriptKey(borrowedScriptProps.src); // Attempt to hydrate instance from DOM
 
 
-          var _instance3 = hoistableRoot.querySelector(getScriptSelectorFromKey(_key4));
+          var _instance2 = hoistableRoot.querySelector(getScriptSelectorFromKey(_key3));
 
-          if (_instance3) {
-            resource.instance = _instance3;
-            markNodeAsHoistable(_instance3);
-            return _instance3;
+          if (_instance2) {
+            resource.instance = _instance2;
+            markNodeAsHoistable(_instance2);
+            return _instance2;
           }
 
           var scriptProps = borrowedScriptProps;
 
-          var _preloadProps2 = preloadPropsMap.get(_key4);
+          var _preloadProps = preloadPropsMap.get(_key3);
 
-          if (_preloadProps2) {
+          if (_preloadProps) {
             scriptProps = assign({}, borrowedScriptProps);
-            adoptPreloadPropsForScript(scriptProps, _preloadProps2);
+            adoptPreloadPropsForScript(scriptProps, _preloadProps);
           } // Construct and insert a new instance
 
 
           var _ownerDocument2 = getDocumentFromRoot(hoistableRoot);
 
-          _instance3 = _ownerDocument2.createElement('script');
-          markNodeAsHoistable(_instance3);
-          setInitialProperties(_instance3, 'link', scriptProps);
+          _instance2 = _ownerDocument2.createElement('script');
+          markNodeAsHoistable(_instance2);
+          setInitialProperties(_instance2, 'link', scriptProps);
 
-          _ownerDocument2.head.appendChild(_instance3);
+          _ownerDocument2.head.appendChild(_instance2);
 
-          resource.instance = _instance3;
-          return _instance3;
+          resource.instance = _instance2;
+          return _instance2;
         }
 
       case 'void':
@@ -35423,9 +35437,9 @@ function acquireResource(hoistableRoot, resource, props) {
     // for the insertion.
     if (resource.type === 'stylesheet' && (resource.state.loading & Inserted) === NotLoaded) {
       var _qualifiedProps2 = props;
-      var _instance4 = resource.instance;
+      var _instance3 = resource.instance;
       resource.state.loading |= Inserted;
-      insertStylesheet(_instance4, _qualifiedProps2.precedence, hoistableRoot);
+      insertStylesheet(_instance3, _qualifiedProps2.precedence, hoistableRoot);
     }
   }
 
@@ -35471,7 +35485,7 @@ function adoptPreloadPropsForStylesheet(stylesheetProps, preloadProps) {
 function adoptPreloadPropsForScript(scriptProps, preloadProps) {
   if (scriptProps.crossOrigin == null) scriptProps.crossOrigin = preloadProps.crossOrigin;
   if (scriptProps.referrerPolicy == null) scriptProps.referrerPolicy = preloadProps.referrerPolicy;
-  if (scriptProps.integrity == null) scriptProps.referrerPolicy = preloadProps.integrity;
+  if (scriptProps.integrity == null) scriptProps.integrity = preloadProps.integrity;
 }
 
 var tagCaches = null;
@@ -35528,9 +35542,9 @@ function hydrateHoistable(hoistableRoot, type, props, internalInstanceHandle) {
       {
         var _cache = getHydratableHoistableCache('meta', 'content', ownerDocument);
 
-        var _key5 = type + (props.content || '');
+        var _key4 = type + (props.content || '');
 
-        var _maybeNodes = _cache.get(_key5);
+        var _maybeNodes = _cache.get(_key4);
 
         if (_maybeNodes) {
           var _nodes = _maybeNodes;
@@ -36095,6 +36109,7 @@ function createRoot$1(container, options) {
   var concurrentUpdatesByDefaultOverride = false;
   var identifierPrefix = '';
   var onRecoverableError = defaultOnRecoverableError;
+  var transitionCallbacks = null;
 
   if (options !== null && options !== undefined) {
     {
@@ -36118,9 +36133,13 @@ function createRoot$1(container, options) {
     if (options.onRecoverableError !== undefined) {
       onRecoverableError = options.onRecoverableError;
     }
+
+    if (options.unstable_transitionCallbacks !== undefined) {
+      transitionCallbacks = options.unstable_transitionCallbacks;
+    }
   }
 
-  var root = createContainer(container, ConcurrentRoot, null, isStrictMode, concurrentUpdatesByDefaultOverride, identifierPrefix, onRecoverableError);
+  var root = createContainer(container, ConcurrentRoot, null, isStrictMode, concurrentUpdatesByDefaultOverride, identifierPrefix, onRecoverableError, transitionCallbacks);
   markContainerAsRoot(root.current, container);
   Dispatcher$1.current = ReactDOMClientDispatcher;
   var rootContainerElement = container.nodeType === COMMENT_NODE ? container.parentNode : container;
@@ -36156,13 +36175,13 @@ function hydrateRoot$1(container, initialChildren, options) {
   // the hydration callbacks.
 
 
-  var hydrationCallbacks = options != null ? options : null; // TODO: Delete this option
-
-  var mutableSources = options != null && options.hydratedSources || null;
+  var hydrationCallbacks = options != null ? options : null;
   var isStrictMode = false;
   var concurrentUpdatesByDefaultOverride = false;
   var identifierPrefix = '';
   var onRecoverableError = defaultOnRecoverableError;
+  var transitionCallbacks = null;
+  var formState = null;
 
   if (options !== null && options !== undefined) {
     if (options.unstable_strictMode === true) {
@@ -36176,21 +36195,17 @@ function hydrateRoot$1(container, initialChildren, options) {
     if (options.onRecoverableError !== undefined) {
       onRecoverableError = options.onRecoverableError;
     }
+
+    if (options.unstable_transitionCallbacks !== undefined) {
+      transitionCallbacks = options.unstable_transitionCallbacks;
+    }
   }
 
-  var root = createHydrationContainer(initialChildren, null, container, ConcurrentRoot, hydrationCallbacks, isStrictMode, concurrentUpdatesByDefaultOverride, identifierPrefix, onRecoverableError);
+  var root = createHydrationContainer(initialChildren, null, container, ConcurrentRoot, hydrationCallbacks, isStrictMode, concurrentUpdatesByDefaultOverride, identifierPrefix, onRecoverableError, transitionCallbacks, formState);
   markContainerAsRoot(root.current, container);
   Dispatcher$1.current = ReactDOMClientDispatcher; // This can't be a comment node since hydration doesn't work on comment nodes anyway.
 
-  listenToAllSupportedEvents(container);
-
-  if (mutableSources) {
-    for (var i = 0; i < mutableSources.length; i++) {
-      var mutableSource = mutableSources[i];
-      registerMutableSourceForHydration(root, mutableSource);
-    }
-  } // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-
+  listenToAllSupportedEvents(container); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
 
   return new ReactDOMHydrationRoot(root);
 }
@@ -36272,7 +36287,8 @@ function legacyCreateRootFromDOMContainer(container, initialChildren, parentComp
     false, // isStrictMode
     false, // concurrentUpdatesByDefaultOverride,
     '', // identifierPrefix
-    noopOnRecoverableError);
+    noopOnRecoverableError, // TODO(luna) Support hydration later
+    null, null);
     container._reactRootContainer = root;
     markContainerAsRoot(root.current, container);
     var rootContainerElement = container.nodeType === COMMENT_NODE ? container.parentNode : container; // $FlowFixMe[incompatible-call]
@@ -36298,7 +36314,9 @@ function legacyCreateRootFromDOMContainer(container, initialChildren, parentComp
     false, // isStrictMode
     false, // concurrentUpdatesByDefaultOverride,
     '', // identifierPrefix
-    noopOnRecoverableError);
+    noopOnRecoverableError, // onRecoverableError
+    null // transitionCallbacks
+    );
 
     container._reactRootContainer = _root;
     markContainerAsRoot(_root.current, container);
@@ -36490,62 +36508,227 @@ function unmountComponentAtNode(container) {
 
 var Dispatcher = Internals.Dispatcher;
 function prefetchDNS(href) {
-  var passedOptionArg;
-
   {
-    if (arguments[1] !== undefined) {
-      passedOptionArg = arguments[1];
+    if (typeof href !== 'string' || !href) {
+      error('ReactDOM.prefetchDNS(): Expected the `href` argument (first) to be a non-empty string but encountered %s instead.', getValueDescriptorExpectingObjectForWarning(href));
+    } else if (arguments.length > 1) {
+      var options = arguments[1];
+
+      if (typeof options === 'object' && options.hasOwnProperty('crossOrigin')) {
+        error('ReactDOM.prefetchDNS(): Expected only one argument, `href`, but encountered %s as a second argument instead. This argument is reserved for future options and is currently disallowed. It looks like the you are attempting to set a crossOrigin property for this DNS lookup hint. Browsers do not perform DNS queries using CORS and setting this attribute on the resource hint has no effect. Try calling ReactDOM.prefetchDNS() with just a single string argument, `href`.', getValueDescriptorExpectingEnumForWarning(options));
+      } else {
+        error('ReactDOM.prefetchDNS(): Expected only one argument, `href`, but encountered %s as a second argument instead. This argument is reserved for future options and is currently disallowed. Try calling ReactDOM.prefetchDNS() with just a single string argument, `href`.', getValueDescriptorExpectingEnumForWarning(options));
+      }
     }
   }
 
   var dispatcher = Dispatcher.current;
 
-  if (dispatcher) {
-    {
-      if (passedOptionArg !== undefined) {
-        // prefetchDNS will warn if you pass reserved options arg. We pass it along in Dev only to
-        // elicit the warning. In prod we do not forward since it is not a part of the interface.
-        // @TODO move all arg validation into this file. It needs to be universal anyway so may as well lock down the interace here and
-        // let the rest of the codebase trust the types
-        dispatcher.prefetchDNS(href, passedOptionArg);
-      } else {
-        dispatcher.prefetchDNS(href);
-      }
-    }
+  if (dispatcher && typeof href === 'string') {
+    dispatcher.prefetchDNS(href);
   } // We don't error because preconnect needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
 
 }
 function preconnect(href, options) {
+  {
+    if (typeof href !== 'string' || !href) {
+      error('ReactDOM.preconnect(): Expected the `href` argument (first) to be a non-empty string but encountered %s instead.', getValueDescriptorExpectingObjectForWarning(href));
+    } else if (options != null && typeof options !== 'object') {
+      error('ReactDOM.preconnect(): Expected the `options` argument (second) to be an object but encountered %s instead. The only supported option at this time is `crossOrigin` which accepts a string.', getValueDescriptorExpectingEnumForWarning(options));
+    } else if (options != null && typeof options.crossOrigin !== 'string') {
+      error('ReactDOM.preconnect(): Expected the `crossOrigin` option (second argument) to be a string but encountered %s instead. Try removing this option or passing a string value instead.', getValueDescriptorExpectingObjectForWarning(options.crossOrigin));
+    }
+  }
+
   var dispatcher = Dispatcher.current;
 
-  if (dispatcher) {
-    dispatcher.preconnect(href, options);
+  if (dispatcher && typeof href === 'string') {
+    var crossOrigin = options ? getCrossOrigin('preconnect', options.crossOrigin) : null;
+    dispatcher.preconnect(href, crossOrigin);
   } // We don't error because preconnect needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
 
 }
 function preload(href, options) {
+  {
+    var encountered = '';
+
+    if (typeof href !== 'string' || !href) {
+      encountered += " The `href` argument encountered was " + getValueDescriptorExpectingObjectForWarning(href) + ".";
+    }
+
+    if (options == null || typeof options !== 'object') {
+      encountered += " The `options` argument encountered was " + getValueDescriptorExpectingObjectForWarning(options) + ".";
+    } else if (typeof options.as !== 'string' || !options.as) {
+      encountered += " The `as` option encountered was " + getValueDescriptorExpectingObjectForWarning(options.as) + ".";
+    }
+
+    if (encountered) {
+      error('ReactDOM.preload(): Expected two arguments, a non-empty `href` string and an `options` object with an `as` property valid for a `<link rel="preload" as="..." />` tag.%s', encountered);
+    }
+  }
+
   var dispatcher = Dispatcher.current;
 
-  if (dispatcher) {
-    dispatcher.preload(href, options);
+  if (dispatcher && typeof href === 'string' && // We check existence because we cannot enforce this function is actually called with the stated type
+  typeof options === 'object' && options !== null && typeof options.as === 'string') {
+    var as = options.as;
+    var crossOrigin = getCrossOrigin(as, options.crossOrigin);
+    dispatcher.preload(href, as, {
+      crossOrigin: crossOrigin,
+      integrity: typeof options.integrity === 'string' ? options.integrity : undefined,
+      nonce: typeof options.nonce === 'string' ? options.nonce : undefined,
+      type: typeof options.type === 'string' ? options.type : undefined,
+      fetchPriority: typeof options.fetchPriority === 'string' ? options.fetchPriority : undefined,
+      referrerPolicy: typeof options.referrerPolicy === 'string' ? options.referrerPolicy : undefined,
+      imageSrcSet: typeof options.imageSrcSet === 'string' ? options.imageSrcSet : undefined,
+      imageSizes: typeof options.imageSizes === 'string' ? options.imageSizes : undefined
+    });
+  } // We don't error because preload needs to be resilient to being called in a variety of scopes
+  // and the runtime may not be capable of responding. The function is optimistic and not critical
+  // so we favor silent bailout over warning or erroring.
+
+}
+function preloadModule(href, options) {
+  {
+    var encountered = '';
+
+    if (typeof href !== 'string' || !href) {
+      encountered += " The `href` argument encountered was " + getValueDescriptorExpectingObjectForWarning(href) + ".";
+    }
+
+    if (options !== undefined && typeof options !== 'object') {
+      encountered += " The `options` argument encountered was " + getValueDescriptorExpectingObjectForWarning(options) + ".";
+    } else if (options && 'as' in options && typeof options.as !== 'string') {
+      encountered += " The `as` option encountered was " + getValueDescriptorExpectingObjectForWarning(options.as) + ".";
+    }
+
+    if (encountered) {
+      error('ReactDOM.preloadModule(): Expected two arguments, a non-empty `href` string and, optionally, an `options` object with an `as` property valid for a `<link rel="modulepreload" as="..." />` tag.%s', encountered);
+    }
+  }
+
+  var dispatcher = Dispatcher.current;
+
+  if (dispatcher && typeof href === 'string') {
+    if (options) {
+      var crossOrigin = getCrossOrigin(options.as, options.crossOrigin);
+      dispatcher.preloadModule(href, {
+        as: typeof options.as === 'string' && options.as !== 'script' ? options.as : undefined,
+        crossOrigin: crossOrigin,
+        integrity: typeof options.integrity === 'string' ? options.integrity : undefined
+      });
+    } else {
+      dispatcher.preloadModule(href);
+    }
   } // We don't error because preload needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
 
 }
 function preinit(href, options) {
+  {
+    if (typeof href !== 'string' || !href) {
+      error('ReactDOM.preinit(): Expected the `href` argument (first) to be a non-empty string but encountered %s instead.', getValueDescriptorExpectingObjectForWarning(href));
+    } else if (options == null || typeof options !== 'object') {
+      error('ReactDOM.preinit(): Expected the `options` argument (second) to be an object with an `as` property describing the type of resource to be preinitialized but encountered %s instead.', getValueDescriptorExpectingEnumForWarning(options));
+    } else if (options.as !== 'style' && options.as !== 'script') {
+      error('ReactDOM.preinit(): Expected the `as` property in the `options` argument (second) to contain a valid value describing the type of resource to be preinitialized but encountered %s instead. Valid values for `as` are "style" and "script".', getValueDescriptorExpectingEnumForWarning(options.as));
+    }
+  }
+
   var dispatcher = Dispatcher.current;
 
-  if (dispatcher) {
-    dispatcher.preinit(href, options);
+  if (dispatcher && typeof href === 'string' && options && typeof options.as === 'string') {
+    var as = options.as;
+    var crossOrigin = getCrossOrigin(as, options.crossOrigin);
+    var integrity = typeof options.integrity === 'string' ? options.integrity : undefined;
+    var fetchPriority = typeof options.fetchPriority === 'string' ? options.fetchPriority : undefined;
+
+    if (as === 'style') {
+      dispatcher.preinitStyle(href, typeof options.precedence === 'string' ? options.precedence : undefined, {
+        crossOrigin: crossOrigin,
+        integrity: integrity,
+        fetchPriority: fetchPriority
+      });
+    } else if (as === 'script') {
+      dispatcher.preinitScript(href, {
+        crossOrigin: crossOrigin,
+        integrity: integrity,
+        fetchPriority: fetchPriority,
+        nonce: typeof options.nonce === 'string' ? options.nonce : undefined
+      });
+    }
   } // We don't error because preinit needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
 
+}
+function preinitModule(href, options) {
+  {
+    var encountered = '';
+
+    if (typeof href !== 'string' || !href) {
+      encountered += " The `href` argument encountered was " + getValueDescriptorExpectingObjectForWarning(href) + ".";
+    }
+
+    if (options !== undefined && typeof options !== 'object') {
+      encountered += " The `options` argument encountered was " + getValueDescriptorExpectingObjectForWarning(options) + ".";
+    } else if (options && 'as' in options && options.as !== 'script') {
+      encountered += " The `as` option encountered was " + getValueDescriptorExpectingEnumForWarning(options.as) + ".";
+    }
+
+    if (encountered) {
+      error('ReactDOM.preinitModule(): Expected up to two arguments, a non-empty `href` string and, optionally, an `options` object with a valid `as` property.%s', encountered);
+    } else {
+      var as = options && typeof options.as === 'string' ? options.as : 'script';
+
+      switch (as) {
+        case 'script':
+          {
+            break;
+          }
+        // We have an invalid as type and need to warn
+
+        default:
+          {
+            var typeOfAs = getValueDescriptorExpectingEnumForWarning(as);
+
+            error('ReactDOM.preinitModule(): Currently the only supported "as" type for this function is "script"' + ' but received "%s" instead. This warning was generated for `href` "%s". In the future other' + ' module types will be supported, aligning with the import-attributes proposal. Learn more here:' + ' (https://github.com/tc39/proposal-import-attributes)', typeOfAs, href);
+          }
+      }
+    }
+  }
+
+  var dispatcher = Dispatcher.current;
+
+  if (dispatcher && typeof href === 'string') {
+    if (options == null || typeof options === 'object' && (options.as == null || options.as === 'script')) {
+      var crossOrigin = options ? getCrossOrigin(undefined, options.crossOrigin) : undefined;
+      dispatcher.preinitModuleScript(href, {
+        crossOrigin: crossOrigin,
+        integrity: options && typeof options.integrity === 'string' ? options.integrity : undefined
+      });
+    }
+  } // We don't error because preinit needs to be resilient to being called in a variety of scopes
+  // and the runtime may not be capable of responding. The function is optimistic and not critical
+  // so we favor silent bailout over warning or erroring.
+
+}
+
+function getCrossOrigin(as, crossOrigin) {
+  return as === 'font' ? '' : typeof crossOrigin === 'string' ? crossOrigin === 'use-credentials' ? 'use-credentials' : '' : undefined;
+}
+
+function getValueDescriptorExpectingObjectForWarning(thing) {
+  return thing === null ? '`null`' : thing === undefined ? '`undefined`' : thing === '' ? 'an empty string' : "something with type \"" + typeof thing + "\"";
+}
+
+function getValueDescriptorExpectingEnumForWarning(thing) {
+  return thing === null ? '`null`' : thing === undefined ? '`undefined`' : thing === '' ? 'an empty string' : typeof thing === 'string' ? JSON.stringify(thing) : typeof thing === 'number' ? '`' + thing + '`' : "something with type \"" + typeof thing + "\"";
 }
 
 {
@@ -36639,7 +36822,9 @@ exports.hydrateRoot = hydrateRoot;
 exports.preconnect = preconnect;
 exports.prefetchDNS = prefetchDNS;
 exports.preinit = preinit;
+exports.preinitModule = preinitModule;
 exports.preload = preload;
+exports.preloadModule = preloadModule;
 exports.render = render;
 exports.unmountComponentAtNode = unmountComponentAtNode;
 exports.unstable_batchedUpdates = batchedUpdates$1;

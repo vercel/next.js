@@ -67,11 +67,11 @@ function beginWriting(destination) {
   writtenBytes = 0;
 }
 function writeChunk(destination, chunk) {
-  if (chunk.length === 0) {
+  if (chunk.byteLength === 0) {
     return;
   }
 
-  if (chunk.length > VIEW_SIZE) {
+  if (chunk.byteLength > VIEW_SIZE) {
     {
       if (precomputedChunkSet.has(chunk)) {
         error('A large precomputed chunk was passed to writeChunk without being copied.' + ' Large chunks get enqueued directly and are not copied. This is incompatible with precomputed chunks because you cannot enqueue the same precomputed chunk twice.' + ' Use "cloneChunk" to make a copy of this large precomputed chunk before writing it. This is a bug in React.');
@@ -94,7 +94,7 @@ function writeChunk(destination, chunk) {
   var bytesToWrite = chunk;
   var allowableBytes = currentView.length - writtenBytes;
 
-  if (allowableBytes < bytesToWrite.length) {
+  if (allowableBytes < bytesToWrite.byteLength) {
     // this chunk would overflow the current view. We enqueue a full view
     // and start a new view with the remaining chunk
     if (allowableBytes === 0) {
@@ -114,7 +114,7 @@ function writeChunk(destination, chunk) {
   }
 
   currentView.set(bytesToWrite, writtenBytes);
-  writtenBytes += bytesToWrite.length;
+  writtenBytes += bytesToWrite.byteLength;
 }
 function writeChunkAndReturn(destination, chunk) {
   writeChunk(destination, chunk); // in web streams there is no backpressure so we can alwas write more
@@ -136,6 +136,22 @@ function stringToChunk(content) {
   return textEncoder.encode(content);
 }
 var precomputedChunkSet = new Set() ;
+function typedArrayToBinaryChunk(content) {
+  // Convert any non-Uint8Array array to Uint8Array. We could avoid this for Uint8Arrays.
+  // If we passed through this straight to enqueue we wouldn't have to convert it but since
+  // we need to copy the buffer in that case, we need to convert it to copy it.
+  // When we copy it into another array using set() it needs to be a Uint8Array.
+  var buffer = new Uint8Array(content.buffer, content.byteOffset, content.byteLength); // We clone large chunks so that we can transfer them when we write them.
+  // Others get copied into the target buffer.
+
+  return content.byteLength > VIEW_SIZE ? buffer.slice() : buffer;
+}
+function byteLengthOfChunk(chunk) {
+  return chunk.byteLength;
+}
+function byteLengthOfBinaryChunk(chunk) {
+  return chunk.byteLength;
+}
 function closeWithError(destination, error) {
   // $FlowFixMe[method-unbinding]
   if (typeof destination.error === 'function') {
@@ -155,14 +171,232 @@ function closeWithError(destination, error) {
 // eslint-disable-next-line no-unused-vars
 var CLIENT_REFERENCE_TAG = Symbol.for('react.client.reference');
 var SERVER_REFERENCE_TAG = Symbol.for('react.server.reference');
-function getClientReferenceKey(reference) {
-  return reference.$$async ? reference.$$id + '#async' : reference.$$id;
-}
 function isClientReference(reference) {
   return reference.$$typeof === CLIENT_REFERENCE_TAG;
 }
 function isServerReference(reference) {
   return reference.$$typeof === SERVER_REFERENCE_TAG;
+}
+function registerClientReference(proxyImplementation, id, exportName) {
+  return registerClientReferenceImpl(proxyImplementation, id + '#' + exportName, false);
+}
+
+function registerClientReferenceImpl(proxyImplementation, id, async) {
+  return Object.defineProperties(proxyImplementation, {
+    $$typeof: {
+      value: CLIENT_REFERENCE_TAG
+    },
+    $$id: {
+      value: id
+    },
+    $$async: {
+      value: async
+    }
+  });
+} // $FlowFixMe[method-unbinding]
+
+
+var FunctionBind = Function.prototype.bind; // $FlowFixMe[method-unbinding]
+
+var ArraySlice = Array.prototype.slice;
+
+function bind() {
+  // $FlowFixMe[unsupported-syntax]
+  var newFn = FunctionBind.apply(this, arguments);
+
+  if (this.$$typeof === SERVER_REFERENCE_TAG) {
+    var args = ArraySlice.call(arguments, 1);
+    newFn.$$typeof = SERVER_REFERENCE_TAG;
+    newFn.$$id = this.$$id;
+    newFn.$$bound = this.$$bound ? this.$$bound.concat(args) : args;
+  }
+
+  return newFn;
+}
+
+function registerServerReference(reference, id, exportName) {
+  return Object.defineProperties(reference, {
+    $$typeof: {
+      value: SERVER_REFERENCE_TAG
+    },
+    $$id: {
+      value: exportName === null ? id : id + '#' + exportName
+    },
+    $$bound: {
+      value: null
+    },
+    bind: {
+      value: bind
+    }
+  });
+}
+var PROMISE_PROTOTYPE = Promise.prototype;
+var deepProxyHandlers = {
+  get: function (target, name, receiver) {
+    switch (name) {
+      // These names are read by the Flight runtime if you end up using the exports object.
+      case '$$typeof':
+        // These names are a little too common. We should probably have a way to
+        // have the Flight runtime extract the inner target instead.
+        return target.$$typeof;
+
+      case '$$id':
+        return target.$$id;
+
+      case '$$async':
+        return target.$$async;
+
+      case 'name':
+        return target.name;
+
+      case 'displayName':
+        return undefined;
+      // We need to special case this because createElement reads it if we pass this
+      // reference.
+
+      case 'defaultProps':
+        return undefined;
+      // Avoid this attempting to be serialized.
+
+      case 'toJSON':
+        return undefined;
+
+      case Symbol.toPrimitive:
+        // $FlowFixMe[prop-missing]
+        return Object.prototype[Symbol.toPrimitive];
+
+      case 'Provider':
+        throw new Error("Cannot render a Client Context Provider on the Server. " + "Instead, you can export a Client Component wrapper " + "that itself renders a Client Context Provider.");
+    } // eslint-disable-next-line react-internal/safe-string-coercion
+
+
+    var expression = String(target.name) + '.' + String(name);
+    throw new Error("Cannot access " + expression + " on the server. " + 'You cannot dot into a client module from a server component. ' + 'You can only pass the imported name through.');
+  },
+  set: function () {
+    throw new Error('Cannot assign to a client module from a server module.');
+  }
+};
+
+function getReference(target, name) {
+  switch (name) {
+    // These names are read by the Flight runtime if you end up using the exports object.
+    case '$$typeof':
+      return target.$$typeof;
+
+    case '$$id':
+      return target.$$id;
+
+    case '$$async':
+      return target.$$async;
+
+    case 'name':
+      return target.name;
+    // We need to special case this because createElement reads it if we pass this
+    // reference.
+
+    case 'defaultProps':
+      return undefined;
+    // Avoid this attempting to be serialized.
+
+    case 'toJSON':
+      return undefined;
+
+    case Symbol.toPrimitive:
+      // $FlowFixMe[prop-missing]
+      return Object.prototype[Symbol.toPrimitive];
+
+    case '__esModule':
+      // Something is conditionally checking which export to use. We'll pretend to be
+      // an ESM compat module but then we'll check again on the client.
+      var moduleId = target.$$id;
+      target.default = registerClientReferenceImpl(function () {
+        throw new Error("Attempted to call the default export of " + moduleId + " from the server " + "but it's on the client. It's not possible to invoke a client function from " + "the server, it can only be rendered as a Component or passed to props of a " + "Client Component.");
+      }, target.$$id + '#', target.$$async);
+      return true;
+
+    case 'then':
+      if (target.then) {
+        // Use a cached value
+        return target.then;
+      }
+
+      if (!target.$$async) {
+        // If this module is expected to return a Promise (such as an AsyncModule) then
+        // we should resolve that with a client reference that unwraps the Promise on
+        // the client.
+        var clientReference = registerClientReferenceImpl({}, target.$$id, true);
+        var proxy = new Proxy(clientReference, proxyHandlers); // Treat this as a resolved Promise for React's use()
+
+        target.status = 'fulfilled';
+        target.value = proxy;
+        var then = target.then = registerClientReferenceImpl(function then(resolve, reject) {
+          // Expose to React.
+          return Promise.resolve(resolve(proxy));
+        }, // If this is not used as a Promise but is treated as a reference to a `.then`
+        // export then we should treat it as a reference to that name.
+        target.$$id + '#then', false);
+        return then;
+      } else {
+        // Since typeof .then === 'function' is a feature test we'd continue recursing
+        // indefinitely if we return a function. Instead, we return an object reference
+        // if we check further.
+        return undefined;
+      }
+
+  }
+
+  var cachedReference = target[name];
+
+  if (!cachedReference) {
+    var reference = registerClientReferenceImpl(function () {
+      throw new Error( // eslint-disable-next-line react-internal/safe-string-coercion
+      "Attempted to call " + String(name) + "() from the server but " + String(name) + " is on the client. " + "It's not possible to invoke a client function from the server, it can " + "only be rendered as a Component or passed to props of a Client Component.");
+    }, target.$$id + '#' + name, target.$$async);
+    Object.defineProperty(reference, 'name', {
+      value: name
+    });
+    cachedReference = target[name] = new Proxy(reference, deepProxyHandlers);
+  }
+
+  return cachedReference;
+}
+
+var proxyHandlers = {
+  get: function (target, name, receiver) {
+    return getReference(target, name);
+  },
+  getOwnPropertyDescriptor: function (target, name) {
+    var descriptor = Object.getOwnPropertyDescriptor(target, name);
+
+    if (!descriptor) {
+      descriptor = {
+        value: getReference(target, name),
+        writable: false,
+        configurable: false,
+        enumerable: false
+      };
+      Object.defineProperty(target, name, descriptor);
+    }
+
+    return descriptor;
+  },
+  getPrototypeOf: function (target) {
+    // Pretend to be a Promise in case anyone asks.
+    return PROMISE_PROTOTYPE;
+  },
+  set: function () {
+    throw new Error('Cannot assign to a client module from a server module.');
+  }
+};
+function createClientModuleProxy(moduleId) {
+  var clientReference = registerClientReferenceImpl({}, // Represents the whole Module object instead of a particular import.
+  moduleId, false);
+  return new Proxy(clientReference, proxyHandlers);
+}
+
+function getClientReferenceKey(reference) {
+  return reference.$$async ? reference.$$id + '#async' : reference.$$id;
 }
 function resolveClientReferenceMetadata(config, clientReference) {
   var modulePath = clientReference.$$id;
@@ -209,17 +443,20 @@ var ReactDOMFlightServerDispatcher = {
   prefetchDNS: prefetchDNS,
   preconnect: preconnect,
   preload: preload,
-  preinit: preinit
+  preloadModule: preloadModule$1,
+  preinitStyle: preinitStyle,
+  preinitScript: preinitScript,
+  preinitModuleScript: preinitModuleScript
 };
 
-function prefetchDNS(href, options) {
+function prefetchDNS(href) {
   {
-    if (typeof href === 'string') {
+    if (typeof href === 'string' && href) {
       var request = resolveRequest();
 
       if (request) {
         var hints = getHints(request);
-        var key = 'D' + href;
+        var key = 'D|' + href;
 
         if (hints.has(key)) {
           // duplicate hint
@@ -227,26 +464,20 @@ function prefetchDNS(href, options) {
         }
 
         hints.add(key);
-
-        if (options) {
-          emitHint(request, 'D', [href, options]);
-        } else {
-          emitHint(request, 'D', href);
-        }
+        emitHint(request, 'D', href);
       }
     }
   }
 }
 
-function preconnect(href, options) {
+function preconnect(href, crossOrigin) {
   {
     if (typeof href === 'string') {
       var request = resolveRequest();
 
       if (request) {
         var hints = getHints(request);
-        var crossOrigin = options == null || typeof options.crossOrigin !== 'string' ? null : options.crossOrigin === 'use-credentials' ? 'use-credentials' : '';
-        var key = "C" + (crossOrigin === null ? 'null' : crossOrigin) + "|" + href;
+        var key = "C|" + (crossOrigin == null ? 'null' : crossOrigin) + "|" + href;
 
         if (hints.has(key)) {
           // duplicate hint
@@ -255,8 +486,8 @@ function preconnect(href, options) {
 
         hints.add(key);
 
-        if (options) {
-          emitHint(request, 'C', [href, options]);
+        if (typeof crossOrigin === 'string') {
+          emitHint(request, 'C', [href, crossOrigin]);
         } else {
           emitHint(request, 'C', href);
         }
@@ -265,14 +496,20 @@ function preconnect(href, options) {
   }
 }
 
-function preload(href, options) {
+function preload(href, as, options) {
   {
     if (typeof href === 'string') {
       var request = resolveRequest();
 
       if (request) {
         var hints = getHints(request);
-        var key = 'L' + href;
+        var key = 'L';
+
+        if (as === 'image' && options) {
+          key += getImagePreloadKey(href, options.imageSrcSet, options.imageSizes);
+        } else {
+          key += "[" + as + "]" + href;
+        }
 
         if (hints.has(key)) {
           // duplicate hint
@@ -280,20 +517,26 @@ function preload(href, options) {
         }
 
         hints.add(key);
-        emitHint(request, 'L', [href, options]);
+        var trimmed = trimOptions(options);
+
+        if (trimmed) {
+          emitHint(request, 'L', [href, as, trimmed]);
+        } else {
+          emitHint(request, 'L', [href, as]);
+        }
       }
     }
   }
 }
 
-function preinit(href, options) {
+function preloadModule$1(href, options) {
   {
     if (typeof href === 'string') {
       var request = resolveRequest();
 
       if (request) {
         var hints = getHints(request);
-        var key = 'I' + href;
+        var key = 'm|' + href;
 
         if (hints.has(key)) {
           // duplicate hint
@@ -301,16 +544,146 @@ function preinit(href, options) {
         }
 
         hints.add(key);
-        emitHint(request, 'I', [href, options]);
+        var trimmed = trimOptions(options);
+
+        if (trimmed) {
+          return emitHint(request, 'm', [href, trimmed]);
+        } else {
+          return emitHint(request, 'm', href);
+        }
       }
     }
   }
+}
+
+function preinitStyle(href, precedence, options) {
+  {
+    if (typeof href === 'string') {
+      var request = resolveRequest();
+
+      if (request) {
+        var hints = getHints(request);
+        var key = 'S|' + href;
+
+        if (hints.has(key)) {
+          // duplicate hint
+          return;
+        }
+
+        hints.add(key);
+        var trimmed = trimOptions(options);
+
+        if (trimmed) {
+          return emitHint(request, 'S', [href, typeof precedence === 'string' ? precedence : 0, trimmed]);
+        } else if (typeof precedence === 'string') {
+          return emitHint(request, 'S', [href, precedence]);
+        } else {
+          return emitHint(request, 'S', href);
+        }
+      }
+    }
+  }
+}
+
+function preinitScript(href, options) {
+  {
+    if (typeof href === 'string') {
+      var request = resolveRequest();
+
+      if (request) {
+        var hints = getHints(request);
+        var key = 'X|' + href;
+
+        if (hints.has(key)) {
+          // duplicate hint
+          return;
+        }
+
+        hints.add(key);
+        var trimmed = trimOptions(options);
+
+        if (trimmed) {
+          return emitHint(request, 'X', [href, trimmed]);
+        } else {
+          return emitHint(request, 'X', href);
+        }
+      }
+    }
+  }
+}
+
+function preinitModuleScript(href, options) {
+  {
+    if (typeof href === 'string') {
+      var request = resolveRequest();
+
+      if (request) {
+        var hints = getHints(request);
+        var key = 'M|' + href;
+
+        if (hints.has(key)) {
+          // duplicate hint
+          return;
+        }
+
+        hints.add(key);
+        var trimmed = trimOptions(options);
+
+        if (trimmed) {
+          return emitHint(request, 'M', [href, trimmed]);
+        } else {
+          return emitHint(request, 'M', href);
+        }
+      }
+    }
+  }
+} // Flight normally encodes undefined as a special character however for directive option
+// arguments we don't want to send unnecessary keys and bloat the payload so we create a
+// trimmed object which omits any keys with null or undefined values.
+// This is only typesafe because these option objects have entirely optional fields where
+// null and undefined represent the same thing as no property.
+
+
+function trimOptions(options) {
+  if (options == null) return null;
+  var hasProperties = false;
+  var trimmed = {};
+
+  for (var key in options) {
+    if (options[key] != null) {
+      hasProperties = true;
+      trimmed[key] = options[key];
+    }
+  }
+
+  return hasProperties ? trimmed : null;
+}
+
+function getImagePreloadKey(href, imageSrcSet, imageSizes) {
+  var uniquePart = '';
+
+  if (typeof imageSrcSet === 'string' && imageSrcSet !== '') {
+    uniquePart += '[' + imageSrcSet + ']';
+
+    if (typeof imageSizes === 'string') {
+      uniquePart += '[' + imageSizes + ']';
+    }
+  } else {
+    uniquePart += '[][]' + href;
+  }
+
+  return "[image]" + uniquePart;
 }
 
 var ReactDOMCurrentDispatcher = ReactDOMSharedInternals.Dispatcher;
 function prepareHostDispatcher() {
   ReactDOMCurrentDispatcher.current = ReactDOMFlightServerDispatcher;
 } // Used to distinguish these contexts from ones used in other renderers.
+// small, smaller than how we encode undefined, and is unambiguous. We could use
+// a different tuple structure to encode this instead but this makes the runtime
+// cost cheaper by eliminating a type checks in more positions.
+// prettier-ignore
+
 function createHints() {
   return new Set();
 }
@@ -330,6 +703,7 @@ var REACT_MEMO_TYPE = Symbol.for('react.memo');
 var REACT_LAZY_TYPE = Symbol.for('react.lazy');
 var REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
 var REACT_MEMO_CACHE_SENTINEL = Symbol.for('react.memo_cache_sentinel');
+var REACT_POSTPONE_TYPE = Symbol.for('react.postpone');
 var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 var FAUX_ITERATOR_SYMBOL = '@@iterator';
 function getIteratorFn(maybeIterable) {
@@ -709,7 +1083,6 @@ var HooksDispatcher = {
   useImperativeHandle: unsupportedHook,
   useEffect: unsupportedHook,
   useId: useId,
-  useMutableSource: unsupportedHook,
   useSyncExternalStore: unsupportedHook,
   useCacheRefresh: function () {
     return unsupportedRefresh;
@@ -1155,10 +1528,13 @@ function defaultErrorHandler(error) {
   console['error'](error); // Don't transform to our wrapper
 }
 
+function defaultPostponeHandler(reason) {// Noop
+}
+
 var OPEN = 0;
 var CLOSING = 1;
 var CLOSED = 2;
-function createRequest(model, bundlerConfig, onError, context, identifierPrefix) {
+function createRequest(model, bundlerConfig, onError, context, identifierPrefix, onPostpone) {
   if (ReactCurrentCache.current !== null && ReactCurrentCache.current !== DefaultCacheDispatcher) {
     throw new Error('Currently React only supports one RSC renderer at a time.');
   }
@@ -1182,7 +1558,7 @@ function createRequest(model, bundlerConfig, onError, context, identifierPrefix)
     pingedTasks: pingedTasks,
     completedImportChunks: [],
     completedHintChunks: [],
-    completedJSONChunks: [],
+    completedRegularChunks: [],
     completedErrorChunks: [],
     writtenSymbols: new Map(),
     writtenClientReferences: new Map(),
@@ -1191,6 +1567,7 @@ function createRequest(model, bundlerConfig, onError, context, identifierPrefix)
     identifierPrefix: identifierPrefix || '',
     identifierCount: 1,
     onError: onError === undefined ? defaultErrorHandler : onError,
+    onPostpone: onPostpone === undefined ? defaultPostponeHandler : onPostpone,
     // $FlowFixMe[missing-this-annot]
     toJSON: function (key, value) {
       return resolveModelToJSON(request, this, key, value);
@@ -1231,14 +1608,14 @@ function serializeThenable(request, thenable) {
     case 'rejected':
       {
         var x = thenable.reason;
-        var digest = logRecoverableError(request, x);
 
-        {
-          var _getErrorMessageAndSt = getErrorMessageAndStackDev(x),
-              message = _getErrorMessageAndSt.message,
-              stack = _getErrorMessageAndSt.stack;
-
-          emitErrorChunkDev(request, newTask.id, digest, message, stack);
+        if (typeof x === 'object' && x !== null && x.$$typeof === REACT_POSTPONE_TYPE) {
+          var postponeInstance = x;
+          logPostpone(request, postponeInstance.message);
+          emitPostponeChunk(request, newTask.id, postponeInstance);
+        } else {
+          var digest = logRecoverableError(request, x);
+          emitErrorChunk(request, newTask.id, digest, x);
         }
 
         return newTask.id;
@@ -1279,14 +1656,7 @@ function serializeThenable(request, thenable) {
     newTask.status = ERRORED$1; // TODO: We should ideally do this inside performWork so it's scheduled
 
     var digest = logRecoverableError(request, reason);
-
-    {
-      var _getErrorMessageAndSt2 = getErrorMessageAndStackDev(reason),
-          _message = _getErrorMessageAndSt2.message,
-          _stack = _getErrorMessageAndSt2.stack;
-
-      emitErrorChunkDev(request, newTask.id, digest, _message, _stack);
-    }
+    emitErrorChunk(request, newTask.id, digest, reason);
 
     if (request.destination !== null) {
       flushCompletedChunks(request, request.destination);
@@ -1560,6 +1930,16 @@ function serializeBigInt(n) {
   return '$n' + n.toString(10);
 }
 
+function serializeRowHeader(tag, id) {
+  return id.toString(16) + ':' + tag;
+}
+
+function encodeReferenceChunk(request, id, reference) {
+  var json = stringify(reference);
+  var row = id.toString(16) + ':' + json + '\n';
+  return stringToChunk(row);
+}
+
 function serializeClientReference(request, parent, key, clientReference) {
   var clientReferenceKey = getClientReferenceKey(clientReference);
   var writtenClientReferences = request.writtenClientReferences;
@@ -1599,17 +1979,17 @@ function serializeClientReference(request, parent, key, clientReference) {
     request.pendingChunks++;
     var errorId = request.nextChunkId++;
     var digest = logRecoverableError(request, x);
-
-    {
-      var _getErrorMessageAndSt3 = getErrorMessageAndStackDev(x),
-          message = _getErrorMessageAndSt3.message,
-          stack = _getErrorMessageAndSt3.stack;
-
-      emitErrorChunkDev(request, errorId, digest, message, stack);
-    }
-
+    emitErrorChunk(request, errorId, digest, x);
     return serializeByValueID(errorId);
   }
+}
+
+function outlineModel(request, value) {
+  request.pendingChunks++;
+  var outlinedId = request.nextChunkId++; // We assume that this object doesn't suspend, but a child might.
+
+  emitModelChunk(request, outlinedId, value);
+  return outlinedId;
 }
 
 function serializeServerReference(request, parent, key, serverReference) {
@@ -1625,13 +2005,42 @@ function serializeServerReference(request, parent, key, serverReference) {
     id: getServerReferenceId(request.bundlerConfig, serverReference),
     bound: bound ? Promise.resolve(bound) : null
   };
-  request.pendingChunks++;
-  var metadataId = request.nextChunkId++; // We assume that this object doesn't suspend.
-
-  var processedChunk = processModelChunk(request, metadataId, serverReferenceMetadata);
-  request.completedJSONChunks.push(processedChunk);
+  var metadataId = outlineModel(request, serverReferenceMetadata);
   writtenServerReferences.set(serverReference, metadataId);
   return serializeServerReferenceID(metadataId);
+}
+
+function serializeLargeTextString(request, text) {
+  request.pendingChunks += 2;
+  var textId = request.nextChunkId++;
+  var textChunk = stringToChunk(text);
+  var binaryLength = byteLengthOfChunk(textChunk);
+  var row = textId.toString(16) + ':T' + binaryLength.toString(16) + ',';
+  var headerChunk = stringToChunk(row);
+  request.completedRegularChunks.push(headerChunk, textChunk);
+  return serializeByValueID(textId);
+}
+
+function serializeMap(request, map) {
+  var id = outlineModel(request, Array.from(map));
+  return '$Q' + id.toString(16);
+}
+
+function serializeSet(request, set) {
+  var id = outlineModel(request, Array.from(set));
+  return '$W' + id.toString(16);
+}
+
+function serializeTypedArray(request, tag, typedArray) {
+  request.pendingChunks += 2;
+  var bufferId = request.nextChunkId++; // TODO: Convert to little endian if that's not the server default.
+
+  var binaryChunk = typedArrayToBinaryChunk(typedArray);
+  var binaryLength = byteLengthOfBinaryChunk(binaryChunk);
+  var row = bufferId.toString(16) + ':' + tag + binaryLength.toString(16) + ',';
+  var headerChunk = stringToChunk(row);
+  request.completedRegularChunks.push(headerChunk, binaryChunk);
+  return serializeByValueID(bufferId);
 }
 
 function escapeStringValue(value) {
@@ -1717,34 +2126,38 @@ function resolveModelToJSON(request, parent, key, value) {
       // value to be a thenable, because before `use` existed that was the
       // (unstable) API for suspending. This implementation detail can change
       // later, once we deprecate the old API in favor of `use`.
-      getSuspendedThenable() : thrownValue; // $FlowFixMe[method-unbinding]
+      getSuspendedThenable() : thrownValue;
 
-      if (typeof x === 'object' && x !== null && typeof x.then === 'function') {
-        // Something suspended, we'll need to create a new task and resolve it later.
-        request.pendingChunks++;
-        var newTask = createTask(request, value, getActiveContext(), request.abortableTasks);
-        var ping = newTask.ping;
-        x.then(ping, ping);
-        newTask.thenableState = getThenableStateAfterSuspending();
-        return serializeLazyID(newTask.id);
-      } else {
-        // Something errored. We'll still send everything we have up until this point.
-        // We'll replace this element with a lazy reference that throws on the client
-        // once it gets rendered.
-        request.pendingChunks++;
-        var errorId = request.nextChunkId++;
-        var digest = logRecoverableError(request, x);
-
-        {
-          var _getErrorMessageAndSt4 = getErrorMessageAndStackDev(x),
-              message = _getErrorMessageAndSt4.message,
-              stack = _getErrorMessageAndSt4.stack;
-
-          emitErrorChunkDev(request, errorId, digest, message, stack);
+      if (typeof x === 'object' && x !== null) {
+        // $FlowFixMe[method-unbinding]
+        if (typeof x.then === 'function') {
+          // Something suspended, we'll need to create a new task and resolve it later.
+          request.pendingChunks++;
+          var newTask = createTask(request, value, getActiveContext(), request.abortableTasks);
+          var ping = newTask.ping;
+          x.then(ping, ping);
+          newTask.thenableState = getThenableStateAfterSuspending();
+          return serializeLazyID(newTask.id);
+        } else if (x.$$typeof === REACT_POSTPONE_TYPE) {
+          // Something postponed. We'll still send everything we have up until this point.
+          // We'll replace this element with a lazy reference that postpones on the client.
+          var postponeInstance = x;
+          request.pendingChunks++;
+          var postponeId = request.nextChunkId++;
+          logPostpone(request, postponeInstance.message);
+          emitPostponeChunk(request, postponeId, postponeInstance);
+          return serializeLazyID(postponeId);
         }
+      } // Something errored. We'll still send everything we have up until this point.
+      // We'll replace this element with a lazy reference that throws on the client
+      // once it gets rendered.
 
-        return serializeLazyID(errorId);
-      }
+
+      request.pendingChunks++;
+      var errorId = request.nextChunkId++;
+      var digest = logRecoverableError(request, x);
+      emitErrorChunk(request, errorId, digest, x);
+      return serializeLazyID(errorId);
     }
   }
 
@@ -1782,6 +2195,80 @@ function resolveModelToJSON(request, parent, key, value) {
       }
 
       return undefined;
+    }
+
+    if (value instanceof Map) {
+      return serializeMap(request, value);
+    }
+
+    if (value instanceof Set) {
+      return serializeSet(request, value);
+    }
+
+    {
+      if (value instanceof ArrayBuffer) {
+        return serializeTypedArray(request, 'A', new Uint8Array(value));
+      }
+
+      if (value instanceof Int8Array) {
+        // char
+        return serializeTypedArray(request, 'C', value);
+      }
+
+      if (value instanceof Uint8Array) {
+        // unsigned char
+        return serializeTypedArray(request, 'c', value);
+      }
+
+      if (value instanceof Uint8ClampedArray) {
+        // unsigned clamped char
+        return serializeTypedArray(request, 'U', value);
+      }
+
+      if (value instanceof Int16Array) {
+        // sort
+        return serializeTypedArray(request, 'S', value);
+      }
+
+      if (value instanceof Uint16Array) {
+        // unsigned short
+        return serializeTypedArray(request, 's', value);
+      }
+
+      if (value instanceof Int32Array) {
+        // long
+        return serializeTypedArray(request, 'L', value);
+      }
+
+      if (value instanceof Uint32Array) {
+        // unsigned long
+        return serializeTypedArray(request, 'l', value);
+      }
+
+      if (value instanceof Float32Array) {
+        // float
+        return serializeTypedArray(request, 'F', value);
+      }
+
+      if (value instanceof Float64Array) {
+        // double
+        return serializeTypedArray(request, 'D', value);
+      }
+
+      if (value instanceof BigInt64Array) {
+        // number
+        return serializeTypedArray(request, 'N', value);
+      }
+
+      if (value instanceof BigUint64Array) {
+        // unsigned number
+        // We use "m" instead of "n" since JSON can start with "null"
+        return serializeTypedArray(request, 'm', value);
+      }
+
+      if (value instanceof DataView) {
+        return serializeTypedArray(request, 'V', value);
+      }
     }
 
     if (!isArray(value)) {
@@ -1823,6 +2310,13 @@ function resolveModelToJSON(request, parent, key, value) {
       if (_originalValue instanceof Date) {
         return serializeDateFromDateJSON(value);
       }
+    }
+
+    if (value.length >= 1024) {
+      // For large strings, we encode them outside the JSON payload so that we
+      // don't have to double encode and double parse the strings. This can also
+      // be more compact in case the string has a lot of escaped characters.
+      return serializeLargeTextString(request, value);
     }
 
     return escapeStringValue(value);
@@ -1886,6 +2380,11 @@ function resolveModelToJSON(request, parent, key, value) {
   throw new Error("Type " + typeof value + " is not supported in Client Component props." + describeObjectForErrorMessage(parent, key));
 }
 
+function logPostpone(request, reason) {
+  var onPostpone = request.onPostpone;
+  onPostpone(reason);
+}
+
 function logRecoverableError(request, error) {
   var onError = request.onError;
   var errorDigest = onError(error);
@@ -1898,7 +2397,44 @@ function logRecoverableError(request, error) {
   return errorDigest || '';
 }
 
-function getErrorMessageAndStackDev(error) {
+function fatalError(request, error) {
+  // This is called outside error handling code such as if an error happens in React internals.
+  if (request.destination !== null) {
+    request.status = CLOSED;
+    closeWithError(request.destination, error);
+  } else {
+    request.status = CLOSING;
+    request.fatalError = error;
+  }
+}
+
+function emitPostponeChunk(request, id, postponeInstance) {
+  var row;
+
+  {
+    var reason = '';
+    var stack = '';
+
+    try {
+      // eslint-disable-next-line react-internal/safe-string-coercion
+      reason = String(postponeInstance.message); // eslint-disable-next-line react-internal/safe-string-coercion
+
+      stack = String(postponeInstance.stack);
+    } catch (x) {}
+
+    row = serializeRowHeader('P', id) + stringify({
+      reason: reason,
+      stack: stack
+    }) + '\n';
+  }
+
+  var processedChunk = stringToChunk(row);
+  request.completedErrorChunks.push(processedChunk);
+}
+
+function emitErrorChunk(request, id, digest, error) {
+  var errorInfo;
+
   {
     var message;
     var stack = '';
@@ -1916,54 +2452,52 @@ function getErrorMessageAndStackDev(error) {
       message = 'An error occurred but serializing the error message failed.';
     }
 
-    return {
+    errorInfo = {
+      digest: digest,
       message: message,
       stack: stack
     };
   }
-}
 
-function fatalError(request, error) {
-  // This is called outside error handling code such as if an error happens in React internals.
-  if (request.destination !== null) {
-    request.status = CLOSED;
-    closeWithError(request.destination, error);
-  } else {
-    request.status = CLOSING;
-    request.fatalError = error;
-  }
-}
-
-function emitErrorChunkProd(request, id, digest) {
-  var processedChunk = processErrorChunkProd();
-  request.completedErrorChunks.push(processedChunk);
-}
-
-function emitErrorChunkDev(request, id, digest, message, stack) {
-  var processedChunk = processErrorChunkDev(request, id, digest, message, stack);
+  var row = serializeRowHeader('E', id) + stringify(errorInfo) + '\n';
+  var processedChunk = stringToChunk(row);
   request.completedErrorChunks.push(processedChunk);
 }
 
 function emitImportChunk(request, id, clientReferenceMetadata) {
-  var processedChunk = processImportChunk(request, id, clientReferenceMetadata);
+  // $FlowFixMe[incompatible-type] stringify can return null
+  var json = stringify(clientReferenceMetadata);
+  var row = serializeRowHeader('I', id) + json + '\n';
+  var processedChunk = stringToChunk(row);
   request.completedImportChunks.push(processedChunk);
 }
 
 function emitHintChunk(request, code, model) {
-  var processedChunk = processHintChunk(request, request.nextChunkId++, code, model);
+  var json = stringify(model);
+  var id = request.nextChunkId++;
+  var row = serializeRowHeader('H' + code, id) + json + '\n';
+  var processedChunk = stringToChunk(row);
   request.completedHintChunks.push(processedChunk);
 }
 
 function emitSymbolChunk(request, id, name) {
   var symbolReference = serializeSymbolReference(name);
-  var processedChunk = processReferenceChunk(request, id, symbolReference);
+  var processedChunk = encodeReferenceChunk(request, id, symbolReference);
   request.completedImportChunks.push(processedChunk);
 }
 
 function emitProviderChunk(request, id, contextName) {
   var contextReference = serializeProviderReference(contextName);
-  var processedChunk = processReferenceChunk(request, id, contextReference);
-  request.completedJSONChunks.push(processedChunk);
+  var processedChunk = encodeReferenceChunk(request, id, contextReference);
+  request.completedRegularChunks.push(processedChunk);
+}
+
+function emitModelChunk(request, id, model) {
+  // $FlowFixMe[incompatible-type] stringify can return null
+  var json = stringify(model, request.toJSON);
+  var row = id.toString(16) + ':' + json + '\n';
+  var processedChunk = stringToChunk(row);
+  request.completedRegularChunks.push(processedChunk);
 }
 
 function retryTask(request, task) {
@@ -2002,8 +2536,7 @@ function retryTask(request, task) {
       }
     }
 
-    var processedChunk = processModelChunk(request, task.id, value);
-    request.completedJSONChunks.push(processedChunk);
+    emitModelChunk(request, task.id, value);
     request.abortableTasks.delete(task);
     task.status = COMPLETED;
   } catch (thrownValue) {
@@ -2012,27 +2545,30 @@ function retryTask(request, task) {
     // value to be a thenable, because before `use` existed that was the
     // (unstable) API for suspending. This implementation detail can change
     // later, once we deprecate the old API in favor of `use`.
-    getSuspendedThenable() : thrownValue; // $FlowFixMe[method-unbinding]
+    getSuspendedThenable() : thrownValue;
 
-    if (typeof x === 'object' && x !== null && typeof x.then === 'function') {
-      // Something suspended again, let's pick it back up later.
-      var ping = task.ping;
-      x.then(ping, ping);
-      task.thenableState = getThenableStateAfterSuspending();
-      return;
-    } else {
-      request.abortableTasks.delete(task);
-      task.status = ERRORED$1;
-      var digest = logRecoverableError(request, x);
-
-      {
-        var _getErrorMessageAndSt5 = getErrorMessageAndStackDev(x),
-            message = _getErrorMessageAndSt5.message,
-            stack = _getErrorMessageAndSt5.stack;
-
-        emitErrorChunkDev(request, task.id, digest, message, stack);
+    if (typeof x === 'object' && x !== null) {
+      // $FlowFixMe[method-unbinding]
+      if (typeof x.then === 'function') {
+        // Something suspended again, let's pick it back up later.
+        var ping = task.ping;
+        x.then(ping, ping);
+        task.thenableState = getThenableStateAfterSuspending();
+        return;
+      } else if (x.$$typeof === REACT_POSTPONE_TYPE) {
+        request.abortableTasks.delete(task);
+        task.status = ERRORED$1;
+        var postponeInstance = x;
+        logPostpone(request, postponeInstance.message);
+        emitPostponeChunk(request, task.id, postponeInstance);
+        return;
       }
     }
+
+    request.abortableTasks.delete(task);
+    task.status = ERRORED$1;
+    var digest = logRecoverableError(request, x);
+    emitErrorChunk(request, task.id, digest, x);
   }
 }
 
@@ -2070,7 +2606,7 @@ function abortTask(task, request, errorId) {
   // has a single value referencing the error.
 
   var ref = serializeByValueID(errorId);
-  var processedChunk = processReferenceChunk(request, task.id, ref);
+  var processedChunk = encodeReferenceChunk(request, task.id, ref);
   request.completedErrorChunks.push(processedChunk);
 }
 
@@ -2114,12 +2650,12 @@ function flushCompletedChunks(request, destination) {
 
     hintChunks.splice(0, i); // Next comes model data.
 
-    var jsonChunks = request.completedJSONChunks;
+    var regularChunks = request.completedRegularChunks;
     i = 0;
 
-    for (; i < jsonChunks.length; i++) {
+    for (; i < regularChunks.length; i++) {
       request.pendingChunks--;
-      var _chunk2 = jsonChunks[i];
+      var _chunk2 = regularChunks[i];
 
       var _keepWriting2 = writeChunkAndReturn(destination, _chunk2);
 
@@ -2130,7 +2666,7 @@ function flushCompletedChunks(request, destination) {
       }
     }
 
-    jsonChunks.splice(0, i); // Finally, errors are sent. The idea is that it's ok to delay
+    regularChunks.splice(0, i); // Finally, errors are sent. The idea is that it's ok to delay
     // any error messages and prioritize display of other parts of
     // the page.
 
@@ -2222,15 +2758,7 @@ function abort(request, reason) {
       var digest = logRecoverableError(request, error);
       request.pendingChunks++;
       var errorId = request.nextChunkId++;
-
-      if (true) {
-        var _getErrorMessageAndSt6 = getErrorMessageAndStackDev(error),
-            message = _getErrorMessageAndSt6.message,
-            stack = _getErrorMessageAndSt6.stack;
-
-        emitErrorChunkDev(request, errorId, digest, message, stack);
-      }
-
+      emitErrorChunk(request, errorId, digest, error);
       abortableTasks.forEach(function (task) {
         return abortTask(task, request, errorId);
       });
@@ -2265,55 +2793,6 @@ function importServerContexts(contexts) {
   }
 
   return rootContextSnapshot;
-}
-
-function serializeRowHeader(tag, id) {
-  return id.toString(16) + ':' + tag;
-}
-
-function processErrorChunkProd(request, id, digest) {
-  {
-    // These errors should never make it into a build so we don't need to encode them in codes.json
-    // eslint-disable-next-line react-internal/prod-error-codes
-    throw new Error('processErrorChunkProd should never be called while in development mode. Use processErrorChunkDev instead. This is a bug in React.');
-  }
-}
-
-function processErrorChunkDev(request, id, digest, message, stack) {
-
-  var errorInfo = {
-    digest: digest,
-    message: message,
-    stack: stack
-  };
-  var row = serializeRowHeader('E', id) + stringify(errorInfo) + '\n';
-  return stringToChunk(row);
-}
-
-function processModelChunk(request, id, model) {
-  // $FlowFixMe[incompatible-type] stringify can return null
-  var json = stringify(model, request.toJSON);
-  var row = id.toString(16) + ':' + json + '\n';
-  return stringToChunk(row);
-}
-
-function processReferenceChunk(request, id, reference) {
-  var json = stringify(reference);
-  var row = id.toString(16) + ':' + json + '\n';
-  return stringToChunk(row);
-}
-
-function processImportChunk(request, id, clientReferenceMetadata) {
-  // $FlowFixMe[incompatible-type] stringify can return null
-  var json = stringify(clientReferenceMetadata);
-  var row = serializeRowHeader('I', id) + json + '\n';
-  return stringToChunk(row);
-}
-
-function processHintChunk(request, id, code, model) {
-  var json = stringify(model);
-  var row = serializeRowHeader('H' + code, id) + json + '\n';
-  return stringToChunk(row);
 }
 
 // eslint-disable-next-line no-unused-vars
@@ -2354,7 +2833,31 @@ function resolveServerReference(bundlerConfig, id) {
 // replicate it in user space. null means that it has already loaded.
 
 var chunkCache = new Map();
-var asyncModuleCache = new Map();
+
+function requireAsyncModule(id) {
+  // We've already loaded all the chunks. We can require the module.
+  var promise = globalThis.__next_require__(id);
+
+  if (typeof promise.then !== 'function') {
+    // This wasn't a promise after all.
+    return null;
+  } else if (promise.status === 'fulfilled') {
+    // This module was already resolved earlier.
+    return null;
+  } else {
+    // Instrument the Promise to stash the result.
+    promise.then(function (value) {
+      var fulfilledThenable = promise;
+      fulfilledThenable.status = 'fulfilled';
+      fulfilledThenable.value = value;
+    }, function (reason) {
+      var rejectedThenable = promise;
+      rejectedThenable.status = 'rejected';
+      rejectedThenable.reason = reason;
+    });
+    return promise;
+  }
+}
 
 function ignoreReject() {// We rely on rejected promises to be handled by another listener.
 } // Start preloading the modules since we might need them soon.
@@ -2383,29 +2886,12 @@ function preloadModule(metadata) {
   }
 
   if (metadata.async) {
-    var existingPromise = asyncModuleCache.get(metadata.id);
-
-    if (existingPromise) {
-      if (existingPromise.status === 'fulfilled') {
-        return null;
-      }
-
-      return existingPromise;
+    if (promises.length === 0) {
+      return requireAsyncModule(metadata.id);
     } else {
-      var modulePromise = Promise.all(promises).then(function () {
-        return globalThis.__next_require__(metadata.id);
+      return Promise.all(promises).then(function () {
+        return requireAsyncModule(metadata.id);
       });
-      modulePromise.then(function (value) {
-        var fulfilledThenable = modulePromise;
-        fulfilledThenable.status = 'fulfilled';
-        fulfilledThenable.value = value;
-      }, function (reason) {
-        var rejectedThenable = modulePromise;
-        rejectedThenable.status = 'rejected';
-        rejectedThenable.reason = reason;
-      });
-      asyncModuleCache.set(metadata.id, modulePromise);
-      return modulePromise;
     }
   } else if (promises.length > 0) {
     return Promise.all(promises);
@@ -2416,20 +2902,15 @@ function preloadModule(metadata) {
 // Increase priority if necessary.
 
 function requireModule(metadata) {
-  var moduleExports;
+  var moduleExports = globalThis.__next_require__(metadata.id);
 
   if (metadata.async) {
-    // We assume that preloadModule has been called before, which
-    // should have added something to the module cache.
-    var promise = asyncModuleCache.get(metadata.id);
-
-    if (promise.status === 'fulfilled') {
-      moduleExports = promise.value;
+    if (typeof moduleExports.then !== 'function') ; else if (moduleExports.status === 'fulfilled') {
+      // This Promise should've been instrumented by preloadModule.
+      moduleExports = moduleExports.value;
     } else {
-      throw promise.reason;
+      throw moduleExports.reason;
     }
-  } else {
-    moduleExports = globalThis.__next_require__(metadata.id);
   }
 
   if (metadata.name === '*') {
@@ -2689,6 +3170,21 @@ function createModelReject(chunk) {
   };
 }
 
+function getOutlinedModel(response, id) {
+  var chunk = getChunk(response, id);
+
+  if (chunk.status === RESOLVED_MODEL) {
+    initializeModelChunk(chunk);
+  }
+
+  if (chunk.status !== INITIALIZED) {
+    // We know that this is emitted earlier so otherwise it's an error.
+    throw chunk.reason;
+  }
+
+  return chunk.value;
+}
+
 function parseModelString(response, parentObject, key, value) {
   if (value[0] === '$') {
     switch (value[1]) {
@@ -2715,22 +3211,30 @@ function parseModelString(response, parentObject, key, value) {
       case 'F':
         {
           // Server Reference
-          var _id = parseInt(value.slice(2), 16);
-
-          var _chunk = getChunk(response, _id);
-
-          if (_chunk.status === RESOLVED_MODEL) {
-            initializeModelChunk(_chunk);
-          }
-
-          if (_chunk.status !== INITIALIZED) {
-            // We know that this is emitted earlier so otherwise it's an error.
-            throw _chunk.reason;
-          } // TODO: Just encode this in the reference inline instead of as a model.
+          var _id = parseInt(value.slice(2), 16); // TODO: Just encode this in the reference inline instead of as a model.
 
 
-          var metaData = _chunk.value;
+          var metaData = getOutlinedModel(response, _id);
           return loadServerReference$1(response, metaData.id, metaData.bound, initializingChunk, parentObject, key);
+        }
+
+      case 'Q':
+        {
+          // Map
+          var _id2 = parseInt(value.slice(2), 16);
+
+          var data = getOutlinedModel(response, _id2);
+          return new Map(data);
+        }
+
+      case 'W':
+        {
+          // Set
+          var _id3 = parseInt(value.slice(2), 16);
+
+          var _data = getOutlinedModel(response, _id3);
+
+          return new Set(_data);
         }
 
       case 'K':
@@ -2738,7 +3242,9 @@ function parseModelString(response, parentObject, key, value) {
           // FormData
           var stringId = value.slice(2);
           var formPrefix = response._prefix + stringId + '_';
-          var data = new FormData();
+
+          var _data2 = new FormData();
+
           var backingFormData = response._formData; // We assume that the reference to FormData always comes after each
           // entry that it references so we can assume they all exist in the
           // backing store already.
@@ -2746,10 +3252,10 @@ function parseModelString(response, parentObject, key, value) {
 
           backingFormData.forEach(function (entry, entryKey) {
             if (entryKey.startsWith(formPrefix)) {
-              data.append(entryKey.slice(formPrefix.length), entry);
+              _data2.append(entryKey.slice(formPrefix.length), entry);
             }
           });
-          return data;
+          return _data2;
         }
 
       case 'I':
@@ -2796,31 +3302,31 @@ function parseModelString(response, parentObject, key, value) {
       default:
         {
           // We assume that anything else is a reference ID.
-          var _id2 = parseInt(value.slice(1), 16);
+          var _id4 = parseInt(value.slice(1), 16);
 
-          var _chunk2 = getChunk(response, _id2);
+          var _chunk = getChunk(response, _id4);
 
-          switch (_chunk2.status) {
+          switch (_chunk.status) {
             case RESOLVED_MODEL:
-              initializeModelChunk(_chunk2);
+              initializeModelChunk(_chunk);
               break;
           } // The status might have changed after initialization.
 
 
-          switch (_chunk2.status) {
+          switch (_chunk.status) {
             case INITIALIZED:
-              return _chunk2.value;
+              return _chunk.value;
 
             case PENDING:
             case BLOCKED:
               var parentChunk = initializingChunk;
 
-              _chunk2.then(createModelResolver(parentChunk, parentObject, key), createModelReject(parentChunk));
+              _chunk.then(createModelResolver(parentChunk, parentObject, key), createModelReject(parentChunk));
 
               return null;
 
             default:
-              throw _chunk2.reason;
+              throw _chunk.reason;
           }
         }
     }
@@ -2882,6 +3388,23 @@ function loadServerReference(bundlerConfig, id, bound) {
   }
 }
 
+function decodeBoundActionMetaData(body, serverManifest, formFieldPrefix) {
+  // The data for this reference is encoded in multiple fields under this prefix.
+  var actionResponse = createResponse(serverManifest, formFieldPrefix, body);
+  close(actionResponse);
+  var refPromise = getRoot(actionResponse); // Force it to initialize
+  // $FlowFixMe
+
+  refPromise.then(function () {});
+
+  if (refPromise.status !== 'fulfilled') {
+    // $FlowFixMe
+    throw refPromise.reason;
+  }
+
+  return refPromise.value;
+}
+
 function decodeAction(body, serverManifest) {
   // We're going to create a new formData object that holds all the fields except
   // the implementation details of the action data.
@@ -2897,21 +3420,8 @@ function decodeAction(body, serverManifest) {
 
 
     if (key.startsWith('$ACTION_REF_')) {
-      var formFieldPrefix = '$ACTION_' + key.slice(12) + ':'; // The data for this reference is encoded in multiple fields under this prefix.
-
-      var actionResponse = createResponse(serverManifest, formFieldPrefix, body);
-      close(actionResponse);
-      var refPromise = getRoot(actionResponse); // Force it to initialize
-      // $FlowFixMe
-
-      refPromise.then(function () {});
-
-      if (refPromise.status !== 'fulfilled') {
-        // $FlowFixMe
-        throw refPromise.reason;
-      }
-
-      var metaData = refPromise.value;
+      var formFieldPrefix = '$ACTION_' + key.slice(12) + ':';
+      var metaData = decodeBoundActionMetaData(body, serverManifest, formFieldPrefix);
       action = loadServerReference(serverManifest, metaData.id, metaData.bound);
       return;
     }
@@ -2932,9 +3442,50 @@ function decodeAction(body, serverManifest) {
     return fn.bind(null, formData);
   });
 }
+function decodeFormState(actionResult, body, serverManifest) {
+  var keyPath = body.get('$ACTION_KEY');
+
+  if (typeof keyPath !== 'string') {
+    // This form submission did not include any form state.
+    return Promise.resolve(null);
+  } // Search through the form data object to get the reference id and the number
+  // of bound arguments. This repeats some of the work done in decodeAction.
+
+
+  var metaData = null; // $FlowFixMe[prop-missing]
+
+  body.forEach(function (value, key) {
+    if (key.startsWith('$ACTION_REF_')) {
+      var formFieldPrefix = '$ACTION_' + key.slice(12) + ':';
+      metaData = decodeBoundActionMetaData(body, serverManifest, formFieldPrefix);
+    } // We don't check for the simple $ACTION_ID_ case because form state actions
+    // are always bound to the state argument.
+
+  });
+
+  if (metaData === null) {
+    // Should be unreachable.
+    return Promise.resolve(null);
+  }
+
+  var referenceId = metaData.id;
+  return Promise.resolve(metaData.bound).then(function (bound) {
+    if (bound === null) {
+      // Should be unreachable because form state actions are always bound to the
+      // state argument.
+      return null;
+    } // The form action dispatch method is always bound to the initial state.
+    // But when comparing signatures, we compare to the original unbound action.
+    // Subtract one from the arity to account for this.
+
+
+    var boundArity = bound.length - 1;
+    return [actionResult, keyPath, referenceId, boundArity];
+  });
+}
 
 function renderToReadableStream(model, webpackMap, options) {
-  var request = createRequest(model, webpackMap, options ? options.onError : undefined, options ? options.context : undefined, options ? options.identifierPrefix : undefined);
+  var request = createRequest(model, webpackMap, options ? options.onError : undefined, options ? options.context : undefined, options ? options.identifierPrefix : undefined, options ? options.onPostpone : undefined);
 
   if (options && options.signal) {
     var signal = options.signal;
@@ -2979,8 +3530,12 @@ function decodeReply(body, webpackMap) {
   return getRoot(response);
 }
 
+exports.createClientModuleProxy = createClientModuleProxy;
 exports.decodeAction = decodeAction;
+exports.decodeFormState = decodeFormState;
 exports.decodeReply = decodeReply;
+exports.registerClientReference = registerClientReference;
+exports.registerServerReference = registerServerReference;
 exports.renderToReadableStream = renderToReadableStream;
   })();
 }

@@ -211,13 +211,13 @@ export async function webpackBuildImpl(
               ...clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP].import,
               value,
             ],
-            layer: WEBPACK_LAYERS.appClient,
+            layer: WEBPACK_LAYERS.appPagesBrowser,
           }
         } else {
           clientEntry[key] = {
             dependOn: [CLIENT_STATIC_FILES_RUNTIME_MAIN_APP],
             import: value,
-            layer: WEBPACK_LAYERS.appClient,
+            layer: WEBPACK_LAYERS.appPagesBrowser,
           }
         }
       }
@@ -314,7 +314,7 @@ export async function webpackBuildImpl(
       console.warn()
     } else if (!compilerName) {
       NextBuildContext.buildSpinner?.stopAndPersist()
-      Log.info('Compiled successfully')
+      Log.event('Compiled successfully')
     }
 
     return {
@@ -355,10 +355,7 @@ export async function workerMain(workerData: {
   /// load the config because it's not serializable
   NextBuildContext.config = await loadConfig(
     PHASE_PRODUCTION_BUILD,
-    NextBuildContext.dir!,
-    undefined,
-    undefined,
-    true
+    NextBuildContext.dir!
   )
   NextBuildContext.nextBuildSpan = trace('next-build')
 

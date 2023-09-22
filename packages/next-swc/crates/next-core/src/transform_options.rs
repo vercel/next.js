@@ -1,20 +1,20 @@
 use anyhow::Result;
+use turbo_tasks::Vc;
 use turbopack_binding::{
-    turbo::tasks_fs::{FileJsonContentVc, FileSystemPathVc},
+    turbo::tasks_fs::{FileJsonContent, FileSystemPath},
     turbopack::{
         core::{
-            asset::AssetVc,
+            file_source::FileSource,
             resolve::{find_context_file, node::node_cjs_resolve_options, FindContextFileResult},
-            source_asset::SourceAssetVc,
+            source::Source,
         },
         dev::react_refresh::assert_can_resolve_react_refresh,
         ecmascript::typescript::resolve::{read_from_tsconfigs, read_tsconfigs, tsconfig},
         turbopack::{
             module_options::{
-                DecoratorsKind, DecoratorsOptions, DecoratorsOptionsVc, JsxTransformOptions,
-                JsxTransformOptionsVc, TypescriptTransformOptions, TypescriptTransformOptionsVc,
+                DecoratorsKind, DecoratorsOptions, JsxTransformOptions, TypescriptTransformOptions,
             },
-            resolve_options_context::ResolveOptionsContextVc,
+            resolve_options_context::ResolveOptionsContext,
         },
     },
 };
@@ -22,14 +22,14 @@ use turbopack_binding::{
 use crate::mode::NextMode;
 
 async fn get_typescript_options(
-    project_path: FileSystemPathVc,
-) -> Option<Vec<(FileJsonContentVc, AssetVc)>> {
+    project_path: Vc<FileSystemPath>,
+) -> Option<Vec<(Vc<FileJsonContent>, Vc<Box<dyn Source>>)>> {
     let tsconfig = find_context_file(project_path, tsconfig());
     match *tsconfig.await.ok()? {
         FindContextFileResult::Found(path, _) => Some(
             read_tsconfigs(
                 path.read(),
-                SourceAssetVc::new(path).into(),
+                Vc::upcast(FileSource::new(path)),
                 node_cjs_resolve_options(path.root()),
             )
             .await
@@ -43,8 +43,8 @@ async fn get_typescript_options(
 /// outputs
 #[turbo_tasks::function]
 pub async fn get_typescript_transform_options(
-    project_path: FileSystemPathVc,
-) -> Result<TypescriptTransformOptionsVc> {
+    project_path: Vc<FileSystemPath>,
+) -> Result<Vc<TypescriptTransformOptions>> {
     let tsconfig = get_typescript_options(project_path).await;
 
     let use_define_for_class_fields = if let Some(tsconfig) = tsconfig {
@@ -68,8 +68,8 @@ pub async fn get_typescript_transform_options(
 /// [TODO]: Currnently only typescript's legacy decorators are supported
 #[turbo_tasks::function]
 pub async fn get_decorators_transform_options(
-    project_path: FileSystemPathVc,
-) -> Result<DecoratorsOptionsVc> {
+    project_path: Vc<FileSystemPath>,
+) -> Result<Vc<DecoratorsOptions>> {
     let tsconfig = get_typescript_options(project_path).await;
 
     let decorators_transform_options = if let Some(tsconfig) = tsconfig {
@@ -124,10 +124,10 @@ pub async fn get_decorators_transform_options(
 
 #[turbo_tasks::function]
 pub async fn get_jsx_transform_options(
-    project_path: FileSystemPathVc,
+    project_path: Vc<FileSystemPath>,
     mode: NextMode,
-    resolve_options_context: Option<ResolveOptionsContextVc>,
-) -> Result<JsxTransformOptionsVc> {
+    resolve_options_context: Option<Vc<ResolveOptionsContext>>,
+) -> Result<Vc<JsxTransformOptions>> {
     let tsconfig = get_typescript_options(project_path).await;
 
     let enable_react_refresh = if let Some(resolve_options_context) = resolve_options_context {

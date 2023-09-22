@@ -70,7 +70,7 @@ const runTests = (isDev = false) => {
       )
       expect(filteredLogs.length).toBe(0)
 
-      async function test(id) {
+      async function test(id, css) {
         const script = await browser.elementById(id)
         const dataAttr = await script.getAttribute('data-nscript')
         const endScripts = await browser.elementsByCss(
@@ -81,12 +81,20 @@ const runTests = (isDev = false) => {
         expect(script).toBeDefined()
         expect(dataAttr).toBeDefined()
 
+        if (css) {
+          const cssTag = await browser.elementByCss(`link[href="${css}"]`)
+          expect(cssTag).toBeDefined()
+        }
+
         // Script is inserted at the end
         expect(endScripts.length).toBe(1)
       }
 
       // lazyOnload script in page
-      await test('scriptLazyOnload')
+      await test(
+        'scriptLazyOnload',
+        'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css'
+      )
       // lazyOnload script in _document
       await test('documentLazyOnload')
     } finally {
