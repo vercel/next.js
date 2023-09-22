@@ -7,7 +7,7 @@
   },
   "dependencies": {
     "@hapi/iron": "6.0.0",
-    "cookie": "0.4.1",
+    "cookie": "0.5.0",
     "next": "latest",
     "next-connect": "0.8.1",
     "passport": "^0.4.1",
