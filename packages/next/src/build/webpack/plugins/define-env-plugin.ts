@@ -24,7 +24,7 @@ interface DefineEnvPluginOptions {
   previewModeId: string | undefined
 }
 
-function getDefineEnv({
+export function getDefineEnv({
   allowedRevalidateHeaderKeys,
   clientRouterFilters,
   config,
