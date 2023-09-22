@@ -10,6 +10,12 @@ const { fetch } = require('next/dist/compiled/undici') as {
 
 const MKCERT_VERSION = 'v1.4.4'
 
+export interface SelfSignedCertificate {
+  key: string
+  cert: string
+  rootCA?: string
+}
+
 function getBinaryName() {
   const platform = process.platform
   const arch = process.arch === 'x64' ? 'amd64' : process.arch
@@ -66,7 +72,7 @@ async function downloadBinary() {
 export async function createSelfSignedCertificate(
   host?: string,
   certDir: string = 'certificates'
-) {
+): Promise<SelfSignedCertificate | undefined> {
   try {
     const binaryPath = await downloadBinary()
     if (!binaryPath) throw new Error('missing mkcert binary')
@@ -98,7 +104,7 @@ export async function createSelfSignedCertificate(
       { stdio: 'ignore' }
     )
 
-    const caLocation = execSync(`${binaryPath} -CAROOT`).toString()
+    const caLocation = execSync(`${binaryPath} -CAROOT`).toString().trim()
 
     if (!fs.existsSync(keyPath) || !fs.existsSync(certPath)) {
       throw new Error('Certificate files not found')
@@ -121,6 +127,7 @@ export async function createSelfSignedCertificate(
     return {
       key: keyPath,
       cert: certPath,
+      rootCA: `${caLocation}/rootCA.pem`,
     }
   } catch (err) {
     Log.error(
