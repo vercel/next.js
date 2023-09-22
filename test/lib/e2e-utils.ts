@@ -198,6 +198,8 @@ export async function createNext(
     } catch (_) {}
 
     if (process.env.NEXT_TEST_CONTINUE_ON_ERROR) {
+      // Other test should continue to create new instance if NEXT_TEST_CONTINUE_ON_ERROR explicitly specified.
+      nextInstance = undefined
       throw err
     } else {
       process.exit(1)
