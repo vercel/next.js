@@ -44,17 +44,18 @@ async function updatePassingTests() {
     ]
   }
 
-  const oldPassingData = JSON.parse(fs.readFileSync(PASSING_JSON_PATH, 'utf8'))
-
-  for (const file of Object.keys(oldPassingData)) {
-    const newData = passing[file]
-    const oldData = oldPassingData[file]
-    if (!newData) continue
-    const shouldPass = new Set(
-      oldData.passed.filter((name) => newData.failed.includes(name))
+  if (!override) {
+    const oldPassingData = JSON.parse(
+      fs.readFileSync(PASSING_JSON_PATH, 'utf8')
     )
-    if (override) {
-    } else {
+
+    for (const file of Object.keys(oldPassingData)) {
+      const newData = passing[file]
+      const oldData = oldPassingData[file]
+      if (!newData) continue
+      const shouldPass = new Set(
+        oldData.passed.filter((name) => newData.failed.includes(name))
+      )
       if (shouldPass.size > 0) {
         const list = JSON.stringify([...shouldPass], 0, 2)
         console.log(
