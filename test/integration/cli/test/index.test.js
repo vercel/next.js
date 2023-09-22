@@ -792,23 +792,23 @@ describe('CLI Usage', () => {
     function matchInfoOutput(stdout, { nextConfigOutput = '.*' } = {}) {
       expect(stdout).toMatch(
         new RegExp(`
-    Operating System:
-      Platform: .*
-      Arch: .*
-      Version: .*
-    Binaries:
-      Node: .*
-      npm: .*
-      Yarn: .*
-      pnpm: .*
-    Relevant Packages:
-      next: .*
-      eslint-config-next: .*
-      react: .*
-      react-dom: .*
-      typescript: .*
-    Next.js Config:
-      output: ${nextConfigOutput}
+Operating System:
+  Platform: .*
+  Arch: .*
+  Version: .*
+Binaries:
+  Node: .*
+  npm: .*
+  Yarn: .*
+  pnpm: .*
+Relevant Packages:
+  next: .*
+  eslint-config-next: .*
+  react: .*
+  react-dom: .*
+  typescript: .*
+Next.js Config:
+  output: ${nextConfigOutput}
 `)
       )
     }
