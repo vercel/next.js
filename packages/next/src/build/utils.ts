@@ -67,7 +67,6 @@ import { nodeFs } from '../server/lib/node-fs-methods'
 import * as ciEnvironment from '../telemetry/ci-info'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { denormalizeAppPagePath } from '../shared/lib/page-path/denormalize-app-path'
-import { needsExperimentalReact } from '../lib/needs-experimental-react'
 
 const { AppRouteRouteModule } =
   require('../server/future/route-modules/app-route/module.compiled') as typeof import('../server/future/route-modules/app-route/module')
@@ -1837,7 +1836,6 @@ export async function copyTracedFiles(
     ...serverConfig,
     distDir: `./${path.relative(dir, distDir)}`,
   }
-  const hasExperimentalReact = needsExperimentalReact(nextConfig)
   try {
     const packageJsonPath = path.join(distDir, '../package.json')
     const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf8'))
@@ -1994,9 +1992,6 @@ let keepAliveTimeout = parseInt(process.env.KEEP_ALIVE_TIMEOUT, 10)
 const nextConfig = ${JSON.stringify(nextConfig)}
 
 process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(nextConfig)
-process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = ${hasExperimentalReact}
-  ? 'experimental'
-  : 'next'
 
 require('next')
 const { startServer } = require('next/dist/server/lib/start-server')
