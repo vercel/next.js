@@ -285,35 +285,26 @@ function getOptimizedAliases(): { [pkg: string]: string } {
   const stubObjectAssign = path.join(__dirname, 'polyfills', 'object-assign.js')
 
   const shimAssign = path.join(__dirname, 'polyfills', 'object.assign')
-  return Object.assign(
-    {},
-    {
-      unfetch$: stubWindowFetch,
-      'isomorphic-unfetch$': stubWindowFetch,
-      'whatwg-fetch$': path.join(
-        __dirname,
-        'polyfills',
-        'fetch',
-        'whatwg-fetch.js'
-      ),
-    },
-    {
-      'object-assign$': stubObjectAssign,
+  return {
+    unfetch$: stubWindowFetch,
+    'isomorphic-unfetch$': stubWindowFetch,
+    'whatwg-fetch$': path.join(
+      __dirname,
+      'polyfills',
+      'fetch',
+      'whatwg-fetch.js'
+    ),
+    'object-assign$': stubObjectAssign,
+    // Stub Package: object.assign
+    'object.assign/auto': path.join(shimAssign, 'auto.js'),
+    'object.assign/implementation': path.join(shimAssign, 'implementation.js'),
+    'object.assign$': path.join(shimAssign, 'index.js'),
+    'object.assign/polyfill': path.join(shimAssign, 'polyfill.js'),
+    'object.assign/shim': path.join(shimAssign, 'shim.js'),
 
-      // Stub Package: object.assign
-      'object.assign/auto': path.join(shimAssign, 'auto.js'),
-      'object.assign/implementation': path.join(
-        shimAssign,
-        'implementation.js'
-      ),
-      'object.assign$': path.join(shimAssign, 'index.js'),
-      'object.assign/polyfill': path.join(shimAssign, 'polyfill.js'),
-      'object.assign/shim': path.join(shimAssign, 'shim.js'),
-
-      // Replace: full URL polyfill with platform-based polyfill
-      url: require.resolve('next/dist/compiled/native-url'),
-    }
-  )
+    // Replace: full URL polyfill with platform-based polyfill
+    url: require.resolve('next/dist/compiled/native-url'),
+  }
 }
 
 // Alias these modules to be resolved with "module" if possible.
