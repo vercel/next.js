@@ -83,7 +83,7 @@ type ClientEntries = {
 const EXTERNAL_PACKAGES =
   require('../../lib/server-external-packages.json') as string[]
 
-const NEXT_PROJECT_ROOT = path.join(__dirname, '..', '..')
+const NEXT_PROJECT_ROOT = path.join(__dirname, '..', '..', '..')
 const NEXT_PROJECT_ROOT_DIST = path.join(NEXT_PROJECT_ROOT, 'dist')
 const NEXT_PROJECT_ROOT_DIST_CLIENT = path.join(
   NEXT_PROJECT_ROOT_DIST,
