@@ -1670,7 +1670,7 @@ export default async function getBaseWebpackConfig(
           // @ts-ignore No typings yet
           const {
             TerserPlugin,
-          } = require('./webpack/plugins/terser-webpack-plugin/src/index.js')
+          } = require('./plugins/terser-webpack-plugin/src/index.js')
           new TerserPlugin({
             cacheDir: path.join(distDir, 'cache', 'next-minifier'),
             parallel: config.experimental.cpus,
@@ -1690,7 +1690,7 @@ export default async function getBaseWebpackConfig(
         (compiler: webpack.Compiler) => {
           const {
             CssMinimizerPlugin,
-          } = require('./webpack/plugins/css-minimizer-plugin')
+          } = require('./plugins/css-minimizer-plugin')
           new CssMinimizerPlugin({
             postcssOptions: {
               map: {
@@ -1783,7 +1783,7 @@ export default async function getBaseWebpackConfig(
         'next-barrel-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
-        alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
+        alias[loader] = path.join(__dirname, 'loaders', loader)
 
         return alias
       }, {} as Record<string, string>),
@@ -2358,7 +2358,7 @@ export default async function getBaseWebpackConfig(
       config.outputFileTracing &&
         isNodeServer &&
         !dev &&
-        new (require('./webpack/plugins/next-trace-entrypoints-plugin')
+        new (require('./plugins/next-trace-entrypoints-plugin')
           .TraceEntryPointsPlugin as typeof import('./plugins/next-trace-entrypoints-plugin').TraceEntryPointsPlugin)(
           {
             rootDir: dir,
@@ -2432,7 +2432,7 @@ export default async function getBaseWebpackConfig(
         isNodeServer &&
         (function () {
           const { FontStylesheetGatheringPlugin } =
-            require('./webpack/plugins/font-stylesheet-gathering-plugin') as {
+            require('./plugins/font-stylesheet-gathering-plugin') as {
               FontStylesheetGatheringPlugin: typeof import('./plugins/font-stylesheet-gathering-plugin').FontStylesheetGatheringPlugin
             }
           return new FontStylesheetGatheringPlugin({
@@ -2490,7 +2490,7 @@ export default async function getBaseWebpackConfig(
         }),
       !dev &&
         isClient &&
-        new (require('./webpack/plugins/telemetry-plugin').TelemetryPlugin)(
+        new (require('./plugins/telemetry-plugin').TelemetryPlugin)(
           new Map(
             [
               ['swcLoader', useSWCLoader],
