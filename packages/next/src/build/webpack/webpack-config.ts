@@ -677,7 +677,7 @@ export default async function getBaseWebpackConfig(
 
   const getBabelLoader = () => {
     return {
-      loader: require.resolve('./babel/loader/index'),
+      loader: require.resolve('../babel/loader/index'),
       options: {
         configFile: babelConfigFile,
         isServer: isNodeOrEdgeCompilation,
@@ -708,7 +708,7 @@ export default async function getBaseWebpackConfig(
       // Subscriber need to be initialized _before_ any actual swc's call (transform, etcs)
       // to collect correct trace spans when they are called.
       swcTraceProfilingInitialized = true
-      require('./swc')?.initCustomTraceSubscriber?.(
+      require('../swc')?.initCustomTraceSubscriber?.(
         path.join(distDir, `swc-trace-profile-${Date.now()}.json`)
       )
     }
