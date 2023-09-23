@@ -102,7 +102,7 @@ export class EdgeRouteModuleWrapper {
         },
         notFoundRoutes: [],
       },
-      staticGenerationContext: {
+      renderOpts: {
         supportsDynamicHTML: true,
       },
     }

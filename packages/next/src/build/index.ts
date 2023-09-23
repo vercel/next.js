@@ -5,14 +5,15 @@ import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import type { ActionManifest } from './webpack/plugins/flight-client-entry-plugin'
-import type { ExportOptions } from '../export'
+import type { ExportAppOptions, ExportAppWorker } from '../export/types'
 
 import '../lib/setup-exception-listeners'
+
 import { loadEnvConfig } from '@next/env'
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
 import { isMatch, makeRe } from 'next/dist/compiled/micromatch'
-import { promises as fs, existsSync as fsExistsSync } from 'fs'
+import fs from 'fs/promises'
 import os from 'os'
 import { Worker } from '../lib/worker'
 import { defaultConfig } from '../server/config-shared'
@@ -150,22 +151,31 @@ import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
 import { defaultOverrides } from '../server/require-hook'
 import { initialize as initializeIncrementalCache } from '../server/lib/incremental-cache-server'
 import { nodeFs } from '../server/lib/node-fs-methods'
+import { formatManifest } from './manifests/formatter/manifest-formatter'
 
-export type SsgRoute = {
-  initialRevalidateSeconds: number | false
-  srcRoute: string | null
-  dataRoute: string | null
-  initialStatus?: number
-  initialHeaders?: Record<string, string>
+interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
 }
 
-export type DynamicSsgRoute = {
+interface DataRouteRouteInfo {
+  dataRoute: string | null
+}
+
+export interface SsgRoute
+  extends ExperimentalBypassForInfo,
+    DataRouteRouteInfo {
+  initialRevalidateSeconds: number | false
+  srcRoute: string | null
+  initialStatus?: number
+  initialHeaders?: Record<string, string>
+}
+
+export interface DynamicSsgRoute
+  extends ExperimentalBypassForInfo,
+    DataRouteRouteInfo {
   routeRegex: string
   fallback: string | null | false
-  dataRoute: string | null
   dataRouteRegex: string | null
-  experimentalBypassFor?: RouteHas[]
 }
 
 export type PrerenderManifest = {
@@ -882,7 +892,7 @@ export default async function build(
         .traceAsyncFn(() =>
           fs.writeFile(
             routesManifestPath,
-            JSON.stringify(routesManifest),
+            formatManifest(routesManifest),
             'utf8'
           )
         )
@@ -1120,7 +1130,7 @@ export default async function build(
                 existedNftFile.files = [...filesSet]
                 await fs.writeFile(
                   turbotraceOutputPath,
-                  JSON.stringify(existedNftFile),
+                  formatManifest(existedNftFile),
                   'utf8'
                 )
               }
@@ -1193,7 +1203,8 @@ export default async function build(
         })
         await fs.writeFile(
           path.join(distDir, APP_PATH_ROUTES_MANIFEST),
-          JSON.stringify(appPathRoutes, null, 2)
+          formatManifest(appPathRoutes),
+          'utf-8'
         )
       }
 
@@ -1866,7 +1877,8 @@ export default async function build(
 
         await fs.writeFile(
           path.join(distDir, SERVER_DIRECTORY, FUNCTIONS_CONFIG_MANIFEST),
-          JSON.stringify(manifest, null, 2)
+          formatManifest(manifest),
+          'utf8'
         )
       }
 
@@ -1997,10 +2009,11 @@ export default async function build(
 
               await fs.writeFile(
                 traceFile,
-                JSON.stringify({
+                formatManifest({
                   version: traceContent.version,
                   files: [...combined],
-                })
+                }),
+                'utf8'
               )
             }
           }
@@ -2291,25 +2304,27 @@ export default async function build(
             await Promise.all([
               fs.writeFile(
                 nextServerTraceOutput,
-                JSON.stringify({
+                formatManifest({
                   version: 1,
                   cacheKey,
                   files: Array.from(tracedFiles),
                 } as {
                   version: number
                   files: string[]
-                })
+                }),
+                'utf8'
               ),
               fs.writeFile(
                 nextMinimalTraceOutput,
-                JSON.stringify({
+                formatManifest({
                   version: 1,
                   cacheKey,
                   files: Array.from(minimalTracedFiles),
                 } as {
                   version: number
                   files: string[]
-                })
+                }),
+                'utf8'
               ),
             ])
 
@@ -2336,7 +2351,7 @@ export default async function build(
 
         await fs.writeFile(
           routesManifestPath,
-          JSON.stringify(routesManifest),
+          formatManifest(routesManifest),
           'utf8'
         )
       }
@@ -2411,7 +2426,7 @@ export default async function build(
 
       await fs.writeFile(
         path.join(distDir, SERVER_FILES_MANIFEST),
-        JSON.stringify(requiredServerFiles),
+        formatManifest(requiredServerFiles),
         'utf8'
       )
 
@@ -2489,15 +2504,10 @@ export default async function build(
             ssgPages,
             additionalSsgPaths
           )
-          const exportApp: typeof import('../export').default =
-            require('../export').default
+          const exportApp: ExportAppWorker = require('../export').default
 
           const exportConfig: NextConfigComplete = {
             ...config,
-            initialPageRevalidationMap: {},
-            initialPageMetaMap: {},
-            pageDurationMap: {},
-            ssgNotFoundPaths: [] as string[],
             // Default map will be the collection of automatic statically exported
             // pages and incremental pages.
             // n.b. we cannot handle this above in combinedPages because the dynamic
@@ -2619,7 +2629,7 @@ export default async function build(
             },
           }
 
-          const exportOptions: ExportOptions = {
+          const exportOptions: ExportAppOptions = {
             isInvokedFromCli: false,
             nextConfig: exportConfig,
             hasAppDir,
@@ -2644,10 +2654,17 @@ export default async function build(
               : undefined,
           }
 
-          await exportApp(dir, exportOptions, nextBuildSpan)
+          const exportResult = await exportApp(
+            dir,
+            exportOptions,
+            nextBuildSpan
+          )
+
+          // If there was no result, there's nothing more to do.
+          if (!exportResult) return
 
           const postBuildSpinner = createSpinner('Finalizing page optimization')
-          ssgNotFoundPaths = exportConfig.ssgNotFoundPaths
+          ssgNotFoundPaths = Array.from(exportResult.ssgNotFoundPaths)
 
           // remove server bundles that were exported
           for (const page of staticPages) {
@@ -2660,8 +2677,9 @@ export default async function build(
             const appConfig = appDefaultConfigs.get(originalAppPath) || {}
             let hasDynamicData =
               appConfig.revalidate === 0 ||
-              exportConfig.initialPageRevalidationMap[page] === 0
+              exportResult.byPath.get(page)?.revalidate === 0
 
+            // TODO: (wyattjoh) maybe change behavior for postpone?
             if (hasDynamicData && pageInfos.get(page)?.static) {
               // if the page was marked as being static, but it contains dynamic data
               // (ie, in the case of a static generation bailout), then it should be marked dynamic
@@ -2689,22 +2707,10 @@ export default async function build(
               if (isDynamicRoute(page) && route === page) return
               if (route === '/_not-found') return
 
-              let revalidate = exportConfig.initialPageRevalidationMap[route]
-
-              if (typeof revalidate === 'undefined') {
-                revalidate =
-                  typeof appConfig.revalidate !== 'undefined'
-                    ? appConfig.revalidate
-                    : false
-              }
-
-              // ensure revalidate is normalized correctly
-              if (
-                typeof revalidate !== 'number' &&
-                typeof revalidate !== 'boolean'
-              ) {
-                revalidate = false
-              }
+              const {
+                revalidate = appConfig.revalidate ?? false,
+                metadata = {},
+              } = exportResult.byPath.get(route) ?? {}
 
               if (revalidate !== 0) {
                 const normalizedRoute = normalizePagePath(route)
@@ -2714,15 +2720,11 @@ export default async function build(
 
                 const routeMeta: Partial<SsgRoute> = {}
 
-                const exportRouteMeta: {
-                  status?: number
-                  headers?: Record<string, string>
-                } = exportConfig.initialPageMetaMap[route] || {}
-
-                if (exportRouteMeta.status !== 200) {
-                  routeMeta.initialStatus = exportRouteMeta.status
+                if (metadata.status !== 200) {
+                  routeMeta.initialStatus = metadata.status
                 }
-                const exportHeaders = exportRouteMeta.headers
+
+                const exportHeaders = metadata.headers
                 const headerKeys = Object.keys(exportHeaders || {})
 
                 if (exportHeaders && headerKeys.length) {
@@ -2956,15 +2958,22 @@ export default async function build(
             const file = normalizePagePath(page)
 
             const pageInfo = pageInfos.get(page)
-            const durationInfo = exportConfig.pageDurationMap[page]
+            const durationInfo = exportResult.byPage.get(page)
             if (pageInfo && durationInfo) {
               // Set Build Duration
               if (pageInfo.ssgPageRoutes) {
                 pageInfo.ssgPageDurations = pageInfo.ssgPageRoutes.map(
-                  (pagePath) => durationInfo[pagePath]
+                  (pagePath) => {
+                    const duration = durationInfo.durationsByPath.get(pagePath)
+                    if (typeof duration === 'undefined') {
+                      throw new Error("Invariant: page wasn't built")
+                    }
+
+                    return duration
+                  }
                 )
               }
-              pageInfo.pageDuration = durationInfo[page]
+              pageInfo.pageDuration = durationInfo.durationsByPath.get(page)
             }
 
             // The dynamic version of SSG pages are only prerendered if the
@@ -2998,7 +3007,8 @@ export default async function build(
 
                     finalPrerenderRoutes[localePage] = {
                       initialRevalidateSeconds:
-                        exportConfig.initialPageRevalidationMap[localePage],
+                        exportResult.byPath.get(localePage)?.revalidate ??
+                        false,
                       srcRoute: null,
                       dataRoute: path.posix.join(
                         '/_next/data',
@@ -3010,7 +3020,7 @@ export default async function build(
                 } else {
                   finalPrerenderRoutes[page] = {
                     initialRevalidateSeconds:
-                      exportConfig.initialPageRevalidationMap[page],
+                      exportResult.byPath.get(page)?.revalidate ?? false,
                     srcRoute: null,
                     dataRoute: path.posix.join(
                       '/_next/data',
@@ -3022,7 +3032,7 @@ export default async function build(
                 // Set Page Revalidation Interval
                 if (pageInfo) {
                   pageInfo.initialRevalidateSeconds =
-                    exportConfig.initialPageRevalidationMap[page]
+                    exportResult.byPath.get(page)?.revalidate ?? false
                 }
               } else {
                 // For a dynamic SSG page, we did not copy its data exports and only
@@ -3069,9 +3079,15 @@ export default async function build(
                     )
                   }
 
+                  const initialRevalidateSeconds =
+                    exportResult.byPath.get(route)?.revalidate ?? false
+
+                  if (typeof initialRevalidateSeconds === 'undefined') {
+                    throw new Error("Invariant: page wasn't built")
+                  }
+
                   finalPrerenderRoutes[route] = {
-                    initialRevalidateSeconds:
-                      exportConfig.initialPageRevalidationMap[route],
+                    initialRevalidateSeconds,
                     srcRoute: page,
                     dataRoute: path.posix.join(
                       '/_next/data',
@@ -3082,8 +3098,7 @@ export default async function build(
 
                   // Set route Revalidation Interval
                   if (pageInfo) {
-                    pageInfo.initialRevalidateSeconds =
-                      exportConfig.initialPageRevalidationMap[route]
+                    pageInfo.initialRevalidateSeconds = initialRevalidateSeconds
                   }
                 }
               }
@@ -3094,7 +3109,7 @@ export default async function build(
           await fs.rm(exportOptions.outdir, { recursive: true, force: true })
           await fs.writeFile(
             manifestPath,
-            JSON.stringify(pagesManifest, null, 2),
+            formatManifest(pagesManifest),
             'utf8'
           )
 
@@ -3186,7 +3201,7 @@ export default async function build(
 
         await fs.writeFile(
           path.join(distDir, PRERENDER_MANIFEST),
-          JSON.stringify(prerenderManifest),
+          formatManifest(prerenderManifest),
           'utf8'
         )
         await fs.writeFile(
@@ -3211,7 +3226,7 @@ export default async function build(
         }
         await fs.writeFile(
           path.join(distDir, PRERENDER_MANIFEST),
-          JSON.stringify(prerenderManifest),
+          formatManifest(prerenderManifest),
           'utf8'
         )
         await fs.writeFile(
@@ -3238,7 +3253,7 @@ export default async function build(
 
       await fs.writeFile(
         path.join(distDir, IMAGES_MANIFEST),
-        JSON.stringify({
+        formatManifest({
           version: 1,
           images,
         }),
@@ -3246,7 +3261,7 @@ export default async function build(
       )
       await fs.writeFile(
         path.join(distDir, EXPORT_MARKER),
-        JSON.stringify({
+        formatManifest({
           version: 1,
           hasExportPathMap: typeof config.exportPathMap === 'function',
           exportTrailingSlash: config.trailingSlash === true,
@@ -3296,7 +3311,7 @@ export default async function build(
         )
         if (appDir) {
           const originalServerApp = path.join(distDir, SERVER_DIRECTORY, 'app')
-          if (fsExistsSync(originalServerApp)) {
+          if (await fileExists(originalServerApp)) {
             await recursiveCopy(
               originalServerApp,
               path.join(
@@ -3353,8 +3368,7 @@ export default async function build(
       }
 
       if (config.output === 'export') {
-        const exportApp: typeof import('../export').default =
-          require('../export').default
+        const exportApp: ExportAppWorker = require('../export').default
 
         const pagesWorker = createStaticWorker(
           incrementalCacheIpcPort,
@@ -3365,7 +3379,7 @@ export default async function build(
           incrementalCacheIpcValidationKey
         )
 
-        const options: ExportOptions = {
+        const options: ExportAppOptions = {
           isInvokedFromCli: false,
           buildExport: false,
           nextConfig: config,
