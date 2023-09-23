@@ -536,6 +536,31 @@ export async function loadProjectInfo({
   }
 }
 
+function getOpenTelemetryVersion(): string | null {
+  try {
+    return require('@opentelemetry/api/package.json')?.version ?? null
+  } catch {
+    return null
+  }
+}
+
+function hasExternalOtelApiPackage(): boolean {
+  const opentelemetryVersion = getOpenTelemetryVersion()
+  if (!opentelemetryVersion) {
+    return false
+  }
+
+  // 0.19.0 is the first version of the package that has the `tracer.getSpan` API that we need:
+  // https://github.com/vercel/next.js/issues/48118
+  if (semver.gte(opentelemetryVersion, '0.19.0')) {
+    return true
+  } else {
+    throw new Error(
+      `Installed "@opentelemetry/api" with version ${opentelemetryVersion} is not supported by Next.js. Please upgrade to 0.19.0 or newer version.`
+    )
+  }
+}
+
 const UNSAFE_CACHE_REGEX = /[\\/]pages[\\/][^\\/]+(?:$|\?|#)/
 
 export default async function getBaseWebpackConfig(
@@ -927,22 +952,6 @@ export default async function getBaseWebpackConfig(
     ]
   }
 
-  let hasExternalOtelApiPackage = false
-  try {
-    const opentelemetryPackageJson = require('@opentelemetry/api/package.json')
-    if (opentelemetryPackageJson.version) {
-      // 0.19.0 is the first version of the package that has the `tracer.getSpan` API that we need:
-      // https://github.com/vercel/next.js/issues/48118
-      if (semver.gte(opentelemetryPackageJson.version, '0.19.0')) {
-        hasExternalOtelApiPackage = true
-      } else {
-        throw new Error(
-          `Installed "@opentelemetry/api" with version ${opentelemetryPackageJson.version} is not supported by Next.js. Please upgrade to 0.19.0 or newer version.`
-        )
-      }
-    }
-  } catch {}
-
   const resolveConfig: webpack.Configuration['resolve'] = {
     // Disable .mjs for node_modules bundling
     extensions: isNodeServer
@@ -995,7 +1004,7 @@ export default async function getBaseWebpackConfig(
         : undefined),
 
       // For RSC server bundle
-      ...(!hasExternalOtelApiPackage && {
+      ...(!hasExternalOtelApiPackage() && {
         '@opentelemetry/api': 'next/dist/compiled/@opentelemetry/api',
       }),
 
