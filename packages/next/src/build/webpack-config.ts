@@ -25,7 +25,6 @@ import {
   isWebpackServerLayer,
 } from './utils'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
-import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
@@ -631,17 +630,6 @@ export default async function getBaseWebpackConfig(
   const bundledReactChannel = needsExperimentalReact(config)
     ? '-experimental'
     : ''
-
-  if (isClient) {
-    if (
-      // @ts-expect-error: experimental.runtime is deprecated
-      isEdgeRuntime(config.experimental.runtime)
-    ) {
-      Log.warn(
-        'You are using `experimental.runtime` which was removed. Check https://nextjs.org/docs/api-routes/edge-api-routes on how to use edge runtime.'
-      )
-    }
-  }
 
   const babelConfigFile = await getBabelConfigFile(dir)
   const distDir = path.join(dir, config.distDir)
