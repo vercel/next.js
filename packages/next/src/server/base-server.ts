@@ -7,7 +7,8 @@ import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { NextConfig, NextConfigComplete } from './config-shared'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { ParsedUrlQuery } from 'querystring'
-import type { RenderOpts, RenderOptsPartial } from './render'
+import type { RenderOptsPartial as PagesRenderOptsPartial } from './render'
+import type { RenderOptsPartial as AppRenderOptsPartial } from './app-render/types'
 import type { ResponseCacheBase, ResponseCacheEntry } from './response-cache'
 import type { UrlWithParsedQuery } from 'url'
 import {
@@ -37,6 +38,7 @@ import type {
   AppRouteRouteHandlerContext,
   AppRouteRouteModule,
 } from './future/route-modules/app-route/module'
+import type { Server as HTTPServer } from 'http'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { formatHostname } from './lib/format-hostname'
@@ -192,9 +194,55 @@ export interface Options {
   /**
    * The HTTP Server that Next.js is running behind
    */
-  httpServer?: import('http').Server
+  httpServer?: HTTPServer
 
   isNodeDebugging?: 'brk' | boolean
+}
+
+export type RenderOpts = PagesRenderOptsPartial & AppRenderOptsPartial
+
+export type LoadedRenderOpts = RenderOpts & LoadComponentsReturnType
+
+type BaseRenderOpts = {
+  deploymentId?: string
+  poweredByHeader: boolean
+  buildId: string
+  generateEtags: boolean
+  runtimeConfig?: { [key: string]: any }
+  assetPrefix?: string
+  canonicalBase: string
+  dev?: boolean
+  previewProps: __ApiPreviewProps
+  customServer?: boolean
+  ampOptimizerConfig?: { [key: string]: any }
+  basePath: string
+  optimizeFonts: FontConfig
+  images: ImageConfigComplete
+  fontManifest?: FontManifest
+  disableOptimizedLoading?: boolean
+  optimizeCss: any
+  nextConfigOutput: 'standalone' | 'export'
+  nextScriptWorkers: any
+  locale?: string
+  locales?: string[]
+  defaultLocale?: string
+  domainLocales?: DomainLocale[]
+  distDir: string
+  runtime?: ServerRuntime
+  serverComponents?: boolean
+  crossOrigin?: 'anonymous' | 'use-credentials' | '' | undefined
+  supportsDynamicHTML?: boolean
+  isBot?: boolean
+  clientReferenceManifest?: ClientReferenceManifest
+  serverActionsBodySizeLimit?: SizeLimit
+  serverActionsManifest?: any
+  nextFontManifest?: NextFontManifest
+  renderServerComponentData?: boolean
+  serverComponentProps?: any
+  largePageDataBytes?: number
+  appDirDevErrorLogger?: (err: any) => Promise<void>
+  strictNextHead: boolean
+  isExperimentalCompile?: boolean
 }
 
 export interface BaseRequestHandler {
@@ -210,7 +258,7 @@ export type RequestContext = {
   res: BaseNextResponse
   pathname: string
   query: NextParsedUrlQuery
-  renderOpts: RenderOptsPartial
+  renderOpts: RenderOpts
 }
 
 export type FallbackMode = false | undefined | 'blocking' | 'static'
@@ -249,47 +297,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected readonly appPathsManifest?: PagesManifest
   protected readonly buildId: string
   protected readonly minimalMode: boolean
-  protected readonly renderOpts: {
-    deploymentId?: string
-    poweredByHeader: boolean
-    buildId: string
-    generateEtags: boolean
-    runtimeConfig?: { [key: string]: any }
-    assetPrefix?: string
-    canonicalBase: string
-    dev?: boolean
-    previewProps: __ApiPreviewProps
-    customServer?: boolean
-    ampOptimizerConfig?: { [key: string]: any }
-    basePath: string
-    optimizeFonts: FontConfig
-    images: ImageConfigComplete
-    fontManifest?: FontManifest
-    disableOptimizedLoading?: boolean
-    optimizeCss: any
-    nextConfigOutput: 'standalone' | 'export'
-    nextScriptWorkers: any
-    locale?: string
-    locales?: string[]
-    defaultLocale?: string
-    domainLocales?: DomainLocale[]
-    distDir: string
-    runtime?: ServerRuntime
-    serverComponents?: boolean
-    crossOrigin?: 'anonymous' | 'use-credentials' | '' | undefined
-    supportsDynamicHTML?: boolean
-    isBot?: boolean
-    clientReferenceManifest?: ClientReferenceManifest
-    serverActionsBodySizeLimit?: SizeLimit
-    serverActionsManifest?: any
-    nextFontManifest?: NextFontManifest
-    renderServerComponentData?: boolean
-    serverComponentProps?: any
-    largePageDataBytes?: number
-    appDirDevErrorLogger?: (err: any) => Promise<void>
-    strictNextHead: boolean
-    isExperimentalCompile?: boolean
-  }
+  protected readonly renderOpts: BaseRenderOpts
   protected readonly serverOptions: Readonly<ServerOptions>
   protected readonly appPathRoutes?: Record<string, string[]>
   protected readonly clientReferenceManifest?: ClientReferenceManifest
@@ -348,7 +356,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     res: BaseNextResponse,
     pathname: string,
     query: NextParsedUrlQuery,
-    renderOpts: RenderOpts
+    renderOpts: LoadedRenderOpts
   ): Promise<RenderResult>
 
   protected abstract getPrefetchRsc(pathname: string): Promise<string | null>
@@ -1624,6 +1632,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     let hasFallback = false
     const isDynamic = isDynamicRoute(components.page)
 
+    const prerenderManifest = this.getPrerenderManifest()
+
     if (isAppPath && isDynamic) {
       const pathsResult = await this.getStaticPaths({
         pathname,
@@ -1666,8 +1676,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     ) {
       isSSG = true
     } else if (!this.renderOpts.dev) {
-      const manifest = this.getPrerenderManifest()
-      isSSG = isSSG || !!manifest.routes[pathname === '/index' ? '/' : pathname]
+      isSSG ||=
+        !!prerenderManifest.routes[pathname === '/index' ? '/' : pathname]
     }
 
     // Toggle whether or not this is a Data request
@@ -1982,7 +1992,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         query: origQuery,
       })
 
-      const renderOpts: RenderOpts = {
+      const renderOpts: LoadedRenderOpts = {
         ...components,
         ...opts,
         ...(isAppPath
@@ -2027,8 +2037,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
         const context: AppRouteRouteHandlerContext = {
           params: opts.params,
-          prerenderManifest: this.getPrerenderManifest(),
-          staticGenerationContext: {
+          prerenderManifest,
+          renderOpts: {
             originalPathname: components.ComponentMod.originalPathname,
             supportsDynamicHTML,
             incrementalCache,
@@ -2044,11 +2054,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
           const response = await routeModule.handle(request, context)
 
-          ;(req as any).fetchMetrics = (
-            context.staticGenerationContext as any
-          ).fetchMetrics
+          ;(req as any).fetchMetrics = (context.renderOpts as any).fetchMetrics
 
-          const cacheTags = (context.staticGenerationContext as any).fetchTags
+          const cacheTags = (context.renderOpts as any).fetchTags
 
           // If the request is for a static response, we can cache it so long
           // as it's not edge.
@@ -2066,8 +2074,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               headers['content-type'] = blob.type
             }
 
-            const revalidate =
-              context.staticGenerationContext.store?.revalidate ?? false
+            const revalidate = context.renderOpts.store?.revalidate ?? false
 
             // Create the cache entry for the response.
             const cacheEntry: ResponseCacheEntry = {
@@ -2084,12 +2091,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           }
 
           // Send the response now that we have copied it into the cache.
-          await sendResponse(
-            req,
-            res,
-            response,
-            context.staticGenerationContext.waitUntil
-          )
+          await sendResponse(req, res, response, context.renderOpts.waitUntil)
           return null
         } catch (err) {
           // If this is during static generation, throw the error again.

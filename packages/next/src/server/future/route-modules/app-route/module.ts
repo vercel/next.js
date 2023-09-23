@@ -49,7 +49,7 @@ import * as sharedModules from './shared-modules'
  * handler for app routes.
  */
 export interface AppRouteRouteHandlerContext extends RouteModuleHandleContext {
-  staticGenerationContext: StaticGenerationContext['renderOpts']
+  renderOpts: StaticGenerationContext['renderOpts']
   prerenderManifest: PrerenderManifest
 }
 
@@ -260,13 +260,7 @@ export class AppRouteRouteModule extends RouteModule<
     // Get the context for the static generation.
     const staticGenerationContext: StaticGenerationContext = {
       urlPathname: request.nextUrl.pathname,
-      renderOpts:
-        // If the staticGenerationContext is not provided then we default to
-        // the default values.
-        context.staticGenerationContext ?? {
-          supportsDynamicHTML: false,
-          originalPathname: this.definition.pathname,
-        },
+      renderOpts: context.renderOpts,
     }
 
     // Add the fetchCache option to the renderOpts.
@@ -368,15 +362,15 @@ export class AppRouteRouteModule extends RouteModule<
                         `No response is returned from route handler '${this.resolvedPagePath}'. Ensure you return a \`Response\` or a \`NextResponse\` in all branches of your handler.`
                       )
                     }
-                    ;(context.staticGenerationContext as any).fetchMetrics =
+                    ;(context.renderOpts as any).fetchMetrics =
                       staticGenerationStore.fetchMetrics
 
-                    context.staticGenerationContext.waitUntil = Promise.all(
+                    context.renderOpts.waitUntil = Promise.all(
                       staticGenerationStore.pendingRevalidates || []
                     )
 
                     addImplicitTags(staticGenerationStore)
-                    ;(context.staticGenerationContext as any).fetchTags =
+                    ;(context.renderOpts as any).fetchTags =
                       staticGenerationStore.tags?.join(',')
 
                     // It's possible cookies were set in the handler, so we need
