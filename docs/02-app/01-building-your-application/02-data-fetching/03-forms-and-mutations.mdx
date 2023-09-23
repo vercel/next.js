@@ -360,39 +360,72 @@ export default async function submit(formData) {
 
 <AppOnly>
 
-Use the `useFormStatus` hook to show a loading state when a form is submitting on the server:
+Use the `useFormStatus` hook to show a loading state when a form is submitting on the server. The `useFormStatus` hook can only be used as a child of a `form` element using a Server Action.
 
-```tsx filename="app/page.tsx" switcher
+For example, the following submit button:
+
+```tsx filename="app/submit-button.tsx" switcher
 'use client'
 
 import { experimental_useFormStatus as useFormStatus } from 'react-dom'
 
-function SubmitButton() {
+export function SubmitButton() {
   const { pending } = useFormStatus()
 
   return (
     <button disabled={pending}>{pending ? 'Submitting...' : 'Submit'}</button>
+  )
+}
+```
+
+```jsx filename="app/submit-button.jsx" switcher
+'use client'
+
+import { experimental_useFormStatus as useFormStatus } from 'react-dom'
+
+export function SubmitButton() {
+  const { pending } = useFormStatus()
+
+  return (
+    <button disabled={pending}>{pending ? 'Submitting...' : 'Submit'}</button>
+  )
+}
+```
+
+`<SubmitButton />` can then be used in a form with a Server Action:
+
+```tsx filename="app/page.tsx" switcher
+import { SubmitButton } from '@/app/submit-button'
+
+export default async function Home() {
+  return (
+    <form action={...}>
+      <input type="text" name="field-name" />
+      <SubmitButton />
+    </form>
   )
 }
 ```
 
 ```jsx filename="app/page.jsx" switcher
-'use client'
+import { SubmitButton } from '@/app/submit-button'
 
-import { experimental_useFormStatus as useFormStatus } from 'react-dom'
-
-function SubmitButton() {
-  const { pending } = useFormStatus()
-
+export default async function Home() {
   return (
-    <button disabled={pending}>{pending ? 'Submitting...' : 'Submit'}</button>
+    <form action={...}>
+      <input type="text" name="field-name" />
+      <SubmitButton />
+    </form>
   )
 }
 ```
 
-> **Good to know:**
->
-> - Displaying loading or error states currently requires using Client Components. We are exploring options for server-side functions to retrieve these values as we move forward in stability for Server Actions.
+<details>
+  <summary>Examples</summary>
+
+- [Form with Loading & Error States](https://github.com/vercel/next.js/tree/canary/examples/next-forms)
+
+</details>
 
 </AppOnly>
 
@@ -484,18 +517,17 @@ export default function Page() {
 
 <AppOnly>
 
-Server Actions can also return [serializable objects](https://developer.mozilla.org/docs/Glossary/Serialization). For example, your Server Action might handle errors from creating a new item, returning either a success or error message:
+Server Actions can also return [serializable objects](https://developer.mozilla.org/docs/Glossary/Serialization). For example, your Server Action might handle errors from creating a new item:
 
 ```ts filename="app/actions.ts" switcher
 'use server'
 
-export async function create(formData: FormData) {
+export async function create(prevState: any, formData: FormData) {
   try {
-    await createItem(formData.get('item'))
-    revalidatePath('/')
-    return { message: 'Success!' }
+    await createItem(formData.get('todo'))
+    return revalidatePath('/')
   } catch (e) {
-    return { message: 'There was an error.' }
+    return { message: 'Failed to create' }
   }
 }
 ```
@@ -503,70 +535,98 @@ export async function create(formData: FormData) {
 ```js filename="app/actions.js" switcher
 'use server'
 
-export async function create(formData) {
+export async function createTodo(prevState, formData) {
   try {
-    await createItem(formData.get('item'))
-    revalidatePath('/')
-    return { message: 'Success!' }
+    await createItem(formData.get('todo'))
+    return revalidatePath('/')
   } catch (e) {
-    return { message: 'There was an error.' }
+    return { message: 'Failed to create' }
   }
 }
 ```
 
-Then, from a Client Component, you can read this value and save it to state, allowing the component to display the result of the Server Action to the viewer.
+Then, from a Client Component, you can read this value and display an error message.
 
-```tsx filename="app/page.tsx" switcher
+```tsx filename="app/add-form.tsx" switcher
 'use client'
 
-import { create } from './actions'
-import { useState } from 'react'
+import { experimental_useFormState as useFormState } from 'react-dom'
+import { experimental_useFormStatus as useFormStatus } from 'react-dom'
+import { createTodo } from '@/app/actions'
 
-export default function Page() {
-  const [message, setMessage] = useState<string>('')
+const initialState = {
+  message: null,
+}
 
-  async function onCreate(formData: FormData) {
-    const res = await create(formData)
-    setMessage(res.message)
-  }
+function SubmitButton() {
+  const { pending } = useFormStatus()
 
   return (
-    <form action={onCreate}>
-      <input type="text" name="item" />
-      <button type="submit">Add</button>
-      <p>{message}</p>
+    <button type="submit" aria-disabled={pending}>
+      Add
+    </button>
+  )
+}
+
+export function AddForm() {
+  const [state, formAction] = useFormState(createTodo, initialState)
+
+  return (
+    <form action={formAction}>
+      <label htmlFor="todo">Enter Task</label>
+      <input type="text" id="todo" name="todo" required />
+      <SubmitButton />
+      <p aria-live="polite" className="sr-only">
+        {state?.message}
+      </p>
     </form>
   )
 }
 ```
 
-```jsx filename="app/page.jsx" switcher
+```jsx filename="app/add-form.jsx" switcher
 'use client'
 
-import { create } from './actions'
-import { useState } from 'react'
+import { experimental_useFormState as useFormState } from 'react-dom'
+import { experimental_useFormStatus as useFormStatus } from 'react-dom'
+import { createTodo } from '@/app/actions'
 
-export default function Page() {
-  const [message, setMessage] = useState('')
+const initialState = {
+  message: null,
+}
 
-  async function onCreate(formData) {
-    const res = await create(formData)
-    setMessage(res.message)
-  }
+function SubmitButton() {
+  const { pending } = useFormStatus()
 
   return (
-    <form action={onCreate}>
-      <input type="text" name="item" />
-      <button type="submit">Add</button>
-      <p>{message}</p>
+    <button type="submit" aria-disabled={pending}>
+      Add
+    </button>
+  )
+}
+
+export function AddForm() {
+  const [state, formAction] = useFormState(createTodo, initialState)
+
+  return (
+    <form action={formAction}>
+      <label htmlFor="todo">Enter Task</label>
+      <input type="text" id="todo" name="todo" required />
+      <SubmitButton />
+      <p aria-live="polite" className="sr-only">
+        {state?.message}
+      </p>
     </form>
   )
 }
 ```
 
-> **Good to know:**
->
-> - Displaying loading or error states currently requires using Client Components. We are exploring options for server-side functions to retrieve these values as we move forward in stability for Server Actions.
+<details>
+  <summary>Examples</summary>
+
+- [Form with Loading & Error States](https://github.com/vercel/next.js/tree/canary/examples/next-forms)
+
+</details>
 
 </AppOnly>
 
