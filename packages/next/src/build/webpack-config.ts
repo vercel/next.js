@@ -77,6 +77,7 @@ import { getBabelConfigFile } from './get-babel-config-file'
 import { defaultOverrides } from '../server/require-hook'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 import { getDefineEnvPlugin } from './webpack/plugins/define-env-plugin'
+import { SWCLoaderOptions } from './webpack/loaders/next-swc-loader'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -535,6 +536,31 @@ export async function loadProjectInfo({
   }
 }
 
+function getOpenTelemetryVersion(): string | null {
+  try {
+    return require('@opentelemetry/api/package.json')?.version ?? null
+  } catch {
+    return null
+  }
+}
+
+function hasExternalOtelApiPackage(): boolean {
+  const opentelemetryVersion = getOpenTelemetryVersion()
+  if (!opentelemetryVersion) {
+    return false
+  }
+
+  // 0.19.0 is the first version of the package that has the `tracer.getSpan` API that we need:
+  // https://github.com/vercel/next.js/issues/48118
+  if (semver.gte(opentelemetryVersion, '0.19.0')) {
+    return true
+  } else {
+    throw new Error(
+      `Installed "@opentelemetry/api" with version ${opentelemetryVersion} is not supported by Next.js. Please upgrade to 0.19.0 or newer version.`
+    )
+  }
+}
+
 const UNSAFE_CACHE_REGEX = /[\\/]pages[\\/][^\\/]+(?:$|\?|#)/
 
 export default async function getBaseWebpackConfig(
@@ -680,7 +706,12 @@ export default async function getBaseWebpackConfig(
   }
 
   let swcTraceProfilingInitialized = false
-  const getSwcLoader = (extraOptions?: any) => {
+  const getSwcLoader = (
+    extraOptions: Partial<SWCLoaderOptions> & {
+      bundleTarget: SWCLoaderOptions['bundleTarget']
+      isServerLayer: SWCLoaderOptions['isServerLayer']
+    }
+  ) => {
     if (
       config?.experimental?.swcTraceProfiling &&
       !swcTraceProfilingInitialized
@@ -709,12 +740,14 @@ export default async function getBaseWebpackConfig(
         supportedBrowsers,
         swcCacheDir: path.join(dir, config?.distDir ?? '.next', 'cache', 'swc'),
         ...extraOptions,
-      },
+      } satisfies SWCLoaderOptions,
     }
   }
 
   const defaultLoaders = {
-    babel: useSWCLoader ? getSwcLoader() : getBabelLoader(),
+    babel: useSWCLoader
+      ? getSwcLoader({ bundleTarget: 'client', isServerLayer: false })
+      : getBabelLoader(),
   }
 
   const swcLoaderForServerLayer = hasServerComponents
@@ -731,13 +764,21 @@ export default async function getBaseWebpackConfig(
     : []
 
   const swcLoaderForMiddlewareLayer = useSWCLoader
-    ? getSwcLoader({ hasServerComponents: false, bundleTarget: 'default' })
+    ? getSwcLoader({
+        isServerLayer: false,
+        hasServerComponents: false,
+        bundleTarget: 'default',
+      })
     : // When using Babel, we will have to use SWC to do the optimization
       // for middleware to tree shake the unused default optimized imports like "next/server".
       // This will cause some performance overhead but
       // acceptable as Babel will not be recommended.
       [
-        getSwcLoader({ hasServerComponents: false, bundleTarget: 'default' }),
+        getSwcLoader({
+          isServerLayer: false,
+          hasServerComponents: false,
+          bundleTarget: 'default',
+        }),
         getBabelLoader(),
       ]
 
@@ -761,6 +802,7 @@ export default async function getBaseWebpackConfig(
             getSwcLoader({
               hasServerComponents,
               isServerLayer: false,
+              bundleTarget: 'client',
             }),
           ]
         : // When using Babel, we will have to add the SWC loader
@@ -770,6 +812,7 @@ export default async function getBaseWebpackConfig(
           [
             getSwcLoader({
               isServerLayer: false,
+              bundleTarget: 'client',
             }),
             getBabelLoader(),
           ]
@@ -781,14 +824,11 @@ export default async function getBaseWebpackConfig(
   // be performed.
   const loaderForAPIRoutes =
     hasServerComponents && useSWCLoader
-      ? {
-          loader: 'next-swc-loader',
-          options: {
-            ...getSwcLoader().options,
-            bundleTarget: 'default',
-            hasServerComponents: false,
-          },
-        }
+      ? getSwcLoader({
+          isServerLayer: false,
+          bundleTarget: 'default',
+          hasServerComponents: false,
+        })
       : defaultLoaders.babel
 
   const pageExtensions = config.pageExtensions
@@ -912,22 +952,6 @@ export default async function getBaseWebpackConfig(
     ]
   }
 
-  let hasExternalOtelApiPackage = false
-  try {
-    const opentelemetryPackageJson = require('@opentelemetry/api/package.json')
-    if (opentelemetryPackageJson.version) {
-      // 0.19.0 is the first version of the package that has the `tracer.getSpan` API that we need:
-      // https://github.com/vercel/next.js/issues/48118
-      if (semver.gte(opentelemetryPackageJson.version, '0.19.0')) {
-        hasExternalOtelApiPackage = true
-      } else {
-        throw new Error(
-          `Installed "@opentelemetry/api" with version ${opentelemetryPackageJson.version} is not supported by Next.js. Please upgrade to 0.19.0 or newer version.`
-        )
-      }
-    }
-  } catch {}
-
   const resolveConfig: webpack.Configuration['resolve'] = {
     // Disable .mjs for node_modules bundling
     extensions: isNodeServer
@@ -980,7 +1004,7 @@ export default async function getBaseWebpackConfig(
         : undefined),
 
       // For RSC server bundle
-      ...(!hasExternalOtelApiPackage && {
+      ...(!hasExternalOtelApiPackage() && {
         '@opentelemetry/api': 'next/dist/compiled/@opentelemetry/api',
       }),
 
@@ -1806,6 +1830,8 @@ export default async function getBaseWebpackConfig(
 
             return [
               getSwcLoader({
+                isServerLayer: false,
+                bundleTarget: 'client',
                 hasServerComponents: false,
                 optimizeBarrelExports: {
                   wildcard: isFromWildcardExport,
