@@ -15,7 +15,6 @@ import { stringifyQuery } from '../../server-route-utils'
 import { formatHostname } from '../format-hostname'
 import { toNodeOutgoingHttpHeaders } from '../../web/utils'
 import { isAbortError } from '../../pipe-readable'
-import { getCookieParser, setLazyProp } from '../../api-utils'
 import { getHostname } from '../../../shared/lib/get-hostname'
 import { UnwrapPromise } from '../../../lib/coalesced-function'
 import { getRedirectStatus } from '../../../lib/redirect-status'
@@ -154,7 +153,6 @@ export function getResolveRoutes(
     addRequestMeta(req, '__NEXT_INIT_URL', initUrl)
     addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
     addRequestMeta(req, '_protocol', protocol)
-    setLazyProp({ req }, 'cookies', () => getCookieParser(req.headers)())
 
     if (!isUpgradeReq) {
       addRequestMeta(req, '__NEXT_CLONABLE_BODY', getCloneableBody(req))

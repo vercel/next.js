@@ -302,9 +302,15 @@ export interface ExperimentalConfig {
   instrumentationHook?: boolean
 
   /**
-   * Enable `react@experimental` channel for the `app` directory.
+   * Enables server actions. Using this feature will enable the `react@experimental` for the `app` directory.
+   * @see https://nextjs.org/docs/app/api-reference/functions/server-actions
    */
   serverActions?: boolean
+
+  /**
+   * Using this feature will enable the `react@experimental` for the `app` directory.
+   */
+  ppr?: boolean
 
   /**
    * Allows adjusting body parser size limit for server actions.
