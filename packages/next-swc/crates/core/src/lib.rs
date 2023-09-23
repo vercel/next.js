@@ -66,7 +66,6 @@ pub mod page_config;
 pub mod react_server_components;
 pub mod server_actions;
 pub mod shake_exports;
-mod top_level_binding_collector;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
