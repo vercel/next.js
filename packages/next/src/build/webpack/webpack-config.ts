@@ -81,7 +81,7 @@ type ClientEntries = {
 }
 
 const EXTERNAL_PACKAGES =
-  require('../lib/server-external-packages.json') as string[]
+  require('../../lib/server-external-packages.json') as string[]
 
 const NEXT_PROJECT_ROOT = path.join(__dirname, '..', '..')
 const NEXT_PROJECT_ROOT_DIST = path.join(NEXT_PROJECT_ROOT, 'dist')
@@ -635,7 +635,7 @@ export default async function getBaseWebpackConfig(
   let SWCBinaryTarget: [Feature, boolean] | undefined = undefined
   if (useSWCLoader) {
     // TODO: we do not collect wasm target yet
-    const binaryTarget = require('./swc')?.getBinaryMetadata?.()
+    const binaryTarget = require('../swc')?.getBinaryMetadata?.()
       ?.target as SWC_TARGET_TRIPLE
     SWCBinaryTarget = binaryTarget
       ? [`swc/target/${binaryTarget}` as const, true]
@@ -889,7 +889,7 @@ export default async function getBaseWebpackConfig(
   // using aliases to allow falling back to the default
   // version when removed or not present
   const clientResolveRewrites = require.resolve(
-    '../shared/lib/router/utils/resolve-rewrites'
+    '../../shared/lib/router/utils/resolve-rewrites'
   )
 
   const customAppAliases: { [key: string]: string[] } = {}
@@ -1046,7 +1046,7 @@ export default async function getBaseWebpackConfig(
     ...(isClient || isEdgeServer
       ? {
           fallback: {
-            process: require.resolve('./polyfills/process'),
+            process: require.resolve('../polyfills/process'),
           },
         }
       : undefined),
@@ -2186,7 +2186,7 @@ export default async function getBaseWebpackConfig(
               {
                 resolve: {
                   fallback: {
-                    process: require.resolve('./polyfills/process'),
+                    process: require.resolve('../polyfills/process'),
                   },
                 },
               },
@@ -2248,7 +2248,7 @@ export default async function getBaseWebpackConfig(
                           punycode: require.resolve(
                             'next/dist/compiled/punycode'
                           ),
-                          process: require.resolve('./polyfills/process'),
+                          process: require.resolve('../polyfills/process'),
                           // Handled in separate alias
                           querystring: require.resolve(
                             'next/dist/compiled/querystring-es3'
@@ -2386,7 +2386,7 @@ export default async function getBaseWebpackConfig(
             // This is because the client compilation generates the build manifest that's used on the server side
             const {
               NextJsRequireCacheHotReloader,
-            } = require('./webpack/plugins/nextjs-require-cache-hot-reloader')
+            } = require('./plugins/nextjs-require-cache-hot-reloader')
             const devPlugins = [
               new NextJsRequireCacheHotReloader({
                 hasServerComponents,
@@ -2444,7 +2444,7 @@ export default async function getBaseWebpackConfig(
       new WellKnownErrorsPlugin(),
       isClient &&
         new CopyFilePlugin({
-          filePath: require.resolve('./polyfills/polyfill-nomodule'),
+          filePath: require.resolve('../polyfills/polyfill-nomodule'),
           cacheKey: process.env.__NEXT_VERSION as string,
           name: `static/chunks/polyfills${dev ? '' : '-[hash]'}.js`,
           minimize: false,
