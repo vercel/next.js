@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 
 import double, {
   inc,
@@ -84,6 +85,10 @@ export default function Counter() {
       <form action={test}>
         <button>test</button>
       </form>
+
+      <Link href="/middleware-redirect" id="middleware-redirect">
+        Go to /middleware-redirect
+      </Link>
     </div>
   )
 }

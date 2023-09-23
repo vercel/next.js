@@ -1,6 +1,6 @@
 /* eslint-disable jest/no-standalone-expect */
 import { createNextDescribe } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { check, waitFor } from 'next-test-utils'
 import { Request } from 'playwright-chromium'
 import fs from 'fs-extra'
 import { join } from 'path'
@@ -335,6 +335,33 @@ createNextDescribe(
       expect(requestCount).toBe(1)
     })
 
+    it('should handle actions correctly after navigation / redirection events', async () => {
+      const browser = await next.browser('/client')
+
+      await browser.elementByCss('#middleware-redirect').click()
+
+      expect(await browser.elementByCss('#form').text()).not.toContain(
+        'Loading...'
+      )
+
+      await browser.elementByCss('#submit').click()
+
+      await check(() => {
+        return browser.elementByCss('#form').text()
+      }, /Loading.../)
+
+      // wait for 2 seconds, since the action takes a second to resolve
+      await waitFor(2000)
+
+      expect(await browser.elementByCss('#form').text()).not.toContain(
+        'Loading...'
+      )
+
+      expect(await browser.elementByCss('#result').text()).toContain(
+        'RESULT FROM SERVER ACTION'
+      )
+    })
+
     if (isNextStart) {
       it('should not expose action content in sourcemaps', async () => {
         const sourcemap = (
@@ -436,9 +463,7 @@ createNextDescribe(
       it('should handle redirect to a relative URL in a single pass', async () => {
         const browser = await next.browser('/client/edge')
 
-        await new Promise((resolve) => {
-          setTimeout(resolve, 3000)
-        })
+        await waitFor(3000)
 
         let requests = []
 
@@ -505,9 +530,7 @@ createNextDescribe(
       it('should handle redirect to a relative URL in a single pass', async () => {
         const browser = await next.browser('/client')
 
-        await new Promise((resolve) => {
-          setTimeout(resolve, 3000)
-        })
+        await waitFor(3000)
 
         let requests = []
 
