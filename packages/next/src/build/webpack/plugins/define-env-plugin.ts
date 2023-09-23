@@ -2,9 +2,7 @@ import type { NextConfigComplete } from '../../../server/config-shared'
 import type { MiddlewareMatcher } from '../../analysis/get-page-static-info'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { needsExperimentalReact } from '../../../lib/needs-experimental-react'
-import getBaseWebpackConfig, {
-  errorIfEnvConflicted,
-} from '../../webpack-config'
+import getBaseWebpackConfig, { errorIfEnvConflicted } from '../webpack-config'
 
 interface DefineEnvPluginOptions {
   allowedRevalidateHeaderKeys: string[] | undefined

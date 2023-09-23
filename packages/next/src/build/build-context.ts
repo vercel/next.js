@@ -4,7 +4,7 @@ import type { Rewrite, Redirect } from '../lib/load-custom-routes'
 import type { __ApiPreviewProps } from '../server/api-utils'
 import type { NextConfigComplete } from '../server/config-shared'
 import type { Span } from '../trace'
-import type getBaseWebpackConfig from './webpack-config'
+import type getBaseWebpackConfig from './webpack/webpack-config'
 import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import type { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 

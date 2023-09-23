@@ -23,7 +23,7 @@ import { watchCompilers } from '../../build/output'
 import * as Log from '../../build/output/log'
 import getBaseWebpackConfig, {
   loadProjectInfo,
-} from '../../build/webpack-config'
+} from '../../build/webpack/webpack-config'
 import { APP_DIR_ALIAS, WEBPACK_LAYERS } from '../../lib/constants'
 import { recursiveDelete } from '../../lib/recursive-delete'
 import {

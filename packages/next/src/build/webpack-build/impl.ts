@@ -11,7 +11,9 @@ import {
 } from '../../shared/lib/constants'
 import { runCompiler } from '../compiler'
 import * as Log from '../output/log'
-import getBaseWebpackConfig, { loadProjectInfo } from '../webpack-config'
+import getBaseWebpackConfig, {
+  loadProjectInfo,
+} from '../webpack/webpack-config'
 import { NextError } from '../../lib/is-error'
 import { TelemetryPlugin } from '../webpack/plugins/telemetry-plugin'
 import {

@@ -6,7 +6,7 @@ import { webpack } from 'next/dist/compiled/webpack/webpack'
 import path from 'path'
 import semver from 'next/dist/compiled/semver'
 
-import { escapeStringRegexp } from '../shared/lib/escape-regexp'
+import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
 import {
   DOT_NEXT_ALIAS,
   PAGES_DIR_ALIAS,
@@ -18,13 +18,13 @@ import {
   RSC_ACTION_VALIDATE_ALIAS,
   WEBPACK_RESOURCE_QUERIES,
   WebpackLayerName,
-} from '../lib/constants'
+} from '../../lib/constants'
 import {
   isWebpackAppLayer,
   isWebpackDefaultLayer,
   isWebpackServerLayer,
-} from './utils'
-import { CustomRoutes } from '../lib/load-custom-routes.js'
+} from '../utils'
+import { CustomRoutes } from '../../lib/load-custom-routes.js'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
@@ -37,46 +37,43 @@ import {
   SERVER_DIRECTORY,
   COMPILER_NAMES,
   CompilerNameValues,
-} from '../shared/lib/constants'
-import { execOnce } from '../shared/lib/utils'
-import { NextConfigComplete } from '../server/config-shared'
-import { finalizeEntrypoint } from './entries'
-import * as Log from './output/log'
-import { buildConfiguration } from './webpack/config'
+} from '../../shared/lib/constants'
+import { execOnce } from '../../shared/lib/utils'
+import { NextConfigComplete } from '../../server/config-shared'
+import { finalizeEntrypoint } from '../entries'
+import * as Log from '../output/log'
+import { buildConfiguration } from './config'
 import MiddlewarePlugin, {
   getEdgePolyfilledModules,
   handleWebpackExternalForEdgeRuntime,
-} from './webpack/plugins/middleware-plugin'
-import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
-import { JsConfigPathsPlugin } from './webpack/plugins/jsconfig-paths-plugin'
-import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
-import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
-import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
-import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
-import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
-import { regexLikeCss } from './webpack/config/blocks/css'
-import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
-import { ClientReferenceManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
-import { FlightClientEntryPlugin } from './webpack/plugins/flight-client-entry-plugin'
-import { NextTypesPlugin } from './webpack/plugins/next-types-plugin'
-import type {
-  Feature,
-  SWC_TARGET_TRIPLE,
-} from './webpack/plugins/telemetry-plugin'
-import type { Span } from '../trace'
-import type { MiddlewareMatcher } from './analysis/get-page-static-info'
-import loadJsConfig from './load-jsconfig'
-import { loadBindings } from './swc'
-import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plugin'
-import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
-import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plugin'
-import { getSupportedBrowsers } from './utils'
-import { MemoryWithGcCachePlugin } from './webpack/plugins/memory-with-gc-cache-plugin'
-import { getBabelConfigFile } from './get-babel-config-file'
-import { defaultOverrides } from '../server/require-hook'
-import { needsExperimentalReact } from '../lib/needs-experimental-react'
-import { getDefineEnvPlugin } from './webpack/plugins/define-env-plugin'
-import { SWCLoaderOptions } from './webpack/loaders/next-swc-loader'
+} from './plugins/middleware-plugin'
+import BuildManifestPlugin from './plugins/build-manifest-plugin'
+import { JsConfigPathsPlugin } from './plugins/jsconfig-paths-plugin'
+import { DropClientPage } from './plugins/next-drop-client-page-plugin'
+import PagesManifestPlugin from './plugins/pages-manifest-plugin'
+import { ProfilingPlugin } from './plugins/profiling-plugin'
+import { ReactLoadablePlugin } from './plugins/react-loadable-plugin'
+import { WellKnownErrorsPlugin } from './plugins/wellknown-errors-plugin'
+import { regexLikeCss } from './config/blocks/css'
+import { CopyFilePlugin } from './plugins/copy-file-plugin'
+import { ClientReferenceManifestPlugin } from './plugins/flight-manifest-plugin'
+import { FlightClientEntryPlugin } from './plugins/flight-client-entry-plugin'
+import { NextTypesPlugin } from './plugins/next-types-plugin'
+import type { Feature, SWC_TARGET_TRIPLE } from './plugins/telemetry-plugin'
+import type { Span } from '../../trace'
+import type { MiddlewareMatcher } from '../analysis/get-page-static-info'
+import loadJsConfig from '../load-jsconfig'
+import { loadBindings } from '../swc'
+import { AppBuildManifestPlugin } from './plugins/app-build-manifest-plugin'
+import { SubresourceIntegrityPlugin } from './plugins/subresource-integrity-plugin'
+import { NextFontManifestPlugin } from './plugins/next-font-manifest-plugin'
+import { getSupportedBrowsers } from '../utils'
+import { MemoryWithGcCachePlugin } from './plugins/memory-with-gc-cache-plugin'
+import { getBabelConfigFile } from '../get-babel-config-file'
+import { defaultOverrides } from '../../server/require-hook'
+import { needsExperimentalReact } from '../../lib/needs-experimental-react'
+import { getDefineEnvPlugin } from './plugins/define-env-plugin'
+import { SWCLoaderOptions } from './loaders/next-swc-loader'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -599,10 +596,10 @@ export default async function getBaseWebpackConfig(
     supportedBrowsers: string[] | undefined
     clientRouterFilters?: {
       staticFilter: ReturnType<
-        import('../shared/lib/bloom-filter').BloomFilter['export']
+        import('../../shared/lib/bloom-filter').BloomFilter['export']
       >
       dynamicFilter: ReturnType<
-        import('../shared/lib/bloom-filter').BloomFilter['export']
+        import('../../shared/lib/bloom-filter').BloomFilter['export']
       >
     }
     previewModeId?: string
@@ -2362,7 +2359,7 @@ export default async function getBaseWebpackConfig(
         isNodeServer &&
         !dev &&
         new (require('./webpack/plugins/next-trace-entrypoints-plugin')
-          .TraceEntryPointsPlugin as typeof import('./webpack/plugins/next-trace-entrypoints-plugin').TraceEntryPointsPlugin)(
+          .TraceEntryPointsPlugin as typeof import('./plugins/next-trace-entrypoints-plugin').TraceEntryPointsPlugin)(
           {
             rootDir: dir,
             appDir: appDir,
@@ -2436,7 +2433,7 @@ export default async function getBaseWebpackConfig(
         (function () {
           const { FontStylesheetGatheringPlugin } =
             require('./webpack/plugins/font-stylesheet-gathering-plugin') as {
-              FontStylesheetGatheringPlugin: typeof import('./webpack/plugins/font-stylesheet-gathering-plugin').FontStylesheetGatheringPlugin
+              FontStylesheetGatheringPlugin: typeof import('./plugins/font-stylesheet-gathering-plugin').FontStylesheetGatheringPlugin
             }
           return new FontStylesheetGatheringPlugin({
             adjustFontFallbacks: config.experimental.adjustFontFallbacks,
