@@ -1229,7 +1229,21 @@ export default async function build(
       ) {
         let infoPrinted = false
 
-        return new Worker(staticWorkerPath, {
+        return Worker.create<
+          | Pick<
+              typeof import('./worker'),
+              | 'hasCustomGetInitialProps'
+              | 'isPageStatic'
+              | 'getDefinedNamedExports'
+              | 'exportPage'
+            >
+          | (Pick<
+              typeof import('./utils'),
+              | 'hasCustomGetInitialProps'
+              | 'isPageStatic'
+              | 'getDefinedNamedExports'
+            > & { exportPage: undefined })
+        >(staticWorkerPath, {
           timeout: timeout * 1000,
           onRestart: (method, [arg], attempts) => {
             if (method === 'exportPage') {
@@ -1282,14 +1296,7 @@ export default async function build(
                 'isPageStatic',
                 'getDefinedNamedExports',
               ],
-        }) as Worker &
-          Pick<
-            typeof import('./worker'),
-            | 'hasCustomGetInitialProps'
-            | 'isPageStatic'
-            | 'getDefinedNamedExports'
-            | 'exportPage'
-          >
+        })
       }
 
       let CacheHandler: any
@@ -2640,12 +2647,10 @@ export default async function build(
             pages: combinedPages,
             outdir: path.join(distDir, 'export'),
             statusMessage: 'Generating static pages',
-            exportAppPageWorker: sharedPool
-              ? appStaticWorkers?.exportPage.bind(appStaticWorkers)
-              : undefined,
-            exportPageWorker: sharedPool
-              ? pagesStaticWorkers.exportPage.bind(pagesStaticWorkers)
-              : undefined,
+            // The worker already explicitly binds `this` to each of the
+            // exposed methods.
+            exportAppPageWorker: appStaticWorkers?.exportPage,
+            exportPageWorker: pagesStaticWorkers?.exportPage,
             endWorker: sharedPool
               ? async () => {
                   await pagesStaticWorkers.end()
@@ -3387,12 +3392,10 @@ export default async function build(
           silent: true,
           threads: config.experimental.cpus,
           outdir: path.join(dir, configOutDir),
-          exportAppPageWorker: sharedPool
-            ? appWorker.exportPage.bind(appWorker)
-            : undefined,
-          exportPageWorker: sharedPool
-            ? pagesWorker.exportPage.bind(pagesWorker)
-            : undefined,
+          // The worker already explicitly binds `this` to each of the
+          // exposed methods.
+          exportAppPageWorker: appWorker?.exportPage,
+          exportPageWorker: pagesWorker?.exportPage,
           endWorker: sharedPool
             ? async () => {
                 await pagesWorker.end()
