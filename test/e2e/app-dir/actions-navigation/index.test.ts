@@ -33,5 +33,17 @@ createNextDescribe(
         'RESULT FROM SERVER ACTION'
       )
     })
+
+    it('should handle actions correctly after following a relative link', async () => {
+      const browser = await next.browser('/nested-folder/products')
+
+      await browser.elementByCss('a').click()
+
+      await browser.elementByCss('button').click()
+
+      await check(() => {
+        return (next.cliOutput.match(/addToCart/g) || []).length
+      }, 1)
+    })
   }
 )
