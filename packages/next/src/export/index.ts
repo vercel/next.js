@@ -173,32 +173,35 @@ function setupWorkers(
 
   let infoPrinted = false
 
-  const worker = new Worker(require.resolve('./worker'), {
-    timeout: timeout * 1000,
-    onRestart: (_method, [{ path }], attempts) => {
-      if (attempts >= 3) {
-        throw new ExportError(
-          `Static page generation for ${path} is still timing out after 3 attempts. See more info here https://nextjs.org/docs/messages/static-page-generation-timeout`
-        )
-      }
-      Log.warn(
-        `Restarted static page generation for ${path} because it took more than ${timeout} seconds`
-      )
-      if (!infoPrinted) {
+  const worker = Worker.create<typeof import('./worker')>(
+    require.resolve('./worker'),
+    {
+      timeout: timeout * 1000,
+      onRestart: (_method, [{ path }], attempts) => {
+        if (attempts >= 3) {
+          throw new ExportError(
+            `Static page generation for ${path} is still timing out after 3 attempts. See more info here https://nextjs.org/docs/messages/static-page-generation-timeout`
+          )
+        }
         Log.warn(
-          'See more info here https://nextjs.org/docs/messages/static-page-generation-timeout'
+          `Restarted static page generation for ${path} because it took more than ${timeout} seconds`
         )
-        infoPrinted = true
-      }
-    },
-    maxRetries: 0,
-    numWorkers: threads,
-    enableWorkerThreads: nextConfig.experimental.workerThreads,
-    exposedMethods: ['default'],
-  })
+        if (!infoPrinted) {
+          Log.warn(
+            'See more info here https://nextjs.org/docs/messages/static-page-generation-timeout'
+          )
+          infoPrinted = true
+        }
+      },
+      maxRetries: 0,
+      numWorkers: threads,
+      enableWorkerThreads: nextConfig.experimental.workerThreads,
+      exposedMethods: ['default'],
+    }
+  )
 
   return {
-    pages: (worker as any).default as ExportWorker,
+    pages: worker.default,
     end: async () => {
       await worker.end()
     },

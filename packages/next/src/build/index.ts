@@ -1131,7 +1131,15 @@ export default async function build(
       ) {
         let infoPrinted = false
 
-        return new Worker(staticWorkerPath, {
+        return Worker.create<
+          Pick<
+            typeof import('./worker'),
+            | 'hasCustomGetInitialProps'
+            | 'isPageStatic'
+            | 'getDefinedNamedExports'
+            | 'exportPage'
+          >
+        >(staticWorkerPath, {
           timeout: timeout * 1000,
           onRestart: (method, [arg], attempts) => {
             if (method === 'exportPage') {
@@ -1178,14 +1186,7 @@ export default async function build(
             'getDefinedNamedExports',
             'exportPage',
           ],
-        }) as Worker &
-          Pick<
-            typeof import('./worker'),
-            | 'hasCustomGetInitialProps'
-            | 'isPageStatic'
-            | 'getDefinedNamedExports'
-            | 'exportPage'
-          >
+        })
       }
 
       let CacheHandler: any
@@ -2075,10 +2076,10 @@ export default async function build(
             pages: combinedPages,
             outdir: path.join(distDir, 'export'),
             statusMessage: 'Generating static pages',
-            exportAppPageWorker:
-              appStaticWorkers?.exportPage.bind(appStaticWorkers),
-            exportPageWorker:
-              pagesStaticWorkers.exportPage.bind(pagesStaticWorkers),
+            // The worker already explicitly binds `this` to each of the
+            // exposed methods.
+            exportAppPageWorker: appStaticWorkers?.exportPage,
+            exportPageWorker: pagesStaticWorkers?.exportPage,
             endWorker: async () => {
               await pagesStaticWorkers.end()
               await appStaticWorkers?.end()
@@ -2775,8 +2776,10 @@ export default async function build(
           silent: true,
           threads: config.experimental.cpus,
           outdir: path.join(dir, configOutDir),
-          exportAppPageWorker: appWorker.exportPage.bind(appWorker),
-          exportPageWorker: pagesWorker.exportPage.bind(pagesWorker),
+          // The worker already explicitly binds `this` to each of the
+          // exposed methods.
+          exportAppPageWorker: appWorker?.exportPage,
+          exportPageWorker: pagesWorker?.exportPage,
           endWorker: async () => {
             await pagesWorker.end()
             await appWorker.end()
