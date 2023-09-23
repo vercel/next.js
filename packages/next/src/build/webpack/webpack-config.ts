@@ -277,10 +277,21 @@ let loggedSwcDisabled = false
 let loggedIgnoredCompilerOptions = false
 
 function getOptimizedAliases(): { [pkg: string]: string } {
-  const stubWindowFetch = path.join(__dirname, 'polyfills', 'fetch', 'index.js')
-  const stubObjectAssign = path.join(__dirname, 'polyfills', 'object-assign.js')
+  const stubWindowFetch = path.join(
+    __dirname,
+    '..',
+    'polyfills',
+    'fetch',
+    'index.js'
+  )
+  const stubObjectAssign = path.join(
+    __dirname,
+    '..',
+    'polyfills',
+    'object-assign.js'
+  )
 
-  const shimAssign = path.join(__dirname, 'polyfills', 'object.assign')
+  const shimAssign = path.join(__dirname, '..', 'polyfills', 'object.assign')
   return {
     unfetch$: stubWindowFetch,
     'isomorphic-unfetch$': stubWindowFetch,
