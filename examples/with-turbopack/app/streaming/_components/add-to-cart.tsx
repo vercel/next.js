@@ -31,7 +31,7 @@ export function AddToCart({ initialCartCount }: { initialCartCount: number }) {
       router.refresh()
 
       // We're working on more fine-grained data mutation and revalidation:
-      // https://nextjs.org/data-fetching/mutating
+      // https://nextjs.org/docs/data-fetching/mutating
     })
   }
 
