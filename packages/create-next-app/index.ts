@@ -357,7 +357,7 @@ async function run(): Promise<void> {
 
     if (!process.argv.includes('--app') && !process.argv.includes('--no-app')) {
       if (ciInfo.isCI) {
-        program.app = true
+        program.app = getPrefOrDefault('app')
       } else {
         const styledAppDir = blue('App Router')
         const { appRouter } = await prompts({
@@ -365,7 +365,7 @@ async function run(): Promise<void> {
           type: 'toggle',
           name: 'appRouter',
           message: `Would you like to use ${styledAppDir}? (recommended)`,
-          initial: true,
+          initial: getPrefOrDefault('app'),
           active: 'Yes',
           inactive: 'No',
         })
@@ -378,7 +378,8 @@ async function run(): Promise<void> {
       !program.importAlias.length
     ) {
       if (ciInfo.isCI) {
-        program.importAlias = '@/*'
+        // We don't use preferences here because the default value is @/* regardless of existing preferences
+        program.importAlias = defaults.importAlias
       } else {
         const styledImportAlias = blue('import alias')
 
@@ -386,14 +387,15 @@ async function run(): Promise<void> {
           onState: onPromptState,
           type: 'toggle',
           name: 'customizeImportAlias',
-          message: `Would you like to customize the default ${styledImportAlias}?`,
+          message: `Would you like to customize the default ${styledImportAlias} (${defaults.importAlias})?`,
           initial: getPrefOrDefault('customizeImportAlias'),
           active: 'Yes',
           inactive: 'No',
         })
 
         if (!customizeImportAlias) {
-          program.importAlias = '@/*'
+          // We don't use preferences here because the default value is @/* regardless of existing preferences
+          program.importAlias = defaults.importAlias
         } else {
           const { importAlias } = await prompts({
             onState: onPromptState,
