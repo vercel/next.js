@@ -64,7 +64,7 @@ impl ClientReferenceManifest {
                 let entry_css_files = entry_manifest
                     .entry_css_files
                     .entry(server_component_name.clone_value())
-                    .or_insert_with(Default::default);
+                    .or_default();
 
                 match app_client_reference_ty {
                     ClientReferenceType::CssClientReference(_) => {

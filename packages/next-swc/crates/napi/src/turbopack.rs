@@ -22,6 +22,11 @@ pub struct NextBuildContext {
     /// The project's directory.
     pub dir: Option<String>,
 
+    /// next.config.js's distDir. Current there's some early stage setup
+    /// requires this Before construct a context to read next.config.js,
+    /// which we passes separately here.
+    pub dist_dir: Option<String>,
+
     /// The build ID.
     pub build_id: Option<String>,
 
@@ -47,6 +52,7 @@ impl TryFrom<NextBuildContext> for NextBuildOptions {
             log_detail: true,
             full_stats: true,
             memory_limit: None,
+            dist_dir: value.dist_dir,
             build_context: Some(BuildContext {
                 build_id: value
                     .build_id
