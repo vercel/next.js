@@ -107,6 +107,12 @@ if ('${method}' in entry) {
       '${method}'
     >
   >()
+  ${
+    ''
+    // Adding void to support never return type without explicit return:
+    // e.g. notFound() will interrupt the execution but the handler return type is inferred as void.
+    // x-ref: https://github.com/microsoft/TypeScript/issues/16608#issuecomment-309327984
+  }
   checkFields<
     Diff<
       {
