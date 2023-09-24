@@ -629,6 +629,22 @@ createNextDescribe(
             'fetch-no-cache/page_client-reference-manifest.js',
             'force-dynamic-catch-all/[slug]/[[...id]]/page.js',
             'force-no-store/page_client-reference-manifest.js',
+            'gen-params-top-down-page/en.html',
+            'gen-params-top-down-page/en.rsc',
+            'gen-params-top-down-page/sv.html',
+            'gen-params-top-down-page/sv.rsc',
+            'gen-params-top-down-page/en/first.html',
+            'gen-params-top-down-page/en/first.rsc',
+            'gen-params-top-down-page/en/second.html',
+            'gen-params-top-down-page/en/second.rsc',
+            'gen-params-top-down-page/sv/first.html',
+            'gen-params-top-down-page/sv/first.rsc',
+            'gen-params-top-down-page/sv/second.html',
+            'gen-params-top-down-page/sv/second.rsc',
+            'gen-params-top-down-page/[lang]/page.js',
+            'gen-params-top-down-page/[lang]/[slug]/page.js',
+            'gen-params-top-down-page/[lang]/page_client-reference-manifest.js',
+            'gen-params-top-down-page/[lang]/[slug]/page_client-reference-manifest.js',
             'partial-gen-params-no-additional-lang/en/RAND.rsc',
             'partial-gen-params-no-additional-lang/fr/RAND.rsc',
             'partial-gen-params-no-additional-slug/en/RAND.rsc',
@@ -947,6 +963,102 @@ createNextDescribe(
               ],
               "initialRevalidateSeconds": 3,
               "srcRoute": "/gen-params-dynamic-revalidate/[slug]",
+            },
+            "/gen-params-top-down-page/en": Object {
+              "dataRoute": "/gen-params-top-down-page/en.rsc",
+              "experimentalBypassFor": Array [
+                Object {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                Object {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/gen-params-top-down-page/[lang]",
+            },
+            "/gen-params-top-down-page/en/first": Object {
+              "dataRoute": "/gen-params-top-down-page/en/first.rsc",
+              "experimentalBypassFor": Array [
+                Object {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                Object {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/gen-params-top-down-page/[lang]/[slug]",
+            },
+            "/gen-params-top-down-page/en/second": Object {
+              "dataRoute": "/gen-params-top-down-page/en/second.rsc",
+              "experimentalBypassFor": Array [
+                Object {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                Object {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/gen-params-top-down-page/[lang]/[slug]",
+            },
+            "/gen-params-top-down-page/sv": Object {
+              "dataRoute": "/gen-params-top-down-page/sv.rsc",
+              "experimentalBypassFor": Array [
+                Object {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                Object {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/gen-params-top-down-page/[lang]",
+            },
+            "/gen-params-top-down-page/sv/first": Object {
+              "dataRoute": "/gen-params-top-down-page/sv/first.rsc",
+              "experimentalBypassFor": Array [
+                Object {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                Object {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/gen-params-top-down-page/[lang]/[slug]",
+            },
+            "/gen-params-top-down-page/sv/second": Object {
+              "dataRoute": "/gen-params-top-down-page/sv/second.rsc",
+              "experimentalBypassFor": Array [
+                Object {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                Object {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/gen-params-top-down-page/[lang]/[slug]",
             },
             "/hooks/use-pathname/slug": Object {
               "dataRoute": "/hooks/use-pathname/slug.rsc",
@@ -1525,6 +1637,40 @@ createNextDescribe(
               ],
               "fallback": null,
               "routeRegex": "^\\\\/gen\\\\-params\\\\-dynamic\\\\-revalidate\\\\/([^\\\\/]+?)(?:\\\\/)?$",
+            },
+            "/gen-params-top-down-page/[lang]": Object {
+              "dataRoute": "/gen-params-top-down-page/[lang].rsc",
+              "dataRouteRegex": "^\\\\/gen\\\\-params\\\\-top\\\\-down\\\\-page\\\\/([^\\\\/]+?)\\\\.rsc$",
+              "experimentalBypassFor": Array [
+                Object {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                Object {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "fallback": null,
+              "routeRegex": "^\\\\/gen\\\\-params\\\\-top\\\\-down\\\\-page\\\\/([^\\\\/]+?)(?:\\\\/)?$",
+            },
+            "/gen-params-top-down-page/[lang]/[slug]": Object {
+              "dataRoute": "/gen-params-top-down-page/[lang]/[slug].rsc",
+              "dataRouteRegex": "^\\\\/gen\\\\-params\\\\-top\\\\-down\\\\-page\\\\/([^\\\\/]+?)\\\\/([^\\\\/]+?)\\\\.rsc$",
+              "experimentalBypassFor": Array [
+                Object {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                Object {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "fallback": null,
+              "routeRegex": "^\\\\/gen\\\\-params\\\\-top\\\\-down\\\\-page\\\\/([^\\\\/]+?)\\\\/([^\\\\/]+?)(?:\\\\/)?$",
             },
             "/hooks/use-pathname/[slug]": Object {
               "dataRoute": "/hooks/use-pathname/[slug].rsc",
