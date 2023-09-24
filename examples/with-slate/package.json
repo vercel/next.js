@@ -10,7 +10,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "slate": "^0.82.0",
-    "slate-history": "0.66.0",
+    "slate-history": "0.93.0",
     "slate-react": "^0.82.0"
   },
   "devDependencies": {
