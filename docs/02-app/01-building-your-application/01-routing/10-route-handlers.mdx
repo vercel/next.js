@@ -388,23 +388,23 @@ export async function GET(request, { params }) {
 
 ### URL Query Parameters
 
-The request object passed to the Route Handler is a `NextRequest` instance, which has [some additional convenience methods](/docs/app/api-reference/functions/next-request#nexturl), including more easily handling query parameters.
+The request object passed to the Route Handler is a `NextRequest` instance, which has [some additional convenience methods](/docs/app/api-reference/functions/next-request#nexturl), including for more easily handling query parameters.
 
-```ts filename="app/test/route.ts" switcher
+```ts filename="app/api/search/route.ts" switcher
 import { type NextRequest } from 'next/server'
 
 export function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
-  const name = searchParams.get('name')
-  return new Response(name ? `Hello ${name}!` : '`name` is not provided.')
+  const query = searchParams.get('query')
+  // query is "hello" for /api/search?query=hello
 }
 ```
 
-```js filename="app/test/route.js" switcher
+```js filename="app/api/search/route.js" switcher
 export function GET(request) {
   const searchParams = request.nextUrl.searchParams
-  const name = searchParams.get('name')
-  return new Response(name ? `Hello ${name}!` : '`name` is not provided.')
+  const query = searchParams.get('query')
+  // query is "hello" for /api/search?query=hello
 }
 ```
 
