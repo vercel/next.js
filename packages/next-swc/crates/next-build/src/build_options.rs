@@ -10,6 +10,9 @@ pub struct BuildOptions {
     /// The project's directory.
     pub dir: Option<PathBuf>,
 
+    /// next.config.js's distDir.
+    pub dist_dir: Option<String>,
+
     /// The maximum memory to use for the build.
     pub memory_limit: Option<usize>,
 
