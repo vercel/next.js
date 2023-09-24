@@ -40,24 +40,24 @@ export default function Page() {
 Here's a summary of the props available for the Image Component:
 
 <div style={{ overflowX: 'auto', width: '100%' }}>
-  | Prop | Example | Type | Required | |
-  ----------------------------------------- |
-  ------------------------------------ | --------------- | -------- | |
-  [`src`](#src) | `src="/profile.png"` | String | Yes | | [`width`](#width) |
-  `width={500}` | Integer (px) | Yes | | [`height`](#height) | `height={500}` |
-  Integer (px) | Yes | | [`alt`](#alt) | `alt="Picture of the author"` | String
-  | Yes | | [`loader`](#loader) | `loader={imageLoader}` | Function | - | |
-  [`fill`](#fill) | `fill={true}` | Boolean | - | | [`sizes`](#sizes) |
-  `sizes="(max-width: 768px) 100vw"` | String | - | | [`quality`](#quality) |
-  `quality={80}` | Integer (1-100) | - | | [`priority`](#priority) | `priority=
-  {true}` | Boolean | - | | [`placeholder`](#placeholder) | `placeholder="blur"`
-  | String | - | | [`style`](#style) | `style={{ objectFit: 'contain' }}` | Object
-  | - | | [`onLoadingComplete`](#onloadingcomplete) | `onLoadingComplete=
-  {(img) => done()}` | Function | - | | [`onLoad`](#onload) | `onLoad=
-  {(event) => done()}` | Function | - | | [`onError`](#onerror) | `onError(event
-  => fail()}` | Function | - | | [`loading`](#loading) | `loading="lazy"` | String
-  | - | | [`blurDataURL`](#blurdataurl) | `blurDataURL="data:image/jpeg..."` | String
-  | - |
+| Prop                                      | Example                              | Type            | Required |
+| ----------------------------------------- | ------------------------------------ | --------------- | -------- |
+| [`src`](#src)                             | `src="/profile.png"`                 | String          | Yes      |
+| [`width`](#width)                         | `width={500}`                        | Integer (px)    | Yes      |
+| [`height`](#height)                       | `height={500}`                       | Integer (px)    | Yes      |
+| [`alt`](#alt)                             | `alt="Picture of the author"`        | String          | Yes      |
+| [`loader`](#loader)                       | `loader={imageLoader}`               | Function        | -        |
+| [`fill`](#fill)                           | `fill={true}`                        | Boolean         | -        |
+| [`sizes`](#sizes)                         | `sizes="(max-width: 768px) 100vw"`   | String          | -        |
+| [`quality`](#quality)                     | `quality={80}`                       | Integer (1-100) | -        |
+| [`priority`](#priority)                   | `priority={true}`                    | Boolean         | -        |
+| [`placeholder`](#placeholder)             | `placeholder="blur"`                 | String          | -        |
+| [`style`](#style)                         | `style={{objectFit: "contain"}}`     | Object          | -        |
+| [`onLoadingComplete`](#onloadingcomplete) | `onLoadingComplete={img => done())}` | Function        | -        |
+| [`onLoad`](#onload)                       | `onLoad={event => done())}`          | Function        | -        |
+| [`onError`](#onerror)                     | `onError(event => fail()}`           | Function        | -        |
+| [`loading`](#loading)                     | `loading="lazy"`                     | String          | -        |
+| [`blurDataURL`](#blurdataurl)             | `blurDataURL="data:image/jpeg..."`   | String          | -        |
 </div>
 
 ## Required Props
