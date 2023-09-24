@@ -64,7 +64,7 @@ impl ClientReferenceManifest {
                 let entry_css_files = entry_manifest
                     .entry_css_files
                     .entry(server_component_name.clone_value())
-                    .or_insert_with(Default::default);
+                    .or_default();
 
                 match app_client_reference_ty {
                     ClientReferenceType::CssClientReference(_) => {
@@ -72,7 +72,11 @@ impl ClientReferenceManifest {
                             client_chunks_paths
                                 .iter()
                                 .filter_map(|chunk_path| {
-                                    client_relative_path.get_path_to(chunk_path)
+                                    if chunk_path.extension_ref() == Some("css") {
+                                        client_relative_path.get_path_to(chunk_path)
+                                    } else {
+                                        None
+                                    }
                                 })
                                 .map(ToString::to_string),
                         );
