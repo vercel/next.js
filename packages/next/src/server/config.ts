@@ -325,11 +325,18 @@ function assignDefaults(
     }
   }
 
-  // TODO: remove this in next major or minor version after 13.5
+  // TODO: Remove this warning in Next.js 14
   warnOptionHasBeenDeprecated(
     result,
     'experimental.appDir',
     'App router is available by default now, `experimental.appDir` option can be safely removed.',
+    silent
+  )
+  // TODO: Remove this warning in Next.js 14
+  warnOptionHasBeenDeprecated(
+    result,
+    'experimental.runtime',
+    'You are using `experimental.runtime` which was removed. Check https://nextjs.org/docs/api-routes/edge-api-routes on how to use edge runtime.',
     silent
   )
   warnOptionHasBeenMovedOutOfExperimental(
