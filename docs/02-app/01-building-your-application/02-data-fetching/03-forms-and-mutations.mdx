@@ -43,6 +43,7 @@ module.exports = {
 > - Forms calling Server Actions from Server Components can function without JavaScript.
 > - Forms calling Server Actions from Client Components will queue submissions if JavaScript isn't loaded yet, prioritizing client hydration.
 > - Server Actions inherit the [runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes) from the page or layout they are used on.
+> - Server Actions work with fully static routes (including revalidating data with ISR).
 
 ## Revalidating Cached Data
 
