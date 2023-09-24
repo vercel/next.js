@@ -1,6 +1,6 @@
 /* eslint-disable jest/no-standalone-expect */
 import { createNextDescribe } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { check, waitFor } from 'next-test-utils'
 import { Request } from 'playwright-chromium'
 import fs from 'fs-extra'
 import { join } from 'path'
@@ -436,9 +436,7 @@ createNextDescribe(
       it('should handle redirect to a relative URL in a single pass', async () => {
         const browser = await next.browser('/client/edge')
 
-        await new Promise((resolve) => {
-          setTimeout(resolve, 3000)
-        })
+        await waitFor(3000)
 
         let requests = []
 
@@ -505,9 +503,7 @@ createNextDescribe(
       it('should handle redirect to a relative URL in a single pass', async () => {
         const browser = await next.browser('/client')
 
-        await new Promise((resolve) => {
-          setTimeout(resolve, 3000)
-        })
+        await waitFor(3000)
 
         let requests = []
 

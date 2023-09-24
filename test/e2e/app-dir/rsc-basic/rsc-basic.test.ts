@@ -31,19 +31,16 @@ createNextDescribe(
   },
   ({ next, isNextDev, isNextStart, isTurbopack }) => {
     if (isNextDev && !isTurbopack) {
-      // TODO: Fix this test, it no longer uses stringified JSON.
-      it.skip('should have correct client references keys in manifest', async () => {
+      it('should have correct client references keys in manifest', async () => {
         await next.render('/')
         await check(async () => {
           // Check that the client-side manifest is correct before any requests
           const clientReferenceManifest = JSON.parse(
-            JSON.parse(
-              (
-                await next.readFile(
-                  '.next/server/app/page_client-reference-manifest.js'
-                )
-              ).match(/]=(.+)$/)[1]
-            )
+            (
+              await next.readFile(
+                '.next/server/app/page_client-reference-manifest.js'
+              )
+            ).match(/]=(.+)$/)[1]
           )
           const clientModulesNames = Object.keys(
             clientReferenceManifest.clientModules
@@ -592,5 +589,54 @@ createNextDescribe(
         await Promise.all(promises)
       })
     }
+
+    describe('react@experimental', () => {
+      it.each([{ flag: 'ppr' }, { flag: 'serverActions' }])(
+        'should opt into the react@experimental when enabling $flag',
+        async ({ flag }) => {
+          await next.stop()
+          await next.patchFile(
+            'next.config.js',
+            `
+            module.exports = {
+              experimental: {
+                ${flag}: true
+              }
+            }
+            `
+          )
+
+          await next.start()
+          const resPages$ = await next.render$('/app-react')
+          const ssrPagesReactVersions = [
+            await resPages$('#react').text(),
+            await resPages$('#react-dom').text(),
+            await resPages$('#react-dom-server').text(),
+            await resPages$('#client-react').text(),
+            await resPages$('#client-react-dom').text(),
+            await resPages$('#client-react-dom-server').text(),
+          ]
+
+          ssrPagesReactVersions.forEach((version) => {
+            expect(version).toMatch('-experimental-')
+          })
+
+          const browser = await next.browser('/app-react')
+          const browserAppReactVersions = await browser.eval(`
+            [
+              document.querySelector('#react').innerText,
+              document.querySelector('#react-dom').innerText,
+              document.querySelector('#react-dom-server').innerText,
+              document.querySelector('#client-react').innerText,
+              document.querySelector('#client-react-dom').innerText,
+              document.querySelector('#client-react-dom-server').innerText,
+            ]
+          `)
+          browserAppReactVersions.forEach((version) =>
+            expect(version).toMatch('-experimental-')
+          )
+        }
+      )
+    })
   }
 )
