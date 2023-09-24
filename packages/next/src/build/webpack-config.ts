@@ -25,7 +25,6 @@ import {
   isWebpackServerLayer,
 } from './utils'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
-import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
@@ -285,35 +284,26 @@ function getOptimizedAliases(): { [pkg: string]: string } {
   const stubObjectAssign = path.join(__dirname, 'polyfills', 'object-assign.js')
 
   const shimAssign = path.join(__dirname, 'polyfills', 'object.assign')
-  return Object.assign(
-    {},
-    {
-      unfetch$: stubWindowFetch,
-      'isomorphic-unfetch$': stubWindowFetch,
-      'whatwg-fetch$': path.join(
-        __dirname,
-        'polyfills',
-        'fetch',
-        'whatwg-fetch.js'
-      ),
-    },
-    {
-      'object-assign$': stubObjectAssign,
+  return {
+    unfetch$: stubWindowFetch,
+    'isomorphic-unfetch$': stubWindowFetch,
+    'whatwg-fetch$': path.join(
+      __dirname,
+      'polyfills',
+      'fetch',
+      'whatwg-fetch.js'
+    ),
+    'object-assign$': stubObjectAssign,
+    // Stub Package: object.assign
+    'object.assign/auto': path.join(shimAssign, 'auto.js'),
+    'object.assign/implementation': path.join(shimAssign, 'implementation.js'),
+    'object.assign$': path.join(shimAssign, 'index.js'),
+    'object.assign/polyfill': path.join(shimAssign, 'polyfill.js'),
+    'object.assign/shim': path.join(shimAssign, 'shim.js'),
 
-      // Stub Package: object.assign
-      'object.assign/auto': path.join(shimAssign, 'auto.js'),
-      'object.assign/implementation': path.join(
-        shimAssign,
-        'implementation.js'
-      ),
-      'object.assign$': path.join(shimAssign, 'index.js'),
-      'object.assign/polyfill': path.join(shimAssign, 'polyfill.js'),
-      'object.assign/shim': path.join(shimAssign, 'shim.js'),
-
-      // Replace: full URL polyfill with platform-based polyfill
-      url: require.resolve('next/dist/compiled/native-url'),
-    }
-  )
+    // Replace: full URL polyfill with platform-based polyfill
+    url: require.resolve('next/dist/compiled/native-url'),
+  }
 }
 
 // Alias these modules to be resolved with "module" if possible.
@@ -536,6 +526,31 @@ export async function loadProjectInfo({
   }
 }
 
+function getOpenTelemetryVersion(): string | null {
+  try {
+    return require('@opentelemetry/api/package.json')?.version ?? null
+  } catch {
+    return null
+  }
+}
+
+function hasExternalOtelApiPackage(): boolean {
+  const opentelemetryVersion = getOpenTelemetryVersion()
+  if (!opentelemetryVersion) {
+    return false
+  }
+
+  // 0.19.0 is the first version of the package that has the `tracer.getSpan` API that we need:
+  // https://github.com/vercel/next.js/issues/48118
+  if (semver.gte(opentelemetryVersion, '0.19.0')) {
+    return true
+  } else {
+    throw new Error(
+      `Installed "@opentelemetry/api" with version ${opentelemetryVersion} is not supported by Next.js. Please upgrade to 0.19.0 or newer version.`
+    )
+  }
+}
+
 const UNSAFE_CACHE_REGEX = /[\\/]pages[\\/][^\\/]+(?:$|\?|#)/
 
 export default async function getBaseWebpackConfig(
@@ -615,17 +630,6 @@ export default async function getBaseWebpackConfig(
   const bundledReactChannel = needsExperimentalReact(config)
     ? '-experimental'
     : ''
-
-  if (isClient) {
-    if (
-      // @ts-expect-error: experimental.runtime is deprecated
-      isEdgeRuntime(config.experimental.runtime)
-    ) {
-      Log.warn(
-        'You are using `experimental.runtime` which was removed. Check https://nextjs.org/docs/api-routes/edge-api-routes on how to use edge runtime.'
-      )
-    }
-  }
 
   const babelConfigFile = await getBabelConfigFile(dir)
   const distDir = path.join(dir, config.distDir)
@@ -927,22 +931,6 @@ export default async function getBaseWebpackConfig(
     ]
   }
 
-  let hasExternalOtelApiPackage = false
-  try {
-    const opentelemetryPackageJson = require('@opentelemetry/api/package.json')
-    if (opentelemetryPackageJson.version) {
-      // 0.19.0 is the first version of the package that has the `tracer.getSpan` API that we need:
-      // https://github.com/vercel/next.js/issues/48118
-      if (semver.gte(opentelemetryPackageJson.version, '0.19.0')) {
-        hasExternalOtelApiPackage = true
-      } else {
-        throw new Error(
-          `Installed "@opentelemetry/api" with version ${opentelemetryPackageJson.version} is not supported by Next.js. Please upgrade to 0.19.0 or newer version.`
-        )
-      }
-    }
-  } catch {}
-
   const resolveConfig: webpack.Configuration['resolve'] = {
     // Disable .mjs for node_modules bundling
     extensions: isNodeServer
@@ -995,7 +983,7 @@ export default async function getBaseWebpackConfig(
         : undefined),
 
       // For RSC server bundle
-      ...(!hasExternalOtelApiPackage && {
+      ...(!hasExternalOtelApiPackage() && {
         '@opentelemetry/api': 'next/dist/compiled/@opentelemetry/api',
       }),
 
