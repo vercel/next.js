@@ -137,8 +137,8 @@ export type PageConfig = {
   }
   env?: Array<string>
   /**
-   * Configures the longest time a serverless function can process an HTTP request
-   * before responding.
+   * Configures the longest time in seconds a serverless function can process an HTTP
+   * request before responding.
    */
   maxDuration?: number
   runtime?: ServerRuntime
