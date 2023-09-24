@@ -136,6 +136,11 @@ export type PageConfig = {
     externalResolver?: true
   }
   env?: Array<string>
+  /**
+   * Configures the longest time a serverless function can process an HTTP request
+   * before responding.
+   */
+  maxDuration?: number
   runtime?: ServerRuntime
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
