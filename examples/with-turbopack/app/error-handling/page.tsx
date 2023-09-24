@@ -22,7 +22,7 @@ export default function Page() {
       <div className="flex gap-2">
         <BuggyButton />
 
-        <ExternalLink href="https://beta.nextjs.org/docs/routing/error-handling">
+        <ExternalLink href="https://nextjs.org/docs/routing/error-handling">
           Docs
         </ExternalLink>
         <ExternalLink href="https://github.com/vercel/app-playground/tree/main/app/error-handling">

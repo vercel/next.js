@@ -17,7 +17,7 @@ export default function Page() {
       </ul>
 
       <div className="flex gap-2">
-        <ExternalLink href="https://beta.nextjs.org/docs/data-fetching/fetching#dynamic-data">
+        <ExternalLink href="https://nextjs.org/docs/data-fetching/fetching#dynamic-data">
           Docs
         </ExternalLink>
         <ExternalLink href="https://github.com/vercel/app-playground/tree/main/app/ssr">
