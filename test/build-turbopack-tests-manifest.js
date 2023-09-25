@@ -66,11 +66,11 @@ async function updatePassingTests() {
   }
 
   for (const info of Object.values(passing)) {
-    info.failed = [...new Set(info.failed)]
-    info.pending = [...new Set(info.pending)]
+    info.failed = [...new Set(info.failed)].sort()
+    info.pending = [...new Set(info.pending)].sort()
     info.passed = [
       ...new Set(info.passed.filter((name) => !info.failed.includes(name))),
-    ]
+    ].sort()
   }
 
   if (!override) {
@@ -97,9 +97,13 @@ async function updatePassingTests() {
         )
       }
       // Merge the old passing tests with the new ones
-      newData.passed = [...new Set([...oldData.passed, ...newData.passed])]
+      newData.passed = [
+        ...new Set([...oldData.passed, ...newData.passed]),
+      ].sort()
       // but remove them also from the failed list
-      newData.failed = newData.failed.filter((name) => !shouldPass.has(name))
+      newData.failed = newData.failed
+        .filter((name) => !shouldPass.has(name))
+        .sort()
     }
   }
 
