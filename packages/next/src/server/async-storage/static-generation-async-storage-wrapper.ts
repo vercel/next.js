@@ -16,6 +16,7 @@ export type StaticGenerationContext = {
     fetchCache?: StaticGenerationStore['fetchCache']
     isDraftMode?: boolean
     isServerAction?: boolean
+    waitUntil?: Promise<any>
 
     /**
      * A hack around accessing the store value outside the context of the
