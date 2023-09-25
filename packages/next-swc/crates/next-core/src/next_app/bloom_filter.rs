@@ -77,7 +77,10 @@ fn murmurhash2(s: &str) -> u32 {
 
 #[cfg(test)]
 mod test {
-    use crate::next_app::bloom_filter::murmurhash2;
+    use crate::next_app::{
+        bloom_filter::{create_client_router_filter, murmurhash2, BloomFilter},
+        AppPath, PathSegment,
+    };
 
     // testing that we get the same output as the javascript implementation.
     #[test]
@@ -90,9 +93,35 @@ mod test {
             2001750934
         );
     }
+
+    // testing that we get the same output as the javascript implementation.
+    #[test]
+    fn test_create_client_router_filter() {
+        let app_paths = &[
+            AppPath(vec![]),
+            AppPath(vec![PathSegment::Static("favicon.ico".to_string())]),
+            AppPath(vec![PathSegment::Static("_not-found".to_string())]),
+            AppPath(vec![PathSegment::Static("app".to_string())]),
+        ];
+
+        assert_eq!(
+            create_client_router_filter(app_paths, &[], None).static_filter,
+            BloomFilter {
+                num_items: 4,
+                error_rate: 0.01,
+                num_bits: 39,
+                num_hashes: 7,
+                bit_array: vec![
+                    0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0,
+                    0, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1
+                ]
+            }
+        )
+    }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct BloomFilter {
     num_items: usize,
     error_rate: f64,
@@ -118,8 +147,8 @@ impl BloomFilter {
 
     pub fn from<'a>(items: impl IntoIterator<Item = &'a String>, error_rate: f64) -> Self {
         let items = items.into_iter().collect::<Vec<_>>();
-        let num_items = items.len();
-        let mut filter = Self::new(num_items, error_rate);
+
+        let mut filter = Self::new(items.len(), error_rate);
         for item in items {
             filter.add(item)
         }
@@ -147,7 +176,7 @@ impl BloomFilter {
     fn get_hash_values(&self, item: &str) -> Vec<usize> {
         let mut hash_values = Vec::new();
 
-        for i in 0..self.num_hashes {
+        for i in 1..self.num_hashes + 1 {
             let hash = murmurhash2(&format!("{item}{i}")) as usize % self.num_bits;
             hash_values.push(hash);
         }
