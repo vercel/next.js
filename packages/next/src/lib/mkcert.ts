@@ -98,13 +98,13 @@ export async function createSelfSignedCertificate(
         : defaultHosts
 
     execSync(
-      `${binaryPath} -install -key-file ${keyPath} -cert-file ${certPath} ${hosts.join(
+      `"${binaryPath}" -install -key-file "${keyPath}" -cert-file "${certPath}" ${hosts.join(
         ' '
       )}`,
       { stdio: 'ignore' }
     )
 
-    const caLocation = execSync(`${binaryPath} -CAROOT`).toString().trim()
+    const caLocation = execSync(`"${binaryPath}" -CAROOT`).toString().trim()
 
     if (!fs.existsSync(keyPath) || !fs.existsSync(certPath)) {
       throw new Error('Certificate files not found')
