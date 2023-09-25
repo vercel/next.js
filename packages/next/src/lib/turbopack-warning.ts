@@ -31,6 +31,7 @@ const supportedTurbopackNextConfigOptions = [
   'assetPrefix',
   'distDir',
   'experimental.serverComponentsExternalPackages',
+  'experimental.strictNextHead',
   'experimental.turbo',
   'experimental.mdxRs',
   'experimental.forceSwcTransforms',
