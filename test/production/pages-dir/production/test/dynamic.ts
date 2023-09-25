@@ -5,7 +5,7 @@ import { check } from 'next-test-utils'
 
 // These tests are similar to ../../basic/test/dynamic.js
 export default (context, render) => {
-  async function get$(path, query) {
+  async function get$(path: string, query?: any) {
     const html = await render(path, query)
     return cheerio.load(html)
   }
@@ -49,6 +49,7 @@ export default (context, render) => {
           const css1 = await firstElement.getComputedCss('display')
           expect(css1).toBe('flex')
           await browser.eval(function () {
+            // @ts-expect-error window.next exists
             window.next.router.push('/dynamic/pagechange2')
           })
           await check(() => browser.elementByCss('body').text(), /PageChange2/)

@@ -34,7 +34,7 @@ const appDir = join(__dirname, '../')
 let appPort
 let app
 
-const context = {}
+const context: any = {}
 
 if (process.env.TEST_WASM) {
   jest.setTimeout(240 * 1000)
@@ -43,7 +43,7 @@ if (process.env.TEST_WASM) {
 describe('Production Usage', () => {
   let output = ''
   beforeAll(async () => {
-    let opts = {
+    let opts: any = {
       stderr: true,
       stdout: true,
     }
@@ -415,7 +415,7 @@ describe('Production Usage', () => {
       expect(html).toMatch(/Hello World/)
     })
 
-    if (browserName === 'internet explorer') {
+    if (global.browserName === 'internet explorer') {
       it('should handle bad Promise polyfill', async () => {
         const browser = await webdriver(appPort, '/bad-promise')
         expect(await browser.eval('window.didRender')).toBe(true)
@@ -628,7 +628,7 @@ describe('Production Usage', () => {
       ))
       const url = `http://localhost:${appPort}`
 
-      const resources = new Set()
+      const resources: Set<string> = new Set()
 
       const manifestKey = Object.keys(reactLoadableManifest).find((item) => {
         return item
@@ -783,6 +783,7 @@ describe('Production Usage', () => {
     it('should reload page successfully (on bad link)', async () => {
       const browser = await webdriver(appPort, '/to-nonexistent')
       await browser.eval(function setup() {
+        // @ts-expect-error Exists on window
         window.__DATA_BE_GONE = 'true'
       })
       await browser.waitForElementByCss('#to-nonexistent-page')
@@ -796,6 +797,7 @@ describe('Production Usage', () => {
     it('should reload page successfully (on bad data fetch)', async () => {
       const browser = await webdriver(appPort, '/to-shadowed-page')
       await browser.eval(function setup() {
+        // @ts-expect-error Exists on window
         window.__DATA_BE_GONE = 'true'
       })
       await browser.waitForElementByCss('#to-shadowed-page').click()
@@ -936,7 +938,7 @@ describe('Production Usage', () => {
     // the latest version of firefox the window state is not reset
     // when navigating back from a hard navigation. This might be
     // a bug as other browsers do not behave this way.
-    if (browserName !== 'firefox') {
+    if (global.browserName !== 'firefox') {
       it('should reload the page on page script error', async () => {
         const browser = await webdriver(appPort, '/counter')
         const counter = await browser
@@ -999,7 +1001,7 @@ describe('Production Usage', () => {
     it('should add prefetch tags when Link prefetch prop is used', async () => {
       const browser = await webdriver(appPort, '/prefetch')
 
-      if (browserName === 'internet explorer') {
+      if (global.browserName === 'internet explorer') {
         // IntersectionObserver isn't present so we need to trigger manually
         await waitFor(1000)
         await browser.eval(`(function() {
@@ -1012,7 +1014,7 @@ describe('Production Usage', () => {
 
       await waitFor(2000)
 
-      if (browserName === 'safari') {
+      if (global.browserName === 'safari') {
         const elements = await browser.elementsByCss('link[rel=preload]')
         // optimized preloading uses defer instead of preloading and prefetches
         // aren't generated client-side since safari does not support prefetch
@@ -1050,7 +1052,7 @@ describe('Production Usage', () => {
       await browser.close()
     })
 
-    if (browserName === 'chrome') {
+    if (global.browserName === 'chrome') {
       it('should reload the page on page script error with prefetch', async () => {
         const browser = await webdriver(appPort, '/counter')
         if (global.browserName !== 'chrome') return
@@ -1332,5 +1334,5 @@ describe('Production Usage', () => {
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))
 
   processEnv(context)
-  if (browserName !== 'safari') security(context)
+  if (global.browserName !== 'safari') security(context)
 })

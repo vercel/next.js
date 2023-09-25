@@ -21,7 +21,7 @@ async function checkInjected(browser) {
   }
 }
 
-module.exports = (context) => {
+export default (context) => {
   describe('With Security Related Issues', () => {
     it.skip('should handle invalid URL properly', async () => {
       async function invalidRequest() {
