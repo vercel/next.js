@@ -61,6 +61,15 @@ pub async fn env_for_js(
         map.insert("__NEXT_STRICT_MODE_APP".to_string(), "true".to_string());
     }
 
+    map.insert(
+        "__NEXT_STRICT_NEXT_HEAD".to_string(),
+        if next_config.experimental.strict_next_head.unwrap_or(false) {
+            "true".to_string()
+        } else {
+            "false".to_string()
+        },
+    );
+
     if !test_mode.is_empty() {
         map.insert("__NEXT_TEST_MODE".to_string(), "true".to_string());
     }
