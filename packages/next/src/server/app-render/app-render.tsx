@@ -1765,12 +1765,12 @@ export const renderToHTMLOrFlight: AppPageRender = (
         asNotFound: pagePath === '/404',
         tree: loaderTree,
       }),
-      { ...extraRenderResultMeta }
+      {
+        ...extraRenderResultMeta,
+        waitUntil: Promise.all(staticGenerationStore.pendingRevalidates || []),
+      }
     )
 
-    if (staticGenerationStore.pendingRevalidates) {
-      await Promise.all(staticGenerationStore.pendingRevalidates)
-    }
     addImplicitTags(staticGenerationStore)
     extraRenderResultMeta.fetchTags = staticGenerationStore.tags?.join(',')
     renderResult.extendMetadata({

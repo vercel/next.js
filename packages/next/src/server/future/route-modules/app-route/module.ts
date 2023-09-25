@@ -370,10 +370,11 @@ export class AppRouteRouteModule extends RouteModule<
                     }
                     ;(context.staticGenerationContext as any).fetchMetrics =
                       staticGenerationStore.fetchMetrics
+                    ;(context.staticGenerationContext as any).waitUntil =
+                      Promise.all(
+                        staticGenerationStore.pendingRevalidates || []
+                      )
 
-                    await Promise.all(
-                      staticGenerationStore.pendingRevalidates || []
-                    )
                     addImplicitTags(staticGenerationStore)
                     ;(context.staticGenerationContext as any).fetchTags =
                       staticGenerationStore.tags?.join(',')

@@ -36,11 +36,14 @@ export interface PipeTarget<R = any> {
    * Allows us to cleanup our onClose listener.
    */
   off: (event: 'close', cb: () => void) => void
+
+  closed?: boolean
 }
 
 export async function pipeReadable(
   readable: ReadableStream<Uint8Array>,
-  writable: PipeTarget<Uint8Array>
+  writable: PipeTarget<Uint8Array>,
+  waitUntilForEnd?: Promise<void>
 ) {
   const reader = readable.getReader()
   let readerDone = false
@@ -94,7 +97,16 @@ export async function pipeReadable(
     // If the client hasn't disconnected yet, end the writable so that the
     // response sends the final bytes.
     if (!writableClosed) {
-      writable.end()
+      if (waitUntilForEnd) {
+        await waitUntilForEnd
+      }
+      try {
+        writable.end()
+      } catch (err: any) {
+        if (err.code !== 'ERR_INVALID_STATE') {
+          throw err
+        }
+      }
     }
   }
 }
