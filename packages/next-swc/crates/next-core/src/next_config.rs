@@ -403,6 +403,7 @@ pub enum LoaderItem {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct ExperimentalConfig {
+    pub strict_next_head: Option<bool>,
     pub server_components_external_packages: Option<Vec<String>>,
     pub turbo: Option<ExperimentalTurboConfig>,
     pub allowed_revalidate_header_keys: Option<Vec<String>>,
