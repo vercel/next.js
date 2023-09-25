@@ -57,7 +57,6 @@ pub use next_edge::context::{
 pub use page_loader::{create_page_loader_entry_module, PageLoaderAsset};
 pub use turbopack_binding::{turbopack::node::source_map, *};
 pub use util::{get_asset_path_from_pathname, pathname_for_path, PathType};
-// pub use web_entry_source::create_web_entry_source;
 
 pub fn register() {
     turbo_tasks::register();
