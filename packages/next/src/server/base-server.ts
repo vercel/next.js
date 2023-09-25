@@ -2084,7 +2084,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             req,
             res,
             response,
-            (context.staticGenerationContext as any).waitUntil
+            context.staticGenerationContext.waitUntil
           )
           return null
         } catch (err) {

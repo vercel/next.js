@@ -114,8 +114,8 @@ export class EdgeRouteModuleWrapper {
     // Get the response from the handler.
     const res = await this.routeModule.handle(request, context)
 
-    if ((context.staticGenerationContext as any).waitUntil) {
-      evt.waitUntil((context.staticGenerationContext as any).waitUntil)
+    if (context.staticGenerationContext.waitUntil) {
+      evt.waitUntil(context.staticGenerationContext.waitUntil)
     }
     return res
   }

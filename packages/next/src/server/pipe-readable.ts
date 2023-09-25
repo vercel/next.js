@@ -96,17 +96,12 @@ export async function pipeReadable(
 
     // If the client hasn't disconnected yet, end the writable so that the
     // response sends the final bytes.
+    if (waitUntilForEnd) {
+      await waitUntilForEnd
+    }
+
     if (!writableClosed) {
-      if (waitUntilForEnd) {
-        await waitUntilForEnd
-      }
-      try {
-        writable.end()
-      } catch (err: any) {
-        if (err.code !== 'ERR_INVALID_STATE') {
-          throw err
-        }
-      }
+      writable.end()
     }
   }
 }
