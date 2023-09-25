@@ -103,8 +103,8 @@ fn defines(
             .experimental
             .client_router_filter
             .unwrap_or_default(),
-        process.env.__NEXT_CLIENT_ROUTER_S_FILTER = serde_json::to_string(&filter.static_filter)?,
-        process.env.__NEXT_CLIENT_ROUTER_D_FILTER = serde_json::to_string(&filter.dynamic_filter)?,
+        process.env.__NEXT_CLIENT_ROUTER_S_FILTER = serde_json::to_value(&filter.static_filter)?,
+        process.env.__NEXT_CLIENT_ROUTER_D_FILTER = serde_json::to_value(&filter.dynamic_filter)?,
         process.env.__NEXT_DIST_DIR = dist_root_path.to_string(),
         process.env.__NEXT_HAS_REWRITES = true,
         process.env.__NEXT_I18N_SUPPORT = false,
