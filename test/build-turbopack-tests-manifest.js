@@ -1,5 +1,11 @@
 const fetch = require('node-fetch')
 const fs = require('fs')
+const prettier = require('prettier')
+
+async function format(text) {
+  const options = await prettier.resolveConfig(__filename)
+  return prettier.format(text, { ...options, parser: 'json' })
+}
 
 const override = process.argv.includes('--override')
 
@@ -116,7 +122,10 @@ async function updatePassingTests() {
       return obj
     }, {})
 
-  fs.writeFileSync(PASSING_JSON_PATH, JSON.stringify(ordered, null, 2))
+  fs.writeFileSync(
+    PASSING_JSON_PATH,
+    await format(JSON.stringify(ordered, null, 2))
+  )
 }
 
 function stripWorkingPath(path) {
