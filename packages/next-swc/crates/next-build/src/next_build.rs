@@ -134,8 +134,13 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
 
     let mode = NextMode::Build;
     let app_dir = find_app_dir_if_enabled(project_root);
-    let client_compile_time_info =
-        get_client_compile_time_info(mode, browserslist_query, node_root.to_string(), next_config, app_dir);
+    let client_compile_time_info = get_client_compile_time_info(
+        mode,
+        browserslist_query,
+        node_root.to_string(),
+        next_config,
+        app_dir,
+    );
     let server_compile_time_info = get_server_compile_time_info(mode, env, ServerAddr::empty());
 
     // TODO(alexkirsz) Pages should build their own routes, outside of a FS.

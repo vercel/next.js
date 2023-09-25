@@ -92,11 +92,13 @@ fn defines(
 
     // TODO: macro may need to allow dynamically expand from some iterable values
     // TODO(WEB-937): there are more defines needed, see
-    // packages/next/src/build/webpack-config.ts
+    // packages/next/src/build/webpack/plugins/define-env-plugin.ts
     Ok(compile_time_defines!(
+        process.browser = true,
         process.turbopack = true,
         process.env.TURBOPACK = true,
         process.env.NODE_ENV = mode.node_env(),
+        process.env.NEXT_RUNTIME = "".to_string(),
         process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = next_config
             .experimental
             .client_router_filter
@@ -117,7 +119,13 @@ async fn next_client_defines(
     app_paths: Vc<EntrypointPaths>,
 ) -> Result<Vc<CompileTimeDefines>> {
     let dist_root_path = &*dist_root_path.await?;
-    Ok(defines(mode, dist_root_path.as_str(), &*next_config.await?, &app_paths.await?)?.cell())
+    Ok(defines(
+        mode,
+        dist_root_path.as_str(),
+        &*next_config.await?,
+        &app_paths.await?,
+    )?
+    .cell())
 }
 
 #[turbo_tasks::function]
@@ -129,7 +137,13 @@ async fn next_client_free_vars(
 ) -> Result<Vc<FreeVarReferences>> {
     let dist_root_path = &*dist_root_path.await?;
     Ok(free_var_references!(
-        ..defines(mode, dist_root_path.as_str(), &*next_config.await?, &app_paths.await?)?.into_iter(),
+        ..defines(
+            mode,
+            dist_root_path.as_str(),
+            &*next_config.await?,
+            &app_paths.await?
+        )?
+        .into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
             request: "node:buffer".to_string(),
             lookup_path: None,
@@ -175,8 +189,18 @@ pub fn get_client_compile_time_info(
         }
         .into(),
     ))))
-    .defines(next_client_defines(mode, dist_root_path, next_config, app_paths))
-    .free_var_references(next_client_free_vars(mode, dist_root_path, next_config, app_paths))
+    .defines(next_client_defines(
+        mode,
+        dist_root_path,
+        next_config,
+        app_paths,
+    ))
+    .free_var_references(next_client_free_vars(
+        mode,
+        dist_root_path,
+        next_config,
+        app_paths,
+    ))
     .cell()
 }
 
