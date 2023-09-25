@@ -240,7 +240,7 @@ async function main() {
         const info = externalTestsFilterLists[test.file]
         // only run filtered mode when there are failing tests.
         // When the whole test suite passes we can run all tests, including newly added ones.
-        if (info.failed.length > 0) {
+        if (info.failed.length > 0 || info.flakey.length > 0) {
           test.cases = info.passed
         }
         return test
