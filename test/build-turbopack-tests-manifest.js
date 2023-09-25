@@ -103,7 +103,16 @@ async function updatePassingTests() {
     }
   }
 
-  fs.writeFileSync(PASSING_JSON_PATH, JSON.stringify(passing, null, 2))
+  // JS keys are ordered, this ensures the tests are written in a consistent order
+  // https://stackoverflow.com/questions/5467129/sort-javascript-object-by-key
+  const ordered = Object.keys(passing)
+    .sort()
+    .reduce((obj, key) => {
+      obj[key] = passing[key]
+      return obj
+    }, {})
+
+  fs.writeFileSync(PASSING_JSON_PATH, JSON.stringify(ordered, null, 2))
 }
 
 function stripWorkingPath(path) {
