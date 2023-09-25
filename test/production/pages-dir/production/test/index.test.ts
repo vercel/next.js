@@ -1,5 +1,4 @@
 /* eslint-env jest */
-/* global browserName */
 import cheerio from 'cheerio'
 import fs, { existsSync } from 'fs-extra'
 import globOriginal from 'glob'
