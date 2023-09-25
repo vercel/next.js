@@ -14,7 +14,7 @@
     "graphql-yoga": "three",
     "@graphql-tools/merge": "6.0.18",
     "@graphql-tools/schema": "6.0.18",
-    "graphql": "15.6.0",
+    "graphql": "15.8.0",
     "next": "^12.1.5",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
