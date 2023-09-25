@@ -579,11 +579,10 @@ createNextDescribe(
       })
 
       it('should set Cache-Control header', async () => {
-        const buildManifest = require(join('../.next', BUILD_MANIFEST))
-        const reactLoadableManifest = require(join(
-          '../.next',
-          REACT_LOADABLE_MANIFEST
-        ))
+        const buildManifest = await next.readJSON(`.next/${BUILD_MANIFEST}`)
+        const reactLoadableManifest = await next.readJSON(
+          join('./.next', REACT_LOADABLE_MANIFEST)
+        )
         const url = `http://localhost:${next.appPort}`
 
         const resources: Set<string> = new Set()
