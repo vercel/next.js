@@ -8,7 +8,7 @@
   "dependencies": {
     "@supabase/auth-helpers-nextjs": "latest",
     "@supabase/supabase-js": "latest",
-    "autoprefixer": "10.4.14",
+    "autoprefixer": "10.4.15",
     "next": "latest",
     "postcss": "8.4.29",
     "react": "18.2.0",
