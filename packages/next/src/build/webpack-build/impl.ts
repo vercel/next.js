@@ -355,10 +355,7 @@ export async function workerMain(workerData: {
   /// load the config because it's not serializable
   NextBuildContext.config = await loadConfig(
     PHASE_PRODUCTION_BUILD,
-    NextBuildContext.dir!,
-    undefined,
-    undefined,
-    true
+    NextBuildContext.dir!
   )
   NextBuildContext.nextBuildSpan = trace('next-build')
 

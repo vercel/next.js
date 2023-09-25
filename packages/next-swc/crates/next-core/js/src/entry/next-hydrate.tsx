@@ -39,7 +39,7 @@ async function loadPageChunk(assetPrefix: string, chunkData: ChunkData) {
   }
 
   const { assetPrefix } = await initialize({
-    webpackHMR: {
+    devClient: {
       // Expected when `process.env.NODE_ENV === 'development'`
       onUnrecoverableError() {},
     },

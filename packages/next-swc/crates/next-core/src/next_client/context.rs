@@ -65,27 +65,50 @@ use crate::{
     util::foreign_code_context_condition,
 };
 
-fn defines(mode: NextMode) -> CompileTimeDefines {
-    compile_time_defines!(
+fn defines(mode: NextMode, dist_root_path: Option<&str>) -> CompileTimeDefines {
+    // [TODO] macro may need to allow dynamically expand from some iterable values
+    let mut defines = compile_time_defines!(
         process.turbopack = true,
         process.env.NODE_ENV = mode.node_env(),
         process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false,
         process.env.__NEXT_HAS_REWRITES = true,
         process.env.__NEXT_I18N_SUPPORT = false,
-    )
+    );
+
+    if let Some(dist_root_path) = dist_root_path {
+        defines.0.insert(
+            vec![
+                "process".to_string(),
+                "env".to_string(),
+                "__NEXT_DIST_DIR".to_string(),
+            ],
+            dist_root_path.to_string().into(),
+        );
+    }
+
     // TODO(WEB-937) there are more defines needed, see
     // packages/next/src/build/webpack-config.ts
+
+    defines
 }
 
 #[turbo_tasks::function]
-fn next_client_defines(mode: NextMode) -> Vc<CompileTimeDefines> {
-    defines(mode).cell()
+async fn next_client_defines(
+    mode: NextMode,
+    dist_root_path: Vc<String>,
+) -> Result<Vc<CompileTimeDefines>> {
+    let dist_root_path = &*dist_root_path.await?;
+    Ok(defines(mode, Some(dist_root_path.as_str())).cell())
 }
 
 #[turbo_tasks::function]
-async fn next_client_free_vars(mode: NextMode) -> Result<Vc<FreeVarReferences>> {
+async fn next_client_free_vars(
+    mode: NextMode,
+    dist_root_path: Vc<String>,
+) -> Result<Vc<FreeVarReferences>> {
+    let dist_root_path = &*dist_root_path.await?;
     Ok(free_var_references!(
-        ..defines(mode).into_iter(),
+        ..defines(mode, Some(dist_root_path.as_str())).into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
             request: "node:buffer".to_string(),
             lookup_path: None,
@@ -104,6 +127,7 @@ async fn next_client_free_vars(mode: NextMode) -> Result<Vc<FreeVarReferences>> 
 pub fn get_client_compile_time_info(
     mode: NextMode,
     browserslist_query: String,
+    dist_root_path: Vc<String>,
 ) -> Vc<CompileTimeInfo> {
     CompileTimeInfo::builder(Environment::new(Value::new(ExecutionEnvironment::Browser(
         BrowserEnvironment {
@@ -114,8 +138,8 @@ pub fn get_client_compile_time_info(
         }
         .into(),
     ))))
-    .defines(next_client_defines(mode))
-    .free_var_references(next_client_free_vars(mode))
+    .defines(next_client_defines(mode, dist_root_path))
+    .free_var_references(next_client_free_vars(mode, dist_root_path))
     .cell()
 }
 
@@ -159,7 +183,7 @@ pub async fn get_client_resolve_options_context(
         enable_typescript: true,
         enable_react: true,
         rules: vec![(
-            foreign_code_context_condition(next_config).await?,
+            foreign_code_context_condition(next_config, project_path).await?,
             module_options_context.clone().cell(),
         )],
         ..module_options_context
@@ -256,7 +280,7 @@ pub async fn get_client_module_options_context(
         decorators: Some(decorators_options),
         rules: vec![
             (
-                foreign_code_context_condition(next_config).await?,
+                foreign_code_context_condition(next_config, project_path).await?,
                 module_options_context.clone().cell(),
             ),
             // If the module is an internal asset (i.e overlay, fallback) coming from the embedded

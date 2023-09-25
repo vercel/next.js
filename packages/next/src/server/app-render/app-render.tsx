@@ -18,7 +18,6 @@ import type { RequestAsyncStorage } from '../../client/components/request-async-
 import React from 'react'
 import { createServerComponentRenderer } from './create-server-components-renderer'
 
-import { ParsedUrlQuery } from 'querystring'
 import { NextParsedUrlQuery } from '../request-meta'
 import RenderResult, { type RenderResultMetadata } from '../render-result'
 import {
@@ -156,13 +155,21 @@ function hasLoadingComponentInTree(tree: LoaderTree): boolean {
   ) as boolean
 }
 
-export async function renderToHTMLOrFlight(
+export type AppPageRender = (
   req: IncomingMessage,
   res: ServerResponse,
   pagePath: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts
-): Promise<RenderResult> {
+) => Promise<RenderResult>
+
+export const renderToHTMLOrFlight: AppPageRender = (
+  req,
+  res,
+  pagePath,
+  query,
+  renderOpts
+) => {
   const isFlight = req.headers[RSC.toLowerCase()] !== undefined
   const pathname = validateURL(req.url)
 
@@ -186,6 +193,16 @@ export async function renderToHTMLOrFlight(
     deploymentId,
     appDirDevErrorLogger,
   } = renderOpts
+
+  // We need to expose the bundled `require` API globally for
+  // react-server-dom-webpack. This is a hack until we find a better way.
+  if (ComponentMod.__next_app__) {
+    // @ts-ignore
+    globalThis.__next_require__ = ComponentMod.__next_app__.require
+
+    // @ts-ignore
+    globalThis.__next_chunk_load__ = ComponentMod.__next_app__.loadChunk
+  }
 
   const extraRenderResultMeta: RenderResultMetadata = {}
 
@@ -325,7 +342,7 @@ export async function renderToHTMLOrFlight(
     /**
      * Dynamic parameters. E.g. when you visit `/dashboard/vercel` which is rendered by `/dashboard/[slug]` the value will be {"slug": "vercel"}.
      */
-    const pathParams = (renderOpts as any).params as ParsedUrlQuery
+    const params = renderOpts.params ?? {}
 
     /**
      * Parse the dynamic segment and return the associated value.
@@ -341,7 +358,7 @@ export async function renderToHTMLOrFlight(
 
       const key = segmentParam.param
 
-      let value = pathParams[key]
+      let value = params[key]
 
       // this is a special marker that will be present for interception routes
       if (value === '__NEXT_EMPTY_PARAM__') {
@@ -1102,7 +1119,9 @@ export async function renderToHTMLOrFlight(
                 getDynamicParamFromSegment,
                 query
               ),
-              isPrefetch && !Boolean(components.loading)
+              isPrefetch &&
+              !Boolean(components.loading) &&
+              !hasLoadingComponentInTree(loaderTree)
                 ? null
                 : // Create component tree using the slice of the loaderTree
                   // @ts-expect-error TODO-APP: fix async component type
@@ -1125,7 +1144,9 @@ export async function renderToHTMLOrFlight(
 
                     return <Component />
                   }),
-              isPrefetch && !Boolean(components.loading)
+              isPrefetch &&
+              !Boolean(components.loading) &&
+              !hasLoadingComponentInTree(loaderTree)
                 ? null
                 : (() => {
                     const { layoutOrPagePath } =
@@ -1345,7 +1366,7 @@ export async function renderToHTMLOrFlight(
           const [MetadataTree, MetadataOutlet] = createMetadataComponents({
             tree: loaderTreeToRender,
             errorType: props.asNotFound ? 'not-found' : undefined,
-            pathname: pathname,
+            pathname,
             searchParams: providedSearchParams,
             getDynamicParamFromSegment: getDynamicParamFromSegment,
             appUsingSizeAdjust: appUsingSizeAdjust,
@@ -1717,7 +1738,7 @@ export async function renderToHTMLOrFlight(
       req,
       res,
       ComponentMod,
-      pathname: renderOpts.pathname,
+      page: renderOpts.page,
       serverActionsManifest,
       generateFlight,
       staticGenerationStore,
