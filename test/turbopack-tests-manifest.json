@@ -207,67 +207,6 @@
     "pending": [],
     "runtimeError": false
   },
-  "packages/next/dist/shared/lib/get-hostname.test.js": {
-    "passed": [
-      "getHostname from URL should return example.com for http://example.com",
-      "getHostname from URL should return example.com for http://example.com/",
-      "getHostname from URL should return example.com for http://example.com:3000",
-      "getHostname from URL should return example.com for https://example.com",
-      "getHostname from URL should return example.com for https://example.com/",
-      "getHostname from URL should return example.com for https://example.com:3000",
-      "getHostname from URL should return localhost for http://localhost",
-      "getHostname from URL should return localhost for http://localhost/",
-      "getHostname from URL should return localhost for http://localhost:3000",
-      "getHostname from URL should return 127.0.0.1 for http://127.0.0.1",
-      "getHostname from URL should return 127.0.0.1 for http://127.0.0.1/",
-      "getHostname from URL should return 127.0.0.1 for http://127.0.0.1:3000",
-      "getHostname from URL should return 8.8.8.8 for http://8.8.8.8",
-      "getHostname from URL should return 8.8.8.8 for http://8.8.8.8/",
-      "getHostname from URL should return 8.8.8.8 for http://8.8.8.8:3000",
-      "getHostname should return undefined for empty input"
-    ],
-    "failed": [],
-    "pending": [],
-    "runtimeError": false
-  },
-  "packages/next/dist/shared/lib/router/adapters.test.js": {
-    "passed": [
-      "adaptForAppRouterInstance should forward a call to `back()`",
-      "adaptForAppRouterInstance should forward a call to `forward()`",
-      "adaptForAppRouterInstance should forward a call to `reload()`",
-      "adaptForAppRouterInstance should forward a call to `push()`",
-      "adaptForAppRouterInstance should forward a call to `push()` with options",
-      "adaptForAppRouterInstance should forward a call to `replace()`",
-      "adaptForAppRouterInstance should forward a call to `replace()` with options",
-      "adaptForAppRouterInstance should forward a call to `prefetch()`"
-    ],
-    "failed": [],
-    "pending": [],
-    "runtimeError": false
-  },
-  "packages/next/dist/shared/lib/router/utils/app-paths.test.js": {
-    "passed": [
-      "normalizeRscPath enabled should normalize url with .rsc",
-      "normalizeRscPath enabled should normalize url with .rsc and searchparams",
-      "normalizeRscPath disabled should normalize url with .rsc",
-      "normalizeRscPath disabled should normalize url with .rsc and searchparams"
-    ],
-    "failed": [],
-    "pending": [],
-    "runtimeError": false
-  },
-  "packages/next/dist/shared/lib/router/utils/route-regex.test.js": {
-    "passed": [
-      "getNamedRouteRegex should handle interception markers adjacent to dynamic path segments",
-      "getNamedRouteRegex should handle multi-level interception markers",
-      "getNamedRouteRegex should handle interception markers not adjacent to dynamic path segments",
-      "getNamedRouteRegex should handle optional dynamic path segments",
-      "getNamedRouteRegex should handle optional catch-all dynamic path segments"
-    ],
-    "failed": [],
-    "pending": [],
-    "runtimeError": false
-  },
   "packages/next/src/build/webpack/loaders/metadata/resolve-route-data.test.ts": {
     "passed": [
       "resolveRouteData resolveRobots should resolve robots.txt",
@@ -1778,6 +1717,152 @@
     "pending": [],
     "runtimeError": false
   },
+  "test/development/pages-dir/client-navigation/index.test.ts": {
+    "passed": [
+      "Client Navigation should not reload when visiting /_error directly",
+      "Client Navigation with <Link/> should navigate the page",
+      "Client Navigation with <Link/> should have proper error when no children are provided",
+      "Client Navigation with <Link/> should not throw error when one number type child is provided",
+      "Client Navigation with <Link/> should navigate back after reload",
+      "Client Navigation with <Link/> should navigate forwards after reload",
+      "Client Navigation with <Link/> should error when calling onClick without event",
+      "Client Navigation with <Link/> should navigate via the client side",
+      "Client Navigation with <Link/> should navigate an absolute url",
+      "Client Navigation with <Link/> should call mouse handlers with an absolute url",
+      "Client Navigation with <Link/> should navigate an absolute local url",
+      "Client Navigation with <Link/> should navigate an absolute local url with as",
+      "Client Navigation with <a/> tag inside the <Link /> should navigate the page",
+      "Client Navigation with <a/> tag inside the <Link /> should not navigate if the <a/> tag has a target",
+      "Client Navigation with <a/> tag inside the <Link /> should not navigate if the click-event is modified",
+      "Client Navigation with <a/> tag inside the <Link /> should not reload when link in svg is clicked",
+      "Client Navigation with unexpected <a/> nested tag should not redirect if passHref prop is not defined in Link",
+      "Client Navigation with unexpected <a/> nested tag should redirect if passHref prop is defined in Link",
+      "Client Navigation with empty getInitialProps() should render an error",
+      "Client Navigation with the same page but different querystring should navigate the page",
+      "Client Navigation with the same page but different querystring should remove querystring",
+      "Client Navigation with the current url should reload the page",
+      "Client Navigation with the current url should always replace the state",
+      "Client Navigation with onClick action should reload the page and perform additional action",
+      "Client Navigation with onClick action should not reload if default was prevented",
+      "Client Navigation with onClick action should always replace the state and perform additional action",
+      "Client Navigation resets scroll at the correct time should reset scroll before the new page runs its lifecycles (<Link />)",
+      "Client Navigation resets scroll at the correct time should reset scroll before the new page runs its lifecycles (Router#push)",
+      "Client Navigation resets scroll at the correct time should intentionally not reset scroll before the new page runs its lifecycles (Router#push)",
+      "Client Navigation with hash changes check hydration mis-match should not have hydration mis-match for hash link",
+      "Client Navigation with hash changes when hash change via Link should not run getInitialProps",
+      "Client Navigation with hash changes when hash change via Link should scroll to the specified position on the same page",
+      "Client Navigation with hash changes when hash change via Link should not scroll to hash when scroll={false} is set",
+      "Client Navigation with hash changes when hash change via Link should scroll to the specified position on the same page with a name property",
+      "Client Navigation with hash changes when hash change via Link should scroll to the specified position to a new page",
+      "Client Navigation with hash changes when hash change via Link should scroll to the specified CJK position to a new page",
+      "Client Navigation with hash changes when hash change via Link Should update asPath",
+      "Client Navigation with hash changes when hash change via A tag should not run getInitialProps",
+      "Client Navigation with hash changes when hash get removed should not run getInitialProps",
+      "Client Navigation with hash changes when hash get removed should not run getInitialProps when removing via back",
+      "Client Navigation with hash changes when hash set to empty should not run getInitialProps",
+      "Client Navigation with hash changes with state when passing state via hash change should increment the history state counter",
+      "Client Navigation with hash changes with state when passing state via hash change should increment the shallow history state counter",
+      "Client Navigation with shallow routing should update the url without running getInitialProps",
+      "Client Navigation with shallow routing should handle the back button and should not run getInitialProps",
+      "Client Navigation with shallow routing should run getInitialProps always when rending the page to the screen",
+      "Client Navigation with shallow routing should keep the scroll position on shallow routing",
+      "Client Navigation should scroll to top when the scroll option is set to true",
+      "Client Navigation with URL objects should work with <Link/>",
+      "Client Navigation with URL objects should work with \"Router.push\"",
+      "Client Navigation with URL objects should work with the \"replace\" prop",
+      "Client Navigation with URL objects should handle undefined in router.push",
+      "Client Navigation with querystring relative urls should work with Link",
+      "Client Navigation with querystring relative urls should work with router.push",
+      "Client Navigation with querystring relative urls should work with router.replace",
+      "Client Navigation with getInitialProp redirect should redirect the page via client side",
+      "Client Navigation with getInitialProp redirect should redirect the page when loading",
+      "Client Navigation with different types of urls should work with normal page",
+      "Client Navigation with different types of urls should work with dir/ page",
+      "Client Navigation with different types of urls should not work with /index page",
+      "Client Navigation with different types of urls should work with / page",
+      "Client Navigation with the HOC based router should navigate as expected",
+      "Client Navigation with asPath inside getInitialProps should show the correct asPath with a Link with as prop",
+      "Client Navigation with asPath inside getInitialProps should show the correct asPath with a Link without the as prop",
+      "Client Navigation with asPath with next/router should show the correct asPath",
+      "Client Navigation with asPath with next/router should navigate an absolute url on push",
+      "Client Navigation with asPath with next/router should navigate an absolute url on replace",
+      "Client Navigation with asPath with next/router should navigate an absolute local url on push",
+      "Client Navigation with asPath with next/router should navigate an absolute local url on replace",
+      "Client Navigation with asPath with next/link should use pushState with same href and different asPath",
+      "Client Navigation with asPath with next/link should detect asPath query changes correctly",
+      "Client Navigation with 404 pages should 404 on not existent page",
+      "Client Navigation with 404 pages should 404 on wrong casing",
+      "Client Navigation with 404 pages should get url dynamic param",
+      "Client Navigation with 404 pages should 404 on wrong casing of url dynamic param",
+      "Client Navigation with 404 pages should not 404 for <page>/",
+      "Client Navigation with 404 pages should should not contain a page script in a 404 page",
+      "Client Navigation updating head while client routing should only execute async and defer scripts once",
+      "Client Navigation updating head while client routing should warn when stylesheets or scripts are in head",
+      "Client Navigation updating head while client routing should warn when scripts are in head",
+      "Client Navigation updating head while client routing should not warn when application/ld+json scripts are in head",
+      "Client Navigation updating head while client routing should update head during client routing",
+      "Client Navigation updating head while client routing should update title during client routing",
+      "Client Navigation updating head while client routing should update head when unmounting component",
+      "Client Navigation foreign history manipulation should ignore history state without options",
+      "Client Navigation foreign history manipulation should ignore history state with an invalid url",
+      "Client Navigation foreign history manipulation should ignore foreign history state with missing properties",
+      "Client Navigation should not error on module.exports + polyfills",
+      "Client Navigation should work on nested /index/index.js",
+      "Client Navigation should handle undefined prop in head client-side",
+      "Client Navigation should emit routeChangeError on hash change cancel",
+      "Client Navigation should navigate to paths relative to the current page",
+      "Client Navigation Rendering via HTTP renders a stateless component",
+      "Client Navigation Rendering via HTTP should should not contain scripts that are not js",
+      "Client Navigation Rendering via HTTP should handle undefined prop in head server-side",
+      "Client Navigation Rendering via HTTP renders with fragment syntax",
+      "Client Navigation Rendering via HTTP renders when component is a forwardRef instance",
+      "Client Navigation Rendering via HTTP renders when component is a memo instance",
+      "Client Navigation Rendering via HTTP header renders default charset",
+      "Client Navigation Rendering via HTTP header renders default viewport",
+      "Client Navigation Rendering via HTTP header helper renders header information",
+      "Client Navigation Rendering via HTTP header helper dedupes tags",
+      "Client Navigation Rendering via HTTP header helper dedupes tags with the same key as the default",
+      "Client Navigation Rendering via HTTP header helper avoids dedupe of specific tags",
+      "Client Navigation Rendering via HTTP header helper avoids dedupe of meta tags with the same name if they use unique keys",
+      "Client Navigation Rendering via HTTP header helper renders Fragment children",
+      "Client Navigation Rendering via HTTP header helper renders boolean attributes correctly children",
+      "Client Navigation Rendering via HTTP should place charset element at the top of <head>",
+      "Client Navigation Rendering via HTTP should render the page with custom extension",
+      "Client Navigation Rendering via HTTP should render the page without `err` property",
+      "Client Navigation Rendering via HTTP should render the page with `nextExport` property",
+      "Client Navigation Rendering via HTTP should render the page without `nextExport` property",
+      "Client Navigation Rendering via HTTP renders styled jsx",
+      "Client Navigation Rendering via HTTP renders styled jsx external",
+      "Client Navigation Rendering via HTTP renders properties populated asynchronously",
+      "Client Navigation Rendering via HTTP renders a link component",
+      "Client Navigation Rendering via HTTP getInitialProps circular structure",
+      "Client Navigation Rendering via HTTP getInitialProps should be class method",
+      "Client Navigation Rendering via HTTP getInitialProps resolves to null",
+      "Client Navigation Rendering via HTTP default Content-Type",
+      "Client Navigation Rendering via HTTP setting Content-Type in getInitialProps",
+      "Client Navigation Rendering via HTTP should render 404 for _next routes that do not exist",
+      "Client Navigation Rendering via HTTP should render page that has module.exports anywhere",
+      "Client Navigation Rendering via HTTP allows to import .json files",
+      "Client Navigation Rendering via HTTP default export is not a React Component",
+      "Client Navigation Rendering via HTTP error-inside-page",
+      "Client Navigation Rendering via HTTP asPath",
+      "Client Navigation Rendering via HTTP 404 should 404 on not existent page",
+      "Client Navigation Rendering via HTTP 404 should 404 on wrong casing",
+      "Client Navigation Rendering via HTTP 404 should not 404 for <page>/",
+      "Client Navigation Rendering via HTTP 404 should should not contain a page script in a 404 page",
+      "Client Navigation Rendering via HTTP with the HOC based router should navigate as expected",
+      "Client Navigation Rendering via HTTP with the HOC based router should include asPath",
+      "Client Navigation Rendering via HTTP should show a valid error when undefined is thrown"
+    ],
+    "failed": [
+      "Client Navigation runtime errors should show redbox when a client side error is thrown inside a component",
+      "Client Navigation runtime errors should show redbox when a client side error is thrown outside a component",
+      "Client Navigation Rendering via HTTP error-in-the-global-scope",
+      "Client Navigation Rendering via HTTP should set Cache-Control header"
+    ],
+    "pending": [],
+    "runtimeError": false
+  },
   "test/development/pages-dir/custom-app-hmr/index.test.ts": {
     "passed": [],
     "failed": [
@@ -1847,10 +1932,6 @@
       "404-page-router 404-page-router with basePath of false and i18n of false and middleware true should not throw any errors when re-fetching the route info"
     ],
     "failed": [
-      "404-page-router 404-page-router with basePath of true and i18n of false and middleware false for /docs/error?with=query should have the correct router parameters after it is ready",
-      "404-page-router 404-page-router with basePath of true and i18n of false and middleware false for /docs/error should have the correct router parameters after it is ready",
-      "404-page-router 404-page-router with basePath of true and i18n of true and middleware false for /docs/error?with=query should have the correct router parameters after it is ready",
-      "404-page-router 404-page-router with basePath of true and i18n of true and middleware false for /docs/error should have the correct router parameters after it is ready",
       "404-page-router 404-page-router with basePath of false and i18n of true and middleware false for /not/a/real/page?with=query should have the correct router parameters after it is ready",
       "404-page-router 404-page-router with basePath of false and i18n of true and middleware false for /not/a/real/page should have the correct router parameters after it is ready",
       "404-page-router 404-page-router with basePath of false and i18n of true and middleware false should not throw any errors when re-fetching the route info",
@@ -1862,10 +1943,14 @@
       "404-page-router 404-page-router with basePath of true and i18n of true and middleware false should not throw any errors when re-fetching the route info",
       "404-page-router 404-page-router with basePath of false and i18n of false and middleware false for /not/a/real/page?with=query should have the correct router parameters after it is ready",
       "404-page-router 404-page-router with basePath of false and i18n of false and middleware false for /not/a/real/page should have the correct router parameters after it is ready",
-      "404-page-router 404-page-router with basePath of false and i18n of false and middleware false should not throw any errors when re-fetching the route info"
+      "404-page-router 404-page-router with basePath of false and i18n of false and middleware false should not throw any errors when re-fetching the route info",
+      "404-page-router 404-page-router with basePath of true and i18n of false and middleware false for /docs/error?with=query should have the correct router parameters after it is ready",
+      "404-page-router 404-page-router with basePath of true and i18n of false and middleware false for /docs/error should have the correct router parameters after it is ready",
+      "404-page-router 404-page-router with basePath of true and i18n of true and middleware false for /docs/error?with=query should have the correct router parameters after it is ready",
+      "404-page-router 404-page-router with basePath of true and i18n of true and middleware false for /docs/error should have the correct router parameters after it is ready"
     ],
     "pending": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir-legacy-edge-runtime-config/index.test.ts": {
     "passed": [],
@@ -1893,7 +1978,7 @@
       "app-dir action handling should handle actions correctly after following a relative link"
     ],
     "pending": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/actions/app-action-export.test.ts": {
     "passed": ["app-dir action handling - next export skip test for dev mode"],
@@ -1906,11 +1991,11 @@
   "test/e2e/app-dir/actions/app-action-invalid.test.ts": {
     "passed": [],
     "failed": [
-      "app-dir action invalid config should error if serverActions is not enabled",
-      "app-dir action invalid config skip test for dev mode"
+      "app-dir action invalid config skip test for dev mode",
+      "app-dir action invalid config should error if serverActions is not enabled"
     ],
     "pending": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/actions/app-action-progressive-enhancement.test.ts": {
     "passed": [],
@@ -1919,19 +2004,19 @@
       "app-dir action progressive enhancement should support actions from client without JS"
     ],
     "pending": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/actions/app-action-size-limit-invalid.test.ts": {
     "passed": [],
     "failed": [
+      "app-dir action size limit invalid config skip test for dev mode",
       "app-dir action size limit invalid config should error if serverActionsBodySizeLimit config is a negative number",
       "app-dir action size limit invalid config should error if serverActionsBodySizeLimit config is invalid",
       "app-dir action size limit invalid config should error if serverActionsBodySizeLimit config is a negative size",
-      "app-dir action size limit invalid config should respect the size set in serverActionsBodySizeLimit",
-      "app-dir action size limit invalid config skip test for dev mode"
+      "app-dir action size limit invalid config should respect the size set in serverActionsBodySizeLimit"
     ],
     "pending": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/actions/app-action.test.ts": {
     "passed": [],
@@ -1953,7 +2038,8 @@
       "app-dir action handling should not block navigation events while a server action is in flight",
       "app-dir action handling should support next/dynamic with ssr: false",
       "app-dir action handling should only submit action once when resubmitting an action after navigation",
-      "app-dir action handling should not expose action content in sourcemaps",
+      "app-dir action handling HMR should support updating the action",
+      "app-dir action handling should bundle external libraries if they are on the action layer",
       "app-dir action handling Edge SSR should handle basic actions correctly",
       "app-dir action handling Edge SSR should return error response for hoc auth wrappers in edge runtime",
       "app-dir action handling Edge SSR should handle redirect to a relative URL in a single pass",
@@ -1971,13 +2057,12 @@
       "app-dir action handling fetch actions should revalidate when cookies.set is called in a client action",
       "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
       "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
-      "app-dir action handling HMR should support updating the action",
-      "app-dir action handling should bundle external libraries if they are on the action layer"
+      "app-dir action handling should not expose action content in sourcemaps"
     ],
     "pending": [
       "app-dir action handling fetch actions should handle revalidateTag + redirect"
     ],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/app-a11y/index.test.ts": {
     "passed": [],
@@ -2059,8 +2144,17 @@
       "app dir css Suspensey CSS should suspend on CSS imports if its slow on client navigation"
     ],
     "failed": [
-      "app dir css css support server layouts should support css modules inside server layouts",
       "app dir css css support server layouts should support external css imports",
+      "app dir css css support special entries should include css imported in loading.js",
+      "app dir css css support chunks should bundle css resources into chunks",
+      "app dir css css support should not preload styles twice during HMR",
+      "app dir css css support should reload @import styles during HMR",
+      "app dir css css support multiple entries should deduplicate styles on the module level",
+      "app dir css css support multiple entries should only include the same style once in the flight data",
+      "app dir css HMR should support HMR for CSS imports in server components",
+      "app dir css HMR should not create duplicate link tags during HMR",
+      "app dir css HMR should support HMR with sass/scss",
+      "app dir css css support server layouts should support css modules inside server layouts",
       "app dir css css support server pages should support global css inside server pages",
       "app dir css css support server pages should support css modules inside server pages",
       "app dir css css support server pages should not contain pages css in app dir page",
@@ -2070,7 +2164,6 @@
       "app dir css css support client pages should support global css inside client pages",
       "app dir css css support client components should support css modules inside client page",
       "app dir css css support client components should support css modules inside client components",
-      "app dir css css support special entries should include css imported in loading.js",
       "app dir css css support special entries should include css imported in client template.js",
       "app dir css css support special entries should include css imported in server template.js",
       "app dir css css support special entries should include css imported in client not-found.js",
@@ -2079,7 +2172,6 @@
       "app dir css css support special entries should include css imported in root not-found.js",
       "app dir css css support special entries should include css imported in error.js",
       "app dir css css support page extensions should include css imported in MDX pages",
-      "app dir css css support chunks should bundle css resources into chunks",
       "app dir css css support css ordering should have inner layers take precedence over outer layers",
       "app dir css sass support server layouts should support global sass/scss inside server layouts",
       "app dir css sass support server layouts should support sass/scss modules inside server layouts",
@@ -2089,14 +2181,7 @@
       "app dir css sass support client layouts should support sass/scss modules inside client layouts",
       "app dir css sass support client pages should support global sass/scss inside client pages",
       "app dir css sass support client pages should support sass/scss modules inside client pages",
-      "app dir css pages dir should include css modules and global css after page transition",
-      "app dir css css support should not preload styles twice during HMR",
-      "app dir css css support should reload @import styles during HMR",
-      "app dir css css support multiple entries should deduplicate styles on the module level",
-      "app dir css css support multiple entries should only include the same style once in the flight data",
-      "app dir css HMR should support HMR for CSS imports in server components",
-      "app dir css HMR should not create duplicate link tags during HMR",
-      "app dir css HMR should support HMR with sass/scss"
+      "app dir css pages dir should include css modules and global css after page transition"
     ],
     "pending": [
       "app dir css css support server layouts should support global css inside server layouts",
@@ -2122,9 +2207,9 @@
       "app-dir edge SSR should handle edge only routes",
       "app-dir edge SSR should retrieve cookies in a server component in the edge runtime",
       "app-dir edge SSR should handle /index routes correctly",
-      "app-dir edge SSR should generate matchers correctly in middleware manifest",
       "app-dir edge SSR should warn about the re-export of a pages runtime/preferredRegion config",
-      "app-dir edge SSR should handle edge rsc hmr"
+      "app-dir edge SSR should handle edge rsc hmr",
+      "app-dir edge SSR should generate matchers correctly in middleware manifest"
     ],
     "pending": [],
     "runtimeError": false
@@ -2184,7 +2269,7 @@
       "app dir middleware with middleware in src dir works without crashing when using requestAsyncStorage"
     ],
     "pending": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/app-prefetch-false/app-prefetch-false.test.ts": {
     "passed": [
@@ -2395,40 +2480,36 @@
       "app-dir - data fetching with cache logging with default logging should not log fetch requests at all"
     ],
     "pending": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/app-static/app-static-custom-cache-handler-esm.test.ts": {
     "passed": [],
     "failed": [
-      "app-static-custom-cache-handler-esm should have logs from cache-handler",
-      "app-static-custom-cache-handler-esm should skip"
+      "app-static-custom-cache-handler-esm should skip",
+      "app-static-custom-cache-handler-esm should have logs from cache-handler"
     ],
     "pending": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/app-static/app-static-custom-handler.test.ts": {
     "passed": [],
     "failed": [
-      "app-dir static/dynamic handling should propagate unstable_cache tags correctly",
       "app-dir static/dynamic handling should correctly include headers instance in cache key",
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-node",
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-edge",
       "app-dir static/dynamic handling unstable-cache should work in pages/api/unstable-cache-node",
       "app-dir static/dynamic handling unstable-cache should work in pages/api/unstable-cache-edge",
       "app-dir static/dynamic handling should not have cache tags header for non-minimal mode",
+      "app-dir static/dynamic handling should error correctly for invalid params from generateStaticParams",
+      "app-dir static/dynamic handling should correctly handle multi-level generateStaticParams when some levels are missing",
       "app-dir static/dynamic handling should correctly skip caching POST fetch for POST handler",
       "app-dir static/dynamic handling should correctly handle fetchCache = \"force-no-store\"",
       "app-dir static/dynamic handling should not cache non-ok statusCode",
-      "app-dir static/dynamic handling should output HTML/RSC files for static paths",
-      "app-dir static/dynamic handling should have correct prerender-manifest entries",
-      "app-dir static/dynamic handling should output debug info for static bailouts",
       "app-dir static/dynamic handling should correctly handle statusCode with notFound + ISR",
       "app-dir static/dynamic handling should cache correctly for fetchCache = default-cache",
       "app-dir static/dynamic handling should cache correctly for fetchCache = force-cache",
       "app-dir static/dynamic handling should cache correctly for cache: no-store",
-      "app-dir static/dynamic handling should not error with dynamic server usage with force-static",
-      "app-dir static/dynamic handling should produce response with url from fetch",
-      "app-dir static/dynamic handling should properly error when dynamic = \"error\" page uses dynamic",
+      "app-dir static/dynamic handling should bypass fetch cache with cache-control: no-cache",
       "app-dir static/dynamic handling should skip cache in draft mode",
       "app-dir static/dynamic handling should handle partial-gen-params with default dynamicParams correctly",
       "app-dir static/dynamic handling should handle partial-gen-params with layout dynamicParams = false correctly",
@@ -2450,26 +2531,30 @@
       "app-dir static/dynamic handling should not error with generateStaticParams and dynamic data",
       "app-dir static/dynamic handling should not error with force-dynamic and catch-all routes",
       "app-dir static/dynamic handling should not error with generateStaticParams and authed data on revalidate",
+      "app-dir static/dynamic handling should handle dynamicParams: false correctly",
       "app-dir static/dynamic handling should work with forced dynamic path",
       "app-dir static/dynamic handling should work with dynamic path no generateStaticParams",
       "app-dir static/dynamic handling should handle dynamicParams: true correctly",
+      "app-dir static/dynamic handling should navigate to static path correctly",
       "app-dir static/dynamic handling should ssr dynamically when detected automatically with fetch cache option",
       "app-dir static/dynamic handling should render not found pages correctly and fallback to the default one",
       "app-dir static/dynamic handling should ssr dynamically when forced via config",
       "app-dir static/dynamic handling useSearchParams client should bailout to client rendering - without suspense boundary",
       "app-dir static/dynamic handling useSearchParams client should bailout to client rendering - with suspense boundary",
       "app-dir static/dynamic handling useSearchParams client should have values from canonical url on rewrite",
-      "app-dir static/dynamic handling useSearchParams server response should bailout to client rendering - without suspense boundary",
-      "app-dir static/dynamic handling useSearchParams server response should bailout to client rendering - with suspense boundary",
       "app-dir static/dynamic handling usePathname should have the correct values",
       "app-dir static/dynamic handling usePathname should have values from canonical url on rewrite",
       "app-dir static/dynamic handling should keep querystring on static page",
       "app-dir static/dynamic handling should have logs from cache-handler",
-      "app-dir static/dynamic handling should error correctly for invalid params from generateStaticParams",
-      "app-dir static/dynamic handling should correctly handle multi-level generateStaticParams when some levels are missing",
-      "app-dir static/dynamic handling should bypass fetch cache with cache-control: no-cache",
-      "app-dir static/dynamic handling should handle dynamicParams: false correctly",
-      "app-dir static/dynamic handling should navigate to static path correctly"
+      "app-dir static/dynamic handling should propagate unstable_cache tags correctly",
+      "app-dir static/dynamic handling should output HTML/RSC files for static paths",
+      "app-dir static/dynamic handling should have correct prerender-manifest entries",
+      "app-dir static/dynamic handling should output debug info for static bailouts",
+      "app-dir static/dynamic handling should not error with dynamic server usage with force-static",
+      "app-dir static/dynamic handling should produce response with url from fetch",
+      "app-dir static/dynamic handling should properly error when dynamic = \"error\" page uses dynamic",
+      "app-dir static/dynamic handling useSearchParams server response should bailout to client rendering - without suspense boundary",
+      "app-dir static/dynamic handling useSearchParams server response should bailout to client rendering - with suspense boundary"
     ],
     "pending": [
       "app-dir static/dynamic handling should correctly de-dupe fetch without next cache /react-fetch-deduping-node",
@@ -2478,38 +2563,30 @@
       "app-dir static/dynamic handling useSearchParams client should have empty search params on force-static",
       "app-dir static/dynamic handling useSearchParams server response should have empty search params on force-static"
     ],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/app-static/app-static.test.ts": {
     "passed": [],
     "failed": [
-      "app-dir static/dynamic handling should propagate unstable_cache tags correctly",
       "app-dir static/dynamic handling should correctly include headers instance in cache key",
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-node",
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-edge",
       "app-dir static/dynamic handling unstable-cache should work in pages/api/unstable-cache-node",
       "app-dir static/dynamic handling unstable-cache should work in pages/api/unstable-cache-edge",
       "app-dir static/dynamic handling should not have cache tags header for non-minimal mode",
+      "app-dir static/dynamic handling should error correctly for invalid params from generateStaticParams",
+      "app-dir static/dynamic handling should correctly handle multi-level generateStaticParams when some levels are missing",
       "app-dir static/dynamic handling should correctly skip caching POST fetch for POST handler",
       "app-dir static/dynamic handling it should revalidate tag correctly with edge route handler",
       "app-dir static/dynamic handling it should revalidate tag correctly with node route handler",
-      "app-dir static/dynamic handling should not revalidate / when revalidate is not used",
-      "app-dir static/dynamic handling it should revalidate correctly with edge route handler",
-      "app-dir static/dynamic handling it should revalidate correctly with node route handler",
-      "app-dir static/dynamic handling should revalidate all fetches during on-demand revalidate",
       "app-dir static/dynamic handling should correctly handle fetchCache = \"force-no-store\"",
       "app-dir static/dynamic handling should revalidate correctly with config and fetch revalidate",
       "app-dir static/dynamic handling should not cache non-ok statusCode",
-      "app-dir static/dynamic handling should output HTML/RSC files for static paths",
-      "app-dir static/dynamic handling should have correct prerender-manifest entries",
-      "app-dir static/dynamic handling should output debug info for static bailouts",
       "app-dir static/dynamic handling should correctly handle statusCode with notFound + ISR",
       "app-dir static/dynamic handling should cache correctly for fetchCache = default-cache",
       "app-dir static/dynamic handling should cache correctly for fetchCache = force-cache",
       "app-dir static/dynamic handling should cache correctly for cache: no-store",
-      "app-dir static/dynamic handling should not error with dynamic server usage with force-static",
-      "app-dir static/dynamic handling should produce response with url from fetch",
-      "app-dir static/dynamic handling should properly error when dynamic = \"error\" page uses dynamic",
+      "app-dir static/dynamic handling should bypass fetch cache with cache-control: no-cache",
       "app-dir static/dynamic handling should skip cache in draft mode",
       "app-dir static/dynamic handling should handle partial-gen-params with default dynamicParams correctly",
       "app-dir static/dynamic handling should handle partial-gen-params with layout dynamicParams = false correctly",
@@ -2545,14 +2622,22 @@
       "app-dir static/dynamic handling useSearchParams client should bailout to client rendering - without suspense boundary",
       "app-dir static/dynamic handling useSearchParams client should bailout to client rendering - with suspense boundary",
       "app-dir static/dynamic handling useSearchParams client should have values from canonical url on rewrite",
-      "app-dir static/dynamic handling useSearchParams server response should bailout to client rendering - without suspense boundary",
-      "app-dir static/dynamic handling useSearchParams server response should bailout to client rendering - with suspense boundary",
       "app-dir static/dynamic handling usePathname should have the correct values",
       "app-dir static/dynamic handling usePathname should have values from canonical url on rewrite",
       "app-dir static/dynamic handling should keep querystring on static page",
-      "app-dir static/dynamic handling should error correctly for invalid params from generateStaticParams",
-      "app-dir static/dynamic handling should correctly handle multi-level generateStaticParams when some levels are missing",
-      "app-dir static/dynamic handling should bypass fetch cache with cache-control: no-cache"
+      "app-dir static/dynamic handling should propagate unstable_cache tags correctly",
+      "app-dir static/dynamic handling should not revalidate / when revalidate is not used",
+      "app-dir static/dynamic handling it should revalidate correctly with edge route handler",
+      "app-dir static/dynamic handling it should revalidate correctly with node route handler",
+      "app-dir static/dynamic handling should revalidate all fetches during on-demand revalidate",
+      "app-dir static/dynamic handling should output HTML/RSC files for static paths",
+      "app-dir static/dynamic handling should have correct prerender-manifest entries",
+      "app-dir static/dynamic handling should output debug info for static bailouts",
+      "app-dir static/dynamic handling should not error with dynamic server usage with force-static",
+      "app-dir static/dynamic handling should produce response with url from fetch",
+      "app-dir static/dynamic handling should properly error when dynamic = \"error\" page uses dynamic",
+      "app-dir static/dynamic handling useSearchParams server response should bailout to client rendering - without suspense boundary",
+      "app-dir static/dynamic handling useSearchParams server response should bailout to client rendering - with suspense boundary"
     ],
     "pending": [
       "app-dir static/dynamic handling should correctly de-dupe fetch without next cache /react-fetch-deduping-node",
@@ -2561,7 +2646,7 @@
       "app-dir static/dynamic handling useSearchParams client should have empty search params on force-static",
       "app-dir static/dynamic handling useSearchParams server response should have empty search params on force-static"
     ],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/app-validation/validation.test.ts": {
     "passed": [
@@ -2574,18 +2659,14 @@
   "test/e2e/app-dir/app/index.test.ts": {
     "passed": [],
     "failed": [
-      "app dir should use RSC prefetch data from build",
-      "app dir should have correct size in build output",
-      "app dir should have correct preferredRegion values in manifest",
       "app dir should work for catch-all edge page",
       "app dir should have correct searchParams and params (server)",
       "app dir should have correct searchParams and params (client)",
-      "app dir should successfully detect app route during prefetch",
       "app dir should encode chunk path correctly",
       "app dir should match redirects in pages correctly $path",
       "app dir should not apply client router filter on shallow",
+      "app dir should not have duplicate config warnings",
       "app dir should not share edge workers",
-      "app dir should generate build traces correctly",
       "app dir should use text/x-component for flight",
       "app dir should use text/x-component for flight with edge runtime",
       "app dir should return the `vary` header from edge runtime",
@@ -2611,7 +2692,6 @@
       "app dir rewrites should support rewrites on initial load",
       "app dir rewrites should support rewrites on client-side navigation from pages to app with existing pages path",
       "app dir rewrites should support rewrites on client-side navigation",
-      "app dir should not rerender layout when navigating between routes in the same layout",
       "app dir should handle hash in initial url",
       "app dir <Link /> should hard push",
       "app dir <Link /> should hard replace",
@@ -2646,25 +2726,19 @@
       "app dir server components middleware should strip internal query parameters from requests to middleware for redirect",
       "app dir server components next/router should support router.back and router.forward",
       "app dir server components client components should have consistent query and params handling",
+      "app dir HMR should HMR correctly for server component",
+      "app dir HMR should HMR correctly for client component",
       "app dir searchParams prop client component should have the correct search params",
       "app dir searchParams prop client component should have the correct search params on rewrite",
       "app dir searchParams prop client component should have the correct search params on middleware rewrite",
       "app dir searchParams prop server component should have the correct search params",
       "app dir searchParams prop server component should have the correct search params on rewrite",
       "app dir searchParams prop server component should have the correct search params on middleware rewrite",
-      "app dir Subresource Integrity does not include nonce when not enabled",
-      "app dir Subresource Integrity includes a nonce value with inline scripts when Content-Security-Policy header is defined",
-      "app dir Subresource Integrity includes a nonce value with bootstrap scripts when Content-Security-Policy header is defined",
-      "app dir Subresource Integrity includes an integrity attribute on scripts",
-      "app dir Subresource Integrity throws when escape characters are included in nonce",
       "app dir template component should render the template that holds state in a client component and reset on navigation",
-      "app dir template component should render the template that is a server component and rerender on navigation",
       "app dir error component should trigger error component when an error happens during rendering",
       "app dir error component should trigger error component when an error happens during server components rendering",
       "app dir error component should use default error boundary for prod and overlay for dev when no error component specified",
       "app dir error component should display error digest for error in server component with default error boundary",
-      "app dir error component should allow resetting error boundary",
-      "app dir error component should hydrate empty shell to handle server-side rendering errors",
       "app dir known bugs should support React cache server component",
       "app dir known bugs should support React cache server component client-navigation",
       "app dir known bugs should support React cache client component",
@@ -2682,29 +2756,40 @@
       "app dir next/script should load stylesheets for next/scripts",
       "app dir data fetch with response over 16KB with chunked encoding should load page when fetching a large amount of data",
       "app dir bootstrap scripts should only bootstrap with one script, prinitializing the rest",
-      "app dir bootstrap scripts should successfully bootstrap even when using CSP",
-      "app dir should not have duplicate config warnings",
-      "app dir HMR should HMR correctly for server component",
-      "app dir HMR should HMR correctly for client component",
-      "app dir bootstrap scripts should fail to bootstrap when using CSP in Dev due to eval"
+      "app dir bootstrap scripts should fail to bootstrap when using CSP in Dev due to eval",
+      "app dir should use RSC prefetch data from build",
+      "app dir should have correct size in build output",
+      "app dir should have correct preferredRegion values in manifest",
+      "app dir should successfully detect app route during prefetch",
+      "app dir should generate build traces correctly",
+      "app dir should not rerender layout when navigating between routes in the same layout",
+      "app dir Subresource Integrity does not include nonce when not enabled",
+      "app dir Subresource Integrity includes a nonce value with inline scripts when Content-Security-Policy header is defined",
+      "app dir Subresource Integrity includes a nonce value with bootstrap scripts when Content-Security-Policy header is defined",
+      "app dir Subresource Integrity includes an integrity attribute on scripts",
+      "app dir Subresource Integrity throws when escape characters are included in nonce",
+      "app dir template component should render the template that is a server component and rerender on navigation",
+      "app dir error component should allow resetting error boundary",
+      "app dir error component should hydrate empty shell to handle server-side rendering errors",
+      "app dir bootstrap scripts should successfully bootstrap even when using CSP"
     ],
     "pending": [
       "app dir should handle css imports in next/dynamic correctly",
       "app dir should not include parent when not in parent directory with route in directory",
       "app dir should match partial parameters",
-      "app dir <Link /> should soft replace",
-      "app dir known bugs should support React fetch instrumentation client component",
-      "app dir known bugs should support React fetch instrumentation client component client-navigation",
       "app dir should not rerender layout when navigating between routes in the same layout",
+      "app dir <Link /> should soft replace",
       "app dir HMR should HMR correctly when changing the component type",
       "app dir Subresource Integrity does not include nonce when not enabled",
       "app dir Subresource Integrity includes a nonce value with inline scripts when Content-Security-Policy header is defined",
       "app dir Subresource Integrity includes a nonce value with bootstrap scripts when Content-Security-Policy header is defined",
       "app dir Subresource Integrity includes an integrity attribute on scripts",
       "app dir Subresource Integrity throws when escape characters are included in nonce",
-      "app dir template component should render the template that is a server component and rerender on navigation"
+      "app dir template component should render the template that is a server component and rerender on navigation",
+      "app dir known bugs should support React fetch instrumentation client component",
+      "app dir known bugs should support React fetch instrumentation client component client-navigation"
     ],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/app/standalone.test.ts": {
     "passed": ["should skip for non-next start"],
@@ -2721,7 +2806,7 @@
       "useReportWebVitals hook should send web-vitals to vercel-insights"
     ],
     "pending": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/app/vercel-speed-insights.test.ts": {
     "passed": [],
@@ -2783,14 +2868,14 @@
   "test/e2e/app-dir/create-root-layout/create-root-layout.test.ts": {
     "passed": [],
     "failed": [
-      "app-dir create root layout build should break the build if a page is missing root layout",
       "app-dir create root layout page.js root layout in app create root layout",
       "app-dir create root layout page.js root layout in route group create root layout",
       "app-dir create root layout page.js find available dir create root layout",
-      "app-dir create root layout page.tsx create root layout"
+      "app-dir create root layout page.tsx create root layout",
+      "app-dir create root layout build should break the build if a page is missing root layout"
     ],
     "pending": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/app-dir/crypto-globally-available/crypto-globally-available.test.ts": {
     "passed": [
@@ -2810,6 +2895,10 @@
   "test/e2e/app-dir/draft-mode/draft-mode.test.ts": {
     "passed": [],
     "failed": [
+      "app dir - draft mode in edge runtime should use initial rand when draft mode is disabled on /with-edge/index",
+      "app dir - draft mode in edge runtime should use initial rand when draft mode is disabled on /with-edge/with-cookies",
+      "app dir - draft mode in edge runtime should genenerate rand when draft mode enabled",
+      "app dir - draft mode in edge runtime should read other cookies when draft mode enabled",
       "app dir - draft mode in nodejs runtime should use initial rand when draft mode is disabled on /index",
       "app dir - draft mode in nodejs runtime should use initial rand when draft mode is disabled on /with-cookies",
       "app dir - draft mode in nodejs runtime should not generate rand when draft mode disabled during next start",
@@ -2821,14 +2910,10 @@
       "app dir - draft mode in nodejs runtime should read other cookies when draft mode enabled",
       "app dir - draft mode in nodejs runtime should be enabled from api route handler when draft mode enabled",
       "app dir - draft mode in nodejs runtime should not perform full page navigation on router.refresh()",
-      "app dir - draft mode in edge runtime should use initial rand when draft mode is disabled on /with-edge/index",
-      "app dir - draft mode in edge runtime should use initial rand when draft mode is disabled on /with-edge/with-cookies",
       "app dir - draft mode in edge runtime should not read other cookies when draft mode disabled during next start",
       "app dir - draft mode in edge runtime should be disabled from api route handler",
       "app dir - draft mode in edge runtime should have set-cookie header on enable",
       "app dir - draft mode in edge runtime should have set-cookie header with redirect location",
-      "app dir - draft mode in edge runtime should genenerate rand when draft mode enabled",
-      "app dir - draft mode in edge runtime should read other cookies when draft mode enabled",
       "app dir - draft mode in edge runtime should be enabled from api route handler when draft mode enabled",
       "app dir - draft mode in edge runtime should not perform full page navigation on router.refresh()"
     ],
@@ -3581,7 +3666,7 @@
       "server-actions-relative-redirect should work with absolute redirect"
     ],
     "pending": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/set-cookies/set-cookies.test.ts": {
     "passed": [],
@@ -3679,7 +3764,7 @@
       "with babel should contain og package files in middleware"
     ],
     "pending": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/with-exported-function-config/with-exported-function-config.test.ts": {
     "passed": [],
@@ -4797,16 +4882,16 @@
     "runtimeError": false
   },
   "test/e2e/next-head/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "should set-up next should place charset element at the top of <head>",
       "should set-up next should have correct head tags in initial document",
       "should set-up next should have correct head tags from a fragment",
       "should set-up next should have correct head tags after hydration",
       "should set-up next should have current head tags from a _document getInitialProps"
     ],
+    "failed": [],
     "pending": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/next-image-forward-ref/index.test.ts": {
     "passed": [
@@ -6150,151 +6235,6 @@
     "pending": [],
     "runtimeError": false
   },
-  "test/integration/client-navigation/test/index.test.js": {
-    "passed": [],
-    "failed": [
-      "Client Navigation should not reload when visiting /_error directly",
-      "Client Navigation with <Link/> should navigate the page",
-      "Client Navigation with <Link/> should have proper error when no children are provided",
-      "Client Navigation with <Link/> should not throw error when one number type child is provided",
-      "Client Navigation with <Link/> should navigate back after reload",
-      "Client Navigation with <Link/> should navigate forwards after reload",
-      "Client Navigation with <Link/> should error when calling onClick without event",
-      "Client Navigation with <Link/> should navigate via the client side",
-      "Client Navigation with <Link/> should navigate an absolute url",
-      "Client Navigation with <Link/> should call mouse handlers with an absolute url",
-      "Client Navigation with <Link/> should navigate an absolute local url",
-      "Client Navigation with <Link/> should navigate an absolute local url with as",
-      "Client Navigation with <a/> tag inside the <Link /> should navigate the page",
-      "Client Navigation with <a/> tag inside the <Link /> should not navigate if the <a/> tag has a target",
-      "Client Navigation with <a/> tag inside the <Link /> should not navigate if the click-event is modified",
-      "Client Navigation with <a/> tag inside the <Link /> should not reload when link in svg is clicked",
-      "Client Navigation with unexpected <a/> nested tag should not redirect if passHref prop is not defined in Link",
-      "Client Navigation with unexpected <a/> nested tag should redirect if passHref prop is defined in Link",
-      "Client Navigation with empty getInitialProps() should render an error",
-      "Client Navigation with the same page but different querystring should navigate the page",
-      "Client Navigation with the same page but different querystring should remove querystring",
-      "Client Navigation with the current url should reload the page",
-      "Client Navigation with the current url should always replace the state",
-      "Client Navigation with onClick action should reload the page and perform additional action",
-      "Client Navigation with onClick action should not reload if default was prevented",
-      "Client Navigation with onClick action should always replace the state and perform additional action",
-      "Client Navigation resets scroll at the correct time should reset scroll before the new page runs its lifecycles (<Link />)",
-      "Client Navigation resets scroll at the correct time should reset scroll before the new page runs its lifecycles (Router#push)",
-      "Client Navigation resets scroll at the correct time should intentionally not reset scroll before the new page runs its lifecycles (Router#push)",
-      "Client Navigation with hash changes check hydration mis-match should not have hydration mis-match for hash link",
-      "Client Navigation with hash changes when hash change via Link should not run getInitialProps",
-      "Client Navigation with hash changes when hash change via Link should scroll to the specified position on the same page",
-      "Client Navigation with hash changes when hash change via Link should not scroll to hash when scroll={false} is set",
-      "Client Navigation with hash changes when hash change via Link should scroll to the specified position on the same page with a name property",
-      "Client Navigation with hash changes when hash change via Link should scroll to the specified position to a new page",
-      "Client Navigation with hash changes when hash change via Link should scroll to the specified CJK position to a new page",
-      "Client Navigation with hash changes when hash change via Link Should update asPath",
-      "Client Navigation with hash changes when hash change via A tag should not run getInitialProps",
-      "Client Navigation with hash changes when hash get removed should not run getInitialProps",
-      "Client Navigation with hash changes when hash get removed should not run getInitialProps when removing via back",
-      "Client Navigation with hash changes when hash set to empty should not run getInitialProps",
-      "Client Navigation with hash changes with state when passing state via hash change should increment the history state counter",
-      "Client Navigation with hash changes with state when passing state via hash change should increment the shallow history state counter",
-      "Client Navigation with shallow routing should update the url without running getInitialProps",
-      "Client Navigation with shallow routing should handle the back button and should not run getInitialProps",
-      "Client Navigation with shallow routing should run getInitialProps always when rending the page to the screen",
-      "Client Navigation with shallow routing should keep the scroll position on shallow routing",
-      "Client Navigation should scroll to top when the scroll option is set to true",
-      "Client Navigation with URL objects should work with <Link/>",
-      "Client Navigation with URL objects should work with \"Router.push\"",
-      "Client Navigation with URL objects should work with the \"replace\" prop",
-      "Client Navigation with URL objects should handle undefined in router.push",
-      "Client Navigation with querystring relative urls should work with Link",
-      "Client Navigation with querystring relative urls should work with router.push",
-      "Client Navigation with querystring relative urls should work with router.replace",
-      "Client Navigation with getInitialProp redirect should redirect the page via client side",
-      "Client Navigation with getInitialProp redirect should redirect the page when loading",
-      "Client Navigation with different types of urls should work with normal page",
-      "Client Navigation with different types of urls should work with dir/ page",
-      "Client Navigation with different types of urls should not work with /index page",
-      "Client Navigation with different types of urls should work with / page",
-      "Client Navigation with the HOC based router should navigate as expected",
-      "Client Navigation with asPath inside getInitialProps should show the correct asPath with a Link with as prop",
-      "Client Navigation with asPath inside getInitialProps should show the correct asPath with a Link without the as prop",
-      "Client Navigation with asPath with next/router should show the correct asPath",
-      "Client Navigation with asPath with next/router should navigate an absolute url on push",
-      "Client Navigation with asPath with next/router should navigate an absolute url on replace",
-      "Client Navigation with asPath with next/router should navigate an absolute local url on push",
-      "Client Navigation with asPath with next/router should navigate an absolute local url on replace",
-      "Client Navigation with asPath with next/link should use pushState with same href and different asPath",
-      "Client Navigation with asPath with next/link should detect asPath query changes correctly",
-      "Client Navigation runtime errors should show redbox when a client side error is thrown inside a component",
-      "Client Navigation runtime errors should show redbox when a client side error is thrown outside a component",
-      "Client Navigation with 404 pages should 404 on not existent page",
-      "Client Navigation with 404 pages should 404 on wrong casing",
-      "Client Navigation with 404 pages should get url dynamic param",
-      "Client Navigation with 404 pages should 404 on wrong casing of url dynamic param",
-      "Client Navigation with 404 pages should not 404 for <page>/",
-      "Client Navigation with 404 pages should should not contain a page script in a 404 page",
-      "Client Navigation updating head while client routing should only execute async and defer scripts once",
-      "Client Navigation updating head while client routing should warn when stylesheets or scripts are in head",
-      "Client Navigation updating head while client routing should warn when scripts are in head",
-      "Client Navigation updating head while client routing should not warn when application/ld+json scripts are in head",
-      "Client Navigation updating head while client routing should update head during client routing",
-      "Client Navigation updating head while client routing should update title during client routing",
-      "Client Navigation updating head while client routing should update head when unmounting component",
-      "Client Navigation foreign history manipulation should ignore history state without options",
-      "Client Navigation foreign history manipulation should ignore history state with an invalid url",
-      "Client Navigation foreign history manipulation should ignore foreign history state with missing properties",
-      "Client Navigation should not error on module.exports + polyfills",
-      "Client Navigation should work on nested /index/index.js",
-      "Client Navigation should handle undefined prop in head client-side",
-      "Client Navigation should emit routeChangeError on hash change cancel",
-      "Client Navigation should navigate to paths relative to the current page",
-      "Client Navigation Rendering via HTTP renders a stateless component",
-      "Client Navigation Rendering via HTTP should should not contain scripts that are not js",
-      "Client Navigation Rendering via HTTP should handle undefined prop in head server-side",
-      "Client Navigation Rendering via HTTP renders with fragment syntax",
-      "Client Navigation Rendering via HTTP renders when component is a forwardRef instance",
-      "Client Navigation Rendering via HTTP renders when component is a memo instance",
-      "Client Navigation Rendering via HTTP header renders default charset",
-      "Client Navigation Rendering via HTTP header renders default viewport",
-      "Client Navigation Rendering via HTTP header helper renders header information",
-      "Client Navigation Rendering via HTTP header helper dedupes tags",
-      "Client Navigation Rendering via HTTP header helper dedupes tags with the same key as the default",
-      "Client Navigation Rendering via HTTP header helper avoids dedupe of specific tags",
-      "Client Navigation Rendering via HTTP header helper avoids dedupe of meta tags with the same name if they use unique keys",
-      "Client Navigation Rendering via HTTP header helper renders Fragment children",
-      "Client Navigation Rendering via HTTP header helper renders boolean attributes correctly children",
-      "Client Navigation Rendering via HTTP should place charset element at the top of <head>",
-      "Client Navigation Rendering via HTTP should render the page with custom extension",
-      "Client Navigation Rendering via HTTP should render the page without `err` property",
-      "Client Navigation Rendering via HTTP should render the page with `nextExport` property",
-      "Client Navigation Rendering via HTTP should render the page without `nextExport` property",
-      "Client Navigation Rendering via HTTP renders styled jsx",
-      "Client Navigation Rendering via HTTP renders styled jsx external",
-      "Client Navigation Rendering via HTTP renders properties populated asynchronously",
-      "Client Navigation Rendering via HTTP renders a link component",
-      "Client Navigation Rendering via HTTP getInitialProps circular structure",
-      "Client Navigation Rendering via HTTP getInitialProps should be class method",
-      "Client Navigation Rendering via HTTP getInitialProps resolves to null",
-      "Client Navigation Rendering via HTTP default Content-Type",
-      "Client Navigation Rendering via HTTP setting Content-Type in getInitialProps",
-      "Client Navigation Rendering via HTTP should render 404 for _next routes that do not exist",
-      "Client Navigation Rendering via HTTP should render page that has module.exports anywhere",
-      "Client Navigation Rendering via HTTP allows to import .json files",
-      "Client Navigation Rendering via HTTP default export is not a React Component",
-      "Client Navigation Rendering via HTTP error-inside-page",
-      "Client Navigation Rendering via HTTP error-in-the-global-scope",
-      "Client Navigation Rendering via HTTP should set Cache-Control header",
-      "Client Navigation Rendering via HTTP asPath",
-      "Client Navigation Rendering via HTTP 404 should 404 on not existent page",
-      "Client Navigation Rendering via HTTP 404 should 404 on wrong casing",
-      "Client Navigation Rendering via HTTP 404 should not 404 for <page>/",
-      "Client Navigation Rendering via HTTP 404 should should not contain a page script in a 404 page",
-      "Client Navigation Rendering via HTTP with the HOC based router should navigate as expected",
-      "Client Navigation Rendering via HTTP with the HOC based router should include asPath",
-      "Client Navigation Rendering via HTTP should show a valid error when undefined is thrown"
-    ],
-    "pending": [],
-    "runtimeError": false
-  },
   "test/integration/client-shallow-routing/test/index.test.js": {
     "passed": [
       "Client Shallow Routing dev mode should not shallowly navigate back in history when current page was not shallow",
@@ -7226,11 +7166,11 @@
       "Dynamic Routing production mode should serve file from static folder encoded",
       "Dynamic Routing production mode should serve file with %20 from static folder",
       "Dynamic Routing production mode should respond with bad request with invalid encoding",
-      "Dynamic Routing production mode should not preload buildManifest for non-auto export dynamic pages"
+      "Dynamic Routing production mode should not preload buildManifest for non-auto export dynamic pages",
+      "Dynamic Routing production mode should have correct cache entries on prefetch"
     ],
     "failed": [
       "Dynamic Routing dev mode should resolve dynamic route href for page added later",
-      "Dynamic Routing production mode should have correct cache entries on prefetch",
       "Dynamic Routing production mode should navigate with hash to dynamic route with link",
       "Dynamic Routing production mode should navigate with hash to dynamic route with router",
       "Dynamic Routing production mode should navigate to a dynamic page successfully",
