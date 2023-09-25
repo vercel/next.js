@@ -2602,26 +2602,9 @@ export async function build(task, opts) {
 }
 
 export async function generate_types(task, opts) {
-  // running this detached so that --watch doesn't hijack the other tasks watchers
-  const detached = !!opts.dev
-  const subprocess = await execa.command(
-    `pnpm run types${opts.dev ? ' --watch' : ''}`,
-    {
-      stdio: 'inherit',
-      detached,
-    }
-  )
-
-  if (detached) {
-    function cleanup() {
-      subprocess.kill('SIGTERM', { forceKillAfterTimeout: 2000 })
-    }
-
-    // since we're runnning in detached mode, make sure the subprocess is killed
-    process.on('SIGINT', cleanup)
-    process.on('SIGTERM', cleanup)
-    process.on('exit', cleanup)
-  }
+  await execa.command('pnpm run types', {
+    stdio: 'inherit',
+  })
 }
 
 export default async function (task) {

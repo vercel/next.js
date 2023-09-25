@@ -1,14 +1,14 @@
 /* eslint-env jest */
 
 import cheerio from 'cheerio'
+import { type NextInstance } from 'e2e-utils'
 import { getRedboxHeader, hasRedbox } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next/constants'
-import { join } from 'path'
 import url from 'url'
 
-export default function (render, fetch, ctx) {
-  async function get$(path, query) {
+export default function (next: NextInstance, render, fetch, ctx) {
+  async function get$(path: any, query?: any) {
     const html = await render(path, query)
     return cheerio.load(html)
   }
@@ -88,10 +88,8 @@ export default function (render, fetch, ctx) {
       expect(html).toContain(
         '<meta name="viewport" content="width=device-width,initial-scale=1"/>'
       )
-      expect(html.match(/<meta name="viewport" /g).length).toBe(
-        1,
-        'Should contain only one viewport'
-      )
+      // Should contain only one viewport
+      expect(html.match(/<meta name="viewport" /g).length).toBe(1)
       expect(html).not.toContain(
         '<meta name="viewport" content="width=device-width"/>'
       )
@@ -340,11 +338,10 @@ export default function (render, fetch, ctx) {
       // build dynamic page
       await fetch('/dynamic/ssr')
 
-      const buildManifest = require(join('../.next', BUILD_MANIFEST))
-      const reactLoadableManifest = require(join(
-        '../.next',
-        REACT_LOADABLE_MANIFEST
-      ))
+      const buildManifest = await next.readJSON(`.next/${BUILD_MANIFEST}`)
+      const reactLoadableManifest = await next.readJSON(
+        `.next/${REACT_LOADABLE_MANIFEST}`
+      )
       const resources = []
 
       const manifestKey = Object.keys(reactLoadableManifest).find((item) => {
