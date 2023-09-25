@@ -1,5 +1,11 @@
 const fetch = require('node-fetch')
 const fs = require('fs')
+const prettier = require('prettier')
+
+async function format(text) {
+  const options = await prettier.resolveConfig(__filename)
+  return prettier.format(text, { ...options, parser: 'json' })
+}
 
 const override = process.argv.includes('--override')
 
@@ -66,11 +72,11 @@ async function updatePassingTests() {
   }
 
   for (const info of Object.values(passing)) {
-    info.failed = [...new Set(info.failed)]
-    info.pending = [...new Set(info.pending)]
+    info.failed = [...new Set(info.failed)].sort()
+    info.pending = [...new Set(info.pending)].sort()
     info.passed = [
       ...new Set(info.passed.filter((name) => !info.failed.includes(name))),
-    ]
+    ].sort()
   }
 
   if (!override) {
@@ -97,13 +103,29 @@ async function updatePassingTests() {
         )
       }
       // Merge the old passing tests with the new ones
-      newData.passed = [...new Set([...oldData.passed, ...newData.passed])]
+      newData.passed = [
+        ...new Set([...oldData.passed, ...newData.passed]),
+      ].sort()
       // but remove them also from the failed list
-      newData.failed = newData.failed.filter((name) => !shouldPass.has(name))
+      newData.failed = newData.failed
+        .filter((name) => !shouldPass.has(name))
+        .sort()
     }
   }
 
-  fs.writeFileSync(PASSING_JSON_PATH, JSON.stringify(passing, null, 2))
+  // JS keys are ordered, this ensures the tests are written in a consistent order
+  // https://stackoverflow.com/questions/5467129/sort-javascript-object-by-key
+  const ordered = Object.keys(passing)
+    .sort()
+    .reduce((obj, key) => {
+      obj[key] = passing[key]
+      return obj
+    }, {})
+
+  fs.writeFileSync(
+    PASSING_JSON_PATH,
+    await format(JSON.stringify(ordered, null, 2))
+  )
 }
 
 function stripWorkingPath(path) {

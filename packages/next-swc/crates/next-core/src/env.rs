@@ -61,6 +61,44 @@ pub async fn env_for_js(
         map.insert("__NEXT_STRICT_MODE_APP".to_string(), "true".to_string());
     }
 
+    map.insert(
+        "__NEXT_STRICT_NEXT_HEAD".to_string(),
+        if next_config.experimental.strict_next_head.unwrap_or(false) {
+            "true".to_string()
+        } else {
+            "false".to_string()
+        },
+    );
+
+    map.insert(
+        "__NEXT_TRAILING_SLASH".to_string(),
+        if next_config.trailing_slash.unwrap_or(false) {
+            "true".to_string()
+        } else {
+            "false".to_string()
+        },
+    );
+
+    map.insert(
+        "__NEXT_ROUTER_BASEPATH".to_string(),
+        // Don't stringify undefined
+        if let Some(base_path) = next_config.base_path.as_ref() {
+            serde_json::to_string(base_path)?
+        } else {
+            "undefined".to_string()
+        },
+    );
+
+    map.insert(
+        "__NEXT_ASSET_PREFIX".to_string(),
+        // Don't stringify undefined
+        if let Some(asset_prefix) = next_config.asset_prefix.as_ref() {
+            serde_json::to_string(asset_prefix)?
+        } else {
+            "undefined".to_string()
+        },
+    );
+
     if !test_mode.is_empty() {
         map.insert("__NEXT_TEST_MODE".to_string(), "true".to_string());
     }
