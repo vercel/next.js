@@ -41,32 +41,31 @@ async function updatePassingTests() {
     const runtimeError = result.data.numRuntimeErrorTestSuites > 0
     for (const testResult of result.data.testResults) {
       const filepath = stripWorkingPath(testResult.name)
-      for (const file of duplicateFileNames(filepath)) {
-        if (SKIPPED_TEST_SUITES.has(file)) continue
-        const fileResults = (passing[file] ??= {
-          passed: [],
-          failed: [],
-          pending: [],
-          runtimeError,
-        })
 
-        let initializationFailed = false
-        for (const testCase of testResult.assertionResults) {
-          let { fullName, status } = testCase
-          if (
-            status === 'failed' &&
-            INITIALIZING_TEST_CASES.some((name) => fullName.includes(name))
-          ) {
-            initializationFailed = true
-          } else if (initializationFailed) {
-            status = 'failed'
-          }
-          const statusArray = fileResults[status]
-          if (!statusArray) {
-            throw new Error(`unexpected status "${status}"`)
-          }
-          statusArray.push(fullName)
+      if (SKIPPED_TEST_SUITES.has(filepath)) continue
+      const fileResults = (passing[filepath] ??= {
+        passed: [],
+        failed: [],
+        pending: [],
+        runtimeError,
+      })
+
+      let initializationFailed = false
+      for (const testCase of testResult.assertionResults) {
+        let { fullName, status } = testCase
+        if (
+          status === 'failed' &&
+          INITIALIZING_TEST_CASES.some((name) => fullName.includes(name))
+        ) {
+          initializationFailed = true
+        } else if (initializationFailed) {
+          status = 'failed'
         }
+        const statusArray = fileResults[status]
+        if (!statusArray) {
+          throw new Error(`unexpected status "${status}"`)
+        }
+        statusArray.push(fullName)
       }
     }
   }
@@ -135,16 +134,6 @@ function stripWorkingPath(path) {
     )
   }
   return path.slice(WORKING_PATH.length)
-}
-
-function duplicateFileNames(path) {
-  if (path.includes('/src/')) {
-    const dist = path.replace('/src/', '/dist/').replace(/.tsx?$/, '.js')
-    if (fs.existsSync(`${__dirname}/../${dist}`)) {
-      return [path, dist]
-    }
-  }
-  return [path]
 }
 
 updatePassingTests()
