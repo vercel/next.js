@@ -24,8 +24,8 @@ import loadConfig from '../../server/config'
 import { trace } from '../../trace'
 import { WEBPACK_LAYERS } from '../../lib/constants'
 import {
+  BuildTraceContext,
   TraceEntryPointsPlugin,
-  TurbotraceContext,
 } from '../webpack/plugins/next-trace-entrypoints-plugin'
 import { UnwrapPromise } from '../../lib/coalesced-function'
 import * as pagesPluginModule from '../webpack/plugins/pages-manifest-plugin'
@@ -61,7 +61,7 @@ export async function webpackBuildImpl(
 ): Promise<{
   duration: number
   pluginState: any
-  turbotraceContext?: TurbotraceContext
+  buildTraceContext?: BuildTraceContext
   serializedPagesManifestEntries?: (typeof NextBuildContext)['serializedPagesManifestEntries']
 }> {
   let result: CompilerResult | null = {
@@ -183,18 +183,22 @@ export async function webpackBuildImpl(
     let inputFileSystem: any
 
     if (!compilerName || compilerName === 'server') {
+      debug('starting server compiler')
+      const start = Date.now()
       ;[serverResult, inputFileSystem] = await runCompiler(serverConfig, {
         runWebpackSpan,
         inputFileSystem,
       })
-      debug('server result', serverResult)
+      debug(`server compiler finished ${Date.now() - start}ms`)
     }
 
     if (!compilerName || compilerName === 'edge-server') {
+      debug('starting edge-server compiler')
+      const start = Date.now()
       ;[edgeServerResult, inputFileSystem] = edgeConfig
         ? await runCompiler(edgeConfig, { runWebpackSpan, inputFileSystem })
         : [null]
-      debug('edge server result', edgeServerResult)
+      debug(`edge-server compiler finished ${Date.now() - start}ms`)
     }
 
     // Only continue if there were no errors
@@ -223,11 +227,13 @@ export async function webpackBuildImpl(
       }
 
       if (!compilerName || compilerName === 'client') {
+        debug('starting client compiler')
+        const start = Date.now()
         ;[clientResult, inputFileSystem] = await runCompiler(clientConfig, {
           runWebpackSpan,
           inputFileSystem,
         })
-        debug('client result', clientResult)
+        debug(`client compiler finished ${Date.now() - start}ms`)
       }
     }
 
@@ -319,7 +325,7 @@ export async function webpackBuildImpl(
 
     return {
       duration: webpackBuildEnd[0],
-      turbotraceContext: traceEntryPointsPlugin?.turbotraceContext,
+      buildTraceContext: traceEntryPointsPlugin?.buildTraceContext,
       pluginState: getPluginState(),
       serializedPagesManifestEntries: {
         edgeServerPages: pagesPluginModule.edgeServerPages,
@@ -360,16 +366,27 @@ export async function workerMain(workerData: {
   NextBuildContext.nextBuildSpan = trace('next-build')
 
   const result = await webpackBuildImpl(workerData.compilerName)
-  const { entriesTrace } = result.turbotraceContext ?? {}
+  const { entriesTrace, chunksTrace } = result.buildTraceContext ?? {}
   if (entriesTrace) {
     const { entryNameMap, depModArray } = entriesTrace
     if (depModArray) {
-      result.turbotraceContext!.entriesTrace!.depModArray = depModArray
+      result.buildTraceContext!.entriesTrace!.depModArray = depModArray
     }
     if (entryNameMap) {
       const entryEntries = Array.from(entryNameMap?.entries() ?? [])
       // @ts-expect-error
-      result.turbotraceContext.entriesTrace.entryNameMap = entryEntries
+      result.buildTraceContext.entriesTrace.entryNameMap = entryEntries
+    }
+  }
+  if (chunksTrace) {
+    if (chunksTrace.entryNameFilesMap) {
+      const entryNameFilesMap = Array.from(
+        chunksTrace.entryNameFilesMap.entries() ?? []
+      )
+
+      // @ts-expect-error
+      result.buildTraceContext!.chunksTrace!.entryNameFilesMap =
+        entryNameFilesMap
     }
   }
   return result
