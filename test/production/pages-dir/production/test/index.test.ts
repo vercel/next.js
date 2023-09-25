@@ -1073,7 +1073,7 @@ createNextDescribe(
       // Whatever platform you build on, pages-manifest.json should use forward slash (/)
       // See: https://github.com/vercel/next.js/issues/4920
       const pagesManifest = require(join(
-        '..',
+        next.testDir,
         '.next',
         'server',
         PAGES_MANIFEST
