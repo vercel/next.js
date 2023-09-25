@@ -69,7 +69,7 @@ use crate::{
 
 fn defines(
     mode: NextMode,
-    dist_root_path: Option<&str>,
+    dist_root_path: &str,
     next_config: &NextConfig,
     app_paths: &[AppPath],
 ) -> Result<CompileTimeDefines> {
@@ -93,7 +93,7 @@ fn defines(
     // TODO: macro may need to allow dynamically expand from some iterable values
     // TODO(WEB-937): there are more defines needed, see
     // packages/next/src/build/webpack-config.ts
-    let mut defines = compile_time_defines!(
+    Ok(compile_time_defines!(
         process.turbopack = true,
         process.env.TURBOPACK = true,
         process.env.NODE_ENV = mode.node_env(),
@@ -103,22 +103,10 @@ fn defines(
             .unwrap_or_default(),
         process.env.__NEXT_CLIENT_ROUTER_S_FILTER = serde_json::to_string(&filter.static_filter)?,
         process.env.__NEXT_CLIENT_ROUTER_D_FILTER = serde_json::to_string(&filter.dynamic_filter)?,
+        process.env.__NEXT_DIST_DIR = dist_root_path.to_string(),
         process.env.__NEXT_HAS_REWRITES = true,
         process.env.__NEXT_I18N_SUPPORT = false,
-    );
-
-    if let Some(dist_root_path) = dist_root_path {
-        defines.0.insert(
-            vec![
-                "process".to_string(),
-                "env".to_string(),
-                "__NEXT_DIST_DIR".to_string(),
-            ],
-            dist_root_path.to_string().into(),
-        );
-    }
-
-    Ok(defines)
+    ))
 }
 
 #[turbo_tasks::function]
@@ -129,7 +117,7 @@ async fn next_client_defines(
     app_paths: Vc<EntrypointPaths>,
 ) -> Result<Vc<CompileTimeDefines>> {
     let dist_root_path = &*dist_root_path.await?;
-    Ok(defines(mode, Some(dist_root_path.as_str()), &*next_config.await?, &app_paths.await?)?.cell())
+    Ok(defines(mode, dist_root_path.as_str(), &*next_config.await?, &app_paths.await?)?.cell())
 }
 
 #[turbo_tasks::function]
@@ -141,7 +129,7 @@ async fn next_client_free_vars(
 ) -> Result<Vc<FreeVarReferences>> {
     let dist_root_path = &*dist_root_path.await?;
     Ok(free_var_references!(
-        ..defines(mode, Some(dist_root_path.as_str()), &*next_config.await?, &app_paths.await?)?.into_iter(),
+        ..defines(mode, dist_root_path.as_str(), &*next_config.await?, &app_paths.await?)?.into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
             request: "node:buffer".to_string(),
             lookup_path: None,
