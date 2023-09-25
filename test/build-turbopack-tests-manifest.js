@@ -21,15 +21,15 @@ const INITIALIZING_TEST_CASES = [
 ]
 
 const SKIPPED_TEST_SUITES = {
-  'test/integration/router-rerender/test/index.test.js': [/.*/],
-  'test/e2e/basepath.test.ts': [/.*/],
-  'test/development/acceptance-app/ReactRefreshRequire.test.ts': [/.*/],
-  'test/integration/dynamic-routing/test/middleware.test.js': [/.*/],
-  'test/integration/css/test/css-modules.test.js': [/.*/],
-  'test/development/acceptance/ReactRefreshRequire.test.ts': [/.*/],
-  'test/integration/custom-routes/test/index.test.js': [/.*/],
-  'test/integration/absolute-assetprefix/test/index.test.js': [/.*/],
-  'test/e2e/middleware-rewrites/test/index.test.ts': [/.*/],
+  'test/integration/router-rerender/test/index.test.js': [],
+  'test/e2e/basepath.test.ts': [],
+  'test/development/acceptance-app/ReactRefreshRequire.test.ts': [],
+  'test/integration/dynamic-routing/test/middleware.test.js': [],
+  'test/integration/css/test/css-modules.test.js': [],
+  'test/development/acceptance/ReactRefreshRequire.test.ts': [],
+  'test/integration/custom-routes/test/index.test.js': [],
+  'test/integration/absolute-assetprefix/test/index.test.js': [],
+  'test/e2e/middleware-rewrites/test/index.test.ts': [],
   'test/integration/dynamic-routing/test/index.test.js': [
     'Dynamic Routing production mode should have correct cache entries on prefetch',
   ],
