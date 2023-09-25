@@ -107,11 +107,17 @@ if ('${method}' in entry) {
       '${method}'
     >
   >()
+  ${
+    ''
+    // Adding void to support never return type without explicit return:
+    // e.g. notFound() will interrupt the execution but the handler return type is inferred as void.
+    // x-ref: https://github.com/microsoft/TypeScript/issues/16608#issuecomment-309327984
+  }
   checkFields<
     Diff<
       {
         __tag__: '${method}',
-        __return_type__: Response | Promise<Response>
+        __return_type__: Response | void | never | Promise<Response | void | never>
       },
       {
         __tag__: '${method}',
@@ -428,7 +434,7 @@ declare module 'next/link' {
   import type { LinkProps as OriginalLinkProps } from 'next/dist/client/link.js'
   import type { AnchorHTMLAttributes, DetailedHTMLProps } from 'react'
   import type { UrlObject } from 'url'
-  
+
   type LinkRestProps = Omit<
     Omit<
       DetailedHTMLProps<
