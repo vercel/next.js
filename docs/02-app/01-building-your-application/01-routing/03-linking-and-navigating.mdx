@@ -95,37 +95,6 @@ export function Links() {
 }
 ```
 
-```jsx filename="app/components/links.jsx"
-'use client'
-
-import { usePathname } from 'next/navigation'
-import Link from 'next/link'
-
-export function Links() {
-  const pathname = usePathname()
-
-  return (
-    <nav>
-      <ul>
-        <li>
-          <Link className={`link ${pathname === '/' ? 'active' : ''}`} href="/">
-            Home
-          </Link>
-        </li>
-        <li>
-          <Link
-            className={`link ${pathname === '/about' ? 'active' : ''}`}
-            href="/"
-          >
-            About
-          </Link>
-        </li>
-      </ul>
-    </nav>
-  )
-}
-```
-
 #### Scrolling to an `id`
 
 The default behavior of the Next.js App Router is to scroll to the top of a new route or to maintain the scroll position for backwards and forwards navigation.
