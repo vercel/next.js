@@ -164,6 +164,11 @@ export interface Options {
    * Enables the experimental testing mode.
    */
   experimentalTestProxy?: boolean
+
+  /**
+   * Enables the experimental HTTPs dev server
+   */
+  experimentalHttpsServer?: boolean
   /**
    * Where the Next project is located
    */
