@@ -58,6 +58,10 @@ pub struct NapiProjectOptions {
     /// A path inside the root_path which contains the app/pages directories.
     pub project_path: String,
 
+    /// next.config's distDir. Project initialization occurs eariler than
+    /// deserializing next.config, so passing it as separate option.
+    pub dist_dir: Option<String>,
+
     /// Whether to watch he filesystem for file changes.
     pub watch: bool,
 
@@ -135,8 +139,12 @@ pub async fn project_new(
         let subscriber = Registry::default();
 
         let subscriber = subscriber.with(EnvFilter::builder().parse(trace).unwrap());
+        let dist_dir = options
+            .dist_dir
+            .as_ref()
+            .map_or_else(|| ".next".to_string(), |d| d.to_string());
 
-        let internal_dir = PathBuf::from(&options.project_path).join(".next");
+        let internal_dir = PathBuf::from(&options.project_path).join(dist_dir);
         std::fs::create_dir_all(&internal_dir)
             .context("Unable to create .next directory")
             .unwrap();

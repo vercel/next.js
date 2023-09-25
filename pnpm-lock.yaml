@@ -174,11 +174,8 @@ importers:
         specifier: 6.1.1
         version: 6.1.1(@types/node-fetch@2.6.1)(node-fetch@2.6.7)
       '@vercel/og':
-        specifier: 0.5.12
-        version: 0.5.12
-      '@zeit/next-typescript':
-        specifier: 1.1.2-canary.0
-        version: 1.1.2-canary.0(@babel/core@7.18.0)
+        specifier: 0.5.15
+        version: 0.5.15
       abort-controller:
         specifier: 3.0.0
         version: 3.0.0
@@ -429,8 +426,8 @@ importers:
         specifier: npm:react@17.0.2
         version: /react@17.0.2
       react-builtin:
-        specifier: npm:react@18.3.0-canary-d6dcad6a8-20230914
-        version: /react@18.3.0-canary-d6dcad6a8-20230914
+        specifier: npm:react@18.3.0-canary-2807d781a-20230918
+        version: /react@18.3.0-canary-2807d781a-20230918
       react-dom:
         specifier: 18.2.0
         version: 18.2.0(react@18.2.0)
@@ -438,20 +435,20 @@ importers:
         specifier: npm:react-dom@17.0.2
         version: /react-dom@17.0.2(react@18.2.0)
       react-dom-builtin:
-        specifier: npm:react-dom@18.3.0-canary-d6dcad6a8-20230914
-        version: /react-dom@18.3.0-canary-d6dcad6a8-20230914(react@18.2.0)
+        specifier: npm:react-dom@18.3.0-canary-2807d781a-20230918
+        version: /react-dom@18.3.0-canary-2807d781a-20230918(react@18.2.0)
       react-dom-experimental-builtin:
-        specifier: npm:react-dom@0.0.0-experimental-d6dcad6a8-20230914
-        version: /react-dom@0.0.0-experimental-d6dcad6a8-20230914(react@18.2.0)
+        specifier: npm:react-dom@0.0.0-experimental-2807d781a-20230918
+        version: /react-dom@0.0.0-experimental-2807d781a-20230918(react@18.2.0)
       react-experimental-builtin:
-        specifier: npm:react@0.0.0-experimental-d6dcad6a8-20230914
-        version: /react@0.0.0-experimental-d6dcad6a8-20230914
+        specifier: npm:react@0.0.0-experimental-2807d781a-20230918
+        version: /react@0.0.0-experimental-2807d781a-20230918
       react-server-dom-webpack:
-        specifier: 18.3.0-canary-d6dcad6a8-20230914
-        version: 18.3.0-canary-d6dcad6a8-20230914(react-dom@18.2.0)(react@18.2.0)(webpack@5.86.0)
+        specifier: 18.3.0-canary-2807d781a-20230918
+        version: 18.3.0-canary-2807d781a-20230918(react-dom@18.2.0)(react@18.2.0)(webpack@5.86.0)
       react-server-dom-webpack-experimental:
-        specifier: npm:react-server-dom-webpack@0.0.0-experimental-d6dcad6a8-20230914
-        version: /react-server-dom-webpack@0.0.0-experimental-d6dcad6a8-20230914(react-dom@18.2.0)(react@18.2.0)(webpack@5.86.0)
+        specifier: npm:react-server-dom-webpack@0.0.0-experimental-2807d781a-20230918
+        version: /react-server-dom-webpack@0.0.0-experimental-2807d781a-20230918(react-dom@18.2.0)(react@18.2.0)(webpack@5.86.0)
       react-ssr-prepass:
         specifier: 1.0.8
         version: 1.0.8(react-is@16.13.1)(react@18.2.0)
@@ -477,14 +474,14 @@ importers:
         specifier: 1.54.0
         version: 1.54.0
       satori:
-        specifier: 0.10.3
-        version: 0.10.3
+        specifier: 0.10.6
+        version: 0.10.6
       scheduler-builtin:
-        specifier: npm:scheduler@0.24.0-canary-d6dcad6a8-20230914
-        version: /scheduler@0.24.0-canary-d6dcad6a8-20230914
+        specifier: npm:scheduler@0.24.0-canary-2807d781a-20230918
+        version: /scheduler@0.24.0-canary-2807d781a-20230918
       scheduler-experimental-builtin:
-        specifier: npm:scheduler@0.0.0-experimental-d6dcad6a8-20230914
-        version: /scheduler@0.0.0-experimental-d6dcad6a8-20230914
+        specifier: npm:scheduler@0.0.0-experimental-2807d781a-20230918
+        version: /scheduler@0.0.0-experimental-2807d781a-20230918
       seedrandom:
         specifier: 3.0.5
         version: 3.0.5
@@ -732,7 +729,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 13.4.20-canary.32
+        specifier: 13.5.3-canary.3
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.3.3
@@ -793,7 +790,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 13.4.20-canary.32
+        specifier: 13.5.3-canary.3
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.2
@@ -920,19 +917,19 @@ importers:
         specifier: 1.1.0
         version: 1.1.0
       '@next/polyfill-module':
-        specifier: 13.4.20-canary.32
+        specifier: 13.5.3-canary.3
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 13.4.20-canary.32
+        specifier: 13.5.3-canary.3
         version: link:../next-polyfill-nomodule
       '@next/react-dev-overlay':
-        specifier: 13.4.20-canary.32
+        specifier: 13.5.3-canary.3
         version: link:../react-dev-overlay
       '@next/react-refresh-utils':
-        specifier: 13.4.20-canary.32
+        specifier: 13.5.3-canary.3
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 13.4.20-canary.32
+        specifier: 13.5.3-canary.3
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.4.1
@@ -1064,8 +1061,8 @@ importers:
         specifier: 0.22.6
         version: 0.22.6
       '@vercel/turbopack-ecmascript-runtime':
-        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230915.2
-        version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230915.2(react-refresh@0.12.0)(webpack@5.86.0)'
+        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230922.2
+        version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230922.2(react-refresh@0.12.0)(webpack@5.86.0)'
       acorn:
         specifier: 8.5.0
         version: 8.5.0
@@ -1530,11 +1527,11 @@ importers:
   packages/next-swc/crates/next-core/js:
     dependencies:
       '@vercel/turbopack-ecmascript-runtime':
-        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230915.2
-        version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230915.2(react-refresh@0.12.0)(webpack@5.86.0)'
+        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230922.2
+        version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230922.2(react-refresh@0.12.0)(webpack@5.86.0)'
       '@vercel/turbopack-node':
-        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230915.2
-        version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230915.2'
+        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230922.2
+        version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230922.2'
       anser:
         specifier: ^2.1.1
         version: 2.1.1
@@ -1691,7 +1688,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 13.4.20-canary.32
+        specifier: 13.5.3-canary.3
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -4422,6 +4419,7 @@ packages:
       '@babel/plugin-syntax-typescript': 7.21.4(@babel/core@7.18.0)
     transitivePeerDependencies:
       - supports-color
+    dev: false
 
   /@babel/plugin-transform-typescript@7.18.4(@babel/core@7.18.0):
     resolution: {integrity: sha512-l4vHuSLUajptpHNEOUDEGsnpl9pfRLsN1XUoDQDD/YBuXTM+v37SHGS+c6n4jdcZy96QtuUuSvZYMLSSsjH8Mw==}
@@ -4899,6 +4897,7 @@ packages:
       '@babel/plugin-transform-typescript': 7.16.8(@babel/core@7.18.0)
     transitivePeerDependencies:
       - supports-color
+    dev: false
 
   /@babel/preset-typescript@7.17.12(@babel/core@7.18.0):
     resolution: {integrity: sha512-S1ViF8W2QwAKUGJXxP9NAfNaqGDdEBJKpYkxHf5Yy2C4NPPzXGeR3Lhk7G8xJaaLcFTRfNjVbtbVtm8Gb0mqvg==}
@@ -8929,12 +8928,12 @@ packages:
       - supports-color
     dev: true
 
-  /@vercel/og@0.5.12:
-    resolution: {integrity: sha512-NDtxHeX1ka0uSh6tSuIuOh2rz6+++BC7RSoqQd/NmKHK9kJ9mdhgRiMv8uBSgcdgBucRfyKHUzora+qaXhyB5Q==}
+  /@vercel/og@0.5.15:
+    resolution: {integrity: sha512-8LrEb/3C7R2TqRA9qTde+eoeOCCQZfElqCNiSi3qqnKSczv2V91Wa1Nt3Gy6qqLDeny8aFQxcB/OCZEWNubaqw==}
     engines: {node: '>=16'}
     dependencies:
       '@resvg/resvg-wasm': 2.4.1
-      satori: 0.10.3
+      satori: 0.10.6
       yoga-wasm-web: 0.3.3
     dev: true
 
@@ -9048,15 +9047,6 @@ packages:
       '@types/node': 20.2.5
       async-retry: 1.2.3
       lru-cache: 5.1.1
-    dev: true
-
-  /@zeit/next-typescript@1.1.2-canary.0(@babel/core@7.18.0):
-    resolution: {integrity: sha512-DxBzRYBFG7FvoU7nyf7nBP4gr0CdM/7noMCirVbFpfWVg7csOEBIVxWcAeUmlJRaxDBPplZ9W5BvtbxL3A8DRQ==}
-    dependencies:
-      '@babel/preset-typescript': 7.16.7(@babel/core@7.18.0)
-    transitivePeerDependencies:
-      - '@babel/core'
-      - supports-color
     dev: true
 
   /@zxing/text-encoding@0.9.0:
@@ -22776,14 +22766,14 @@ packages:
       strip-json-comments: 2.0.1
     dev: true
 
-  /react-dom@0.0.0-experimental-d6dcad6a8-20230914(react@18.2.0):
-    resolution: {integrity: sha512-ETp4MVyKxxyGO7nkMkXoi2Or0WtoNMddD5iyVKO1nXcRN4r/o/2wsVoZyoYhf+FVLbNzzknSteb8lePQRBltvw==}
+  /react-dom@0.0.0-experimental-2807d781a-20230918(react@18.2.0):
+    resolution: {integrity: sha512-jQA/NDeBFHrW4eBm9muuczsxHrhgmjUtHAgfw+l+DvwKZopd45GwqcRpIwNEHVB5wvbybe16ry+IrkAXt/q73Q==}
     peerDependencies:
-      react: 0.0.0-experimental-d6dcad6a8-20230914
+      react: 0.0.0-experimental-2807d781a-20230918
     dependencies:
       loose-envify: 1.4.0
       react: 18.2.0
-      scheduler: 0.0.0-experimental-d6dcad6a8-20230914
+      scheduler: 0.0.0-experimental-2807d781a-20230918
     dev: true
 
   /react-dom@17.0.2(react@17.0.2):
@@ -22817,14 +22807,14 @@ packages:
       react: 18.2.0
       scheduler: 0.23.0
 
-  /react-dom@18.3.0-canary-d6dcad6a8-20230914(react@18.2.0):
-    resolution: {integrity: sha512-KzS+Jy/WXC6I9bi9PtBU0+iMPHPNvNLdyIDJqgX91AiBP9IDDMjaDbgW0QKphi1qIOesYMeJz0uZkajhlfS8lg==}
+  /react-dom@18.3.0-canary-2807d781a-20230918(react@18.2.0):
+    resolution: {integrity: sha512-z8dfE/5+ZKizBBbm0G8SGpUSncn6/PP+UvFCCj1Sd+0jEbqltJbrzZNGIQneUk8uCR8vpJg8/AmFdFd5JCnprA==}
     peerDependencies:
-      react: 18.3.0-canary-d6dcad6a8-20230914
+      react: 18.3.0-canary-2807d781a-20230918
     dependencies:
       loose-envify: 1.4.0
       react: 18.2.0
-      scheduler: 0.24.0-canary-d6dcad6a8-20230914
+      scheduler: 0.24.0-canary-2807d781a-20230918
     dev: true
 
   /react-is@16.13.1:
@@ -22845,12 +22835,12 @@ packages:
     resolution: {integrity: sha512-suLIhrU2IHKL5JEKR/fAwJv7bbeq4kJ+pJopf77jHwuR+HmJS/HbrPIGsTBUVfw7tXPOmYv7UJ7PCaN49e8x4A==}
     engines: {node: '>=0.10.0'}
 
-  /react-server-dom-webpack@0.0.0-experimental-d6dcad6a8-20230914(react-dom@18.2.0)(react@18.2.0)(webpack@5.86.0):
-    resolution: {integrity: sha512-sS7+MhvYZo4XwaRwDU9faTYucPJz1tOQFIXNHH6itfAqEKlVV6WOR+uzscRw4kWZnV0PEZTuNRDBcnuSKfbCng==}
+  /react-server-dom-webpack@0.0.0-experimental-2807d781a-20230918(react-dom@18.2.0)(react@18.2.0)(webpack@5.86.0):
+    resolution: {integrity: sha512-/scgauAvvaCXnRAjw1wHdUOhj5mSOZ51iTB55xULX0TKuXHq6MA9MApEvYmnnLHo54jGfClKCrTzc8bL1OVtkg==}
     engines: {node: '>=0.10.0'}
     peerDependencies:
-      react: 0.0.0-experimental-d6dcad6a8-20230914
-      react-dom: 0.0.0-experimental-d6dcad6a8-20230914
+      react: 0.0.0-experimental-2807d781a-20230918
+      react-dom: 0.0.0-experimental-2807d781a-20230918
       webpack: 5.86.0
     dependencies:
       acorn-loose: 8.3.0
@@ -22861,12 +22851,12 @@ packages:
       webpack: 5.86.0(@swc/core@1.3.85)
     dev: true
 
-  /react-server-dom-webpack@18.3.0-canary-d6dcad6a8-20230914(react-dom@18.2.0)(react@18.2.0)(webpack@5.86.0):
-    resolution: {integrity: sha512-mr5iTq5S8HmwDM/zKAhT+re06U0s5R692DCuxnmeqTqjwOpioBI4P1XilbID9bVvxk7jTnNd2TkxnMYlPsk2bQ==}
+  /react-server-dom-webpack@18.3.0-canary-2807d781a-20230918(react-dom@18.2.0)(react@18.2.0)(webpack@5.86.0):
+    resolution: {integrity: sha512-xyamMF0z/mYSc/AAUSvzQviE2a5dCubrH47O+F74grcOePONmaEgWZROwVpNOpK3cvmTJZ/SPzZkeM8uoZmXeQ==}
     engines: {node: '>=0.10.0'}
     peerDependencies:
-      react: 18.3.0-canary-d6dcad6a8-20230914
-      react-dom: 18.3.0-canary-d6dcad6a8-20230914
+      react: 18.3.0-canary-2807d781a-20230918
+      react-dom: 18.3.0-canary-2807d781a-20230918
       webpack: 5.86.0
     dependencies:
       acorn-loose: 8.3.0
@@ -22925,8 +22915,8 @@ packages:
       react-lifecycles-compat: 3.0.4
     dev: true
 
-  /react@0.0.0-experimental-d6dcad6a8-20230914:
-    resolution: {integrity: sha512-lGxj/Mlk4o7Fi/1UkI/Dhf4sueNWyrZzPaGojaEnTAnq0KsY7Hhs4uJnGUHrsOspB0kE1eqcTv81y0QxmHUHFA==}
+  /react@0.0.0-experimental-2807d781a-20230918:
+    resolution: {integrity: sha512-tErAWS5o0ZYPPqiAxE5pb3pRLDlPKQkScko0sRN4P35AZ41LY8WebYrKAAKk2MrJA+wlZhKn/f3/MmJdw0Cs4w==}
     engines: {node: '>=0.10.0'}
     dependencies:
       loose-envify: 1.4.0
@@ -22945,8 +22935,8 @@ packages:
     dependencies:
       loose-envify: 1.4.0
 
-  /react@18.3.0-canary-d6dcad6a8-20230914:
-    resolution: {integrity: sha512-suE/MZ/N2HFo+QIKsc4F4TrphCwZ1rAZZZ0c+dREb61CDNlBK7eO36JsFzS/bf3D0N554AkWWXIT08NW0+ygFQ==}
+  /react@18.3.0-canary-2807d781a-20230918:
+    resolution: {integrity: sha512-wU3NWOW5B46weQ6eGXT5PrqQBbZXOKbiNKtqjEI4082+2NoA7bGhDiqnYfdMdLvRC3+PQSvNY8fOzvyFw2JkiA==}
     engines: {node: '>=0.10.0'}
     dependencies:
       loose-envify: 1.4.0
@@ -23987,8 +23977,8 @@ packages:
       immutable: 4.1.0
       source-map-js: 1.0.2
 
-  /satori@0.10.3:
-    resolution: {integrity: sha512-8tZPu7AGiRWimbOyja1s2HK0hEC4DacZ8cAKDITxlVI5tKQZbOuMiVgSB50CABwc0I4Imgtkq7o9Egj1WOJTKg==}
+  /satori@0.10.6:
+    resolution: {integrity: sha512-bhAAnh+ZZgulFpxoDi5AB1VA3MsN6AnhB0Elfdj5bQitn4N9GHAB3MC5eFauOnXHF7a9TT1jIPHhUY4JQsP6Xg==}
     engines: {node: '>=16'}
     dependencies:
       '@shuding/opentype.js': 1.4.0-beta.0
@@ -24014,8 +24004,8 @@ packages:
       xmlchars: 2.2.0
     dev: true
 
-  /scheduler@0.0.0-experimental-d6dcad6a8-20230914:
-    resolution: {integrity: sha512-1RpezmjispJ4R3TDt6Smx+8Pe7+H3LnU7o53wlxlTs9bbLf34l9t7BEDcsPlhisamK4lLGP2DAWLX2oRqDx4Vg==}
+  /scheduler@0.0.0-experimental-2807d781a-20230918:
+    resolution: {integrity: sha512-flUFgMZ+APscoSuoKEHSDPkmI3Xhz/dDzAnmuPetY1kV6dT4jusvjN2/CJB9yGBuq5MgIJxvZYz95zybMmORww==}
     dependencies:
       loose-envify: 1.4.0
     dev: true
@@ -24031,8 +24021,8 @@ packages:
     dependencies:
       loose-envify: 1.4.0
 
-  /scheduler@0.24.0-canary-d6dcad6a8-20230914:
-    resolution: {integrity: sha512-tC/9jHWGULTtIk39bb16jrDYyqwz0BHlQlNa3kZYyyFx8JsxioqzT/WoaInIrbkwRaY/zjYzm8IUzE3zH2wKqg==}
+  /scheduler@0.24.0-canary-2807d781a-20230918:
+    resolution: {integrity: sha512-dVqKuhUSTt+2CkcMqNgQCqp33j9YbNQSRjuAHWjkarHwhrZsqjkBQkDhPLOLU/3fVhum6QwdZ2TYu1PTYivgXA==}
     dependencies:
       loose-envify: 1.4.0
     dev: true
@@ -27259,9 +27249,9 @@ packages:
   /zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
-  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230915.2(react-refresh@0.12.0)(webpack@5.86.0)':
-    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230915.2}
-    id: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230915.2'
+  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230922.2(react-refresh@0.12.0)(webpack@5.86.0)':
+    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230922.2}
+    id: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230922.2'
     name: '@vercel/turbopack-ecmascript-runtime'
     version: 0.0.0
     dependencies:
@@ -27271,8 +27261,8 @@ packages:
       - react-refresh
       - webpack
 
-  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230915.2':
-    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230915.2}
+  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230922.2':
+    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?turbopack-230922.2}
     name: '@vercel/turbopack-node'
     version: 0.0.0
     dependencies:

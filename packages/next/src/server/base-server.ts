@@ -751,6 +751,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const origSetHeader = _res.setHeader.bind(_res)
 
       _res.setHeader = (name: string, val: string | string[]) => {
+        // When renders /_error after page is failed,
+        // it could attempt to set headers after headers
+        if (_res.headersSent) {
+          return
+        }
         if (name.toLowerCase() === 'set-cookie') {
           const middlewareValue = getRequestMeta(req, '_nextMiddlewareCookie')
 
@@ -2238,6 +2243,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           html: result,
           pageData: metadata.pageData,
           headers,
+          status: isAppPath ? res.statusCode : undefined,
         },
         revalidate: metadata.revalidate,
       }
@@ -2491,6 +2497,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               typeof cachedData.pageData +
               '. This is a bug in Next.js.'
           )
+        }
+
+        if (cachedData.status) {
+          res.statusCode = cachedData.status
         }
 
         return {

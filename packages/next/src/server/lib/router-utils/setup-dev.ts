@@ -30,7 +30,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 import loadJsConfig from '../../../build/load-jsconfig'
 import { createValidFileMatcher } from '../find-page-file'
 import { eventCliSession } from '../../../telemetry/events'
-import { getDefineEnv } from '../../../build/webpack-config'
+import { getDefineEnv } from '../../../build/webpack/plugins/define-env-plugin'
 import { logAppDirError } from '../../dev/log-app-dir-error'
 import { UnwrapPromise } from '../../../lib/coalesced-function'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
@@ -100,7 +100,7 @@ import {
   HMR_ACTION_TYPES,
   NextJsHotReloaderInterface,
   ReloadPageAction,
-  TurboPackConnectedAction,
+  TurbopackConnectedAction,
 } from '../../dev/hot-reloader-types'
 import type { Update as TurbopackUpdate } from '../../../build/swc'
 import { debounce } from '../../utils'
@@ -356,10 +356,14 @@ async function startWatcher(opts: SetupOpts) {
       }
 
       hotReloader.send({
-        action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT,
+        action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
         hash: String(++hmrHash),
         errors: [...errors.values()],
         warnings: [],
+        versionInfo: {
+          installed: '0.0.0',
+          staleness: 'unknown',
+        },
       })
       hmrBuilding = false
 
@@ -984,7 +988,7 @@ async function startWatcher(opts: SetupOpts) {
             }
           })
 
-          const turbopackConnected: TurboPackConnectedAction = {
+          const turbopackConnected: TurbopackConnectedAction = {
             type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
           }
           client.send(JSON.stringify(turbopackConnected))
@@ -1729,7 +1733,6 @@ async function startWatcher(opts: SetupOpts) {
                   isNodeServer,
                   middlewareMatchers: undefined,
                   previewModeId: undefined,
-                  useServerActions: !!nextConfig.experimental.serverActions,
                 })
 
                 Object.keys(plugin.definitions).forEach((key) => {

@@ -5,6 +5,8 @@ import type {
   StyledComponentsConfig,
 } from '../../server/config-shared'
 
+export type BundleType = 'client' | 'server' | 'default'
+
 const nextDistPath =
   /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
 
@@ -42,6 +44,7 @@ function getBaseSWCOptions({
   jsConfig,
   swcCacheDir,
   isServerLayer,
+  bundleTarget,
   hasServerComponents,
   isServerActionsEnabled,
 }: {
@@ -51,14 +54,15 @@ function getBaseSWCOptions({
   hasReactRefresh: boolean
   globalWindow: boolean
   modularizeImports?: NextConfig['modularizeImports']
-  swcPlugins: ExperimentalConfig['swcPlugins']
   compilerOptions: NextConfig['compiler']
+  swcPlugins: ExperimentalConfig['swcPlugins']
+  isServerActionsEnabled?: ExperimentalConfig['serverActions']
   resolvedBaseUrl?: string
   jsConfig: any
+  bundleTarget: BundleType
   swcCacheDir?: string
   isServerLayer?: boolean
   hasServerComponents?: boolean
-  isServerActionsEnabled?: boolean
 }) {
   const parserConfig = getParserOptions({ filename, jsConfig })
   const paths = jsConfig?.compilerOptions?.paths
@@ -184,7 +188,7 @@ function getBaseSWCOptions({
           isServer: !!isServerLayer,
         }
       : undefined,
-    disableChecks: false,
+    bundleTarget,
   }
 }
 
@@ -274,13 +278,14 @@ export function getJestSWCOptions({
     resolvedBaseUrl,
     // Don't apply server layer transformations for Jest
     isServerLayer: false,
+    // Disable server / client graph assertions for Jest
+    bundleTarget: 'default',
   })
 
   const isNextDist = nextDistPath.test(filename)
 
   return {
     ...baseOptions,
-    disableChecks: true,
     env: {
       targets: {
         // Targets the current version of Node.js
@@ -317,6 +322,7 @@ export function getLoaderSWCOptions({
   isServerLayer,
   isServerActionsEnabled,
   optimizeBarrelExports,
+  bundleTarget,
 }: // This is not passed yet as "paths" resolving is handled by webpack currently.
 // resolvedBaseUrl,
 {
@@ -324,7 +330,7 @@ export function getLoaderSWCOptions({
   development: boolean
   isServer: boolean
   pagesDir?: string
-  appDir: string
+  appDir?: string
   isPageFile: boolean
   hasReactRefresh: boolean
   optimizeServerReact?: boolean
@@ -335,13 +341,16 @@ export function getLoaderSWCOptions({
   swcPlugins: ExperimentalConfig['swcPlugins']
   compilerOptions: NextConfig['compiler']
   jsConfig: any
-  supportedBrowsers: string[]
+  supportedBrowsers: string[] | undefined
   swcCacheDir: string
   relativeFilePathFromRoot: string
+  bundleTarget: BundleType
   hasServerComponents?: boolean
   isServerLayer: boolean
   isServerActionsEnabled?: boolean
-  optimizeBarrelExports?: string[]
+  optimizeBarrelExports?: {
+    wildcard: boolean
+  }
 }) {
   let baseOptions: any = getBaseSWCOptions({
     filename,
@@ -357,6 +366,7 @@ export function getLoaderSWCOptions({
     hasServerComponents,
     isServerLayer,
     isServerActionsEnabled,
+    bundleTarget,
   })
   baseOptions.fontLoaders = {
     fontLoaders: [

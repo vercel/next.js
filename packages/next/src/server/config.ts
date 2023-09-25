@@ -325,11 +325,18 @@ function assignDefaults(
     }
   }
 
-  // TODO: remove this in next major or minor version after 13.5
+  // TODO: Remove this warning in Next.js 14
   warnOptionHasBeenDeprecated(
     result,
     'experimental.appDir',
     'App router is available by default now, `experimental.appDir` option can be safely removed.',
+    silent
+  )
+  // TODO: Remove this warning in Next.js 14
+  warnOptionHasBeenDeprecated(
+    result,
+    'experimental.runtime',
+    'You are using `experimental.runtime` which was removed. Check https://nextjs.org/docs/api-routes/edge-api-routes on how to use edge runtime.',
     silent
   )
   warnOptionHasBeenMovedOutOfExperimental(
@@ -724,6 +731,43 @@ function assignDefaults(
       'react-use',
       '@material-ui/icons',
       '@tabler/icons-react',
+      'mui-core',
+      // We don't support wildcard imports for these configs, e.g. `react-icons/*`
+      // so we need to add them manually.
+      // In the future, we should consider automatically detecting packages that
+      // need to be optimized.
+      'react-icons/ai',
+      'react-icons/bi',
+      'react-icons/bs',
+      'react-icons/cg',
+      'react-icons/ci',
+      'react-icons/di',
+      'react-icons/fa',
+      'react-icons/fa6',
+      'react-icons/fc',
+      'react-icons/fi',
+      'react-icons/gi',
+      'react-icons/go',
+      'react-icons/gr',
+      'react-icons/hi',
+      'react-icons/hi2',
+      'react-icons/im',
+      'react-icons/io',
+      'react-icons/io5',
+      'react-icons/lia',
+      'react-icons/lib',
+      'react-icons/lu',
+      'react-icons/md',
+      'react-icons/pi',
+      'react-icons/ri',
+      'react-icons/rx',
+      'react-icons/si',
+      'react-icons/sl',
+      'react-icons/tb',
+      'react-icons/tfi',
+      'react-icons/ti',
+      'react-icons/vsc',
+      'react-icons/wi',
     ]),
   ]
 
@@ -865,7 +909,7 @@ export default async function loadConfig(
 
       if (shouldExit) {
         for (const message of messages) {
-          curLog.error(message)
+          console.error(message)
         }
         await flushAndExit(1)
       } else {
