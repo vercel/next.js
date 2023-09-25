@@ -64,7 +64,7 @@ export default function PostList({ posts }) {
 
 You can use [`usePathname()`](/docs/app/api-reference/functions/use-pathname) to determine if a link is active. For example, to add a class to the active link, you can check if the current `pathname` matches the `href` of the link:
 
-```tsx filename="app/components/links.tsx"
+```tsx filename="app/components/links.tsx" switcher
 'use client'
 
 import { usePathname } from 'next/navigation'
@@ -84,7 +84,7 @@ export function Links() {
         <li>
           <Link
             className={`link ${pathname === '/about' ? 'active' : ''}`}
-            href="/"
+            href="/about"
           >
             About
           </Link>
@@ -95,7 +95,7 @@ export function Links() {
 }
 ```
 
-```jsx filename="app/components/links.jsx"
+```jsx filename="app/components/links.js" switcher
 'use client'
 
 import { usePathname } from 'next/navigation'
@@ -115,7 +115,7 @@ export function Links() {
         <li>
           <Link
             className={`link ${pathname === '/about' ? 'active' : ''}`}
-            href="/"
+            href="/about"
           >
             About
           </Link>

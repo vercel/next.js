@@ -2080,8 +2080,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           }
 
           // Send the response now that we have copied it into the cache.
-          await sendResponse(req, res, response)
-
+          await sendResponse(
+            req,
+            res,
+            response,
+            context.staticGenerationContext.waitUntil
+          )
           return null
         } catch (err) {
           // If this is during static generation, throw the error again.
