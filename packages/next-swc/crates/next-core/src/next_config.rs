@@ -505,7 +505,8 @@ pub struct ExperimentalConfig {
     use_deployment_id: Option<bool>,
     use_deployment_id_server_actions: Option<bool>,
     web_vitals_attribution: Option<Vec<String>>,
-    /// This option is to enable running the Webpack build in a worker thread (doesn't apply to Turbopack).
+    /// This option is to enable running the Webpack build in a worker thread
+    /// (doesn't apply to Turbopack).
     webpack_build_worker: Option<bool>,
     worker_threads: Option<bool>,
 }
