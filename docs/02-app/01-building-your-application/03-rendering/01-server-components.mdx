@@ -29,7 +29,7 @@ There are a couple of benefits to doing the rendering work on the server, includ
 
 ## Using Server Components in Next.js
 
-By default, Next.js uses Server Components. This allows you to automatically implement server rendering with no additional configuration, and you can opt into using Client Components when you needed, see [Client Components](/docs/app/building-your-application/rendering/client-components).
+By default, Next.js uses Server Components. This allows you to automatically implement server rendering with no additional configuration, and you can opt into using Client Components when needed, see [Client Components](/docs/app/building-your-application/rendering/client-components).
 
 ## How are Server Components rendered?
 
@@ -64,7 +64,7 @@ There are three subsets of server rendering: Static, Dynamic, and Streaming.
 
 {/* Static Rendering Diagram */}
 
-With Static Rendering, routes are rendered at **build time**, or in the background after [data revalidation](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data). The result is cached and can be pushed to a [Content Delivery Network (CDN)](https://developer.mozilla.org/en-US/docs/Glossary/CDN). This optimization allows you to share the result of the rendering work between users and server requests.
+With Static Rendering, routes are rendered at **build time**, or in the background after [data revalidation](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data). The result is cached and can be pushed to a [Content Delivery Network (CDN)](https://developer.mozilla.org/docs/Glossary/CDN). This optimization allows you to share the result of the rendering work between users and server requests.
 
 Static rendering is useful when a route has data that is not personalized to the user and can be known at build time, such as a static blog post or a product page.
 
@@ -80,7 +80,7 @@ Dynamic rendering is useful when a route has data that is personalized to the us
 >
 > In most websites, routes are not fully static or fully dynamic - it's a spectrum. For example, you can have e-commerce page that uses cached product data that's revalidated at an interval, but also has uncached, personalized customer data.
 >
-> In Next.js, you can have dynamically rendered routes that have both cached and uncached data. This is because the RSC Payload and data are cached separetely. This allows you to opt into dynamic rendering without worrying about the performance impact of fetching all the data at request time.
+> In Next.js, you can have dynamically rendered routes that have both cached and uncached data. This is because the RSC Payload and data are cached separately. This allows you to opt into dynamic rendering without worrying about the performance impact of fetching all the data at request time.
 >
 > Learn more about the [full-route cache](/docs/app/building-your-application/caching#full-route-cache) and [Data Cache](/docs/app/building-your-application/caching#data-cache).
 
@@ -121,7 +121,7 @@ Using any of these functions will opt the whole route into dynamic rendering at 
   height="525"
 />
 
-With Streaming, routes are rendered on the server at **request time**. The work is split into chunks and streamed to the client as it becomes ready. This allows the user to see a preview of the page before it's fully rendered.
+Streaming enables you to progressively render UI from the server. Work is split into chunks and streamed to the client as it becomes ready. This allows the user to see parts of the page immediately, before the entire content has finished rendering.
 
 <Image
   alt="Diagram showing partially rendered page on the client, with loading UI for chunks that are being streamed."
@@ -131,6 +131,6 @@ With Streaming, routes are rendered on the server at **request time**. The work 
   height="785"
 />
 
-Streaming is useful for lower-priority UI, or UI that depends on slower data fetches that would block rendering for the whole route. For example, reviews on a product page.
+Streaming is built into the Next.js App Router by default. This helps improve both the initial page loading performance, as well as UI that depends on slower data fetches that would block rendering the whole route. For example, reviews on a product page.
 
-In Next.js, you can stream route segments using `loading.js`, and UI components with [React Suspense](https://react.dev/reference/react/Suspense). See the [Loading UI and Streaming](/docs/app/building-your-application/routing/loading-ui-and-streaming) docs for more information.
+You can start streaming route segments using `loading.js` and UI components with [React Suspense](/docs/app/building-your-application/routing/loading-ui-and-streaming). See the [Loading UI and Streaming](/docs/app/building-your-application/routing/loading-ui-and-streaming) section for more information.

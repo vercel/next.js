@@ -1,3 +1,5 @@
+import type { ThenableRecord } from './router-reducer/router-reducer-types'
+
 /*
     This is a simple promise queue that allows you to limit the number of concurrent promises
     that are running at any given time. It's used to limit the number of concurrent
@@ -7,7 +9,10 @@
 export class PromiseQueue {
   #maxConcurrency: number
   #runningCount: number
-  #queue: Array<{ promiseFn: Promise<any>; task: () => void }>
+  #queue: Array<{
+    promiseFn: ThenableRecord<any> | Promise<any>
+    task: () => void
+  }>
 
   constructor(maxConcurrency = 5) {
     this.#maxConcurrency = maxConcurrency
@@ -45,7 +50,7 @@ export class PromiseQueue {
     return taskPromise
   }
 
-  bump(promiseFn: Promise<any>) {
+  bump(promiseFn: ThenableRecord<any> | Promise<any>) {
     const index = this.#queue.findIndex((item) => item.promiseFn === promiseFn)
 
     if (index > -1) {

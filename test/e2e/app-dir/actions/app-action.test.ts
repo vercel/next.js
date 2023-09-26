@@ -1,6 +1,6 @@
 /* eslint-disable jest/no-standalone-expect */
 import { createNextDescribe } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { check, waitFor } from 'next-test-utils'
 import { Request } from 'playwright-chromium'
 import fs from 'fs-extra'
 import { join } from 'path'
@@ -20,14 +20,6 @@ createNextDescribe(
     },
   },
   ({ next, isNextDev, isNextStart, isNextDeploy }) => {
-    if (isNextStart) {
-      it('should warn for server actions + ISR incompat', async () => {
-        expect(next.cliOutput).toContain(
-          'Using server actions on a page currently disables static generation for that page'
-        )
-      })
-    }
-
     it('should handle basic actions correctly', async () => {
       const browser = await next.browser('/server')
 
@@ -310,6 +302,39 @@ createNextDescribe(
       }, '1')
     })
 
+    it('should only submit action once when resubmitting an action after navigation', async () => {
+      let requestCount = 0
+
+      const browser = await next.browser('/server', {
+        beforePageLoad(page) {
+          page.on('request', (request) => {
+            const url = new URL(request.url())
+            if (url.pathname === '/server') {
+              requestCount++
+            }
+          })
+        },
+      })
+
+      async function submitForm() {
+        await browser.elementById('name').type('foo')
+        await browser.elementById('submit').click()
+        await check(() => browser.url(), /header/)
+      }
+
+      await submitForm()
+
+      await browser.elementById('navigate-server').click()
+      await check(() => browser.url(), /server/)
+      await browser.waitForIdleNetwork()
+
+      requestCount = 0
+
+      await submitForm()
+
+      expect(requestCount).toBe(1)
+    })
+
     if (isNextStart) {
       it('should not expose action content in sourcemaps', async () => {
         const sourcemap = (
@@ -411,9 +436,7 @@ createNextDescribe(
       it('should handle redirect to a relative URL in a single pass', async () => {
         const browser = await next.browser('/client/edge')
 
-        await new Promise((resolve) => {
-          setTimeout(resolve, 3000)
-        })
+        await waitFor(3000)
 
         let requests = []
 
@@ -466,12 +489,21 @@ createNextDescribe(
     })
 
     describe('fetch actions', () => {
+      it('should handle a fetch action initiated from a static page', async () => {
+        const browser = await next.browser('/client-static')
+        await check(() => browser.elementByCss('#count').text(), '0')
+
+        await browser.elementByCss('#increment').click()
+        await check(() => browser.elementByCss('#count').text(), '1')
+
+        await browser.elementByCss('#increment').click()
+        await check(() => browser.elementByCss('#count').text(), '2')
+      })
+
       it('should handle redirect to a relative URL in a single pass', async () => {
         const browser = await next.browser('/client')
 
-        await new Promise((resolve) => {
-          setTimeout(resolve, 3000)
-        })
+        await waitFor(3000)
 
         let requests = []
 

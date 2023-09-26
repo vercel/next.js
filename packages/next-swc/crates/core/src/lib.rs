@@ -46,7 +46,8 @@ use turbopack_binding::swc::{
             SyntaxContext,
         },
         ecma::{
-            ast::EsVersion, parser::parse_file_as_module, transforms::base::pass::noop, visit::Fold,
+            ast::EsVersion, atoms::JsWord, parser::parse_file_as_module,
+            transforms::base::pass::noop, visit::Fold,
         },
     },
     custom_transform::modularize_imports,
@@ -60,6 +61,7 @@ pub mod named_import_transform;
 pub mod next_dynamic;
 pub mod next_ssg;
 pub mod optimize_barrel;
+pub mod optimize_server_react;
 pub mod page_config;
 pub mod react_remove_properties;
 pub mod react_server_components;
@@ -96,10 +98,13 @@ pub struct TransformOptions {
     pub is_server: bool,
 
     #[serde(default)]
+    pub bundle_target: JsWord,
+
+    #[serde(default)]
     pub server_components: Option<react_server_components::Config>,
 
     #[serde(default)]
-    pub styled_jsx: bool,
+    pub styled_jsx: Option<turbopack_binding::swc::custom_transform::styled_jsx::visitor::Config>,
 
     #[serde(default)]
     pub styled_components:
@@ -144,6 +149,9 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub cjs_require_optimizer: Option<cjs_optimizer::Config>,
+
+    #[serde(default)]
+    pub optimize_server_react: Option<optimize_server_react::Config>,
 }
 
 pub fn custom_before_pass<'a, C: Comments + 'a>(
@@ -190,15 +198,17 @@ where
                     file.name.clone(),
                     config.clone(),
                     comments.clone(),
-                    opts.app_dir.clone()
+                    opts.app_dir.clone(),
+                    opts.bundle_target.clone()
                 )),
             _ => Either::Right(noop()),
         },
-        if opts.styled_jsx {
+        if let Some(config) = opts.styled_jsx {
             Either::Left(
                 turbopack_binding::swc::custom_transform::styled_jsx::visitor::styled_jsx(
                     cm.clone(),
                     file.name.clone(),
+                    config,
                 ),
             )
         } else {
@@ -259,6 +269,10 @@ where
         },
         match &opts.optimize_barrel_exports {
             Some(config) => Either::Left(optimize_barrel::optimize_barrel(config.clone())),
+            _ => Either::Right(noop()),
+        },
+        match &opts.optimize_server_react {
+            Some(config) => Either::Left(optimize_server_react::optimize_server_react(config.clone())),
             _ => Either::Right(noop()),
         },
         opts.emotion
