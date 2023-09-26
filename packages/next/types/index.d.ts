@@ -42,7 +42,7 @@ export type {
 
 /**
  * Stub route type for typedRoutes before `next dev` or `next build` is run
- * @link https://beta.nextjs.org/docs/configuring/typescript#statically-typed-links
+ * @link https://nextjs.org/docs/app/building-your-application/configuring/typescript#statically-typed-links
  * @example
  * ```ts
  * import type { Route } from 'next'

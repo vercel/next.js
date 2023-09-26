@@ -42,6 +42,7 @@ const supportedTurbopackNextConfigOptions = [
   'devIndicators',
   'onDemandEntries',
   'excludeDefaultMomentLocales',
+  'experimental.clientRouterFilterRedirects',
   'experimental.cpus',
   'experimental.proxyTimeout',
   'experimental.isrFlushToDisk',
@@ -49,6 +50,7 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.caseSensitiveRoutes',
   'experimental.optimizePackageImports',
   'experimental.optimizeServerReact',
+  'experimental.webpackBuildWorker',
 ]
 
 // The following will need to be supported by `next build --turbo`
