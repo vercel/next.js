@@ -12,6 +12,7 @@ import { IncrementalCache } from '../lib/incremental-cache'
 import { RouteMatcher } from '../future/route-matchers/route-matcher'
 import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
+import { NextFetchEvent } from './spec-extension/fetch-event'
 
 type WrapOptions = Partial<Pick<AdapterOptions, 'page'>>
 
@@ -62,7 +63,10 @@ export class EdgeRouteModuleWrapper {
     }
   }
 
-  private async handler(request: NextRequest): Promise<Response> {
+  private async handler(
+    request: NextRequest,
+    evt: NextFetchEvent
+  ): Promise<Response> {
     // Get the pathname for the matcher. Pathnames should not have trailing
     // slashes for matching.
     let pathname = removeTrailingSlash(new URL(request.url).pathname)
@@ -108,6 +112,11 @@ export class EdgeRouteModuleWrapper {
     }
 
     // Get the response from the handler.
-    return await this.routeModule.handle(request, context)
+    const res = await this.routeModule.handle(request, context)
+
+    if (context.staticGenerationContext.waitUntil) {
+      evt.waitUntil(context.staticGenerationContext.waitUntil)
+    }
+    return res
   }
 }

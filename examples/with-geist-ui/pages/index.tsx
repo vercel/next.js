@@ -19,7 +19,7 @@ export default function Home() {
   return (
     <div>
       <Head>
-        <title>Geist UI with NextJS</title>
+        <title>Geist UI with Next.js</title>
         <link rel="icon" href="/favicon.ico" />
       </Head>
       <Page dotBackdrop width="800px" padding={0}>

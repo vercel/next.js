@@ -1,6 +1,7 @@
 import { join } from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
+import { shouldRunTurboDevTest } from '../../lib/next-test-utils'
 
 describe('optimizePackageImports', () => {
   let next: NextInstance
@@ -27,7 +28,9 @@ describe('optimizePackageImports', () => {
         scripts: {
           setup: `cp -r ./node_modules_bak/* ./node_modules`,
           build: `yarn setup && next build`,
-          dev: `yarn setup && next dev`,
+          dev: `yarn setup && next ${
+            shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
+          }`,
           start: 'next start',
         },
       },
@@ -57,12 +60,12 @@ describe('optimizePackageImports', () => {
 
     const modules = [
       ...logs.matchAll(
-        /compiled client and server successfully in \d+(\.\d+)?(s| ms) \((\d+) modules\)/g
+        /Compiled (\/[\w-]+)*\s*in \d+(\.\d+)?(s|ms) \((\d+) modules\)/g
       ),
     ]
 
     expect(modules.length).toBeGreaterThanOrEqual(1)
-    for (const [, , , moduleCount] of modules) {
+    for (const [, , , , moduleCount] of modules) {
       // Ensure that the number of modules is less than 1000 - otherwise we're
       // importing the entire library.
       expect(parseInt(moduleCount)).toBeLessThan(1000)
@@ -82,12 +85,12 @@ describe('optimizePackageImports', () => {
 
     const modules = [
       ...logs.matchAll(
-        /compiled client and server successfully in \d+(\.\d+)?(s| ms) \((\d+) modules\)/g
+        /Compiled (\/[\w-]+)*\s*in \d+(\.\d+)?(s|ms) \((\d+) modules\)/g
       ),
     ]
 
     expect(modules.length).toBeGreaterThanOrEqual(1)
-    for (const [, , , moduleCount] of modules) {
+    for (const [, , , , moduleCount] of modules) {
       // Ensure that the number of modules is less than 1000 - otherwise we're
       // importing the entire library.
       expect(parseInt(moduleCount)).toBeLessThan(1000)

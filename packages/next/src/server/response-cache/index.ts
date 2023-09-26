@@ -20,7 +20,10 @@ export default class ResponseCache {
 
   constructor(minimalMode: boolean) {
     this.pendingResponses = new Map()
-    this.minimalMode = minimalMode
+    // this is a hack to avoid Webpack knowing this is equal to this.minimalMode
+    // because we replace this.minimalMode to true in production bundles.
+    const minimalModeKey = 'minimalMode'
+    this[minimalModeKey] = minimalMode
   }
 
   public get(

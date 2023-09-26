@@ -1,8 +1,8 @@
 import { findDOMNode, flushSync, unstable_batchedUpdates } from 'react-dom'
 
 import {
-  experimental_useOptimistic as useOptimistic,
   experimental_useFormStatus,
+  experimental_useFormState,
 } from 'react-dom'
 
 export default function () {

@@ -28,11 +28,16 @@ pub fn get_next_image_rule() -> ModuleRule {
             ModuleRuleCondition::ResourcePathEndsWith(".jpg".to_string()),
             ModuleRuleCondition::ResourcePathEndsWith(".jpeg".to_string()),
             ModuleRuleCondition::ResourcePathEndsWith(".png".to_string()),
-            ModuleRuleCondition::ResourcePathEndsWith(".webp".to_string()),
-            ModuleRuleCondition::ResourcePathEndsWith(".avif".to_string()),
             ModuleRuleCondition::ResourcePathEndsWith(".apng".to_string()),
             ModuleRuleCondition::ResourcePathEndsWith(".gif".to_string()),
             ModuleRuleCondition::ResourcePathEndsWith(".svg".to_string()),
+            ModuleRuleCondition::ResourcePathEndsWith(".bmp".to_string()),
+            ModuleRuleCondition::ResourcePathEndsWith(".ico".to_string()),
+            // These images may not be encoded by turbopack depends on the feature availability
+            // As turbopack-image returns raw bytes if compile time codec support is not enabled:
+            // ref:https://github.com/vercel/turbo/pull/5967
+            ModuleRuleCondition::ResourcePathEndsWith(".webp".to_string()),
+            ModuleRuleCondition::ResourcePathEndsWith(".avif".to_string()),
         ]),
         vec![ModuleRuleEffect::ModuleType(ModuleType::Custom(
             Vc::upcast(StructuredImageModuleType::new(Value::new(
