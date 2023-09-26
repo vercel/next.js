@@ -1197,7 +1197,6 @@
       "ReactRefreshRequire can continue hot updates after module-level errors with module.exports",
       "ReactRefreshRequire can replace a module before it is loaded",
       "ReactRefreshRequire does not accumulate stale exports over time",
-      "ReactRefreshRequire propagates hot update to all inverse dependencies",
       "ReactRefreshRequire provides fresh value for ES6 default import in parents",
       "ReactRefreshRequire provides fresh value for ES6 named import in parents",
       "ReactRefreshRequire provides fresh value for exports.* in parents",
@@ -1211,6 +1210,7 @@
     "pending": [],
     "flakey": [
       "ReactRefreshRequire propagates a hot update to closest accepted module",
+      "ReactRefreshRequire propagates hot update to all inverse dependencies",
       "ReactRefreshRequire re-runs accepted modules"
     ],
     "runtimeError": false

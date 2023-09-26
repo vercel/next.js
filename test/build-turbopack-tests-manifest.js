@@ -34,6 +34,7 @@ const SKIPPED_TEST_SUITES = {
   'test/development/acceptance/ReactRefreshRequire.test.ts': [
     'ReactRefreshRequire re-runs accepted modules',
     'ReactRefreshRequire propagates a hot update to closest accepted module',
+    'ReactRefreshRequire propagates hot update to all inverse dependencies',
   ],
   'test/e2e/middleware-rewrites/test/index.test.ts': [
     'Middleware Rewrite should have props for afterFiles rewrite to SSG page',
