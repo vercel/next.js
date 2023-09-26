@@ -2,10 +2,11 @@
 import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
 import { check } from 'next-test-utils'
+import { NextInstance } from 'e2e-utils'
 
 // These tests are similar to ../../basic/test/dynamic.js
-export default (context, render) => {
-  async function get$(path, query) {
+export default (next: NextInstance, render) => {
+  async function get$(path: string, query?: any) {
     const html = await render(path, query)
     return cheerio.load(html)
   }
@@ -43,12 +44,13 @@ export default (context, render) => {
       it('should not remove css styles for same css file between page transitions', async () => {
         let browser
         try {
-          browser = await webdriver(context.appPort, '/dynamic/pagechange1')
+          browser = await webdriver(next.appPort, '/dynamic/pagechange1')
           await check(() => browser.elementByCss('body').text(), /PageChange1/)
           const firstElement = await browser.elementById('with-css')
           const css1 = await firstElement.getComputedCss('display')
           expect(css1).toBe('flex')
           await browser.eval(function () {
+            // @ts-expect-error window.next exists
             window.next.router.push('/dynamic/pagechange2')
           })
           await check(() => browser.elementByCss('body').text(), /PageChange2/)
@@ -78,7 +80,7 @@ export default (context, render) => {
       it('should render even there are no physical chunk exists', async () => {
         let browser
         try {
-          browser = await webdriver(context.appPort, '/dynamic/no-chunk')
+          browser = await webdriver(next.appPort, '/dynamic/no-chunk')
           await check(
             () => browser.elementByCss('body').text(),
             /Welcome, normal/
@@ -103,7 +105,7 @@ export default (context, render) => {
       it('should render the component on client side', async () => {
         let browser
         try {
-          browser = await webdriver(context.appPort, '/dynamic/no-ssr')
+          browser = await webdriver(next.appPort, '/dynamic/no-ssr')
           await check(
             () => browser.elementByCss('body').text(),
             /Hello World 1/
@@ -125,7 +127,7 @@ export default (context, render) => {
       it('should render the component on client side', async () => {
         let browser
         try {
-          browser = await webdriver(context.appPort, '/dynamic/ssr-true')
+          browser = await webdriver(next.appPort, '/dynamic/ssr-true')
           await check(
             () => browser.elementByCss('body').text(),
             /Hello World 1/
@@ -148,7 +150,7 @@ export default (context, render) => {
         let browser
         try {
           browser = await webdriver(
-            context.appPort,
+            next.appPort,
             '/dynamic/no-ssr-custom-loading'
           )
           await check(

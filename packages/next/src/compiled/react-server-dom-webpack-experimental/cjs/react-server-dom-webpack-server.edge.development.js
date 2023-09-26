@@ -1661,7 +1661,8 @@ function serializeThenable(request, thenable) {
     newTask.model = value;
     pingTask(request, newTask);
   }, function (reason) {
-    newTask.status = ERRORED$1; // TODO: We should ideally do this inside performWork so it's scheduled
+    newTask.status = ERRORED$1;
+    request.abortableTasks.delete(newTask); // TODO: We should ideally do this inside performWork so it's scheduled
 
     var digest = logRecoverableError(request, reason);
     emitErrorChunk(request, newTask.id, digest, reason);
@@ -2757,6 +2758,9 @@ function startFlowing(request, destination) {
     logRecoverableError(request, error);
     fatalError(request, error);
   }
+}
+function stopFlowing(request) {
+  request.destination = null;
 } // This is called to early terminate a request. It creates an error at all pending tasks.
 
 function abort(request, reason) {
@@ -3522,7 +3526,10 @@ function renderToReadableStream(model, webpackMap, options) {
     pull: function (controller) {
       startFlowing(request, controller);
     },
-    cancel: function (reason) {}
+    cancel: function (reason) {
+      stopFlowing(request);
+      abort(request, reason);
+    }
   }, // $FlowFixMe[prop-missing] size() methods are not allowed on byte streams.
   {
     highWaterMark: 0
