@@ -510,8 +510,16 @@ export class FlightClientEntryPlugin {
         // We have to always use the resolved request here to make sure the
         // server and client are using the same module path (required by RSC), as
         // the server compiler and client compiler have different resolve configs.
-        const modRequest: string | undefined =
+        let modRequest: string | undefined =
           mod.resourceResolveData?.path + mod.resourceResolveData?.query
+
+        // For the barrel optimization, we need to use the match resource instead
+        // because there will be 2 modules for the same file (same resource path)
+        // but they're different modules and can't be deduped via `visitedModule`.
+        // The first module is a virtual re-export module created by the loader.
+        if (mod.matchResource?.startsWith('__barrel_optimize__')) {
+          modRequest = mod.matchResource
+        }
 
         if (!modRequest || visitedModule.has(modRequest)) return
         visitedModule.add(modRequest)
