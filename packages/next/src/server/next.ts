@@ -4,10 +4,7 @@ import type { UrlWithParsedQuery } from 'url'
 import type { NextConfigComplete } from './config-shared'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextUrlWithParsedQuery } from './request-meta'
-import {
-  WorkerRequestHandler,
-  WorkerUpgradeHandler,
-} from './lib/setup-server-worker'
+import type { WorkerRequestHandler, WorkerUpgradeHandler } from './lib/types'
 
 import './require-hook'
 import './node-polyfill-fetch'
@@ -173,7 +170,7 @@ export class NextServer {
         resolve(this.options.dir || '.'),
         {
           customConfig: this.options.conf,
-          silent: !!this.options._renderWorker,
+          silent: true,
         }
       )
     )
