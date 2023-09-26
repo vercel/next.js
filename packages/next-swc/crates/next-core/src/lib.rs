@@ -37,7 +37,6 @@ mod next_shared;
 pub mod next_telemetry;
 mod page_loader;
 pub mod pages_structure;
-mod runtime;
 mod sass;
 pub mod tracing_presets;
 mod transform_options;
