@@ -86,11 +86,12 @@ async function webpackBuildWithWorker() {
     combinedResult.duration += curResult.duration
 
     if (curResult.buildTraceContext) {
-      combinedResult.buildTraceContext = curResult.buildTraceContext
-
       if (curResult.buildTraceContext?.entriesTrace) {
-        const { entryNameMap } = combinedResult.buildTraceContext.entriesTrace!
+        const { entryNameMap } = curResult.buildTraceContext.entriesTrace!
         if (entryNameMap) {
+          if (!combinedResult.buildTraceContext.entriesTrace) {
+            combinedResult.buildTraceContext.entriesTrace = {} as any
+          }
           combinedResult.buildTraceContext.entriesTrace!.entryNameMap = new Map(
             entryNameMap
           )
@@ -98,11 +99,20 @@ async function webpackBuildWithWorker() {
       }
 
       if (curResult.buildTraceContext?.chunksTrace) {
-        const { entryNameFilesMap } =
-          combinedResult.buildTraceContext.chunksTrace!
+        const { entryNameFilesMap, action } =
+          curResult.buildTraceContext.chunksTrace!
+
+        if (!combinedResult.buildTraceContext.chunksTrace) {
+          combinedResult.buildTraceContext.chunksTrace = {} as any
+        }
+
         if (entryNameFilesMap) {
           combinedResult.buildTraceContext.chunksTrace!.entryNameFilesMap =
             new Map(entryNameFilesMap)
+        }
+
+        if (action) {
+          combinedResult.buildTraceContext.chunksTrace!.action = action
         }
       }
     }
