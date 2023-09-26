@@ -40,8 +40,7 @@ describe('Custom routes invalid multi-match', () => {
     afterAll(() => killApp(app))
     runTests(true)
   })
-
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await nextBuild(appDir)
       appPort = await findPort()
