@@ -2713,57 +2713,6 @@ export default async function build(
         return Promise.reject(err)
       })
 
-      if (config.output === 'standalone') {
-        for (const file of [
-          ...requiredServerFiles.files,
-          path.join(config.distDir, SERVER_FILES_MANIFEST),
-          ...loadedEnvFiles.reduce<string[]>((acc, envFile) => {
-            if (['.env', '.env.production'].includes(envFile.path)) {
-              acc.push(envFile.path)
-            }
-            return acc
-          }, []),
-        ]) {
-          const filePath = path.join(dir, file)
-          const outputPath = path.join(
-            distDir,
-            'standalone',
-            path.relative(outputFileTracingRoot, filePath)
-          )
-          await fs.mkdir(path.dirname(outputPath), {
-            recursive: true,
-          })
-          await fs.copyFile(filePath, outputPath)
-        }
-        await recursiveCopy(
-          path.join(distDir, SERVER_DIRECTORY, 'pages'),
-          path.join(
-            distDir,
-            'standalone',
-            path.relative(outputFileTracingRoot, distDir),
-            SERVER_DIRECTORY,
-            'pages'
-          ),
-          { overwrite: true }
-        )
-        if (appDir) {
-          const originalServerApp = path.join(distDir, SERVER_DIRECTORY, 'app')
-          if (fsExistsSync(originalServerApp)) {
-            await recursiveCopy(
-              originalServerApp,
-              path.join(
-                distDir,
-                'standalone',
-                path.relative(outputFileTracingRoot, distDir),
-                SERVER_DIRECTORY,
-                'app'
-              ),
-              { overwrite: true }
-            )
-          }
-        }
-      }
-
       await nextBuildSpan.traceChild('print-tree-view').traceAsyncFn(() =>
         printTreeView(pageKeys, pageInfos, {
           distPath: distDir,
@@ -2867,6 +2816,61 @@ export default async function build(
               hasInstrumentationHook,
               staticPages
             )
+
+            if (config.output === 'standalone') {
+              for (const file of [
+                ...requiredServerFiles.files,
+                path.join(config.distDir, SERVER_FILES_MANIFEST),
+                ...loadedEnvFiles.reduce<string[]>((acc, envFile) => {
+                  if (['.env', '.env.production'].includes(envFile.path)) {
+                    acc.push(envFile.path)
+                  }
+                  return acc
+                }, []),
+              ]) {
+                const filePath = path.join(dir, file)
+                const outputPath = path.join(
+                  distDir,
+                  'standalone',
+                  path.relative(outputFileTracingRoot, filePath)
+                )
+                await fs.mkdir(path.dirname(outputPath), {
+                  recursive: true,
+                })
+                await fs.copyFile(filePath, outputPath)
+              }
+              await recursiveCopy(
+                path.join(distDir, SERVER_DIRECTORY, 'pages'),
+                path.join(
+                  distDir,
+                  'standalone',
+                  path.relative(outputFileTracingRoot, distDir),
+                  SERVER_DIRECTORY,
+                  'pages'
+                ),
+                { overwrite: true }
+              )
+              if (appDir) {
+                const originalServerApp = path.join(
+                  distDir,
+                  SERVER_DIRECTORY,
+                  'app'
+                )
+                if (fsExistsSync(originalServerApp)) {
+                  await recursiveCopy(
+                    originalServerApp,
+                    path.join(
+                      distDir,
+                      'standalone',
+                      path.relative(outputFileTracingRoot, distDir),
+                      SERVER_DIRECTORY,
+                      'app'
+                    ),
+                    { overwrite: true }
+                  )
+                }
+              }
+            }
           })
       }
 
