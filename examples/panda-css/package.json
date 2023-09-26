@@ -1,6 +1,4 @@
 {
-  "name": "panda-css",
-  "version": "0.1.0",
   "private": true,
   "scripts": {
     "prepare": "npm run codegen",
