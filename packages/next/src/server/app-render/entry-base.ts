@@ -2,6 +2,7 @@ const {
   renderToReadableStream,
   decodeReply,
   decodeAction,
+  decodeFormState,
   // eslint-disable-next-line import/no-extraneous-dependencies
 } = require('react-server-dom-webpack/server.edge')
 
@@ -38,6 +39,7 @@ export {
   renderToReadableStream,
   decodeReply,
   decodeAction,
+  decodeFormState,
   preloadStyle,
   preloadFont,
   preconnect,
