@@ -246,6 +246,7 @@ async function run(): Promise<void> {
       typescript: true,
       eslint: true,
       tailwind: true,
+      app: true,
       srcDir: false,
       importAlias: '@/*',
       customizeImportAlias: false,
