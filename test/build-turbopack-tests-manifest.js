@@ -20,17 +20,23 @@ const INITIALIZING_TEST_CASES = [
   'should build successfully',
 ]
 
-const SKIPPED_TEST_SUITES = new Set([
-  'test/integration/router-rerender/test/index.test.js',
-  'test/e2e/basepath.test.ts',
-  'test/development/acceptance-app/ReactRefreshRequire.test.ts',
-  'test/integration/dynamic-routing/test/middleware.test.js',
-  'test/integration/css/test/css-modules.test.js',
-  'test/development/acceptance/ReactRefreshRequire.test.ts',
-  'test/integration/custom-routes/test/index.test.js',
-  'test/integration/absolute-assetprefix/test/index.test.js',
-  'test/e2e/middleware-rewrites/test/index.test.ts',
-])
+const SKIPPED_TEST_SUITES = {
+  'test/integration/router-rerender/test/index.test.js': [],
+  'test/e2e/basepath.test.ts': [],
+  'test/development/acceptance-app/ReactRefreshRequire.test.ts': [],
+  'test/integration/dynamic-routing/test/middleware.test.js': [],
+  'test/integration/css/test/css-modules.test.js': [],
+  'test/development/acceptance/ReactRefreshRequire.test.ts': [],
+  'test/integration/custom-routes/test/index.test.js': [],
+  'test/integration/absolute-assetprefix/test/index.test.js': [],
+  'test/e2e/middleware-rewrites/test/index.test.ts': [],
+  'test/integration/dynamic-routing/test/index.test.js': [
+    'Dynamic Routing production mode should have correct cache entries on prefetch',
+  ],
+  'test/development/acceptance-app/ReactRefreshLogBox-builtins.test.ts': [
+    'ReactRefreshLogBox app turbo Module not found missing global CSS',
+  ],
+}
 
 async function updatePassingTests() {
   const passing = { __proto__: null }
@@ -42,17 +48,19 @@ async function updatePassingTests() {
     for (const testResult of result.data.testResults) {
       const filepath = stripWorkingPath(testResult.name)
 
-      if (SKIPPED_TEST_SUITES.has(filepath)) continue
       const fileResults = (passing[filepath] ??= {
         passed: [],
         failed: [],
         pending: [],
+        flakey: [],
         runtimeError,
       })
+      const skips = SKIPPED_TEST_SUITES[filepath] ?? []
 
       let initializationFailed = false
       for (const testCase of testResult.assertionResults) {
         let { fullName, status } = testCase
+
         if (
           status === 'failed' &&
           INITIALIZING_TEST_CASES.some((name) => fullName.includes(name))
@@ -61,6 +69,10 @@ async function updatePassingTests() {
         } else if (initializationFailed) {
           status = 'failed'
         }
+        if (shouldSkip(fullName, skips)) {
+          status = 'flakey'
+        }
+
         const statusArray = fileResults[status]
         if (!statusArray) {
           throw new Error(`unexpected status "${status}"`)
@@ -87,11 +99,9 @@ async function updatePassingTests() {
       const newData = passing[file]
       const oldData = oldPassingData[file]
       if (!newData) continue
-      // We only want to keep test cases from the old data that are still exiting
-      oldData.passed = oldData.passed.filter(
-        (name) => newData.failed.includes(name) || newData.passed.includes(name)
-      )
-      // Grab test cases that passed before, but fail now
+
+      // We want to find old passing tests that are now failing, and report them.
+      // Tests are allowed transition to skipped or flakey.
       const shouldPass = new Set(
         oldData.passed.filter((name) => newData.failed.includes(name))
       )
@@ -102,9 +112,7 @@ async function updatePassingTests() {
         )
       }
       // Merge the old passing tests with the new ones
-      newData.passed = [
-        ...new Set([...oldData.passed, ...newData.passed]),
-      ].sort()
+      newData.passed = [...new Set([...shouldPass, ...newData.passed])].sort()
       // but remove them also from the failed list
       newData.failed = newData.failed
         .filter((name) => !shouldPass.has(name))
@@ -125,6 +133,19 @@ async function updatePassingTests() {
     PASSING_JSON_PATH,
     await format(JSON.stringify(ordered, null, 2))
   )
+}
+
+function shouldSkip(name, skips) {
+  for (const skip of skips) {
+    if (typeof skip === 'string') {
+      // exact match
+      if (name === skip) return true
+    } else {
+      // regex
+      if (skip.test(name)) return true
+    }
+  }
+  return false
 }
 
 function stripWorkingPath(path) {
