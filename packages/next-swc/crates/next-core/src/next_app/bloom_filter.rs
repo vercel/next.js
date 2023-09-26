@@ -160,17 +160,11 @@ impl BloomFilter {
         hash_values.iter().for_each(|&hash| {
             self.bit_array[hash] = 1;
         });
-
-        // let hashes = murmurhash2(item) as usize;
-        // self.bit_array.set(hashes % self.num_bits, true);
     }
 
     pub fn contains(&self, item: &str) -> bool {
         let hash_values = self.get_hash_values(item);
         hash_values.iter().all(|&hash| self.bit_array[hash] == 1)
-
-        // let hashes = murmurhash2(item) as usize;
-        // self.bit_array[hashes % self.num_bits]
     }
 
     fn get_hash_values(&self, item: &str) -> Vec<usize> {
