@@ -486,9 +486,9 @@ enum PageEndpointType {
     SsrOnly,
 }
 
-#[turbo_tasks::value_impl]
 impl PageEndpoint {
-    #[turbo_tasks::function]
+    // Not a turbo_tasks::function because we want to avoid creating multiple
+    // PageEndpoints. It should only modify the one PageEndpoint per page.
     fn new(
         ty: PageEndpointType,
         pages_project: Vc<PagesProject>,
@@ -505,7 +505,10 @@ impl PageEndpoint {
         }
         .cell()
     }
+}
 
+#[turbo_tasks::value_impl]
+impl PageEndpoint {
     #[turbo_tasks::function]
     async fn source(self: Vc<Self>) -> Result<Vc<Box<dyn Source>>> {
         let this = self.await?;

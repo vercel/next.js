@@ -26,7 +26,6 @@ pub struct OutputAssetsOperation(Vc<OutputAssets>);
     Clone, Copy, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Serialize, Deserialize, Debug,
 )]
 struct MapEntry {
-    content: Vc<Box<dyn VersionedContent>>,
     assets_operation: Vc<OutputAssets>,
 }
 
@@ -69,15 +68,9 @@ impl VersionedContentMap {
         let entries: Vec<_> = assets
             .iter()
             .map(|&asset| async move {
-                // NOTE(alexkirsz) `.versioned_content()` should not be resolved, to ensure that
-                // it always points to the task that computes the versioned
-                // content.
                 Ok((
                     asset.ident().path().resolve().await?,
-                    MapEntry {
-                        content: asset.versioned_content(),
-                        assets_operation,
-                    },
+                    MapEntry { assets_operation },
                 ))
             })
             .try_join()
@@ -142,17 +135,17 @@ impl VersionedContentMap {
         path: Vc<FileSystemPath>,
     ) -> Result<(Vc<Box<dyn VersionedContent>>, Vc<OutputAssets>)> {
         let result = self.raw_get(path).await?;
-        let Some(MapEntry {
-            content,
-            assets_operation,
-        }) = *result
-        else {
-            let path = path.to_string().await?;
-            bail!("could not find versioned content for path {}", path);
-        };
-        // NOTE(alexkirsz) This is necessary to mark the task as active again.
-        Vc::connect(assets_operation);
-        Vc::connect(content);
-        Ok((content, assets_operation))
+        if let Some(MapEntry { assets_operation }) = *result {
+            // NOTE(alexkirsz) This is necessary to mark the task as active again.
+            Vc::connect(assets_operation);
+            for asset in assets_operation.await?.iter() {
+                if asset.ident().path().resolve().await? == path {
+                    let content = asset.versioned_content();
+                    return Ok((content, assets_operation));
+                }
+            }
+        }
+        let path = path.to_string().await?;
+        bail!("could not find versioned content for path {}", path);
     }
 }
