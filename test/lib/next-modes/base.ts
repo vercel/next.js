@@ -435,11 +435,9 @@ export class NextInstance {
     return fs.readJSON(path.join(this.testDir, filename))
   }
   private async handleDevWatchDelayBeforeChange(filename: string) {
-    // to help alleviate flakiness with tests that create
-    // dynamic routes // and then request it we give a buffer
-    // of 500ms to allow WatchPack to detect the changed files
-    // TODO: replace this with an event directly from WatchPack inside
-    // router-server for better accuracy
+    // This is a temporary workaround for turbopack starting watching too late.
+    // So we delay file changes by 500ms to give it some time
+    // to connect the WebSocket and start watching.
     if (process.env.TURBOPACK) {
       require('console').log('fs dev delay before', filename)
       await new Promise((resolve) => setTimeout(resolve, 500))
