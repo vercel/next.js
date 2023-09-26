@@ -7,7 +7,6 @@ import {
 } from './has-necessary-dependencies'
 import semver from 'next/dist/compiled/semver'
 import { CompileError } from './compile-error'
-import { FatalError } from './fatal-error'
 import * as log from '../build/output/log'
 
 import { getTypeScriptIntent } from './typescript/getTypeScriptIntent'
@@ -16,7 +15,6 @@ import { writeAppTypeDeclarations } from './typescript/writeAppTypeDeclarations'
 import { writeConfigurationDefaults } from './typescript/writeConfigurationDefaults'
 import { installDependencies } from './install-dependencies'
 import { isCI } from '../telemetry/ci-info'
-import isError from './is-error'
 import { missingDepsError } from './typescript/missingDependencyError'
 
 const requiredPackages = [
