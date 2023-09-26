@@ -52,6 +52,10 @@ const devInstances: Record<
   UnwrapPromise<ReturnType<typeof import('./router-utils/setup-dev').setupDev>>
 > = {}
 
+export interface LazyRenderServerInstance {
+  instance?: RenderServer
+}
+
 const requestHandlers: Record<string, WorkerRequestHandler> = {}
 
 export async function initialize(opts: {
@@ -93,7 +97,7 @@ export async function initialize(opts: {
     minimalMode: opts.minimalMode,
   })
 
-  let renderServer: RenderServer | undefined
+  const renderServer: LazyRenderServerInstance = {}
 
   let devInstance:
     | UnwrapPromise<
@@ -193,7 +197,8 @@ export async function initialize(opts: {
     } as any
   }
 
-  renderServer = require('./render-server') as typeof import('./render-server')
+  renderServer.instance =
+    require('./render-server') as typeof import('./render-server')
 
   const renderServerOpts: Parameters<RenderServer['initialize']>[0] = {
     port: opts.port,
@@ -209,7 +214,7 @@ export async function initialize(opts: {
   }
 
   // pre-initialize workers
-  const handlers = await renderServer.initialize(renderServerOpts)
+  const handlers = await renderServer.instance.initialize(renderServerOpts)
 
   const logError = async (
     type: 'uncaughtException' | 'unhandledRejection',
@@ -225,7 +230,7 @@ export async function initialize(opts: {
     fsChecker,
     config,
     opts,
-    renderServer,
+    renderServer.instance,
     renderServerOpts,
     devInstance?.ensureMiddleware
   )
@@ -291,7 +296,9 @@ export async function initialize(opts: {
       debug('invokeRender', req.url, invokeHeaders)
 
       try {
-        const initResult = await renderServer?.initialize(renderServerOpts)
+        const initResult = await renderServer?.instance?.initialize(
+          renderServerOpts
+        )
         try {
           await initResult?.requestHandler(req, res)
         } catch (err) {

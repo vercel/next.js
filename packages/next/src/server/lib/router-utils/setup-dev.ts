@@ -93,7 +93,7 @@ import { srcEmptySsgManifest } from '../../../build/webpack/plugins/build-manife
 import { PropagateToWorkersField } from './types'
 import { MiddlewareManifest } from '../../../build/webpack/plugins/middleware-plugin'
 import { devPageFiles } from '../../../build/webpack/plugins/next-types-plugin/shared'
-import type { RenderServer } from '../router-server'
+import type { LazyRenderServerInstance } from '../router-server'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import {
   HMR_ACTIONS_SENT_TO_BROWSER,
@@ -113,7 +113,7 @@ import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route
 const wsServer = new ws.Server({ noServer: true })
 
 type SetupOpts = {
-  renderServer?: RenderServer
+  renderServer: LazyRenderServerInstance
   dir: string
   turbo?: boolean
   appDir?: string
@@ -161,8 +161,15 @@ async function startWatcher(opts: SetupOpts) {
     appDir
   )
 
-  async function propagateToWorkers(field: PropagateToWorkersField, args: any) {
-    await opts.renderServer?.propagateServerField(opts.dir, field, args)
+  async function propagateServerField(
+    field: PropagateToWorkersField,
+    args: any
+  ) {
+    await opts.renderServer?.instance?.propagateServerField(
+      opts.dir,
+      field,
+      args
+    )
   }
 
   const serverFields: {
@@ -605,11 +612,11 @@ async function startWatcher(opts: SetupOpts) {
             serverFields.middleware = undefined
             prevMiddleware = false
           }
-          await propagateToWorkers(
+          await propagateServerField(
             'actualMiddlewareFile',
             serverFields.actualMiddlewareFile
           )
-          await propagateToWorkers('middleware', serverFields.middleware)
+          await propagateServerField('middleware', serverFields.middleware)
 
           currentEntriesHandlingResolve!()
           currentEntriesHandlingResolve = undefined
@@ -1479,7 +1486,7 @@ async function startWatcher(opts: SetupOpts) {
             continue
           }
           serverFields.actualMiddlewareFile = rootFile
-          await propagateToWorkers(
+          await propagateServerField(
             'actualMiddlewareFile',
             serverFields.actualMiddlewareFile
           )
@@ -1494,7 +1501,7 @@ async function startWatcher(opts: SetupOpts) {
         ) {
           NextBuildContext.hasInstrumentationHook = true
           serverFields.actualInstrumentationHookFile = rootFile
-          await propagateToWorkers(
+          await propagateServerField(
             'actualInstrumentationHookFile',
             serverFields.actualInstrumentationHookFile
           )
@@ -1607,7 +1614,7 @@ async function startWatcher(opts: SetupOpts) {
           hotReloader.setHmrServerError(new Error(errorMessage))
         } else if (numConflicting === 0) {
           hotReloader.clearHmrServerError()
-          await propagateToWorkers('reloadMatchers', undefined)
+          await propagateServerField('reloadMatchers', undefined)
         }
       }
 
@@ -1651,7 +1658,7 @@ async function startWatcher(opts: SetupOpts) {
           loadEnvConfig(dir, true, Log, true, (envFilePath) => {
             Log.info(`Reload env: ${envFilePath}`)
           })
-          await propagateToWorkers('loadEnvConfig', [
+          await propagateServerField('loadEnvConfig', [
             { dev: true, forceReload: true, silent: true },
           ])
         }
@@ -1764,7 +1771,7 @@ async function startWatcher(opts: SetupOpts) {
       serverFields.appPathRoutes = Object.fromEntries(
         Object.entries(appPaths).map(([k, v]) => [k, v.sort()])
       )
-      await propagateToWorkers('appPathRoutes', serverFields.appPathRoutes)
+      await propagateServerField('appPathRoutes', serverFields.appPathRoutes)
 
       // TODO: pass this to fsChecker/next-dev-server?
       serverFields.middleware = middlewareMatchers
@@ -1775,7 +1782,7 @@ async function startWatcher(opts: SetupOpts) {
           }
         : undefined
 
-      await propagateToWorkers('middleware', serverFields.middleware)
+      await propagateServerField('middleware', serverFields.middleware)
       serverFields.hasAppNotFound = hasRootAppNotFound
 
       opts.fsChecker.middlewareMatcher = serverFields.middleware?.matchers
@@ -1912,7 +1919,7 @@ async function startWatcher(opts: SetupOpts) {
       } finally {
         // Reload the matchers. The filesystem would have been written to,
         // and the matchers need to re-scan it to update the router.
-        await propagateToWorkers('reloadMatchers', undefined)
+        await propagateServerField('reloadMatchers', undefined)
       }
     })
 
