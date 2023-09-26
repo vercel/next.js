@@ -63,6 +63,8 @@ export const GSSP_COMPONENT_MEMBER_ERROR = `can not be attached to a page's comp
 
 export const NON_STANDARD_NODE_ENV = `You are using a non-standard "NODE_ENV" value in your environment. This creates inconsistencies in the project and is strongly advised against. Read more: https://nextjs.org/docs/messages/non-standard-node-env`
 
+export const BUILDING_APP_IN_DEVELOPMENT = `You are trying to build your app in "development" mode, which is not supported. You must be sure that "NODE_ENV" is set to "production" for production builds.`
+
 export const SSG_FALLBACK_EXPORT_ERROR = `Pages with \`fallback\` enabled in \`getStaticPaths\` can not be exported. See more info here: https://nextjs.org/docs/messages/ssg-fallback-true-export`
 
 export const ESLINT_DEFAULT_DIRS = ['app', 'pages', 'components', 'lib', 'src']

@@ -1,11 +1,14 @@
 #!/usr/bin/env node
-import '../server/require-hook'
-import * as log from '../build/output/log'
 import arg from 'next/dist/compiled/arg/index.js'
-import { NON_STANDARD_NODE_ENV } from '../lib/constants'
-import { commands } from '../lib/commands'
+import * as log from '../build/output/log'
 import { commandArgs } from '../lib/command-args'
+import { commands } from '../lib/commands'
+import {
+  BUILDING_APP_IN_DEVELOPMENT,
+  NON_STANDARD_NODE_ENV,
+} from '../lib/constants'
 import { getValidatedArgs } from '../lib/get-validated-args'
+import '../server/require-hook'
 
 const defaultCommand = 'dev'
 const args = arg(
@@ -87,6 +90,11 @@ if (process.env.NODE_ENV) {
 
   if (isNotStandard || shouldWarnCommands.includes(command)) {
     log.warn(NON_STANDARD_NODE_ENV)
+
+    if (command === 'build' && shouldWarnCommands) {
+      log.error(BUILDING_APP_IN_DEVELOPMENT)
+      process.exit(1)
+    }
   }
 }
 
