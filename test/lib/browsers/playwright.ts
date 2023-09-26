@@ -57,6 +57,7 @@ export class Playwright extends BrowserInterface {
     browserName: string,
     locale: string,
     javaScriptEnabled: boolean,
+    ignoreHTTPSErrors: boolean,
     headless: boolean
   ) {
     let device
@@ -78,6 +79,7 @@ export class Playwright extends BrowserInterface {
         context = await browser.newContext({
           locale,
           javaScriptEnabled,
+          ignoreHTTPSErrors,
           ...device,
         })
         contextHasJSEnabled = javaScriptEnabled
@@ -86,7 +88,12 @@ export class Playwright extends BrowserInterface {
     }
 
     browser = await this.launchBrowser(browserName, { headless })
-    context = await browser.newContext({ locale, javaScriptEnabled, ...device })
+    context = await browser.newContext({
+      locale,
+      javaScriptEnabled,
+      ignoreHTTPSErrors,
+      ...device,
+    })
     contextHasJSEnabled = javaScriptEnabled
   }
 
@@ -191,11 +198,9 @@ export class Playwright extends BrowserInterface {
         websocketFrames.push({ payload: frame.payload })
 
         if (tracePlaywright) {
-          if (!frame.payload.includes('pong')) {
-            page
-              .evaluate(`console.log('received ws message ${frame.payload}')`)
-              .catch(() => {})
-          }
+          page
+            .evaluate(`console.log('received ws message ${frame.payload}')`)
+            .catch(() => {})
         }
       })
     })

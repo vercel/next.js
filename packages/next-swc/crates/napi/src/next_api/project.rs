@@ -37,8 +37,8 @@ use turbopack_binding::{
 use super::{
     endpoint::ExternalEndpoint,
     utils::{
-        get_diagnostics, get_issues, serde_enum_to_string, subscribe, NapiDiagnostic, NapiIssue,
-        RootTask, TurbopackResult, VcArc,
+        get_diagnostics, get_issues, subscribe, NapiDiagnostic, NapiIssue, RootTask,
+        TurbopackResult, VcArc,
     },
 };
 use crate::register;
@@ -58,6 +58,10 @@ pub struct NapiProjectOptions {
     /// A path inside the root_path which contains the app/pages directories.
     pub project_path: String,
 
+    /// next.config's distDir. Project initialization occurs eariler than
+    /// deserializing next.config, so passing it as separate option.
+    pub dist_dir: Option<String>,
+
     /// Whether to watch he filesystem for file changes.
     pub watch: bool,
 
@@ -69,6 +73,9 @@ pub struct NapiProjectOptions {
 
     /// A map of environment variables to use when compiling code.
     pub env: Vec<NapiEnvVar>,
+
+    /// The address of the dev server.
+    pub server_addr: String,
 }
 
 #[napi(object)]
@@ -90,6 +97,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
                 .into_iter()
                 .map(|NapiEnvVar { name, value }| (name, value))
                 .collect(),
+            server_addr: val.server_addr,
         }
     }
 }
@@ -131,8 +139,12 @@ pub async fn project_new(
         let subscriber = Registry::default();
 
         let subscriber = subscriber.with(EnvFilter::builder().parse(trace).unwrap());
+        let dist_dir = options
+            .dist_dir
+            .as_ref()
+            .map_or_else(|| ".next".to_string(), |d| d.to_string());
 
-        let internal_dir = PathBuf::from(&options.project_path).join(".next");
+        let internal_dir = PathBuf::from(&options.project_path).join(dist_dir);
         std::fs::create_dir_all(&internal_dir)
             .context("Unable to create .next directory")
             .unwrap();
@@ -265,9 +277,7 @@ impl NapiRoute {
 
 #[napi(object)]
 struct NapiMiddleware {
-    pub endpoint: External<VcArc<Vc<Box<dyn Endpoint>>>>,
-    pub runtime: String,
-    pub matcher: Option<Vec<String>>,
+    pub endpoint: External<ExternalEndpoint>,
 }
 
 impl NapiMiddleware {
@@ -276,9 +286,10 @@ impl NapiMiddleware {
         turbo_tasks: &Arc<TurboTasks<MemoryBackend>>,
     ) -> Result<Self> {
         Ok(NapiMiddleware {
-            endpoint: External::new(VcArc::new(turbo_tasks.clone(), value.endpoint)),
-            runtime: serde_enum_to_string(&value.config.runtime)?,
-            matcher: value.config.matcher.clone(),
+            endpoint: External::new(ExternalEndpoint(VcArc::new(
+                turbo_tasks.clone(),
+                value.endpoint,
+            ))),
         })
     }
 }

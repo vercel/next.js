@@ -3,13 +3,13 @@
 import startOperationStreamHandler from '../internal/operation-stream'
 
 import '../polyfill/app-polyfills.ts'
+import 'next/dist/server/require-hook'
 
 import type { IncomingMessage } from 'node:http'
 
 import type { RenderData } from 'types/turbopack'
 import type { RenderOpts } from 'next/dist/server/app-render/types'
 
-import { renderToHTMLOrFlight } from 'next/dist/server/app-render/app-render'
 import { RSC_VARY_HEADER } from 'next/dist/client/components/app-router-headers'
 import { headersFromEntries, initProxiedHeaders } from '../internal/headers'
 import { parse, ParsedUrlQuery } from 'node:querystring'
@@ -23,9 +23,11 @@ import { join } from 'node:path'
 import { nodeFs } from 'next/dist/server/lib/node-fs-methods'
 import { IncrementalCache } from 'next/dist/server/lib/incremental-cache'
 
-installRequireAndChunkLoad()
+const {
+  renderToHTMLOrFlight,
+} = require('next/dist/compiled/next-server/app-page.runtime.dev')
 
-process.env.__NEXT_NEW_LINK_BEHAVIOR = 'true'
+installRequireAndChunkLoad()
 
 const MIME_TEXT_HTML_UTF8 = 'text/html; charset=utf-8'
 
@@ -67,7 +69,7 @@ async function runOperation(renderData: RenderData) {
   const query = parse(renderData.rawQuery)
   const renderOpt: Omit<
     RenderOpts,
-    'App' | 'Document' | 'Component' | 'pathname'
+    'App' | 'Document' | 'Component' | 'page'
   > & {
     params: ParsedUrlQuery
   } = {

@@ -25,6 +25,7 @@ import { interopDefault } from '../lib/interop-default'
 import { getTracer } from './lib/trace/tracer'
 import { LoadComponentsSpan } from './lib/trace/constants'
 import { loadManifest } from './load-manifest'
+import { wait } from '../lib/wait'
 export type ManifestItem = {
   id: number | string
   files: string[]
@@ -48,39 +49,13 @@ export type LoadComponentsReturnType = {
   ComponentMod: any
   routeModule?: RouteModule
   isAppPath?: boolean
-  pathname: string
-}
-
-async function loadDefaultErrorComponentsImpl(
-  distDir: string
-): Promise<LoadComponentsReturnType> {
-  const Document = interopDefault(require('next/dist/pages/_document'))
-  const AppMod = require('next/dist/pages/_app')
-  const App = interopDefault(AppMod)
-
-  // Load the compiled route module for this builtin error.
-  // TODO: (wyattjoh) replace this with just exporting the route module when the transition is complete
-  const ComponentMod =
-    require('./future/route-modules/pages/builtin/_error') as typeof import('./future/route-modules/pages/builtin/_error')
-  const Component = ComponentMod.routeModule.userland.default
-
-  return {
-    App,
-    Document,
-    Component,
-    pageConfig: {},
-    buildManifest: require(join(distDir, `fallback-${BUILD_MANIFEST}`)),
-    reactLoadableManifest: {},
-    ComponentMod,
-    pathname: '/_error',
-    routeModule: ComponentMod.routeModule,
-  }
+  page: string
 }
 
 /**
  * Load manifest file with retries, defaults to 3 attempts.
  */
-async function loadManifestWithRetries<T>(
+export async function loadManifestWithRetries<T>(
   manifestPath: string,
   attempts = 3
 ): Promise<T> {
@@ -90,22 +65,24 @@ async function loadManifestWithRetries<T>(
     } catch (err) {
       attempts--
       if (attempts <= 0) throw err
-      await new Promise((resolve) => setTimeout(resolve, 100))
+
+      await wait(100)
     }
   }
 }
 
-async function loadJSManifest<T>(
+async function loadClientReferenceManifest(
   manifestPath: string,
-  name: string,
-  entryname: string
-): Promise<T | undefined> {
+  entryName: string
+): Promise<ClientReferenceManifest | undefined> {
   process.env.NEXT_MINIMAL
     ? // @ts-ignore
       __non_webpack_require__(manifestPath)
     : require(manifestPath)
   try {
-    return JSON.parse((globalThis as any)[name][entryname]) as T
+    return (globalThis as any).__RSC_MANIFEST[
+      entryName
+    ] as ClientReferenceManifest
   } catch (err) {
     return undefined
   }
@@ -113,11 +90,11 @@ async function loadJSManifest<T>(
 
 async function loadComponentsImpl({
   distDir,
-  pathname,
+  page,
   isAppPath,
 }: {
   distDir: string
-  pathname: string
+  page: string
   isAppPath: boolean
 }): Promise<LoadComponentsReturnType> {
   let DocumentMod = {}
@@ -129,15 +106,13 @@ async function loadComponentsImpl({
     ])
   }
   const ComponentMod = await Promise.resolve().then(() =>
-    requirePage(pathname, distDir, isAppPath)
+    requirePage(page, distDir, isAppPath)
   )
 
   // Make sure to avoid loading the manifest for Route Handlers
   const hasClientManifest =
     isAppPath &&
-    (pathname.endsWith('/page') ||
-      pathname === '/not-found' ||
-      pathname === '/_not-found')
+    (page.endsWith('/page') || page === '/not-found' || page === '/_not-found')
 
   const [
     buildManifest,
@@ -150,18 +125,14 @@ async function loadComponentsImpl({
       join(distDir, REACT_LOADABLE_MANIFEST)
     ),
     hasClientManifest
-      ? loadJSManifest<ClientReferenceManifest>(
+      ? loadClientReferenceManifest(
           join(
             distDir,
             'server',
             'app',
-            pathname.replace(/%5F/g, '_') +
-              '_' +
-              CLIENT_REFERENCE_MANIFEST +
-              '.js'
+            page.replace(/%5F/g, '_') + '_' + CLIENT_REFERENCE_MANIFEST + '.js'
           ),
-          '__RSC_MANIFEST',
-          pathname.replace(/%5F/g, '_')
+          page.replace(/%5F/g, '_')
         )
       : undefined,
     isAppPath
@@ -175,7 +146,8 @@ async function loadComponentsImpl({
   const Document = interopDefault(DocumentMod)
   const App = interopDefault(AppMod)
 
-  const { getServerSideProps, getStaticProps, getStaticPaths } = ComponentMod
+  const { getServerSideProps, getStaticProps, getStaticPaths, routeModule } =
+    ComponentMod
 
   return {
     App,
@@ -191,17 +163,12 @@ async function loadComponentsImpl({
     clientReferenceManifest,
     serverActionsManifest,
     isAppPath,
-    pathname,
-    routeModule: ComponentMod.routeModule,
+    page,
+    routeModule,
   }
 }
 
 export const loadComponents = getTracer().wrap(
   LoadComponentsSpan.loadComponents,
   loadComponentsImpl
-)
-
-export const loadDefaultErrorComponents = getTracer().wrap(
-  LoadComponentsSpan.loadDefaultErrorComponents,
-  loadDefaultErrorComponentsImpl
 )

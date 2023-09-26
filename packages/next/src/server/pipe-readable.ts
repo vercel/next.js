@@ -6,11 +6,11 @@ export function isAbortError(e: any): e is Error & { name: 'AbortError' } {
  * This is a minimal implementation of a Writable with just enough
  * functionality to handle stream cancellation.
  */
-export interface PipeTarget {
+export interface PipeTarget<R = any> {
   /**
    * Called when new data is read from readable source.
    */
-  write: (chunk: Uint8Array) => unknown
+  write: (chunk: R) => unknown
 
   /**
    * Always called once we read all data (if the writable isn't already
@@ -36,11 +36,14 @@ export interface PipeTarget {
    * Allows us to cleanup our onClose listener.
    */
   off: (event: 'close', cb: () => void) => void
+
+  closed?: boolean
 }
 
 export async function pipeReadable(
-  readable: ReadableStream,
-  writable: PipeTarget
+  readable: ReadableStream<Uint8Array>,
+  writable: PipeTarget<Uint8Array>,
+  waitUntilForEnd?: Promise<void>
 ) {
   const reader = readable.getReader()
   let readerDone = false
@@ -73,7 +76,7 @@ export async function pipeReadable(
       }
 
       if (value) {
-        writable.write(Buffer.from(value))
+        writable.write(value)
         writable.flush?.()
       }
     }
@@ -93,6 +96,10 @@ export async function pipeReadable(
 
     // If the client hasn't disconnected yet, end the writable so that the
     // response sends the final bytes.
+    if (waitUntilForEnd) {
+      await waitUntilForEnd
+    }
+
     if (!writableClosed) {
       writable.end()
     }

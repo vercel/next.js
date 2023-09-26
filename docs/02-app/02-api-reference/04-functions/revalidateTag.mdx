@@ -3,7 +3,7 @@ title: revalidateTag
 description: API Reference for the revalidateTag function.
 ---
 
-`revalidatePath` allows you to purge [cached data](/docs/app/building-your-application/caching) on-demand for a specific cache tag.
+`revalidateTag` allows you to purge [cached data](/docs/app/building-your-application/caching) on-demand for a specific cache tag.
 
 > **Good to know**:
 >
@@ -16,7 +16,7 @@ description: API Reference for the revalidateTag function.
 revalidateTag(tag: string): void;
 ```
 
-- `tag`: A string representing the cache tag associated with the data you want to revalidate.
+- `tag`: A string representing the cache tag associated with the data you want to revalidate. Must be less than or equal to 256 characters.
 
 You can add tags to `fetch` as follows:
 
@@ -30,7 +30,7 @@ fetch(url, { next: { tags: [...] } });
 
 ## Examples
 
-## Server Action
+### Server Action
 
 ```ts filename="app/actions.ts" switcher
 'use server'
