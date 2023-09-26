@@ -1,9 +1,6 @@
 module.exports = {
   experimental: {
     clientRouterFilterRedirects: true,
-    sri: {
-      algorithm: 'sha256',
-    },
     webpackBuildWorker: true,
   },
   // output: 'standalone',
