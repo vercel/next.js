@@ -99,6 +99,10 @@ async function handleFetch(
   const resp = await originalFetch(`http://localhost:${proxyPort}`, {
     method: 'POST',
     body: JSON.stringify(proxyRequest),
+    next: {
+      // @ts-ignore
+      internal: true,
+    },
   })
   if (!resp.ok) {
     throw new Error(`Proxy request failed: ${resp.status}`)
