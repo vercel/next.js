@@ -33,6 +33,10 @@ createNextDescribe(
   'Production Usage',
   {
     files: path.join(__dirname, '../fixture'),
+    dependencies: {
+      nanoid: '3.1.30',
+      'es5-ext': '0.10.53',
+    },
   },
   ({ next }) => {
     it('should navigate through history after query update', async () => {
@@ -197,7 +201,6 @@ createNextDescribe(
             /node_modules\/react\/package\.json/,
             /node_modules\/react\/cjs\/react\.production\.min\.js/,
             /node_modules\/next/,
-            /next\/error\.js/,
           ],
           notTests: [/\0/, /\?/, /!/],
         },
@@ -226,13 +229,7 @@ createNextDescribe(
             /node_modules\/nanoid\/url-alphabet\/index\.js/,
             /node_modules\/es5-ext\/array\/#\/clear\.js/,
           ],
-          notTests: [
-            /next\/dist\/pages\/_error\.js/,
-            /next\/error\.js/,
-            /\0/,
-            /\?/,
-            /!/,
-          ],
+          notTests: [/next\/dist\/pages\/_error\.js/, /\0/, /\?/, /!/],
         },
         {
           page: '/counter',
@@ -244,7 +241,6 @@ createNextDescribe(
             /node_modules\/react\/cjs\/react\.production\.min\.js/,
             /node_modules\/react\/cjs\/react\.development\.js/,
             /node_modules\/next/,
-            /next\/router\.js/,
           ],
           notTests: [/\0/, /\?/, /!/],
         },
