@@ -265,7 +265,8 @@ pub async fn get_server_module_options_context(
     } else {
         None
     };
-    let jsx_runtime_options = get_jsx_transform_options(project_path, mode, None);
+    let jsx_runtime_options =
+        get_jsx_transform_options(project_path, mode, None, true, next_config);
 
     let source_transforms: Vec<Vc<TransformPlugin>> = vec![
         *get_swc_ecma_transform_plugin(project_path, next_config).await?,

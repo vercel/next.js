@@ -33,9 +33,11 @@ export async function createTodo(prevState: any, formData: FormData) {
 export async function deleteTodo(prevState: any, formData: FormData) {
   const schema = z.object({
     id: z.string().nonempty(),
+    todo: z.string().nonempty(),
   })
   const data = schema.parse({
     id: formData.get('id'),
+    todo: formData.get('todo'),
   })
 
   try {

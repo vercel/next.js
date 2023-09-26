@@ -280,6 +280,25 @@ createNextDescribe(
       })
     })
 
+    if (isNextStart) {
+      describe('route segment config', () => {
+        it('should generate dynamic route if dynamic config is force-dynamic', async () => {
+          const dynamicRoute = '/route-config/sitemap.xml'
+
+          expect(
+            await next.hasFile(`.next/server/app${dynamicRoute}/route.js`)
+          ).toBe(true)
+          // dynamic routes should not have body and meta files
+          expect(
+            await next.hasFile(`.next/server/app${dynamicRoute}.body`)
+          ).toBe(false)
+          expect(
+            await next.hasFile(`.next/server/app${dynamicRoute}.meta`)
+          ).toBe(false)
+        })
+      })
+    }
+
     it('should generate unique path for image routes under group routes', async () => {
       const $ = await next.render$('/blog')
       const ogImageUrl = $('meta[property="og:image"]').attr('content')
