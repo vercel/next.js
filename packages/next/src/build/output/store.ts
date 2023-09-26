@@ -69,7 +69,7 @@ store.subscribe((state) => {
         if (!loadingLogTimer) {
           // Only log compiling if compiled is not finished in 3 seconds
           loadingLogTimer = setTimeout(() => {
-            Log.wait(`compiling ${trigger} ...`)
+            Log.wait(`Compiling ${trigger} ...`)
           }, MAX_DURATION)
         }
       }
@@ -138,14 +138,16 @@ store.subscribe((state) => {
   }
 
   if (trigger === 'initial') {
-    Log.event('ready')
     trigger = ''
-  } else if (trigger) {
+  } else {
     if (loadingLogTimer) {
       clearTimeout(loadingLogTimer)
       loadingLogTimer = null
     }
-    Log.event(`compiled ${trigger}${timeMessage}${modulesMessage}`)
+    Log.event(
+      `Compiled${trigger ? ' ' + trigger : ''}${timeMessage}${modulesMessage}`
+    )
+    trigger = ''
   }
 
   // Ensure traces are flushed after each compile in development mode

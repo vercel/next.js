@@ -2,7 +2,8 @@ import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'http'
 import type { I18NConfig } from '../config-shared'
 
 import { PERMANENT_REDIRECT_STATUS } from '../../shared/lib/constants'
-import { getCookieParser, NextApiRequestCookies } from '../api-utils'
+import { NextApiRequestCookies } from '../api-utils'
+import { getCookieParser } from '../api-utils/get-cookie-parser'
 
 export interface BaseNextRequestConfig {
   basePath: string | undefined

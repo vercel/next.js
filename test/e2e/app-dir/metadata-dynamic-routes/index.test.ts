@@ -66,6 +66,13 @@ createNextDescribe(
           "
         `)
       })
+
+      it('should not throw if client components are imported but not used', async () => {
+        const { status } = await next.fetch(
+          '/client-ref-dependency/sitemap.xml'
+        )
+        expect(status).toBe(200)
+      })
     })
 
     describe('social image routes', () => {
@@ -113,6 +120,23 @@ createNextDescribe(
         expect(res.headers.get('cache-control')).toBe(
           isNextDev ? CACHE_HEADERS.NONE : CACHE_HEADERS.LONG
         )
+
+        if (isNextDev) {
+          await check(async () => {
+            next.hasFile('.next/server/app-paths-manifest.json')
+            return 'success'
+          }, /success/)
+
+          const appPathsManifest = JSON.parse(
+            await next.readFile('.next/server/app-paths-manifest.json')
+          )
+          const entryKeys = Object.keys(appPathsManifest)
+          // Only has one route for twitter-image with catch-all routes in dev
+          expect(entryKeys).not.toContain('/twitter-image')
+          expect(entryKeys).toContain(
+            '/twitter-image/[[...__metadata_id__]]/route'
+          )
+        }
 
         // edge runtime
         res = await next.fetch('/twitter-image2')

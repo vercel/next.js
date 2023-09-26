@@ -20,13 +20,7 @@ import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
   }
   dir = getProjectDir(dir)
 
-  const config = await loadConfig(
-    PHASE_DEVELOPMENT_SERVER,
-    dir,
-    undefined,
-    undefined,
-    true
-  )
+  const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
   const distDir = path.join(dir, config.distDir || '.next')
   const eventsPath = path.join(distDir, '_events.json')
 

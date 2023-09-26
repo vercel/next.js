@@ -21,7 +21,7 @@ createNextDescribe(
         expect($('body').text()).toMatch(/app: .+-canary/)
       })
 
-      it('should render pages with react stable', async () => {
+      it('should not render pages with react canary', async () => {
         const $ = await next.render$(`/2`)
         expect($('body').text()).toMatch(/pages:/)
         expect($('body').text()).not.toMatch(/canary/)

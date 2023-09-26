@@ -58,9 +58,10 @@ function getStorageDirectory(distDir: string): string | undefined {
 }
 
 export class Telemetry {
+  readonly sessionId: string
+
   private conf: Conf<any> | null
   private distDir: string
-  private sessionId: string
   private loadProjectId: undefined | string | Promise<string>
   private NEXT_TELEMETRY_DISABLED: any
   private NEXT_TELEMETRY_DEBUG: any
