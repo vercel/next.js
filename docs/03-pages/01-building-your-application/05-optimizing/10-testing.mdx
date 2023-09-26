@@ -43,7 +43,7 @@ Add Cypress to the `package.json` scripts field:
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "cypress": "cypress open"
+    "cypress:open": "cypress open"
   }
 }
 ```
@@ -446,7 +446,9 @@ If your project is using [Module Path Aliases](/docs/pages/building-your-applica
 ```json filename="tsconfig.json or jsconfig.json"
 {
   "compilerOptions": {
-    "baseUrl": ".",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "baseUrl": "./",
     "paths": {
       "@/components/*": ["components/*"]
     }

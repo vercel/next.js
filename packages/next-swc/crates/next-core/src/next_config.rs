@@ -83,8 +83,11 @@ pub struct NextConfig {
     pub react_strict_mode: Option<bool>,
     pub transpile_packages: Option<Vec<String>>,
     pub modularize_imports: Option<IndexMap<String, ModularizeImportPackageConfig>>,
+    pub dist_dir: Option<String>,
     sass_options: Option<serde_json::Value>,
-    trailing_slash: bool,
+    pub trailing_slash: Option<bool>,
+    pub asset_prefix: Option<String>,
+    pub base_path: Option<String>,
 
     // Partially supported
     pub compiler: Option<CompilerConfig>,
@@ -95,12 +98,9 @@ pub struct NextConfig {
     cross_origin: Option<String>,
     amp: AmpConfig,
     analytics_id: String,
-    asset_prefix: String,
-    base_path: String,
     clean_dist_dir: bool,
     compress: bool,
     dev_indicators: DevIndicatorsConfig,
-    dist_dir: String,
     eslint: EslintConfig,
     exclude_default_moment_locales: bool,
     // this can be a function in js land
@@ -403,6 +403,7 @@ pub enum LoaderItem {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct ExperimentalConfig {
+    pub strict_next_head: Option<bool>,
     pub server_components_external_packages: Option<Vec<String>>,
     pub turbo: Option<ExperimentalTurboConfig>,
     pub allowed_revalidate_header_keys: Option<Vec<String>>,
@@ -411,6 +412,10 @@ pub struct ExperimentalConfig {
     pub isr_flush_to_disk: Option<bool>,
     mdx_rs: Option<bool>,
     pub swc_plugins: Option<Vec<(String, serde_json::Value)>>,
+    // This is used in Next.js, doesn't require compiler changes.
+    client_router_filter_redirects: Option<bool>,
+    // Doesn't apply to Turbopack.
+    webpack_build_worker: Option<bool>,
 
     // unsupported
     optimize_package_imports: Option<Vec<String>>,

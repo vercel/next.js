@@ -5,7 +5,7 @@ import type {
   StyledComponentsConfig,
 } from '../../server/config-shared'
 
-type BundleType = 'client' | 'server' | 'default'
+export type BundleType = 'client' | 'server' | 'default'
 
 const nextDistPath =
   /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
@@ -54,15 +54,15 @@ function getBaseSWCOptions({
   hasReactRefresh: boolean
   globalWindow: boolean
   modularizeImports?: NextConfig['modularizeImports']
-  swcPlugins: ExperimentalConfig['swcPlugins']
   compilerOptions: NextConfig['compiler']
+  swcPlugins: ExperimentalConfig['swcPlugins']
+  isServerActionsEnabled?: ExperimentalConfig['serverActions']
   resolvedBaseUrl?: string
   jsConfig: any
   bundleTarget: BundleType
   swcCacheDir?: string
   isServerLayer?: boolean
   hasServerComponents?: boolean
-  isServerActionsEnabled?: boolean
 }) {
   const parserConfig = getParserOptions({ filename, jsConfig })
   const paths = jsConfig?.compilerOptions?.paths
@@ -322,7 +322,7 @@ export function getLoaderSWCOptions({
   isServerLayer,
   isServerActionsEnabled,
   optimizeBarrelExports,
-  bundleTarget = 'client',
+  bundleTarget,
 }: // This is not passed yet as "paths" resolving is handled by webpack currently.
 // resolvedBaseUrl,
 {
@@ -330,7 +330,7 @@ export function getLoaderSWCOptions({
   development: boolean
   isServer: boolean
   pagesDir?: string
-  appDir: string
+  appDir?: string
   isPageFile: boolean
   hasReactRefresh: boolean
   optimizeServerReact?: boolean
@@ -341,14 +341,16 @@ export function getLoaderSWCOptions({
   swcPlugins: ExperimentalConfig['swcPlugins']
   compilerOptions: NextConfig['compiler']
   jsConfig: any
-  supportedBrowsers: string[]
+  supportedBrowsers: string[] | undefined
   swcCacheDir: string
   relativeFilePathFromRoot: string
   bundleTarget: BundleType
   hasServerComponents?: boolean
   isServerLayer: boolean
   isServerActionsEnabled?: boolean
-  optimizeBarrelExports?: string[]
+  optimizeBarrelExports?: {
+    wildcard: boolean
+  }
 }) {
   let baseOptions: any = getBaseSWCOptions({
     filename,

@@ -133,8 +133,6 @@ var enableLazyContextPropagation = false; // FB-only usage. The new API has diff
 
 var enableLegacyHidden = false; // Enables unstable_avoidThisFallback feature in Fiber
 var enableHostSingletons = true;
-
-var diffInCommitPhase = false;
 var enableAsyncActions = false;
 var alwaysThrottleRetries = true; // -----------------------------------------------------------------------------
 // Chopping Block
@@ -3423,15 +3421,24 @@ function restoreControlledInputState(element, props) {
 
       if (!otherProps) {
         throw new Error('ReactDOMInput: Mixing React and non-React radio inputs with the ' + 'same `name` is not supported.');
-      } // We need update the tracked value on the named cousin since the value
-      // was changed but the input saw no event or value set
-
-
-      updateValueIfChanged(otherNode); // If this is a controlled radio button group, forcing the input that
+      } // If this is a controlled radio button group, forcing the input that
       // was previously checked to update will cause it to be come re-checked
       // as appropriate.
 
+
       updateInput(otherNode, otherProps.value, otherProps.defaultValue, otherProps.defaultValue, otherProps.checked, otherProps.defaultChecked, otherProps.type, otherProps.name);
+    } // If any updateInput() call set .checked to true, an input in this group
+    // (often, `rootNode` itself) may have become unchecked
+
+
+    for (var _i = 0; _i < group.length; _i++) {
+      var _otherNode = group[_i];
+
+      if (_otherNode.form !== rootNode.form) {
+        continue;
+      }
+
+      updateValueIfChanged(_otherNode);
     }
   }
 } // In Chrome, assigning defaultValue to certain input types triggers input validation.
@@ -4465,7 +4472,34 @@ function setValueForStyles(node, styles, prevStyles) {
 
   var style = node.style;
 
-  {
+  if (prevStyles != null) {
+    {
+      validateShorthandPropertyCollisionInDev(prevStyles, styles);
+    }
+
+    for (var styleName in prevStyles) {
+      if (prevStyles.hasOwnProperty(styleName) && (styles == null || !styles.hasOwnProperty(styleName))) {
+        // Clear style
+        var isCustomProperty = styleName.indexOf('--') === 0;
+
+        if (isCustomProperty) {
+          style.setProperty(styleName, '');
+        } else if (styleName === 'float') {
+          style.cssFloat = '';
+        } else {
+          style[styleName] = '';
+        }
+      }
+    }
+
+    for (var _styleName in styles) {
+      var value = styles[_styleName];
+
+      if (styles.hasOwnProperty(_styleName) && prevStyles[_styleName] !== value) {
+        setValueForStyle(style, _styleName, value);
+      }
+    }
+  } else {
     for (var _styleName2 in styles) {
       if (styles.hasOwnProperty(_styleName2)) {
         var _value = styles[_styleName2];
@@ -6972,18 +7006,7 @@ function prepareToHydrateHostInstance(fiber, hostContext) {
 
   var instance = fiber.stateNode;
   var shouldWarnIfMismatchDev = !didSuspendOrErrorDEV;
-  var updatePayload = hydrateInstance(instance, fiber.type, fiber.memoizedProps, hostContext, fiber, shouldWarnIfMismatchDev); // TODO: Type this specific to this type of component.
-
-  {
-    fiber.updateQueue = updatePayload; // If the update payload indicates that there is a change or if there
-    // is a new ref we mark this as an update.
-
-    if (updatePayload !== null) {
-      return true;
-    }
-  }
-
-  return false;
+  hydrateInstance(instance, fiber.type, fiber.memoizedProps, hostContext, fiber, shouldWarnIfMismatchDev);
 }
 
 function prepareToHydrateHostTextInstance(fiber) {
@@ -18043,25 +18066,7 @@ function updateHostComponent(current, workInProgress, type, newProps, renderLane
       return;
     }
 
-    {
-      // If we get updated because one of our children updated, we don't
-      // have newProps so we'll have to reuse them.
-      // TODO: Split the update API as separate for the props vs. children.
-      // Even better would be if children weren't special cased at all tho.
-      var instance = workInProgress.stateNode; // TODO: Experiencing an error where oldProps is null. Suggests a host
-      // component is hitting the resume path. Figure out why. Possibly
-      // related to `hidden`.
-
-      getHostContext();
-      var updatePayload = prepareUpdate(instance, type, oldProps, newProps); // TODO: Type this specific to this type of component.
-
-      workInProgress.updateQueue = updatePayload; // If the update payload indicates that there is a change or if there
-      // is a new ref we mark this as an update. All the work is done in commitWork.
-
-      if (updatePayload) {
-        markUpdate(workInProgress);
-      }
-    }
+    markUpdate(workInProgress);
   }
 } // This function must be called at the very end of the complete phase, because
 // it might throw to suspend, and if the resource immediately loads, the work
@@ -18508,10 +18513,6 @@ function completeWork(current, workInProgress, renderLanes) {
     case HostHoistable:
       {
         {
-          // The branching here is more complicated than you might expect because
-          // a HostHoistable sometimes corresponds to a Resource and sometimes
-          // corresponds to an Instance. It can also switch during an update.
-          var type = workInProgress.type;
           var nextResource = workInProgress.memoizedState;
 
           if (current === null) {
@@ -18567,9 +18568,11 @@ function completeWork(current, workInProgress, renderLanes) {
               // This is a Hoistable Instance
               // We may have props to update on the Hoistable instance.
               {
-                // We use the updateHostComponent path becuase it produces
-                // the update queue we need for Hoistables.
-                updateHostComponent(current, workInProgress, type, newProps);
+                var oldProps = current.memoizedProps;
+
+                if (oldProps !== newProps) {
+                  markUpdate(workInProgress);
+                }
               } // This must come at the very end of the complete phase.
 
 
@@ -18591,7 +18594,11 @@ function completeWork(current, workInProgress, renderLanes) {
 
           if (current !== null && workInProgress.stateNode != null) {
             {
-              updateHostComponent(current, workInProgress, _type, newProps);
+              var _oldProps2 = current.memoizedProps;
+
+              if (_oldProps2 !== newProps) {
+                markUpdate(workInProgress);
+              }
             }
 
             if (current.ref !== workInProgress.ref) {
@@ -18660,7 +18667,7 @@ function completeWork(current, workInProgress, renderLanes) {
             return null;
           }
 
-          var _currentHostContext2 = getHostContext(); // TODO: Move createInstance to beginWork and keep it on a context
+          var _currentHostContext = getHostContext(); // TODO: Move createInstance to beginWork and keep it on a context
           // "stack" as the parent. Then append children as we go in beginWork
           // or completeWork depending on whether we want to add them top->down or
           // bottom->up. Top->down is faster in IE11.
@@ -18671,15 +18678,11 @@ function completeWork(current, workInProgress, renderLanes) {
           if (_wasHydrated2) {
             // TODO: Move this and createInstance step into the beginPhase
             // to consolidate.
-            if (prepareToHydrateHostInstance(workInProgress, _currentHostContext2)) {
-              // If changes to the hydrated node need to be applied at the
-              // commit-phase we mark this as such.
-              markUpdate(workInProgress);
-            }
+            prepareToHydrateHostInstance(workInProgress, _currentHostContext);
           } else {
             var _rootContainerInstance = getRootHostContainer();
 
-            var _instance3 = createInstance(_type2, newProps, _rootContainerInstance, _currentHostContext2, workInProgress);
+            var _instance3 = createInstance(_type2, newProps, _rootContainerInstance, _currentHostContext, workInProgress);
 
             appendAllChildren(_instance3, workInProgress);
             workInProgress.stateNode = _instance3; // Certain renderers require commit-time effects for initial mount.
@@ -18725,7 +18728,7 @@ function completeWork(current, workInProgress, renderLanes) {
 
           var _rootContainerInstance2 = getRootHostContainer();
 
-          var _currentHostContext3 = getHostContext();
+          var _currentHostContext2 = getHostContext();
 
           var _wasHydrated3 = popHydrationState(workInProgress);
 
@@ -18734,7 +18737,7 @@ function completeWork(current, workInProgress, renderLanes) {
               markUpdate(workInProgress);
             }
           } else {
-            workInProgress.stateNode = createTextInstance(newText, _rootContainerInstance2, _currentHostContext3, workInProgress);
+            workInProgress.stateNode = createTextInstance(newText, _rootContainerInstance2, _currentHostContext2, workInProgress);
           }
         }
 
@@ -21455,12 +21458,10 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
               var updatePayload = finishedWork.updateQueue;
               finishedWork.updateQueue = null;
 
-              if (updatePayload !== null || diffInCommitPhase) {
-                try {
-                  commitUpdate(finishedWork.stateNode, updatePayload, finishedWork.type, current.memoizedProps, finishedWork.memoizedProps, finishedWork);
-                } catch (error) {
-                  captureCommitPhaseError(finishedWork, finishedWork.return, error);
-                }
+              try {
+                commitUpdate(finishedWork.stateNode, updatePayload, finishedWork.type, current.memoizedProps, finishedWork.memoizedProps, finishedWork);
+              } catch (error) {
+                captureCommitPhaseError(finishedWork, finishedWork.return, error);
               }
             }
           }
@@ -21531,12 +21532,10 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
               var _updatePayload = finishedWork.updateQueue;
               finishedWork.updateQueue = null;
 
-              if (_updatePayload !== null || diffInCommitPhase) {
-                try {
-                  commitUpdate(_instance2, _updatePayload, type, oldProps, newProps, finishedWork);
-                } catch (error) {
-                  captureCommitPhaseError(finishedWork, finishedWork.return, error);
-                }
+              try {
+                commitUpdate(_instance2, _updatePayload, type, oldProps, newProps, finishedWork);
+              } catch (error) {
+                captureCommitPhaseError(finishedWork, finishedWork.return, error);
               }
             }
           }
@@ -26991,7 +26990,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks, formState) {
   return root;
 }
 
-var ReactVersion = '18.3.0-canary-2807d781a-20230918';
+var ReactVersion = '18.3.0-canary-09285d5a7-20230925';
 
 function createPortal$1(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {
@@ -31396,7 +31395,7 @@ function setProp(domElement, tag, key, value, props, prevValue) {
 
     case 'style':
       {
-        setValueForStyles(domElement, value);
+        setValueForStyles(domElement, value, prevValue);
         break;
       }
     // These attributes accept URLs. These must not allow javascript: URLS.
@@ -31745,7 +31744,7 @@ function setPropOnCustomElement(domElement, tag, key, value, props, prevValue) {
   switch (key) {
     case 'style':
       {
-        setValueForStyles(domElement, value);
+        setValueForStyles(domElement, value, prevValue);
         break;
       }
 
@@ -32226,7 +32225,7 @@ function setInitialProperties(domElement, tag, props) {
               continue;
             }
 
-            setPropOnCustomElement(domElement, tag, _propKey5, _propValue5, props);
+            setPropOnCustomElement(domElement, tag, _propKey5, _propValue5, props, null);
           }
 
           return;
@@ -32247,123 +32246,12 @@ function setInitialProperties(domElement, tag, props) {
 
     setProp(domElement, tag, _propKey6, _propValue6, props, null);
   }
-} // Calculate the diff between the two objects.
-
-function diffProperties(domElement, tag, lastProps, nextProps) {
+}
+function updateProperties(domElement, tag, lastProps, nextProps) {
   {
     validatePropertiesInDevelopment(tag, nextProps);
   }
 
-  var updatePayload = null;
-  var propKey;
-  var styleName;
-  var styleUpdates = null;
-
-  for (propKey in lastProps) {
-    if (nextProps.hasOwnProperty(propKey) || !lastProps.hasOwnProperty(propKey) || lastProps[propKey] == null) {
-      continue;
-    }
-
-    switch (propKey) {
-      case 'style':
-        {
-          var lastStyle = lastProps[propKey];
-
-          for (styleName in lastStyle) {
-            if (lastStyle.hasOwnProperty(styleName)) {
-              if (!styleUpdates) {
-                styleUpdates = {};
-              }
-
-              styleUpdates[styleName] = '';
-            }
-          }
-
-          break;
-        }
-
-      default:
-        {
-          // For all other deleted properties we add it to the queue. We use
-          // the allowed property list in the commit phase instead.
-          (updatePayload = updatePayload || []).push(propKey, null);
-        }
-    }
-  }
-
-  for (propKey in nextProps) {
-    var nextProp = nextProps[propKey];
-    var lastProp = lastProps != null ? lastProps[propKey] : undefined;
-
-    if (nextProps.hasOwnProperty(propKey) && nextProp !== lastProp && (nextProp != null || lastProp != null)) {
-      switch (propKey) {
-        case 'style':
-          {
-            if (lastProp) {
-              // Unset styles on `lastProp` but not on `nextProp`.
-              for (styleName in lastProp) {
-                if (lastProp.hasOwnProperty(styleName) && (!nextProp || !nextProp.hasOwnProperty(styleName))) {
-                  if (!styleUpdates) {
-                    styleUpdates = {};
-                  }
-
-                  styleUpdates[styleName] = '';
-                }
-              } // Update styles that changed since `lastProp`.
-
-
-              for (styleName in nextProp) {
-                if (nextProp.hasOwnProperty(styleName) && lastProp[styleName] !== nextProp[styleName]) {
-                  if (!styleUpdates) {
-                    styleUpdates = {};
-                  }
-
-                  styleUpdates[styleName] = nextProp[styleName];
-                }
-              }
-            } else {
-              // Relies on `updateStylesByID` not mutating `styleUpdates`.
-              if (!styleUpdates) {
-                if (!updatePayload) {
-                  updatePayload = [];
-                }
-
-                updatePayload.push(propKey, styleUpdates);
-              }
-
-              styleUpdates = nextProp;
-            }
-
-            break;
-          }
-
-        case 'is':
-          {
-            error('Cannot update the "is" prop after it has been initialized.');
-          }
-
-        // Fall through
-
-        default:
-          {
-            (updatePayload = updatePayload || []).push(propKey, nextProp);
-          }
-      }
-    }
-  }
-
-  if (styleUpdates) {
-    {
-      validateShorthandPropertyCollisionInDev(lastProps.style, nextProps.style);
-    }
-
-    (updatePayload = updatePayload || []).push('style', styleUpdates);
-  }
-
-  return updatePayload;
-}
-
-function updatePropertiesWithDiff(domElement, updatePayload, tag, lastProps, nextProps) {
   switch (tag) {
     case 'div':
     case 'span':
@@ -32380,63 +32268,102 @@ function updatePropertiesWithDiff(domElement, updatePayload, tag, lastProps, nex
 
     case 'input':
       {
-        var name = nextProps.name;
-        var type = nextProps.type;
-        var value = nextProps.value;
-        var defaultValue = nextProps.defaultValue;
-        var lastDefaultValue = lastProps.defaultValue;
-        var checked = nextProps.checked;
-        var defaultChecked = nextProps.defaultChecked;
+        var name = null;
+        var type = null;
+        var value = null;
+        var defaultValue = null;
+        var lastDefaultValue = null;
+        var checked = null;
+        var defaultChecked = null;
 
-        for (var i = 0; i < updatePayload.length; i += 2) {
-          var propKey = updatePayload[i];
-          var propValue = updatePayload[i + 1];
+        for (var propKey in lastProps) {
+          var lastProp = lastProps[propKey];
 
-          switch (propKey) {
-            case 'type':
-              {
-                break;
-              }
-
-            case 'name':
-              {
-                break;
-              }
-
-            case 'checked':
-              {
-                break;
-              }
-
-            case 'defaultChecked':
-              {
-                break;
-              }
-
-            case 'value':
-              {
-                break;
-              }
-
-            case 'defaultValue':
-              {
-                break;
-              }
-
-            case 'children':
-            case 'dangerouslySetInnerHTML':
-              {
-                if (propValue != null) {
-                  throw new Error(tag + " is a void element tag and must neither have `children` nor " + 'use `dangerouslySetInnerHTML`.');
+          if (lastProps.hasOwnProperty(propKey) && lastProp != null) {
+            switch (propKey) {
+              case 'checked':
+                {
+                  break;
                 }
 
-                break;
-              }
+              case 'value':
+                {
+                  // This is handled by updateWrapper below.
+                  break;
+                }
 
-            default:
-              {
-                setProp(domElement, tag, propKey, propValue, nextProps, lastProps[propKey]);
-              }
+              case 'defaultValue':
+                {
+                  lastDefaultValue = lastProp;
+                }
+              // defaultChecked and defaultValue are ignored by setProp
+              // Fallthrough
+
+              default:
+                {
+                  if (!nextProps.hasOwnProperty(propKey)) setProp(domElement, tag, propKey, null, nextProps, lastProp);
+                }
+            }
+          }
+        }
+
+        for (var _propKey7 in nextProps) {
+          var nextProp = nextProps[_propKey7];
+          var _lastProp = lastProps[_propKey7];
+
+          if (nextProps.hasOwnProperty(_propKey7) && (nextProp != null || _lastProp != null)) {
+            switch (_propKey7) {
+              case 'type':
+                {
+                  type = nextProp;
+                  break;
+                }
+
+              case 'name':
+                {
+                  name = nextProp;
+                  break;
+                }
+
+              case 'checked':
+                {
+                  checked = nextProp;
+                  break;
+                }
+
+              case 'defaultChecked':
+                {
+                  defaultChecked = nextProp;
+                  break;
+                }
+
+              case 'value':
+                {
+                  value = nextProp;
+                  break;
+                }
+
+              case 'defaultValue':
+                {
+                  defaultValue = nextProp;
+                  break;
+                }
+
+              case 'children':
+              case 'dangerouslySetInnerHTML':
+                {
+                  if (nextProp != null) {
+                    throw new Error(tag + " is a void element tag and must neither have `children` nor " + 'use `dangerouslySetInnerHTML`.');
+                  }
+
+                  break;
+                }
+
+              default:
+                {
+                  if (nextProp !== _lastProp) setProp(domElement, tag, _propKey7, nextProp, nextProps, _lastProp);
+                }
+            }
           }
         }
 
@@ -32466,98 +32393,194 @@ function updatePropertiesWithDiff(domElement, updatePayload, tag, lastProps, nex
 
     case 'select':
       {
-        var _value5 = nextProps.value;
-        var _defaultValue5 = nextProps.defaultValue;
-        var multiple = nextProps.multiple;
-        var wasMultiple = lastProps.multiple;
+        var _value3 = null;
+        var _defaultValue3 = null;
+        var multiple = null;
+        var wasMultiple = null;
 
-        for (var _i = 0; _i < updatePayload.length; _i += 2) {
-          var _propKey20 = updatePayload[_i];
-          var _propValue7 = updatePayload[_i + 1];
+        for (var _propKey8 in lastProps) {
+          var _lastProp2 = lastProps[_propKey8];
 
-          switch (_propKey20) {
-            case 'value':
-              {
-                // This is handled by updateWrapper below.
-                break;
-              }
-            // defaultValue are ignored by setProp
+          if (lastProps.hasOwnProperty(_propKey8) && _lastProp2 != null) {
+            switch (_propKey8) {
+              case 'value':
+                {
+                  // This is handled by updateWrapper below.
+                  break;
+                }
+              // defaultValue are ignored by setProp
 
-            default:
-              {
-                setProp(domElement, tag, _propKey20, _propValue7, nextProps, lastProps[_propKey20]);
-              }
+              case 'multiple':
+                {
+                  wasMultiple = _lastProp2; // TODO: Move special case in here from setProp.
+                }
+              // Fallthrough
+
+              default:
+                {
+                  if (!nextProps.hasOwnProperty(_propKey8)) setProp(domElement, tag, _propKey8, null, nextProps, _lastProp2);
+                }
+            }
+          }
+        }
+
+        for (var _propKey9 in nextProps) {
+          var _nextProp = nextProps[_propKey9];
+          var _lastProp3 = lastProps[_propKey9];
+
+          if (nextProps.hasOwnProperty(_propKey9) && (_nextProp != null || _lastProp3 != null)) {
+            switch (_propKey9) {
+              case 'value':
+                {
+                  _value3 = _nextProp; // This is handled by updateSelect below.
+
+                  break;
+                }
+
+              case 'defaultValue':
+                {
+                  _defaultValue3 = _nextProp;
+                  break;
+                }
+
+              case 'multiple':
+                {
+                  multiple = _nextProp; // TODO: Just move the special case in here from setProp.
+                }
+              // Fallthrough
+
+              default:
+                {
+                  if (_nextProp !== _lastProp3) setProp(domElement, tag, _propKey9, _nextProp, nextProps, _lastProp3);
+                }
+            }
           }
         } // <select> value update needs to occur after <option> children
         // reconciliation
 
 
-        updateSelect(domElement, _value5, _defaultValue5, multiple, wasMultiple);
+        updateSelect(domElement, _value3, _defaultValue3, multiple, wasMultiple);
         return;
       }
 
     case 'textarea':
       {
-        var _value6 = nextProps.value;
-        var _defaultValue6 = nextProps.defaultValue;
+        var _value4 = null;
+        var _defaultValue4 = null;
 
-        for (var _i2 = 0; _i2 < updatePayload.length; _i2 += 2) {
-          var _propKey21 = updatePayload[_i2];
-          var _propValue8 = updatePayload[_i2 + 1];
+        for (var _propKey10 in lastProps) {
+          var _lastProp4 = lastProps[_propKey10];
 
-          switch (_propKey21) {
-            case 'value':
-              {
-                // This is handled by updateWrapper below.
-                break;
-              }
-
-            case 'children':
-              {
-                // TODO: This doesn't actually do anything if it updates.
-                break;
-              }
-
-            case 'dangerouslySetInnerHTML':
-              {
-                if (_propValue8 != null) {
-                  // TODO: Do we really need a special error message for this. It's also pretty blunt.
-                  throw new Error('`dangerouslySetInnerHTML` does not make sense on <textarea>.');
+          if (lastProps.hasOwnProperty(_propKey10) && _lastProp4 != null && !nextProps.hasOwnProperty(_propKey10)) {
+            switch (_propKey10) {
+              case 'value':
+                {
+                  // This is handled by updateTextarea below.
+                  break;
                 }
 
-                break;
-              }
-            // defaultValue is ignored by setProp
+              case 'children':
+                {
+                  // TODO: This doesn't actually do anything if it updates.
+                  break;
+                }
+              // defaultValue is ignored by setProp
 
-            default:
-              {
-                setProp(domElement, tag, _propKey21, _propValue8, nextProps, lastProps[_propKey21]);
-              }
+              default:
+                {
+                  setProp(domElement, tag, _propKey10, null, nextProps, _lastProp4);
+                }
+            }
           }
         }
 
-        updateTextarea(domElement, _value6, _defaultValue6);
+        for (var _propKey11 in nextProps) {
+          var _nextProp2 = nextProps[_propKey11];
+          var _lastProp5 = lastProps[_propKey11];
+
+          if (nextProps.hasOwnProperty(_propKey11) && (_nextProp2 != null || _lastProp5 != null)) {
+            switch (_propKey11) {
+              case 'value':
+                {
+                  _value4 = _nextProp2; // This is handled by updateTextarea below.
+
+                  break;
+                }
+
+              case 'defaultValue':
+                {
+                  _defaultValue4 = _nextProp2;
+                  break;
+                }
+
+              case 'children':
+                {
+                  // TODO: This doesn't actually do anything if it updates.
+                  break;
+                }
+
+              case 'dangerouslySetInnerHTML':
+                {
+                  if (_nextProp2 != null) {
+                    // TODO: Do we really need a special error message for this. It's also pretty blunt.
+                    throw new Error('`dangerouslySetInnerHTML` does not make sense on <textarea>.');
+                  }
+
+                  break;
+                }
+
+              default:
+                {
+                  if (_nextProp2 !== _lastProp5) setProp(domElement, tag, _propKey11, _nextProp2, nextProps, _lastProp5);
+                }
+            }
+          }
+        }
+
+        updateTextarea(domElement, _value4, _defaultValue4);
         return;
       }
 
     case 'option':
       {
-        for (var _i3 = 0; _i3 < updatePayload.length; _i3 += 2) {
-          var _propKey22 = updatePayload[_i3];
-          var _propValue9 = updatePayload[_i3 + 1];
+        for (var _propKey12 in lastProps) {
+          var _lastProp6 = lastProps[_propKey12];
 
-          switch (_propKey22) {
-            case 'selected':
-              {
-                // TODO: Remove support for selected on option.
-                domElement.selected = _propValue9 && typeof _propValue9 !== 'function' && typeof _propValue9 !== 'symbol';
-                break;
-              }
+          if (lastProps.hasOwnProperty(_propKey12) && _lastProp6 != null && !nextProps.hasOwnProperty(_propKey12)) {
+            switch (_propKey12) {
+              case 'selected':
+                {
+                  // TODO: Remove support for selected on option.
+                  domElement.selected = false;
+                  break;
+                }
 
-            default:
-              {
-                setProp(domElement, tag, _propKey22, _propValue9, nextProps, lastProps[_propKey22]);
-              }
+              default:
+                {
+                  setProp(domElement, tag, _propKey12, null, nextProps, _lastProp6);
+                }
+            }
+          }
+        }
+
+        for (var _propKey13 in nextProps) {
+          var _nextProp3 = nextProps[_propKey13];
+          var _lastProp7 = lastProps[_propKey13];
+
+          if (nextProps.hasOwnProperty(_propKey13) && _nextProp3 !== _lastProp7 && (_nextProp3 != null || _lastProp7 != null)) {
+            switch (_propKey13) {
+              case 'selected':
+                {
+                  // TODO: Remove support for selected on option.
+                  domElement.selected = _nextProp3 && typeof _nextProp3 !== 'function' && typeof _nextProp3 !== 'symbol';
+                  break;
+                }
+
+              default:
+                {
+                  setProp(domElement, tag, _propKey13, _nextProp3, nextProps, _lastProp7);
+                }
+            }
           }
         }
 
@@ -32581,27 +32604,37 @@ function updatePropertiesWithDiff(domElement, updatePayload, tag, lastProps, nex
     case 'menuitem':
       {
         // Void elements
-        for (var _i4 = 0; _i4 < updatePayload.length; _i4 += 2) {
-          var _propKey23 = updatePayload[_i4];
-          var _propValue10 = updatePayload[_i4 + 1];
+        for (var _propKey14 in lastProps) {
+          var _lastProp8 = lastProps[_propKey14];
 
-          switch (_propKey23) {
-            case 'children':
-            case 'dangerouslySetInnerHTML':
-              {
-                if (_propValue10 != null) {
-                  // TODO: Can we make this a DEV warning to avoid this deny list?
-                  throw new Error(tag + " is a void element tag and must neither have `children` nor " + 'use `dangerouslySetInnerHTML`.');
+          if (lastProps.hasOwnProperty(_propKey14) && _lastProp8 != null && !nextProps.hasOwnProperty(_propKey14)) {
+            setProp(domElement, tag, _propKey14, null, nextProps, _lastProp8);
+          }
+        }
+
+        for (var _propKey15 in nextProps) {
+          var _nextProp4 = nextProps[_propKey15];
+          var _lastProp9 = lastProps[_propKey15];
+
+          if (nextProps.hasOwnProperty(_propKey15) && _nextProp4 !== _lastProp9 && (_nextProp4 != null || _lastProp9 != null)) {
+            switch (_propKey15) {
+              case 'children':
+              case 'dangerouslySetInnerHTML':
+                {
+                  if (_nextProp4 != null) {
+                    // TODO: Can we make this a DEV warning to avoid this deny list?
+                    throw new Error(tag + " is a void element tag and must neither have `children` nor " + 'use `dangerouslySetInnerHTML`.');
+                  }
+
+                  break;
                 }
+              // defaultChecked and defaultValue are ignored by setProp
 
-                break;
-              }
-            // defaultChecked and defaultValue are ignored by setProp
-
-            default:
-              {
-                setProp(domElement, tag, _propKey23, _propValue10, nextProps, lastProps[_propKey23]);
-              }
+              default:
+                {
+                  setProp(domElement, tag, _propKey15, _nextProp4, nextProps, _lastProp9);
+                }
+            }
           }
         }
 
@@ -32611,22 +32644,43 @@ function updatePropertiesWithDiff(domElement, updatePayload, tag, lastProps, nex
     default:
       {
         if (isCustomElement(tag)) {
-          for (var _i5 = 0; _i5 < updatePayload.length; _i5 += 2) {
-            var _propKey24 = updatePayload[_i5];
-            var _propValue11 = updatePayload[_i5 + 1];
-            setPropOnCustomElement(domElement, tag, _propKey24, _propValue11, nextProps);
+          for (var _propKey16 in lastProps) {
+            var _lastProp10 = lastProps[_propKey16];
+
+            if (lastProps.hasOwnProperty(_propKey16) && _lastProp10 != null && !nextProps.hasOwnProperty(_propKey16)) {
+              setPropOnCustomElement(domElement, tag, _propKey16, null, nextProps, _lastProp10);
+            }
+          }
+
+          for (var _propKey17 in nextProps) {
+            var _nextProp5 = nextProps[_propKey17];
+            var _lastProp11 = lastProps[_propKey17];
+
+            if (nextProps.hasOwnProperty(_propKey17) && _nextProp5 !== _lastProp11 && (_nextProp5 != null || _lastProp11 != null)) {
+              setPropOnCustomElement(domElement, tag, _propKey17, _nextProp5, nextProps, _lastProp11);
+            }
           }
 
           return;
         }
       }
-  } // Apply the diff.
+  }
 
+  for (var _propKey18 in lastProps) {
+    var _lastProp12 = lastProps[_propKey18];
 
-  for (var _i6 = 0; _i6 < updatePayload.length; _i6 += 2) {
-    var _propKey25 = updatePayload[_i6];
-    var _propValue12 = updatePayload[_i6 + 1];
-    setProp(domElement, tag, _propKey25, _propValue12, nextProps, lastProps[_propKey25]);
+    if (lastProps.hasOwnProperty(_propKey18) && _lastProp12 != null && !nextProps.hasOwnProperty(_propKey18)) {
+      setProp(domElement, tag, _propKey18, null, nextProps, _lastProp12);
+    }
+  }
+
+  for (var _propKey19 in nextProps) {
+    var _nextProp6 = nextProps[_propKey19];
+    var _lastProp13 = lastProps[_propKey19];
+
+    if (nextProps.hasOwnProperty(_propKey19) && _nextProp6 !== _lastProp13 && (_nextProp6 != null || _lastProp13 != null)) {
+      setProp(domElement, tag, _propKey19, _nextProp6, nextProps, _lastProp13);
+    }
   }
 }
 
@@ -33405,7 +33459,6 @@ function diffHydratedProperties(domElement, tag, props, isConcurrentMode, should
       break;
   }
 
-  var updatePayload = null;
   var children = props.children; // For text content children we compare against textContent. This
   // might match additional HTML that is hidden when we read it using
   // textContent. E.g. "foo" will match "f<span>oo</span>" but that still
@@ -33423,8 +33476,13 @@ function diffHydratedProperties(domElement, tag, props, isConcurrentMode, should
       }
 
       if (!isConcurrentMode || !enableClientRenderFallbackOnTextMismatch) {
-        {
-          updatePayload = ['children', children];
+        // We really should be patching this in the commit phase but since
+        // this only affects legacy mode hydration which is deprecated anyway
+        // we can get away with it.
+        // Host singletons get their children appended and don't use the text
+        // content mechanism.
+        if (tag !== 'body') {
+          domElement.textContent = children;
         }
       }
     }
@@ -33443,8 +33501,8 @@ function diffHydratedProperties(domElement, tag, props, isConcurrentMode, should
     var extraAttributes = new Set();
     var attributes = domElement.attributes;
 
-    for (var _i7 = 0; _i7 < attributes.length; _i7++) {
-      var name = attributes[_i7].name.toLowerCase();
+    for (var _i = 0; _i < attributes.length; _i++) {
+      var name = attributes[_i].name.toLowerCase();
 
       switch (name) {
         // Controlled attributes are not validated
@@ -33461,7 +33519,7 @@ function diffHydratedProperties(domElement, tag, props, isConcurrentMode, should
         default:
           // Intentionally use the original name.
           // See discussion in https://github.com/facebook/react/pull/10676.
-          extraAttributes.add(attributes[_i7].name);
+          extraAttributes.add(attributes[_i].name);
       }
     }
 
@@ -33475,8 +33533,6 @@ function diffHydratedProperties(domElement, tag, props, isConcurrentMode, should
       warnForExtraAttributes(extraAttributes);
     }
   }
-
-  return updatePayload;
 }
 function diffHydratedText(textNode, text, isConcurrentMode) {
   var isDifferent = textNode.nodeValue !== text;
@@ -33886,10 +33942,6 @@ function finalizeInitialChildren(domElement, type, props, hostContext) {
       return false;
   }
 }
-function prepareUpdate(domElement, type, oldProps, newProps, hostContext) {
-
-  return diffProperties(domElement, type, oldProps, newProps);
-}
 function shouldSetTextContent(type, props) {
   return type === 'textarea' || type === 'noscript' || typeof props.children === 'string' || typeof props.children === 'number' || typeof props.dangerouslySetInnerHTML === 'object' && props.dangerouslySetInnerHTML !== null && props.dangerouslySetInnerHTML.__html != null;
 }
@@ -33967,12 +34019,9 @@ function commitMount(domElement, type, newProps, internalInstanceHandle) {
   }
 }
 function commitUpdate(domElement, updatePayload, type, oldProps, newProps, internalInstanceHandle) {
-  {
-    // Apply the diff to the DOM node.
-    updatePropertiesWithDiff(domElement, updatePayload, type, oldProps, newProps);
-  } // Update the props handle so that we know which props are the ones with
+  // Diff and update the properties.
+  updateProperties(domElement, type, oldProps, newProps); // Update the props handle so that we know which props are the ones with
   // with current event handlers.
-
 
   updateFiberProps(domElement, newProps);
 }
@@ -34424,7 +34473,7 @@ function hydrateInstance(instance, type, props, hostContext, internalInstanceHan
   // when the legacy root API is removed.
 
   var isConcurrentMode = (internalInstanceHandle.mode & ConcurrentMode) !== NoMode;
-  return diffHydratedProperties(instance, type, props, isConcurrentMode, shouldWarnDev, hostContext);
+  diffHydratedProperties(instance, type, props, isConcurrentMode, shouldWarnDev, hostContext);
 }
 function hydrateTextInstance(textInstance, text, internalInstanceHandle, shouldWarnDev) {
   precacheFiberNode(internalInstanceHandle, textInstance); // TODO: Temporary hack to check if we're in a concurrent root. We can delete

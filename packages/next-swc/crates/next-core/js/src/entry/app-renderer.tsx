@@ -3,8 +3,6 @@
 import startOperationStreamHandler from '../internal/operation-stream'
 
 import '../polyfill/app-polyfills.ts'
-// TODO: when actions are supported, this should be removed/changed
-process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = 'next'
 import 'next/dist/server/require-hook'
 
 import type { IncomingMessage } from 'node:http'
