@@ -4,7 +4,7 @@ import Link from 'next/link'
 
 import { graphql } from '../gql'
 import { grafbase } from '../lib/grafbase'
-import type { Metadata } from "next"
+import type { Metadata } from 'next'
 
 export const revalidate = 0
 
