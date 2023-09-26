@@ -23,6 +23,7 @@ export function createServerComponentRenderer<Props>(
     clientReferenceManifest,
     serverContexts,
     rscChunks,
+    formState,
   }: {
     transformStream: TransformStream<Uint8Array, Uint8Array>
     clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
@@ -30,6 +31,7 @@ export function createServerComponentRenderer<Props>(
       [ServerContextName: string, JSONValue: Object | number | string]
     >
     rscChunks: Uint8Array[]
+    formState: null | any
   },
   serverComponentsErrorHandler: ReturnType<typeof createErrorHandler>,
   nonce?: string
@@ -60,6 +62,7 @@ export function createServerComponentRenderer<Props>(
       clientReferenceManifest,
       rscChunks,
       flightResponseRef,
+      formState,
       nonce
     )
     return use(response)
