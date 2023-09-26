@@ -869,10 +869,7 @@
     "runtimeError": false
   },
   "test/development/acceptance-app/ReactRefreshRegression.test.ts": {
-    "passed": [
-      "ReactRefreshRegression app can fast refresh a page with config",
-      "ReactRefreshRegression app can fast refresh a page with dynamic rendering"
-    ],
+    "passed": [],
     "failed": [
       "ReactRefreshRegression app can fast refresh a page with static generation",
       "ReactRefreshRegression app custom loader mdx should have Fast Refresh enabled",
@@ -883,7 +880,10 @@
     "pending": [
       "ReactRefreshRegression app styled-components hydration mismatch"
     ],
-    "flakey": [],
+    "flakey": [
+      "ReactRefreshRegression app can fast refresh a page with config",
+      "ReactRefreshRegression app can fast refresh a page with dynamic rendering"
+    ],
     "runtimeError": false
   },
   "test/development/acceptance-app/ReactRefreshRequire.test.ts": {
