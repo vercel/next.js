@@ -10,7 +10,7 @@ autobenches = false
 bench = false
 
 [features]
-default = ["custom_allocator", "native-tls"]
+default = ["custom_allocator"]
 custom_allocator = [
   "turbopack-binding/__turbo_tasks_malloc",
   "turbopack-binding/__turbo_tasks_malloc_custom_allocator",
@@ -48,14 +48,4 @@ tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
 [build-dependencies]
 # It is not a mistake this dependency is specified in dep / build-dep both.
 shadow-rs = { workspace = true }
-<<<<<<< HEAD
-turbopack-binding = { workspace = true, features = [
-  "__turbo_tasks_build"
-]}
-||||||| parent of 98799147c7 (Implement Server Actions)
-turbopack-binding = { workspace = true, features = [
-  "__turbo_tasks_build"
-]}
-=======
 turbopack-binding = { workspace = true, features = ["__turbo_tasks_build"] }
->>>>>>> 98799147c7 (Implement Server Actions)
