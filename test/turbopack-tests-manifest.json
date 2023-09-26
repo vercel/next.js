@@ -811,7 +811,6 @@
       "ReactRefreshLogBox app turbo Server component errors should open up in fullscreen",
       "ReactRefreshLogBox app turbo Should not show __webpack_exports__ when exporting anonymous arrow function",
       "ReactRefreshLogBox app turbo Unhandled errors and rejections opens up in the minimized state",
-      "ReactRefreshLogBox app turbo boundaries",
       "ReactRefreshLogBox app turbo client component can recover from error thrown in the module",
       "ReactRefreshLogBox app turbo module init error not shown",
       "ReactRefreshLogBox app turbo server component can recover from error thrown in the module",
@@ -820,6 +819,7 @@
     "failed": [
       "ReactRefreshLogBox app turbo Call stack count is correct for client error",
       "ReactRefreshLogBox app turbo Call stack count is correct for server error",
+      "ReactRefreshLogBox app turbo boundaries",
       "ReactRefreshLogBox app turbo conversion to class component (1)",
       "ReactRefreshLogBox app turbo css syntax errors",
       "ReactRefreshLogBox app turbo logbox: anchors links in error messages",
@@ -1197,6 +1197,7 @@
       "ReactRefreshRequire can continue hot updates after module-level errors with module.exports",
       "ReactRefreshRequire can replace a module before it is loaded",
       "ReactRefreshRequire does not accumulate stale exports over time",
+      "ReactRefreshRequire propagates hot update to all inverse dependencies",
       "ReactRefreshRequire provides fresh value for ES6 default import in parents",
       "ReactRefreshRequire provides fresh value for ES6 named import in parents",
       "ReactRefreshRequire provides fresh value for exports.* in parents",
@@ -1205,8 +1206,7 @@
       "ReactRefreshRequire stops update propagation after module-level errors"
     ],
     "failed": [
-      "ReactRefreshRequire propagates a module that stops accepting in next version",
-      "ReactRefreshRequire propagates hot update to all inverse dependencies"
+      "ReactRefreshRequire propagates a module that stops accepting in next version"
     ],
     "pending": [],
     "flakey": [
@@ -1345,7 +1345,8 @@
   },
   "test/development/basic/barrel-optimization.test.ts": {
     "passed": [
-      "optimizePackageImports should handle recursive wildcard exports"
+      "optimizePackageImports should handle recursive wildcard exports",
+      "optimizePackageImports should not break \"use client\" directive in optimized packages"
     ],
     "failed": [
       "optimizePackageImports app - should render the icons correctly without creating all the modules",
@@ -2082,6 +2083,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/actions/app-action-form-state.test.ts": {
+    "passed": [],
+    "failed": [
+      "app-dir action useFormState should support hydrating the app from progressively enhanced form request",
+      "app-dir action useFormState should support submitting form state with JS",
+      "app-dir action useFormState should support submitting form state without JS"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/actions/app-action-invalid.test.ts": {
     "passed": [],
     "failed": [
@@ -2786,11 +2798,6 @@
       "app dir <Link /> should soft push",
       "app dir HMR should HMR correctly for client component",
       "app dir HMR should HMR correctly for server component",
-      "app dir Subresource Integrity does not include nonce when not enabled",
-      "app dir Subresource Integrity includes a nonce value with bootstrap scripts when Content-Security-Policy header is defined",
-      "app dir Subresource Integrity includes a nonce value with inline scripts when Content-Security-Policy header is defined",
-      "app dir Subresource Integrity includes an integrity attribute on scripts",
-      "app dir Subresource Integrity throws when escape characters are included in nonce",
       "app dir bootstrap scripts should fail to bootstrap when using CSP in Dev due to eval",
       "app dir bootstrap scripts should only bootstrap with one script, prinitializing the rest",
       "app dir bootstrap scripts should successfully bootstrap even when using CSP",
@@ -2892,11 +2899,6 @@
     "pending": [
       "app dir <Link /> should soft replace",
       "app dir HMR should HMR correctly when changing the component type",
-      "app dir Subresource Integrity does not include nonce when not enabled",
-      "app dir Subresource Integrity includes a nonce value with bootstrap scripts when Content-Security-Policy header is defined",
-      "app dir Subresource Integrity includes a nonce value with inline scripts when Content-Security-Policy header is defined",
-      "app dir Subresource Integrity includes an integrity attribute on scripts",
-      "app dir Subresource Integrity throws when escape characters are included in nonce",
       "app dir known bugs should support React fetch instrumentation client component",
       "app dir known bugs should support React fetch instrumentation client component client-navigation",
       "app dir should handle css imports in next/dynamic correctly",
@@ -3001,7 +3003,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/crypto-globally-available/crypto-globally-available.test.ts": {
     "passed": [
@@ -3592,7 +3594,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/not-found/css-precedence/index.test.ts": {
     "passed": [],
@@ -4279,7 +4281,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/edge-pages-support/index.test.ts": {
     "passed": [],
@@ -4477,9 +4479,10 @@
     "runtimeError": false
   },
   "test/e2e/i18n-default-locale-redirect/i18n-default-locale-redirect.test.ts": {
-    "passed": [],
+    "passed": [
+      "i18-default-locale-redirect should not request a path prefixed with default locale"
+    ],
     "failed": [
-      "i18-default-locale-redirect should not request a path prefixed with default locale",
       "i18-default-locale-redirect should request a path prefixed with non-default locale"
     ],
     "pending": [],
@@ -4810,15 +4813,18 @@
   },
   "test/e2e/middleware-general/test/index.test.ts": {
     "passed": [
+      "Middleware Runtime with i18n hard-navigates when the data request failed",
+      "Middleware Runtime with i18n should have correct dynamic route params on client-transition to dynamic route",
       "Middleware Runtime with i18n should have correct files in manifest",
       "Middleware Runtime with i18n should not run middleware for on-demand revalidate",
+      "Middleware Runtime with i18n should only contain middleware route in dev middleware manifest",
+      "Middleware Runtime with i18n should respond with 400 on decode failure",
       "Middleware Runtime without i18n should have correct files in manifest",
       "Middleware Runtime without i18n should not run middleware for on-demand revalidate"
     ],
     "failed": [
       "Middleware Runtime with i18n allows shallow linking with middleware",
       "Middleware Runtime with i18n allows to access env variables",
-      "Middleware Runtime with i18n hard-navigates when the data request failed",
       "Middleware Runtime with i18n passes search params with rewrites",
       "Middleware Runtime with i18n refreshes the page when middleware changes ",
       "Middleware Runtime with i18n should accept a URL instance for fetch",
@@ -4828,7 +4834,6 @@
       "Middleware Runtime with i18n should contain `globalThis`",
       "Middleware Runtime with i18n should contain crypto APIs",
       "Middleware Runtime with i18n should have correct dynamic route params for middleware rewrite to dynamic route",
-      "Middleware Runtime with i18n should have correct dynamic route params on client-transition to dynamic route",
       "Middleware Runtime with i18n should have correct query values for rewrite to ssg page",
       "Middleware Runtime with i18n should have correct route params for chained rewrite from middleware to config rewrite",
       "Middleware Runtime with i18n should have correct route params for rewrite from config dynamic route",
@@ -4838,9 +4843,7 @@
       "Middleware Runtime with i18n should have valid middleware field in manifest",
       "Middleware Runtime with i18n should keep non data requests in their original shape",
       "Middleware Runtime with i18n should normalize data requests into page requests",
-      "Middleware Runtime with i18n should only contain middleware route in dev middleware manifest",
       "Middleware Runtime with i18n should redirect the same for direct visit and client-transition",
-      "Middleware Runtime with i18n should respond with 400 on decode failure",
       "Middleware Runtime with i18n should rewrite correctly for non-SSG/SSP page",
       "Middleware Runtime with i18n should rewrite the same for direct visit and client-transition",
       "Middleware Runtime with i18n should set fetch user agent correctly",
@@ -4944,7 +4947,9 @@
     "runtimeError": false
   },
   "test/e2e/middleware-redirects/test/index.test.ts": {
-    "passed": [],
+    "passed": [
+      "Middleware Redirect should redirect correctly with redirect in next.config.js"
+    ],
     "failed": [
       "Middleware Redirect /fr should implement internal redirects",
       "Middleware Redirect /fr should redirect",
@@ -4958,7 +4963,6 @@
       "Middleware Redirect should redirect",
       "Middleware Redirect should redirect (infinite-loop)",
       "Middleware Redirect should redirect cleanly with the original url param",
-      "Middleware Redirect should redirect correctly with redirect in next.config.js",
       "Middleware Redirect should redirect multiple times",
       "Middleware Redirect should redirect to api route with locale",
       "Middleware Redirect should redirect to data urls with data requests and internal redirects",
@@ -5128,7 +5132,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/multi-zone/multi-zone.test.ts": {
     "passed": [],
@@ -5266,7 +5270,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/next-font/with-proxy.test.ts": {
     "passed": [],
@@ -5327,7 +5331,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/no-eslint-warn-with-no-eslint-config/index.test.ts": {
     "passed": [
@@ -5350,7 +5354,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/og-api/index.test.ts": {
     "passed": [
@@ -5365,7 +5369,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/opentelemetry/opentelemetry.test.ts": {
     "passed": [],
@@ -5378,7 +5382,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/optimized-loading/test/index.test.ts": {
     "passed": [
@@ -5556,7 +5560,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/repeated-forward-slashes-error/repeated-forward-slashes-error.test.ts": {
     "passed": [
@@ -5604,7 +5608,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/ssr-react-context/index.test.ts": {
     "passed": [
@@ -5634,7 +5638,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/styled-jsx/index.test.ts": {
     "passed": [
@@ -5698,7 +5702,7 @@
       "Switchable runtime Switchable runtime (prod) should support client side navigation to static rsc pages"
     ],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/test-template/{{ toFileName name }}/{{ toFileName name }}.test.ts": {
     "passed": [
@@ -5942,14 +5946,15 @@
     "passed": [
       "absolute assetPrefix with path prefix should not fetch static data from a CDN",
       "absolute assetPrefix with path prefix should work with getServerSideProps",
-      "absolute assetPrefix with path prefix should work with getStaticPaths fallback",
-      "absolute assetPrefix with path prefix should work with getStaticPaths prerendered"
+      "absolute assetPrefix with path prefix should work with getStaticPaths fallback"
     ],
     "failed": [
       "absolute assetPrefix with path prefix should fetch from cache correctly"
     ],
     "pending": [],
-    "flakey": [],
+    "flakey": [
+      "absolute assetPrefix with path prefix should work with getStaticPaths prerendered"
+    ],
     "runtimeError": false
   },
   "test/integration/amp-export-validation/test/index.test.js": {
@@ -6907,19 +6912,20 @@
       "create next app invalid example name",
       "create next app non-empty directory",
       "create next app should allow an example named default",
-      "create next app should allow example with GitHub URL",
-      "create next app should allow example with GitHub URL and example-path",
-      "create next app should allow example with GitHub URL with trailing slash",
       "create next app should ask the user for a name for the project if none supplied",
       "create next app should create a project in the current directory",
       "create next app should exit if example flag is empty",
       "create next app should exit if the folder is not writable",
-      "create next app should fall back to default template",
+      "create next app should fall back to default template"
+    ],
+    "failed": [
+      "create next app should allow example with GitHub URL",
+      "create next app should allow example with GitHub URL and example-path",
+      "create next app should allow example with GitHub URL with trailing slash",
       "create next app should use --example-path over the file path in the GitHub URL",
       "create next app valid example",
       "create next app valid example without package.json"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6927,24 +6933,27 @@
   "test/integration/create-next-app/package-manager.test.ts": {
     "passed": [
       "should infer Bun as the package manager",
-      "should infer Bun as the package manager with example",
       "should infer npm as the package manager",
+      "should infer yarn as the package manager",
+      "should use Yarn as the package manager on supplying --use-yarn",
+      "should use npm as the package manager on supplying --use-npm"
+    ],
+    "failed": [
+      "should infer Bun as the package manager with example",
       "should infer npm as the package manager with example",
+      "should infer yarn as the package manager with example",
+      "should use Bun as the package manager on supplying --use-bun",
+      "should use Bun as the package manager on supplying --use-bun with example",
+      "should use Yarn as the package manager on supplying --use-yarn with example",
+      "should use npm as the package manager on supplying --use-npm with example"
+    ],
+    "pending": [],
+    "flakey": [
       "should infer pnpm as the package manager",
       "should infer pnpm as the package manager with example",
-      "should infer yarn as the package manager",
-      "should infer yarn as the package manager with example",
-      "should use Bun as the package manager on supplying --use-bun with example",
-      "should use Yarn as the package manager on supplying --use-yarn",
-      "should use Yarn as the package manager on supplying --use-yarn with example",
-      "should use npm as the package manager on supplying --use-npm",
-      "should use npm as the package manager on supplying --use-npm with example",
       "should use pnpm as the package manager on supplying --use-pnpm",
       "should use pnpm as the package manager on supplying --use-pnpm with example"
     ],
-    "failed": ["should use Bun as the package manager on supplying --use-bun"],
-    "pending": [],
-    "flakey": [],
     "runtimeError": false
   },
   "test/integration/create-next-app/templates-app.test.ts": {
@@ -13458,132 +13467,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/production/test/index.test.js": {
-    "passed": [],
-    "failed": [
-      "Production Usage API routes does not work with pages/api/readfile-dirname.js",
-      "Production Usage API routes should work with dynamic params and search string",
-      "Production Usage API routes should work with pages/api/hello.js",
-      "Production Usage API routes should work with pages/api/index.js",
-      "Production Usage API routes should work with pages/api/readfile-processcwd.js",
-      "Production Usage Dynamic import custom loading should render custom loading on the server side when `ssr:false` and `loading` is provided",
-      "Production Usage Dynamic import custom loading should render the component on client side",
-      "Production Usage Dynamic import default behavior should bundle two css modules for nested components into one css file",
-      "Production Usage Dynamic import default behavior should bundle two css modules for one dynamically imported component into one css file",
-      "Production Usage Dynamic import default behavior should not remove css styles for same css file between page transitions",
-      "Production Usage Dynamic import default behavior should output two css files even in case of three css module files while one is shared across files",
-      "Production Usage Dynamic import default behavior should render dynamic import components",
-      "Production Usage Dynamic import default behavior should render even there are no physical chunk exists",
-      "Production Usage Dynamic import default behavior should render one dynamically imported component and load its css files",
-      "Production Usage Dynamic import default behavior should render one dynamically imported component without any css files",
-      "Production Usage Dynamic import default behavior should render three dynamically imported components and load their css files",
-      "Production Usage Dynamic import ssr:false option should not render loading on the server side",
-      "Production Usage Dynamic import ssr:false option should render the component on client side",
-      "Production Usage Dynamic import ssr:true option should render the component on client side",
-      "Production Usage Dynamic import ssr:true option should render the component on the server side",
-      "Production Usage Misc It does not add a timestamp to link tags with prefetch attribute",
-      "Production Usage Misc Should allow access to public files",
-      "Production Usage Misc should add autoExport for auto pre-rendered pages",
-      "Production Usage Misc should add prefetch tags when Link prefetch prop is used",
-      "Production Usage Misc should allow to access /static/ and /_next/",
-      "Production Usage Misc should handle already finished responses",
-      "Production Usage Misc should have default runtime values when not defined",
-      "Production Usage Misc should not add autoExport for non pre-rendered pages",
-      "Production Usage Misc should not have runtimeConfig in __NEXT_DATA__",
-      "Production Usage Misc should reload the page on page script error",
-      "Production Usage Misc should reload the page on page script error with prefetch",
-      "Production Usage Runtime errors should call getInitialProps on _error page during a client side component error",
-      "Production Usage Runtime errors should render a client side component error",
-      "Production Usage Runtime errors should render a server side error on the client side",
-      "Production Usage With Security Related Issues should handle encoded / value for trailing slash correctly",
-      "Production Usage With Security Related Issues should handle encoded value in the pathname correctly %",
-      "Production Usage With Security Related Issues should handle encoded value in the pathname correctly /",
-      "Production Usage With Security Related Issues should handle encoded value in the pathname correctly \\",
-      "Production Usage With Security Related Issues should handle encoded value in the pathname to query correctly (/)",
-      "Production Usage With Security Related Issues should handle encoded value in the query correctly",
-      "Production Usage With Security Related Issues should not allow accessing files outside .next/static directory",
-      "Production Usage With Security Related Issues should not execute script embedded inside svg image, even if dangerouslyAllowSVG=true",
-      "Production Usage With Security Related Issues should not leak the user's home directory into the build",
-      "Production Usage With Security Related Issues should only access files inside .next directory",
-      "Production Usage With Security Related Issues should prevent URI based XSS attacks",
-      "Production Usage With Security Related Issues should prevent URI based XSS attacks using double quotes",
-      "Production Usage With Security Related Issues should prevent URI based XSS attacks using querystring",
-      "Production Usage With Security Related Issues should prevent URI based XSS attacks using querystring and quotes",
-      "Production Usage With Security Related Issues should prevent URI based XSS attacks using semicolons and double quotes",
-      "Production Usage With Security Related Issues should prevent URI based XSS attacks using semicolons and single quotes",
-      "Production Usage With Security Related Issues should prevent URI based XSS attacks using single quotes",
-      "Production Usage With Security Related Issues should prevent URI based XSS attacks using src",
-      "Production Usage With basic usage should allow etag header support",
-      "Production Usage With basic usage should allow etag header support with getStaticProps",
-      "Production Usage With basic usage should block special pages",
-      "Production Usage With basic usage should have X-Powered-By header support",
-      "Production Usage With basic usage should not contain customServer in NEXT_DATA",
-      "Production Usage With basic usage should polyfill Node.js modules",
-      "Production Usage With basic usage should render 200 for POST on page",
-      "Production Usage With basic usage should render 404 even if the HTTP method is not GET or HEAD",
-      "Production Usage With basic usage should render 404 for /_next/static route",
-      "Production Usage With basic usage should render 404 for POST on missing page",
-      "Production Usage With basic usage should render 404 for _next routes that do not exist",
-      "Production Usage With basic usage should render 404 for dotfiles in /static",
-      "Production Usage With basic usage should render 404 for routes that do not exist",
-      "Production Usage With basic usage should render the page",
-      "Production Usage With basic usage should return 200 on static file if If-Unmodified-Since is invalid date",
-      "Production Usage With basic usage should return 405 method on static then GET and HEAD",
-      "Production Usage With basic usage should return 412 on static file when If-Unmodified-Since is provided and file is modified",
-      "Production Usage With basic usage should set Cache-Control header",
-      "Production Usage With basic usage should set Content-Length header",
-      "Production Usage With basic usage should set correct Cache-Control header for static 404s",
-      "Production Usage With navigation should navigate to nested index via client side",
-      "Production Usage With navigation should navigate via client side",
-      "Production Usage With navigation should reload page successfully (on bad data fetch)",
-      "Production Usage With navigation should reload page successfully (on bad link)",
-      "Production Usage process.browser should eliminate client only code on the server",
-      "Production Usage process.browser should eliminate server only code on the client",
-      "Production Usage process.env should set process.env.NODE_ENV in production",
-      "Production Usage should change query correctly",
-      "Production Usage should clear all core performance marks",
-      "Production Usage should contain generated page count in output",
-      "Production Usage should contain the Next.js version in window export",
-      "Production Usage should handle AMP correctly in IE",
-      "Production Usage should handle failed param decoding",
-      "Production Usage should handle query/hash correctly during query updating ## $search",
-      "Production Usage should handle query/hash correctly during query updating ##? $search",
-      "Production Usage should handle query/hash correctly during query updating ##hello $search",
-      "Production Usage should handle query/hash correctly during query updating ##hello? $search",
-      "Production Usage should handle query/hash correctly during query updating #? $search",
-      "Production Usage should handle query/hash correctly during query updating #a ?hello",
-      "Production Usage should handle query/hash correctly during query updating #a ?hello=",
-      "Production Usage should handle query/hash correctly during query updating #a ?hello=world",
-      "Production Usage should handle query/hash correctly during query updating #hello? $search",
-      "Production Usage should handle query/hash correctly during query updating #hello?world $search",
-      "Production Usage should have defer on all script tags",
-      "Production Usage should navigate through history after query update",
-      "Production Usage should navigate to external site and back",
-      "Production Usage should navigate to external site and back (with query)",
-      "Production Usage should navigate to page with CSS and back",
-      "Production Usage should not clear custom performance marks",
-      "Production Usage should not contain amp, rsc APIs in main chunk",
-      "Production Usage should not contain currentScript usage for publicPath",
-      "Production Usage should not emit stats",
-      "Production Usage should not expose the compiled page file in development",
-      "Production Usage should not put backslashes in pages-manifest.json",
-      "Production Usage should not replace non-static pages with HTML files",
-      "Production Usage should not show target deprecation warning",
-      "Production Usage should only have one DOCTYPE",
-      "Production Usage should output traces",
-      "Production Usage should preserve query when hard navigating from page 404",
-      "Production Usage should remove placeholder for next/image correctly",
-      "Production Usage should replace static pages with HTML files",
-      "Production Usage should respond with 405 for POST to static page",
-      "Production Usage should warn when prefetch is true"
-    ],
-    "pending": [
-      "Production Usage With Security Related Issues should handle invalid URL properly",
-      "Production Usage With basic usage should allow etag header support with getServerSideProps"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/project-dir-delete/index.test.ts": {
     "passed": [],
     "failed": [],
@@ -15040,6 +14923,19 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/production/app-dir/subresource-integrity/subresource-integrity.test.ts": {
+    "passed": [],
+    "failed": [
+      "Subresource Integrity does not include nonce when not enabled",
+      "Subresource Integrity includes a nonce value with bootstrap scripts when Content-Security-Policy header is defined",
+      "Subresource Integrity includes a nonce value with inline scripts when Content-Security-Policy header is defined",
+      "Subresource Integrity includes an integrity attribute on scripts",
+      "Subresource Integrity throws when escape characters are included in nonce"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/production/bfcache-routing/index.test.ts": {
     "passed": [
       "bfcache-routing should not suspend indefinitely when page is restored from bfcache after an mpa navigation"
@@ -15380,6 +15276,132 @@
       "next/font used telemetry should send next/font/google and next/font/local usage event"
     ],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/pages-dir/production/test/index.test.ts": {
+    "passed": [],
+    "failed": [
+      "Production Usage API routes does not work with pages/api/readfile-dirname.js",
+      "Production Usage API routes should work with dynamic params and search string",
+      "Production Usage API routes should work with pages/api/hello.js",
+      "Production Usage API routes should work with pages/api/index.js",
+      "Production Usage API routes should work with pages/api/readfile-processcwd.js",
+      "Production Usage Dynamic import custom loading should render custom loading on the server side when `ssr:false` and `loading` is provided",
+      "Production Usage Dynamic import custom loading should render the component on client side",
+      "Production Usage Dynamic import default behavior should bundle two css modules for nested components into one css file",
+      "Production Usage Dynamic import default behavior should bundle two css modules for one dynamically imported component into one css file",
+      "Production Usage Dynamic import default behavior should not remove css styles for same css file between page transitions",
+      "Production Usage Dynamic import default behavior should output two css files even in case of three css module files while one is shared across files",
+      "Production Usage Dynamic import default behavior should render dynamic import components",
+      "Production Usage Dynamic import default behavior should render even there are no physical chunk exists",
+      "Production Usage Dynamic import default behavior should render one dynamically imported component and load its css files",
+      "Production Usage Dynamic import default behavior should render one dynamically imported component without any css files",
+      "Production Usage Dynamic import default behavior should render three dynamically imported components and load their css files",
+      "Production Usage Dynamic import ssr:false option should not render loading on the server side",
+      "Production Usage Dynamic import ssr:false option should render the component on client side",
+      "Production Usage Dynamic import ssr:true option should render the component on client side",
+      "Production Usage Dynamic import ssr:true option should render the component on the server side",
+      "Production Usage Misc It does not add a timestamp to link tags with prefetch attribute",
+      "Production Usage Misc Should allow access to public files",
+      "Production Usage Misc should add autoExport for auto pre-rendered pages",
+      "Production Usage Misc should add prefetch tags when Link prefetch prop is used",
+      "Production Usage Misc should allow to access /static/ and /_next/",
+      "Production Usage Misc should handle already finished responses",
+      "Production Usage Misc should have default runtime values when not defined",
+      "Production Usage Misc should not add autoExport for non pre-rendered pages",
+      "Production Usage Misc should not have runtimeConfig in __NEXT_DATA__",
+      "Production Usage Misc should reload the page on page script error",
+      "Production Usage Misc should reload the page on page script error with prefetch",
+      "Production Usage Runtime errors should call getInitialProps on _error page during a client side component error",
+      "Production Usage Runtime errors should render a client side component error",
+      "Production Usage Runtime errors should render a server side error on the client side",
+      "Production Usage With Security Related Issues should handle encoded / value for trailing slash correctly",
+      "Production Usage With Security Related Issues should handle encoded value in the pathname correctly %",
+      "Production Usage With Security Related Issues should handle encoded value in the pathname correctly /",
+      "Production Usage With Security Related Issues should handle encoded value in the pathname correctly \\",
+      "Production Usage With Security Related Issues should handle encoded value in the pathname to query correctly (/)",
+      "Production Usage With Security Related Issues should handle encoded value in the query correctly",
+      "Production Usage With Security Related Issues should not allow accessing files outside .next/static directory",
+      "Production Usage With Security Related Issues should not execute script embedded inside svg image, even if dangerouslyAllowSVG=true",
+      "Production Usage With Security Related Issues should not leak the user's home directory into the build",
+      "Production Usage With Security Related Issues should only access files inside .next directory",
+      "Production Usage With Security Related Issues should prevent URI based XSS attacks",
+      "Production Usage With Security Related Issues should prevent URI based XSS attacks using double quotes",
+      "Production Usage With Security Related Issues should prevent URI based XSS attacks using querystring",
+      "Production Usage With Security Related Issues should prevent URI based XSS attacks using querystring and quotes",
+      "Production Usage With Security Related Issues should prevent URI based XSS attacks using semicolons and double quotes",
+      "Production Usage With Security Related Issues should prevent URI based XSS attacks using semicolons and single quotes",
+      "Production Usage With Security Related Issues should prevent URI based XSS attacks using single quotes",
+      "Production Usage With Security Related Issues should prevent URI based XSS attacks using src",
+      "Production Usage With basic usage should allow etag header support",
+      "Production Usage With basic usage should allow etag header support with getStaticProps",
+      "Production Usage With basic usage should block special pages",
+      "Production Usage With basic usage should have X-Powered-By header support",
+      "Production Usage With basic usage should not contain customServer in NEXT_DATA",
+      "Production Usage With basic usage should polyfill Node.js modules",
+      "Production Usage With basic usage should render 200 for POST on page",
+      "Production Usage With basic usage should render 404 even if the HTTP method is not GET or HEAD",
+      "Production Usage With basic usage should render 404 for /_next/static route",
+      "Production Usage With basic usage should render 404 for POST on missing page",
+      "Production Usage With basic usage should render 404 for _next routes that do not exist",
+      "Production Usage With basic usage should render 404 for dotfiles in /static",
+      "Production Usage With basic usage should render 404 for routes that do not exist",
+      "Production Usage With basic usage should render the page",
+      "Production Usage With basic usage should return 200 on static file if If-Unmodified-Since is invalid date",
+      "Production Usage With basic usage should return 405 method on static then GET and HEAD",
+      "Production Usage With basic usage should return 412 on static file when If-Unmodified-Since is provided and file is modified",
+      "Production Usage With basic usage should set Cache-Control header",
+      "Production Usage With basic usage should set Content-Length header",
+      "Production Usage With basic usage should set correct Cache-Control header for static 404s",
+      "Production Usage With navigation should navigate to nested index via client side",
+      "Production Usage With navigation should navigate via client side",
+      "Production Usage With navigation should reload page successfully (on bad data fetch)",
+      "Production Usage With navigation should reload page successfully (on bad link)",
+      "Production Usage process.browser should eliminate client only code on the server",
+      "Production Usage process.browser should eliminate server only code on the client",
+      "Production Usage process.env should set process.env.NODE_ENV in production",
+      "Production Usage should change query correctly",
+      "Production Usage should clear all core performance marks",
+      "Production Usage should contain generated page count in output",
+      "Production Usage should contain the Next.js version in window export",
+      "Production Usage should handle AMP correctly in IE",
+      "Production Usage should handle failed param decoding",
+      "Production Usage should handle query/hash correctly during query updating ## $search",
+      "Production Usage should handle query/hash correctly during query updating ##? $search",
+      "Production Usage should handle query/hash correctly during query updating ##hello $search",
+      "Production Usage should handle query/hash correctly during query updating ##hello? $search",
+      "Production Usage should handle query/hash correctly during query updating #? $search",
+      "Production Usage should handle query/hash correctly during query updating #a ?hello",
+      "Production Usage should handle query/hash correctly during query updating #a ?hello=",
+      "Production Usage should handle query/hash correctly during query updating #a ?hello=world",
+      "Production Usage should handle query/hash correctly during query updating #hello? $search",
+      "Production Usage should handle query/hash correctly during query updating #hello?world $search",
+      "Production Usage should have defer on all script tags",
+      "Production Usage should navigate through history after query update",
+      "Production Usage should navigate to external site and back",
+      "Production Usage should navigate to external site and back (with query)",
+      "Production Usage should navigate to page with CSS and back",
+      "Production Usage should not clear custom performance marks",
+      "Production Usage should not contain amp, rsc APIs in main chunk",
+      "Production Usage should not contain currentScript usage for publicPath",
+      "Production Usage should not emit stats",
+      "Production Usage should not expose the compiled page file in development",
+      "Production Usage should not put backslashes in pages-manifest.json",
+      "Production Usage should not replace non-static pages with HTML files",
+      "Production Usage should not show target deprecation warning",
+      "Production Usage should only have one DOCTYPE",
+      "Production Usage should output traces",
+      "Production Usage should preserve query when hard navigating from page 404",
+      "Production Usage should remove placeholder for next/image correctly",
+      "Production Usage should replace static pages with HTML files",
+      "Production Usage should respond with 405 for POST to static page",
+      "Production Usage should warn when prefetch is true"
+    ],
+    "pending": [
+      "Production Usage With Security Related Issues should handle invalid URL properly",
+      "Production Usage With basic usage should allow etag header support with getServerSideProps"
+    ],
     "flakey": [],
     "runtimeError": false
   },
