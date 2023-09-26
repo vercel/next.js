@@ -529,10 +529,16 @@ export default class NextNodeServer extends BaseServer {
           }
 
           if (this.isRenderWorker) {
+            const protocol =
+              this.serverOptions.experimentalHttpsServer ||
+              this.renderWorkerOpts?.experimentalHttpsServer
+                ? 'https'
+                : 'http'
+
             const invokeRes = await invokeRequest(
-              `${getRequestMeta(req, '_protocol')}://${
-                this.fetchHostname || 'localhost'
-              }:${this.port}${newReq.url || ''}`,
+              `${protocol}://${this.fetchHostname || 'localhost'}:${this.port}${
+                newReq.url || ''
+              }`,
               {
                 method: newReq.method || 'GET',
                 headers: newReq.headers,
