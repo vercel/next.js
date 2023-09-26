@@ -518,17 +518,21 @@ export default class NextNodeServer extends BaseServer {
         paramsResult,
         this.nextConfig,
         this.renderOpts.dev,
-        async (newReq, newRes, newParsedUrl) => {
+        async (newReq, newRes) => {
           if (newReq.url === req.url) {
             throw new Error(
               `Invariant attempted to optimize _next/image itself`
             )
           }
 
+          const protocol = this.serverOptions.experimentalHttpsServer
+            ? 'https'
+            : 'http'
+
           const invokeRes = await invokeRequest(
-            `${getRequestMeta(req, '_protocol')}://${
-              this.fetchHostname || 'localhost'
-            }:${this.port}${newReq.url || ''}`,
+            `${protocol}://${this.fetchHostname || 'localhost'}:${this.port}${
+              newReq.url || ''
+            }`,
             {
               method: newReq.method || 'GET',
               headers: newReq.headers,

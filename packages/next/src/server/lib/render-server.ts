@@ -76,6 +76,7 @@ export async function initialize(opts: {
   serverFields?: any
   server?: any
   experimentalTestProxy: boolean
+  experimentalHttpsServer: boolean
   _ipcPort?: string
   _ipcKey?: string
 }) {

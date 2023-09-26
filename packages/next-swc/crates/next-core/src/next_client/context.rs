@@ -216,8 +216,13 @@ pub async fn get_client_module_options_context(
     } else {
         None
     };
-    let jsx_runtime_options =
-        get_jsx_transform_options(project_path, mode, Some(resolve_options_context));
+    let jsx_runtime_options = get_jsx_transform_options(
+        project_path,
+        mode,
+        Some(resolve_options_context),
+        false,
+        next_config,
+    );
     let webpack_rules =
         *maybe_add_babel_loader(project_path, *next_config.webpack_rules().await?).await?;
     let webpack_rules = maybe_add_sass_loader(next_config.sass_config(), webpack_rules).await?;

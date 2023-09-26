@@ -49,6 +49,7 @@ export async function getRequestHandlers({
   isNodeDebugging,
   keepAliveTimeout,
   experimentalTestProxy,
+  experimentalHttpsServer,
 }: {
   dir: string
   port: number
@@ -59,6 +60,7 @@ export async function getRequestHandlers({
   isNodeDebugging?: boolean
   keepAliveTimeout?: number
   experimentalTestProxy?: boolean
+  experimentalHttpsServer?: boolean
 }): ReturnType<typeof initialize> {
   return initialize({
     dir,
@@ -70,6 +72,7 @@ export async function getRequestHandlers({
     isNodeDebugging: isNodeDebugging || false,
     keepAliveTimeout,
     experimentalTestProxy,
+    experimentalHttpsServer,
   })
 }
 
@@ -292,6 +295,7 @@ export async function startServer({
           isNodeDebugging: Boolean(isNodeDebugging),
           keepAliveTimeout,
           experimentalTestProxy: !!isExperimentalTestProxy,
+          experimentalHttpsServer: !!selfSignedCertificate,
         })
         requestHandler = initResult[0]
         upgradeHandler = initResult[1]
