@@ -7,6 +7,7 @@ use next_swc::{
     next_dynamic::next_dynamic,
     next_ssg::next_ssg,
     optimize_barrel::optimize_barrel,
+    optimize_server_react::optimize_server_react,
     page_config::page_config_test,
     react_remove_properties::remove_properties,
     react_server_components::server_components,
@@ -325,7 +326,7 @@ fn react_server_components_server_graph_fixture(input: PathBuf) {
                 ),
                 tr.comments.as_ref().clone(),
                 None,
-                false,
+                String::from("default").into(),
             )
         },
         &input,
@@ -347,7 +348,7 @@ fn react_server_components_no_checks_server_graph_fixture(input: PathBuf) {
                 ),
                 tr.comments.as_ref().clone(),
                 None,
-                true,
+                String::from("default").into(),
             )
         },
         &input,
@@ -369,7 +370,7 @@ fn react_server_components_client_graph_fixture(input: PathBuf) {
                 ),
                 tr.comments.as_ref().clone(),
                 None,
-                false,
+                String::from("default").into(),
             )
         },
         &input,
@@ -391,7 +392,7 @@ fn react_server_components_no_checks_client_graph_fixture(input: PathBuf) {
                 ),
                 tr.comments.as_ref().clone(),
                 None,
-                true,
+                String::from("default").into(),
             )
         },
         &input,
@@ -572,6 +573,28 @@ fn optimize_barrel_wildcard_fixture(input: PathBuf) {
                         }
                     "#
                 ))
+            )
+        },
+        &input,
+        &output,
+        Default::default(),
+    );
+}
+
+#[fixture("tests/fixture/optimize_server_react/**/input.js")]
+fn optimize_server_react_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            let unresolved_mark = Mark::new();
+            let top_level_mark = Mark::new();
+
+            chain!(
+                resolver(unresolved_mark, top_level_mark, false),
+                optimize_server_react(next_swc::optimize_server_react::Config {
+                    optimize_use_state: true
+                })
             )
         },
         &input,

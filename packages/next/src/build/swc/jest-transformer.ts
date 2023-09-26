@@ -84,6 +84,9 @@ const createTransformer: TransformerCreator<
     const jestConfig = getJestConfig(jestOptions)
 
     const swcTransformOpts = getJestSWCOptions({
+      isServer:
+        jestConfig.testEnvironment === 'node' ||
+        jestConfig.testEnvironment.includes('jest-environment-node'),
       filename,
       jsConfig: inputOptions?.jsConfig,
       resolvedBaseUrl: inputOptions?.resolvedBaseUrl,

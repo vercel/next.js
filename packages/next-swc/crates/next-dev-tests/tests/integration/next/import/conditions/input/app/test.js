@@ -120,7 +120,7 @@ function runTests() {
     expect(json).toMatchObject({
       edgeThenNode: 'node',
       nodeThenEdge: 'node',
-      reactServer: 'react-server',
+      reactServer: 'default',
     })
   })
 
@@ -129,7 +129,7 @@ function runTests() {
     expect(json).toMatchObject({
       edgeThenNode: 'edge',
       nodeThenEdge: 'edge',
-      reactServer: 'react-server',
+      reactServer: 'default',
     })
   })
 

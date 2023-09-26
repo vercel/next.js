@@ -4,6 +4,10 @@ import type { UrlWithParsedQuery } from 'url'
 import type { NextConfigComplete } from './config-shared'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextUrlWithParsedQuery } from './request-meta'
+import {
+  WorkerRequestHandler,
+  WorkerUpgradeHandler,
+} from './lib/setup-server-worker'
 
 import './require-hook'
 import './node-polyfill-fetch'
@@ -19,10 +23,6 @@ import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
-import {
-  WorkerRequestHandler,
-  WorkerUpgradeHandler,
-} from './lib/setup-server-worker'
 import { checkIsNodeDebugging } from './lib/is-node-debugging'
 
 let ServerImpl: typeof Server
@@ -171,9 +171,10 @@ export class NextServer {
       loadConfig(
         this.options.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
         resolve(this.options.dir || '.'),
-        this.options.conf,
-        undefined,
-        !!this.options._renderWorker
+        {
+          customConfig: this.options.conf,
+          silent: !!this.options._renderWorker,
+        }
       )
     )
   }

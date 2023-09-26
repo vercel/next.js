@@ -48,23 +48,6 @@ describe('Page Extensions', () => {
     )
   })
 
-  it('should throw if @zeit/next-typescript is used', async () => {
-    await fs.writeFile(
-      nextConfig,
-      `const withTypescript = require('@zeit/next-typescript')
-      module.exports = withTypescript()
-      `
-    )
-
-    const { stderr } = await runNextCommand(['build', appDir], { stderr: true })
-
-    await fs.remove(nextConfig)
-
-    expect(stderr).toContain(
-      '@zeit/next-typescript is no longer needed since Next.js has built-in support for TypeScript now'
-    )
-  })
-
   it('should not throw if .d.ts file inside the pages folder', async () => {
     await fs.writeFile(
       nextConfig,

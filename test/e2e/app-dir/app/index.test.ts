@@ -19,7 +19,7 @@ createNextDescribe(
         ).toBeTruthy()
         expect(
           await next.readFile('.next/server/app/linking/about.prefetch.rsc')
-        ).toBeTruthy()
+        ).toContain('About loading...')
         expect(
           await next.readFile(
             '.next/server/app/dashboard/deployments/breakdown.prefetch.rsc'
@@ -227,12 +227,7 @@ createNextDescribe(
         await next.fetch('/')
         expect(
           stripAnsi(next.cliOutput).match(
-            /You have enabled experimental feature/g
-          ).length
-        ).toBe(1)
-        expect(
-          stripAnsi(next.cliOutput).match(
-            /Experimental features are not covered by semver/g
+            /Experiments \(use at your own risk\):/g
           ).length
         ).toBe(1)
       })
@@ -310,9 +305,7 @@ createNextDescribe(
       const res = await next.fetch('/dashboard')
       expect(res.headers.get('x-edge-runtime')).toBe('1')
       expect(res.headers.get('vary')).toBe(
-        isNextDeploy
-          ? 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url'
-          : 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url, Accept-Encoding'
+        'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url'
       )
     })
 
@@ -1911,13 +1904,13 @@ createNextDescribe(
       it('should insert preload tags for beforeInteractive and afterInteractive scripts', async () => {
         const html = await next.render('/script')
         expect(html).toContain(
-          '<link rel="preload" as="script" href="/test1.js"/>'
+          '<link rel="preload" href="/test1.js" as="script"/>'
         )
         expect(html).toContain(
-          '<link rel="preload" as="script" href="/test2.js"/>'
+          '<link rel="preload" href="/test2.js" as="script"/>'
         )
         expect(html).toContain(
-          '<link rel="preload" as="script" href="/test3.js"/>'
+          '<link rel="preload" href="/test3.js" as="script"/>'
         )
 
         // test4.js has lazyOnload which doesn't need to be preloaded
