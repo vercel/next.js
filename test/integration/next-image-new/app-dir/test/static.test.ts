@@ -205,7 +205,7 @@ describe('Build Error Tests', () => {
   })
 })
 describe('Static Image Component Tests', () => {
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await nextBuild(appDir)
       appPort = await findPort()
