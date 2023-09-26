@@ -19,16 +19,24 @@ import {
   isRedirectError,
 } from '../../client/components/redirect'
 import RenderResult from '../render-result'
-import { StaticGenerationStore } from '../../client/components/static-generation-async-storage'
+import { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import { FlightRenderResult } from './flight-render-result'
 import { ActionResult } from './types'
-import { ActionAsyncStorage } from '../../client/components/action-async-storage'
-import { filterReqHeaders, forbiddenHeaders } from '../lib/server-ipc/utils'
+import { ActionAsyncStorage } from '../../client/components/action-async-storage.external'
+import {
+  filterReqHeaders,
+  actionsForbiddenHeaders,
+} from '../lib/server-ipc/utils'
 import {
   appendMutableCookies,
   getModifiedCookieValues,
 } from '../web/spec-extension/adapters/request-cookies'
-import { RequestStore } from '../../client/components/request-async-storage'
+
+import { RequestStore } from '../../client/components/request-async-storage.external'
+import {
+  NEXT_CACHE_REVALIDATED_TAGS_HEADER,
+  NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
+} from '../../lib/constants'
 
 function nodeToWebReadableStream(nodeReadable: import('stream').Readable) {
   if (process.env.NEXT_RUNTIME !== 'edge') {
@@ -98,10 +106,13 @@ function getForwardedHeaders(
   })
 
   // Merge request and response headers
-  const mergedHeaders = filterReqHeaders({
-    ...nodeHeadersToRecord(requestHeaders),
-    ...nodeHeadersToRecord(responseHeaders),
-  }) as Record<string, string>
+  const mergedHeaders = filterReqHeaders(
+    {
+      ...nodeHeadersToRecord(requestHeaders),
+      ...nodeHeadersToRecord(responseHeaders),
+    },
+    actionsForbiddenHeaders
+  ) as Record<string, string>
 
   // Merge cookies
   const mergedCookies = requestCookies.split('; ').concat(setCookies).join('; ')
@@ -113,24 +124,6 @@ function getForwardedHeaders(
   delete mergedHeaders['transfer-encoding']
 
   return new Headers(mergedHeaders)
-}
-
-function fetchIPv4v6(
-  url: URL,
-  init: RequestInit,
-  v6 = false
-): Promise<Response> {
-  const hostname = url.hostname
-
-  if (!v6 && hostname === 'localhost') {
-    url.hostname = '127.0.0.1'
-  }
-  return fetch(url, init).catch((err) => {
-    if (err.code === 'ECONNREFUSED' && !v6) {
-      return fetchIPv4v6(url, init, true)
-    }
-    throw err
-  })
 }
 
 async function addRevalidationHeader(
@@ -190,18 +183,23 @@ async function createRedirectRenderResult(
 
     if (staticGenerationStore.revalidatedTags) {
       forwardedHeaders.set(
-        'x-next-revalidated-tags',
+        NEXT_CACHE_REVALIDATED_TAGS_HEADER,
         staticGenerationStore.revalidatedTags.join(',')
       )
       forwardedHeaders.set(
-        'x-next-revalidate-tag-token',
+        NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
         staticGenerationStore.incrementalCache?.prerenderManifest?.preview
           ?.previewModeId || ''
       )
     }
 
+    // Ensures that when the path was revalidated we don't return a partial response on redirects
+    // if (staticGenerationStore.pathWasRevalidated) {
+    forwardedHeaders.delete('next-router-state-tree')
+    // }
+
     try {
-      const headResponse = await fetchIPv4v6(fetchUrl, {
+      const headResponse = await fetch(fetchUrl, {
         method: 'HEAD',
         headers: forwardedHeaders,
         next: {
@@ -213,7 +211,7 @@ async function createRedirectRenderResult(
       if (
         headResponse.headers.get('content-type') === RSC_CONTENT_TYPE_HEADER
       ) {
-        const response = await fetchIPv4v6(fetchUrl, {
+        const response = await fetch(fetchUrl, {
           method: 'GET',
           headers: forwardedHeaders,
           next: {
@@ -223,7 +221,7 @@ async function createRedirectRenderResult(
         })
         // copy the headers from the redirect response to the response we're sending
         for (const [key, value] of response.headers) {
-          if (!forbiddenHeaders.includes(key)) {
+          if (!actionsForbiddenHeaders.includes(key)) {
             res.setHeader(key, value)
           }
         }
@@ -242,7 +240,7 @@ export async function handleAction({
   req,
   res,
   ComponentMod,
-  pathname,
+  page,
   serverActionsManifest,
   generateFlight,
   staticGenerationStore,
@@ -252,7 +250,7 @@ export async function handleAction({
   req: IncomingMessage
   res: ServerResponse
   ComponentMod: any
-  pathname: string
+  page: string
   serverActionsManifest: any
   generateFlight: (options: {
     actionResult: ActionResult
@@ -276,9 +274,14 @@ export async function handleAction({
     req.method === 'POST'
 
   if (isFetchAction || isURLEncodedAction || isMultipartAction) {
+    // ensure we avoid caching server actions unexpectedly
+    res.setHeader(
+      'Cache-Control',
+      'no-cache, no-store, max-age=0, must-revalidate'
+    )
     let bound = []
 
-    const workerName = 'app' + pathname
+    const workerName = 'app' + page
     const serverModuleMap = new Proxy(
       {},
       {
@@ -387,7 +390,7 @@ export async function handleAction({
                 // Exceeded the size limit
                 e.message =
                   e.message +
-                  '\nTo configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions#size-limitation'
+                  '\nTo configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/server-actions#size-limitation'
               }
               throw e
             }
@@ -403,7 +406,7 @@ export async function handleAction({
 
         // actions.js
         // app/page.js
-        //   action woker1
+        //   action worker1
         //     appRender1
 
         // app/foo/page.js
@@ -483,7 +486,7 @@ export async function handleAction({
           const promise = Promise.reject(err)
           try {
             await promise
-          } catch (_) {}
+          } catch {}
           return generateFlight({
             skipFlight: false,
             actionResult: promise,
@@ -499,7 +502,7 @@ export async function handleAction({
         const promise = Promise.reject(err)
         try {
           await promise
-        } catch (_) {}
+        } catch {}
 
         return generateFlight({
           actionResult: promise,

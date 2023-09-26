@@ -4,7 +4,7 @@ use std::{
     path::{PathBuf, MAIN_SEPARATOR},
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use dunce::canonicalize;
 use next_core::{
     mode::NextMode,
@@ -25,7 +25,7 @@ use next_core::{
 use serde::Serialize;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    Completion, Completions, TransientInstance, TransientValue, TryJoinIterExt, Vc,
+    Completion, Completions, TransientInstance, TryJoinIterExt, ValueToString, Vc,
 };
 use turbopack_binding::{
     turbo::tasks_fs::{rebase, DiskFileSystem, FileContent, FileSystem, FileSystemPath},
@@ -35,7 +35,7 @@ use turbopack_binding::{
             asset::Asset,
             chunk::ChunkingContext,
             environment::ServerAddr,
-            issue::{IssueContextExt, IssueReporter, IssueSeverity},
+            issue::{handle_issues, IssueReporter, IssueSeverity},
             output::{OutputAsset, OutputAssets},
             virtual_fs::VirtualFileSystem,
         },
@@ -52,6 +52,9 @@ use crate::{
     next_app::app_entries::{compute_app_entries_chunks, get_app_entries},
     next_pages::page_entries::{compute_page_entries_chunks, get_page_entries},
 };
+
+// TODO this should be Error, but we need to fix the errors happening first
+static MIN_FAILING_SEVERITY: IssueSeverity = IssueSeverity::Fatal;
 
 #[turbo_tasks::function]
 pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Result<Vc<Completion>> {
@@ -87,12 +90,17 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
         log_level: options.log_level.unwrap_or(IssueSeverity::Warning),
     };
 
+    let dist_dir = options
+        .dist_dir
+        .as_ref()
+        .map_or_else(|| ".next".to_string(), |d| d.to_string());
+
     let issue_reporter: Vc<Box<dyn IssueReporter>> =
         Vc::upcast(ConsoleUi::new(TransientInstance::new(log_options)));
     let node_fs = node_fs(project_root.clone(), issue_reporter);
-    let node_root = node_fs.root().join(".next".to_string());
+    let node_root = node_fs.root().join(dist_dir.clone());
     let client_fs = client_fs(project_root.clone(), issue_reporter);
-    let client_root = client_fs.root().join(".next".to_string());
+    let client_root = client_fs.root().join(dist_dir);
     // TODO(alexkirsz) This should accept a URL for assetPrefix.
     // let client_public_fs = VirtualFileSystem::new();
     // let client_public_root = client_public_fs.root();
@@ -124,7 +132,8 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
     let next_config = load_next_config(execution_context.with_layer("next_config".to_string()));
 
     let mode = NextMode::Build;
-    let client_compile_time_info = get_client_compile_time_info(mode, browserslist_query);
+    let client_compile_time_info =
+        get_client_compile_time_info(mode, browserslist_query, node_root.to_string());
     let server_compile_time_info = get_server_compile_time_info(mode, env, ServerAddr::empty());
 
     // TODO(alexkirsz) Pages should build their own routes, outside of a FS.
@@ -149,8 +158,22 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
         next_config,
     );
 
-    handle_issues(page_entries, issue_reporter).await?;
-    handle_issues(app_entries, issue_reporter).await?;
+    handle_issues(
+        page_entries,
+        issue_reporter,
+        MIN_FAILING_SEVERITY.cell(),
+        None,
+        None,
+    )
+    .await?;
+    handle_issues(
+        app_entries,
+        issue_reporter,
+        MIN_FAILING_SEVERITY.cell(),
+        None,
+        None,
+    )
+    .await?;
 
     let page_entries = page_entries.await?;
     let app_entries = app_entries.await?;
@@ -436,7 +459,14 @@ async fn workspace_fs(
     issue_reporter: Vc<Box<dyn IssueReporter>>,
 ) -> Result<Vc<Box<dyn FileSystem>>> {
     let disk_fs = DiskFileSystem::new("workspace".to_string(), workspace_root.to_string());
-    handle_issues(disk_fs, issue_reporter).await?;
+    handle_issues(
+        disk_fs,
+        issue_reporter,
+        MIN_FAILING_SEVERITY.cell(),
+        None,
+        None,
+    )
+    .await?;
     Ok(Vc::upcast(disk_fs))
 }
 
@@ -446,7 +476,14 @@ async fn node_fs(
     issue_reporter: Vc<Box<dyn IssueReporter>>,
 ) -> Result<Vc<Box<dyn FileSystem>>> {
     let disk_fs = DiskFileSystem::new("node".to_string(), node_root.to_string());
-    handle_issues(disk_fs, issue_reporter).await?;
+    handle_issues(
+        disk_fs,
+        issue_reporter,
+        MIN_FAILING_SEVERITY.cell(),
+        None,
+        None,
+    )
+    .await?;
     Ok(Vc::upcast(disk_fs))
 }
 
@@ -456,29 +493,15 @@ async fn client_fs(
     issue_reporter: Vc<Box<dyn IssueReporter>>,
 ) -> Result<Vc<Box<dyn FileSystem>>> {
     let disk_fs = DiskFileSystem::new("client".to_string(), client_root.to_string());
-    handle_issues(disk_fs, issue_reporter).await?;
+    handle_issues(
+        disk_fs,
+        issue_reporter,
+        MIN_FAILING_SEVERITY.cell(),
+        None,
+        None,
+    )
+    .await?;
     Ok(Vc::upcast(disk_fs))
-}
-
-async fn handle_issues<T>(source: Vc<T>, issue_reporter: Vc<Box<dyn IssueReporter>>) -> Result<()> {
-    let issues = source
-        .peek_issues_with_path()
-        .await?
-        .strongly_consistent()
-        .await?;
-
-    let has_fatal = issue_reporter.report_issues(
-        TransientInstance::new(issues.clone()),
-        TransientValue::new(source.node),
-        // TODO this should be Error, but we need to fix the errors happing first
-        IssueSeverity::Fatal.cell(),
-    );
-
-    if *has_fatal.await? {
-        Err(anyhow!("Fatal issue(s) occurred"))
-    } else {
-        Ok(())
-    }
 }
 
 /// Emits all assets transitively reachable from the given chunks, that are

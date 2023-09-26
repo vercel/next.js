@@ -19,7 +19,7 @@ use turbopack_binding::{
             environment::{ServerAddr, ServerInfo},
             file_source::FileSource,
             ident::AssetIdent,
-            issue::IssueContextExt,
+            issue::IssueDescriptionExt,
             module::Module,
             reference_type::{EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType},
             resolve::{find_context_file, FindContextFileResult},
@@ -38,6 +38,7 @@ use turbopack_binding::{
 
 use crate::{
     embed_js::next_asset,
+    middleware::middleware_files,
     mode::NextMode,
     next_config::NextConfig,
     next_edge::{
@@ -57,20 +58,6 @@ fn next_configs() -> Vc<Vec<String>> {
             .map(ToOwned::to_owned)
             .collect(),
     )
-}
-
-#[turbo_tasks::function]
-async fn middleware_files(page_extensions: Vc<Vec<String>>) -> Result<Vc<Vec<String>>> {
-    let extensions = page_extensions.await?;
-    let files = ["middleware.", "src/middleware."]
-        .into_iter()
-        .flat_map(|f| {
-            extensions
-                .iter()
-                .map(move |ext| String::from(f) + ext.as_str())
-        })
-        .collect();
-    Ok(Vc::cell(files))
 }
 
 #[turbo_tasks::value(shared)]
@@ -226,14 +213,15 @@ fn route_executor(
 #[turbo_tasks::function]
 fn edge_transition_map(
     server_addr: Vc<ServerAddr>,
+    dist_root: Vc<String>,
     project_path: Vc<FileSystemPath>,
     output_path: Vc<FileSystemPath>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Vc<TransitionsByName> {
-    let mode = NextMode::Development;
+    let mode = NextMode::DevServer;
 
-    let edge_compile_time_info = get_edge_compile_time_info(project_path, server_addr);
+    let edge_compile_time_info = get_edge_compile_time_info(project_path, server_addr, dist_root);
 
     let edge_chunking_context = Vc::upcast(
         DevChunkingContext::builder(
@@ -288,6 +276,7 @@ fn edge_transition_map(
 pub async fn route(
     execution_context: Vc<ExecutionContext>,
     request: Vc<RouterRequest>,
+    dist_root: Vc<String>,
     next_config: Vc<NextConfig>,
     server_addr: Vc<ServerAddr>,
     routes_changed: Vc<Completion>,
@@ -300,6 +289,7 @@ pub async fn route(
     route_internal(
         execution_context,
         request,
+        dist_root,
         next_config,
         server_addr,
         routes_changed,
@@ -324,6 +314,7 @@ macro_rules! shared_anyhow {
 async fn route_internal(
     execution_context: Vc<ExecutionContext>,
     request: Vc<RouterRequest>,
+    dist_root: Vc<String>,
     next_config: Vc<NextConfig>,
     server_addr: Vc<ServerAddr>,
     routes_changed: Vc<Completion>,
@@ -339,6 +330,7 @@ async fn route_internal(
         Some(get_next_build_import_map()),
         Some(edge_transition_map(
             server_addr,
+            dist_root,
             project_path,
             chunking_context.output_root(),
             next_config,

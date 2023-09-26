@@ -503,7 +503,7 @@ export function runTests(ctx) {
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toBe('image/svg+xml')
       expect(await res.text()).toMatch(
-        `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><filter id='b' color-interpolation-filters='sRGB'><feGaussianBlur stdDeviation='1'/></filter><image preserveAspectRatio='none' filter='url(#b)' x='0' y='0' height='100%' width='100%' href='data:image/webp;base64`
+        `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 320'><filter id='b' color-interpolation-filters='sRGB'><feGaussianBlur stdDeviation='20'/><feColorMatrix values='1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 100 -1' result='s'/><feFlood x='0' y='0' width='100%' height='100%'/><feComposite operator='out' in='s'/><feComposite in2='SourceGraphic'/><feGaussianBlur stdDeviation='20'/></filter><image width='100%' height='100%' x='0' y='0' preserveAspectRatio='none' style='filter: url(#b);' href='data:image/webp;base64`
       )
     } else {
       expect(res.status).toBe(400)
@@ -519,7 +519,7 @@ export function runTests(ctx) {
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toBe('image/svg+xml')
       expect(await res.text()).toMatch(
-        `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='b' color-interpolation-filters='sRGB'><feGaussianBlur stdDeviation='1'/></filter><image preserveAspectRatio='none' filter='url(#b)' x='0' y='0' height='100%' width='100%' href='data:image/webp;base64`
+        `svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'><filter id='b' color-interpolation-filters='sRGB'><feGaussianBlur stdDeviation='20'/><feColorMatrix values='1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 100 -1' result='s'/><feFlood x='0' y='0' width='100%' height='100%'/><feComposite operator='out' in='s'/><feComposite in2='SourceGraphic'/><feGaussianBlur stdDeviation='20'/></filter><image width='100%' height='100%' x='0' y='0' preserveAspectRatio='none' style='filter: url(#b);' href='data:image/webp;base64`
       )
     } else {
       expect(res.status).toBe(400)

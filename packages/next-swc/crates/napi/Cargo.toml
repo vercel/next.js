@@ -21,6 +21,13 @@ native-tls = ["next-dev/native-tls"]
 rustls-tls = ["next-dev/rustls-tls"]
 serializable = ["next-dev/serializable"]
 image-webp = ["next-core/image-webp"]
+image-avif = ["next-core/image-avif"]
+# Enable all the available image codec support.
+# Currently this is identical to `image-webp`, as we are not able to build
+# other codecs easily yet.
+image-extended = [
+  "image-webp",
+]
 
 # Enable dhat profiling allocator for heap profiling.
 __internal_dhat-heap = ["dhat"]
@@ -50,6 +57,8 @@ turbo-tasks = { workspace = true }
 once_cell = { workspace = true }
 serde = "1"
 serde_json = "1"
+shadow-rs = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
 tracing-futures = "0.2.5"
 tracing-subscriber = { workspace = true }
@@ -61,7 +70,8 @@ turbopack-binding = { workspace = true, features = [
   "__turbo",
   "__turbo_tasks",
   "__turbo_tasks_memory",
-  "__turbopack"
+  "__turbopack",
+  "__turbopack_ecmascript_hmr_protocol",
 ] }
 
 [target.'cfg(not(all(target_os = "linux", target_env = "musl", target_arch = "aarch64")))'.dependencies]
@@ -84,6 +94,8 @@ sentry = { version = "0.27.0", default-features = false, features = [
 napi-build = "2"
 serde = "1"
 serde_json = "1"
+# It is not a mistake this dependency is specified in dep / build-dep both.
+shadow-rs = { workspace = true }
 turbopack-binding = { workspace = true, features = [
   "__turbo_tasks_build"
 ]}

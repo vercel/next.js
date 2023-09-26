@@ -5,7 +5,10 @@ import treeKill from 'tree-kill'
 import type { NextConfig } from 'next'
 import { FileRef } from '../e2e-utils'
 import { ChildProcess } from 'child_process'
-import { createNextInstall } from '../create-next-install'
+import {
+  createNextInstall,
+  setPnpmResolutionMode,
+} from '../create-next-install'
 import { Span } from 'next/src/trace'
 import webdriver from '../next-webdriver'
 import { renderViaHTTP, fetchViaHTTP } from 'next-test-utils'
@@ -25,6 +28,7 @@ export type PackageJson = {
 export interface NextInstanceOpts {
   files: FileRef | string | { [filename: string]: string | FileRef }
   dependencies?: { [name: string]: string }
+  resolutions?: { [name: string]: string }
   packageJson?: PackageJson
   nextConfig?: NextConfig
   installCommand?: InstallCommand
@@ -53,6 +57,7 @@ export class NextInstance {
   protected buildCommand?: string
   protected startCommand?: string
   protected dependencies?: PackageJson['dependencies'] = {}
+  protected resolutions?: PackageJson['resolutions']
   protected events: { [eventName: string]: Set<any> } = {}
   public testDir: string
   protected isStopping: boolean = false
@@ -165,6 +170,7 @@ export class NextInstance {
                     process.env.NEXT_TEST_VERSION ||
                     require('next/package.json').version,
                 },
+                ...(this.resolutions ? { resolutions: this.resolutions } : {}),
                 scripts: {
                   // since we can't get the build id as a build artifact, make it
                   // available under the static files
@@ -179,6 +185,7 @@ export class NextInstance {
               2
             )
           )
+          await setPnpmResolutionMode(this.testDir)
         } else {
           if (
             process.env.NEXT_TEST_STARTER &&
@@ -192,6 +199,7 @@ export class NextInstance {
             this.testDir = await createNextInstall({
               parentSpan: rootSpan,
               dependencies: finalDependencies,
+              resolutions: this.resolutions ?? null,
               installCommand: this.installCommand,
               packageJson: this.packageJson,
               dirSuffix: this.dirSuffix,

@@ -6,7 +6,6 @@ import '../node-polyfill-fetch'
 
 import url from 'url'
 import path from 'path'
-import http from 'http'
 import { findPageFile } from './find-page-file'
 import { getRequestMeta } from '../request-meta'
 import setupDebug from 'next/dist/compiled/debug'
@@ -16,10 +15,11 @@ import { setupFsCheck } from './router-utils/filesystem'
 import { proxyRequest } from './router-utils/proxy-request'
 import { getResolveRoutes } from './router-utils/resolve-routes'
 import { PERMANENT_REDIRECT_STATUS } from '../../shared/lib/constants'
-import { splitCookiesString, toNodeOutgoingHttpHeaders } from '../web/utils'
-import { signalFromNodeRequest } from '../web/spec-extension/adapters/next-request'
+import { formatHostname } from './format-hostname'
+import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
-import { pipeReadable } from './server-ipc/invoke-request'
+import type { RenderWorker } from './router-server'
+import { pipeReadable } from '../pipe-readable'
 
 type RouteResult =
   | {
@@ -56,7 +56,7 @@ export async function makeResolver(
   dir: string,
   nextConfig: NextConfigComplete,
   middleware: MiddlewareConfig,
-  serverAddr: Partial<ServerAddress>
+  { hostname = 'localhost', port = 3000 }: Partial<ServerAddress>
 ) {
   const fsChecker = await setupFsCheck({
     dir,
@@ -64,10 +64,9 @@ export async function makeResolver(
     minimalMode: false,
     config: nextConfig,
   })
-  const { appDir, pagesDir } = findPagesDir(
-    dir,
-    !!nextConfig.experimental.appDir
-  )
+  const { appDir, pagesDir } = findPagesDir(dir)
+  // we format the hostname so that it can be fetched
+  const fetchHostname = formatHostname(hostname)
 
   fsChecker.ensureCallback(async (item) => {
     let result: string | null = null
@@ -108,75 +107,6 @@ export async function makeResolver(
       }
     : {}
 
-  const middlewareServerPort = await new Promise((resolve) => {
-    const srv = http.createServer(async (req, res) => {
-      const cloneableBody = getCloneableBody(req)
-      try {
-        const { run } =
-          require('../web/sandbox') as typeof import('../web/sandbox')
-
-        const result = await run({
-          distDir,
-          name: middlewareInfo.name || '/',
-          paths: middlewareInfo.paths || [],
-          edgeFunctionEntry: middlewareInfo,
-          request: {
-            headers: req.headers,
-            method: req.method || 'GET',
-            nextConfig: {
-              i18n: nextConfig.i18n,
-              basePath: nextConfig.basePath,
-              trailingSlash: nextConfig.trailingSlash,
-            },
-            url: `http://${serverAddr.hostname || 'localhost'}:${
-              serverAddr.port || 3000
-            }${req.url}`,
-            body: cloneableBody,
-            signal: signalFromNodeRequest(req),
-          },
-          useCache: true,
-          onWarning: console.warn,
-        })
-
-        for (let [key, value] of result.response.headers) {
-          if (key.toLowerCase() !== 'set-cookie') continue
-
-          // Clear existing header.
-          result.response.headers.delete(key)
-
-          // Append each cookie individually.
-          const cookies = splitCookiesString(value)
-          for (const cookie of cookies) {
-            result.response.headers.append(key, cookie)
-          }
-        }
-
-        for (const [key, value] of Object.entries(
-          toNodeOutgoingHttpHeaders(result.response.headers)
-        )) {
-          if (key !== 'content-encoding' && value !== undefined) {
-            res.setHeader(key, value as string | string[])
-          }
-        }
-        res.statusCode = result.response.status
-
-        for await (const chunk of result.response.body || ([] as any)) {
-          if (res.closed) break
-          res.write(chunk)
-        }
-        res.end()
-      } catch (err) {
-        console.error(err)
-        res.statusCode = 500
-        res.end('Internal Server Error')
-      }
-    })
-    srv.on('listening', () => {
-      resolve((srv.address() as any).port)
-    })
-    srv.listen(0)
-  })
-
   if (middleware?.files.length) {
     fsChecker.middlewareMatcher = getMiddlewareRouteMatcher(
       middleware.matcher?.map((item) => ({
@@ -191,8 +121,8 @@ export async function makeResolver(
     nextConfig,
     {
       dir,
-      port: serverAddr.port || 3000,
-      hostname: serverAddr.hostname,
+      port,
+      hostname,
       isNodeDebugging: false,
       dev: true,
       workerType: 'render',
@@ -201,15 +131,50 @@ export async function makeResolver(
       pages: {
         async initialize() {
           return {
-            port: middlewareServerPort,
-            hostname: '127.0.0.1',
+            async requestHandler(req, res) {
+              if (!req.headers['x-middleware-invoke']) {
+                throw new Error(`Invariant unexpected request handler call`)
+              }
+
+              const cloneableBody = getCloneableBody(req)
+              const { run } =
+                require('../web/sandbox') as typeof import('../web/sandbox')
+
+              const result = await run({
+                distDir,
+                name: middlewareInfo.name || '/',
+                paths: middlewareInfo.paths || [],
+                edgeFunctionEntry: middlewareInfo,
+                request: {
+                  headers: req.headers,
+                  method: req.method || 'GET',
+                  nextConfig: {
+                    i18n: nextConfig.i18n,
+                    basePath: nextConfig.basePath,
+                    trailingSlash: nextConfig.trailingSlash,
+                  },
+                  url: `http://${fetchHostname}:${port}${req.url}`,
+                  body: cloneableBody,
+                  signal: signalFromNodeResponse(res),
+                },
+                useCache: true,
+                onWarning: console.warn,
+              })
+
+              const err = new Error()
+              ;(err as any).result = result
+              throw err
+            },
+            async upgradeHandler() {
+              throw new Error(`Invariant: unexpected upgrade handler call`)
+            },
           }
         },
+        deleteAppClientCache() {},
         async deleteCache() {},
         async clearModuleContext() {},
-        async deleteAppClientCache() {},
         async propagateServerField() {},
-      } as any,
+      } as Partial<RenderWorker> as any,
     },
     {} as any
   )
@@ -218,7 +183,13 @@ export async function makeResolver(
     req: IncomingMessage,
     res: ServerResponse
   ): Promise<RouteResult | void> {
-    const routeResult = await resolveRoutes(req, new Set(), false)
+    const routeResult = await resolveRoutes({
+      req,
+      res,
+      isUpgradeReq: false,
+      signal: signalFromNodeResponse(res),
+    })
+
     const {
       matchedOutput,
       bodyStream,

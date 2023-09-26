@@ -26,9 +26,8 @@ name: Trigger Release
 env:
   NAPI_CLI_VERSION: 2.14.7
   TURBO_VERSION: 1.10.9
-  PNPM_VERSION: 7.24.3
   NODE_MAINTENANCE_VERSION: 16
-  NODE_LTS_VERSION: 18.16.1
+  NODE_LTS_VERSION: 18
 
 jobs:
   start:
@@ -43,7 +42,6 @@ jobs:
     steps:
       - name: Setup node
         uses: actions/setup-node@v3
-        if: ${{ steps.docs-change.outputs.docsChange == 'nope' }}
         with:
           node-version: 18
           check-latest: true
@@ -56,7 +54,7 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - run: npm i -g pnpm@${PNPM_VERSION}
+      - run: corepack enable && pnpm --version
 
       - id: get-store-path
         run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT

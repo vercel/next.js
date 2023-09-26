@@ -1,11 +1,34 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import { nextBuild, File } from 'next-test-utils'
+import { killApp, launchApp, findPort, File } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
 const configFile = new File(join(appDir, '/next.config.js'))
 const configFileMjs = new File(join(appDir, '/next.config.mjs'))
+
+let app
+async function collectStdout(appDir) {
+  let stdout = ''
+  const port = await findPort()
+  app = await launchApp(appDir, port, {
+    onStdout(msg) {
+      stdout += msg
+    },
+  })
+  return stdout
+}
+
+async function collectStderr(appDir) {
+  let stderr = ''
+  const port = await findPort()
+  app = await launchApp(appDir, port, {
+    onStderr(msg) {
+      stderr += msg
+    },
+  })
+  return stderr
+}
 
 describe('Config Experimental Warning', () => {
   afterEach(() => {
@@ -13,6 +36,10 @@ describe('Config Experimental Warning', () => {
     configFile.delete()
     configFileMjs.write('')
     configFileMjs.delete()
+    if (app) {
+      killApp(app)
+      app = undefined
+    }
   })
 
   it('should not show warning with default config from function', async () => {
@@ -24,8 +51,8 @@ describe('Config Experimental Warning', () => {
       }
     `)
 
-    const { stderr } = await nextBuild(appDir, [], { stderr: true })
-    expect(stderr).not.toMatch('You have enabled experimental feature')
+    const stdout = await collectStdout(appDir)
+    expect(stdout).not.toMatch(' - Experiments (use at your own risk):')
   })
 
   it('should not show warning with config from object', async () => {
@@ -34,8 +61,9 @@ describe('Config Experimental Warning', () => {
         images: {},
       }
     `)
-    const { stderr } = await nextBuild(appDir, [], { stderr: true })
-    expect(stderr).not.toMatch('You have enabled experimental feature')
+
+    const stdout = await collectStdout(appDir)
+    expect(stdout).not.toMatch(' - Experiments (use at your own risk):')
   })
 
   it('should show warning with config from object with experimental', async () => {
@@ -46,10 +74,10 @@ describe('Config Experimental Warning', () => {
         }
       }
     `)
-    const { stderr } = await nextBuild(appDir, [], { stderr: true })
-    expect(stderr).toMatch(
-      'You have enabled experimental feature (workerThreads) in next.config.js.'
-    )
+
+    const stdout = await collectStdout(appDir)
+    expect(stdout).toMatch(' - Experiments (use at your own risk):')
+    expect(stdout).toMatch(' · workerThreads')
   })
 
   it('should show warning with config from function with experimental', async () => {
@@ -60,10 +88,10 @@ describe('Config Experimental Warning', () => {
         }
       })
     `)
-    const { stderr } = await nextBuild(appDir, [], { stderr: true })
-    expect(stderr).toMatch(
-      'You have enabled experimental feature (workerThreads) in next.config.js.'
-    )
+
+    const stdout = await collectStdout(appDir)
+    expect(stdout).toMatch(' - Experiments (use at your own risk):')
+    expect(stdout).toMatch(' · workerThreads')
   })
 
   it('should not show warning with default value', async () => {
@@ -74,39 +102,40 @@ describe('Config Experimental Warning', () => {
         }
       })
     `)
-    const { stderr } = await nextBuild(appDir, [], { stderr: true })
-    expect(stderr).not.toMatch(
-      'You have enabled experimental feature (workerThreads) in next.config.js.'
-    )
+
+    const stdout = await collectStdout(appDir)
+    expect(stdout).not.toMatch(' - Experiments (use at your own risk):')
+    expect(stdout).not.toMatch(' · workerThreads')
   })
 
   it('should show warning with config from object with experimental and multiple keys', async () => {
     configFile.write(`
       module.exports = {
         experimental: {
-          urlImports: true,
           workerThreads: true,
+          scrollRestoration: true,
         }
       }
     `)
-    const { stderr } = await nextBuild(appDir, [], { stderr: true })
-    expect(stderr).toMatch(
-      'You have enabled experimental features (urlImports, workerThreads) in next.config.js.'
-    )
+
+    const stdout = await collectStdout(appDir)
+    expect(stdout).toMatch(' - Experiments (use at your own risk):')
+    expect(stdout).toMatch(' · workerThreads')
+    expect(stdout).toMatch(' · scrollRestoration')
   })
 
-  it('should show warning with next.config.mjs from object with experimental', async () => {
-    configFileMjs.write(`
-      const config = {
+  it('should show warning for dropped experimental.appDir option', async () => {
+    configFile.write(`
+      module.exports = {
         experimental: {
-          workerThreads: true,
+          appDir: true,
         }
       }
-      export default config
     `)
-    const { stderr } = await nextBuild(appDir, [], { stderr: true })
+
+    const stderr = await collectStderr(appDir)
     expect(stderr).toMatch(
-      'You have enabled experimental feature (workerThreads) in next.config.mjs.'
+      'App router is available by default now, `experimental.appDir` option can be safely removed.'
     )
   })
 })

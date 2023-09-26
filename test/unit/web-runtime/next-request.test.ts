@@ -21,3 +21,23 @@ it('should allow the 2nd parameter to be undefined', () => {
     '/'
   )
 })
+
+it('should clone Request with headers', () => {
+  const request = new Request('https://example.com', {
+    headers: { 'x-foo': 'bar' },
+  })
+
+  const nextRequest = new NextRequest(request)
+
+  expect(Object.fromEntries(nextRequest.headers)).toEqual(
+    Object.fromEntries(request.headers)
+  )
+
+  // Second argument should override headers
+  const headers = new Headers({ 'x-header': 'some header' })
+  const nextRequest2 = new NextRequest(request, { headers })
+
+  expect(Object.fromEntries(nextRequest2.headers)).toEqual(
+    Object.fromEntries(headers)
+  )
+})

@@ -1,5 +1,4 @@
 import type arg from 'next/dist/compiled/arg/index.js'
-import * as Log from '../../build/output/log'
 
 export function printAndExit(message: string, code = 1) {
   if (code === 0) {
@@ -22,34 +21,6 @@ export const getDebugPort = () => {
       ?.split('=')[1] ??
     process.env.NODE_OPTIONS?.match?.(/--inspect(-brk)?(=(\S+))?( |$)/)?.[3]
   return debugPortStr ? parseInt(debugPortStr, 10) : 9229
-}
-
-export const genRouterWorkerExecArgv = async (
-  isNodeDebugging: boolean | 'brk'
-) => {
-  const execArgv = process.execArgv.filter((localArg) => {
-    return (
-      !localArg.startsWith('--inspect') && !localArg.startsWith('--inspect-brk')
-    )
-  })
-
-  if (isNodeDebugging) {
-    const isDebuggingWithBrk = isNodeDebugging === 'brk'
-
-    let debugPort = getDebugPort() + 1
-
-    Log.info(
-      `the --inspect${
-        isDebuggingWithBrk ? '-brk' : ''
-      } option was detected, the Next.js routing server should be inspected at port ${debugPort}.`
-    )
-
-    execArgv.push(
-      `--inspect${isNodeDebugging === 'brk' ? '-brk' : ''}=${debugPort}`
-    )
-  }
-
-  return execArgv
 }
 
 const NODE_INSPECT_RE = /--inspect(-brk)?(=\S+)?( |$)/

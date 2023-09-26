@@ -1,10 +1,15 @@
-import type { CacheNode } from '../../../shared/lib/app-router-context'
+import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import type {
   FlightRouterState,
   FlightData,
   FlightSegmentPath,
 } from '../../../server/app-render/types'
-import { fetchServerResponse } from './fetch-server-response'
+import type {
+  FulfilledThenable,
+  PendingThenable,
+  RejectedThenable,
+} from 'react'
+import type { FetchServerResponseResult } from './fetch-server-response'
 
 export const ACTION_REFRESH = 'refresh'
 export const ACTION_NAVIGATE = 'navigate'
@@ -38,14 +43,16 @@ export interface Mutable {
   prefetchCache?: AppRouterState['prefetchCache']
   hashFragment?: string
   shouldScroll?: boolean
+  globalMutable: {
+    pendingNavigatePath?: string
+    pendingMpaPath?: string
+    refresh: () => void
+  }
 }
 
-export interface ServerActionMutable {
-  inFlightServerAction?: Promise<any> | null
-  serverActionApplied?: boolean
-  previousTree?: FlightRouterState
-  previousUrl?: string
-  prefetchCache?: AppRouterState['prefetchCache']
+export interface ServerActionMutable extends Mutable {
+  inFlightServerAction?: ThenableRecord<any> | null
+  actionResultResolved?: boolean
 }
 
 /**
@@ -70,7 +77,7 @@ export interface FastRefreshAction {
 export type ServerActionDispatcher = (
   args: Omit<
     ServerActionAction,
-    'type' | 'mutable' | 'navigate' | 'changeByServerResponse'
+    'type' | 'mutable' | 'navigate' | 'changeByServerResponse' | 'cache'
   >
 ) => void
 
@@ -80,9 +87,8 @@ export interface ServerActionAction {
   actionArgs: any[]
   resolve: (value: any) => void
   reject: (reason?: any) => void
+  cache: CacheNode
   mutable: ServerActionMutable
-  navigate: RouterNavigate
-  changeByServerResponse: RouterChangeByServerResponse
 }
 
 /**
@@ -208,11 +214,15 @@ export type FocusAndScrollRef = {
    * The paths of the segments that should be focused.
    */
   segmentPaths: FlightSegmentPath[]
+  /**
+   * If only the URLs hash fragment changed
+   */
+  onlyHashChange: boolean
 }
 
 export type PrefetchCacheEntry = {
   treeAtTimeOfPrefetch: FlightRouterState
-  data: ReturnType<typeof fetchServerResponse> | null
+  data: ThenableRecord<FetchServerResponseResult> | null
   kind: PrefetchKind
   prefetchTime: number
   lastUsedTime: number | null
@@ -273,3 +283,8 @@ export type ReducerActions = Readonly<
   | FastRefreshAction
   | ServerActionAction
 >
+
+export type ThenableRecord<T> =
+  | PendingThenable<T>
+  | RejectedThenable<T>
+  | FulfilledThenable<T>

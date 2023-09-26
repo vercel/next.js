@@ -3,6 +3,7 @@ use indexmap::{indexmap, IndexMap};
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use turbo_tasks::{trace::TraceRawVcs, Value, Vc};
+use turbo_tasks_fs::FileSystemPathOption;
 use turbopack_binding::{
     turbo::{
         tasks_env::{CustomProcessEnv, EnvMap, ProcessEnv},
@@ -81,6 +82,7 @@ use crate::{
 pub async fn create_page_source(
     pages_structure: Vc<PagesStructure>,
     project_root: Vc<FileSystemPath>,
+    dist_root: Vc<String>,
     execution_context: Vc<ExecutionContext>,
     node_root: Vc<FileSystemPath>,
     client_root: Vc<FileSystemPath>,
@@ -96,7 +98,7 @@ pub async fn create_page_source(
         project_root.join("pages".to_string())
     };
 
-    let mode = NextMode::Development;
+    let mode = NextMode::DevServer;
     let client_ty = Value::new(ClientContextType::Pages { pages_dir });
     let server_ty = Value::new(ServerContextType::Pages { pages_dir });
     let server_data_ty = Value::new(ServerContextType::PagesData { pages_dir });
@@ -138,7 +140,7 @@ pub async fn create_page_source(
         .cell(),
     );
 
-    let edge_compile_time_info = get_edge_compile_time_info(project_root, server_addr);
+    let edge_compile_time_info = get_edge_compile_time_info(project_root, server_addr, dist_root);
 
     let edge_chunking_context = Vc::upcast(
         DevChunkingContext::builder(
@@ -278,7 +280,7 @@ pub async fn create_page_source(
             Vc::upcast(NextExactMatcher::new(Vc::cell("_next/404".to_string()))),
             render_data,
         )
-        .issue_context(pages_dir, "Next.js pages directory not found".to_string()),
+        .issue_file_path(pages_dir, "Next.js pages directory not found".to_string()),
         create_page_source_for_root_directory(
             pages_structure,
             project_root,
@@ -297,7 +299,7 @@ pub async fn create_page_source(
             client_root,
             Vc::upcast(fallback_page),
         ))
-        .issue_context(pages_dir, "Next.js pages directory fallback".to_string()),
+        .issue_file_path(pages_dir, "Next.js pages directory fallback".to_string()),
         create_not_found_page_source(
             project_root,
             env,
@@ -315,7 +317,7 @@ pub async fn create_page_source(
             Vc::upcast(NextFallbackMatcher::new()),
             render_data,
         )
-        .issue_context(
+        .issue_file_path(
             pages_dir,
             "Next.js pages directory not found fallback".to_string(),
         ),
@@ -344,7 +346,7 @@ async fn create_page_source_for_file(
     node_root: Vc<FileSystemPath>,
     render_data: Vc<JsonValue>,
 ) -> Result<Vc<Box<dyn ContentSource>>> {
-    let mode = NextMode::Development;
+    let mode = NextMode::DevServer;
 
     let server_chunking_context = Vc::upcast(
         DevChunkingContext::builder(
@@ -379,7 +381,7 @@ async fn create_page_source_for_file(
         mode,
     );
 
-    let pathname = pathname_for_path(client_root, client_path, PathType::Page);
+    let pathname = pathname_for_path(client_root, client_path, PathType::PagesPage);
     let route_matcher = NextParamsMatcher::new(pathname);
 
     let (base_segments, route_type) = pathname_to_segments(&pathname.await?, "")?;
@@ -482,6 +484,7 @@ async fn create_page_source_for_file(
                 Vc::upcast(client_chunking_context),
                 page_asset,
                 pathname,
+                FileSystemPathOption::none(),
             ),
         ]))
     })
@@ -566,6 +569,7 @@ async fn create_not_found_page_source(
         client_chunking_context,
         page_asset,
         pathname,
+        FileSystemPathOption::none(),
     );
 
     Ok(Vc::upcast(CombinedContentSource::new(vec![
@@ -701,7 +705,7 @@ async fn create_page_source_for_directory(
             node_root,
             render_data,
         )
-        .issue_context(
+        .issue_file_path(
             project_path,
             if is_api_path {
                 "Next.js page API file"

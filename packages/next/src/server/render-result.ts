@@ -1,3 +1,6 @@
+import { StaticGenerationStore } from '../client/components/static-generation-async-storage.external'
+import { pipeReadable, PipeTarget } from './pipe-readable'
+
 type ContentTypeOption = string | undefined
 
 export type RenderResultMetadata = {
@@ -7,16 +10,12 @@ export type RenderResultMetadata = {
   assetQueryString?: string
   isNotFound?: boolean
   isRedirect?: boolean
+  fetchMetrics?: StaticGenerationStore['fetchMetrics']
+  fetchTags?: string
+  waitUntil?: Promise<any>
 }
 
-type RenderResultResponse = string | ReadableStream<Uint8Array> | null
-
-export interface PipeTarget {
-  write: (chunk: Uint8Array) => unknown
-  end: () => unknown
-  flush?: () => unknown
-  destroy: (err?: Error) => unknown
-}
+type RenderResultResponse = ReadableStream<Uint8Array> | string | null
 
 export default class RenderResult {
   /**
@@ -49,10 +48,13 @@ export default class RenderResult {
     return new RenderResult(value)
   }
 
+  private waitUntil?: Promise<void>
+
   constructor(
     response: RenderResultResponse,
     {
       contentType,
+      waitUntil,
       ...metadata
     }: {
       contentType?: ContentTypeOption
@@ -61,6 +63,11 @@ export default class RenderResult {
     this.response = response
     this.contentType = contentType
     this.metadata = metadata
+    this.waitUntil = waitUntil
+  }
+
+  public extendMetadata(metadata: RenderResultMetadata) {
+    Object.assign(this.metadata, metadata)
   }
 
   /**
@@ -95,7 +102,7 @@ export default class RenderResult {
     return this.response
   }
 
-  public async pipe(res: PipeTarget): Promise<void> {
+  public async pipe(res: PipeTarget<Uint8Array>): Promise<void> {
     if (this.response === null) {
       throw new Error('Invariant: response is null. This is a bug in Next.js')
     }
@@ -105,41 +112,6 @@ export default class RenderResult {
       )
     }
 
-    const flush =
-      'flush' in res && typeof res.flush === 'function'
-        ? res.flush.bind(res)
-        : () => {}
-    const reader = this.response.getReader()
-
-    let shouldFatalError = false
-    try {
-      let result = await reader.read()
-      if (!result.done) {
-        // As we're going to write to the response, we should destroy the
-        // response if an error occurs.
-        shouldFatalError = true
-      }
-
-      while (!result.done) {
-        // Write the data to the response.
-        res.write(result.value)
-
-        // Flush it to the client (if it supports flushing).
-        flush()
-
-        // Read the next chunk.
-        result = await reader.read()
-      }
-
-      // We're done writing to the response, so we can end it.
-      res.end()
-    } catch (err) {
-      // If we've written to the response, we should destroy it.
-      if (shouldFatalError) {
-        res.destroy(err as any)
-      }
-
-      throw err
-    }
+    return await pipeReadable(this.response, res, this.waitUntil)
   }
 }

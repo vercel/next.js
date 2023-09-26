@@ -63,7 +63,7 @@ describe('minimal-mode-response-cache', () => {
     appPort = await findPort()
     server = await initNextServerScript(
       testServer,
-      /Listening on/,
+      /- Local:/,
       {
         ...process.env,
         HOSTNAME: '',
@@ -141,9 +141,12 @@ describe('minimal-mode-response-cache', () => {
     expect(res2.headers.get('content-type')).toContain('text/html')
   })
 
-  it('should have correct "Listening on" log', async () => {
-    expect(output).toContain(`Listening on port`)
-    expect(output).toContain(`url: http://localhost:${appPort}`)
+  it('should have correct "Started server on" log', async () => {
+    expect(output).toContain(`- Local:`)
+    let pattern = new RegExp(
+      `Local:\\s*http://localhost:${appPort}|Local:\\s*http://127.0.0.1:${appPort}|Local: http://\\[::1\\]:${appPort}`
+    )
+    expect(output).toMatch(pattern)
   })
 
   it('should have correct responses', async () => {

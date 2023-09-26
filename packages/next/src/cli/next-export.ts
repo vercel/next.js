@@ -1,39 +1,16 @@
 #!/usr/bin/env node
 import { resolve, join } from 'path'
 import { existsSync } from 'fs'
-import arg from 'next/dist/compiled/arg/index.js'
 import chalk from 'next/dist/compiled/chalk'
 import exportApp, { ExportError, ExportOptions } from '../export'
 import * as Log from '../build/output/log'
 import { printAndExit } from '../server/lib/utils'
 import { CliCommand } from '../lib/commands'
 import { trace } from '../trace'
-import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 
-const nextExport: CliCommand = (argv) => {
+const nextExport: CliCommand = (args) => {
   const nextExportCliSpan = trace('next-export-cli')
-  const validArgs: arg.Spec = {
-    // Types
-    '--help': Boolean,
-    '--silent': Boolean,
-    '--outdir': String,
-    '--threads': Number,
-
-    // Aliases
-    '-h': '--help',
-    '-o': '--outdir',
-    '-s': '--silent',
-  }
-  let args: arg.Result<arg.Spec>
-  try {
-    args = arg(validArgs, { argv })
-  } catch (error) {
-    if (isError(error) && error.code === 'ARG_UNKNOWN_OPTION') {
-      return printAndExit(error.message, 1)
-    }
-    throw error
-  }
   if (args['--help']) {
     console.log(`
       Description

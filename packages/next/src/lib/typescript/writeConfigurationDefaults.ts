@@ -5,6 +5,7 @@ import semver from 'next/dist/compiled/semver'
 import os from 'os'
 import type { CompilerOptions } from 'typescript'
 import { getTypeScriptConfiguration } from './getTypeScriptConfiguration'
+import * as Log from '../../build/output/log'
 
 type DesiredCompilerOptionsShape = {
   [K in keyof CompilerOptions]:
@@ -28,7 +29,9 @@ function getDesiredCompilerOptions(
     allowJs: { suggested: true },
     skipLibCheck: { suggested: true },
     strict: { suggested: false },
-    forceConsistentCasingInFileNames: { suggested: true },
+    ...(semver.lt(ts.version, '5.0.0')
+      ? { forceConsistentCasingInFileNames: { suggested: true } }
+      : undefined),
     noEmit: { suggested: true },
     ...(semver.gte(ts.version, '4.4.2')
       ? { incremental: { suggested: true } }
@@ -226,8 +229,8 @@ export async function writeConfigurationDefaults(
         'extends' in rawConfig &&
         (!rawConfig.compilerOptions || !rawConfig.compilerOptions.plugins))
     ) {
-      console.log(
-        `\nYour ${chalk.cyan(
+      Log.info(
+        `\nYour ${chalk.bold(
           'tsconfig.json'
         )} extends another configuration, which means we cannot add the Next.js TypeScript plugin automatically. To improve your development experience, we recommend adding the Next.js plugin (\`${chalk.cyan(
           '"plugins": [{ "name": "next" }]'
@@ -277,47 +280,44 @@ export async function writeConfigurationDefaults(
     CommentJson.stringify(userTsConfig, null, 2) + os.EOL
   )
 
+  Log.info('')
   if (isFirstTimeSetup) {
-    console.log(
-      chalk.green(
-        `We detected TypeScript in your project and created a ${chalk.bold(
-          'tsconfig.json'
-        )} file for you.`
-      ) + '\n'
+    Log.info(
+      `We detected TypeScript in your project and created a ${chalk.cyan(
+        'tsconfig.json'
+      )} file for you.`
     )
     return
   }
 
-  console.log(
-    chalk.green(
-      `We detected TypeScript in your project and reconfigured your ${chalk.bold(
-        'tsconfig.json'
-      )} file for you. Strict-mode is set to ${chalk.bold('false')} by default.`
-    ) + '\n'
+  Log.info(
+    `We detected TypeScript in your project and reconfigured your ${chalk.cyan(
+      'tsconfig.json'
+    )} file for you. Strict-mode is set to ${chalk.cyan('false')} by default.`
   )
   if (suggestedActions.length) {
-    console.log(
+    Log.info(
       `The following suggested values were added to your ${chalk.cyan(
         'tsconfig.json'
-      )}. These values ${chalk.bold(
+      )}. These values ${chalk.cyan(
         'can be changed'
       )} to fit your project's needs:\n`
     )
 
-    suggestedActions.forEach((action) => console.log(`\t- ${action}`))
+    suggestedActions.forEach((action) => Log.info(`\t- ${action}`))
 
-    console.log('')
+    Log.info('')
   }
 
   if (requiredActions.length) {
-    console.log(
-      `The following ${chalk.bold(
+    Log.info(
+      `The following ${chalk.white(
         'mandatory changes'
       )} were made to your ${chalk.cyan('tsconfig.json')}:\n`
     )
 
-    requiredActions.forEach((action) => console.log(`\t- ${action}`))
+    requiredActions.forEach((action) => Log.info(`\t- ${action}`))
 
-    console.log('')
+    Log.info('')
   }
 }
