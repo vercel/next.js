@@ -1,5 +1,6 @@
 import type { NextConfigComplete } from '../config-shared'
 import type { IncomingMessage, ServerResponse } from 'http'
+import type { RenderServer } from './router-server'
 
 import '../require-hook'
 import '../node-polyfill-fetch'
@@ -18,7 +19,6 @@ import { PERMANENT_REDIRECT_STATUS } from '../../shared/lib/constants'
 import { formatHostname } from './format-hostname'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
-import type { RenderWorker } from './router-server'
 import { pipeReadable } from '../pipe-readable'
 
 type RouteResult =
@@ -125,57 +125,54 @@ export async function makeResolver(
       hostname,
       isNodeDebugging: false,
       dev: true,
-      workerType: 'render',
     },
     {
-      pages: {
-        async initialize() {
-          return {
-            async requestHandler(req, res) {
-              if (!req.headers['x-middleware-invoke']) {
-                throw new Error(`Invariant unexpected request handler call`)
-              }
+      async initialize() {
+        return {
+          async requestHandler(req, res) {
+            if (!req.headers['x-middleware-invoke']) {
+              throw new Error(`Invariant unexpected request handler call`)
+            }
 
-              const cloneableBody = getCloneableBody(req)
-              const { run } =
-                require('../web/sandbox') as typeof import('../web/sandbox')
+            const cloneableBody = getCloneableBody(req)
+            const { run } =
+              require('../web/sandbox') as typeof import('../web/sandbox')
 
-              const result = await run({
-                distDir,
-                name: middlewareInfo.name || '/',
-                paths: middlewareInfo.paths || [],
-                edgeFunctionEntry: middlewareInfo,
-                request: {
-                  headers: req.headers,
-                  method: req.method || 'GET',
-                  nextConfig: {
-                    i18n: nextConfig.i18n,
-                    basePath: nextConfig.basePath,
-                    trailingSlash: nextConfig.trailingSlash,
-                  },
-                  url: `http://${fetchHostname}:${port}${req.url}`,
-                  body: cloneableBody,
-                  signal: signalFromNodeResponse(res),
+            const result = await run({
+              distDir,
+              name: middlewareInfo.name || '/',
+              paths: middlewareInfo.paths || [],
+              edgeFunctionEntry: middlewareInfo,
+              request: {
+                headers: req.headers,
+                method: req.method || 'GET',
+                nextConfig: {
+                  i18n: nextConfig.i18n,
+                  basePath: nextConfig.basePath,
+                  trailingSlash: nextConfig.trailingSlash,
                 },
-                useCache: true,
-                onWarning: console.warn,
-              })
+                url: `http://${fetchHostname}:${port}${req.url}`,
+                body: cloneableBody,
+                signal: signalFromNodeResponse(res),
+              },
+              useCache: true,
+              onWarning: console.warn,
+            })
 
-              const err = new Error()
-              ;(err as any).result = result
-              throw err
-            },
-            async upgradeHandler() {
-              throw new Error(`Invariant: unexpected upgrade handler call`)
-            },
-          }
-        },
-        deleteAppClientCache() {},
-        async deleteCache() {},
-        async clearModuleContext() {},
-        async propagateServerField() {},
-      } as Partial<RenderWorker> as any,
-    },
+            const err = new Error()
+            ;(err as any).result = result
+            throw err
+          },
+          async upgradeHandler() {
+            throw new Error(`Invariant: unexpected upgrade handler call`)
+          },
+        }
+      },
+      deleteAppClientCache() {},
+      async deleteCache() {},
+      async clearModuleContext() {},
+      async propagateServerField() {},
+    } as Partial<RenderServer> as any,
     {} as any
   )
 
