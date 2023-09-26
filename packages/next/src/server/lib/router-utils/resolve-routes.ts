@@ -437,7 +437,7 @@ export function getResolveRoutes(
             )
 
             if (!serverResult) {
-              throw new Error(`Failed to initialize render worker "middleware"`)
+              throw new Error(`Failed to initialize render server "middleware"`)
             }
 
             const invokeHeaders: typeof req.headers = {

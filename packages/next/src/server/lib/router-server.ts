@@ -222,16 +222,6 @@ export async function initialize(opts: {
     await devInstance?.logErrorWithOriginalStack(err, type)
   }
 
-  const cleanup = () => {
-    debug('router-server process cleanup')
-
-    if (!process.env.__NEXT_PRIVATE_CPU_PROFILE) {
-      process.exit(0)
-    }
-  }
-  process.on('exit', cleanup)
-  process.on('SIGINT', cleanup)
-  process.on('SIGTERM', cleanup)
   process.on('uncaughtException', logError.bind(null, 'uncaughtException'))
   process.on('unhandledRejection', logError.bind(null, 'unhandledRejection'))
 
