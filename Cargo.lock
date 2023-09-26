@@ -486,7 +486,7 @@ dependencies = [
 [[package]]
 name = "auto-hash-map"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "serde",
 ]
@@ -4182,7 +4182,7 @@ dependencies = [
 [[package]]
 name = "node-file-trace"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "anyhow",
  "serde",
@@ -8191,7 +8191,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8223,7 +8223,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-build"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "anyhow",
  "cargo-lock",
@@ -8235,7 +8235,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-bytes"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "anyhow",
  "bytes",
@@ -8250,7 +8250,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-env"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "anyhow",
  "dotenvs",
@@ -8264,7 +8264,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-fetch"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "anyhow",
  "indexmap 1.9.3",
@@ -8281,7 +8281,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-fs"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "anyhow",
  "auto-hash-map",
@@ -8311,7 +8311,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-hash"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "base16",
  "hex",
@@ -8323,7 +8323,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-macros"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "anyhow",
  "convert_case 0.6.0",
@@ -8337,7 +8337,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-macros-shared"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -8347,7 +8347,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-malloc"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "mimalloc",
 ]
@@ -8355,7 +8355,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-memory"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "anyhow",
  "auto-hash-map",
@@ -8379,7 +8379,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-testing"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "anyhow",
  "auto-hash-map",
@@ -8392,7 +8392,7 @@ dependencies = [
 [[package]]
 name = "turbopack"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "anyhow",
  "async-recursion",
@@ -8423,7 +8423,7 @@ dependencies = [
 [[package]]
 name = "turbopack-bench"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "anyhow",
  "chromiumoxide",
@@ -8453,7 +8453,7 @@ dependencies = [
 [[package]]
 name = "turbopack-binding"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "auto-hash-map",
  "mdxjs",
@@ -8496,7 +8496,7 @@ dependencies = [
 [[package]]
 name = "turbopack-build"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "anyhow",
  "indexmap 1.9.3",
@@ -8518,7 +8518,7 @@ dependencies = [
 [[package]]
 name = "turbopack-cli-utils"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "anyhow",
  "clap 4.4.2",
@@ -8542,7 +8542,7 @@ dependencies = [
 [[package]]
 name = "turbopack-core"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "anyhow",
  "async-recursion",
@@ -8571,7 +8571,7 @@ dependencies = [
 [[package]]
 name = "turbopack-create-test-app"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "anyhow",
  "clap 4.4.2",
@@ -8584,7 +8584,7 @@ dependencies = [
 [[package]]
 name = "turbopack-css"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8606,7 +8606,7 @@ dependencies = [
 [[package]]
 name = "turbopack-dev"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "anyhow",
  "indexmap 1.9.3",
@@ -8630,7 +8630,7 @@ dependencies = [
 [[package]]
 name = "turbopack-dev-server"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "anyhow",
  "async-compression",
@@ -8667,7 +8667,7 @@ dependencies = [
 [[package]]
 name = "turbopack-ecmascript"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8701,7 +8701,7 @@ dependencies = [
 [[package]]
 name = "turbopack-ecmascript-hmr-protocol"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "serde",
  "serde_json",
@@ -8712,7 +8712,7 @@ dependencies = [
 [[package]]
 name = "turbopack-ecmascript-plugins"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8735,7 +8735,7 @@ dependencies = [
 [[package]]
 name = "turbopack-ecmascript-runtime"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "anyhow",
  "indoc",
@@ -8752,7 +8752,7 @@ dependencies = [
 [[package]]
 name = "turbopack-env"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "anyhow",
  "indexmap 1.9.3",
@@ -8768,7 +8768,7 @@ dependencies = [
 [[package]]
 name = "turbopack-image"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "anyhow",
  "base64 0.21.4",
@@ -8788,7 +8788,7 @@ dependencies = [
 [[package]]
 name = "turbopack-json"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "anyhow",
  "serde",
@@ -8803,7 +8803,7 @@ dependencies = [
 [[package]]
 name = "turbopack-mdx"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "anyhow",
  "mdxjs",
@@ -8818,7 +8818,7 @@ dependencies = [
 [[package]]
 name = "turbopack-node"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -8853,7 +8853,7 @@ dependencies = [
 [[package]]
 name = "turbopack-static"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "anyhow",
  "serde",
@@ -8869,7 +8869,7 @@ dependencies = [
 [[package]]
 name = "turbopack-swc-utils"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "swc_core",
  "turbo-tasks",
@@ -8880,7 +8880,7 @@ dependencies = [
 [[package]]
 name = "turbopack-test-utils"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "anyhow",
  "once_cell",
@@ -8898,7 +8898,7 @@ dependencies = [
 [[package]]
 name = "turbopack-wasm"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#858f0d5ff0c3a679debe23f4cd322647f170226e"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/aggregation-tree#3fba7d864c1e48cac8d1edbcf7c98407002e65a4"
 dependencies = [
  "anyhow",
  "indexmap 1.9.3",

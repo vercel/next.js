@@ -10,8 +10,8 @@
     "check": "tsc --noEmit"
   },
   "dependencies": {
-    "@vercel/turbopack-ecmascript-runtime": "https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?858f0d5ff0c3a679debe23f4cd322647f170226e",
-    "@vercel/turbopack-node": "https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?858f0d5ff0c3a679debe23f4cd322647f170226e",
+    "@vercel/turbopack-ecmascript-runtime": "https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?3fba7d864c1e48cac8d1edbcf7c98407002e65a4",
+    "@vercel/turbopack-node": "https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-node/js?3fba7d864c1e48cac8d1edbcf7c98407002e65a4",
     "anser": "^2.1.1",
     "css.escape": "^1.5.1",
     "next": "*",
