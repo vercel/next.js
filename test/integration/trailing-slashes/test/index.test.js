@@ -284,7 +284,7 @@ describe('Trailing slashes', () => {
 
       testWithTrailingSlash()
 
-      it('should have a redirect in the routesmanifest', async () => {
+      it('should have a trailing redirect in the routesmanifest', async () => {
         const manifest = await fs.readJSON(
           join(appDir, '.next', 'routes-manifest.json')
         )
