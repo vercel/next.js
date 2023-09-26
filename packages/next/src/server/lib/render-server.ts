@@ -71,7 +71,6 @@ export async function initialize(opts: {
   dev: boolean
   minimalMode?: boolean
   hostname?: string
-  workerType: 'router' | 'render'
   isNodeDebugging: boolean
   keepAliveTimeout?: number
   serverFields?: any
@@ -97,8 +96,6 @@ export async function initialize(opts: {
 
   const app = next({
     ...opts,
-    _routerWorker: opts.workerType === 'router',
-    _renderWorker: opts.workerType === 'render',
     hostname: opts.hostname || 'localhost',
     customServer: false,
     httpServer: opts.server,
