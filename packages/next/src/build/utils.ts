@@ -1796,7 +1796,8 @@ export async function copyTracedFiles(
   tracingRoot: string,
   serverConfig: NextConfig,
   middlewareManifest: MiddlewareManifest,
-  hasInstrumentationHook: boolean
+  hasInstrumentationHook: boolean,
+  staticPages: Set<string>
 ) {
   const outputPath = path.join(distDir, 'standalone')
   let moduleType = false
@@ -1889,6 +1890,12 @@ export async function copyTracedFiles(
     if (middlewareManifest.functions.hasOwnProperty(page)) {
       continue
     }
+    const route = normalizePagePath(page)
+
+    if (staticPages.has(route)) {
+      continue
+    }
+
     const pageFile = path.join(
       distDir,
       'server',
@@ -1897,7 +1904,9 @@ export async function copyTracedFiles(
     )
     const pageTraceFile = `${pageFile}.nft.json`
     await handleTraceFiles(pageTraceFile).catch((err) => {
-      Log.warn(`Failed to copy traced files for ${pageFile}`, err)
+      if (err.code !== 'ENOENT' || (page !== '/404' && page !== '/500')) {
+        Log.warn(`Failed to copy traced files for ${pageFile}`, err)
+      }
     })
   }
 

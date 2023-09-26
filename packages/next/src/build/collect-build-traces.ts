@@ -249,7 +249,8 @@ export async function collectBuildTraces({
           : []),
         ...additionalIgnores,
 
-        ...TRACE_IGNORES,
+        ...(isStandalone ? [] : TRACE_IGNORES),
+
         ...(config.experimental.outputFileTracingIgnores || []),
       ].filter(nonNullable)
 
