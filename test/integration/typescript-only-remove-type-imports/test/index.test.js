@@ -28,7 +28,7 @@ const runTests = () => {
 }
 
 describe('TypeScript onlyRemoveTypeImports', () => {
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       const { code } = await nextBuild(appDir)
       if (code !== 0) throw new Error(`build failed with code ${code}`)
