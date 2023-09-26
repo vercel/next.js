@@ -117,6 +117,11 @@ async function updatePassingTests() {
       newData.failed = newData.failed
         .filter((name) => !shouldPass.has(name))
         .sort()
+
+      if (!oldData.runtimeError && newData.runtimeError) {
+        console.log(`${file} has a runtime error that is shouldn't have`)
+        newData.runtimeError = false
+      }
     }
   }
 

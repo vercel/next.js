@@ -3000,7 +3000,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/app-dir/crypto-globally-available/crypto-globally-available.test.ts": {
     "passed": [
@@ -3591,7 +3591,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/app-dir/not-found/css-precedence/index.test.ts": {
     "passed": [],
@@ -4277,7 +4277,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/edge-pages-support/index.test.ts": {
     "passed": [],
