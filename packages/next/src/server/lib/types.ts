@@ -12,5 +12,3 @@ export type WorkerUpgradeHandler = (
   socket: Duplex,
   head: Buffer
 ) => any
-
-export type ServerType = 'render' | 'router'

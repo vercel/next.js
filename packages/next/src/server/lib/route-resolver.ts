@@ -125,7 +125,6 @@ export async function makeResolver(
       hostname,
       isNodeDebugging: false,
       dev: true,
-      serverType: 'render',
     },
     {
       async initialize() {

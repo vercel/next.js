@@ -170,7 +170,7 @@ export class NextServer {
         resolve(this.options.dir || '.'),
         {
           customConfig: this.options.conf,
-          silent: this.options._serverType === 'render',
+          silent: true,
         }
       )
     )

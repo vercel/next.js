@@ -149,9 +149,6 @@ export default class NextNodeServer extends BaseServer {
   private _serverDistDir: string | undefined
   private imageResponseCache?: ResponseCache
   protected renderWorkersPromises?: Promise<void>
-  protected renderWorkerOpts?: Parameters<
-    typeof import('./lib/render-server').initialize
-  >[0]
   protected dynamicRoutes?: {
     match: import('../shared/lib/router/utils/route-matcher').RouteMatchFn
     page: string
@@ -528,39 +525,32 @@ export default class NextNodeServer extends BaseServer {
             )
           }
 
-          if (this.isRenderServer) {
-            const invokeRes = await invokeRequest(
-              `${getRequestMeta(req, '_protocol')}://${
-                this.fetchHostname || 'localhost'
-              }:${this.port}${newReq.url || ''}`,
-              {
-                method: newReq.method || 'GET',
-                headers: newReq.headers,
-                signal: signalFromNodeResponse(res.originalResponse),
-              }
-            )
-            const filteredResHeaders = filterReqHeaders(
-              toNodeOutgoingHttpHeaders(invokeRes.headers),
-              ipcForbiddenHeaders
-            )
-
-            for (const key of Object.keys(filteredResHeaders)) {
-              newRes.setHeader(key, filteredResHeaders[key] || '')
+          const invokeRes = await invokeRequest(
+            `${getRequestMeta(req, '_protocol')}://${
+              this.fetchHostname || 'localhost'
+            }:${this.port}${newReq.url || ''}`,
+            {
+              method: newReq.method || 'GET',
+              headers: newReq.headers,
+              signal: signalFromNodeResponse(res.originalResponse),
             }
-            newRes.statusCode = invokeRes.status || 200
-
-            if (invokeRes.body) {
-              await pipeReadable(invokeRes.body, newRes)
-            } else {
-              res.send()
-            }
-            return
-          }
-          return this.getRequestHandler()(
-            new NodeNextRequest(newReq),
-            new NodeNextResponse(newRes),
-            newParsedUrl
           )
+          const filteredResHeaders = filterReqHeaders(
+            toNodeOutgoingHttpHeaders(invokeRes.headers),
+            ipcForbiddenHeaders
+          )
+
+          for (const key of Object.keys(filteredResHeaders)) {
+            newRes.setHeader(key, filteredResHeaders[key] || '')
+          }
+          newRes.statusCode = invokeRes.status || 200
+
+          if (invokeRes.body) {
+            await pipeReadable(invokeRes.body, newRes)
+          } else {
+            res.send()
+          }
+          return
         }
       )
     }
@@ -921,13 +911,7 @@ export default class NextNodeServer extends BaseServer {
       }
     } catch (err: any) {
       if (err instanceof NoFallbackError) {
-        if (this.isRenderServer) {
-          throw err
-        }
-
-        return {
-          finished: false,
-        }
+        throw err
       }
 
       try {
@@ -1261,7 +1245,7 @@ export default class NextNodeServer extends BaseServer {
     const { req, res, query } = ctx
     const is404 = res.statusCode === 404
 
-    if (is404 && this.hasAppDir && this.isRenderServer) {
+    if (is404 && this.hasAppDir) {
       const notFoundPathname = this.renderOpts.dev
         ? '/not-found'
         : '/_not-found'
@@ -1577,8 +1561,7 @@ export default class NextNodeServer extends BaseServer {
     res: BaseNextResponse,
     parsed: NextUrlWithParsedQuery
   ) {
-    const isMiddlewareInvoke =
-      this.isRenderServer && req.headers['x-middleware-invoke']
+    const isMiddlewareInvoke = req.headers['x-middleware-invoke']
 
     const handleFinished = (finished: boolean = false) => {
       if (isMiddlewareInvoke && !finished) {
@@ -1589,7 +1572,7 @@ export default class NextNodeServer extends BaseServer {
       return { finished }
     }
 
-    if (this.isRenderServer && !isMiddlewareInvoke) {
+    if (!isMiddlewareInvoke) {
       return { finished: false }
     }
 
@@ -1696,7 +1679,6 @@ export default class NextNodeServer extends BaseServer {
     if (
       this.renderOpts?.dev ||
       this.serverOptions?.dev ||
-      this.renderWorkerOpts?.dev ||
       process.env.NODE_ENV === 'development' ||
       process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD
     ) {

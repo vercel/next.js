@@ -1,11 +1,7 @@
 import type { IncomingMessage } from 'http'
 
 // this must come first as it includes require hooks
-import type {
-  ServerType,
-  WorkerRequestHandler,
-  WorkerUpgradeHandler,
-} from './types'
+import type { WorkerRequestHandler, WorkerUpgradeHandler } from './types'
 
 // This is required before other imports to ensure the require hook is setup.
 import '../node-polyfill-fetch'
@@ -65,7 +61,6 @@ export async function initialize(opts: {
   server?: import('http').Server
   minimalMode?: boolean
   hostname?: string
-  serverType: ServerType
   isNodeDebugging: boolean
   keepAliveTimeout?: number
   customServer?: boolean
@@ -202,7 +197,6 @@ export async function initialize(opts: {
   const renderServerOpts: Parameters<RenderServer['initialize']>[0] = {
     port: opts.port,
     dir: opts.dir,
-    serverType: 'render',
     hostname: opts.hostname,
     minimalMode: opts.minimalMode,
     dev: !!opts.dev,

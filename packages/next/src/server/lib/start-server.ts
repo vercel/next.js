@@ -67,7 +67,6 @@ export async function getRequestHandlers({
     dev: isDev,
     minimalMode,
     server,
-    serverType: 'router',
     isNodeDebugging: isNodeDebugging || false,
     keepAliveTimeout,
     experimentalTestProxy,
