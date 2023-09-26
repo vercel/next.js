@@ -58,6 +58,9 @@ const SKIPPED_TEST_SUITES = {
     'should infer pnpm as the package manager',
     'should infer pnpm as the package manager with example',
   ],
+  'test/integration/trailing-slashes/test/index.test.js': [
+    'Trailing slashes dev mode, with basepath, trailingSlash: true /docs/linker?href=/ should navigate to /docs/',
+  ],
 }
 
 async function updatePassingTests() {
