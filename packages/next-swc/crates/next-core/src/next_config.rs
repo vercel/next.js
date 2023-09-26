@@ -440,7 +440,6 @@ pub struct ExperimentalConfig {
     output_file_tracing_root: Option<String>,
     proxy_timeout: Option<f64>,
     scroll_restoration: Option<bool>,
-    shared_pool: Option<bool>,
     sri: Option<serde_json::Value>,
     swc_minify_debug_options: Option<serde_json::Value>,
     swc_trace_profiling: Option<bool>,

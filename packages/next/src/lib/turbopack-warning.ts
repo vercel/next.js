@@ -43,7 +43,6 @@ const supportedTurbopackNextConfigOptions = [
   'onDemandEntries',
   'excludeDefaultMomentLocales',
   'experimental.cpus',
-  'experimental.sharedPool',
   'experimental.proxyTimeout',
   'experimental.isrFlushToDisk',
   'experimental.workerThreads',
