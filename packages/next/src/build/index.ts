@@ -1075,10 +1075,7 @@ export default async function build(
         : undefined
 
       const timeout = config.staticPageGenerationTimeout || 0
-      const sharedPool = config.experimental.sharedPool || false
-      const staticWorkerPath = sharedPool
-        ? require.resolve('./worker')
-        : require.resolve('./utils')
+      const staticWorkerPath = require.resolve('./worker')
 
       let appPathsManifest: Record<string, string> = {}
       const appPathRoutes: Record<string, string> = {}
@@ -1162,18 +1159,12 @@ export default async function build(
             },
           },
           enableWorkerThreads: config.experimental.workerThreads,
-          exposedMethods: sharedPool
-            ? [
-                'hasCustomGetInitialProps',
-                'isPageStatic',
-                'getDefinedNamedExports',
-                'exportPage',
-              ]
-            : [
-                'hasCustomGetInitialProps',
-                'isPageStatic',
-                'getDefinedNamedExports',
-              ],
+          exposedMethods: [
+            'hasCustomGetInitialProps',
+            'isPageStatic',
+            'getDefinedNamedExports',
+            'exportPage',
+          ],
         }) as Worker &
           Pick<
             typeof import('./worker'),
@@ -1720,11 +1711,6 @@ export default async function build(
           hasNonStaticErrorPage: nonStaticErrorPage,
         }
 
-        if (!sharedPool) {
-          pagesStaticWorkers.end()
-          appStaticWorkers?.end()
-        }
-
         return returnValue
       })
 
@@ -2080,18 +2066,14 @@ export default async function build(
             pages: combinedPages,
             outdir: path.join(distDir, 'export'),
             statusMessage: 'Generating static pages',
-            exportAppPageWorker: sharedPool
-              ? appStaticWorkers?.exportPage.bind(appStaticWorkers)
-              : undefined,
-            exportPageWorker: sharedPool
-              ? pagesStaticWorkers.exportPage.bind(pagesStaticWorkers)
-              : undefined,
-            endWorker: sharedPool
-              ? async () => {
-                  await pagesStaticWorkers.end()
-                  await appStaticWorkers?.end()
-                }
-              : undefined,
+            exportAppPageWorker:
+              appStaticWorkers?.exportPage.bind(appStaticWorkers),
+            exportPageWorker:
+              pagesStaticWorkers.exportPage.bind(pagesStaticWorkers),
+            endWorker: async () => {
+              await pagesStaticWorkers.end()
+              await appStaticWorkers?.end()
+            },
           }
 
           await exportApp(dir, exportOptions, nextBuildSpan)
@@ -2779,18 +2761,12 @@ export default async function build(
           silent: true,
           threads: config.experimental.cpus,
           outdir: path.join(dir, configOutDir),
-          exportAppPageWorker: sharedPool
-            ? appWorker.exportPage.bind(appWorker)
-            : undefined,
-          exportPageWorker: sharedPool
-            ? pagesWorker.exportPage.bind(pagesWorker)
-            : undefined,
-          endWorker: sharedPool
-            ? async () => {
-                await pagesWorker.end()
-                await appWorker.end()
-              }
-            : undefined,
+          exportAppPageWorker: appWorker.exportPage.bind(appWorker),
+          exportPageWorker: pagesWorker.exportPage.bind(pagesWorker),
+          endWorker: async () => {
+            await pagesWorker.end()
+            await appWorker.end()
+          },
         }
 
         await exportApp(dir, options, nextBuildSpan)
