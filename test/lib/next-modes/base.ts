@@ -158,7 +158,7 @@ export class NextInstance {
           ...this.packageJson?.dependencies,
         }
 
-        if (skipInstall) {
+        if (skipInstall || skipIsolatedNext) {
           const pkgScripts = (this.packageJson['scripts'] as {}) || {}
           await fs.ensureDir(this.testDir)
           await fs.writeFile(
@@ -197,7 +197,7 @@ export class NextInstance {
             !(global as any).isNextDeploy
           ) {
             await fs.copy(process.env.NEXT_TEST_STARTER, this.testDir)
-          } else if (!skipIsolatedNext) {
+          } else {
             this.testDir = await createNextInstall({
               parentSpan: rootSpan,
               dependencies: finalDependencies,
