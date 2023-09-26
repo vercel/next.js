@@ -3983,8 +3983,6 @@
     "passed": [
       "basePath should 404 for public file without basePath",
       "basePath should 404 when manually adding basePath with <Link>",
-      "basePath should 404 when manually adding basePath with router.push",
-      "basePath should 404 when manually adding basePath with router.replace",
       "basePath should add basePath to routes-manifest",
       "basePath should add header with basePath by default",
       "basePath should add header without basePath when set to false",
@@ -4054,7 +4052,10 @@
       "basePath should navigate back to a non-basepath 404 that starts with basepath",
       "basePath should navigate to nested index page with getStaticProps"
     ],
-    "flakey": [],
+    "flakey": [
+      "basePath should 404 when manually adding basePath with router.push",
+      "basePath should 404 when manually adding basePath with router.replace"
+    ],
     "runtimeError": false
   },
   "test/e2e/browserslist-extends/index.test.ts": {
@@ -7185,7 +7186,6 @@
       "Basic CSS Modules Ordering Production Mode should have correct color on index page (on hover)",
       "Basic CSS Modules Ordering Production Mode should have correct color on index page (on load)",
       "Basic CSS Modules Ordering Production Mode should have correct color on index page (on nav)",
-      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on nav from other)",
       "CSS Modules Composes Ordering Production Mode should have correct color on index page (on hover)",
       "CSS Modules Composes Ordering Production Mode should have correct color on index page (on load)",
       "CSS Modules Composes Ordering Production Mode should have correct color on index page (on nav from index)",
@@ -7208,7 +7208,9 @@
       "should handle unresolved files gracefully should have correct file references in CSS output"
     ],
     "pending": [],
-    "flakey": [],
+    "flakey": [
+      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on nav from other)"
+    ],
     "runtimeError": false
   },
   "test/integration/css/test/css-rendering.test.js": {
@@ -8075,7 +8077,6 @@
       "Dynamic Routing dev mode should render nested optional dynamic page",
       "Dynamic Routing dev mode should render normal route",
       "Dynamic Routing dev mode should render optional dynamic page",
-      "Dynamic Routing dev mode should resolve dynamic route href for page added later",
       "Dynamic Routing dev mode should respond with bad request with invalid encoding",
       "Dynamic Routing dev mode should scroll to a hash on client-side navigation",
       "Dynamic Routing dev mode should scroll to a hash on mount",
@@ -8120,7 +8121,6 @@
       "Dynamic Routing production mode should not have any query values when not defined",
       "Dynamic Routing production mode should not have placeholder query values for SSS",
       "Dynamic Routing production mode should not preload buildManifest for non-auto export dynamic pages",
-      "Dynamic Routing production mode should output a routes-manifest correctly",
       "Dynamic Routing production mode should pass params in getInitialProps during SSR",
       "Dynamic Routing production mode should pass params in getInitialProps during client navigation",
       "Dynamic Routing production mode should prioritize a non-dynamic page",
@@ -8170,7 +8170,10 @@
     "pending": [
       "Dynamic Routing dev mode should not have error after pinging WebSocket"
     ],
-    "flakey": [],
+    "flakey": [
+      "Dynamic Routing dev mode should resolve dynamic route href for page added later",
+      "Dynamic Routing production mode should output a routes-manifest correctly"
+    ],
     "runtimeError": false
   },
   "test/integration/edge-runtime-configurable-guards/test/index.test.js": {

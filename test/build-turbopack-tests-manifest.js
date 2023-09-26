@@ -22,10 +22,18 @@ const INITIALIZING_TEST_CASES = [
 
 const SKIPPED_TEST_SUITES = {
   'test/integration/router-rerender/test/index.test.js': [],
-  'test/e2e/basepath.test.ts': [],
+  'test/e2e/basepath.test.ts': [
+    'basePath should 404 when manually adding basePath with router.push',
+    'basePath should 404 when manually adding basePath with router.replace',
+  ],
   'test/development/acceptance-app/ReactRefreshRequire.test.ts': [],
-  'test/integration/dynamic-routing/test/middleware.test.js': [],
-  'test/integration/css/test/css-modules.test.js': [],
+  'test/integration/dynamic-routing/test/middleware.test.js': [
+    'Dynamic Routing dev mode should resolve dynamic route href for page added later',
+    'Dynamic Routing production mode should output a routes-manifest correctly',
+  ],
+  'test/integration/css/test/css-modules.test.js': [
+    'CSS Modules Composes Ordering Development Mode should have correct color on index page (on nav from other)',
+  ],
   'test/development/acceptance/ReactRefreshRequire.test.ts': [],
   'test/integration/custom-routes/test/index.test.js': [],
   'test/integration/absolute-assetprefix/test/index.test.js': [],
@@ -85,6 +93,7 @@ async function updatePassingTests() {
   for (const info of Object.values(passing)) {
     info.failed = [...new Set(info.failed)].sort()
     info.pending = [...new Set(info.pending)].sort()
+    info.flakey = [...new Set(info.flakey)].sort()
     info.passed = [
       ...new Set(info.passed.filter((name) => !info.failed.includes(name))),
     ].sort()
