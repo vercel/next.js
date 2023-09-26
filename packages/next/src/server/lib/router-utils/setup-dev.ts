@@ -301,24 +301,28 @@ async function startWatcher(opts: SetupOpts) {
       const newSet = new Map<string, Issue>()
       issues.set(name, newSet)
 
+      const relevantIssues = new Set()
+
       for (const issue of result.issues) {
         // TODO better formatting
         if (issue.severity !== 'error' && issue.severity !== 'fatal') continue
         const key = issueKey(issue)
         const formatted = formatIssue(issue)
-        if (!throwIssue && !oldSet.has(key)) {
-          console.error(`  ⚠ ${key} ${formatted}\n\n`)
+        if (!oldSet.has(key) && !newSet.has(key)) {
+          console.error(`  ⚠ ${name} ${key} ${formatted}\n\n`)
         }
         newSet.set(key, issue)
-        if (throwIssue) {
-          throw new ModuleBuildError(formatted)
-        }
+        relevantIssues.add(formatted)
       }
 
       for (const issue of oldSet.keys()) {
         if (!newSet.has(issue)) {
           console.error(`✅ ${name} fixed ${issue}`)
         }
+      }
+
+      if (relevantIssues.size && throwIssue) {
+        throw new ModuleBuildError([...relevantIssues].join('\n\n'))
       }
     }
 
@@ -886,7 +890,7 @@ async function startWatcher(opts: SetupOpts) {
       }
 
       for await (const data of subscription) {
-        processIssues(id, data)
+        processIssues('hmr', data)
         sendTurbopackMessage(data)
       }
     }
