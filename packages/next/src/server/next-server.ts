@@ -528,7 +528,7 @@ export default class NextNodeServer extends BaseServer {
             )
           }
 
-          if (this.isRenderWorker) {
+          if (this.isRenderServer) {
             const invokeRes = await invokeRequest(
               `${getRequestMeta(req, '_protocol')}://${
                 this.fetchHostname || 'localhost'
@@ -921,7 +921,7 @@ export default class NextNodeServer extends BaseServer {
       }
     } catch (err: any) {
       if (err instanceof NoFallbackError) {
-        if (this.isRenderWorker) {
+        if (this.isRenderServer) {
           throw err
         }
 
@@ -1261,7 +1261,7 @@ export default class NextNodeServer extends BaseServer {
     const { req, res, query } = ctx
     const is404 = res.statusCode === 404
 
-    if (is404 && this.hasAppDir && this.isRenderWorker) {
+    if (is404 && this.hasAppDir && this.isRenderServer) {
       const notFoundPathname = this.renderOpts.dev
         ? '/not-found'
         : '/_not-found'
@@ -1578,7 +1578,7 @@ export default class NextNodeServer extends BaseServer {
     parsed: NextUrlWithParsedQuery
   ) {
     const isMiddlewareInvoke =
-      this.isRenderWorker && req.headers['x-middleware-invoke']
+      this.isRenderServer && req.headers['x-middleware-invoke']
 
     const handleFinished = (finished: boolean = false) => {
       if (isMiddlewareInvoke && !finished) {
@@ -1589,7 +1589,7 @@ export default class NextNodeServer extends BaseServer {
       return { finished }
     }
 
-    if (this.isRenderWorker && !isMiddlewareInvoke) {
+    if (this.isRenderServer && !isMiddlewareInvoke) {
       return { finished: false }
     }
 

@@ -2,9 +2,10 @@ import type { IncomingMessage } from 'http'
 
 // this must come first as it includes require hooks
 import type {
+  ServerType,
   WorkerRequestHandler,
   WorkerUpgradeHandler,
-} from './setup-server-worker'
+} from './types'
 
 // This is required before other imports to ensure the require hook is setup.
 import '../node-polyfill-fetch'
@@ -41,7 +42,7 @@ import type { NextJsHotReloaderInterface } from '../dev/hot-reloader-types'
 
 const debug = setupDebug('next:router-server:main')
 
-export type RenderWorker = Pick<
+export type RenderServer = Pick<
   typeof import('./render-server'),
   | 'initialize'
   | 'deleteCache'
@@ -49,11 +50,6 @@ export type RenderWorker = Pick<
   | 'deleteAppClientCache'
   | 'propagateServerField'
 >
-
-export interface RenderWorkers {
-  app?: RenderWorker
-  pages?: RenderWorker
-}
 
 const devInstances: Record<
   string,
@@ -69,7 +65,7 @@ export async function initialize(opts: {
   server?: import('http').Server
   minimalMode?: boolean
   hostname?: string
-  workerType: 'router' | 'render'
+  serverType: ServerType
   isNodeDebugging: boolean
   keepAliveTimeout?: number
   customServer?: boolean
@@ -101,7 +97,7 @@ export async function initialize(opts: {
     minimalMode: opts.minimalMode,
   })
 
-  const renderWorkers: RenderWorkers = {}
+  let renderServer: RenderServer | undefined
 
   let devInstance:
     | UnwrapPromise<
@@ -120,7 +116,7 @@ export async function initialize(opts: {
 
     devInstance = await setupDev({
       // Passed here but the initialization of this object happens below, doing the initialization before the setupDev call breaks.
-      renderWorkers,
+      renderServer,
       appDir,
       pagesDir,
       telemetry,
@@ -201,15 +197,12 @@ export async function initialize(opts: {
     } as any
   }
 
-  renderWorkers.app =
-    require('./render-server') as typeof import('./render-server')
+  renderServer = require('./render-server') as typeof import('./render-server')
 
-  renderWorkers.pages = renderWorkers.app
-
-  const renderWorkerOpts: Parameters<RenderWorker['initialize']>[0] = {
+  const renderServerOpts: Parameters<RenderServer['initialize']>[0] = {
     port: opts.port,
     dir: opts.dir,
-    workerType: 'render',
+    serverType: 'render',
     hostname: opts.hostname,
     minimalMode: opts.minimalMode,
     dev: !!opts.dev,
@@ -220,11 +213,7 @@ export async function initialize(opts: {
   }
 
   // pre-initialize workers
-  const handlers = await renderWorkers.app?.initialize(renderWorkerOpts)
-  const initialized = {
-    app: handlers,
-    pages: handlers,
-  }
+  const handlers = await renderServer.initialize(renderServerOpts)
 
   const logError = async (
     type: 'uncaughtException' | 'unhandledRejection',
@@ -235,13 +224,6 @@ export async function initialize(opts: {
 
   const cleanup = () => {
     debug('router-server process cleanup')
-    for (const curWorker of [
-      ...((renderWorkers.pages as any)?._workerPool?._workers || []),
-    ] as {
-      _child?: import('child_process').ChildProcess
-    }[]) {
-      curWorker._child?.kill('SIGINT')
-    }
 
     if (!process.env.__NEXT_PRIVATE_CPU_PROFILE) {
       process.exit(0)
@@ -257,8 +239,8 @@ export async function initialize(opts: {
     fsChecker,
     config,
     opts,
-    renderWorkers,
-    renderWorkerOpts,
+    renderServer,
+    renderServerOpts,
     devInstance?.ensureMiddleware
   )
 
@@ -278,7 +260,6 @@ export async function initialize(opts: {
 
     async function invokeRender(
       parsedUrl: NextUrlWithParsedQuery,
-      type: keyof typeof renderWorkers,
       invokePath: string,
       handleIndex: number,
       additionalInvokeHeaders: Record<string, string> = {}
@@ -308,10 +289,8 @@ export async function initialize(opts: {
         return null
       }
 
-      const workerResult = initialized[type]
-
-      if (!workerResult) {
-        throw new Error(`Failed to initialize render worker ${type}`)
+      if (!handlers) {
+        throw new Error('Failed to initialize render server')
       }
 
       const invokeHeaders: typeof req.headers = {
@@ -326,10 +305,7 @@ export async function initialize(opts: {
       debug('invokeRender', req.url, invokeHeaders)
 
       try {
-        const initResult = await renderWorkers.pages?.initialize(
-          renderWorkerOpts
-        )
-
+        const initResult = await renderServer?.initialize(renderServerOpts)
         try {
           await initResult?.requestHandler(req, res)
         } catch (err) {
@@ -471,7 +447,7 @@ export async function initialize(opts: {
             fsChecker.pageFiles.has(matchedOutput.itemPath))
         ) {
           res.statusCode = 500
-          await invokeRender(parsedUrl, 'pages', '/_error', handleIndex, {
+          await invokeRender(parsedUrl, '/_error', handleIndex, {
             'x-invoke-status': '500',
             'x-invoke-error': JSON.stringify({
               message: `A conflicting public file and page file was found for path ${matchedOutput.itemPath} https://nextjs.org/docs/messages/conflicting-public-file-page`,
@@ -498,7 +474,6 @@ export async function initialize(opts: {
           res.statusCode = 405
           return await invokeRender(
             url.parse('/405', true),
-            'pages',
             '/405',
             handleIndex,
             {
@@ -564,7 +539,6 @@ export async function initialize(opts: {
             res.statusCode = err.statusCode
             return await invokeRender(
               url.parse(invokePath, true),
-              'pages',
               invokePath,
               handleIndex,
               {
@@ -581,7 +555,6 @@ export async function initialize(opts: {
 
         return await invokeRender(
           parsedUrl,
-          matchedOutput.type === 'appFile' ? 'app' : 'pages',
           parsedUrl.pathname || '/',
           handleIndex,
           {
@@ -612,7 +585,6 @@ export async function initialize(opts: {
       if (appNotFound) {
         return await invokeRender(
           parsedUrl,
-          'app',
           opts.dev ? '/not-found' : '/_not-found',
           handleIndex,
           {
@@ -621,7 +593,7 @@ export async function initialize(opts: {
         )
       }
 
-      await invokeRender(parsedUrl, 'pages', '/404', handleIndex, {
+      await invokeRender(parsedUrl, '/404', handleIndex, {
         'x-invoke-status': '404',
       })
     }
@@ -640,15 +612,9 @@ export async function initialize(opts: {
           console.error(err)
         }
         res.statusCode = Number(invokeStatus)
-        return await invokeRender(
-          url.parse(invokePath, true),
-          'pages',
-          invokePath,
-          0,
-          {
-            'x-invoke-status': invokeStatus,
-          }
-        )
+        return await invokeRender(url.parse(invokePath, true), invokePath, 0, {
+          'x-invoke-status': invokeStatus,
+        })
       } catch (err2) {
         console.error(err2)
       }

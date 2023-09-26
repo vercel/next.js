@@ -4,6 +4,7 @@ import '../require-hook'
 
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { SelfSignedCertificate } from '../../lib/mkcert'
+import { type WorkerRequestHandler, type WorkerUpgradeHandler } from './types'
 
 import fs from 'fs'
 import path from 'path'
@@ -12,14 +13,9 @@ import https from 'https'
 import Watchpack from 'watchpack'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
-import { getDebugPort } from './utils'
+import { RESTART_EXIT_CODE, getDebugPort } from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
-import {
-  RESTART_EXIT_CODE,
-  type WorkerRequestHandler,
-  type WorkerUpgradeHandler,
-} from './setup-server-worker'
 import { checkIsNodeDebugging } from './is-node-debugging'
 import { CONFIG_FILES } from '../../shared/lib/constants'
 import chalk from '../../lib/chalk'
@@ -71,7 +67,7 @@ export async function getRequestHandlers({
     dev: isDev,
     minimalMode,
     server,
-    workerType: 'router',
+    serverType: 'router',
     isNodeDebugging: isNodeDebugging || false,
     keepAliveTimeout,
     experimentalTestProxy,

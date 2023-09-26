@@ -37,6 +37,7 @@ import type {
   AppRouteRouteHandlerContext,
   AppRouteRouteModule,
 } from './future/route-modules/app-route/module'
+import type { ServerType } from './lib/types'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { formatHostname } from './lib/format-hostname'
@@ -189,8 +190,7 @@ export interface Options {
    */
   httpServer?: import('http').Server
 
-  _routerWorker?: boolean
-  _renderWorker?: boolean
+  _serverType?: ServerType
 
   isNodeDebugging?: 'brk' | boolean
 }
@@ -368,7 +368,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   public readonly matchers: RouteMatcherManager
   protected readonly i18nProvider?: I18NProvider
   protected readonly localeNormalizer?: LocaleRouteNormalizer
-  protected readonly isRenderWorker?: boolean
+  protected readonly isRenderServer: boolean
 
   public constructor(options: ServerOptions) {
     const {
@@ -383,7 +383,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     } = options
 
     this.serverOptions = options
-    this.isRenderWorker = options._renderWorker
+    this.isRenderServer = options._serverType === 'render'
 
     this.dir =
       process.env.NEXT_RUNTIME === 'edge' ? dir : require('path').resolve(dir)
@@ -2635,7 +2635,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         const invokeOutput = ctx.req.headers['x-invoke-output']
         if (
           !this.minimalMode &&
-          this.isRenderWorker &&
+          this.isRenderServer &&
           typeof invokeOutput === 'string' &&
           isDynamicRoute(invokeOutput || '') &&
           invokeOutput !== match.definition.pathname

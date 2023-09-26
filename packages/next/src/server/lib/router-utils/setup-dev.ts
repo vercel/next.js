@@ -93,7 +93,7 @@ import { srcEmptySsgManifest } from '../../../build/webpack/plugins/build-manife
 import { PropagateToWorkersField } from './types'
 import { MiddlewareManifest } from '../../../build/webpack/plugins/middleware-plugin'
 import { devPageFiles } from '../../../build/webpack/plugins/next-types-plugin/shared'
-import type { RenderWorkers } from '../router-server'
+import type { RenderServer } from '../router-server'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import {
   HMR_ACTIONS_SENT_TO_BROWSER,
@@ -113,7 +113,7 @@ import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route
 const wsServer = new ws.Server({ noServer: true })
 
 type SetupOpts = {
-  renderWorkers: RenderWorkers
+  renderServer?: RenderServer
   dir: string
   turbo?: boolean
   appDir?: string
@@ -162,8 +162,7 @@ async function startWatcher(opts: SetupOpts) {
   )
 
   async function propagateToWorkers(field: PropagateToWorkersField, args: any) {
-    await opts.renderWorkers.app?.propagateServerField(opts.dir, field, args)
-    await opts.renderWorkers.pages?.propagateServerField(opts.dir, field, args)
+    await opts.renderServer?.propagateServerField(opts.dir, field, args)
   }
 
   const serverFields: {

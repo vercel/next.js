@@ -487,7 +487,7 @@ export default class DevServer extends Server {
     err?: unknown,
     type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
   ): Promise<void> {
-    if (this.isRenderWorker) {
+    if (this.isRenderServer) {
       await this.invokeDevMethod({
         method: 'logErrorWithOriginalStack',
         args: [err, type],
@@ -731,7 +731,7 @@ export default class DevServer extends Server {
     appPaths?: ReadonlyArray<string> | null
     match?: RouteMatch
   }): Promise<void> {
-    if (!this.isRenderWorker) {
+    if (!this.isRenderServer) {
       throw new Error('Invariant ensurePage called outside render worker')
     }
 
@@ -795,7 +795,7 @@ export default class DevServer extends Server {
   }
 
   protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
-    if (this.isRenderWorker) {
+    if (this.isRenderServer) {
       await this.invokeDevMethod({
         method: 'getFallbackErrorComponents',
         args: [],
@@ -808,7 +808,7 @@ export default class DevServer extends Server {
   }
 
   async getCompilationError(page: string): Promise<any> {
-    if (this.isRenderWorker) {
+    if (this.isRenderServer) {
       return await this.invokeDevMethod({
         method: 'getCompilationError',
         args: [page],

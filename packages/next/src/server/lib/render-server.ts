@@ -2,6 +2,7 @@ import type { NextServer, RequestHandler } from '../next'
 
 import next from '../next'
 import { PropagateToWorkersField } from './router-utils/types'
+import type { ServerType } from './types'
 
 const result: Record<
   string,
@@ -71,7 +72,7 @@ export async function initialize(opts: {
   dev: boolean
   minimalMode?: boolean
   hostname?: string
-  workerType: 'router' | 'render'
+  serverType: ServerType
   isNodeDebugging: boolean
   keepAliveTimeout?: number
   serverFields?: any
@@ -96,8 +97,7 @@ export async function initialize(opts: {
 
   const app = next({
     ...opts,
-    _routerWorker: opts.workerType === 'router',
-    _renderWorker: opts.workerType === 'render',
+    _serverType: opts.serverType,
     hostname: opts.hostname || 'localhost',
     customServer: false,
     httpServer: opts.server,
