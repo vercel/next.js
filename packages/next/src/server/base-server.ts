@@ -166,7 +166,7 @@ export interface Options {
   experimentalTestProxy?: boolean
 
   /**
-   * Enables the experimental HTTPs dev server
+   * Whether or not the dev server is running in experimental HTTPS mode
    */
   experimentalHttpsServer?: boolean
   /**
