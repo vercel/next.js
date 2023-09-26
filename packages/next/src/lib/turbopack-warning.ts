@@ -44,7 +44,6 @@ const supportedTurbopackNextConfigOptions = [
   'excludeDefaultMomentLocales',
   'experimental.clientRouterFilterRedirects',
   'experimental.cpus',
-  'experimental.sharedPool',
   'experimental.proxyTimeout',
   'experimental.isrFlushToDisk',
   'experimental.workerThreads',
