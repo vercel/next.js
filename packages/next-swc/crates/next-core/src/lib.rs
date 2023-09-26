@@ -14,7 +14,6 @@ mod bootstrap;
 mod embed_js;
 mod emit;
 mod env;
-mod fallback;
 mod loader_tree;
 pub mod middleware;
 pub mod mode;
