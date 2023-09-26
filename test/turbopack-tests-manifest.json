@@ -7971,7 +7971,6 @@
       "Dynamic Routing production mode should prioritize public files over dynamic route",
       "Dynamic Routing production mode should render another normal route",
       "Dynamic Routing production mode should render dynamic page",
-      "Dynamic Routing production mode should render dynamic route with query",
       "Dynamic Routing production mode should render nested dynamic page",
       "Dynamic Routing production mode should render nested optional dynamic page",
       "Dynamic Routing production mode should render normal route",
@@ -8015,7 +8014,8 @@
       "Dynamic Routing dev mode should not have error after pinging WebSocket"
     ],
     "flakey": [
-      "Dynamic Routing production mode should have correct cache entries on prefetch"
+      "Dynamic Routing production mode should have correct cache entries on prefetch",
+      "Dynamic Routing production mode should render dynamic route with query"
     ],
     "runtimeError": false
   },

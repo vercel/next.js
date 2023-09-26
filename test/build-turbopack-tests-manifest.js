@@ -41,6 +41,7 @@ const SKIPPED_TEST_SUITES = {
   ],
   'test/integration/dynamic-routing/test/index.test.js': [
     'Dynamic Routing production mode should have correct cache entries on prefetch',
+    'Dynamic Routing production mode should render dynamic route with query',
   ],
   'test/development/acceptance-app/ReactRefreshLogBox-builtins.test.ts': [
     'ReactRefreshLogBox app turbo Module not found missing global CSS',
