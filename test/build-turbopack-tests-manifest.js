@@ -1,5 +1,11 @@
 const fetch = require('node-fetch')
 const fs = require('fs')
+const prettier = require('prettier')
+
+async function format(text) {
+  const options = await prettier.resolveConfig(__filename)
+  return prettier.format(text, { ...options, parser: 'json' })
+}
 
 const override = process.argv.includes('--override')
 
@@ -35,42 +41,41 @@ async function updatePassingTests() {
     const runtimeError = result.data.numRuntimeErrorTestSuites > 0
     for (const testResult of result.data.testResults) {
       const filepath = stripWorkingPath(testResult.name)
-      for (const file of duplicateFileNames(filepath)) {
-        if (SKIPPED_TEST_SUITES.has(file)) continue
-        const fileResults = (passing[file] ??= {
-          passed: [],
-          failed: [],
-          pending: [],
-          runtimeError,
-        })
 
-        let initializationFailed = false
-        for (const testCase of testResult.assertionResults) {
-          let { fullName, status } = testCase
-          if (
-            status === 'failed' &&
-            INITIALIZING_TEST_CASES.some((name) => fullName.includes(name))
-          ) {
-            initializationFailed = true
-          } else if (initializationFailed) {
-            status = 'failed'
-          }
-          const statusArray = fileResults[status]
-          if (!statusArray) {
-            throw new Error(`unexpected status "${status}"`)
-          }
-          statusArray.push(fullName)
+      if (SKIPPED_TEST_SUITES.has(filepath)) continue
+      const fileResults = (passing[filepath] ??= {
+        passed: [],
+        failed: [],
+        pending: [],
+        runtimeError,
+      })
+
+      let initializationFailed = false
+      for (const testCase of testResult.assertionResults) {
+        let { fullName, status } = testCase
+        if (
+          status === 'failed' &&
+          INITIALIZING_TEST_CASES.some((name) => fullName.includes(name))
+        ) {
+          initializationFailed = true
+        } else if (initializationFailed) {
+          status = 'failed'
         }
+        const statusArray = fileResults[status]
+        if (!statusArray) {
+          throw new Error(`unexpected status "${status}"`)
+        }
+        statusArray.push(fullName)
       }
     }
   }
 
   for (const info of Object.values(passing)) {
-    info.failed = [...new Set(info.failed)]
-    info.pending = [...new Set(info.pending)]
+    info.failed = [...new Set(info.failed)].sort()
+    info.pending = [...new Set(info.pending)].sort()
     info.passed = [
       ...new Set(info.passed.filter((name) => !info.failed.includes(name))),
-    ]
+    ].sort()
   }
 
   if (!override) {
@@ -97,13 +102,29 @@ async function updatePassingTests() {
         )
       }
       // Merge the old passing tests with the new ones
-      newData.passed = [...new Set([...oldData.passed, ...newData.passed])]
+      newData.passed = [
+        ...new Set([...oldData.passed, ...newData.passed]),
+      ].sort()
       // but remove them also from the failed list
-      newData.failed = newData.failed.filter((name) => !shouldPass.has(name))
+      newData.failed = newData.failed
+        .filter((name) => !shouldPass.has(name))
+        .sort()
     }
   }
 
-  fs.writeFileSync(PASSING_JSON_PATH, JSON.stringify(passing, null, 2))
+  // JS keys are ordered, this ensures the tests are written in a consistent order
+  // https://stackoverflow.com/questions/5467129/sort-javascript-object-by-key
+  const ordered = Object.keys(passing)
+    .sort()
+    .reduce((obj, key) => {
+      obj[key] = passing[key]
+      return obj
+    }, {})
+
+  fs.writeFileSync(
+    PASSING_JSON_PATH,
+    await format(JSON.stringify(ordered, null, 2))
+  )
 }
 
 function stripWorkingPath(path) {
@@ -113,16 +134,6 @@ function stripWorkingPath(path) {
     )
   }
   return path.slice(WORKING_PATH.length)
-}
-
-function duplicateFileNames(path) {
-  if (path.includes('/src/')) {
-    const dist = path.replace('/src/', '/dist/').replace(/.tsx?$/, '.js')
-    if (fs.existsSync(`${__dirname}/../${dist}`)) {
-      return [path, dist]
-    }
-  }
-  return [path]
 }
 
 updatePassingTests()
