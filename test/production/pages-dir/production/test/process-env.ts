@@ -1,17 +1,15 @@
 /* eslint-env jest */
 import webdriver from 'next-webdriver'
-import { join } from 'path'
 import {
   readNextBuildClientPageFile,
   readNextBuildServerPageFile,
 } from 'next-test-utils'
+import { NextInstance } from 'e2e-utils'
 
-const appDir = join(__dirname, '..')
-
-export default (context) => {
+export default (next: NextInstance) => {
   describe('process.env', () => {
     it('should set process.env.NODE_ENV in production', async () => {
-      const browser = await webdriver(context.appPort, '/process-env')
+      const browser = await webdriver(next.appPort, '/process-env')
       const nodeEnv = await browser.elementByCss('#node-env').text()
       expect(nodeEnv).toBe('production')
       await browser.close()
@@ -21,7 +19,7 @@ export default (context) => {
   describe('process.browser', () => {
     it('should eliminate server only code on the client', async () => {
       const clientCode = await readNextBuildClientPageFile(
-        appDir,
+        next.testDir,
         '/process-env'
       )
       expect(clientCode).toMatch(
@@ -34,7 +32,7 @@ export default (context) => {
 
     it('should eliminate client only code on the server', async () => {
       const serverCode = await readNextBuildServerPageFile(
-        appDir,
+        next.testDir,
         '/process-env'
       )
       expect(serverCode).not.toMatch(

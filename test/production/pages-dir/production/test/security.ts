@@ -1,5 +1,4 @@
 /* eslint-env jest */
-/* global browserName */
 import webdriver from 'next-webdriver'
 import { readFileSync } from 'fs'
 import http from 'http'
@@ -8,6 +7,7 @@ import { join } from 'path'
 import { getBrowserBodyText, waitFor, fetchViaHTTP } from 'next-test-utils'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import { homedir } from 'os'
+import { NextInstance } from 'e2e-utils'
 
 // Does the same evaluation checking for INJECTED for 5 seconds after hydration, triggering every 500ms
 async function checkInjected(browser) {
@@ -21,7 +21,7 @@ async function checkInjected(browser) {
   }
 }
 
-module.exports = (context) => {
+export default (next: NextInstance) => {
   describe('With Security Related Issues', () => {
     it.skip('should handle invalid URL properly', async () => {
       async function invalidRequest() {
@@ -29,7 +29,7 @@ module.exports = (context) => {
           const request = http.request(
             {
               hostname: `localhost`,
-              port: context.appPort,
+              port: next.appPort,
               path: `*`,
             },
             (response) => {
@@ -50,7 +50,7 @@ module.exports = (context) => {
     })
 
     it('should only access files inside .next directory', async () => {
-      const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
+      const buildId = next.buildId
 
       const pathsToCheck = [
         `/_next/${buildId}/page/../../../info`,
@@ -68,7 +68,7 @@ module.exports = (context) => {
       ]
 
       for (const path of pathsToCheck) {
-        const res = await fetchViaHTTP(context.appPort, path)
+        const res = await fetchViaHTTP(next.appPort, path)
         const data = await res.text()
         expect(data.includes('cool-version')).toBeFalsy()
         expect([400, 404].includes(res.status)).toBeTruthy()
@@ -83,7 +83,7 @@ module.exports = (context) => {
         `/_next/static/../routes-manifest.json`,
       ]
       for (const path of pathsToCheck) {
-        const res = await fetchViaHTTP(context.appPort, path)
+        const res = await fetchViaHTTP(next.appPort, path)
         const text = await res.text()
         try {
           expect(res.status).toBe(404)
@@ -95,9 +95,9 @@ module.exports = (context) => {
     })
 
     it("should not leak the user's home directory into the build", async () => {
-      const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
+      const buildId = next.buildId
 
-      const readPath = join(__dirname, `../.next/static/${buildId}`)
+      const readPath = join(next.testDir, `.next/static/${buildId}`)
       const buildFiles = await recursiveReadDir(readPath, {
         pathnameFilter: (f) => /\.js$/.test(f),
       })
@@ -131,7 +131,7 @@ module.exports = (context) => {
 
     it('should prevent URI based XSS attacks', async () => {
       const browser = await webdriver(
-        context.appPort,
+        next.appPort,
         '/\',document.body.innerHTML="INJECTED",\''
       )
       await checkInjected(browser)
@@ -140,7 +140,7 @@ module.exports = (context) => {
 
     it('should prevent URI based XSS attacks using single quotes', async () => {
       const browser = await webdriver(
-        context.appPort,
+        next.appPort,
         `/'-(document.body.innerHTML='INJECTED')-'`
       )
       await checkInjected(browser)
@@ -149,7 +149,7 @@ module.exports = (context) => {
 
     it('should prevent URI based XSS attacks using double quotes', async () => {
       const browser = await webdriver(
-        context.appPort,
+        next.appPort,
         `/"-(document.body.innerHTML='INJECTED')-"`
       )
       await checkInjected(browser)
@@ -159,7 +159,7 @@ module.exports = (context) => {
 
     it('should prevent URI based XSS attacks using semicolons and double quotes', async () => {
       const browser = await webdriver(
-        context.appPort,
+        next.appPort,
         `/;"-(document.body.innerHTML='INJECTED')-"`
       )
       await checkInjected(browser)
@@ -169,7 +169,7 @@ module.exports = (context) => {
 
     it('should prevent URI based XSS attacks using semicolons and single quotes', async () => {
       const browser = await webdriver(
-        context.appPort,
+        next.appPort,
         `/;'-(document.body.innerHTML='INJECTED')-'`
       )
       await checkInjected(browser)
@@ -179,7 +179,7 @@ module.exports = (context) => {
 
     it('should prevent URI based XSS attacks using src', async () => {
       const browser = await webdriver(
-        context.appPort,
+        next.appPort,
         `/javascript:(document.body.innerHTML='INJECTED')`
       )
       await checkInjected(browser)
@@ -189,7 +189,7 @@ module.exports = (context) => {
 
     it('should prevent URI based XSS attacks using querystring', async () => {
       const browser = await webdriver(
-        context.appPort,
+        next.appPort,
         `/?javascript=(document.body.innerHTML='INJECTED')`
       )
       await checkInjected(browser)
@@ -199,7 +199,7 @@ module.exports = (context) => {
 
     it('should prevent URI based XSS attacks using querystring and quotes', async () => {
       const browser = await webdriver(
-        context.appPort,
+        next.appPort,
         `/?javascript="(document.body.innerHTML='INJECTED')"`
       )
       await checkInjected(browser)
@@ -208,7 +208,7 @@ module.exports = (context) => {
 
     it('should handle encoded value in the pathname correctly \\', async () => {
       const res = await fetchViaHTTP(
-        context.appPort,
+        next.appPort,
         '/redirect/me/to-about/' + encodeURI('\\google.com'),
         undefined,
         {
@@ -226,7 +226,7 @@ module.exports = (context) => {
 
     it('should handle encoded value in the pathname correctly %', async () => {
       const res = await fetchViaHTTP(
-        context.appPort,
+        next.appPort,
         '/redirect/me/to-about/%25google.com',
         undefined,
         {
@@ -244,7 +244,7 @@ module.exports = (context) => {
 
     it('should handle encoded value in the query correctly', async () => {
       const res = await fetchViaHTTP(
-        context.appPort,
+        next.appPort,
         '/trailing-redirect/?url=https%3A%2F%2Fgoogle.com%2Fimage%3Fcrop%3Dfocalpoint%26w%3D24&w=1200&q=100',
         undefined,
         {
@@ -265,7 +265,7 @@ module.exports = (context) => {
 
     it('should handle encoded value in the pathname correctly /', async () => {
       const res = await fetchViaHTTP(
-        context.appPort,
+        next.appPort,
         '/redirect/me/to-about/%2fgoogle.com',
         undefined,
         {
@@ -283,7 +283,7 @@ module.exports = (context) => {
 
     it('should handle encoded value in the pathname to query correctly (/)', async () => {
       const res = await fetchViaHTTP(
-        context.appPort,
+        next.appPort,
         '/redirect-query-test/%2Fgoogle.com',
         undefined,
         {
@@ -303,7 +303,7 @@ module.exports = (context) => {
 
     it('should handle encoded / value for trailing slash correctly', async () => {
       const res = await fetchViaHTTP(
-        context.appPort,
+        next.appPort,
         '/%2fexample.com/',
         undefined,
         { redirect: 'manual' }
@@ -317,17 +317,17 @@ module.exports = (context) => {
       expect(hostname).not.toBe('example.com')
     })
 
-    if (browserName !== 'internet explorer') {
+    if (global.browserName !== 'internet explorer') {
       it('should not execute script embedded inside svg image, even if dangerouslyAllowSVG=true', async () => {
         let browser
         try {
-          browser = await webdriver(context.appPort, '/svg-image')
+          browser = await webdriver(next.appPort, '/svg-image')
           await browser.eval(`document.getElementById("img").scrollIntoView()`)
           const src = await browser.elementById('img').getAttribute('src')
           expect(src).toMatch(/_next\/image\?.*xss\.svg/)
           expect(await browser.elementById('msg').text()).toBe('safe')
           browser = await webdriver(
-            context.appPort,
+            next.appPort,
             '/_next/image?url=%2Fxss.svg&w=256&q=75'
           )
           expect(await browser.elementById('msg').text()).toBe('safe')
