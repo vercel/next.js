@@ -7283,7 +7283,10 @@
     "runtimeError": false
   },
   "test/integration/custom-error/test/index.test.js": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [],
+    "flakey": [
       "Custom _error dev mode 1 should not warn with /_error and /404 when rendering error first",
       "Custom _error dev mode 2 should not warn with /_error and /404",
       "Custom _error dev mode 2 should warn on custom /_error without custom /404"
@@ -11784,10 +11787,13 @@
     "runtimeError": false
   },
   "test/integration/import-assertion/test/index.test.js": {
-    "passed": ["import-assertion dev should handle json assertions"],
-    "failed": ["import-assertion prod should handle json assertions"],
+    "passed": [],
+    "failed": [],
     "pending": [],
-    "flakey": [],
+    "flakey": [
+      "import-assertion dev should handle json assertions",
+      "import-assertion prod should handle json assertions"
+    ],
     "runtimeError": false
   },
   "test/integration/index-index/test/index.test.js": {
