@@ -2,7 +2,7 @@
 
 import '../server/lib/cpu-profile'
 import type { StartServerOptions } from '../server/lib/start-server'
-import { getPort, printAndExit } from '../server/lib/utils'
+import { RESTART_EXIT_CODE, getPort, printAndExit } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { CliCommand } from '../lib/commands'
 import { getProjectDir } from '../lib/get-project-dir'
@@ -24,7 +24,6 @@ import { initialEnv, loadEnvConfig } from '@next/env'
 import { trace } from '../trace'
 import { validateTurboNextConfig } from '../lib/turbopack-warning'
 import { fork } from 'child_process'
-import { RESTART_EXIT_CODE } from '../server/lib/setup-server-worker'
 import {
   getReservedPortExplanation,
   isPortIsReserved,

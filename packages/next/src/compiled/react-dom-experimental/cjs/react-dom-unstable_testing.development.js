@@ -124,8 +124,6 @@ var enableLazyContextPropagation = false; // FB-only usage. The new API has diff
 
 var enableLegacyHidden = false; // Enables unstable_avoidThisFallback feature in Fiber
 var enableHostSingletons = true;
-
-var diffInCommitPhase = true;
 var enableAsyncActions = true;
 var alwaysThrottleRetries = true; // -----------------------------------------------------------------------------
 // Chopping Block
@@ -3728,15 +3726,24 @@ function restoreControlledInputState(element, props) {
 
       if (!otherProps) {
         throw new Error('ReactDOMInput: Mixing React and non-React radio inputs with the ' + 'same `name` is not supported.');
-      } // We need update the tracked value on the named cousin since the value
-      // was changed but the input saw no event or value set
-
-
-      updateValueIfChanged(otherNode); // If this is a controlled radio button group, forcing the input that
+      } // If this is a controlled radio button group, forcing the input that
       // was previously checked to update will cause it to be come re-checked
       // as appropriate.
 
+
       updateInput(otherNode, otherProps.value, otherProps.defaultValue, otherProps.defaultValue, otherProps.checked, otherProps.defaultChecked, otherProps.type, otherProps.name);
+    } // If any updateInput() call set .checked to true, an input in this group
+    // (often, `rootNode` itself) may have become unchecked
+
+
+    for (var _i = 0; _i < group.length; _i++) {
+      var _otherNode = group[_i];
+
+      if (_otherNode.form !== rootNode.form) {
+        continue;
+      }
+
+      updateValueIfChanged(_otherNode);
     }
   }
 } // In Chrome, assigning defaultValue to certain input types triggers input validation.
@@ -7310,9 +7317,7 @@ function prepareToHydrateHostInstance(fiber, hostContext) {
 
   var instance = fiber.stateNode;
   var shouldWarnIfMismatchDev = !didSuspendOrErrorDEV;
-  hydrateInstance(instance, fiber.type, fiber.memoizedProps, hostContext, fiber, shouldWarnIfMismatchDev); // TODO: Type this specific to this type of component.
-
-  return false;
+  hydrateInstance(instance, fiber.type, fiber.memoizedProps, hostContext, fiber, shouldWarnIfMismatchDev);
 }
 
 function prepareToHydrateHostTextInstance(fiber) {
@@ -19288,9 +19293,7 @@ function updateHostComponent(current, workInProgress, type, newProps, renderLane
       return;
     }
 
-    {
-      markUpdate(workInProgress);
-    }
+    markUpdate(workInProgress);
   }
 } // This function must be called at the very end of the complete phase, because
 // it might throw to suspend, and if the resource immediately loads, the work
@@ -19891,7 +19894,7 @@ function completeWork(current, workInProgress, renderLanes) {
             return null;
           }
 
-          var _currentHostContext2 = getHostContext(); // TODO: Move createInstance to beginWork and keep it on a context
+          var _currentHostContext = getHostContext(); // TODO: Move createInstance to beginWork and keep it on a context
           // "stack" as the parent. Then append children as we go in beginWork
           // or completeWork depending on whether we want to add them top->down or
           // bottom->up. Top->down is faster in IE11.
@@ -19902,15 +19905,11 @@ function completeWork(current, workInProgress, renderLanes) {
           if (_wasHydrated2) {
             // TODO: Move this and createInstance step into the beginPhase
             // to consolidate.
-            if (prepareToHydrateHostInstance(workInProgress, _currentHostContext2)) {
-              // If changes to the hydrated node need to be applied at the
-              // commit-phase we mark this as such.
-              markUpdate(workInProgress);
-            }
+            prepareToHydrateHostInstance(workInProgress, _currentHostContext);
           } else {
             var _rootContainerInstance = getRootHostContainer();
 
-            var _instance3 = createInstance(_type2, newProps, _rootContainerInstance, _currentHostContext2, workInProgress);
+            var _instance3 = createInstance(_type2, newProps, _rootContainerInstance, _currentHostContext, workInProgress);
 
             appendAllChildren(_instance3, workInProgress);
             workInProgress.stateNode = _instance3; // Certain renderers require commit-time effects for initial mount.
@@ -19956,7 +19955,7 @@ function completeWork(current, workInProgress, renderLanes) {
 
           var _rootContainerInstance2 = getRootHostContainer();
 
-          var _currentHostContext3 = getHostContext();
+          var _currentHostContext2 = getHostContext();
 
           var _wasHydrated3 = popHydrationState(workInProgress);
 
@@ -19965,7 +19964,7 @@ function completeWork(current, workInProgress, renderLanes) {
               markUpdate(workInProgress);
             }
           } else {
-            workInProgress.stateNode = createTextInstance(newText, _rootContainerInstance2, _currentHostContext3, workInProgress);
+            workInProgress.stateNode = createTextInstance(newText, _rootContainerInstance2, _currentHostContext2, workInProgress);
           }
         }
 
@@ -22705,12 +22704,10 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
               var updatePayload = finishedWork.updateQueue;
               finishedWork.updateQueue = null;
 
-              if (updatePayload !== null || diffInCommitPhase) {
-                try {
-                  commitUpdate(finishedWork.stateNode, updatePayload, finishedWork.type, current.memoizedProps, finishedWork.memoizedProps, finishedWork);
-                } catch (error) {
-                  captureCommitPhaseError(finishedWork, finishedWork.return, error);
-                }
+              try {
+                commitUpdate(finishedWork.stateNode, updatePayload, finishedWork.type, current.memoizedProps, finishedWork.memoizedProps, finishedWork);
+              } catch (error) {
+                captureCommitPhaseError(finishedWork, finishedWork.return, error);
               }
             }
           }
@@ -22781,12 +22778,10 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
               var _updatePayload = finishedWork.updateQueue;
               finishedWork.updateQueue = null;
 
-              if (_updatePayload !== null || diffInCommitPhase) {
-                try {
-                  commitUpdate(_instance2, _updatePayload, type, oldProps, newProps, finishedWork);
-                } catch (error) {
-                  captureCommitPhaseError(finishedWork, finishedWork.return, error);
-                }
+              try {
+                commitUpdate(_instance2, _updatePayload, type, oldProps, newProps, finishedWork);
+              } catch (error) {
+                captureCommitPhaseError(finishedWork, finishedWork.return, error);
               }
             }
           }
@@ -28670,7 +28665,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks, formState) {
   return root;
 }
 
-var ReactVersion = '18.3.0-experimental-2807d781a-20230918';
+var ReactVersion = '18.3.0-experimental-09285d5a7-20230925';
 
 function createPortal$1(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {
@@ -34222,7 +34217,7 @@ function setInitialProperties(domElement, tag, props) {
 
     setProp(domElement, tag, _propKey6, _propValue6, props, null);
   }
-} // Calculate the diff between the two objects.
+}
 function updateProperties(domElement, tag, lastProps, nextProps) {
   {
     validatePropertiesInDevelopment(tag, nextProps);
@@ -34658,7 +34653,7 @@ function updateProperties(domElement, tag, lastProps, nextProps) {
       setProp(domElement, tag, _propKey19, _nextProp6, nextProps, _lastProp13);
     }
   }
-} // Apply the diff.
+}
 
 function getPossibleStandardName(propName) {
   {
@@ -35502,7 +35497,6 @@ function diffHydratedProperties(domElement, tag, props, isConcurrentMode, should
       break;
   }
 
-  var updatePayload = null;
   var children = props.children; // For text content children we compare against textContent. This
   // might match additional HTML that is hidden when we read it using
   // textContent. E.g. "foo" will match "f<span>oo</span>" but that still
@@ -35520,15 +35514,13 @@ function diffHydratedProperties(domElement, tag, props, isConcurrentMode, should
       }
 
       if (!isConcurrentMode || !enableClientRenderFallbackOnTextMismatch) {
-        {
-          // We really should be patching this in the commit phase but since
-          // this only affects legacy mode hydration which is deprecated anyway
-          // we can get away with it.
-          // Host singletons get their children appended and don't use the text
-          // content mechanism.
-          if (tag !== 'body') {
-            domElement.textContent = children;
-          }
+        // We really should be patching this in the commit phase but since
+        // this only affects legacy mode hydration which is deprecated anyway
+        // we can get away with it.
+        // Host singletons get their children appended and don't use the text
+        // content mechanism.
+        if (tag !== 'body') {
+          domElement.textContent = children;
         }
       }
     }
@@ -35547,8 +35539,8 @@ function diffHydratedProperties(domElement, tag, props, isConcurrentMode, should
     var extraAttributes = new Set();
     var attributes = domElement.attributes;
 
-    for (var _i7 = 0; _i7 < attributes.length; _i7++) {
-      var name = attributes[_i7].name.toLowerCase();
+    for (var _i = 0; _i < attributes.length; _i++) {
+      var name = attributes[_i].name.toLowerCase();
 
       switch (name) {
         // Controlled attributes are not validated
@@ -35565,7 +35557,7 @@ function diffHydratedProperties(domElement, tag, props, isConcurrentMode, should
         default:
           // Intentionally use the original name.
           // See discussion in https://github.com/facebook/react/pull/10676.
-          extraAttributes.add(attributes[_i7].name);
+          extraAttributes.add(attributes[_i].name);
       }
     }
 
@@ -35579,8 +35571,6 @@ function diffHydratedProperties(domElement, tag, props, isConcurrentMode, should
       warnForExtraAttributes(extraAttributes);
     }
   }
-
-  return updatePayload;
 }
 function diffHydratedText(textNode, text, isConcurrentMode) {
   var isDifferent = textNode.nodeValue !== text;
@@ -36072,12 +36062,9 @@ function commitMount(domElement, type, newProps, internalInstanceHandle) {
   }
 }
 function commitUpdate(domElement, updatePayload, type, oldProps, newProps, internalInstanceHandle) {
-  {
-    // Diff and update the properties.
-    updateProperties(domElement, type, oldProps, newProps);
-  } // Update the props handle so that we know which props are the ones with
+  // Diff and update the properties.
+  updateProperties(domElement, type, oldProps, newProps); // Update the props handle so that we know which props are the ones with
   // with current event handlers.
-
 
   updateFiberProps(domElement, newProps);
 }
@@ -36566,7 +36553,7 @@ function hydrateInstance(instance, type, props, hostContext, internalInstanceHan
   // when the legacy root API is removed.
 
   var isConcurrentMode = (internalInstanceHandle.mode & ConcurrentMode) !== NoMode;
-  return diffHydratedProperties(instance, type, props, isConcurrentMode, shouldWarnDev, hostContext);
+  diffHydratedProperties(instance, type, props, isConcurrentMode, shouldWarnDev, hostContext);
 }
 function hydrateTextInstance(textInstance, text, internalInstanceHandle, shouldWarnDev) {
   precacheFiberNode(internalInstanceHandle, textInstance); // TODO: Temporary hack to check if we're in a concurrent root. We can delete

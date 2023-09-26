@@ -163,6 +163,7 @@ export function serverActionReducer(
     // unblock if a navigation event comes through
     // while we've suspended on an action
     if (
+      mutable.inFlightServerAction.status !== 'fulfilled' &&
       mutable.globalMutable.pendingNavigatePath &&
       mutable.globalMutable.pendingNavigatePath !== href
     ) {

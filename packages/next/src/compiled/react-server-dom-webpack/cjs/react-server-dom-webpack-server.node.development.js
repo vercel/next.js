@@ -16,6 +16,7 @@ if (process.env.NODE_ENV !== "production") {
 
 var React = require('react');
 var util = require('util');
+require('crypto');
 var async_hooks = require('async_hooks');
 var ReactDOM = require('react-dom');
 
@@ -1708,7 +1709,8 @@ function serializeThenable(request, thenable) {
     newTask.model = value;
     pingTask(request, newTask);
   }, function (reason) {
-    newTask.status = ERRORED$1; // TODO: We should ideally do this inside performWork so it's scheduled
+    newTask.status = ERRORED$1;
+    request.abortableTasks.delete(newTask); // TODO: We should ideally do this inside performWork so it's scheduled
 
     var digest = logRecoverableError(request, reason);
     emitErrorChunk(request, newTask.id, digest, reason);
@@ -2679,6 +2681,9 @@ function startFlowing(request, destination) {
     logRecoverableError(request, error);
     fatalError(request, error);
   }
+}
+function stopFlowing(request) {
+  request.destination = null;
 } // This is called to early terminate a request. It creates an error at all pending tasks.
 
 function abort(request, reason) {
@@ -3505,6 +3510,14 @@ function createDrainHandler(destination, request) {
   };
 }
 
+function createCancelHandler(request, reason) {
+  return function () {
+    stopFlowing(request); // eslint-disable-next-line react-internal/prod-error-codes
+
+    abort(request, new Error(reason));
+  };
+}
+
 function renderToPipeableStream(model, webpackMap, options) {
   var request = createRequest(model, webpackMap, options ? options.onError : undefined, options ? options.context : undefined, options ? options.identifierPrefix : undefined, options ? options.onPostpone : undefined);
   var hasStartedFlowing = false;
@@ -3518,6 +3531,8 @@ function renderToPipeableStream(model, webpackMap, options) {
       hasStartedFlowing = true;
       startFlowing(request, destination);
       destination.on('drain', createDrainHandler(destination, request));
+      destination.on('error', createCancelHandler(request, 'The destination stream errored while writing data.'));
+      destination.on('close', createCancelHandler(request, 'The destination stream closed early.'));
       return destination;
     },
     abort: function (reason) {
