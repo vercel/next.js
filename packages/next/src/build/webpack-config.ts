@@ -37,6 +37,7 @@ import {
   SERVER_DIRECTORY,
   COMPILER_NAMES,
   CompilerNameValues,
+  BARREL_OPTIMIZATION_PREFIX,
 } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
 import { NextConfigComplete } from '../server/config-shared'
@@ -1217,9 +1218,9 @@ export default async function getBaseWebpackConfig(
       return
     }
 
-    // __barrel_optimize__ is a special marker that tells Next.js to
+    // BARREL_OPTIMIZATION_PREFIX is a special marker that tells Next.js to
     // optimize the import by removing unused exports. This has to be compiled.
-    if (request.startsWith('__barrel_optimize__')) {
+    if (request.startsWith(BARREL_OPTIMIZATION_PREFIX)) {
       return
     }
 

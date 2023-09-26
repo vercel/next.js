@@ -17,7 +17,7 @@ use turbopack_binding::{
 use super::app_entry::AppEntry;
 use crate::{
     app_structure::LoaderTree,
-    loader_tree::{LoaderTreeModule, ServerComponentTransition},
+    loader_tree::LoaderTreeModule,
     mode::NextMode,
     next_app::{AppPage, AppPath},
     next_server_component::NextServerComponentTransition,
@@ -47,7 +47,7 @@ pub async fn get_app_page_entry(
     let loader_tree = LoaderTreeModule::build(
         loader_tree,
         context,
-        ServerComponentTransition::Transition(server_component_transition),
+        server_component_transition,
         NextMode::Build,
     )
     .await?;

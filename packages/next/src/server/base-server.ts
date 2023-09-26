@@ -164,6 +164,11 @@ export interface Options {
    * Enables the experimental testing mode.
    */
   experimentalTestProxy?: boolean
+
+  /**
+   * Whether or not the dev server is running in experimental HTTPS mode
+   */
+  experimentalHttpsServer?: boolean
   /**
    * Where the Next project is located
    */
@@ -188,9 +193,6 @@ export interface Options {
    * The HTTP Server that Next.js is running behind
    */
   httpServer?: import('http').Server
-
-  _routerWorker?: boolean
-  _renderWorker?: boolean
 
   isNodeDebugging?: 'brk' | boolean
 }
@@ -368,7 +370,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   public readonly matchers: RouteMatcherManager
   protected readonly i18nProvider?: I18NProvider
   protected readonly localeNormalizer?: LocaleRouteNormalizer
-  protected readonly isRenderWorker?: boolean
 
   public constructor(options: ServerOptions) {
     const {
@@ -383,7 +384,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     } = options
 
     this.serverOptions = options
-    this.isRenderWorker = options._renderWorker
 
     this.dir =
       process.env.NEXT_RUNTIME === 'edge' ? dir : require('path').resolve(dir)
@@ -2635,7 +2635,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         const invokeOutput = ctx.req.headers['x-invoke-output']
         if (
           !this.minimalMode &&
-          this.isRenderWorker &&
           typeof invokeOutput === 'string' &&
           isDynamicRoute(invokeOutput || '') &&
           invokeOutput !== match.definition.pathname
