@@ -128,7 +128,9 @@ export class NextInstance {
     if (this.isDestroyed) {
       throw new Error('next instance already destroyed')
     }
-    require('console').log(`Creating test directory with isolated next...`)
+    require('console').log(
+      `Creating test directory with isolated next... (use NEXT_SKIP_ISOLATE=1 to opt-out)`
+    )
 
     await parentSpan
       .traceChild('createTestDir')
