@@ -128,7 +128,9 @@ export class NextInstance {
     if (this.isDestroyed) {
       throw new Error('next instance already destroyed')
     }
-    require('console').log(`Creating test directory with isolated next...`)
+    require('console').log(
+      `Creating test directory with isolated next... (use NEXT_SKIP_ISOLATE=1 to opt-out)`
+    )
 
     await parentSpan
       .traceChild('createTestDir')
@@ -156,7 +158,7 @@ export class NextInstance {
           ...this.packageJson?.dependencies,
         }
 
-        if (skipInstall) {
+        if (skipInstall || skipIsolatedNext) {
           const pkgScripts = (this.packageJson['scripts'] as {}) || {}
           await fs.ensureDir(this.testDir)
           await fs.writeFile(
@@ -195,7 +197,7 @@ export class NextInstance {
             !(global as any).isNextDeploy
           ) {
             await fs.copy(process.env.NEXT_TEST_STARTER, this.testDir)
-          } else if (!skipIsolatedNext) {
+          } else {
             this.testDir = await createNextInstall({
               parentSpan: rootSpan,
               dependencies: finalDependencies,
