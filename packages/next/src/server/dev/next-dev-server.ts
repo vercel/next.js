@@ -491,7 +491,6 @@ export default class DevServer extends Server {
       method: 'logErrorWithOriginalStack',
       args: [err, type],
     })
-    return
   }
 
   protected getPagesManifest(): PagesManifest | undefined {
