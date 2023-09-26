@@ -29,7 +29,9 @@ const supportedTurbopackNextConfigOptions = [
   'useFileSystemPublicRoutes',
   'generateEtags',
   'assetPrefix',
+  'distDir',
   'experimental.serverComponentsExternalPackages',
+  'experimental.strictNextHead',
   'experimental.turbo',
   'experimental.mdxRs',
   'experimental.forceSwcTransforms',
@@ -40,6 +42,7 @@ const supportedTurbopackNextConfigOptions = [
   'devIndicators',
   'onDemandEntries',
   'excludeDefaultMomentLocales',
+  'experimental.clientRouterFilterRedirects',
   'experimental.cpus',
   'experimental.sharedPool',
   'experimental.proxyTimeout',
@@ -48,6 +51,7 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.caseSensitiveRoutes',
   'experimental.optimizePackageImports',
   'experimental.optimizeServerReact',
+  'experimental.webpackBuildWorker',
 ]
 
 // The following will need to be supported by `next build --turbo`

@@ -96,7 +96,7 @@ const Main = () => (
         rel="noreferrer"
         className={styles.link}
       >
-        <span className={styles.linkText}>Read NextJS documentation</span>
+        <span className={styles.linkText}>Read Next.js documentation</span>
       </Link>
     </div>
   </main>
