@@ -17,6 +17,7 @@ import {
 import { WEBPACK_LAYERS } from '../../../lib/constants'
 import {
   APP_CLIENT_INTERNALS,
+  BARREL_OPTIMIZATION_PREFIX,
   COMPILER_NAMES,
   EDGE_RUNTIME_WEBPACK,
   SERVER_REFERENCE_MANIFEST,
@@ -510,8 +511,16 @@ export class FlightClientEntryPlugin {
         // We have to always use the resolved request here to make sure the
         // server and client are using the same module path (required by RSC), as
         // the server compiler and client compiler have different resolve configs.
-        const modRequest: string | undefined =
+        let modRequest: string | undefined =
           mod.resourceResolveData?.path + mod.resourceResolveData?.query
+
+        // For the barrel optimization, we need to use the match resource instead
+        // because there will be 2 modules for the same file (same resource path)
+        // but they're different modules and can't be deduped via `visitedModule`.
+        // The first module is a virtual re-export module created by the loader.
+        if (mod.matchResource?.startsWith(BARREL_OPTIMIZATION_PREFIX)) {
+          modRequest = mod.matchResource + ':' + modRequest
+        }
 
         if (!modRequest || visitedModule.has(modRequest)) return
         visitedModule.add(modRequest)
@@ -594,6 +603,14 @@ export class FlightClientEntryPlugin {
       // Context modules don't have a resource path, we use the identifier instead.
       if (mod.constructor.name === 'ContextModule') {
         modRequest = (mod as any)._identifier
+      }
+
+      // For the barrel optimization, we need to use the match resource instead
+      // because there will be 2 modules for the same file (same resource path)
+      // but they're different modules and can't be deduped via `visitedModule`.
+      // The first module is a virtual re-export module created by the loader.
+      if (mod.matchResource?.startsWith(BARREL_OPTIMIZATION_PREFIX)) {
+        modRequest = mod.matchResource + ':' + modRequest
       }
 
       if (!modRequest || visited.has(modRequest)) return
