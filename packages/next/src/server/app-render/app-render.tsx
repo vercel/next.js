@@ -1120,7 +1120,9 @@ export const renderToHTMLOrFlight: AppPageRender = (
                 getDynamicParamFromSegment,
                 query
               ),
-              isPrefetch && !Boolean(components.loading)
+              isPrefetch &&
+              !Boolean(components.loading) &&
+              !hasLoadingComponentInTree(loaderTree)
                 ? null
                 : // Create component tree using the slice of the loaderTree
                   // @ts-expect-error TODO-APP: fix async component type
@@ -1143,7 +1145,9 @@ export const renderToHTMLOrFlight: AppPageRender = (
 
                     return <Component />
                   }),
-              isPrefetch && !Boolean(components.loading)
+              isPrefetch &&
+              !Boolean(components.loading) &&
+              !hasLoadingComponentInTree(loaderTree)
                 ? null
                 : (() => {
                     const { layoutOrPagePath } =
@@ -1779,12 +1783,12 @@ export const renderToHTMLOrFlight: AppPageRender = (
         tree: loaderTree,
         formState,
       }),
-      { ...extraRenderResultMeta }
+      {
+        ...extraRenderResultMeta,
+        waitUntil: Promise.all(staticGenerationStore.pendingRevalidates || []),
+      }
     )
 
-    if (staticGenerationStore.pendingRevalidates) {
-      await Promise.all(staticGenerationStore.pendingRevalidates)
-    }
     addImplicitTags(staticGenerationStore)
     extraRenderResultMeta.fetchTags = staticGenerationStore.tags?.join(',')
     renderResult.extendMetadata({

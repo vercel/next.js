@@ -356,9 +356,21 @@ async fn get_font_css_properties(
         font_family: Vc::cell(font_families.join(", ")),
         weight: Vc::cell(match &options.weights {
             FontWeights::Variable => None,
-            FontWeights::Fixed(weights) => weights.first().map(|w| w.to_string()),
+            FontWeights::Fixed(weights) => {
+                if weights.len() > 1 {
+                    // Don't set a rule for weight if multiple are requested
+                    None
+                } else {
+                    weights.first().map(|w| w.to_string())
+                }
+            }
         }),
-        style: Vc::cell(options.styles.first().cloned()),
+        style: Vc::cell(if options.styles.len() > 1 {
+            // Don't set a rule for style if multiple are requested
+            None
+        } else {
+            options.styles.first().cloned()
+        }),
         variable: Vc::cell(options.variable.clone()),
     }))
 }
