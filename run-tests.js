@@ -443,7 +443,7 @@ ${ENDGROUP}`)
           ...Object.entries(env).map((e) => `${e[0]}=${e[1]}`),
           jestPath,
           ...args.map((a) => `'${a}'`),
-        ].join(' ')
+        ].join(' ') + '\n'
       )
 
       const child = spawn(jestPath, args, {
