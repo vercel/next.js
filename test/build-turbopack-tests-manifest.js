@@ -34,10 +34,15 @@ const SKIPPED_TEST_SUITES = {
   'test/integration/css/test/css-modules.test.js': [
     'CSS Modules Composes Ordering Development Mode should have correct color on index page (on nav from other)',
   ],
-  'test/development/acceptance/ReactRefreshRequire.test.ts': [],
+  'test/development/acceptance/ReactRefreshRequire.test.ts': [
+    'ReactRefreshRequire re-runs accepted modules',
+    'ReactRefreshRequire propagates a hot update to closest accepted module',
+  ],
   'test/integration/custom-routes/test/index.test.js': [],
   'test/integration/absolute-assetprefix/test/index.test.js': [],
-  'test/e2e/middleware-rewrites/test/index.test.ts': [],
+  'test/e2e/middleware-rewrites/test/index.test.ts': [
+    'Middleware Rewrite should have props for afterFiles rewrite to SSG page',
+  ],
   'test/integration/dynamic-routing/test/index.test.js': [
     'Dynamic Routing production mode should have correct cache entries on prefetch',
   ],

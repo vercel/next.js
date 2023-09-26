@@ -1197,12 +1197,10 @@
       "ReactRefreshRequire can continue hot updates after module-level errors with module.exports",
       "ReactRefreshRequire can replace a module before it is loaded",
       "ReactRefreshRequire does not accumulate stale exports over time",
-      "ReactRefreshRequire propagates a hot update to closest accepted module",
       "ReactRefreshRequire provides fresh value for ES6 default import in parents",
       "ReactRefreshRequire provides fresh value for ES6 named import in parents",
       "ReactRefreshRequire provides fresh value for exports.* in parents",
       "ReactRefreshRequire provides fresh value for module.exports in parents",
-      "ReactRefreshRequire re-runs accepted modules",
       "ReactRefreshRequire runs dependencies before dependents",
       "ReactRefreshRequire stops update propagation after module-level errors"
     ],
@@ -1211,7 +1209,10 @@
       "ReactRefreshRequire propagates hot update to all inverse dependencies"
     ],
     "pending": [],
-    "flakey": [],
+    "flakey": [
+      "ReactRefreshRequire propagates a hot update to closest accepted module",
+      "ReactRefreshRequire re-runs accepted modules"
+    ],
     "runtimeError": false
   },
   "test/development/acceptance/component-stack.test.ts": {
@@ -5016,7 +5017,6 @@
       "Middleware Rewrite should handle shallow navigation correctly (non-dynamic page)",
       "Middleware Rewrite should hard navigate on 404 for data request",
       "Middleware Rewrite should have correct query info for dynamic route after query hydration",
-      "Middleware Rewrite should have props for afterFiles rewrite to SSG page",
       "Middleware Rewrite should not call middleware with shallow push",
       "Middleware Rewrite should not have un-necessary data request on rewrite",
       "Middleware Rewrite should not have unexpected errors",
@@ -5070,7 +5070,9 @@
     "pending": [
       "Middleware Rewrite includes the locale in rewrites by default"
     ],
-    "flakey": [],
+    "flakey": [
+      "Middleware Rewrite should have props for afterFiles rewrite to SSG page"
+    ],
     "runtimeError": false
   },
   "test/e2e/middleware-shallow-link/index.test.ts": {
