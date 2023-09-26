@@ -219,7 +219,10 @@ async function startWatcher(opts: SetupOpts) {
     })
     const iter = project.entrypointsSubscribe()
     const curEntries: Map<string, Route> = new Map()
-    const changeSubscriptions: Map<string, AsyncIterator<any>> = new Map()
+    const changeSubscriptions: Map<
+      string,
+      Promise<AsyncIterator<any>>
+    > = new Map()
     let prevMiddleware: boolean | undefined = undefined
     const globalEntries: {
       app: Endpoint | undefined
@@ -290,6 +293,7 @@ async function startWatcher(opts: SetupOpts) {
     class ModuleBuildError extends Error {}
 
     function processIssues(
+      displayName: string,
       name: string,
       result: TurbopackResult,
       throwIssue = false
@@ -298,24 +302,28 @@ async function startWatcher(opts: SetupOpts) {
       const newSet = new Map<string, Issue>()
       issues.set(name, newSet)
 
+      const relevantIssues = new Set()
+
       for (const issue of result.issues) {
         // TODO better formatting
         if (issue.severity !== 'error' && issue.severity !== 'fatal') continue
         const key = issueKey(issue)
         const formatted = formatIssue(issue)
-        if (!throwIssue && !oldSet.has(key)) {
-          console.error(`  ⚠ ${key} ${formatted}\n\n`)
+        if (!oldSet.has(key) && !newSet.has(key)) {
+          console.error(`  ⚠ ${displayName} ${key} ${formatted}\n\n`)
         }
         newSet.set(key, issue)
-        if (throwIssue) {
-          throw new ModuleBuildError(formatted)
-        }
+        relevantIssues.add(formatted)
       }
 
       for (const issue of oldSet.keys()) {
         if (!newSet.has(issue)) {
-          console.error(`✅ ${name} fixed ${issue}`)
+          console.error(`✅ ${displayName} fixed ${issue}`)
         }
+      }
+
+      if (relevantIssues.size && throwIssue) {
+        throw new ModuleBuildError([...relevantIssues].join('\n\n'))
       }
     }
 
@@ -503,8 +511,9 @@ async function startWatcher(opts: SetupOpts) {
     ) {
       if (!endpoint || changeSubscriptions.has(page)) return
 
-      const changed = await endpoint.changed()
-      changeSubscriptions.set(page, changed)
+      const changedPromise = endpoint.changed()
+      changeSubscriptions.set(page, changedPromise)
+      const changed = await changedPromise
 
       for await (const change of changed) {
         consoleStore.setState(
@@ -515,14 +524,14 @@ async function startWatcher(opts: SetupOpts) {
           true
         )
 
-        processIssues(page, change)
+        processIssues(page, page, change)
         const payload = makePayload(page, change)
         if (payload) sendHmr('endpoint-change', page, payload)
       }
     }
 
-    function clearChangeSubscription(page: string) {
-      const subscription = changeSubscriptions.get(page)
+    async function clearChangeSubscription(page: string) {
+      const subscription = await changeSubscriptions.get(page)
       if (subscription) {
         subscription.return?.()
         changeSubscriptions.delete(page)
@@ -560,13 +569,14 @@ async function startWatcher(opts: SetupOpts) {
             }
           }
 
-          for (const [pathname, subscription] of changeSubscriptions) {
+          for (const [pathname, subscriptionPromise] of changeSubscriptions) {
             if (pathname === '') {
               // middleware is handled below
               continue
             }
 
             if (!curEntries.has(pathname)) {
+              const subscription = await subscriptionPromise
               subscription.return?.()
               changeSubscriptions.delete(pathname)
             }
@@ -578,7 +588,7 @@ async function startWatcher(opts: SetupOpts) {
           // unnecessary during the first serve)
           if (prevMiddleware === true && !middleware) {
             // Went from middleware to no middleware
-            clearChangeSubscription('middleware')
+            await clearChangeSubscription('middleware')
             sendHmr('entrypoint-change', 'middleware', {
               event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
             })
@@ -592,7 +602,7 @@ async function startWatcher(opts: SetupOpts) {
             const writtenEndpoint = await processResult(
               await middleware.endpoint.writeToDisk()
             )
-            processIssues('middleware', writtenEndpoint)
+            processIssues('middleware', 'middleware', writtenEndpoint)
             await loadMiddlewareManifest('middleware', 'middleware')
             serverFields.actualMiddlewareFile = 'middleware'
             serverFields.middleware = {
@@ -881,7 +891,7 @@ async function startWatcher(opts: SetupOpts) {
       }
 
       for await (const data of subscription) {
-        processIssues(id, data)
+        processIssues('hmr', id, data)
         sendTurbopackMessage(data)
       }
     }
@@ -1044,7 +1054,7 @@ async function startWatcher(opts: SetupOpts) {
             const writtenEndpoint = await processResult(
               await globalEntries.app.writeToDisk()
             )
-            processIssues('_app', writtenEndpoint)
+            processIssues('_app', '_app', writtenEndpoint)
           }
           await loadBuildManifest('_app')
           await loadPagesManifest('_app')
@@ -1056,7 +1066,7 @@ async function startWatcher(opts: SetupOpts) {
             changeSubscription('_document', globalEntries.document, () => {
               return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
             })
-            processIssues('_document', writtenEndpoint)
+            processIssues('_document', '_document', writtenEndpoint)
           }
           await loadPagesManifest('_document')
 
@@ -1064,7 +1074,7 @@ async function startWatcher(opts: SetupOpts) {
             const writtenEndpoint = await processResult(
               await globalEntries.error.writeToDisk()
             )
-            processIssues(page, writtenEndpoint)
+            processIssues(page, page, writtenEndpoint)
           }
           await loadBuildManifest('_error')
           await loadPagesManifest('_error')
@@ -1137,7 +1147,7 @@ async function startWatcher(opts: SetupOpts) {
               const writtenEndpoint = await processResult(
                 await globalEntries.app.writeToDisk()
               )
-              processIssues('_app', writtenEndpoint)
+              processIssues('_app', '_app', writtenEndpoint)
             }
             await loadBuildManifest('_app')
             await loadPagesManifest('_app')
@@ -1150,7 +1160,7 @@ async function startWatcher(opts: SetupOpts) {
               changeSubscription('_document', globalEntries.document, () => {
                 return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
               })
-              processIssues('_document', writtenEndpoint)
+              processIssues('_document', '_document', writtenEndpoint)
             }
             await loadPagesManifest('_document')
 
@@ -1186,7 +1196,7 @@ async function startWatcher(opts: SetupOpts) {
             await writeMiddlewareManifest()
             await writeOtherManifests()
 
-            processIssues(page, writtenEndpoint, true)
+            processIssues(page, page, writtenEndpoint, true)
 
             break
           }
@@ -1212,7 +1222,7 @@ async function startWatcher(opts: SetupOpts) {
             await writeMiddlewareManifest()
             await writeOtherManifests()
 
-            processIssues(page, writtenEndpoint, true)
+            processIssues(page, page, writtenEndpoint, true)
 
             break
           }
@@ -1243,7 +1253,7 @@ async function startWatcher(opts: SetupOpts) {
             await writeMiddlewareManifest()
             await writeOtherManifests()
 
-            processIssues(page, writtenEndpoint, true)
+            processIssues(page, page, writtenEndpoint, true)
 
             break
           }
@@ -1267,7 +1277,7 @@ async function startWatcher(opts: SetupOpts) {
             await writeMiddlewareManifest()
             await writeOtherManifests()
 
-            processIssues(page, writtenEndpoint, true)
+            processIssues(page, page, writtenEndpoint, true)
 
             break
           }
