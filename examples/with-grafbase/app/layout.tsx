@@ -30,7 +30,7 @@ const GetAllPostsDocument = graphql(/* GraphQL */ `
 export default async function RootLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: React.ReactNode
 }) {
   const { postCollection } = await grafbase.request(GetAllPostsDocument, {
     first: 50,
