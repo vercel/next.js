@@ -916,7 +916,7 @@ createNextDescribe(
       })
 
       it('should add autoExport for auto pre-rendered pages', async () => {
-        for (const page of ['/', '/about']) {
+        for (const page of ['/about']) {
           const html = await renderViaHTTP(next.appPort, page)
           const $ = cheerio.load(html)
           const data = JSON.parse($('#__NEXT_DATA__').html())

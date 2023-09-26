@@ -1,9 +1,6 @@
 import type { Span } from '../trace'
 import type { NextConfigComplete } from '../server/config-shared'
-import {
-  nodeFileTrace,
-  type NodeFileTraceResult,
-} from 'next/dist/compiled/@vercel/nft'
+
 import {
   TRACE_IGNORES,
   type BuildTraceContext,
@@ -23,6 +20,7 @@ import { nonNullable } from '../lib/non-nullable'
 import * as ciEnvironment from '../telemetry/ci-info'
 import { isMatch } from 'next/dist/compiled/micromatch'
 import { defaultOverrides } from '../server/require-hook'
+import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 

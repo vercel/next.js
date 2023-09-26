@@ -1891,23 +1891,6 @@ export default async function build(
         )
       )
 
-      if (config.output === 'standalone') {
-        await nextBuildSpan
-          .traceChild('copy-traced-files')
-          .traceAsyncFn(async () => {
-            await copyTracedFiles(
-              dir,
-              distDir,
-              pageKeys.pages,
-              denormalizedAppPages,
-              outputFileTracingRoot,
-              requiredServerFiles.config,
-              middlewareManifest,
-              hasInstrumentationHook
-            )
-          })
-      }
-
       const finalPrerenderRoutes: { [route: string]: SsgRoute } = {}
       const finalDynamicRoutes: PrerenderManifest['dynamicRoutes'] = {}
       const tbdPrerenderRoutes: string[] = []
@@ -2868,6 +2851,23 @@ export default async function build(
         appWorker.close()
       }
       await buildTracesPromise
+
+      if (config.output === 'standalone') {
+        await nextBuildSpan
+          .traceChild('copy-traced-files')
+          .traceAsyncFn(async () => {
+            await copyTracedFiles(
+              dir,
+              distDir,
+              pageKeys.pages,
+              denormalizedAppPages,
+              outputFileTracingRoot,
+              requiredServerFiles.config,
+              middlewareManifest,
+              hasInstrumentationHook
+            )
+          })
+      }
 
       if (buildTracesSpinner) {
         buildTracesSpinner.stopAndPersist()
