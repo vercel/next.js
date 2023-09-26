@@ -434,7 +434,18 @@ export class NextInstance {
   public async readJSON(filename: string) {
     return fs.readJSON(path.join(this.testDir, filename))
   }
-  private async handleDevWatchDelay(filename: string) {
+  private async handleDevWatchDelayBeforeChange(filename: string) {
+    // to help alleviate flakiness with tests that create
+    // dynamic routes // and then request it we give a buffer
+    // of 500ms to allow WatchPack to detect the changed files
+    // TODO: replace this with an event directly from WatchPack inside
+    // router-server for better accuracy
+    if (process.env.TURBOPACK) {
+      require('console').log('fs dev delay before', filename)
+      await new Promise((resolve) => setTimeout(resolve, 500))
+    }
+  }
+  private async handleDevWatchDelayAfterChange(filename: string) {
     // to help alleviate flakiness with tests that create
     // dynamic routes // and then request it we give a buffer
     // of 500ms to allow WatchPack to detect the changed files
@@ -449,32 +460,40 @@ export class NextInstance {
     }
   }
   public async patchFile(filename: string, content: string) {
+    await this.handleDevWatchDelayAfterChange(filename)
+
     const outputPath = path.join(this.testDir, filename)
     const newFile = !(await fs.pathExists(outputPath))
     await fs.ensureDir(path.dirname(outputPath))
     await fs.writeFile(outputPath, content)
 
     if (newFile) {
-      await this.handleDevWatchDelay(filename)
+      await this.handleDevWatchDelayAfterChange(filename)
     }
   }
   public async renameFile(filename: string, newFilename: string) {
+    await this.handleDevWatchDelayAfterChange(filename)
+
     await fs.rename(
       path.join(this.testDir, filename),
       path.join(this.testDir, newFilename)
     )
-    await this.handleDevWatchDelay(filename)
+    await this.handleDevWatchDelayAfterChange(filename)
   }
   public async renameFolder(foldername: string, newFoldername: string) {
+    await this.handleDevWatchDelayAfterChange(foldername)
+
     await fs.move(
       path.join(this.testDir, foldername),
       path.join(this.testDir, newFoldername)
     )
-    await this.handleDevWatchDelay(foldername)
+    await this.handleDevWatchDelayAfterChange(foldername)
   }
   public async deleteFile(filename: string) {
+    await this.handleDevWatchDelayAfterChange(filename)
+
     await fs.remove(path.join(this.testDir, filename))
-    await this.handleDevWatchDelay(filename)
+    await this.handleDevWatchDelayAfterChange(filename)
   }
 
   /**
