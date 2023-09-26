@@ -1,4 +1,3 @@
-import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 import chalk from 'next/dist/compiled/chalk'
 import path from 'path'
 
@@ -369,6 +368,7 @@ export function getFormattedDiagnostic(
   message += reason + '\n'
 
   if (!isLayoutOrPageError && diagnostic.file) {
+    const { codeFrameColumns } = require('next/dist/compiled/babel/code-frame')
     const pos = diagnostic.file.getLineAndCharacterOfPosition(diagnostic.start!)
     const line = pos.line + 1
     const character = pos.character + 1

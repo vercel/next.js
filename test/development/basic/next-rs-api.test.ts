@@ -172,6 +172,7 @@ describe('next.rs api', () => {
         ? path.resolve(__dirname, '../../..')
         : next.testDir,
       watch: true,
+      serverAddr: `127.0.0.1:3000`,
     })
     projectUpdateSubscription = project.updateInfoSubscribe()
   })
@@ -352,8 +353,7 @@ describe('next.rs api', () => {
       file: 'pages/index.js',
       content: pagesIndexCode('hello world2'),
       expectedUpdate: '/pages/index.js',
-      // TODO(sokra) this should be false, but source maps change on server side
-      expectedServerSideChange: true,
+      expectedServerSideChange: false,
     },
     {
       name: 'server-side change on a page',
@@ -380,8 +380,7 @@ describe('next.rs api', () => {
       file: 'app/app/client.ts',
       content: '"use client";\nexport default () => <div>hello world2</div>',
       expectedUpdate: '/app/app/client.ts',
-      // TODO(sokra) this should be false, not sure why it's true
-      expectedServerSideChange: true,
+      expectedServerSideChange: false,
     },
     {
       name: 'server-side change on a app page',

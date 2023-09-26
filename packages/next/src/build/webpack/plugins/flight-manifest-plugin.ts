@@ -407,7 +407,7 @@ export class ClientReferenceManifestPlugin {
       ] = new sources.RawSource(
         `globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST[${JSON.stringify(
           pagePath.slice('app'.length)
-        )}]=${JSON.stringify(json)}`
+        )}]=${json}`
       ) as unknown as webpack.sources.RawSource
 
       if (pagePath === 'app/not-found') {
@@ -416,7 +416,7 @@ export class ClientReferenceManifestPlugin {
           new sources.RawSource(
             `globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST[${JSON.stringify(
               '/_not-found'
-            )}]=${JSON.stringify(json)}`
+            )}]=${json}`
           ) as unknown as webpack.sources.RawSource
       }
     }
