@@ -460,7 +460,7 @@ export class NextInstance {
     }
   }
   public async patchFile(filename: string, content: string) {
-    await this.handleDevWatchDelayAfterChange(filename)
+    await this.handleDevWatchDelayBeforeChange(filename)
 
     const outputPath = path.join(this.testDir, filename)
     const newFile = !(await fs.pathExists(outputPath))
@@ -472,7 +472,7 @@ export class NextInstance {
     }
   }
   public async renameFile(filename: string, newFilename: string) {
-    await this.handleDevWatchDelayAfterChange(filename)
+    await this.handleDevWatchDelayBeforeChange(filename)
 
     await fs.rename(
       path.join(this.testDir, filename),
@@ -481,7 +481,7 @@ export class NextInstance {
     await this.handleDevWatchDelayAfterChange(filename)
   }
   public async renameFolder(foldername: string, newFoldername: string) {
-    await this.handleDevWatchDelayAfterChange(foldername)
+    await this.handleDevWatchDelayBeforeChange(foldername)
 
     await fs.move(
       path.join(this.testDir, foldername),
@@ -490,7 +490,7 @@ export class NextInstance {
     await this.handleDevWatchDelayAfterChange(foldername)
   }
   public async deleteFile(filename: string) {
-    await this.handleDevWatchDelayAfterChange(filename)
+    await this.handleDevWatchDelayBeforeChange(filename)
 
     await fs.remove(path.join(this.testDir, filename))
     await this.handleDevWatchDelayAfterChange(filename)
