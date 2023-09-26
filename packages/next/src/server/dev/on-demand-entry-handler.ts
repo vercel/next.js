@@ -40,6 +40,9 @@ import { isAppPageRouteDefinition } from '../future/route-definitions/app-page-r
 import { scheduleOnNextTick } from '../lib/schedule-on-next-tick'
 import { RouteDefinition } from '../future/route-definitions/route-definition'
 
+// This module uses the `Promise.withResolvers` polyfill.
+import '../node-environment'
+
 const debug = origDebug('next:on-demand-entry-handler')
 
 /**

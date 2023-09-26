@@ -33,7 +33,7 @@ export async function getTypeScriptIntent(
   const excludedRegex = /(node_modules|.*\.d\.ts$)/
   for (const dir of intentDirs) {
     const typescriptFiles = await recursiveReadDir(dir, {
-      pathnameFilter: (name) => tsFilesRegex.test(name),
+      filenameFilter: (name) => tsFilesRegex.test(name),
       ignoreFilter: (name) => excludedRegex.test(name),
     })
     if (typescriptFiles.length) {

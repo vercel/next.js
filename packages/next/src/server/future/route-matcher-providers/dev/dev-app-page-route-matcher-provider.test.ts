@@ -1,18 +1,19 @@
+import { PosixMockFileReader } from '../../helpers/file-reader/helpers/mock-file-reader'
 import { AppPageRouteDefinition } from '../../route-definitions/app-page-route-definition'
 import { RouteKind } from '../../route-kind'
 import { DevAppPageRouteMatcherProvider } from './dev-app-page-route-matcher-provider'
-import { FileReader } from './helpers/file-reader/file-reader'
 
 describe('DevAppPageRouteMatcher', () => {
   const dir = '<root>'
   const extensions = ['ts', 'tsx', 'js', 'jsx']
 
   it('returns no routes with an empty filesystem', async () => {
-    const reader: FileReader = { read: jest.fn(() => []) }
+    const reader = new PosixMockFileReader()
+    const spy = jest.spyOn(reader, 'read')
     const provider = new DevAppPageRouteMatcherProvider(dir, extensions, reader)
     const matchers = await provider.matchers()
     expect(matchers).toHaveLength(0)
-    expect(reader.read).toBeCalledWith(dir)
+    expect(spy).toBeCalledWith(dir, { recursive: true })
   })
 
   describe('filename matching', () => {
@@ -67,13 +68,12 @@ describe('DevAppPageRouteMatcher', () => {
     ])(
       "matches the '$route.page' route specified with the provided files",
       async ({ files, route }) => {
-        const reader: FileReader = {
-          read: jest.fn(() => [
-            ...extensions.map((ext) => `${dir}/some/route.${ext}`),
-            ...extensions.map((ext) => `${dir}/api/other.${ext}`),
-            ...files,
-          ]),
-        }
+        const reader = new PosixMockFileReader([
+          ...extensions.map((ext) => `${dir}/some/route.${ext}`),
+          ...extensions.map((ext) => `${dir}/api/other.${ext}`),
+          ...files,
+        ])
+        const spy = jest.spyOn(reader, 'read')
         const provider = new DevAppPageRouteMatcherProvider(
           dir,
           extensions,
@@ -81,7 +81,7 @@ describe('DevAppPageRouteMatcher', () => {
         )
         const matchers = await provider.matchers()
         expect(matchers).toHaveLength(1)
-        expect(reader.read).toBeCalledWith(dir)
+        expect(spy).toBeCalledWith(dir, { recursive: true })
         expect(matchers[0].definition).toEqual(route)
       }
     )

@@ -1,4 +1,5 @@
-import { FileReader } from './helpers/file-reader/file-reader'
+import type { FileReader } from '../../helpers/file-reader/file-reader'
+
 import { AppRouteRouteMatcher } from '../../route-matchers/app-route-route-matcher'
 import { Normalizer } from '../../normalizers/normalizer'
 import { RouteKind } from '../../route-kind'
@@ -18,9 +19,21 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
     extensions: ReadonlyArray<string>,
     reader: FileReader
   ) {
-    super(appDir, reader)
+    super(appDir, reader, true)
 
     this.normalizers = new DevAppNormalizers(appDir, extensions)
+  }
+
+  protected filter(filename: string): boolean {
+    const page = this.normalizers.page.normalize(filename)
+
+    // If the file isn't a match for this matcher, then skip it.
+    if (!isAppRouteRoute(page)) return false
+
+    // Validate that this is not an ignored page.
+    if (page.includes('/_')) return false
+
+    return true
   }
 
   protected async transform(
@@ -29,13 +42,6 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
     const matchers: Array<AppRouteRouteMatcher> = []
     for (const filename of files) {
       const page = this.normalizers.page.normalize(filename)
-
-      // If the file isn't a match for this matcher, then skip it.
-      if (!isAppRouteRoute(page)) continue
-
-      // Validate that this is not an ignored page.
-      if (page.includes('/_')) continue
-
       const pathname = this.normalizers.pathname.normalize(filename)
       const bundlePath = this.normalizers.bundlePath.normalize(filename)
 

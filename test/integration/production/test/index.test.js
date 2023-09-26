@@ -648,13 +648,13 @@ describe('Production Usage', () => {
 
       const cssStaticAssets = await recursiveReadDir(
         join(__dirname, '..', '.next', 'static'),
-        { pathnameFilter: (f) => /\.css$/.test(f) }
+        { filenameFilter: (f) => /\.css$/.test(f) }
       )
       expect(cssStaticAssets.length).toBeGreaterThanOrEqual(1)
       expect(cssStaticAssets[0]).toMatch(/[\\/]css[\\/]/)
       const mediaStaticAssets = await recursiveReadDir(
         join(__dirname, '..', '.next', 'static'),
-        { pathnameFilter: (f) => /\.svg$/.test(f) }
+        { filenameFilter: (f) => /\.svg$/.test(f) }
       )
       expect(mediaStaticAssets.length).toBeGreaterThanOrEqual(1)
       expect(mediaStaticAssets[0]).toMatch(/[\\/]media[\\/]/)

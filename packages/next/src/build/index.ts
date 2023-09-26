@@ -505,7 +505,7 @@ export default async function build(
         !appDirOnly && pagesDir
           ? await nextBuildSpan.traceChild('collect-pages').traceAsyncFn(() =>
               recursiveReadDir(pagesDir, {
-                pathnameFilter: validFileMatcher.isPageFile,
+                filenameFilter: validFileMatcher.isPageFile,
               })
             )
           : []
@@ -568,7 +568,7 @@ export default async function build(
           .traceChild('collect-app-paths')
           .traceAsyncFn(() =>
             recursiveReadDir(appDir, {
-              pathnameFilter: (absolutePath) =>
+              filenameFilter: (absolutePath) =>
                 validFileMatcher.isAppRouterPage(absolutePath) ||
                 // For now we only collect the root /not-found page in the app
                 // directory as the 404 fallback

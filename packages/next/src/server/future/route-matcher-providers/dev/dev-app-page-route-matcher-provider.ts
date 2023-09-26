@@ -1,4 +1,5 @@
-import { FileReader } from './helpers/file-reader/file-reader'
+import type { FileReader } from '../../helpers/file-reader/file-reader'
+
 import { AppPageRouteMatcher } from '../../route-matchers/app-page-route-matcher'
 import { RouteKind } from '../../route-kind'
 import { FileCacheRouteMatcherProvider } from './file-cache-route-matcher-provider'
@@ -14,13 +15,25 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
     extensions: ReadonlyArray<string>,
     reader: FileReader
   ) {
-    super(appDir, reader)
+    super(appDir, reader, true)
 
     this.normalizers = new DevAppNormalizers(appDir, extensions)
 
     // Match any page file that ends with `/page.${extension}` under the app
     // directory.
     this.expression = new RegExp(`[/\\\\]page\\.(?:${extensions.join('|')})$`)
+  }
+
+  protected filter(filename: string): boolean {
+    // If the file isn't a match for this matcher, then skip it.
+    if (!this.expression.test(filename)) return false
+
+    const page = this.normalizers.page.normalize(filename)
+
+    // Validate that this is not an ignored page.
+    if (page.includes('/_')) return false
+
+    return true
   }
 
   protected async transform(
@@ -35,13 +48,7 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
     const routeFilenames = new Array<string>()
     const appPaths: Record<string, string[]> = {}
     for (const filename of files) {
-      // If the file isn't a match for this matcher, then skip it.
-      if (!this.expression.test(filename)) continue
-
       const page = this.normalizers.page.normalize(filename)
-
-      // Validate that this is not an ignored page.
-      if (page.includes('/_')) continue
 
       // This is a valid file that we want to create a matcher for.
       routeFilenames.push(filename)

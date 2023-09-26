@@ -1,11 +1,14 @@
 import fs from 'fs/promises'
 import path from 'path'
+import createDebug from 'next/dist/compiled/debug'
+
+const debug = createDebug('next:recursive-readdir')
 
 type Filter = (pathname: string) => boolean
 
 type Result = {
   directories: string[]
-  pathnames: string[]
+  filenames: string[]
   links: string[]
 }
 
@@ -13,7 +16,7 @@ export type RecursiveReadDirOptions = {
   /**
    * Filter to ignore files with absolute pathnames, false to ignore.
    */
-  pathnameFilter?: Filter
+  filenameFilter?: Filter
 
   /**
    * Filter to ignore files and directories with absolute pathnames, false to
@@ -30,12 +33,24 @@ export type RecursiveReadDirOptions = {
   /**
    * Whether to sort the results, true by default.
    */
-  sortPathnames?: boolean
+  sortFilenames?: boolean
 
   /**
    * Whether to return relative pathnames, true by default.
    */
-  relativePathnames?: boolean
+  relativeFilenames?: boolean
+
+  /**
+   * If provided, the maximum depth to recurse into the directory. Otherwise
+   * recurse indefinitely.
+   */
+  maxDepth?: number
+
+  /**
+   * When true, throw when the root directory doesn't exist. Otherwise, return
+   * an empty array. Defaults to true.
+   */
+  throwOnMissing?: boolean
 }
 
 /**
@@ -51,63 +66,76 @@ export async function recursiveReadDir(
 ): Promise<string[]> {
   // Grab our options.
   const {
-    pathnameFilter,
+    filenameFilter,
     ignoreFilter,
     ignorePartFilter,
-    sortPathnames = true,
-    relativePathnames = true,
+    sortFilenames = true,
+    relativeFilenames = true,
+    maxDepth = Infinity,
+    throwOnMissing = true,
   } = options
 
+  debug(
+    'reading directory %o (recursive %s)',
+    rootDirectory,
+    maxDepth > 1 ? 'yes' : 'no'
+  )
+
   // The list of pathnames to return.
-  const pathnames: string[] = []
+  const filenames: string[] = []
 
   /**
    * Coerces the pathname to be relative if requested.
    */
-  const coerce = relativePathnames
+  const coerce = relativeFilenames
     ? (pathname: string) => pathname.replace(rootDirectory, '')
     : (pathname: string) => pathname
 
   // The queue of directories to scan.
   let directories: string[] = [rootDirectory]
 
+  let depth = 0
+
   while (directories.length > 0) {
     // Load all the files in each directory at the same time.
     const results = await Promise.all(
       directories.map(async (directory) => {
-        const result: Result = { directories: [], pathnames: [], links: [] }
+        const result: Result = { directories: [], filenames: [], links: [] }
 
         try {
-          const dir = await fs.readdir(directory, { withFileTypes: true })
-          for (const file of dir) {
+          const dir = await fs.opendir(directory)
+          for await (const file of dir) {
             // If enabled, ignore the file if it matches the ignore filter.
             if (ignorePartFilter && ignorePartFilter(file.name)) {
               continue
             }
 
             // Handle each file.
-            const absolutePathname = path.join(directory, file.name)
+            const filename = path.join(directory, file.name)
 
             // If enabled, ignore the file if it matches the ignore filter.
-            if (ignoreFilter && ignoreFilter(absolutePathname)) {
+            if (ignoreFilter && ignoreFilter(filename)) {
               continue
             }
 
             // If the file is a directory, then add it to the list of directories,
             // they'll be scanned on a later pass.
             if (file.isDirectory()) {
-              result.directories.push(absolutePathname)
+              result.directories.push(filename)
             } else if (file.isSymbolicLink()) {
-              result.links.push(absolutePathname)
-            } else if (!pathnameFilter || pathnameFilter(absolutePathname)) {
-              result.pathnames.push(coerce(absolutePathname))
+              result.links.push(filename)
+            } else if (!filenameFilter || filenameFilter(filename)) {
+              result.filenames.push(coerce(filename))
             }
           }
         } catch (err: any) {
           // This can only happen when the underlying directory was removed. If
           // anything other than this error occurs, re-throw it.
-          // if (err.code !== 'ENOENT') throw err
-          if (err.code !== 'ENOENT' || directory === rootDirectory) throw err
+          if (
+            err.code !== 'ENOENT' ||
+            (throwOnMissing && directory === rootDirectory)
+          )
+            throw err
 
           // The error occurred, so abandon reading this directory.
           return null
@@ -136,7 +164,7 @@ export async function recursiveReadDir(
       links.push(...result.links)
 
       // Add any file pathnames to the list of pathnames.
-      pathnames.push(...result.pathnames)
+      filenames.push(...result.filenames)
     }
 
     // Resolve all the symbolic links we found if any.
@@ -168,17 +196,23 @@ export async function recursiveReadDir(
 
         if (stats.isDirectory()) {
           directories.push(absolutePathname)
-        } else if (!pathnameFilter || pathnameFilter(absolutePathname)) {
-          pathnames.push(coerce(absolutePathname))
+        } else if (!filenameFilter || filenameFilter(absolutePathname)) {
+          filenames.push(coerce(absolutePathname))
         }
       }
     }
+
+    // Increment the depth.
+    depth++
+
+    // If we've reached the maximum depth, then stop recursing.
+    if (depth >= maxDepth) break
   }
 
   // Sort the pathnames in place if requested.
-  if (sortPathnames) {
-    pathnames.sort()
+  if (sortFilenames) {
+    filenames.sort()
   }
 
-  return pathnames
+  return filenames
 }

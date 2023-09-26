@@ -1,10 +1,11 @@
-import { FileReader } from './helpers/file-reader/file-reader'
+import type { FileReader } from '../../helpers/file-reader/file-reader'
+
+import path from 'path'
 import {
   PagesRouteMatcher,
   PagesLocaleRouteMatcher,
 } from '../../route-matchers/pages-route-matcher'
 import { RouteKind } from '../../route-kind'
-import path from 'path'
 import { LocaleRouteNormalizer } from '../../normalizers/locale-route-normalizer'
 import { FileCacheRouteMatcherProvider } from './file-cache-route-matcher-provider'
 import { DevPagesNormalizers } from '../../normalizers/built/pages'
@@ -19,7 +20,7 @@ export class DevPagesRouteMatcherProvider extends FileCacheRouteMatcherProvider<
     reader: FileReader,
     private readonly localeNormalizer?: LocaleRouteNormalizer
   ) {
-    super(pagesDir, reader)
+    super(pagesDir, reader, true)
 
     // Match any route file that ends with `/${filename}.${extension}` under the
     // pages directory.
@@ -28,7 +29,7 @@ export class DevPagesRouteMatcherProvider extends FileCacheRouteMatcherProvider<
     this.normalizers = new DevPagesNormalizers(pagesDir, extensions)
   }
 
-  private test(filename: string): boolean {
+  protected filter(filename: string): boolean {
     // If the file does not end in the correct extension it's not a match.
     if (!this.expression.test(filename)) return false
 
@@ -55,9 +56,6 @@ export class DevPagesRouteMatcherProvider extends FileCacheRouteMatcherProvider<
   ): Promise<ReadonlyArray<PagesRouteMatcher>> {
     const matchers: Array<PagesRouteMatcher> = []
     for (const filename of files) {
-      // If the file isn't a match for this matcher, then skip it.
-      if (!this.test(filename)) continue
-
       const pathname = this.normalizers.pathname.normalize(filename)
       const page = this.normalizers.page.normalize(filename)
       const bundlePath = this.normalizers.bundlePath.normalize(filename)

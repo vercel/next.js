@@ -99,7 +99,7 @@ module.exports = (context) => {
 
       const readPath = join(__dirname, `../.next/static/${buildId}`)
       const buildFiles = await recursiveReadDir(readPath, {
-        pathnameFilter: (f) => /\.js$/.test(f),
+        filenameFilter: (f) => /\.js$/.test(f),
       })
 
       if (buildFiles.length < 1) {

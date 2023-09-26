@@ -9,7 +9,7 @@ const dirWithPages = join(resolveDataDir, 'readdir', 'pages')
 describe('recursiveReadDir', () => {
   it('should work', async () => {
     const result = await recursiveReadDir(dirWithPages, {
-      pathnameFilter: (f) => /\.js/.test(f),
+      filenameFilter: (f) => /\.js/.test(f),
     })
     const pages = [
       /^[\\/]index\.js/,
