@@ -85,8 +85,7 @@ jobs:
       - 'metal'
 
     steps:
-      - run: fnm install ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
-      - run: fnm use ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
+      - run: fnm use --install-if-missing ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
       - run: node -v
       - run: corepack enable
       - run: pwd

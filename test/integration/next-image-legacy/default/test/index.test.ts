@@ -469,9 +469,13 @@ function runTests(mode) {
       const height = 700
       const delta = 250
       const id = 'fixed1'
-      expect(await getSrc(browser, id)).toBe(
-        '/_next/image?url=%2Fwide.png&w=3840&q=75'
-      )
+
+      await check(async () => {
+        expect(await getSrc(browser, id)).toBe(
+          '/_next/image?url=%2Fwide.png&w=3840&q=75'
+        )
+        return 'success'
+      }, 'success')
       expect(await browser.elementById(id).getAttribute('srcset')).toBe(
         '/_next/image?url=%2Fwide.png&w=1200&q=75 1x, /_next/image?url=%2Fwide.png&w=3840&q=75 2x'
       )
@@ -503,9 +507,13 @@ function runTests(mode) {
       const height = 700
       const delta = 250
       const id = 'intrinsic1'
-      expect(await getSrc(browser, id)).toBe(
-        '/_next/image?url=%2Fwide.png&w=3840&q=75'
-      )
+
+      await check(async () => {
+        expect(await getSrc(browser, id)).toBe(
+          '/_next/image?url=%2Fwide.png&w=3840&q=75'
+        )
+        return 'success'
+      }, 'success')
       expect(await browser.elementById(id).getAttribute('srcset')).toBe(
         '/_next/image?url=%2Fwide.png&w=1200&q=75 1x, /_next/image?url=%2Fwide.png&w=3840&q=75 2x'
       )
@@ -587,9 +595,13 @@ function runTests(mode) {
       const height = 350
       const delta = 150
       const id = 'fill1'
-      expect(await getSrc(browser, id)).toBe(
-        '/_next/image?url=%2Fwide.png&w=3840&q=75'
-      )
+
+      await check(async () => {
+        expect(await getSrc(browser, id)).toBe(
+          '/_next/image?url=%2Fwide.png&w=3840&q=75'
+        )
+        return 'success'
+      }, 'success')
       expect(await browser.elementById(id).getAttribute('srcset')).toBe(
         '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w'
       )
@@ -627,9 +639,13 @@ function runTests(mode) {
       const width = await getComputed(browser, id, 'width')
       const height = await getComputed(browser, id, 'height')
       await browser.eval(`document.getElementById("${id}").scrollIntoView()`)
-      expect(await getSrc(browser, id)).toBe(
-        '/_next/image?url=%2Fwide.png&w=3840&q=75'
-      )
+
+      await check(async () => {
+        expect(await getSrc(browser, id)).toBe(
+          '/_next/image?url=%2Fwide.png&w=3840&q=75'
+        )
+        return 'success'
+      }, 'success')
 
       await check(() => {
         return browser.eval(
@@ -694,9 +710,13 @@ function runTests(mode) {
       const height = 700
       const delta = 250
       const id = 'sizes1'
-      expect(await getSrc(browser, id)).toBe(
-        '/_next/image?url=%2Fwide.png&w=3840&q=75'
-      )
+
+      await check(async () => {
+        expect(await getSrc(browser, id)).toBe(
+          '/_next/image?url=%2Fwide.png&w=3840&q=75'
+        )
+        return 'success'
+      }, 'success')
       expect(await browser.elementById(id).getAttribute('srcset')).toBe(
         '/_next/image?url=%2Fwide.png&w=16&q=75 16w, /_next/image?url=%2Fwide.png&w=32&q=75 32w, /_next/image?url=%2Fwide.png&w=48&q=75 48w, /_next/image?url=%2Fwide.png&w=64&q=75 64w, /_next/image?url=%2Fwide.png&w=96&q=75 96w, /_next/image?url=%2Fwide.png&w=128&q=75 128w, /_next/image?url=%2Fwide.png&w=256&q=75 256w, /_next/image?url=%2Fwide.png&w=384&q=75 384w, /_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w'
       )

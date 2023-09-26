@@ -487,16 +487,10 @@ export default class DevServer extends Server {
     err?: unknown,
     type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
   ): Promise<void> {
-    if (this.isRenderWorker) {
-      await this.invokeDevMethod({
-        method: 'logErrorWithOriginalStack',
-        args: [err, type],
-      })
-      return
-    }
-    throw new Error(
-      'Invariant logErrorWithOriginalStack called outside render worker'
-    )
+    await this.invokeDevMethod({
+      method: 'logErrorWithOriginalStack',
+      args: [err, type],
+    })
   }
 
   protected getPagesManifest(): PagesManifest | undefined {
@@ -731,10 +725,6 @@ export default class DevServer extends Server {
     appPaths?: ReadonlyArray<string> | null
     match?: RouteMatch
   }): Promise<void> {
-    if (!this.isRenderWorker) {
-      throw new Error('Invariant ensurePage called outside render worker')
-    }
-
     await this.invokeDevMethod({
       method: 'ensurePage',
       args: [opts],
@@ -795,27 +785,17 @@ export default class DevServer extends Server {
   }
 
   protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
-    if (this.isRenderWorker) {
-      await this.invokeDevMethod({
-        method: 'getFallbackErrorComponents',
-        args: [],
-      })
-      return await loadDefaultErrorComponents(this.distDir)
-    }
-    throw new Error(
-      `Invariant getFallbackErrorComponents called outside render worker`
-    )
+    await this.invokeDevMethod({
+      method: 'getFallbackErrorComponents',
+      args: [],
+    })
+    return await loadDefaultErrorComponents(this.distDir)
   }
 
   async getCompilationError(page: string): Promise<any> {
-    if (this.isRenderWorker) {
-      return await this.invokeDevMethod({
-        method: 'getCompilationError',
-        args: [page],
-      })
-    }
-    throw new Error(
-      'Invariant getCompilationError called outside render worker'
-    )
+    return await this.invokeDevMethod({
+      method: 'getCompilationError',
+      args: [page],
+    })
   }
 }

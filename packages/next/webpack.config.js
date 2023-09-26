@@ -135,19 +135,18 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
     optimization: {
       moduleIds: 'named',
       minimize: true,
-      // splitChunks: {
-      //   chunks: 'all',
-      // },
       concatenateModules: true,
       minimizer: [
         new TerserPlugin({
-          extractComments: false,
+          minify: TerserPlugin.swcMinify,
           terserOptions: {
-            format: {
-              comments: false,
-            },
             compress: {
-              passes: 2,
+              dead_code: true,
+              // Zero means no limit.
+              passes: 0,
+            },
+            format: {
+              preamble: '',
             },
           },
         }),
@@ -191,7 +190,7 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
     module: {
       rules: [
         {
-          include: /vendored\/rsc\/entrypoints/,
+          include: /vendored[\\/]rsc[\\/]entrypoints/,
           resolve: {
             conditionNames: ['react-server', '...'],
             alias: {

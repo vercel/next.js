@@ -31,26 +31,46 @@ use crate::{
     util::foreign_code_context_condition,
 };
 
-fn defines() -> CompileTimeDefines {
-    compile_time_defines!(
+fn defines(dist_root_path: Option<&str>) -> CompileTimeDefines {
+    // [TODO] macro may need to allow dynamically expand from some iterable values
+    let mut defines = compile_time_defines!(
         process.turbopack = true,
         process.env.NODE_ENV = "development",
         process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false,
-        process.env.NEXT_RUNTIME = "edge"
-    )
+        process.env.NEXT_RUNTIME = "edge",
+    );
+
+    if let Some(dist_root_path) = dist_root_path {
+        defines.0.insert(
+            vec![
+                "process".to_string(),
+                "env".to_string(),
+                "__NEXT_DIST_DIR".to_string(),
+            ],
+            dist_root_path.to_string().into(),
+        );
+    }
+
     // TODO(WEB-937) there are more defines needed, see
     // packages/next/src/build/webpack-config.ts
+
+    defines
 }
 
 #[turbo_tasks::function]
-fn next_edge_defines() -> Vc<CompileTimeDefines> {
-    defines().cell()
+async fn next_edge_defines(dist_root_path: Vc<String>) -> Result<Vc<CompileTimeDefines>> {
+    let dist_root_path = &*dist_root_path.await?;
+    Ok(defines(Some(dist_root_path.as_str())).cell())
 }
 
 #[turbo_tasks::function]
-fn next_edge_free_vars(project_path: Vc<FileSystemPath>) -> Vc<FreeVarReferences> {
-    free_var_references!(
-        ..defines().into_iter(),
+async fn next_edge_free_vars(
+    project_path: Vc<FileSystemPath>,
+    dist_root_path: Vc<String>,
+) -> Result<Vc<FreeVarReferences>> {
+    let dist_root_path = &*dist_root_path.await?;
+    Ok(free_var_references!(
+        ..defines(Some(dist_root_path.as_str())).into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
             request: "next/dist/compiled/buffer".to_string(),
             lookup_path: Some(project_path),
@@ -62,19 +82,20 @@ fn next_edge_free_vars(project_path: Vc<FileSystemPath>) -> Vc<FreeVarReferences
             export: Some("default".to_string()),
         },
     )
-    .cell()
+    .cell())
 }
 
 #[turbo_tasks::function]
 pub fn get_edge_compile_time_info(
     project_path: Vc<FileSystemPath>,
     server_addr: Vc<ServerAddr>,
+    dist_root_path: Vc<String>,
 ) -> Vc<CompileTimeInfo> {
     CompileTimeInfo::builder(Environment::new(Value::new(
         ExecutionEnvironment::EdgeWorker(EdgeWorkerEnvironment { server_addr }.into()),
     )))
-    .defines(next_edge_defines())
-    .free_var_references(next_edge_free_vars(project_path))
+    .defines(next_edge_defines(dist_root_path))
+    .free_var_references(next_edge_free_vars(project_path, dist_root_path))
     .cell()
 }
 

@@ -5,6 +5,7 @@ const glob = require('glob')
 const fs = require('fs-extra')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const resolveFrom = require('resolve-from')
+const execa = require('execa')
 
 export async function next__polyfill_nomodule(task, opts) {
   await task
@@ -2450,8 +2451,14 @@ export async function server_esm(task, opts) {
 
 export async function nextbuild(task, opts) {
   await task
-    .source('src/build/**/!(*.test).+(js|ts|tsx)', {
-      ignore: ['**/fixture/**', '**/tests/**', '**/jest/**'],
+    .source('src/build/**/*.+(js|ts|tsx)', {
+      ignore: [
+        '**/fixture/**',
+        '**/tests/**',
+        '**/jest/**',
+        '**/*.test.d.ts',
+        '**/*.test.+(js|ts|tsx)',
+      ],
     })
     .swc('server', { dev: opts.dev })
     .target('dist/build')
@@ -2459,8 +2466,14 @@ export async function nextbuild(task, opts) {
 
 export async function nextbuild_esm(task, opts) {
   await task
-    .source('src/build/**/!(*.test).+(js|ts|tsx)', {
-      ignore: ['**/fixture/**', '**/tests/**', '**/jest/**'],
+    .source('src/build/**/*.+(js|ts|tsx)', {
+      ignore: [
+        '**/fixture/**',
+        '**/tests/**',
+        '**/jest/**',
+        '**/*.test.d.ts',
+        '**/*.test.+(js|ts|tsx)',
+      ],
     })
     .swc('server', { dev: opts.dev, esm: true })
     .target('dist/esm/build')
@@ -2468,8 +2481,13 @@ export async function nextbuild_esm(task, opts) {
 
 export async function nextbuildjest(task, opts) {
   await task
-    .source('src/build/jest/**/!(*.test).+(js|ts|tsx)', {
-      ignore: ['**/fixture/**', '**/tests/**'],
+    .source('src/build/jest/**/*.+(js|ts|tsx)', {
+      ignore: [
+        '**/fixture/**',
+        '**/tests/**',
+        '**/*.test.d.ts',
+        '**/*.test.+(js|ts|tsx)',
+      ],
     })
     .swc('server', { dev: opts.dev, interopClientDefaultExport: true })
     .target('dist/build/jest')
@@ -2594,7 +2612,16 @@ export async function trace(task, opts) {
 }
 
 export async function build(task, opts) {
-  await task.serial(['precompile', 'compile', 'compile_config_schema'], opts)
+  await task.serial(
+    ['precompile', 'compile', 'compile_config_schema', 'generate_types'],
+    opts
+  )
+}
+
+export async function generate_types(task, opts) {
+  await execa.command('pnpm run types', {
+    stdio: 'inherit',
+  })
 }
 
 export default async function (task) {
@@ -2631,18 +2658,26 @@ export default async function (task) {
 
 export async function shared(task, opts) {
   await task
-    .source(
-      'src/shared/**/!(amp|config|constants|dynamic|app-dynamic|head|runtime-config).+(js|ts|tsx)'
-    )
+    .source('src/shared/**/*.+(js|ts|tsx)', {
+      ignore: [
+        'src/shared/**/{amp,config,constants,dynamic,app-dynamic,head,runtime-config}.+(js|ts|tsx)',
+        '**/*.test.d.ts',
+        '**/*.test.+(js|ts|tsx)',
+      ],
+    })
     .swc('client', { dev: opts.dev })
     .target('dist/shared')
 }
 
 export async function shared_esm(task, opts) {
   await task
-    .source(
-      'src/shared/**/!(amp|config|constants|dynamic|app-dynamic|head).+(js|ts|tsx)'
-    )
+    .source('src/shared/**/*.+(js|ts|tsx)', {
+      ignore: [
+        'src/shared/**/{amp,config,constants,dynamic,app-dynamic,head,runtime-config}.+(js|ts|tsx)',
+        '**/*.test.d.ts',
+        '**/*.test.+(js|ts|tsx)',
+      ],
+    })
     .swc('client', { dev: opts.dev, esm: true })
     .target('dist/esm/shared')
 }
@@ -2650,7 +2685,10 @@ export async function shared_esm(task, opts) {
 export async function shared_re_exported(task, opts) {
   await task
     .source(
-      'src/shared/**/{amp,config,constants,dynamic,app-dynamic,head,runtime-config}.+(js|ts|tsx)'
+      'src/shared/**/{amp,config,constants,dynamic,app-dynamic,head,runtime-config}.+(js|ts|tsx)',
+      {
+        ignore: ['**/*.test.d.ts', '**/*.test.+(js|ts|tsx)'],
+      }
     )
     .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
     .target('dist/shared')
@@ -2659,7 +2697,10 @@ export async function shared_re_exported(task, opts) {
 export async function shared_re_exported_esm(task, opts) {
   await task
     .source(
-      'src/shared/**/{amp,config,constants,app-dynamic,dynamic,head}.+(js|ts|tsx)'
+      'src/shared/**/{amp,config,constants,app-dynamic,dynamic,head}.+(js|ts|tsx)',
+      {
+        ignore: ['**/*.test.d.ts', '**/*.test.+(js|ts|tsx)'],
+      }
     )
     .swc('client', {
       dev: opts.dev,

@@ -19,7 +19,7 @@ createNextDescribe(
         ).toBeTruthy()
         expect(
           await next.readFile('.next/server/app/linking/about.prefetch.rsc')
-        ).toBeTruthy()
+        ).toContain('About loading...')
         expect(
           await next.readFile(
             '.next/server/app/dashboard/deployments/breakdown.prefetch.rsc'

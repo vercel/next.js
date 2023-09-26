@@ -29,7 +29,7 @@ import { callServer } from '../../app-call-server'
 import { PrefetchKind } from './router-reducer-types'
 import { hexHash } from '../../../shared/lib/hash'
 
-type FetchServerResponseResult = [
+export type FetchServerResponseResult = [
   flightData: FlightData,
   canonicalUrlOverride: URL | undefined
 ]
