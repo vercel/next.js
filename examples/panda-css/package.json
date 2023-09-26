@@ -1,8 +1,7 @@
 {
   "private": true,
   "scripts": {
-    "prepare": "npm run codegen",
-    "codegen": "panda codegen",
+    "prepare": "panda codegen",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
