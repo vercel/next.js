@@ -2018,6 +2018,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // served by the server.
       let result: RenderResult
 
+      const routeModuleKind = components.routeModule?.definition.kind
+      console.log('routeModuleKind', routeModuleKind)
+
       if (components.routeModule?.definition.kind === RouteKind.APP_ROUTE) {
         const routeModule = components.routeModule as AppRouteRouteModule
 
@@ -2122,6 +2125,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       } else if (
         components.routeModule?.definition.kind === RouteKind.APP_PAGE
       ) {
+        // @ts-ignore
+        console.log(
+          'from base request',
+          'req.constructor',
+          req.constructor.name
+        )
         const isAppPrefetch = req.headers[NEXT_ROUTER_PREFETCH.toLowerCase()]
 
         if (
@@ -2154,6 +2163,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
         renderOpts.nextFontManifest = this.nextFontManifest
 
+        // @ts-ignore
+        console.log(
+          'compare req and originalRequest',
+          req.fetchMetrics,
+          (req as NodeNextRequest).originalRequest?.fetchMetrics
+        )
+
         // Call the built-in render method on the module.
         result = await module.render(
           (req as NodeNextRequest).originalRequest ?? (req as WebNextRequest),
@@ -2182,8 +2198,19 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
       }
 
+      // @ts-ignore
+      console.log(
+        'metadata.fetchMetrics',
+        !!metadata.fetchMetrics,
+        'req.constructor',
+        req.constructor.name,
+        'req.originalRequest',
+        req.originalRequest?.constructor.name
+      )
       // Pull any fetch metrics from the render onto the request.
       ;(req as any).fetchMetrics = metadata.fetchMetrics
+      // @ts-ignore
+      ;(req.originalRequest ?? req).fetchMetrics = metadata.fetchMetrics
 
       // we don't throw static to dynamic errors in dev as isSSG
       // is a best guess in dev since we don't have the prerender pass

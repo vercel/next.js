@@ -1047,6 +1047,17 @@ export default class NextNodeServer extends BaseServer {
           }
           const reqEnd = Date.now()
           const fetchMetrics = (normalizedReq as any).fetchMetrics || []
+          // @ts-ignore
+          console.trace(
+            'next-server:fetchMetrics',
+            fetchMetrics,
+            'normalizedReq',
+            normalizedReq.constructor.name,
+            'originalRequest',
+            origReq.constructor.name,
+            'req',
+            req.constructor.name
+          )
           const reqDuration = reqEnd - reqStart
 
           const getDurationStr = (duration: number) => {

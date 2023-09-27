@@ -126,6 +126,7 @@ export async function adapter(
     ? new URL(params.request.url)
     : requestUrl
 
+  console.log('before NextRequestHint', params.request)
   const request = new NextRequestHint({
     page: params.page,
     // Strip internal query parameters off the request.

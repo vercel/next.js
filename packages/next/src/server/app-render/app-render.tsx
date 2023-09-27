@@ -267,6 +267,11 @@ export const renderToHTMLOrFlight: AppPageRender = (
         `Invariant: Render expects to have staticGenerationAsyncStorage, none found`
       )
     }
+
+    console.log(
+      'app-render:staticGenerationStore.fetchMetrics',
+      staticGenerationStore.fetchMetrics
+    )
     staticGenerationStore.fetchMetrics = []
     extraRenderResultMeta.fetchMetrics = staticGenerationStore.fetchMetrics
 

@@ -145,6 +145,8 @@ export function getRender({
 
   return async function render(request: Request) {
     const extendedReq = new WebNextRequest(request)
+    // @ts-ignore
+    console.trace('new WebNextRequest', request.constructor.name)
     const extendedRes = new WebNextResponse()
 
     handler(extendedReq, extendedRes)
