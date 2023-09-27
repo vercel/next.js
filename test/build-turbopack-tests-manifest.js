@@ -62,6 +62,9 @@ const SKIPPED_TEST_SUITES = {
   'test/integration/trailing-slashes/test/index.test.js': [
     'Trailing slashes dev mode, with basepath, trailingSlash: true /docs/linker?href=/ should navigate to /docs/',
   ],
+  'test/integration/app-document-remove-hmr/test/index.test.js': [
+    '_app removal HMR should HMR when _document is removed',
+  ],
 }
 
 async function updatePassingTests() {
