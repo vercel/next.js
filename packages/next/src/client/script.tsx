@@ -68,7 +68,7 @@ const insertStylesheets = (stylesheets: string[]) => {
   }
 }
 
-const loadScript = (props: ScriptProps): void => {
+export const loadScript = (props: ScriptProps): void => {
   const {
     src,
     id,
