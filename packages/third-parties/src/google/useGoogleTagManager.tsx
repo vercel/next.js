@@ -3,7 +3,8 @@ import { loadScript } from 'next/script'
 
 declare global {
   interface Window {
-    dataLayer: Object[] | undefined
+    dataLayer?: Object[]
+    [key: string]: any
   }
 }
 
