@@ -661,15 +661,16 @@ impl NextConfig {
     pub async fn computed_asset_prefix(self: Vc<Self>) -> Result<Vc<Option<String>>> {
         let this = self.await?;
 
-        Ok(Vc::cell(Some(
+        Ok(Vc::cell(Some(format!(
+            "{}/_next/",
             if let Some(asset_prefix) = &this.asset_prefix {
-                asset_prefix.to_string()
+                asset_prefix
             } else if let Some(base_path) = &this.base_path {
-                base_path.to_string()
+                base_path
             } else {
-                "".to_string()
-            } + "/_next/",
-        )))
+                ""
+            }
+        ))))
     }
 }
 

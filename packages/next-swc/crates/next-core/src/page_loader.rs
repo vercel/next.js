@@ -217,10 +217,6 @@ impl Asset for PageLoaderAsset {
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let this = &*self.await?;
 
-        // The asset emits `__turbopack_load_page_chunks__`, which is implemented using
-        // `__turbopack_load__`. `__turbopack_load__` will prefix the path with the
-        // relative client path (`_next/`), so we need to remove that when we emit the
-        // chunk paths.
         let chunks_data = self.chunks_data(this.rebase_prefix_path).await?;
         let chunks_data = chunks_data.iter().try_join().await?;
         let chunks_data: Vec<_> = chunks_data
