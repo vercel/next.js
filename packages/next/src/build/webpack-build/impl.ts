@@ -378,16 +378,13 @@ export async function workerMain(workerData: {
       result.buildTraceContext.entriesTrace.entryNameMap = entryEntries
     }
   }
-  if (chunksTrace) {
-    if (chunksTrace.entryNameFilesMap) {
-      const entryNameFilesMap = Array.from(
-        chunksTrace.entryNameFilesMap.entries() ?? []
-      )
+  if (chunksTrace?.entryNameFilesMap) {
+    const entryNameFilesMap = Array.from(
+      chunksTrace.entryNameFilesMap.entries() ?? []
+    )
 
-      // @ts-expect-error
-      result.buildTraceContext!.chunksTrace!.entryNameFilesMap =
-        entryNameFilesMap
-    }
+    // @ts-expect-error
+    result.buildTraceContext!.chunksTrace!.entryNameFilesMap = entryNameFilesMap
   }
   return result
 }
