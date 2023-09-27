@@ -9,7 +9,7 @@ import type { ExportOptions } from '../export'
 
 import '../lib/setup-exception-listeners'
 import { loadEnvConfig } from '@next/env'
-import chalk from 'next/dist/compiled/chalk'
+import { bold, yellow, green } from 'next/dist/compiled/picocolors'
 import crypto from 'crypto'
 import { isMatch, makeRe } from 'next/dist/compiled/micromatch'
 import { promises as fs, existsSync as fsExistsSync } from 'fs'
@@ -1815,8 +1815,8 @@ export default async function build(
 
       if (customAppGetInitialProps) {
         console.warn(
-          chalk.bold.yellow(`Warning: `) +
-            chalk.yellow(
+          bold(yellow(`Warning: `)) +
+            yellow(
               `You have opted-out of Automatic Static Optimization due to \`getInitialProps\` in \`pages/_app\`. This does not opt-out pages with \`getStaticProps\``
             )
         )
@@ -3316,7 +3316,7 @@ export default async function build(
 
       if (config.analyticsId) {
         console.log(
-          chalk.bold.green('Next.js Speed Insights') +
+          bold(green('Next.js Speed Insights')) +
             ' is enabled for this production build. ' +
             "You'll receive a Real Experience Score computed by all of your visitors."
         )

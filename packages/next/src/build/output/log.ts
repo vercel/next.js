@@ -1,13 +1,13 @@
-import chalk from '../../lib/chalk'
+import pc from '../../lib/picocolors'
 
 export const prefixes = {
-  wait: chalk.white(chalk.bold('○')),
-  error: chalk.red(chalk.bold('⨯')),
-  warn: chalk.yellow(chalk.bold('⚠')),
-  ready: chalk.bold('▲'), // no color
-  info: chalk.white(chalk.bold(' ')),
-  event: chalk.green(chalk.bold('✓')),
-  trace: chalk.magenta(chalk.bold('»')),
+  wait: pc.white(pc.bold('○')),
+  error: pc.red(pc.bold('⨯')),
+  warn: pc.yellow(pc.bold('⚠')),
+  ready: pc.bold('▲'), // no color
+  info: pc.white(pc.bold(' ')),
+  event: pc.green(pc.bold('✓')),
+  trace: pc.magenta(pc.bold('»')),
 } as const
 
 const LOGGING_METHOD = {

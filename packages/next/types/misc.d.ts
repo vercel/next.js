@@ -67,8 +67,8 @@ declare module 'next/dist/compiled/react-is' {
   export * from 'react-is'
 }
 
-declare module 'next/dist/compiled/chalk' {
-  import m from 'chalk'
+declare module 'next/dist/compiled/picocolors' {
+  import m from 'picocolors'
   export = m
 }
 

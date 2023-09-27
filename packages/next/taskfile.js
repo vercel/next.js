@@ -719,12 +719,12 @@ export async function ncc_react_refresh_utils(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-externals['chalk'] = 'next/dist/compiled/chalk'
-export async function ncc_chalk(task, opts) {
+externals['picocolors'] = 'next/dist/compiled/picocolors'
+export async function ncc_picocolors(task, opts) {
   await task
-    .source(relative(__dirname, require.resolve('chalk')))
-    .ncc({ packageName: 'chalk', externals })
-    .target('src/compiled/chalk')
+    .source(relative(__dirname, require.resolve('picocolors')))
+    .ncc({ packageName: 'picocolors', externals })
+    .target('src/compiled/picocolors')
 }
 
 // eslint-disable-next-line camelcase
@@ -2221,7 +2221,7 @@ export async function ncc(task, opts) {
     .parallel(
       [
         'ncc_node_html_parser',
-        'ncc_chalk',
+        'ncc_picocolors',
         'ncc_napirs_triples',
         'ncc_p_limit',
         'ncc_raw_body',

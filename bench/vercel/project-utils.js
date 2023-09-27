@@ -1,7 +1,7 @@
 import { config } from 'dotenv'
 
 import fetch from 'node-fetch'
-import chalk from 'chalk'
+import { red } from 'next/dist/compiled/picocolors'
 import execa from 'execa'
 import path from 'path'
 import url from 'url'
@@ -214,7 +214,7 @@ export async function deployProject(projectName, appFolder) {
 
     return deployRes.stdout
   } catch (err) {
-    console.log(chalk.red('Deployment failed: ', err))
+    console.log(red('Deployment failed: ', err))
     throw err
   }
 }
