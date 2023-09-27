@@ -7,6 +7,7 @@ import type { WorkerRequestHandler, WorkerUpgradeHandler } from './types'
 import '../node-polyfill-fetch'
 import '../node-environment'
 import '../require-hook'
+import '../../lib/polyfill-promise-with-resolvers'
 
 import url from 'url'
 import path from 'path'
