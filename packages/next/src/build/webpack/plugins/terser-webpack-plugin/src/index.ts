@@ -128,11 +128,11 @@ export class TerserPlugin {
             }
 
             if (debugMinify && debugMinify === '1') {
-              console.log(
-                JSON.stringify({
+              console.dir(
+                {
                   name,
                   source: source.source().toString(),
-                }),
+                },
                 {
                   breakLength: Infinity,
                   maxStringLength: Infinity,
