@@ -400,9 +400,6 @@ const configSchema = {
         scrollRestoration: {
           type: 'boolean',
         },
-        sharedPool: {
-          type: 'boolean',
-        },
         sri: {
           properties: {
             algorithm: {

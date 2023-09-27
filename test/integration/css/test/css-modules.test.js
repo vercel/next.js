@@ -93,8 +93,7 @@ describe('Basic CSS Modules Ordering', () => {
 
     tests()
   })
-
-  describe('Production Mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await remove(join(appDir, '.next'))
     })
@@ -436,8 +435,7 @@ describe('CSS Modules Composes Ordering', () => {
 
     tests(true)
   })
-
-  describe('Production Mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await remove(join(appDir, '.next'))
     })

@@ -191,8 +191,7 @@ describe('nested index.js', () => {
 
     runTests()
   })
-
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       const curConfig = await fs.readFile(nextConfig, 'utf8')
 
