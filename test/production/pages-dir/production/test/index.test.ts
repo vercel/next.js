@@ -26,7 +26,7 @@ import { createNextDescribe } from 'e2e-utils'
 const glob = promisify(globOriginal)
 
 if (process.env.TEST_WASM) {
-  jest.setTimeout(240 * 1000)
+  jest.setTimeout(120 * 1000)
 }
 
 createNextDescribe(
