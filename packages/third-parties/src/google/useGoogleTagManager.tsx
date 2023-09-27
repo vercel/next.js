@@ -21,6 +21,18 @@ export default function useGoogleTagManager() {
     [initParams]
   )
 
+  const sendData = useCallback(
+    (data: Object) => {
+      const { dataLayerName } = initParams
+      if (dataLayerName && window[dataLayerName]) {
+        window[dataLayerName].push(data)
+      } else {
+        console.warn(`dataLayer ${dataLayerName} does not exist`)
+      }
+    },
+    [initParams]
+  )
+
   useEffect(() => {
     if (initParams !== undefined) {
       const {
@@ -54,5 +66,5 @@ export default function useGoogleTagManager() {
     }
   }, [initParams])
 
-  return { init }
+  return { init, sendData }
 }
