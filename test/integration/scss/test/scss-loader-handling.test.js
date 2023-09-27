@@ -7,7 +7,7 @@ import { join } from 'path'
 
 const fixturesDir = join(__dirname, '../..', 'scss-fixtures')
 
-describe('SCSS Support', () => {
+describe('SCSS Support loader handling', () => {
   describe('CSS URL via `file-loader`', () => {
     const appDir = join(fixturesDir, 'url-global')
 
