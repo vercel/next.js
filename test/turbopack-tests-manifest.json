@@ -6355,13 +6355,10 @@
     "runtimeError": false
   },
   "test/integration/app-document-remove-hmr/test/index.test.js": {
-    "passed": [
-      "_app removal HMR should HMR when _app is removed",
-      "_app removal HMR should HMR when _document is removed"
-    ],
+    "passed": ["_app removal HMR should HMR when _app is removed"],
     "failed": [],
     "pending": [],
-    "flakey": [],
+    "flakey": ["_app removal HMR should HMR when _document is removed"],
     "runtimeError": false
   },
   "test/integration/app-document-style-fragment/test/index.test.js": {
@@ -14597,7 +14594,7 @@
       "Trailing slashes production mode, trailingSlash: true /linker?href=/catch-all/hello/ should have href /catch-all/hello/",
       "Trailing slashes production mode, trailingSlash: true /linker?href=/catch-all/hello/ should navigate to /catch-all/hello/",
       "Trailing slashes production mode, trailingSlash: true /linker?href=/catch-all/hello/ should push route to /catch-all/hello/",
-      "Trailing slashes production mode, trailingSlash: true should have a redirect in the routesmanifest",
+      "Trailing slashes production mode, trailingSlash: true should have a trailing redirect in the routesmanifest",
       "Trailing slashes production mode, with basepath, trailingSlash: true /docs should redirect to /docs/",
       "Trailing slashes production mode, with basepath, trailingSlash: true /docs/about should redirect to /docs/about/",
       "Trailing slashes production mode, with basepath, trailingSlash: true /docs/catch-all/hello.world/ should redirect to /docs/catch-all/hello.world",
