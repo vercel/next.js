@@ -1214,8 +1214,8 @@ importers:
         specifier: 2.2.0
         version: 2.2.0
       jest-worker:
-        specifier: 27.0.0-next.5
-        version: 27.0.0-next.5
+        specifier: 27.5.1
+        version: 27.5.1
       json5:
         specifier: 2.2.3
         version: 2.2.3
@@ -17230,15 +17230,6 @@ packages:
       '@types/node': 20.2.5
       merge-stream: 2.0.0
       supports-color: 7.2.0
-    dev: true
-
-  /jest-worker@27.0.0-next.5:
-    resolution: {integrity: sha512-mk0umAQ5lT+CaOJ+Qp01N6kz48sJG2kr2n1rX0koqKf6FIygQV0qLOdN9SCYID4IVeSigDOcPeGLozdMLYfb5g==}
-    engines: {node: ^10.13.0 || ^12.13.0 || ^14.15.0 || >=15.0.0}
-    dependencies:
-      '@types/node': 20.2.5
-      merge-stream: 2.0.0
-      supports-color: 8.1.1
     dev: true
 
   /jest-worker@27.5.1:
