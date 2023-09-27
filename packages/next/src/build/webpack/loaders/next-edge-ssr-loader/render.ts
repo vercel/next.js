@@ -145,14 +145,14 @@ export function getRender({
 
   return async function render(request: Request) {
     const extendedReq = new WebNextRequest(request)
-
     const extendedRes = new WebNextResponse()
 
     handler(extendedReq, extendedRes)
-
     const result = await extendedRes.toResponse()
 
-    ;(request.fetchMetrics as any) = extendedReq.fetchMetrics
+    // fetchMetrics is attached to the web request that going through the server,
+    // wait for the handler result is ready and attach it back to the original request.
+    ;(request as any).fetchMetrics = extendedReq.fetchMetrics
     return result
   }
 }
