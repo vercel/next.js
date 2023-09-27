@@ -8,9 +8,18 @@ if (typeof window === 'undefined') {
   import('nanoid').then((mod) => console.log(mod.nanoid()))
 }
 
-export default () => (
-  <div>
-    <Link href="/about">About Page</Link>
-    <p className="index-page">Hello World</p>
-  </div>
-)
+// prevent static generation for build trace test
+export function getServerSideProps() {
+  return {
+    props: {},
+  }
+}
+
+export default function Page() {
+  return (
+    <div>
+      <Link href="/about">About Page</Link>
+      <p className="index-page">Hello World</p>
+    </div>
+  )
+}
