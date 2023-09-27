@@ -4,3 +4,10 @@
   width: 300px;
   height: 300px;
 }
+
+.datauri {
+  background: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxjaXJjbGUgcj0iMzAwIiAvPjwvc3ZnPg==');
+  background-size: contain;
+  width: 300px;
+  height: 300px;
+}

@@ -9,5 +9,8 @@ export function cssFileResolve(
   if (!urlImports && /^[a-z][a-z0-9+.-]*:/i.test(url)) {
     return false
   }
+  if (urlImports && url.startsWith('data:')) {
+    return false
+  }
   return true
 }
