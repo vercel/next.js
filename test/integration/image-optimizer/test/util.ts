@@ -1369,20 +1369,72 @@ export const setupTests = (ctx) => {
 
       runTests(curCtx)
     })
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'Production Mode Server support w/o next.config.js',
+      () => {
+        if (ctx.nextConfigImages) {
+          // skip this test because it requires next.config.js
+          return
+        }
+        const size = 384 // defaults defined in server/config.ts
+        const curCtx = {
+          ...ctx,
+          w: size,
+          isDev: false,
+        }
+        beforeAll(async () => {
+          curCtx.nextOutput = ''
+          await nextBuild(curCtx.appDir)
+          await cleanImagesDir(ctx)
+          curCtx.appPort = await findPort()
+          curCtx.app = await nextStart(curCtx.appDir, curCtx.appPort, {
+            onStderr(msg) {
+              curCtx.nextOutput += msg
+            },
+            env: {
+              NEXT_SHARP_PATH: curCtx.isSharp
+                ? join(curCtx.appDir, 'node_modules', 'sharp')
+                : '',
+            },
+            cwd: curCtx.appDir,
+          })
+        })
+        afterAll(async () => {
+          if (curCtx.app) await killApp(curCtx.app)
+        })
 
-    describe('Server support w/o next.config.js', () => {
-      if (ctx.nextConfigImages) {
-        // skip this test because it requires next.config.js
-        return
+        runTests(curCtx)
       }
-      const size = 384 // defaults defined in server/config.ts
+    )
+  }
+
+  ;(process.env.TURBOPACK ? describe.skip : describe)(
+    'Production Mode Server support with next.config.js',
+    () => {
+      const size = 399
       const curCtx = {
         ...ctx,
         w: size,
         isDev: false,
+        nextConfigImages: {
+          domains: [
+            'localhost',
+            '127.0.0.1',
+            'example.com',
+            'assets.vercel.com',
+            'image-optimization-test.vercel.app',
+          ],
+          formats: ['image/avif', 'image/webp'],
+          deviceSizes: [size, largeSize],
+          ...ctx.nextConfigImages,
+        },
       }
       beforeAll(async () => {
+        const json = JSON.stringify({
+          images: curCtx.nextConfigImages,
+        })
         curCtx.nextOutput = ''
+        nextConfig.replace('{ /* replaceme */ }', json)
         await nextBuild(curCtx.appDir)
         await cleanImagesDir(ctx)
         curCtx.appPort = await findPort()
@@ -1399,58 +1451,11 @@ export const setupTests = (ctx) => {
         })
       })
       afterAll(async () => {
+        nextConfig.restore()
         if (curCtx.app) await killApp(curCtx.app)
       })
 
       runTests(curCtx)
-    })
-  }
-
-  describe('Server support with next.config.js', () => {
-    const size = 399
-    const curCtx = {
-      ...ctx,
-      w: size,
-      isDev: false,
-      nextConfigImages: {
-        domains: [
-          'localhost',
-          '127.0.0.1',
-          'example.com',
-          'assets.vercel.com',
-          'image-optimization-test.vercel.app',
-        ],
-        formats: ['image/avif', 'image/webp'],
-        deviceSizes: [size, largeSize],
-        ...ctx.nextConfigImages,
-      },
     }
-    beforeAll(async () => {
-      const json = JSON.stringify({
-        images: curCtx.nextConfigImages,
-      })
-      curCtx.nextOutput = ''
-      nextConfig.replace('{ /* replaceme */ }', json)
-      await nextBuild(curCtx.appDir)
-      await cleanImagesDir(ctx)
-      curCtx.appPort = await findPort()
-      curCtx.app = await nextStart(curCtx.appDir, curCtx.appPort, {
-        onStderr(msg) {
-          curCtx.nextOutput += msg
-        },
-        env: {
-          NEXT_SHARP_PATH: curCtx.isSharp
-            ? join(curCtx.appDir, 'node_modules', 'sharp')
-            : '',
-        },
-        cwd: curCtx.appDir,
-      })
-    })
-    afterAll(async () => {
-      nextConfig.restore()
-      if (curCtx.app) await killApp(curCtx.app)
-    })
-
-    runTests(curCtx)
-  })
+  )
 }
