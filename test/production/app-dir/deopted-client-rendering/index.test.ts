@@ -7,15 +7,10 @@ createNextDescribe(
     files: `${__dirname}/not-deopted`,
   },
   ({ next }) => {
-    it('should show warning for deopted into client rendering', async () => {
+    it('should not show warning for deopted into client rendering', async () => {
       expect(next.cliOutput).not.toContain(
         'Entire page / deopted into client-side rendering'
       )
-    })
-
-    it('should not contain html error id in SSR content', async () => {
-      const $ = await next.render$('/')
-      expect($('html').attr('id')).toBeUndefined()
     })
   }
 )

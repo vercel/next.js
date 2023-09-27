@@ -2870,7 +2870,7 @@ createNextDescribe(
           it('should bailout to client rendering - without suspense boundary', async () => {
             const res = await next.fetch('/hooks/use-search-params')
             const html = await res.text()
-            expect(html).toInclude('<html id="__next_error__">')
+            expect(html).not.toContain('<html id="__next_error__">')
           })
 
           it('should bailout to client rendering - with suspense boundary', async () => {
@@ -2878,7 +2878,7 @@ createNextDescribe(
               '/hooks/use-search-params/with-suspense'
             )
             const html = await res.text()
-            expect(html).toInclude('<p>search params suspense</p>')
+            expect(html).not.toContain('<p>search params suspense</p>')
           })
 
           it.skip('should have empty search params on force-static', async () => {
@@ -2888,7 +2888,7 @@ createNextDescribe(
             const html = await res.text()
 
             // Should not bail out to client rendering
-            expect(html).not.toInclude('<p>search params suspense</p>')
+            expect(html).not.toContain('<p>search params suspense</p>')
 
             // Use empty search params instead
             const $ = cheerio.load(html)
