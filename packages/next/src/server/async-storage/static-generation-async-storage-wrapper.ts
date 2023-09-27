@@ -39,8 +39,6 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
     { urlPathname, renderOpts }: StaticGenerationContext,
     callback: (store: StaticGenerationStore) => Result
   ): Result {
-    // @ts-ignore
-    console.log('renderOpts.fetchMetrics', renderOpts.fetchMetrics)
     /**
      * Rules of Static & Dynamic HTML:
      *
@@ -77,9 +75,6 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
       isOnDemandRevalidate: renderOpts.isOnDemandRevalidate,
 
       isDraftMode: renderOpts.isDraftMode,
-
-      // @ts-ignore
-      fetchMetrics: renderOpts.fetchMetrics,
     }
 
     // TODO: remove this when we resolve accessing the store outside the execution context

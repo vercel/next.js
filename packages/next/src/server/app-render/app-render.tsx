@@ -268,10 +268,6 @@ export const renderToHTMLOrFlight: AppPageRender = (
       )
     }
 
-    console.log(
-      'app-render:staticGenerationStore.fetchMetrics',
-      staticGenerationStore.fetchMetrics
-    )
     staticGenerationStore.fetchMetrics = []
     extraRenderResultMeta.fetchMetrics = staticGenerationStore.fetchMetrics
 

@@ -1,6 +1,6 @@
 import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'http'
+import type { FetchMetrics } from './index'
 import { toNodeOutgoingHttpHeaders } from '../web/utils'
-import { type FetchMetrics } from './index'
 import { BaseNextRequest, BaseNextResponse } from './index'
 
 export class WebNextRequest extends BaseNextRequest<ReadableStream | null> {

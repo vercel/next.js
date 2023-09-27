@@ -2019,7 +2019,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       let result: RenderResult
 
       const routeModuleKind = components.routeModule?.definition.kind
-      console.log('routeModuleKind', routeModuleKind)
 
       if (components.routeModule?.definition.kind === RouteKind.APP_ROUTE) {
         const routeModule = components.routeModule as AppRouteRouteModule
@@ -2125,12 +2124,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       } else if (
         components.routeModule?.definition.kind === RouteKind.APP_PAGE
       ) {
-        // @ts-ignore
-        console.log(
-          'from base request',
-          'req.constructor',
-          req.constructor.name
-        )
         const isAppPrefetch = req.headers[NEXT_ROUTER_PREFETCH.toLowerCase()]
 
         if (
@@ -2191,19 +2184,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
       }
 
-      // @ts-ignore
-      console.log(
-        'metadata.fetchMetrics',
-        !!metadata.fetchMetrics,
-        'req.constructor',
-        req.constructor.name,
-        'req.originalRequest',
-        req.originalRequest?.constructor.name
-      )
       // Pull any fetch metrics from the render onto the request.
       ;(req as any).fetchMetrics = metadata.fetchMetrics
-      // @ts-ignore
-      ;(req.originalRequest ?? req).fetchMetrics = metadata.fetchMetrics
 
       // we don't throw static to dynamic errors in dev as isSSG
       // is a best guess in dev since we don't have the prerender pass

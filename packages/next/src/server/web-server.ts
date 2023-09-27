@@ -45,8 +45,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   constructor(options: WebServerOptions) {
     super(options)
 
-    console.log('WebServer')
-
     // Extend `renderOpts`.
     Object.assign(this.renderOpts, options.webServerConfig.extendRenderOpts)
   }

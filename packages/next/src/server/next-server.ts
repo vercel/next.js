@@ -1047,17 +1047,6 @@ export default class NextNodeServer extends BaseServer {
           }
           const reqEnd = Date.now()
           const fetchMetrics = (normalizedReq as any).fetchMetrics || []
-          // @ts-ignore
-          console.trace(
-            'next-server:fetchMetrics',
-            fetchMetrics,
-            'normalizedReq',
-            normalizedReq.constructor.name,
-            'originalRequest',
-            origReq.constructor.name,
-            'req',
-            req.constructor.name
-          )
           const reqDuration = reqEnd - reqStart
 
           const getDurationStr = (duration: number) => {
@@ -1517,28 +1506,26 @@ export default class NextNodeServer extends BaseServer {
     const method = (params.request.method || 'GET').toUpperCase()
     const { run } = require('./web/sandbox') as typeof import('./web/sandbox')
 
-    const sandboxRequest = {
-      headers: params.request.headers,
-      method,
-      nextConfig: {
-        basePath: this.nextConfig.basePath,
-        i18n: this.nextConfig.i18n,
-        trailingSlash: this.nextConfig.trailingSlash,
-      },
-      url: url,
-      page,
-      body: getRequestMeta(params.request, '__NEXT_CLONABLE_BODY'),
-      signal: signalFromNodeResponse(
-        (params.response as NodeNextResponse).originalResponse
-      ),
-    }
-
     const result = await run({
       distDir: this.distDir,
       name: middlewareInfo.name,
       paths: middlewareInfo.paths,
       edgeFunctionEntry: middlewareInfo,
-      request: sandboxRequest,
+      request: {
+        headers: params.request.headers,
+        method,
+        nextConfig: {
+          basePath: this.nextConfig.basePath,
+          i18n: this.nextConfig.i18n,
+          trailingSlash: this.nextConfig.trailingSlash,
+        },
+        url: url,
+        page,
+        body: getRequestMeta(params.request, '__NEXT_CLONABLE_BODY'),
+        signal: signalFromNodeResponse(
+          (params.response as NodeNextResponse).originalResponse
+        ),
+      },
       useCache: true,
       onWarning: params.onWarning,
     })
@@ -1827,31 +1814,29 @@ export default class NextNodeServer extends BaseServer {
     }
 
     const { run } = require('./web/sandbox') as typeof import('./web/sandbox')
-
-    const sandboxRequest = {
-      headers: params.req.headers,
-      method: params.req.method,
-      nextConfig: {
-        basePath: this.nextConfig.basePath,
-        i18n: this.nextConfig.i18n,
-        trailingSlash: this.nextConfig.trailingSlash,
-      },
-      url,
-      page: {
-        name: params.page,
-        ...(params.params && { params: params.params }),
-      },
-      body: getRequestMeta(params.req, '__NEXT_CLONABLE_BODY'),
-      signal: signalFromNodeResponse(
-        (params.res as NodeNextResponse).originalResponse
-      ),
-    }
     const result = await run({
       distDir: this.distDir,
       name: edgeInfo.name,
       paths: edgeInfo.paths,
       edgeFunctionEntry: edgeInfo,
-      request: sandboxRequest,
+      request: {
+        headers: params.req.headers,
+        method: params.req.method,
+        nextConfig: {
+          basePath: this.nextConfig.basePath,
+          i18n: this.nextConfig.i18n,
+          trailingSlash: this.nextConfig.trailingSlash,
+        },
+        url,
+        page: {
+          name: params.page,
+          ...(params.params && { params: params.params }),
+        },
+        body: getRequestMeta(params.req, '__NEXT_CLONABLE_BODY'),
+        signal: signalFromNodeResponse(
+          (params.res as NodeNextResponse).originalResponse
+        ),
+      },
       useCache: true,
       onWarning: params.onWarning,
       incrementalCache:
