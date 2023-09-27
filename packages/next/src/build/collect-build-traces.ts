@@ -359,12 +359,16 @@ export async function collectBuildTraces({
               path.relative(outputFileTracingRoot, file)
             )
             for (const curFile of curFiles || []) {
-              tracedFiles.add(
-                path.relative(
-                  distDir,
-                  path.join(outputFileTracingRoot, curFile)
-                )
-              )
+              const filePath = path.join(outputFileTracingRoot, curFile)
+
+              if (
+                !isMatch(filePath, '**/next/dist/pages/**/*', {
+                  dot: true,
+                  contains: true,
+                })
+              ) {
+                tracedFiles.add(path.relative(distDir, filePath))
+              }
             }
           }
         }
@@ -513,7 +517,7 @@ export async function collectBuildTraces({
       page = normalizePagePath(page)
 
       for (const curGlob of includeGlobKeys) {
-        if (isMatch(page, [curGlob])) {
+        if (isMatch(page, [curGlob], { dot: true, contains: true })) {
           outputFileTracingIncludes[curGlob].forEach((include) => {
             combinedIncludes.add(include)
           })
@@ -521,7 +525,7 @@ export async function collectBuildTraces({
       }
 
       for (const curGlob of excludeGlobKeys) {
-        if (isMatch(page, [curGlob])) {
+        if (isMatch(page, [curGlob], { dot: true, contains: true })) {
           outputFileTracingExcludes[curGlob].forEach((exclude) => {
             combinedExcludes.add(exclude)
           })
@@ -562,7 +566,12 @@ export async function collectBuildTraces({
           path.join(dir, exclude)
         )
         combined.forEach((file) => {
-          if (isMatch(path.join(pageDir, file), resolvedGlobs)) {
+          if (
+            isMatch(path.join(pageDir, file), resolvedGlobs, {
+              dot: true,
+              contains: true,
+            })
+          ) {
             combined.delete(file)
           }
         })
