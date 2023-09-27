@@ -1,6 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import { loadScript } from 'next/script'
 
+declare global {
+  interface Window {
+    dataLayer: Object[] | undefined
+  }
+}
+
 type GTMParams = {
   id: string
   dataLayer: string[]
@@ -10,7 +16,7 @@ type GTMParams = {
 }
 
 export default function useGoogleTagManager() {
-  const [initParams, setInitParams] = useState()
+  const [initParams, setInitParams] = useState<GTMParams>()
   const init = useCallback(
     (params: GTMParams) => {
       if (initParams === undefined) {
@@ -24,10 +30,11 @@ export default function useGoogleTagManager() {
     (data: Object) => {
       if (initParams === undefined) {
         console.warn('GTM has not been initialized yet.')
+        return
       }
 
       const { dataLayerName = 'dataLayer' } = initParams
-      if (dataLayerName && window[dataLayerName]) {
+      if (window[dataLayerName]) {
         window[dataLayerName].push(data)
       } else {
         console.warn(`dataLayer ${dataLayerName} does not exist`)
