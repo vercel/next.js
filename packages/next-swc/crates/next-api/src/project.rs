@@ -402,7 +402,6 @@ impl Project {
         get_server_chunking_context(
             self.project_path(),
             self.node_root(),
-            // self.client_root(),
             self.client_relative_path(),
             self.next_config().computed_asset_prefix(),
             self.server_compile_time_info().environment(),
