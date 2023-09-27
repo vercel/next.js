@@ -7,6 +7,10 @@ import type {
 
 const buildId = 'development'
 
+const globalMutable = {
+  refresh: () => {},
+}
+
 jest.mock('../fetch-server-response', () => {
   const flightData: FlightData = [
     [
@@ -41,7 +45,7 @@ jest.mock('../fetch-server-response', () => {
 import {
   CacheNode,
   CacheStates,
-} from '../../../../shared/lib/app-router-context'
+} from '../../../../shared/lib/app-router-context.shared-runtime'
 import { createInitialRouterState } from '../create-initial-router-state'
 import {
   ServerPatchAction,
@@ -184,7 +188,7 @@ describe('serverPatchReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: {},
+      mutable: { globalMutable },
     }
 
     const newState = await runPromiseThrowChain(() =>
@@ -375,7 +379,7 @@ describe('serverPatchReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: {},
+      mutable: { globalMutable },
     }
 
     await runPromiseThrowChain(() => serverPatchReducer(state, action))
@@ -514,7 +518,7 @@ describe('serverPatchReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: {},
+      mutable: { globalMutable },
     }
 
     const state = createInitialRouterState({
@@ -556,7 +560,7 @@ describe('serverPatchReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: {},
+      mutable: { globalMutable },
     }
 
     const newState = await runPromiseThrowChain(() =>

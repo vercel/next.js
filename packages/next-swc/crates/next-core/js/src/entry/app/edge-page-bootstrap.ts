@@ -22,13 +22,14 @@ const MIME_TEXT_HTML_UTF8 = 'text/html; charset=utf-8'
 async function render(request: NextRequest, event: NextFetchEvent) {
   const renderOpt: Omit<
     RenderOpts,
-    'App' | 'Document' | 'Component' | 'pathname'
+    'App' | 'Document' | 'Component' | 'page'
   > & { params: ParsedUrlQuery } = {
     // TODO(WEB-1195) params
     params: {},
     supportsDynamicHTML: true,
     dev: true,
     buildId: 'development',
+    basePath: '',
     buildManifest: {
       polyfillFiles: [],
       rootMainFiles: BOOTSTRAP.filter((path) => path.endsWith('.js')),

@@ -3,37 +3,31 @@
 import { join } from 'path'
 import cheerio from 'cheerio'
 import {
-  nextServer,
   nextBuild,
-  startApp,
-  stopApp,
   renderViaHTTP,
   findPort,
   launchApp,
   killApp,
+  nextStart,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 let appPort
-let server
 let app
 
 const context = {}
 
 describe('disabled runtime JS', () => {
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
-      await nextBuild(appDir)
-      app = nextServer({
-        dir: join(__dirname, '../'),
-        dev: false,
-        quiet: true,
-      })
+      appPort = await findPort()
 
-      server = await startApp(app)
-      context.appPort = appPort = server.address().port
+      await nextBuild(appDir)
+      app = await nextStart(appDir, appPort)
+
+      context.appPort = appPort
     })
-    afterAll(() => stopApp(server))
+    afterAll(() => killApp(app))
 
     it('should render the page', async () => {
       const html = await renderViaHTTP(appPort, '/')

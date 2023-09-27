@@ -36,7 +36,10 @@ function getContentType(resourcePath: string) {
 }
 
 // Strip metadata resource query string from `import.meta.url` to make sure the fs.readFileSync get the right path.
-async function getStaticRouteCode(resourcePath: string, fileBaseName: string) {
+async function getStaticAssetRouteCode(
+  resourcePath: string,
+  fileBaseName: string
+) {
   const cache =
     fileBaseName === 'favicon'
       ? 'public, max-age=0, must-revalidate'
@@ -93,9 +96,9 @@ export async function GET() {
 function getDynamicImageRouteCode(resourcePath: string) {
   return `\
 import { NextResponse } from 'next/server'
-import * as _imageModule from ${JSON.stringify(resourcePath)}
+import * as userland from ${JSON.stringify(resourcePath)}
 
-const imageModule = { ..._imageModule }
+const imageModule = { ...userland }
 
 const handler = imageModule.default
 const generateImageMetadata = imageModule.generateImageMetadata
@@ -148,14 +151,17 @@ export async function generateStaticParams() {
 
   const code = `\
 import { NextResponse } from 'next/server'
-import * as _sitemapModule from ${JSON.stringify(resourcePath)}
+import * as userland from ${JSON.stringify(resourcePath)}
 import { resolveRouteData } from 'next/dist/build/webpack/loaders/metadata/resolve-route-data'
 
-const sitemapModule = { ..._sitemapModule }
+const sitemapModule = { ...userland }
 const handler = sitemapModule.default
 const generateSitemaps = sitemapModule.generateSitemaps
 const contentType = ${JSON.stringify(getContentType(resourcePath))}
 const fileType = ${JSON.stringify(getFilenameAndExtension(resourcePath).name)}
+
+${'' /* re-export the userland route configs */}
+export * from ${JSON.stringify(resourcePath)}
 
 export async function GET(_, ctx) {
   const { __metadata_id__ = [], ...params } = ctx.params || {}
@@ -213,7 +219,7 @@ const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLo
         code = getDynamicImageRouteCode(resourcePath)
       }
     } else {
-      code = await getStaticRouteCode(resourcePath, fileBaseName)
+      code = await getStaticAssetRouteCode(resourcePath, fileBaseName)
     }
 
     return code

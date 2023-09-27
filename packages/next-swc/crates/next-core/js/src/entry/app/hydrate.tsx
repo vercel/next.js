@@ -6,7 +6,7 @@ import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-we
 import { callServer } from 'next/dist/client/app-call-server'
 import { linkGc } from 'next/dist/client/app-link-gc'
 
-import { HeadManagerContext } from 'next/dist/shared/lib/head-manager-context'
+import { HeadManagerContext } from 'next/dist/shared/lib/head-manager-context.shared-runtime'
 
 import { initializeHMR } from '@vercel/turbopack-next/dev/client'
 
@@ -25,8 +25,6 @@ globalThis.__next_require__ = (data) => {
 }
 globalThis.__next_chunk_load__ = __turbopack_load__
 
-process.env.__NEXT_NEW_LINK_BEHAVIOR = 'true'
-
 const appElement = document
 
 const getCacheKey = () => {
@@ -41,12 +39,17 @@ let initialServerDataWriter: ReadableStreamDefaultController | undefined =
 let initialServerDataLoaded = false
 let initialServerDataFlushed = false
 
+let initialFormStateData: null | any = null
+
 function nextServerDataCallback(
-  seg: [isBootStrap: 0] | [isNotBootstrap: 1, responsePartial: string]
+  seg:
+    | [isBootStrap: 0]
+    | [isNotBootstrap: 1, responsePartial: string]
+    | [isFormState: 2, formState: any]
 ): number {
   if (seg[0] === 0) {
     initialServerDataBuffer = []
-  } else {
+  } else if (seg[0] === 1) {
     if (!initialServerDataBuffer)
       throw new Error('Unexpected server data: missing bootstrap script.')
 
@@ -55,6 +58,8 @@ function nextServerDataCallback(
     } else {
       initialServerDataBuffer.push(seg[1])
     }
+  } else if (seg[0] === 2) {
+    initialFormStateData = seg[1]
   }
   return 0
 }
@@ -151,7 +156,9 @@ function hydrate() {
     reactRoot.render(reactEl)
   } else {
     React.startTransition(() => {
-      ReactDOMClient.hydrateRoot(appElement, reactEl)
+      ;(ReactDOMClient as any).hydrateRoot(appElement, reactEl, {
+        experimental_formState: initialFormStateData,
+      })
     })
   }
 

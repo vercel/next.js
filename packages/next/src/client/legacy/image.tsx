@@ -16,7 +16,7 @@ import {
   VALID_LOADERS,
 } from '../../shared/lib/image-config'
 import { useIntersection } from '../use-intersection'
-import { ImageConfigContext } from '../../shared/lib/image-config-context'
+import { ImageConfigContext } from '../../shared/lib/image-config-context.shared-runtime'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
 import { normalizePathTrailingSlash } from '../normalize-trailing-slash'
 
@@ -672,7 +672,7 @@ export default function Image({
   let isLazy =
     !priority && (loading === 'lazy' || typeof loading === 'undefined')
   if (src.startsWith('data:') || src.startsWith('blob:')) {
-    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
+    // https://developer.mozilla.org/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
     unoptimized = true
     isLazy = false
   }

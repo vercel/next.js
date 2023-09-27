@@ -10,6 +10,14 @@ export const COMPILER_NAMES = {
   edgeServer: 'edge-server',
 } as const
 
+export const INTERNAL_HEADERS = [
+  'x-invoke-path',
+  'x-invoke-status',
+  'x-invoke-error',
+  'x-invoke-query',
+  'x-middleware-invoke',
+] as const
+
 export type CompilerNameValues = ValueOf<typeof COMPILER_NAMES>
 
 export const COMPILER_INDEXES: {
@@ -53,6 +61,7 @@ export const CLIENT_PUBLIC_FILES_PATH = 'public'
 export const CLIENT_STATIC_FILES_PATH = 'static'
 export const STRING_LITERAL_DROP_BUNDLE = '__NEXT_DROP_CLIENT_FILE__'
 export const NEXT_BUILTIN_DOCUMENT = '__NEXT_BUILTIN_DOCUMENT__'
+export const BARREL_OPTIMIZATION_PREFIX = '__barrel_optimize__'
 
 // server/[entry]/page_client-reference-manifest.js
 export const CLIENT_REFERENCE_MANIFEST = 'client-reference-manifest'

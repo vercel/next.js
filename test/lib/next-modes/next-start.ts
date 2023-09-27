@@ -3,6 +3,7 @@ import fs from 'fs-extra'
 import { NextInstance } from './base'
 import spawn from 'cross-spawn'
 import { Span } from 'next/src/trace'
+import stripAnsi from 'strip-ansi'
 
 export class NextStartInstance extends NextInstance {
   private _buildId: string
@@ -64,6 +65,16 @@ export class NextStartInstance extends NextInstance {
       startArgs = this.startCommand.split(' ')
     }
 
+    if (process.env.NEXT_SKIP_ISOLATE) {
+      // without isolation yarn can't be used and pnpm must be used instead
+      if (buildArgs[0] === 'yarn') {
+        buildArgs[0] = 'pnpm'
+      }
+      if (startArgs[0] === 'yarn') {
+        startArgs[0] = 'pnpm'
+      }
+    }
+
     console.log('running', buildArgs.join(' '))
     await new Promise<void>((resolve, reject) => {
       try {
@@ -122,8 +133,14 @@ export class NextStartInstance extends NextInstance {
         })
 
         const readyCb = (msg) => {
-          if (msg.includes('started server on') && msg.includes('url:')) {
-            this._url = msg.split('url: ').pop().split(/\s/)[0].trim()
+          const colorStrippedMsg = stripAnsi(msg)
+          if (colorStrippedMsg.includes('- Local:')) {
+            this._url = msg
+              .split('\n')
+              .find((line) => line.includes('- Local:'))
+              .split(/\s*- Local:/)
+              .pop()
+              .trim()
             this._parsedUrl = new URL(this._url)
             this.off('stdout', readyCb)
             resolve()

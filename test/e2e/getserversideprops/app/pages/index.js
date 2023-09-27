@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import ReactDOM from 'react-dom/server'
-import { RouterContext } from 'next/dist/shared/lib/router-context'
+import { RouterContext } from 'next/dist/shared/lib/router-context.shared-runtime'
 import { useRouter } from 'next/router'
 
 function RouterComp(props) {

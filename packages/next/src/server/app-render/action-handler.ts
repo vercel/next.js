@@ -19,10 +19,10 @@ import {
   isRedirectError,
 } from '../../client/components/redirect'
 import RenderResult from '../render-result'
-import { StaticGenerationStore } from '../../client/components/static-generation-async-storage'
+import { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import { FlightRenderResult } from './flight-render-result'
 import { ActionResult } from './types'
-import { ActionAsyncStorage } from '../../client/components/action-async-storage'
+import { ActionAsyncStorage } from '../../client/components/action-async-storage.external'
 import {
   filterReqHeaders,
   actionsForbiddenHeaders,
@@ -31,7 +31,12 @@ import {
   appendMutableCookies,
   getModifiedCookieValues,
 } from '../web/spec-extension/adapters/request-cookies'
-import { RequestStore } from '../../client/components/request-async-storage'
+
+import { RequestStore } from '../../client/components/request-async-storage.external'
+import {
+  NEXT_CACHE_REVALIDATED_TAGS_HEADER,
+  NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
+} from '../../lib/constants'
 
 function nodeToWebReadableStream(nodeReadable: import('stream').Readable) {
   if (process.env.NEXT_RUNTIME !== 'edge') {
@@ -178,11 +183,11 @@ async function createRedirectRenderResult(
 
     if (staticGenerationStore.revalidatedTags) {
       forwardedHeaders.set(
-        'x-next-revalidated-tags',
+        NEXT_CACHE_REVALIDATED_TAGS_HEADER,
         staticGenerationStore.revalidatedTags.join(',')
       )
       forwardedHeaders.set(
-        'x-next-revalidate-tag-token',
+        NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
         staticGenerationStore.incrementalCache?.prerenderManifest?.preview
           ?.previewModeId || ''
       )
@@ -235,7 +240,7 @@ export async function handleAction({
   req,
   res,
   ComponentMod,
-  pathname,
+  page,
   serverActionsManifest,
   generateFlight,
   staticGenerationStore,
@@ -245,17 +250,28 @@ export async function handleAction({
   req: IncomingMessage
   res: ServerResponse
   ComponentMod: any
-  pathname: string
+  page: string
   serverActionsManifest: any
   generateFlight: (options: {
     actionResult: ActionResult
+    formState?: any
     skipFlight: boolean
     asNotFound?: boolean
   }) => Promise<RenderResult>
   staticGenerationStore: StaticGenerationStore
   requestStore: RequestStore
   serverActionsBodySizeLimit?: SizeLimit
-}): Promise<undefined | RenderResult | 'not-found'> {
+}): Promise<
+  | undefined
+  | {
+      type: 'not-found'
+    }
+  | {
+      type: 'done'
+      result: RenderResult | undefined
+      formState?: any
+    }
+> {
   let actionId = req.headers[ACTION.toLowerCase()] as string
   const contentType = req.headers['content-type']
   const isURLEncodedAction =
@@ -276,7 +292,7 @@ export async function handleAction({
     )
     let bound = []
 
-    const workerName = 'app' + pathname
+    const workerName = 'app' + page
     const serverModuleMap = new Proxy(
       {},
       {
@@ -297,12 +313,13 @@ export async function handleAction({
     }
 
     let actionResult: RenderResult | undefined
+    let formState: any | undefined
 
     try {
       await actionAsyncStorage.run({ isAction: true }, async () => {
         if (process.env.NEXT_RUNTIME === 'edge') {
           // Use react-server-dom-webpack/server.edge
-          const { decodeReply, decodeAction } = ComponentMod
+          const { decodeReply, decodeAction, decodeFormState } = ComponentMod
 
           const webRequest = req as unknown as WebNextRequest
           if (!webRequest.body) {
@@ -316,7 +333,9 @@ export async function handleAction({
               bound = await decodeReply(formData, serverModuleMap)
             } else {
               const action = await decodeAction(formData, serverModuleMap)
-              await action()
+              const actionReturnedState = await action()
+              formState = decodeFormState(actionReturnedState, formData)
+
               // Skip the fetch path
               return
             }
@@ -346,6 +365,7 @@ export async function handleAction({
             decodeReply,
             decodeReplyFromBusboy,
             decodeAction,
+            decodeFormState,
           } = require(`react-server-dom-webpack/server.node`)
 
           if (isMultipartAction) {
@@ -367,7 +387,9 @@ export async function handleAction({
               })
               const formData = await fakeRequest.formData()
               const action = await decodeAction(formData, serverModuleMap)
-              await action()
+              const actionReturnedState = await action()
+              formState = await decodeFormState(actionReturnedState, formData)
+
               // Skip the fetch path
               return
             }
@@ -385,7 +407,7 @@ export async function handleAction({
                 // Exceeded the size limit
                 e.message =
                   e.message +
-                  '\nTo configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions#size-limitation'
+                  '\nTo configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/server-actions#size-limitation'
               }
               throw e
             }
@@ -401,7 +423,7 @@ export async function handleAction({
 
         // actions.js
         // app/page.js
-        //   action woker1
+        //   action worker1
         //     appRender1
 
         // app/foo/page.js
@@ -435,7 +457,11 @@ export async function handleAction({
         }
       })
 
-      return actionResult
+      return {
+        type: 'done',
+        result: actionResult,
+        formState,
+      }
     } catch (err) {
       if (isRedirectError(err)) {
         const redirectUrl = getURLFromRedirectError(err)
@@ -448,12 +474,15 @@ export async function handleAction({
         })
 
         if (isFetchAction) {
-          return createRedirectRenderResult(
-            req,
-            res,
-            redirectUrl,
-            staticGenerationStore
-          )
+          return {
+            type: 'done',
+            result: await createRedirectRenderResult(
+              req,
+              res,
+              redirectUrl,
+              staticGenerationStore
+            ),
+          }
         }
 
         if (err.mutableCookies) {
@@ -468,7 +497,10 @@ export async function handleAction({
 
         res.setHeader('Location', redirectUrl)
         res.statusCode = 303
-        return new RenderResult('')
+        return {
+          type: 'done',
+          result: new RenderResult(''),
+        }
       } else if (isNotFoundError(err)) {
         res.statusCode = 404
 
@@ -481,14 +513,19 @@ export async function handleAction({
           const promise = Promise.reject(err)
           try {
             await promise
-          } catch (_) {}
-          return generateFlight({
-            skipFlight: false,
-            actionResult: promise,
-            asNotFound: true,
-          })
+          } catch {}
+          return {
+            type: 'done',
+            result: await generateFlight({
+              skipFlight: false,
+              actionResult: promise,
+              asNotFound: true,
+            }),
+          }
         }
-        return 'not-found'
+        return {
+          type: 'not-found',
+        }
       }
 
       if (isFetchAction) {
@@ -497,13 +534,16 @@ export async function handleAction({
         const promise = Promise.reject(err)
         try {
           await promise
-        } catch (_) {}
+        } catch {}
 
-        return generateFlight({
-          actionResult: promise,
-          // if the page was not revalidated, we can skip the rendering the flight tree
-          skipFlight: !staticGenerationStore.pathWasRevalidated,
-        })
+        return {
+          type: 'done',
+          result: await generateFlight({
+            actionResult: promise,
+            // if the page was not revalidated, we can skip the rendering the flight tree
+            skipFlight: !staticGenerationStore.pathWasRevalidated,
+          }),
+        }
       }
 
       throw err

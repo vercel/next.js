@@ -23,7 +23,7 @@ createNextDescribe(
 
       it('should not output /404 in tree view logs', async () => {
         const output = await next.cliOutput
-        expect(output).not.toContain('/404')
+        expect(output).not.toContain('○ /404')
       })
 
       it('should use root not-found content for 404 html', async () => {

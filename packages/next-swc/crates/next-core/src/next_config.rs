@@ -83,7 +83,11 @@ pub struct NextConfig {
     pub react_strict_mode: Option<bool>,
     pub transpile_packages: Option<Vec<String>>,
     pub modularize_imports: Option<IndexMap<String, ModularizeImportPackageConfig>>,
+    pub dist_dir: Option<String>,
     sass_options: Option<serde_json::Value>,
+    pub trailing_slash: Option<bool>,
+    pub asset_prefix: Option<String>,
+    pub base_path: Option<String>,
 
     // Partially supported
     pub compiler: Option<CompilerConfig>,
@@ -94,12 +98,9 @@ pub struct NextConfig {
     cross_origin: Option<String>,
     amp: AmpConfig,
     analytics_id: String,
-    asset_prefix: String,
-    base_path: String,
     clean_dist_dir: bool,
     compress: bool,
     dev_indicators: DevIndicatorsConfig,
-    dist_dir: String,
     eslint: EslintConfig,
     exclude_default_moment_locales: bool,
     // this can be a function in js land
@@ -119,7 +120,6 @@ pub struct NextConfig {
     static_page_generation_timeout: f64,
     swc_minify: Option<bool>,
     target: Option<String>,
-    trailing_slash: bool,
     typescript: TypeScriptConfig,
     use_file_system_public_routes: bool,
     webpack: Option<serde_json::Value>,
@@ -376,7 +376,7 @@ pub enum RemotePatternProtocal {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct ExperimentalTurboConfig {
-    /// This option has been replace by `rules`.
+    /// This option has been replaced by `rules`.
     pub loaders: Option<JsonValue>,
     pub rules: Option<IndexMap<String, RuleConfigItem>>,
     pub resolve_alias: Option<IndexMap<String, JsonValue>>,
@@ -403,7 +403,7 @@ pub enum LoaderItem {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct ExperimentalConfig {
-    pub app_dir: Option<bool>,
+    pub strict_next_head: Option<bool>,
     pub server_components_external_packages: Option<Vec<String>>,
     pub turbo: Option<ExperimentalTurboConfig>,
     pub allowed_revalidate_header_keys: Option<Vec<String>>,
@@ -412,9 +412,13 @@ pub struct ExperimentalConfig {
     pub isr_flush_to_disk: Option<bool>,
     mdx_rs: Option<bool>,
     pub swc_plugins: Option<Vec<(String, serde_json::Value)>>,
+    // This is used in Next.js, doesn't require compiler changes.
+    client_router_filter_redirects: Option<bool>,
+    // Doesn't apply to Turbopack.
+    webpack_build_worker: Option<bool>,
 
     // unsupported
-    adjust_font_fallbacks: Option<bool>,
+    optimize_package_imports: Option<Vec<String>>,
     adjust_font_fallbacks_with_size_adjust: Option<bool>,
     allow_middleware_response_body: Option<bool>,
     amp: Option<serde_json::Value>,
@@ -422,35 +426,25 @@ pub struct ExperimentalConfig {
     cra_compat: Option<bool>,
     disable_optimized_loading: Option<bool>,
     disable_postcss_preset_env: Option<bool>,
-    enable_undici: Option<bool>,
     esm_externals: Option<serde_json::Value>,
     external_dir: Option<bool>,
     fallback_node_polyfills: Option<bool>,
-    fetch_cache: Option<bool>,
     font_loaders: Option<serde_json::Value>,
     force_swc_transforms: Option<bool>,
     fully_specified: Option<bool>,
     gzip_size: Option<bool>,
     incremental_cache_handler_path: Option<String>,
     large_page_data_bytes: Option<f64>,
-    legacy_browsers: Option<bool>,
     manual_client_base_path: Option<bool>,
     middleware_prefetch: Option<MiddlewarePrefetchType>,
-    new_next_link_behavior: Option<bool>,
     next_script_workers: Option<bool>,
     optimistic_client_cache: Option<bool>,
     optimize_css: Option<serde_json::Value>,
     output_file_tracing_ignores: Option<Vec<String>>,
     output_file_tracing_root: Option<String>,
-    page_env: Option<bool>,
-    profiling: Option<bool>,
     proxy_timeout: Option<f64>,
-    runtime: Option<serde_json::Value>,
     scroll_restoration: Option<bool>,
-    shared_pool: Option<bool>,
     sri: Option<serde_json::Value>,
-    swc_file_reading: Option<bool>,
-    swc_minify: Option<bool>,
     swc_minify_debug_options: Option<serde_json::Value>,
     swc_trace_profiling: Option<bool>,
     transpile_packages: Option<Vec<String>>,
@@ -521,18 +515,6 @@ impl NextConfig {
             self.await?
                 .experimental
                 .server_components_external_packages
-                .as_ref()
-                .cloned()
-                .unwrap_or_default(),
-        ))
-    }
-
-    #[turbo_tasks::function]
-    pub async fn app_dir(self: Vc<Self>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(
-            self.await?
-                .experimental
-                .app_dir
                 .as_ref()
                 .cloned()
                 .unwrap_or_default(),

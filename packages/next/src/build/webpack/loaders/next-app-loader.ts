@@ -21,7 +21,9 @@ import { AppPathnameNormalizer } from '../../../server/future/normalizers/built/
 import { AppBundlePathNormalizer } from '../../../server/future/normalizers/built/app/app-bundle-path-normalizer'
 import { MiddlewareConfig } from '../../analysis/get-page-static-info'
 import { getFilenameAndExtension } from './next-metadata-route-loader'
-import { loadEntrypoint } from './next-route-loader/load-entrypoint'
+import { isAppBuiltinNotFoundPage } from '../../utils'
+import { loadEntrypoint } from '../../load-entrypoint'
+import { isGroupSegment } from '../../../shared/lib/segment'
 
 export type AppLoaderOptions = {
   name: string
@@ -177,9 +179,13 @@ async function createTreeCodeFromPath(
   globalError: string | undefined
 }> {
   const splittedPath = pagePath.split(/[\\/]/)
-  const appDirPrefix = splittedPath[0]
-  const pages: string[] = []
   const isNotFoundRoute = page === '/_not-found'
+  const isDefaultNotFound = isAppBuiltinNotFoundPage(pagePath)
+  const appDirPrefix = isDefaultNotFound ? APP_DIR_ALIAS : splittedPath[0]
+  const hasRootNotFound = await resolver(
+    `${appDirPrefix}/${FILE_TYPES['not-found']}`
+  )
+  const pages: string[] = []
 
   let rootLayout: string | undefined
   let globalError: string | undefined
@@ -225,6 +231,7 @@ async function createTreeCodeFromPath(
 
     // Existing tree are the children of the current segment
     const props: Record<string, string> = {}
+    // Root layer could be 1st layer of normal routes
     const isRootLayer = segments.length === 0
     const isRootLayoutOrRootPage = segments.length <= 1
 
@@ -239,7 +246,10 @@ async function createTreeCodeFromPath(
     let metadata: Awaited<ReturnType<typeof createStaticMetadataFromRoute>> =
       null
     const routerDirPath = `${appDirPrefix}${segmentPath}`
-    const resolvedRouteDir = await resolveDir(routerDirPath)
+    // For default not-found, don't traverse the directory to find metadata.
+    const resolvedRouteDir = isDefaultNotFound
+      ? ''
+      : await resolveDir(routerDirPath)
 
     if (resolvedRouteDir) {
       metadata = await createStaticMetadataFromRoute(resolvedRouteDir, {
@@ -314,11 +324,18 @@ async function createTreeCodeFromPath(
       )
 
       // Add default not found error as root not found if not present
-      const hasNotFound = definedFilePaths.some(
+      const hasNotFoundFile = definedFilePaths.some(
         ([type]) => type === 'not-found'
       )
-      if (isRootLayer && !hasNotFound) {
-        definedFilePaths.push(['not-found', defaultNotFoundPath])
+      // If the first layer is a group route, we treat it as root layer
+      const isFirstLayerGroupRoute =
+        segments.length === 1 &&
+        subSegmentPath.filter((seg) => isGroupSegment(seg)).length === 1
+      if ((isRootLayer || isFirstLayerGroupRoute) && !hasNotFoundFile) {
+        // If you already have a root not found, don't insert default not-found to group routes root
+        if (!(hasRootNotFound && isFirstLayerGroupRoute)) {
+          definedFilePaths.push(['not-found', defaultNotFoundPath])
+        }
       }
 
       if (!rootLayout) {
@@ -326,6 +343,11 @@ async function createTreeCodeFromPath(
           ([type]) => type === 'layout'
         )?.[1]
         rootLayout = layoutPath
+
+        if (isDefaultNotFound && !layoutPath) {
+          rootLayout = 'next/dist/client/components/default-layout'
+          definedFilePaths.push(['layout', rootLayout])
+        }
 
         if (layoutPath) {
           globalError = await resolver(

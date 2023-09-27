@@ -261,7 +261,7 @@ If you need to read dynamic values from the incoming request, you cannot use a s
 
 ### Browser APIs
 
-Client Components are pre-rendered to HTML during `next build`. Because [Web APIs](https://developer.mozilla.org/en-US/docs/Web/API) like `window`, `localStorage`, and `navigator` are not available on the server, you need to safely access these APIs only when running in the browser. For example:
+Client Components are pre-rendered to HTML during `next build`. Because [Web APIs](https://developer.mozilla.org/docs/Web/API) like `window`, `localStorage`, and `navigator` are not available on the server, you need to safely access these APIs only when running in the browser. For example:
 
 ```jsx
 'use client';
@@ -288,7 +288,7 @@ Features that require a Node.js server, or dynamic logic that cannot be computed
 
 - [Dynamic Routes](/docs/app/building-your-application/routing/dynamic-routes) with `dynamicParams: true`
 - [Dynamic Routes](/docs/app/building-your-application/routing/dynamic-routes) without `generateStaticParams()`
-- [Route Handlers](/app/building-your-application/routing/route-handlers) that rely on Request
+- [Route Handlers](/docs/app/building-your-application/routing/route-handlers) that rely on Request
 - [Cookies](/docs/app/api-reference/functions/cookies)
 - [Rewrites](/docs/app/api-reference/next-config-js/rewrites)
 - [Redirects](/docs/app/api-reference/next-config-js/redirects)

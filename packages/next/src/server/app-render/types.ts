@@ -3,6 +3,7 @@ import type { ServerRuntime, SizeLimit } from '../../../types'
 import { NextConfigComplete } from '../../server/config-shared'
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
+import type { ParsedUrlQuery } from 'querystring'
 
 import zod from 'zod'
 
@@ -124,6 +125,7 @@ export type RenderOptsPartial = {
   err?: Error | null
   dev?: boolean
   buildId: string
+  basePath: string
   clientReferenceManifest?: ClientReferenceManifest
   supportsDynamicHTML: boolean
   runtime?: ServerRuntime
@@ -148,6 +150,7 @@ export type RenderOptsPartial = {
     silent?: boolean
   ) => Promise<NextConfigComplete>
   serverActionsBodySizeLimit?: SizeLimit
+  params?: ParsedUrlQuery
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial

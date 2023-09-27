@@ -110,7 +110,7 @@ impl<C: Comments> ServerActions<C> {
                         handler
                             .struct_span_err(
                                 body.span,
-                                "It is not allowed to define inline \"use server\" annotated Server Actions in Client Components.\nTo use Server Actions in a Client Component, you can either export them from a separate file with \"use server\" at the top, or pass them down through props from a Server Component.\n\nRead more: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions#with-client-components\n",
+                                "It is not allowed to define inline \"use server\" annotated Server Actions in Client Components.\nTo use Server Actions in a Client Component, you can either export them from a separate file with \"use server\" at the top, or pass them down through props from a Server Component.\n\nRead more: https://nextjs.org/docs/app/api-reference/server-actions#with-client-components\n",
                             )
                             .emit()
                     });
@@ -898,13 +898,16 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             // wrapped by a reference creation call.
             let create_ref_ident = private_ident!("createServerReference");
             if !self.config.is_server {
-                // import createServerReference from 'private-next-rsc-action-client-wrapper'
+                // import { createServerReference } from
+                // 'private-next-rsc-action-client-wrapper'
                 // createServerReference("action_id")
                 new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                     span: DUMMY_SP,
-                    specifiers: vec![ImportSpecifier::Default(ImportDefaultSpecifier {
+                    specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
                         span: DUMMY_SP,
                         local: create_ref_ident.clone(),
+                        imported: None,
+                        is_type_only: false,
                     })],
                     src: Box::new(Str {
                         span: DUMMY_SP,
@@ -912,7 +915,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         raw: None,
                     }),
                     type_only: false,
-                    asserts: None,
+                    with: None,
                 })));
             }
 
@@ -948,7 +951,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     declare: false,
                                     decls: vec![VarDeclarator {
                                         span: DUMMY_SP,
-                                        name: Pat::Ident(ident.into()),
+                                        name: Pat::Ident(
+                                            Ident::new(export_name.clone().into(), DUMMY_SP).into(),
+                                        ),
                                         init: Some(Box::new(Expr::Call(CallExpr {
                                             span: DUMMY_SP,
                                             callee: Callee::Expr(Box::new(Expr::Ident(
@@ -984,9 +989,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 let ensure_ident = private_ident!("ensureServerEntryExports");
                 new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                     span: DUMMY_SP,
-                    specifiers: vec![ImportSpecifier::Default(ImportDefaultSpecifier {
+                    specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
                         span: DUMMY_SP,
                         local: ensure_ident.clone(),
+                        imported: None,
+                        is_type_only: false,
                     })],
                     src: Box::new(Str {
                         span: DUMMY_SP,
@@ -994,7 +1001,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         raw: None,
                     }),
                     type_only: false,
-                    asserts: None,
+                    with: None,
                 })));
                 new.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                     span: DUMMY_SP,
@@ -1054,7 +1061,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             );
 
             // import { createActionProxy } from 'private-next-rsc-action-proxy'
-            // createServerReference("action_id")
+            // createActionProxy("action_id")
             new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                 span: DUMMY_SP,
                 specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
@@ -1069,7 +1076,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     raw: None,
                 }),
                 type_only: false,
-                asserts: None,
+                with: None,
             })));
             // Make it the first item
             new.rotate_right(1);
@@ -1254,7 +1261,7 @@ fn remove_server_directive_index_in_module(
                                 handler
                                     .struct_span_err(
                                         *span,
-                                        "To use Server Actions, please enable the feature flag in your Next.js config. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions#convention",
+                                        "To use Server Actions, please enable the feature flag in your Next.js config. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching/forms-and-mutations#convention",
                                     )
                                     .emit()
                             });
@@ -1353,7 +1360,7 @@ fn remove_server_directive_index_in_fn(
                             handler
                                 .struct_span_err(
                                     *span,
-                                    "To use Server Actions, please enable the feature flag in your Next.js config. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions#convention",
+                                    "To use Server Actions, please enable the feature flag in your Next.js config. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching/forms-and-mutations#convention",
                                 )
                                 .emit()
                         });

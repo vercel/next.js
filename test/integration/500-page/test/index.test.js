@@ -70,8 +70,7 @@ describe('500 Page Support', () => {
 
     runTests('dev')
   })
-
-  describe('server mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await fs.remove(join(appDir, '.next'))
       await nextBuild(appDir)

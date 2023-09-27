@@ -31,6 +31,9 @@ describe('Build Output', () => {
             )} };`
           )
         }
+        ;({ stdout } = await nextBuild(appDir, [], {
+          stdout: true,
+        }))
       })
 
       if (hasExperimentalConfig) {
@@ -40,10 +43,6 @@ describe('Build Output', () => {
       }
 
       it('should not include internal pages', async () => {
-        ;({ stdout } = await nextBuild(appDir, [], {
-          stdout: true,
-        }))
-
         expect(stdout).toMatch(/\/ (.* )?\d{1,} B/)
         expect(stdout).toMatch(/\+ First Load JS shared by all [ 0-9.]* kB/)
         expect(stdout).toMatch(/ chunks\/main-[0-9a-z]{16}\.js [ 0-9.]* kB/)
@@ -183,9 +182,9 @@ describe('Build Output', () => {
       })
 
       it('should not emit extracted comments', async () => {
-        const files = await recursiveReadDir(join(appDir, '.next'), (f) =>
-          /\.txt|\.LICENSE\./.test(f)
-        )
+        const files = await recursiveReadDir(join(appDir, '.next'), {
+          pathnameFilter: (f) => /\.txt|\.LICENSE\./.test(f),
+        })
         expect(files).toEqual([])
       })
     })

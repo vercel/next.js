@@ -14,11 +14,11 @@ import {
   LayoutRouterContext,
   GlobalLayoutRouterContext,
   CacheStates,
-} from '../../shared/lib/app-router-context'
+} from '../../shared/lib/app-router-context.shared-runtime'
 import type {
   CacheNode,
   AppRouterInstance,
-} from '../../shared/lib/app-router-context'
+} from '../../shared/lib/app-router-context.shared-runtime'
 import type {
   FlightRouterState,
   FlightData,
@@ -33,6 +33,7 @@ import {
   ACTION_RESTORE,
   ACTION_SERVER_ACTION,
   ACTION_SERVER_PATCH,
+  Mutable,
   PrefetchKind,
   ReducerActions,
   RouterChangeByServerResponse,
@@ -43,7 +44,7 @@ import { createHrefFromUrl } from './router-reducer/create-href-from-url'
 import {
   SearchParamsContext,
   PathnameContext,
-} from '../../shared/lib/hooks-client-context'
+} from '../../shared/lib/hooks-client-context.shared-runtime'
 import { useReducerWithReduxDevtools } from './use-reducer-with-devtools'
 import { ErrorBoundary } from './error-boundary'
 import {
@@ -59,7 +60,6 @@ import { createInfinitePromise } from './infinite-promise'
 import { NEXT_RSC_UNION_QUERY } from './app-router-headers'
 import { removeBasePath } from '../remove-base-path'
 import { hasBasePath } from '../has-base-path'
-
 const isServer = typeof window === 'undefined'
 
 // Ensure the initialParallelRoutes are not combined because of double-rendering in the browser with Strict Mode.
@@ -71,6 +71,10 @@ let globalServerActionDispatcher = null as ServerActionDispatcher | null
 
 export function getServerActionDispatcher() {
   return globalServerActionDispatcher
+}
+
+let globalMutable: Mutable['globalMutable'] = {
+  refresh: () => {}, // noop until the router is initialized
 }
 
 export function urlToUrlWithoutFlightMarker(url: string): URL {
@@ -141,7 +145,7 @@ function useServerActionDispatcher(dispatch: React.Dispatch<ReducerActions>) {
         dispatch({
           ...actionPayload,
           type: ACTION_SERVER_ACTION,
-          mutable: {},
+          mutable: { globalMutable },
           cache: createEmptyCacheNode(),
         })
       })
@@ -170,7 +174,7 @@ function useChangeByServerResponse(
           previousTree,
           overrideCanonicalUrl,
           cache: createEmptyCacheNode(),
-          mutable: {},
+          mutable: { globalMutable },
         })
       })
     },
@@ -182,6 +186,7 @@ function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
   return useCallback(
     (href, navigateType, forceOptimisticNavigation, shouldScroll) => {
       const url = new URL(addBasePath(href), location.href)
+      globalMutable.pendingNavigatePath = createHrefFromUrl(url)
 
       return dispatch({
         type: ACTION_NAVIGATE,
@@ -192,7 +197,7 @@ function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
         shouldScroll: shouldScroll ?? true,
         navigateType,
         cache: createEmptyCacheNode(),
-        mutable: {},
+        mutable: { globalMutable },
       })
     },
     [dispatch]
@@ -317,7 +322,7 @@ function Router({
           dispatch({
             type: ACTION_REFRESH,
             cache: createEmptyCacheNode(),
-            mutable: {},
+            mutable: { globalMutable },
             origin: window.location.origin,
           })
         })
@@ -333,7 +338,7 @@ function Router({
             dispatch({
               type: ACTION_FAST_REFRESH,
               cache: createEmptyCacheNode(),
-              mutable: {},
+              mutable: { globalMutable },
               origin: window.location.origin,
             })
           })
@@ -350,6 +355,10 @@ function Router({
       window.next.router = appRouter
     }
   }, [appRouter])
+
+  useEffect(() => {
+    globalMutable.refresh = appRouter.refresh
+  }, [appRouter.refresh])
 
   if (process.env.NODE_ENV !== 'production') {
     // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
@@ -400,11 +409,16 @@ function Router({
   // in <Offscreen>. At least I hope so. (It will run twice in dev strict mode,
   // but that's... fine?)
   if (pushRef.mpaNavigation) {
-    const location = window.location
-    if (pushRef.pendingPush) {
-      location.assign(canonicalUrl)
-    } else {
-      location.replace(canonicalUrl)
+    // if there's a re-render, we don't want to trigger another redirect if one is already in flight to the same URL
+    if (globalMutable.pendingMpaPath !== canonicalUrl) {
+      const location = window.location
+      if (pushRef.pendingPush) {
+        location.assign(canonicalUrl)
+      } else {
+        location.replace(canonicalUrl)
+      }
+
+      globalMutable.pendingMpaPath = canonicalUrl
     }
     // TODO-APP: Should we listen to navigateerror here to catch failed
     // navigations somehow? And should we call window.stop() if a SPA navigation
