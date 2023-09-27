@@ -1286,8 +1286,7 @@ function commonJsRequireContext(entry1, sourceModule1) {
     return commonJsRequire(sourceModule1, entry1.id());
 }
 function fetchWebAssembly(wasmChunkPath1) {
-    const chunkUrl1 = `/${getChunkRelativeUrl(wasmChunkPath1)}`;
-    return fetch(chunkUrl1);
+    return fetch(getChunkRelativeUrl(wasmChunkPath1));
 }
 async function loadWebAssembly(_source1, wasmChunkPath1, importsObj1) {
     const req1 = fetchWebAssembly(wasmChunkPath1);
@@ -1353,7 +1352,7 @@ async function loadWebAssemblyModule(_source1, wasmChunkPath1) {
                     return;
                 }
                 const encodedChunkPath1 = chunkPath1.split("/").map((p1)=>encodeURIComponent(p1)).join("/");
-                const chunkUrl1 = `/${getChunkRelativeUrl(encodedChunkPath1)}`;
+                const chunkUrl1 = getChunkRelativeUrl(encodedChunkPath1);
                 const previousLinks1 = document.querySelectorAll(`link[rel=stylesheet][href^="${chunkUrl1}"]`);
                 if (previousLinks1.length == 0) {
                     reject1(new Error(`No link element found for chunk ${chunkPath1}`));
@@ -1430,7 +1429,7 @@ async function loadWebAssemblyModule(_source1, wasmChunkPath1) {
             // `resolver.resolve()` in this branch.
             return resolver1.promise;
         }
-        const chunkUrl1 = `/${getChunkRelativeUrl(chunkPath1)}`;
+        const chunkUrl1 = getChunkRelativeUrl(chunkPath1);
         if (chunkPath1.endsWith(".css")) {
             const link1 = document.createElement("link");
             link1.rel = "stylesheet";

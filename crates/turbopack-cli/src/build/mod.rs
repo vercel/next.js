@@ -184,6 +184,7 @@ async fn build_internal(
             build_output_root,
             build_output_root,
             build_output_root,
+            build_output_root,
             env,
         )
         .minify_type(minify_type)
