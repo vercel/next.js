@@ -22,9 +22,18 @@ Forms enable you to create and update data in web applications. Next.js provides
 
 Forms enable you to create and update data in web applications. Next.js provides a powerful way to handle form submissions and data mutations using **Server Actions**.
 
+<details>
+  <summary>Examples</summary>
+
+- [Form with Loading & Error States](https://github.com/vercel/next.js/tree/canary/examples/next-forms)
+
+</details>
+
 ## How Server Actions Work
 
 With Server Actions, you don't need to manually create API endpoints. Instead, you define asynchronous server functions that can be called directly from your components.
+
+> **🎥 Watch:** Learn more about forms and mutations with the App Router → [YouTube (10 minutes)](https://youtu.be/dDpZfOQBMaU?si=cJZHlUu_jFhCzHUg).
 
 Server Actions can be defined in Server Components or called from Client Components. Defining the action in a Server Component allows the form to function without JavaScript, providing progressive enhancement.
 
@@ -43,6 +52,7 @@ module.exports = {
 > - Forms calling Server Actions from Server Components can function without JavaScript.
 > - Forms calling Server Actions from Client Components will queue submissions if JavaScript isn't loaded yet, prioritizing client hydration.
 > - Server Actions inherit the [runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes) from the page or layout they are used on.
+> - Server Actions work with fully static routes (including revalidating data with ISR).
 
 ## Revalidating Cached Data
 
@@ -373,7 +383,9 @@ export function SubmitButton() {
   const { pending } = useFormStatus()
 
   return (
-    <button disabled={pending}>{pending ? 'Submitting...' : 'Submit'}</button>
+    <button type="submit" aria-disabled={pending}>
+      Add
+    </button>
   )
 }
 ```
@@ -387,7 +399,9 @@ export function SubmitButton() {
   const { pending } = useFormStatus()
 
   return (
-    <button disabled={pending}>{pending ? 'Submitting...' : 'Submit'}</button>
+    <button type="submit" aria-disabled={pending}>
+      Add
+    </button>
   )
 }
 ```
@@ -419,13 +433,6 @@ export default async function Home() {
   )
 }
 ```
-
-<details>
-  <summary>Examples</summary>
-
-- [Form with Loading & Error States](https://github.com/vercel/next.js/tree/canary/examples/next-forms)
-
-</details>
 
 </AppOnly>
 
@@ -620,13 +627,6 @@ export function AddForm() {
   )
 }
 ```
-
-<details>
-  <summary>Examples</summary>
-
-- [Form with Loading & Error States](https://github.com/vercel/next.js/tree/canary/examples/next-forms)
-
-</details>
 
 </AppOnly>
 

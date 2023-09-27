@@ -10,7 +10,7 @@ export default async function Page({
   // - `notFound()` renders the closest `not-found.tsx` in the route segment hierarchy.
   // - For `layout.js`, the closest `not-found.tsx` starts from the parent segment.
   // - For `page.js`, the closest `not-found.tsx` starts from the same segment.
-  // - Learn more: https://beta.nextjs.org/docs/routing/fundamentals#component-hierarchy.
+  // - Learn more: https://nextjs.org/docs/app/building-your-application/routing#component-hierarchy
   const category = await getCategory({ slug: params.subCategorySlug })
 
   return (

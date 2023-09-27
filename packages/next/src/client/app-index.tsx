@@ -46,12 +46,17 @@ let initialServerDataWriter: ReadableStreamDefaultController | undefined =
 let initialServerDataLoaded = false
 let initialServerDataFlushed = false
 
+let initialFormStateData: null | any = null
+
 function nextServerDataCallback(
-  seg: [isBootStrap: 0] | [isNotBootstrap: 1, responsePartial: string]
+  seg:
+    | [isBootStrap: 0]
+    | [isNotBootstrap: 1, responsePartial: string]
+    | [isFormState: 2, formState: any]
 ): void {
   if (seg[0] === 0) {
     initialServerDataBuffer = []
-  } else {
+  } else if (seg[0] === 1) {
     if (!initialServerDataBuffer)
       throw new Error('Unexpected server data: missing bootstrap script.')
 
@@ -60,6 +65,8 @@ function nextServerDataCallback(
     } else {
       initialServerDataBuffer.push(seg[1])
     }
+  } else if (seg[0] === 2) {
+    initialFormStateData = seg[1]
   }
 }
 
@@ -290,7 +297,10 @@ export function hydrate() {
     }
   } else {
     React.startTransition(() =>
-      (ReactDOMClient as any).hydrateRoot(appElement, reactEl, options)
+      (ReactDOMClient as any).hydrateRoot(appElement, reactEl, {
+        ...options,
+        experimental_formState: initialFormStateData,
+      })
     )
   }
 

@@ -12,6 +12,7 @@ export type RenderResultMetadata = {
   isRedirect?: boolean
   fetchMetrics?: StaticGenerationStore['fetchMetrics']
   fetchTags?: string
+  waitUntil?: Promise<any>
 }
 
 type RenderResultResponse = ReadableStream<Uint8Array> | string | null
@@ -47,10 +48,13 @@ export default class RenderResult {
     return new RenderResult(value)
   }
 
+  private waitUntil?: Promise<void>
+
   constructor(
     response: RenderResultResponse,
     {
       contentType,
+      waitUntil,
       ...metadata
     }: {
       contentType?: ContentTypeOption
@@ -59,6 +63,7 @@ export default class RenderResult {
     this.response = response
     this.contentType = contentType
     this.metadata = metadata
+    this.waitUntil = waitUntil
   }
 
   public extendMetadata(metadata: RenderResultMetadata) {
@@ -107,6 +112,6 @@ export default class RenderResult {
       )
     }
 
-    return await pipeReadable(this.response, res)
+    return await pipeReadable(this.response, res, this.waitUntil)
   }
 }
