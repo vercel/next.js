@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { resolve, join } from 'path'
 import { existsSync } from 'fs'
-import { cyan } from 'next/dist/compiled/picocolors'
+import { cyan } from '../lib/picocolors'
 import exportApp, { ExportError, ExportOptions } from '../export'
 import * as Log from '../build/output/log'
 import { printAndExit } from '../server/lib/utils'

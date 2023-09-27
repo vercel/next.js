@@ -1,4 +1,4 @@
-import { bold, cyan, red } from 'next/dist/compiled/picocolors'
+import { bold, cyan, red } from '../picocolors'
 
 import { getOxfordCommaList } from '../oxford-comma-list'
 import { MissingDependency } from '../has-necessary-dependencies'

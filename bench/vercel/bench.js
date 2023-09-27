@@ -1,8 +1,6 @@
 import { Command } from 'commander'
 import console from 'console'
 
-import { bold, red } from 'next/dist/compiled/picocolors'
-
 import PQueue from 'p-queue'
 import {
   generateProjects,
@@ -60,7 +58,7 @@ try {
 
   const headBenchResults = await runBenchmark(headBenchmarkURL)
 
-  console.log(bold('Benchmark results for cold:'))
+  console.log('Benchmark results for cold:')
   printBenchmarkResults(
     {
       origin: benchResults,
@@ -68,7 +66,7 @@ try {
     },
     (r) => r.cold && r.firstByte <= TTFB_OUTLIERS_THRESHOLD && r.firstByte
   )
-  console.log(bold('Benchmark results for hot:'))
+  console.log('Benchmark results for hot:')
   printBenchmarkResults(
     {
       origin: benchResults,
@@ -77,7 +75,7 @@ try {
     (r) => !r.cold && r.firstByte <= TTFB_OUTLIERS_THRESHOLD && r.firstByte
   )
 } catch (err) {
-  console.log(red('Benchmark failed: ', err))
+  console.log(('Benchmark failed: ', err))
 } finally {
   await cleanupProjectFolders()
 }

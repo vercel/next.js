@@ -1,4 +1,4 @@
-import { cyan } from 'next/dist/compiled/picocolors'
+import { cyan } from '../../../lib/picocolors'
 import path from 'path'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 

@@ -1,4 +1,4 @@
-import { bold, cyan } from 'next/dist/compiled/picocolors'
+import { bold, cyan } from '../picocolors'
 import os from 'os'
 import path from 'path'
 

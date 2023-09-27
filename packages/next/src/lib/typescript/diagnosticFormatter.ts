@@ -1,4 +1,4 @@
-import { bold, cyan, red, yellow } from 'next/dist/compiled/picocolors'
+import { bold, cyan, red, yellow } from '../picocolors'
 import path from 'path'
 
 // eslint typescript has a bug with TS enums

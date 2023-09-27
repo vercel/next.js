@@ -1,5 +1,5 @@
 import { type webpack } from 'next/dist/compiled/webpack/webpack'
-import { red } from 'next/dist/compiled/picocolors'
+import { red } from '../../lib/picocolors'
 import formatWebpackMessages from '../../client/dev/error-overlay/format-webpack-messages'
 import { nonNullable } from '../../lib/non-nullable'
 import {

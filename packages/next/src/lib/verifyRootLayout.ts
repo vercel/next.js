@@ -1,6 +1,6 @@
 import path from 'path'
 import { promises as fs } from 'fs'
-import { bold, green } from 'next/dist/compiled/picocolors'
+import { bold, green } from './picocolors'
 import { APP_DIR_ALIAS } from './constants'
 
 const globOrig =

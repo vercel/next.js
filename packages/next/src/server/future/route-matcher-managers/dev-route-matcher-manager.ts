@@ -5,7 +5,7 @@ import { DefaultRouteMatcherManager } from './default-route-matcher-manager'
 import { MatchOptions, RouteMatcherManager } from './route-matcher-manager'
 import path from '../../../shared/lib/isomorphic/path'
 import * as Log from '../../../build/output/log'
-import { cyan } from 'next/dist/compiled/picocolors'
+import { cyan } from '../../../lib/picocolors'
 import { RouteMatcher } from '../route-matchers/route-matcher'
 
 export interface RouteEnsurer {

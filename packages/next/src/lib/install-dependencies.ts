@@ -1,4 +1,4 @@
-import { cyan } from 'next/dist/compiled/picocolors'
+import { cyan } from './picocolors'
 import path from 'path'
 
 import { MissingDependency } from './has-necessary-dependencies'

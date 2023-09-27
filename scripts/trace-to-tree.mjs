@@ -8,7 +8,7 @@ import {
   magenta,
   red,
   yellow,
-} from 'next/dist/compiled/picocolors'
+} from 'next/dist/lib/picocolors'
 
 const file = fs.createReadStream(process.argv[2])
 

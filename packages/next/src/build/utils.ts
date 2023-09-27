@@ -22,14 +22,7 @@ import '../server/node-polyfill-fetch'
 import '../server/node-polyfill-crypto'
 import '../server/node-environment'
 
-import {
-  green,
-  yellow,
-  red,
-  cyan,
-  bold,
-  underline,
-} from 'next/dist/compiled/picocolors'
+import { green, yellow, red, cyan, bold, underline } from '../lib/picocolors'
 import getGzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'

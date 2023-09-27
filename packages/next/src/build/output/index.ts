@@ -1,4 +1,4 @@
-import { bold, red, yellow } from 'next/dist/compiled/picocolors'
+import { bold, red, yellow } from '../../lib/picocolors'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import textTable from 'next/dist/compiled/text-table'
 import createStore from 'next/dist/compiled/unistore'

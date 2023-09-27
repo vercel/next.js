@@ -1,4 +1,4 @@
-import { bold, cyan, red, yellow } from 'next/dist/compiled/picocolors'
+import { bold, cyan, red, yellow } from '../../../../lib/picocolors'
 import { SimpleWebpackError } from './simpleWebpackError'
 
 export function getBabelError(

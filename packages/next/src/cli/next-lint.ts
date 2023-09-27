@@ -2,7 +2,7 @@
 import type arg from 'next/dist/compiled/arg/index.js'
 import { existsSync } from 'fs'
 import { join } from 'path'
-import { green } from 'next/dist/compiled/picocolors'
+import { green } from '../lib/picocolors'
 
 import { CliCommand } from '../lib/commands'
 import { ESLINT_DEFAULT_DIRS } from '../lib/constants'

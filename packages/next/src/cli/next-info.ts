@@ -3,7 +3,7 @@
 import os from 'os'
 import childProcess from 'child_process'
 
-import { bold, cyan, yellow } from 'next/dist/compiled/picocolors'
+import { bold, cyan, yellow } from '../lib/picocolors'
 const { fetch } = require('next/dist/compiled/undici') as {
   fetch: typeof global.fetch
 }

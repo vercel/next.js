@@ -1,5 +1,5 @@
 import { promises } from 'fs'
-import { bold, cyan, red } from 'next/dist/compiled/picocolors'
+import { bold, cyan, red } from './picocolors'
 
 import path from 'path'
 import {

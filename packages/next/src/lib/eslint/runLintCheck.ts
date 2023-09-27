@@ -1,11 +1,5 @@
 import { promises as fs, existsSync } from 'fs'
-import {
-  bold,
-  cyan,
-  red,
-  underline,
-  yellow,
-} from 'next/dist/compiled/picocolors'
+import { bold, cyan, red, underline, yellow } from '../picocolors'
 import path from 'path'
 
 import findUp from 'next/dist/compiled/find-up'

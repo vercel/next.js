@@ -103,7 +103,7 @@ export async function validateTurboNextConfig({
   const { defaultConfig } =
     require('../server/config-shared') as typeof import('../server/config-shared')
   const { bold, cyan, dim, red, underline, yellow } =
-    require('next/dist/compiled/picocolors') as typeof import('next/dist/compiled/picocolors')
+    require('../lib/picocolors') as typeof import('../lib/picocolors')
   const { interopDefault } =
     require('../lib/interop-default') as typeof import('../lib/interop-default')
 

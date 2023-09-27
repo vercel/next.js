@@ -1,7 +1,7 @@
 import type { FontLoader } from '../../../../../font'
 
 import path from 'path'
-import { bold, cyan } from 'next/dist/compiled/picocolors'
+import { bold, cyan } from '../../../../lib/picocolors'
 import loaderUtils from 'next/dist/compiled/loader-utils3'
 import postcssNextFontPlugin from './postcss-next-font'
 import { promisify } from 'util'

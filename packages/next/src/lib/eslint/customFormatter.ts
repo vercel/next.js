@@ -1,4 +1,4 @@
-import { bold, cyan, gray, red, yellow } from 'next/dist/compiled/picocolors'
+import { bold, cyan, gray, red, yellow } from '../picocolors'
 import path from 'path'
 
 // eslint-disable-next-line no-shadow

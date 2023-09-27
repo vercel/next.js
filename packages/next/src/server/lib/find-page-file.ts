@@ -4,7 +4,7 @@ import { nonNullable } from '../../lib/non-nullable'
 import { join, sep, normalize } from 'path'
 import { promises as fsPromises } from 'fs'
 import { warn } from '../../build/output/log'
-import pc from '../../lib/picocolors'
+import { cyan } from '../../lib/picocolors'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 
 async function isTrueCasePagePath(pagePath: string, pagesDir: string) {
@@ -58,11 +58,9 @@ export async function findPageFile(
 
   if (others.length > 0) {
     warn(
-      `Duplicate page detected. ${pc.cyan(
-        join('pages', existingPath)
-      )} and ${pc.cyan(join('pages', others[0]))} both resolve to ${pc.cyan(
-        normalizedPagePath
-      )}.`
+      `Duplicate page detected. ${cyan(join('pages', existingPath))} and ${cyan(
+        join('pages', others[0])
+      )} both resolve to ${cyan(normalizedPagePath)}.`
     )
   }
 

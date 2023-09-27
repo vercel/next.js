@@ -1026,13 +1026,8 @@ export default class NextNodeServer extends BaseServer {
       const shouldTruncateUrl = !this.nextConfig.experimental.logging?.fullUrl
 
       if (this.renderOpts.dev) {
-        const {
-          green,
-          yellow,
-          red,
-          gray,
-          white,
-        } = require('next/dist/compiled/picocolors')
+        const { bold, green, yellow, red, gray, white } =
+          require('../lib/picocolors') as typeof import('../lib/picocolors')
         const _req = req as NodeNextRequest | IncomingMessage
         const _res = res as NodeNextResponse | ServerResponse
         const origReq = 'originalRequest' in _req ? _req.originalRequest : _req
@@ -1071,7 +1066,7 @@ export default class NextNodeServer extends BaseServer {
           if (Array.isArray(fetchMetrics) && fetchMetrics.length) {
             if (enabledVerboseLogging) {
               writeStdoutLine(
-                `${white.bold(req.method || 'GET')} ${req.url} ${
+                `${white(bold(req.method || 'GET'))} ${req.url} ${
                   res.statusCode
                 } in ${getDurationStr(reqDuration)}`
               )
@@ -1150,7 +1145,7 @@ export default class NextNodeServer extends BaseServer {
                 writeStdoutLine(
                   `${`${newLineLeadingChar}${nestedIndent}${
                     i === 0 ? ' ' : ''
-                  }${white.bold(metric.method)} ${gray(url)} ${
+                  }${white(bold(metric.method))} ${gray(url)} ${
                     metric.status
                   } in ${getDurationStr(duration)} (cache: ${cacheStatus})`}`
                 )
@@ -1173,7 +1168,7 @@ export default class NextNodeServer extends BaseServer {
           } else {
             if (enabledVerboseLogging) {
               writeStdoutLine(
-                `${white.bold(req.method || 'GET')} ${req.url} ${
+                `${white(bold(req.method || 'GET'))} ${req.url} ${
                   res.statusCode
                 } in ${getDurationStr(reqDuration)}`
               )

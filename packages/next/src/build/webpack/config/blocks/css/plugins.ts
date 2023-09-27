@@ -1,4 +1,4 @@
-import { bold, red, underline, yellow } from 'next/dist/compiled/picocolors'
+import { bold, red, underline, yellow } from '../../../../../lib/picocolors'
 import { findConfig } from '../../../../../lib/find-config'
 
 type CssPluginCollection_Array = (string | [string, boolean | object])[]

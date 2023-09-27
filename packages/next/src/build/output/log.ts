@@ -1,13 +1,13 @@
-import pc from '../../lib/picocolors'
+import { bold, green, magenta, red, yellow, white } from '../../lib/picocolors'
 
 export const prefixes = {
-  wait: pc.white(pc.bold('○')),
-  error: pc.red(pc.bold('⨯')),
-  warn: pc.yellow(pc.bold('⚠')),
-  ready: pc.bold('▲'), // no color
-  info: pc.white(pc.bold(' ')),
-  event: pc.green(pc.bold('✓')),
-  trace: pc.magenta(pc.bold('»')),
+  wait: white(bold('○')),
+  error: red(bold('⨯')),
+  warn: yellow(bold('⚠')),
+  ready: bold('▲'), // no color
+  info: white(bold(' ')),
+  event: green(bold('✓')),
+  trace: magenta(bold('»')),
 } as const
 
 const LOGGING_METHOD = {

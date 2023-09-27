@@ -1,4 +1,4 @@
-import { bold, cyan } from 'next/dist/compiled/picocolors'
+import { bold, cyan } from '../../../../../lib/picocolors'
 
 export function getCustomDocumentImageError() {
   return `Images ${bold('cannot')} be imported within ${cyan(

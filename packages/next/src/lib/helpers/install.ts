@@ -1,4 +1,4 @@
-import { yellow } from 'next/dist/compiled/picocolors'
+import { yellow } from '../picocolors'
 import spawn from 'next/dist/compiled/cross-spawn'
 
 export type PackageManager = 'npm' | 'pnpm' | 'yarn'

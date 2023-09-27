@@ -1,4 +1,4 @@
-import { red } from 'next/dist/compiled/picocolors'
+import { red } from './picocolors'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import { existsSync } from 'fs'
 import { join } from 'path'

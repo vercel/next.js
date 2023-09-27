@@ -1,6 +1,6 @@
 import type { WorkerRenderOptsPartial } from './types'
 
-import { bold, yellow } from 'next/dist/compiled/picocolors'
+import { bold, yellow } from '../lib/picocolors'
 import findUp from 'next/dist/compiled/find-up'
 import {
   promises,

@@ -719,15 +719,6 @@ export async function ncc_react_refresh_utils(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-externals['picocolors'] = 'next/dist/compiled/picocolors'
-export async function ncc_picocolors(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('picocolors')))
-    .ncc({ packageName: 'picocolors', externals })
-    .target('src/compiled/picocolors')
-}
-
-// eslint-disable-next-line camelcase
 externals['browserslist'] = 'next/dist/compiled/browserslist'
 export async function ncc_browserslist(task, opts) {
   const browserslistModule = require.resolve('browserslist')
@@ -2221,7 +2212,6 @@ export async function ncc(task, opts) {
     .parallel(
       [
         'ncc_node_html_parser',
-        'ncc_picocolors',
         'ncc_napirs_triples',
         'ncc_p_limit',
         'ncc_raw_body',

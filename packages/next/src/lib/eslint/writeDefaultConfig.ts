@@ -1,5 +1,5 @@
 import { promises as fs } from 'fs'
-import { bold, green } from 'next/dist/compiled/picocolors'
+import { bold, green } from '../picocolors'
 import os from 'os'
 import path from 'path'
 import * as CommentJson from 'next/dist/compiled/comment-json'

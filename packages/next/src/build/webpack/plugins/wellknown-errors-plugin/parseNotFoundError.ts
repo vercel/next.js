@@ -1,4 +1,4 @@
-import { bold, cyan, green, red, yellow } from 'next/dist/compiled/picocolors'
+import { bold, cyan, green, red, yellow } from '../../../../lib/picocolors'
 import { SimpleWebpackError } from './simpleWebpackError'
 import { createOriginalStackFrame } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'

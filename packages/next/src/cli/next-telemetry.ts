@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { bold, cyan, green, red, yellow } from 'next/dist/compiled/picocolors'
+import { bold, cyan, green, red, yellow } from '../lib/picocolors'
 import { CliCommand } from '../lib/commands'
 import { Telemetry } from '../telemetry/storage'
 
