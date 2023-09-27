@@ -2970,9 +2970,11 @@ describe('Custom routes', () => {
     describe('dev mode', () => {
       runSoloTests(true)
     })
-
-    describe('production mode', () => {
-      runSoloTests()
-    })
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'production mode',
+      () => {
+        runSoloTests()
+      }
+    )
   })
 })

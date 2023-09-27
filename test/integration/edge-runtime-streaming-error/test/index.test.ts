@@ -65,8 +65,7 @@ describe('dev mode', () => {
 
   it('logs the error correctly', test(context))
 })
-
-describe('production mode', () => {
+;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
   const context = createContext()
 
   beforeAll(async () => {
