@@ -1,7 +1,5 @@
 import './globals.css'
-
 import Link from 'next/link'
-
 import { graphql } from '../gql'
 import { grafbase } from '../lib/grafbase'
 import type { Metadata } from 'next'
