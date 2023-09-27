@@ -719,15 +719,6 @@ export async function ncc_react_refresh_utils(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-externals['chalk'] = 'next/dist/compiled/chalk'
-export async function ncc_chalk(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('chalk')))
-    .ncc({ packageName: 'chalk', externals })
-    .target('src/compiled/chalk')
-}
-
-// eslint-disable-next-line camelcase
 externals['browserslist'] = 'next/dist/compiled/browserslist'
 export async function ncc_browserslist(task, opts) {
   const browserslistModule = require.resolve('browserslist')
@@ -2221,7 +2212,6 @@ export async function ncc(task, opts) {
     .parallel(
       [
         'ncc_node_html_parser',
-        'ncc_chalk',
         'ncc_napirs_triples',
         'ncc_p_limit',
         'ncc_raw_body',
