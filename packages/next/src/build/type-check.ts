@@ -60,6 +60,11 @@ function verifyTypeScriptSetup(
       typeCheckWorker.end()
       return result
     })
+    .catch(() => {
+      // The error is already logged in the worker, we simply exit the main thread to prevent the
+      // `Jest worker encountered 1 child process exceptions, exceeding retry limit` from showing up
+      process.exit(1)
+    })
 }
 
 export async function startTypeChecking({
