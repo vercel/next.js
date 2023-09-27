@@ -4,21 +4,36 @@ This starter configures Meilisearch and InstantSearch for a Next.js application.
 
 ## Deploy your own
 
-Deploy this project on Vercel:
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-meilisearch&project-name=with-meilisearch&repository-name=with-meilisearch)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-meilisearch&project-name=with-meilisearch&repository-name=with-meilisearch&integration-ids=oac_VnRV92Cy6BoP96QY6Rkc5898)
 
 ## How to use
 
-1. Create a [Meilisearch Cloud project](https://cloud.meilisearch.com)
-1. Run `npx create-next-app --example with-meilisearch my-app` to create a Next.js app using the Meilisearch starter kit
-1. Navigate to your application directory, eg. `cd my-app`
-1. Install dependencies with `npm install`
-1. Rename `.env.local.example` to `.env.local` and update your environment variables with your Meilisearch credentials (available on your Meilisearch project page)
-1. Run `npm run dev` to start the local development server
+First, create a [Meilisearch Cloud project](https://cloud.meilisearch.com).
 
-> Check out the docs for [Local Installation](https://www.meilisearch.com/docs/learn/getting_started/installation#local-installation) to run Meilisearch locally.
+Then, execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), [pnpm](https://pnpm.io), or [Bun](https://bun.sh/docs/cli/bunx) to bootstrap the example:
 
-## More Meilisearch examples
+```bash
+npx create-next-app --example with-meilisearch with-meilisearch-app
+```
 
-- [Next.js App to Find Where to Stream Movies](https://github.com/meilisearch/demo-movies)
+```bash
+yarn create next-app --example with-meilisearch with-meilisearch-app
+```
+
+```bash
+pnpm create next-app --example with-meilisearch with-meilisearch-app
+```
+
+```bash
+bunx create-next-app --example with-meilisearch with-meilisearch-app
+```
+
+Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+
+> Check out the docs for [Local Installation](https://www.meilisearch.com/docs/learn/getting_started/installation#local-installation) to run Meilisearch locally. The Meilisearch Cloud extension configures your environment varilables for you. If you're not using it, make sure to update your environment variables.
+
+## Notes
+
+For more examples of how to use Meilisearch with Next.js, check out our demo: [Next.js App to Find Where to Stream Movies](https://github.com/meilisearch/demo-movies)
