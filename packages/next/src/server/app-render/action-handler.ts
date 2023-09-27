@@ -395,7 +395,7 @@ export async function handleAction({
             }
           } else {
             const { parseBody } =
-              require('../api-utils/node') as typeof import('../api-utils/node')
+              require('../api-utils/node/parse-body') as typeof import('../api-utils/node/parse-body')
 
             let actionData
             try {
