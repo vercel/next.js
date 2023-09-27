@@ -85,17 +85,15 @@ async function webpackBuildWithWorker() {
 
     combinedResult.duration += curResult.duration
 
-    if (curResult.buildTraceContext) {
-      if (curResult.buildTraceContext?.entriesTrace) {
-        const { entryNameMap } = curResult.buildTraceContext.entriesTrace!
+    if (curResult.buildTraceContext?.entriesTrace) {
+      const { entryNameMap } = curResult.buildTraceContext.entriesTrace!
 
-        if (entryNameMap) {
-          combinedResult.buildTraceContext.entriesTrace =
-            curResult.buildTraceContext.entriesTrace
-          combinedResult.buildTraceContext.entriesTrace!.entryNameMap = new Map(
-            entryNameMap
-          )
-        }
+      if (entryNameMap) {
+        combinedResult.buildTraceContext.entriesTrace =
+          curResult.buildTraceContext.entriesTrace
+        combinedResult.buildTraceContext.entriesTrace!.entryNameMap = new Map(
+          entryNameMap
+        )
       }
 
       if (curResult.buildTraceContext?.chunksTrace) {
