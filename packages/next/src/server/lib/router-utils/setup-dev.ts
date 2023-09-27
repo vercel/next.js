@@ -877,8 +877,13 @@ async function startWatcher(opts: SetupOpts) {
       // computation. This is not a change, so swallow it.
       try {
         await subscription.next()
+
+        for await (const data of subscription) {
+          processIssues('hmr', id, data)
+          sendTurbopackMessage(data)
+        }
       } catch (e) {
-        // The client is using an HMR session from a previous server, tell them
+        // The client might be using an HMR session from a previous server, tell them
         // to fully reload the page to resolve the issue. We can't use
         // `hotReloader.send` since that would force very connected client to
         // reload, only this client is out of date.
@@ -888,11 +893,6 @@ async function startWatcher(opts: SetupOpts) {
         client.send(JSON.stringify(reloadAction))
         client.close()
         return
-      }
-
-      for await (const data of subscription) {
-        processIssues('hmr', id, data)
-        sendTurbopackMessage(data)
       }
     }
 
