@@ -1,4 +1,4 @@
-import chalk from 'next/dist/compiled/chalk'
+import { bold, cyan, red, yellow } from '../picocolors'
 import path from 'path'
 
 // eslint typescript has a bug with TS enums
@@ -25,7 +25,7 @@ function getFormattedLinkDiagnosticMessageText(
 
     if (match) {
       const [, href] = match
-      return `"${chalk.bold(
+      return `"${bold(
         href
       )}" is not an existing route. If it is intentional, please type it explicitly with \`as Route\`.`
     } else if (
@@ -52,9 +52,7 @@ function getFormattedLinkDiagnosticMessageText(
 
     if (match) {
       const [, href, suggestion] = match
-      return `"${chalk.bold(
-        href
-      )}" is not an existing route. Did you mean "${chalk.bold(
+      return `"${bold(href)}" is not an existing route. Did you mean "${bold(
         suggestion
       )}" instead? If it is intentional, please type it explicitly with \`as Route\`.`
     }
@@ -84,7 +82,7 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
       case 2344:
         const filepathAndType = messageText.match(/typeof import\("(.+)"\)/)
         if (filepathAndType) {
-          let main = `${type} "${chalk.bold(
+          let main = `${type} "${bold(
             relativeSourceFilepath
           )}" does not match the required types of a Next.js ${type}.`
 
@@ -101,9 +99,7 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
                     item.messageText.match(/The types of '(.+)'/)
                   if (mismatchedField) {
                     main += '\n' + ' '.repeat(indent * 2)
-                    main += `"${chalk.bold(
-                      mismatchedField[1]
-                    )}" has the wrong type:`
+                    main += `"${bold(mismatchedField[1])}" has the wrong type:`
                   }
                   break
                 case 2322:
@@ -119,12 +115,12 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
                     ) {
                       main += `The exported ${type} component isn't correctly typed.`
                     } else {
-                      main += `Expected "${chalk.bold(
+                      main += `Expected "${bold(
                         types[2].replace(
                           '"__invalid_negative_number__"',
                           'number (>= 0)'
                         )
-                      )}", got "${chalk.bold(types[1])}".`
+                      )}", got "${bold(types[1])}".`
                     }
                   }
                   break
@@ -134,7 +130,7 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
                   )
                   main += '\n' + ' '.repeat(indent * 2)
                   main += `Invalid configuration${
-                    invalidConfig ? ` "${chalk.bold(invalidConfig[1])}"` : ''
+                    invalidConfig ? ` "${bold(invalidConfig[1])}"` : ''
                   }:`
                   break
                 case 2530:
@@ -143,7 +139,7 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
                   )
                   if (invalidField) {
                     main += '\n' + ' '.repeat(indent * 2)
-                    main += `"${chalk.bold(
+                    main += `"${bold(
                       invalidField[1]
                     )}" is not a valid ${type} export field.`
                   }
@@ -166,7 +162,7 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
                   const invalid = item.messageText.match(/Type '(.+)' has/)
                   if (invalid) {
                     main += '\n' + ' '.repeat(indent * 2)
-                    main += `Type "${chalk.bold(invalid[1])}" isn't allowed.`
+                    main += `Type "${bold(invalid[1])}" isn't allowed.`
                   }
                   break
                 case 2741:
@@ -175,7 +171,7 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
                   )
                   if (incompatPageProp) {
                     main += '\n' + ' '.repeat(indent * 2)
-                    main += `Prop "${chalk.bold(
+                    main += `Prop "${bold(
                       incompatPageProp[1]
                     )}" will never be passed. Remove it from the component's props.`
                   } else {
@@ -184,7 +180,7 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
                     )
                     if (extraLayoutProp) {
                       main += '\n' + ' '.repeat(indent * 2)
-                      main += `Prop "${chalk.bold(
+                      main += `Prop "${bold(
                         extraLayoutProp[1]
                       )}" is not valid for this Layout, remove it to fix.`
                     }
@@ -205,13 +201,11 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
           /Type 'OmitWithTag<(.+), .+, "(.+)">' does not satisfy the constraint/
         )
         if (invalidExportFnArg) {
-          const main = `${type} "${chalk.bold(
+          const main = `${type} "${bold(
             relativeSourceFilepath
-          )}" has an invalid "${chalk.bold(
+          )}" has an invalid "${bold(
             invalidExportFnArg[2]
-          )}" export:\n  Type "${chalk.bold(
-            invalidExportFnArg[1]
-          )}" is not valid.`
+          )}" export:\n  Type "${bold(invalidExportFnArg[1])}" is not valid.`
           return main
         }
 
@@ -231,9 +225,9 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
                 )
                 if (types) {
                   result += '\n' + ' '.repeat(indent * 2)
-                  result += `Expected "${chalk.bold(
-                    types[2]
-                  )}", got "${chalk.bold(types[1])}".`
+                  result += `Expected "${bold(types[2])}", got "${bold(
+                    types[1]
+                  )}".`
                 }
                 break
               default:
@@ -249,9 +243,9 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
           /Type '{ __tag__: (.+); __param_position__: "(.*)"; __param_type__: (.+); }' does not satisfy/
         )
         if (invalidParamFn) {
-          let main = `${type} "${chalk.bold(
+          let main = `${type} "${bold(
             relativeSourceFilepath
-          )}" has an invalid ${invalidParamFn[1]} export:\n  Type "${chalk.bold(
+          )}" has an invalid ${invalidParamFn[1]} export:\n  Type "${bold(
             invalidParamFn[3]
           )}" is not a valid type for the function's ${
             invalidParamFn[2]
@@ -265,9 +259,9 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
           /Type '{ __tag__: "(.+)"; __return_type__: (.+); }' does not satisfy/
         )
         if (invalidExportFnReturn) {
-          let main = `${type} "${chalk.bold(
+          let main = `${type} "${bold(
             relativeSourceFilepath
-          )}" has an invalid export:\n  "${chalk.bold(
+          )}" has an invalid export:\n  "${bold(
             invalidExportFnReturn[2]
           )}" is not a valid ${invalidExportFnReturn[1]} return type:`
 
@@ -281,9 +275,9 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
           /'typeof import\("(.+)"\)'.+Impossible<"(.+)">/
         )
         if (filepathAndInvalidExport) {
-          const main = `${type} "${chalk.bold(
+          const main = `${type} "${bold(
             relativeSourceFilepath
-          )}" exports an invalid "${chalk.bold(
+          )}" exports an invalid "${bold(
             filepathAndInvalidExport[2]
           )}" field. ${type} should only export a default React component and configuration options. Learn more: https://nextjs.org/docs/messages/invalid-segment-export`
           return main
@@ -294,11 +288,9 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
           /Type '(.+)' has no properties in common with type '(.+)'/
         )
         if (invalid) {
-          const main = `${type} "${chalk.bold(
+          const main = `${type} "${bold(
             relativeSourceFilepath
-          )}" contains an invalid type "${chalk.bold(invalid[1])}" as ${
-            invalid[2]
-          }.`
+          )}" contains an invalid type "${bold(invalid[1])}" as ${invalid[2]}.`
           return main
         }
         break
@@ -348,19 +340,19 @@ export function getFormattedDiagnostic(
   switch (category) {
     // Warning
     case DiagnosticCategory.Warning: {
-      message += chalk.yellow.bold('Type warning') + ': '
+      message += yellow(bold('Type warning')) + ': '
       break
     }
     // Error
     case DiagnosticCategory.Error: {
-      message += chalk.red.bold('Type error') + ': '
+      message += red(bold('Type error')) + ': '
       break
     }
     // 2 = Suggestion, 3 = Message
     case DiagnosticCategory.Suggestion:
     case DiagnosticCategory.Message:
     default: {
-      message += chalk.cyan.bold(category === 2 ? 'Suggestion' : 'Info') + ': '
+      message += cyan(bold(category === 2 ? 'Suggestion' : 'Info')) + ': '
       break
     }
   }
@@ -381,11 +373,11 @@ export function getFormattedDiagnostic(
     }
 
     message =
-      chalk.cyan(fileName) +
+      cyan(fileName) +
       ':' +
-      chalk.yellow(line.toString()) +
+      yellow(line.toString()) +
       ':' +
-      chalk.yellow(character.toString()) +
+      yellow(character.toString()) +
       '\n' +
       message
 
@@ -399,7 +391,7 @@ export function getFormattedDiagnostic(
         { forceColor: true }
       )
   } else if (isLayoutOrPageError && appPath) {
-    message = chalk.cyan(appPath) + '\n' + message
+    message = cyan(appPath) + '\n' + message
   }
 
   return message
