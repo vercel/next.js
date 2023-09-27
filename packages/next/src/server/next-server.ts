@@ -1845,6 +1845,10 @@ export default class NextNodeServer extends BaseServer {
         getRequestMeta(params.req, '_nextIncrementalCache'),
     })
 
+    if (result.fetchMetrics) {
+      ;(params.req as any).fetchMetrics = result.fetchMetrics
+    }
+
     if (!params.res.statusCode || params.res.statusCode < 400) {
       params.res.statusCode = result.response.status
       params.res.statusMessage = result.response.statusText
