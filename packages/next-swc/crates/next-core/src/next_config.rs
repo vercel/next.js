@@ -658,10 +658,10 @@ impl NextConfig {
     /// Returns the final asset prefix. If an assetPrefix is set, it's used.
     /// Otherwise, the basePath is used.
     #[turbo_tasks::function]
-    pub async fn computed_asset_prefix(self: Vc<Self>) -> Result<Vc<String>> {
+    pub async fn computed_asset_prefix(self: Vc<Self>) -> Result<Vc<Option<String>>> {
         let this = self.await?;
 
-        Ok(Vc::cell(
+        Ok(Vc::cell(Some(
             if let Some(asset_prefix) = &this.asset_prefix {
                 asset_prefix.to_string()
             } else if let Some(base_path) = &this.base_path {
@@ -669,7 +669,7 @@ impl NextConfig {
             } else {
                 "".to_string()
             } + "/_next/",
-        ))
+        )))
     }
 }
 

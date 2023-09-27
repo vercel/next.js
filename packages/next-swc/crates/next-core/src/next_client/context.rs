@@ -312,30 +312,23 @@ pub async fn get_client_module_options_context(
 pub async fn get_client_chunking_context(
     project_path: Vc<FileSystemPath>,
     client_root: Vc<FileSystemPath>,
-    asset_prefix: Vc<String>,
+    asset_prefix: Vc<Option<String>>,
     environment: Vc<Environment>,
     mode: NextMode,
 ) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
-    let builder = DevChunkingContext::builder(
+    let mut builder = DevChunkingContext::builder(
         project_path,
         client_root,
         client_root.join("static/chunks".to_string()),
         get_client_assets_path(client_root),
         environment,
-    );
+    )
+    .chunk_base_path(asset_prefix)
+    .asset_base_path(asset_prefix);
 
-    let asset_prefix = &*asset_prefix.await?;
-    let asset_prefix: Vc<Option<String>> = Vc::cell(Some(asset_prefix.to_owned()));
-    let builder = match mode {
-        NextMode::DevServer => builder.hot_module_replacement(),
-        NextMode::Development => builder
-            .hot_module_replacement()
-            .chunk_base_path(asset_prefix)
-            .asset_prefix(asset_prefix),
-        NextMode::Build => builder
-            .chunk_base_path(asset_prefix)
-            .asset_prefix(asset_prefix),
-    };
+    if matches!(mode, NextMode::Development) {
+        builder = builder.hot_module_replacement();
+    }
 
     Ok(Vc::upcast(builder.build()))
 }
@@ -370,27 +363,6 @@ pub async fn get_client_runtime_entries(
     }
 
     match mode {
-        NextMode::DevServer => {
-            let resolve_options_context = get_client_resolve_options_context(
-                project_root,
-                ty,
-                mode,
-                next_config,
-                execution_context,
-            );
-            let enable_react_refresh =
-                assert_can_resolve_react_refresh(project_root, resolve_options_context)
-                    .await?
-                    .as_request();
-
-            // It's important that React Refresh come before the regular bootstrap file,
-            // because the bootstrap contains JSX which requires Refresh's global
-            // functions to be available.
-            if let Some(request) = enable_react_refresh {
-                runtime_entries
-                    .push(RuntimeEntry::Request(request, project_root.join("_".to_string())).cell())
-            };
-        }
         NextMode::Development => {
             let resolve_options_context = get_client_resolve_options_context(
                 project_root,

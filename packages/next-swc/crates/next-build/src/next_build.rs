@@ -114,6 +114,13 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
 
     let node_root_ref = node_root.await?;
 
+    let env = load_env(project_root);
+
+    let mode = NextMode::Build;
+    let client_compile_time_info =
+        get_client_compile_time_info(mode, browserslist_query, node_root.to_string());
+    let server_compile_time_info = get_server_compile_time_info(mode, env, ServerAddr::empty());
+
     let node_execution_chunking_context = Vc::upcast(
         DevChunkingContext::builder(
             project_root,
@@ -125,16 +132,9 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
         .build(),
     );
 
-    let env = load_env(project_root);
-
     let execution_context =
         ExecutionContext::new(project_root, node_execution_chunking_context, env);
     let next_config = load_next_config(execution_context.with_layer("next_config".to_string()));
-
-    let mode = NextMode::Build;
-    let client_compile_time_info =
-        get_client_compile_time_info(mode, browserslist_query, node_root.to_string());
-    let server_compile_time_info = get_server_compile_time_info(mode, env, ServerAddr::empty());
 
     // TODO(alexkirsz) Pages should build their own routes, outside of a FS.
     let next_router_fs = Vc::upcast::<Box<dyn FileSystem>>(VirtualFileSystem::new());
@@ -254,10 +254,7 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
         project_root,
         node_root,
         client_root,
-        {
-            let asset_prefix = &*next_config.computed_asset_prefix().await?;
-            Vc::cell(Some(asset_prefix.to_string()))
-        },
+        next_config.computed_asset_prefix(),
         server_compile_time_info.environment(),
     );
     // TODO(alexkirsz) This should be the same chunking context. The layer should

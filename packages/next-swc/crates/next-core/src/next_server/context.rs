@@ -575,21 +575,17 @@ pub fn get_server_runtime_entries(
     )))
     .cell()];
 
-    match mode {
-        NextMode::Development => {}
-        NextMode::DevServer => {}
-        NextMode::Build => {
-            if let ServerContextType::AppRSC { .. } = ty.into_value() {
-                runtime_entries.push(
-                    RuntimeEntry::Request(
-                        Request::parse(Value::new(Pattern::Constant(
-                            "./build/server/app-bootstrap.ts".to_string(),
-                        ))),
-                        next_js_fs().root().join("_".to_string()),
-                    )
-                    .cell(),
-                );
-            }
+    if matches!(mode, NextMode::Build) {
+        if let ServerContextType::AppRSC { .. } = ty.into_value() {
+            runtime_entries.push(
+                RuntimeEntry::Request(
+                    Request::parse(Value::new(Pattern::Constant(
+                        "./build/server/app-bootstrap.ts".to_string(),
+                    ))),
+                    next_js_fs().root().join("_".to_string()),
+                )
+                .cell(),
+            );
         }
     }
 
