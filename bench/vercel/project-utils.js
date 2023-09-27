@@ -7,6 +7,7 @@ import url from 'url'
 import { generatePackageJson } from './generate-package-json.js'
 import { Listr } from 'listr2'
 import { forceCrash } from './bench.js'
+import { red } from '../../packages/next/dist/lib/picocolors.js'
 
 config()
 
@@ -213,7 +214,7 @@ export async function deployProject(projectName, appFolder) {
 
     return deployRes.stdout
   } catch (err) {
-    console.log(('Deployment failed: ', err))
+    console.log(red('Deployment failed: ', err))
     throw err
   }
 }

@@ -9,6 +9,7 @@ import {
 } from './project-utils.js'
 import { printBenchmarkResults } from './chart.js'
 import { genRetryableRequest } from './gen-request.js'
+import { bold, red } from '../../packages/next/dist/lib/picocolors.js'
 
 const program = new Command()
 
@@ -58,7 +59,7 @@ try {
 
   const headBenchResults = await runBenchmark(headBenchmarkURL)
 
-  console.log('Benchmark results for cold:')
+  console.log(bold('Benchmark results for cold:'))
   printBenchmarkResults(
     {
       origin: benchResults,
@@ -66,7 +67,7 @@ try {
     },
     (r) => r.cold && r.firstByte <= TTFB_OUTLIERS_THRESHOLD && r.firstByte
   )
-  console.log('Benchmark results for hot:')
+  console.log(bold('Benchmark results for hot:'))
   printBenchmarkResults(
     {
       origin: benchResults,
@@ -75,7 +76,7 @@ try {
     (r) => !r.cold && r.firstByte <= TTFB_OUTLIERS_THRESHOLD && r.firstByte
   )
 } catch (err) {
-  console.log(('Benchmark failed: ', err))
+  console.log(red('Benchmark failed: ', err))
 } finally {
   await cleanupProjectFolders()
 }
