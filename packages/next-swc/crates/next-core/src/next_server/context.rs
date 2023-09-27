@@ -48,7 +48,7 @@ use crate::{
     next_shared::{
         resolve::{
             ModuleFeatureReportResolvePlugin, NextExternalResolvePlugin,
-            UnsupportedModulesResolvePlugin,
+            NextNodeSharedRuntimeResolvePlugin, UnsupportedModulesResolvePlugin,
         },
         transforms::{
             emotion::get_emotion_transform_plugin, get_relay_transform_plugin,
@@ -98,7 +98,8 @@ pub async fn get_server_resolve_options_context(
 ) -> Result<Vc<ResolveOptionsContext>> {
     let next_server_import_map =
         get_next_server_import_map(project_path, ty, mode, next_config, execution_context);
-    let foreign_code_context_condition = foreign_code_context_condition(next_config).await?;
+    let foreign_code_context_condition =
+        foreign_code_context_condition(next_config, project_path).await?;
     let root_dir = project_path.root().resolve().await?;
     let module_feature_report_resolve_plugin = ModuleFeatureReportResolvePlugin::new(project_path);
     let unsupported_modules_resolve_plugin = UnsupportedModulesResolvePlugin::new(project_path);
@@ -124,6 +125,8 @@ pub async fn get_server_resolve_options_context(
     );
 
     let next_external_plugin = NextExternalResolvePlugin::new(project_path);
+    let next_node_shared_runtime_plugin =
+        NextNodeSharedRuntimeResolvePlugin::new(project_path, Value::new(ty));
 
     let plugins = match ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
@@ -132,6 +135,7 @@ pub async fn get_server_resolve_options_context(
                 Vc::upcast(external_cjs_modules_plugin),
                 Vc::upcast(unsupported_modules_resolve_plugin),
                 Vc::upcast(next_external_plugin),
+                Vc::upcast(next_node_shared_runtime_plugin),
             ]
         }
         ServerContextType::AppSSR { .. }
@@ -143,6 +147,7 @@ pub async fn get_server_resolve_options_context(
                 Vc::upcast(server_component_externals_plugin),
                 Vc::upcast(unsupported_modules_resolve_plugin),
                 Vc::upcast(next_external_plugin),
+                Vc::upcast(next_node_shared_runtime_plugin),
             ]
         }
     };
@@ -174,7 +179,8 @@ fn defines(mode: NextMode) -> CompileTimeDefines {
         process.turbopack = true,
         process.env.NODE_ENV = mode.node_env(),
         process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false,
-        process.env.NEXT_RUNTIME = "nodejs"
+        process.env.NEXT_RUNTIME = "nodejs",
+        process.env.__NEXT_EXPERIMENTAL_REACT = false,
     )
     // TODO(WEB-937) there are more defines needed, see
     // packages/next/src/build/webpack-config.ts
@@ -215,7 +221,8 @@ pub async fn get_server_module_options_context(
     let custom_rules = get_next_server_transforms_rules(next_config, ty.into_value(), mode).await?;
     let internal_custom_rules = get_next_server_internal_transforms_rules(ty.into_value()).await?;
 
-    let foreign_code_context_condition = foreign_code_context_condition(next_config).await?;
+    let foreign_code_context_condition =
+        foreign_code_context_condition(next_config, project_path).await?;
     let enable_postcss_transform = Some(PostCssTransformOptions {
         postcss_package: Some(get_postcss_package_mapping(project_path)),
         ..Default::default()
@@ -258,7 +265,8 @@ pub async fn get_server_module_options_context(
     } else {
         None
     };
-    let jsx_runtime_options = get_jsx_transform_options(project_path, mode, None);
+    let jsx_runtime_options =
+        get_jsx_transform_options(project_path, mode, None, true, next_config);
 
     let source_transforms: Vec<Vc<TransformPlugin>> = vec![
         *get_swc_ecma_transform_plugin(project_path, next_config).await?,

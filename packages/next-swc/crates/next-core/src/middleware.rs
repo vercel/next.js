@@ -29,7 +29,7 @@ pub async fn get_middleware_module(
     project_root: Vc<FileSystemPath>,
     userland_module: Vc<Box<dyn Module>>,
 ) -> Result<Vc<Box<dyn Module>>> {
-    let template_file = "build/templates/middleware.js";
+    let template_file = "middleware.js";
 
     // Load the file from the next.js codebase.
     let file = load_next_js_template(project_root, template_file.to_string()).await?;

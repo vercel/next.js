@@ -91,6 +91,9 @@ state to be preserved in more cases.
   edit.
 - You can put `console.log` or `debugger;` into the components you edit during
   development.
+- Remember that imports are case sensitive. Both fast and full refresh can fail,
+  when your import doesn't match the actual filename.
+  For example, `'./header'` vs `'./Header'`.
 
 ## Fast Refresh and Hooks
 

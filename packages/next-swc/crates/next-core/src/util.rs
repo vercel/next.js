@@ -27,6 +27,8 @@ use crate::{
     next_import_map::get_next_package,
 };
 
+const NEXT_TEMPLATE_PATH: &str = "dist/esm/build/templates";
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, TaskInput)]
 pub enum PathType {
     PagesPage,
@@ -82,13 +84,27 @@ pub fn get_asset_path_from_pathname(pathname: &str, ext: &str) -> String {
 
 pub async fn foreign_code_context_condition(
     next_config: Vc<NextConfig>,
+    project_path: Vc<FileSystemPath>,
 ) -> Result<ContextCondition> {
     let transpile_packages = next_config.transpile_packages().await?;
+
+    // The next template files are allowed to import the user's code via import
+    // mapping, and imports must use the project-level [ResolveOptions] instead
+    // of the `node_modules` specific resolve options (the template files are
+    // technically node module files).
+    let not_next_template_dir = ContextCondition::not(ContextCondition::InPath(
+        get_next_package(project_path).join(NEXT_TEMPLATE_PATH.to_string()),
+    ));
+
     let result = if transpile_packages.is_empty() {
-        ContextCondition::InDirectory("node_modules".to_string())
+        ContextCondition::all(vec![
+            ContextCondition::InDirectory("node_modules".to_string()),
+            not_next_template_dir,
+        ])
     } else {
         ContextCondition::all(vec![
             ContextCondition::InDirectory("node_modules".to_string()),
+            not_next_template_dir,
             ContextCondition::not(ContextCondition::any(
                 transpile_packages
                     .iter()
@@ -334,11 +350,9 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
 #[turbo_tasks::function]
 pub async fn load_next_js_template(
     project_path: Vc<FileSystemPath>,
-    path: String,
+    file: String,
 ) -> Result<Vc<Rope>> {
-    let file_path = get_next_package(project_path)
-        .join("dist/esm".to_string())
-        .join(path);
+    let file_path = virtual_next_js_template_path(project_path, file);
 
     let content = &*file_path.read().await?;
 
@@ -352,11 +366,10 @@ pub async fn load_next_js_template(
 #[turbo_tasks::function]
 pub fn virtual_next_js_template_path(
     project_path: Vc<FileSystemPath>,
-    path: String,
+    file: String,
 ) -> Vc<FileSystemPath> {
-    get_next_package(project_path)
-        .join("dist/esm".to_string())
-        .join(path)
+    debug_assert!(!file.contains('/'));
+    get_next_package(project_path).join(format!("{NEXT_TEMPLATE_PATH}/{file}"))
 }
 
 pub async fn load_next_js_templateon<T: DeserializeOwned>(

@@ -83,7 +83,11 @@ pub struct NextConfig {
     pub react_strict_mode: Option<bool>,
     pub transpile_packages: Option<Vec<String>>,
     pub modularize_imports: Option<IndexMap<String, ModularizeImportPackageConfig>>,
+    pub dist_dir: Option<String>,
     sass_options: Option<serde_json::Value>,
+    pub trailing_slash: Option<bool>,
+    pub asset_prefix: Option<String>,
+    pub base_path: Option<String>,
 
     // Partially supported
     pub compiler: Option<CompilerConfig>,
@@ -94,12 +98,9 @@ pub struct NextConfig {
     cross_origin: Option<String>,
     amp: AmpConfig,
     analytics_id: String,
-    asset_prefix: String,
-    base_path: String,
     clean_dist_dir: bool,
     compress: bool,
     dev_indicators: DevIndicatorsConfig,
-    dist_dir: String,
     eslint: EslintConfig,
     exclude_default_moment_locales: bool,
     // this can be a function in js land
@@ -119,7 +120,6 @@ pub struct NextConfig {
     static_page_generation_timeout: f64,
     swc_minify: Option<bool>,
     target: Option<String>,
-    trailing_slash: bool,
     typescript: TypeScriptConfig,
     use_file_system_public_routes: bool,
     webpack: Option<serde_json::Value>,
@@ -376,7 +376,7 @@ pub enum RemotePatternProtocal {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct ExperimentalTurboConfig {
-    /// This option has been replace by `rules`.
+    /// This option has been replaced by `rules`.
     pub loaders: Option<JsonValue>,
     pub rules: Option<IndexMap<String, RuleConfigItem>>,
     pub resolve_alias: Option<IndexMap<String, JsonValue>>,
@@ -403,6 +403,7 @@ pub enum LoaderItem {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct ExperimentalConfig {
+    pub strict_next_head: Option<bool>,
     pub server_components_external_packages: Option<Vec<String>>,
     pub turbo: Option<ExperimentalTurboConfig>,
     pub allowed_revalidate_header_keys: Option<Vec<String>>,
@@ -411,9 +412,13 @@ pub struct ExperimentalConfig {
     pub isr_flush_to_disk: Option<bool>,
     mdx_rs: Option<bool>,
     pub swc_plugins: Option<Vec<(String, serde_json::Value)>>,
+    // This is used in Next.js, doesn't require compiler changes.
+    client_router_filter_redirects: Option<bool>,
+    // Doesn't apply to Turbopack.
+    webpack_build_worker: Option<bool>,
 
     // unsupported
-    adjust_font_fallbacks: Option<bool>,
+    optimize_package_imports: Option<Vec<String>>,
     adjust_font_fallbacks_with_size_adjust: Option<bool>,
     allow_middleware_response_body: Option<bool>,
     amp: Option<serde_json::Value>,
@@ -439,7 +444,6 @@ pub struct ExperimentalConfig {
     output_file_tracing_root: Option<String>,
     proxy_timeout: Option<f64>,
     scroll_restoration: Option<bool>,
-    shared_pool: Option<bool>,
     sri: Option<serde_json::Value>,
     swc_minify_debug_options: Option<serde_json::Value>,
     swc_trace_profiling: Option<bool>,

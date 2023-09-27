@@ -408,6 +408,7 @@ export default class HotReloader implements NextJsHotReloaderInterface {
                     m.replace(/^\.\//, '[project]/')
                   ),
                   page: payload.page,
+                  isPageHidden: payload.isPageHidden,
                 },
               }
               break
@@ -714,9 +715,11 @@ export default class HotReloader implements NextJsHotReloaderInterface {
     const startSpan = this.hotReloaderSpan.traceChild('start')
     startSpan.stop() // Stop immediately to create an artificial parent span
 
+    const testMode = process.env.NEXT_TEST_MODE || process.env.__NEXT_TEST_MODE
+
     this.versionInfo = await this.getVersionInfo(
       startSpan,
-      !!process.env.NEXT_TEST_MODE || this.telemetry.isEnabled
+      !!testMode || this.telemetry.isEnabled
     )
 
     await this.clean(startSpan)
@@ -1482,14 +1485,15 @@ export default class HotReloader implements NextJsHotReloaderInterface {
       ? this.clientError
       : this.serverError || this.clientError
     if (error) {
-      return Promise.reject(error)
+      throw error
     }
+
     return this.onDemandEntries?.ensurePage({
       page,
       clientOnly,
       appPaths,
       match,
       isApp,
-    }) as any
+    })
   }
 }

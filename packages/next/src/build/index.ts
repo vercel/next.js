@@ -36,6 +36,7 @@ import loadCustomRoutes, {
   normalizeRouteRegex,
   Redirect,
   Rewrite,
+  RouteHas,
   RouteType,
 } from '../lib/load-custom-routes'
 import { getRedirectStatus, modifyRouteRegex } from '../lib/redirect-status'
@@ -130,6 +131,7 @@ import { flatReaddir } from '../lib/flat-readdir'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import {
+  ACTION,
   NEXT_ROUTER_PREFETCH,
   RSC,
   RSC_CONTENT_TYPE_HEADER,
@@ -145,12 +147,8 @@ import { startTypeChecking } from './type-check'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
 
 import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
-import {
-  baseOverrides,
-  defaultOverrides,
-  experimentalOverrides,
-} from '../server/require-hook'
-import { initialize } from '../server/lib/incremental-cache-server'
+import { defaultOverrides } from '../server/require-hook'
+import { initialize as initializeIncrementalCache } from '../server/lib/incremental-cache-server'
 import { nodeFs } from '../server/lib/node-fs-methods'
 
 export type SsgRoute = {
@@ -159,6 +157,7 @@ export type SsgRoute = {
   dataRoute: string | null
   initialStatus?: number
   initialHeaders?: Record<string, string>
+  experimentalBypassFor?: RouteHas[]
 }
 
 export type DynamicSsgRoute = {
@@ -166,6 +165,7 @@ export type DynamicSsgRoute = {
   fallback: string | null | false
   dataRoute: string | null
   dataRouteRegex: string | null
+  experimentalBypassFor?: RouteHas[]
 }
 
 export type PrerenderManifest = {
@@ -355,7 +355,12 @@ export default async function build(
 
       const config: NextConfigComplete = await nextBuildSpan
         .traceChild('load-next-config')
-        .traceAsyncFn(() => loadConfig(PHASE_PRODUCTION_BUILD, dir))
+        .traceAsyncFn(() =>
+          loadConfig(PHASE_PRODUCTION_BUILD, dir, {
+            // Log for next.config loading process
+            silent: false,
+          })
+        )
       NextBuildContext.config = config
 
       let configOutDir = 'out'
@@ -1007,6 +1012,7 @@ export default async function build(
         await binding.turbo.nextBuild({
           ...NextBuildContext,
           root,
+          distDir: config.distDir,
         })
 
         const [duration] = process.hrtime(turboNextBuildStart)
@@ -1166,10 +1172,7 @@ export default async function build(
         : undefined
 
       const timeout = config.staticPageGenerationTimeout || 0
-      const sharedPool = config.experimental.sharedPool || false
-      const staticWorkerPath = sharedPool
-        ? require.resolve('./worker')
-        : require.resolve('./utils')
+      const staticWorkerPath = require.resolve('./worker')
 
       let appPathsManifest: Record<string, string> = {}
       const appPathRoutes: Record<string, string> = {}
@@ -1207,9 +1210,8 @@ export default async function build(
         : config.experimental.cpus || 4
 
       function createStaticWorker(
-        type: 'app' | 'pages',
-        ipcPort: number,
-        ipcValidationKey: string
+        incrementalCacheIpcPort: number,
+        incrementalCacheIpcValidationKey: string
       ) {
         let infoPrinted = false
 
@@ -1248,29 +1250,18 @@ export default async function build(
           forkOptions: {
             env: {
               ...process.env,
-              __NEXT_INCREMENTAL_CACHE_IPC_PORT: ipcPort + '',
-              __NEXT_INCREMENTAL_CACHE_IPC_KEY: ipcValidationKey,
-              __NEXT_PRIVATE_PREBUNDLED_REACT:
-                type === 'app'
-                  ? config.experimental.serverActions
-                    ? 'experimental'
-                    : 'next'
-                  : undefined,
+              __NEXT_INCREMENTAL_CACHE_IPC_PORT: incrementalCacheIpcPort + '',
+              __NEXT_INCREMENTAL_CACHE_IPC_KEY:
+                incrementalCacheIpcValidationKey,
             },
           },
           enableWorkerThreads: config.experimental.workerThreads,
-          exposedMethods: sharedPool
-            ? [
-                'hasCustomGetInitialProps',
-                'isPageStatic',
-                'getDefinedNamedExports',
-                'exportPage',
-              ]
-            : [
-                'hasCustomGetInitialProps',
-                'isPageStatic',
-                'getDefinedNamedExports',
-              ],
+          exposedMethods: [
+            'hasCustomGetInitialProps',
+            'isPageStatic',
+            'getDefinedNamedExports',
+            'exportPage',
+          ],
         }) as Worker &
           Pick<
             typeof import('./worker'),
@@ -1290,7 +1281,10 @@ export default async function build(
         CacheHandler = CacheHandler.default || CacheHandler
       }
 
-      const { ipcPort, ipcValidationKey } = await initialize({
+      const {
+        ipcPort: incrementalCacheIpcPort,
+        ipcValidationKey: incrementalCacheIpcValidationKey,
+      } = await initializeIncrementalCache({
         fs: nodeFs,
         dev: false,
         appDir: isAppDirEnabled,
@@ -1315,12 +1309,14 @@ export default async function build(
       })
 
       const pagesStaticWorkers = createStaticWorker(
-        'pages',
-        ipcPort,
-        ipcValidationKey
+        incrementalCacheIpcPort,
+        incrementalCacheIpcValidationKey
       )
       const appStaticWorkers = isAppDirEnabled
-        ? createStaticWorker('app', ipcPort, ipcValidationKey)
+        ? createStaticWorker(
+            incrementalCacheIpcPort,
+            incrementalCacheIpcValidationKey
+          )
         : undefined
 
       const analysisBegin = process.hrtime()
@@ -1597,14 +1593,6 @@ export default async function build(
                             `Using edge runtime on a page currently disables static generation for that page`
                           )
                         } else {
-                          // If a page has action and it is static, we need to
-                          // change it to SSG to keep the worker created.
-                          // TODO: This is a workaround for now, we should have a
-                          // dedicated worker defined in a heuristic way.
-                          const hasAction = entriesWithAction?.has(
-                            'app' + originalAppPath
-                          )
-
                           if (
                             workerResult.encodedPrerenderRoutes &&
                             workerResult.prerenderRoutes
@@ -1623,47 +1611,39 @@ export default async function build(
 
                           const appConfig = workerResult.appConfig || {}
                           if (appConfig.revalidate !== 0) {
-                            if (hasAction) {
-                              Log.warnOnce(
-                                `Using server actions on a page currently disables static generation for that page`
+                            const isDynamic = isDynamicRoute(page)
+                            const hasGenerateStaticParams =
+                              !!workerResult.prerenderRoutes?.length
+
+                            if (
+                              config.output === 'export' &&
+                              isDynamic &&
+                              !hasGenerateStaticParams
+                            ) {
+                              throw new Error(
+                                `Page "${page}" is missing "generateStaticParams()" so it cannot be used with "output: export" config.`
                               )
-                            } else {
-                              const isDynamic = isDynamicRoute(page)
-                              const hasGenerateStaticParams =
-                                !!workerResult.prerenderRoutes?.length
+                            }
 
-                              if (
-                                config.output === 'export' &&
-                                isDynamic &&
-                                !hasGenerateStaticParams
-                              ) {
-                                throw new Error(
-                                  `Page "${page}" is missing "generateStaticParams()" so it cannot be used with "output: export" config.`
-                                )
-                              }
-
-                              if (
-                                // Mark the app as static if:
-                                // - It has no dynamic param
-                                // - It doesn't have generateStaticParams but `dynamic` is set to
-                                //   `error` or `force-static`
-                                !isDynamic
-                              ) {
-                                appStaticPaths.set(originalAppPath, [page])
-                                appStaticPathsEncoded.set(originalAppPath, [
-                                  page,
-                                ])
-                                isStatic = true
-                              } else if (
-                                isDynamic &&
-                                !hasGenerateStaticParams &&
-                                (appConfig.dynamic === 'error' ||
-                                  appConfig.dynamic === 'force-static')
-                              ) {
-                                appStaticPaths.set(originalAppPath, [])
-                                appStaticPathsEncoded.set(originalAppPath, [])
-                                isStatic = true
-                              }
+                            if (
+                              // Mark the app as static if:
+                              // - It has no dynamic param
+                              // - It doesn't have generateStaticParams but `dynamic` is set to
+                              //   `error` or `force-static`
+                              !isDynamic
+                            ) {
+                              appStaticPaths.set(originalAppPath, [page])
+                              appStaticPathsEncoded.set(originalAppPath, [page])
+                              isStatic = true
+                            } else if (
+                              isDynamic &&
+                              !hasGenerateStaticParams &&
+                              (appConfig.dynamic === 'error' ||
+                                appConfig.dynamic === 'force-static')
+                            ) {
+                              appStaticPaths.set(originalAppPath, [])
+                              appStaticPathsEncoded.set(originalAppPath, [])
+                              isStatic = true
                             }
                           }
 
@@ -1826,11 +1806,6 @@ export default async function build(
           isNextImageImported,
           hasSsrAmpPages,
           hasNonStaticErrorPage: nonStaticErrorPage,
-        }
-
-        if (!sharedPool) {
-          pagesStaticWorkers.end()
-          appStaticWorkers?.end()
         }
 
         return returnValue
@@ -2035,6 +2010,10 @@ export default async function build(
               distDir,
               'cache/next-server.js.nft.json'
             )
+            const minimalCachedTracePath = path.join(
+              distDir,
+              'cache/next-minimal-server.js.nft.json'
+            )
 
             if (
               lockFiles.length > 0 &&
@@ -2062,9 +2041,19 @@ export default async function build(
                 const existingTrace = JSON.parse(
                   await fs.readFile(cachedTracePath, 'utf8')
                 )
+                const existingMinimalTrace = JSON.parse(
+                  await fs.readFile(minimalCachedTracePath, 'utf8')
+                )
 
-                if (existingTrace.cacheKey === cacheKey) {
+                if (
+                  existingTrace.cacheKey === cacheKey &&
+                  existingMinimalTrace.cacheKey === cacheKey
+                ) {
                   await fs.copyFile(cachedTracePath, nextServerTraceOutput)
+                  await fs.copyFile(
+                    minimalCachedTracePath,
+                    nextMinimalTraceOutput
+                  )
                   return
                 }
               } catch {}
@@ -2083,12 +2072,6 @@ export default async function build(
             )
 
             const sharedEntriesSet = [
-              ...Object.values(baseOverrides).map((override) =>
-                require.resolve(override)
-              ),
-              ...Object.values(experimentalOverrides).map((override) =>
-                require.resolve(override)
-              ),
               ...(config.experimental.turbotrace
                 ? []
                 : Object.keys(defaultOverrides).map((value) =>
@@ -2124,9 +2107,13 @@ export default async function build(
 
             const vanillaServerEntries = [
               ...sharedEntriesSet,
-              isStandalone
-                ? require.resolve('next/dist/server/lib/start-server')
-                : null,
+              ...(isStandalone
+                ? [
+                    require.resolve('next/dist/server/lib/start-server'),
+                    require.resolve('next/dist/server/next'),
+                    require.resolve('next/dist/server/require-hook'),
+                  ]
+                : []),
               require.resolve('next/dist/server/next-server'),
             ].filter(Boolean) as string[]
 
@@ -2260,6 +2247,33 @@ export default async function build(
                 }
               }
             }
+
+            const moduleTypes = ['app-page', 'pages']
+
+            for (const type of moduleTypes) {
+              const modulePath = require.resolve(
+                `next/dist/server/future/route-modules/${type}/module.compiled`
+              )
+              const relativeModulePath = path.relative(root, modulePath)
+
+              const contextDir = path.join(
+                path.dirname(modulePath),
+                'vendored',
+                'contexts'
+              )
+
+              for (const item of await fs.readdir(contextDir)) {
+                const itemPath = path.relative(
+                  root,
+                  path.join(contextDir, item)
+                )
+                addToTracedFiles(root, itemPath, tracedFiles)
+                addToTracedFiles(root, itemPath, minimalTracedFiles)
+              }
+              addToTracedFiles(root, relativeModulePath, tracedFiles)
+              addToTracedFiles(root, relativeModulePath, minimalTracedFiles)
+            }
+
             await Promise.all([
               fs.writeFile(
                 nextServerTraceOutput,
@@ -2286,8 +2300,12 @@ export default async function build(
             ])
 
             await fs.unlink(cachedTracePath).catch(() => {})
+            await fs.unlink(minimalCachedTracePath).catch(() => {})
             await fs
               .copyFile(nextServerTraceOutput, cachedTracePath)
+              .catch(() => {})
+            await fs
+              .copyFile(nextMinimalTraceOutput, minimalCachedTracePath)
               .catch(() => {})
           })
       }
@@ -2598,18 +2616,14 @@ export default async function build(
             pages: combinedPages,
             outdir: path.join(distDir, 'export'),
             statusMessage: 'Generating static pages',
-            exportAppPageWorker: sharedPool
-              ? appStaticWorkers?.exportPage.bind(appStaticWorkers)
-              : undefined,
-            exportPageWorker: sharedPool
-              ? pagesStaticWorkers.exportPage.bind(pagesStaticWorkers)
-              : undefined,
-            endWorker: sharedPool
-              ? async () => {
-                  await pagesStaticWorkers.end()
-                  await appStaticWorkers?.end()
-                }
-              : undefined,
+            exportAppPageWorker:
+              appStaticWorkers?.exportPage.bind(appStaticWorkers),
+            exportPageWorker:
+              pagesStaticWorkers.exportPage.bind(pagesStaticWorkers),
+            endWorker: async () => {
+              await pagesStaticWorkers.end()
+              await appStaticWorkers?.end()
+            },
           }
 
           await exportApp(dir, exportOptions, nextBuildSpan)
@@ -2642,6 +2656,17 @@ export default async function build(
 
             const isRouteHandler = isAppRouteRoute(originalAppPath)
 
+            // this flag is used to selectively bypass the static cache and invoke the lambda directly
+            // to enable server actions on static routes
+            const bypassFor: RouteHas[] = [
+              { type: 'header', key: ACTION },
+              {
+                type: 'header',
+                key: 'content-type',
+                value: 'multipart/form-data',
+              },
+            ]
+
             routes.forEach((route) => {
               if (isDynamicRoute(page) && route === page) return
               if (route === '/_not-found') return
@@ -2669,10 +2694,7 @@ export default async function build(
                   ? null
                   : path.posix.join(`${normalizedRoute}.rsc`)
 
-                const routeMeta: {
-                  initialStatus?: SsgRoute['initialStatus']
-                  initialHeaders?: SsgRoute['initialHeaders']
-                } = {}
+                const routeMeta: Partial<SsgRoute> = {}
 
                 const exportRouteMeta: {
                   status?: number
@@ -2709,6 +2731,7 @@ export default async function build(
 
                 finalPrerenderRoutes[route] = {
                   ...routeMeta,
+                  experimentalBypassFor: bypassFor,
                   initialRevalidateSeconds: revalidate,
                   srcRoute: page,
                   dataRoute,
@@ -2732,6 +2755,7 @@ export default async function build(
               // TODO: create a separate manifest to allow enforcing
               // dynamicParams for non-static paths?
               finalDynamicRoutes[page] = {
+                experimentalBypassFor: bypassFor,
                 routeRegex: normalizeRouteRegex(
                   getNamedRouteRegex(page, false).re.source
                 ),
@@ -3315,11 +3339,13 @@ export default async function build(
           require('../export').default
 
         const pagesWorker = createStaticWorker(
-          'pages',
-          ipcPort,
-          ipcValidationKey
+          incrementalCacheIpcPort,
+          incrementalCacheIpcValidationKey
         )
-        const appWorker = createStaticWorker('app', ipcPort, ipcValidationKey)
+        const appWorker = createStaticWorker(
+          incrementalCacheIpcPort,
+          incrementalCacheIpcValidationKey
+        )
 
         const options: ExportOptions = {
           isInvokedFromCli: false,
@@ -3329,18 +3355,12 @@ export default async function build(
           silent: true,
           threads: config.experimental.cpus,
           outdir: path.join(dir, configOutDir),
-          exportAppPageWorker: sharedPool
-            ? appWorker.exportPage.bind(appWorker)
-            : undefined,
-          exportPageWorker: sharedPool
-            ? pagesWorker.exportPage.bind(pagesWorker)
-            : undefined,
-          endWorker: sharedPool
-            ? async () => {
-                await pagesWorker.end()
-                await appWorker.end()
-              }
-            : undefined,
+          exportAppPageWorker: appWorker.exportPage.bind(appWorker),
+          exportPageWorker: pagesWorker.exportPage.bind(pagesWorker),
+          endWorker: async () => {
+            await pagesWorker.end()
+            await appWorker.end()
+          },
         }
 
         await exportApp(dir, options, nextBuildSpan)

@@ -2,7 +2,15 @@
 
 // @ts-ignore
 // eslint-disable-next-line import/no-extraneous-dependencies
-import { createFromFetch } from 'react-server-dom-webpack/client'
+// import { createFromFetch } from 'react-server-dom-webpack/client'
+const { createFromFetch } = (
+  !!process.env.NEXT_RUNTIME
+    ? // eslint-disable-next-line import/no-extraneous-dependencies
+      require('react-server-dom-webpack/client.edge')
+    : // eslint-disable-next-line import/no-extraneous-dependencies
+      require('react-server-dom-webpack/client')
+) as typeof import('react-server-dom-webpack/client')
+
 import type {
   FlightRouterState,
   FlightData,
@@ -21,7 +29,7 @@ import { callServer } from '../../app-call-server'
 import { PrefetchKind } from './router-reducer-types'
 import { hexHash } from '../../../shared/lib/hash'
 
-type FetchServerResponseResult = [
+export type FetchServerResponseResult = [
   flightData: FlightData,
   canonicalUrlOverride: URL | undefined
 ]
