@@ -1587,7 +1587,10 @@ export const renderToHTMLOrFlight: AppPageRender = (
             // Ensure that "next dev" prints the red error overlay
             throw err
           }
-          if (err.digest === NEXT_DYNAMIC_NO_SSR_CODE) {
+          const isDeOpted = err.digest === NEXT_DYNAMIC_NO_SSR_CODE
+          const htmlProps = isDeOpted ? {} : { id: '__next_error__' }
+
+          if (isDeOpted) {
             warn(
               `Entire page ${pagePath} deopted into client-side rendering. https://nextjs.org/docs/messages/deopted-into-client-rendering`,
               pagePath
@@ -1694,7 +1697,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
                   initialHead={head}
                   globalErrorComponent={GlobalError}
                 >
-                  <html id="__next_error__">
+                  <html {...htmlProps}>
                     <head></head>
                     <body></body>
                   </html>
