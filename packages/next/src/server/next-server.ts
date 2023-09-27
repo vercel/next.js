@@ -1517,26 +1517,28 @@ export default class NextNodeServer extends BaseServer {
     const method = (params.request.method || 'GET').toUpperCase()
     const { run } = require('./web/sandbox') as typeof import('./web/sandbox')
 
+    const sandboxRequest = {
+      headers: params.request.headers,
+      method,
+      nextConfig: {
+        basePath: this.nextConfig.basePath,
+        i18n: this.nextConfig.i18n,
+        trailingSlash: this.nextConfig.trailingSlash,
+      },
+      url: url,
+      page,
+      body: getRequestMeta(params.request, '__NEXT_CLONABLE_BODY'),
+      signal: signalFromNodeResponse(
+        (params.response as NodeNextResponse).originalResponse
+      ),
+    }
+
     const result = await run({
       distDir: this.distDir,
       name: middlewareInfo.name,
       paths: middlewareInfo.paths,
       edgeFunctionEntry: middlewareInfo,
-      request: {
-        headers: params.request.headers,
-        method,
-        nextConfig: {
-          basePath: this.nextConfig.basePath,
-          i18n: this.nextConfig.i18n,
-          trailingSlash: this.nextConfig.trailingSlash,
-        },
-        url: url,
-        page,
-        body: getRequestMeta(params.request, '__NEXT_CLONABLE_BODY'),
-        signal: signalFromNodeResponse(
-          (params.response as NodeNextResponse).originalResponse
-        ),
-      },
+      request: sandboxRequest,
       useCache: true,
       onWarning: params.onWarning,
     })
@@ -1825,35 +1827,41 @@ export default class NextNodeServer extends BaseServer {
     }
 
     const { run } = require('./web/sandbox') as typeof import('./web/sandbox')
+
+    const sandboxRequest = {
+      headers: params.req.headers,
+      method: params.req.method,
+      nextConfig: {
+        basePath: this.nextConfig.basePath,
+        i18n: this.nextConfig.i18n,
+        trailingSlash: this.nextConfig.trailingSlash,
+      },
+      url,
+      page: {
+        name: params.page,
+        ...(params.params && { params: params.params }),
+      },
+      body: getRequestMeta(params.req, '__NEXT_CLONABLE_BODY'),
+      signal: signalFromNodeResponse(
+        (params.res as NodeNextResponse).originalResponse
+      ),
+    }
     const result = await run({
       distDir: this.distDir,
       name: edgeInfo.name,
       paths: edgeInfo.paths,
       edgeFunctionEntry: edgeInfo,
-      request: {
-        headers: params.req.headers,
-        method: params.req.method,
-        nextConfig: {
-          basePath: this.nextConfig.basePath,
-          i18n: this.nextConfig.i18n,
-          trailingSlash: this.nextConfig.trailingSlash,
-        },
-        url,
-        page: {
-          name: params.page,
-          ...(params.params && { params: params.params }),
-        },
-        body: getRequestMeta(params.req, '__NEXT_CLONABLE_BODY'),
-        signal: signalFromNodeResponse(
-          (params.res as NodeNextResponse).originalResponse
-        ),
-      },
+      request: sandboxRequest,
       useCache: true,
       onWarning: params.onWarning,
       incrementalCache:
         (globalThis as any).__incrementalCache ||
         getRequestMeta(params.req, '_nextIncrementalCache'),
     })
+
+    if (result.fetchMetrics) {
+      ;(params.req as any).fetchMetrics = result.fetchMetrics
+    }
 
     if (!params.res.statusCode || params.res.statusCode < 400) {
       params.res.statusCode = result.response.status

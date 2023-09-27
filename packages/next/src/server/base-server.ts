@@ -2163,13 +2163,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
         renderOpts.nextFontManifest = this.nextFontManifest
 
-        // @ts-ignore
-        console.log(
-          'compare req and originalRequest',
-          req.fetchMetrics,
-          (req as NodeNextRequest).originalRequest?.fetchMetrics
-        )
-
         // Call the built-in render method on the module.
         result = await module.render(
           (req as NodeNextRequest).originalRequest ?? (req as WebNextRequest),

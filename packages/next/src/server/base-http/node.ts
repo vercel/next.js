@@ -34,12 +34,6 @@ export class NodeNextRequest extends BaseNextRequest<Readable> {
 
   constructor(private _req: Req) {
     super(_req.method!.toUpperCase(), _req.url!, _req)
-    // @ts-ignore
-    console.log(
-      'NodeNextRequest constructor',
-      _req.constructor.name,
-      _req.fetchMetrics
-    )
   }
 
   async parseBody(limit: SizeLimit): Promise<any> {
