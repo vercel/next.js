@@ -2018,8 +2018,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // served by the server.
       let result: RenderResult
 
-      const routeModuleKind = components.routeModule?.definition.kind
-
       if (components.routeModule?.definition.kind === RouteKind.APP_ROUTE) {
         const routeModule = components.routeModule as AppRouteRouteModule
 

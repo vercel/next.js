@@ -126,8 +126,7 @@ createNextDescribe(
             }, 'success')
           })
         }
-      }
-      {
+      } else {
         it('should not log fetch requests at all', async () => {
           const outputIndex = next.cliOutput.length
           await next.fetch('/default-cache')
