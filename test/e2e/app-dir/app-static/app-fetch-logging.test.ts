@@ -147,7 +147,7 @@ createNextDescribe(
       runTests({ hasLogging: true })
     })
 
-    describe.only('with verbose logging for edge runtime', () => {
+    describe('with verbose logging for edge runtime', () => {
       beforeAll(async () => {
         await next.stop()
         const layoutContent = await next.readFile('app/layout.js')
