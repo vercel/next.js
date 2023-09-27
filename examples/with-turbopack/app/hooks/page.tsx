@@ -19,7 +19,7 @@ export default function Page() {
         </ul>
 
         <div className="flex gap-2">
-          <ExternalLink href="https://beta.nextjs.org/docs/data-fetching/fetching#revalidating-data">
+          <ExternalLink href="https://nextjs.org/docs/app/building-your-application/rendering/client-components">
             Docs
           </ExternalLink>
           <ExternalLink href="https://github.com/vercel/app-playground/tree/main/app/hooks">
