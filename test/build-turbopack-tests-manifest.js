@@ -9,7 +9,6 @@ async function format(text) {
 
 const override = process.argv.includes('--override')
 
-// TODO: Switch to nextjs-integration-test-data branch once https://github.com/vercel/turbo/pull/5999 is merged.
 const RESULT_URL =
   'https://raw.githubusercontent.com/vercel/turbo/nextjs-integration-test-data/test-results/main/nextjs-test-results.json'
 const PASSING_JSON_PATH = `${__dirname}/turbopack-tests-manifest.json`
@@ -35,6 +34,7 @@ const SKIPPED_TEST_SUITES = {
   'test/development/acceptance/ReactRefreshRequire.test.ts': [
     'ReactRefreshRequire re-runs accepted modules',
     'ReactRefreshRequire propagates a hot update to closest accepted module',
+    'ReactRefreshRequire propagates hot update to all inverse dependencies',
   ],
   'test/e2e/middleware-rewrites/test/index.test.ts': [
     'Middleware Rewrite should have props for afterFiles rewrite to SSG page',
@@ -49,6 +49,21 @@ const SKIPPED_TEST_SUITES = {
   'test/development/acceptance-app/ReactRefreshRegression.test.ts': [
     'ReactRefreshRegression app can fast refresh a page with dynamic rendering',
     'ReactRefreshRegression app can fast refresh a page with config',
+  ],
+  'test/integration/absolute-assetprefix/test/index.test.js': [
+    'absolute assetPrefix with path prefix should work with getStaticPaths prerendered',
+  ],
+  'test/integration/create-next-app/package-manager.test.ts': [
+    'should use pnpm as the package manager on supplying --use-pnpm',
+    'should use pnpm as the package manager on supplying --use-pnpm with example',
+    'should infer pnpm as the package manager',
+    'should infer pnpm as the package manager with example',
+  ],
+  'test/integration/trailing-slashes/test/index.test.js': [
+    'Trailing slashes dev mode, with basepath, trailingSlash: true /docs/linker?href=/ should navigate to /docs/',
+  ],
+  'test/integration/app-document-remove-hmr/test/index.test.js': [
+    '_app removal HMR should HMR when _document is removed',
   ],
 }
 

@@ -65,6 +65,16 @@ export class NextStartInstance extends NextInstance {
       startArgs = this.startCommand.split(' ')
     }
 
+    if (process.env.NEXT_SKIP_ISOLATE) {
+      // without isolation yarn can't be used and pnpm must be used instead
+      if (buildArgs[0] === 'yarn') {
+        buildArgs[0] = 'pnpm'
+      }
+      if (startArgs[0] === 'yarn') {
+        startArgs[0] = 'pnpm'
+      }
+    }
+
     console.log('running', buildArgs.join(' '))
     await new Promise<void>((resolve, reject) => {
       try {

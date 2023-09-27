@@ -1205,12 +1205,12 @@
       "ReactRefreshRequire stops update propagation after module-level errors"
     ],
     "failed": [
-      "ReactRefreshRequire propagates a module that stops accepting in next version",
-      "ReactRefreshRequire propagates hot update to all inverse dependencies"
+      "ReactRefreshRequire propagates a module that stops accepting in next version"
     ],
     "pending": [],
     "flakey": [
       "ReactRefreshRequire propagates a hot update to closest accepted module",
+      "ReactRefreshRequire propagates hot update to all inverse dependencies",
       "ReactRefreshRequire re-runs accepted modules"
     ],
     "runtimeError": false
@@ -1345,7 +1345,8 @@
   },
   "test/development/basic/barrel-optimization.test.ts": {
     "passed": [
-      "optimizePackageImports should handle recursive wildcard exports"
+      "optimizePackageImports should handle recursive wildcard exports",
+      "optimizePackageImports should not break \"use client\" directive in optimized packages"
     ],
     "failed": [
       "optimizePackageImports app - should render the icons correctly without creating all the modules",
@@ -2082,6 +2083,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/actions/app-action-form-state.test.ts": {
+    "passed": [],
+    "failed": [
+      "app-dir action useFormState should support hydrating the app from progressively enhanced form request",
+      "app-dir action useFormState should support submitting form state with JS",
+      "app-dir action useFormState should support submitting form state without JS"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/actions/app-action-invalid.test.ts": {
     "passed": [],
     "failed": [
@@ -2786,11 +2798,6 @@
       "app dir <Link /> should soft push",
       "app dir HMR should HMR correctly for client component",
       "app dir HMR should HMR correctly for server component",
-      "app dir Subresource Integrity does not include nonce when not enabled",
-      "app dir Subresource Integrity includes a nonce value with bootstrap scripts when Content-Security-Policy header is defined",
-      "app dir Subresource Integrity includes a nonce value with inline scripts when Content-Security-Policy header is defined",
-      "app dir Subresource Integrity includes an integrity attribute on scripts",
-      "app dir Subresource Integrity throws when escape characters are included in nonce",
       "app dir bootstrap scripts should fail to bootstrap when using CSP in Dev due to eval",
       "app dir bootstrap scripts should only bootstrap with one script, prinitializing the rest",
       "app dir bootstrap scripts should successfully bootstrap even when using CSP",
@@ -2892,11 +2899,6 @@
     "pending": [
       "app dir <Link /> should soft replace",
       "app dir HMR should HMR correctly when changing the component type",
-      "app dir Subresource Integrity does not include nonce when not enabled",
-      "app dir Subresource Integrity includes a nonce value with bootstrap scripts when Content-Security-Policy header is defined",
-      "app dir Subresource Integrity includes a nonce value with inline scripts when Content-Security-Policy header is defined",
-      "app dir Subresource Integrity includes an integrity attribute on scripts",
-      "app dir Subresource Integrity throws when escape characters are included in nonce",
       "app dir known bugs should support React fetch instrumentation client component",
       "app dir known bugs should support React fetch instrumentation client component client-navigation",
       "app dir should handle css imports in next/dynamic correctly",
@@ -3001,7 +3003,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/crypto-globally-available/crypto-globally-available.test.ts": {
     "passed": [
@@ -3310,6 +3312,7 @@
     "failed": [
       "app dir - metadata dynamic routes icon image routes should render apple icon with dynamic routes",
       "app dir - metadata dynamic routes icon image routes should render icon with dynamic routes",
+      "app dir - metadata dynamic routes route segment config should generate dynamic route if dynamic config is force-dynamic",
       "app dir - metadata dynamic routes should error when id is missing in generateSitemaps",
       "app dir - metadata dynamic routes should generate static paths of dynamic sitemap in production",
       "app dir - metadata dynamic routes should generate unique path for image routes under group routes",
@@ -3524,7 +3527,7 @@
     "failed": ["next-image-proxy loads images without any errors"],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/app-dir/next-image/next-image.test.ts": {
     "passed": [],
@@ -3819,7 +3822,7 @@
       "app dir - rsc basics should support partial hydration with inlined server data in browser"
     ],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/search-params-react-key/layout-params.test.ts": {
     "passed": [],
@@ -4129,7 +4132,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/conflicting-app-page-error/index.test.ts": {
     "passed": [
@@ -4477,9 +4480,10 @@
     "runtimeError": false
   },
   "test/e2e/i18n-default-locale-redirect/i18n-default-locale-redirect.test.ts": {
-    "passed": [],
+    "passed": [
+      "i18-default-locale-redirect should not request a path prefixed with default locale"
+    ],
     "failed": [
-      "i18-default-locale-redirect should not request a path prefixed with default locale",
       "i18-default-locale-redirect should request a path prefixed with non-default locale"
     ],
     "pending": [],
@@ -4673,7 +4677,7 @@
       "instrumentation-hook-src should reload the server when the instrumentation hook changes"
     ],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/instrumentation-hook/instrumentation-hook.test.ts": {
     "passed": [],
@@ -4716,7 +4720,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/middleware-base-path/test/index.test.ts": {
     "passed": [],
@@ -4810,15 +4814,18 @@
   },
   "test/e2e/middleware-general/test/index.test.ts": {
     "passed": [
+      "Middleware Runtime with i18n hard-navigates when the data request failed",
+      "Middleware Runtime with i18n should have correct dynamic route params on client-transition to dynamic route",
       "Middleware Runtime with i18n should have correct files in manifest",
       "Middleware Runtime with i18n should not run middleware for on-demand revalidate",
+      "Middleware Runtime with i18n should only contain middleware route in dev middleware manifest",
+      "Middleware Runtime with i18n should respond with 400 on decode failure",
       "Middleware Runtime without i18n should have correct files in manifest",
       "Middleware Runtime without i18n should not run middleware for on-demand revalidate"
     ],
     "failed": [
       "Middleware Runtime with i18n allows shallow linking with middleware",
       "Middleware Runtime with i18n allows to access env variables",
-      "Middleware Runtime with i18n hard-navigates when the data request failed",
       "Middleware Runtime with i18n passes search params with rewrites",
       "Middleware Runtime with i18n refreshes the page when middleware changes ",
       "Middleware Runtime with i18n should accept a URL instance for fetch",
@@ -4828,7 +4835,6 @@
       "Middleware Runtime with i18n should contain `globalThis`",
       "Middleware Runtime with i18n should contain crypto APIs",
       "Middleware Runtime with i18n should have correct dynamic route params for middleware rewrite to dynamic route",
-      "Middleware Runtime with i18n should have correct dynamic route params on client-transition to dynamic route",
       "Middleware Runtime with i18n should have correct query values for rewrite to ssg page",
       "Middleware Runtime with i18n should have correct route params for chained rewrite from middleware to config rewrite",
       "Middleware Runtime with i18n should have correct route params for rewrite from config dynamic route",
@@ -4838,9 +4844,7 @@
       "Middleware Runtime with i18n should have valid middleware field in manifest",
       "Middleware Runtime with i18n should keep non data requests in their original shape",
       "Middleware Runtime with i18n should normalize data requests into page requests",
-      "Middleware Runtime with i18n should only contain middleware route in dev middleware manifest",
       "Middleware Runtime with i18n should redirect the same for direct visit and client-transition",
-      "Middleware Runtime with i18n should respond with 400 on decode failure",
       "Middleware Runtime with i18n should rewrite correctly for non-SSG/SSP page",
       "Middleware Runtime with i18n should rewrite the same for direct visit and client-transition",
       "Middleware Runtime with i18n should set fetch user agent correctly",
@@ -4897,7 +4901,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/middleware-matcher/index.test.ts": {
     "passed": [
@@ -4941,10 +4945,12 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/middleware-redirects/test/index.test.ts": {
-    "passed": [],
+    "passed": [
+      "Middleware Redirect should redirect correctly with redirect in next.config.js"
+    ],
     "failed": [
       "Middleware Redirect /fr should implement internal redirects",
       "Middleware Redirect /fr should redirect",
@@ -4958,7 +4964,6 @@
       "Middleware Redirect should redirect",
       "Middleware Redirect should redirect (infinite-loop)",
       "Middleware Redirect should redirect cleanly with the original url param",
-      "Middleware Redirect should redirect correctly with redirect in next.config.js",
       "Middleware Redirect should redirect multiple times",
       "Middleware Redirect should redirect to api route with locale",
       "Middleware Redirect should redirect to data urls with data requests and internal redirects",
@@ -5823,14 +5828,15 @@
   },
   "test/integration/404-page-app/test/index.test.js": {
     "passed": [
-      "404 Page Support with _app dev mode should not show pages/404 GIP error if _app has GIP",
+      "404 Page Support with _app dev mode should not show pages/404 GIP error if _app has GIP"
+    ],
+    "failed": [],
+    "pending": [
       "404 Page Support with _app production mode should build successfully",
       "404 Page Support with _app production mode should not output static 404 if _app has getInitialProps",
       "404 Page Support with _app production mode should still use 404 page",
       "404 Page Support with _app production mode specify to use the 404 page still in the routes-manifest"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -5942,14 +5948,15 @@
     "passed": [
       "absolute assetPrefix with path prefix should not fetch static data from a CDN",
       "absolute assetPrefix with path prefix should work with getServerSideProps",
-      "absolute assetPrefix with path prefix should work with getStaticPaths fallback",
-      "absolute assetPrefix with path prefix should work with getStaticPaths prerendered"
+      "absolute assetPrefix with path prefix should work with getStaticPaths fallback"
     ],
     "failed": [
       "absolute assetPrefix with path prefix should fetch from cache correctly"
     ],
     "pending": [],
-    "flakey": [],
+    "flakey": [
+      "absolute assetPrefix with path prefix should work with getStaticPaths prerendered"
+    ],
     "runtimeError": false
   },
   "test/integration/amp-export-validation/test/index.test.js": {
@@ -6014,13 +6021,21 @@
     "runtimeError": false
   },
   "test/integration/amphtml/test/index.test.js": {
-    "passed": ["AMP Usage production mode should have amp optimizer in trace"],
+    "passed": [],
     "failed": [
       "AMP Usage AMP dev mode should add data-ampdevmode to development script tags",
       "AMP Usage AMP dev mode should detect amp validator warning on invalid amp",
       "AMP Usage AMP dev mode should navigate from non-AMP to AMP without error",
       "AMP Usage AMP dev mode should not contain missing files warning",
-      "AMP Usage AMP dev no-warn should not warn on valid amp",
+      "AMP Usage AMP dev no-warn should not warn on valid amp"
+    ],
+    "pending": [
+      "AMP Usage AMP dev mode should detect changes and refresh a hybrid AMP page",
+      "AMP Usage AMP dev mode should detect changes and refresh an AMP page",
+      "AMP Usage AMP dev mode should detect changes and refresh an AMP page at root pages/",
+      "AMP Usage AMP dev mode should detect changes to component and refresh an AMP page",
+      "AMP Usage AMP dev mode should detect the changes and display it",
+      "AMP Usage AMP dev mode should not reload unless the page is edited for an AMP page",
       "AMP Usage production mode With AMP context should render nested AMP page with AMP hook",
       "AMP Usage production mode With AMP context should render nested normal page with AMP hook",
       "AMP Usage production mode With AMP context should render the AMP page that uses the AMP hook",
@@ -6045,15 +6060,8 @@
       "AMP Usage production mode canonical amphtml should render the AMP page that uses the AMP hook",
       "AMP Usage production mode combined styles should combine style tags",
       "AMP Usage production mode combined styles should remove sourceMaps from styles",
+      "AMP Usage production mode should have amp optimizer in trace",
       "AMP Usage production mode should not contain missing files warning"
-    ],
-    "pending": [
-      "AMP Usage AMP dev mode should detect changes and refresh a hybrid AMP page",
-      "AMP Usage AMP dev mode should detect changes and refresh an AMP page",
-      "AMP Usage AMP dev mode should detect changes and refresh an AMP page at root pages/",
-      "AMP Usage AMP dev mode should detect changes to component and refresh an AMP page",
-      "AMP Usage AMP dev mode should detect the changes and display it",
-      "AMP Usage AMP dev mode should not reload unless the page is edited for an AMP page"
     ],
     "flakey": [],
     "runtimeError": false
@@ -6347,13 +6355,10 @@
     "runtimeError": false
   },
   "test/integration/app-document-remove-hmr/test/index.test.js": {
-    "passed": [
-      "_app removal HMR should HMR when _app is removed",
-      "_app removal HMR should HMR when _document is removed"
-    ],
+    "passed": ["_app removal HMR should HMR when _app is removed"],
     "failed": [],
     "pending": [],
-    "flakey": [],
+    "flakey": ["_app removal HMR should HMR when _document is removed"],
     "runtimeError": false
   },
   "test/integration/app-document-style-fragment/test/index.test.js": {
@@ -6412,24 +6417,25 @@
     "passed": [
       "AppTree dev mode should pass AppTree to NextPageContext",
       "AppTree dev mode should provide router context in AppTree on CSR",
-      "AppTree dev mode should provide router context in AppTree on SSR",
+      "AppTree dev mode should provide router context in AppTree on SSR"
+    ],
+    "failed": [],
+    "pending": [
       "AppTree production mode should pass AppTree to NextPageContext",
       "AppTree production mode should provide router context in AppTree on CSR",
       "AppTree production mode should provide router context in AppTree on SSR"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/app-types/app-types.test.js": {
     "passed": [],
-    "failed": [
+    "failed": [],
+    "pending": [
       "app type checking production mode should generate route types correctly and report link error",
       "app type checking production mode should generate route types correctly and report router API errors",
       "app type checking production mode should type check invalid entry exports"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -6441,19 +6447,19 @@
       "Async modules dev mode ssr async page modules",
       "Async modules dev mode works on async api routes",
       "Async modules dev mode works with getServerSideProps",
-      "Async modules dev mode works with getStaticProps",
+      "Async modules dev mode works with getStaticProps"
+    ],
+    "pending": [
+      "Async modules dev mode can render async AMP pages",
+      "Async modules dev mode can render async error page",
       "Async modules production mode can render async 404 pages",
+      "Async modules production mode can render async AMP pages",
       "Async modules production mode can render async error page",
       "Async modules production mode csr async page modules",
       "Async modules production mode ssr async page modules",
       "Async modules production mode works on async api routes",
       "Async modules production mode works with getServerSideProps",
       "Async modules production mode works with getStaticProps"
-    ],
-    "pending": [
-      "Async modules dev mode can render async AMP pages",
-      "Async modules dev mode can render async error page",
-      "Async modules production mode can render async AMP pages"
     ],
     "flakey": [],
     "runtimeError": false
@@ -6519,11 +6525,10 @@
   },
   "test/integration/basepath-root-catch-all/test/index.test.js": {
     "passed": [],
-    "failed": [
-      "dev mode should use correct data URL for root catch-all",
+    "failed": ["dev mode should use correct data URL for root catch-all"],
+    "pending": [
       "production mode should use correct data URL for root catch-all"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -6724,13 +6729,14 @@
   "test/integration/client-404/test/index.test.js": {
     "passed": [
       "Client 404 dev mode Client Navigation 404 should hard navigate to URL on failing to load bundle",
-      "Client 404 dev mode Client Navigation 404 should show 404 upon client replacestate should navigate the page",
+      "Client 404 dev mode Client Navigation 404 should show 404 upon client replacestate should navigate the page"
+    ],
+    "failed": [],
+    "pending": [
       "Client 404 production mode Client Navigation 404 should hard navigate to URL on failing to load bundle",
       "Client 404 production mode Client Navigation 404 should hard navigate to URL on failing to load missing bundle",
       "Client 404 production mode Client Navigation 404 should show 404 upon client replacestate should navigate the page"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -6751,12 +6757,13 @@
   "test/integration/client-shallow-routing/test/index.test.js": {
     "passed": [
       "Client Shallow Routing dev mode should not shallowly navigate back in history when current page was not shallow",
-      "Client Shallow Routing dev mode should not shallowly navigate forwards in history when current page was not shallow",
+      "Client Shallow Routing dev mode should not shallowly navigate forwards in history when current page was not shallow"
+    ],
+    "failed": [],
+    "pending": [
       "Client Shallow Routing production mode should not shallowly navigate back in history when current page was not shallow",
       "Client Shallow Routing production mode should not shallowly navigate forwards in history when current page was not shallow"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -6930,21 +6937,22 @@
       "should infer Bun as the package manager with example",
       "should infer npm as the package manager",
       "should infer npm as the package manager with example",
-      "should infer pnpm as the package manager",
-      "should infer pnpm as the package manager with example",
       "should infer yarn as the package manager",
       "should infer yarn as the package manager with example",
       "should use Bun as the package manager on supplying --use-bun with example",
       "should use Yarn as the package manager on supplying --use-yarn",
       "should use Yarn as the package manager on supplying --use-yarn with example",
       "should use npm as the package manager on supplying --use-npm",
-      "should use npm as the package manager on supplying --use-npm with example",
-      "should use pnpm as the package manager on supplying --use-pnpm",
-      "should use pnpm as the package manager on supplying --use-pnpm with example"
+      "should use npm as the package manager on supplying --use-npm with example"
     ],
     "failed": ["should use Bun as the package manager on supplying --use-bun"],
     "pending": [],
-    "flakey": [],
+    "flakey": [
+      "should infer pnpm as the package manager",
+      "should infer pnpm as the package manager with example",
+      "should use pnpm as the package manager on supplying --use-pnpm",
+      "should use pnpm as the package manager on supplying --use-pnpm with example"
+    ],
     "runtimeError": false
   },
   "test/integration/create-next-app/templates-app.test.ts": {
@@ -7185,14 +7193,6 @@
       "Basic CSS Modules Ordering Development Mode should have correct color on index page (on hover)",
       "Basic CSS Modules Ordering Development Mode should have correct color on index page (on load)",
       "Basic CSS Modules Ordering Development Mode should have correct color on index page (on nav)",
-      "Basic CSS Modules Ordering Production Mode should have correct color on index page (on hover)",
-      "Basic CSS Modules Ordering Production Mode should have correct color on index page (on load)",
-      "Basic CSS Modules Ordering Production Mode should have correct color on index page (on nav)",
-      "CSS Modules Composes Ordering Production Mode should have correct color on index page (on hover)",
-      "CSS Modules Composes Ordering Production Mode should have correct color on index page (on load)",
-      "CSS Modules Composes Ordering Production Mode should have correct color on index page (on nav from index)",
-      "CSS Modules Composes Ordering Production Mode should have correct color on index page (on nav from other)",
-      "CSS Modules Composes Ordering Production Mode should not change color on hover",
       "Data URLs should compile successfully",
       "Ordering with Global CSS and Modules (dev) should have the correct color (css ordering)",
       "Ordering with Global CSS and Modules (dev) should have the correct color (css ordering) during hot reloads",
@@ -7204,12 +7204,21 @@
       "CSS Modules Composes Ordering Development Mode should have correct color on index page (on hover)",
       "CSS Modules Composes Ordering Development Mode should have correct color on index page (on load)",
       "CSS Modules Composes Ordering Development Mode should have correct color on index page (on nav from index)",
-      "CSS Modules Composes Ordering Production Mode should have correct CSS injection order",
       "Data URLs should have emitted expected files",
       "Ordering with Global CSS and Modules (prod) should have compiled successfully",
       "should handle unresolved files gracefully should have correct file references in CSS output"
     ],
-    "pending": [],
+    "pending": [
+      "Basic CSS Modules Ordering production mode should have correct color on index page (on hover)",
+      "Basic CSS Modules Ordering production mode should have correct color on index page (on load)",
+      "Basic CSS Modules Ordering production mode should have correct color on index page (on nav)",
+      "CSS Modules Composes Ordering production mode should have correct CSS injection order",
+      "CSS Modules Composes Ordering production mode should have correct color on index page (on hover)",
+      "CSS Modules Composes Ordering production mode should have correct color on index page (on load)",
+      "CSS Modules Composes Ordering production mode should have correct color on index page (on nav from index)",
+      "CSS Modules Composes Ordering production mode should have correct color on index page (on nav from other)",
+      "CSS Modules Composes Ordering production mode should not change color on hover"
+    ],
     "flakey": [
       "CSS Modules Composes Ordering Development Mode should have correct color on index page (on nav from other)"
     ],
@@ -7217,22 +7226,22 @@
   },
   "test/integration/css/test/css-rendering.test.js": {
     "passed": [
-      "CSS Support CSS Import from node_modules should fail the build",
-      "CSS Support CSS page transition inject <style> with nonce so it works with CSP header Production Mode should have correct color on index page (on hover)",
-      "CSS Support CSS page transition inject <style> with nonce so it works with CSP header Production Mode should have correct color on index page (on load)",
-      "CSS Support CSS page transition inject <style> with nonce so it works with CSP header Production Mode should have correct color on index page (on nav from index)",
-      "CSS Support CSS page transition inject <style> with nonce so it works with CSP header Production Mode should have correct color on index page (on nav from other)",
-      "CSS Support CSS page transition inject <style> with nonce so it works with CSP header Production Mode should not change color on hover",
-      "CSS Support Page hydrates with CSS and not waiting on dependencies Production Mode should hydrate black without dependencies manifest",
-      "CSS Support Page reload on CSS missing Production Mode should fall back to server-side transition on missing CSS"
+      "CSS Support CSS Import from node_modules should fail the build"
     ],
-    "failed": [
-      "CSS Support CSS Cleanup on Render Failure Production Mode not have intermediary page styles on error rendering",
-      "CSS Support CSS page transition inject <style> with nonce so it works with CSP header Production Mode should have correct CSS injection order",
-      "CSS Support Page hydrates with CSS and not waiting on dependencies Production Mode should hydrate red without dependencies manifest",
-      "CSS Support Page hydrates with CSS and not waiting on dependencies Production Mode should route from black to red without dependencies"
+    "failed": [],
+    "pending": [
+      "CSS Support CSS Cleanup on Render Failure production mode not have intermediary page styles on error rendering",
+      "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct CSS injection order",
+      "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct color on index page (on hover)",
+      "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct color on index page (on load)",
+      "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct color on index page (on nav from index)",
+      "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct color on index page (on nav from other)",
+      "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should not change color on hover",
+      "CSS Support Page hydrates with CSS and not waiting on dependencies production mode should hydrate black without dependencies manifest",
+      "CSS Support Page hydrates with CSS and not waiting on dependencies production mode should hydrate red without dependencies manifest",
+      "CSS Support Page hydrates with CSS and not waiting on dependencies production mode should route from black to red without dependencies",
+      "CSS Support Page reload on CSS missing production mode should fall back to server-side transition on missing CSS"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -7277,12 +7286,13 @@
     "passed": [
       "Custom _error dev mode 1 should not warn with /_error and /404 when rendering error first",
       "Custom _error dev mode 2 should not warn with /_error and /404",
-      "Custom _error dev mode 2 should warn on custom /_error without custom /404",
+      "Custom _error dev mode 2 should warn on custom /_error without custom /404"
+    ],
+    "failed": [],
+    "pending": [
       "Custom _error production mode renders custom _error successfully",
       "Custom _error production mode should not contain /_error in build output"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -7290,11 +7300,12 @@
     "passed": [],
     "failed": [
       "Custom page extension dev mode should work dynamic page",
-      "Custom page extension dev mode should work with normal page",
+      "Custom page extension dev mode should work with normal page"
+    ],
+    "pending": [
       "Custom page extension production mode should work dynamic page",
       "Custom page extension production mode should work with normal page"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -7303,24 +7314,26 @@
       "Custom routes dev mode should rewrite and render page correctly",
       "Custom routes dev mode should rewrite to /_next/static correctly",
       "Custom routes dev mode should rewrite to public file correctly",
-      "Custom routes dev mode should rewrite to public/static correctly",
+      "Custom routes dev mode should rewrite to public/static correctly"
+    ],
+    "failed": [],
+    "pending": [
       "Custom routes production mode should rewrite and render page correctly",
       "Custom routes production mode should rewrite to /_next/static correctly",
       "Custom routes production mode should rewrite to public file correctly",
       "Custom routes production mode should rewrite to public/static correctly"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/custom-routes-i18n-index-redirect/test/index.test.js": {
     "passed": [
-      "Custom routes i18n with index redirect dev mode should respond to default locale redirects correctly for index redirect",
-      "Custom routes i18n with index redirect production mode should respond to default locale redirects correctly for index redirect"
+      "Custom routes i18n with index redirect dev mode should respond to default locale redirects correctly for index redirect"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "Custom routes i18n with index redirect production mode should respond to default locale redirects correctly for index redirect"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -7328,16 +7341,17 @@
     "passed": [
       "Custom routes i18n dev mode should respond to default locale redirects correctly",
       "Custom routes i18n dev mode should rewrite correctly",
-      "Custom routes i18n dev mode should rewrite index routes correctly",
+      "Custom routes i18n dev mode should rewrite index routes correctly"
+    ],
+    "failed": [
+      "Custom routes i18n dev mode should navigate on the client with rewrites correctly"
+    ],
+    "pending": [
+      "Custom routes i18n production mode should navigate on the client with rewrites correctly",
       "Custom routes i18n production mode should respond to default locale redirects correctly",
       "Custom routes i18n production mode should rewrite correctly",
       "Custom routes i18n production mode should rewrite index routes correctly"
     ],
-    "failed": [
-      "Custom routes i18n dev mode should navigate on the client with rewrites correctly",
-      "Custom routes i18n production mode should navigate on the client with rewrites correctly"
-    ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -7535,10 +7549,7 @@
       "Custom routes server mode show allow redirect to override the page",
       "Custom routes should load custom routes when only one type is used dev mode should work with just headers",
       "Custom routes should load custom routes when only one type is used dev mode should work with just redirects",
-      "Custom routes should load custom routes when only one type is used dev mode should work with just rewrites",
-      "Custom routes should load custom routes when only one type is used production mode should work with just headers",
-      "Custom routes should load custom routes when only one type is used production mode should work with just redirects",
-      "Custom routes should load custom routes when only one type is used production mode should work with just rewrites"
+      "Custom routes should load custom routes when only one type is used dev mode should work with just rewrites"
     ],
     "failed": [
       "Custom routes dev mode should handle beforeFiles rewrite to dynamic route correctly",
@@ -7558,7 +7569,11 @@
       "Custom routes server mode should work with rewrite when only specifying href",
       "Custom routes server mode should work with rewrite when only specifying href and ends in dynamic route"
     ],
-    "pending": [],
+    "pending": [
+      "Custom routes should load custom routes when only one type is used production mode should work with just headers",
+      "Custom routes should load custom routes when only one type is used production mode should work with just redirects",
+      "Custom routes should load custom routes when only one type is used production mode should work with just rewrites"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -7661,14 +7676,15 @@
     "passed": [
       "disabled runtime JS dev mode should have a script for each preload link",
       "disabled runtime JS dev mode should not have __NEXT_DATA__ script",
-      "disabled runtime JS dev mode should render the page",
+      "disabled runtime JS dev mode should render the page"
+    ],
+    "failed": [],
+    "pending": [
       "disabled runtime JS production mode should not have __NEXT_DATA__ script",
       "disabled runtime JS production mode should not have preload links",
       "disabled runtime JS production mode should not have scripts",
       "disabled runtime JS production mode should render the page"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -7689,14 +7705,13 @@
     "runtimeError": false
   },
   "test/integration/document-file-dependencies/test/index.test.js": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "File Dependencies production mode should apply styles defined in global and module css files in 404 page",
       "File Dependencies production mode should apply styles defined in global and module css files in a standard page.",
       "File Dependencies production mode should apply styles defined in global and module css files in error page"
     ],
-    "failed": [
-      "File Dependencies production mode should apply styles defined in global and module css files in 404 page"
-    ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -7752,13 +7767,14 @@
     "passed": [
       "Dynamic Optional Routing Root Fallback dev mode should render optional catch-all top-level route with no segments",
       "Dynamic Optional Routing Root Fallback dev mode should render optional catch-all top-level route with one segment",
-      "Dynamic Optional Routing Root Fallback dev mode should render optional catch-all top-level route with two segments",
+      "Dynamic Optional Routing Root Fallback dev mode should render optional catch-all top-level route with two segments"
+    ],
+    "failed": [],
+    "pending": [
       "Dynamic Optional Routing Root Fallback production mode should render optional catch-all top-level route with no segments",
       "Dynamic Optional Routing Root Fallback production mode should render optional catch-all top-level route with one segment",
       "Dynamic Optional Routing Root Fallback production mode should render optional catch-all top-level route with two segments"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -7766,13 +7782,14 @@
     "passed": [
       "Dynamic Optional Routing dev mode should render optional catch-all top-level route with no segments",
       "Dynamic Optional Routing dev mode should render optional catch-all top-level route with one segment",
-      "Dynamic Optional Routing dev mode should render optional catch-all top-level route with two segments",
+      "Dynamic Optional Routing dev mode should render optional catch-all top-level route with two segments"
+    ],
+    "failed": [],
+    "pending": [
       "Dynamic Optional Routing production mode should render optional catch-all top-level route with no segments",
       "Dynamic Optional Routing production mode should render optional catch-all top-level route with one segment",
       "Dynamic Optional Routing production mode should render optional catch-all top-level route with two segments"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -7805,7 +7822,10 @@
       "Dynamic Optional Routing dev mode should render catch-all nested route with single segment",
       "Dynamic Optional Routing dev mode should render catch-all top-level route with multiple segments",
       "Dynamic Optional Routing dev mode should render catch-all top-level route with no segments",
-      "Dynamic Optional Routing dev mode should render catch-all top-level route with single segment",
+      "Dynamic Optional Routing dev mode should render catch-all top-level route with single segment"
+    ],
+    "failed": [],
+    "pending": [
       "Dynamic Optional Routing production mode should fail to build when mixed with regular catch-all",
       "Dynamic Optional Routing production mode should fail to build when optional but no catch-all",
       "Dynamic Optional Routing production mode should fail to build when optional route has index.js at root",
@@ -7836,8 +7856,6 @@
       "Dynamic Optional Routing production mode should render catch-all top-level route with no segments",
       "Dynamic Optional Routing production mode should render catch-all top-level route with single segment"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -7934,7 +7952,13 @@
       "Dynamic Routing dev mode should support long URLs for dynamic routes",
       "Dynamic Routing dev mode should update dynamic values on mount",
       "Dynamic Routing dev mode should update with a hash in the URL",
-      "Dynamic Routing dev mode should work with HMR correctly",
+      "Dynamic Routing dev mode should work with HMR correctly"
+    ],
+    "failed": [
+      "Dynamic Routing dev mode should resolve dynamic route href for page added later"
+    ],
+    "pending": [
+      "Dynamic Routing dev mode should not have error after pinging WebSocket",
       "Dynamic Routing production mode [catch all] should not decode slashes (end)",
       "Dynamic Routing production mode [catch all] should not decode slashes (middle)",
       "Dynamic Routing production mode [catch all] should not decode slashes (start)",
@@ -7956,15 +7980,32 @@
       "Dynamic Routing production mode [predefined ssg: prerendered catch all] should pass params in getStaticProps during SSR",
       "Dynamic Routing production mode [ssg: catch all] should pass param in getStaticProps during SSR",
       "Dynamic Routing production mode [ssg: catch all] should pass params in getStaticProps during SSR",
+      "Dynamic Routing production mode [ssg: catch-all] should pass params in getStaticProps during client navigation (multi interpolated)",
+      "Dynamic Routing production mode [ssg: catch-all] should pass params in getStaticProps during client navigation (multi)",
+      "Dynamic Routing production mode [ssg: catch-all] should pass params in getStaticProps during client navigation (multi) no as",
+      "Dynamic Routing production mode [ssg: catch-all] should pass params in getStaticProps during client navigation (single interpolated)",
+      "Dynamic Routing production mode [ssg: catch-all] should pass params in getStaticProps during client navigation (single)",
       "Dynamic Routing production mode should allow calling Router.push on mount successfully",
       "Dynamic Routing production mode should handle only hash on dynamic route",
       "Dynamic Routing production mode should handle only query on dynamic route",
       "Dynamic Routing production mode should navigate optional dynamic page",
       "Dynamic Routing production mode should navigate optional dynamic page with value",
+      "Dynamic Routing production mode should navigate to a dynamic page successfully",
+      "Dynamic Routing production mode should navigate to a dynamic page successfully interpolated",
+      "Dynamic Routing production mode should navigate to a dynamic page successfully interpolated with additional query values",
+      "Dynamic Routing production mode should navigate to a dynamic page successfully no as",
+      "Dynamic Routing production mode should navigate to a dynamic page with href with differing query and as correctly",
+      "Dynamic Routing production mode should navigate to a nested dynamic page successfully",
+      "Dynamic Routing production mode should navigate to a nested dynamic page successfully interpolated",
+      "Dynamic Routing production mode should navigate to a nested dynamic page successfully no as",
+      "Dynamic Routing production mode should navigate with hash to dynamic route with link",
+      "Dynamic Routing production mode should navigate with hash to dynamic route with router",
       "Dynamic Routing production mode should not error when requesting dynamic page with /api",
       "Dynamic Routing production mode should not have any query values when not defined",
       "Dynamic Routing production mode should not have placeholder query values for SSS",
       "Dynamic Routing production mode should not preload buildManifest for non-auto export dynamic pages",
+      "Dynamic Routing production mode should output a pages-manifest correctly",
+      "Dynamic Routing production mode should output a routes-manifest correctly",
       "Dynamic Routing production mode should pass params in getInitialProps during SSR",
       "Dynamic Routing production mode should pass params in getInitialProps during client navigation",
       "Dynamic Routing production mode should prioritize a non-dynamic page",
@@ -7989,29 +8030,6 @@
       "Dynamic Routing production mode should support long URLs for dynamic routes",
       "Dynamic Routing production mode should update dynamic values on mount",
       "Dynamic Routing production mode should update with a hash in the URL"
-    ],
-    "failed": [
-      "Dynamic Routing dev mode should resolve dynamic route href for page added later",
-      "Dynamic Routing production mode [ssg: catch-all] should pass params in getStaticProps during client navigation (multi interpolated)",
-      "Dynamic Routing production mode [ssg: catch-all] should pass params in getStaticProps during client navigation (multi)",
-      "Dynamic Routing production mode [ssg: catch-all] should pass params in getStaticProps during client navigation (multi) no as",
-      "Dynamic Routing production mode [ssg: catch-all] should pass params in getStaticProps during client navigation (single interpolated)",
-      "Dynamic Routing production mode [ssg: catch-all] should pass params in getStaticProps during client navigation (single)",
-      "Dynamic Routing production mode should navigate to a dynamic page successfully",
-      "Dynamic Routing production mode should navigate to a dynamic page successfully interpolated",
-      "Dynamic Routing production mode should navigate to a dynamic page successfully interpolated with additional query values",
-      "Dynamic Routing production mode should navigate to a dynamic page successfully no as",
-      "Dynamic Routing production mode should navigate to a dynamic page with href with differing query and as correctly",
-      "Dynamic Routing production mode should navigate to a nested dynamic page successfully",
-      "Dynamic Routing production mode should navigate to a nested dynamic page successfully interpolated",
-      "Dynamic Routing production mode should navigate to a nested dynamic page successfully no as",
-      "Dynamic Routing production mode should navigate with hash to dynamic route with link",
-      "Dynamic Routing production mode should navigate with hash to dynamic route with router",
-      "Dynamic Routing production mode should output a pages-manifest correctly",
-      "Dynamic Routing production mode should output a routes-manifest correctly"
-    ],
-    "pending": [
-      "Dynamic Routing dev mode should not have error after pinging WebSocket"
     ],
     "flakey": [
       "Dynamic Routing production mode should have correct cache entries on prefetch",
@@ -8092,7 +8110,11 @@
       "Dynamic Routing dev mode should serve file with space from static folder",
       "Dynamic Routing dev mode should support long URLs for dynamic routes",
       "Dynamic Routing dev mode should update dynamic values on mount",
-      "Dynamic Routing dev mode should update with a hash in the URL",
+      "Dynamic Routing dev mode should update with a hash in the URL"
+    ],
+    "failed": ["Dynamic Routing dev mode should work with HMR correctly"],
+    "pending": [
+      "Dynamic Routing dev mode should not have error after pinging WebSocket",
       "Dynamic Routing production mode [catch all] should not decode slashes (end)",
       "Dynamic Routing production mode [catch all] should not decode slashes (middle)",
       "Dynamic Routing production mode [catch all] should not decode slashes (start)",
@@ -8114,15 +8136,32 @@
       "Dynamic Routing production mode [predefined ssg: prerendered catch all] should pass params in getStaticProps during SSR",
       "Dynamic Routing production mode [ssg: catch all] should pass param in getStaticProps during SSR",
       "Dynamic Routing production mode [ssg: catch all] should pass params in getStaticProps during SSR",
+      "Dynamic Routing production mode [ssg: catch-all] should pass params in getStaticProps during client navigation (multi interpolated)",
+      "Dynamic Routing production mode [ssg: catch-all] should pass params in getStaticProps during client navigation (multi)",
+      "Dynamic Routing production mode [ssg: catch-all] should pass params in getStaticProps during client navigation (multi) no as",
+      "Dynamic Routing production mode [ssg: catch-all] should pass params in getStaticProps during client navigation (single interpolated)",
+      "Dynamic Routing production mode [ssg: catch-all] should pass params in getStaticProps during client navigation (single)",
       "Dynamic Routing production mode should allow calling Router.push on mount successfully",
       "Dynamic Routing production mode should handle only hash on dynamic route",
       "Dynamic Routing production mode should handle only query on dynamic route",
+      "Dynamic Routing production mode should have correct cache entries on prefetch",
       "Dynamic Routing production mode should navigate optional dynamic page",
       "Dynamic Routing production mode should navigate optional dynamic page with value",
+      "Dynamic Routing production mode should navigate to a dynamic page successfully",
+      "Dynamic Routing production mode should navigate to a dynamic page successfully interpolated",
+      "Dynamic Routing production mode should navigate to a dynamic page successfully interpolated with additional query values",
+      "Dynamic Routing production mode should navigate to a dynamic page successfully no as",
+      "Dynamic Routing production mode should navigate to a dynamic page with href with differing query and as correctly",
+      "Dynamic Routing production mode should navigate to a nested dynamic page successfully",
+      "Dynamic Routing production mode should navigate to a nested dynamic page successfully interpolated",
+      "Dynamic Routing production mode should navigate to a nested dynamic page successfully no as",
+      "Dynamic Routing production mode should navigate with hash to dynamic route with link",
+      "Dynamic Routing production mode should navigate with hash to dynamic route with router",
       "Dynamic Routing production mode should not error when requesting dynamic page with /api",
       "Dynamic Routing production mode should not have any query values when not defined",
       "Dynamic Routing production mode should not have placeholder query values for SSS",
       "Dynamic Routing production mode should not preload buildManifest for non-auto export dynamic pages",
+      "Dynamic Routing production mode should output a pages-manifest correctly",
       "Dynamic Routing production mode should pass params in getInitialProps during SSR",
       "Dynamic Routing production mode should pass params in getInitialProps during client navigation",
       "Dynamic Routing production mode should prioritize a non-dynamic page",
@@ -8148,29 +8187,6 @@
       "Dynamic Routing production mode should support long URLs for dynamic routes",
       "Dynamic Routing production mode should update dynamic values on mount",
       "Dynamic Routing production mode should update with a hash in the URL"
-    ],
-    "failed": [
-      "Dynamic Routing dev mode should work with HMR correctly",
-      "Dynamic Routing production mode [ssg: catch-all] should pass params in getStaticProps during client navigation (multi interpolated)",
-      "Dynamic Routing production mode [ssg: catch-all] should pass params in getStaticProps during client navigation (multi)",
-      "Dynamic Routing production mode [ssg: catch-all] should pass params in getStaticProps during client navigation (multi) no as",
-      "Dynamic Routing production mode [ssg: catch-all] should pass params in getStaticProps during client navigation (single interpolated)",
-      "Dynamic Routing production mode [ssg: catch-all] should pass params in getStaticProps during client navigation (single)",
-      "Dynamic Routing production mode should have correct cache entries on prefetch",
-      "Dynamic Routing production mode should navigate to a dynamic page successfully",
-      "Dynamic Routing production mode should navigate to a dynamic page successfully interpolated",
-      "Dynamic Routing production mode should navigate to a dynamic page successfully interpolated with additional query values",
-      "Dynamic Routing production mode should navigate to a dynamic page successfully no as",
-      "Dynamic Routing production mode should navigate to a dynamic page with href with differing query and as correctly",
-      "Dynamic Routing production mode should navigate to a nested dynamic page successfully",
-      "Dynamic Routing production mode should navigate to a nested dynamic page successfully interpolated",
-      "Dynamic Routing production mode should navigate to a nested dynamic page successfully no as",
-      "Dynamic Routing production mode should navigate with hash to dynamic route with link",
-      "Dynamic Routing production mode should navigate with hash to dynamic route with router",
-      "Dynamic Routing production mode should output a pages-manifest correctly"
-    ],
-    "pending": [
-      "Dynamic Routing dev mode should not have error after pinging WebSocket"
     ],
     "flakey": [
       "Dynamic Routing dev mode should resolve dynamic route href for page added later",
@@ -8214,16 +8230,17 @@
       "Edge route usage of dynamic code evaluation dev mode shows a warning when running WebAssembly.compile",
       "Edge route usage of dynamic code evaluation dev mode shows a warning when running WebAssembly.instantiate with a buffer parameter",
       "Edge route usage of dynamic code evaluation dev mode shows a warning when running code with eval",
-      "Edge route usage of dynamic code evaluation production mode should have middleware warning during build",
       "Middleware usage of dynamic code evaluation dev mode does not show a warning when running WebAssembly.instantiate with a module parameter",
       "Middleware usage of dynamic code evaluation dev mode does not show warning when no code uses eval",
       "Middleware usage of dynamic code evaluation dev mode shows a warning when running WebAssembly.compile",
       "Middleware usage of dynamic code evaluation dev mode shows a warning when running WebAssembly.instantiate with a buffer parameter",
       "Middleware usage of dynamic code evaluation dev mode shows a warning when running code with eval",
-      "Middleware usage of dynamic code evaluation production mode should have middleware warning during build",
       "Page using eval in dev mode does issue dynamic code evaluation warnings"
     ],
-    "pending": [],
+    "pending": [
+      "Edge route usage of dynamic code evaluation production mode should have middleware warning during build",
+      "Middleware usage of dynamic code evaluation production mode should have middleware warning during build"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -8296,8 +8313,8 @@
   },
   "test/integration/edge-runtime-streaming-error/test/index.test.ts": {
     "passed": ["dev mode logs the error correctly"],
-    "failed": ["production mode logs the error correctly"],
-    "pending": [],
+    "failed": [],
+    "pending": ["production mode logs the error correctly"],
     "flakey": [],
     "runtimeError": false
   },
@@ -8328,6 +8345,27 @@
       "Edge route using Node.js API dev mode throws error when using process.cwd",
       "Edge route using Node.js API dev mode throws error when using process.getuid",
       "Edge route using Node.js API dev mode throws error when using setImmediate",
+      "Middleware using Node.js API dev mode throws error when using BroadcastChannel",
+      "Middleware using Node.js API dev mode throws error when using ByteLengthQueuingStrategy",
+      "Middleware using Node.js API dev mode throws error when using CompressionStream",
+      "Middleware using Node.js API dev mode throws error when using CountQueuingStrategy",
+      "Middleware using Node.js API dev mode throws error when using DecompressionStream",
+      "Middleware using Node.js API dev mode throws error when using DomException",
+      "Middleware using Node.js API dev mode throws error when using MessageChannel",
+      "Middleware using Node.js API dev mode throws error when using MessageEvent",
+      "Middleware using Node.js API dev mode throws error when using MessagePort",
+      "Middleware using Node.js API dev mode throws error when using ReadableByteStreamController",
+      "Middleware using Node.js API dev mode throws error when using ReadableStreamBYOBRequest",
+      "Middleware using Node.js API dev mode throws error when using ReadableStreamDefaultController",
+      "Middleware using Node.js API dev mode throws error when using TransformStreamDefaultController",
+      "Middleware using Node.js API dev mode throws error when using WritableStreamDefaultController",
+      "Middleware using Node.js API dev mode throws error when using clearImmediate",
+      "Middleware using Node.js API dev mode throws error when using process.cpuUsage",
+      "Middleware using Node.js API dev mode throws error when using process.cwd",
+      "Middleware using Node.js API dev mode throws error when using process.getuid",
+      "Middleware using Node.js API dev mode throws error when using setImmediate"
+    ],
+    "pending": [
       "Edge route using Node.js API production mode does not warn on using process.arch",
       "Edge route using Node.js API production mode does not warn on using process.version",
       "Edge route using Node.js API production mode warns for BroadcastChannel during build",
@@ -8349,25 +8387,6 @@
       "Edge route using Node.js API production mode warns for process.cwd during build",
       "Edge route using Node.js API production mode warns for process.getuid during build",
       "Edge route using Node.js API production mode warns for setImmediate during build",
-      "Middleware using Node.js API dev mode throws error when using BroadcastChannel",
-      "Middleware using Node.js API dev mode throws error when using ByteLengthQueuingStrategy",
-      "Middleware using Node.js API dev mode throws error when using CompressionStream",
-      "Middleware using Node.js API dev mode throws error when using CountQueuingStrategy",
-      "Middleware using Node.js API dev mode throws error when using DecompressionStream",
-      "Middleware using Node.js API dev mode throws error when using DomException",
-      "Middleware using Node.js API dev mode throws error when using MessageChannel",
-      "Middleware using Node.js API dev mode throws error when using MessageEvent",
-      "Middleware using Node.js API dev mode throws error when using MessagePort",
-      "Middleware using Node.js API dev mode throws error when using ReadableByteStreamController",
-      "Middleware using Node.js API dev mode throws error when using ReadableStreamBYOBRequest",
-      "Middleware using Node.js API dev mode throws error when using ReadableStreamDefaultController",
-      "Middleware using Node.js API dev mode throws error when using TransformStreamDefaultController",
-      "Middleware using Node.js API dev mode throws error when using WritableStreamDefaultController",
-      "Middleware using Node.js API dev mode throws error when using clearImmediate",
-      "Middleware using Node.js API dev mode throws error when using process.cpuUsage",
-      "Middleware using Node.js API dev mode throws error when using process.cwd",
-      "Middleware using Node.js API dev mode throws error when using process.getuid",
-      "Middleware using Node.js API dev mode throws error when using setImmediate",
       "Middleware using Node.js API production mode does not warn on using process.arch",
       "Middleware using Node.js API production mode does not warn on using process.version",
       "Middleware using Node.js API production mode warns for BroadcastChannel during build",
@@ -8390,7 +8409,6 @@
       "Middleware using Node.js API production mode warns for process.getuid during build",
       "Middleware using Node.js API production mode warns for setImmediate during build"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -8759,7 +8777,10 @@
       "fallback: false rewrite dev mode should rewrite correctly for path above fallback: false SSR",
       "fallback: false rewrite dev mode should rewrite correctly for path above fallback: false client",
       "fallback: false rewrite dev mode should rewrite correctly for path at same level as fallback: false SSR",
-      "fallback: false rewrite dev mode should rewrite correctly for path at same level as fallback: false client",
+      "fallback: false rewrite dev mode should rewrite correctly for path at same level as fallback: false client"
+    ],
+    "failed": [],
+    "pending": [
       "fallback: false rewrite production mode should behave properly when accessing the dynamic param directly",
       "fallback: false rewrite production mode should not rewrite for path from fallback: false SSR",
       "fallback: false rewrite production mode should not rewrite for path from fallback: false client",
@@ -8768,8 +8789,6 @@
       "fallback: false rewrite production mode should rewrite correctly for path at same level as fallback: false SSR",
       "fallback: false rewrite production mode should rewrite correctly for path at same level as fallback: false client"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -8783,12 +8802,13 @@
   "test/integration/fallback-route-params/test/index.test.js": {
     "passed": [
       "Fallback Dynamic Route Params dev mode should have correct fallback query (hydration)",
-      "Fallback Dynamic Route Params dev mode should have correct fallback query (skeleton)",
+      "Fallback Dynamic Route Params dev mode should have correct fallback query (skeleton)"
+    ],
+    "failed": [],
+    "pending": [
       "Fallback Dynamic Route Params production mode should have correct fallback query (hydration)",
       "Fallback Dynamic Route Params production mode should have correct fallback query (skeleton)"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -9483,7 +9503,10 @@
       "File Serving dev mode should serve avif image with correct content-type",
       "File Serving dev mode should serve correct error code",
       "File Serving dev mode should serve file with space correctly from public/",
-      "File Serving dev mode should serve file with space correctly static/",
+      "File Serving dev mode should serve file with space correctly static/"
+    ],
+    "failed": [],
+    "pending": [
       "File Serving production mode should prevent traversing with /%%32%65%%32%65%%32%66%%32%65%%32%65%%32%66%%32%65%%32%65%%32%66%%32%65%%32%65%%32%66%%32%65%%32%65%%32%66%%32%65%%32%65%%32%66%%32%65%%32%65%%32%66%%32%65%%32%65%%32%66test-file.txt",
       "File Serving production mode should prevent traversing with /%%32%65%%32%65%%32%66%%32%65%%32%65%%32%66%%32%65%%32%65%%32%66%%32%65%%32%65%%32%66%%32%65%%32%65%%32%66%%32%65%%32%65%%32%66%%32%65%%32%65%%32%66test-file.txt",
       "File Serving production mode should prevent traversing with /%%32%65%%32%65%%32%66%%32%65%%32%65%%32%66%%32%65%%32%65%%32%66%%32%65%%32%65%%32%66%%32%65%%32%65%%32%66%%32%65%%32%65%%32%66test-file.txt",
@@ -10141,8 +10164,6 @@
       "File Serving production mode should serve file with space correctly from public/",
       "File Serving production mode should serve file with space correctly static/"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -10216,24 +10237,25 @@
       "getInitialProps dev mode should have correct router.asPath for direct visit dynamic page",
       "getInitialProps dev mode should have correct router.asPath for direct visit dynamic page rewrite direct",
       "getInitialProps dev mode should have gip in __NEXT_DATA__",
-      "getInitialProps dev mode should not have gip in __NEXT_DATA__ for non-GIP page",
+      "getInitialProps dev mode should not have gip in __NEXT_DATA__ for non-GIP page"
+    ],
+    "failed": [],
+    "pending": [
       "getInitialProps production mode should have correct router.asPath for direct visit dynamic page",
       "getInitialProps production mode should have correct router.asPath for direct visit dynamic page rewrite direct",
       "getInitialProps production mode should have gip in __NEXT_DATA__",
       "getInitialProps production mode should not have gip in __NEXT_DATA__ for non-GIP page"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/getserversideprops-export-error/test/index.test.js": {
     "passed": [],
-    "failed": [
+    "failed": [],
+    "pending": [
       "getServerSideProps production mode should build successfully",
       "getServerSideProps production mode should show error for GSSP during export"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -10267,14 +10289,15 @@
       "gip identifiers dev mode should have gip and appGip in NEXT_DATA for page with getInitialProps and _app with getInitialProps",
       "gip identifiers dev mode should have gip in NEXT_DATA for page with getInitialProps",
       "gip identifiers dev mode should not have gip or appGip in NEXT_DATA for page without getInitialProps",
-      "gip identifiers dev mode should only have appGip in NEXT_DATA for page without getInitialProps and _app with getInitialProps",
+      "gip identifiers dev mode should only have appGip in NEXT_DATA for page without getInitialProps and _app with getInitialProps"
+    ],
+    "failed": [],
+    "pending": [
       "gip identifiers production mode should have gip and appGip in NEXT_DATA for page with getInitialProps and _app with getInitialProps",
       "gip identifiers production mode should have gip in NEXT_DATA for page with getInitialProps",
       "gip identifiers production mode should not have gip or appGip in NEXT_DATA for page without getInitialProps",
       "gip identifiers production mode should only have appGip in NEXT_DATA for page without getInitialProps and _app with getInitialProps"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -10306,12 +10329,13 @@
   "test/integration/gssp-pageProps-merge/test/index.test.js": {
     "passed": [
       "pageProps GSSP conflict dev mode should merge _app pageProps and getServerSideProps props",
-      "pageProps GSSP conflict dev mode should merge _app pageProps and getStaticProps props",
+      "pageProps GSSP conflict dev mode should merge _app pageProps and getStaticProps props"
+    ],
+    "failed": [],
+    "pending": [
       "pageProps GSSP conflict production mode should merge _app pageProps and getServerSideProps props",
       "pageProps GSSP conflict production mode should merge _app pageProps and getStaticProps props"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -10326,22 +10350,6 @@
       "GS(S)P Redirect Support dev mode should apply statusCode 301 redirect when visited directly for GSSP page",
       "GS(S)P Redirect Support dev mode should apply statusCode 303 redirect when visited directly for GSSP page",
       "GS(S)P Redirect Support dev mode should apply temporary redirect when visited directly for GSSP page",
-      "GS(S)P Redirect Support production mode should apply permanent redirect when visited directly for GSSP page",
-      "GS(S)P Redirect Support production mode should apply redirect when GSP page is navigated to client-side (external)",
-      "GS(S)P Redirect Support production mode should apply redirect when GSP page is navigated to client-side (internal)",
-      "GS(S)P Redirect Support production mode should apply redirect when GSSP page is navigated to client-side (external)",
-      "GS(S)P Redirect Support production mode should apply redirect when GSSP page is navigated to client-side (internal dynamic)",
-      "GS(S)P Redirect Support production mode should apply redirect when GSSP page is navigated to client-side (internal normal)",
-      "GS(S)P Redirect Support production mode should apply redirect when fallback GSP page is visited directly (external domain)",
-      "GS(S)P Redirect Support production mode should apply redirect when fallback GSP page is visited directly (external)",
-      "GS(S)P Redirect Support production mode should apply redirect when fallback GSP page is visited directly (internal dynamic)",
-      "GS(S)P Redirect Support production mode should apply redirect when fallback GSP page is visited directly (internal dynamic) 2nd visit",
-      "GS(S)P Redirect Support production mode should apply redirect when fallback GSP page is visited directly (internal normal) 2nd visit",
-      "GS(S)P Redirect Support production mode should apply redirect when fallback GSSP page is visited directly (external domain)",
-      "GS(S)P Redirect Support production mode should apply statusCode 301 redirect when visited directly for GSSP page",
-      "GS(S)P Redirect Support production mode should apply statusCode 303 redirect when visited directly for GSSP page",
-      "GS(S)P Redirect Support production mode should apply temporary redirect when visited directly basePath false for GSSP page",
-      "GS(S)P Redirect Support production mode should apply temporary redirect when visited directly for GSSP page",
       "GS(S)P Redirect Support should error for redirect during prerendering"
     ],
     "failed": [
@@ -10354,14 +10362,31 @@
       "GS(S)P Redirect Support dev mode should not replace history of the origin page when GSP page is navigated to client-side (external)",
       "GS(S)P Redirect Support dev mode should not replace history of the origin page when GSP page is navigated to client-side (internal)",
       "GS(S)P Redirect Support dev mode should not replace history of the origin page when GSSP page is navigated to client-side (external)",
-      "GS(S)P Redirect Support dev mode should not replace history of the origin page when GSSP page is navigated to client-side (internal normal)",
+      "GS(S)P Redirect Support dev mode should not replace history of the origin page when GSSP page is navigated to client-side (internal normal)"
+    ],
+    "pending": [
+      "GS(S)P Redirect Support production mode should apply permanent redirect when visited directly for GSSP page",
+      "GS(S)P Redirect Support production mode should apply redirect when GSP page is navigated to client-side (external)",
+      "GS(S)P Redirect Support production mode should apply redirect when GSP page is navigated to client-side (internal)",
+      "GS(S)P Redirect Support production mode should apply redirect when GSSP page is navigated to client-side (external)",
+      "GS(S)P Redirect Support production mode should apply redirect when GSSP page is navigated to client-side (internal dynamic)",
+      "GS(S)P Redirect Support production mode should apply redirect when GSSP page is navigated to client-side (internal normal)",
+      "GS(S)P Redirect Support production mode should apply redirect when fallback GSP page is visited directly (external domain)",
+      "GS(S)P Redirect Support production mode should apply redirect when fallback GSP page is visited directly (external)",
+      "GS(S)P Redirect Support production mode should apply redirect when fallback GSP page is visited directly (internal dynamic)",
+      "GS(S)P Redirect Support production mode should apply redirect when fallback GSP page is visited directly (internal dynamic) 2nd visit",
       "GS(S)P Redirect Support production mode should apply redirect when fallback GSP page is visited directly (internal normal)",
+      "GS(S)P Redirect Support production mode should apply redirect when fallback GSP page is visited directly (internal normal) 2nd visit",
+      "GS(S)P Redirect Support production mode should apply redirect when fallback GSSP page is visited directly (external domain)",
+      "GS(S)P Redirect Support production mode should apply statusCode 301 redirect when visited directly for GSSP page",
+      "GS(S)P Redirect Support production mode should apply statusCode 303 redirect when visited directly for GSSP page",
+      "GS(S)P Redirect Support production mode should apply temporary redirect when visited directly basePath false for GSSP page",
+      "GS(S)P Redirect Support production mode should apply temporary redirect when visited directly for GSSP page",
       "GS(S)P Redirect Support production mode should not replace history of the origin page when GSP page is navigated to client-side (external)",
       "GS(S)P Redirect Support production mode should not replace history of the origin page when GSP page is navigated to client-side (internal)",
       "GS(S)P Redirect Support production mode should not replace history of the origin page when GSSP page is navigated to client-side (external)",
       "GS(S)P Redirect Support production mode should not replace history of the origin page when GSSP page is navigated to client-side (internal normal)"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -10399,6 +10424,12 @@
       "GS(S)P Redirect Support dev mode should not replace history of the origin page when GSP page is navigated to client-side (internal)",
       "GS(S)P Redirect Support dev mode should not replace history of the origin page when GSSP page is navigated to client-side (external)",
       "GS(S)P Redirect Support dev mode should not replace history of the origin page when GSSP page is navigated to client-side (internal normal)",
+      "GS(S)P Redirect Support should error for redirect during prerendering"
+    ],
+    "failed": [
+      "GS(S)P Redirect Support dev mode should apply redirect when fallback GSP page is visited directly (internal normal)"
+    ],
+    "pending": [
       "GS(S)P Redirect Support production mode should apply permanent redirect when visited directly for GSSP page",
       "GS(S)P Redirect Support production mode should apply redirect when GSP page is navigated to client-side (external)",
       "GS(S)P Redirect Support production mode should apply redirect when GSP page is navigated to client-side (internal)",
@@ -10409,6 +10440,7 @@
       "GS(S)P Redirect Support production mode should apply redirect when fallback GSP page is visited directly (external)",
       "GS(S)P Redirect Support production mode should apply redirect when fallback GSP page is visited directly (internal dynamic)",
       "GS(S)P Redirect Support production mode should apply redirect when fallback GSP page is visited directly (internal dynamic) 2nd visit",
+      "GS(S)P Redirect Support production mode should apply redirect when fallback GSP page is visited directly (internal normal)",
       "GS(S)P Redirect Support production mode should apply redirect when fallback GSP page is visited directly (internal normal) 2nd visit",
       "GS(S)P Redirect Support production mode should apply redirect when fallback GSSP page is visited directly (external domain)",
       "GS(S)P Redirect Support production mode should apply redirect when fallback blocking GSP page is visited directly (internal dynamic)",
@@ -10419,17 +10451,11 @@
       "GS(S)P Redirect Support production mode should apply statusCode 303 redirect when visited directly for GSSP page",
       "GS(S)P Redirect Support production mode should apply temporary redirect when visited directly for GSSP page",
       "GS(S)P Redirect Support production mode should not have errors in output",
-      "GS(S)P Redirect Support should error for redirect during prerendering"
-    ],
-    "failed": [
-      "GS(S)P Redirect Support dev mode should apply redirect when fallback GSP page is visited directly (internal normal)",
-      "GS(S)P Redirect Support production mode should apply redirect when fallback GSP page is visited directly (internal normal)",
       "GS(S)P Redirect Support production mode should not replace history of the origin page when GSP page is navigated to client-side (external)",
       "GS(S)P Redirect Support production mode should not replace history of the origin page when GSP page is navigated to client-side (internal)",
       "GS(S)P Redirect Support production mode should not replace history of the origin page when GSSP page is navigated to client-side (external)",
       "GS(S)P Redirect Support production mode should not replace history of the origin page when GSSP page is navigated to client-side (internal normal)"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -10444,13 +10470,14 @@
     "passed": [
       "Hashbang dev mode first-line hashbang (#!) parse should work for .cjs files",
       "Hashbang dev mode first-line hashbang (#!) parse should work for .js files",
-      "Hashbang dev mode first-line hashbang (#!) parse should work for .mjs files",
+      "Hashbang dev mode first-line hashbang (#!) parse should work for .mjs files"
+    ],
+    "failed": [],
+    "pending": [
       "Hashbang production mode first-line hashbang (#!) parse should work for .cjs files",
       "Hashbang production mode first-line hashbang (#!) parse should work for .js files",
       "Hashbang production mode first-line hashbang (#!) parse should work for .mjs files"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -10467,75 +10494,20 @@
     "passed": [
       "Hydration dev mode hydrates correctly for //",
       "Hydration dev mode hydrates correctly for normal page",
-      "Hydration dev mode should be able to navigate after loading //",
-      "Hydration production mode hydrates correctly for //",
-      "Hydration production mode hydrates correctly for normal page"
+      "Hydration dev mode should be able to navigate after loading //"
     ],
-    "failed": [
+    "failed": [],
+    "pending": [
+      "Hydration production mode hydrates correctly for //",
+      "Hydration production mode hydrates correctly for normal page",
       "Hydration production mode should be able to navigate after loading //"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/i18n-support-base-path/test/index.test.js": {
     "passed": [
       "i18n Support basePath dev mode should 404 for locale prefixed static assets correctly",
-      "i18n Support basePath production mode should 404 for locale prefixed public folder files",
-      "i18n Support basePath production mode should 404 for locale prefixed static assets correctly",
-      "i18n Support basePath production mode should add i18n config to routes-manifest",
-      "i18n Support basePath production mode should apply headers correctly",
-      "i18n Support basePath production mode should apply redirects correctly",
-      "i18n Support basePath production mode should apply rewrites correctly",
-      "i18n Support basePath production mode should apply trailingSlash redirect correctly",
-      "i18n Support basePath production mode should generate AMP pages with all locales",
-      "i18n Support basePath production mode should generate auto-export page with all locales",
-      "i18n Support basePath production mode should generate fallbacks with all locales",
-      "i18n Support basePath production mode should generate non-dynamic GSP page with all locales",
-      "i18n Support basePath production mode should handle basePath like pathname",
-      "i18n Support basePath production mode should handle locales with domain for domain example.com should handle locale do-BE",
-      "i18n Support basePath production mode should handle locales with domain for domain example.com should handle locale go-BE",
-      "i18n Support basePath production mode should handle locales with domain for domain example.do should handle locale do-BE",
-      "i18n Support basePath production mode should handle locales with domain for domain example.do should handle locale go-BE",
-      "i18n Support basePath production mode should have correct initial query values for fallback",
-      "i18n Support basePath production mode should have correct values for non-prefixed path",
-      "i18n Support basePath production mode should load dynamic getServerSideProps page correctly SSR",
-      "i18n Support basePath production mode should load getServerSideProps page correctly SSR",
-      "i18n Support basePath production mode should load getServerSideProps page correctly SSR (default locale no prefix)",
-      "i18n Support basePath production mode should load getStaticProps fallback prerender page correctly SSR",
-      "i18n Support basePath production mode should load getStaticProps fallback prerender page correctly SSR (default locale no prefix)",
-      "i18n Support basePath production mode should load getStaticProps non-fallback correctly another locale via cookie",
-      "i18n Support basePath production mode should load getStaticProps page correctly SSR",
-      "i18n Support basePath production mode should load getStaticProps page correctly SSR (default locale no prefix)",
-      "i18n Support basePath production mode should not contain backslashes in pages-manifest",
-      "i18n Support basePath production mode should not error with similar named cookie to locale cookie",
-      "i18n Support basePath production mode should not output GSP pages that returned notFound",
-      "i18n Support basePath production mode should not redirect to accept-lang preferred locale with locale cookie",
-      "i18n Support basePath production mode should not remove locale prefix for default locale",
-      "i18n Support basePath production mode should not strip locale prefix for default locale with locale domains",
-      "i18n Support basePath production mode should output correct prerender-manifest",
-      "i18n Support basePath production mode should provide defaultLocale correctly for locale domain",
-      "i18n Support basePath production mode should redirect external domain correctly",
-      "i18n Support basePath production mode should redirect to correct locale domain",
-      "i18n Support basePath production mode should redirect to locale prefixed route for /",
-      "i18n Support basePath production mode should render 404 for blocking fallback page that returned 404",
-      "i18n Support basePath production mode should resolve auto-export dynamic route correctly",
-      "i18n Support basePath production mode should rewrite to API route correctly for do locale",
-      "i18n Support basePath production mode should rewrite to API route correctly for do-BE locale",
-      "i18n Support basePath production mode should rewrite to API route correctly for en locale",
-      "i18n Support basePath production mode should rewrite to API route correctly for en-US locale",
-      "i18n Support basePath production mode should rewrite to API route correctly for fr locale",
-      "i18n Support basePath production mode should rewrite to API route correctly for fr-BE locale",
-      "i18n Support basePath production mode should rewrite to API route correctly for go locale",
-      "i18n Support basePath production mode should rewrite to API route correctly for go-BE locale",
-      "i18n Support basePath production mode should rewrite to API route correctly for nl locale",
-      "i18n Support basePath production mode should rewrite to API route correctly for nl-BE locale",
-      "i18n Support basePath production mode should rewrite to API route correctly for nl-NL locale",
-      "i18n Support basePath production mode should use correct default locale for locale domains",
-      "i18n Support basePath production mode should use default locale for / without accept-language",
-      "i18n Support basePath production mode should visit API route directly correctly",
-      "i18n Support basePath production mode should visit dynamic API route directly correctly",
-      "i18n Support basePath production mode should work with AMP first page with all locales",
       "i18n Support basePath with localeDetection disabled should have localeDetection in routes-manifest",
       "i18n Support basePath with localeDetection disabled should not detect locale from accept-language",
       "i18n Support basePath with localeDetection disabled should set locale from detected path"
@@ -10622,17 +10594,47 @@
       "i18n Support basePath dev mode should use default locale when no locale is in href with locale false",
       "i18n Support basePath dev mode should visit API route directly correctly",
       "i18n Support basePath dev mode should visit dynamic API route directly correctly",
-      "i18n Support basePath dev mode should work with AMP first page with all locales",
+      "i18n Support basePath dev mode should work with AMP first page with all locales"
+    ],
+    "pending": [
+      "i18n Support basePath dev mode should redirect to locale domain correctly client-side",
+      "i18n Support basePath dev mode should render the correct href for locale domain",
       "i18n Support basePath production mode should 404 for GSP pages that returned notFound",
       "i18n Support basePath production mode should 404 for GSP that returned notFound on client-transition",
+      "i18n Support basePath production mode should 404 for locale prefixed public folder files",
+      "i18n Support basePath production mode should 404 for locale prefixed static assets correctly",
+      "i18n Support basePath production mode should add i18n config to routes-manifest",
+      "i18n Support basePath production mode should apply headers correctly",
+      "i18n Support basePath production mode should apply redirects correctly",
+      "i18n Support basePath production mode should apply rewrites correctly",
+      "i18n Support basePath production mode should apply trailingSlash redirect correctly",
+      "i18n Support basePath production mode should generate AMP pages with all locales",
+      "i18n Support basePath production mode should generate auto-export page with all locales",
+      "i18n Support basePath production mode should generate fallbacks with all locales",
+      "i18n Support basePath production mode should generate non-dynamic GSP page with all locales",
+      "i18n Support basePath production mode should handle basePath like pathname",
       "i18n Support basePath production mode should handle fallback correctly after generating",
+      "i18n Support basePath production mode should handle locales with domain for domain example.com should handle locale do-BE",
+      "i18n Support basePath production mode should handle locales with domain for domain example.com should handle locale go-BE",
+      "i18n Support basePath production mode should handle locales with domain for domain example.do should handle locale do-BE",
+      "i18n Support basePath production mode should handle locales with domain for domain example.do should handle locale go-BE",
       "i18n Support basePath production mode should handle navigating back to different casing of locale",
+      "i18n Support basePath production mode should have correct initial query values for fallback",
+      "i18n Support basePath production mode should have correct values for non-prefixed path",
       "i18n Support basePath production mode should have domainLocales available on useRouter",
+      "i18n Support basePath production mode should load dynamic getServerSideProps page correctly SSR",
+      "i18n Support basePath production mode should load getServerSideProps page correctly SSR",
+      "i18n Support basePath production mode should load getServerSideProps page correctly SSR (default locale no prefix)",
       "i18n Support basePath production mode should load getStaticProps fallback non-prerender page another locale correctly",
       "i18n Support basePath production mode should load getStaticProps fallback non-prerender page correctly",
       "i18n Support basePath production mode should load getStaticProps fallback non-prerender page correctly (default locale no prefix",
+      "i18n Support basePath production mode should load getStaticProps fallback prerender page correctly SSR",
+      "i18n Support basePath production mode should load getStaticProps fallback prerender page correctly SSR (default locale no prefix)",
       "i18n Support basePath production mode should load getStaticProps non-fallback correctly",
       "i18n Support basePath production mode should load getStaticProps non-fallback correctly another locale",
+      "i18n Support basePath production mode should load getStaticProps non-fallback correctly another locale via cookie",
+      "i18n Support basePath production mode should load getStaticProps page correctly SSR",
+      "i18n Support basePath production mode should load getStaticProps page correctly SSR (default locale no prefix)",
       "i18n Support basePath production mode should navigate client side for default locale with no prefix",
       "i18n Support basePath production mode should navigate through history with query correctly",
       "i18n Support basePath production mode should navigate to another page and back correctly with locale",
@@ -10645,43 +10647,69 @@
       "i18n Support basePath production mode should navigate with locale prop correctly GSP",
       "i18n Support basePath production mode should not add duplicate locale key when navigating back to root path with hash",
       "i18n Support basePath production mode should not add duplicate locale key when navigating back to root path with query params",
+      "i18n Support basePath production mode should not contain backslashes in pages-manifest",
+      "i18n Support basePath production mode should not error with similar named cookie to locale cookie",
       "i18n Support basePath production mode should not have hydration mis-match from hash",
+      "i18n Support basePath production mode should not output GSP pages that returned notFound",
+      "i18n Support basePath production mode should not redirect to accept-lang preferred locale with locale cookie",
+      "i18n Support basePath production mode should not remove locale prefix for default locale",
+      "i18n Support basePath production mode should not strip locale prefix for default locale with locale domains",
+      "i18n Support basePath production mode should output correct prerender-manifest",
       "i18n Support basePath production mode should preload all locales data correctly",
       "i18n Support basePath production mode should prerender with the correct href for locale domain",
+      "i18n Support basePath production mode should provide defaultLocale correctly for locale domain",
+      "i18n Support basePath production mode should redirect external domain correctly",
+      "i18n Support basePath production mode should redirect to correct locale domain",
+      "i18n Support basePath production mode should redirect to locale domain correctly client-side",
+      "i18n Support basePath production mode should redirect to locale prefixed route for /",
+      "i18n Support basePath production mode should render 404 for blocking fallback page that returned 404",
       "i18n Support basePath production mode should render 404 for blocking fallback page that returned 404 on client transition",
       "i18n Support basePath production mode should render 404 for fallback page that returned 404",
       "i18n Support basePath production mode should render 404 for fallback page that returned 404 on client transition",
+      "i18n Support basePath production mode should render the correct href for locale domain",
       "i18n Support basePath production mode should render the correct href with locale domains but not on a locale domain",
+      "i18n Support basePath production mode should resolve auto-export dynamic route correctly",
       "i18n Support basePath production mode should resolve href correctly when dynamic route matches locale prefixed",
+      "i18n Support basePath production mode should rewrite to API route correctly for do locale",
+      "i18n Support basePath production mode should rewrite to API route correctly for do-BE locale",
+      "i18n Support basePath production mode should rewrite to API route correctly for en locale",
+      "i18n Support basePath production mode should rewrite to API route correctly for en-US locale",
+      "i18n Support basePath production mode should rewrite to API route correctly for fr locale",
+      "i18n Support basePath production mode should rewrite to API route correctly for fr-BE locale",
+      "i18n Support basePath production mode should rewrite to API route correctly for go locale",
+      "i18n Support basePath production mode should rewrite to API route correctly for go-BE locale",
+      "i18n Support basePath production mode should rewrite to API route correctly for nl locale",
+      "i18n Support basePath production mode should rewrite to API route correctly for nl-BE locale",
+      "i18n Support basePath production mode should rewrite to API route correctly for nl-NL locale",
       "i18n Support basePath production mode should transition on client properly for page that starts with locale",
       "i18n Support basePath production mode should update asPath on the client correctly",
-      "i18n Support basePath production mode should use default locale when no locale is in href with locale false"
-    ],
-    "pending": [
-      "i18n Support basePath dev mode should redirect to locale domain correctly client-side",
-      "i18n Support basePath dev mode should render the correct href for locale domain",
-      "i18n Support basePath production mode should redirect to locale domain correctly client-side",
-      "i18n Support basePath production mode should render the correct href for locale domain"
+      "i18n Support basePath production mode should use correct default locale for locale domains",
+      "i18n Support basePath production mode should use default locale for / without accept-language",
+      "i18n Support basePath production mode should use default locale when no locale is in href with locale false",
+      "i18n Support basePath production mode should visit API route directly correctly",
+      "i18n Support basePath production mode should visit dynamic API route directly correctly",
+      "i18n Support basePath production mode should work with AMP first page with all locales"
     ],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/i18n-support-catchall/test/index.test.js": {
     "passed": [
-      "i18n Support Root Catch-all dev mode should load the index route correctly SSR",
-      "i18n Support Root Catch-all production mode should load the index route correctly SSR",
-      "i18n Support Root Catch-all production mode should output prerendered index routes correctly"
+      "i18n Support Root Catch-all dev mode should load the index route correctly SSR"
     ],
     "failed": [
       "i18n Support Root Catch-all dev mode should load the index route correctly CSR",
       "i18n Support Root Catch-all dev mode should navigate to other locale index and back",
-      "i18n Support Root Catch-all dev mode should navigate to other locale page and back",
+      "i18n Support Root Catch-all dev mode should navigate to other locale page and back"
+    ],
+    "pending": [
       "i18n Support Root Catch-all production mode should load the index route correctly CSR",
+      "i18n Support Root Catch-all production mode should load the index route correctly SSR",
       "i18n Support Root Catch-all production mode should navigate to other locale index and back",
       "i18n Support Root Catch-all production mode should navigate to other locale page and back",
+      "i18n Support Root Catch-all production mode should output prerendered index routes correctly",
       "i18n Support Root Catch-all production mode should preload data correctly"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -10689,16 +10717,17 @@
     "passed": [
       "Custom routes i18n dev mode handle custom http status maintaining locale props in custom _error page",
       "Custom routes i18n dev mode handle default http status maintaining locale props in custom _error page",
-      "Custom routes i18n dev mode should localized [slug] routes render correctly",
-      "Custom routes i18n production mode handle custom http status maintaining locale props in custom _error page",
-      "Custom routes i18n production mode handle default http status maintaining locale props in custom _error page",
-      "Custom routes i18n production mode should localized [slug] routes render correctly"
+      "Custom routes i18n dev mode should localized [slug] routes render correctly"
     ],
     "failed": [
-      "Custom routes i18n dev mode should work also on client side routing",
+      "Custom routes i18n dev mode should work also on client side routing"
+    ],
+    "pending": [
+      "Custom routes i18n production mode handle custom http status maintaining locale props in custom _error page",
+      "Custom routes i18n production mode handle default http status maintaining locale props in custom _error page",
+      "Custom routes i18n production mode should localized [slug] routes render correctly",
       "Custom routes i18n production mode should work also on client side routing"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -10706,11 +10735,12 @@
     "passed": [],
     "failed": [
       "i18n Support dev mode should not rewrite for dynamic page",
-      "i18n Support dev mode should not rewrite for index page",
+      "i18n Support dev mode should not rewrite for index page"
+    ],
+    "pending": [
       "i18n Support production mode should not rewrite for dynamic page",
       "i18n Support production mode should not rewrite for index page"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -10718,111 +10748,54 @@
     "passed": [],
     "failed": [
       "i18n Support dev mode should not rewrite for dynamic page",
-      "i18n Support dev mode should not rewrite for index page",
+      "i18n Support dev mode should not rewrite for index page"
+    ],
+    "pending": [
       "i18n Support production mode should not rewrite for dynamic page",
       "i18n Support production mode should not rewrite for index page"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/i18n-support-index-rewrite/test/index.test.js": {
     "passed": [
-      "Custom routes i18n dev mode should rewrite index route correctly",
-      "Custom routes i18n production mode should rewrite index route correctly"
+      "Custom routes i18n dev mode should rewrite index route correctly"
     ],
     "failed": [
-      "Custom routes i18n dev mode should handle index rewrite on client correctly",
-      "Custom routes i18n production mode should handle index rewrite on client correctly"
+      "Custom routes i18n dev mode should handle index rewrite on client correctly"
     ],
-    "pending": [],
+    "pending": [
+      "Custom routes i18n production mode should handle index rewrite on client correctly",
+      "Custom routes i18n production mode should rewrite index route correctly"
+    ],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/i18n-support-same-page-hash-change/test/index.test.js": {
-    "passed": [
-      "Hash changes i18n production mode should trigger hash change events"
-    ],
+    "passed": [],
     "failed": [
       "Hash changes i18n dev mode should trigger hash change events",
       "Hash changes i18n dev mode should update props on locale change with same hash",
-      "Hash changes i18n dev mode should update props on locale change with same hash (dynamic page)",
+      "Hash changes i18n dev mode should update props on locale change with same hash (dynamic page)"
+    ],
+    "pending": [
+      "Hash changes i18n production mode should trigger hash change events",
       "Hash changes i18n production mode should update props on locale change with same hash",
       "Hash changes i18n production mode should update props on locale change with same hash (dynamic page)"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/i18n-support/test/index.test.js": {
     "passed": [
       "i18n Support dev mode should 404 for locale prefixed static assets correctly",
-      "i18n Support production mode should 404 for locale prefixed public folder files",
-      "i18n Support production mode should 404 for locale prefixed static assets correctly",
-      "i18n Support production mode should add i18n config to routes-manifest",
-      "i18n Support production mode should apply headers correctly",
-      "i18n Support production mode should apply redirects correctly",
-      "i18n Support production mode should apply rewrites correctly",
-      "i18n Support production mode should apply trailingSlash redirect correctly",
-      "i18n Support production mode should generate AMP pages with all locales",
-      "i18n Support production mode should generate auto-export page with all locales",
-      "i18n Support production mode should generate fallbacks with all locales",
-      "i18n Support production mode should generate non-dynamic GSP page with all locales",
-      "i18n Support production mode should handle locales with domain for domain example.com should handle locale do-BE",
-      "i18n Support production mode should handle locales with domain for domain example.com should handle locale go-BE",
-      "i18n Support production mode should handle locales with domain for domain example.do should handle locale do-BE",
-      "i18n Support production mode should handle locales with domain for domain example.do should handle locale go-BE",
-      "i18n Support production mode should have correct initial query values for fallback",
-      "i18n Support production mode should have correct values for non-prefixed path",
-      "i18n Support production mode should have pre-rendered /500 correctly",
-      "i18n Support production mode should load dynamic getServerSideProps page correctly SSR",
-      "i18n Support production mode should load getServerSideProps page correctly SSR",
-      "i18n Support production mode should load getServerSideProps page correctly SSR (default locale no prefix)",
-      "i18n Support production mode should load getStaticProps fallback prerender page correctly SSR",
-      "i18n Support production mode should load getStaticProps fallback prerender page correctly SSR (default locale no prefix)",
-      "i18n Support production mode should load getStaticProps non-fallback correctly another locale via cookie",
-      "i18n Support production mode should load getStaticProps page correctly SSR",
-      "i18n Support production mode should load getStaticProps page correctly SSR (default locale no prefix)",
-      "i18n Support production mode should not contain backslashes in pages-manifest",
-      "i18n Support production mode should not error with similar named cookie to locale cookie",
-      "i18n Support production mode should not output GSP pages that returned notFound",
-      "i18n Support production mode should not redirect to accept-lang preferred locale with locale cookie",
-      "i18n Support production mode should not remove locale prefix for default locale",
-      "i18n Support production mode should not strip locale prefix for default locale with locale domains",
-      "i18n Support production mode should output correct prerender-manifest",
-      "i18n Support production mode should provide defaultLocale correctly for locale domain",
-      "i18n Support production mode should redirect external domain correctly",
-      "i18n Support production mode should redirect to correct locale domain",
-      "i18n Support production mode should redirect to locale prefixed route for /",
-      "i18n Support production mode should render 404 for blocking fallback page that returned 404",
-      "i18n Support production mode should resolve auto-export dynamic route correctly",
-      "i18n Support production mode should rewrite to API route correctly for do locale",
-      "i18n Support production mode should rewrite to API route correctly for do-BE locale",
-      "i18n Support production mode should rewrite to API route correctly for en locale",
-      "i18n Support production mode should rewrite to API route correctly for en-US locale",
-      "i18n Support production mode should rewrite to API route correctly for fr locale",
-      "i18n Support production mode should rewrite to API route correctly for fr-BE locale",
-      "i18n Support production mode should rewrite to API route correctly for go locale",
-      "i18n Support production mode should rewrite to API route correctly for go-BE locale",
-      "i18n Support production mode should rewrite to API route correctly for nl locale",
-      "i18n Support production mode should rewrite to API route correctly for nl-BE locale",
-      "i18n Support production mode should rewrite to API route correctly for nl-NL locale",
-      "i18n Support production mode should use correct default locale for locale domains",
-      "i18n Support production mode should use default locale for / without accept-language",
-      "i18n Support production mode should visit API route directly correctly",
-      "i18n Support production mode should visit dynamic API route directly correctly",
-      "i18n Support production mode should work with AMP first page with all locales",
       "i18n Support should show proper error for duplicate defaultLocales",
       "i18n Support should show proper error for duplicate locales",
       "i18n Support should show proper error for invalid locale domain",
       "i18n Support with localeDetection disabled should have localeDetection in routes-manifest",
       "i18n Support with localeDetection disabled should ignore the invalid accept-language header",
       "i18n Support with localeDetection disabled should not detect locale from accept-language",
-      "i18n Support with localeDetection disabled should set locale from detected path",
-      "i18n Support with trailingSlash: false production mode should redirect correctly",
-      "i18n Support with trailingSlash: true production mode should redirect correctly",
-      "i18n Support with trailingSlash: true production mode should return 404 error for repeating locales",
-      "i18n Support with trailingSlash: true production mode should serve pages correctly with locale prefix"
+      "i18n Support with localeDetection disabled should set locale from detected path"
     ],
     "failed": [
       "i18n Support dev mode should 404 for GSP pages that returned notFound",
@@ -10906,16 +10879,51 @@
       "i18n Support dev mode should visit API route directly correctly",
       "i18n Support dev mode should visit dynamic API route directly correctly",
       "i18n Support dev mode should work with AMP first page with all locales",
+      "i18n Support with trailingSlash: false dev mode should redirect correctly",
+      "i18n Support with trailingSlash: true dev mode should navigate between pages correctly",
+      "i18n Support with trailingSlash: true dev mode should redirect correctly",
+      "i18n Support with trailingSlash: true dev mode should return 404 error for repeating locales",
+      "i18n Support with trailingSlash: true dev mode should serve pages correctly with locale prefix"
+    ],
+    "pending": [
+      "i18n Support dev mode should redirect to locale domain correctly client-side",
+      "i18n Support dev mode should render the correct href for locale domain",
       "i18n Support production mode should 404 for GSP pages that returned notFound",
       "i18n Support production mode should 404 for GSP that returned notFound on client-transition",
+      "i18n Support production mode should 404 for locale prefixed public folder files",
+      "i18n Support production mode should 404 for locale prefixed static assets correctly",
+      "i18n Support production mode should add i18n config to routes-manifest",
+      "i18n Support production mode should apply headers correctly",
+      "i18n Support production mode should apply redirects correctly",
+      "i18n Support production mode should apply rewrites correctly",
+      "i18n Support production mode should apply trailingSlash redirect correctly",
+      "i18n Support production mode should generate AMP pages with all locales",
+      "i18n Support production mode should generate auto-export page with all locales",
+      "i18n Support production mode should generate fallbacks with all locales",
+      "i18n Support production mode should generate non-dynamic GSP page with all locales",
       "i18n Support production mode should handle fallback correctly after generating",
+      "i18n Support production mode should handle locales with domain for domain example.com should handle locale do-BE",
+      "i18n Support production mode should handle locales with domain for domain example.com should handle locale go-BE",
+      "i18n Support production mode should handle locales with domain for domain example.do should handle locale do-BE",
+      "i18n Support production mode should handle locales with domain for domain example.do should handle locale go-BE",
       "i18n Support production mode should handle navigating back to different casing of locale",
+      "i18n Support production mode should have correct initial query values for fallback",
+      "i18n Support production mode should have correct values for non-prefixed path",
       "i18n Support production mode should have domainLocales available on useRouter",
+      "i18n Support production mode should have pre-rendered /500 correctly",
+      "i18n Support production mode should load dynamic getServerSideProps page correctly SSR",
+      "i18n Support production mode should load getServerSideProps page correctly SSR",
+      "i18n Support production mode should load getServerSideProps page correctly SSR (default locale no prefix)",
       "i18n Support production mode should load getStaticProps fallback non-prerender page another locale correctly",
       "i18n Support production mode should load getStaticProps fallback non-prerender page correctly",
       "i18n Support production mode should load getStaticProps fallback non-prerender page correctly (default locale no prefix",
+      "i18n Support production mode should load getStaticProps fallback prerender page correctly SSR",
+      "i18n Support production mode should load getStaticProps fallback prerender page correctly SSR (default locale no prefix)",
       "i18n Support production mode should load getStaticProps non-fallback correctly",
       "i18n Support production mode should load getStaticProps non-fallback correctly another locale",
+      "i18n Support production mode should load getStaticProps non-fallback correctly another locale via cookie",
+      "i18n Support production mode should load getStaticProps page correctly SSR",
+      "i18n Support production mode should load getStaticProps page correctly SSR (default locale no prefix)",
       "i18n Support production mode should navigate client side for default locale with no prefix",
       "i18n Support production mode should navigate through history with query correctly",
       "i18n Support production mode should navigate to another page and back correctly with locale",
@@ -10928,31 +10936,55 @@
       "i18n Support production mode should navigate with locale prop correctly GSP",
       "i18n Support production mode should not add duplicate locale key when navigating back to root path with hash",
       "i18n Support production mode should not add duplicate locale key when navigating back to root path with query params",
+      "i18n Support production mode should not contain backslashes in pages-manifest",
+      "i18n Support production mode should not error with similar named cookie to locale cookie",
       "i18n Support production mode should not have hydration mis-match from hash",
+      "i18n Support production mode should not output GSP pages that returned notFound",
+      "i18n Support production mode should not redirect to accept-lang preferred locale with locale cookie",
+      "i18n Support production mode should not remove locale prefix for default locale",
+      "i18n Support production mode should not strip locale prefix for default locale with locale domains",
+      "i18n Support production mode should output correct prerender-manifest",
       "i18n Support production mode should preload all locales data correctly",
       "i18n Support production mode should prerender with the correct href for locale domain",
+      "i18n Support production mode should provide defaultLocale correctly for locale domain",
+      "i18n Support production mode should redirect external domain correctly",
+      "i18n Support production mode should redirect to correct locale domain",
+      "i18n Support production mode should redirect to locale domain correctly client-side",
+      "i18n Support production mode should redirect to locale prefixed route for /",
+      "i18n Support production mode should render 404 for blocking fallback page that returned 404",
       "i18n Support production mode should render 404 for blocking fallback page that returned 404 on client transition",
       "i18n Support production mode should render 404 for fallback page that returned 404",
       "i18n Support production mode should render 404 for fallback page that returned 404 on client transition",
+      "i18n Support production mode should render the correct href for locale domain",
       "i18n Support production mode should render the correct href with locale domains but not on a locale domain",
+      "i18n Support production mode should resolve auto-export dynamic route correctly",
       "i18n Support production mode should resolve href correctly when dynamic route matches locale prefixed",
+      "i18n Support production mode should rewrite to API route correctly for do locale",
+      "i18n Support production mode should rewrite to API route correctly for do-BE locale",
+      "i18n Support production mode should rewrite to API route correctly for en locale",
+      "i18n Support production mode should rewrite to API route correctly for en-US locale",
+      "i18n Support production mode should rewrite to API route correctly for fr locale",
+      "i18n Support production mode should rewrite to API route correctly for fr-BE locale",
+      "i18n Support production mode should rewrite to API route correctly for go locale",
+      "i18n Support production mode should rewrite to API route correctly for go-BE locale",
+      "i18n Support production mode should rewrite to API route correctly for nl locale",
+      "i18n Support production mode should rewrite to API route correctly for nl-BE locale",
+      "i18n Support production mode should rewrite to API route correctly for nl-NL locale",
       "i18n Support production mode should transition on client properly for page that starts with locale",
       "i18n Support production mode should update asPath on the client correctly",
+      "i18n Support production mode should use correct default locale for locale domains",
+      "i18n Support production mode should use default locale for / without accept-language",
       "i18n Support production mode should use default locale when no locale is in href with locale false",
-      "i18n Support with trailingSlash: false dev mode should redirect correctly",
-      "i18n Support with trailingSlash: true dev mode should navigate between pages correctly",
-      "i18n Support with trailingSlash: true dev mode should redirect correctly",
-      "i18n Support with trailingSlash: true dev mode should return 404 error for repeating locales",
-      "i18n Support with trailingSlash: true dev mode should serve pages correctly with locale prefix",
+      "i18n Support production mode should visit API route directly correctly",
+      "i18n Support production mode should visit dynamic API route directly correctly",
+      "i18n Support production mode should work with AMP first page with all locales",
+      "i18n Support with trailingSlash: false production mode should redirect correctly",
       "i18n Support with trailingSlash: true production mode should have correct locale domain hrefs",
       "i18n Support with trailingSlash: true production mode should navigate between pages correctly",
-      "i18n Support with trailingSlash: true production mode should preload all locales data correctly"
-    ],
-    "pending": [
-      "i18n Support dev mode should redirect to locale domain correctly client-side",
-      "i18n Support dev mode should render the correct href for locale domain",
-      "i18n Support production mode should redirect to locale domain correctly client-side",
-      "i18n Support production mode should render the correct href for locale domain"
+      "i18n Support with trailingSlash: true production mode should preload all locales data correctly",
+      "i18n Support with trailingSlash: true production mode should redirect correctly",
+      "i18n Support with trailingSlash: true production mode should return 404 error for repeating locales",
+      "i18n Support with trailingSlash: true production mode should serve pages correctly with locale prefix"
     ],
     "flakey": [],
     "runtimeError": false
@@ -11776,7 +11808,10 @@
       "nested index.js dev mode should ssr page /index",
       "nested index.js dev mode should ssr page /index/index",
       "nested index.js dev mode should ssr page /index/project",
-      "nested index.js dev mode should ssr page /index/user",
+      "nested index.js dev mode should ssr page /index/user"
+    ],
+    "failed": [],
+    "pending": [
       "nested index.js production mode should 404 on /index/index/index",
       "nested index.js production mode should client render page /",
       "nested index.js production mode should client render page /index",
@@ -11795,18 +11830,13 @@
       "nested index.js production mode should ssr page /index/project",
       "nested index.js production mode should ssr page /index/user"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/initial-ref/test/index.test.js": {
-    "passed": [
-      "Initial Refs dev mode Has correct initial ref values",
-      "Initial Refs production mode Has correct initial ref values"
-    ],
+    "passed": ["Initial Refs dev mode Has correct initial ref values"],
     "failed": [],
-    "pending": [],
+    "pending": ["Initial Refs production mode Has correct initial ref values"],
     "flakey": [],
     "runtimeError": false
   },
@@ -11831,7 +11861,10 @@
       "Errors on invalid custom routes dev mode should show valid error when non-array is returned from headers",
       "Errors on invalid custom routes dev mode should show valid error when non-array is returned from redirects",
       "Errors on invalid custom routes dev mode should show valid error when non-array is returned from rewrites",
-      "Errors on invalid custom routes dev mode should show valid error when segments not in source are used in destination",
+      "Errors on invalid custom routes dev mode should show valid error when segments not in source are used in destination"
+    ],
+    "failed": [],
+    "pending": [
       "Errors on invalid custom routes production mode should error during next build for invalid headers",
       "Errors on invalid custom routes production mode should error during next build for invalid redirects",
       "Errors on invalid custom routes production mode should error during next build for invalid rewrites",
@@ -11843,8 +11876,6 @@
       "Errors on invalid custom routes production mode should show valid error when non-array is returned from rewrites",
       "Errors on invalid custom routes production mode should show valid error when segments not in source are used in destination"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -11866,18 +11897,18 @@
       "Invalid hrefs dev mode doesn't fail on invalid url",
       "Invalid hrefs dev mode shows error when dynamic route mismatch is used on Link",
       "Invalid hrefs dev mode shows error when internal href is used with external as",
-      "Invalid hrefs dev mode shows warning when dynamic route mismatch is used on Link",
+      "Invalid hrefs dev mode shows warning when dynamic route mismatch is used on Link"
+    ],
+    "failed": [],
+    "pending": [
+      "Invalid hrefs production mode does not show error in production when https://google.com is used as href on Link",
+      "Invalid hrefs production mode does not show error in production when mailto: is used as href on Link",
+      "Invalid hrefs production mode does not show error when internal href is used with external as",
+      "Invalid hrefs production mode doesn't fail on invalid url",
       "Invalid hrefs production mode renders a link with invalid href",
       "Invalid hrefs production mode renders a link with mailto: href",
       "Invalid hrefs production mode shows error when dynamic route mismatch is used on Link"
     ],
-    "failed": [
-      "Invalid hrefs production mode does not show error in production when https://google.com is used as href on Link",
-      "Invalid hrefs production mode does not show error in production when mailto: is used as href on Link",
-      "Invalid hrefs production mode does not show error when internal href is used with external as",
-      "Invalid hrefs production mode doesn't fail on invalid url"
-    ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -11886,21 +11917,22 @@
       "Errors on invalid custom middleware matchers dev mode should error during next build for invalid matchers",
       "Errors on invalid custom middleware matchers dev mode should error when source length is exceeded"
     ],
-    "failed": [
+    "failed": [],
+    "pending": [
       "Errors on invalid custom middleware matchers production mode should error during next build for invalid matchers",
       "Errors on invalid custom middleware matchers production mode should error when source length is exceeded"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/invalid-multi-match/test/index.test.js": {
     "passed": [
-      "Custom routes invalid multi-match dev mode should show error for invalid mulit-match",
-      "Custom routes invalid multi-match production mode should show error for invalid mulit-match"
+      "Custom routes invalid multi-match dev mode should show error for invalid mulit-match"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "Custom routes invalid multi-match production mode should show error for invalid mulit-match"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -11984,14 +12016,15 @@
       "Invalid hrefs dev mode should handle child ref with React.createRef",
       "Invalid hrefs dev mode should not have a race condition with a click handler",
       "Invalid hrefs dev mode should not show error for class component as child of next/link",
-      "Invalid hrefs dev mode should not show error for function component with forwardRef",
+      "Invalid hrefs dev mode should not show error for function component with forwardRef"
+    ],
+    "failed": [],
+    "pending": [
       "Invalid hrefs production mode should not have a race condition with a click handler",
       "Invalid hrefs production mode should preload with child ref with React.createRef",
       "Invalid hrefs production mode should preload with child ref with function",
       "Invalid hrefs production mode should preload with forwardRef"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -12031,12 +12064,11 @@
     "runtimeError": false
   },
   "test/integration/link-without-router/test/index.test.js": {
-    "passed": [
-      "Link without a router dev mode should not throw when rendered",
+    "passed": ["Link without a router dev mode should not throw when rendered"],
+    "failed": [],
+    "pending": [
       "Link without a router production mode should not throw when rendered"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -12098,13 +12130,14 @@
       "Middleware in src/ and / folders dev mode loads and runs only root middleware"
     ],
     "failed": [
+      "Middleware in src/ folder dev mode loads an runs src middleware"
+    ],
+    "pending": [
       "Middleware in src/ and / folders production mode loads and runs only root middleware",
       "Middleware in src/ and / folders production mode should warn about middleware on export",
-      "Middleware in src/ folder dev mode loads an runs src middleware",
       "Middleware in src/ folder production mode loads an runs src middleware",
       "Middleware in src/ folder production mode should warn about middleware on export"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -12135,12 +12168,9 @@
     "runtimeError": false
   },
   "test/integration/next-dynamic-css/test/index.test.js": {
-    "passed": [
-      "next/dynamic dev mode should load page correctly",
-      "next/dynamic production mode should load page correctly"
-    ],
+    "passed": ["next/dynamic dev mode should load page correctly"],
     "failed": [],
-    "pending": [],
+    "pending": ["next/dynamic production mode should load page correctly"],
     "flakey": [],
     "runtimeError": false
   },
@@ -12149,25 +12179,25 @@
     "failed": [
       "next/dynamic dev mode should render dynamic server rendered values before hydration",
       "next/dynamic dev mode should render dynamic server rendered values on client mount",
-      "next/dynamic dev mode should render server value",
+      "next/dynamic dev mode should render server value"
+    ],
+    "pending": [
       "next/dynamic production mode should render dynamic server rendered values before hydration",
       "next/dynamic production mode should render dynamic server rendered values on client mount",
       "next/dynamic production mode should render server value"
     ],
-    "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/integration/next-dynamic/test/index.test.js": {
-    "passed": [
-      "next/dynamic dev mode should render server value",
+    "passed": ["next/dynamic dev mode should render server value"],
+    "failed": [
+      "next/dynamic dev mode should render dynamic server rendered values on client mount"
+    ],
+    "pending": [
+      "next/dynamic production mode should render dynamic server rendered values on client mount",
       "next/dynamic production mode should render server value"
     ],
-    "failed": [
-      "next/dynamic dev mode should render dynamic server rendered values on client mount",
-      "next/dynamic production mode should render dynamic server rendered values on client mount"
-    ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -12218,22 +12248,23 @@
     "passed": [
       "Static Image Component Tests for basePath dev mode Should allow an image with a static src to omit height and width",
       "Static Image Component Tests for basePath dev mode Should allow provided width and height to override intrinsic",
-      "Static Image Component Tests for basePath dev mode Should automatically provide an image height and width",
-      "Static Image Component Tests for basePath production mode Should allow an image with a static src to omit height and width",
-      "Static Image Component Tests for basePath production mode Should allow provided width and height to override intrinsic",
-      "Static Image Component Tests for basePath production mode Should automatically provide an image height and width"
+      "Static Image Component Tests for basePath dev mode Should automatically provide an image height and width"
     ],
     "failed": [
       "Build Error Tests for basePath should throw build error when import statement is used with missing file",
       "Static Image Component Tests for basePath dev mode Should add a blur placeholder to statically imported jpg",
       "Static Image Component Tests for basePath dev mode Should add a blur placeholder to statically imported png",
-      "Static Image Component Tests for basePath dev mode Should use immutable cache-control header for static import",
+      "Static Image Component Tests for basePath dev mode Should use immutable cache-control header for static import"
+    ],
+    "pending": [
       "Static Image Component Tests for basePath production mode Should add a blur placeholder to statically imported jpg",
       "Static Image Component Tests for basePath production mode Should add a blur placeholder to statically imported png",
+      "Static Image Component Tests for basePath production mode Should allow an image with a static src to omit height and width",
+      "Static Image Component Tests for basePath production mode Should allow provided width and height to override intrinsic",
+      "Static Image Component Tests for basePath production mode Should automatically provide an image height and width",
       "Static Image Component Tests for basePath production mode Should use immutable cache-control header even when unoptimized",
       "Static Image Component Tests for basePath production mode Should use immutable cache-control header for static import"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -12623,31 +12654,32 @@
       "Static Image Component Tests dev mode should load direct imported image",
       "Static Image Component Tests dev mode should use height prop to adjust both width and height",
       "Static Image Component Tests dev mode should use width and height prop to override import",
-      "Static Image Component Tests dev mode should use width prop to adjust both width and height",
-      "Static Image Component Tests production mode Should allow an image with a static src to omit height and width",
-      "Static Image Component Tests production mode Should automatically provide an image height and width",
-      "Static Image Component Tests production mode should add a data URL placeholder to an image",
-      "Static Image Component Tests production mode should add placeholder even when blurDataURL aspect ratio does not match width/height ratio",
-      "Static Image Component Tests production mode should add placeholder with blurDataURL and fill",
-      "Static Image Component Tests production mode should use height prop to adjust both width and height",
-      "Static Image Component Tests production mode should use width and height prop to override import",
-      "Static Image Component Tests production mode should use width prop to adjust both width and height"
+      "Static Image Component Tests dev mode should use width prop to adjust both width and height"
     ],
     "failed": [
       "Build Error Tests should throw build error when import statement is used with missing file",
       "Static Image Component Tests dev mode should add a blur placeholder a statically imported jpg",
       "Static Image Component Tests dev mode should add a blur placeholder a statically imported png",
       "Static Image Component Tests dev mode should add a blur placeholder a statically imported png with fill",
-      "Static Image Component Tests dev mode should have <head> containing <meta name=\"viewport\"> followed by <link rel=\"preload\"> for priority image",
+      "Static Image Component Tests dev mode should have <head> containing <meta name=\"viewport\"> followed by <link rel=\"preload\"> for priority image"
+    ],
+    "pending": [
+      "Static Image Component Tests production mode Should allow an image with a static src to omit height and width",
+      "Static Image Component Tests production mode Should automatically provide an image height and width",
       "Static Image Component Tests production mode Should use immutable cache-control header even when unoptimized",
       "Static Image Component Tests production mode Should use immutable cache-control header for static import",
       "Static Image Component Tests production mode should add a blur placeholder a statically imported jpg",
       "Static Image Component Tests production mode should add a blur placeholder a statically imported png",
       "Static Image Component Tests production mode should add a blur placeholder a statically imported png with fill",
+      "Static Image Component Tests production mode should add a data URL placeholder to an image",
+      "Static Image Component Tests production mode should add placeholder even when blurDataURL aspect ratio does not match width/height ratio",
+      "Static Image Component Tests production mode should add placeholder with blurDataURL and fill",
       "Static Image Component Tests production mode should have <head> containing <meta name=\"viewport\"> followed by <link rel=\"preload\"> for priority image",
-      "Static Image Component Tests production mode should load direct imported image"
+      "Static Image Component Tests production mode should load direct imported image",
+      "Static Image Component Tests production mode should use height prop to adjust both width and height",
+      "Static Image Component Tests production mode should use width and height prop to override import",
+      "Static Image Component Tests production mode should use width prop to adjust both width and height"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -12688,26 +12720,27 @@
       "Static Image Component Tests for basePath dev mode should add a data URL placeholder to an image",
       "Static Image Component Tests for basePath dev mode should use height prop to adjust both width and height",
       "Static Image Component Tests for basePath dev mode should use width and height prop to override import",
-      "Static Image Component Tests for basePath dev mode should use width prop to adjust both width and height",
-      "Static Image Component Tests for basePath production mode Should allow an image with a static src to omit height and width",
-      "Static Image Component Tests for basePath production mode Should automatically provide an image height and width",
-      "Static Image Component Tests for basePath production mode should add a data URL placeholder to an image",
-      "Static Image Component Tests for basePath production mode should use height prop to adjust both width and height",
-      "Static Image Component Tests for basePath production mode should use width and height prop to override import",
-      "Static Image Component Tests for basePath production mode should use width prop to adjust both width and height"
+      "Static Image Component Tests for basePath dev mode should use width prop to adjust both width and height"
     ],
     "failed": [
       "Build Error Tests should throw build error when import statement is used with missing file",
       "Static Image Component Tests for basePath dev mode should add a blur placeholder a statically imported jpg",
       "Static Image Component Tests for basePath dev mode should add a blur placeholder a statically imported png",
-      "Static Image Component Tests for basePath dev mode should have <head> containing <meta name=\"viewport\"> followed by <link rel=\"preload\"> for priority image",
+      "Static Image Component Tests for basePath dev mode should have <head> containing <meta name=\"viewport\"> followed by <link rel=\"preload\"> for priority image"
+    ],
+    "pending": [
+      "Static Image Component Tests for basePath production mode Should allow an image with a static src to omit height and width",
+      "Static Image Component Tests for basePath production mode Should automatically provide an image height and width",
       "Static Image Component Tests for basePath production mode Should use immutable cache-control header even when unoptimized",
       "Static Image Component Tests for basePath production mode Should use immutable cache-control header for static import",
       "Static Image Component Tests for basePath production mode should add a blur placeholder a statically imported jpg",
       "Static Image Component Tests for basePath production mode should add a blur placeholder a statically imported png",
-      "Static Image Component Tests for basePath production mode should have <head> containing <meta name=\"viewport\"> followed by <link rel=\"preload\"> for priority image"
+      "Static Image Component Tests for basePath production mode should add a data URL placeholder to an image",
+      "Static Image Component Tests for basePath production mode should have <head> containing <meta name=\"viewport\"> followed by <link rel=\"preload\"> for priority image",
+      "Static Image Component Tests for basePath production mode should use height prop to adjust both width and height",
+      "Static Image Component Tests for basePath production mode should use width and height prop to override import",
+      "Static Image Component Tests for basePath production mode should use width prop to adjust both width and height"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -12844,7 +12877,9 @@
       "Static Image Component Tests dev mode should add a blur placeholder a statically imported jpg",
       "Static Image Component Tests dev mode should add a blur placeholder a statically imported png",
       "Static Image Component Tests dev mode should add a blur placeholder a statically imported png with fill",
-      "Static Image Component Tests dev mode should have <head> containing <meta name=\"viewport\"> followed by <link rel=\"preload\"> for priority image",
+      "Static Image Component Tests dev mode should have <head> containing <meta name=\"viewport\"> followed by <link rel=\"preload\"> for priority image"
+    ],
+    "pending": [
       "Static Image Component Tests production mode Should allow an image with a static src to omit height and width",
       "Static Image Component Tests production mode Should automatically provide an image height and width",
       "Static Image Component Tests production mode Should use immutable cache-control header even when unoptimized",
@@ -12862,7 +12897,6 @@
       "Static Image Component Tests production mode should use width and height prop to override import",
       "Static Image Component Tests production mode should use width prop to adjust both width and height"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -13054,16 +13088,16 @@
       "Error no pageProps dev mode should load auto-export page correctly",
       "Error no pageProps dev mode should load getServerSideProps page correctly",
       "Error no pageProps dev mode should load getStaticProps page correctly",
-      "Error no pageProps dev mode should navigate between pages correctly",
+      "Error no pageProps dev mode should navigate between pages correctly"
+    ],
+    "failed": [],
+    "pending": [
       "Error no pageProps production mode should load 404 page correctly",
       "Error no pageProps production mode should load auto-export page correctly",
       "Error no pageProps production mode should load getServerSideProps page correctly",
-      "Error no pageProps production mode should load getStaticProps page correctly"
-    ],
-    "failed": [
+      "Error no pageProps production mode should load getStaticProps page correctly",
       "Error no pageProps production mode should navigate between pages correctly"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -13110,14 +13144,13 @@
     "runtimeError": false
   },
   "test/integration/not-found-revalidate/test/index.test.js": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "SSG notFound revalidate production mode should revalidate after notFound is returned for fallback: blocking",
+      "SSG notFound revalidate production mode should revalidate after notFound is returned for fallback: true",
       "SSG notFound revalidate production mode should revalidate page when notFund returned during build"
     ],
-    "failed": [
-      "SSG notFound revalidate production mode should revalidate after notFound is returned for fallback: true"
-    ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -13126,11 +13159,11 @@
       "Nullish configs in next.config.js dev mode should ignore configs set to `null` in next.config.js",
       "Nullish configs in next.config.js dev mode should ignore configs set to `undefined` in next.config.js"
     ],
-    "failed": [
+    "failed": [],
+    "pending": [
       "Nullish configs in next.config.js production mode should ignore configs set to `null` in next.config.js",
       "Nullish configs in next.config.js production mode should ignore configs set to `undefined` in next.config.js"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -13273,7 +13306,10 @@
       "Fallback path encoding dev mode should navigate client-side correctly with string href",
       "Fallback path encoding dev mode should render correctly in the browser for prerender paths",
       "Fallback path encoding dev mode should respond with the prerendered data correctly",
-      "Fallback path encoding dev mode should respond with the prerendered pages correctly",
+      "Fallback path encoding dev mode should respond with the prerendered pages correctly"
+    ],
+    "failed": [],
+    "pending": [
       "Fallback path encoding production mode should handle non-prerendered paths correctly",
       "Fallback path encoding production mode should navigate client-side correctly with interpolating",
       "Fallback path encoding production mode should navigate client-side correctly with string href",
@@ -13282,8 +13318,6 @@
       "Fallback path encoding production mode should respond with the prerendered data correctly",
       "Fallback path encoding production mode should respond with the prerendered pages correctly"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -13304,7 +13338,9 @@
     "runtimeError": false
   },
   "test/integration/prerender-no-revalidate/test/index.test.js": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "SSG Prerender No Revalidate production mode [/] should not revalidate /_next/data when set to false",
       "SSG Prerender No Revalidate production mode [/] should not revalidate when set to false",
       "SSG Prerender No Revalidate production mode [/named] should not revalidate /_next/data when set to false",
@@ -13314,8 +13350,6 @@
       "SSG Prerender No Revalidate production mode [/nested] should not revalidate /_next/data when set to false",
       "SSG Prerender No Revalidate production mode [/nested] should not revalidate when set to false"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -13359,7 +13393,10 @@
       "SSG Prerender Revalidate [regression] production mode and incremental cache size exceeded [/nested/named] should regenerate /_next/data when revalidate time exceeded",
       "SSG Prerender Revalidate [regression] production mode and incremental cache size exceeded [/nested/named] should regenerate page when revalidate time exceeded",
       "SSG Prerender Revalidate [regression] production mode and incremental cache size exceeded [/nested] should regenerate /_next/data when revalidate time exceeded",
-      "SSG Prerender Revalidate [regression] production mode and incremental cache size exceeded [/nested] should regenerate page when revalidate time exceeded",
+      "SSG Prerender Revalidate [regression] production mode and incremental cache size exceeded [/nested] should regenerate page when revalidate time exceeded"
+    ],
+    "failed": [],
+    "pending": [
       "SSG Prerender Revalidate production mode [/] should regenerate /_next/data when revalidate time exceeded",
       "SSG Prerender Revalidate production mode [/] should regenerate page when revalidate time exceeded",
       "SSG Prerender Revalidate production mode [/named] should regenerate /_next/data when revalidate time exceeded",
@@ -13370,8 +13407,6 @@
       "SSG Prerender Revalidate production mode [/nested] should regenerate page when revalidate time exceeded",
       "SSG Prerender Revalidate production mode should return cache-control header on 304 status"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -13455,132 +13490,6 @@
     ],
     "failed": [],
     "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/production/test/index.test.js": {
-    "passed": [],
-    "failed": [
-      "Production Usage API routes does not work with pages/api/readfile-dirname.js",
-      "Production Usage API routes should work with dynamic params and search string",
-      "Production Usage API routes should work with pages/api/hello.js",
-      "Production Usage API routes should work with pages/api/index.js",
-      "Production Usage API routes should work with pages/api/readfile-processcwd.js",
-      "Production Usage Dynamic import custom loading should render custom loading on the server side when `ssr:false` and `loading` is provided",
-      "Production Usage Dynamic import custom loading should render the component on client side",
-      "Production Usage Dynamic import default behavior should bundle two css modules for nested components into one css file",
-      "Production Usage Dynamic import default behavior should bundle two css modules for one dynamically imported component into one css file",
-      "Production Usage Dynamic import default behavior should not remove css styles for same css file between page transitions",
-      "Production Usage Dynamic import default behavior should output two css files even in case of three css module files while one is shared across files",
-      "Production Usage Dynamic import default behavior should render dynamic import components",
-      "Production Usage Dynamic import default behavior should render even there are no physical chunk exists",
-      "Production Usage Dynamic import default behavior should render one dynamically imported component and load its css files",
-      "Production Usage Dynamic import default behavior should render one dynamically imported component without any css files",
-      "Production Usage Dynamic import default behavior should render three dynamically imported components and load their css files",
-      "Production Usage Dynamic import ssr:false option should not render loading on the server side",
-      "Production Usage Dynamic import ssr:false option should render the component on client side",
-      "Production Usage Dynamic import ssr:true option should render the component on client side",
-      "Production Usage Dynamic import ssr:true option should render the component on the server side",
-      "Production Usage Misc It does not add a timestamp to link tags with prefetch attribute",
-      "Production Usage Misc Should allow access to public files",
-      "Production Usage Misc should add autoExport for auto pre-rendered pages",
-      "Production Usage Misc should add prefetch tags when Link prefetch prop is used",
-      "Production Usage Misc should allow to access /static/ and /_next/",
-      "Production Usage Misc should handle already finished responses",
-      "Production Usage Misc should have default runtime values when not defined",
-      "Production Usage Misc should not add autoExport for non pre-rendered pages",
-      "Production Usage Misc should not have runtimeConfig in __NEXT_DATA__",
-      "Production Usage Misc should reload the page on page script error",
-      "Production Usage Misc should reload the page on page script error with prefetch",
-      "Production Usage Runtime errors should call getInitialProps on _error page during a client side component error",
-      "Production Usage Runtime errors should render a client side component error",
-      "Production Usage Runtime errors should render a server side error on the client side",
-      "Production Usage With Security Related Issues should handle encoded / value for trailing slash correctly",
-      "Production Usage With Security Related Issues should handle encoded value in the pathname correctly %",
-      "Production Usage With Security Related Issues should handle encoded value in the pathname correctly /",
-      "Production Usage With Security Related Issues should handle encoded value in the pathname correctly \\",
-      "Production Usage With Security Related Issues should handle encoded value in the pathname to query correctly (/)",
-      "Production Usage With Security Related Issues should handle encoded value in the query correctly",
-      "Production Usage With Security Related Issues should not allow accessing files outside .next/static directory",
-      "Production Usage With Security Related Issues should not execute script embedded inside svg image, even if dangerouslyAllowSVG=true",
-      "Production Usage With Security Related Issues should not leak the user's home directory into the build",
-      "Production Usage With Security Related Issues should only access files inside .next directory",
-      "Production Usage With Security Related Issues should prevent URI based XSS attacks",
-      "Production Usage With Security Related Issues should prevent URI based XSS attacks using double quotes",
-      "Production Usage With Security Related Issues should prevent URI based XSS attacks using querystring",
-      "Production Usage With Security Related Issues should prevent URI based XSS attacks using querystring and quotes",
-      "Production Usage With Security Related Issues should prevent URI based XSS attacks using semicolons and double quotes",
-      "Production Usage With Security Related Issues should prevent URI based XSS attacks using semicolons and single quotes",
-      "Production Usage With Security Related Issues should prevent URI based XSS attacks using single quotes",
-      "Production Usage With Security Related Issues should prevent URI based XSS attacks using src",
-      "Production Usage With basic usage should allow etag header support",
-      "Production Usage With basic usage should allow etag header support with getStaticProps",
-      "Production Usage With basic usage should block special pages",
-      "Production Usage With basic usage should have X-Powered-By header support",
-      "Production Usage With basic usage should not contain customServer in NEXT_DATA",
-      "Production Usage With basic usage should polyfill Node.js modules",
-      "Production Usage With basic usage should render 200 for POST on page",
-      "Production Usage With basic usage should render 404 even if the HTTP method is not GET or HEAD",
-      "Production Usage With basic usage should render 404 for /_next/static route",
-      "Production Usage With basic usage should render 404 for POST on missing page",
-      "Production Usage With basic usage should render 404 for _next routes that do not exist",
-      "Production Usage With basic usage should render 404 for dotfiles in /static",
-      "Production Usage With basic usage should render 404 for routes that do not exist",
-      "Production Usage With basic usage should render the page",
-      "Production Usage With basic usage should return 200 on static file if If-Unmodified-Since is invalid date",
-      "Production Usage With basic usage should return 405 method on static then GET and HEAD",
-      "Production Usage With basic usage should return 412 on static file when If-Unmodified-Since is provided and file is modified",
-      "Production Usage With basic usage should set Cache-Control header",
-      "Production Usage With basic usage should set Content-Length header",
-      "Production Usage With basic usage should set correct Cache-Control header for static 404s",
-      "Production Usage With navigation should navigate to nested index via client side",
-      "Production Usage With navigation should navigate via client side",
-      "Production Usage With navigation should reload page successfully (on bad data fetch)",
-      "Production Usage With navigation should reload page successfully (on bad link)",
-      "Production Usage process.browser should eliminate client only code on the server",
-      "Production Usage process.browser should eliminate server only code on the client",
-      "Production Usage process.env should set process.env.NODE_ENV in production",
-      "Production Usage should change query correctly",
-      "Production Usage should clear all core performance marks",
-      "Production Usage should contain generated page count in output",
-      "Production Usage should contain the Next.js version in window export",
-      "Production Usage should handle AMP correctly in IE",
-      "Production Usage should handle failed param decoding",
-      "Production Usage should handle query/hash correctly during query updating ## $search",
-      "Production Usage should handle query/hash correctly during query updating ##? $search",
-      "Production Usage should handle query/hash correctly during query updating ##hello $search",
-      "Production Usage should handle query/hash correctly during query updating ##hello? $search",
-      "Production Usage should handle query/hash correctly during query updating #? $search",
-      "Production Usage should handle query/hash correctly during query updating #a ?hello",
-      "Production Usage should handle query/hash correctly during query updating #a ?hello=",
-      "Production Usage should handle query/hash correctly during query updating #a ?hello=world",
-      "Production Usage should handle query/hash correctly during query updating #hello? $search",
-      "Production Usage should handle query/hash correctly during query updating #hello?world $search",
-      "Production Usage should have defer on all script tags",
-      "Production Usage should navigate through history after query update",
-      "Production Usage should navigate to external site and back",
-      "Production Usage should navigate to external site and back (with query)",
-      "Production Usage should navigate to page with CSS and back",
-      "Production Usage should not clear custom performance marks",
-      "Production Usage should not contain amp, rsc APIs in main chunk",
-      "Production Usage should not contain currentScript usage for publicPath",
-      "Production Usage should not emit stats",
-      "Production Usage should not expose the compiled page file in development",
-      "Production Usage should not put backslashes in pages-manifest.json",
-      "Production Usage should not replace non-static pages with HTML files",
-      "Production Usage should not show target deprecation warning",
-      "Production Usage should only have one DOCTYPE",
-      "Production Usage should output traces",
-      "Production Usage should preserve query when hard navigating from page 404",
-      "Production Usage should remove placeholder for next/image correctly",
-      "Production Usage should replace static pages with HTML files",
-      "Production Usage should respond with 405 for POST to static page",
-      "Production Usage should warn when prefetch is true"
-    ],
-    "pending": [
-      "Production Usage With Security Related Issues should handle invalid URL properly",
-      "Production Usage With basic usage should allow etag header support with getServerSideProps"
-    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -13718,21 +13627,23 @@
     "passed": [],
     "failed": [
       "Relay Compiler Transform - Multi Project Config dev mode project-a should resolve index page correctly",
-      "Relay Compiler Transform - Multi Project Config dev mode project-b should resolve index page correctly",
+      "Relay Compiler Transform - Multi Project Config dev mode project-b should resolve index page correctly"
+    ],
+    "pending": [
       "Relay Compiler Transform - Multi Project Config production mode project-a should resolve index page correctly",
       "Relay Compiler Transform - Multi Project Config production mode project-b should resolve index page correctly"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/relay-graphql-swc-single-project/test/index.test.js": {
     "passed": [
-      "Relay Compiler Transform - Single Project Config dev mode should resolve index page correctly",
-      "Relay Compiler Transform - Single Project Config production mode should resolve index page correctly"
+      "Relay Compiler Transform - Single Project Config dev mode should resolve index page correctly"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "Relay Compiler Transform - Single Project Config production mode should resolve index page correctly"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -13880,10 +13791,11 @@
   "test/integration/rewrite-with-browser-history/test/index.test.js": {
     "passed": [],
     "failed": [
-      "rewrites persist with browser history actions dev mode back-button should go back to rewritten path successfully",
+      "rewrites persist with browser history actions dev mode back-button should go back to rewritten path successfully"
+    ],
+    "pending": [
       "rewrites persist with browser history actions production mode back-button should go back to rewritten path successfully"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -13895,24 +13807,25 @@
       "Client-side rewrites resolving dev mode should break rewrites chain when dynamic route matches",
       "Client-side rewrites resolving dev mode should break rewrites chain when normal page matches"
     ],
-    "failed": [
+    "failed": [],
+    "pending": [
       "Client-side rewrites resolving production mode should break rewrites chain after matching /category",
       "Client-side rewrites resolving production mode should break rewrites chain when dynamic catch-all route matches",
       "Client-side rewrites resolving production mode should break rewrites chain when dynamic catch-all route multi-level matches",
       "Client-side rewrites resolving production mode should break rewrites chain when dynamic route matches",
       "Client-side rewrites resolving production mode should break rewrites chain when normal page matches"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/rewrites-destination-query-array/test/index.test.js": {
     "passed": [
-      "rewrites destination query dev mode should contain all values passed in param as array",
-      "rewrites destination query production mode should contain all values passed in param as array"
+      "rewrites destination query dev mode should contain all values passed in param as array"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "rewrites destination query production mode should contain all values passed in param as array"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -13920,11 +13833,12 @@
     "passed": [],
     "failed": [
       "rewrites has condition dev mode should navigate to a has rewrite without error",
-      "rewrites has condition dev mode should navigate to a simple rewrite without error",
+      "rewrites has condition dev mode should navigate to a simple rewrite without error"
+    ],
+    "pending": [
       "rewrites has condition production mode should navigate to a has rewrite without error",
       "rewrites has condition production mode should navigate to a simple rewrite without error"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -13932,22 +13846,23 @@
     "passed": [],
     "failed": [
       "rewrites manual href/as dev mode should allow manual href/as on dynamic page",
-      "rewrites manual href/as dev mode should allow manual href/as on index page",
+      "rewrites manual href/as dev mode should allow manual href/as on index page"
+    ],
+    "pending": [
       "rewrites manual href/as production mode should allow manual href/as on dynamic page",
       "rewrites manual href/as production mode should allow manual href/as on index page"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/root-optional-revalidate/test/index.test.js": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "Root Optional Catch-all Revalidate production mode should render / correctly",
       "Root Optional Catch-all Revalidate production mode should render /a correctly",
       "Root Optional Catch-all Revalidate production mode should render /hello/world correctly"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -13957,15 +13872,16 @@
       "Route index handling dev mode should handle /index correctly",
       "Route index handling dev mode should handle /index/?bar%60%3C%25%22%27%7B%24%2A%25%5C correctly",
       "Route index handling dev mode should handle /index/index correctly",
-      "Route index handling dev mode should handle /index?file%3A%5C correctly",
+      "Route index handling dev mode should handle /index?file%3A%5C correctly"
+    ],
+    "failed": [],
+    "pending": [
       "Route index handling production mode should handle / correctly",
       "Route index handling production mode should handle /index correctly",
       "Route index handling production mode should handle /index/?bar%60%3C%25%22%27%7B%24%2A%25%5C correctly",
       "Route index handling production mode should handle /index/index correctly",
       "Route index handling production mode should handle /index?file%3A%5C correctly"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -13986,7 +13902,10 @@
       "Route indexes handling dev mode should handle /sub/another correctly",
       "Route indexes handling dev mode should handle /sub/another/index correctly",
       "Route indexes handling dev mode should handle /sub/index correctly",
-      "Route indexes handling dev mode should handle /sub/index/index correctly",
+      "Route indexes handling dev mode should handle /sub/index/index correctly"
+    ],
+    "failed": [],
+    "pending": [
       "Route indexes handling production mode should handle / correctly",
       "Route indexes handling production mode should handle /api/sub correctly",
       "Route indexes handling production mode should handle /api/sub/another correctly",
@@ -14004,8 +13923,6 @@
       "Route indexes handling production mode should handle /sub/index correctly",
       "Route indexes handling production mode should handle /sub/index/index correctly"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -14022,20 +13939,21 @@
     "passed": [
       "next/dynamic dev mode should cancel slow page loads on re-navigation"
     ],
-    "failed": [
+    "failed": [],
+    "pending": [
       "next/dynamic production mode should cancel slow page loads on re-navigation"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/router-hash-navigation/test/index.test.js": {
     "passed": [
-      "router.isReady dev mode scrolls to top when href=\"/\" and url already contains a hash",
-      "router.isReady production mode scrolls to top when href=\"/\" and url already contains a hash"
+      "router.isReady dev mode scrolls to top when href=\"/\" and url already contains a hash"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "router.isReady production mode scrolls to top when href=\"/\" and url already contains a hash"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -14043,16 +13961,17 @@
     "passed": [
       "router.isReady with appGip dev mode isReady should be true after query update for getStaticProps page with query",
       "router.isReady with appGip dev mode isReady should be true immediately for pages without getStaticProps",
-      "router.isReady with appGip dev mode isReady should be true immediately for pages without getStaticProps, with query",
+      "router.isReady with appGip dev mode isReady should be true immediately for pages without getStaticProps, with query"
+    ],
+    "failed": [
+      "router.isReady with appGip dev mode isReady should be true immediately for getStaticProps page without query"
+    ],
+    "pending": [
       "router.isReady with appGip production mode isReady should be true after query update for getStaticProps page with query",
+      "router.isReady with appGip production mode isReady should be true immediately for getStaticProps page without query",
       "router.isReady with appGip production mode isReady should be true immediately for pages without getStaticProps",
       "router.isReady with appGip production mode isReady should be true immediately for pages without getStaticProps, with query"
     ],
-    "failed": [
-      "router.isReady with appGip dev mode isReady should be true immediately for getStaticProps page without query",
-      "router.isReady with appGip production mode isReady should be true immediately for getStaticProps page without query"
-    ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -14065,46 +13984,48 @@
       "router.isReady dev mode isReady should be true immediately for getInitialProps page",
       "router.isReady dev mode isReady should be true immediately for getInitialProps page with query",
       "router.isReady dev mode isReady should be true immediately for getServerSideProps page",
-      "router.isReady dev mode isReady should be true immediately for getServerSideProps page with query",
+      "router.isReady dev mode isReady should be true immediately for getServerSideProps page with query"
+    ],
+    "failed": [
+      "router.isReady dev mode isReady should be true immediately for auto-export page without query",
+      "router.isReady dev mode isReady should be true immediately for getStaticProps page without query"
+    ],
+    "pending": [
       "router.isReady production mode isReady should be true after query update for auto-export page with query",
       "router.isReady production mode isReady should be true after query update for dynamic auto-export page with query",
       "router.isReady production mode isReady should be true after query update for dynamic auto-export page without query",
       "router.isReady production mode isReady should be true after query update for getStaticProps page with query",
+      "router.isReady production mode isReady should be true immediately for auto-export page without query",
       "router.isReady production mode isReady should be true immediately for getInitialProps page",
       "router.isReady production mode isReady should be true immediately for getInitialProps page with query",
       "router.isReady production mode isReady should be true immediately for getServerSideProps page",
-      "router.isReady production mode isReady should be true immediately for getServerSideProps page with query"
-    ],
-    "failed": [
-      "router.isReady dev mode isReady should be true immediately for auto-export page without query",
-      "router.isReady dev mode isReady should be true immediately for getStaticProps page without query",
-      "router.isReady production mode isReady should be true immediately for auto-export page without query",
+      "router.isReady production mode isReady should be true immediately for getServerSideProps page with query",
       "router.isReady production mode isReady should be true immediately for getStaticProps page without query"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/router-prefetch/test/index.test.js": {
     "passed": [
       "Router prefetch dev mode should not prefetch",
-      "Router prefetch dev mode should resolve prefetch promise",
-      "Router prefetch production mode should resolve prefetch promise with invalid href"
+      "Router prefetch dev mode should resolve prefetch promise"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "Router prefetch production mode should resolve prefetch promise with invalid href"
+    ],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/router-rerender/test/index.test.js": {
     "passed": [],
     "failed": [
-      "router rerender dev mode with middleware should not trigger unncessary rerenders when middleware is used",
-      "router rerender production mode with middleware should not trigger unncessary rerenders when middleware is used"
+      "router rerender dev mode with middleware should not trigger unncessary rerenders when middleware is used"
     ],
     "pending": [
       "router rerender dev mode with rewrites should not trigger unncessary rerenders when rewrites are used",
       "router rerender dev mode with rewrites should rerender with the correct query parameter if present with rewrites",
+      "router rerender production mode with middleware should not trigger unncessary rerenders when middleware is used",
       "router rerender production mode with rewrites should not trigger unncessary rerenders when rewrites are used",
       "router rerender production mode with rewrites should rerender with the correct query parameter if present with rewrites"
     ],
@@ -14288,10 +14209,11 @@
   "test/integration/server-asset-modules/test/index.test.js": {
     "passed": [],
     "failed": [
-      "serverside asset modules dev mode should enable reading local files in api routes",
+      "serverside asset modules dev mode should enable reading local files in api routes"
+    ],
+    "pending": [
       "serverside asset modules production mode should enable reading local files in api routes"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -14315,12 +14237,13 @@
   "test/integration/src-dir-support-double-dir/test/index.test.js": {
     "passed": [
       "Dynamic Routing dev mode should render from pages",
-      "Dynamic Routing dev mode should render not render from src/pages",
+      "Dynamic Routing dev mode should render not render from src/pages"
+    ],
+    "failed": [],
+    "pending": [
       "Dynamic Routing production mode should render from pages",
       "Dynamic Routing production mode should render not render from src/pages"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -14333,7 +14256,10 @@
       "Dynamic Routing dev mode should render another normal route",
       "Dynamic Routing dev mode should render dynamic page",
       "Dynamic Routing dev mode should render nested dynamic page",
-      "Dynamic Routing dev mode should render normal route",
+      "Dynamic Routing dev mode should render normal route"
+    ],
+    "failed": [],
+    "pending": [
       "Dynamic Routing production mode should navigate to a dynamic page successfully",
       "Dynamic Routing production mode should navigate to a nested dynamic page successfully",
       "Dynamic Routing production mode should pass params in getInitialProps during SSR",
@@ -14343,18 +14269,17 @@
       "Dynamic Routing production mode should render nested dynamic page",
       "Dynamic Routing production mode should render normal route"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/ssg-data-404/test/index.test.js": {
     "passed": [
-      "SSG data 404 dev mode should hard navigate when a new deployment occurs",
-      "SSG data 404 production mode should hard navigate when a new deployment occurs"
+      "SSG data 404 dev mode should hard navigate when a new deployment occurs"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "SSG data 404 production mode should hard navigate when a new deployment occurs"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -14383,21 +14308,22 @@
   "test/integration/static-page-name/test/index.test.js": {
     "passed": [
       "Static Page Name dev mode should navigate to static page name correctly",
-      "Static Page Name dev mode should render the page via SSR correctly",
+      "Static Page Name dev mode should render the page via SSR correctly"
+    ],
+    "failed": [],
+    "pending": [
       "Static Page Name production mode should navigate to static page name correctly",
       "Static Page Name production mode should render the page via SSR correctly"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/styled-jsx-plugin/test/index.test.js": {
     "passed": [],
-    "failed": [
+    "failed": [],
+    "pending": [
       "styled-jsx using in node_modules production mode should serve a page correctly"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -14482,7 +14408,10 @@
       "href resolving trailing-slash dev mode should route to /blog/first-post/ correctly",
       "href resolving trailing-slash dev mode should route to /catch-all/first/ correctly",
       "href resolving trailing-slash dev mode should route to /catch-all/hello/world/ correctly",
-      "href resolving trailing-slash dev mode should route to /top-level-slug/ correctly",
+      "href resolving trailing-slash dev mode should route to /top-level-slug/ correctly"
+    ],
+    "failed": [],
+    "pending": [
       "href resolving trailing-slash production mode should preload SSG routes correctly",
       "href resolving trailing-slash production mode should route to /another/ correctly",
       "href resolving trailing-slash production mode should route to /blog/another/ correctly",
@@ -14491,8 +14420,6 @@
       "href resolving trailing-slash production mode should route to /catch-all/hello/world/ correctly",
       "href resolving trailing-slash production mode should route to /top-level-slug/ correctly"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -14502,15 +14429,16 @@
       "Trailing Slash Rewrite Proxying dev mode should resolve a catch-all page correctly",
       "Trailing Slash Rewrite Proxying dev mode should resolve a dynamic page correctly",
       "Trailing Slash Rewrite Proxying dev mode should resolve index page correctly",
-      "Trailing Slash Rewrite Proxying dev mode should resolve products page correctly",
+      "Trailing Slash Rewrite Proxying dev mode should resolve products page correctly"
+    ],
+    "failed": [],
+    "pending": [
       "Trailing Slash Rewrite Proxying production mode should proxy non-existent page correctly",
       "Trailing Slash Rewrite Proxying production mode should resolve a catch-all page correctly",
       "Trailing Slash Rewrite Proxying production mode should resolve a dynamic page correctly",
       "Trailing Slash Rewrite Proxying production mode should resolve index page correctly",
       "Trailing Slash Rewrite Proxying production mode should resolve products page correctly"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -14589,8 +14517,14 @@
       "Trailing slashes dev mode, with basepath, trailingSlash: true /docs/catch-all/hello.world/ should redirect to /docs/catch-all/hello.world",
       "Trailing slashes dev mode, with basepath, trailingSlash: true /docs/catch-all/hello/world should redirect to /docs/catch-all/hello/world/",
       "Trailing slashes dev mode, with basepath, trailingSlash: true /docs/linker?href=/ should have href /docs/",
-      "Trailing slashes dev mode, with basepath, trailingSlash: true /docs/linker?href=/ should navigate to /docs/",
-      "Trailing slashes dev mode, with basepath, trailingSlash: true /docs/linker?href=/about should have href /docs/about/",
+      "Trailing slashes dev mode, with basepath, trailingSlash: true /docs/linker?href=/about should have href /docs/about/"
+    ],
+    "failed": [
+      "Trailing slashes dev mode, with basepath, trailingSlash: true /docs/linker?href=/ should push route to /docs/",
+      "Trailing slashes dev mode, with basepath, trailingSlash: true /docs/linker?href=/about should navigate to /docs/about/",
+      "Trailing slashes dev mode, with basepath, trailingSlash: true /docs/linker?href=/about should push route to /docs/about/"
+    ],
+    "pending": [
       "Trailing slashes production mode, trailingSlash: false / should client side render /index.js, with router path /",
       "Trailing slashes production mode, trailingSlash: false / should resolve to /index.js, with router path /",
       "Trailing slashes production mode, trailingSlash: false /about should client side render /about.js, with router path /about",
@@ -14660,7 +14594,7 @@
       "Trailing slashes production mode, trailingSlash: true /linker?href=/catch-all/hello/ should have href /catch-all/hello/",
       "Trailing slashes production mode, trailingSlash: true /linker?href=/catch-all/hello/ should navigate to /catch-all/hello/",
       "Trailing slashes production mode, trailingSlash: true /linker?href=/catch-all/hello/ should push route to /catch-all/hello/",
-      "Trailing slashes production mode, trailingSlash: true should have a redirect in the routesmanifest",
+      "Trailing slashes production mode, trailingSlash: true should have a trailing redirect in the routesmanifest",
       "Trailing slashes production mode, with basepath, trailingSlash: true /docs should redirect to /docs/",
       "Trailing slashes production mode, with basepath, trailingSlash: true /docs/about should redirect to /docs/about/",
       "Trailing slashes production mode, with basepath, trailingSlash: true /docs/catch-all/hello.world/ should redirect to /docs/catch-all/hello.world",
@@ -14672,13 +14606,9 @@
       "Trailing slashes production mode, with basepath, trailingSlash: true /docs/linker?href=/about should navigate to /docs/about/",
       "Trailing slashes production mode, with basepath, trailingSlash: true /docs/linker?href=/about should push route to /docs/about/"
     ],
-    "failed": [
-      "Trailing slashes dev mode, with basepath, trailingSlash: true /docs/linker?href=/ should push route to /docs/",
-      "Trailing slashes dev mode, with basepath, trailingSlash: true /docs/linker?href=/about should navigate to /docs/about/",
-      "Trailing slashes dev mode, with basepath, trailingSlash: true /docs/linker?href=/about should push route to /docs/about/"
+    "flakey": [
+      "Trailing slashes dev mode, with basepath, trailingSlash: true /docs/linker?href=/ should navigate to /docs/"
     ],
-    "pending": [],
-    "flakey": [],
     "runtimeError": false
   },
   "test/integration/tsconfig-verifier/test/index.test.js": {
@@ -14805,11 +14735,12 @@
     "passed": [],
     "failed": [
       "TypeScript onlyRemoveTypeImports dev mode should render a normal page correctly",
-      "TypeScript onlyRemoveTypeImports dev mode should render a page with type import correctly",
+      "TypeScript onlyRemoveTypeImports dev mode should render a page with type import correctly"
+    ],
+    "pending": [
       "TypeScript onlyRemoveTypeImports production mode should render a normal page correctly",
       "TypeScript onlyRemoveTypeImports production mode should render a page with type import correctly"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -15036,6 +14967,19 @@
       "app-dir revalidate should be able to revalidate the cache via pages/api"
     ],
     "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/app-dir/subresource-integrity/subresource-integrity.test.ts": {
+    "passed": [],
+    "failed": [
+      "Subresource Integrity does not include nonce when not enabled",
+      "Subresource Integrity includes a nonce value with bootstrap scripts when Content-Security-Policy header is defined",
+      "Subresource Integrity includes a nonce value with inline scripts when Content-Security-Policy header is defined",
+      "Subresource Integrity includes an integrity attribute on scripts",
+      "Subresource Integrity throws when escape characters are included in nonce"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -15380,6 +15324,132 @@
       "next/font used telemetry should send next/font/google and next/font/local usage event"
     ],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/pages-dir/production/test/index.test.ts": {
+    "passed": [],
+    "failed": [
+      "Production Usage API routes does not work with pages/api/readfile-dirname.js",
+      "Production Usage API routes should work with dynamic params and search string",
+      "Production Usage API routes should work with pages/api/hello.js",
+      "Production Usage API routes should work with pages/api/index.js",
+      "Production Usage API routes should work with pages/api/readfile-processcwd.js",
+      "Production Usage Dynamic import custom loading should render custom loading on the server side when `ssr:false` and `loading` is provided",
+      "Production Usage Dynamic import custom loading should render the component on client side",
+      "Production Usage Dynamic import default behavior should bundle two css modules for nested components into one css file",
+      "Production Usage Dynamic import default behavior should bundle two css modules for one dynamically imported component into one css file",
+      "Production Usage Dynamic import default behavior should not remove css styles for same css file between page transitions",
+      "Production Usage Dynamic import default behavior should output two css files even in case of three css module files while one is shared across files",
+      "Production Usage Dynamic import default behavior should render dynamic import components",
+      "Production Usage Dynamic import default behavior should render even there are no physical chunk exists",
+      "Production Usage Dynamic import default behavior should render one dynamically imported component and load its css files",
+      "Production Usage Dynamic import default behavior should render one dynamically imported component without any css files",
+      "Production Usage Dynamic import default behavior should render three dynamically imported components and load their css files",
+      "Production Usage Dynamic import ssr:false option should not render loading on the server side",
+      "Production Usage Dynamic import ssr:false option should render the component on client side",
+      "Production Usage Dynamic import ssr:true option should render the component on client side",
+      "Production Usage Dynamic import ssr:true option should render the component on the server side",
+      "Production Usage Misc It does not add a timestamp to link tags with prefetch attribute",
+      "Production Usage Misc Should allow access to public files",
+      "Production Usage Misc should add autoExport for auto pre-rendered pages",
+      "Production Usage Misc should add prefetch tags when Link prefetch prop is used",
+      "Production Usage Misc should allow to access /static/ and /_next/",
+      "Production Usage Misc should handle already finished responses",
+      "Production Usage Misc should have default runtime values when not defined",
+      "Production Usage Misc should not add autoExport for non pre-rendered pages",
+      "Production Usage Misc should not have runtimeConfig in __NEXT_DATA__",
+      "Production Usage Misc should reload the page on page script error",
+      "Production Usage Misc should reload the page on page script error with prefetch",
+      "Production Usage Runtime errors should call getInitialProps on _error page during a client side component error",
+      "Production Usage Runtime errors should render a client side component error",
+      "Production Usage Runtime errors should render a server side error on the client side",
+      "Production Usage With Security Related Issues should handle encoded / value for trailing slash correctly",
+      "Production Usage With Security Related Issues should handle encoded value in the pathname correctly %",
+      "Production Usage With Security Related Issues should handle encoded value in the pathname correctly /",
+      "Production Usage With Security Related Issues should handle encoded value in the pathname correctly \\",
+      "Production Usage With Security Related Issues should handle encoded value in the pathname to query correctly (/)",
+      "Production Usage With Security Related Issues should handle encoded value in the query correctly",
+      "Production Usage With Security Related Issues should not allow accessing files outside .next/static directory",
+      "Production Usage With Security Related Issues should not execute script embedded inside svg image, even if dangerouslyAllowSVG=true",
+      "Production Usage With Security Related Issues should not leak the user's home directory into the build",
+      "Production Usage With Security Related Issues should only access files inside .next directory",
+      "Production Usage With Security Related Issues should prevent URI based XSS attacks",
+      "Production Usage With Security Related Issues should prevent URI based XSS attacks using double quotes",
+      "Production Usage With Security Related Issues should prevent URI based XSS attacks using querystring",
+      "Production Usage With Security Related Issues should prevent URI based XSS attacks using querystring and quotes",
+      "Production Usage With Security Related Issues should prevent URI based XSS attacks using semicolons and double quotes",
+      "Production Usage With Security Related Issues should prevent URI based XSS attacks using semicolons and single quotes",
+      "Production Usage With Security Related Issues should prevent URI based XSS attacks using single quotes",
+      "Production Usage With Security Related Issues should prevent URI based XSS attacks using src",
+      "Production Usage With basic usage should allow etag header support",
+      "Production Usage With basic usage should allow etag header support with getStaticProps",
+      "Production Usage With basic usage should block special pages",
+      "Production Usage With basic usage should have X-Powered-By header support",
+      "Production Usage With basic usage should not contain customServer in NEXT_DATA",
+      "Production Usage With basic usage should polyfill Node.js modules",
+      "Production Usage With basic usage should render 200 for POST on page",
+      "Production Usage With basic usage should render 404 even if the HTTP method is not GET or HEAD",
+      "Production Usage With basic usage should render 404 for /_next/static route",
+      "Production Usage With basic usage should render 404 for POST on missing page",
+      "Production Usage With basic usage should render 404 for _next routes that do not exist",
+      "Production Usage With basic usage should render 404 for dotfiles in /static",
+      "Production Usage With basic usage should render 404 for routes that do not exist",
+      "Production Usage With basic usage should render the page",
+      "Production Usage With basic usage should return 200 on static file if If-Unmodified-Since is invalid date",
+      "Production Usage With basic usage should return 405 method on static then GET and HEAD",
+      "Production Usage With basic usage should return 412 on static file when If-Unmodified-Since is provided and file is modified",
+      "Production Usage With basic usage should set Cache-Control header",
+      "Production Usage With basic usage should set Content-Length header",
+      "Production Usage With basic usage should set correct Cache-Control header for static 404s",
+      "Production Usage With navigation should navigate to nested index via client side",
+      "Production Usage With navigation should navigate via client side",
+      "Production Usage With navigation should reload page successfully (on bad data fetch)",
+      "Production Usage With navigation should reload page successfully (on bad link)",
+      "Production Usage process.browser should eliminate client only code on the server",
+      "Production Usage process.browser should eliminate server only code on the client",
+      "Production Usage process.env should set process.env.NODE_ENV in production",
+      "Production Usage should change query correctly",
+      "Production Usage should clear all core performance marks",
+      "Production Usage should contain generated page count in output",
+      "Production Usage should contain the Next.js version in window export",
+      "Production Usage should handle AMP correctly in IE",
+      "Production Usage should handle failed param decoding",
+      "Production Usage should handle query/hash correctly during query updating ## $search",
+      "Production Usage should handle query/hash correctly during query updating ##? $search",
+      "Production Usage should handle query/hash correctly during query updating ##hello $search",
+      "Production Usage should handle query/hash correctly during query updating ##hello? $search",
+      "Production Usage should handle query/hash correctly during query updating #? $search",
+      "Production Usage should handle query/hash correctly during query updating #a ?hello",
+      "Production Usage should handle query/hash correctly during query updating #a ?hello=",
+      "Production Usage should handle query/hash correctly during query updating #a ?hello=world",
+      "Production Usage should handle query/hash correctly during query updating #hello? $search",
+      "Production Usage should handle query/hash correctly during query updating #hello?world $search",
+      "Production Usage should have defer on all script tags",
+      "Production Usage should navigate through history after query update",
+      "Production Usage should navigate to external site and back",
+      "Production Usage should navigate to external site and back (with query)",
+      "Production Usage should navigate to page with CSS and back",
+      "Production Usage should not clear custom performance marks",
+      "Production Usage should not contain amp, rsc APIs in main chunk",
+      "Production Usage should not contain currentScript usage for publicPath",
+      "Production Usage should not emit stats",
+      "Production Usage should not expose the compiled page file in development",
+      "Production Usage should not put backslashes in pages-manifest.json",
+      "Production Usage should not replace non-static pages with HTML files",
+      "Production Usage should not show target deprecation warning",
+      "Production Usage should only have one DOCTYPE",
+      "Production Usage should output traces",
+      "Production Usage should preserve query when hard navigating from page 404",
+      "Production Usage should remove placeholder for next/image correctly",
+      "Production Usage should replace static pages with HTML files",
+      "Production Usage should respond with 405 for POST to static page",
+      "Production Usage should warn when prefetch is true"
+    ],
+    "pending": [
+      "Production Usage With Security Related Issues should handle invalid URL properly",
+      "Production Usage With basic usage should allow etag header support with getServerSideProps"
+    ],
     "flakey": [],
     "runtimeError": false
   },
