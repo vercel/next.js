@@ -132,7 +132,6 @@ import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import {
   ACTION,
-  NEXT_ROUTER_PREFETCH,
   RSC,
   RSC_CONTENT_TYPE_HEADER,
   RSC_VARY_HEADER,
@@ -230,7 +229,6 @@ export type RoutesManifest = {
   rsc: {
     header: typeof RSC
     varyHeader: typeof RSC_VARY_HEADER
-    prefetchHeader: typeof NEXT_ROUTER_PREFETCH
   }
   skipMiddlewareUrlNormalize?: boolean
   caseSensitive?: boolean
@@ -799,7 +797,6 @@ export default async function build(
             rsc: {
               header: RSC,
               varyHeader: RSC_VARY_HEADER,
-              prefetchHeader: NEXT_ROUTER_PREFETCH,
               contentTypeHeader: RSC_CONTENT_TYPE_HEADER,
             },
             skipMiddlewareUrlNormalize: config.skipMiddlewareUrlNormalize,
@@ -1153,7 +1150,6 @@ export default async function build(
       const additionalSsgPaths = new Map<string, Array<string>>()
       const additionalSsgPathsEncoded = new Map<string, Array<string>>()
       const appStaticPaths = new Map<string, Array<string>>()
-      const appPrefetchPaths = new Map<string, string>()
       const appStaticPathsEncoded = new Map<string, Array<string>>()
       const appNormalizedPaths = new Map<string, string>()
       const appDynamicParamPaths = new Set<string>()
@@ -1653,14 +1649,6 @@ export default async function build(
                             appDynamicParamPaths.add(originalAppPath)
                           }
                           appDefaultConfigs.set(originalAppPath, appConfig)
-
-                          if (
-                            !isStatic &&
-                            !isAppRouteRoute(originalAppPath) &&
-                            !isDynamicRoute(originalAppPath)
-                          ) {
-                            appPrefetchPaths.set(originalAppPath, page)
-                          }
                         }
                       } else {
                         if (isEdgeRuntime(pageRuntime)) {
@@ -2560,15 +2548,6 @@ export default async function build(
                   }
                 })
               })
-
-              for (const [originalAppPath, page] of appPrefetchPaths) {
-                defaultMap[page] = {
-                  page: originalAppPath,
-                  query: {},
-                  _isAppDir: true,
-                  _isAppPrefetch: true,
-                }
-              }
 
               if (i18n) {
                 for (const page of [
