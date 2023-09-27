@@ -1,5 +1,5 @@
 import { type webpack } from 'next/dist/compiled/webpack/webpack'
-import chalk from 'next/dist/compiled/chalk'
+import { red } from '../../lib/picocolors'
 import formatWebpackMessages from '../../client/dev/error-overlay/format-webpack-messages'
 import { nonNullable } from '../../lib/non-nullable'
 import {
@@ -283,7 +283,7 @@ export async function webpackBuildImpl(
     }
     let error = result.errors.filter(Boolean).join('\n\n')
 
-    console.error(chalk.red('Failed to compile.\n'))
+    console.error(red('Failed to compile.\n'))
 
     if (
       error.indexOf('private-next-pages') > -1 &&

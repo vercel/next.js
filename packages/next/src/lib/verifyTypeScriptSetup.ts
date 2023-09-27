@@ -1,4 +1,4 @@
-import chalk from 'next/dist/compiled/chalk'
+import { bold, cyan, red, yellow } from './picocolors'
 import path from 'path'
 
 import {
@@ -7,7 +7,6 @@ import {
 } from './has-necessary-dependencies'
 import semver from 'next/dist/compiled/semver'
 import { CompileError } from './compile-error'
-import { FatalError } from './fatal-error'
 import * as log from '../build/output/log'
 
 import { getTypeScriptIntent } from './typescript/getTypeScriptIntent'
@@ -76,18 +75,20 @@ export async function verifyTypeScriptSetup({
       if (isCI) {
         // we don't attempt auto install in CI to avoid side-effects
         // and instead log the error for installing needed packages
-        await missingDepsError(dir, deps.missing)
+        missingDepsError(dir, deps.missing)
       }
       console.log(
-        chalk.bold.yellow(
-          `It looks like you're trying to use TypeScript but do not have the required package(s) installed.`
+        bold(
+          yellow(
+            `It looks like you're trying to use TypeScript but do not have the required package(s) installed.`
+          )
         ) +
           '\n' +
           'Installing dependencies' +
           '\n\n' +
-          chalk.bold(
+          bold(
             'If you are not trying to use TypeScript, please remove the ' +
-              chalk.cyan('tsconfig.json') +
+              cyan('tsconfig.json') +
               ' file from your package root (and any TypeScript files in your pages directory).'
           ) +
           '\n'
@@ -153,13 +154,27 @@ export async function verifyTypeScriptSetup({
   } catch (err) {
     // These are special errors that should not show a stack trace:
     if (err instanceof CompileError) {
-      console.error(chalk.red('Failed to compile.\n'))
-      console.error(err.message)
-      process.exit(1)
-    } else if (err instanceof FatalError) {
+      console.error(red('Failed to compile.\n'))
       console.error(err.message)
       process.exit(1)
     }
+
+    /**
+     * verifyTypeScriptSetup can be either invoked directly in the main thread (during next dev / next lint)
+     * or run in a worker (during next build). In the latter case, we need to print the error message, as the
+     * parent process will only receive an `Jest worker encountered 1 child process exceptions, exceeding retry limit`.
+     */
+
+    // we are in a worker, print the error message and exit the process
+    if (process.env.JEST_WORKER_ID) {
+      if (err instanceof Error) {
+        console.error(err.message)
+      } else {
+        console.error(err)
+      }
+      process.exit(1)
+    }
+    // we are in the main thread, throw the error and it will be handled by the caller
     throw err
   }
 }

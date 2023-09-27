@@ -1,6 +1,6 @@
 import React from 'react'
 import ReactRefreshWebpackPlugin from 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWebpackPlugin'
-import chalk from 'next/dist/compiled/chalk'
+import { yellow, bold } from '../lib/picocolors'
 import crypto from 'crypto'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import path from 'path'
@@ -269,8 +269,8 @@ function createRSCAliases(
 const devtoolRevertWarning = execOnce(
   (devtool: webpack.Configuration['devtool']) => {
     console.warn(
-      chalk.yellow.bold('Warning: ') +
-        chalk.bold(`Reverting webpack devtool to '${devtool}'.\n`) +
+      yellow(bold('Warning: ')) +
+        bold(`Reverting webpack devtool to '${devtool}'.\n`) +
         'Changing the webpack devtool in development mode will cause severe performance regressions.\n' +
         'Read more: https://nextjs.org/docs/messages/improper-devtool'
     )
@@ -1455,7 +1455,6 @@ export default async function getBaseWebpackConfig(
                   {
                     '@builder.io/partytown': '{}',
                     'next/dist/compiled/etag': '{}',
-                    'next/dist/compiled/chalk': '{}',
                   },
                   getEdgePolyfilledModules(),
                   handleWebpackExternalForEdgeRuntime,
@@ -2969,8 +2968,8 @@ export default async function getBaseWebpackConfig(
     // only show warning for one build
     if (isNodeOrEdgeCompilation) {
       console.warn(
-        chalk.yellow.bold('Warning: ') +
-          chalk.bold(
+        yellow(bold('Warning: ')) +
+          bold(
             'Built-in CSS support is being disabled due to custom CSS configuration being detected.\n'
           ) +
           'See here for more info: https://nextjs.org/docs/messages/built-in-css-disabled\n'
