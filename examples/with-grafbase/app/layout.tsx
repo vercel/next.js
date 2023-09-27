@@ -43,7 +43,8 @@ export default async function RootLayout({
               <li className="mb-6">
                 <Link
                   href="/"
-                  className="py-2 rounded-md shadow-sm block px-3 text-gray-600 hover:text-gray-800 transition bg-white">
+                  className="py-2 rounded-md shadow-sm block px-3 text-gray-600 hover:text-gray-800 transition bg-white"
+                >
                   Home
                 </Link>
               </li>
@@ -55,7 +56,8 @@ export default async function RootLayout({
                   <li key={edge.node.id}>
                     <Link
                       href={`/posts/${edge.node.slug}`}
-                      className="py-2 rounded-md shadow-sm block px-3 text-gray-600 hover:text-gray-800 transition bg-white">
+                      className="py-2 rounded-md shadow-sm block px-3 text-gray-600 hover:text-gray-800 transition bg-white"
+                    >
                       {edge.node.title}
                     </Link>
                   </li>
@@ -64,7 +66,8 @@ export default async function RootLayout({
               <li>
                 <Link
                   href="/posts/not-found"
-                  className="py-2 rounded-md shadow-sm block px-3 text-gray-600 hover:text-gray-800 transition bg-white">
+                  className="py-2 rounded-md shadow-sm block px-3 text-gray-600 hover:text-gray-800 transition bg-white"
+                >
                   Show 404 page
                 </Link>
               </li>
