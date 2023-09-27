@@ -2785,8 +2785,7 @@ describe('Custom routes', () => {
       )
     })
   })
-
-  describe('server mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       const { stdout: buildStdout, stderr: buildStderr } = await nextBuild(
         appDir,
@@ -2970,9 +2969,11 @@ describe('Custom routes', () => {
     describe('dev mode', () => {
       runSoloTests(true)
     })
-
-    describe('production mode', () => {
-      runSoloTests()
-    })
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'production mode',
+      () => {
+        runSoloTests()
+      }
+    )
   })
 })

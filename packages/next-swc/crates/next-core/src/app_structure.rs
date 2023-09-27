@@ -721,7 +721,7 @@ async fn directory_tree_to_entrypoints_internal(
         add_app_page(
             app_dir,
             &mut result,
-            app_page.clone().complete(PageType::Page)?,
+            app_page.complete(PageType::Page)?,
             if current_level_is_parallel_route {
                 LoaderTree {
                     page: app_page.clone(),
@@ -766,7 +766,7 @@ async fn directory_tree_to_entrypoints_internal(
         add_app_page(
             app_dir,
             &mut result,
-            app_page.clone().complete(PageType::Page)?,
+            app_page.complete(PageType::Page)?,
             if current_level_is_parallel_route {
                 LoaderTree {
                     page: app_page.clone(),
@@ -811,7 +811,7 @@ async fn directory_tree_to_entrypoints_internal(
         add_app_route(
             app_dir,
             &mut result,
-            app_page.clone().complete(PageType::Route)?,
+            app_page.complete(PageType::Route)?,
             route,
         );
     }
@@ -927,8 +927,14 @@ async fn directory_tree_to_entrypoints_internal(
         let parallel_route_key = match_parallel_route(subdir_name);
 
         let mut app_page = app_page.clone();
+        let mut illegal_path = None;
         if parallel_route_key.is_none() {
-            app_page.push_str(subdir_name)?;
+            // When constructing the app_page fails (e. g. due to limitations of the order),
+            // we only want to emit the error when there are actual pages below that
+            // directory.
+            if let Err(e) = app_page.push_str(subdir_name) {
+                illegal_path = Some(e);
+            }
         }
 
         let map = directory_tree_to_entrypoints_internal(
@@ -939,6 +945,12 @@ async fn directory_tree_to_entrypoints_internal(
             app_page.clone(),
         )
         .await?;
+
+        if let Some(illegal_path) = illegal_path {
+            if !map.is_empty() {
+                return Err(illegal_path);
+            }
+        }
 
         for (_, entrypoint) in map.iter() {
             match *entrypoint {

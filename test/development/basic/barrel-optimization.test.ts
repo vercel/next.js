@@ -126,4 +126,9 @@ describe('optimizePackageImports', () => {
     const html = await next.render('/visx')
     expect(html).toContain('<linearGradient')
   })
+
+  it('should not break "use client" directive in optimized packages', async () => {
+    const html = await next.render('/client')
+    expect(html).toContain('this is a client component')
+  })
 })
