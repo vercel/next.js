@@ -3,7 +3,6 @@ import { loadScript } from 'next/script'
 
 type GTMParams = {
   id: string
-  events: string
   dataLayer: string[]
   dataLayerName: string
   auth: string
@@ -23,7 +22,11 @@ export default function useGoogleTagManager() {
 
   const sendData = useCallback(
     (data: Object) => {
-      const { dataLayerName } = initParams
+      if (initParams === undefined) {
+        console.warn('GTM has not been initialized yet.')
+      }
+
+      const { dataLayerName = 'dataLayer' } = initParams
       if (dataLayerName && window[dataLayerName]) {
         window[dataLayerName].push(data)
       } else {
@@ -51,6 +54,7 @@ export default function useGoogleTagManager() {
         : ''
 
       loadScript({
+        id: '_next-gtm',
         dangerouslySetInnerHTML: {
           __html: `
         (function(w,l){
