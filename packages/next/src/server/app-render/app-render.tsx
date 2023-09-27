@@ -997,10 +997,11 @@ export const renderToHTMLOrFlight: AppPageRender = (
             <>
               {isPage ? metadataOutlet : null}
               {/* <Component /> needs to be the first element because we use `findDOMNode` in layout router to locate it. */}
-              {isPage && isClientComponent && isStaticGeneration ? (
+              {isPage && isClientComponent ? (
                 <StaticGenerationSearchParamsBailoutProvider
                   propsForComponent={props}
                   Component={Component}
+                  isStaticGeneration={isStaticGeneration}
                 />
               ) : (
                 <Component {...props} />
@@ -1119,7 +1120,9 @@ export const renderToHTMLOrFlight: AppPageRender = (
                 getDynamicParamFromSegment,
                 query
               ),
-              isPrefetch && !Boolean(components.loading)
+              isPrefetch &&
+              !Boolean(components.loading) &&
+              !hasLoadingComponentInTree(loaderTree)
                 ? null
                 : // Create component tree using the slice of the loaderTree
                   // @ts-expect-error TODO-APP: fix async component type
@@ -1142,7 +1145,9 @@ export const renderToHTMLOrFlight: AppPageRender = (
 
                     return <Component />
                   }),
-              isPrefetch && !Boolean(components.loading)
+              isPrefetch &&
+              !Boolean(components.loading) &&
+              !hasLoadingComponentInTree(loaderTree)
                 ? null
                 : (() => {
                     const { layoutOrPagePath } =
@@ -1321,6 +1326,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
       clientReferenceManifest,
       serverContexts,
       rscChunks: [],
+      formState: null,
     }
 
     const validateRootLayout = dev
@@ -1343,7 +1349,8 @@ export const renderToHTMLOrFlight: AppPageRender = (
      */
     const createServerComponentsRenderer = (
       loaderTreeToRender: LoaderTree,
-      preinitScripts: () => void
+      preinitScripts: () => void,
+      formState: null | any
     ) =>
       createServerComponentRenderer<{
         asNotFound: boolean
@@ -1406,7 +1413,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
           )
         },
         ComponentMod,
-        serverComponentsRenderOpts,
+        { ...serverComponentsRenderOpts, formState },
         serverComponentsErrorHandler,
         nonce
       )
@@ -1431,6 +1438,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
       async ({
         asNotFound,
         tree,
+        formState,
       }: {
         /**
          * This option is used to indicate that the page should be rendered as
@@ -1440,6 +1448,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
          */
         asNotFound: boolean
         tree: LoaderTree
+        formState: any
       }) => {
         const polyfills = buildManifest.polyfillFiles
           .filter(
@@ -1462,7 +1471,8 @@ export const renderToHTMLOrFlight: AppPageRender = (
         )
         const ServerComponentsRenderer = createServerComponentsRenderer(
           tree,
-          preinitScripts
+          preinitScripts,
+          formState
         )
         const content = (
           <HeadManagerContext.Provider
@@ -1552,6 +1562,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
               nonce,
               // Include hydration scripts in the HTML
               bootstrapScripts: [bootstrapScript],
+              experimental_formState: formState,
             },
           })
 
@@ -1617,6 +1628,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
               transformStream: cloneTransformStream(
                 serverComponentsRenderOpts.transformStream
               ),
+              formState,
             }
 
           const errorType = is404
@@ -1703,6 +1715,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
                 nonce,
                 // Include hydration scripts in the HTML
                 bootstrapScripts: [errorBootstrapScript],
+                experimental_formState: formState,
               },
             })
 
@@ -1742,31 +1755,40 @@ export const renderToHTMLOrFlight: AppPageRender = (
       serverActionsBodySizeLimit,
     })
 
-    if (actionRequestResult === 'not-found') {
-      const notFoundLoaderTree = createNotFoundLoaderTree(loaderTree)
-      return new RenderResult(
-        await bodyResult({
-          asNotFound: true,
-          tree: notFoundLoaderTree,
-        }),
-        { ...extraRenderResultMeta }
-      )
-    } else if (actionRequestResult) {
-      actionRequestResult.extendMetadata(extraRenderResultMeta)
-      return actionRequestResult
+    let formState: null | any = null
+    if (actionRequestResult) {
+      if (actionRequestResult.type === 'not-found') {
+        const notFoundLoaderTree = createNotFoundLoaderTree(loaderTree)
+        return new RenderResult(
+          await bodyResult({
+            asNotFound: true,
+            tree: notFoundLoaderTree,
+            formState,
+          }),
+          { ...extraRenderResultMeta }
+        )
+      } else if (actionRequestResult.type === 'done') {
+        if (actionRequestResult.result) {
+          actionRequestResult.result.extendMetadata(extraRenderResultMeta)
+          return actionRequestResult.result
+        } else if (actionRequestResult.formState) {
+          formState = actionRequestResult.formState
+        }
+      }
     }
 
     const renderResult = new RenderResult(
       await bodyResult({
         asNotFound: pagePath === '/404',
         tree: loaderTree,
+        formState,
       }),
-      { ...extraRenderResultMeta }
+      {
+        ...extraRenderResultMeta,
+        waitUntil: Promise.all(staticGenerationStore.pendingRevalidates || []),
+      }
     )
 
-    if (staticGenerationStore.pendingRevalidates) {
-      await Promise.all(staticGenerationStore.pendingRevalidates)
-    }
     addImplicitTags(staticGenerationStore)
     extraRenderResultMeta.fetchTags = staticGenerationStore.tags?.join(',')
     renderResult.extendMetadata({

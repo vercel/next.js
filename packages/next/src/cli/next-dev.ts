@@ -2,7 +2,7 @@
 
 import '../server/lib/cpu-profile'
 import type { StartServerOptions } from '../server/lib/start-server'
-import { getPort, printAndExit } from '../server/lib/utils'
+import { RESTART_EXIT_CODE, getPort, printAndExit } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { CliCommand } from '../lib/commands'
 import { getProjectDir } from '../lib/get-project-dir'
@@ -15,13 +15,15 @@ import loadConfig, { getEnabledExperimentalFeatures } from '../server/config'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { fileExists, FileType } from '../lib/file-exists'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
-import { createSelfSignedCertificate } from '../lib/mkcert'
+import {
+  SelfSignedCertificate,
+  createSelfSignedCertificate,
+} from '../lib/mkcert'
 import uploadTrace from '../trace/upload-trace'
 import { initialEnv, loadEnvConfig } from '@next/env'
 import { trace } from '../trace'
 import { validateTurboNextConfig } from '../lib/turbopack-warning'
 import { fork } from 'child_process'
-import { RESTART_EXIT_CODE } from '../server/lib/setup-server-worker'
 import {
   getReservedPortExplanation,
   isPortIsReserved,
@@ -228,6 +230,7 @@ const nextDev: CliCommand = async (args) => {
   }
 
   if (process.env.TURBOPACK) {
+    isTurboSession = true
     await validateTurboNextConfig({
       ...devServerOptions,
       isDev: true,
@@ -249,6 +252,7 @@ const nextDev: CliCommand = async (args) => {
           ...((initialEnv || process.env) as typeof process.env),
           TURBOPACK: process.env.TURBOPACK,
           NEXT_PRIVATE_WORKER: '1',
+          NODE_EXTRA_CA_CERTS: options.selfSignedCertificate?.rootCA,
         },
       })
 
@@ -282,15 +286,17 @@ const nextDev: CliCommand = async (args) => {
           'Self-signed certificates are currently an experimental feature, use at your own risk.'
         )
 
-        let certificate: { key: string; cert: string } | undefined
+        let certificate: SelfSignedCertificate | undefined
 
-        if (
-          args['--experimental-https-key'] &&
-          args['--experimental-https-cert']
-        ) {
+        const key = args['--experimental-https-key']
+        const cert = args['--experimental-https-cert']
+        const rootCA = args['--experimental-https-ca']
+
+        if (key && cert) {
           certificate = {
-            key: path.resolve(args['--experimental-https-key']),
-            cert: path.resolve(args['--experimental-https-cert']),
+            key: path.resolve(key),
+            cert: path.resolve(cert),
+            rootCA: rootCA ? path.resolve(rootCA) : undefined,
           }
         } else {
           certificate = await createSelfSignedCertificate(host)

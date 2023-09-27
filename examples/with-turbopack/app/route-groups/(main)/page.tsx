@@ -26,7 +26,7 @@ export default function Page() {
       </ul>
 
       <div className="flex gap-2">
-        <ExternalLink href="https://beta.nextjs.org/docs/routing/defining-routes#route-groups">
+        <ExternalLink href="https://nextjs.org/docs/app/building-your-application/routing/route-groups">
           Docs
         </ExternalLink>
         <ExternalLink href="https://github.com/vercel/app-playground/tree/main/app/route-groups">
