@@ -188,7 +188,6 @@ export interface ExperimentalConfig {
   swcMinify?: boolean
   cpus?: number
   memoryBasedWorkersCount?: boolean
-  sharedPool?: boolean
   proxyTimeout?: number
   isrFlushToDisk?: boolean
   workerThreads?: boolean
@@ -741,7 +740,6 @@ export const defaultConfig: NextConfig = {
         (os.cpus() || { length: 1 }).length) - 1
     ),
     memoryBasedWorkersCount: false,
-    sharedPool: true,
     isrFlushToDisk: true,
     workerThreads: false,
     proxyTimeout: undefined,
