@@ -42,14 +42,15 @@ const supportedTurbopackNextConfigOptions = [
   'devIndicators',
   'onDemandEntries',
   'excludeDefaultMomentLocales',
+  'experimental.clientRouterFilterRedirects',
   'experimental.cpus',
-  'experimental.sharedPool',
   'experimental.proxyTimeout',
   'experimental.isrFlushToDisk',
   'experimental.workerThreads',
   'experimental.caseSensitiveRoutes',
   'experimental.optimizePackageImports',
   'experimental.optimizeServerReact',
+  'experimental.webpackBuildWorker',
 ]
 
 // The following will need to be supported by `next build --turbo`

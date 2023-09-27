@@ -412,6 +412,10 @@ pub struct ExperimentalConfig {
     pub isr_flush_to_disk: Option<bool>,
     mdx_rs: Option<bool>,
     pub swc_plugins: Option<Vec<(String, serde_json::Value)>>,
+    // This is used in Next.js, doesn't require compiler changes.
+    client_router_filter_redirects: Option<bool>,
+    // Doesn't apply to Turbopack.
+    webpack_build_worker: Option<bool>,
 
     // unsupported
     optimize_package_imports: Option<Vec<String>>,
@@ -440,7 +444,6 @@ pub struct ExperimentalConfig {
     output_file_tracing_root: Option<String>,
     proxy_timeout: Option<f64>,
     scroll_restoration: Option<bool>,
-    shared_pool: Option<bool>,
     sri: Option<serde_json::Value>,
     swc_minify_debug_options: Option<serde_json::Value>,
     swc_trace_profiling: Option<bool>,
