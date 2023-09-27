@@ -358,6 +358,8 @@ export async function collectBuildTraces({
             const curFiles = parentFilesMap.get(
               path.relative(outputFileTracingRoot, file)
             )
+            tracedFiles.add(path.relative(distDir, file))
+
             for (const curFile of curFiles || []) {
               const filePath = path.join(outputFileTracingRoot, curFile)
 
