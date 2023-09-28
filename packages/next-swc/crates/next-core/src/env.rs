@@ -160,18 +160,6 @@ pub async fn env_for_js(
             None => "undefined".to_string(),
         },
     );
-        "__NEXT_I18N_DOMAINS".to_string(),
-        // Don't stringify undefined
-        if let Some(i18n) = next_config.i18n.as_ref() {
-            if let Some(domains) = i18n.domains.as_ref() {
-                serde_json::to_string(domains)?
-            } else {
-                "undefined".to_string()
-            }
-        } else {
-            "undefined".to_string()
-        },
-    );
 
     if !test_mode.is_empty() {
         map.insert("__NEXT_TEST_MODE".to_string(), "true".to_string());
