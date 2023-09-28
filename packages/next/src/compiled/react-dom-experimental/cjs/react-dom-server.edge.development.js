@@ -17,7 +17,7 @@ if (process.env.NODE_ENV !== "production") {
 var React = require("next/dist/compiled/react-experimental");
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-experimental-d6dcad6a8-20230914';
+var ReactVersion = '18.3.0-experimental-09285d5a7-20230925';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -72,6 +72,98 @@ function printWarning(level, format, args) {
 
     Function.prototype.apply.call(console[level], console, argsWithFormat);
   }
+}
+
+// A pure JS implementation of a string hashing function. We do not use it for
+// security or obfuscation purposes, only to create compact hashes. So we
+// prioritize speed over collision avoidance. For example, we use this to hash
+// the component key path used by useFormState for MPA-style submissions.
+//
+// In environments where built-in hashing functions are available, we prefer
+// those instead. Like Node's crypto module, or Bun.hash. Unfortunately this
+// does not include the web standard crypto API because those methods are all
+// async. For our purposes, we need it to be sync because the cost of context
+// switching is too high to be worth it.
+//
+// The most popular hashing algorithm that meets these requirements in the JS
+// ecosystem is MurmurHash3, and almost all implementations I could find used
+// some version of the implementation by Gary Court inlined below.
+function createFastHashJS(key) {
+  return murmurhash3_32_gc(key, 0);
+}
+/* eslint-disable prefer-const, no-fallthrough */
+
+/**
+ * @license
+ *
+ * JS Implementation of MurmurHash3 (r136) (as of May 20, 2011)
+ *
+ * Copyright (c) 2011 Gary Court
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+function murmurhash3_32_gc(key, seed) {
+  var remainder, bytes, h1, h1b, c1, c2, k1, i;
+  remainder = key.length & 3; // key.length % 4
+
+  bytes = key.length - remainder;
+  h1 = seed;
+  c1 = 0xcc9e2d51;
+  c2 = 0x1b873593;
+  i = 0;
+
+  while (i < bytes) {
+    k1 = key.charCodeAt(i) & 0xff | (key.charCodeAt(++i) & 0xff) << 8 | (key.charCodeAt(++i) & 0xff) << 16 | (key.charCodeAt(++i) & 0xff) << 24;
+    ++i;
+    k1 = (k1 & 0xffff) * c1 + (((k1 >>> 16) * c1 & 0xffff) << 16) & 0xffffffff;
+    k1 = k1 << 15 | k1 >>> 17;
+    k1 = (k1 & 0xffff) * c2 + (((k1 >>> 16) * c2 & 0xffff) << 16) & 0xffffffff;
+    h1 ^= k1;
+    h1 = h1 << 13 | h1 >>> 19;
+    h1b = (h1 & 0xffff) * 5 + (((h1 >>> 16) * 5 & 0xffff) << 16) & 0xffffffff;
+    h1 = (h1b & 0xffff) + 0x6b64 + (((h1b >>> 16) + 0xe654 & 0xffff) << 16);
+  }
+
+  k1 = 0;
+
+  switch (remainder) {
+    case 3:
+      k1 ^= (key.charCodeAt(i + 2) & 0xff) << 16;
+
+    case 2:
+      k1 ^= (key.charCodeAt(i + 1) & 0xff) << 8;
+
+    case 1:
+      k1 ^= key.charCodeAt(i) & 0xff;
+      k1 = (k1 & 0xffff) * c1 + (((k1 >>> 16) * c1 & 0xffff) << 16) & 0xffffffff;
+      k1 = k1 << 15 | k1 >>> 17;
+      k1 = (k1 & 0xffff) * c2 + (((k1 >>> 16) * c2 & 0xffff) << 16) & 0xffffffff;
+      h1 ^= k1;
+  }
+
+  h1 ^= key.length;
+  h1 ^= h1 >>> 16;
+  h1 = (h1 & 0xffff) * 0x85ebca6b + (((h1 >>> 16) * 0x85ebca6b & 0xffff) << 16) & 0xffffffff;
+  h1 ^= h1 >>> 13;
+  h1 = (h1 & 0xffff) * 0xc2b2ae35 + (((h1 >>> 16) * 0xc2b2ae35 & 0xffff) << 16) & 0xffffffff;
+  h1 ^= h1 >>> 16;
+  return h1 >>> 0;
 }
 
 function scheduleWork(callback) {
@@ -1681,52 +1773,19 @@ var importMapScriptEnd = stringToPrecomputedChunk('</script>'); // Allows us to 
 // if passed externalRuntimeConfig and the enableFizzExternalRuntime feature flag
 // is set, the server will send instructions via data attributes (instead of inline scripts)
 
-function createRenderState(resumableState, nonce, importMap) {
+function createRenderState(resumableState, nonce, bootstrapScriptContent, bootstrapScripts, bootstrapModules, externalRuntimeConfig, importMap) {
   var inlineScriptWithNonce = nonce === undefined ? startInlineScript : stringToPrecomputedChunk('<script nonce="' + escapeTextForBrowser(nonce) + '">');
   var idPrefix = resumableState.idPrefix;
-  var importMapChunks = [];
-
-  if (importMap !== undefined) {
-    var map = importMap;
-    importMapChunks.push(importMapScriptStart);
-    importMapChunks.push(stringToChunk(escapeBootstrapAndImportMapScriptContent(JSON.stringify(map))));
-    importMapChunks.push(importMapScriptEnd);
-  }
-
-  return {
-    placeholderPrefix: stringToPrecomputedChunk(idPrefix + 'P:'),
-    segmentPrefix: stringToPrecomputedChunk(idPrefix + 'S:'),
-    boundaryPrefix: idPrefix + 'B:',
-    startInlineScript: inlineScriptWithNonce,
-    htmlChunks: null,
-    headChunks: null,
-    charsetChunks: [],
-    preconnectChunks: [],
-    importMapChunks: importMapChunks,
-    preloadChunks: [],
-    hoistableChunks: [],
-    nonce: nonce,
-    // like a module global for currently rendering boundary
-    boundaryResources: null,
-    stylesToHoist: false
-  };
-}
-function createResumableState(identifierPrefix, nonce, bootstrapScriptContent, bootstrapScripts, bootstrapModules, externalRuntimeConfig) {
-  var idPrefix = identifierPrefix === undefined ? '' : identifierPrefix;
   var bootstrapChunks = [];
-  var streamingFormat = ScriptStreamingFormat;
   var externalRuntimeScript = null;
 
   if (bootstrapScriptContent !== undefined) {
-    var inlineScriptWithNonce = nonce === undefined ? startInlineScript : stringToPrecomputedChunk('<script nonce="' + escapeTextForBrowser(nonce) + '">');
     bootstrapChunks.push(inlineScriptWithNonce, stringToChunk(escapeBootstrapAndImportMapScriptContent(bootstrapScriptContent)), endInlineScript);
   }
 
   {
 
     if (externalRuntimeConfig !== undefined) {
-      streamingFormat = DataStreamingFormat;
-
       if (typeof externalRuntimeConfig === 'string') {
         externalRuntimeScript = {
           src: externalRuntimeConfig,
@@ -1753,21 +1812,29 @@ function createResumableState(identifierPrefix, nonce, bootstrapScriptContent, b
     }
   }
 
-  var resumableState = {
+  var importMapChunks = [];
+
+  if (importMap !== undefined) {
+    var map = importMap;
+    importMapChunks.push(importMapScriptStart);
+    importMapChunks.push(stringToChunk(escapeBootstrapAndImportMapScriptContent(JSON.stringify(map))));
+    importMapChunks.push(importMapScriptEnd);
+  }
+
+  var renderState = {
+    placeholderPrefix: stringToPrecomputedChunk(idPrefix + 'P:'),
+    segmentPrefix: stringToPrecomputedChunk(idPrefix + 'S:'),
+    boundaryPrefix: stringToPrecomputedChunk(idPrefix + 'B:'),
+    startInlineScript: inlineScriptWithNonce,
+    htmlChunks: null,
+    headChunks: null,
     externalRuntimeScript: externalRuntimeScript,
     bootstrapChunks: bootstrapChunks,
-    idPrefix: idPrefix,
-    nextSuspenseID: 0,
-    streamingFormat: streamingFormat,
-    instructions: NothingSent,
-    hasBody: false,
-    hasHtml: false,
-    // @TODO add bootstrap script to implicit preloads
-    // persistent
-    preloadsMap: new Map(),
-    preconnectsMap: new Map(),
-    stylesMap: new Map(),
-    scriptsMap: new Map(),
+    charsetChunks: [],
+    preconnectChunks: [],
+    importMapChunks: importMapChunks,
+    preloadChunks: [],
+    hoistableChunks: [],
     // cleared on flush
     preconnects: new Set(),
     fontPreloads: new Set(),
@@ -1777,7 +1844,12 @@ function createResumableState(identifierPrefix, nonce, bootstrapScriptContent, b
     stylePrecedences: new Map(),
     bootstrapScripts: new Set(),
     scripts: new Set(),
-    bulkPreloads: new Set()
+    bulkPreloads: new Set(),
+    preloadsMap: new Map(),
+    nonce: nonce,
+    // like a module global for currently rendering boundary
+    boundaryResources: null,
+    stylesToHoist: false
   };
 
   if (bootstrapScripts !== undefined) {
@@ -1786,7 +1858,7 @@ function createResumableState(identifierPrefix, nonce, bootstrapScriptContent, b
       var src = typeof scriptConfig === 'string' ? scriptConfig : scriptConfig.src;
       var integrity = typeof scriptConfig === 'string' ? undefined : scriptConfig.integrity;
       var crossOrigin = typeof scriptConfig === 'string' || scriptConfig.crossOrigin == null ? undefined : scriptConfig.crossOrigin === 'use-credentials' ? 'use-credentials' : '';
-      preloadBootstrapScript(resumableState, src, nonce, integrity, crossOrigin);
+      preloadBootstrapScript(resumableState, renderState, src, nonce, integrity, crossOrigin);
       bootstrapChunks.push(startScriptSrc, stringToChunk(escapeTextForBrowser(src)));
 
       if (nonce) {
@@ -1815,7 +1887,7 @@ function createResumableState(identifierPrefix, nonce, bootstrapScriptContent, b
 
       var _crossOrigin = typeof _scriptConfig === 'string' || _scriptConfig.crossOrigin == null ? undefined : _scriptConfig.crossOrigin === 'use-credentials' ? 'use-credentials' : '';
 
-      preloadBootstrapModule(resumableState, _src, nonce, _integrity, _crossOrigin);
+      preloadBootstrapModule(resumableState, renderState, _src, nonce, _integrity, _crossOrigin);
       bootstrapChunks.push(startModuleSrc, stringToChunk(escapeTextForBrowser(_src)));
 
       if (nonce) {
@@ -1834,7 +1906,36 @@ function createResumableState(identifierPrefix, nonce, bootstrapScriptContent, b
     }
   }
 
-  return resumableState;
+  return renderState;
+}
+function resumeRenderState(resumableState, nonce) {
+  return createRenderState(resumableState, nonce, // These should have already been flushed in the prerender.
+  undefined, undefined, undefined, undefined, undefined);
+}
+function createResumableState(identifierPrefix, externalRuntimeConfig) {
+  var idPrefix = identifierPrefix === undefined ? '' : identifierPrefix;
+  var streamingFormat = ScriptStreamingFormat;
+
+  {
+    if (externalRuntimeConfig !== undefined) {
+      streamingFormat = DataStreamingFormat;
+    }
+  }
+
+  return {
+    idPrefix: idPrefix,
+    nextFormID: 0,
+    streamingFormat: streamingFormat,
+    instructions: NothingSent,
+    hasBody: false,
+    hasHtml: false,
+    // @TODO add bootstrap script to implicit preloads
+    // persistent
+    preloadsMap: {},
+    preconnectsMap: {},
+    stylesMap: {},
+    scriptsMap: {}
+  };
 } // Constants for the insertion mode we're currently writing in. We don't encode all HTML5 insertion
 // modes. We only include the variants as they matter for the sake of our purposes.
 // We don't actually provide the namespace therefore we use constants instead of the string.
@@ -1933,11 +2034,6 @@ function getChildFormatContext(parentContext, type, props) {
   }
 
   return parentContext;
-}
-var UNINITIALIZED_SUSPENSE_BOUNDARY_ID = null;
-function assignSuspenseBoundaryID(renderState, resumableState) {
-  var generatedID = resumableState.nextSuspenseID++;
-  return stringToPrecomputedChunk(renderState.boundaryPrefix + generatedID.toString(16));
 }
 function makeId(resumableState, treeId, localId) {
   var idPrefix = resumableState.idPrefix;
@@ -2089,9 +2185,7 @@ function pushStringAttribute(target, name, value) // not null or undefined
 }
 
 function makeFormFieldPrefix(resumableState) {
-  // I'm just reusing this counter. It's not really the same namespace as "name".
-  // It could just be its own counter.
-  var id = resumableState.nextSuspenseID++;
+  var id = resumableState.nextFormID++;
   return resumableState.idPrefix + id;
 } // Since this will likely be repeated a lot in the HTML, we use a more concise message
 // than on the client and hopefully it's googleable.
@@ -2703,9 +2797,9 @@ function injectFormReplayingRuntime(resumableState, renderState) {
   // If we haven't sent it yet, inject the runtime that tracks submitted JS actions
   // for later replaying by Fiber. If we use an external runtime, we don't need
   // to emit anything. It's always used.
-  if ((resumableState.instructions & SentFormReplayingRuntime) === NothingSent && (!resumableState.externalRuntimeScript)) {
+  if ((resumableState.instructions & SentFormReplayingRuntime) === NothingSent && (!renderState.externalRuntimeScript)) {
     resumableState.instructions |= SentFormReplayingRuntime;
-    resumableState.bootstrapChunks.unshift(renderState.startInlineScript, formReplayingRuntimeScript, endInlineScript);
+    renderState.bootstrapChunks.unshift(renderState.startInlineScript, formReplayingRuntimeScript, endInlineScript);
   }
 }
 
@@ -3219,36 +3313,43 @@ function pushLink(target, props, resumableState, renderState, textEmbedded, inse
         return pushLinkImpl(target, props);
       } else {
         // This stylesheet refers to a Resource and we create a new one if necessary
-        var resource = resumableState.stylesMap.get(key);
+        var stylesInPrecedence = renderState.precedences.get(precedence);
 
-        if (!resource) {
+        if (!resumableState.stylesMap.hasOwnProperty(key)) {
           var resourceProps = stylesheetPropsFromRawProps(props);
-          var preloadResource = resumableState.preloadsMap.get(key);
           var state = NoState;
 
-          if (preloadResource) {
-            // If we already had a preload we don't want that resource to flush directly.
-            // We let the newly created resource govern flushing.
-            preloadResource.state |= Blocked;
-            adoptPreloadPropsForStylesheetProps(resourceProps, preloadResource.props);
+          if (resumableState.preloadsMap.hasOwnProperty(key)) {
+            var preloadProps = resumableState.preloadsMap[key];
+            adoptPreloadPropsForStylesheetProps(resourceProps, preloadProps);
+            var preloadResource = renderState.preloadsMap.get(key);
 
-            if (preloadResource.state & Flushed) {
+            if (preloadResource) {
+              // If we already had a preload we don't want that resource to flush directly.
+              // We let the newly created resource govern flushing.
+              preloadResource.state |= Blocked;
+
+              if (preloadResource.state & Flushed) {
+                state = PreloadFlushed;
+              }
+            } else {
+              // If we resumed then we assume that this was already flushed
+              // by the shell.
               state = PreloadFlushed;
             }
           }
 
-          resource = {
+          var resource = {
             type: 'stylesheet',
             chunks: [],
             state: state,
             props: resourceProps
           };
-          resumableState.stylesMap.set(key, resource);
-          var precedenceSet = resumableState.precedences.get(precedence);
+          resumableState.stylesMap[key] = null;
 
-          if (!precedenceSet) {
-            precedenceSet = new Set();
-            resumableState.precedences.set(precedence, precedenceSet);
+          if (!stylesInPrecedence) {
+            stylesInPrecedence = new Map();
+            renderState.precedences.set(precedence, stylesInPrecedence);
             var emptyStyleResource = {
               type: 'style',
               chunks: [],
@@ -3258,22 +3359,37 @@ function pushLink(target, props, resumableState, renderState, textEmbedded, inse
                 hrefs: []
               }
             };
-            precedenceSet.add(emptyStyleResource);
+            stylesInPrecedence.set('', emptyStyleResource);
 
             {
-              if (resumableState.stylePrecedences.has(precedence)) {
+              if (renderState.stylePrecedences.has(precedence)) {
                 error('React constructed an empty style resource when a style resource already exists for this precedence: "%s". This is a bug in React.', precedence);
               }
             }
 
-            resumableState.stylePrecedences.set(precedence, emptyStyleResource);
+            renderState.stylePrecedences.set(precedence, emptyStyleResource);
           }
 
-          precedenceSet.add(resource);
-        }
+          stylesInPrecedence.set(key, resource);
 
-        if (renderState.boundaryResources) {
-          renderState.boundaryResources.add(resource);
+          if (renderState.boundaryResources) {
+            renderState.boundaryResources.add(resource);
+          }
+        } else {
+          // We need to track whether this boundary should wait on this resource or not.
+          // Typically this resource should always exist since we either had it or just created
+          // it. However, it's possible when you resume that the style has already been emitted
+          // and then it wouldn't be recreated in the RenderState and there's no need to track
+          // it again since we should've hoisted it to the shell already.
+          if (stylesInPrecedence) {
+            var _resource = stylesInPrecedence.get(key);
+
+            if (_resource) {
+              if (renderState.boundaryResources) {
+                renderState.boundaryResources.add(_resource);
+              }
+            }
+          }
         }
 
         if (textEmbedded) {
@@ -3369,11 +3485,9 @@ function pushStyle(target, props, resumableState, renderState, textEmbedded, ins
     }
 
     var key = getResourceKey('style', href);
-    var resource = resumableState.stylesMap.get(key);
+    var resource = renderState.stylePrecedences.get(precedence);
 
-    if (!resource) {
-      resource = resumableState.stylePrecedences.get(precedence);
-
+    if (!resumableState.stylesMap.hasOwnProperty(key)) {
       if (!resource) {
         resource = {
           type: 'style',
@@ -3384,28 +3498,34 @@ function pushStyle(target, props, resumableState, renderState, textEmbedded, ins
             hrefs: [href]
           }
         };
-        resumableState.stylePrecedences.set(precedence, resource);
-        var precedenceSet = new Set();
-        precedenceSet.add(resource);
+        renderState.stylePrecedences.set(precedence, resource);
+        var stylesInPrecedence = new Map();
+        stylesInPrecedence.set('', resource);
 
         {
-          if (resumableState.precedences.has(precedence)) {
+          if (renderState.precedences.has(precedence)) {
             error('React constructed a new style precedence set when one already exists for this precedence: "%s". This is a bug in React.', precedence);
           }
         }
 
-        resumableState.precedences.set(precedence, precedenceSet);
+        renderState.precedences.set(precedence, stylesInPrecedence);
       } else {
         resource.props.hrefs.push(href);
       }
 
-      resumableState.stylesMap.set(key, resource);
+      resumableState.stylesMap[key] = null;
+      pushStyleContents(resource.chunks, props);
+    }
 
+    if (resource) {
+      // We need to track whether this boundary should wait on this resource or not.
+      // Typically this resource should always exist since we either had it or just created
+      // it. However, it's possible when you resume that the style has already been emitted
+      // and then it wouldn't be recreated in the RenderState and there's no need to track
+      // it again since we should've hoisted it to the shell already.
       if (renderState.boundaryResources) {
         renderState.boundaryResources.add(resource);
       }
-
-      pushStyleContents(resource.chunks, props);
     }
 
     if (textEmbedded) {
@@ -3509,7 +3629,7 @@ function getImagePreloadKey(href, imageSrcSet, imageSizes) {
   return getResourceKey('image', uniquePart);
 }
 
-function pushImg(target, props, resumableState, pictureTagInScope) {
+function pushImg(target, props, resumableState, renderState, pictureTagInScope) {
   var src = props.src,
       srcSet = props.srcSet;
 
@@ -3519,38 +3639,44 @@ function pushImg(target, props, resumableState, pictureTagInScope) {
     // resumableState.
     var sizes = props.sizes;
     var key = getImagePreloadKey(src, srcSet, sizes);
-    var resource = resumableState.preloadsMap.get(key);
+    var resource;
 
-    if (!resource) {
+    if (!resumableState.preloadsMap.hasOwnProperty(key)) {
+      var preloadProps = {
+        rel: 'preload',
+        as: 'image',
+        // There is a bug in Safari where imageSrcSet is not respected on preload links
+        // so we omit the href here if we have imageSrcSet b/c safari will load the wrong image.
+        // This harms older browers that do not support imageSrcSet by making their preloads not work
+        // but this population is shrinking fast and is already small so we accept this tradeoff.
+        href: srcSet ? undefined : src,
+        imageSrcSet: srcSet,
+        imageSizes: sizes,
+        crossOrigin: props.crossOrigin,
+        integrity: props.integrity,
+        type: props.type,
+        fetchPriority: props.fetchPriority,
+        referrerPolicy: props.referrerPolicy
+      };
       resource = {
         type: 'preload',
         chunks: [],
         state: NoState,
-        props: {
-          rel: 'preload',
-          as: 'image',
-          // There is a bug in Safari where imageSrcSet is not respected on preload links
-          // so we omit the href here if we have imageSrcSet b/c safari will load the wrong image.
-          // This harms older browers that do not support imageSrcSet by making their preloads not work
-          // but this population is shrinking fast and is already small so we accept this tradeoff.
-          href: srcSet ? undefined : src,
-          imageSrcSet: srcSet,
-          imageSizes: sizes,
-          crossOrigin: props.crossOrigin,
-          integrity: props.integrity,
-          type: props.type,
-          fetchPriority: props.fetchPriority,
-          referrerPolicy: props.referrerPolicy
-        }
+        props: preloadProps
       };
-      resumableState.preloadsMap.set(key, resource);
-      pushLinkImpl(resource.chunks, resource.props);
+      resumableState.preloadsMap[key] = preloadProps;
+      renderState.preloadsMap.set(key, resource);
+      pushLinkImpl(resource.chunks, preloadProps);
+    } else {
+      resource = renderState.preloadsMap.get(key);
     }
 
-    if (props.fetchPriority === 'high' || resumableState.highImagePreloads.size < 10) {
-      resumableState.highImagePreloads.add(resource);
-    } else {
-      resumableState.bulkPreloads.add(resource);
+    if (resource) {
+      if (props.fetchPriority === 'high' || renderState.highImagePreloads.size < 10) {
+        renderState.highImagePreloads.add(resource);
+      } else {
+        renderState.bulkPreloads.add(resource);
+      }
     }
   }
 
@@ -3713,7 +3839,7 @@ function pushStartHtml(target, props, renderState, insertionMode) {
   }
 }
 
-function pushScript(target, props, resumableState, textEmbedded, insertionMode, noscriptTagInScope) {
+function pushScript(target, props, resumableState, renderState, textEmbedded, insertionMode, noscriptTagInScope) {
   {
     var asyncProp = props.async;
 
@@ -3725,27 +3851,29 @@ function pushScript(target, props, resumableState, textEmbedded, insertionMode, 
     var src = props.src;
     var key = getResourceKey('script', src); // We can make this <script> into a ScriptResource
 
-    var resource = resumableState.scriptsMap.get(key);
-
-    if (!resource) {
-      resource = {
+    if (!resumableState.scriptsMap.hasOwnProperty(key)) {
+      var resource = {
         type: 'script',
         chunks: [],
         state: NoState,
         props: null
       };
-      resumableState.scriptsMap.set(key, resource); // Add to the script flushing queue
+      resumableState.scriptsMap[key] = null; // Add to the script flushing queue
 
-      resumableState.scripts.add(resource);
+      renderState.scripts.add(resource);
       var scriptProps = props;
-      var preloadResource = resumableState.preloadsMap.get(key);
 
-      if (preloadResource) {
-        // If we already had a preload we don't want that resource to flush directly.
-        // We let the newly created resource govern flushing.
-        preloadResource.state |= Blocked;
+      if (resumableState.preloadsMap.hasOwnProperty(key)) {
+        var preloadProps = resumableState.preloadsMap[key];
         scriptProps = assign({}, props);
-        adoptPreloadPropsForScriptProps(scriptProps, preloadResource.props);
+        adoptPreloadPropsForScriptProps(scriptProps, preloadProps);
+        var preloadResource = renderState.preloadsMap.get(key);
+
+        if (preloadResource) {
+          // If we already had a preload we don't want that resource to flush directly.
+          // We let the newly created resource govern flushing.
+          preloadResource.state |= Blocked;
+        }
       } // encode the tag as Chunks
 
 
@@ -4076,7 +4204,7 @@ function pushStartInstance(target, type, props, resumableState, renderState, for
       return pushLink(target, props, resumableState, renderState, textEmbedded, formatContext.insertionMode, !!(formatContext.tagScope & NOSCRIPT_SCOPE));
 
     case 'script':
-      return pushScript(target, props, resumableState, textEmbedded, formatContext.insertionMode, !!(formatContext.tagScope & NOSCRIPT_SCOPE)) ;
+      return pushScript(target, props, resumableState, renderState, textEmbedded, formatContext.insertionMode, !!(formatContext.tagScope & NOSCRIPT_SCOPE)) ;
 
     case 'style':
       return pushStyle(target, props, resumableState, renderState, textEmbedded, formatContext.insertionMode, !!(formatContext.tagScope & NOSCRIPT_SCOPE));
@@ -4093,7 +4221,7 @@ function pushStartInstance(target, type, props, resumableState, renderState, for
 
     case 'img':
       {
-        return pushImg(target, props, resumableState, !!(formatContext.tagScope & PICTURE_SCOPE)) ;
+        return pushImg(target, props, resumableState, renderState, !!(formatContext.tagScope & PICTURE_SCOPE)) ;
       }
     // Omitted close tags
 
@@ -4208,8 +4336,8 @@ function pushEndInstance(target, type, props, resumableState, formatContext) {
   target.push(endTag1, stringToChunk(type), endTag2);
 }
 
-function writeBootstrap(destination, resumableState) {
-  var bootstrapChunks = resumableState.bootstrapChunks;
+function writeBootstrap(destination, renderState) {
+  var bootstrapChunks = renderState.bootstrapChunks;
   var i = 0;
 
   for (; i < bootstrapChunks.length - 1; i++) {
@@ -4225,8 +4353,8 @@ function writeBootstrap(destination, resumableState) {
   return true;
 }
 
-function writeCompletedRoot(destination, resumableState) {
-  return writeBootstrap(destination, resumableState);
+function writeCompletedRoot(destination, renderState) {
+  return writeBootstrap(destination, renderState);
 } // Structural Nodes
 // A placeholder is a node inside a hidden partial tree that can be filled in later, but before
 // display. It's never visible to users. We use the template tag because it can be used in every
@@ -4263,7 +4391,8 @@ function writeStartPendingSuspenseBoundary(destination, renderState, id) {
     throw new Error('An ID must have been assigned before we can complete the boundary.');
   }
 
-  writeChunk(destination, id);
+  writeChunk(destination, renderState.boundaryPrefix);
+  writeChunk(destination, stringToChunk(id.toString(16)));
   return writeChunkAndReturn(destination, startPendingSuspenseBoundary2);
 }
 function writeStartClientRenderedSuspenseBoundary(destination, renderState, errorDigest, errorMesssage, errorComponentStack) {
@@ -4498,7 +4627,7 @@ var completeBoundaryWithStylesData1 = stringToPrecomputedChunk('<template data-r
 var completeBoundaryData2 = stringToPrecomputedChunk('" data-sid="');
 var completeBoundaryData3a = stringToPrecomputedChunk('" data-sty="');
 var completeBoundaryDataEnd = dataElementQuotedEnd;
-function writeCompletedBoundaryInstruction(destination, resumableState, renderState, boundaryID, contentSegmentID, boundaryResources) {
+function writeCompletedBoundaryInstruction(destination, resumableState, renderState, id, boundaryResources) {
   var requiresStyleInsertion;
 
   {
@@ -4541,13 +4670,9 @@ function writeCompletedBoundaryInstruction(destination, resumableState, renderSt
     }
   }
 
-  if (boundaryID === null) {
-    throw new Error('An ID must have been assigned before we can complete the boundary.');
-  } // Write function arguments, which are string and array literals
-
-
-  var formattedContentID = stringToChunk(contentSegmentID.toString(16));
-  writeChunk(destination, boundaryID);
+  var idChunk = stringToChunk(id.toString(16));
+  writeChunk(destination, renderState.boundaryPrefix);
+  writeChunk(destination, idChunk); // Write function arguments, which are string and array literals
 
   if (scriptFormat) {
     writeChunk(destination, completeBoundaryScript2);
@@ -4556,7 +4681,7 @@ function writeCompletedBoundaryInstruction(destination, resumableState, renderSt
   }
 
   writeChunk(destination, renderState.segmentPrefix);
-  writeChunk(destination, formattedContentID);
+  writeChunk(destination, idChunk);
 
   if (requiresStyleInsertion) {
     // Script and data writers must format this differently:
@@ -4586,7 +4711,7 @@ function writeCompletedBoundaryInstruction(destination, resumableState, renderSt
     writeMore = writeChunkAndReturn(destination, completeBoundaryDataEnd);
   }
 
-  return writeBootstrap(destination, resumableState) && writeMore;
+  return writeBootstrap(destination, renderState) && writeMore;
 }
 var clientRenderScript1Full = stringToPrecomputedChunk(clientRenderBoundary + ';$RX("');
 var clientRenderScript1Partial = stringToPrecomputedChunk('$RX("');
@@ -4598,7 +4723,7 @@ var clientRenderData2 = stringToPrecomputedChunk('" data-dgst="');
 var clientRenderData3 = stringToPrecomputedChunk('" data-msg="');
 var clientRenderData4 = stringToPrecomputedChunk('" data-stck="');
 var clientRenderDataEnd = dataElementQuotedEnd;
-function writeClientRenderBoundaryInstruction(destination, resumableState, renderState, boundaryID, errorDigest, errorMessage, errorComponentStack) {
+function writeClientRenderBoundaryInstruction(destination, resumableState, renderState, id, errorDigest, errorMessage, errorComponentStack) {
   var scriptFormat = resumableState.streamingFormat === ScriptStreamingFormat;
 
   if (scriptFormat) {
@@ -4617,11 +4742,8 @@ function writeClientRenderBoundaryInstruction(destination, resumableState, rende
     writeChunk(destination, clientRenderData1);
   }
 
-  if (boundaryID === null) {
-    throw new Error('An ID must have been assigned before we can complete the boundary.');
-  }
-
-  writeChunk(destination, boundaryID);
+  writeChunk(destination, renderState.boundaryPrefix);
+  writeChunk(destination, stringToChunk(id.toString(16)));
 
   if (scriptFormat) {
     // " needs to be inserted for scripts, since ArgInterstitual does not contain
@@ -4827,14 +4949,14 @@ var precedenceStyleTagResource = null; // This flags let's us opt out of flushin
 
 var didFlushPrecedence = false;
 
-function flushStyleInPreamble(resource, key, set) {
+function flushStyleInPreamble(resource, key, map) {
   var chunks = resource.chunks;
 
   if (resource.state & Flushed) {
     // In theory this should never happen because we clear from the
     // Set on flush but to ensure correct semantics we don't emit
     // anything if we are in this state.
-    set.delete(resource);
+    map.delete(key);
   } else {
     // We can emit this style or stylesheet as is.
     if (resource.type === 'style') {
@@ -4863,10 +4985,10 @@ var spaceSeparator = stringToPrecomputedChunk(' ');
 var styleTagResourceOpen3 = stringToPrecomputedChunk('">');
 var styleTagResourceClose = stringToPrecomputedChunk('</style>');
 
-function flushAllStylesInPreamble(set, precedence) {
+function flushAllStylesInPreamble(map, precedence) {
   didFlushPrecedence = false;
-  set.forEach(flushStyleInPreamble, this);
-  set.clear();
+  map.forEach(flushStyleInPreamble, this);
+  map.clear();
   var chunks = precedenceStyleTagResource.chunks;
   var hrefs = precedenceStyleTagResource.props.hrefs;
 
@@ -4924,9 +5046,9 @@ function preloadLateStyle(resource) {
   chunks.length = 0;
 }
 
-function preloadLateStyles(set, precedence) {
-  set.forEach(preloadLateStyle, this);
-  set.clear();
+function preloadLateStyles(map, precedence) {
+  map.forEach(preloadLateStyle, this);
+  map.clear();
 } // We don't bother reporting backpressure at the moment because we expect to
 // flush the entire preamble in a single pass. This probably should be modified
 // in the future to be backpressure sensitive but that requires a larger refactor
@@ -4935,16 +5057,16 @@ function preloadLateStyles(set, precedence) {
 
 function writePreamble(destination, resumableState, renderState, willFlushAllSegments) {
   // This function must be called exactly once on every request
-  if (!willFlushAllSegments && resumableState.externalRuntimeScript) {
+  if (!willFlushAllSegments && renderState.externalRuntimeScript) {
     // If the root segment is incomplete due to suspended tasks
     // (e.g. willFlushAllSegments = false) and we are using data
     // streaming format, ensure the external runtime is sent.
     // (User code could choose to send this even earlier by calling
     //  preinit(...), if they know they will suspend).
-    var _resumableState$exter = resumableState.externalRuntimeScript,
-        src = _resumableState$exter.src,
-        chunks = _resumableState$exter.chunks;
-    internalPreinitScript(resumableState, src, chunks);
+    var _renderState$external = renderState.externalRuntimeScript,
+        src = _renderState$external.src,
+        chunks = _renderState$external.chunks;
+    internalPreinitScript(resumableState, renderState, src, chunks);
   }
 
   var htmlChunks = renderState.htmlChunks;
@@ -4982,8 +5104,8 @@ function writePreamble(destination, resumableState, renderState, willFlushAllSeg
 
   charsetChunks.length = 0; // emit preconnect resources
 
-  resumableState.preconnects.forEach(flushResourceInPreamble, destination);
-  resumableState.preconnects.clear();
+  renderState.preconnects.forEach(flushResourceInPreamble, destination);
+  renderState.preconnects.clear();
   var preconnectChunks = renderState.preconnectChunks;
 
   for (i = 0; i < preconnectChunks.length; i++) {
@@ -4991,12 +5113,12 @@ function writePreamble(destination, resumableState, renderState, willFlushAllSeg
   }
 
   preconnectChunks.length = 0;
-  resumableState.fontPreloads.forEach(flushResourceInPreamble, destination);
-  resumableState.fontPreloads.clear();
-  resumableState.highImagePreloads.forEach(flushResourceInPreamble, destination);
-  resumableState.highImagePreloads.clear(); // Flush unblocked stylesheets by precedence
+  renderState.fontPreloads.forEach(flushResourceInPreamble, destination);
+  renderState.fontPreloads.clear();
+  renderState.highImagePreloads.forEach(flushResourceInPreamble, destination);
+  renderState.highImagePreloads.clear(); // Flush unblocked stylesheets by precedence
 
-  resumableState.precedences.forEach(flushAllStylesInPreamble, destination);
+  renderState.precedences.forEach(flushAllStylesInPreamble, destination);
   var importMapChunks = renderState.importMapChunks;
 
   for (i = 0; i < importMapChunks.length; i++) {
@@ -5004,11 +5126,11 @@ function writePreamble(destination, resumableState, renderState, willFlushAllSeg
   }
 
   importMapChunks.length = 0;
-  resumableState.bootstrapScripts.forEach(flushResourceInPreamble, destination);
-  resumableState.scripts.forEach(flushResourceInPreamble, destination);
-  resumableState.scripts.clear();
-  resumableState.bulkPreloads.forEach(flushResourceInPreamble, destination);
-  resumableState.bulkPreloads.clear(); // Write embedding preloadChunks
+  renderState.bootstrapScripts.forEach(flushResourceInPreamble, destination);
+  renderState.scripts.forEach(flushResourceInPreamble, destination);
+  renderState.scripts.clear();
+  renderState.bulkPreloads.forEach(flushResourceInPreamble, destination);
+  renderState.bulkPreloads.clear(); // Write embedding preloadChunks
 
   var preloadChunks = renderState.preloadChunks;
 
@@ -5046,8 +5168,8 @@ function writeHoistables(destination, resumableState, renderState) {
   // We omit charsetChunks because we have already sent the shell and if it wasn't
   // already sent it is too late now.
 
-  resumableState.preconnects.forEach(flushResourceLate, destination);
-  resumableState.preconnects.clear();
+  renderState.preconnects.forEach(flushResourceLate, destination);
+  renderState.preconnects.clear();
   var preconnectChunks = renderState.preconnectChunks;
 
   for (i = 0; i < preconnectChunks.length; i++) {
@@ -5055,23 +5177,23 @@ function writeHoistables(destination, resumableState, renderState) {
   }
 
   preconnectChunks.length = 0;
-  resumableState.fontPreloads.forEach(flushResourceLate, destination);
-  resumableState.fontPreloads.clear();
-  resumableState.highImagePreloads.forEach(flushResourceInPreamble, destination);
-  resumableState.highImagePreloads.clear(); // Preload any stylesheets. these will emit in a render instruction that follows this
+  renderState.fontPreloads.forEach(flushResourceLate, destination);
+  renderState.fontPreloads.clear();
+  renderState.highImagePreloads.forEach(flushResourceInPreamble, destination);
+  renderState.highImagePreloads.clear(); // Preload any stylesheets. these will emit in a render instruction that follows this
   // but we want to kick off preloading as soon as possible
 
-  resumableState.precedences.forEach(preloadLateStyles, destination); // We only hoist importmaps that are configured through createResponse and that will
+  renderState.precedences.forEach(preloadLateStyles, destination); // We only hoist importmaps that are configured through createResponse and that will
   // always flush in the preamble. Generally we don't expect people to render them as
   // tags when using React but if you do they are going to be treated like regular inline
   // scripts and flush after other hoistables which is problematic
   // bootstrap scripts should flush above script priority but these can only flush in the preamble
   // so we elide the code here for performance
 
-  resumableState.scripts.forEach(flushResourceLate, destination);
-  resumableState.scripts.clear();
-  resumableState.bulkPreloads.forEach(flushResourceLate, destination);
-  resumableState.bulkPreloads.clear(); // Write embedding preloadChunks
+  renderState.scripts.forEach(flushResourceLate, destination);
+  renderState.scripts.clear();
+  renderState.bulkPreloads.forEach(flushResourceLate, destination);
+  renderState.bulkPreloads.clear(); // Write embedding preloadChunks
 
   var preloadChunks = renderState.preloadChunks;
 
@@ -5497,26 +5619,26 @@ function prefetchDNS(href) {
   }
 
   var resumableState = getResumableState(request);
+  var renderState = getRenderState(request);
 
   if (typeof href === 'string' && href) {
     var key = getResourceKey('prefetchDNS', href);
-    var resource = resumableState.preconnectsMap.get(key);
 
-    if (!resource) {
-      resource = {
+    if (!resumableState.preconnectsMap.hasOwnProperty(key)) {
+      var resource = {
         type: 'preconnect',
         chunks: [],
         state: NoState,
         props: null
       };
-      resumableState.preconnectsMap.set(key, resource);
+      resumableState.preconnectsMap[key] = null;
       pushLinkImpl(resource.chunks, {
         href: href,
         rel: 'dns-prefetch'
       });
+      renderState.preconnects.add(resource);
     }
 
-    resumableState.preconnects.add(resource);
     flushResources(request);
   }
 }
@@ -5535,27 +5657,27 @@ function preconnect(href, crossOrigin) {
   }
 
   var resumableState = getResumableState(request);
+  var renderState = getRenderState(request);
 
   if (typeof href === 'string' && href) {
     var key = "[preconnect][" + (typeof crossOrigin === 'string' ? crossOrigin : 'null') + "]" + href;
-    var resource = resumableState.preconnectsMap.get(key);
 
-    if (!resource) {
-      resource = {
+    if (!resumableState.preconnectsMap.hasOwnProperty(key)) {
+      var resource = {
         type: 'preconnect',
         chunks: [],
         state: NoState,
         props: null
       };
-      resumableState.preconnectsMap.set(key, resource);
+      resumableState.preconnectsMap[key] = null;
       pushLinkImpl(resource.chunks, {
         rel: 'preconnect',
         href: href,
         crossOrigin: crossOrigin
       });
+      renderState.preconnects.add(resource);
     }
 
-    resumableState.preconnects.add(resource);
     flushResources(request);
   }
 }
@@ -5574,6 +5696,7 @@ function preload(href, as, options) {
   }
 
   var resumableState = getResumableState(request);
+  var renderState = getRenderState(request);
 
   if (as && href) {
     options = options || {};
@@ -5588,31 +5711,30 @@ function preload(href, as, options) {
       key = getResourceKey(as, href);
     }
 
-    var resource = resumableState.preloadsMap.get(key);
-
-    if (!resource) {
+    if (!resumableState.preloadsMap.hasOwnProperty(key)) {
       var props = assign({
         rel: 'preload',
         href: as === 'image' && options.imageSrcSet ? undefined : href,
         as: as
       }, options);
 
-      resource = {
+      var resource = {
         type: 'preload',
         chunks: [],
         state: NoState,
         props: props
       };
-      resumableState.preloadsMap.set(key, resource);
-      pushLinkImpl(resource.chunks, resource.props);
-    }
+      resumableState.preloadsMap[key] = props;
+      renderState.preloadsMap.set(key, resource);
+      pushLinkImpl(resource.chunks, props);
 
-    if (as === 'font') {
-      resumableState.fontPreloads.add(resource);
-    } else if (as === 'image' && resource.props.fetchPriority === 'high') {
-      resumableState.highImagePreloads.add(resource);
-    } else {
-      resumableState.bulkPreloads.add(resource);
+      if (as === 'font') {
+        renderState.fontPreloads.add(resource);
+      } else if (as === 'image' && resource.props.fetchPriority === 'high') {
+        renderState.highImagePreloads.add(resource);
+      } else {
+        renderState.bulkPreloads.add(resource);
+      }
     }
 
     flushResources(request);
@@ -5633,29 +5755,30 @@ function preloadModule(href, options) {
   }
 
   var resumableState = getResumableState(request);
+  var renderState = getRenderState(request);
 
   if (href) {
     var as = options && typeof options.as === 'string' ? options.as : 'script';
     var key = getResourceKey(as, href);
-    var resource = resumableState.preloadsMap.get(key);
 
-    var props = assign({
-      rel: 'modulepreload',
-      href: href
-    }, options);
+    if (!resumableState.preloadsMap.hasOwnProperty(key)) {
+      var props = assign({
+        rel: 'modulepreload',
+        href: href
+      }, options);
 
-    if (!resource) {
-      resource = {
+      var resource = {
         type: 'preload',
         chunks: [],
         state: NoState,
         props: props
       };
-      resumableState.preloadsMap.set(key, resource);
+      resumableState.preloadsMap[key] = props;
+      renderState.preloadsMap.set(key, resource);
       pushLinkImpl(resource.chunks, resource.props);
+      renderState.bulkPreloads.add(resource);
     }
 
-    resumableState.bulkPreloads.add(resource);
     flushResources(request);
   }
 }
@@ -5674,18 +5797,22 @@ function preinitStyle(href, precedence, options) {
   }
 
   var resumableState = getResumableState(request);
+  var renderState = getRenderState(request);
 
   if (href) {
     var as = 'style';
     var key = getResourceKey(as, href);
-    var resource = resumableState.stylesMap.get(key);
 
-    if (!resource) {
+    if (!resumableState.stylesMap.hasOwnProperty(key)) {
       precedence = precedence || 'default';
       var state = NoState;
-      var preloadResource = resumableState.preloadsMap.get(key);
+      var preloadResource = renderState.preloadsMap.get(key);
 
       if (preloadResource && preloadResource.state & Flushed) {
+        state = PreloadFlushed;
+      } else if (resumableState.preloadsMap.hasOwnProperty(key)) {
+        // If we resumed then we assume that this was already flushed
+        // by the shell.
         state = PreloadFlushed;
       }
 
@@ -5695,18 +5822,18 @@ function preinitStyle(href, precedence, options) {
         'data-precedence': precedence
       }, options);
 
-      resource = {
+      var resource = {
         type: 'stylesheet',
         chunks: [],
         state: state,
         props: props
       };
-      resumableState.stylesMap.set(key, resource);
-      var precedenceSet = resumableState.precedences.get(precedence);
+      resumableState.stylesMap[key] = null;
+      var stylesInPrecedence = renderState.precedences.get(precedence);
 
-      if (!precedenceSet) {
-        precedenceSet = new Set();
-        resumableState.precedences.set(precedence, precedenceSet);
+      if (!stylesInPrecedence) {
+        stylesInPrecedence = new Map();
+        renderState.precedences.set(precedence, stylesInPrecedence);
         var emptyStyleResource = {
           type: 'style',
           chunks: [],
@@ -5716,18 +5843,18 @@ function preinitStyle(href, precedence, options) {
             hrefs: []
           }
         };
-        precedenceSet.add(emptyStyleResource);
+        stylesInPrecedence.set('', emptyStyleResource);
 
         {
-          if (resumableState.stylePrecedences.has(precedence)) {
+          if (renderState.stylePrecedences.has(precedence)) {
             error('React constructed an empty style resource when a style resource already exists for this precedence: "%s". This is a bug in React.', precedence);
           }
         }
 
-        resumableState.stylePrecedences.set(precedence, emptyStyleResource);
+        renderState.stylePrecedences.set(precedence, emptyStyleResource);
       }
 
-      precedenceSet.add(resource);
+      stylesInPrecedence.set(key, resource);
       flushResources(request);
     }
 
@@ -5749,26 +5876,26 @@ function preinitScript(src, options) {
   }
 
   var resumableState = getResumableState(request);
+  var renderState = getRenderState(request);
 
   if (src) {
     var key = getResourceKey('script', src);
-    var resource = resumableState.scriptsMap.get(key);
 
-    if (!resource) {
-      resource = {
+    if (!resumableState.scriptsMap.hasOwnProperty(key)) {
+      var resource = {
         type: 'script',
         chunks: [],
         state: NoState,
         props: null
       };
-      resumableState.scriptsMap.set(key, resource);
+      resumableState.scriptsMap[key] = null;
 
       var props = assign({
         src: src,
         async: true
       }, options);
 
-      resumableState.scripts.add(resource);
+      renderState.scripts.add(resource);
       pushScriptImpl(resource.chunks, props);
       flushResources(request);
     }
@@ -5791,19 +5918,19 @@ function preinitModuleScript(src, options) {
   }
 
   var resumableState = getResumableState(request);
+  var renderState = getRenderState(request);
 
   if (src) {
     var key = getResourceKey('script', src);
-    var resource = resumableState.scriptsMap.get(key);
 
-    if (!resource) {
-      resource = {
+    if (!resumableState.scriptsMap.hasOwnProperty(key)) {
+      var resource = {
         type: 'script',
         chunks: [],
         state: NoState,
         props: null
       };
-      resumableState.scriptsMap.set(key, resource);
+      resumableState.scriptsMap[key] = null;
 
       var props = assign({
         src: src,
@@ -5811,7 +5938,7 @@ function preinitModuleScript(src, options) {
         async: true
       }, options);
 
-      resumableState.scripts.add(resource);
+      renderState.scripts.add(resource);
       pushScriptImpl(resource.chunks, props);
       flushResources(request);
     }
@@ -5824,11 +5951,11 @@ function preinitModuleScript(src, options) {
 // already exists and not assume it
 
 
-function preloadBootstrapScript(resumableState, src, nonce, integrity, crossOrigin) {
+function preloadBootstrapScript(resumableState, renderState, src, nonce, integrity, crossOrigin) {
   var key = getResourceKey('script', src);
 
   {
-    if (resumableState.preloadsMap.has(key)) {
+    if (resumableState.preloadsMap.hasOwnProperty(key)) {
       // This is coded as a React error because it should be impossible for a userspace preload to preempt this call
       // If a userspace preload can preempt it then this assumption is broken and we need to reconsider this strategy
       // rather than instruct the user to not preload their bootstrap scripts themselves
@@ -5851,8 +5978,9 @@ function preloadBootstrapScript(resumableState, src, nonce, integrity, crossOrig
     state: NoState,
     props: props
   };
-  resumableState.preloadsMap.set(key, resource);
-  resumableState.bootstrapScripts.add(resource);
+  resumableState.preloadsMap[key] = props;
+  renderState.preloadsMap.set(key, resource);
+  renderState.bootstrapScripts.add(resource);
   pushLinkImpl(resource.chunks, props);
 } // This function is only safe to call at Request start time since it assumes
 // that each module has not already been preloaded. If we find a need to preload
@@ -5860,11 +5988,11 @@ function preloadBootstrapScript(resumableState, src, nonce, integrity, crossOrig
 // already exists and not assume it
 
 
-function preloadBootstrapModule(resumableState, src, nonce, integrity, crossOrigin) {
+function preloadBootstrapModule(resumableState, renderState, src, nonce, integrity, crossOrigin) {
   var key = getResourceKey('script', src);
 
   {
-    if (resumableState.preloadsMap.has(key)) {
+    if (resumableState.preloadsMap.hasOwnProperty(key)) {
       // This is coded as a React error because it should be impossible for a userspace preload to preempt this call
       // If a userspace preload can preempt it then this assumption is broken and we need to reconsider this strategy
       // rather than instruct the user to not preload their bootstrap scripts themselves
@@ -5886,25 +6014,25 @@ function preloadBootstrapModule(resumableState, src, nonce, integrity, crossOrig
     state: NoState,
     props: props
   };
-  resumableState.preloadsMap.set(key, resource);
-  resumableState.bootstrapScripts.add(resource);
+  resumableState.preloadsMap[key] = props;
+  renderState.preloadsMap.set(key, resource);
+  renderState.bootstrapScripts.add(resource);
   pushLinkImpl(resource.chunks, props);
   return;
 }
 
-function internalPreinitScript(resumableState, src, chunks) {
+function internalPreinitScript(resumableState, renderState, src, chunks) {
   var key = getResourceKey('script', src);
-  var resource = resumableState.scriptsMap.get(key);
 
-  if (!resource) {
-    resource = {
+  if (!resumableState.scriptsMap.hasOwnProperty(key)) {
+    var resource = {
       type: 'script',
       chunks: chunks,
       state: NoState,
       props: null
     };
-    resumableState.scriptsMap.set(key, resource);
-    resumableState.scripts.add(resource);
+    resumableState.scriptsMap[key] = null;
+    renderState.scripts.add(resource);
   }
 
   return;
@@ -8000,11 +8128,16 @@ function useOptimistic(passthrough, reducer) {
 
 function createPostbackFormStateKey(permalink, componentKeyPath, hookIndex) {
   if (permalink !== undefined) {
+    // Don't bother to hash a permalink-based key since it's already short.
     return 'p' + permalink;
   } else {
     // Append a node to the key path that represents the form state hook.
-    var keyPath = [componentKeyPath, null, hookIndex];
-    return 'k' + JSON.stringify(keyPath);
+    var keyPath = [componentKeyPath, null, hookIndex]; // Key paths are hashed to reduce the size. It does not need to be secure,
+    // and it's more important that it's fast than that it's completely
+    // collision-free.
+
+    var keyPathHash = createFastHashJS(JSON.stringify(keyPath));
+    return 'k' + keyPathHash;
   }
 }
 
@@ -8265,11 +8398,8 @@ var ReactCurrentCache = ReactSharedInternals.ReactCurrentCache;
 var ReactDebugCurrentFrame = ReactSharedInternals.ReactDebugCurrentFrame; // Linked list representing the identity of a component given the component/tag name and key.
 // The name might be minified but we assume that it's going to be the same generated name. Typically
 // because it's just the same compiled output in practice.
+// resume with segmentID at the index
 
-var REPLAY_NODE = 0;
-var REPLAY_SUSPENSE_BOUNDARY = 1;
-var RESUME_ELEMENT = 2;
-var RESUME_SLOT = 3;
 var CLIENT_RENDERED = 4; // if it errors or infinitely suspends
 
 var PENDING = 0;
@@ -8342,7 +8472,7 @@ function createRequest(children, resumableState, renderState, rootFormatContext,
   false, false); // There is no parent so conceptually, we're unblocked to flush this segment.
 
   rootSegment.parentFlushed = true;
-  var rootTask = createTask(request, null, children, -1, null, rootSegment, abortSet, null, rootFormatContext, emptyContextObject, rootContextSnapshot, emptyTreeContext);
+  var rootTask = createRenderTask(request, null, children, -1, null, rootSegment, abortSet, null, rootFormatContext, emptyContextObject, rootContextSnapshot, emptyTreeContext);
   pingedTasks.push(rootTask);
   return request;
 }
@@ -8351,7 +8481,8 @@ function createPrerenderRequest(children, resumableState, renderState, rootForma
 
   request.trackedPostpones = {
     workingMap: new Map(),
-    root: []
+    rootNodes: [],
+    rootSlots: null
   };
   return request;
 }
@@ -8385,13 +8516,13 @@ function resumeRequest(children, postponedState, renderState, onError, onAllRead
     onShellError: onShellError === undefined ? noop : onShellError,
     onFatalError: onFatalError === undefined ? noop : onFatalError,
     formState: null
-  }; // This segment represents the root fallback.
-
-  var rootSegment = createPendingSegment(request, 0, null, postponedState.rootFormatContext, // Root segments are never embedded in Text on either edge
-  false, false); // There is no parent so conceptually, we're unblocked to flush this segment.
-
-  rootSegment.parentFlushed = true;
-  var rootTask = createTask(request, null, children, -1, null, rootSegment, abortSet, null, postponedState.rootFormatContext, emptyContextObject, rootContextSnapshot, emptyTreeContext);
+  };
+  var replay = {
+    nodes: postponedState.replayNodes,
+    slots: postponedState.replaySlots,
+    pendingTasks: 0
+  };
+  var rootTask = createReplayTask(request, null, replay, children, -1, null, abortSet, null, postponedState.rootFormatContext, emptyContextObject, rootContextSnapshot, emptyTreeContext);
   pingedTasks.push(rootTask);
   return request;
 }
@@ -8422,7 +8553,6 @@ function pingTask(request, task) {
 function createSuspenseBoundary(request, fallbackAbortableTasks, keyPath) {
   return {
     status: PENDING,
-    id: UNINITIALIZED_SUSPENSE_BOUNDARY_ID,
     rootSegmentID: -1,
     parentFlushed: false,
     pendingTasks: 0,
@@ -8435,7 +8565,7 @@ function createSuspenseBoundary(request, fallbackAbortableTasks, keyPath) {
   };
 }
 
-function createTask(request, thenableState, node, childIndex, blockedBoundary, blockedSegment, abortSet, keyPath, formatContext, legacyContext, context, treeContext) {
+function createRenderTask(request, thenableState, node, childIndex, blockedBoundary, blockedSegment, abortSet, keyPath, formatContext, legacyContext, context, treeContext) {
   request.allPendingTasks++;
 
   if (blockedBoundary === null) {
@@ -8445,6 +8575,7 @@ function createTask(request, thenableState, node, childIndex, blockedBoundary, b
   }
 
   var task = {
+    replay: null,
     node: node,
     childIndex: childIndex,
     ping: function () {
@@ -8452,6 +8583,42 @@ function createTask(request, thenableState, node, childIndex, blockedBoundary, b
     },
     blockedBoundary: blockedBoundary,
     blockedSegment: blockedSegment,
+    abortSet: abortSet,
+    keyPath: keyPath,
+    formatContext: formatContext,
+    legacyContext: legacyContext,
+    context: context,
+    treeContext: treeContext,
+    thenableState: thenableState
+  };
+
+  {
+    task.componentStack = null;
+  }
+
+  abortSet.add(task);
+  return task;
+}
+
+function createReplayTask(request, thenableState, replay, node, childIndex, blockedBoundary, abortSet, keyPath, formatContext, legacyContext, context, treeContext) {
+  request.allPendingTasks++;
+
+  if (blockedBoundary === null) {
+    request.pendingRootTasks++;
+  } else {
+    blockedBoundary.pendingTasks++;
+  }
+
+  replay.pendingTasks++;
+  var task = {
+    replay: replay,
+    node: node,
+    childIndex: childIndex,
+    ping: function () {
+      return pingTask(request, task);
+    },
+    blockedBoundary: blockedBoundary,
+    blockedSegment: null,
     abortSet: abortSet,
     keyPath: keyPath,
     formatContext: formatContext,
@@ -8598,7 +8765,26 @@ function fatalError(request, error) {
   }
 }
 
-function renderSuspenseBoundary(request, task, keyPath, props) {
+function renderSuspenseBoundary(request, someTask, keyPath, props) {
+  if (someTask.replay !== null) {
+    // If we're replaying through this pass, it means we're replaying through
+    // an already completed Suspense boundary. It's too late to do anything about it
+    // so we can just render through it.
+    var _prevKeyPath = someTask.keyPath;
+    someTask.keyPath = keyPath;
+    var _content = props.children;
+
+    try {
+      renderNode(request, someTask, _content, -1);
+    } finally {
+      someTask.keyPath = _prevKeyPath;
+    }
+
+    return;
+  } // $FlowFixMe: Refined.
+
+
+  var task = someTask;
   pushBuiltInComponentStackInDEV(task, 'Suspense');
   var prevKeyPath = task.keyPath;
   var parentBoundary = task.blockedBoundary;
@@ -8689,7 +8875,7 @@ function renderSuspenseBoundary(request, task, keyPath, props) {
   // on it yet in case we finish the main content, so we queue for later.
 
 
-  var suspendedFallbackTask = createTask(request, null, fallback, -1, parentBoundary, boundarySegment, fallbackAbortSet, // TODO: Should distinguish key path of fallback and primary tasks
+  var suspendedFallbackTask = createRenderTask(request, null, fallback, -1, parentBoundary, boundarySegment, fallbackAbortSet, // TODO: Should distinguish key path of fallback and primary tasks
   keyPath, task.formatContext, task.legacyContext, task.context, task.treeContext);
 
   {
@@ -8702,24 +8888,126 @@ function renderSuspenseBoundary(request, task, keyPath, props) {
   popComponentStackInDEV(task);
 }
 
+function replaySuspenseBoundary(request, task, keyPath, props, id, childNodes, childSlots) {
+  pushBuiltInComponentStackInDEV(task, 'Suspense');
+  var prevKeyPath = task.keyPath;
+  var previousReplaySet = task.replay;
+  var parentBoundary = task.blockedBoundary;
+  var content = props.children;
+  var fallbackAbortSet = new Set();
+  var resumedBoundary = createSuspenseBoundary(request, fallbackAbortSet, task.keyPath);
+  resumedBoundary.parentFlushed = true; // We restore the same id of this boundary as was used during prerender.
+
+  resumedBoundary.rootSegmentID = id; // We can reuse the current context and task to render the content immediately without
+  // context switching. We just need to temporarily switch which boundary and replay node
+  // we're writing to. If something suspends, it'll spawn new suspended task with that context.
+
+  task.blockedBoundary = resumedBoundary;
+  task.replay = {
+    nodes: childNodes,
+    slots: childSlots,
+    pendingTasks: 1
+  };
+
+  {
+    setCurrentlyRenderingBoundaryResourcesTarget(request.renderState, resumedBoundary.resources);
+  }
+
+  try {
+    // We use the safe form because we don't handle suspending here. Only error handling.
+    if (typeof childSlots === 'number') {
+      resumeNode(request, task, childSlots, content, -1);
+    } else {
+      renderNode(request, task, content, -1);
+    }
+
+    if (resumedBoundary.pendingTasks === 0 && resumedBoundary.status === PENDING) {
+      resumedBoundary.status = COMPLETED;
+      request.completedBoundaries.push(resumedBoundary);
+    }
+
+    if (task.replay.pendingTasks === 1 && task.replay.nodes.length > 0) {
+      throw new Error("Couldn't find all resumable slots by key/index during replaying. " + "The tree doesn't match so React will fallback to client rendering.");
+    }
+
+    task.replay.pendingTasks--;
+  } catch (error) {
+    resumedBoundary.status = CLIENT_RENDERED;
+    var errorDigest;
+
+    if (typeof error === 'object' && error !== null && error.$$typeof === REACT_POSTPONE_TYPE) {
+      var postponeInstance = error;
+      logPostpone(request, postponeInstance.message); // TODO: Figure out a better signal than a magic digest value.
+
+      errorDigest = 'POSTPONE';
+    } else {
+      errorDigest = logRecoverableError(request, error);
+    }
+
+    resumedBoundary.errorDigest = errorDigest;
+
+    {
+      captureBoundaryErrorDetailsDev(resumedBoundary, error);
+    }
+
+    task.replay.pendingTasks--; // The parent already flushed in the prerender so we need to schedule this to be emitted.
+
+    request.clientRenderedBoundaries.push(resumedBoundary); // We don't need to decrement any task numbers because we didn't spawn any new task.
+    // We don't need to schedule any task because we know the parent has written yet.
+    // We do need to fallthrough to create the fallback though.
+  } finally {
+    {
+      setCurrentlyRenderingBoundaryResourcesTarget(request.renderState, parentBoundary ? parentBoundary.resources : null);
+    }
+
+    task.blockedBoundary = parentBoundary;
+    task.replay = previousReplaySet;
+    task.keyPath = prevKeyPath;
+  } // TODO: Should this be in the finally?
+
+
+  popComponentStackInDEV(task);
+}
+
 function renderHostElement(request, task, keyPath, type, props) {
   pushBuiltInComponentStackInDEV(task, type);
   var segment = task.blockedSegment;
-  var children = pushStartInstance(segment.chunks, type, props, request.resumableState, request.renderState, task.formatContext, segment.lastPushedText);
-  segment.lastPushedText = false;
-  var prevContext = task.formatContext;
-  var prevKeyPath = task.keyPath;
-  task.formatContext = getChildFormatContext(prevContext, type, props);
-  task.keyPath = keyPath; // We use the non-destructive form because if something suspends, we still
-  // need to pop back up and finish this subtree of HTML.
 
-  renderNode(request, task, children, -1); // We expect that errors will fatal the whole task and that we don't need
-  // the correct context. Therefore this is not in a finally.
+  if (segment === null) {
+    // Replay
+    var children = props.children; // TODO: Make this a Config for replaying.
 
-  task.formatContext = prevContext;
-  task.keyPath = prevKeyPath;
-  pushEndInstance(segment.chunks, type, props, request.resumableState, prevContext);
-  segment.lastPushedText = false;
+    var prevContext = task.formatContext;
+    var prevKeyPath = task.keyPath;
+    task.formatContext = getChildFormatContext(prevContext, type, props);
+    task.keyPath = keyPath; // We use the non-destructive form because if something suspends, we still
+    // need to pop back up and finish this subtree of HTML.
+
+    renderNode(request, task, children, -1); // We expect that errors will fatal the whole task and that we don't need
+    // the correct context. Therefore this is not in a finally.
+
+    task.formatContext = prevContext;
+    task.keyPath = prevKeyPath;
+  } else {
+    // Render
+    var _children = pushStartInstance(segment.chunks, type, props, request.resumableState, request.renderState, task.formatContext, segment.lastPushedText);
+
+    segment.lastPushedText = false;
+    var _prevContext = task.formatContext;
+    var _prevKeyPath2 = task.keyPath;
+    task.formatContext = getChildFormatContext(_prevContext, type, props);
+    task.keyPath = keyPath; // We use the non-destructive form because if something suspends, we still
+    // need to pop back up and finish this subtree of HTML.
+
+    renderNode(request, task, _children, -1); // We expect that errors will fatal the whole task and that we don't need
+    // the correct context. Therefore this is not in a finally.
+
+    task.formatContext = _prevContext;
+    task.keyPath = _prevKeyPath2;
+    pushEndInstance(segment.chunks, type, props, request.resumableState, _prevContext);
+    segment.lastPushedText = false;
+  }
+
   popComponentStackInDEV(task);
 }
 
@@ -9118,10 +9406,10 @@ function renderElement(request, task, keyPath, prevThenableState, type, props, r
       {
         pushBuiltInComponentStackInDEV(task, 'SuspenseList'); // TODO: SuspenseList should control the boundaries.
 
-        var _prevKeyPath = task.keyPath;
+        var _prevKeyPath3 = task.keyPath;
         task.keyPath = keyPath;
         renderNodeDestructive(request, task, null, props.children, -1);
-        task.keyPath = _prevKeyPath;
+        task.keyPath = _prevKeyPath3;
         popComponentStackInDEV(task);
         return;
       }
@@ -9185,6 +9473,142 @@ function renderElement(request, task, keyPath, prevThenableState, type, props, r
   }
 
   throw new Error('Element type is invalid: expected a string (for built-in ' + 'components) or a class/function (for composite components) ' + ("but got: " + (type == null ? type : typeof type) + "." + info));
+}
+
+function resumeNode(request, task, segmentId, node, childIndex) {
+  var prevReplay = task.replay;
+  var blockedBoundary = task.blockedBoundary;
+  var resumedSegment = createPendingSegment(request, 0, null, task.formatContext, false, false);
+  resumedSegment.id = segmentId;
+  resumedSegment.parentFlushed = true;
+
+  try {
+    // Convert the current ReplayTask to a RenderTask.
+    var renderTask = task;
+    renderTask.replay = null;
+    renderTask.blockedSegment = resumedSegment;
+    renderNode(request, task, node, childIndex);
+    resumedSegment.status = COMPLETED;
+
+    if (blockedBoundary === null) {
+      request.completedRootSegment = resumedSegment;
+    } else {
+      queueCompletedSegment(blockedBoundary, resumedSegment);
+
+      if (blockedBoundary.parentFlushed) {
+        request.partialBoundaries.push(blockedBoundary);
+      }
+    }
+  } finally {
+    // Restore to a ReplayTask.
+    task.replay = prevReplay;
+    task.blockedSegment = null;
+  }
+}
+
+function resumeElement(request, task, keyPath, segmentId, prevThenableState, type, props, ref) {
+  var prevReplay = task.replay;
+  var blockedBoundary = task.blockedBoundary;
+  var resumedSegment = createPendingSegment(request, 0, null, task.formatContext, false, false);
+  resumedSegment.id = segmentId;
+  resumedSegment.parentFlushed = true;
+
+  try {
+    // Convert the current ReplayTask to a RenderTask.
+    var renderTask = task;
+    renderTask.replay = null;
+    renderTask.blockedSegment = resumedSegment;
+    renderElement(request, task, keyPath, prevThenableState, type, props, ref);
+    resumedSegment.status = COMPLETED;
+
+    if (blockedBoundary === null) {
+      request.completedRootSegment = resumedSegment;
+    } else {
+      queueCompletedSegment(blockedBoundary, resumedSegment);
+
+      if (blockedBoundary.parentFlushed) {
+        request.partialBoundaries.push(blockedBoundary);
+      }
+    }
+  } finally {
+    // Restore to a ReplayTask.
+    task.replay = prevReplay;
+    task.blockedSegment = null;
+  }
+}
+
+function replayElement(request, task, keyPath, prevThenableState, name, keyOrIndex, childIndex, type, props, ref, replay) {
+  // We're replaying. Find the path to follow.
+  var replayNodes = replay.nodes;
+
+  for (var i = 0; i < replayNodes.length; i++) {
+    // Flow doesn't support refinement on tuples so we do it manually here.
+    var node = replayNodes[i];
+
+    if (keyOrIndex !== node[1]) {
+      continue;
+    } // Let's double check that the component name matches as a precaution.
+
+
+    if (name !== null && name !== node[0]) {
+      throw new Error('Expected to see a component of type "' + name + '" in this slot. ' + "The tree doesn't match so React will fallback to client rendering.");
+    }
+
+    if (node.length === 4) {
+      // Matched a replayable path.
+      var childNodes = node[2];
+      var childSlots = node[3];
+      task.replay = {
+        nodes: childNodes,
+        slots: childSlots,
+        pendingTasks: 1
+      };
+
+      try {
+        if (typeof childSlots === 'number') {
+          // Matched a resumable element.
+          resumeElement(request, task, keyPath, childSlots, prevThenableState, type, props, ref);
+        } else {
+          renderElement(request, task, keyPath, prevThenableState, type, props, ref);
+        }
+
+        if (task.replay.pendingTasks === 1 && task.replay.nodes.length > 0 // TODO check remaining slots
+        ) {
+            throw new Error("Couldn't find all resumable slots by key/index during replaying. " + "The tree doesn't match so React will fallback to client rendering.");
+          }
+      } catch (x) {
+        if (typeof x === 'object' && x !== null && (x === SuspenseException || typeof x.then === 'function')) {
+          // Suspend
+          throw x;
+        } // Unlike regular render, we don't terminate the siblings if we error
+        // during a replay. That's because this component didn't actually error
+        // in the original prerender. What's unable to complete is the child
+        // replay nodes which might be Suspense boundaries which are able to
+        // absorb the error and we can still continue with siblings.
+
+
+        erroredReplay(request, task.blockedBoundary, x, childNodes, childSlots);
+      } finally {
+        task.replay.pendingTasks--;
+        task.replay = replay;
+      }
+    } else {
+      // Let's double check that the component type matches.
+      if (type !== REACT_SUSPENSE_TYPE) {
+        throw new Error('Expected to see a Suspense boundary in this slot. ' + "The tree doesn't match so React will fallback to client rendering.");
+      } // Matched a replayable path.
+
+
+      replaySuspenseBoundary(request, task, keyPath, props, node[4], node[2], node[3]);
+    } // We finished rendering this node, so now we can consume this
+    // slot. This must happen after in case we rerender this task.
+
+
+    replayNodes.splice(i, 1);
+    return;
+  } // We didn't find any matching nodes. We assume that this element was already
+  // rendered in the prelude and skip it.
+
 } // $FlowFixMe[missing-local-annot]
 
 
@@ -9250,8 +9674,17 @@ function renderNodeDestructiveImpl(request, task, prevThenableState, node, child
           var props = element.props;
           var ref = element.ref;
           var name = getComponentNameFromType(type);
-          var keyPath = [task.keyPath, name, key == null ? childIndex === -1 ? 0 : childIndex : key];
-          renderElement(request, task, keyPath, prevThenableState, type, props, ref);
+          var keyOrIndex = key == null ? childIndex === -1 ? 0 : childIndex : key;
+          var keyPath = [task.keyPath, name, keyOrIndex];
+
+          if (task.replay !== null) {
+            replayElement(request, task, keyPath, prevThenableState, name, keyOrIndex, childIndex, type, props, ref, task.replay); // No matches found for this node. We assume it's already emitted in the
+            // prelude and skip it during the replay.
+          } else {
+            // We're doing a plain render.
+            renderElement(request, task, keyPath, prevThenableState, type, props, ref);
+          }
+
           return;
         }
 
@@ -9352,13 +9785,21 @@ function renderNodeDestructiveImpl(request, task, prevThenableState, node, child
 
   if (typeof node === 'string') {
     var segment = task.blockedSegment;
-    segment.lastPushedText = pushTextInstance(task.blockedSegment.chunks, node, request.renderState, segment.lastPushedText);
+
+    if (segment === null) ; else {
+      segment.lastPushedText = pushTextInstance(segment.chunks, node, request.renderState, segment.lastPushedText);
+    }
+
     return;
   }
 
   if (typeof node === 'number') {
     var _segment = task.blockedSegment;
-    _segment.lastPushedText = pushTextInstance(task.blockedSegment.chunks, '' + node, request.renderState, _segment.lastPushedText);
+
+    if (_segment === null) ; else {
+      _segment.lastPushedText = pushTextInstance(_segment.chunks, '' + node, request.renderState, _segment.lastPushedText);
+    }
+
     return;
   }
 
@@ -9369,22 +9810,110 @@ function renderNodeDestructiveImpl(request, task, prevThenableState, node, child
   }
 }
 
+function replayFragment(request, task, children, childIndex) {
+  // If we're supposed follow this array, we'd expect to see a ReplayNode matching
+  // this fragment.
+  var replay = task.replay;
+  var replayNodes = replay.nodes;
+
+  for (var j = 0; j < replayNodes.length; j++) {
+    var node = replayNodes[j];
+
+    if (node[1] !== childIndex) {
+      continue;
+    } // Matched a replayable path.
+
+
+    var childNodes = node[2];
+    var childSlots = node[3];
+    task.replay = {
+      nodes: childNodes,
+      slots: childSlots,
+      pendingTasks: 1
+    };
+
+    try {
+      renderChildrenArray(request, task, children, -1);
+
+      if (task.replay.pendingTasks === 1 && task.replay.nodes.length > 0) {
+        throw new Error("Couldn't find all resumable slots by key/index during replaying. " + "The tree doesn't match so React will fallback to client rendering.");
+      }
+    } catch (x) {
+      if (typeof x === 'object' && x !== null && (x === SuspenseException || typeof x.then === 'function')) {
+        // Suspend
+        throw x;
+      } // Unlike regular render, we don't terminate the siblings if we error
+      // during a replay. That's because this component didn't actually error
+      // in the original prerender. What's unable to complete is the child
+      // replay nodes which might be Suspense boundaries which are able to
+      // absorb the error and we can still continue with siblings.
+
+
+      erroredReplay(request, task.blockedBoundary, x, childNodes, childSlots);
+    } finally {
+      task.replay.pendingTasks--;
+      task.replay = replay;
+    } // We finished rendering this node, so now we can consume this
+    // slot. This must happen after in case we rerender this task.
+
+
+    replayNodes.splice(j, 1);
+    break;
+  }
+}
+
 function renderChildrenArray(request, task, children, childIndex) {
   var prevKeyPath = task.keyPath;
 
   if (childIndex !== -1) {
-    task.keyPath = [task.keyPath, '', childIndex];
+    task.keyPath = [task.keyPath, 'Fragment', childIndex];
+
+    if (task.replay !== null) {
+      replayFragment(request, // $FlowFixMe: Refined.
+      task, children, childIndex);
+      task.keyPath = prevKeyPath;
+      return;
+    }
   }
 
   var prevTreeContext = task.treeContext;
   var totalChildren = children.length;
 
-  for (var i = 0; i < totalChildren; i++) {
-    var node = children[i];
-    task.treeContext = pushTreeContext(prevTreeContext, totalChildren, i); // We need to use the non-destructive form so that we can safely pop back
+  if (task.replay !== null) {
+    // Replay
+    // First we need to check if we have any resume slots at this level.
+    var resumeSlots = task.replay.slots;
+
+    if (resumeSlots !== null && typeof resumeSlots === 'object') {
+      for (var i = 0; i < totalChildren; i++) {
+        var node = children[i];
+        task.treeContext = pushTreeContext(prevTreeContext, totalChildren, i); // We need to use the non-destructive form so that we can safely pop back
+        // up and render the sibling if something suspends.
+
+        var resumeSegmentID = resumeSlots[i];
+
+        if (typeof resumeSegmentID === 'number') {
+          resumeNode(request, task, resumeSegmentID, node, i); // We finished rendering this node, so now we can consume this
+          // slot. This must happen after in case we rerender this task.
+
+          delete resumeSlots[i];
+        } else {
+          renderNode(request, task, node, i);
+        }
+      }
+
+      task.treeContext = prevTreeContext;
+      task.keyPath = prevKeyPath;
+      return;
+    }
+  }
+
+  for (var _i = 0; _i < totalChildren; _i++) {
+    var _node = children[_i];
+    task.treeContext = pushTreeContext(prevTreeContext, totalChildren, _i); // We need to use the non-destructive form so that we can safely pop back
     // up and render the sibling if something suspends.
 
-    renderNode(request, task, node, i);
+    renderNode(request, task, _node, _i);
   } // Because this context is always set right before rendering every child, we
   // only need to reset it to the previous value at the very end.
 
@@ -9394,16 +9923,14 @@ function renderChildrenArray(request, task, children, childIndex) {
 }
 
 function trackPostpone(request, trackedPostpones, task, segment) {
-  segment.status = POSTPONED; // We know that this will leave a hole so we might as well assign an ID now.
-
-  segment.id = request.nextSegmentId++;
+  segment.status = POSTPONED;
+  var keyPath = task.keyPath;
   var boundary = task.blockedBoundary;
 
   if (boundary !== null && boundary.status === PENDING) {
     boundary.status = POSTPONED; // We need to eagerly assign it an ID because we'll need to refer to
     // it before flushing and we know that we can't inline it.
 
-    boundary.id = assignSuspenseBoundaryID(request.renderState, request.resumableState);
     boundary.rootSegmentID = request.nextSegmentId++;
     var boundaryKeyPath = boundary.keyPath;
 
@@ -9412,25 +9939,82 @@ function trackPostpone(request, trackedPostpones, task, segment) {
     }
 
     var children = [];
-    var boundaryNode = [REPLAY_SUSPENSE_BOUNDARY, boundaryKeyPath[1], boundaryKeyPath[2], children, boundary.id, boundary.rootSegmentID];
-    trackedPostpones.workingMap.set(boundaryKeyPath, boundaryNode);
-    addToReplayParent(boundaryNode, boundaryKeyPath[0], trackedPostpones);
-  }
 
-  var keyPath = task.keyPath;
+    if (boundaryKeyPath === keyPath && task.childIndex === -1) {
+      // Since we postponed directly in the Suspense boundary we can't have written anything
+      // to its segment. Therefore this will end up becoming the root segment.
+      segment.id = boundary.rootSegmentID; // We postponed directly inside the Suspense boundary so we mark this for resuming.
 
-  if (keyPath === null) {
-    throw new Error('It should not be possible to postpone at the root. This is a bug in React.');
+      var boundaryNode = [boundaryKeyPath[1], boundaryKeyPath[2], children, boundary.rootSegmentID, boundary.rootSegmentID];
+      addToReplayParent(boundaryNode, boundaryKeyPath[0], trackedPostpones);
+      return;
+    } else {
+      var _boundaryNode = trackedPostpones.workingMap.get(boundaryKeyPath);
+
+      if (_boundaryNode === undefined) {
+        _boundaryNode = [boundaryKeyPath[1], boundaryKeyPath[2], children, null, boundary.rootSegmentID];
+        trackedPostpones.workingMap.set(boundaryKeyPath, _boundaryNode);
+        addToReplayParent(_boundaryNode, boundaryKeyPath[0], trackedPostpones);
+      } else {
+        // Upgrade to ReplaySuspenseBoundary.
+        _boundaryNode[4] = boundary.rootSegmentID;
+      } // Fall through to add the child node.
+
+    }
+  } // We know that this will leave a hole so we might as well assign an ID now.
+  // We might have one already if we had a parent that gave us its ID.
+
+
+  if (segment.id === -1) {
+    if (segment.parentFlushed && boundary !== null) {
+      // If this segment's parent was already flushed, it means we really just
+      // skipped the parent and this segment is now the root.
+      segment.id = boundary.rootSegmentID;
+    } else {
+      segment.id = request.nextSegmentId++;
+    }
   }
 
   if (task.childIndex === -1) {
-    // Resume at the position before the first array
-    var resumableElement = [RESUME_ELEMENT, keyPath[1], keyPath[2], segment.id];
-    addToReplayParent(resumableElement, keyPath[0], trackedPostpones);
+    // Resume starting from directly inside the previous parent element.
+    if (keyPath === null) {
+      trackedPostpones.rootSlots = segment.id;
+    } else {
+      var resumableElement = [keyPath[1], keyPath[2], [], segment.id];
+      addToReplayParent(resumableElement, keyPath[0], trackedPostpones);
+    }
   } else {
-    // Resume at the slot within the array
-    var resumableNode = [RESUME_SLOT, task.childIndex, segment.id];
-    addToReplayParent(resumableNode, keyPath, trackedPostpones);
+    var slots;
+
+    if (keyPath === null) {
+      slots = trackedPostpones.rootSlots;
+
+      if (slots === null) {
+        slots = trackedPostpones.rootSlots = {};
+      } else if (typeof slots === 'number') {
+        throw new Error('It should not be possible to postpone both at the root of an element ' + 'as well as a slot below. This is a bug in React.');
+      }
+    } else {
+      var workingMap = trackedPostpones.workingMap;
+      var resumableNode = workingMap.get(keyPath);
+
+      if (resumableNode === undefined) {
+        slots = {};
+        resumableNode = [keyPath[1], keyPath[2], [], slots];
+        workingMap.set(keyPath, resumableNode);
+        addToReplayParent(resumableNode, keyPath[0], trackedPostpones);
+      } else {
+        slots = resumableNode[3];
+
+        if (slots === null) {
+          slots = resumableNode[3] = {};
+        } else if (typeof slots === 'number') {
+          throw new Error('It should not be possible to postpone both at the root of an element ' + 'as well as a slot below. This is a bug in React.');
+        }
+      }
+    }
+
+    slots[task.childIndex] = segment.id;
   }
 }
 
@@ -9448,7 +10032,22 @@ function injectPostponedHole(request, task, reason) {
   return newSegment;
 }
 
-function spawnNewSuspendedTask(request, task, thenableState, x) {
+function spawnNewSuspendedReplayTask(request, task, thenableState, x) {
+  var newTask = createReplayTask(request, thenableState, task.replay, task.node, task.childIndex, task.blockedBoundary, task.abortSet, task.keyPath, task.formatContext, task.legacyContext, task.context, task.treeContext);
+
+  {
+    if (task.componentStack !== null) {
+      // We pop one task off the stack because the node that suspended will be tried again,
+      // which will add it back onto the stack.
+      newTask.componentStack = task.componentStack.parent;
+    }
+  }
+
+  var ping = newTask.ping;
+  x.then(ping, ping);
+}
+
+function spawnNewSuspendedRenderTask(request, task, thenableState, x) {
   // Something suspended, we'll need to create a new segment and resolve it later.
   var segment = task.blockedSegment;
   var insertionIndex = segment.chunks.length;
@@ -9458,7 +10057,7 @@ function spawnNewSuspendedTask(request, task, thenableState, x) {
   segment.children.push(newSegment); // Reset lastPushedText for current Segment since the new Segment "consumed" it
 
   segment.lastPushedText = false;
-  var newTask = createTask(request, thenableState, task.node, task.childIndex, task.blockedBoundary, newSegment, task.abortSet, task.keyPath, task.formatContext, task.legacyContext, task.context, task.treeContext);
+  var newTask = createRenderTask(request, thenableState, task.node, task.childIndex, task.blockedBoundary, newSegment, task.abortSet, task.keyPath, task.formatContext, task.legacyContext, task.context, task.treeContext);
 
   {
     if (task.componentStack !== null) {
@@ -9475,13 +10074,8 @@ function spawnNewSuspendedTask(request, task, thenableState, x) {
 
 
 function renderNode(request, task, node, childIndex) {
-  // Store how much we've pushed at this point so we can reset it in case something
-  // suspended partially through writing something.
-  var segment = task.blockedSegment;
-  var childrenLength = segment.children.length;
-  var chunkLength = segment.chunks.length; // Snapshot the current context in case something throws to interrupt the
+  // Snapshot the current context in case something throws to interrupt the
   // process.
-
   var previousFormatContext = task.formatContext;
   var previousLegacyContext = task.legacyContext;
   var previousContext = task.context;
@@ -9493,53 +10087,31 @@ function renderNode(request, task, node, childIndex) {
     previousComponentStack = task.componentStack;
   }
 
-  try {
-    return renderNodeDestructive(request, task, null, node, childIndex);
-  } catch (thrownValue) {
-    resetHooksState(); // Reset the write pointers to where we started.
+  var x; // Store how much we've pushed at this point so we can reset it in case something
+  // suspended partially through writing something.
 
-    segment.children.length = childrenLength;
-    segment.chunks.length = chunkLength;
-    var x = thrownValue === SuspenseException ? // This is a special type of exception used for Suspense. For historical
-    // reasons, the rest of the Suspense implementation expects the thrown
-    // value to be a thenable, because before `use` existed that was the
-    // (unstable) API for suspending. This implementation detail can change
-    // later, once we deprecate the old API in favor of `use`.
-    getSuspendedThenable() : thrownValue;
+  var segment = task.blockedSegment;
 
-    if (typeof x === 'object' && x !== null) {
-      // $FlowFixMe[method-unbinding]
-      if (typeof x.then === 'function') {
-        var wakeable = x;
-        var thenableState = getThenableStateAfterSuspending();
-        spawnNewSuspendedTask(request, task, thenableState, wakeable); // Restore the context. We assume that this will be restored by the inner
-        // functions in case nothing throws so we don't use "finally" here.
+  if (segment === null) {
+    // Replay
+    try {
+      return renderNodeDestructive(request, task, null, node, childIndex);
+    } catch (thrownValue) {
+      resetHooksState();
+      x = thrownValue === SuspenseException ? // This is a special type of exception used for Suspense. For historical
+      // reasons, the rest of the Suspense implementation expects the thrown
+      // value to be a thenable, because before `use` existed that was the
+      // (unstable) API for suspending. This implementation detail can change
+      // later, once we deprecate the old API in favor of `use`.
+      getSuspendedThenable() : thrownValue;
 
-        task.formatContext = previousFormatContext;
-        task.legacyContext = previousLegacyContext;
-        task.context = previousContext;
-        task.keyPath = previousKeyPath;
-        task.treeContext = previousTreeContext; // Restore all active ReactContexts to what they were before.
-
-        switchContext(previousContext);
-
-        {
-          task.componentStack = previousComponentStack;
-        }
-
-        return;
-      }
-
-      if (request.trackedPostpones !== null && x.$$typeof === REACT_POSTPONE_TYPE && task.blockedBoundary !== null // TODO: Support holes in the shell
-      ) {
-          // If we're tracking postpones, we inject a hole here and continue rendering
-          // sibling. Similar to suspending. If we're not tracking, we treat it more like
-          // an error. Notably this doesn't spawn a new task since nothing will fill it
-          // in during this prerender.
-          var postponeInstance = x;
-          var trackedPostpones = request.trackedPostpones;
-          var postponedSegment = injectPostponedHole(request, task, postponeInstance.message);
-          trackPostpone(request, trackedPostpones, task, postponedSegment); // Restore the context. We assume that this will be restored by the inner
+      if (typeof x === 'object' && x !== null) {
+        // $FlowFixMe[method-unbinding]
+        if (typeof x.then === 'function') {
+          var wakeable = x;
+          var thenableState = getThenableStateAfterSuspending();
+          spawnNewSuspendedReplayTask(request, // $FlowFixMe: Refined.
+          task, thenableState, wakeable); // Restore the context. We assume that this will be restored by the inner
           // functions in case nothing throws so we don't use "finally" here.
 
           task.formatContext = previousFormatContext;
@@ -9556,29 +10128,127 @@ function renderNode(request, task, node, childIndex) {
 
           return;
         }
-    } // Restore the context. We assume that this will be restored by the inner
-    // functions in case nothing throws so we don't use "finally" here.
+      } // TODO: Abort any undiscovered Suspense boundaries in the ReplayNode.
+
+    }
+  } else {
+    // Render
+    var childrenLength = segment.children.length;
+    var chunkLength = segment.chunks.length;
+
+    try {
+      return renderNodeDestructive(request, task, null, node, childIndex);
+    } catch (thrownValue) {
+      resetHooksState(); // Reset the write pointers to where we started.
+
+      segment.children.length = childrenLength;
+      segment.chunks.length = chunkLength;
+      x = thrownValue === SuspenseException ? // This is a special type of exception used for Suspense. For historical
+      // reasons, the rest of the Suspense implementation expects the thrown
+      // value to be a thenable, because before `use` existed that was the
+      // (unstable) API for suspending. This implementation detail can change
+      // later, once we deprecate the old API in favor of `use`.
+      getSuspendedThenable() : thrownValue;
+
+      if (typeof x === 'object' && x !== null) {
+        // $FlowFixMe[method-unbinding]
+        if (typeof x.then === 'function') {
+          var _wakeable = x;
+
+          var _thenableState = getThenableStateAfterSuspending();
+
+          spawnNewSuspendedRenderTask(request, // $FlowFixMe: Refined.
+          task, _thenableState, _wakeable); // Restore the context. We assume that this will be restored by the inner
+          // functions in case nothing throws so we don't use "finally" here.
+
+          task.formatContext = previousFormatContext;
+          task.legacyContext = previousLegacyContext;
+          task.context = previousContext;
+          task.keyPath = previousKeyPath;
+          task.treeContext = previousTreeContext; // Restore all active ReactContexts to what they were before.
+
+          switchContext(previousContext);
+
+          {
+            task.componentStack = previousComponentStack;
+          }
+
+          return;
+        }
+
+        if (request.trackedPostpones !== null && x.$$typeof === REACT_POSTPONE_TYPE && task.blockedBoundary !== null // TODO: Support holes in the shell
+        ) {
+            // If we're tracking postpones, we inject a hole here and continue rendering
+            // sibling. Similar to suspending. If we're not tracking, we treat it more like
+            // an error. Notably this doesn't spawn a new task since nothing will fill it
+            // in during this prerender.
+            var postponeInstance = x;
+            var trackedPostpones = request.trackedPostpones;
+            var postponedSegment = injectPostponedHole(request, task, // We don't use ReplayTasks in prerenders.
+            postponeInstance.message);
+            trackPostpone(request, trackedPostpones, task, postponedSegment); // Restore the context. We assume that this will be restored by the inner
+            // functions in case nothing throws so we don't use "finally" here.
+
+            task.formatContext = previousFormatContext;
+            task.legacyContext = previousLegacyContext;
+            task.context = previousContext;
+            task.keyPath = previousKeyPath;
+            task.treeContext = previousTreeContext; // Restore all active ReactContexts to what they were before.
+
+            switchContext(previousContext);
+
+            {
+              task.componentStack = previousComponentStack;
+            }
+
+            return;
+          }
+      }
+    }
+  } // Restore the context. We assume that this will be restored by the inner
+  // functions in case nothing throws so we don't use "finally" here.
 
 
-    task.formatContext = previousFormatContext;
-    task.legacyContext = previousLegacyContext;
-    task.context = previousContext;
-    task.keyPath = previousKeyPath;
-    task.treeContext = previousTreeContext; // Restore all active ReactContexts to what they were before.
+  task.formatContext = previousFormatContext;
+  task.legacyContext = previousLegacyContext;
+  task.context = previousContext;
+  task.keyPath = previousKeyPath;
+  task.treeContext = previousTreeContext; // Restore all active ReactContexts to what they were before.
 
-    switchContext(previousContext);
+  switchContext(previousContext);
 
-    {
-      task.componentStack = previousComponentStack;
-    } // We assume that we don't need the correct context.
-    // Let's terminate the rest of the tree and don't render any siblings.
+  {
+    task.componentStack = previousComponentStack;
+  } // We assume that we don't need the correct context.
+  // Let's terminate the rest of the tree and don't render any siblings.
 
 
-    throw x;
-  }
+  throw x;
 }
 
-function erroredTask(request, boundary, segment, error) {
+function erroredReplay(request, boundary, error, replayNodes, resumeSlots) {
+  // Erroring during a replay doesn't actually cause an error by itself because
+  // that component has already rendered. What causes the error is the resumable
+  // points that we did not yet finish which will be below the point of the reset.
+  // For example, if we're replaying a path to a Suspense boundary that is not done
+  // that doesn't error the parent Suspense boundary.
+  // This might be a bit strange that the error in a parent gets thrown at a child.
+  // We log it only once and reuse the digest.
+  var errorDigest;
+
+  if (typeof error === 'object' && error !== null && error.$$typeof === REACT_POSTPONE_TYPE) {
+    var postponeInstance = error;
+    logPostpone(request, postponeInstance.message); // TODO: Figure out a better signal than a magic digest value.
+
+    errorDigest = 'POSTPONE';
+  } else {
+    errorDigest = logRecoverableError(request, error);
+  }
+
+  abortRemainingReplayNodes(request, boundary, replayNodes, resumeSlots, error, errorDigest);
+}
+
+function erroredTask(request, boundary, error) {
   // Report the error to a global handler.
   var errorDigest;
 
@@ -9631,8 +10301,89 @@ function abortTaskSoft(task) {
   var request = this;
   var boundary = task.blockedBoundary;
   var segment = task.blockedSegment;
-  segment.status = ABORTED;
-  finishedTask(request, boundary, segment);
+
+  if (segment !== null) {
+    segment.status = ABORTED;
+    finishedTask(request, boundary, segment);
+  }
+}
+
+function abortRemainingSuspenseBoundary(request, rootSegmentID, error, errorDigest) {
+  var resumedBoundary = createSuspenseBoundary(request, new Set(), null // The keyPath doesn't matter at this point so we don't bother rebuilding it.
+  );
+  resumedBoundary.parentFlushed = true; // We restore the same id of this boundary as was used during prerender.
+
+  resumedBoundary.rootSegmentID = rootSegmentID;
+  resumedBoundary.status = CLIENT_RENDERED;
+  resumedBoundary.errorDigest = errorDigest;
+
+  {
+    var errorPrefix = 'The server did not finish this Suspense boundary: ';
+    var errorMessage;
+
+    if (error && typeof error.message === 'string') {
+      errorMessage = errorPrefix + error.message;
+    } else {
+      // eslint-disable-next-line react-internal/safe-string-coercion
+      errorMessage = errorPrefix + String(error);
+    }
+
+    var previousTaskInDev = currentTaskInDEV;
+    currentTaskInDEV = null;
+
+    try {
+      captureBoundaryErrorDetailsDev(resumedBoundary, errorMessage);
+    } finally {
+      currentTaskInDEV = previousTaskInDev;
+    }
+  }
+
+  if (resumedBoundary.parentFlushed) {
+    request.clientRenderedBoundaries.push(resumedBoundary);
+  }
+}
+
+function abortRemainingReplayNodes(request, boundary, nodes, slots, error, errorDigest) {
+  for (var i = 0; i < nodes.length; i++) {
+    var node = nodes[i];
+
+    if (node.length === 4) {
+      abortRemainingReplayNodes(request, boundary, node[2], node[3], error, errorDigest);
+    } else {
+      var boundaryNode = node;
+      var rootSegmentID = boundaryNode[4];
+      abortRemainingSuspenseBoundary(request, rootSegmentID, error, errorDigest);
+    }
+  } // Empty the set, since we've cleared it now.
+
+
+  nodes.length = 0;
+
+  if (slots !== null) {
+    // We had something still to resume in the parent boundary. We must trigger
+    // the error on the parent boundary since it's not able to complete.
+    if (boundary === null) {
+      throw new Error('We should not have any resumable nodes in the shell. ' + 'This is a bug in React.');
+    } else if (boundary.status !== CLIENT_RENDERED) {
+      boundary.status = CLIENT_RENDERED;
+      boundary.errorDigest = errorDigest;
+
+      {
+        captureBoundaryErrorDetailsDev(boundary, error);
+      }
+
+      if (boundary.parentFlushed) {
+        request.clientRenderedBoundaries.push(boundary);
+      }
+    } // Empty the set
+
+
+    if (typeof slots === 'object') {
+      for (var index in slots) {
+        delete slots[index];
+      }
+    }
+  }
 }
 
 function abortTask(task, request, error) {
@@ -9640,22 +10391,40 @@ function abortTask(task, request, error) {
   // client rendered mode.
   var boundary = task.blockedBoundary;
   var segment = task.blockedSegment;
-  segment.status = ABORTED;
+
+  if (segment !== null) {
+    segment.status = ABORTED;
+  }
 
   if (boundary === null) {
-    request.allPendingTasks--; // We didn't complete the root so we have nothing to show. We can close
-    // the request;
+    request.allPendingTasks--;
 
     if (request.status !== CLOSING && request.status !== CLOSED) {
-      logRecoverableError(request, error);
-      fatalError(request, error);
+      var replay = task.replay;
+
+      if (replay === null) {
+        // We didn't complete the root so we have nothing to show. We can close
+        // the request;
+        logRecoverableError(request, error);
+        fatalError(request, error);
+      } else {
+        // If the shell aborts during a replay, that's not a fatal error. Instead
+        // we should be able to recover by client rendering all the root boundaries in
+        // the ReplaySet.
+        replay.pendingTasks--;
+
+        if (replay.pendingTasks === 0 && replay.nodes.length > 0) {
+          var errorDigest = logRecoverableError(request, error);
+          abortRemainingReplayNodes(request, null, replay.nodes, replay.slots, error, errorDigest);
+        }
+      }
     }
   } else {
     boundary.pendingTasks--;
 
     if (boundary.status !== CLIENT_RENDERED) {
       boundary.status = CLIENT_RENDERED;
-      boundary.errorDigest = request.onError(error);
+      boundary.errorDigest = logRecoverableError(request, error);
 
       {
         var errorPrefix = 'The server did not finish this Suspense boundary: ';
@@ -9699,8 +10468,7 @@ function abortTask(task, request, error) {
 }
 
 function queueCompletedSegment(boundary, segment) {
-  if (segment.chunks.length === 0 && segment.children.length === 1 && segment.children[0].boundary === null && // Typically the id would not be assigned yet but if it's a postponed segment it might be.
-  segment.children[0].id === -1) {
+  if (segment.chunks.length === 0 && segment.children.length === 1 && segment.children[0].boundary === null) {
     // This is an empty segment. There's nothing to write, so we can instead transfer the ID
     // to the child. That way any existing references point to the child.
     var childSegment = segment.children[0];
@@ -9718,7 +10486,7 @@ function queueCompletedSegment(boundary, segment) {
 
 function finishedTask(request, boundary, segment) {
   if (boundary === null) {
-    if (segment.parentFlushed) {
+    if (segment !== null && segment.parentFlushed) {
       if (request.completedRootSegment !== null) {
         throw new Error('There can only be one root segment. This is a bug in React.');
       }
@@ -9743,7 +10511,7 @@ function finishedTask(request, boundary, segment) {
       } // This must have been the last segment we were waiting on. This boundary is now complete.
 
 
-      if (segment.parentFlushed) {
+      if (segment !== null && segment.parentFlushed) {
         // Our parent segment already flushed, so we need to schedule this segment to be emitted.
         // If it is a segment that was aborted, we'll write other content instead so we don't need
         // to emit it.
@@ -9759,12 +10527,15 @@ function finishedTask(request, boundary, segment) {
       } // We can now cancel any pending task on the fallback since we won't need to show it anymore.
       // This needs to happen after we read the parentFlushed flags because aborting can finish
       // work which can trigger user code, which can start flushing, which can change those flags.
+      // If the boundary was POSTPONED, we still need to finish the fallback first.
 
 
-      boundary.fallbackAbortableTasks.forEach(abortTaskSoft, request);
-      boundary.fallbackAbortableTasks.clear();
+      if (boundary.status === COMPLETED) {
+        boundary.fallbackAbortableTasks.forEach(abortTaskSoft, request);
+        boundary.fallbackAbortableTasks.clear();
+      }
     } else {
-      if (segment.parentFlushed) {
+      if (segment !== null && segment.parentFlushed) {
         // Our parent already flushed, so we need to schedule this segment to be emitted.
         // If it is a segment that was aborted, we'll write other content instead so we don't need
         // to emit it.
@@ -9803,6 +10574,16 @@ function retryTask(request, task) {
 
   var segment = task.blockedSegment;
 
+  if (segment === null) {
+    retryReplayTask(request, // $FlowFixMe: Refined.
+    task);
+  } else {
+    retryRenderTask(request, // $FlowFixMe: Refined.
+    task, segment);
+  }
+}
+
+function retryRenderTask(request, task, segment) {
   if (segment.status !== PENDING) {
     // We completed this by other means before we had a chance to retry it.
     return;
@@ -9872,7 +10653,83 @@ function retryTask(request, task) {
 
     task.abortSet.delete(task);
     segment.status = ERRORED;
-    erroredTask(request, task.blockedBoundary, segment, x);
+    erroredTask(request, task.blockedBoundary, x);
+    return;
+  } finally {
+    {
+      setCurrentlyRenderingBoundaryResourcesTarget(request.renderState, null);
+    }
+
+    {
+      currentTaskInDEV = prevTaskInDEV;
+    }
+  }
+}
+
+function retryReplayTask(request, task) {
+  if (task.replay.pendingTasks === 0) {
+    // There are no pending tasks working on this set, so we must have aborted.
+    return;
+  } // We restore the context to what it was when we suspended.
+  // We don't restore it after we leave because it's likely that we'll end up
+  // needing a very similar context soon again.
+
+
+  switchContext(task.context);
+  var prevTaskInDEV = null;
+
+  {
+    prevTaskInDEV = currentTaskInDEV;
+    currentTaskInDEV = task;
+  }
+
+  try {
+    // We call the destructive form that mutates this task. That way if something
+    // suspends again, we can reuse the same task instead of spawning a new one.
+    // Reset the task's thenable state before continuing, so that if a later
+    // component suspends we can reuse the same task object. If the same
+    // component suspends again, the thenable state will be restored.
+    var prevThenableState = task.thenableState;
+    task.thenableState = null;
+    renderNodeDestructive(request, task, prevThenableState, task.node, -1);
+
+    if (task.replay.pendingTasks === 1 && task.replay.nodes.length > 0) {
+      throw new Error("Couldn't find all resumable slots by key/index during replaying. " + "The tree doesn't match so React will fallback to client rendering.");
+    }
+
+    task.replay.pendingTasks--;
+    task.abortSet.delete(task);
+    finishedTask(request, task.blockedBoundary, null);
+  } catch (thrownValue) {
+    resetHooksState();
+    var x = thrownValue === SuspenseException ? // This is a special type of exception used for Suspense. For historical
+    // reasons, the rest of the Suspense implementation expects the thrown
+    // value to be a thenable, because before `use` existed that was the
+    // (unstable) API for suspending. This implementation detail can change
+    // later, once we deprecate the old API in favor of `use`.
+    getSuspendedThenable() : thrownValue;
+
+    if (typeof x === 'object' && x !== null) {
+      // $FlowFixMe[method-unbinding]
+      if (typeof x.then === 'function') {
+        // Something suspended again, let's pick it back up later.
+        var ping = task.ping;
+        x.then(ping, ping);
+        task.thenableState = getThenableStateAfterSuspending();
+        return;
+      }
+    }
+
+    task.replay.pendingTasks--;
+    task.abortSet.delete(task);
+    erroredReplay(request, task.blockedBoundary, x, task.replay.nodes, task.replay.slots);
+    request.allPendingTasks--;
+
+    if (request.allPendingTasks === 0) {
+      var onAllReady = request.onAllReady;
+      onAllReady();
+    }
+
     return;
   } finally {
     {
@@ -10035,7 +10892,6 @@ function flushSegment(request, destination, segment) {
     if (boundary.status === PENDING) {
       // For pending boundaries we lazily assign an ID to the boundary
       // and root segment.
-      boundary.id = assignSuspenseBoundaryID(request.renderState, request.resumableState);
       boundary.rootSegmentID = request.nextSegmentId++;
     }
 
@@ -10043,10 +10899,9 @@ function flushSegment(request, destination, segment) {
       // If this is at least partially complete, we can queue it to be partially emitted early.
       request.partialBoundaries.push(boundary);
     } // This boundary is still loading. Emit a pending suspense boundary wrapper.
-    /// This is the first time we should have referenced this ID.
 
 
-    var id = boundary.id;
+    var id = boundary.rootSegmentID;
     writeStartPendingSuspenseBoundary(destination, request.renderState, id); // Flush the fallback.
 
     flushSubtree(request, destination, segment);
@@ -10061,7 +10916,7 @@ function flushSegment(request, destination, segment) {
     boundary.rootSegmentID = request.nextSegmentId++;
     request.completedBoundaries.push(boundary); // Emit a pending rendered suspense boundary wrapper.
 
-    writeStartPendingSuspenseBoundary(destination, request.renderState, boundary.id); // Flush the fallback.
+    writeStartPendingSuspenseBoundary(destination, request.renderState, boundary.rootSegmentID); // Flush the fallback.
 
     flushSubtree(request, destination, segment);
     return writeEndPendingSuspenseBoundary(destination);
@@ -10085,7 +10940,7 @@ function flushSegment(request, destination, segment) {
 }
 
 function flushClientRenderedBoundary(request, destination, boundary) {
-  return writeClientRenderBoundaryInstruction(destination, request.resumableState, request.renderState, boundary.id, boundary.errorDigest, boundary.errorMessage, boundary.errorComponentStack);
+  return writeClientRenderBoundaryInstruction(destination, request.resumableState, request.renderState, boundary.rootSegmentID, boundary.errorDigest, boundary.errorMessage, boundary.errorComponentStack);
 }
 
 function flushSegmentContainer(request, destination, segment) {
@@ -10113,7 +10968,7 @@ function flushCompletedBoundary(request, destination, boundary) {
     writeResourcesForBoundary(destination, boundary.resources, request.renderState);
   }
 
-  return writeCompletedBoundaryInstruction(destination, request.resumableState, request.renderState, boundary.id, boundary.rootSegmentID, boundary.resources);
+  return writeCompletedBoundaryInstruction(destination, request.resumableState, request.renderState, boundary.rootSegmentID, boundary.resources);
 }
 
 function flushPartialBoundary(request, destination, boundary) {
@@ -10189,19 +11044,16 @@ function flushCompletedQueues(request, destination) {
     if (completedRootSegment !== null) {
       if (request.pendingRootTasks === 0) {
         if (enableFloat) {
-          writePreamble(destination, request.resumableState, request.renderState, request.allPendingTasks === 0);
+          writePreamble(destination, request.resumableState, request.renderState, request.allPendingTasks === 0 && (request.trackedPostpones === null || request.trackedPostpones.workingMap.size === 0));
         }
 
         flushSegment(request, destination, completedRootSegment);
         request.completedRootSegment = null;
-        writeCompletedRoot(destination, request.resumableState);
+        writeCompletedRoot(destination, request.renderState);
       } else {
         // We haven't flushed the root yet so we don't need to check any other branches further down
         return;
       }
-    } else if (request.pendingRootTasks > 0) {
-      // We have not yet flushed the root segment so we early return
-      return;
     }
 
     if (enableFloat) {
@@ -10289,7 +11141,9 @@ function flushCompletedQueues(request, destination) {
         {
           // We write the trailing tags but only if don't have any data to resume.
           // If we need to resume we'll write the postamble in the resume instead.
-          if (request.trackedPostpones === null || request.trackedPostpones.root.length === 0) {
+          if (request.trackedPostpones === null || // We check the working map instead of the root because the root could've
+          // been mutated at this point if it was passed straight through to resume().
+          request.trackedPostpones.workingMap.size === 0) {
             writePostamble(destination, request.resumableState);
           }
         }
@@ -10361,6 +11215,9 @@ function startFlowing(request, destination) {
     logRecoverableError(request, error);
     fatalError(request, error);
   }
+}
+function stopFlowing(request) {
+  request.destination = null;
 } // This is called to early terminate a request. It puts all pending boundaries in client rendered state.
 
 function abort(request, reason) {
@@ -10392,21 +11249,24 @@ function getFormState(request) {
 function getResumableState(request) {
   return request.resumableState;
 }
+function getRenderState(request) {
+  return request.renderState;
+}
 
 function addToReplayParent(node, parentKeyPath, trackedPostpones) {
   if (parentKeyPath === null) {
-    trackedPostpones.root.push(node);
+    trackedPostpones.rootNodes.push(node);
   } else {
     var workingMap = trackedPostpones.workingMap;
     var parentNode = workingMap.get(parentKeyPath);
 
     if (parentNode === undefined) {
-      parentNode = [REPLAY_NODE, parentKeyPath[1], parentKeyPath[2], []];
+      parentNode = [parentKeyPath[1], parentKeyPath[2], [], null];
       workingMap.set(parentKeyPath, parentNode);
       addToReplayParent(parentNode, parentKeyPath[0], trackedPostpones);
     }
 
-    parentNode[3].push(node);
+    parentNode[2].push(node);
   }
 } // Returns the state of a postponed request or null if nothing was postponed.
 
@@ -10414,7 +11274,7 @@ function addToReplayParent(node, parentKeyPath, trackedPostpones) {
 function getPostponedState(request) {
   var trackedPostpones = request.trackedPostpones;
 
-  if (trackedPostpones === null || trackedPostpones.root.length === 0) {
+  if (trackedPostpones === null || trackedPostpones.rootNodes.length === 0 && trackedPostpones.rootSlots === null) {
     return null;
   }
 
@@ -10423,7 +11283,8 @@ function getPostponedState(request) {
     rootFormatContext: request.rootFormatContext,
     progressiveChunkSize: request.progressiveChunkSize,
     resumableState: request.resumableState,
-    resumablePath: trackedPostpones.root
+    replayNodes: trackedPostpones.rootNodes,
+    replaySlots: trackedPostpones.rootSlots
   };
 }
 
@@ -10443,6 +11304,7 @@ function renderToReadableStream(children, options) {
           startFlowing(request, controller);
         },
         cancel: function (reason) {
+          stopFlowing(request);
           abort(request);
         }
       }, // $FlowFixMe[prop-missing] size() methods are not allowed on byte streams.
@@ -10462,8 +11324,8 @@ function renderToReadableStream(children, options) {
       reject(error);
     }
 
-    var resumableState = createResumableState(options ? options.identifierPrefix : undefined, options ? options.nonce : undefined, options ? options.bootstrapScriptContent : undefined, options ? options.bootstrapScripts : undefined, options ? options.bootstrapModules : undefined, options ? options.unstable_externalRuntimeSrc : undefined);
-    var request = createRequest(children, resumableState, createRenderState(resumableState, options ? options.nonce : undefined, options ? options.importMap : undefined), createRootFormatContext(options ? options.namespaceURI : undefined), options ? options.progressiveChunkSize : undefined, options ? options.onError : undefined, onAllReady, onShellReady, onShellError, onFatalError, options ? options.onPostpone : undefined, options ? options.experimental_formState : undefined);
+    var resumableState = createResumableState(options ? options.identifierPrefix : undefined, options ? options.unstable_externalRuntimeSrc : undefined);
+    var request = createRequest(children, resumableState, createRenderState(resumableState, options ? options.nonce : undefined, options ? options.bootstrapScriptContent : undefined, options ? options.bootstrapScripts : undefined, options ? options.bootstrapModules : undefined, options ? options.unstable_externalRuntimeSrc : undefined, options ? options.importMap : undefined), createRootFormatContext(options ? options.namespaceURI : undefined), options ? options.progressiveChunkSize : undefined, options ? options.onError : undefined, onAllReady, onShellReady, onShellError, onFatalError, options ? options.onPostpone : undefined, options ? options.experimental_formState : undefined);
 
     if (options && options.signal) {
       var signal = options.signal;
@@ -10500,6 +11362,7 @@ function resume(children, postponedState, options) {
           startFlowing(request, controller);
         },
         cancel: function (reason) {
+          stopFlowing(request);
           abort(request);
         }
       }, // $FlowFixMe[prop-missing] size() methods are not allowed on byte streams.
@@ -10519,8 +11382,7 @@ function resume(children, postponedState, options) {
       reject(error);
     }
 
-    var request = resumeRequest(children, postponedState, createRenderState(postponedState.resumableState, options ? options.nonce : undefined, undefined // importMap
-    ), options ? options.onError : undefined, onAllReady, onShellReady, onShellError, onFatalError, options ? options.onPostpone : undefined);
+    var request = resumeRequest(children, postponedState, resumeRenderState(postponedState.resumableState, options ? options.nonce : undefined), options ? options.onError : undefined, onAllReady, onShellReady, onShellError, onFatalError, options ? options.onPostpone : undefined);
 
     if (options && options.signal) {
       var signal = options.signal;
@@ -10550,6 +11412,10 @@ function prerender(children, options) {
         type: 'bytes',
         pull: function (controller) {
           startFlowing(request, controller);
+        },
+        cancel: function (reason) {
+          stopFlowing(request);
+          abort(request);
         }
       }, // $FlowFixMe[prop-missing] size() methods are not allowed on byte streams.
       {
@@ -10562,10 +11428,9 @@ function prerender(children, options) {
       resolve(result);
     }
 
-    var resources = createResumableState(options ? options.identifierPrefix : undefined, undefined, // nonce is not compatible with prerendered bootstrap scripts
-    options ? options.bootstrapScriptContent : undefined, options ? options.bootstrapScripts : undefined, options ? options.bootstrapModules : undefined, options ? options.unstable_externalRuntimeSrc : undefined);
-    var request = createPrerenderRequest(children, resources, createRenderState(resources, undefined, // nonce
-    options ? options.importMap : undefined), createRootFormatContext(options ? options.namespaceURI : undefined), options ? options.progressiveChunkSize : undefined, options ? options.onError : undefined, onAllReady, undefined, undefined, onFatalError, options ? options.onPostpone : undefined);
+    var resources = createResumableState(options ? options.identifierPrefix : undefined, options ? options.unstable_externalRuntimeSrc : undefined);
+    var request = createPrerenderRequest(children, resources, createRenderState(resources, undefined, // nonce is not compatible with prerendered bootstrap scripts
+    options ? options.bootstrapScriptContent : undefined, options ? options.bootstrapScripts : undefined, options ? options.bootstrapModules : undefined, options ? options.unstable_externalRuntimeSrc : undefined, options ? options.importMap : undefined), createRootFormatContext(options ? options.namespaceURI : undefined), options ? options.progressiveChunkSize : undefined, options ? options.onError : undefined, onAllReady, undefined, undefined, onFatalError, options ? options.onPostpone : undefined);
 
     if (options && options.signal) {
       var signal = options.signal;

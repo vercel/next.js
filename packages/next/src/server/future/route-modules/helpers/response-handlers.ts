@@ -1,15 +1,16 @@
 import { appendMutableCookies } from '../../../web/spec-extension/adapters/request-cookies'
 import { ResponseCookies } from '../../../web/spec-extension/cookies'
 
-export function handleTemporaryRedirectResponse(
+export function handleRedirectResponse(
   url: string,
-  mutableCookies: ResponseCookies
+  mutableCookies: ResponseCookies,
+  status: number
 ): Response {
   const headers = new Headers({ location: url })
 
   appendMutableCookies(headers, mutableCookies)
 
-  return new Response(null, { status: 307, headers })
+  return new Response(null, { status, headers })
 }
 
 export function handleBadRequestResponse(): Response {

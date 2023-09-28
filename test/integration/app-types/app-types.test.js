@@ -7,7 +7,7 @@ import { nextBuild } from 'next-test-utils'
 const appDir = __dirname
 
 describe('app type checking', () => {
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     let stderr, errors
     beforeAll(async () => {
       stderr = (await nextBuild(appDir, [], { stderr: true })).stderr

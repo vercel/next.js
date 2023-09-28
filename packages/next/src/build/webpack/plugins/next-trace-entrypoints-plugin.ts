@@ -14,16 +14,16 @@ import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
   NODE_ESM_RESOLVE_OPTIONS,
   NODE_RESOLVE_OPTIONS,
-  resolveExternal,
 } from '../../webpack-config'
 import { NextConfigComplete } from '../../../server/config-shared'
 import { loadBindings } from '../../swc'
 import { isMatch } from 'next/dist/compiled/micromatch'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getPageFilePath } from '../../entries'
+import { resolveExternal } from '../../handle-externals'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'
-const TRACE_IGNORES = [
+export const TRACE_IGNORES = [
   '**/*/next/dist/server/next.js',
   '**/*/next/dist/bin/next',
 ]
@@ -48,7 +48,7 @@ function getModuleFromDependency(
   return compilation.moduleGraph.getModule(dep)
 }
 
-function getFilesMapFromReasons(
+export function getFilesMapFromReasons(
   fileList: Set<string>,
   reasons: NodeFileTraceReasons,
   ignoreFn?: (file: string, parent?: string) => Boolean
@@ -114,7 +114,7 @@ export interface TurbotraceAction {
   memoryLimit?: number
 }
 
-export interface TurbotraceContext {
+export interface BuildTraceContext {
   entriesTrace?: {
     action: TurbotraceAction
     appDir: string
@@ -125,11 +125,12 @@ export interface TurbotraceContext {
   chunksTrace?: {
     action: TurbotraceAction
     outputPath: string
+    entryNameFilesMap: Map<string, Array<string>>
   }
 }
 
 export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
-  public turbotraceContext: TurbotraceContext = {}
+  public buildTraceContext: BuildTraceContext = {}
 
   private rootDir: string
   private appDir: string | undefined
@@ -140,7 +141,6 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
   private traceIgnores: string[]
   private esmExternals?: NextConfigComplete['experimental']['esmExternals']
   private turbotrace?: NextConfigComplete['experimental']['turbotrace']
-  private chunksToTrace: string[] = []
 
   constructor({
     rootDir,
@@ -174,18 +174,13 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
 
   // Here we output all traced assets and webpack chunks to a
   // ${page}.js.nft.json file
-  async createTraceAssets(
-    compilation: any,
-    assets: any,
-    span: Span,
-    readlink: any,
-    stat: any
-  ) {
+  async createTraceAssets(compilation: any, assets: any, span: Span) {
     const outputPath = compilation.outputOptions.path
 
     await span.traceChild('create-trace-assets').traceAsyncFn(async () => {
       const entryFilesMap = new Map<any, Set<string>>()
       const chunksToTrace = new Set<string>()
+      const entryNameFilesMap = new Map<string, Array<string>>()
 
       const isTraceable = (file: string) =>
         !NOT_TRACEABLE.some((suffix) => {
@@ -214,77 +209,30 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
           }
         }
         entryFilesMap.set(entrypoint, entryFiles)
+        entryNameFilesMap.set(entrypoint.name, [...entryFiles])
       }
 
       // startTrace existed and callable
-      if (this.turbotrace) {
-        let binding = await loadBindings()
-        if (
-          !binding?.isWasm &&
-          typeof binding.turbo.startTrace === 'function'
-        ) {
-          this.chunksToTrace = [...chunksToTrace]
-          return
-        }
-      }
-      const ignores = [...TRACE_IGNORES, ...this.traceIgnores]
-
-      const ignoreFn = (path: string) => {
-        return isMatch(path, ignores, { contains: true, dot: true })
-      }
-      const result = await nodeFileTrace([...chunksToTrace], {
-        base: this.tracingRoot,
-        processCwd: this.rootDir,
-        readFile: async (path) => {
-          if (chunksToTrace.has(path)) {
-            const source =
-              assets[
-                nodePath.relative(outputPath, path).replace(/\\/g, '/')
-              ]?.source?.()
-            if (source) return source
-          }
-          try {
-            return await new Promise((resolve, reject) => {
-              ;(
-                compilation.inputFileSystem
-                  .readFile as typeof import('fs').readFile
-              )(path, (err, data) => {
-                if (err) return reject(err)
-                resolve(data)
-              })
-            })
-          } catch (e) {
-            if (isError(e) && (e.code === 'ENOENT' || e.code === 'EISDIR')) {
-              return null
-            }
-            throw e
-          }
+      this.buildTraceContext.chunksTrace = {
+        action: {
+          action: 'annotate',
+          input: [...chunksToTrace],
+          contextDirectory:
+            this.turbotrace?.contextDirectory ?? this.tracingRoot,
+          processCwd: this.turbotrace?.processCwd ?? this.rootDir,
+          showAll: this.turbotrace?.logAll,
+          logLevel: this.turbotrace?.logLevel,
         },
-        readlink,
-        stat,
-        ignore: ignoreFn,
-        mixedModules: true,
-      })
-      const reasons = result.reasons
-      const fileList = result.fileList
-      result.esmFileList.forEach((file) => fileList.add(file))
-
-      const parentFilesMap = getFilesMapFromReasons(fileList, reasons)
+        outputPath,
+        entryNameFilesMap,
+      }
 
       for (const [entrypoint, entryFiles] of entryFilesMap) {
         const traceOutputName = `../${entrypoint.name}.js.nft.json`
         const traceOutputPath = nodePath.dirname(
           nodePath.join(outputPath, traceOutputName)
         )
-        const allEntryFiles = new Set<string>()
 
-        entryFiles.forEach((file) => {
-          parentFilesMap
-            .get(nodePath.relative(this.tracingRoot, file))
-            ?.forEach((child) => {
-              allEntryFiles.add(nodePath.join(this.tracingRoot, child))
-            })
-        })
         // don't include the entry itself in the trace
         entryFiles.delete(nodePath.join(outputPath, `../${entrypoint.name}.js`))
 
@@ -313,7 +261,6 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
 
         for (const file of new Set([
           ...entryFiles,
-          ...allEntryFiles,
           ...(this.entryTraces.get(entrypoint.name) || []),
         ])) {
           if (file) {
@@ -473,34 +420,39 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                 entriesToTrace.push(...curExtraEntries.keys())
               }
             })
-            // startTrace existed and callable
+
+            const contextDirectory =
+              this.turbotrace?.contextDirectory ?? this.tracingRoot
+            const chunks = [...entriesToTrace]
+
+            this.buildTraceContext.entriesTrace = {
+              action: {
+                action: 'print',
+                input: chunks,
+                contextDirectory,
+                processCwd: this.turbotrace?.processCwd ?? this.rootDir,
+                logLevel: this.turbotrace?.logLevel,
+                showAll: this.turbotrace?.logAll,
+              },
+              appDir: this.rootDir,
+              depModArray: Array.from(depModMap.keys()),
+              entryNameMap,
+              outputPath: compilation.outputOptions.path!,
+            }
+
+            // if we're using turbotrace we can skip tracing
+            // loader contents as it should be able to capture
+            // fs usage in final chunks instead
             if (this.turbotrace) {
               let binding = await loadBindings()
               if (
                 !binding?.isWasm &&
                 typeof binding.turbo.startTrace === 'function'
               ) {
-                const contextDirectory =
-                  this.turbotrace?.contextDirectory ?? this.tracingRoot
-                const chunks = [...entriesToTrace]
-
-                this.turbotraceContext.entriesTrace = {
-                  action: {
-                    action: 'print',
-                    input: chunks,
-                    contextDirectory,
-                    processCwd: this.turbotrace?.processCwd ?? this.rootDir,
-                    logLevel: this.turbotrace?.logLevel,
-                    showAll: this.turbotrace?.logAll,
-                  },
-                  appDir: this.rootDir,
-                  depModArray: Array.from(depModMap.keys()),
-                  entryNameMap,
-                  outputPath: compilation.outputOptions.path!,
-                }
                 return
               }
             }
+
             let fileList: Set<string>
             let reasons: NodeFileTraceReasons
             const ignores = [
@@ -513,7 +465,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
             }
 
             await finishModulesSpan
-              .traceChild('node-file-trace', {
+              .traceChild('node-file-trace-plugin', {
                 traceEntryCount: entriesToTrace.length + '',
               })
               .traceAsyncFn(async () => {
@@ -656,9 +608,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
             this.createTraceAssets(
               compilation,
               assets,
-              traceEntrypointsPluginSpan,
-              readlink,
-              stat
+              traceEntrypointsPluginSpan
             )
               .then(() => callback())
               .catch((err) => callback(err))
@@ -822,35 +772,5 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
         )
       })
     })
-
-    if (this.turbotrace) {
-      compiler.hooks.afterEmit.tapPromise(PLUGIN_NAME, async () => {
-        let binding = await loadBindings()
-        if (
-          !binding?.isWasm &&
-          typeof binding.turbo.startTrace === 'function'
-        ) {
-          const ignores = [...TRACE_IGNORES, ...this.traceIgnores]
-
-          const ignoreFn = (path: string) => {
-            return isMatch(path, ignores, { contains: true, dot: true })
-          }
-          const chunks = this.chunksToTrace.filter((chunk) => !ignoreFn(chunk))
-
-          this.turbotraceContext.chunksTrace = {
-            action: {
-              action: 'annotate',
-              input: chunks,
-              contextDirectory:
-                this.turbotrace?.contextDirectory ?? this.tracingRoot,
-              processCwd: this.turbotrace?.processCwd ?? this.rootDir,
-              showAll: this.turbotrace?.logAll,
-              logLevel: this.turbotrace?.logLevel,
-            },
-            outputPath: compiler.outputPath,
-          }
-        }
-      })
-    }
   }
 }

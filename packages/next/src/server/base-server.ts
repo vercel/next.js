@@ -50,12 +50,8 @@ import {
   TEMPORARY_REDIRECT_STATUS,
 } from '../shared/lib/constants'
 import { isDynamicRoute } from '../shared/lib/router/utils'
-import {
-  setLazyProp,
-  getCookieParser,
-  checkIsOnDemandRevalidate,
-} from './api-utils'
-import { setConfig } from '../shared/lib/runtime-config.shared-runtime'
+import { checkIsOnDemandRevalidate } from './api-utils'
+import { setConfig } from '../shared/lib/runtime-config.external'
 
 import { setRevalidateHeaders } from './send-payload/revalidate-headers'
 import { execOnce } from '../shared/lib/utils'
@@ -89,8 +85,7 @@ import {
   RSC_VARY_HEADER,
   FLIGHT_PARAMETERS,
   NEXT_RSC_UNION_QUERY,
-  NEXT_ROUTER_PREFETCH,
-  RSC_CONTENT_TYPE_HEADER,
+  ACTION,
 } from '../client/components/app-router-headers'
 import {
   MatchOptions,
@@ -167,6 +162,11 @@ export interface Options {
    * Enables the experimental testing mode.
    */
   experimentalTestProxy?: boolean
+
+  /**
+   * Whether or not the dev server is running in experimental HTTPS mode
+   */
+  experimentalHttpsServer?: boolean
   /**
    * Where the Next project is located
    */
@@ -191,9 +191,6 @@ export interface Options {
    * The HTTP Server that Next.js is running behind
    */
   httpServer?: import('http').Server
-
-  _routerWorker?: boolean
-  _renderWorker?: boolean
 
   isNodeDebugging?: 'brk' | boolean
 }
@@ -289,6 +286,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     largePageDataBytes?: number
     appDirDevErrorLogger?: (err: any) => Promise<void>
     strictNextHead: boolean
+    isExperimentalCompile?: boolean
   }
   protected readonly serverOptions: Readonly<ServerOptions>
   protected readonly appPathRoutes?: Record<string, string[]>
@@ -371,7 +369,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   public readonly matchers: RouteMatcherManager
   protected readonly i18nProvider?: I18NProvider
   protected readonly localeNormalizer?: LocaleRouteNormalizer
-  protected readonly isRenderWorker?: boolean
 
   public constructor(options: ServerOptions) {
     const {
@@ -386,7 +383,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     } = options
 
     this.serverOptions = options
-    this.isRenderWorker = options._renderWorker
 
     this.dir =
       process.env.NEXT_RUNTIME === 'edge' ? dir : require('path').resolve(dir)
@@ -482,6 +478,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         Object.keys(publicRuntimeConfig).length > 0
           ? publicRuntimeConfig
           : undefined,
+
+      // @ts-expect-error internal field not publicly exposed
+      isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
     }
 
     // Initialize next/config with the environment configuration
@@ -754,6 +753,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const origSetHeader = _res.setHeader.bind(_res)
 
       _res.setHeader = (name: string, val: string | string[]) => {
+        // When renders /_error after page is failed,
+        // it could attempt to set headers after headers
+        if (_res.headersSent) {
+          return
+        }
         if (name.toLowerCase() === 'set-cookie') {
           const middlewareValue = getRequestMeta(req, '_nextMiddlewareCookie')
 
@@ -790,8 +794,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         res.redirect(cleanUrl, 308).body(cleanUrl).send()
         return
       }
-
-      setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
 
       // Parse url if parsedUrl not provided
       if (!parsedUrl || typeof parsedUrl !== 'object') {
@@ -1594,7 +1596,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const isAppPath = components.isAppPath === true
     const hasServerProps = !!components.getServerSideProps
     let hasStaticPaths = !!components.getStaticPaths
-
+    const actionId = req.headers[ACTION.toLowerCase()] as string
+    const contentType = req.headers['content-type']
+    const isMultipartAction =
+      req.method === 'POST' && contentType?.startsWith('multipart/form-data')
+    const isFetchAction =
+      actionId !== undefined &&
+      typeof actionId === 'string' &&
+      req.method === 'POST'
+    const isServerAction = isFetchAction || isMultipartAction
     const hasGetInitialProps = !!components.Component?.getInitialProps
     let isSSG = !!components.getStaticProps
 
@@ -1731,6 +1741,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // requests so ensure we respond with 405 for
     // invalid requests
     if (
+      !isServerAction &&
       !is404Page &&
       !is500Page &&
       pathname !== '/_error' &&
@@ -1798,7 +1809,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // For the edge runtime, we don't support preview mode in SSG.
       if (process.env.NEXT_RUNTIME !== 'edge') {
         const { tryGetPreviewData } =
-          require('./api-utils/node') as typeof import('./api-utils/node')
+          require('./api-utils/node/try-get-preview-data') as typeof import('./api-utils/node/try-get-preview-data')
         previewData = tryGetPreviewData(req, res, this.renderOpts.previewProps)
         isPreviewMode = previewData !== false
       }
@@ -1885,8 +1896,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     let ssgCacheKey =
-      isPreviewMode || !isSSG || opts.supportsDynamicHTML
-        ? null // Preview mode, on-demand revalidate, flight request can bypass the cache
+      isPreviewMode || !isSSG || opts.supportsDynamicHTML || isServerAction
+        ? null // Preview mode, on-demand revalidate, server actions, flight request can bypass the cache
         : `${locale ? `/${locale}` : ''}${
             (pathname === '/' || resolvedUrlPathname === '/') && locale
               ? ''
@@ -2002,6 +2013,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         supportsDynamicHTML,
         isOnDemandRevalidate,
         isDraftMode: isPreviewMode,
+        isServerAction,
       }
 
       // Legacy render methods will return a render result that needs to be
@@ -2070,8 +2082,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           }
 
           // Send the response now that we have copied it into the cache.
-          await sendResponse(req, res, response)
-
+          await sendResponse(
+            req,
+            res,
+            response,
+            context.staticGenerationContext.waitUntil
+          )
           return null
         } catch (err) {
           // If this is during static generation, throw the error again.
@@ -2108,31 +2124,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       } else if (
         components.routeModule?.definition.kind === RouteKind.APP_PAGE
       ) {
-        const isAppPrefetch = req.headers[NEXT_ROUTER_PREFETCH.toLowerCase()]
-
-        if (
-          isAppPrefetch &&
-          ssgCacheKey &&
-          process.env.NODE_ENV === 'production'
-        ) {
-          try {
-            const prefetchRsc = await this.getPrefetchRsc(ssgCacheKey)
-
-            if (prefetchRsc) {
-              res.setHeader(
-                'cache-control',
-                'private, no-cache, no-store, max-age=0, must-revalidate'
-              )
-              res.setHeader('content-type', RSC_CONTENT_TYPE_HEADER)
-              res.body(prefetchRsc).send()
-              return null
-            }
-          } catch (_) {
-            // we fallback to invoking the function if prefetch
-            // data is not available
-          }
-        }
-
         const module = components.routeModule as AppPageRouteModule
 
         // Due to the way we pass data by mutating `renderOpts`, we can't extend the
@@ -2233,6 +2224,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           html: result,
           pageData: metadata.pageData,
           headers,
+          status: isAppPath ? res.statusCode : undefined,
         },
         revalidate: metadata.revalidate,
       }
@@ -2488,6 +2480,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           )
         }
 
+        if (cachedData.status) {
+          res.statusCode = cachedData.status
+        }
+
         return {
           type: isDataReq ? 'rsc' : 'html',
           body: isDataReq
@@ -2616,7 +2612,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         const invokeOutput = ctx.req.headers['x-invoke-output']
         if (
           !this.minimalMode &&
-          this.isRenderWorker &&
           typeof invokeOutput === 'string' &&
           isDynamicRoute(invokeOutput || '') &&
           invokeOutput !== match.definition.pathname

@@ -27,6 +27,7 @@ import { RedirectBoundary } from './redirect-boundary'
 import { NotFoundBoundary } from './not-found-boundary'
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
 import { createRouterCacheKey } from './router-reducer/create-router-cache-key'
+import { createRecordFromThenable } from './router-reducer/create-record-from-thenable'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -378,11 +379,13 @@ function InnerLayoutRouter({
 
     childNode = {
       status: CacheStates.DATA_FETCH,
-      data: fetchServerResponse(
-        new URL(url, location.origin),
-        refetchTree,
-        context.nextUrl,
-        buildId
+      data: createRecordFromThenable(
+        fetchServerResponse(
+          new URL(url, location.origin),
+          refetchTree,
+          context.nextUrl,
+          buildId
+        )
       ),
       subTreeData: null,
       head:

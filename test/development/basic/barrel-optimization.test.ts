@@ -1,6 +1,7 @@
 import { join } from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
+import { shouldRunTurboDevTest } from '../../lib/next-test-utils'
 
 describe('optimizePackageImports', () => {
   let next: NextInstance
@@ -27,7 +28,9 @@ describe('optimizePackageImports', () => {
         scripts: {
           setup: `cp -r ./node_modules_bak/* ./node_modules`,
           build: `yarn setup && next build`,
-          dev: `yarn setup && next dev`,
+          dev: `yarn setup && next ${
+            shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
+          }`,
           start: 'next start',
         },
       },
@@ -122,5 +125,10 @@ describe('optimizePackageImports', () => {
   it('should support visx', async () => {
     const html = await next.render('/visx')
     expect(html).toContain('<linearGradient')
+  })
+
+  it('should not break "use client" directive in optimized packages', async () => {
+    const html = await next.render('/client')
+    expect(html).toContain('this is a client component')
   })
 })

@@ -139,7 +139,7 @@ export interface MockedResponseOptions {
   statusCode?: number
   socket?: Socket | null
   headers?: OutgoingHttpHeaders
-  resWriter?: (chunk: Buffer | string) => boolean
+  resWriter?: (chunk: Uint8Array | Buffer | string) => boolean
 }
 
 export class MockedResponse extends Stream.Writable implements ServerResponse {
@@ -232,7 +232,7 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
     return this.socket
   }
 
-  public write(chunk: Buffer | string) {
+  public write(chunk: Uint8Array | Buffer | string) {
     if (this.resWriter) {
       return this.resWriter(chunk)
     }
@@ -436,7 +436,7 @@ interface RequestResponseMockerOptions {
   headers?: IncomingHttpHeaders
   method?: string
   bodyReadable?: Stream.Readable
-  resWriter?: (chunk: Buffer | string) => boolean
+  resWriter?: (chunk: Uint8Array | Buffer | string) => boolean
   socket?: Socket | null
 }
 

@@ -16,7 +16,7 @@ if (process.env.NODE_ENV !== "production") {
 
 var React = require("next/dist/compiled/react");
 
-var ReactVersion = '18.3.0-canary-d6dcad6a8-20230914';
+var ReactVersion = '18.3.0-canary-09285d5a7-20230925';
 
 var Internals = {
   usingClientEntryPoint: false,

@@ -145,11 +145,10 @@ function getMiddlewareMatcher(
 }
 
 export default class NextNodeServer extends BaseServer {
+  protected middlewareManifestPath: string
+  private _serverDistDir: string | undefined
   private imageResponseCache?: ResponseCache
   protected renderWorkersPromises?: Promise<void>
-  protected renderWorkerOpts?: Parameters<
-    typeof import('./lib/render-server').initialize
-  >[0]
   protected dynamicRoutes?: {
     match: import('../shared/lib/router/utils/route-matcher').RouteMatchFn
     page: string
@@ -230,6 +229,8 @@ export default class NextNodeServer extends BaseServer {
       const { interceptTestApis } = require('../experimental/testmode/server')
       interceptTestApis()
     }
+
+    this.middlewareManifestPath = join(this.serverDistDir, MIDDLEWARE_MANIFEST)
   }
 
   protected async handleUpgrade(): Promise<void> {
@@ -517,46 +518,43 @@ export default class NextNodeServer extends BaseServer {
         paramsResult,
         this.nextConfig,
         this.renderOpts.dev,
-        async (newReq, newRes, newParsedUrl) => {
+        async (newReq, newRes) => {
           if (newReq.url === req.url) {
             throw new Error(
               `Invariant attempted to optimize _next/image itself`
             )
           }
 
-          if (this.isRenderWorker) {
-            const invokeRes = await invokeRequest(
-              `http://${this.fetchHostname || 'localhost'}:${this.port}${
-                newReq.url || ''
-              }`,
-              {
-                method: newReq.method || 'GET',
-                headers: newReq.headers,
-                signal: signalFromNodeResponse(res.originalResponse),
-              }
-            )
-            const filteredResHeaders = filterReqHeaders(
-              toNodeOutgoingHttpHeaders(invokeRes.headers),
-              ipcForbiddenHeaders
-            )
+          const protocol = this.serverOptions.experimentalHttpsServer
+            ? 'https'
+            : 'http'
 
-            for (const key of Object.keys(filteredResHeaders)) {
-              newRes.setHeader(key, filteredResHeaders[key] || '')
+          const invokeRes = await invokeRequest(
+            `${protocol}://${this.fetchHostname || 'localhost'}:${this.port}${
+              newReq.url || ''
+            }`,
+            {
+              method: newReq.method || 'GET',
+              headers: newReq.headers,
+              signal: signalFromNodeResponse(res.originalResponse),
             }
-            newRes.statusCode = invokeRes.status || 200
-
-            if (invokeRes.body) {
-              await pipeReadable(invokeRes.body, newRes)
-            } else {
-              res.send()
-            }
-            return
-          }
-          return this.getRequestHandler()(
-            new NodeNextRequest(newReq),
-            new NodeNextResponse(newRes),
-            newParsedUrl
           )
+          const filteredResHeaders = filterReqHeaders(
+            toNodeOutgoingHttpHeaders(invokeRes.headers),
+            ipcForbiddenHeaders
+          )
+
+          for (const key of Object.keys(filteredResHeaders)) {
+            newRes.setHeader(key, filteredResHeaders[key] || '')
+          }
+          newRes.statusCode = invokeRes.status || 200
+
+          if (invokeRes.body) {
+            await pipeReadable(invokeRes.body, newRes)
+          } else {
+            res.send()
+          }
+          return
         }
       )
     }
@@ -917,13 +915,7 @@ export default class NextNodeServer extends BaseServer {
       }
     } catch (err: any) {
       if (err instanceof NoFallbackError) {
-        if (this.isRenderWorker) {
-          throw err
-        }
-
-        return {
-          finished: false,
-        }
+        throw err
       }
 
       try {
@@ -1034,7 +1026,8 @@ export default class NextNodeServer extends BaseServer {
       const shouldTruncateUrl = !this.nextConfig.experimental.logging?.fullUrl
 
       if (this.renderOpts.dev) {
-        const chalk = require('next/dist/compiled/chalk')
+        const { bold, green, yellow, red, gray, white } =
+          require('../lib/picocolors') as typeof import('../lib/picocolors')
         const _req = req as NodeNextRequest | IncomingMessage
         const _res = res as NodeNextResponse | ServerResponse
         const origReq = 'originalRequest' in _req ? _req.originalRequest : _req
@@ -1061,11 +1054,11 @@ export default class NextNodeServer extends BaseServer {
             let durationStr = duration.toString()
 
             if (duration < 500) {
-              durationStr = chalk.green(duration + 'ms')
+              durationStr = green(duration + 'ms')
             } else if (duration < 2000) {
-              durationStr = chalk.yellow(duration + 'ms')
+              durationStr = yellow(duration + 'ms')
             } else {
-              durationStr = chalk.red(duration + 'ms')
+              durationStr = red(duration + 'ms')
             }
             return durationStr
           }
@@ -1073,7 +1066,7 @@ export default class NextNodeServer extends BaseServer {
           if (Array.isArray(fetchMetrics) && fetchMetrics.length) {
             if (enabledVerboseLogging) {
               writeStdoutLine(
-                `${chalk.white.bold(req.method || 'GET')} ${req.url} ${
+                `${white(bold(req.method || 'GET'))} ${req.url} ${
                   res.statusCode
                 } in ${getDurationStr(reqDuration)}`
               )
@@ -1108,14 +1101,14 @@ export default class NextNodeServer extends BaseServer {
               const duration = metric.end - metric.start
 
               if (cacheStatus === 'hit') {
-                cacheStatus = chalk.green('HIT')
+                cacheStatus = green('HIT')
               } else if (cacheStatus === 'skip') {
-                cacheStatus = `${chalk.yellow('SKIP')}`
-                cacheReasonStr = `${chalk.grey(
-                  `Cache missed reason: (${chalk.white(cacheReason)})`
+                cacheStatus = `${yellow('SKIP')}`
+                cacheReasonStr = `${gray(
+                  `Cache missed reason: (${white(cacheReason)})`
                 )}`
               } else {
-                cacheStatus = chalk.yellow('MISS')
+                cacheStatus = yellow('MISS')
               }
               let url = metric.url
 
@@ -1152,7 +1145,7 @@ export default class NextNodeServer extends BaseServer {
                 writeStdoutLine(
                   `${`${newLineLeadingChar}${nestedIndent}${
                     i === 0 ? ' ' : ''
-                  }${chalk.white.bold(metric.method)} ${chalk.grey(url)} ${
+                  }${white(bold(metric.method))} ${gray(url)} ${
                     metric.status
                   } in ${getDurationStr(duration)} (cache: ${cacheStatus})`}`
                 )
@@ -1175,7 +1168,7 @@ export default class NextNodeServer extends BaseServer {
           } else {
             if (enabledVerboseLogging) {
               writeStdoutLine(
-                `${chalk.white.bold(req.method || 'GET')} ${req.url} ${
+                `${white(bold(req.method || 'GET'))} ${req.url} ${
                   res.statusCode
                 } in ${getDurationStr(reqDuration)}`
               )
@@ -1257,7 +1250,7 @@ export default class NextNodeServer extends BaseServer {
     const { req, res, query } = ctx
     const is404 = res.statusCode === 404
 
-    if (is404 && this.hasAppDir && this.isRenderWorker) {
+    if (is404 && this.hasAppDir) {
       const notFoundPathname = this.renderOpts.dev
         ? '/not-found'
         : '/_not-found'
@@ -1334,10 +1327,7 @@ export default class NextNodeServer extends BaseServer {
 
   protected getMiddlewareManifest(): MiddlewareManifest | null {
     if (this.minimalMode) return null
-    const manifest: MiddlewareManifest = require(join(
-      this.serverDistDir,
-      MIDDLEWARE_MANIFEST
-    ))
+    const manifest: MiddlewareManifest = require(this.middlewareManifestPath)
     return manifest
   }
 
@@ -1576,8 +1566,7 @@ export default class NextNodeServer extends BaseServer {
     res: BaseNextResponse,
     parsed: NextUrlWithParsedQuery
   ) {
-    const isMiddlewareInvoke =
-      this.isRenderWorker && req.headers['x-middleware-invoke']
+    const isMiddlewareInvoke = req.headers['x-middleware-invoke']
 
     const handleFinished = (finished: boolean = false) => {
       if (isMiddlewareInvoke && !finished) {
@@ -1588,7 +1577,7 @@ export default class NextNodeServer extends BaseServer {
       return { finished }
     }
 
-    if (this.isRenderWorker && !isMiddlewareInvoke) {
+    if (!isMiddlewareInvoke) {
       return { finished: false }
     }
 
@@ -1695,7 +1684,6 @@ export default class NextNodeServer extends BaseServer {
     if (
       this.renderOpts?.dev ||
       this.serverOptions?.dev ||
-      this.renderWorkerOpts?.dev ||
       process.env.NODE_ENV === 'development' ||
       process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD
     ) {
@@ -1857,6 +1845,10 @@ export default class NextNodeServer extends BaseServer {
         getRequestMeta(params.req, '_nextIncrementalCache'),
     })
 
+    if (result.fetchMetrics) {
+      ;(params.req as any).fetchMetrics = result.fetchMetrics
+    }
+
     if (!params.res.statusCode || params.res.statusCode < 400) {
       params.res.statusCode = result.response.status
       params.res.statusMessage = result.response.statusText
@@ -1886,8 +1878,13 @@ export default class NextNodeServer extends BaseServer {
     return result
   }
 
-  protected get serverDistDir() {
-    return join(this.distDir, SERVER_DIRECTORY)
+  protected get serverDistDir(): string {
+    if (this._serverDistDir) {
+      return this._serverDistDir
+    }
+    const serverDistDir = join(this.distDir, SERVER_DIRECTORY)
+    this._serverDistDir = serverDistDir
+    return serverDistDir
   }
 
   protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {

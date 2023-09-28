@@ -85,8 +85,7 @@ describe('Dynamic Routing', () => {
 
     runTests(true)
   })
-
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await nextBuild(appDir)
       appPort = await findPort()

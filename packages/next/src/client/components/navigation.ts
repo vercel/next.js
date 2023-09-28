@@ -8,6 +8,7 @@ import {
 import {
   SearchParamsContext,
   PathnameContext,
+  PathParamsContext,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { clientHookInServerComponentError } from './client-hook-in-server-component-error'
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
@@ -164,14 +165,18 @@ function getSelectedParams(
  * Get the current parameters. For example useParams() on /dashboard/[team]
  * where pathname is /dashboard/nextjs would return { team: 'nextjs' }
  */
-export function useParams(): Params {
+export function useParams<T extends Params = Params>(): T {
   clientHookInServerComponentError('useParams')
-  const globalLayoutRouterContext = useContext(GlobalLayoutRouterContext)
-  if (!globalLayoutRouterContext) {
-    // This only happens in `pages`. Type is overwritten in navigation.d.ts
-    return null!
+  const globalLayoutRouter = useContext(GlobalLayoutRouterContext)
+  const pathParams = useContext(PathParamsContext)
+
+  // When it's under app router
+  if (globalLayoutRouter) {
+    return getSelectedParams(globalLayoutRouter.tree) as T
   }
-  return getSelectedParams(globalLayoutRouterContext.tree)
+
+  // When it's under client side pages router
+  return pathParams as T
 }
 
 // TODO-APP: handle parallel routes

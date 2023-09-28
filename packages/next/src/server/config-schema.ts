@@ -384,6 +384,9 @@ const configSchema = {
         outputFileTracingIncludes: {
           type: 'object',
         },
+        ppr: {
+          type: 'boolean',
+        },
         proxyTimeout: {
           minimum: 0,
           type: 'number',
@@ -395,9 +398,6 @@ const configSchema = {
           type: 'array',
         },
         scrollRestoration: {
-          type: 'boolean',
-        },
-        sharedPool: {
           type: 'boolean',
         },
         sri: {
@@ -518,6 +518,9 @@ const configSchema = {
           type: 'boolean',
         },
         serverSourceMaps: {
+          type: 'boolean',
+        },
+        bundlePagesExternals: {
           type: 'boolean',
         },
       },

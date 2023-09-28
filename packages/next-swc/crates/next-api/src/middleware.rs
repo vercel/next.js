@@ -14,7 +14,6 @@ use turbopack_binding::{
     turbopack::{
         core::{
             asset::AssetContent,
-            changed::any_content_changed_of_output_assets,
             chunk::{ChunkableModule, ChunkingContext},
             context::AssetContext,
             module::Module,
@@ -209,8 +208,8 @@ impl Endpoint for MiddlewareEndpoint {
     }
 
     #[turbo_tasks::function]
-    fn server_changed(self: Vc<Self>) -> Vc<Completion> {
-        any_content_changed_of_output_assets(self.output_assets())
+    async fn server_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
+        Ok(self.await?.project.server_changed(self.output_assets()))
     }
 
     #[turbo_tasks::function]
