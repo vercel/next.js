@@ -372,7 +372,8 @@ export function makeExternalHandler({
         config.transpilePackages,
         resolvedExternalPackageDirs
       ) ||
-      (isEsm && isAppLayer)
+      (isEsm && isAppLayer) ||
+      (!isAppLayer && config.experimental.bundlePagesExternals)
 
     if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
       if (isWebpackServerLayer(layer)) {
