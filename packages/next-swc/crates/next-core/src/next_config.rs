@@ -734,6 +734,7 @@ impl NextConfig {
             } else {
                 ""
             }
+            .trim_end_matches('/')
         ))))
     }
 }
