@@ -433,7 +433,6 @@ fn server_actions_server_fixture(input: PathBuf) {
                         enabled: true
                     },
                     _tr.comments.as_ref().clone(),
-                    String::from("default").into(),
                 )
             )
         },
@@ -458,7 +457,6 @@ fn server_actions_client_fixture(input: PathBuf) {
                         enabled: true
                     },
                     _tr.comments.as_ref().clone(),
-                    String::from("default").into(),
                 )
             )
         },

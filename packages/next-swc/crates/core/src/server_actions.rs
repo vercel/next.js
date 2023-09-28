@@ -29,7 +29,6 @@ pub fn server_actions<C: Comments>(
     file_name: &FileName,
     config: Config,
     comments: C,
-    bundle_target: JsWord,
 ) -> impl VisitMut + Fold {
     as_folder(ServerActions {
         config,
@@ -53,8 +52,6 @@ pub fn server_actions<C: Comments>(
         annotations: Default::default(),
         extra_items: Default::default(),
         export_actions: Default::default(),
-
-        bundle_target: bundle_target.to_string(),
     })
 }
 
@@ -84,8 +81,6 @@ struct ServerActions<C: Comments> {
     annotations: Vec<Stmt>,
     extra_items: Vec<ModuleItem>,
     export_actions: Vec<String>,
-
-    bundle_target: String,
 }
 
 impl<C: Comments> ServerActions<C> {
@@ -108,10 +103,9 @@ impl<C: Comments> ServerActions<C> {
                     remove_directive,
                     &mut is_action_fn,
                     self.config.enabled,
-                    self.bundle_target != "default",
                 );
 
-                if is_action_fn && !self.config.is_server && self.bundle_target != "default" {
+                if is_action_fn && !self.config.is_server {
                     HANDLER.with(|handler| {
                         handler
                             .struct_span_err(
@@ -1349,7 +1343,6 @@ fn remove_server_directive_index_in_fn(
     remove_directive: bool,
     is_action_fn: &mut bool,
     enabled: bool,
-    should_error: bool,
 ) {
     let mut is_directive = true;
 
@@ -1362,7 +1355,7 @@ fn remove_server_directive_index_in_fn(
             if value == "use server" {
                 if is_directive {
                     *is_action_fn = true;
-                    if !enabled && should_error {
+                    if !enabled {
                         HANDLER.with(|handler| {
                             handler
                                 .struct_span_err(

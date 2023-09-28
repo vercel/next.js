@@ -310,7 +310,6 @@ where
                 &file.name,
                 config.clone(),
                 comments,
-                opts.bundle_target.clone(),
             )),
             None => Either::Right(noop()),
         },
