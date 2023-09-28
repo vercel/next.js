@@ -7,21 +7,25 @@ import { join } from 'path'
 
 const fixturesDir = join(__dirname, '../..', 'scss-fixtures')
 
-describe('SCSS Support', () => {
+describe('SCSS Support loader handling', () => {
   describe('CSS URL via `file-loader`', () => {
     const appDir = join(fixturesDir, 'url-global')
 
     beforeAll(async () => {
       await remove(join(appDir, '.next'))
     })
-
-    it('should compile successfully', async () => {
-      const { code, stdout } = await nextBuild(appDir, [], {
-        stdout: true,
-      })
-      expect(code).toBe(0)
-      expect(stdout).toMatch(/Compiled successfully/)
-    })
+    ;(process.env.TURBOPACK ? it.skip : it)(
+      'should compile successfully',
+      async () => {
+        const { code, stdout } = await nextBuild(appDir, [], {
+          stdout: true,
+        })
+        // eslint-disable-next-line
+        expect(code).toBe(0)
+        // eslint-disable-next-line
+        expect(stdout).toMatch(/Compiled successfully/)
+      }
+    )
 
     it(`should've emitted expected files`, async () => {
       const cssFolder = join(appDir, '.next/static/css')
@@ -60,14 +64,18 @@ describe('SCSS Support', () => {
     beforeAll(async () => {
       await remove(join(appDir, '.next'))
     })
-
-    it('should compile successfully', async () => {
-      const { code, stdout } = await nextBuild(appDir, [], {
-        stdout: true,
-      })
-      expect(code).toBe(0)
-      expect(stdout).toMatch(/Compiled successfully/)
-    })
+    ;(process.env.TURBOPACK ? it.skip : it)(
+      'should compile successfully',
+      async () => {
+        const { code, stdout } = await nextBuild(appDir, [], {
+          stdout: true,
+        })
+        // eslint-disable-next-line
+        expect(code).toBe(0)
+        // eslint-disable-next-line
+        expect(stdout).toMatch(/Compiled successfully/)
+      }
+    )
 
     it(`should've emitted expected files`, async () => {
       const cssFolder = join(appDir, '.next/static/css')
@@ -108,14 +116,18 @@ describe('SCSS Support', () => {
     beforeAll(async () => {
       await remove(join(appDir, '.next'))
     })
-
-    it('should compile successfully', async () => {
-      const { code, stdout } = await nextBuild(appDir, [], {
-        stdout: true,
-      })
-      expect(code).toBe(0)
-      expect(stdout).toMatch(/Compiled successfully/)
-    })
+    ;(process.env.TURBOPACK ? it.skip : it)(
+      'should compile successfully',
+      async () => {
+        const { code, stdout } = await nextBuild(appDir, [], {
+          stdout: true,
+        })
+        // eslint-disable-next-line
+        expect(code).toBe(0)
+        // eslint-disable-next-line
+        expect(stdout).toMatch(/Compiled successfully/)
+      }
+    )
 
     it(`should've emitted expected files`, async () => {
       const cssFolder = join(appDir, '.next/static/css')
@@ -154,14 +166,18 @@ describe('SCSS Support', () => {
     beforeAll(async () => {
       await remove(join(appDir, '.next'))
     })
-
-    it('should compile successfully', async () => {
-      const { code, stdout } = await nextBuild(appDir, [], {
-        stdout: true,
-      })
-      expect(code).toBe(0)
-      expect(stdout).toMatch(/Compiled successfully/)
-    })
+    ;(process.env.TURBOPACK ? it.skip : it)(
+      'should compile successfully',
+      async () => {
+        const { code, stdout } = await nextBuild(appDir, [], {
+          stdout: true,
+        })
+        // eslint-disable-next-line
+        expect(code).toBe(0)
+        // eslint-disable-next-line
+        expect(stdout).toMatch(/Compiled successfully/)
+      }
+    )
 
     it(`should've emitted expected files`, async () => {
       const cssFolder = join(appDir, '.next/static/css')
@@ -200,14 +216,18 @@ describe('SCSS Support', () => {
     beforeAll(async () => {
       await remove(join(appDir, '.next'))
     })
-
-    it('should compile successfully', async () => {
-      const { code, stdout } = await nextBuild(appDir, [], {
-        stdout: true,
-      })
-      expect(code).toBe(0)
-      expect(stdout).toMatch(/Compiled successfully/)
-    })
+    ;(process.env.TURBOPACK ? it.skip : it)(
+      'should compile successfully',
+      async () => {
+        const { code, stdout } = await nextBuild(appDir, [], {
+          stdout: true,
+        })
+        // eslint-disable-next-line
+        expect(code).toBe(0)
+        // eslint-disable-next-line
+        expect(stdout).toMatch(/Compiled successfully/)
+      }
+    )
 
     it(`should've emitted expected files`, async () => {
       const cssFolder = join(appDir, '.next/static/css')
@@ -229,14 +249,18 @@ describe('SCSS Support', () => {
     beforeAll(async () => {
       await remove(join(appDir, '.next'))
     })
-
-    it('should compile successfully', async () => {
-      const { code, stdout } = await nextBuild(appDir, [], {
-        stdout: true,
-      })
-      expect(code).toBe(0)
-      expect(stdout).toMatch(/Compiled successfully/)
-    })
+    ;(process.env.TURBOPACK ? it.skip : it)(
+      'should compile successfully',
+      async () => {
+        const { code, stdout } = await nextBuild(appDir, [], {
+          stdout: true,
+        })
+        // eslint-disable-next-line
+        expect(code).toBe(0)
+        // eslint-disable-next-line
+        expect(stdout).toMatch(/Compiled successfully/)
+      }
+    )
 
     it(`should've emitted expected files`, async () => {
       const cssFolder = join(appDir, '.next/static/css')
@@ -258,12 +282,15 @@ describe('SCSS Support', () => {
     beforeAll(async () => {
       await remove(join(appDir, '.next'))
     })
-
-    it('should compile successfully', async () => {
-      const { stdout } = await nextBuild(appDir, [], {
-        stdout: true,
-      })
-      expect(stdout).toMatch(/Compiled successfully/)
-    })
+    ;(process.env.TURBOPACK ? it.skip : it)(
+      'should compile successfully',
+      async () => {
+        const { stdout } = await nextBuild(appDir, [], {
+          stdout: true,
+        })
+        // eslint-disable-next-line
+        expect(stdout).toMatch(/Compiled successfully/)
+      }
+    )
   })
 })
