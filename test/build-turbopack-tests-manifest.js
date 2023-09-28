@@ -33,6 +33,12 @@ const SKIPPED_TEST_SUITES = {
     'ReactRefreshRequire propagates a hot update to closest accepted module',
     'ReactRefreshRequire propagates hot update to all inverse dependencies',
   ],
+  'test/development/jsconfig-path-reloading/index.test.ts': [
+    /should automatically fast refresh content when path is added without error/,
+  ],
+  'test/development/tsconfig-path-reloading/index.test.ts': [
+    /should automatically fast refresh content when path is added without error/,
+  ],
   'test/e2e/basepath.test.ts': [
     'basePath should 404 when manually adding basePath with router.push',
     'basePath should 404 when manually adding basePath with router.replace',
