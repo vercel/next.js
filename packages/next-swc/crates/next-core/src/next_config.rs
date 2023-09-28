@@ -429,6 +429,7 @@ pub struct ExperimentalConfig {
     pub swc_plugins: Option<Vec<(String, serde_json::Value)>>,
     pub turbo: Option<ExperimentalTurboConfig>,
     pub turbotrace: Option<serde_json::Value>,
+    pub external_middleware_rewrites_resolve: Option<bool>,
 
     // ---
     // UNSUPPORTED
@@ -446,7 +447,6 @@ pub struct ExperimentalConfig {
     esm_externals: Option<serde_json::Value>,
     extension_alias: Option<serde_json::Value>,
     external_dir: Option<bool>,
-    external_middleware_rewrites_resolve: Option<bool>,
     /// If set to `false`, webpack won't fall back to polyfill Node.js modules
     /// in the browser Full list of old polyfills is accessible here:
     /// [webpack/webpack#Module_notound_error.js#L13-L42](https://github.com/webpack/webpack/blob/2a0536cf510768111a3a6dceeb14cb79b9f59273/lib/Module_not_found_error.js#L13-L42)
