@@ -117,11 +117,6 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
 
     let env = load_env(project_root);
 
-    let mode = NextMode::Build;
-    let client_compile_time_info =
-        get_client_compile_time_info(mode, browserslist_query, node_root.to_string());
-    let server_compile_time_info = get_server_compile_time_info(mode, env, ServerAddr::empty());
-
     let node_execution_chunking_context = Vc::upcast(
         DevChunkingContext::builder(
             project_root,
