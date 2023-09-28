@@ -30,6 +30,8 @@ const supportedTurbopackNextConfigOptions = [
   'generateEtags',
   'assetPrefix',
   'distDir',
+  'skipMiddlewareUrlNormalize',
+  'skipTrailingSlashRedirect',
   'experimental.serverComponentsExternalPackages',
   'experimental.strictNextHead',
   'experimental.turbo',
