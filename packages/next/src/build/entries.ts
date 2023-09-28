@@ -12,7 +12,7 @@ import type {
 import type { LoadedEnvFiles } from '@next/env'
 import type { AppLoaderOptions } from './webpack/loaders/next-app-loader'
 
-import chalk from 'next/dist/compiled/chalk'
+import { cyan } from '../lib/picocolors'
 import { posix, join, dirname, extname } from 'path'
 import { stringify } from 'querystring'
 import {
@@ -238,11 +238,11 @@ export function createPagesMapping({
 
       if (pageKey in result) {
         warn(
-          `Duplicate page detected. ${chalk.cyan(
+          `Duplicate page detected. ${cyan(
             join('pages', previousPages[pageKey])
-          )} and ${chalk.cyan(
-            join('pages', pagePath)
-          )} both resolve to ${chalk.cyan(pageKey)}.`
+          )} and ${cyan(join('pages', pagePath))} both resolve to ${cyan(
+            pageKey
+          )}.`
         )
       } else {
         previousPages[pageKey] = pagePath

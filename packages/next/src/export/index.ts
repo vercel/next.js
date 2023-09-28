@@ -1,6 +1,6 @@
 import type { WorkerRenderOptsPartial } from './types'
 
-import chalk from 'next/dist/compiled/chalk'
+import { bold, yellow } from '../lib/picocolors'
 import findUp from 'next/dist/compiled/find-up'
 import {
   promises,
@@ -602,21 +602,21 @@ export default async function exportApp(
       if (hasApiRoutes || hasMiddleware) {
         if (!options.silent) {
           Log.warn(
-            chalk.yellow(
+            yellow(
               `Statically exporting a Next.js application via \`next export\` disables API routes and middleware.`
             ) +
               `\n` +
-              chalk.yellow(
+              yellow(
                 `This command is meant for static-only hosts, and is` +
                   ' ' +
-                  chalk.bold(`not necessary to make your application static.`)
+                  bold(`not necessary to make your application static.`)
               ) +
               `\n` +
-              chalk.yellow(
+              yellow(
                 `Pages in your application without server-side data dependencies will be automatically statically exported by \`next build\`, including pages powered by \`getStaticProps\`.`
               ) +
               `\n` +
-              chalk.yellow(
+              yellow(
                 `Learn more: https://nextjs.org/docs/messages/api-routes-static-export`
               )
           )
