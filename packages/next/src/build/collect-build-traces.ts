@@ -244,9 +244,11 @@ export async function collectBuildTraces({
               '**/node_modules/sharp/**/*',
             ]
           : []),
+
         ...(!hasSsrAmpPages
           ? ['**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*']
           : []),
+
         ...additionalIgnores,
 
         ...(isStandalone ? [] : TRACE_IGNORES),
@@ -334,21 +336,11 @@ export async function collectBuildTraces({
         })
         const reasons = result.reasons
         const fileList = result.fileList
-        result.esmFileList.forEach((file) => fileList.add(file))
 
+        for (const file of result.esmFileList) {
+          fileList.add(file)
+        }
         const parentFilesMap = getFilesMapFromReasons(fileList, reasons)
-        const allEntryFiles = new Set<string>()
-
-        // get this from buildTraceContext
-        const entryFiles = new Set<string>()
-
-        entryFiles.forEach((file) => {
-          parentFilesMap
-            .get(path.relative(outputFileTracingRoot, file))
-            ?.forEach((child) => {
-              allEntryFiles.add(path.join(traceContext, child))
-            })
-        })
 
         for (const [entries, tracedFiles] of [
           [serverEntries, serverTracedFiles],
@@ -358,7 +350,7 @@ export async function collectBuildTraces({
             const curFiles = parentFilesMap.get(
               path.relative(outputFileTracingRoot, file)
             )
-            tracedFiles.add(path.relative(distDir, file))
+            tracedFiles.add(path.relative(distDir, file).replace(/\\/g, '/'))
 
             for (const curFile of curFiles || []) {
               const filePath = path.join(outputFileTracingRoot, curFile)
@@ -369,7 +361,9 @@ export async function collectBuildTraces({
                   contains: true,
                 })
               ) {
-                tracedFiles.add(path.relative(distDir, filePath))
+                tracedFiles.add(
+                  path.relative(distDir, filePath).replace(/\\/g, '/')
+                )
               }
             }
           }
@@ -414,10 +408,12 @@ export async function collectBuildTraces({
               )
               for (const curFile of curFiles || []) {
                 curTracedFiles.add(
-                  path.relative(
-                    traceOutputDir,
-                    path.join(outputFileTracingRoot, curFile)
-                  )
+                  path
+                    .relative(
+                      traceOutputDir,
+                      path.join(outputFileTracingRoot, curFile)
+                    )
+                    .replace(/\\/g, '/')
                 )
               }
             }
@@ -520,17 +516,17 @@ export async function collectBuildTraces({
 
       for (const curGlob of includeGlobKeys) {
         if (isMatch(page, [curGlob], { dot: true, contains: true })) {
-          outputFileTracingIncludes[curGlob].forEach((include) => {
-            combinedIncludes.add(include)
-          })
+          for (const include of outputFileTracingIncludes[curGlob]) {
+            combinedIncludes.add(include.replace(/\\/g, '/'))
+          }
         }
       }
 
       for (const curGlob of excludeGlobKeys) {
         if (isMatch(page, [curGlob], { dot: true, contains: true })) {
-          outputFileTracingExcludes[curGlob].forEach((exclude) => {
+          for (const exclude of outputFileTracingExcludes[curGlob]) {
             combinedExcludes.add(exclude)
-          })
+          }
         }
       }
 
