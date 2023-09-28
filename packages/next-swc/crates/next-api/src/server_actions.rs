@@ -101,15 +101,16 @@ async fn build_server_actions_loader(
     // the exported action function.
     for (i, (module, actions_map)) in actions.iter().enumerate() {
         for (hash_id, name) in &*actions_map.await? {
+            let module_name = format!("ACTIONS_MODULE{i}");
             writedoc!(
                 contents,
                 "
-    \x20 '{hash_id}': (...args) => import('ACTIONS_MODULE{i}')
-      .then(mod => (0, mod['{name}'])(...args)),\n
-    ",
+                \x20 '{hash_id}': (...args) => import('{module_name}')
+                    .then(mod => (0, mod['{name}'])(...args)),\n
+                ",
             )?;
         }
-        import_map.insert(format!("ACTIONS_MODULE{i}"), *module);
+        import_map.insert(module_name, *module);
     }
     write!(contents, "}});")?;
 

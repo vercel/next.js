@@ -13,10 +13,15 @@ use turbopack_binding::turbopack::{
 
 use super::module_rule_match_js_no_url;
 
+pub enum ActionsTransform {
+    Client,
+    Server,
+}
+
 /// Returns a rule which applies the Next.js Server Actions transform.
-pub fn get_server_actions_transform_rule(is_server: bool) -> ModuleRule {
+pub fn get_server_actions_transform_rule(transform: ActionsTransform) -> ModuleRule {
     let transformer =
-        EcmascriptInputTransform::Plugin(Vc::cell(Box::new(NextServerActions { is_server }) as _));
+        EcmascriptInputTransform::Plugin(Vc::cell(Box::new(NextServerActions { transform }) as _));
     ModuleRule::new(
         module_rule_match_js_no_url(),
         vec![ModuleRuleEffect::AddEcmascriptTransforms(Vc::cell(vec![
@@ -27,7 +32,7 @@ pub fn get_server_actions_transform_rule(is_server: bool) -> ModuleRule {
 
 #[derive(Debug)]
 struct NextServerActions {
-    is_server: bool,
+    transform: ActionsTransform,
 }
 
 #[async_trait]
@@ -36,7 +41,7 @@ impl CustomTransformer for NextServerActions {
         let mut actions = server_actions(
             &FileName::Real(ctx.file_path_str.into()),
             Config {
-                is_server: self.is_server,
+                is_server: matches!(self.transform, ActionsTransform::Server),
                 enabled: true,
             },
             ctx.comments.clone(),
