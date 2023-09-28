@@ -178,6 +178,7 @@ fn react_server_actions_server_errors(input: PathBuf) {
                         enabled: true
                     },
                     tr.comments.as_ref().clone(),
+                    String::from("default").into(),
                 )
             )
         },
@@ -214,6 +215,7 @@ fn react_server_actions_client_errors(input: PathBuf) {
                         enabled: true
                     },
                     tr.comments.as_ref().clone(),
+                    String::from("default").into(),
                 )
             )
         },
