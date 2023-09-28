@@ -129,9 +129,26 @@ async function lint(
       return null
     }
 
-    const mod = await Promise.resolve(require(deps.resolved.get('eslint')!))
+    const modPath = deps.resolved.get('eslint')!
+    const unsupportedApiPath = path.resolve(
+      path.dirname(modPath),
+      './unsupported-api.js'
+    )
 
-    const { ESLint } = mod
+    const mod = await Promise.resolve(require(modPath))
+    const unsupportedApi = await Promise.resolve(
+      require(unsupportedApiPath)
+    ).catch(() => null)
+
+    let { ESLint } = mod
+    let shouldUseFlatConfig = false
+    if (unsupportedApi) {
+      shouldUseFlatConfig = await unsupportedApi.shouldUseFlatConfig()
+      if (shouldUseFlatConfig) {
+        ESLint = unsupportedApi.FlatESLint
+      }
+    }
+
     let eslintVersion = ESLint?.version ?? mod.CLIEngine?.version
 
     if (!eslintVersion || semver.lt(eslintVersion, '7.0.0')) {
@@ -143,12 +160,16 @@ async function lint(
     }
 
     let options: any = {
-      useEslintrc: true,
       baseConfig: {},
-      errorOnUnmatchedPattern: false,
-      extensions: ['.js', '.jsx', '.ts', '.tsx'],
-      cache: true,
-      ...eslintOptions,
+      ...(!shouldUseFlatConfig
+        ? {
+            useEslintrc: true,
+            errorOnUnmatchedPattern: false,
+            extensions: ['.js', '.jsx', '.ts', '.tsx'],
+            cache: true,
+            ...eslintOptions,
+          }
+        : {}),
     }
 
     let eslint = new ESLint(options)
@@ -158,10 +179,31 @@ async function lint(
 
     for (const configFile of [eslintrcFile, pkgJsonPath]) {
       if (!configFile) continue
+      if (shouldUseFlatConfig && !configFile.endsWith('eslint.config.js'))
+        continue
 
-      const completeConfig: Config = await eslint.calculateConfigForFile(
-        configFile
-      )
+      const completeConfig: Config = !shouldUseFlatConfig
+        ? await eslint.calculateConfigForFile(configFile)
+        : (await import(configFile)).default.reduce(
+            (acc: Config, config: any) => {
+              if (config.plugins) {
+                acc.plugins = [...acc.plugins, ...Object.keys(config.plugins)]
+              }
+              if (config.rules) {
+                for (const rule of Object.keys(config.rules)) {
+                  if (
+                    typeof config.rules[rule] === 'number' ||
+                    typeof config.rules[rule] === 'string'
+                  ) {
+                    config.rules[rule] = [config.rules[rule]]
+                  }
+                }
+                acc.rules = { ...acc.rules, ...config.rules }
+              }
+              return acc
+            },
+            { plugins: [], rules: {} }
+          )
 
       if (completeConfig.plugins?.includes('@next/next')) {
         nextEslintPluginIsEnabled = true
@@ -310,6 +352,7 @@ export async function runLintCheck(
           '.eslintrc.yml',
           '.eslintrc.json',
           '.eslintrc',
+          'eslint.config.js',
         ],
         {
           cwd: baseDir,
