@@ -115,8 +115,6 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
 
     let node_root_ref = node_root.await?;
 
-    let env = load_env(project_root);
-
     let node_execution_chunking_context = Vc::upcast(
         DevChunkingContext::builder(
             project_root,
@@ -127,6 +125,8 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
         )
         .build(),
     );
+
+    let env = load_env(project_root);
 
     let execution_context =
         ExecutionContext::new(project_root, node_execution_chunking_context, env);
