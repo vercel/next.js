@@ -28,7 +28,9 @@ function commonJsRequireContext(
 }
 
 function fetchWebAssembly(wasmChunkPath: ChunkPath) {
-  return fetch(getChunkRelativeUrl(wasmChunkPath));
+  const chunkUrl = `/${getChunkRelativeUrl(wasmChunkPath)}`;
+
+  return fetch(chunkUrl);
 }
 
 async function loadWebAssembly(
@@ -122,7 +124,7 @@ async function loadWebAssemblyModule(
           .map((p) => encodeURIComponent(p))
           .join("/");
 
-        const chunkUrl = getChunkRelativeUrl(encodedChunkPath);
+        const chunkUrl = `/${getChunkRelativeUrl(encodedChunkPath)}`;
 
         const previousLinks = document.querySelectorAll(
           `link[rel=stylesheet][href^="${chunkUrl}"]`
@@ -222,7 +224,7 @@ async function loadWebAssemblyModule(
       return resolver.promise;
     }
 
-    const chunkUrl = getChunkRelativeUrl(chunkPath);
+    const chunkUrl = `/${getChunkRelativeUrl(chunkPath)}`;
 
     if (chunkPath.endsWith(".css")) {
       const link = document.createElement("link");
