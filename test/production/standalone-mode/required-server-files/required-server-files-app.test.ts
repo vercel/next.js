@@ -11,7 +11,7 @@ import {
   killApp,
 } from 'next-test-utils'
 
-describe('should set-up next', () => {
+describe('required server files app router', () => {
   let next: NextInstance
   let server
   let appPort
@@ -71,12 +71,12 @@ describe('should set-up next', () => {
       testServer,
       (
         await fs.readFile(testServer, 'utf8')
-      ).replace('conf:', `minimalMode: ${minimalMode},conf:`)
+      ).replace('port:', `minimalMode: ${minimalMode},port:`)
     )
     appPort = await findPort()
     server = await initNextServerScript(
       testServer,
-      /Listening on/,
+      /- Local:/,
       {
         ...process.env,
         PORT: appPort,
@@ -156,11 +156,24 @@ describe('should set-up next', () => {
 
   it('should send cache tags in minimal mode for ISR', async () => {
     for (const [path, tags] of [
-      ['/isr/first', 'isr-page,/isr/[slug]/page'],
-      ['/isr/second', 'isr-page,/isr/[slug]/page'],
-      ['/api/isr/first', 'isr-page,/api/isr/[slug]/route'],
-      ['/api/isr/second', 'isr-page,/api/isr/[slug]/route'],
+      [
+        '/isr/first',
+        'isr-page,_N_T_/layout,_N_T_/isr/layout,_N_T_/isr/[slug]/layout,_N_T_/isr/[slug]/page,_N_T_/isr/first',
+      ],
+      [
+        '/isr/second',
+        'isr-page,_N_T_/layout,_N_T_/isr/layout,_N_T_/isr/[slug]/layout,_N_T_/isr/[slug]/page,_N_T_/isr/second',
+      ],
+      [
+        '/api/isr/first',
+        'isr-page,_N_T_/layout,_N_T_/api/layout,_N_T_/api/isr/layout,_N_T_/api/isr/[slug]/layout,_N_T_/api/isr/[slug]/route,_N_T_/api/isr/first',
+      ],
+      [
+        '/api/isr/second',
+        'isr-page,_N_T_/layout,_N_T_/api/layout,_N_T_/api/isr/layout,_N_T_/api/isr/[slug]/layout,_N_T_/api/isr/[slug]/route,_N_T_/api/isr/second',
+      ],
     ]) {
+      require('console').error('checking', { path, tags })
       const res = await fetchViaHTTP(appPort, path, undefined, {
         redirect: 'manual',
       })

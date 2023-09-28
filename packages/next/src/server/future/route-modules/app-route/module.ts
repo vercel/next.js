@@ -33,23 +33,16 @@ import { autoImplementMethods } from './helpers/auto-implement-methods'
 import { getNonStaticMethods } from './helpers/get-non-static-methods'
 import { appendMutableCookies } from '../../../web/spec-extension/adapters/request-cookies'
 import { RouteKind } from '../../route-kind'
+import { parsedUrlQueryToParams } from './helpers/parsed-url-query-to-params'
 
-// These are imported weirdly like this because of the way that the bundling
-// works. We need to import the built files from the dist directory, but we
-// can't do that directly because we need types from the source files. So we
-// import the types from the source files and then import the built files.
-const { requestAsyncStorage } =
-  require('next/dist/client/components/request-async-storage') as typeof import('../../../../client/components/request-async-storage')
-const { staticGenerationAsyncStorage } =
-  require('next/dist/client/components/static-generation-async-storage') as typeof import('../../../../client/components/static-generation-async-storage')
-const serverHooks =
-  require('next/dist/client/components/hooks-server-context') as typeof import('../../../../client/components/hooks-server-context')
-const headerHooks =
-  require('next/dist/client/components/headers') as typeof import('../../../../client/components/headers')
-const { staticGenerationBailout } =
-  require('next/dist/client/components/static-generation-bailout') as typeof import('../../../../client/components/static-generation-bailout')
-const { actionAsyncStorage } =
-  require('next/dist/client/components/action-async-storage') as typeof import('../../../../client/components/action-async-storage')
+import * as serverHooks from '../../../../client/components/hooks-server-context'
+import * as headerHooks from '../../../../client/components/headers'
+import { staticGenerationBailout } from '../../../../client/components/static-generation-bailout'
+
+import { requestAsyncStorage } from '../../../../client/components/request-async-storage.external'
+import { staticGenerationAsyncStorage } from '../../../../client/components/static-generation-async-storage.external'
+import { actionAsyncStorage } from '../../../../client/components/action-async-storage.external'
+import * as sharedModules from './shared-modules'
 
 /**
  * AppRouteRouteHandlerContext is the context that is passed to the route
@@ -69,7 +62,8 @@ type AppRouteHandlerFnContext = {
 }
 
 /**
- * Handler function for app routes.
+ * Handler function for app routes. If a non-Response value is returned, an error
+ * will be thrown.
  */
 export type AppRouteHandlerFn = (
   /**
@@ -81,7 +75,7 @@ export type AppRouteHandlerFn = (
    * dynamic route).
    */
   ctx: AppRouteHandlerFnContext
-) => Promise<Response> | Response
+) => unknown
 
 /**
  * AppRouteHandlers describes the handlers for app routes that is provided by
@@ -145,6 +139,8 @@ export class AppRouteRouteModule extends RouteModule<
    * the underlying static generation storage.
    */
   public readonly staticGenerationBailout = staticGenerationBailout
+
+  public static readonly sharedModules = sharedModules
 
   /**
    * A reference to the mutation related async storage, such as mutations of
@@ -263,12 +259,13 @@ export class AppRouteRouteModule extends RouteModule<
 
     // Get the context for the static generation.
     const staticGenerationContext: StaticGenerationContext = {
-      pathname: this.definition.pathname,
+      urlPathname: request.nextUrl.pathname,
       renderOpts:
         // If the staticGenerationContext is not provided then we default to
         // the default values.
         context.staticGenerationContext ?? {
           supportsDynamicHTML: false,
+          originalPathname: this.definition.pathname,
         },
     }
 
@@ -362,14 +359,22 @@ export class AppRouteRouteModule extends RouteModule<
                         this.staticGenerationAsyncStorage,
                     })
                     const res = await handler(wrappedRequest, {
-                      params: context.params,
+                      params: context.params
+                        ? parsedUrlQueryToParams(context.params)
+                        : undefined,
                     })
+                    if (!(res instanceof Response)) {
+                      throw new Error(
+                        `No response is returned from route handler '${this.resolvedPagePath}'. Ensure you return a \`Response\` or a \`NextResponse\` in all branches of your handler.`
+                      )
+                    }
                     ;(context.staticGenerationContext as any).fetchMetrics =
                       staticGenerationStore.fetchMetrics
 
-                    await Promise.all(
+                    context.staticGenerationContext.waitUntil = Promise.all(
                       staticGenerationStore.pendingRevalidates || []
                     )
+
                     addImplicitTags(staticGenerationStore)
                     ;(context.staticGenerationContext as any).fetchTags =
                       staticGenerationStore.tags?.join(',')

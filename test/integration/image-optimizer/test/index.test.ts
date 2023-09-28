@@ -704,7 +704,7 @@ describe('Image Optimizer', () => {
       const opts = { headers: { accept: 'image/webp' } }
       const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
       expect(res.status).toBe(200)
-      await expectWidth(res, 8)
+      await expectWidth(res, 320)
     })
   })
 })

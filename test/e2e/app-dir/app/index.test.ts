@@ -1,5 +1,4 @@
 import { createNextDescribe } from 'e2e-utils'
-import crypto from 'crypto'
 import { check, getRedboxHeader, hasRedbox, waitFor } from 'next-test-utils'
 import cheerio from 'cheerio'
 import stripAnsi from 'strip-ansi'
@@ -172,12 +171,7 @@ createNextDescribe(
         await next.fetch('/')
         expect(
           stripAnsi(next.cliOutput).match(
-            /You have enabled experimental feature/g
-          ).length
-        ).toBe(1)
-        expect(
-          stripAnsi(next.cliOutput).match(
-            /Experimental features are not covered by semver/g
+            /Experiments \(use at your own risk\):/g
           ).length
         ).toBe(1)
       })
@@ -255,9 +249,7 @@ createNextDescribe(
       const res = await next.fetch('/dashboard')
       expect(res.headers.get('x-edge-runtime')).toBe('1')
       expect(res.headers.get('vary')).toBe(
-        isNextDeploy
-          ? 'RSC, Next-Router-State-Tree, Next-Router-Prefetch'
-          : 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding'
+        'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url'
       )
     })
 
@@ -269,8 +261,8 @@ createNextDescribe(
       })
       expect(res.headers.get('vary')).toBe(
         isNextDeploy
-          ? 'RSC, Next-Router-State-Tree, Next-Router-Prefetch'
-          : 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding'
+          ? 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url'
+          : 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url, Accept-Encoding'
       )
     })
 
@@ -1281,129 +1273,6 @@ createNextDescribe(
         })
       })
     })
-    ;(isDev || isNextDeploy ? describe.skip : describe)(
-      'Subresource Integrity',
-      () => {
-        function fetchWithPolicy(policy: string | null) {
-          return next.fetch('/dashboard', {
-            headers: policy
-              ? {
-                  'Content-Security-Policy': policy,
-                }
-              : {},
-          })
-        }
-
-        async function renderWithPolicy(policy: string | null) {
-          const res = await fetchWithPolicy(policy)
-
-          expect(res.ok).toBe(true)
-
-          const html = await res.text()
-
-          return cheerio.load(html)
-        }
-
-        it('does not include nonce when not enabled', async () => {
-          const policies = [
-            `script-src 'nonce-'`, // invalid nonce
-            'style-src "nonce-cmFuZG9tCg=="', // no script or default src
-            '', // empty string
-          ]
-
-          for (const policy of policies) {
-            const $ = await renderWithPolicy(policy)
-
-            // Find all the script tags without src attributes and with nonce
-            // attributes.
-            const elements = $('script[nonce]:not([src])')
-
-            // Expect there to be none.
-            expect(elements.length).toBe(0)
-          }
-        })
-
-        it('includes a nonce value with inline scripts when Content-Security-Policy header is defined', async () => {
-          // A random nonce value, base64 encoded.
-          const nonce = 'cmFuZG9tCg=='
-
-          // Validate all the cases where we could parse the nonce.
-          const policies = [
-            `script-src 'nonce-${nonce}'`, // base case
-            `   script-src   'nonce-${nonce}' `, // extra space added around sources and directive
-            `style-src 'self'; script-src 'nonce-${nonce}'`, // extra directives
-            `script-src 'self' 'nonce-${nonce}' 'nonce-othernonce'`, // extra nonces
-            `default-src 'nonce-othernonce'; script-src 'nonce-${nonce}';`, // script and then fallback case
-            `default-src 'nonce-${nonce}'`, // fallback case
-          ]
-
-          for (const policy of policies) {
-            const $ = await renderWithPolicy(policy)
-
-            // Find all the script tags without src attributes.
-            const elements = $('script:not([src])')
-
-            // Expect there to be at least 1 script tag without a src attribute.
-            expect(elements.length).toBeGreaterThan(0)
-
-            // Expect all inline scripts to have the nonce value.
-            elements.each((i, el) => {
-              expect(el.attribs['nonce']).toBe(nonce)
-            })
-          }
-        })
-
-        it('includes an integrity attribute on scripts', async () => {
-          const $ = await next.render$('/dashboard')
-
-          // Find all the script tags with src attributes.
-          const elements = $('script[src]')
-
-          // Expect there to be at least 1 script tag with a src attribute.
-          expect(elements.length).toBeGreaterThan(0)
-
-          // Collect all the scripts with integrity hashes so we can verify them.
-          const files: [string, string][] = []
-
-          // For each of these attributes, ensure that there's an integrity
-          // attribute and starts with the correct integrity hash prefix.
-          elements.each((i, el) => {
-            const integrity = el.attribs['integrity']
-            expect(integrity).toBeDefined()
-            expect(integrity).toStartWith('sha256-')
-
-            const src = el.attribs['src']
-            expect(src).toBeDefined()
-
-            files.push([src, integrity])
-          })
-
-          // For each script tag, ensure that the integrity attribute is the
-          // correct hash of the script tag.
-          for (const [src, integrity] of files) {
-            const res = await next.fetch(src)
-            expect(res.status).toBe(200)
-            const content = await res.text()
-
-            const hash = crypto
-              .createHash('sha256')
-              .update(content)
-              .digest()
-              .toString('base64')
-
-            expect(integrity).toEndWith(hash)
-          }
-        })
-
-        it('throws when escape characters are included in nonce', async () => {
-          const res = await fetchWithPolicy(
-            `script-src 'nonce-"><script></script>"'`
-          )
-
-          expect(res.status).toBe(500)
-        })
-      }
-    )
 
     describe('template component', () => {
       it('should render the template that holds state in a client component and reset on navigation', async () => {
@@ -1825,13 +1694,13 @@ createNextDescribe(
       it('should insert preload tags for beforeInteractive and afterInteractive scripts', async () => {
         const html = await next.render('/script')
         expect(html).toContain(
-          '<link rel="preload" as="script" href="/test1.js"/>'
+          '<link rel="preload" href="/test1.js" as="script"/>'
         )
         expect(html).toContain(
-          '<link rel="preload" as="script" href="/test2.js"/>'
+          '<link rel="preload" href="/test2.js" as="script"/>'
         )
         expect(html).toContain(
-          '<link rel="preload" as="script" href="/test3.js"/>'
+          '<link rel="preload" href="/test3.js" as="script"/>'
         )
 
         // test4.js has lazyOnload which doesn't need to be preloaded
@@ -1858,6 +1727,50 @@ createNextDescribe(
         )
         expect(await browser.elementByCss('p').text()).toBe('item count 128000')
       })
+    })
+
+    describe('bootstrap scripts', () => {
+      it('should only bootstrap with one script, prinitializing the rest', async () => {
+        const html = await next.render('/bootstrap')
+        const $ = cheerio.load(html)
+
+        // We assume a minimum of 2 scripts, webpack runtime + main-app
+        expect($('script[async]').length).toBeGreaterThan(1)
+        expect($('body').find('script[async]').length).toBe(1)
+      })
+
+      if (!isDev) {
+        it('should successfully bootstrap even when using CSP', async () => {
+          // This path has a nonce applied in middleware
+          const browser = await next.browser('/bootstrap/with-nonce')
+          const response = await next.fetch('/bootstrap/with-nonce')
+          // We expect this page to response with CSP headers requiring a nonce for scripts
+          expect(response.headers.get('content-security-policy')).toContain(
+            "script-src 'nonce"
+          )
+          // We expect to find the updated text which demonstrates our app
+          // was able to bootstrap successfully (scripts run)
+          expect(
+            await browser.eval('document.getElementById("val").textContent')
+          ).toBe('[[updated]]')
+        })
+      } else {
+        it('should fail to bootstrap when using CSP in Dev due to eval', async () => {
+          // This test is here to ensure that we don't accidentally turn CSP off
+          // for the prod version.
+          const browser = await next.browser('/bootstrap/with-nonce')
+          const response = await next.fetch('/bootstrap/with-nonce')
+          // We expect this page to response with CSP headers requiring a nonce for scripts
+          expect(response.headers.get('content-security-policy')).toContain(
+            "script-src 'nonce"
+          )
+          // We expect our app to fail to bootstrap due to invalid eval use in Dev.
+          // We assert the html is in it's SSR'd state.
+          expect(
+            await browser.eval('document.getElementById("val").textContent')
+          ).toBe('initial')
+        })
+      }
     })
   }
 )

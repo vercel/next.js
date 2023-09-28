@@ -20,7 +20,10 @@ export default class ResponseCache {
 
   constructor(minimalMode: boolean) {
     this.pendingResponses = new Map()
-    this.minimalMode = minimalMode
+    // this is a hack to avoid Webpack knowing this is equal to this.minimalMode
+    // because we replace this.minimalMode to true in production bundles.
+    const minimalModeKey = 'minimalMode'
+    this[minimalModeKey] = minimalMode
   }
 
   public get(
@@ -156,7 +159,9 @@ export default class ResponseCache {
                     status: cacheEntry.value.status,
                   }
                 : cacheEntry.value,
-              cacheEntry.revalidate
+              {
+                revalidate: cacheEntry.revalidate,
+              }
             )
           }
         } else {
@@ -170,11 +175,12 @@ export default class ResponseCache {
         // when a getStaticProps path is erroring we automatically re-set the
         // existing cache under a new expiration to prevent non-stop retrying
         if (cachedResponse && key) {
-          await incrementalCache.set(
-            key,
-            cachedResponse.value,
-            Math.min(Math.max(cachedResponse.revalidate || 3, 3), 30)
-          )
+          await incrementalCache.set(key, cachedResponse.value, {
+            revalidate: Math.min(
+              Math.max(cachedResponse.revalidate || 3, 3),
+              30
+            ),
+          })
         }
         // while revalidating in the background we can't reject as
         // we already resolved the cache entry so log the error here

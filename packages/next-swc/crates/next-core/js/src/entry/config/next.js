@@ -20,6 +20,25 @@ const loadNextConfig = async (silent) => {
   nextConfig.exportPathMap = nextConfig.exportPathMap && {}
   nextConfig.webpack = nextConfig.webpack && {}
 
+  // Transform the `modularizeImports` option
+  nextConfig.modularizeImports = nextConfig.modularizeImports
+    ? Object.fromEntries(
+        Object.entries(nextConfig.modularizeImports).map(([mod, config]) => [
+          mod,
+          {
+            ...config,
+            transform:
+              typeof config.transform === 'string'
+                ? config.transform
+                : Object.entries(config.transform).map(([key, value]) => [
+                    key,
+                    value,
+                  ]),
+          },
+        ])
+      )
+    : undefined
+
   if (nextConfig.experimental?.turbopack?.loaders) {
     ensureLoadersHaveSerializableOptions(
       nextConfig.experimental.turbopack.loaders

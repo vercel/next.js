@@ -1,18 +1,11 @@
 #!/usr/bin/env node
+import '../server/require-hook'
 import * as log from '../build/output/log'
 import arg from 'next/dist/compiled/arg/index.js'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 import { commands } from '../lib/commands'
-;['react', 'react-dom'].forEach((dependency) => {
-  try {
-    // When 'npm link' is used it checks the clone location. Not the project.
-    require.resolve(dependency)
-  } catch (err) {
-    console.warn(
-      `The module '${dependency}' was not found. Next.js requires that you include it in 'dependencies' of your 'package.json'. To add it, run 'npm install ${dependency}'`
-    )
-  }
-})
+import { commandArgs } from '../lib/command-args'
+import { getValidatedArgs } from '../lib/get-validated-args'
 
 const defaultCommand = 'dev'
 const args = arg(
@@ -122,13 +115,30 @@ if (!process.env.NEXT_MANUAL_SIG_HANDLE && command !== 'dev') {
   process.on('SIGTERM', () => process.exit(0))
   process.on('SIGINT', () => process.exit(0))
 }
+async function main() {
+  const currentArgsSpec = commandArgs[command]()
+  const validatedArgs = getValidatedArgs(currentArgsSpec, forwardedArgs)
 
-commands[command]()
-  .then((exec) => exec(forwardedArgs))
-  .then(() => {
-    if (command === 'build') {
-      // ensure process exits after build completes so open handles/connections
-      // don't cause process to hang
-      process.exit(0)
+  for (const dependency of ['react', 'react-dom']) {
+    try {
+      // When 'npm link' is used it checks the clone location. Not the project.
+      require.resolve(dependency)
+    } catch (err) {
+      console.warn(
+        `The module '${dependency}' was not found. Next.js requires that you include it in 'dependencies' of your 'package.json'. To add it, run 'npm install ${dependency}'`
+      )
     }
-  })
+  }
+
+  await commands[command]()
+    .then((exec) => exec(validatedArgs))
+    .then(() => {
+      if (command === 'build' || command === 'experimental-compile') {
+        // ensure process exits after build completes so open handles/connections
+        // don't cause process to hang
+        process.exit(0)
+      }
+    })
+}
+
+main()

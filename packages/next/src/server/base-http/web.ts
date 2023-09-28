@@ -1,11 +1,12 @@
 import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'http'
+import type { FetchMetrics } from './index'
 import { toNodeOutgoingHttpHeaders } from '../web/utils'
-
 import { BaseNextRequest, BaseNextResponse } from './index'
 
 export class WebNextRequest extends BaseNextRequest<ReadableStream | null> {
   public request: Request
   public headers: IncomingHttpHeaders
+  public fetchMetrics?: FetchMetrics
 
   constructor(request: Request) {
     const url = new URL(request.url)
@@ -70,7 +71,7 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
   }
 
   getHeaderValues(name: string): string[] | undefined {
-    // https://developer.mozilla.org/en-US/docs/Web/API/Headers/get#example
+    // https://developer.mozilla.org/docs/Web/API/Headers/get#example
     return this.getHeader(name)
       ?.split(',')
       .map((v) => v.trimStart())

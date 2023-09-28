@@ -21,7 +21,7 @@ function runTests() {
 }
 
 describe('styled-jsx using in node_modules', () => {
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       const output = await nextBuild(appDir, undefined, {
         stdout: true,

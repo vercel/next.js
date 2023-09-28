@@ -21,8 +21,8 @@ const handleOutput = (msg) => {
   output += msg
 }
 
-async function get$(path, query) {
-  const html = await renderViaHTTP(appPort, path, query)
+async function get$(path, query, options) {
+  const html = await renderViaHTTP(appPort, path, query, options)
   return cheerio.load(html)
 }
 
@@ -47,6 +47,19 @@ describe('TypeScript Features', () => {
     it('should render the cookies page', async () => {
       const $ = await get$('/ssr/cookies')
       expect($('#cookies').text()).toBe('{}')
+    })
+
+    it('should render the cookies page with cookies', async () => {
+      const $ = await get$(
+        '/ssr/cookies',
+        {},
+        {
+          headers: {
+            Cookie: 'key=value;',
+          },
+        }
+      )
+      expect($('#cookies').text()).toBe(`{"key":"value"}`)
     })
 
     it('should render the generics page', async () => {

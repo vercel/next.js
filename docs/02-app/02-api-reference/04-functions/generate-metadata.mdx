@@ -109,8 +109,7 @@ export async function generateMetadata(
 export default function Page({ params, searchParams }: Props) {}
 ```
 
-```
-jsx filename="app/products/[id]/page.js" switcher
+```jsx filename="app/products/[id]/page.js" switcher
 export async function generateMetadata({ params, searchParams }, parent) {
   // read route params
   const id = params.id
@@ -146,7 +145,7 @@ export default function Page({ params, searchParams }) {}
     | `app/shop/[tag]/[item]/page.js` | `/shop/1/2` | `{ tag: '1', item: '2' }` |
     | `app/shop/[...slug]/page.js`    | `/shop/1/2` | `{ slug: ['1', '2'] }`    |
 
-  - `searchParams` - An object containing the current URL's [search params](https://developer.mozilla.org/en-US/docs/Learn/Common_questions/What_is_a_URL#parameters). Examples:
+  - `searchParams` - An object containing the current URL's [search params](https://developer.mozilla.org/docs/Learn/Common_questions/What_is_a_URL#parameters). Examples:
 
     | URL             | `searchParams`       |
     | --------------- | -------------------- |
@@ -163,7 +162,7 @@ export default function Page({ params, searchParams }) {}
 > **Good to know**:
 >
 > - If metadata doesn't depend on runtime information, it should be defined using the static [`metadata` object](#the-metadata-object) rather than `generateMetadata`.
-> - When rendering a route, Next.js will [automatically deduplicate `fetch` requests](/docs/app/building-your-application/data-fetching#automatic-fetch-request-deduping) for the same data across `generateMetadata`, `generateStaticParams`, Layouts, Pages, and Server Components. React [`cache` can be used](/docs/app/building-your-application/data-fetching/caching#react-cache) if `fetch` is unavailable.
+> - `fetch` requests are automatically [memoized](/docs/app/building-your-application/caching#request-memoization) for the same data across `generateMetadata`, `generateStaticParams`, Layouts, Pages, and Server Components. React [`cache` can be used](/docs/app/building-your-application/caching#request-memoization) if `fetch` is unavailable.
 > - `searchParams` are only available in `page.js` segments.
 > - The [`redirect()`](/docs/app/api-reference/functions/redirect) and [`notFound()`](/docs/app/api-reference/functions/not-found) Next.js methods can also be used inside `generateMetadata`.
 
@@ -636,7 +635,7 @@ export const metadata = {
 
 ### `themeColor`
 
-Learn more about [theme-color](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/meta/name/theme-color).
+Learn more about [theme-color](https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/theme-color).
 
 **Simple theme color**
 
@@ -668,7 +667,7 @@ export const metadata = {
 
 ### `manifest`
 
-A web application manifest, as defined in the [Web Application Manifest specification](https://developer.mozilla.org/en-US/docs/Web/Manifest).
+A web application manifest, as defined in the [Web Application Manifest specification](https://developer.mozilla.org/docs/Web/Manifest).
 
 ```jsx filename="layout.js / page.js"
 export const metadata = {
@@ -994,7 +993,7 @@ The following metadata types do not currently have built-in support. However, th
 
 ### Resource hints
 
-The `<link>` element has a number of `rel` keywords that can be used to hint to the browser that a external resource is likely to be needed. The browser uses this information to apply preloading optimizations depending on the keyword.
+The `<link>` element has a number of `rel` keywords that can be used to hint to the browser that an external resource is likely to be needed. The browser uses this information to apply preloading optimizations depending on the keyword.
 
 While the Metadata API doesn't directly support these hints, you can use new [`ReactDOM` methods](https://github.com/facebook/react/pull/26237) to safely insert them into the `<head>` of the document.
 
@@ -1028,7 +1027,7 @@ export function PreloadResources() {
 
 ##### `<link rel="preload">`
 
-Start loading a resource early in the page rendering (browser) lifecycle. [MDN Docs](https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/rel/preload).
+Start loading a resource early in the page rendering (browser) lifecycle. [MDN Docs](https://developer.mozilla.org/docs/Web/HTML/Attributes/rel/preload).
 
 ```tsx
 ReactDOM.preload(href: string, options: { as: string })
@@ -1040,7 +1039,7 @@ ReactDOM.preload(href: string, options: { as: string })
 
 ##### `<link rel="preconnect">`
 
-Preemptively initiate a connection to an origin. [MDN Docs](https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/rel/preconnect).
+Preemptively initiate a connection to an origin. [MDN Docs](https://developer.mozilla.org/docs/Web/HTML/Attributes/rel/preconnect).
 
 ```tsx
 ReactDOM.preconnect(href: string, options?: { crossOrigin?: string })
@@ -1052,7 +1051,7 @@ ReactDOM.preconnect(href: string, options?: { crossOrigin?: string })
 
 ##### `<link rel="dns-prefetch">`
 
-Attempt to resolve a domain name before resources get requested. [MDN Docs](https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/rel/dns-prefetch).
+Attempt to resolve a domain name before resources get requested. [MDN Docs](https://developer.mozilla.org/docs/Web/HTML/Attributes/rel/dns-prefetch).
 
 ```tsx
 ReactDOM.prefetchDNS(href: string)

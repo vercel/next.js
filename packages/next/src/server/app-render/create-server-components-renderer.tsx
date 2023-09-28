@@ -23,6 +23,7 @@ export function createServerComponentRenderer<Props>(
     clientReferenceManifest,
     serverContexts,
     rscChunks,
+    formState,
   }: {
     transformStream: TransformStream<Uint8Array, Uint8Array>
     clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
@@ -30,20 +31,11 @@ export function createServerComponentRenderer<Props>(
       [ServerContextName: string, JSONValue: Object | number | string]
     >
     rscChunks: Uint8Array[]
+    formState: null | any
   },
   serverComponentsErrorHandler: ReturnType<typeof createErrorHandler>,
   nonce?: string
 ): (props: Props) => JSX.Element {
-  // We need to expose the bundled `require` API globally for
-  // react-server-dom-webpack. This is a hack until we find a better way.
-  if (ComponentMod.__next_app__) {
-    // @ts-ignore
-    globalThis.__next_require__ = ComponentMod.__next_app__.require
-
-    // @ts-ignore
-    globalThis.__next_chunk_load__ = ComponentMod.__next_app__.loadChunk
-  }
-
   let RSCStream: ReadableStream<Uint8Array>
   const createRSCStream = (props: Props) => {
     if (!RSCStream) {
@@ -70,23 +62,9 @@ export function createServerComponentRenderer<Props>(
       clientReferenceManifest,
       rscChunks,
       flightResponseRef,
+      formState,
       nonce
     )
     return use(response)
   }
-}
-
-export function ErrorHtml({
-  head,
-  children,
-}: {
-  head?: React.ReactNode
-  children?: React.ReactNode
-}) {
-  return (
-    <html id="__next_error__">
-      <head>{head}</head>
-      <body>{children}</body>
-    </html>
-  )
 }

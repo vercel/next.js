@@ -1,4 +1,4 @@
-import type { NextConfigComplete } from '../server/config-shared'
+import type { NextConfig, NextConfigComplete } from '../server/config-shared'
 import type { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
 import type { AssetBinding } from './webpack/loaders/get-module-build-info'
 import type { GetStaticPaths, PageConfig, ServerRuntime } from 'next/types'
@@ -14,14 +14,15 @@ import type {
   EdgeFunctionDefinition,
   MiddlewareManifest,
 } from './webpack/plugins/middleware-plugin'
-import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage'
+import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage.external'
+import type { WebpackLayerName } from '../lib/constants'
 
 import '../server/require-hook'
 import '../server/node-polyfill-fetch'
 import '../server/node-polyfill-crypto'
 import '../server/node-environment'
 
-import chalk from 'next/dist/compiled/chalk'
+import { green, yellow, red, cyan, bold, underline } from '../lib/picocolors'
 import getGzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
@@ -35,6 +36,7 @@ import {
   SERVER_PROPS_SSG_CONFLICT,
   MIDDLEWARE_FILENAME,
   INSTRUMENTATION_HOOK_FILENAME,
+  WEBPACK_LAYERS,
 } from '../lib/constants'
 import { MODERN_BROWSERSLIST_TARGET } from '../shared/lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
@@ -53,7 +55,6 @@ import {
 } from '../server/load-components'
 import { trace } from '../trace'
 import { setHttpClientAndAgentOptions } from '../server/setup-http-agent-env'
-import { recursiveDelete } from '../lib/recursive-delete'
 import { Sema } from 'next/dist/compiled/async-sema'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
@@ -66,9 +67,14 @@ import { nodeFs } from '../server/lib/node-fs-methods'
 import * as ciEnvironment from '../telemetry/ci-info'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { denormalizeAppPagePath } from '../shared/lib/page-path/denormalize-app-path'
-import { AppRouteRouteModule } from '../server/future/route-modules/app-route/module'
+
+const { AppRouteRouteModule } =
+  require('../server/future/route-modules/app-route/module.compiled') as typeof import('../server/future/route-modules/app-route/module')
 
 export type ROUTER_TYPE = 'pages' | 'app'
+
+// Use `print()` for expected console output
+const print = console.log
 
 const RESERVED_PAGE = /^\/(_app|_error|_document|api(\/|$))/
 const fileGzipStats: { [k: string]: Promise<number> | undefined } = {}
@@ -293,6 +299,31 @@ export function isInstrumentationHookFilename(file?: string) {
   )
 }
 
+const filterAndSortList = (
+  list: ReadonlyArray<string>,
+  routeType: ROUTER_TYPE,
+  hasCustomApp: boolean
+) => {
+  let pages: string[]
+  if (routeType === 'app') {
+    // filter out static app route of /favicon.ico
+    pages = list.filter((e) => e !== '/favicon.ico')
+  } else {
+    // filter built-in pages
+    pages = list
+      .slice()
+      .filter(
+        (e) =>
+          !(
+            e === '/_document' ||
+            e === '/_error' ||
+            (!hasCustomApp && e === '/_app')
+          )
+      )
+  }
+  return pages.sort((a, b) => a.localeCompare(b))
+}
+
 export interface PageInfo {
   isHybridAmp?: boolean
   size: number
@@ -320,7 +351,7 @@ export async function printTreeView(
     buildManifest,
     appBuildManifest,
     middlewareManifest,
-    useStatic404,
+    useStaticPages404,
     gzipSize = true,
   }: {
     distPath: string
@@ -330,29 +361,29 @@ export async function printTreeView(
     buildManifest: BuildManifest
     appBuildManifest?: AppBuildManifest
     middlewareManifest: MiddlewareManifest
-    useStatic404: boolean
+    useStaticPages404: boolean
     gzipSize?: boolean
   }
 ) {
   const getPrettySize = (_size: number): string => {
     const size = prettyBytes(_size)
     // green for 0-130kb
-    if (_size < 130 * 1000) return chalk.green(size)
+    if (_size < 130 * 1000) return green(size)
     // yellow for 130-170kb
-    if (_size < 170 * 1000) return chalk.yellow(size)
+    if (_size < 170 * 1000) return yellow(size)
     // red for >= 170kb
-    return chalk.red.bold(size)
+    return red(bold(size))
   }
 
   const MIN_DURATION = 300
   const getPrettyDuration = (_duration: number): string => {
     const duration = `${_duration} ms`
     // green for 300-1000ms
-    if (_duration < 1000) return chalk.green(duration)
+    if (_duration < 1000) return green(duration)
     // yellow for 1000-2000ms
-    if (_duration < 2000) return chalk.yellow(duration)
+    if (_duration < 2000) return yellow(duration)
     // red for >= 2000ms
-    return chalk.red.bold(duration)
+    return red(bold(duration))
   }
 
   const getCleanName = (fileName: string) =>
@@ -365,21 +396,9 @@ export async function printTreeView(
       .replace(/(?:^|[.-])([0-9a-z]{6})[0-9a-z]{14}(?=\.)/, '.$1')
 
   // Check if we have a custom app.
-  const hasCustomApp =
+  const hasCustomApp = !!(
     pagesDir && (await findPageFile(pagesDir, '/_app', pageExtensions, false))
-
-  const filterAndSortList = (list: ReadonlyArray<string>) =>
-    list
-      .slice()
-      .filter(
-        (e) =>
-          !(
-            e === '/_document' ||
-            e === '/_error' ||
-            (!hasCustomApp && e === '/_app')
-          )
-      )
-      .sort((a, b) => a.localeCompare(b))
+  )
 
   // Collect all the symbols we use so we can print the icons out.
   const usedSymbols = new Set()
@@ -400,15 +419,20 @@ export async function printTreeView(
     list: ReadonlyArray<string>
     routerType: ROUTER_TYPE
   }) => {
+    const filteredPages = filterAndSortList(list, routerType, hasCustomApp)
+    if (filteredPages.length === 0) {
+      return
+    }
+
     messages.push(
       [
         routerType === 'app' ? 'Route (app)' : 'Route (pages)',
         'Size',
         'First Load JS',
-      ].map((entry) => chalk.underline(entry)) as [string, string, string]
+      ].map((entry) => underline(entry)) as [string, string, string]
     )
 
-    filterAndSortList(list).forEach((item, i, arr) => {
+    filteredPages.forEach((item, i, arr) => {
       const border =
         i === 0
           ? arr.length === 1
@@ -451,14 +475,14 @@ export async function printTreeView(
         }`,
         pageInfo
           ? ampFirst
-            ? chalk.cyan('AMP')
+            ? cyan('AMP')
             : pageInfo.size >= 0
             ? prettyBytes(pageInfo.size)
             : ''
           : '',
         pageInfo
           ? ampFirst
-            ? chalk.cyan('AMP')
+            ? cyan('AMP')
             : pageInfo.size >= 0
             ? getPrettySize(pageInfo.totalSize)
             : ''
@@ -602,10 +626,11 @@ export async function printTreeView(
 
   pageInfos.set('/404', {
     ...(pageInfos.get('/404') || pageInfos.get('/_error')),
-    static: useStatic404,
+    static: useStaticPages404,
   } as any)
 
-  if (!lists.pages.includes('/404')) {
+  // If there's no app /_notFound page present, then the 404 is still using the pages/404
+  if (!lists.pages.includes('/404') && !lists.app?.includes('/_not-found')) {
     lists.pages = [...lists.pages, '/404']
   }
 
@@ -627,15 +652,15 @@ export async function printTreeView(
     messages.push(['ƒ Middleware', getPrettySize(sum(middlewareSizes)), ''])
   }
 
-  console.log(
+  print(
     textTable(messages, {
       align: ['l', 'l', 'r'],
       stringLength: (str) => stripAnsi(str).length,
     })
   )
 
-  console.log()
-  console.log(
+  print()
+  print(
     textTable(
       [
         usedSymbols.has('ℇ') && [
@@ -646,9 +671,9 @@ export async function printTreeView(
         usedSymbols.has('λ') && [
           'λ',
           '(Server)',
-          `server-side renders at runtime (uses ${chalk.cyan(
+          `server-side renders at runtime (uses ${cyan(
             'getInitialProps'
-          )} or ${chalk.cyan('getServerSideProps')})`,
+          )} or ${cyan('getServerSideProps')})`,
         ],
         usedSymbols.has('○') && [
           '○',
@@ -658,14 +683,14 @@ export async function printTreeView(
         usedSymbols.has('●') && [
           '●',
           '(SSG)',
-          `automatically generated as static HTML + JSON (uses ${chalk.cyan(
+          `automatically generated as static HTML + JSON (uses ${cyan(
             'getStaticProps'
           )})`,
         ],
         usedSymbols.has('ISR') && [
           '',
           '(ISR)',
-          `incremental static regeneration (uses revalidate in ${chalk.cyan(
+          `incremental static regeneration (uses revalidate in ${cyan(
             'getStaticProps'
           )})`,
         ],
@@ -677,7 +702,7 @@ export async function printTreeView(
     )
   )
 
-  console.log()
+  print()
 }
 
 export function printCustomRoutes({
@@ -691,8 +716,8 @@ export function printCustomRoutes({
   ) => {
     const isRedirects = type === 'Redirects'
     const isHeaders = type === 'Headers'
-    console.log(chalk.underline(type))
-    console.log()
+    print(underline(type))
+    print()
 
     /*
         ┌ source
@@ -734,7 +759,7 @@ export function printCustomRoutes({
       })
       .join('\n')
 
-    console.log(routesStr, '\n')
+    print(routesStr, '\n')
   }
 
   if (redirects.length) {
@@ -1035,6 +1060,7 @@ export async function buildStaticPaths({
                   .join('/')
               : escapePathDelimiters(paramValue as string, true)
           )
+          .replace(/\\/g, '/')
           .replace(/(?!^)\/$/, '')
 
         encodedBuiltPage = encodedBuiltPage
@@ -1044,6 +1070,7 @@ export async function buildStaticPaths({
               ? (paramValue as string[]).map(encodeURIComponent).join('/')
               : encodeURIComponent(paramValue as string)
           )
+          .replace(/\\/g, '/')
           .replace(/(?!^)\/$/, '')
       })
 
@@ -1133,25 +1160,31 @@ export const collectGenerateParams = async (
     ? segment[2]?.layout?.[0]?.()
     : segment[2]?.page?.[0]?.())
   const config = collectAppConfig(mod)
-
+  const page: string | undefined = segment[0]
   const isClientComponent = isClientReference(mod)
-  const isDynamicSegment = segment[0] && /^\[.+\]$/.test(segment[0])
+  const isDynamicSegment = /^\[.+\]$/.test(page || '')
+  const { generateStaticParams, getStaticPaths } = mod || {}
+
+  //console.log({parentSegments, page, isDynamicSegment, isClientComponent, generateStaticParams})
+  if (isDynamicSegment && isClientComponent && generateStaticParams) {
+    throw new Error(
+      `Page "${page}" cannot export "generateStaticParams()" because it is a client component`
+    )
+  }
 
   const result = {
     isLayout,
     isDynamicSegment,
     segmentPath: `/${parentSegments.join('/')}${
-      segment[0] && parentSegments.length > 0 ? '/' : ''
-    }${segment[0]}`,
+      page && parentSegments.length > 0 ? '/' : ''
+    }${page}`,
     config,
-    getStaticPaths: isClientComponent ? undefined : mod?.getStaticPaths,
-    generateStaticParams: isClientComponent
-      ? undefined
-      : mod?.generateStaticParams,
+    getStaticPaths: isClientComponent ? undefined : getStaticPaths,
+    generateStaticParams: isClientComponent ? undefined : generateStaticParams,
   }
 
-  if (segment[0]) {
-    parentSegments.push(segment[0])
+  if (page) {
+    parentSegments.push(page)
   }
 
   if (result.config || result.generateStaticParams || result.getStaticPaths) {
@@ -1230,7 +1263,7 @@ export async function buildAppStaticPaths({
   return StaticGenerationAsyncStorageWrapper.wrap(
     staticGenerationAsyncStorage,
     {
-      pathname: page,
+      urlPathname: page,
       renderOpts: {
         originalPathname: page,
         incrementalCache,
@@ -1378,7 +1411,9 @@ export async function isPageStatic({
   const isPageStaticSpan = trace('is-page-static-utils', parentId)
   return isPageStaticSpan
     .traceAsyncFn(async () => {
-      require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
+      require('../shared/lib/runtime-config.external').setConfig(
+        runtimeEnvConfig
+      )
       setHttpClientAndAgentOptions({
         httpAgentOptions,
       })
@@ -1423,7 +1458,7 @@ export async function isPageStatic({
       } else {
         componentsResult = await loadComponents({
           distDir,
-          pathname: originalAppPath || page,
+          page: originalAppPath || page,
           isAppPath: pageType === 'app',
         })
       }
@@ -1545,38 +1580,6 @@ export async function isPageStatic({
       const hasStaticProps = !!componentsResult.getStaticProps
       const hasStaticPaths = !!componentsResult.getStaticPaths
       const hasServerProps = !!componentsResult.getServerSideProps
-      const hasLegacyServerProps = !!(await componentsResult.ComponentMod
-        .unstable_getServerProps)
-      const hasLegacyStaticProps = !!(await componentsResult.ComponentMod
-        .unstable_getStaticProps)
-      const hasLegacyStaticPaths = !!(await componentsResult.ComponentMod
-        .unstable_getStaticPaths)
-      const hasLegacyStaticParams = !!(await componentsResult.ComponentMod
-        .unstable_getStaticParams)
-
-      if (hasLegacyStaticParams) {
-        throw new Error(
-          `unstable_getStaticParams was replaced with getStaticPaths. Please update your code.`
-        )
-      }
-
-      if (hasLegacyStaticPaths) {
-        throw new Error(
-          `unstable_getStaticPaths was replaced with getStaticPaths. Please update your code.`
-        )
-      }
-
-      if (hasLegacyStaticProps) {
-        throw new Error(
-          `unstable_getStaticProps was replaced with getStaticProps. Please update your code.`
-        )
-      }
-
-      if (hasLegacyServerProps) {
-        throw new Error(
-          `unstable_getServerProps was replaced with getServerSideProps. Please update your code.`
-        )
-      }
 
       // A page cannot be prerendered _and_ define a data requirement. That's
       // contradictory!
@@ -1662,11 +1665,11 @@ export async function hasCustomGetInitialProps(
   runtimeEnvConfig: any,
   checkingApp: boolean
 ): Promise<boolean> {
-  require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
+  require('../shared/lib/runtime-config.external').setConfig(runtimeEnvConfig)
 
   const components = await loadComponents({
     distDir,
-    pathname: page,
+    page: page,
     isAppPath: false,
   })
   let mod = components.ComponentMod
@@ -1685,10 +1688,10 @@ export async function getDefinedNamedExports(
   distDir: string,
   runtimeEnvConfig: any
 ): Promise<ReadonlyArray<string>> {
-  require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
+  require('../shared/lib/runtime-config.external').setConfig(runtimeEnvConfig)
   const components = await loadComponents({
     distDir,
-    pathname: page,
+    page: page,
     isAppPath: false,
   })
 
@@ -1791,19 +1794,24 @@ export async function copyTracedFiles(
   pageKeys: readonly string[],
   appPageKeys: readonly string[] | undefined,
   tracingRoot: string,
-  serverConfig: { [key: string]: any },
+  serverConfig: NextConfig,
   middlewareManifest: MiddlewareManifest,
-  hasInstrumentationHook: boolean
+  hasInstrumentationHook: boolean,
+  staticPages: Set<string>
 ) {
   const outputPath = path.join(distDir, 'standalone')
   let moduleType = false
+  const nextConfig = {
+    ...serverConfig,
+    distDir: `./${path.relative(dir, distDir)}`,
+  }
   try {
     const packageJsonPath = path.join(distDir, '../package.json')
     const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf8'))
     moduleType = packageJson.type === 'module'
   } catch {}
   const copiedFiles = new Set()
-  await recursiveDelete(outputPath)
+  await fs.rm(outputPath, { recursive: true, force: true })
 
   async function handleTraceFiles(traceFilePath: string) {
     const traceData = JSON.parse(await fs.readFile(traceFilePath, 'utf8')) as {
@@ -1882,6 +1890,12 @@ export async function copyTracedFiles(
     if (middlewareManifest.functions.hasOwnProperty(page)) {
       continue
     }
+    const route = normalizePagePath(page)
+
+    if (staticPages.has(route)) {
+      continue
+    }
+
     const pageFile = path.join(
       distDir,
       'server',
@@ -1890,7 +1904,9 @@ export async function copyTracedFiles(
     )
     const pageTraceFile = `${pageFile}.nft.json`
     await handleTraceFiles(pageTraceFile).catch((err) => {
-      Log.warn(`Failed to copy traced files for ${pageFile}`, err)
+      if (err.code !== 'ENOENT' || (page !== '/404' && page !== '/500')) {
+        Log.warn(`Failed to copy traced files for ${pageFile}`, err)
+      }
     })
   }
 
@@ -1920,20 +1936,18 @@ export async function copyTracedFiles(
     'server.js'
   )
   await fs.mkdir(path.dirname(serverOutputPath), { recursive: true })
+
   await fs.writeFile(
     serverOutputPath,
     `${
       moduleType
-        ? `import http from 'http'
-import path from 'path'
+        ? `import path from 'path'
 import { fileURLToPath } from 'url'
+import module from 'module'
+const require = module.createRequire(import.meta.url)
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
-import { createServerHandler } from 'next/dist/server/lib/render-server-standalone.js'
 `
-        : `
-const http = require('http')
-const path = require('path')
-const { createServerHandler } = require('next/dist/server/lib/render-server-standalone')`
+        : `const path = require('path')`
     }
 
 const dir = path.join(__dirname)
@@ -1949,54 +1963,34 @@ if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
 }
 
 const currentPort = parseInt(process.env.PORT, 10) || 3000
-const hostname = process.env.HOSTNAME || 'localhost'
-const keepAliveTimeout = parseInt(process.env.KEEP_ALIVE_TIMEOUT, 10);
-const isValidKeepAliveTimeout =
-  !Number.isNaN(keepAliveTimeout) &&
-  Number.isFinite(keepAliveTimeout) &&
-  keepAliveTimeout >= 0;
-const nextConfig = ${JSON.stringify({
-      ...serverConfig,
-      distDir: `./${path.relative(dir, distDir)}`,
-    })}
+const hostname = process.env.HOSTNAME || '0.0.0.0'
+
+let keepAliveTimeout = parseInt(process.env.KEEP_ALIVE_TIMEOUT, 10)
+const nextConfig = ${JSON.stringify(nextConfig)}
 
 process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(nextConfig)
 
-createServerHandler({
-  port: currentPort,
-  hostname,
+require('next')
+const { startServer } = require('next/dist/server/lib/start-server')
+
+if (
+  Number.isNaN(keepAliveTimeout) ||
+  !Number.isFinite(keepAliveTimeout) ||
+  keepAliveTimeout < 0
+) {
+  keepAliveTimeout = undefined
+}
+
+startServer({
   dir,
-  conf: nextConfig,
-  keepAliveTimeout: isValidKeepAliveTimeout ? keepAliveTimeout : undefined,
-}).then((nextHandler) => {
-  const server = http.createServer(async (req, res) => {
-    try {
-      await nextHandler(req, res)
-    } catch (err) {
-      console.error(err);
-      res.statusCode = 500
-      res.end('Internal Server Error')
-    }
-  })
-
-  if (isValidKeepAliveTimeout) {
-    server.keepAliveTimeout = keepAliveTimeout
-  }
-
-  server.listen(currentPort, async (err) => {
-    if (err) {
-      console.error("Failed to start server", err)
-      process.exit(1)
-    }
-
-    console.log(
-      'Listening on port',
-      currentPort,
-      'url: http://' + hostname + ':' + currentPort
-    )
-  });
-
-}).catch(err => {
+  isDev: false,
+  config: nextConfig,
+  hostname,
+  port: currentPort,
+  allowRetry: false,
+  keepAliveTimeout,
+  useWorkers: true,
+}).catch((err) => {
   console.error(err);
   process.exit(1);
 });`
@@ -2005,6 +1999,12 @@ createServerHandler({
 
 export function isReservedPage(page: string) {
   return RESERVED_PAGE.test(page)
+}
+
+export function isAppBuiltinNotFoundPage(page: string) {
+  return /next[\\/]dist[\\/]client[\\/]components[\\/]not-found-error/.test(
+    page
+  )
 }
 
 export function isCustomErrorPage(page: string) {
@@ -2069,8 +2069,7 @@ export class NestedMiddlewareError extends Error {
 
 export function getSupportedBrowsers(
   dir: string,
-  isDevelopment: boolean,
-  config: NextConfigComplete
+  isDevelopment: boolean
 ): string[] | undefined {
   let browsers: any
   try {
@@ -2089,10 +2088,24 @@ export function getSupportedBrowsers(
     return browsers
   }
 
-  // When the user sets `legacyBrowsers: true`, we pass undefined
-  // to SWC which is basically ES5 and matches the default behavior
-  // prior to Next.js 13
-  return config.experimental.legacyBrowsers
-    ? undefined
-    : MODERN_BROWSERSLIST_TARGET
+  // Uses modern browsers as the default.
+  return MODERN_BROWSERSLIST_TARGET
+}
+
+export function isWebpackServerLayer(
+  layer: WebpackLayerName | null | undefined
+): boolean {
+  return Boolean(layer && WEBPACK_LAYERS.GROUP.server.includes(layer as any))
+}
+
+export function isWebpackDefaultLayer(
+  layer: WebpackLayerName | null | undefined
+): boolean {
+  return layer === null || layer === undefined
+}
+
+export function isWebpackAppLayer(
+  layer: WebpackLayerName | null | undefined
+): boolean {
+  return Boolean(layer && WEBPACK_LAYERS.GROUP.app.includes(layer as any))
 }

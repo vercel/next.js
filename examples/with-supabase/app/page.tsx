@@ -6,6 +6,8 @@ import SupabaseLogo from '../components/SupabaseLogo'
 import NextJsLogo from '../components/NextJsLogo'
 import DeployButton from '../components/DeployButton'
 
+export const dynamic = 'force-dynamic'
+
 const resources = [
   {
     title: 'Cookie-based Auth and the Next.js App Router',
@@ -35,8 +37,6 @@ const examples = [
   { type: 'Server Components', src: 'app/_examples/server-component/page.tsx' },
   { type: 'Server Actions', src: 'app/_examples/server-action/page.tsx' },
   { type: 'Route Handlers', src: 'app/_examples/route-handler.ts' },
-  { type: 'Middleware', src: 'app/middleware.ts' },
-  { type: 'Protected Routes', src: 'app/_examples/protected/page.tsx' },
 ]
 
 export default async function Index() {

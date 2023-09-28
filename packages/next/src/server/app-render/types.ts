@@ -3,6 +3,7 @@ import type { ServerRuntime, SizeLimit } from '../../../types'
 import { NextConfigComplete } from '../../server/config-shared'
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
+import type { ParsedUrlQuery } from 'querystring'
 
 import zod from 'zod'
 
@@ -104,10 +105,10 @@ export type ActionResult = Promise<any>
 export type NextFlightResponse = [buildId: string, flightData: FlightData]
 
 // Response from `createFromFetch` for server actions. Action's flight data can be null
-export type ActionFlightResponse = [
-  ActionResult,
-  [buildId: NextFlightResponse[0], flightData: NextFlightResponse[1] | null]
-]
+export type ActionFlightResponse =
+  | [ActionResult, [buildId: string, flightData: FlightData | null]]
+  // This case happens when `redirect()` is called in a server action.
+  | NextFlightResponse
 
 /**
  * Property holding the current subTreeData.
@@ -124,6 +125,7 @@ export type RenderOptsPartial = {
   err?: Error | null
   dev?: boolean
   buildId: string
+  basePath: string
   clientReferenceManifest?: ClientReferenceManifest
   supportsDynamicHTML: boolean
   runtime?: ServerRuntime
@@ -139,6 +141,7 @@ export type RenderOptsPartial = {
   originalPathname?: string
   isDraftMode?: boolean
   deploymentId?: string
+  onUpdateCookies?: (cookies: string[]) => void
   loadConfig?: (
     phase: string,
     dir: string,
@@ -147,6 +150,7 @@ export type RenderOptsPartial = {
     silent?: boolean
   ) => Promise<NextConfigComplete>
   serverActionsBodySizeLimit?: SizeLimit
+  params?: ParsedUrlQuery
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial

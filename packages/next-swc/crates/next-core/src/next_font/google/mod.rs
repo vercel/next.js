@@ -26,7 +26,6 @@ use turbopack_binding::{
             resolve::{
                 options::{ImportMapResult, ImportMapping, ImportMappingReplacement},
                 parse::Request,
-                pattern::QueryMap,
                 ResolveResult,
             },
             virtual_source::VirtualSource,
@@ -48,7 +47,7 @@ use super::{
         get_request_hash, get_request_id, get_scoped_font_family, FontCssProperties, FontFamilyType,
     },
 };
-use crate::{embed_js::next_js_file_path, util::load_next_json};
+use crate::{embed_js::next_js_file_path, util::load_next_js_templateon};
 
 pub mod font_fallback;
 pub mod options;
@@ -134,7 +133,7 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
                         export default fontData;
                     "#,
                     // Pass along whichever options we received to the css handler
-                    qstring::QString::new(query.as_ref().unwrap().iter().collect()),
+                    qstring::QString::from(&**query),
                     properties.font_family.await?,
                     properties
                         .weight
@@ -154,7 +153,7 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
             .into()),
         );
 
-        Ok(ImportMapResult::Result(ResolveResult::asset(Vc::upcast(js_asset)).into()).into())
+        Ok(ImportMapResult::Result(ResolveResult::source(Vc::upcast(js_asset)).into()).into())
     }
 }
 
@@ -260,15 +259,15 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
             ),
         );
 
-        Ok(ImportMapResult::Result(ResolveResult::asset(Vc::upcast(css_asset)).into()).into())
+        Ok(ImportMapResult::Result(ResolveResult::source(Vc::upcast(css_asset)).into()).into())
     }
 }
 
 #[turbo_tasks::function]
 async fn load_font_data(project_root: Vc<FileSystemPath>) -> Result<Vc<FontData>> {
-    let data: FontData = load_next_json(
+    let data: FontData = load_next_js_templateon(
         project_root,
-        "/dist/compiled/@next/font/dist/google/font-data.json",
+        "dist/compiled/@next/font/dist/google/font-data.json".to_string(),
     )
     .await?;
 
@@ -357,34 +356,41 @@ async fn get_font_css_properties(
         font_family: Vc::cell(font_families.join(", ")),
         weight: Vc::cell(match &options.weights {
             FontWeights::Variable => None,
-            FontWeights::Fixed(weights) => weights.first().map(|w| w.to_string()),
+            FontWeights::Fixed(weights) => {
+                if weights.len() > 1 {
+                    // Don't set a rule for weight if multiple are requested
+                    None
+                } else {
+                    weights.first().map(|w| w.to_string())
+                }
+            }
         }),
-        style: Vc::cell(options.styles.first().cloned()),
+        style: Vc::cell(if options.styles.len() > 1 {
+            // Don't set a rule for style if multiple are requested
+            None
+        } else {
+            options.styles.first().cloned()
+        }),
         variable: Vc::cell(options.variable.clone()),
     }))
 }
 
 #[turbo_tasks::function]
 async fn font_options_from_query_map(
-    query: Vc<QueryMap>,
+    query: Vc<String>,
     font_data: Vc<FontData>,
 ) -> Result<Vc<NextFontGoogleOptions>> {
-    let query_map = &*query.await?;
-    // These are invariants from the next/font swc transform. Regular errors instead
-    // of Issues should be okay.
-    let query_map = query_map
-        .as_ref()
-        .context("next/font/google queries must exist")?;
+    let query_map = qstring::QString::from(&**query.await?);
 
     if query_map.len() != 1 {
-        bail!("next/font/google queries must only have one entry");
+        bail!("next/font/google queries must have exactly one entry");
     }
 
-    let Some((json, _)) = query_map.iter().next() else {
+    let Some((json, _)) = query_map.into_iter().next() else {
         bail!("Expected one entry");
     };
 
-    options_from_request(&parse_json_with_source_context(json)?, &*font_data.await?)
+    options_from_request(&parse_json_with_source_context(&json)?, &*font_data.await?)
         .map(|o| NextFontGoogleOptions::new(Value::new(o)))
 }
 

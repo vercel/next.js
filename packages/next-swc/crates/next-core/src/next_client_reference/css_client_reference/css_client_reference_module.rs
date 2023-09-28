@@ -5,7 +5,6 @@ use turbopack_binding::turbopack::{
         asset::{Asset, AssetContent},
         ident::AssetIdent,
         module::Module,
-        reference::AssetReferences,
     },
     turbopack::css::{chunk::CssChunkPlaceable, ParseCss, ParseCssResult},
 };
@@ -39,11 +38,6 @@ impl Module for CssClientReferenceModule {
         self.client_module
             .ident()
             .with_modifier(css_client_reference_modifier())
-    }
-
-    #[turbo_tasks::function]
-    fn references(self: Vc<Self>) -> Vc<AssetReferences> {
-        AssetReferences::empty()
     }
 }
 

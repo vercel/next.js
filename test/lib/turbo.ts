@@ -24,3 +24,11 @@ export function shouldRunTurboDevTest(): boolean {
 
   return shouldRunTurboDev
 }
+
+export function getTurbopackFlag(): string {
+  if (!!process.env.TURBOPACK) {
+    return '--turbo'
+  } else {
+    throw Error(`Cannot get the flag for running turbopack`)
+  }
+}
