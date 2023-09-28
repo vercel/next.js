@@ -517,11 +517,24 @@ export async function setupFsCheck(opts: {
           } catch {}
         }
 
+        let matchedItem = items.has(curItemPath)
+
         // check decoded variant as well
-        if (!items.has(curItemPath) && !opts.dev) {
-          curItemPath = curDecodedItemPath
+        if (!matchedItem && !opts.dev) {
+          matchedItem = items.has(curItemPath)
+          if (matchedItem) curItemPath = curDecodedItemPath
+          else {
+            // check if we have a variant with the slug delimiters encoded - https://github.com/vercel/next.js/issues/54008
+            try {
+              const slugItemPathWithEncodedDelimiters = curItemPath.replace(
+                /(\[|\])/g,
+                (match) => encodeURIComponent(match)
+              )
+              matchedItem = items.has(slugItemPathWithEncodedDelimiters)
+              if (matchedItem) curItemPath = slugItemPathWithEncodedDelimiters
+            } catch {}
+          }
         }
-        const matchedItem = items.has(curItemPath)
 
         if (matchedItem || opts.dev) {
           let fsPath: string | undefined
