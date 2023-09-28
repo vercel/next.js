@@ -13,6 +13,7 @@ use turbopack_binding::turbopack::{
 
 use super::module_rule_match_js_no_url;
 
+#[derive(Debug)]
 pub enum ActionsTransform {
     Client,
     Server,

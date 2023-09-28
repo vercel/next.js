@@ -100,8 +100,8 @@ async fn build_server_actions_loader(
     // which lazily imports the respective module's chunk_item id and invokes
     // the exported action function.
     for (i, (module, actions_map)) in actions.iter().enumerate() {
+        let module_name = format!("ACTIONS_MODULE{i}");
         for (hash_id, name) in &*actions_map.await? {
-            let module_name = format!("ACTIONS_MODULE{i}");
             writedoc!(
                 contents,
                 "
