@@ -14,13 +14,13 @@ import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
   NODE_ESM_RESOLVE_OPTIONS,
   NODE_RESOLVE_OPTIONS,
-  resolveExternal,
 } from '../../webpack-config'
 import { NextConfigComplete } from '../../../server/config-shared'
 import { loadBindings } from '../../swc'
 import { isMatch } from 'next/dist/compiled/micromatch'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getPageFilePath } from '../../entries'
+import { resolveExternal } from '../../handle-externals'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'
 export const TRACE_IGNORES = [
