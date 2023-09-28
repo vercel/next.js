@@ -77,9 +77,9 @@ pub async fn endpoint_write_to_disk(
     let (written, issues, diags) = turbo_tasks
         .run_once(async move {
             let write_to_disk = endpoint.write_to_disk();
+            let written = write_to_disk.strongly_consistent().await?;
             let issues = get_issues(write_to_disk).await?;
             let diags = get_diagnostics(write_to_disk).await?;
-            let written = write_to_disk.strongly_consistent().await?;
             Ok((written, issues, diags))
         })
         .await
@@ -104,17 +104,16 @@ pub fn endpoint_server_changed_subscribe(
         func,
         move || async move {
             let changed = endpoint.server_changed();
-            let issues = get_issues(changed).await?;
-            let diags = get_diagnostics(changed).await?;
+            // We don't capture issues and diagonistics here since we don't want to be
+            // notified when they change
             changed.strongly_consistent().await?;
-            Ok((issues, diags))
+            Ok(())
         },
-        |ctx| {
-            let (issues, diags) = ctx.value;
+        |_| {
             Ok(vec![TurbopackResult {
                 result: (),
-                issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
-                diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
+                issues: vec![],
+                diagnostics: vec![],
             }])
         },
     )
@@ -132,17 +131,16 @@ pub fn endpoint_client_changed_subscribe(
         func,
         move || async move {
             let changed = endpoint.client_changed();
-            let issues = get_issues(changed).await?;
-            let diags = get_diagnostics(changed).await?;
+            // We don't capture issues and diagonistics here since we don't want to be
+            // notified when they change
             changed.strongly_consistent().await?;
-            Ok((issues, diags))
+            Ok(())
         },
-        |ctx| {
-            let (issues, diags) = ctx.value;
+        |_| {
             Ok(vec![TurbopackResult {
                 result: (),
-                issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
-                diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
+                issues: vec![],
+                diagnostics: vec![],
             }])
         },
     )
