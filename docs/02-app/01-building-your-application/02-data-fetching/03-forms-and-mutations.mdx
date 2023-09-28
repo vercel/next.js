@@ -529,7 +529,7 @@ Server Actions can also return [serializable objects](https://developer.mozilla.
 ```ts filename="app/actions.ts" switcher
 'use server'
 
-export async function create(prevState: any, formData: FormData) {
+export async function createTodo(prevState: any, formData: FormData) {
   try {
     await createItem(formData.get('todo'))
     return revalidatePath('/')
