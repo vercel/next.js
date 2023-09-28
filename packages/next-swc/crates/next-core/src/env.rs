@@ -139,6 +139,28 @@ pub async fn env_for_js(
         },
     );
 
+    map.insert(
+        "__NEXT_I18N_SUPPORT".to_string(),
+        // How do I check if i18n exists in the config?
+        if next_config.i18n.is_none() {
+            "false".to_string()
+        } else {
+            "true".to_string()
+        },
+    );
+
+    map.insert(
+        "__NEXT_I18N_DOMAINS".to_string(),
+        // Don't stringify undefined
+        match next_config.i18n.as_ref() {
+            Some(i18n) => match i18n.domains.as_ref() {
+                Some(domains) => serde_json::to_string(domains)?,
+                None => "undefined".to_string(),
+            },
+            None => "undefined".to_string(),
+        },
+    );
+
     if !test_mode.is_empty() {
         map.insert("__NEXT_TEST_MODE".to_string(), "true".to_string());
     }

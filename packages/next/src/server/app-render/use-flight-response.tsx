@@ -15,9 +15,8 @@ const INLINE_FLIGHT_PAYLOAD_FORM_STATE = 2
  */
 export function useFlightResponse(
   writable: WritableStream<Uint8Array>,
-  req: ReadableStream<Uint8Array>,
+  flightStream: ReadableStream<Uint8Array>,
   clientReferenceManifest: ClientReferenceManifest,
-  rscChunks: Uint8Array[],
   flightResponseRef: FlightResponseRef,
   formState: null | any,
   nonce?: string
@@ -30,7 +29,7 @@ export function useFlightResponse(
     createFromReadableStream,
   } = require(`react-server-dom-webpack/client.edge`)
 
-  const [renderStream, forwardStream] = req.tee()
+  const [renderStream, forwardStream] = flightStream.tee()
   const res = createFromReadableStream(renderStream, {
     moduleMap: isEdgeRuntime
       ? clientReferenceManifest.edgeSSRModuleMapping
@@ -49,10 +48,6 @@ export function useFlightResponse(
 
   function read() {
     forwardReader.read().then(({ done, value }) => {
-      if (value) {
-        rscChunks.push(value)
-      }
-
       if (!bootstrapped) {
         bootstrapped = true
         writer.write(
