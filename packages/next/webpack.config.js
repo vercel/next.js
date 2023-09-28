@@ -21,7 +21,7 @@ const pagesExternals = [
 ]
 
 function makeAppAliases(reactChannel = '') {
-  const alias = {
+  return {
     react$: `next/dist/compiled/react${reactChannel}`,
     'react/shared-subset$': `next/dist/compiled/react${reactChannel}/react.shared-subset`,
     'react-dom/server-rendering-stub$': `next/dist/compiled/react-dom${reactChannel}/server-rendering-stub`,
@@ -36,9 +36,10 @@ function makeAppAliases(reactChannel = '') {
     'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/client.edge`,
     'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/server.edge`,
     'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/server.node`,
+    // optimisations to ignore the legacy build of react-dom/server
+    './cjs/react-dom-server-legacy.browser.production.min.js': `next/dist/build/noop-react-dom-server-legacy`,
+    './cjs/react-dom-server-legacy.browser.development.js': `next/dist/build/noop-react-dom-server-legacy`,
   }
-
-  return alias
 }
 
 const appAliases = makeAppAliases()
@@ -61,6 +62,7 @@ const sharedExternals = [
   'next/dist/compiled/jsonwebtoken',
   'next/dist/compiled/@opentelemetry/api',
   'next/dist/compiled/@mswjs/interceptors/ClientRequest',
+  'next/dist/compiled/ws',
 ]
 
 const externalsMap = {

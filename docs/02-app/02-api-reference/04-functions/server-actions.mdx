@@ -96,6 +96,39 @@ export default function ClientComponent({ myAction }) {
 }
 ```
 
+### Binding Arguments
+
+You can bind arguments to a Server Action using the `bind` method. This allows you to create a new Server Action with some arguments already bound. This is beneficial when you want to pass extra arguments to a Server Action.
+
+```jsx filename="app/client-component.jsx" highlight={6}
+'use client'
+
+import { updateUser } from './actions'
+
+export function UserProfile({ userId }) {
+  const updateUserWithId = updateUser.bind(null, userId)
+
+  return (
+    <form action={updateUserWithId}>
+      <input type="text" name="name" />
+      <button type="submit">Update User Name</button>
+    </form>
+  )
+}
+```
+
+And then, the `updateUser` Server Action will always receive the `userId` argument, in addition to the form data:
+
+```js filename="app/actions.js"
+'use server'
+
+export async function updateUser(userId, formData) {
+  // ...
+}
+```
+
+> **Good to know**: `.bind` of a Server Action works in both Server and Client Components. It also supports [Progressive Enhancement](#progressive-enhancement).
+
 ## Invocation
 
 You can invoke Server Actions using the following methods:

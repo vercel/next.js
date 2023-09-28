@@ -1,19 +1,16 @@
 import type { IncomingMessage, ServerResponse } from 'http'
-import type { NextApiRequest, NextApiResponse } from '../../shared/lib/utils'
-import type { PageConfig, ResponseLimit, SizeLimit } from 'next/types'
-import { checkIsOnDemandRevalidate, __ApiPreviewProps } from '.'
-import type { BaseNextRequest, BaseNextResponse } from '../base-http'
+import type { NextApiRequest, NextApiResponse } from '../../../shared/lib/utils'
+import type { PageConfig, ResponseLimit } from 'next/types'
+import { __ApiPreviewProps } from '../.'
 import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
-import type { PreviewData } from 'next/types'
 
 import bytes from 'next/dist/compiled/bytes'
-import { generateETag } from '../lib/etag'
-import { sendEtagResponse } from '../send-payload'
+import { generateETag } from '../../lib/etag'
+import { sendEtagResponse } from '../../send-payload'
 import { Stream } from 'stream'
-import { parse } from 'next/dist/compiled/content-type'
-import isError from '../../lib/is-error'
-import { isResSent } from '../../shared/lib/utils'
-import { interopDefault } from '../../lib/interop-default'
+import isError from '../../../lib/is-error'
+import { isResSent } from '../../../shared/lib/utils'
+import { interopDefault } from '../../../lib/interop-default'
 import {
   setLazyProp,
   sendStatusCode,
@@ -23,172 +20,17 @@ import {
   ApiError,
   COOKIE_NAME_PRERENDER_BYPASS,
   COOKIE_NAME_PRERENDER_DATA,
-  SYMBOL_PREVIEW_DATA,
   RESPONSE_LIMIT_DEFAULT,
-} from './index'
-import { getCookieParser } from './get-cookie-parser'
-import { getTracer } from '../lib/trace/tracer'
-import { NodeSpan } from '../lib/trace/constants'
-import { RequestCookies } from '../web/spec-extension/cookies'
-import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
+} from './../index'
+import { getCookieParser } from './../get-cookie-parser'
+import { getTracer } from '../../lib/trace/tracer'
+import { NodeSpan } from '../../lib/trace/constants'
 import {
   PRERENDER_REVALIDATE_HEADER,
   PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
-} from '../../lib/constants'
-
-export function tryGetPreviewData(
-  req: IncomingMessage | BaseNextRequest | Request,
-  res: ServerResponse | BaseNextResponse,
-  options: __ApiPreviewProps
-): PreviewData {
-  // if an On-Demand revalidation is being done preview mode
-  // is disabled
-  if (options && checkIsOnDemandRevalidate(req, options).isOnDemandRevalidate) {
-    return false
-  }
-
-  // Read cached preview data if present
-  // TODO: use request metadata instead of a symbol
-  if (SYMBOL_PREVIEW_DATA in req) {
-    return (req as any)[SYMBOL_PREVIEW_DATA] as any
-  }
-
-  const headers = HeadersAdapter.from(req.headers)
-  const cookies = new RequestCookies(headers)
-
-  const previewModeId = cookies.get(COOKIE_NAME_PRERENDER_BYPASS)?.value
-  const tokenPreviewData = cookies.get(COOKIE_NAME_PRERENDER_DATA)?.value
-
-  // Case: preview mode cookie set but data cookie is not set
-  if (
-    previewModeId &&
-    !tokenPreviewData &&
-    previewModeId === options.previewModeId
-  ) {
-    // This is "Draft Mode" which doesn't use
-    // previewData, so we return an empty object
-    // for backwards compat with "Preview Mode".
-    const data = {}
-    Object.defineProperty(req, SYMBOL_PREVIEW_DATA, {
-      value: data,
-      enumerable: false,
-    })
-    return data
-  }
-
-  // Case: neither cookie is set.
-  if (!previewModeId && !tokenPreviewData) {
-    return false
-  }
-
-  // Case: one cookie is set, but not the other.
-  if (!previewModeId || !tokenPreviewData) {
-    clearPreviewData(res as NextApiResponse)
-    return false
-  }
-
-  // Case: preview session is for an old build.
-  if (previewModeId !== options.previewModeId) {
-    clearPreviewData(res as NextApiResponse)
-    return false
-  }
-
-  let encryptedPreviewData: {
-    data: string
-  }
-  try {
-    const jsonwebtoken =
-      require('next/dist/compiled/jsonwebtoken') as typeof import('next/dist/compiled/jsonwebtoken')
-    encryptedPreviewData = jsonwebtoken.verify(
-      tokenPreviewData,
-      options.previewModeSigningKey
-    ) as typeof encryptedPreviewData
-  } catch {
-    // TODO: warn
-    clearPreviewData(res as NextApiResponse)
-    return false
-  }
-
-  const { decryptWithSecret } =
-    require('../crypto-utils') as typeof import('../crypto-utils')
-  const decryptedPreviewData = decryptWithSecret(
-    Buffer.from(options.previewModeEncryptionKey),
-    encryptedPreviewData.data
-  )
-
-  try {
-    // TODO: strict runtime type checking
-    const data = JSON.parse(decryptedPreviewData)
-    // Cache lookup
-    Object.defineProperty(req, SYMBOL_PREVIEW_DATA, {
-      value: data,
-      enumerable: false,
-    })
-    return data
-  } catch {
-    return false
-  }
-}
-
-/**
- * Parse `JSON` and handles invalid `JSON` strings
- * @param str `JSON` string
- */
-function parseJson(str: string): object {
-  if (str.length === 0) {
-    // special-case empty json body, as it's a common client-side mistake
-    return {}
-  }
-
-  try {
-    return JSON.parse(str)
-  } catch (e) {
-    throw new ApiError(400, 'Invalid JSON')
-  }
-}
-
-/**
- * Parse incoming message like `json` or `urlencoded`
- * @param req request object
- */
-export async function parseBody(
-  req: IncomingMessage,
-  limit: SizeLimit
-): Promise<any> {
-  let contentType
-  try {
-    contentType = parse(req.headers['content-type'] || 'text/plain')
-  } catch {
-    contentType = parse('text/plain')
-  }
-  const { type, parameters } = contentType
-  const encoding = parameters.charset || 'utf-8'
-
-  let buffer
-
-  try {
-    const getRawBody =
-      require('next/dist/compiled/raw-body') as typeof import('next/dist/compiled/raw-body')
-    buffer = await getRawBody(req, { encoding, limit })
-  } catch (e) {
-    if (isError(e) && e.type === 'entity.too.large') {
-      throw new ApiError(413, `Body exceeded ${limit} limit`)
-    } else {
-      throw new ApiError(400, 'Invalid body')
-    }
-  }
-
-  const body = buffer.toString()
-
-  if (type === 'application/json' || type === 'application/ld+json') {
-    return parseJson(body)
-  } else if (type === 'application/x-www-form-urlencoded') {
-    const qs = require('querystring')
-    return qs.decode(body)
-  } else {
-    return body
-  }
-}
+} from '../../../lib/constants'
+import { tryGetPreviewData } from './try-get-preview-data'
+import { parseBody } from './parse-body'
 
 type RevalidateFn = (config: {
   urlPath: string
@@ -344,7 +186,7 @@ function setPreviewData<T>(
   const jsonwebtoken =
     require('next/dist/compiled/jsonwebtoken') as typeof import('next/dist/compiled/jsonwebtoken')
   const { encryptWithSecret } =
-    require('../crypto-utils') as typeof import('../crypto-utils')
+    require('../../crypto-utils') as typeof import('../../crypto-utils')
   const payload = jsonwebtoken.sign(
     {
       data: encryptWithSecret(
