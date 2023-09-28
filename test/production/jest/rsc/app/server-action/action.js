@@ -1,5 +1,5 @@
 'use server'
 
-export function action(data) {
+export async function action(data) {
   console.log(data)
 }
