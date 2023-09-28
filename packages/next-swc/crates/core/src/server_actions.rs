@@ -29,7 +29,7 @@ pub fn server_actions<C: Comments>(
     file_name: &FileName,
     config: Config,
     comments: C,
-    bundle_target: JsWord
+    bundle_target: JsWord,
 ) -> impl VisitMut + Fold {
     as_folder(ServerActions {
         config,
