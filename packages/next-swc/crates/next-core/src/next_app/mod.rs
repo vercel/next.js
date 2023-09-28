@@ -3,6 +3,7 @@ pub mod app_client_shared_chunks;
 pub mod app_entry;
 pub mod app_page_entry;
 pub mod app_route_entry;
+pub mod bloom_filter;
 pub mod metadata;
 
 use std::{
@@ -284,6 +285,19 @@ impl Display for PathSegment {
     Clone, Debug, Hash, PartialEq, Eq, Default, Serialize, Deserialize, TaskInput, TraceRawVcs,
 )]
 pub struct AppPath(pub Vec<PathSegment>);
+
+impl AppPath {
+    pub fn is_dynamic(&self) -> bool {
+        self.iter().any(|segment| {
+            matches!(
+                (segment,),
+                (PathSegment::Dynamic(_)
+                    | PathSegment::CatchAll(_)
+                    | PathSegment::OptionalCatchAll(_),)
+            )
+        })
+    }
+}
 
 impl Deref for AppPath {
     type Target = [PathSegment];
