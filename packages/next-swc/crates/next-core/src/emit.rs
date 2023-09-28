@@ -1,7 +1,7 @@
 use anyhow::Result;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    Completion, Completions, TryJoinIterExt, Vc,
+    Completion, Completions, TryFlatJoinIterExt, TryJoinIterExt, Vc,
 };
 use turbo_tasks_fs::{rebase, FileSystemPath};
 use turbopack_binding::turbopack::core::{
@@ -38,15 +38,35 @@ pub async fn all_server_paths(
 /// Assets inside the given client root are rebased to the given client output
 /// path.
 #[turbo_tasks::function]
-pub async fn emit_all_assets(
+pub fn emit_all_assets(
+    assets: Vc<OutputAssets>,
+    node_root: Vc<FileSystemPath>,
+    client_relative_path: Vc<FileSystemPath>,
+    client_output_path: Vc<FileSystemPath>,
+) -> Vc<Completion> {
+    emit_assets(
+        all_assets_from_entries(assets),
+        node_root,
+        client_relative_path,
+        client_output_path,
+    )
+}
+
+/// Emits all assets transitively reachable from the given chunks, that are
+/// inside the node root or the client root.
+///
+/// Assets inside the given client root are rebased to the given client output
+/// path.
+#[turbo_tasks::function]
+pub async fn emit_assets(
     assets: Vc<OutputAssets>,
     node_root: Vc<FileSystemPath>,
     client_relative_path: Vc<FileSystemPath>,
     client_output_path: Vc<FileSystemPath>,
 ) -> Result<Vc<Completion>> {
-    let all_assets = all_assets_from_entries(assets).await?;
-    Ok(Completions::all(
-        all_assets
+    Ok(Vc::<Completions>::cell(
+        assets
+            .await?
             .iter()
             .copied()
             .map(|asset| async move {
@@ -56,7 +76,7 @@ pub async fn emit_all_assets(
                     .await?
                     .is_inside_ref(&*node_root.await?)
                 {
-                    return Ok(emit(asset));
+                    return Ok(Some(emit(asset)));
                 } else if asset
                     .ident()
                     .path()
@@ -65,14 +85,59 @@ pub async fn emit_all_assets(
                 {
                     // Client assets are emitted to the client output path, which is prefixed with
                     // _next. We need to rebase them to remove that prefix.
-                    return Ok(emit_rebase(asset, client_relative_path, client_output_path));
+                    return Ok(Some(emit_rebase(
+                        asset,
+                        client_relative_path,
+                        client_output_path,
+                    )));
                 }
 
-                Ok(Completion::immutable())
+                Ok(None)
             })
-            .try_join()
+            .try_flat_join()
             .await?,
-    ))
+    )
+    .completed())
+}
+
+/// Emits all assets transitively reachable from the given chunks, that are
+/// inside the client root.
+///
+/// Assets inside the given client root are rebased to the given client output
+/// path.
+#[turbo_tasks::function]
+pub async fn emit_client_assets(
+    assets: Vc<OutputAssets>,
+    client_relative_path: Vc<FileSystemPath>,
+    client_output_path: Vc<FileSystemPath>,
+) -> Result<Vc<Completion>> {
+    Ok(Vc::<Completions>::cell(
+        assets
+            .await?
+            .iter()
+            .copied()
+            .map(|asset| async move {
+                if asset
+                    .ident()
+                    .path()
+                    .await?
+                    .is_inside_ref(&*client_relative_path.await?)
+                {
+                    // Client assets are emitted to the client output path, which is prefixed with
+                    // _next. We need to rebase them to remove that prefix.
+                    return Ok(Some(emit_rebase(
+                        asset,
+                        client_relative_path,
+                        client_output_path,
+                    )));
+                }
+
+                Ok(None)
+            })
+            .try_flat_join()
+            .await?,
+    )
+    .completed())
 }
 
 #[turbo_tasks::function]
@@ -94,7 +159,7 @@ fn emit_rebase(
 /// Walks the asset graph from multiple assets and collect all referenced
 /// assets.
 #[turbo_tasks::function]
-async fn all_assets_from_entries(entries: Vc<OutputAssets>) -> Result<Vc<OutputAssets>> {
+pub async fn all_assets_from_entries(entries: Vc<OutputAssets>) -> Result<Vc<OutputAssets>> {
     Ok(Vc::cell(
         AdjacencyMap::new()
             .skip_duplicates()

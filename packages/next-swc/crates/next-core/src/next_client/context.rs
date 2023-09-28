@@ -46,7 +46,10 @@ use crate::{
         get_next_client_resolved_map, mdx_import_source_file,
     },
     next_shared::{
-        resolve::{ModuleFeatureReportResolvePlugin, UnsupportedModulesResolvePlugin},
+        resolve::{
+            ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin,
+            UnsupportedModulesResolvePlugin,
+        },
         transforms::{
             emotion::get_emotion_transform_plugin, get_relay_transform_plugin,
             styled_components::get_styled_components_transform_plugin,
@@ -62,35 +65,58 @@ use crate::{
     util::foreign_code_context_condition,
 };
 
-fn defines(mode: NextMode) -> CompileTimeDefines {
-    compile_time_defines!(
+fn defines(mode: NextMode, dist_root_path: Option<&str>) -> CompileTimeDefines {
+    // [TODO] macro may need to allow dynamically expand from some iterable values
+    let mut defines = compile_time_defines!(
         process.turbopack = true,
         process.env.NODE_ENV = mode.node_env(),
         process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false,
         process.env.__NEXT_HAS_REWRITES = true,
         process.env.__NEXT_I18N_SUPPORT = false,
-    )
+    );
+
+    if let Some(dist_root_path) = dist_root_path {
+        defines.0.insert(
+            vec![
+                "process".to_string(),
+                "env".to_string(),
+                "__NEXT_DIST_DIR".to_string(),
+            ],
+            dist_root_path.to_string().into(),
+        );
+    }
+
     // TODO(WEB-937) there are more defines needed, see
     // packages/next/src/build/webpack-config.ts
+
+    defines
 }
 
 #[turbo_tasks::function]
-fn next_client_defines(mode: NextMode) -> Vc<CompileTimeDefines> {
-    defines(mode).cell()
+async fn next_client_defines(
+    mode: NextMode,
+    dist_root_path: Vc<String>,
+) -> Result<Vc<CompileTimeDefines>> {
+    let dist_root_path = &*dist_root_path.await?;
+    Ok(defines(mode, Some(dist_root_path.as_str())).cell())
 }
 
 #[turbo_tasks::function]
-async fn next_client_free_vars(mode: NextMode) -> Result<Vc<FreeVarReferences>> {
+async fn next_client_free_vars(
+    mode: NextMode,
+    dist_root_path: Vc<String>,
+) -> Result<Vc<FreeVarReferences>> {
+    let dist_root_path = &*dist_root_path.await?;
     Ok(free_var_references!(
-        ..defines(mode).into_iter(),
+        ..defines(mode, Some(dist_root_path.as_str())).into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
             request: "node:buffer".to_string(),
-            context: None,
+            lookup_path: None,
             export: Some("Buffer".to_string()),
         },
         process = FreeVarReference::EcmaScriptModule {
             request: "node:process".to_string(),
-            context: None,
+            lookup_path: None,
             export: Some("default".to_string()),
         }
     )
@@ -101,6 +127,7 @@ async fn next_client_free_vars(mode: NextMode) -> Result<Vc<FreeVarReferences>> 
 pub fn get_client_compile_time_info(
     mode: NextMode,
     browserslist_query: String,
+    dist_root_path: Vc<String>,
 ) -> Vc<CompileTimeInfo> {
     CompileTimeInfo::builder(Environment::new(Value::new(ExecutionEnvironment::Browser(
         BrowserEnvironment {
@@ -111,8 +138,8 @@ pub fn get_client_compile_time_info(
         }
         .into(),
     ))))
-    .defines(next_client_defines(mode))
-    .free_var_references(next_client_free_vars(mode))
+    .defines(next_client_defines(mode, dist_root_path))
+    .free_var_references(next_client_free_vars(mode, dist_root_path))
     .cell()
 }
 
@@ -134,9 +161,9 @@ pub async fn get_client_resolve_options_context(
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ResolveOptionsContext>> {
     let next_client_import_map =
-        get_next_client_import_map(project_path, ty, next_config, execution_context);
+        get_next_client_import_map(project_path, ty, mode, next_config, execution_context);
     let next_client_fallback_import_map = get_next_client_fallback_import_map(ty);
-    let next_client_resolved_map = get_next_client_resolved_map(project_path, project_path);
+    let next_client_resolved_map = get_next_client_resolved_map(project_path, project_path, mode);
     let module_options_context = ResolveOptionsContext {
         enable_node_modules: Some(project_path.root().resolve().await?),
         custom_conditions: vec![mode.node_env().to_string()],
@@ -148,6 +175,7 @@ pub async fn get_client_resolve_options_context(
         plugins: vec![
             Vc::upcast(ModuleFeatureReportResolvePlugin::new(project_path)),
             Vc::upcast(UnsupportedModulesResolvePlugin::new(project_path)),
+            Vc::upcast(NextSharedRuntimeResolvePlugin::new(project_path)),
         ],
         ..Default::default()
     };
@@ -155,7 +183,7 @@ pub async fn get_client_resolve_options_context(
         enable_typescript: true,
         enable_react: true,
         rules: vec![(
-            foreign_code_context_condition(next_config).await?,
+            foreign_code_context_condition(next_config, project_path).await?,
             module_options_context.clone().cell(),
         )],
         ..module_options_context
@@ -188,8 +216,13 @@ pub async fn get_client_module_options_context(
     } else {
         None
     };
-    let jsx_runtime_options =
-        get_jsx_transform_options(project_path, mode, Some(resolve_options_context));
+    let jsx_runtime_options = get_jsx_transform_options(
+        project_path,
+        mode,
+        Some(resolve_options_context),
+        false,
+        next_config,
+    );
     let webpack_rules =
         *maybe_add_babel_loader(project_path, *next_config.webpack_rules().await?).await?;
     let webpack_rules = maybe_add_sass_loader(next_config.sass_config(), webpack_rules).await?;
@@ -252,7 +285,7 @@ pub async fn get_client_module_options_context(
         decorators: Some(decorators_options),
         rules: vec![
             (
-                foreign_code_context_condition(next_config).await?,
+                foreign_code_context_condition(next_config, project_path).await?,
                 module_options_context.clone().cell(),
             ),
             // If the module is an internal asset (i.e overlay, fallback) coming from the embedded
@@ -282,9 +315,13 @@ pub fn get_client_chunking_context(
     environment: Vc<Environment>,
     mode: NextMode,
 ) -> Vc<Box<dyn EcmascriptChunkingContext>> {
+    let output_root = match mode {
+        NextMode::DevServer => client_root,
+        NextMode::Development | NextMode::Build => client_root.join("_next".to_string()),
+    };
     let builder = DevChunkingContext::builder(
         project_path,
-        client_root,
+        output_root,
         client_root.join("_next/static/chunks".to_string()),
         get_client_assets_path(client_root),
         environment,

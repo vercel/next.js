@@ -10,10 +10,8 @@ autobenches = false
 bench = false
 
 [features]
-default = ["custom_allocator", "native-tls"]
+default = ["custom_allocator"]
 custom_allocator = ["turbopack-binding/__turbo_tasks_malloc", "turbopack-binding/__turbo_tasks_malloc_custom_allocator"]
-native-tls = ["next-core/native-tls"]
-rustls-tls = ["next-core/rustls-tls"]
 
 [dependencies]
 anyhow = { workspace = true, features = ["backtrace"] }
@@ -24,7 +22,7 @@ once_cell = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 shadow-rs = { workspace = true }
-tokio = { workspace = true, features = ["full"] }
+tokio = { workspace = true }
 turbopack-binding = { workspace = true, features = [
   "__turbo_tasks_memory",
   "__turbo_tasks_env",

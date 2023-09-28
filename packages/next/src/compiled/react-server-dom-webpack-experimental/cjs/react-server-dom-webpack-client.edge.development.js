@@ -169,47 +169,121 @@ function dispatchHint(code, model) {
   var dispatcher = ReactDOMCurrentDispatcher.current;
 
   if (dispatcher) {
-    var href, options;
-
-    if (typeof model === 'string') {
-      href = model;
-    } else {
-      href = model[0];
-      options = model[1];
-    }
-
     switch (code) {
       case 'D':
         {
-          // $FlowFixMe[prop-missing] options are not refined to their types by code
-          dispatcher.prefetchDNS(href, options);
+          var refined = refineModel(code, model);
+          var href = refined;
+          dispatcher.prefetchDNS(href);
           return;
         }
 
       case 'C':
         {
-          // $FlowFixMe[prop-missing] options are not refined to their types by code
-          dispatcher.preconnect(href, options);
+          var _refined = refineModel(code, model);
+
+          if (typeof _refined === 'string') {
+            var _href = _refined;
+            dispatcher.preconnect(_href);
+          } else {
+            var _href2 = _refined[0];
+            var crossOrigin = _refined[1];
+            dispatcher.preconnect(_href2, crossOrigin);
+          }
+
           return;
         }
 
       case 'L':
         {
-          // $FlowFixMe[prop-missing] options are not refined to their types by code
-          // $FlowFixMe[incompatible-call] options are not refined to their types by code
-          dispatcher.preload(href, options);
+          var _refined2 = refineModel(code, model);
+
+          var _href3 = _refined2[0];
+          var as = _refined2[1];
+
+          if (_refined2.length === 3) {
+            var options = _refined2[2];
+            dispatcher.preload(_href3, as, options);
+          } else {
+            dispatcher.preload(_href3, as);
+          }
+
           return;
         }
 
-      case 'I':
+      case 'm':
         {
-          // $FlowFixMe[prop-missing] options are not refined to their types by code
-          // $FlowFixMe[incompatible-call] options are not refined to their types by code
-          dispatcher.preinit(href, options);
+          var _refined3 = refineModel(code, model);
+
+          if (typeof _refined3 === 'string') {
+            var _href4 = _refined3;
+            dispatcher.preloadModule(_href4);
+          } else {
+            var _href5 = _refined3[0];
+            var _options = _refined3[1];
+            dispatcher.preloadModule(_href5, _options);
+          }
+
+          return;
+        }
+
+      case 'S':
+        {
+          var _refined4 = refineModel(code, model);
+
+          if (typeof _refined4 === 'string') {
+            var _href6 = _refined4;
+            dispatcher.preinitStyle(_href6);
+          } else {
+            var _href7 = _refined4[0];
+            var precedence = _refined4[1] === 0 ? undefined : _refined4[1];
+
+            var _options2 = _refined4.length === 3 ? _refined4[2] : undefined;
+
+            dispatcher.preinitStyle(_href7, precedence, _options2);
+          }
+
+          return;
+        }
+
+      case 'X':
+        {
+          var _refined5 = refineModel(code, model);
+
+          if (typeof _refined5 === 'string') {
+            var _href8 = _refined5;
+            dispatcher.preinitScript(_href8);
+          } else {
+            var _href9 = _refined5[0];
+            var _options3 = _refined5[1];
+            dispatcher.preinitScript(_href9, _options3);
+          }
+
+          return;
+        }
+
+      case 'M':
+        {
+          var _refined6 = refineModel(code, model);
+
+          if (typeof _refined6 === 'string') {
+            var _href10 = _refined6;
+            dispatcher.preinitModuleScript(_href10);
+          } else {
+            var _href11 = _refined6[0];
+            var _options4 = _refined6[1];
+            dispatcher.preinitModuleScript(_href11, _options4);
+          }
+
           return;
         }
     }
   }
+} // Flow is having troulbe refining the HintModels so we help it a bit.
+// This should be compiled out in the production build.
+
+function refineModel(code, model) {
+  return model;
 }
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
@@ -263,6 +337,7 @@ var REACT_SUSPENSE_LIST_TYPE = Symbol.for('react.suspense_list');
 var REACT_MEMO_TYPE = Symbol.for('react.memo');
 var REACT_LAZY_TYPE = Symbol.for('react.lazy');
 var REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
+var REACT_POSTPONE_TYPE = Symbol.for('react.postpone');
 var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 var FAUX_ITERATOR_SYMBOL = '@@iterator';
 function getIteratorFn(maybeIterable) {
@@ -967,20 +1042,127 @@ function encodeFormAction(identifierPrefix) {
     data: data
   };
 }
+
+function isSignatureEqual(referenceId, numberOfBoundArgs) {
+  var reference = knownServerReferences.get(this);
+
+  if (!reference) {
+    throw new Error('Tried to encode a Server Action from a different instance than the encoder is from. ' + 'This is a bug in React.');
+  }
+
+  if (reference.id !== referenceId) {
+    // These are different functions.
+    return false;
+  } // Now check if the number of bound arguments is the same.
+
+
+  var boundPromise = reference.bound;
+
+  if (boundPromise === null) {
+    // No bound arguments.
+    return numberOfBoundArgs === 0;
+  } // Unwrap the bound arguments array by suspending, if necessary. As with
+  // encodeFormData, this means isSignatureEqual can only be called while React
+  // is rendering.
+
+
+  switch (boundPromise.status) {
+    case 'fulfilled':
+      {
+        var boundArgs = boundPromise.value;
+        return boundArgs.length === numberOfBoundArgs;
+      }
+
+    case 'pending':
+      {
+        throw boundPromise;
+      }
+
+    case 'rejected':
+      {
+        throw boundPromise.reason;
+      }
+
+    default:
+      {
+        if (typeof boundPromise.status === 'string') ; else {
+          var pendingThenable = boundPromise;
+          pendingThenable.status = 'pending';
+          pendingThenable.then(function (boundArgs) {
+            var fulfilledThenable = boundPromise;
+            fulfilledThenable.status = 'fulfilled';
+            fulfilledThenable.value = boundArgs;
+          }, function (error) {
+            var rejectedThenable = boundPromise;
+            rejectedThenable.status = 'rejected';
+            rejectedThenable.reason = error;
+          });
+        }
+
+        throw boundPromise;
+      }
+  }
+}
+
+function registerServerReference(proxy, reference) {
+  // Expose encoder for use by SSR, as well as a special bind that can be used to
+  // keep server capabilities.
+  {
+    // Only expose this in builds that would actually use it. Not needed on the client.
+    Object.defineProperties(proxy, {
+      $$FORM_ACTION: {
+        value: encodeFormAction
+      },
+      $$IS_SIGNATURE_EQUAL: {
+        value: isSignatureEqual
+      },
+      bind: {
+        value: bind
+      }
+    });
+  }
+
+  knownServerReferences.set(proxy, reference);
+} // $FlowFixMe[method-unbinding]
+
+var FunctionBind = Function.prototype.bind; // $FlowFixMe[method-unbinding]
+
+var ArraySlice = Array.prototype.slice;
+
+function bind() {
+  // $FlowFixMe[unsupported-syntax]
+  var newFn = FunctionBind.apply(this, arguments);
+  var reference = knownServerReferences.get(this);
+
+  if (reference) {
+    var args = ArraySlice.call(arguments, 1);
+    var boundPromise = null;
+
+    if (reference.bound !== null) {
+      boundPromise = Promise.resolve(reference.bound).then(function (boundArgs) {
+        return boundArgs.concat(args);
+      });
+    } else {
+      boundPromise = Promise.resolve(args);
+    }
+
+    registerServerReference(newFn, {
+      id: reference.id,
+      bound: boundPromise
+    });
+  }
+
+  return newFn;
+}
+
 function createServerReference$1(id, callServer) {
   var proxy = function () {
     // $FlowFixMe[method-unbinding]
     var args = Array.prototype.slice.call(arguments);
     return callServer(id, args);
-  }; // Expose encoder for use by SSR.
+  };
 
-
-  {
-    // Only expose this in builds that would actually use it. Not needed on the client.
-    proxy.$$FORM_ACTION = encodeFormAction;
-  }
-
-  knownServerReferences.set(proxy, {
+  registerServerReference(proxy, {
     id: id,
     bound: null
   });
@@ -1403,15 +1585,9 @@ function createServerReferenceProxy(response, metaData) {
     return Promise.resolve(p).then(function (bound) {
       return callServer(metaData.id, bound.concat(args));
     });
-  }; // Expose encoder for use by SSR.
+  };
 
-
-  {
-    // Only expose this in builds that would actually use it. Not needed on the client.
-    proxy.$$FORM_ACTION = encodeFormAction;
-  }
-
-  knownServerReferences.set(proxy, metaData);
+  registerServerReference(proxy, metaData);
   return proxy;
 }
 
@@ -1709,6 +1885,23 @@ function resolveErrorDev(response, id, digest, message, stack) {
   }
 }
 
+function resolvePostponeDev(response, id, reason, stack) {
+
+
+  var error = new Error(reason || '');
+  var postponeInstance = error;
+  postponeInstance.$$typeof = REACT_POSTPONE_TYPE;
+  postponeInstance.stack = stack;
+  var chunks = response._chunks;
+  var chunk = chunks.get(id);
+
+  if (!chunk) {
+    chunks.set(id, createErrorChunk(response, postponeInstance));
+  } else {
+    triggerErrorOnChunk(chunk, postponeInstance);
+  }
+}
+
 function resolveHint(response, code, model) {
   var hintModel = parseModel(response, model);
   dispatchHint(code, hintModel);
@@ -1883,6 +2076,21 @@ function processFullRow(response, id, tag, buffer, chunk) {
         resolveText(response, id, row);
         return;
       }
+
+    case 80
+    /* "P" */
+    :
+      {
+        {
+          {
+            var postponeInfo = JSON.parse(row);
+            resolvePostponeDev(response, id, postponeInfo.reason, postponeInfo.stack);
+          }
+
+          return;
+        }
+      }
+    // Fallthrough
 
     default:
       /* """ "{" "[" "t" "f" "n" "0" - "9" */

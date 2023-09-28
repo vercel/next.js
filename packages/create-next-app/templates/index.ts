@@ -1,10 +1,10 @@
 import { install } from '../helpers/install'
 import { makeDir } from '../helpers/make-dir'
+import { copy } from '../helpers/copy'
 
-import cpy from 'cpy'
 import { async as glob } from 'fast-glob'
 import os from 'os'
-import fs from 'fs'
+import fs from 'fs/promises'
 import path from 'path'
 import { cyan, bold } from 'picocolors'
 import { Sema } from 'async-sema'
@@ -48,16 +48,20 @@ export const installTemplate = async ({
   const templatePath = path.join(__dirname, template, mode)
   const copySource = ['**']
   if (!eslint) copySource.push('!eslintrc.json')
-  if (!tailwind) copySource.push('!tailwind.config.js', '!postcss.config.js')
+  if (!tailwind)
+    copySource.push(
+      mode == 'ts' ? 'tailwind.config.ts' : '!tailwind.config.js',
+      '!postcss.config.js'
+    )
 
-  await cpy(copySource, root, {
+  await copy(copySource, root, {
     parents: true,
     cwd: templatePath,
-    rename: (name) => {
+    rename(name) {
       switch (name) {
         case 'gitignore':
         case 'eslintrc.json': {
-          return '.'.concat(name)
+          return `.${name}`
         }
         // README.md is ignored by webpack-asset-relocator-loader used by ncc:
         // https://github.com/vercel/webpack-asset-relocator-loader/blob/e9308683d47ff507253e37c9bcbb99474603192b/src/asset-relocator.js#L227
@@ -75,9 +79,9 @@ export const installTemplate = async ({
     root,
     mode === 'js' ? 'jsconfig.json' : 'tsconfig.json'
   )
-  await fs.promises.writeFile(
+  await fs.writeFile(
     tsconfigFile,
-    (await fs.promises.readFile(tsconfigFile, 'utf8'))
+    (await fs.readFile(tsconfigFile, 'utf8'))
       .replace(
         `"@/*": ["./*"]`,
         srcDir ? `"@/*": ["./src/*"]` : `"@/*": ["./*"]`
@@ -87,7 +91,7 @@ export const installTemplate = async ({
 
   // update import alias in any files if not using the default
   if (importAlias !== '@/*') {
-    const files = await glob<string>('**/*', {
+    const files = await glob('**/*', {
       cwd: root,
       dot: true,
       stats: false,
@@ -99,11 +103,11 @@ export const installTemplate = async ({
         if (file === 'tsconfig.json' || file === 'jsconfig.json') return
         await writeSema.acquire()
         const filePath = path.join(root, file)
-        if ((await fs.promises.stat(filePath)).isFile()) {
-          await fs.promises.writeFile(
+        if ((await fs.stat(filePath)).isFile()) {
+          await fs.writeFile(
             filePath,
             (
-              await fs.promises.readFile(filePath, 'utf8')
+              await fs.readFile(filePath, 'utf8')
             ).replace(`@/`, `${importAlias.replace(/\*/g, '')}`)
           )
         }
@@ -116,7 +120,7 @@ export const installTemplate = async ({
     await makeDir(path.join(root, 'src'))
     await Promise.all(
       SRC_DIR_NAMES.map(async (file) => {
-        await fs.promises
+        await fs
           .rename(path.join(root, file), path.join(root, 'src', file))
           .catch((err) => {
             if (err.code !== 'ENOENT') {
@@ -135,10 +139,10 @@ export const installTemplate = async ({
       `${isAppTemplate ? 'page' : 'index'}.${mode === 'ts' ? 'tsx' : 'js'}`
     )
 
-    await fs.promises.writeFile(
+    await fs.writeFile(
       indexPageFile,
       (
-        await fs.promises.readFile(indexPageFile, 'utf8')
+        await fs.readFile(indexPageFile, 'utf8')
       ).replace(
         isAppTemplate ? 'app/page' : 'pages/index',
         isAppTemplate ? 'src/app/page' : 'src/pages/index'
@@ -146,11 +150,14 @@ export const installTemplate = async ({
     )
 
     if (tailwind) {
-      const tailwindConfigFile = path.join(root, 'tailwind.config.js')
-      await fs.promises.writeFile(
+      const tailwindConfigFile = path.join(
+        root,
+        mode === 'ts' ? 'tailwind.config.ts' : 'tailwind.config.js'
+      )
+      await fs.writeFile(
         tailwindConfigFile,
         (
-          await fs.promises.readFile(tailwindConfigFile, 'utf8')
+          await fs.readFile(tailwindConfigFile, 'utf8')
         ).replace(
           /\.\/(\w+)\/\*\*\/\*\.\{js,ts,jsx,tsx,mdx\}/g,
           './src/$1/**/*.{js,ts,jsx,tsx,mdx}'
@@ -159,10 +166,8 @@ export const installTemplate = async ({
     }
   }
 
-  /**
-   * Create a package.json for the new project.
-   */
-  const packageJson = {
+  /** Create a package.json for the new project and write it to disk. */
+  const packageJson: any = {
     name: appName,
     version: '0.1.0',
     private: true,
@@ -172,73 +177,70 @@ export const installTemplate = async ({
       start: 'next start',
       lint: 'next lint',
     },
+    /**
+     * Default dependencies.
+     */
+    dependencies: {
+      react: 'latest',
+      'react-dom': 'latest',
+      next: process.env.NEXT_PRIVATE_TEST_VERSION ?? 'latest',
+    },
+    devDependencies: {},
   }
-
-  /**
-   * Write it to disk.
-   */
-  fs.writeFileSync(
-    path.join(root, 'package.json'),
-    JSON.stringify(packageJson, null, 2) + os.EOL
-  )
-
-  /**
-   * These flags will be passed to `install()`, which calls the package manager
-   * install process.
-   */
-  const installFlags = { packageManager, isOnline }
-
-  /**
-   * Default dependencies.
-   */
-  const dependencies = [
-    'react',
-    'react-dom',
-    `next${
-      process.env.NEXT_PRIVATE_TEST_VERSION
-        ? `@${process.env.NEXT_PRIVATE_TEST_VERSION}`
-        : ''
-    }`,
-  ]
 
   /**
    * TypeScript projects will have type definitions and other devDependencies.
    */
   if (mode === 'ts') {
-    dependencies.push(
-      'typescript',
-      '@types/react',
-      '@types/node',
-      '@types/react-dom'
-    )
-  }
-
-  /**
-   * Add Tailwind CSS dependencies.
-   */
-  if (tailwind) {
-    dependencies.push('tailwindcss', 'postcss', 'autoprefixer')
-  }
-
-  /**
-   * Default eslint dependencies.
-   */
-  if (eslint) {
-    dependencies.push('eslint', 'eslint-config-next')
-  }
-  /**
-   * Install package.json dependencies if they exist.
-   */
-  if (dependencies.length) {
-    console.log()
-    console.log('Installing dependencies:')
-    for (const dependency of dependencies) {
-      console.log(`- ${cyan(dependency)}`)
+    packageJson.devDependencies = {
+      ...packageJson.devDependencies,
+      typescript: 'latest',
+      '@types/react': 'latest',
+      '@types/node': 'latest',
+      '@types/react-dom': 'latest',
     }
-    console.log()
-
-    await install(root, dependencies, installFlags)
   }
+
+  /* Add Tailwind CSS dependencies. */
+  if (tailwind) {
+    packageJson.devDependencies = {
+      ...packageJson.devDependencies,
+      autoprefixer: 'latest',
+      postcss: 'latest',
+      tailwindcss: 'latest',
+    }
+  }
+
+  /* Default ESLint dependencies. */
+  if (eslint) {
+    packageJson.devDependencies = {
+      ...packageJson.devDependencies,
+      eslint: 'latest',
+      'eslint-config-next': 'latest',
+    }
+  }
+
+  const devDeps = Object.keys(packageJson.devDependencies).length
+  if (!devDeps) delete packageJson.devDependencies
+
+  await fs.writeFile(
+    path.join(root, 'package.json'),
+    JSON.stringify(packageJson, null, 2) + os.EOL
+  )
+
+  console.log('\nInstalling dependencies:')
+  for (const dependency in packageJson.dependencies)
+    console.log(`- ${cyan(dependency)}`)
+
+  if (devDeps) {
+    console.log('\nInstalling devDependencies:')
+    for (const dependency in packageJson.devDependencies)
+      console.log(`- ${cyan(dependency)}`)
+  }
+
+  console.log()
+
+  await install(packageManager, isOnline)
 }
 
 export * from './types'

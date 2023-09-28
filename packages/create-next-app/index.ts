@@ -109,6 +109,13 @@ const program = new Commander.Command(packageJson.name)
 `
   )
   .option(
+    '--use-bun',
+    `
+
+  Explicitly tell the CLI to bootstrap the application using Bun
+`
+  )
+  .option(
     '-e, --example [name]|[github-url]',
     `
 
@@ -143,6 +150,8 @@ const packageManager = !!program.useNpm
   ? 'pnpm'
   : !!program.useYarn
   ? 'yarn'
+  : !!program.useBun
+  ? 'bun'
   : getPkgManager()
 
 async function run(): Promise<void> {
@@ -237,6 +246,7 @@ async function run(): Promise<void> {
       typescript: true,
       eslint: true,
       tailwind: true,
+      app: true,
       srcDir: false,
       importAlias: '@/*',
       customizeImportAlias: false,
@@ -246,10 +256,9 @@ async function run(): Promise<void> {
 
     if (!program.typescript && !program.javascript) {
       if (ciInfo.isCI) {
-        // default to JavaScript in CI as we can't prompt to
+        // default to TypeScript in CI as we can't prompt to
         // prevent breaking setup flows
-        program.typescript = false
-        program.javascript = true
+        program.typescript = getPrefOrDefault('typescript')
       } else {
         const styledTypeScript = blue('TypeScript')
         const { typescript } = await prompts(
@@ -286,7 +295,7 @@ async function run(): Promise<void> {
       !process.argv.includes('--no-eslint')
     ) {
       if (ciInfo.isCI) {
-        program.eslint = true
+        program.eslint = getPrefOrDefault('eslint')
       } else {
         const styledEslint = blue('ESLint')
         const { eslint } = await prompts({
@@ -308,7 +317,7 @@ async function run(): Promise<void> {
       !process.argv.includes('--no-tailwind')
     ) {
       if (ciInfo.isCI) {
-        program.tailwind = false
+        program.tailwind = getPrefOrDefault('tailwind')
       } else {
         const tw = blue('Tailwind CSS')
         const { tailwind } = await prompts({
@@ -330,7 +339,7 @@ async function run(): Promise<void> {
       !process.argv.includes('--no-src-dir')
     ) {
       if (ciInfo.isCI) {
-        program.srcDir = false
+        program.srcDir = getPrefOrDefault('srcDir')
       } else {
         const styledSrcDir = blue('`src/` directory')
         const { srcDir } = await prompts({
@@ -349,7 +358,7 @@ async function run(): Promise<void> {
 
     if (!process.argv.includes('--app') && !process.argv.includes('--no-app')) {
       if (ciInfo.isCI) {
-        program.app = true
+        program.app = getPrefOrDefault('app')
       } else {
         const styledAppDir = blue('App Router')
         const { appRouter } = await prompts({
@@ -357,7 +366,7 @@ async function run(): Promise<void> {
           type: 'toggle',
           name: 'appRouter',
           message: `Would you like to use ${styledAppDir}? (recommended)`,
-          initial: true,
+          initial: getPrefOrDefault('app'),
           active: 'Yes',
           inactive: 'No',
         })
@@ -370,7 +379,8 @@ async function run(): Promise<void> {
       !program.importAlias.length
     ) {
       if (ciInfo.isCI) {
-        program.importAlias = '@/*'
+        // We don't use preferences here because the default value is @/* regardless of existing preferences
+        program.importAlias = defaults.importAlias
       } else {
         const styledImportAlias = blue('import alias')
 
@@ -378,14 +388,15 @@ async function run(): Promise<void> {
           onState: onPromptState,
           type: 'toggle',
           name: 'customizeImportAlias',
-          message: `Would you like to customize the default ${styledImportAlias}?`,
+          message: `Would you like to customize the default ${styledImportAlias} (${defaults.importAlias})?`,
           initial: getPrefOrDefault('customizeImportAlias'),
           active: 'Yes',
           inactive: 'No',
         })
 
         if (!customizeImportAlias) {
-          program.importAlias = '@/*'
+          // We don't use preferences here because the default value is @/* regardless of existing preferences
+          program.importAlias = defaults.importAlias
         } else {
           const { importAlias } = await prompts({
             onState: onPromptState,
@@ -461,6 +472,8 @@ async function notifyUpdate(): Promise<void> {
           ? 'yarn global add create-next-app'
           : packageManager === 'pnpm'
           ? 'pnpm add -g create-next-app'
+          : packageManager === 'bun'
+          ? 'bun add -g create-next-app'
           : 'npm i -g create-next-app'
 
       console.log(

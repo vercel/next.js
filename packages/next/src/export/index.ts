@@ -1,4 +1,6 @@
-import chalk from 'next/dist/compiled/chalk'
+import type { WorkerRenderOptsPartial } from './types'
+
+import { bold, yellow } from '../lib/picocolors'
 import findUp from 'next/dist/compiled/find-up'
 import {
   promises,
@@ -9,6 +11,7 @@ import {
 } from 'fs'
 
 import '../server/require-hook'
+
 import { Worker } from '../lib/worker'
 import { dirname, join, resolve, sep } from 'path'
 import { promisify } from 'util'
@@ -17,7 +20,6 @@ import * as Log from '../build/output/log'
 import createSpinner from '../build/spinner'
 import { SSG_FALLBACK_EXPORT_ERROR } from '../lib/constants'
 import { recursiveCopy } from '../lib/recursive-copy'
-import { recursiveDelete } from '../lib/recursive-delete'
 import {
   BUILD_ID_FILE,
   CLIENT_PUBLIC_FILES_PATH,
@@ -51,6 +53,7 @@ import { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { isAppPageRoute } from '../lib/is-app-page-route'
 import isError from '../lib/is-error'
+import { needsExperimentalReact } from '../lib/needs-experimental-react'
 
 const exists = promisify(existsOrig)
 
@@ -96,7 +99,7 @@ const createProgress = (total: number, label: string) => {
         '[==  ]',
         '[=   ]',
       ],
-      interval: 500,
+      interval: 200,
     },
   })
 
@@ -120,14 +123,21 @@ const createProgress = (total: number, label: string) => {
       lastProgressOutput = Date.now()
     }
 
-    const newText = `${label} (${curProgress}/${total})`
+    const isFinished = curProgress === total
+    // Use \r to reset current line with spinner.
+    // If it's 100% progressed, then we don't need to break a new line to avoid logging from routes while building.
+    const newText = `\r ${
+      isFinished ? Log.prefixes.event : Log.prefixes.info
+    } ${label} (${curProgress}/${total}) ${
+      isFinished ? '' : process.stdout.isTTY ? '\n' : '\r'
+    }`
     if (progressSpinner) {
       progressSpinner.text = newText
     } else {
       console.log(newText)
     }
 
-    if (curProgress === total && progressSpinner) {
+    if (isFinished && progressSpinner) {
       progressSpinner.stop()
       console.log(newText)
     }
@@ -270,7 +280,7 @@ export default async function exportApp(
     let prerenderManifest: PrerenderManifest | undefined = undefined
     try {
       prerenderManifest = require(join(distDir, PRERENDER_MANIFEST))
-    } catch (_) {}
+    } catch {}
 
     let appRoutePathManifest: Record<string, string> | undefined = undefined
     try {
@@ -354,7 +364,7 @@ export default async function exportApp(
       )
     }
 
-    await recursiveDelete(join(outDir))
+    await promises.rm(outDir, { recursive: true, force: true })
     await promises.mkdir(join(outDir, '_next', buildId), { recursive: true })
 
     writeFileSync(
@@ -442,35 +452,31 @@ export default async function exportApp(
     }
 
     // Start the rendering process
-    const renderOpts = {
-      dir,
+    const renderOpts: WorkerRenderOptsPartial = {
+      previewProps: prerenderManifest?.preview,
       buildId,
       nextExport: true,
       assetPrefix: nextConfig.assetPrefix.replace(/\/$/, ''),
       distDir,
       dev: false,
-      hotReloader: null,
       basePath: nextConfig.basePath,
       canonicalBase: nextConfig.amp?.canonicalBase || '',
-      ampValidatorPath: nextConfig.experimental.amp?.validator || undefined,
       ampSkipValidation: nextConfig.experimental.amp?.skipValidation || false,
       ampOptimizerConfig: nextConfig.experimental.amp?.optimizer || undefined,
       locales: i18n?.locales,
       locale: i18n?.defaultLocale,
       defaultLocale: i18n?.defaultLocale,
       domainLocales: i18n?.domains,
-      trailingSlash: nextConfig.trailingSlash,
       disableOptimizedLoading: nextConfig.experimental.disableOptimizedLoading,
       // Exported pages do not currently support dynamic HTML.
       supportsDynamicHTML: false,
-      crossOrigin: nextConfig.crossOrigin,
+      crossOrigin: nextConfig.crossOrigin || '',
       optimizeCss: nextConfig.experimental.optimizeCss,
       nextConfigOutput: nextConfig.output,
       nextScriptWorkers: nextConfig.experimental.nextScriptWorkers,
       optimizeFonts: nextConfig.optimizeFonts as FontConfig,
       largePageDataBytes: nextConfig.experimental.largePageDataBytes,
       serverComponents: options.hasAppDir,
-      hasServerComponents: options.hasAppDir,
       serverActionsBodySizeLimit:
         nextConfig.experimental.serverActionsBodySizeLimit,
       nextFontManifest: require(join(
@@ -548,8 +554,7 @@ export default async function exportApp(
     const filteredPaths = exportPaths.filter(
       // Remove API routes
       (route) =>
-        (exportPathMap[route] as any)._isAppDir ||
-        !isAPIRoute(exportPathMap[route].page)
+        exportPathMap[route]._isAppDir || !isAPIRoute(exportPathMap[route].page)
     )
 
     if (filteredPaths.length !== exportPaths.length) {
@@ -591,27 +596,27 @@ export default async function exportApp(
         )) as MiddlewareManifest
 
         hasMiddleware = Object.keys(middlewareManifest.middleware).length > 0
-      } catch (_) {}
+      } catch {}
 
       // Warn if the user defines a path for an API page
       if (hasApiRoutes || hasMiddleware) {
         if (!options.silent) {
           Log.warn(
-            chalk.yellow(
+            yellow(
               `Statically exporting a Next.js application via \`next export\` disables API routes and middleware.`
             ) +
               `\n` +
-              chalk.yellow(
+              yellow(
                 `This command is meant for static-only hosts, and is` +
                   ' ' +
-                  chalk.bold(`not necessary to make your application static.`)
+                  bold(`not necessary to make your application static.`)
               ) +
               `\n` +
-              chalk.yellow(
+              yellow(
                 `Pages in your application without server-side data dependencies will be automatically statically exported by \`next build\`, including pages powered by \`getStaticProps\`.`
               ) +
               `\n` +
-              chalk.yellow(
+              yellow(
                 `Learn more: https://nextjs.org/docs/messages/api-routes-static-export`
               )
           )
@@ -623,7 +628,7 @@ export default async function exportApp(
       !options.silent &&
       createProgress(
         filteredPaths.length,
-        `${Log.prefixes.info} ${options.statusMessage || 'Exporting'}`
+        `${options.statusMessage || 'Exporting'}`
       )
     const pagesDataDir = options.buildExport
       ? outDir
@@ -712,6 +717,9 @@ export default async function exportApp(
             outDir,
             pagesDataDir,
             renderOpts,
+            ampValidatorPath:
+              nextConfig.experimental.amp?.validator || undefined,
+            trailingSlash: nextConfig.trailingSlash,
             serverRuntimeConfig,
             subFolders,
             buildExport: options.buildExport,
@@ -723,21 +731,26 @@ export default async function exportApp(
             httpAgentOptions: nextConfig.httpAgentOptions,
             debugOutput: options.debugOutput,
             isrMemoryCacheSize: nextConfig.experimental.isrMemoryCacheSize,
-            fetchCache: nextConfig.experimental.appDir,
+            fetchCache: true,
             fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
             incrementalCacheHandlerPath:
               nextConfig.experimental.incrementalCacheHandlerPath,
+            enableExperimentalReact: needsExperimentalReact(nextConfig),
           })
 
-          for (const validation of result.ampValidations || []) {
-            const { page, result: ampValidationResult } = validation
-            ampValidations[page] = ampValidationResult
-            hadValidationError =
-              hadValidationError ||
-              (Array.isArray(ampValidationResult?.errors) &&
-                ampValidationResult.errors.length > 0)
+          if (result.ampValidations) {
+            for (const validation of result.ampValidations) {
+              const { page, result: ampValidationResult } = validation
+              ampValidations[page] = ampValidationResult
+              hadValidationError =
+                hadValidationError ||
+                (Array.isArray(ampValidationResult?.errors) &&
+                  ampValidationResult.errors.length > 0)
+            }
           }
+
           renderError = renderError || !!result.error
+
           if (!!result.error) {
             const { page } = pathMap
             errorPaths.push(page !== path ? `${page}: ${path}` : path)

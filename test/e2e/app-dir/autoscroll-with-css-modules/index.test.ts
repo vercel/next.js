@@ -2,7 +2,7 @@ import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
 createNextDescribe(
-  'router autoscrolling on navigation',
+  'router autoscrolling on navigation with css modules',
   {
     files: __dirname,
   },

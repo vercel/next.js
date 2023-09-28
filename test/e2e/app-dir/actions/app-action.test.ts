@@ -1,6 +1,6 @@
 /* eslint-disable jest/no-standalone-expect */
 import { createNextDescribe } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { check, waitFor } from 'next-test-utils'
 import { Request } from 'playwright-chromium'
 import fs from 'fs-extra'
 import { join } from 'path'
@@ -64,6 +64,24 @@ createNextDescribe(
           ? 'same'
           : 'different'
       }, 'same')
+    })
+
+    it('should push new route when redirecting', async () => {
+      const browser = await next.browser('/header')
+
+      await browser.elementByCss('#setCookieAndRedirect').click()
+      await check(async () => {
+        return (await browser.elementByCss('#redirected').text()) || ''
+      }, 'redirected')
+
+      // Ensure we can navigate back
+      await browser.back()
+
+      await check(async () => {
+        return (
+          (await browser.elementByCss('#setCookieAndRedirect').text()) || ''
+        )
+      }, 'setCookieAndRedirect')
     })
 
     it('should support headers in client imported actions', async () => {
@@ -250,6 +268,73 @@ createNextDescribe(
       await check(() => browser.elementByCss('#value').text(), 'Value = 2')
     })
 
+    it('should not block navigation events while a server action is in flight', async () => {
+      let browser = await next.browser('/client')
+
+      await browser.elementByCss('#slow-inc').click()
+
+      // navigate to server
+      await browser.elementByCss('#navigate-server').click()
+      // intentionally bailing after 2 retries so we don't retry to the point where the async function resolves
+      await check(() => browser.url(), `${next.url}/server`, true, 2)
+
+      browser = await next.browser('/server')
+
+      await browser.elementByCss('#slow-inc').click()
+
+      // navigate to client
+      await browser.elementByCss('#navigate-client').click()
+      // intentionally bailing after 2 retries so we don't retry to the point where the async function resolves
+      await check(() => browser.url(), `${next.url}/client`, true, 2)
+    })
+
+    it('should support next/dynamic with ssr: false', async () => {
+      const browser = await next.browser('/dynamic-csr')
+
+      await check(() => {
+        return browser.elementByCss('button').text()
+      }, '0')
+
+      await browser.elementByCss('button').click()
+
+      await check(() => {
+        return browser.elementByCss('button').text()
+      }, '1')
+    })
+
+    it('should only submit action once when resubmitting an action after navigation', async () => {
+      let requestCount = 0
+
+      const browser = await next.browser('/server', {
+        beforePageLoad(page) {
+          page.on('request', (request) => {
+            const url = new URL(request.url())
+            if (url.pathname === '/server') {
+              requestCount++
+            }
+          })
+        },
+      })
+
+      async function submitForm() {
+        await browser.elementById('name').type('foo')
+        await browser.elementById('submit').click()
+        await check(() => browser.url(), /header/)
+      }
+
+      await submitForm()
+
+      await browser.elementById('navigate-server').click()
+      await check(() => browser.url(), /server/)
+      await browser.waitForIdleNetwork()
+
+      requestCount = 0
+
+      await submitForm()
+
+      expect(requestCount).toBe(1)
+    })
+
     if (isNextStart) {
       it('should not expose action content in sourcemaps', async () => {
         const sourcemap = (
@@ -288,8 +373,11 @@ createNextDescribe(
               origContent.replace('return value + 1', 'return value + 1000')
             )
 
-            await browser.elementByCss('#inc').click()
-            await check(() => browser.elementByCss('h1').text(), '1001')
+            await check(async () => {
+              await browser.elementByCss('#inc').click()
+              const val = Number(await browser.elementByCss('h1').text())
+              return val > 1000 ? 'success' : val
+            }, 'success')
           } finally {
             await next.patchFile(filePath, origContent)
           }
@@ -348,9 +436,7 @@ createNextDescribe(
       it('should handle redirect to a relative URL in a single pass', async () => {
         const browser = await next.browser('/client/edge')
 
-        await new Promise((resolve) => {
-          setTimeout(resolve, 3000)
-        })
+        await waitFor(3000)
 
         let requests = []
 
@@ -371,7 +457,7 @@ createNextDescribe(
 
         await check(async () => {
           return browser.eval('window.location.toString()')
-        }, 'https://example.com/')
+        }, 'https://next-data-api-endpoint.vercel.app/api/random?page')
       })
 
       it('should allow cookie and header async storages', async () => {
@@ -390,15 +476,34 @@ createNextDescribe(
           return newTestCookie !== currentTestCookie ? 'success' : 'failure'
         }, 'success')
       })
+
+      it('should handle unicode search params', async () => {
+        const browser = await next.browser('/server?name=名')
+
+        const cnt = await browser.elementByCss('h1').text()
+        expect(cnt).toBe('0')
+
+        await browser.elementByCss('#inc').click()
+        await check(() => browser.elementByCss('h1').text(), '1')
+      })
     })
 
     describe('fetch actions', () => {
+      it('should handle a fetch action initiated from a static page', async () => {
+        const browser = await next.browser('/client-static')
+        await check(() => browser.elementByCss('#count').text(), '0')
+
+        await browser.elementByCss('#increment').click()
+        await check(() => browser.elementByCss('#count').text(), '1')
+
+        await browser.elementByCss('#increment').click()
+        await check(() => browser.elementByCss('#count').text(), '2')
+      })
+
       it('should handle redirect to a relative URL in a single pass', async () => {
         const browser = await next.browser('/client')
 
-        await new Promise((resolve) => {
-          setTimeout(resolve, 3000)
-        })
+        await waitFor(3000)
 
         let requests = []
 
@@ -419,11 +524,11 @@ createNextDescribe(
 
         await check(async () => {
           return browser.eval('window.location.toString()')
-        }, 'https://example.com/')
+        }, 'https://next-data-api-endpoint.vercel.app/api/random?page')
       })
 
       // TODO: investigate flakey behavior with revalidate
-      it.skip('should handle revalidatePath', async () => {
+      it('should handle revalidatePath', async () => {
         const browser = await next.browser('/revalidate')
         const randomNumber = await browser.elementByCss('#random-number').text()
         const justPutIt = await browser.elementByCss('#justputit').text()
@@ -449,7 +554,7 @@ createNextDescribe(
       })
 
       // TODO: investigate flakey behavior with revalidate
-      it.skip('should handle revalidateTag', async () => {
+      it('should handle revalidateTag', async () => {
         const browser = await next.browser('/revalidate')
         const randomNumber = await browser.elementByCss('#random-number').text()
         const justPutIt = await browser.elementByCss('#justputit').text()
@@ -500,7 +605,7 @@ createNextDescribe(
         }, 'success')
       })
 
-      it.skip('should store revalidation data in the prefetch cache', async () => {
+      it('should store revalidation data in the prefetch cache', async () => {
         const browser = await next.browser('/revalidate')
         const justPutIt = await browser.elementByCss('#justputit').text()
         await browser.elementByCss('#revalidate-justputit').click()
@@ -530,8 +635,7 @@ createNextDescribe(
         expect(newJustPutIt).toEqual(newJustPutIt2)
       })
 
-      // TODO: investigate flakey behavior with revalidate
-      it.skip('should revalidate when cookies.set is called', async () => {
+      it('should revalidate when cookies.set is called', async () => {
         const browser = await next.browser('/revalidate')
         const randomNumber = await browser.elementByCss('#random-cookie').text()
 
@@ -546,8 +650,38 @@ createNextDescribe(
         }, 'success')
       })
 
+      it('should invalidate client cache on other routes when cookies.set is called', async () => {
+        const browser = await next.browser('/mutate-cookie')
+        await browser.elementByCss('#update-cookie').click()
+
+        let cookie
+        await check(async () => {
+          cookie = await browser.elementByCss('#value').text()
+          return parseInt(cookie) > 0 ? 'success' : 'failure'
+        }, 'success')
+
+        // Make sure the route is cached
+        await browser.elementByCss('#page-2').click()
+        await browser.elementByCss('#back').click()
+
+        // Modify the cookie
+        await browser.elementByCss('#update-cookie').click()
+        let newCookie
+        await check(async () => {
+          newCookie = await browser.elementByCss('#value').text()
+          return newCookie !== cookie && parseInt(newCookie) > 0
+            ? 'success'
+            : 'failure'
+        }, 'success')
+
+        // Navigate to another page and make sure the cookie is not cached
+        await browser.elementByCss('#page-2').click()
+        const otherPageCookie = await browser.elementByCss('#value').text()
+        expect(otherPageCookie).toEqual(newCookie)
+      })
+
       // TODO: investigate flakey behavior with revalidate
-      it.skip('should revalidate when cookies.set is called in a client action', async () => {
+      it('should revalidate when cookies.set is called in a client action', async () => {
         const browser = await next.browser('/revalidate')
         await browser.refresh()
 
@@ -604,7 +738,7 @@ createNextDescribe(
         }, 'success')
       })
 
-      it.skip.each(['tag', 'path'])(
+      it.each(['tag', 'path'])(
         'should invalidate client cache when %s is revalidated',
         async (type) => {
           const browser = await next.browser('/revalidate')
@@ -628,20 +762,20 @@ createNextDescribe(
 
           await browser.elementByCss('#back').click()
 
-          switch (type) {
-            case 'tag':
-              await browser.elementByCss('#revalidate-thankyounext').click()
-              break
-            case 'path':
-              await browser.elementByCss('#revalidate-path').click()
-              break
-            default:
-              throw new Error(`Invalid type: ${type}`)
-          }
-
           // Should be different
           let revalidatedThankYouNext
           await check(async () => {
+            switch (type) {
+              case 'tag':
+                await browser.elementByCss('#revalidate-thankyounext').click()
+                break
+              case 'path':
+                await browser.elementByCss('#revalidate-path').click()
+                break
+              default:
+                throw new Error(`Invalid type: ${type}`)
+            }
+
             revalidatedThankYouNext = await browser
               .elementByCss('#thankyounext')
               .text()

@@ -1,4 +1,5 @@
 import ora from 'next/dist/compiled/ora'
+import * as Log from './output/log'
 
 const dotsSpinner = {
   frames: ['.', '..', '...'],
@@ -6,17 +7,20 @@ const dotsSpinner = {
 }
 
 export default function createSpinner(
-  text: string | { prefixText: string },
+  text: string,
   options: ora.Options = {},
   logFn: (...data: any[]) => void = console.log
 ) {
   let spinner: undefined | ora.Ora
-  let prefixText = text && typeof text === 'object' && text.prefixText
+
+  const prefixText = ` ${Log.prefixes.info} ${text} `
+  // Add \r at beginning to reset the current line of loading status text
+  const suffixText = `\r ${Log.prefixes.event} ${text} `
 
   if (process.stdout.isTTY) {
     spinner = ora({
-      text: typeof text === 'string' ? text : undefined,
-      prefixText: typeof prefixText === 'string' ? prefixText : undefined,
+      text: undefined,
+      prefixText,
       spinner: dotsSpinner,
       stream: process.stdout,
       ...options,
@@ -51,6 +55,13 @@ export default function createSpinner(
       return spinner!
     }
     spinner.stopAndPersist = (): ora.Ora => {
+      if (suffixText) {
+        if (spinner) {
+          spinner.text = suffixText
+        } else {
+          logFn(suffixText)
+        }
+      }
       origStopAndPersist()
       resetLog()
       return spinner!

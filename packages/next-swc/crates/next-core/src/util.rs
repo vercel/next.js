@@ -2,18 +2,16 @@ use anyhow::{bail, Result};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use swc_core::ecma::ast::Program;
-use turbo_tasks::{trace::TraceRawVcs, TaskInput, Value, ValueDefault, ValueToString, Vc};
+use turbo_tasks::{trace::TraceRawVcs, TaskInput, ValueDefault, ValueToString, Vc};
+use turbo_tasks_fs::rope::Rope;
 use turbopack_binding::{
     turbo::tasks_fs::{json::parse_json_rope_with_source_context, FileContent, FileSystemPath},
     turbopack::{
         core::{
-            asset::Asset,
             environment::{ServerAddr, ServerInfo},
             ident::AssetIdent,
-            issue::{Issue, IssueExt, IssueSeverity, OptionIssueSource},
+            issue::{Issue, IssueExt, IssueSeverity},
             module::Module,
-            reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
-            resolve::{self, handle_resolve_error, node::node_cjs_resolve_options, parse::Request},
         },
         ecmascript::{
             analyzer::{JsValue, ObjectPart},
@@ -24,12 +22,17 @@ use turbopack_binding::{
     },
 };
 
-use crate::next_config::{NextConfig, OutputType};
+use crate::{
+    next_config::{NextConfig, OutputType},
+    next_import_map::get_next_package,
+};
+
+const NEXT_TEMPLATE_PATH: &str = "dist/esm/build/templates";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, TaskInput)]
 pub enum PathType {
-    Page,
-    PagesAPI,
+    PagesPage,
+    PagesApi,
     Data,
 }
 
@@ -62,25 +65,46 @@ pub async fn pathname_for_path(
 }
 
 // Adapted from https://github.com/vercel/next.js/blob/canary/packages/next/shared/lib/router/utils/get-asset-path-from-route.ts
-pub fn get_asset_path_from_pathname(pathname: &str, ext: &str) -> String {
+// TODO(alexkirsz) There's no need to create an intermediate string here (and
+// below), we should instead return an `impl Display`.
+pub fn get_asset_prefix_from_pathname(pathname: &str) -> String {
     if pathname == "/" {
-        format!("/index{}", ext)
+        "/index".to_string()
     } else if pathname == "/index" || pathname.starts_with("/index/") {
-        format!("/index{}{}", pathname, ext)
+        format!("/index{}", pathname)
     } else {
-        format!("{}{}", pathname, ext)
+        pathname.to_string()
     }
+}
+
+// Adapted from https://github.com/vercel/next.js/blob/canary/packages/next/shared/lib/router/utils/get-asset-path-from-route.ts
+pub fn get_asset_path_from_pathname(pathname: &str, ext: &str) -> String {
+    format!("{}{}", get_asset_prefix_from_pathname(pathname), ext)
 }
 
 pub async fn foreign_code_context_condition(
     next_config: Vc<NextConfig>,
+    project_path: Vc<FileSystemPath>,
 ) -> Result<ContextCondition> {
     let transpile_packages = next_config.transpile_packages().await?;
+
+    // The next template files are allowed to import the user's code via import
+    // mapping, and imports must use the project-level [ResolveOptions] instead
+    // of the `node_modules` specific resolve options (the template files are
+    // technically node module files).
+    let not_next_template_dir = ContextCondition::not(ContextCondition::InPath(
+        get_next_package(project_path).join(NEXT_TEMPLATE_PATH.to_string()),
+    ));
+
     let result = if transpile_packages.is_empty() {
-        ContextCondition::InDirectory("node_modules".to_string())
+        ContextCondition::all(vec![
+            ContextCondition::InDirectory("node_modules".to_string()),
+            not_next_template_dir,
+        ])
     } else {
         ContextCondition::all(vec![
             ContextCondition::InDirectory("node_modules".to_string()),
+            not_next_template_dir,
             ContextCondition::not(ContextCondition::any(
                 transpile_packages
                     .iter()
@@ -105,6 +129,7 @@ pub async fn foreign_code_context_condition(
     Hash,
     PartialOrd,
     Ord,
+    TaskInput,
 )]
 #[serde(rename_all = "lowercase")]
 pub enum NextRuntime {
@@ -115,7 +140,7 @@ pub enum NextRuntime {
 }
 
 #[turbo_tasks::value]
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct NextSourceConfig {
     pub runtime: NextRuntime,
 
@@ -156,7 +181,7 @@ impl Issue for NextSourceConfigParsingIssue {
     }
 
     #[turbo_tasks::function]
-    fn context(&self) -> Vc<FileSystemPath> {
+    fn file_path(&self) -> Vc<FileSystemPath> {
         self.ident.path()
     }
 
@@ -322,34 +347,38 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
     config
 }
 
-pub async fn load_next_json<T: DeserializeOwned>(
-    context: Vc<FileSystemPath>,
-    path: &str,
-) -> Result<T> {
-    let request = Request::module(
-        "next".to_owned(),
-        Value::new(path.to_string().into()),
-        Vc::cell(None),
-    );
-    let resolve_options = node_cjs_resolve_options(context.root());
+#[turbo_tasks::function]
+pub async fn load_next_js_template(
+    project_path: Vc<FileSystemPath>,
+    file: String,
+) -> Result<Vc<Rope>> {
+    let file_path = virtual_next_js_template_path(project_path, file);
 
-    let resolve_result = handle_resolve_error(
-        resolve::resolve(context, request, resolve_options).as_raw_module_result(),
-        Value::new(ReferenceType::EcmaScriptModules(
-            EcmaScriptModulesReferenceSubType::Undefined,
-        )),
-        context,
-        request,
-        resolve_options,
-        OptionIssueSource::none(),
-        IssueSeverity::Error.cell(),
-    )
-    .await?;
-    let Some(metrics_asset) = *resolve_result.first_module().await? else {
-        bail!("Expected to find module");
+    let content = &*file_path.read().await?;
+
+    let FileContent::Content(file) = content else {
+        bail!("Expected file content for file");
     };
 
-    let content = &*metrics_asset.content().file_content().await?;
+    Ok(file.content().to_owned().cell())
+}
+
+#[turbo_tasks::function]
+pub fn virtual_next_js_template_path(
+    project_path: Vc<FileSystemPath>,
+    file: String,
+) -> Vc<FileSystemPath> {
+    debug_assert!(!file.contains('/'));
+    get_next_package(project_path).join(format!("{NEXT_TEMPLATE_PATH}/{file}"))
+}
+
+pub async fn load_next_js_templateon<T: DeserializeOwned>(
+    project_path: Vc<FileSystemPath>,
+    path: String,
+) -> Result<T> {
+    let file_path = get_next_package(project_path).join(path);
+
+    let content = &*file_path.read().await?;
 
     let FileContent::Content(file) = content else {
         bail!("Expected file content for metrics data");

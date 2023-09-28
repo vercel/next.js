@@ -305,7 +305,7 @@ function generateCacheKey(request) {
   }
 }
 
-var ReactVersion = '18.3.0-canary-9377e1010-20230712';
+var ReactVersion = '18.3.0-canary-09285d5a7-20230925';
 
 // ATTENTION
 // When adding new symbols to this file,
