@@ -1,24 +1,47 @@
-import { listGuestbookEntries, createGuestbookEntry } from '@/lib/fauna'
+import { Client, fql } from 'fauna'
+
+const client = new Client({
+  secret: process.env.FAUNA_CLIENT_SECRET,
+})
 
 export default async function handler(req, res) {
   const handlers = {
+    // Get all entries from Fauna
     GET: async () => {
-      const entries = await listGuestbookEntries()
-
-      res.json(entries)
+      try {
+        const dbresponse = await client.query(fql`
+          Entry.all()
+        `)
+        res.json(dbresponse.data.data)
+      } catch (error) {
+        res.status(403).json({
+          error: error.message,
+        })
+      }
     },
 
+    // Create a new entry in Fauna
     POST: async () => {
       const {
         body: { name, message },
       } = req
-      const created = await createGuestbookEntry({
-        name,
-        message,
-        createdAt: new Date(),
-      })
+      res.json({})
 
-      res.json(created)
+      try {
+        const dbresponse = await client.query(fql`
+          Entry.create({
+            name: ${name},
+            message: ${message},
+            createdAt: Time.now(),
+          })
+        `)
+        res.json(dbresponse.data.data)
+      } catch (error) {
+        res.status(403).json({
+          error: error.message,
+        })
+      }
+
     },
   }
 

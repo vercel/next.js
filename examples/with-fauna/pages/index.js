@@ -4,7 +4,6 @@ import cn from 'classnames'
 import formatDate from 'date-fns/format'
 import useSWR, { mutate, SWRConfig } from 'swr'
 import 'tailwindcss/tailwind.css'
-import { listGuestbookEntries } from '@/lib/fauna'
 import SuccessMessage from '@/components/SuccessMessage'
 import ErrorMessage from '@/components/ErrorMessage'
 import LoadingSpinner from '@/components/LoadingSpinner'
@@ -50,7 +49,7 @@ const EntryItem = ({ entry }) => (
       <p className="text-sm text-gray-500">{entry.name}</p>
       <span className="text-gray-200 dark:text-gray-800">/</span>
       <p className="text-sm text-gray-400 dark:text-gray-600">
-        {formatDate(new Date(entry.createdAt), "d MMM yyyy 'at' h:mm bb")}
+        {formatDate(new Date(entry.createdAt.isoString), "d MMM yyyy 'at' h:mm bb")}
       </p>
     </div>
   </div>
@@ -168,11 +167,19 @@ const Guestbook = ({ fallback }) => {
 }
 
 export async function getStaticProps() {
-  const entries = await listGuestbookEntries()
+  let entries = []
+  let error = null
+  try {
+    entries = await fetch('/api/entries') 
+    console.log('--->', entries)
+  } catch (error) {
+    error = error
+  }
   return {
     props: {
       fallback: {
         entries,
+        error,
       },
     },
   }
