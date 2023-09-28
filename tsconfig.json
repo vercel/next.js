@@ -24,7 +24,7 @@
     "test/**/*.test.ts",
     "test/**/*.test.tsx",
     "test/**/test/*",
-    "packages/next/types/webpack.d.ts",
+    "packages/next/types/compiled.d.ts",
     "test/e2e/pages-dir/client-navigation/index.test.js",
     "test/e2e/pages-dir/client-navigation/rendering.js"
   ]

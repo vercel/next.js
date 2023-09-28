@@ -348,7 +348,7 @@ impl AppProject {
                 .iter()
                 .map(|(pathname, app_entrypoint)| async {
                     Ok((
-                        pathname.clone(),
+                        pathname.to_string(),
                         *app_entry_point_to_route(self, app_entrypoint.clone()).await?,
                     ))
                 })

@@ -1982,6 +1982,16 @@ export async function ncc_unistore(task, opts) {
     .ncc({ packageName: 'unistore', externals })
     .target('src/compiled/unistore')
 }
+
+// eslint-disable-next-line camelcase
+externals['unistore'] = 'next/dist/compiled/superstruct'
+export async function ncc_superstruct(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('superstruct')))
+    .ncc({ packageName: 'superstruct', externals })
+    .target('src/compiled/superstruct')
+}
+
 // eslint-disable-next-line camelcase
 externals['web-vitals'] = 'next/dist/compiled/web-vitals'
 export async function ncc_web_vitals(task, opts) {
@@ -2304,6 +2314,7 @@ export async function ncc(task, opts) {
         'ncc_source_map',
         'ncc_string_hash',
         'ncc_strip_ansi',
+        'ncc_superstruct',
         'ncc_nft',
         'ncc_tar',
         'ncc_terser',

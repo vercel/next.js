@@ -7,6 +7,7 @@ use std::{
 use anyhow::{Context, Result};
 use dunce::canonicalize;
 use next_core::{
+    app_structure::find_app_dir_if_enabled,
     mode::NextMode,
     next_app::get_app_client_references_chunks,
     next_client::{get_client_chunking_context, get_client_compile_time_info},
@@ -135,6 +136,17 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
     let execution_context =
         ExecutionContext::new(project_root, node_execution_chunking_context, env);
     let next_config = load_next_config(execution_context.with_layer("next_config".to_string()));
+
+    let mode = NextMode::Build;
+    let app_dir = find_app_dir_if_enabled(project_root);
+    let client_compile_time_info = get_client_compile_time_info(
+        mode,
+        browserslist_query,
+        node_root.to_string(),
+        next_config,
+        app_dir,
+    );
+    let server_compile_time_info = get_server_compile_time_info(mode, env, ServerAddr::empty());
 
     // TODO(alexkirsz) Pages should build their own routes, outside of a FS.
     let next_router_fs = Vc::upcast::<Box<dyn FileSystem>>(VirtualFileSystem::new());
