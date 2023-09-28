@@ -295,6 +295,7 @@ async fn run_test(resource: String) -> Result<Vc<FileSystemPath>> {
             BuildChunkingContext::builder(
                 project_root,
                 path,
+                path,
                 chunk_root_path,
                 static_root_path,
                 env,
