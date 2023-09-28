@@ -16,12 +16,12 @@ export type ReactReadableStream = ReadableStream<Uint8Array> & {
 export const streamToBufferedResult = async (
   renderResult: RenderResult
 ): Promise<string> => {
-  const renderChunks: string[] = []
   const textDecoder = new TextDecoder()
+  let concatenatedString = ''
 
   const writable = {
     write(chunk: any) {
-      renderChunks.push(decodeText(chunk, textDecoder))
+      concatenatedString += decodeText(chunk, textDecoder)
     },
     end() {},
 
@@ -30,7 +30,7 @@ export const streamToBufferedResult = async (
     off() {},
   }
   await renderResult.pipe(writable)
-  return renderChunks.join('')
+  return concatenatedString
 }
 
 export function cloneTransformStream(source: TransformStream) {
@@ -146,7 +146,7 @@ export function createInsertedHTMLStream(
   })
 }
 
-export function renderToInitialStream({
+export function renderToInitialFizzStream({
   ReactDOMServer,
   element,
   streamOptions,
@@ -244,7 +244,9 @@ function createDeferredSuffixStream(
   })
 }
 
-export function createInlineDataStream(
+// Merge two streams into one. Ensure the final transform stream is closed
+// when both are finished.
+function createMergedTransformStream(
   dataStream: ReadableStream<Uint8Array>
 ): TransformStream<Uint8Array, Uint8Array> {
   let dataStreamFinished: Promise<void> | null = null
@@ -370,17 +372,17 @@ export function createRootLayoutValidatorStream(
   })
 }
 
-export async function continueFromInitialStream(
+export async function continueFizzStream(
   renderStream: ReactReadableStream,
   {
     suffix,
-    dataStream,
+    inlinedDataStream,
     generateStaticHTML,
     getServerInsertedHTML,
     serverInsertedHTMLToHead,
     validateRootLayout,
   }: {
-    dataStream?: ReadableStream<Uint8Array>
+    inlinedDataStream?: ReadableStream<Uint8Array>
     generateStaticHTML: boolean
     getServerInsertedHTML?: () => Promise<string>
     serverInsertedHTMLToHead: boolean
@@ -413,8 +415,8 @@ export async function continueFromInitialStream(
     // Insert suffix content
     suffixUnclosed != null ? createDeferredSuffixStream(suffixUnclosed) : null,
 
-    // Insert the flight data stream
-    dataStream ? createInlineDataStream(dataStream) : null,
+    // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
+    inlinedDataStream ? createMergedTransformStream(inlinedDataStream) : null,
 
     // Close tags should always be deferred to the end
     createMoveSuffixStream(closeTag),

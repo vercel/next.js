@@ -81,8 +81,8 @@ import {
   streamFromString,
   streamToString,
   chainStreams,
-  renderToInitialStream,
-  continueFromInitialStream,
+  renderToInitialFizzStream,
+  continueFizzStream,
 } from './stream-utils/node-web-streams-helper'
 import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
@@ -1297,7 +1297,7 @@ export async function renderToHTMLImpl(
       EnhancedComponent: NextComponentType
     ) => {
       const content = renderContent(EnhancedApp, EnhancedComponent)
-      return await renderToInitialStream({
+      return await renderToInitialFizzStream({
         ReactDOMServer,
         element: content,
       })
@@ -1312,9 +1312,9 @@ export async function renderToHTMLImpl(
           return renderToString(styledJsxInsertedHTML())
         }
 
-        return continueFromInitialStream(initialStream, {
+        return continueFizzStream(initialStream, {
           suffix,
-          dataStream: serverComponentsInlinedTransformStream?.readable,
+          inlinedDataStream: serverComponentsInlinedTransformStream?.readable,
           generateStaticHTML: true,
           getServerInsertedHTML,
           serverInsertedHTMLToHead: false,
