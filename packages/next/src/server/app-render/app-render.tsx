@@ -288,12 +288,11 @@ export const renderToHTMLOrFlight: AppPageRender = (
     /**
      * Router state provided from the client-side router. Used to handle rendering from the common layout down.
      */
-    let providedFlightRouterState =
-      isFlight && !isPrefetch
-        ? parseAndValidateFlightRouterState(
-            req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
-          )
-        : undefined
+    let providedFlightRouterState = isFlight
+      ? parseAndValidateFlightRouterState(
+          req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
+        )
+      : undefined
 
     /**
      * The tree created in next-app-loader that holds component segments and modules
@@ -1097,6 +1096,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
          * Decide if the current segment is where rendering has to start.
          */
         const renderComponentsOnThisLevel =
+          isPrefetch ||
           // No further router state available
           !flightRouterState ||
           // Segment in router state does not match current segment
