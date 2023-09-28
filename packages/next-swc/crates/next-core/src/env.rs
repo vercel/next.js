@@ -99,6 +99,15 @@ pub async fn env_for_js(
         },
     );
 
+    map.insert(
+        "__NEXT_MANUAL_TRAILING_SLASH".to_string(),
+        if next_config.skip_trailing_slash_redirect.unwrap_or(false) {
+            "true".to_string()
+        } else {
+            "false".to_string()
+        },
+    );
+
     if !test_mode.is_empty() {
         map.insert("__NEXT_TEST_MODE".to_string(), "true".to_string());
     }

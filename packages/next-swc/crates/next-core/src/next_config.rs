@@ -88,6 +88,7 @@ pub struct NextConfig {
     pub trailing_slash: Option<bool>,
     pub asset_prefix: Option<String>,
     pub base_path: Option<String>,
+    pub skip_trailing_slash_redirect: Option<bool>,
 
     ///
     #[serde(rename = "_originalRedirects")]
@@ -128,7 +129,6 @@ pub struct NextConfig {
     use_file_system_public_routes: bool,
     webpack: Option<serde_json::Value>,
     skip_middleware_url_normalize: Option<bool>,
-    skip_trailing_slash_redirect: Option<bool>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
