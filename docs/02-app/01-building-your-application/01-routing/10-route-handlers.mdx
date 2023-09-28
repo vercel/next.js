@@ -50,8 +50,6 @@ In addition to supporting native [Request](https://developer.mozilla.org/docs/We
 Route Handlers are cached by default when using the `GET` method with the `Response` object.
 
 ```ts filename="app/items/route.ts" switcher
-import { NextResponse } from 'next/server'
-
 export async function GET() {
   const res = await fetch('https://data.mongodb-api.com/...', {
     headers: {
@@ -61,13 +59,11 @@ export async function GET() {
   })
   const data = await res.json()
 
-  return NextResponse.json({ data })
+  return Response.json({ data })
 }
 ```
 
 ```js filename="app/items/route.js" switcher
-import { NextResponse } from 'next/server'
-
 export async function GET() {
   const res = await fetch('https://data.mongodb-api.com/...', {
     headers: {
@@ -77,11 +73,11 @@ export async function GET() {
   })
   const data = await res.json()
 
-  return NextResponse.json({ data })
+  return Response.json({ data })
 }
 ```
 
-> **TypeScript Warning:** Although `Response.json()` is valid, native TypeScript types currently shows an error, you can use [`NextResponse.json()`](/docs/app/api-reference/functions/next-response#json) for typed responses instead.
+> **TypeScript Warning:** `Response.json()` is only valid from TypeScript 5.2. If you use a lower TypeScript version, you can use [`NextResponse.json()`](/docs/app/api-reference/functions/next-response#json) for typed responses instead.
 
 ### Opting out of caching
 
@@ -95,8 +91,6 @@ You can opt out of caching by:
 For example:
 
 ```ts filename="app/products/api/route.ts" switcher
-import { NextResponse } from 'next/server'
-
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
@@ -108,13 +102,11 @@ export async function GET(request: Request) {
   })
   const product = await res.json()
 
-  return NextResponse.json({ product })
+  return Response.json({ product })
 }
 ```
 
 ```js filename="app/products/api/route.js" switcher
-import { NextResponse } from 'next/server'
-
 export async function GET(request) {
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
@@ -126,15 +118,13 @@ export async function GET(request) {
   })
   const product = await res.json()
 
-  return NextResponse.json({ product })
+  return Response.json({ product })
 }
 ```
 
 Similarly, the `POST` method will cause the Route Handler to be evaluated dynamically.
 
 ```ts filename="app/items/route.ts" switcher
-import { NextResponse } from 'next/server'
-
 export async function POST() {
   const res = await fetch('https://data.mongodb-api.com/...', {
     method: 'POST',
@@ -147,13 +137,11 @@ export async function POST() {
 
   const data = await res.json()
 
-  return NextResponse.json(data)
+  return Response.json(data)
 }
 ```
 
 ```js filename="app/items/route.js" switcher
-import { NextResponse } from 'next/server'
-
 export async function POST() {
   const res = await fetch('https://data.mongodb-api.com/...', {
     method: 'POST',
@@ -166,7 +154,7 @@ export async function POST() {
 
   const data = await res.json()
 
-  return NextResponse.json(data)
+  return Response.json(data)
 }
 ```
 
@@ -206,28 +194,24 @@ The following examples show how to combine Route Handlers with other Next.js API
 You can [revalidate cached data](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data) using the [`next.revalidate`](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data) option:
 
 ```ts filename="app/items/route.ts" switcher
-import { NextResponse } from 'next/server'
-
 export async function GET() {
   const res = await fetch('https://data.mongodb-api.com/...', {
     next: { revalidate: 60 }, // Revalidate every 60 seconds
   })
   const data = await res.json()
 
-  return NextResponse.json(data)
+  return Response.json(data)
 }
 ```
 
 ```js filename="app/items/route.js" switcher
-import { NextResponse } from 'next/server'
-
 export async function GET() {
   const res = await fetch('https://data.mongodb-api.com/...', {
     next: { revalidate: 60 }, // Revalidate every 60 seconds
   })
   const data = await res.json()
 
-  return NextResponse.json(data)
+  return Response.json(data)
 }
 ```
 
@@ -571,20 +555,16 @@ export async function GET() {
 You can read the `Request` body using the standard Web API methods:
 
 ```ts filename="app/items/route.ts" switcher
-import { NextResponse } from 'next/server'
-
 export async function POST(request: Request) {
   const res = await request.json()
-  return NextResponse.json({ res })
+  return Response.json({ res })
 }
 ```
 
 ```js filename="app/items/route.js" switcher
-import { NextResponse } from 'next/server'
-
 export async function POST(request) {
   const res = await request.json()
-  return NextResponse.json({ res })
+  return Response.json({ res })
 }
 ```
 
@@ -593,24 +573,20 @@ export async function POST(request) {
 You can read the `FormData` using the `request.formData()` function:
 
 ```ts filename="app/items/route.ts" switcher
-import { NextResponse } from 'next/server'
-
 export async function POST(request: Request) {
   const formData = await request.formData()
   const name = formData.get('name')
   const email = formData.get('email')
-  return NextResponse.json({ name, email })
+  return Response.json({ name, email })
 }
 ```
 
 ```js filename="app/items/route.js" switcher
-import { NextResponse } from 'next/server'
-
 export async function POST(request) {
   const formData = await request.formData()
   const name = formData.get('name')
   const email = formData.get('email')
-  return NextResponse.json({ name, email })
+  return Response.json({ name, email })
 }
 ```
 

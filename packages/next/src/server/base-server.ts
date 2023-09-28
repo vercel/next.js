@@ -286,6 +286,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     largePageDataBytes?: number
     appDirDevErrorLogger?: (err: any) => Promise<void>
     strictNextHead: boolean
+    isExperimentalCompile?: boolean
   }
   protected readonly serverOptions: Readonly<ServerOptions>
   protected readonly appPathRoutes?: Record<string, string[]>
@@ -477,6 +478,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         Object.keys(publicRuntimeConfig).length > 0
           ? publicRuntimeConfig
           : undefined,
+
+      // @ts-expect-error internal field not publicly exposed
+      isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
     }
 
     // Initialize next/config with the environment configuration
