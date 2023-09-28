@@ -430,6 +430,7 @@ pub struct ExperimentalConfig {
     pub turbo: Option<ExperimentalTurboConfig>,
     pub turbotrace: Option<serde_json::Value>,
     pub external_middleware_rewrites_resolve: Option<bool>,
+    pub scroll_restoration: Option<bool>,
 
     // ---
     // UNSUPPORTED
@@ -480,7 +481,6 @@ pub struct ExperimentalConfig {
     /// directory.
     ppr: Option<bool>,
     proxy_timeout: Option<f64>,
-    scroll_restoration: Option<bool>,
     /// Enables server actions. Using this feature will enable the
     /// `react@experimental` for the `app` directory. @see https://nextjs.org/docs/app/api-reference/functions/server-actions
     server_actions: Option<bool>,

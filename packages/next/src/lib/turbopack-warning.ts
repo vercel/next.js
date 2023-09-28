@@ -33,6 +33,7 @@ const supportedTurbopackNextConfigOptions = [
   'skipMiddlewareUrlNormalize',
   'skipTrailingSlashRedirect',
   'experimental.externalMiddlewareRewritesResolve',
+  'experimental.scrollRestoration',
   'experimental.serverComponentsExternalPackages',
   'experimental.strictNextHead',
   'experimental.turbo',
