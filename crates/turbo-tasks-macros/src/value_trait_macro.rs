@@ -207,7 +207,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         #[doc(hidden)]
         pub(crate) static #trait_type_ident: turbo_tasks::macro_helpers::Lazy<turbo_tasks::TraitType> =
             turbo_tasks::macro_helpers::Lazy::new(|| {
-                let mut trait_type = turbo_tasks::TraitType::new(std::any::type_name::<turbo_tasks::Vc<Box<dyn #trait_ident>>>().to_string());;
+                let mut trait_type = turbo_tasks::TraitType::new(stringify!(#trait_ident).to_string());;
                 #(#default_method_registers)*
                 trait_type
             });
