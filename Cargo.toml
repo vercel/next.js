@@ -121,7 +121,7 @@ shadow-rs = { version = "0.23.0", default-features = false, features = [
 ] }
 syn = "1.0.107"
 tempfile = "3.3.0"
-thiserror = "1.0.38"
+thiserror = "1.0.48"
 tiny-gradient = "0.1.0"
 tokio = "1.25.0"
 tokio-util = { version = "0.7.7", features = ["io"] }
