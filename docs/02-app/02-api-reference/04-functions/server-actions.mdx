@@ -100,7 +100,7 @@ export default function ClientComponent({ myAction }) {
 
 You can bind arguments to a Server Action using the `bind` method. This allows you to create a new Server Action with some arguments already bound. This is beneficial when you want to pass extra arguments to a Server Action.
 
-```jsx filename="app/client-component.jsx"
+```jsx filename="app/client-component.jsx" highlight={6}
 'use client'
 
 import { updateUser } from './actions'
@@ -119,7 +119,7 @@ export function UserProfile({ userId }) {
 
 And then, the `updateUser` Server Action will always receive the `userId` argument, in addition to the form data:
 
-```js filename="app/actions.js" highlight={1}
+```js filename="app/actions.js"
 'use server'
 
 export async function updateUser(userId, formData) {
