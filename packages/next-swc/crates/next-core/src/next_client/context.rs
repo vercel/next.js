@@ -107,7 +107,6 @@ fn defines(
         process.env.__NEXT_CLIENT_ROUTER_D_FILTER = serde_json::to_value(&filter.dynamic_filter)?,
         process.env.__NEXT_DIST_DIR = dist_root_path.to_string(),
         process.env.__NEXT_HAS_REWRITES = true,
-        process.env.__NEXT_I18N_SUPPORT = false,
     ))
 }
 

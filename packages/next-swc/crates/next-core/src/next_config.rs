@@ -90,6 +90,7 @@ pub struct NextConfig {
     pub base_path: Option<String>,
     pub skip_middleware_url_normalize: Option<bool>,
     pub skip_trailing_slash_redirect: Option<bool>,
+    pub i18n: Option<I18NConfig>,
 
     ///
     #[serde(rename = "_originalRedirects")]
@@ -115,7 +116,6 @@ pub struct NextConfig {
     generate_build_id: Option<serde_json::Value>,
     generate_etags: bool,
     http_agent_options: HttpAgentConfig,
-    i18n: Option<I18NConfig>,
     on_demand_entries: OnDemandEntriesConfig,
     optimize_fonts: bool,
     output_file_tracing: bool,
@@ -176,20 +176,20 @@ struct HttpAgentConfig {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
-struct DomainLocale {
-    default_locale: String,
-    domain: String,
-    http: Option<bool>,
-    locales: Option<Vec<String>>,
+pub struct DomainLocale {
+    pub default_locale: String,
+    pub domain: String,
+    pub http: Option<bool>,
+    pub locales: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
-struct I18NConfig {
-    default_locale: String,
-    domains: Option<Vec<DomainLocale>>,
-    locale_detection: Option<bool>,
-    locales: Vec<String>,
+pub struct I18NConfig {
+    pub default_locale: String,
+    pub domains: Option<Vec<DomainLocale>>,
+    pub locale_detection: Option<bool>,
+    pub locales: Vec<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
