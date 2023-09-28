@@ -281,16 +281,17 @@ pub async fn env_for_js(
 
     map.insert(
         "__NEXT_SCRIPT_WORKERS".to_string(),
-        if next_config
-            .experimental
-            .next_script_workers
-            .unwrap_or(false)
-        {
-            // TODO: This should be true in production mode
-            "false".to_string()
-        }, /* else {
-               "false".to_string()
-           }, */
+        // TODO: This should be true in production mode
+        // if next_config
+        //     .experimental
+        //     .next_script_workers
+        //     .unwrap_or(false)
+        // {
+        //     "false".to_string()
+        // } else {
+        //     "false".to_string()
+        // },
+        "false".to_string(),
     );
 
     map.insert(
