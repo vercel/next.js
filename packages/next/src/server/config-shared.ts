@@ -773,7 +773,7 @@ export const defaultConfig: NextConfig = {
     turbotrace: undefined,
     typedRoutes: false,
     instrumentationHook: false,
-    bundlePagesExternals: false,
+    bundlePagesExternals: true,
   },
 }
 
