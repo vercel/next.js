@@ -7,6 +7,7 @@ mod traits;
 use std::{any::Any, marker::PhantomData, ops::Deref};
 
 use anyhow::Result;
+use auto_hash_map::AutoSet;
 use serde::{Deserialize, Serialize};
 
 use self::cell_mode::VcCellMode;
@@ -21,7 +22,7 @@ use crate::{
     debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString},
     registry,
     trace::{TraceRawVcs, TraceRawVcsContext},
-    CellId, CollectiblesFuture, CollectiblesSource, RawVc, ReadRawVcFuture, ResolveTypeError,
+    CellId, CollectiblesSource, RawVc, ReadRawVcFuture, ResolveTypeError,
 };
 
 /// A Value Cell (`Vc` for short) is a reference to a memoized computation
@@ -458,11 +459,11 @@ impl<T> CollectiblesSource for Vc<T>
 where
     T: ?Sized + Send,
 {
-    fn take_collectibles<Vt: VcValueTrait>(self) -> CollectiblesFuture<Vt> {
+    fn take_collectibles<Vt: VcValueTrait + Send>(self) -> AutoSet<Vc<Vt>> {
         self.node.take_collectibles()
     }
 
-    fn peek_collectibles<Vt: VcValueTrait>(self) -> CollectiblesFuture<Vt> {
+    fn peek_collectibles<Vt: VcValueTrait + Send>(self) -> AutoSet<Vc<Vt>> {
         self.node.peek_collectibles()
     }
 }

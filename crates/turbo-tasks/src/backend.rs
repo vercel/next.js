@@ -10,7 +10,7 @@ use std::{
 };
 
 use anyhow::{anyhow, bail, Result};
-use auto_hash_map::AutoSet;
+use auto_hash_map::{AutoMap, AutoSet};
 use nohash_hasher::BuildNoHashHasher;
 use serde::{Deserialize, Serialize};
 
@@ -18,7 +18,7 @@ pub use crate::id::BackendJobId;
 use crate::{
     event::EventListener, manager::TurboTasksBackendApi, raw_vc::CellId, registry,
     ConcreteTaskInput, FunctionId, RawVc, ReadRef, SharedReference, TaskId, TaskIdProvider,
-    TraitRef, TraitTypeId, Vc, VcValueTrait, VcValueType,
+    TraitRef, TraitTypeId, VcValueTrait, VcValueType,
 };
 
 pub enum TaskType {
@@ -294,7 +294,7 @@ pub trait Backend: Sync + Send {
         trait_id: TraitTypeId,
         reader: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) -> Vc<AutoSet<RawVc>>;
+    ) -> AutoMap<RawVc, i32>;
 
     fn emit_collectible(
         &self,
@@ -308,6 +308,7 @@ pub trait Backend: Sync + Send {
         &self,
         trait_type: TraitTypeId,
         collectible: RawVc,
+        count: u32,
         task: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     );
@@ -347,6 +348,8 @@ pub trait Backend: Sync + Send {
         task_type: TransientTaskType,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId;
+
+    fn dispose_root_task(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>);
 }
 
 impl PersistentTaskType {

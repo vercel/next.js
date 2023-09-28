@@ -24,7 +24,7 @@ use crate::source::{resolve::ResolveSourceRequestResult, ProxyResult};
 type GetContentFn = Box<dyn Fn() -> Vc<ResolveSourceRequestResult> + Send + Sync>;
 
 async fn peek_issues<T: Send>(source: Vc<T>) -> Result<Vec<ReadRef<PlainIssue>>> {
-    let captured = source.peek_issues_with_path().await?.await?;
+    let captured = source.peek_issues_with_path().await?;
 
     captured.get_plain_issues().await
 }
@@ -46,6 +46,7 @@ async fn get_update_stream_item(
     get_content: TransientInstance<GetContentFn>,
 ) -> Result<Vc<UpdateStreamItem>> {
     let content = get_content();
+    let _ = content.resolve_strongly_consistent().await?;
     let mut plain_issues = peek_issues(content).await?;
 
     let content_value = match content.await {

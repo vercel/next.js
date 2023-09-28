@@ -11,24 +11,22 @@ use std::{
 use turbo_tasks::{registry, FunctionId, TaskId, TraitTypeId};
 
 use crate::{
-    scope::TaskScopeId,
     task::{Task, TaskStatsInfo},
     MemoryBackend,
 };
 
 pub struct StatsReferences {
     pub tasks: Vec<(ReferenceType, TaskId)>,
-    pub scopes: Vec<(ReferenceType, TaskScopeId)>,
 }
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub enum StatsTaskType {
     Root(TaskId),
     Once(TaskId),
-    ReadCollectibles(TraitTypeId),
     Native(FunctionId),
     ResolveNative(FunctionId),
     ResolveTrait(TraitTypeId, String),
+    Collectibles(TraitTypeId),
 }
 
 impl Display for StatsTaskType {
@@ -36,7 +34,7 @@ impl Display for StatsTaskType {
         match self {
             StatsTaskType::Root(_) => write!(f, "root"),
             StatsTaskType::Once(_) => write!(f, "once"),
-            StatsTaskType::ReadCollectibles(t) => {
+            StatsTaskType::Collectibles(t) => {
                 write!(f, "read collectibles {}", registry::get_trait(*t).name)
             }
             StatsTaskType::Native(nf) => write!(f, "{}", registry::get_function(*nf).name),
@@ -65,11 +63,8 @@ pub enum ReferenceType {
 #[derive(Clone, Debug)]
 pub struct ExportedTaskStats {
     pub count: usize,
-    pub active_count: usize,
     pub unloaded_count: usize,
     pub executions: Option<u32>,
-    pub roots: usize,
-    pub scopes: usize,
     pub total_duration: Option<Duration>,
     pub total_current_duration: Duration,
     pub total_update_duration: Duration,
@@ -81,11 +76,8 @@ impl Default for ExportedTaskStats {
     fn default() -> Self {
         Self {
             count: 0,
-            active_count: 0,
             unloaded_count: 0,
             executions: None,
-            roots: 0,
-            scopes: 0,
             total_duration: None,
             total_current_duration: Duration::ZERO,
             total_update_duration: Duration::ZERO,
@@ -131,16 +123,10 @@ impl Stats {
             total_duration,
             last_duration,
             executions,
-            root_scoped,
-            child_scopes,
-            active,
             unloaded,
         } = info;
         let stats = self.tasks.entry(ty).or_default();
         stats.count += 1;
-        if active {
-            stats.active_count += 1
-        }
         if let Some(total_duration) = total_duration {
             *stats.total_duration.get_or_insert(Duration::ZERO) += total_duration;
         }
@@ -155,10 +141,6 @@ impl Stats {
         if let Some(executions) = executions {
             *stats.executions.get_or_insert(0) += executions;
         }
-        if root_scoped {
-            stats.roots += 1;
-        }
-        stats.scopes += child_scopes;
 
         let StatsReferences { tasks, .. } = task.get_stats_references();
         let set: HashSet<_> = tasks.into_iter().collect();
@@ -193,7 +175,7 @@ impl Stats {
             StatsTaskType::Root(_)
             | StatsTaskType::Once(_)
             | StatsTaskType::Native(_)
-            | StatsTaskType::ReadCollectibles(..) => false,
+            | StatsTaskType::Collectibles(..) => false,
             StatsTaskType::ResolveNative(_) | StatsTaskType::ResolveTrait(_, _) => true,
         })
     }

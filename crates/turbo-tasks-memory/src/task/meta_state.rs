@@ -1,16 +1,10 @@
 use std::mem::replace;
 
-use auto_hash_map::AutoSet;
-use nohash_hasher::BuildNoHashHasher;
-use once_cell::sync::Lazy;
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
-use turbo_tasks::{StatsType, TaskId};
+use turbo_tasks::StatsType;
 
 use super::{PartialTaskState, Task, TaskState, UnloadedTaskState};
-use crate::{
-    map_guard::{ReadGuard, WriteGuard},
-    scope::TaskScopes,
-};
+use crate::map_guard::{ReadGuard, WriteGuard};
 
 pub(super) enum TaskMetaState {
     Full(Box<TaskState>),
@@ -242,31 +236,6 @@ impl<'a> TaskMetaStateWriteGuard<'a> {
         }
     }
 
-    pub(super) fn scopes_and_children(
-        &mut self,
-    ) -> (&mut TaskScopes, &AutoSet<TaskId, BuildNoHashHasher<TaskId>>) {
-        match self {
-            TaskMetaStateWriteGuard::Full(state) => {
-                let TaskState {
-                    ref mut scopes,
-                    ref children,
-                    ..
-                } = **state;
-                (scopes, children)
-            }
-            TaskMetaStateWriteGuard::Partial(state) => {
-                let PartialTaskState { ref mut scopes, .. } = **state;
-                static EMPTY: Lazy<AutoSet<TaskId, BuildNoHashHasher<TaskId>>> =
-                    Lazy::new(AutoSet::default);
-                (scopes, &*EMPTY)
-            }
-            TaskMetaStateWriteGuard::Unloaded(_) => unreachable!(
-                "TaskMetaStateWriteGuard::scopes_and_children must be called with at least a \
-                 partial state"
-            ),
-        }
-    }
-
     pub(super) fn as_full_mut(&mut self) -> Option<&mut TaskState> {
         match self {
             TaskMetaStateWriteGuard::Full(state) => Some(&mut **state),
@@ -279,6 +248,12 @@ impl<'a> TaskMetaStateWriteGuard<'a> {
             TaskMetaStateWriteGuard::Full(state) => state.into_inner(),
             TaskMetaStateWriteGuard::Partial(state) => state.into_inner(),
             TaskMetaStateWriteGuard::Unloaded(state) => state.into_inner(),
+        }
+    }
+
+    pub(super) fn ensure_at_least_partial(&mut self) {
+        if let TaskMetaStateWriteGuard::Unloaded(_state) = self {
+            todo!()
         }
     }
 }

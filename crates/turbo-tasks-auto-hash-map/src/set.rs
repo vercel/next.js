@@ -137,6 +137,12 @@ impl<'a, K> Iterator for Iter<'a, K> {
     }
 }
 
+impl<'a, K> Clone for Iter<'a, K> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
 pub struct IntoIter<K>(super::map::IntoIter<K, ()>);
 
 impl<K> Iterator for IntoIter<K> {

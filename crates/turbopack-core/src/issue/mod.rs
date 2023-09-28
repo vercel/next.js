@@ -328,7 +328,7 @@ pub struct Issues(Vec<Vc<Box<dyn Issue>>>);
 
 /// A list of issues captured with [`Issue::peek_issues_with_path`] and
 /// [`Issue::take_issues_with_path`].
-#[turbo_tasks::value]
+#[turbo_tasks::value(shared)]
 #[derive(Debug)]
 pub struct CapturedIssues {
     issues: AutoSet<Vc<Box<dyn Issue>>>,
@@ -617,7 +617,7 @@ pub trait IssueReporter {
     ///  The minimum issue severity level considered to fatally end the program.
     fn report_issues(
         self: Vc<Self>,
-        issues: TransientInstance<ReadRef<CapturedIssues>>,
+        issues: TransientInstance<CapturedIssues>,
         source: TransientValue<RawVc>,
         min_failing_severity: Vc<IssueSeverity>,
     ) -> Vc<bool>;
@@ -647,13 +647,13 @@ where
 
     /// Returns all issues from `source` in a list with their associated
     /// processing path.
-    async fn peek_issues_with_path(self) -> Result<Vc<CapturedIssues>>;
+    async fn peek_issues_with_path(self) -> Result<CapturedIssues>;
 
     /// Returns all issues from `source` in a list with their associated
     /// processing path.
     ///
     /// This unemits the issues. They will not propagate up.
-    async fn take_issues_with_path(self) -> Result<Vc<CapturedIssues>>;
+    async fn take_issues_with_path(self) -> Result<CapturedIssues>;
 }
 
 #[async_trait]
@@ -669,7 +669,7 @@ where
     ) -> Result<Self> {
         #[cfg(feature = "issue_path")]
         {
-            let children = self.take_collectibles().await?;
+            let children = self.take_collectibles();
             if !children.is_empty() {
                 emit(Vc::upcast::<Box<dyn IssueProcessingPath>>(
                     ItemIssueProcessingPath::cell(ItemIssueProcessingPath(
@@ -697,7 +697,7 @@ where
     ) -> Result<Self> {
         #[cfg(feature = "issue_path")]
         {
-            let children = self.take_collectibles().await?;
+            let children = self.take_collectibles();
             if !children.is_empty() {
                 emit(Vc::upcast::<Box<dyn IssueProcessingPath>>(
                     ItemIssueProcessingPath::cell(ItemIssueProcessingPath(
@@ -721,26 +721,26 @@ where
         self.issue_file_path(None, description).await
     }
 
-    async fn peek_issues_with_path(self) -> Result<Vc<CapturedIssues>> {
-        Ok(CapturedIssues::cell(CapturedIssues {
-            issues: self.peek_collectibles().strongly_consistent().await?,
+    async fn peek_issues_with_path(self) -> Result<CapturedIssues> {
+        Ok(CapturedIssues {
+            issues: self.peek_collectibles(),
             #[cfg(feature = "issue_path")]
             processing_path: ItemIssueProcessingPath::cell(ItemIssueProcessingPath(
                 None,
-                self.peek_collectibles().strongly_consistent().await?,
+                self.peek_collectibles(),
             )),
-        }))
+        })
     }
 
-    async fn take_issues_with_path(self) -> Result<Vc<CapturedIssues>> {
-        Ok(CapturedIssues::cell(CapturedIssues {
-            issues: self.take_collectibles().strongly_consistent().await?,
+    async fn take_issues_with_path(self) -> Result<CapturedIssues> {
+        Ok(CapturedIssues {
+            issues: self.take_collectibles(),
             #[cfg(feature = "issue_path")]
             processing_path: ItemIssueProcessingPath::cell(ItemIssueProcessingPath(
                 None,
-                self.take_collectibles().strongly_consistent().await?,
+                self.take_collectibles(),
             )),
-        }))
+        })
     }
 }
 
@@ -751,14 +751,11 @@ pub async fn handle_issues<T: Send>(
     path: Option<&str>,
     operation: Option<&str>,
 ) -> Result<()> {
-    let issues = source
-        .peek_issues_with_path()
-        .await?
-        .strongly_consistent()
-        .await?;
+    let _ = source.resolve_strongly_consistent().await?;
+    let issues = source.peek_issues_with_path().await?;
 
     let has_fatal = issue_reporter.report_issues(
-        TransientInstance::new(issues.clone()),
+        TransientInstance::new(issues),
         TransientValue::new(Vc::into_raw(source)),
         min_failing_severity,
     );

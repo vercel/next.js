@@ -495,13 +495,10 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
                 module_options,
                 resolve_options,
             );
+            let _ = output.resolve_strongly_consistent().await?;
 
             let source = TransientValue::new(Vc::into_raw(output));
-            let issues = output
-                .peek_issues_with_path()
-                .await?
-                .strongly_consistent()
-                .await?;
+            let issues = output.peek_issues_with_path().await?;
 
             let console_ui = ConsoleUi::new(log_options);
             Vc::upcast::<Box<dyn IssueReporter>>(console_ui)

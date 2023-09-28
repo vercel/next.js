@@ -60,7 +60,7 @@ pub trait DiagnosticContextExt
 where
     Self: Sized,
 {
-    async fn peek_diagnostics(self) -> Result<Vc<CapturedDiagnostics>>;
+    async fn peek_diagnostics(self) -> Result<CapturedDiagnostics>;
 }
 
 #[async_trait]
@@ -68,10 +68,10 @@ impl<T> DiagnosticContextExt for T
 where
     T: CollectiblesSource + Copy + Send,
 {
-    async fn peek_diagnostics(self) -> Result<Vc<CapturedDiagnostics>> {
-        Ok(CapturedDiagnostics::cell(CapturedDiagnostics {
-            diagnostics: self.peek_collectibles().strongly_consistent().await?,
-        }))
+    async fn peek_diagnostics(self) -> Result<CapturedDiagnostics> {
+        Ok(CapturedDiagnostics {
+            diagnostics: self.peek_collectibles(),
+        })
     }
 }
 

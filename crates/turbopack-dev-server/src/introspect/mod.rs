@@ -92,8 +92,8 @@ impl GetContentSourceContent for IntrospectionSource {
         path: String,
         _data: turbo_tasks::Value<ContentSourceData>,
     ) -> Result<Vc<ContentSourceContent>> {
-        // ignore leading slash
-        let path = &path[1..];
+        // get last segment
+        let path = &path[path.rfind('/').unwrap_or(0) + 1..];
         let introspectable = if path.is_empty() {
             let roots = &self.await?.roots;
             if roots.len() == 1 {

@@ -91,7 +91,7 @@ pub use manager::{
     Unused, UpdateInfo,
 };
 pub use native_function::NativeFunction;
-pub use raw_vc::{CellId, CollectiblesFuture, RawVc, ReadRawVcFuture, ResolveTypeError};
+pub use raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveTypeError};
 pub use read_ref::ReadRef;
 pub use state::State;
 pub use task::{

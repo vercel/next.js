@@ -190,6 +190,28 @@ impl<K: Eq + Hash, V, H: BuildHasher + Default> AutoMap<K, V, H> {
         }
     }
 
+    pub fn raw_entry_mut<Q>(&mut self, key: &Q) -> RawEntry<'_, K, V, H>
+    where
+        K: Borrow<Q>,
+        Q: Hash + Eq + ?Sized,
+    {
+        let this = self as *mut Self;
+        match self {
+            AutoMap::List(list) => match list.iter().position(|(k, _)| k.borrow() == key) {
+                Some(index) => RawEntry::Occupied(OccupiedRawEntry::List { list, index }),
+                None => RawEntry::Vacant(VacantRawEntry::List { this, list }),
+            },
+            AutoMap::Map(map) => match map.raw_entry_mut().from_key(key) {
+                std::collections::hash_map::RawEntryMut::Occupied(entry) => {
+                    RawEntry::Occupied(OccupiedRawEntry::Map { this, entry })
+                }
+                std::collections::hash_map::RawEntryMut::Vacant(entry) => {
+                    RawEntry::Vacant(VacantRawEntry::Map(entry))
+                }
+            },
+        }
+    }
+
     /// see [HashMap::shrink_to_fit](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.shrink_to_fit)
     pub fn shrink_to_fit(&mut self) {
         match self {
@@ -333,6 +355,15 @@ impl<'a, K, V> Iterator for Iter<'a, K, V> {
         match self {
             Iter::List(iter) => iter.next().map(|(k, v)| (k, v)),
             Iter::Map(iter) => iter.next().map(|(k, v)| (k, v)),
+        }
+    }
+}
+
+impl<'a, K, V> Clone for Iter<'a, K, V> {
+    fn clone(&self) -> Self {
+        match self {
+            Iter::List(iter) => Iter::List(iter.clone()),
+            Iter::Map(iter) => Iter::Map(iter.clone()),
         }
     }
 }
@@ -511,6 +542,83 @@ impl<'a, K: Eq + Hash, V, H: BuildHasher + Default + 'a> VacantEntry<'a, K, V, H
                 }
             }
             VacantEntry::Map(entry) => entry.insert(value),
+        }
+    }
+}
+
+pub enum RawEntry<'a, K, V, H> {
+    Occupied(OccupiedRawEntry<'a, K, V, H>),
+    Vacant(VacantRawEntry<'a, K, V, H>),
+}
+
+pub enum OccupiedRawEntry<'a, K, V, H> {
+    List {
+        list: &'a mut Vec<(K, V)>,
+        index: usize,
+    },
+    Map {
+        this: *mut AutoMap<K, V, H>,
+        entry: std::collections::hash_map::RawOccupiedEntryMut<'a, K, V, H>,
+    },
+}
+
+impl<'a, K: Eq + Hash, V, H: BuildHasher> OccupiedRawEntry<'a, K, V, H> {
+    /// see [HashMap::RawOccupiedEntryMut::get_mut](https://doc.rust-lang.org/std/collections/hash_map/struct.RawOccupiedEntryMut.html#method.get_mut)
+    pub fn get_mut(&mut self) -> &mut V {
+        match self {
+            OccupiedRawEntry::List { list, index } => &mut list[*index].1,
+            OccupiedRawEntry::Map { entry, .. } => entry.get_mut(),
+        }
+    }
+
+    /// see [HashMap::RawOccupiedEntryMut::into_mut](https://doc.rust-lang.org/std/collections/hash_map/struct.RawOccupiedEntryMut.html#method.into_mut)
+    pub fn into_mut(self) -> &'a mut V {
+        match self {
+            OccupiedRawEntry::List { list, index } => &mut list[index].1,
+            OccupiedRawEntry::Map { entry, .. } => entry.into_mut(),
+        }
+    }
+}
+
+impl<'a, K: Eq + Hash, V, H: BuildHasher + Default> OccupiedRawEntry<'a, K, V, H> {
+    /// see [HashMap::OccupiedEntry::remove](https://doc.rust-lang.org/std/collections/hash_map/enum.OccupiedEntry.html#method.remove)
+    pub fn remove(self) -> V {
+        match self {
+            OccupiedRawEntry::List { list, index } => list.swap_remove(index).1,
+            OccupiedRawEntry::Map { entry, this } => {
+                let v = entry.remove();
+                let this = unsafe { &mut *this };
+                if this.len() < MIN_HASH_SIZE {
+                    this.convert_to_list();
+                }
+                v
+            }
+        }
+    }
+}
+
+pub enum VacantRawEntry<'a, K, V, H> {
+    List {
+        this: *mut AutoMap<K, V, H>,
+        list: &'a mut Vec<(K, V)>,
+    },
+    Map(std::collections::hash_map::RawVacantEntryMut<'a, K, V, H>),
+}
+
+impl<'a, K: Eq + Hash, V, H: BuildHasher + Default + 'a> VacantRawEntry<'a, K, V, H> {
+    /// see [HashMap::RawVacantEntryMut::insert](https://doc.rust-lang.org/std/collections/hash_map/struct.RawVacantEntryMut.html#method.insert)
+    pub fn insert(self, key: K, value: V) -> &'a mut V {
+        match self {
+            VacantRawEntry::List { this, list } => {
+                if list.len() >= MAX_LIST_SIZE {
+                    let this = unsafe { &mut *this };
+                    this.convert_to_map().entry(key).or_insert(value)
+                } else {
+                    list.push((key, value));
+                    &mut list.last_mut().unwrap().1
+                }
+            }
+            VacantRawEntry::Map(entry) => entry.insert(key, value).1,
         }
     }
 }

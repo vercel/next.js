@@ -1,3 +1,5 @@
+#![feature(hash_raw_entry)]
+
 pub mod map;
 pub mod set;
 

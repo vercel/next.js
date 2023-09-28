@@ -18,7 +18,7 @@ pub fn scope_stress(c: &mut Criterion) {
     let mut group = c.benchmark_group("turbo_tasks_memory_scope_stress");
     group.sample_size(20);
 
-    for size in [10, 100, 200, 300] {
+    for size in [5, 10, 15, 20, 25, 30, 100, 200, 300] {
         group.throughput(criterion::Throughput::Elements(
             /* tasks for fib from 0 to size - 1 = */
             (size as u64) * (size as u64) +

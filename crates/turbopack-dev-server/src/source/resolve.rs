@@ -103,7 +103,7 @@ pub async fn resolve_source_request(
                         }
                     }
                     ContentSourceContent::NotFound => {
-                        return Ok(ResolveSourceRequestResult::NotFound.cell())
+                        return Ok(ResolveSourceRequestResult::NotFound.cell());
                     }
                     ContentSourceContent::Static(static_content) => {
                         return Ok(ResolveSourceRequestResult::Static(

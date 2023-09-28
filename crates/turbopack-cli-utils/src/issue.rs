@@ -349,7 +349,7 @@ impl IssueReporter for ConsoleUi {
     #[turbo_tasks::function]
     async fn report_issues(
         &self,
-        issues: TransientInstance<ReadRef<CapturedIssues>>,
+        issues: TransientInstance<CapturedIssues>,
         source: TransientValue<RawVc>,
         min_failing_severity: Vc<IssueSeverity>,
     ) -> Result<Vc<bool>> {

@@ -16,7 +16,7 @@ use std::{
 };
 
 use anyhow::{anyhow, Result};
-use auto_hash_map::AutoSet;
+use auto_hash_map::{AutoMap, AutoSet};
 use futures::FutureExt;
 use nohash_hasher::BuildNoHashHasher;
 use serde::{de::Visitor, Deserialize, Serialize};
@@ -102,11 +102,11 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         index: CellId,
     ) -> Result<Result<CellContent, EventListener>>;
 
-    fn read_task_collectibles(&self, task: TaskId, trait_id: TraitTypeId) -> Vc<AutoSet<RawVc>>;
+    fn read_task_collectibles(&self, task: TaskId, trait_id: TraitTypeId) -> AutoMap<RawVc, i32>;
 
     fn emit_collectible(&self, trait_type: TraitTypeId, collectible: RawVc);
-    fn unemit_collectible(&self, trait_type: TraitTypeId, collectible: RawVc);
-    fn unemit_collectibles(&self, trait_type: TraitTypeId, collectibles: &AutoSet<RawVc>);
+    fn unemit_collectible(&self, trait_type: TraitTypeId, collectible: RawVc, count: u32);
+    fn unemit_collectibles(&self, trait_type: TraitTypeId, collectibles: &AutoMap<RawVc, i32>);
 
     /// INVALIDATION: Be careful with this, it will not track dependencies, so
     /// using it could break cache invalidation.
@@ -354,6 +354,10 @@ impl<B: Backend + 'static> TurboTasks<B> {
         );
         self.schedule(id);
         id
+    }
+
+    pub fn dispose_root_task(&self, task_id: TaskId) {
+        self.backend.dispose_root_task(task_id, self);
     }
 
     // TODO make sure that all dependencies settle before reading them
@@ -957,7 +961,7 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
             .try_read_own_task_cell_untracked(current_task, index, self)
     }
 
-    fn read_task_collectibles(&self, task: TaskId, trait_id: TraitTypeId) -> Vc<AutoSet<RawVc>> {
+    fn read_task_collectibles(&self, task: TaskId, trait_id: TraitTypeId) -> AutoMap<RawVc, i32> {
         self.backend.read_task_collectibles(
             task,
             trait_id,
@@ -975,23 +979,27 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         );
     }
 
-    fn unemit_collectible(&self, trait_type: TraitTypeId, collectible: RawVc) {
+    fn unemit_collectible(&self, trait_type: TraitTypeId, collectible: RawVc, count: u32) {
         self.backend.unemit_collectible(
             trait_type,
             collectible,
+            count,
             current_task("emitting collectible"),
             self,
         );
     }
 
-    fn unemit_collectibles(&self, trait_type: TraitTypeId, collectibles: &AutoSet<RawVc>) {
-        for collectible in collectibles {
-            self.backend.unemit_collectible(
-                trait_type,
-                *collectible,
-                current_task("emitting collectible"),
-                self,
-            );
+    fn unemit_collectibles(&self, trait_type: TraitTypeId, collectibles: &AutoMap<RawVc, i32>) {
+        for (&collectible, &count) in collectibles {
+            if count > 0 {
+                self.backend.unemit_collectible(
+                    trait_type,
+                    collectible,
+                    count as u32,
+                    current_task("emitting collectible"),
+                    self,
+                );
+            }
         }
     }
 

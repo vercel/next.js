@@ -13,7 +13,7 @@ use std::{
 };
 
 use anyhow::{anyhow, Result};
-use auto_hash_map::AutoSet;
+use auto_hash_map::{AutoMap, AutoSet};
 use concurrent_queue::ConcurrentQueue;
 use dashmap::{mapref::entry::Entry, DashMap, DashSet};
 use nohash_hasher::BuildNoHashHasher;
@@ -28,7 +28,7 @@ use turbo_tasks::{
         PersistedGraphApi, ReadTaskState, TaskCell, TaskData,
     },
     util::{IdFactory, NoMoveVec, SharedError},
-    CellId, RawVc, TaskId, TraitTypeId, TurboTasksBackendApi, Unused, Vc,
+    CellId, RawVc, TaskId, TraitTypeId, TurboTasksBackendApi, Unused,
 };
 
 type RootTaskFn =
@@ -1443,7 +1443,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         _trait_id: TraitTypeId,
         _reader: TaskId,
         _turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
-    ) -> Vc<AutoSet<RawVc>> {
+    ) -> AutoMap<RawVc, i32> {
         todo!()
     }
 
@@ -1461,6 +1461,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         &self,
         _trait_id: TraitTypeId,
         _collectible: RawVc,
+        _count: u32,
         _task: TaskId,
         _turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) {
@@ -1602,6 +1603,10 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         }
         self.only_known_to_memory_tasks.insert(task);
         task
+    }
+
+    fn dispose_root_task(&self, _task: TaskId, _turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
+        todo!()
     }
 }
 

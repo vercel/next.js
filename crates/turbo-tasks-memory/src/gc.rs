@@ -168,7 +168,6 @@ impl GcQueue {
         // Process through the gc queue.
         let now = turbo_tasks.program_duration_until(Instant::now());
         let mut task_duration_cache = HashMap::with_hasher(BuildNoHashHasher::default());
-        let mut scope_active_cache = HashMap::with_hasher(BuildNoHashHasher::default());
         let mut stats = GcStats::default();
         let result = self.select_tasks(factor, |task_id, _priority, max_priority| {
             backend.with_task(task_id, |task| {
@@ -176,7 +175,6 @@ impl GcQueue {
                     now,
                     max_priority,
                     &mut task_duration_cache,
-                    &mut scope_active_cache,
                     &mut stats,
                     backend,
                     turbo_tasks,

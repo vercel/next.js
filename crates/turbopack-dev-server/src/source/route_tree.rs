@@ -186,7 +186,7 @@ impl RouteTree {
 #[turbo_tasks::value_impl]
 impl ValueToString for RouteTree {
     #[turbo_tasks::function]
-    fn to_string(&self) -> Result<Vc<String>> {
+    async fn to_string(&self) -> Result<Vc<String>> {
         let RouteTree {
             base,
             sources,
@@ -206,8 +206,8 @@ impl ValueToString for RouteTree {
         if !base.is_empty() {
             result.push_str(", ");
         }
-        for key in static_segments.keys() {
-            write!(result, "{}, ", key)?;
+        for (key, tree) in static_segments {
+            write!(result, "{}: {}, ", key, tree.to_string().await?)?;
         }
         if !sources.is_empty() {
             write!(result, "{} x source, ", sources.len())?;
