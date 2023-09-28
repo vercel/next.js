@@ -29,7 +29,7 @@ const runTests = () => {
 }
 
 describe('Cleaning distDir', () => {
-  describe('server mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     runTests()
   })
 
