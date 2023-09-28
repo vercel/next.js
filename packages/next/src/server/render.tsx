@@ -47,6 +47,7 @@ import {
   SERVER_PROPS_SSG_CONFLICT,
   SSG_GET_INITIAL_PROPS_CONFLICT,
   UNSTABLE_REVALIDATE_RENAME_ERROR,
+  CACHE_ONE_YEAR,
 } from '../lib/constants'
 import {
   COMPILER_NAMES,
@@ -81,8 +82,8 @@ import {
   streamFromString,
   streamToString,
   chainStreams,
-  renderToInitialStream,
-  continueFromInitialStream,
+  renderToInitialFizzStream,
+  continueFizzStream,
 } from './stream-utils/node-web-streams-helper'
 import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
@@ -101,8 +102,9 @@ import {
 import { getTracer } from './lib/trace/tracer'
 import { RenderSpan } from './lib/trace/constants'
 import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
+import { setRevalidateHeaders } from './send-payload'
 
-let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
+let tryGetPreviewData: typeof import('./api-utils/node/try-get-preview-data').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
 let postProcessHTML: typeof import('./post-process').postProcessHTML
 
@@ -110,7 +112,8 @@ const DOCTYPE = '<!DOCTYPE html>'
 
 if (process.env.NEXT_RUNTIME !== 'edge') {
   require('./node-polyfill-web-streams')
-  tryGetPreviewData = require('./api-utils/node').tryGetPreviewData
+  tryGetPreviewData =
+    require('./api-utils/node/try-get-preview-data').tryGetPreviewData
   warn = require('../build/output/log').warn
   postProcessHTML = require('./post-process').postProcessHTML
 } else {
@@ -279,6 +282,7 @@ export type RenderOptsPartial = {
   isDraftMode?: boolean
   deploymentId?: string
   isServerAction?: boolean
+  isExperimentalCompile?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -440,6 +444,7 @@ export async function renderToHTMLImpl(
     basePath,
     images,
     runtime: globalRuntime,
+    isExperimentalCompile,
   } = renderOpts
   const { App } = extra
 
@@ -495,6 +500,18 @@ export async function renderToHTMLImpl(
     defaultAppGetInitialProps &&
     !isSSG &&
     !getServerSideProps
+
+  // if we are running from experimental compile and the page
+  // would normally be automatically statically optimized
+  // ensure we set cache header so it's not rendered on-demand
+  // every request
+  if (isAutoExport && !dev && isExperimentalCompile) {
+    setRevalidateHeaders(res, {
+      revalidate: CACHE_ONE_YEAR,
+      private: false,
+      stateful: false,
+    })
+  }
 
   if (hasPageGetInitialProps && isSSG) {
     throw new Error(SSG_GET_INITIAL_PROPS_CONFLICT + ` ${pathname}`)
@@ -1296,7 +1313,7 @@ export async function renderToHTMLImpl(
       EnhancedComponent: NextComponentType
     ) => {
       const content = renderContent(EnhancedApp, EnhancedComponent)
-      return await renderToInitialStream({
+      return await renderToInitialFizzStream({
         ReactDOMServer,
         element: content,
       })
@@ -1311,9 +1328,9 @@ export async function renderToHTMLImpl(
           return renderToString(styledJsxInsertedHTML())
         }
 
-        return continueFromInitialStream(initialStream, {
+        return continueFizzStream(initialStream, {
           suffix,
-          dataStream: serverComponentsInlinedTransformStream?.readable,
+          inlinedDataStream: serverComponentsInlinedTransformStream?.readable,
           generateStaticHTML: true,
           getServerInsertedHTML,
           serverInsertedHTMLToHead: false,

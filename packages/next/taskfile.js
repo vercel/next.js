@@ -719,15 +719,6 @@ export async function ncc_react_refresh_utils(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-externals['chalk'] = 'next/dist/compiled/chalk'
-export async function ncc_chalk(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('chalk')))
-    .ncc({ packageName: 'chalk', externals })
-    .target('src/compiled/chalk')
-}
-
-// eslint-disable-next-line camelcase
 externals['browserslist'] = 'next/dist/compiled/browserslist'
 export async function ncc_browserslist(task, opts) {
   const browserslistModule = require.resolve('browserslist')
@@ -1991,6 +1982,16 @@ export async function ncc_unistore(task, opts) {
     .ncc({ packageName: 'unistore', externals })
     .target('src/compiled/unistore')
 }
+
+// eslint-disable-next-line camelcase
+externals['unistore'] = 'next/dist/compiled/superstruct'
+export async function ncc_superstruct(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('superstruct')))
+    .ncc({ packageName: 'superstruct', externals })
+    .target('src/compiled/superstruct')
+}
+
 // eslint-disable-next-line camelcase
 externals['web-vitals'] = 'next/dist/compiled/web-vitals'
 export async function ncc_web_vitals(task, opts) {
@@ -2221,7 +2222,6 @@ export async function ncc(task, opts) {
     .parallel(
       [
         'ncc_node_html_parser',
-        'ncc_chalk',
         'ncc_napirs_triples',
         'ncc_p_limit',
         'ncc_raw_body',
@@ -2314,6 +2314,7 @@ export async function ncc(task, opts) {
         'ncc_source_map',
         'ncc_string_hash',
         'ncc_strip_ansi',
+        'ncc_superstruct',
         'ncc_nft',
         'ncc_tar',
         'ncc_terser',

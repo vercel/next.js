@@ -67,11 +67,6 @@ declare module 'next/dist/compiled/react-is' {
   export * from 'react-is'
 }
 
-declare module 'next/dist/compiled/chalk' {
-  import m from 'chalk'
-  export = m
-}
-
 declare module 'next/dist/compiled/cssnano-simple' {
   const cssnanoSimple: any
   export = cssnanoSimple
@@ -108,6 +103,11 @@ declare module 'next/dist/compiled/acorn' {
 }
 declare module 'next/dist/compiled/amphtml-validator' {
   import m from 'amphtml-validator'
+  export = m
+}
+
+declare module 'next/dist/compiled/superstruct' {
+  import m from 'superstruct'
   export = m
 }
 declare module 'next/dist/compiled/async-retry'

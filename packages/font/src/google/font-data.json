@@ -9,6 +9,25 @@
     "styles": ["normal"],
     "subsets": ["adlam", "latin", "latin-ext"]
   },
+  "AR One Sans": {
+    "weights": ["400", "500", "600", "700", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "ARRR",
+        "min": 10,
+        "max": 60,
+        "defaultValue": 10
+      },
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext", "vietnamese"]
+  },
   "Abel": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -3853,6 +3872,19 @@
     "styles": ["normal", "italic"],
     "subsets": ["greek"]
   },
+  "Gabarito": {
+    "weights": ["400", "500", "600", "700", "800", "900", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext"]
+  },
   "Gabriela": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -5260,9 +5292,17 @@
     "subsets": ["devanagari", "latin", "latin-ext"]
   },
   "Kameron": {
-    "weights": ["400", "700"],
+    "weights": ["400", "500", "600", "700", "variable"],
     "styles": ["normal"],
-    "subsets": ["latin"]
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext"]
   },
   "Kanit": {
     "weights": ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
@@ -7421,7 +7461,7 @@
   "Noto Sans Bhaiksuki": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": ["bhaiksuki"]
+    "subsets": ["bhaiksuki", "latin", "latin-ext"]
   },
   "Noto Sans Brahmi": {
     "weights": ["400"],
@@ -7749,9 +7789,17 @@
     "subsets": ["gujarati", "latin", "latin-ext"]
   },
   "Noto Sans Gunjala Gondi": {
-    "weights": ["400"],
+    "weights": ["400", "500", "600", "700", "variable"],
     "styles": ["normal"],
-    "subsets": ["gunjala-gondi"]
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["gunjala-gondi", "latin", "latin-ext"]
   },
   "Noto Sans Gurmukhi": {
     "weights": [
@@ -8322,6 +8370,19 @@
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext", "nko"]
   },
+  "Noto Sans NKo Unjoined": {
+    "weights": ["400", "500", "600", "700", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext", "nko"]
+  },
   "Noto Sans Nabataean": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -8658,7 +8719,7 @@
   "Noto Sans Symbols 2": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": ["latin", "latin-ext", "symbols"]
+    "subsets": ["braille", "latin", "latin-ext", "mayan-numerals", "symbols"]
   },
   "Noto Sans Syriac": {
     "weights": [
@@ -9858,6 +9919,30 @@
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext"]
   },
+  "Onest": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext"]
+  },
   "Oooh Baby": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -10331,6 +10416,19 @@
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext"]
+  },
+  "Pixelify Sans": {
+    "weights": ["400", "500", "600", "700", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["cyrillic", "latin", "latin-ext"]
   },
   "Plaster": {
     "weights": ["400"],
@@ -13464,6 +13562,11 @@
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["cyrillic", "latin", "latin-ext", "vietnamese"]
+  },
+  "Young Serif": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext"]
   },
   "Yrsa": {
     "weights": ["300", "400", "500", "600", "700", "variable"],

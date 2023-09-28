@@ -22,7 +22,7 @@ import '../server/node-polyfill-fetch'
 import '../server/node-polyfill-crypto'
 import '../server/node-environment'
 
-import chalk from 'next/dist/compiled/chalk'
+import { green, yellow, red, cyan, bold, underline } from '../lib/picocolors'
 import getGzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
@@ -368,22 +368,22 @@ export async function printTreeView(
   const getPrettySize = (_size: number): string => {
     const size = prettyBytes(_size)
     // green for 0-130kb
-    if (_size < 130 * 1000) return chalk.green(size)
+    if (_size < 130 * 1000) return green(size)
     // yellow for 130-170kb
-    if (_size < 170 * 1000) return chalk.yellow(size)
+    if (_size < 170 * 1000) return yellow(size)
     // red for >= 170kb
-    return chalk.red.bold(size)
+    return red(bold(size))
   }
 
   const MIN_DURATION = 300
   const getPrettyDuration = (_duration: number): string => {
     const duration = `${_duration} ms`
     // green for 300-1000ms
-    if (_duration < 1000) return chalk.green(duration)
+    if (_duration < 1000) return green(duration)
     // yellow for 1000-2000ms
-    if (_duration < 2000) return chalk.yellow(duration)
+    if (_duration < 2000) return yellow(duration)
     // red for >= 2000ms
-    return chalk.red.bold(duration)
+    return red(bold(duration))
   }
 
   const getCleanName = (fileName: string) =>
@@ -429,7 +429,7 @@ export async function printTreeView(
         routerType === 'app' ? 'Route (app)' : 'Route (pages)',
         'Size',
         'First Load JS',
-      ].map((entry) => chalk.underline(entry)) as [string, string, string]
+      ].map((entry) => underline(entry)) as [string, string, string]
     )
 
     filteredPages.forEach((item, i, arr) => {
@@ -475,14 +475,14 @@ export async function printTreeView(
         }`,
         pageInfo
           ? ampFirst
-            ? chalk.cyan('AMP')
+            ? cyan('AMP')
             : pageInfo.size >= 0
             ? prettyBytes(pageInfo.size)
             : ''
           : '',
         pageInfo
           ? ampFirst
-            ? chalk.cyan('AMP')
+            ? cyan('AMP')
             : pageInfo.size >= 0
             ? getPrettySize(pageInfo.totalSize)
             : ''
@@ -671,9 +671,9 @@ export async function printTreeView(
         usedSymbols.has('λ') && [
           'λ',
           '(Server)',
-          `server-side renders at runtime (uses ${chalk.cyan(
+          `server-side renders at runtime (uses ${cyan(
             'getInitialProps'
-          )} or ${chalk.cyan('getServerSideProps')})`,
+          )} or ${cyan('getServerSideProps')})`,
         ],
         usedSymbols.has('○') && [
           '○',
@@ -683,14 +683,14 @@ export async function printTreeView(
         usedSymbols.has('●') && [
           '●',
           '(SSG)',
-          `automatically generated as static HTML + JSON (uses ${chalk.cyan(
+          `automatically generated as static HTML + JSON (uses ${cyan(
             'getStaticProps'
           )})`,
         ],
         usedSymbols.has('ISR') && [
           '',
           '(ISR)',
-          `incremental static regeneration (uses revalidate in ${chalk.cyan(
+          `incremental static regeneration (uses revalidate in ${cyan(
             'getStaticProps'
           )})`,
         ],
@@ -716,7 +716,7 @@ export function printCustomRoutes({
   ) => {
     const isRedirects = type === 'Redirects'
     const isHeaders = type === 'Headers'
-    print(chalk.underline(type))
+    print(underline(type))
     print()
 
     /*
@@ -1796,7 +1796,8 @@ export async function copyTracedFiles(
   tracingRoot: string,
   serverConfig: NextConfig,
   middlewareManifest: MiddlewareManifest,
-  hasInstrumentationHook: boolean
+  hasInstrumentationHook: boolean,
+  staticPages: Set<string>
 ) {
   const outputPath = path.join(distDir, 'standalone')
   let moduleType = false
@@ -1889,6 +1890,12 @@ export async function copyTracedFiles(
     if (middlewareManifest.functions.hasOwnProperty(page)) {
       continue
     }
+    const route = normalizePagePath(page)
+
+    if (staticPages.has(route)) {
+      continue
+    }
+
     const pageFile = path.join(
       distDir,
       'server',
@@ -1897,7 +1904,9 @@ export async function copyTracedFiles(
     )
     const pageTraceFile = `${pageFile}.nft.json`
     await handleTraceFiles(pageTraceFile).catch((err) => {
-      Log.warn(`Failed to copy traced files for ${pageFile}`, err)
+      if (err.code !== 'ENOENT' || (page !== '/404' && page !== '/500')) {
+        Log.warn(`Failed to copy traced files for ${pageFile}`, err)
+      }
     })
   }
 

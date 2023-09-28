@@ -1,6 +1,6 @@
 import React from 'react'
 import ReactRefreshWebpackPlugin from 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWebpackPlugin'
-import chalk from 'next/dist/compiled/chalk'
+import { yellow, bold } from '../lib/picocolors'
 import crypto from 'crypto'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import path from 'path'
@@ -19,11 +19,7 @@ import {
   WEBPACK_RESOURCE_QUERIES,
   WebpackLayerName,
 } from '../lib/constants'
-import {
-  isWebpackAppLayer,
-  isWebpackDefaultLayer,
-  isWebpackServerLayer,
-} from './utils'
+import { isWebpackDefaultLayer, isWebpackServerLayer } from './utils'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
@@ -77,6 +73,7 @@ import { defaultOverrides } from '../server/require-hook'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 import { getDefineEnvPlugin } from './webpack/plugins/define-env-plugin'
 import { SWCLoaderOptions } from './webpack/loaders/next-swc-loader'
+import { isResourceInPackages, makeExternalHandler } from './handle-externals'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -104,19 +101,8 @@ const babelIncludeRegexes: RegExp[] = [
   /[\\/](strip-ansi|ansi-regex|styled-jsx)[\\/]/,
 ]
 
-const reactPackagesRegex = /^(react|react-dom|react-server-dom-webpack)($|\/)/
-
 const asyncStoragesRegex =
   /next[\\/]dist[\\/](esm[\\/])?client[\\/]components[\\/](static-generation-async-storage|action-async-storage|request-async-storage)/
-
-const pathSeparators = '[/\\\\]'
-const optionalEsmPart = `((${pathSeparators}esm)?${pathSeparators})`
-const externalFileEnd = '(\\.external(\\.js)?)$'
-const nextDist = `next${pathSeparators}dist`
-
-const externalPattern = new RegExp(
-  `${nextDist}${optionalEsmPart}.*${externalFileEnd}`
-)
 
 // exports.<conditionName>
 const edgeConditionNames = [
@@ -167,22 +153,6 @@ export function errorIfEnvConflicted(config: NextConfigComplete, key: string) {
   }
 }
 
-function isResourceInPackages(
-  resource: string,
-  packageNames?: string[],
-  packageDirMapping?: Map<string, string>
-) {
-  return packageNames?.some((p: string) =>
-    packageDirMapping && packageDirMapping.has(p)
-      ? resource.startsWith(packageDirMapping.get(p)! + path.sep)
-      : resource.includes(
-          path.sep +
-            path.join('node_modules', p.replace(/\//g, path.sep)) +
-            path.sep
-        )
-  )
-}
-
 function getReactProfilingInProduction() {
   return {
     'react-dom$': 'react-dom/profiling',
@@ -221,7 +191,6 @@ function createRSCAliases(
         'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-dev-runtime`,
         react$: `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react`,
         'react-dom$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom`,
-        'react-dom/server.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom-server-edge`,
         'react-server-dom-webpack/client.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-client-edge`,
       })
     } else if (opts.layer === WEBPACK_LAYERS.reactServerComponents) {
@@ -268,8 +237,8 @@ function createRSCAliases(
 const devtoolRevertWarning = execOnce(
   (devtool: webpack.Configuration['devtool']) => {
     console.warn(
-      chalk.yellow.bold('Warning: ') +
-        chalk.bold(`Reverting webpack devtool to '${devtool}'.\n`) +
+      yellow(bold('Warning: ')) +
+        bold(`Reverting webpack devtool to '${devtool}'.\n`) +
         'Changing the webpack devtool in development mode will cause severe performance regressions.\n' +
         'Read more: https://nextjs.org/docs/messages/improper-devtool'
     )
@@ -414,99 +383,6 @@ export const NODE_BASE_ESM_RESOLVE_OPTIONS = {
 
 export const nextImageLoaderRegex =
   /\.(png|jpg|jpeg|gif|webp|avif|ico|bmp|svg)$/i
-
-export async function resolveExternal(
-  dir: string,
-  esmExternalsConfig: NextConfigComplete['experimental']['esmExternals'],
-  context: string,
-  request: string,
-  isEsmRequested: boolean,
-  hasAppDir: boolean,
-  getResolve: (
-    options: any
-  ) => (
-    resolveContext: string,
-    resolveRequest: string
-  ) => Promise<[string | null, boolean]>,
-  isLocalCallback?: (res: string) => any,
-  baseResolveCheck = true,
-  esmResolveOptions: any = NODE_ESM_RESOLVE_OPTIONS,
-  nodeResolveOptions: any = NODE_RESOLVE_OPTIONS,
-  baseEsmResolveOptions: any = NODE_BASE_ESM_RESOLVE_OPTIONS,
-  baseResolveOptions: any = NODE_BASE_RESOLVE_OPTIONS
-) {
-  const esmExternals = !!esmExternalsConfig
-  const looseEsmExternals = esmExternalsConfig === 'loose'
-
-  let res: string | null = null
-  let isEsm: boolean = false
-
-  let preferEsmOptions =
-    esmExternals && isEsmRequested ? [true, false] : [false]
-  // Disable esm resolving for app/ and pages/ so for esm package using under pages/
-  // won't load react through esm loader
-  if (hasAppDir) {
-    preferEsmOptions = [false]
-  }
-  for (const preferEsm of preferEsmOptions) {
-    const resolve = getResolve(
-      preferEsm ? esmResolveOptions : nodeResolveOptions
-    )
-
-    // Resolve the import with the webpack provided context, this
-    // ensures we're resolving the correct version when multiple
-    // exist.
-    try {
-      ;[res, isEsm] = await resolve(context, request)
-    } catch (err) {
-      res = null
-    }
-
-    if (!res) {
-      continue
-    }
-
-    // ESM externals can only be imported (and not required).
-    // Make an exception in loose mode.
-    if (!isEsmRequested && isEsm && !looseEsmExternals) {
-      continue
-    }
-
-    if (isLocalCallback) {
-      return { localRes: isLocalCallback(res) }
-    }
-
-    // Bundled Node.js code is relocated without its node_modules tree.
-    // This means we need to make sure its request resolves to the same
-    // package that'll be available at runtime. If it's not identical,
-    // we need to bundle the code (even if it _should_ be external).
-    if (baseResolveCheck) {
-      let baseRes: string | null
-      let baseIsEsm: boolean
-      try {
-        const baseResolve = getResolve(
-          isEsm ? baseEsmResolveOptions : baseResolveOptions
-        )
-        ;[baseRes, baseIsEsm] = await baseResolve(dir, request)
-      } catch (err) {
-        baseRes = null
-        baseIsEsm = false
-      }
-
-      // Same as above: if the package, when required from the root,
-      // would be different from what the real resolution would use, we
-      // cannot externalize it.
-      // if request is pointing to a symlink it could point to the the same file,
-      // the resolver will resolve symlinks so this is handled
-      if (baseRes !== res || isEsm !== baseIsEsm) {
-        res = null
-        continue
-      }
-    }
-    break
-  }
-  return { res, isEsm }
-}
 
 export async function loadProjectInfo({
   dir,
@@ -1147,7 +1023,6 @@ export default async function getBaseWebpackConfig(
   }
 
   const crossOrigin = config.crossOrigin
-  const looseEsmExternals = config.experimental?.esmExternals === 'loose'
 
   const optOutBundlingPackages = EXTERNAL_PACKAGES.concat(
     ...(config.experimental.serverComponentsExternalPackages || [])
@@ -1158,261 +1033,12 @@ export default async function getBaseWebpackConfig(
       .join('|')})[/\\\\]`
   )
 
-  let resolvedExternalPackageDirs: Map<string, string>
-
-  async function handleExternals(
-    context: string,
-    request: string,
-    dependencyType: string,
-    layer: WebpackLayerName | null,
-    getResolve: (
-      options: any
-    ) => (
-      resolveContext: string,
-      resolveRequest: string
-    ) => Promise<[string | null, boolean]>
-  ) {
-    // We need to externalize internal requests for files intended to
-    // not be bundled.
-    const isLocal: boolean =
-      request.startsWith('.') ||
-      // Always check for unix-style path, as webpack sometimes
-      // normalizes as posix.
-      path.posix.isAbsolute(request) ||
-      // When on Windows, we also want to check for Windows-specific
-      // absolute paths.
-      (process.platform === 'win32' && path.win32.isAbsolute(request))
-
-    // make sure import "next" shows a warning when imported
-    // in pages/components
-    if (request === 'next') {
-      return `commonjs next/dist/lib/import-next-warning`
-    }
-
-    const isAppLayer = isWebpackAppLayer(layer)
-
-    // Relative requires don't need custom resolution, because they
-    // are relative to requests we've already resolved here.
-    // Absolute requires (require('/foo')) are extremely uncommon, but
-    // also have no need for customization as they're already resolved.
-    if (!isLocal) {
-      if (/^(?:next$)/.test(request)) {
-        return `commonjs ${request}`
-      }
-
-      if (reactPackagesRegex.test(request) && !isAppLayer) {
-        return `commonjs ${request}`
-      }
-
-      const notExternalModules =
-        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|legacy\/image|constants|dynamic|script|navigation|headers|router)$)|string-hash|private-next-rsc-action-validate|private-next-rsc-action-client-wrapper|private-next-rsc-action-proxy$)/
-      if (notExternalModules.test(request)) {
-        return
-      }
-    }
-
-    // @swc/helpers should not be external as it would
-    // require hoisting the package which we can't rely on
-    if (request.includes('@swc/helpers')) {
-      return
-    }
-
-    // __barrel_optimize__ is a special marker that tells Next.js to
-    // optimize the import by removing unused exports. This has to be compiled.
-    if (request.startsWith('__barrel_optimize__')) {
-      return
-    }
-
-    // When in esm externals mode, and using import, we resolve with
-    // ESM resolving options.
-    // Also disable esm request when appDir is enabled
-    const isEsmRequested = dependencyType === 'esm'
-
-    /**
-     * @param localRes the full path to the file
-     * @returns the externalized path
-     * @description returns an externalized path if the file is a Next.js file and ends with either `.shared-runtime.js` or `.external.js`
-     * This is used to ensure that files used across the rendering runtime(s) and the user code are one and the same. The logic in this function
-     * will rewrite the require to the correct bundle location depending on the layer at which the file is being used.
-     */
-    const resolveNextExternal = (localRes: string) => {
-      const isExternal = externalPattern.test(localRes)
-
-      // if the file ends with .external, we need to make it a commonjs require in all cases
-      // this is used mainly to share the async local storage across the routing, rendering and user layers.
-      if (isExternal) {
-        // it's important we return the path that starts with `next/dist/` here instead of the absolute path
-        // otherwise NFT will get tripped up
-        return `commonjs ${localRes.replace(/.*?next[/\\]dist/, 'next/dist')}`
-      }
-    }
-
-    // Don't bundle @vercel/og nodejs bundle for nodejs runtime.
-    // TODO-APP: bundle route.js with different layer that externals common node_module deps.
-    if (
-      isWebpackServerLayer(layer) &&
-      request === 'next/dist/compiled/@vercel/og/index.node.js'
-    ) {
-      return `module ${request}`
-    }
-
-    // Specific Next.js imports that should remain external
-    // TODO-APP: Investigate if we can remove this.
-    if (request.startsWith('next/dist/')) {
-      // Non external that needs to be transpiled
-      // Image loader needs to be transpiled
-      if (/^next[\\/]dist[\\/]shared[\\/]lib[\\/]image-loader/.test(request)) {
-        return
-      }
-
-      if (/^next[\\/]dist[\\/]compiled[\\/]next-server/.test(request)) {
-        return `commonjs ${request}`
-      }
-
-      if (
-        /^next[\\/]dist[\\/]shared[\\/](?!lib[\\/]router[\\/]router)/.test(
-          request
-        ) ||
-        /^next[\\/]dist[\\/]compiled[\\/].*\.c?js$/.test(request)
-      ) {
-        return `commonjs ${request}`
-      }
-
-      if (
-        /^next[\\/]dist[\\/]esm[\\/]shared[\\/](?!lib[\\/]router[\\/]router)/.test(
-          request
-        ) ||
-        /^next[\\/]dist[\\/]compiled[\\/].*\.mjs$/.test(request)
-      ) {
-        return `module ${request}`
-      }
-
-      return resolveNextExternal(request)
-    }
-
-    // Early return if the request needs to be bundled, such as in the client layer.
-    // Treat react packages and next internals as external for SSR layer,
-    // also map react to builtin ones with require-hook.
-    if (layer === WEBPACK_LAYERS.serverSideRendering) {
-      const isRelative = request.startsWith('.')
-      const fullRequest = isRelative
-        ? path.join(context, request).replace(/\\/g, '/')
-        : request
-      return resolveNextExternal(fullRequest)
-    }
-
-    // TODO-APP: Let's avoid this resolve call as much as possible, and eventually get rid of it.
-    const resolveResult = await resolveExternal(
-      dir,
-      config.experimental.esmExternals,
-      context,
-      request,
-      isEsmRequested,
-      hasAppDir,
-      getResolve,
-      isLocal ? resolveNextExternal : undefined
-    )
-
-    if ('localRes' in resolveResult) {
-      return resolveResult.localRes
-    }
-
-    // Forcedly resolve the styled-jsx installed by next.js,
-    // since `resolveExternal` cannot find the styled-jsx dep with pnpm
-    if (request === 'styled-jsx/style') {
-      resolveResult.res = defaultOverrides['styled-jsx/style']
-    }
-
-    const { res, isEsm } = resolveResult
-
-    // If the request cannot be resolved we need to have
-    // webpack "bundle" it so it surfaces the not found error.
-    if (!res) {
-      return
-    }
-
-    // ESM externals can only be imported (and not required).
-    // Make an exception in loose mode.
-    if (!isEsmRequested && isEsm && !looseEsmExternals) {
-      throw new Error(
-        `ESM packages (${request}) need to be imported. Use 'import' to reference the package instead. https://nextjs.org/docs/messages/import-esm-externals`
-      )
-    }
-
-    const externalType = isEsm ? 'module' : 'commonjs'
-
-    // Default pages have to be transpiled
-    if (
-      // This is the @babel/plugin-transform-runtime "helpers: true" option
-      /node_modules[/\\]@babel[/\\]runtime[/\\]/.test(res)
-    ) {
-      return
-    }
-
-    // Webpack itself has to be compiled because it doesn't always use module relative paths
-    if (
-      /node_modules[/\\]webpack/.test(res) ||
-      /node_modules[/\\]css-loader/.test(res)
-    ) {
-      return
-    }
-
-    // If a package should be transpiled by Next.js, we skip making it external.
-    // It doesn't matter what the extension is, as we'll transpile it anyway.
-    if (config.transpilePackages && !resolvedExternalPackageDirs) {
-      resolvedExternalPackageDirs = new Map()
-      // We need to resolve all the external package dirs initially.
-      for (const pkg of config.transpilePackages) {
-        const pkgRes = await resolveExternal(
-          dir,
-          config.experimental.esmExternals,
-          context,
-          pkg + '/package.json',
-          hasAppDir,
-          isEsmRequested,
-          getResolve,
-          isLocal ? resolveNextExternal : undefined
-        )
-        if (pkgRes.res) {
-          resolvedExternalPackageDirs.set(pkg, path.dirname(pkgRes.res))
-        }
-      }
-    }
-
-    // If a package is included in `transpilePackages`, we don't want to make it external.
-    // And also, if that resource is an ES module, we bundle it too because we can't
-    // rely on the require hook to alias `react` to our precompiled version.
-    const shouldBeBundled =
-      isResourceInPackages(
-        res,
-        config.transpilePackages,
-        resolvedExternalPackageDirs
-      ) ||
-      (isEsm && isAppLayer)
-
-    if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
-      if (isWebpackServerLayer(layer)) {
-        // All packages should be bundled for the server layer if they're not opted out.
-        // This option takes priority over the transpilePackages option.
-
-        if (optOutBundlingPackageRegex.test(res)) {
-          return `${externalType} ${request}`
-        }
-
-        return
-      }
-
-      if (shouldBeBundled) return
-
-      // Anything else that is standard JavaScript within `node_modules`
-      // can be externalized.
-      return `${externalType} ${request}`
-    }
-
-    if (shouldBeBundled) return
-
-    // Default behavior: bundle the code!
-  }
+  const handleExternals = makeExternalHandler({
+    config,
+    optOutBundlingPackageRegex,
+    dir,
+    hasAppDir,
+  })
 
   const shouldIncludeExternalDirs =
     config.experimental.externalDir || !!config.transpilePackages
@@ -1454,7 +1080,6 @@ export default async function getBaseWebpackConfig(
                   {
                     '@builder.io/partytown': '{}',
                     'next/dist/compiled/etag': '{}',
-                    'next/dist/compiled/chalk': '{}',
                   },
                   getEdgePolyfilledModules(),
                   handleWebpackExternalForEdgeRuntime,
@@ -2968,8 +2593,8 @@ export default async function getBaseWebpackConfig(
     // only show warning for one build
     if (isNodeOrEdgeCompilation) {
       console.warn(
-        chalk.yellow.bold('Warning: ') +
-          chalk.bold(
+        yellow(bold('Warning: ')) +
+          bold(
             'Built-in CSS support is being disabled due to custom CSS configuration being detected.\n'
           ) +
           'See here for more info: https://nextjs.org/docs/messages/built-in-css-disabled\n'

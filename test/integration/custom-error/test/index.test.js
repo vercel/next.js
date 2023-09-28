@@ -79,8 +79,7 @@ describe('Custom _error', () => {
       expect(html).toContain('An error 404 occurred on server')
     })
   })
-
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     let buildOutput = ''
 
     beforeAll(async () => {

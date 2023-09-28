@@ -151,28 +151,13 @@ jobs:
       afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-tests-manifest.json" TURBOPACK=1 node run-tests.js --timings -g ${{ matrix.group }}/5 -c ${TEST_CONCURRENCY} --type integration
     secrets: inherit
 
-  # --type production also runs tests/e2e
-  test-turbopack-prod:
-    name: test turbopack prod
-    needs: ['build-native', 'build-next']
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [1, 2, 3, 4, 5]
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      nodeVersion: 16
-      skipForDocsOnly: 'yes'
-      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-tests-manifest.json" TURBOPACK=1 NEXT_TEST_MODE=start node run-tests.js --timings -g ${{ matrix.group }}/5 -c ${TEST_CONCURRENCY} --type production
-    secrets: inherit
-
   test-next-swc-wasm:
     name: test next-swc wasm
     needs: ['build-native', 'build-next']
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
-      afterBuild: rustup target add wasm32-unknown-unknown && curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh && node ./scripts/normalize-version-bump.js && turbo run build-wasm -- --target nodejs --features tracing/release_max_level_info && git checkout . && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-nodejs && node ./scripts/setup-wasm.mjs && NEXT_TEST_MODE=start TEST_WASM=true node run-tests.js test/integration/production/test/index.test.js test/e2e/streaming-ssr/index.test.ts
+      afterBuild: rustup target add wasm32-unknown-unknown && curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh && node ./scripts/normalize-version-bump.js && turbo run build-wasm -- --target nodejs --features tracing/release_max_level_info && git checkout . && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-nodejs && node ./scripts/setup-wasm.mjs && NEXT_TEST_MODE=start TEST_WASM=true node run-tests.js test/production/pages-dir/production/test/index.test.ts test/e2e/streaming-ssr/index.test.ts
     secrets: inherit
 
   test-unit:
@@ -238,7 +223,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
-      afterBuild: pnpm playwright install && BROWSER_NAME=firefox node run-tests.js test/integration/production/test/index.test.js && BROWSER_NAME=safari NEXT_TEST_MODE=start node run-tests.js -c 1 test/integration/production/test/index.test.js test/e2e/basepath.test.ts && BROWSER_NAME=safari DEVICE_NAME='iPhone XR' node run-tests.js -c 1 test/production/prerender-prefetch/index.test.ts
+      afterBuild: pnpm playwright install && BROWSER_NAME=firefox node run-tests.js test/production/pages-dir/production/test/index.test.ts && BROWSER_NAME=safari NEXT_TEST_MODE=start node run-tests.js -c 1 test/production/pages-dir/production/test/index.test.ts test/e2e/basepath.test.ts && BROWSER_NAME=safari DEVICE_NAME='iPhone XR' node run-tests.js -c 1 test/production/prerender-prefetch/index.test.ts
     secrets: inherit
 
   report-test-results:
@@ -250,7 +235,6 @@ jobs:
         'test-integration',
         'test-turbopack-dev',
         'test-turbopack-integration',
-        'test-turbopack-prod',
       ]
     uses: ./.github/workflows/build_reusable.yml
     with:

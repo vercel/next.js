@@ -59,8 +59,7 @@ describe('i18n Support basePath', () => {
 
     runTests(curCtx)
   })
-
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       nextConfig.replace(/__EXTERNAL_PORT__/g, ctx.externalPort)
       await fs.remove(join(appDir, '.next'))

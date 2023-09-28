@@ -109,6 +109,7 @@ import {
   deleteCache,
 } from '../../../build/webpack/plugins/nextjs-require-cache-hot-reloader'
 import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
+import { clearModuleContext } from '../render-server'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -219,7 +220,10 @@ async function startWatcher(opts: SetupOpts) {
     })
     const iter = project.entrypointsSubscribe()
     const curEntries: Map<string, Route> = new Map()
-    const changeSubscriptions: Map<string, AsyncIterator<any>> = new Map()
+    const changeSubscriptions: Map<
+      string,
+      Promise<AsyncIterator<any>>
+    > = new Map()
     let prevMiddleware: boolean | undefined = undefined
     const globalEntries: {
       app: Endpoint | undefined
@@ -290,6 +294,7 @@ async function startWatcher(opts: SetupOpts) {
     class ModuleBuildError extends Error {}
 
     function processIssues(
+      displayName: string,
       name: string,
       result: TurbopackResult,
       throwIssue = false
@@ -298,24 +303,28 @@ async function startWatcher(opts: SetupOpts) {
       const newSet = new Map<string, Issue>()
       issues.set(name, newSet)
 
+      const relevantIssues = new Set()
+
       for (const issue of result.issues) {
         // TODO better formatting
         if (issue.severity !== 'error' && issue.severity !== 'fatal') continue
         const key = issueKey(issue)
         const formatted = formatIssue(issue)
-        if (!throwIssue && !oldSet.has(key)) {
-          console.error(`  ⚠ ${key} ${formatted}\n\n`)
+        if (!oldSet.has(key) && !newSet.has(key)) {
+          console.error(`  ⚠ ${displayName} ${key} ${formatted}\n\n`)
         }
         newSet.set(key, issue)
-        if (throwIssue) {
-          throw new ModuleBuildError(formatted)
-        }
+        relevantIssues.add(formatted)
       }
 
       for (const issue of oldSet.keys()) {
         if (!newSet.has(issue)) {
-          console.error(`✅ ${name} fixed ${issue}`)
+          console.error(`✅ ${displayName} fixed ${issue}`)
         }
+      }
+
+      if (relevantIssues.size && throwIssue) {
+        throw new ModuleBuildError([...relevantIssues].join('\n\n'))
       }
     }
 
@@ -331,6 +340,7 @@ async function startWatcher(opts: SetupOpts) {
       }
 
       for (const file of result.serverPaths.map((p) => path.join(distDir, p))) {
+        clearModuleContext(file)
         deleteCache(file)
       }
 
@@ -499,12 +509,13 @@ async function startWatcher(opts: SetupOpts) {
       makePayload: (
         page: string,
         change: TurbopackResult<ServerClientChange>
-      ) => HMR_ACTION_TYPES | void
+      ) => Promise<HMR_ACTION_TYPES> | HMR_ACTION_TYPES | void
     ) {
       if (!endpoint || changeSubscriptions.has(page)) return
 
-      const changed = await endpoint.changed()
-      changeSubscriptions.set(page, changed)
+      const changedPromise = endpoint.changed()
+      changeSubscriptions.set(page, changedPromise)
+      const changed = await changedPromise
 
       for await (const change of changed) {
         consoleStore.setState(
@@ -515,120 +526,19 @@ async function startWatcher(opts: SetupOpts) {
           true
         )
 
-        processIssues(page, change)
-        const payload = makePayload(page, change)
+        processIssues(page, page, change)
+        const payload = await makePayload(page, change)
         if (payload) sendHmr('endpoint-change', page, payload)
       }
     }
 
-    function clearChangeSubscription(page: string) {
-      const subscription = changeSubscriptions.get(page)
+    async function clearChangeSubscription(page: string) {
+      const subscription = await changeSubscriptions.get(page)
       if (subscription) {
         subscription.return?.()
         changeSubscriptions.delete(page)
       }
       issues.delete(page)
-    }
-
-    try {
-      async function handleEntries() {
-        for await (const entrypoints of iter) {
-          if (!currentEntriesHandlingResolve) {
-            currentEntriesHandling = new Promise(
-              // eslint-disable-next-line no-loop-func
-              (resolve) => (currentEntriesHandlingResolve = resolve)
-            )
-          }
-          globalEntries.app = entrypoints.pagesAppEndpoint
-          globalEntries.document = entrypoints.pagesDocumentEndpoint
-          globalEntries.error = entrypoints.pagesErrorEndpoint
-
-          curEntries.clear()
-
-          for (const [pathname, route] of entrypoints.routes) {
-            switch (route.type) {
-              case 'page':
-              case 'page-api':
-              case 'app-page':
-              case 'app-route': {
-                curEntries.set(pathname, route)
-                break
-              }
-              default:
-                Log.info(`skipping ${pathname} (${route.type})`)
-                break
-            }
-          }
-
-          for (const [pathname, subscription] of changeSubscriptions) {
-            if (pathname === '') {
-              // middleware is handled below
-              continue
-            }
-
-            if (!curEntries.has(pathname)) {
-              subscription.return?.()
-              changeSubscriptions.delete(pathname)
-            }
-          }
-
-          const { middleware } = entrypoints
-          // We check for explicit true/false, since it's initialized to
-          // undefined during the first loop (middlewareChanges event is
-          // unnecessary during the first serve)
-          if (prevMiddleware === true && !middleware) {
-            // Went from middleware to no middleware
-            clearChangeSubscription('middleware')
-            sendHmr('entrypoint-change', 'middleware', {
-              event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
-            })
-          } else if (prevMiddleware === false && middleware) {
-            // Went from no middleware to middleware
-            sendHmr('endpoint-change', 'middleware', {
-              event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
-            })
-          }
-          if (middleware) {
-            const writtenEndpoint = await processResult(
-              await middleware.endpoint.writeToDisk()
-            )
-            processIssues('middleware', writtenEndpoint)
-            await loadMiddlewareManifest('middleware', 'middleware')
-            serverFields.actualMiddlewareFile = 'middleware'
-            serverFields.middleware = {
-              match: null as any,
-              page: '/',
-              matchers:
-                middlewareManifests.get('middleware')?.middleware['/'].matchers,
-            }
-
-            changeSubscription('middleware', middleware.endpoint, () => {
-              return { event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES }
-            })
-            prevMiddleware = true
-          } else {
-            middlewareManifests.delete('middleware')
-            serverFields.actualMiddlewareFile = undefined
-            serverFields.middleware = undefined
-            prevMiddleware = false
-          }
-          await propagateServerField(
-            'actualMiddlewareFile',
-            serverFields.actualMiddlewareFile
-          )
-          await propagateServerField('middleware', serverFields.middleware)
-
-          currentEntriesHandlingResolve!()
-          currentEntriesHandlingResolve = undefined
-        }
-      }
-
-      handleEntries().catch((err) => {
-        console.error(err)
-        process.exit(1)
-      })
-    } catch (e) {
-      console.error(e)
     }
 
     function mergeBuildManifests(manifests: Iterable<BuildManifest>) {
@@ -867,8 +777,13 @@ async function startWatcher(opts: SetupOpts) {
       // computation. This is not a change, so swallow it.
       try {
         await subscription.next()
+
+        for await (const data of subscription) {
+          processIssues('hmr', id, data)
+          sendTurbopackMessage(data)
+        }
       } catch (e) {
-        // The client is using an HMR session from a previous server, tell them
+        // The client might be using an HMR session from a previous server, tell them
         // to fully reload the page to resolve the issue. We can't use
         // `hotReloader.send` since that would force very connected client to
         // reload, only this client is out of date.
@@ -879,17 +794,127 @@ async function startWatcher(opts: SetupOpts) {
         client.close()
         return
       }
-
-      for await (const data of subscription) {
-        processIssues(id, data)
-        sendTurbopackMessage(data)
-      }
     }
 
     function unsubscribeToHmrEvents(id: string, client: ws) {
       const mapping = clientToHmrSubscription.get(client)
       const subscription = mapping?.get(id)
       subscription?.return!()
+    }
+
+    try {
+      async function handleEntries() {
+        for await (const entrypoints of iter) {
+          if (!currentEntriesHandlingResolve) {
+            currentEntriesHandling = new Promise(
+              // eslint-disable-next-line no-loop-func
+              (resolve) => (currentEntriesHandlingResolve = resolve)
+            )
+          }
+          globalEntries.app = entrypoints.pagesAppEndpoint
+          globalEntries.document = entrypoints.pagesDocumentEndpoint
+          globalEntries.error = entrypoints.pagesErrorEndpoint
+
+          curEntries.clear()
+
+          for (const [pathname, route] of entrypoints.routes) {
+            switch (route.type) {
+              case 'page':
+              case 'page-api':
+              case 'app-page':
+              case 'app-route': {
+                curEntries.set(pathname, route)
+                break
+              }
+              default:
+                Log.info(`skipping ${pathname} (${route.type})`)
+                break
+            }
+          }
+
+          for (const [pathname, subscriptionPromise] of changeSubscriptions) {
+            if (pathname === '') {
+              // middleware is handled below
+              continue
+            }
+
+            if (!curEntries.has(pathname)) {
+              const subscription = await subscriptionPromise
+              subscription.return?.()
+              changeSubscriptions.delete(pathname)
+            }
+          }
+
+          const { middleware } = entrypoints
+          // We check for explicit true/false, since it's initialized to
+          // undefined during the first loop (middlewareChanges event is
+          // unnecessary during the first serve)
+          if (prevMiddleware === true && !middleware) {
+            // Went from middleware to no middleware
+            await clearChangeSubscription('middleware')
+            sendHmr('entrypoint-change', 'middleware', {
+              event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
+            })
+          } else if (prevMiddleware === false && middleware) {
+            // Went from no middleware to middleware
+            sendHmr('endpoint-change', 'middleware', {
+              event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
+            })
+          }
+          if (middleware) {
+            const processMiddleware = async () => {
+              const writtenEndpoint = await processResult(
+                await middleware.endpoint.writeToDisk()
+              )
+              processIssues('middleware', 'middleware', writtenEndpoint)
+              await loadMiddlewareManifest('middleware', 'middleware')
+              serverFields.actualMiddlewareFile = 'middleware'
+              serverFields.middleware = {
+                match: null as any,
+                page: '/',
+                matchers:
+                  middlewareManifests.get('middleware')?.middleware['/']
+                    .matchers,
+              }
+            }
+            await processMiddleware()
+
+            changeSubscription('middleware', middleware.endpoint, async () => {
+              await processMiddleware()
+              await propagateServerField(
+                'actualMiddlewareFile',
+                serverFields.actualMiddlewareFile
+              )
+              await propagateServerField('middleware', serverFields.middleware)
+              await writeMiddlewareManifest()
+
+              console.log('middleware changes')
+              return { event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES }
+            })
+            prevMiddleware = true
+          } else {
+            middlewareManifests.delete('middleware')
+            serverFields.actualMiddlewareFile = undefined
+            serverFields.middleware = undefined
+            prevMiddleware = false
+          }
+          await propagateServerField(
+            'actualMiddlewareFile',
+            serverFields.actualMiddlewareFile
+          )
+          await propagateServerField('middleware', serverFields.middleware)
+
+          currentEntriesHandlingResolve!()
+          currentEntriesHandlingResolve = undefined
+        }
+      }
+
+      handleEntries().catch((err) => {
+        console.error(err)
+        process.exit(1)
+      })
+    } catch (e) {
+      console.error(e)
     }
 
     // Write empty manifests
@@ -1044,7 +1069,7 @@ async function startWatcher(opts: SetupOpts) {
             const writtenEndpoint = await processResult(
               await globalEntries.app.writeToDisk()
             )
-            processIssues('_app', writtenEndpoint)
+            processIssues('_app', '_app', writtenEndpoint)
           }
           await loadBuildManifest('_app')
           await loadPagesManifest('_app')
@@ -1056,7 +1081,7 @@ async function startWatcher(opts: SetupOpts) {
             changeSubscription('_document', globalEntries.document, () => {
               return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
             })
-            processIssues('_document', writtenEndpoint)
+            processIssues('_document', '_document', writtenEndpoint)
           }
           await loadPagesManifest('_document')
 
@@ -1064,7 +1089,7 @@ async function startWatcher(opts: SetupOpts) {
             const writtenEndpoint = await processResult(
               await globalEntries.error.writeToDisk()
             )
-            processIssues(page, writtenEndpoint)
+            processIssues(page, page, writtenEndpoint)
           }
           await loadBuildManifest('_error')
           await loadPagesManifest('_error')
@@ -1137,7 +1162,7 @@ async function startWatcher(opts: SetupOpts) {
               const writtenEndpoint = await processResult(
                 await globalEntries.app.writeToDisk()
               )
-              processIssues('_app', writtenEndpoint)
+              processIssues('_app', '_app', writtenEndpoint)
             }
             await loadBuildManifest('_app')
             await loadPagesManifest('_app')
@@ -1150,7 +1175,7 @@ async function startWatcher(opts: SetupOpts) {
               changeSubscription('_document', globalEntries.document, () => {
                 return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
               })
-              processIssues('_document', writtenEndpoint)
+              processIssues('_document', '_document', writtenEndpoint)
             }
             await loadPagesManifest('_document')
 
@@ -1186,7 +1211,7 @@ async function startWatcher(opts: SetupOpts) {
             await writeMiddlewareManifest()
             await writeOtherManifests()
 
-            processIssues(page, writtenEndpoint, true)
+            processIssues(page, page, writtenEndpoint)
 
             break
           }
@@ -1212,7 +1237,7 @@ async function startWatcher(opts: SetupOpts) {
             await writeMiddlewareManifest()
             await writeOtherManifests()
 
-            processIssues(page, writtenEndpoint, true)
+            processIssues(page, page, writtenEndpoint)
 
             break
           }
@@ -1243,7 +1268,7 @@ async function startWatcher(opts: SetupOpts) {
             await writeMiddlewareManifest()
             await writeOtherManifests()
 
-            processIssues(page, writtenEndpoint, true)
+            processIssues(page, page, writtenEndpoint, true)
 
             break
           }
@@ -1267,7 +1292,7 @@ async function startWatcher(opts: SetupOpts) {
             await writeMiddlewareManifest()
             await writeOtherManifests()
 
-            processIssues(page, writtenEndpoint, true)
+            processIssues(page, page, writtenEndpoint, true)
 
             break
           }
