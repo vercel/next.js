@@ -286,6 +286,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     largePageDataBytes?: number
     appDirDevErrorLogger?: (err: any) => Promise<void>
     strictNextHead: boolean
+    isExperimentalCompile?: boolean
   }
   protected readonly serverOptions: Readonly<ServerOptions>
   protected readonly appPathRoutes?: Record<string, string[]>
@@ -477,6 +478,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         Object.keys(publicRuntimeConfig).length > 0
           ? publicRuntimeConfig
           : undefined,
+
+      // @ts-expect-error internal field not publicly exposed
+      isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
     }
 
     // Initialize next/config with the environment configuration
@@ -1805,7 +1809,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // For the edge runtime, we don't support preview mode in SSG.
       if (process.env.NEXT_RUNTIME !== 'edge') {
         const { tryGetPreviewData } =
-          require('./api-utils/node') as typeof import('./api-utils/node')
+          require('./api-utils/node/try-get-preview-data') as typeof import('./api-utils/node/try-get-preview-data')
         previewData = tryGetPreviewData(req, res, this.renderOpts.previewProps)
         isPreviewMode = previewData !== false
       }

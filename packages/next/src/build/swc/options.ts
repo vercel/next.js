@@ -178,16 +178,16 @@ function getBaseSWCOptions({
         development
       ),
     }),
-    serverComponents: hasServerComponents
-      ? { isServer: !!isServerLayer }
-      : undefined,
-    serverActions: hasServerComponents
-      ? {
-          // TODO-APP: When Server Actions is stable, we need to remove this flag.
-          enabled: !!isServerActionsEnabled,
-          isServer: !!isServerLayer,
-        }
-      : undefined,
+    serverComponents:
+      hasServerComponents && !jest ? { isServer: !!isServerLayer } : undefined,
+    serverActions:
+      hasServerComponents && !jest
+        ? {
+            // TODO-APP: When Server Actions is stable, we need to remove this flag.
+            enabled: !!isServerActionsEnabled,
+            isServer: !!isServerLayer,
+          }
+        : undefined,
     bundleTarget,
   }
 }

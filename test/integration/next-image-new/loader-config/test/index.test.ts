@@ -37,7 +37,7 @@ function runTests(url: string) {
   })
 }
 
-describe('Image Loader Config', () => {
+describe('Image Loader Config new', () => {
   describe('dev mode - component', () => {
     beforeAll(async () => {
       appPort = await findPort()
