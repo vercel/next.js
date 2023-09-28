@@ -210,6 +210,7 @@ impl DevServerBuilder {
                             let uri = request.uri();
                             let path = uri.path().to_string();
                             let source = source_provider.get_source();
+                            let resolved_source = source.resolve_strongly_consistent().await?;
                             handle_issues(
                                 source,
                                 issue_reporter,
@@ -218,7 +219,6 @@ impl DevServerBuilder {
                                 Some("get source"),
                             )
                             .await?;
-                            let resolved_source = source.resolve_strongly_consistent().await?;
                             let (response, side_effects) =
                                 http::process_request_with_content_source(
                                     resolved_source,

@@ -80,6 +80,8 @@ pub async fn process_request_with_content_source(
     let original_path = request.uri().path().to_string();
     let request = http_request_to_source_request(request).await?;
     let result = get_from_source(source, TransientInstance::new(request));
+    let resolved_result = result.resolve_strongly_consistent().await?;
+    let side_effects: AutoSet<Vc<Box<dyn ContentSourceSideEffect>>> = result.peek_collectibles();
     handle_issues(
         result,
         issue_reporter,
@@ -88,9 +90,7 @@ pub async fn process_request_with_content_source(
         Some("get_from_source"),
     )
     .await?;
-    let side_effects: AutoSet<Vc<Box<dyn ContentSourceSideEffect>>> =
-        result.peek_collectibles().strongly_consistent().await?;
-    match &*result.strongly_consistent().await? {
+    match &*resolved_result.await? {
         GetFromSourceResult::Static {
             content,
             status_code,
@@ -211,7 +211,7 @@ pub async fn process_request_with_content_source(
                 side_effects,
             ));
         }
-        _ => {}
+        GetFromSourceResult::NotFound => {}
     }
 
     Ok((

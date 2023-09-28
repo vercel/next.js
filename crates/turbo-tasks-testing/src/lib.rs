@@ -13,7 +13,7 @@ use std::{
 };
 
 use anyhow::{anyhow, Result};
-use auto_hash_map::AutoSet;
+use auto_hash_map::AutoMap;
 use futures::FutureExt;
 use turbo_tasks::{
     backend::CellContent,
@@ -21,7 +21,7 @@ use turbo_tasks::{
     registry,
     test_helpers::with_turbo_tasks_for_testing,
     util::{SharedError, StaticOrArc},
-    CellId, InvalidationReason, RawVc, TaskId, TraitTypeId, TurboTasksApi, TurboTasksCallApi, Vc,
+    CellId, InvalidationReason, RawVc, TaskId, TraitTypeId, TurboTasksApi, TurboTasksCallApi,
 };
 
 enum Task {
@@ -204,19 +204,24 @@ impl TurboTasksApi for VcStorage {
         unimplemented!()
     }
 
-    fn unemit_collectible(&self, _trait_type: turbo_tasks::TraitTypeId, _collectible: RawVc) {
+    fn unemit_collectible(
+        &self,
+        _trait_type: turbo_tasks::TraitTypeId,
+        _collectible: RawVc,
+        _count: u32,
+    ) {
         unimplemented!()
     }
 
     fn unemit_collectibles(
         &self,
         _trait_type: turbo_tasks::TraitTypeId,
-        _collectibles: &AutoSet<RawVc>,
+        _collectibles: &AutoMap<RawVc, i32>,
     ) {
         unimplemented!()
     }
 
-    fn read_task_collectibles(&self, _task: TaskId, _trait_id: TraitTypeId) -> Vc<AutoSet<RawVc>> {
+    fn read_task_collectibles(&self, _task: TaskId, _trait_id: TraitTypeId) -> AutoMap<RawVc, i32> {
         unimplemented!()
     }
 
