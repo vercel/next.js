@@ -225,6 +225,7 @@ pub async fn env_for_js(
         },
     );
 
+    // TODO: Implement crossOrigin in Turbopack script injection
     map.insert(
         "__NEXT_CROSS_ORIGIN".to_string(),
         // Don't stringify undefined
