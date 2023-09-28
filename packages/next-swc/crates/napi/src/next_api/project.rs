@@ -313,11 +313,11 @@ pub fn project_entrypoints_subscribe(
         turbo_tasks.clone(),
         func,
         move || async move {
-            let entrypoints = container.entrypoints();
-            let issues = get_issues(entrypoints).await?;
-            let diags = get_diagnostics(entrypoints).await?;
+            let entrypoints_operation = container.entrypoints();
+            let entrypoints = entrypoints_operation.strongly_consistent().await?;
 
-            let entrypoints = entrypoints.strongly_consistent().await?;
+            let issues = get_issues(entrypoints_operation).await?;
+            let diags = get_diagnostics(entrypoints_operation).await?;
 
             Ok((entrypoints, issues, diags))
         },
@@ -383,10 +383,10 @@ pub fn project_hmr_events(
                     let state = project
                         .project()
                         .hmr_version_state(identifier.clone(), session);
-                    let update = project.project().hmr_update(identifier, state);
-                    let issues = get_issues(update).await?;
-                    let diags = get_diagnostics(update).await?;
-                    let update = update.strongly_consistent().await?;
+                    let update_operation = project.project().hmr_update(identifier, state);
+                    let update = update_operation.strongly_consistent().await?;
+                    let issues = get_issues(update_operation).await?;
+                    let diags = get_diagnostics(update_operation).await?;
                     match &*update {
                         Update::None => {}
                         Update::Total(TotalUpdate { to }) => {
@@ -451,11 +451,11 @@ pub fn project_hmr_identifiers_subscribe(
         turbo_tasks.clone(),
         func,
         move || async move {
-            let hmr_identifiers = container.hmr_identifiers();
-            let issues = get_issues(hmr_identifiers).await?;
-            let diags = get_diagnostics(hmr_identifiers).await?;
+            let hmr_identifiers_operation = container.hmr_identifiers();
+            let hmr_identifiers = hmr_identifiers_operation.strongly_consistent().await?;
 
-            let hmr_identifiers = hmr_identifiers.strongly_consistent().await?;
+            let issues = get_issues(hmr_identifiers_operation).await?;
+            let diags = get_diagnostics(hmr_identifiers_operation).await?;
 
             Ok((hmr_identifiers, issues, diags))
         },
