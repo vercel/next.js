@@ -222,7 +222,6 @@ function createRSCAliases(
         'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-dev-runtime`,
         react$: `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react`,
         'react-dom$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom`,
-        'react-dom/server.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom-server-edge`,
         'react-server-dom-webpack/client.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-client-edge`,
       })
     } else if (opts.layer === WEBPACK_LAYERS.reactServerComponents) {
