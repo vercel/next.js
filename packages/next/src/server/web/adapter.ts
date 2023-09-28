@@ -117,7 +117,7 @@ export async function adapter(
       const key = param.toString().toLowerCase()
       const value = requestHeaders.get(key)
       if (value) {
-        flightHeaders.set(key, requestHeaders.get(key))
+        flightHeaders.set(key, value)
         requestHeaders.delete(key)
       }
     }

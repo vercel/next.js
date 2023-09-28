@@ -232,5 +232,25 @@ createNextDescribe(
         await browser.elementByCss('#prefetch-false-page-result').text()
       ).toBe('Result page')
     })
+
+    it('should not do a full prefetch if flight router state matches the current URL', async () => {
+      const browser = await next.browser('/prefetch-auto/rewrite')
+
+      const outputIndex = next.cliOutput.length
+      await browser.eval(
+        'window.next.router.prefetch("/prefetch-auto/rewrite?test=2")'
+      )
+
+      await waitFor(1000)
+
+      await check(() => {
+        const cliLogs = next.cliOutput.slice(outputIndex)
+        if (cliLogs.includes('did full data load')) {
+          return 'fail'
+        }
+
+        return 'success'
+      }, 'success')
+    })
   }
 )
