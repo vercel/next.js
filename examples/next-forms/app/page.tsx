@@ -1,5 +1,6 @@
 import { sql } from '@vercel/postgres'
-import { createTodo, deleteTodo } from '@/app/actions'
+import { AddForm } from '@/app/add-form'
+import { DeleteForm } from '@/app/delete-form'
 
 export const runtime = 'edge'
 export const preferredRegion = 'home'
@@ -9,22 +10,17 @@ export default async function Home() {
   const { rows: todos } = data
 
   return (
-    <div>
-      <form action={createTodo}>
-        <input type="text" name="todo" />
-        <button type="submit">Add</button>
-      </form>
+    <main>
+      <h1 className="sr-only">Todos</h1>
+      <AddForm />
       <ul>
         {todos.map((todo) => (
           <li key={todo.id}>
             {todo.text}
-            <form action={deleteTodo}>
-              <input type="hidden" name="id" value={todo.id} />
-              <button type="submit">Delete</button>
-            </form>
+            <DeleteForm id={todo.id} todo={todo.text} />
           </li>
         ))}
       </ul>
-    </div>
+    </main>
   )
 }

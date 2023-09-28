@@ -384,6 +384,9 @@ const configSchema = {
         outputFileTracingIncludes: {
           type: 'object',
         },
+        ppr: {
+          type: 'boolean',
+        },
         proxyTimeout: {
           minimum: 0,
           type: 'number',
@@ -395,9 +398,6 @@ const configSchema = {
           type: 'array',
         },
         scrollRestoration: {
-          type: 'boolean',
-        },
-        sharedPool: {
           type: 'boolean',
         },
         sri: {
@@ -453,6 +453,9 @@ const configSchema = {
             loaders: {
               type: 'object',
             },
+            rules: {
+              type: 'object',
+            },
             resolveAlias: {
               type: 'object',
             },
@@ -501,7 +504,15 @@ const configSchema = {
           },
         },
         logging: {
-          type: 'string',
+          type: 'object',
+          properties: {
+            level: {
+              type: 'string',
+            },
+            fullUrl: {
+              type: 'boolean',
+            },
+          },
         },
         serverMinification: {
           type: 'boolean',

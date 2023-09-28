@@ -83,7 +83,15 @@ pub struct NextConfig {
     pub react_strict_mode: Option<bool>,
     pub transpile_packages: Option<Vec<String>>,
     pub modularize_imports: Option<IndexMap<String, ModularizeImportPackageConfig>>,
+    pub dist_dir: Option<String>,
     sass_options: Option<serde_json::Value>,
+    pub trailing_slash: Option<bool>,
+    pub asset_prefix: Option<String>,
+    pub base_path: Option<String>,
+
+    ///
+    #[serde(rename = "_originalRedirects")]
+    pub original_redirects: Option<Vec<Redirect>>,
 
     // Partially supported
     pub compiler: Option<CompilerConfig>,
@@ -94,12 +102,9 @@ pub struct NextConfig {
     cross_origin: Option<String>,
     amp: AmpConfig,
     analytics_id: String,
-    asset_prefix: String,
-    base_path: String,
     clean_dist_dir: bool,
     compress: bool,
     dev_indicators: DevIndicatorsConfig,
-    dist_dir: String,
     eslint: EslintConfig,
     exclude_default_moment_locales: bool,
     // this can be a function in js land
@@ -119,7 +124,6 @@ pub struct NextConfig {
     static_page_generation_timeout: f64,
     swc_minify: Option<bool>,
     target: Option<String>,
-    trailing_slash: bool,
     typescript: TypeScriptConfig,
     use_file_system_public_routes: bool,
     webpack: Option<serde_json::Value>,
@@ -376,7 +380,7 @@ pub enum RemotePatternProtocal {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct ExperimentalTurboConfig {
-    /// This option has been replace by `rules`.
+    /// This option has been replaced by `rules`.
     pub loaders: Option<JsonValue>,
     pub rules: Option<IndexMap<String, RuleConfigItem>>,
     pub resolve_alias: Option<IndexMap<String, JsonValue>>,
@@ -403,51 +407,115 @@ pub enum LoaderItem {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct ExperimentalConfig {
-    pub server_components_external_packages: Option<Vec<String>>,
-    pub turbo: Option<ExperimentalTurboConfig>,
     pub allowed_revalidate_header_keys: Option<Vec<String>>,
+    pub client_router_filter: Option<bool>,
+    /// decimal for percent for possible false positives e.g. 0.01 for 10%
+    /// potential false matches lower percent increases size of the filter
+    pub client_router_filter_allowed_rate: Option<f64>,
+    pub client_router_filter_redirects: Option<bool>,
     pub fetch_cache_key_prefix: Option<String>,
+    /// In-memory cache size in bytes.
+    ///
+    /// If `isr_memory_cache_size: 0` disables in-memory caching.
     pub isr_memory_cache_size: Option<f64>,
     pub isr_flush_to_disk: Option<bool>,
+    /// For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
+    /// @see https://nextjs.org/docs/app/api-reference/next-config-js/mdxRs
     mdx_rs: Option<bool>,
+    /// A list of packages that should be treated as external in the RSC server
+    /// build. @see https://nextjs.org/docs/app/api-reference/next-config-js/server_components_external_packages
+    pub server_components_external_packages: Option<Vec<String>>,
+    pub strict_next_head: Option<bool>,
     pub swc_plugins: Option<Vec<(String, serde_json::Value)>>,
+    pub turbo: Option<ExperimentalTurboConfig>,
+    pub turbotrace: Option<serde_json::Value>,
 
-    // unsupported
+    // ---
+    // UNSUPPORTED
+    // ---
     adjust_font_fallbacks: Option<bool>,
     adjust_font_fallbacks_with_size_adjust: Option<bool>,
-    allow_middleware_response_body: Option<bool>,
     amp: Option<serde_json::Value>,
+    app_document_preloading: Option<bool>,
+    case_sensitive_routes: Option<bool>,
     cpus: Option<f64>,
     cra_compat: Option<bool>,
+    deployment_id: Option<String>,
     disable_optimized_loading: Option<bool>,
     disable_postcss_preset_env: Option<bool>,
     esm_externals: Option<serde_json::Value>,
+    extension_alias: Option<serde_json::Value>,
     external_dir: Option<bool>,
-    fallback_node_polyfills: Option<bool>,
-    font_loaders: Option<serde_json::Value>,
+    external_middleware_rewrites_resolve: Option<bool>,
+    /// If set to `false`, webpack won't fall back to polyfill Node.js modules
+    /// in the browser Full list of old polyfills is accessible here:
+    /// [webpack/webpack#Module_notound_error.js#L13-L42](https://github.com/webpack/webpack/blob/2a0536cf510768111a3a6dceeb14cb79b9f59273/lib/Module_not_found_error.js#L13-L42)
+    fallback_node_polyfills: Option<bool>, // false
     force_swc_transforms: Option<bool>,
     fully_specified: Option<bool>,
     gzip_size: Option<bool>,
+    /// custom path to a cache handler to use
     incremental_cache_handler_path: Option<String>,
+    instrumentation_hook: Option<bool>,
     large_page_data_bytes: Option<f64>,
+    logging: Option<serde_json::Value>,
     manual_client_base_path: Option<bool>,
+    memory_based_workers_count: Option<bool>,
     middleware_prefetch: Option<MiddlewarePrefetchType>,
     next_script_workers: Option<bool>,
     optimistic_client_cache: Option<bool>,
+    /// Optimize React APIs for server builds.
+    optimize_server_react: Option<bool>,
+    /// optimizeCss can be boolean or critters' option object
+    /// Use Record<string, unknown> as critters doesn't export its Option type
+    /// https://github.com/GoogleChromeLabs/critters/blob/a590c05f9197b656d2aeaae9369df2483c26b072/packages/critters/src/index.d.ts
     optimize_css: Option<serde_json::Value>,
+    /// Automatically apply the "modularize_imports" optimization to imports of
+    /// the specified packages.
+    optimize_package_imports: Option<Vec<String>>,
     output_file_tracing_ignores: Option<Vec<String>>,
+    output_file_tracing_includes: Option<serde_json::Value>,
     output_file_tracing_root: Option<String>,
+    /// Using this feature will enable the `react@experimental` for the `app`
+    /// directory.
+    ppr: Option<bool>,
     proxy_timeout: Option<f64>,
     scroll_restoration: Option<bool>,
-    shared_pool: Option<bool>,
+    /// Enables server actions. Using this feature will enable the
+    /// `react@experimental` for the `app` directory. @see https://nextjs.org/docs/app/api-reference/functions/server-actions
+    server_actions: Option<bool>,
+    /// Allows adjusting body parser size limit for server actions.
+    server_actions_body_size_limit: Option<SizeLimit>,
+    /// enables the minification of server code.
+    server_minification: Option<bool>,
+    /// Enables source maps generation for the server production bundle.
+    server_source_maps: Option<bool>,
     sri: Option<serde_json::Value>,
-    swc_minify_debug_options: Option<serde_json::Value>,
+    swc_minify: Option<bool>,
+    /// This option is removed
+    swc_minify_debug_options: Option<()>,
     swc_trace_profiling: Option<bool>,
-    transpile_packages: Option<Vec<String>>,
-    pub turbotrace: Option<serde_json::Value>,
+    /// @internal Used by the Next.js internals only.
+    trust_host_header: Option<bool>,
+    /// Generate Route types and enable type checking for Link and Router.push,
+    /// etc. This option requires `appDir` to be enabled first.
+    /// @see https://nextjs.org/docs/app/api-reference/next-config-js/typedRoutes
+    typed_routes: Option<bool>,
     url_imports: Option<serde_json::Value>,
-    web_vitals_attribution: Option<serde_json::Value>,
+    use_deployment_id: Option<bool>,
+    use_deployment_id_server_actions: Option<bool>,
+    web_vitals_attribution: Option<Vec<String>>,
+    /// This option is to enable running the Webpack build in a worker thread
+    /// (doesn't apply to Turbopack).
+    webpack_build_worker: Option<bool>,
     worker_threads: Option<bool>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(untagged)]
+enum SizeLimit {
+    Number(f64),
+    WithUnit(String),
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]

@@ -18,11 +18,12 @@ import {
 import { NEXT_QUERY_PARAM_PREFIX } from '../../lib/constants'
 import { ensureInstrumentationRegistered } from './globals'
 import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
-import { requestAsyncStorage } from '../../client/components/request-async-storage'
+import { requestAsyncStorage } from '../../client/components/request-async-storage.external'
 import { PrerenderManifest } from '../../build'
 
 class NextRequestHint extends NextRequest {
   sourcePage: string
+  fetchMetrics?: FetchEventResult['fetchMetrics']
 
   constructor(params: {
     init: RequestInit
@@ -329,5 +330,6 @@ export async function adapter(
   return {
     response: finalResponse,
     waitUntil: Promise.all(event[waitUntilSymbol]),
+    fetchMetrics: request.fetchMetrics,
   }
 }

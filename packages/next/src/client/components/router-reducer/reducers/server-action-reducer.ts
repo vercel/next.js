@@ -12,10 +12,17 @@ import {
 } from '../../app-router-headers'
 import { createRecordFromThenable } from '../create-record-from-thenable'
 import { readRecordValue } from '../read-record-value'
-// eslint-disable-next-line import/no-extraneous-dependencies
-import { createFromFetch } from 'react-server-dom-webpack/client'
-// eslint-disable-next-line import/no-extraneous-dependencies
-import { encodeReply } from 'react-server-dom-webpack/client'
+// // eslint-disable-next-line import/no-extraneous-dependencies
+// import { createFromFetch } from 'react-server-dom-webpack/client'
+// // eslint-disable-next-line import/no-extraneous-dependencies
+// import { encodeReply } from 'react-server-dom-webpack/client'
+const { createFromFetch, encodeReply } = (
+  !!process.env.NEXT_RUNTIME
+    ? // eslint-disable-next-line import/no-extraneous-dependencies
+      require('react-server-dom-webpack/client.edge')
+    : // eslint-disable-next-line import/no-extraneous-dependencies
+      require('react-server-dom-webpack/client')
+) as typeof import('react-server-dom-webpack/client')
 
 import {
   ReadonlyReducerState,
@@ -27,7 +34,7 @@ import { createHrefFromUrl } from '../create-href-from-url'
 import { handleExternalUrl } from './navigate-reducer'
 import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
-import { CacheStates } from '../../../../shared/lib/app-router-context'
+import { CacheStates } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { handleMutable } from '../handle-mutable'
 import { fillLazyItemsTillLeafWithHead } from '../fill-lazy-items-till-leaf-with-head'
 
@@ -156,19 +163,23 @@ export function serverActionReducer(
     // unblock if a navigation event comes through
     // while we've suspended on an action
     if (
+      mutable.inFlightServerAction.status !== 'fulfilled' &&
       mutable.globalMutable.pendingNavigatePath &&
       mutable.globalMutable.pendingNavigatePath !== href
     ) {
-      mutable.inFlightServerAction.then(() => {
-        if (mutable.actionResultResolved) return
+      mutable.inFlightServerAction.then(
+        () => {
+          if (mutable.actionResultResolved) return
 
-        // if the server action resolves after a navigation took place,
-        // reset ServerActionMutable values & trigger a refresh so that any stale data gets updated
-        mutable.inFlightServerAction = null
-        mutable.globalMutable.pendingNavigatePath = undefined
-        mutable.globalMutable.refresh()
-        mutable.actionResultResolved = true
-      })
+          // if the server action resolves after a navigation took place,
+          // reset ServerActionMutable values & trigger a refresh so that any stale data gets updated
+          mutable.inFlightServerAction = null
+          mutable.globalMutable.pendingNavigatePath = undefined
+          mutable.globalMutable.refresh()
+          mutable.actionResultResolved = true
+        },
+        () => {}
+      )
 
       return state
     }
@@ -298,7 +309,7 @@ export function serverActionReducer(
   } catch (e: any) {
     if (e.status === 'rejected') {
       if (!mutable.actionResultResolved) {
-        reject(e.value)
+        reject(e.reason)
         mutable.actionResultResolved = true
       }
 

@@ -4,7 +4,12 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { check, fetchViaHTTP, waitFor } from 'next-test-utils'
+import {
+  check,
+  fetchViaHTTP,
+  shouldRunTurboDevTest,
+  waitFor,
+} from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
 
 const urlsError = 'Please use only absolute URLs'
@@ -46,7 +51,9 @@ describe('Middleware Runtime', () => {
           scripts: {
             setup: `cp -r ./shared-package ./node_modules`,
             build: 'yarn setup && next build',
-            dev: 'yarn setup && next dev',
+            dev: `yarn setup && next ${
+              shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
+            }`,
             start: 'next start',
           },
         },

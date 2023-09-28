@@ -46,7 +46,8 @@ use turbopack_binding::swc::{
             SyntaxContext,
         },
         ecma::{
-            ast::EsVersion, parser::parse_file_as_module, transforms::base::pass::noop, visit::Fold,
+            ast::EsVersion, atoms::JsWord, parser::parse_file_as_module,
+            transforms::base::pass::noop, visit::Fold,
         },
     },
     custom_transform::modularize_imports,
@@ -97,13 +98,13 @@ pub struct TransformOptions {
     pub is_server: bool,
 
     #[serde(default)]
-    pub disable_checks: bool,
+    pub bundle_target: JsWord,
 
     #[serde(default)]
     pub server_components: Option<react_server_components::Config>,
 
     #[serde(default)]
-    pub styled_jsx: bool,
+    pub styled_jsx: Option<turbopack_binding::swc::custom_transform::styled_jsx::visitor::Config>,
 
     #[serde(default)]
     pub styled_components:
@@ -198,15 +199,16 @@ where
                     config.clone(),
                     comments.clone(),
                     opts.app_dir.clone(),
-                    opts.disable_checks
+                    opts.bundle_target.clone()
                 )),
             _ => Either::Right(noop()),
         },
-        if opts.styled_jsx {
+        if let Some(config) = opts.styled_jsx {
             Either::Left(
                 turbopack_binding::swc::custom_transform::styled_jsx::visitor::styled_jsx(
                     cm.clone(),
                     file.name.clone(),
+                    config,
                 ),
             )
         } else {

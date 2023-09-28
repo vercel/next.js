@@ -2,7 +2,7 @@ import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
 createNextDescribe(
-  'app dir css',
+  'not-found app dir css',
   {
     files: __dirname,
     skipDeployment: true,
