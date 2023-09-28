@@ -1,13 +1,13 @@
-import chalk from '../../lib/chalk'
+import { bold, green, magenta, red, yellow, white } from '../../lib/picocolors'
 
 export const prefixes = {
-  wait: chalk.white(chalk.bold('○')),
-  error: chalk.red(chalk.bold('⨯')),
-  warn: chalk.yellow(chalk.bold('⚠')),
-  ready: chalk.bold('▲'), // no color
-  info: chalk.white(chalk.bold(' ')),
-  event: chalk.green(chalk.bold('✓')),
-  trace: chalk.magenta(chalk.bold('»')),
+  wait: white(bold('○')),
+  error: red(bold('⨯')),
+  warn: yellow(bold('⚠')),
+  ready: bold('▲'), // no color
+  info: white(bold(' ')),
+  event: green(bold('✓')),
+  trace: magenta(bold('»')),
 } as const
 
 const LOGGING_METHOD = {

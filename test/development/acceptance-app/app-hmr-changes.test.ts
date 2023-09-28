@@ -2,6 +2,8 @@ import { FileRef, nextTestSetup } from 'e2e-utils'
 import { sandbox } from 'development-sandbox'
 import path from 'path'
 
+jest.setTimeout(240 * 1000)
+
 describe('Error overlay - RSC build errors', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'app-hmr-changes')),

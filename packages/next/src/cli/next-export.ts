@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { resolve, join } from 'path'
 import { existsSync } from 'fs'
-import chalk from 'next/dist/compiled/chalk'
+import { cyan } from '../lib/picocolors'
 import exportApp, { ExportError, ExportOptions } from '../export'
 import * as Log from '../build/output/log'
 import { printAndExit } from '../server/lib/utils'
@@ -29,7 +29,7 @@ const nextExport: CliCommand = (args) => {
        --help, -h    List this help
 
       The "next export" command is deprecated in favor of "output: export" in next.config.js
-      Learn more: ${chalk.cyan(
+      Learn more: ${cyan(
         'https://nextjs.org/docs/advanced-features/static-html-export'
       )}
     `)
