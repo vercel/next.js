@@ -14,7 +14,7 @@ describe('SCSS Support loader handling', () => {
     beforeAll(async () => {
       await remove(join(appDir, '.next'))
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK ? it.skip : it)(
       'should compile successfully',
       async () => {
         const { code, stdout } = await nextBuild(appDir, [], {
@@ -64,7 +64,7 @@ describe('SCSS Support loader handling', () => {
     beforeAll(async () => {
       await remove(join(appDir, '.next'))
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK ? it.skip : it)(
       'should compile successfully',
       async () => {
         const { code, stdout } = await nextBuild(appDir, [], {
@@ -116,7 +116,7 @@ describe('SCSS Support loader handling', () => {
     beforeAll(async () => {
       await remove(join(appDir, '.next'))
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK ? it.skip : it)(
       'should compile successfully',
       async () => {
         const { code, stdout } = await nextBuild(appDir, [], {
@@ -166,7 +166,7 @@ describe('SCSS Support loader handling', () => {
     beforeAll(async () => {
       await remove(join(appDir, '.next'))
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK ? it.skip : it)(
       'should compile successfully',
       async () => {
         const { code, stdout } = await nextBuild(appDir, [], {
@@ -216,7 +216,7 @@ describe('SCSS Support loader handling', () => {
     beforeAll(async () => {
       await remove(join(appDir, '.next'))
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK ? it.skip : it)(
       'should compile successfully',
       async () => {
         const { code, stdout } = await nextBuild(appDir, [], {
@@ -249,7 +249,7 @@ describe('SCSS Support loader handling', () => {
     beforeAll(async () => {
       await remove(join(appDir, '.next'))
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK ? it.skip : it)(
       'should compile successfully',
       async () => {
         const { code, stdout } = await nextBuild(appDir, [], {
@@ -282,7 +282,7 @@ describe('SCSS Support loader handling', () => {
     beforeAll(async () => {
       await remove(join(appDir, '.next'))
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK ? it.skip : it)(
       'should compile successfully',
       async () => {
         const { stdout } = await nextBuild(appDir, [], {

@@ -28,7 +28,7 @@ describe('SCSS Support', () => {
     beforeAll(async () => {
       await remove(join(appDir, '.next'))
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK ? it.skip : it)(
       'should be a friendly error successfully',
       async () => {
         const { code, stderr } = await nextBuild(appDir, [], {
