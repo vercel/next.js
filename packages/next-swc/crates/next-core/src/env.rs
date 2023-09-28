@@ -152,6 +152,16 @@ pub async fn env_for_js(
     map.insert(
         "__NEXT_I18N_DOMAINS".to_string(),
         // Don't stringify undefined
+        match next_config.i18n.as_ref() {
+            Some(i18n) => match i18n.domains.as_ref() {
+                Some(domains) => serde_json::to_string(domains)?,
+                None => "undefined".to_string(),
+            },
+            None => "undefined".to_string(),
+        },
+    );
+        "__NEXT_I18N_DOMAINS".to_string(),
+        // Don't stringify undefined
         if let Some(i18n) = next_config.i18n.as_ref() {
             if let Some(domains) = i18n.domains.as_ref() {
                 serde_json::to_string(domains)?
