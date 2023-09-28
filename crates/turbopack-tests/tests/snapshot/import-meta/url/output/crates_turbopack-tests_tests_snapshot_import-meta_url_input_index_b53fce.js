@@ -2,7 +2,7 @@
 
 "[project]/crates/turbopack-tests/tests/snapshot/import-meta/url/input/asset.txt (static)": (({ r: __turbopack_require__, f: __turbopack_require_context__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, n: __turbopack_export_namespace__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_dynamic__, g: global, __dirname }) => (() => {
 
-__turbopack_export_value__("/static/asset.05254cf2.txt");
+__turbopack_export_value__("/crates/turbopack-tests/tests/snapshot/import-meta/url/static/asset.05254cf2.txt");
 })()),
 "[project]/crates/turbopack-tests/tests/snapshot/import-meta/url/input/mod.mjs (ecmascript)": (function({ r: __turbopack_require__, f: __turbopack_require_context__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, n: __turbopack_export_namespace__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_dynamic__, g: global, __dirname, k: __turbopack_refresh__, m: module, e: exports }) { !function() {
 

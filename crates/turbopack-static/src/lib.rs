@@ -211,12 +211,10 @@ impl EcmascriptChunkItem for ModuleChunkItem {
         Ok(EcmascriptChunkItemContent {
             inner_code: format!(
                 "__turbopack_export_value__({path});",
-                path = StringifyJs(
-                    &self
-                        .chunking_context
-                        .asset_url(self.static_asset.ident())
-                        .await?
-                )
+                path = StringifyJs(&format_args!(
+                    "/{}",
+                    &*self.static_asset.ident().path().await?
+                ))
             )
             .into(),
             ..Default::default()

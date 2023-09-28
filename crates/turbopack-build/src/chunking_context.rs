@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
@@ -51,11 +51,6 @@ pub struct BuildChunkingContextBuilder {
 }
 
 impl BuildChunkingContextBuilder {
-    pub fn asset_prefix(mut self, asset_prefix: Vc<Option<String>>) -> Self {
-        self.chunking_context.asset_prefix = asset_prefix;
-        self
-    }
-
     pub fn minify_type(mut self, minify_type: MinifyType) -> Self {
         self.chunking_context.minify_type = minify_type;
         self
@@ -86,14 +81,10 @@ pub struct BuildChunkingContext {
     context_path: Vc<FileSystemPath>,
     /// This path is used to compute the url to request chunks or assets from
     output_root: Vc<FileSystemPath>,
-    /// This path is used to compute the url to request chunks or assets from
-    client_root: Vc<FileSystemPath>,
     /// Chunks are placed at this path
     chunk_root_path: Vc<FileSystemPath>,
     /// Static assets are placed at this path
     asset_root_path: Vc<FileSystemPath>,
-    /// Static assets requested from this url base
-    asset_prefix: Vc<Option<String>>,
     /// Layer name within this context
     layer: Option<String>,
     /// The environment chunks will be evaluated in.
@@ -109,7 +100,6 @@ impl BuildChunkingContext {
     pub fn builder(
         context_path: Vc<FileSystemPath>,
         output_root: Vc<FileSystemPath>,
-        client_root: Vc<FileSystemPath>,
         chunk_root_path: Vc<FileSystemPath>,
         asset_root_path: Vc<FileSystemPath>,
         environment: Vc<Environment>,
@@ -118,10 +108,8 @@ impl BuildChunkingContext {
             chunking_context: BuildChunkingContext {
                 context_path,
                 output_root,
-                client_root,
                 chunk_root_path,
                 asset_root_path,
-                asset_prefix: Default::default(),
                 layer: None,
                 environment,
                 runtime_type: Default::default(),
@@ -253,25 +241,6 @@ impl ChunkingContext for BuildChunkingContext {
     #[turbo_tasks::function]
     fn environment(&self) -> Vc<Environment> {
         self.environment
-    }
-
-    #[turbo_tasks::function]
-    async fn asset_url(self: Vc<Self>, ident: Vc<AssetIdent>) -> Result<Vc<String>> {
-        let this = self.await?;
-        let asset_path = ident.path().await?.to_string();
-        let asset_path = asset_path
-            .strip_prefix(&format!("{}/", this.client_root.await?.path))
-            .context("expected client root to contain asset path")?;
-
-        Ok(Vc::cell(format!(
-            "{}{}",
-            this.asset_prefix
-                .await?
-                .as_ref()
-                .map(|s| s.to_owned())
-                .unwrap_or_else(|| "/".to_owned()),
-            asset_path
-        )))
     }
 
     #[turbo_tasks::function]
