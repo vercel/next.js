@@ -495,8 +495,6 @@ pub struct ExperimentalConfig {
     server_source_maps: Option<bool>,
     sri: Option<serde_json::Value>,
     swc_minify: Option<bool>,
-    /// This option is removed
-    swc_minify_debug_options: Option<()>,
     swc_trace_profiling: Option<bool>,
     /// @internal Used by the Next.js internals only.
     trust_host_header: Option<bool>,
