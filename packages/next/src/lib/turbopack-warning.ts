@@ -4,6 +4,8 @@ import { NextConfig } from '../server/config-shared'
 import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 
 const supportedTurbopackNextConfigOptions = [
+  // options that affect compilation
+  'output',
   'crossOrigin',
   'configFileName',
   'env',
@@ -36,37 +38,94 @@ const supportedTurbopackNextConfigOptions = [
   'skipMiddlewareUrlNormalize',
   'skipTrailingSlashRedirect',
   'amp',
-  'experimental.logging.level',
+  'devIndicators',
+  'analyticsId',
+
+  // Options that are ignored as they don't affect Turbopack
+  'webpack',
+  'onDemandEntries',
+  'experimental.cpus',
+
+  // Experimental options that affect compilation
   'experimental.swcPlugins',
+  'experimental.strictNextHead',
   'experimental.manualClientBasePath',
-  'experimental.optimisticClientCache',
   'experimental.middlewarePrefetch',
   'experimental.optimizeCss',
   'experimental.nextScriptWorkers',
+  'experimental.optimisticClientCache',
   'experimental.webVitalsAttribution',
   'experimental.externalMiddlewareRewritesResolve',
-  'experimental.scrollRestoration',
   'experimental.serverComponentsExternalPackages',
-  'experimental.strictNextHead',
-  'experimental.turbo',
   'experimental.mdxRs',
+  'experimental.turbo',
+  'experimental.useDeploymentId',
+  'experimental.useDeploymentIdServerActions',
+  'experimental.deploymentId',
+
+  // Experimental options that don't affect compilation
+  'experimental.proxyTimeout',
+  'experimental.caseSensitiveRoutes',
+  'experimental.workerThreads',
+  'experimental.isrFlushToDisk',
+  'experimental.logging.level',
+  'experimental.logging.fullUrl',
+  'experimental.scrollRestoration',
   'experimental.forceSwcTransforms',
   'experimental.serverActionsBodySizeLimit',
   'experimental.memoryBasedWorkersCount',
-  // options below are not really supported, but ignored
-  'webpack',
-  'devIndicators',
-  'onDemandEntries',
-  'excludeDefaultMomentLocales',
   'experimental.clientRouterFilterRedirects',
-  'experimental.cpus',
-  'experimental.proxyTimeout',
-  'experimental.isrFlushToDisk',
-  'experimental.workerThreads',
-  'experimental.caseSensitiveRoutes',
+  'experimental.webpackBuildWorker',
+  'experimental.appDocumentPreloading',
+  'experimental.incrementalCacheHandlerPath',
+  'experimental.amp',
+  'experimental.disableOptimizedLoading',
+  'experimental.isrMemoryCacheSize',
+  'experimental.largePageDataBytes',
+  'experimental.gzipSize',
+
+  // Left to be implemented
+  'excludeDefaultMomentLocales',
   'experimental.optimizePackageImports',
   'experimental.optimizeServerReact',
-  'experimental.webpackBuildWorker',
+
+  // 'compiler.emotion',
+  // 'compiler.reactRemoveProperties',
+  // 'compiler.relay',
+  // 'compiler.removeConsole',
+  // 'compiler.styledComponents',
+  // 'experimental.clientRouterFilterAllowedRate',
+
+  // clientRouterFilter is `true` by default currently in config-shared.ts,
+  // might be removed as an option altogether.
+  'experimental.clientRouterFilter',
+  'experimental.serverMinification',
+  'experimental.serverSourceMaps',
+  'experimental.trustHostHeader',
+
+  // 'experimental.adjustFontFallbacks',
+  // 'experimental.adjustFontFallbacksWithSizeAdjust',
+  // 'experimental.allowedRevalidateHeaderKeys',
+  // 'experimental.bundlePagesExternals',
+  // 'experimental.extensionAlias',
+  // 'experimental.fallbackNodePolyfills',
+  // 'experimental.fetchCacheKeyPrefix',
+  // 'experimental.instrumentationHook',
+  // 'experimental.ppr',
+  // 'experimental.serverActions',
+  // 'experimental.sri.algorithm',
+  // 'experimental.swcTraceProfiling',
+  // 'experimental.typedRoutes',
+
+  // Might not be needed for Turbopack
+  // 'experimental.craCompat',
+  // 'experimental.disablePostcssPresetEnv',
+  // 'experimental.esmExternals',
+  // 'experimental.externalDir',
+  // This is used to force swc-loader to run regardless of finding Babel.
+  // 'experimental.forceSwcTransforms',
+  // 'experimental.fullySpecified',
+  // 'experimental.urlImports',
 ]
 
 // The following will need to be supported by `next build --turbo`
@@ -75,9 +134,7 @@ const prodSpecificTurboNextConfigOptions = [
   'typescript',
   'staticPageGenerationTimeout',
   'outputFileTracing',
-  'output',
   'generateBuildId',
-  'analyticsId',
   'compress',
   'productionBrowserSourceMaps',
   'optimizeFonts',
@@ -85,20 +142,11 @@ const prodSpecificTurboNextConfigOptions = [
   'staticPageGenerationTimeout',
   'reactProductionProfiling',
   'cleanDistDir',
-  'compiler.reactRemoveProperties',
-  'compiler.removeConsole',
   'experimental.turbotrace',
   'experimental.outputFileTracingRoot',
   'experimental.outputFileTracingExcludes',
   'experimental.outputFileTracingIgnores',
-  'experiemental.outputFileTracingIncludes',
-  'experimental.gzipSize',
-  'experimental.useDeploymentId',
-  'experimental.useDeploymentIdServerActions',
-  'experimental.deploymentId',
-  'experimental.serverMinification',
-  'experimental.serverSourceMaps',
-  'experimenta.trustHostHeader',
+  'experimental.outputFileTracingIncludes',
 ]
 
 // check for babelrc, swc plugins
