@@ -13,9 +13,12 @@ import './node-polyfill-crypto'
 import { default as Server } from './next-server'
 import * as log from '../build/output/log'
 import loadConfig from './config'
-import { resolve } from 'path'
+import path, { resolve } from 'path'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
-import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
+import {
+  PHASE_DEVELOPMENT_SERVER,
+  SERVER_FILES_MANIFEST,
+} from '../shared/lib/constants'
 import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
@@ -163,11 +166,23 @@ export class NextServer {
   }
 
   private async [SYMBOL_LOAD_CONFIG]() {
+    const dir = resolve(this.options.dir || '.')
+    // use serialized build config when available
+    if (process.env.NODE_ENV === 'production') {
+      try {
+        return require(path.join(dir, '.next', SERVER_FILES_MANIFEST)).config
+      } catch (_) {
+        // if distDir is customized we don't know until we
+        // load the config so fallback to loading the config
+        // from next.config.js
+      }
+    }
+
     return (
       this.options.preloadedConfig ||
       loadConfig(
         this.options.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
-        resolve(this.options.dir || '.'),
+        dir,
         {
           customConfig: this.options.conf,
           silent: true,
