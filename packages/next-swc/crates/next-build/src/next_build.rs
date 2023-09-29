@@ -249,9 +249,23 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
 
     // CHUNKING
 
+    // This ensures that the _next prefix is properly stripped from all client paths
+    // in manifests. It will be added back on the client through the chunk_base_path
+    // mechanism.
+    let next_config_ref = next_config.await?;
+    let client_relative_path = client_root.join(format!(
+        "{}/_next",
+        next_config_ref
+            .base_path
+            .clone()
+            .unwrap_or_else(|| "".to_string()),
+    ));
+    let client_relative_path_ref = client_relative_path.await?;
+
     let client_chunking_context = get_client_chunking_context(
         project_root,
-        client_root,
+        client_relative_path,
+        next_config.computed_asset_prefix(),
         client_compile_time_info.environment(),
         mode,
     );
@@ -259,7 +273,8 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
     let server_chunking_context = get_server_chunking_context(
         project_root,
         node_root,
-        client_root,
+        client_relative_path,
+        next_config.computed_asset_prefix(),
         server_compile_time_info.environment(),
     );
     // TODO(alexkirsz) This should be the same chunking context. The layer should
@@ -271,12 +286,6 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
 
     let mut build_manifest: BuildManifest = Default::default();
     let build_manifest_path = client_root.join("build-manifest.json".to_string());
-
-    // This ensures that the _next prefix is properly stripped from all client paths
-    // in manifests. It will be added back on the client through the chunk_base_path
-    // mechanism.
-    let client_relative_path = client_root.join("_next".to_string());
-    let client_relative_path_ref = client_relative_path.await?;
 
     // PAGE CHUNKING
 
