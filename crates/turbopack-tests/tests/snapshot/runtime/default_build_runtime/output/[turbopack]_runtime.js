@@ -5,12 +5,7 @@ const RUNTIME_PUBLIC_PATH = "output/[turbopack]_runtime.js";
  *
  * It will be prepended to the runtime code of each runtime.
  */ /* eslint-disable @next/next/no-assign-module-variable */ /// <reference path="./runtime-types.d.ts" />
-;
 const REEXPORTED_OBJECTS = Symbol("reexported objects");
-;
-;
-;
-;
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 const toStringTag = typeof Symbol !== "undefined" && Symbol.toStringTag;
 function defineProp(obj, name, options) {
@@ -262,7 +257,6 @@ function asyncModule(module, body, hasAwait) {
     }
 }
 /// <reference path="../shared/runtime-utils.ts" />
-;
 function commonJsRequireContext(entry, sourceModule) {
     return entry.external ? externalRequire(entry.id(), false) : commonJsRequire(sourceModule, entry.id());
 }
@@ -310,18 +304,16 @@ async function instantiateWebAssemblyFromPath(path, importsObj) {
 }
 /// <reference path="../shared/runtime-utils.ts" />
 /// <reference path="../shared-node/node-utils.ts" />
-;
-var SourceType;
+let SourceType;
 (function(SourceType) {
-    SourceType[SourceType[/**
+    /**
    * The module was instantiated because it was included in an evaluated chunk's
    * runtime.
-   */ "Runtime"] = 0] = "Runtime";
-    SourceType[SourceType[/**
+   */ SourceType[SourceType["Runtime"] = 0] = "Runtime";
+    /**
    * The module was instantiated because a parent module imported it.
-   */ "Parent"] = 1] = "Parent";
+   */ SourceType[SourceType["Parent"] = 1] = "Parent";
 })(SourceType || (SourceType = {}));
-;
 const path = require("path");
 const relativePathToRuntimeRoot = path.relative(RUNTIME_PUBLIC_PATH, ".");
 const RUNTIME_ROOT = path.resolve(__filename, relativePathToRuntimeRoot);
@@ -368,10 +360,10 @@ function instantiateModule(id, source) {
         // and contains e.g. a `require("something")` call.
         let instantiationReason;
         switch(source.type){
-            case SourceType.Runtime:
+            case 0:
                 instantiationReason = `as a runtime entry of chunk ${source.chunkPath}`;
                 break;
-            case SourceType.Parent:
+            case 1:
                 instantiationReason = `because it was required from module ${source.parentId}`;
                 break;
         }
@@ -379,10 +371,10 @@ function instantiateModule(id, source) {
     }
     let parents;
     switch(source.type){
-        case SourceType.Runtime:
+        case 0:
             parents = [];
             break;
-        case SourceType.Parent:
+        case 1:
             // No need to add this module as a child of the parent module here, this
             // has already been taken care of in `getOrInstantiateModuleFromParent`.
             parents = [
@@ -417,7 +409,7 @@ function instantiateModule(id, source) {
             m: module1,
             c: moduleCache,
             l: loadChunkAsync.bind(null, {
-                type: SourceType.Parent,
+                type: 1,
                 parentId: id
             }),
             w: loadWebAssembly,
@@ -450,7 +442,7 @@ function instantiateModule(id, source) {
         return module1;
     }
     return instantiateModule(id, {
-        type: SourceType.Parent,
+        type: 1,
         parentId: sourceModule.id
     });
 }
@@ -458,7 +450,7 @@ function instantiateModule(id, source) {
  * Instantiates a runtime module.
  */ function instantiateRuntimeModule(moduleId, chunkPath) {
     return instantiateModule(moduleId, {
-        type: SourceType.Runtime,
+        type: 0,
         chunkPath
     });
 }

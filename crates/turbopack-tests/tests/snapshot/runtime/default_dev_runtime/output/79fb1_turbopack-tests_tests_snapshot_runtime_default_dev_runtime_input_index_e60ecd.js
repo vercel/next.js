@@ -15,12 +15,7 @@ const CHUNK_BASE_PATH = "";
  *
  * It will be prepended to the runtime code of each runtime.
  */ /* eslint-disable @next/next/no-assign-module-variable */ /// <reference path="./runtime-types.d.ts" />
-;
 const REEXPORTED_OBJECTS = Symbol("reexported objects");
-;
-;
-;
-;
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 const toStringTag = typeof Symbol !== "undefined" && Symbol.toStringTag;
 function defineProp(obj, name, options) {
@@ -284,28 +279,20 @@ function asyncModule(module, body, hasAwait) {
 // This file must not use `import` and `export` statements. Otherwise, it
 // becomes impossible to augment interfaces declared in `<reference>`d files
 // (e.g. `Module`). Hence, the need for `import()` here.
-;
-;
-;
-;
-;
-;
-;
-var SourceType;
+let SourceType;
 (function(SourceType) {
-    SourceType[SourceType[/**
+    /**
    * The module was instantiated because it was included in an evaluated chunk's
    * runtime.
-   */ "Runtime"] = 0] = "Runtime";
-    SourceType[SourceType[/**
+   */ SourceType[SourceType["Runtime"] = 0] = "Runtime";
+    /**
    * The module was instantiated because a parent module imported it.
-   */ "Parent"] = 1] = "Parent";
-    SourceType[SourceType[/**
+   */ SourceType[SourceType["Parent"] = 1] = "Parent";
+    /**
    * The module was instantiated because it was included in a chunk's hot module
    * update.
-   */ "Update"] = 2] = "Update";
+   */ SourceType[SourceType["Update"] = 2] = "Update";
 })(SourceType || (SourceType = {}));
-;
 const moduleFactories = Object.create(null);
 const moduleCache = Object.create(null);
 /**
@@ -406,13 +393,13 @@ async function loadChunkPath(source, chunkPath) {
     } catch (error) {
         let loadReason;
         switch(source.type){
-            case SourceType.Runtime:
+            case 0:
                 loadReason = `as a runtime dependency of chunk ${source.chunkPath}`;
                 break;
-            case SourceType.Parent:
+            case 1:
                 loadReason = `from module ${source.parentId}`;
                 break;
-            case SourceType.Update:
+            case 2:
                 loadReason = "from an HMR update";
                 break;
         }
@@ -429,13 +416,13 @@ function instantiateModule(id, source) {
         // and contains e.g. a `require("something")` call.
         let instantiationReason;
         switch(source.type){
-            case SourceType.Runtime:
+            case 0:
                 instantiationReason = `as a runtime entry of chunk ${source.chunkPath}`;
                 break;
-            case SourceType.Parent:
+            case 1:
                 instantiationReason = `because it was required from module ${source.parentId}`;
                 break;
-            case SourceType.Update:
+            case 2:
                 instantiationReason = "because of an HMR update";
                 break;
         }
@@ -445,18 +432,18 @@ function instantiateModule(id, source) {
     const { hot, hotState } = createModuleHot(id, hotData);
     let parents;
     switch(source.type){
-        case SourceType.Runtime:
+        case 0:
             runtimeModules.add(id);
             parents = [];
             break;
-        case SourceType.Parent:
+        case 1:
             // No need to add this module as a child of the parent module here, this
             // has already been taken care of in `getOrInstantiateModuleFromParent`.
             parents = [
                 source.parentId
             ];
             break;
-        case SourceType.Update:
+        case 2:
             parents = source.parents || [];
             break;
     }
@@ -475,7 +462,7 @@ function instantiateModule(id, source) {
     // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
     try {
         const sourceInfo = {
-            type: SourceType.Parent,
+            type: 1,
             parentId: id
         };
         runModuleExecutionHooks(module, (refresh)=>{
@@ -550,7 +537,7 @@ function instantiateModule(id, source) {
         return module;
     }
     return instantiateModule(id, {
-        type: SourceType.Parent,
+        type: 1,
         parentId: sourceModule.id
     });
 };
@@ -758,7 +745,7 @@ function applyPhase(outdatedSelfAcceptedModules, newModuleFactories, outdatedMod
     for (const { moduleId, errorHandler } of outdatedSelfAcceptedModules){
         try {
             instantiateModule(moduleId, {
-                type: SourceType.Update,
+                type: 2,
                 parents: outdatedModuleParents.get(moduleId)
             });
         } catch (err) {
@@ -809,7 +796,7 @@ function applyChunkListUpdate(chunkListPath, update) {
             switch(chunkUpdate.type){
                 case "added":
                     BACKEND.loadChunk(chunkPath, {
-                        type: SourceType.Update
+                        type: 2
                     });
                     break;
                 case "total":
@@ -1195,7 +1182,7 @@ function createModuleHot(moduleId, hotData) {
  * Instantiates a runtime module.
  */ function instantiateRuntimeModule(moduleId, chunkPath) {
     return instantiateModule(moduleId, {
-        type: SourceType.Runtime,
+        type: 0,
         chunkPath
     });
 }
@@ -1210,7 +1197,7 @@ function createModuleHot(moduleId, hotData) {
         return module;
     }
     return instantiateModule(moduleId, {
-        type: SourceType.Runtime,
+        type: 0,
         chunkPath
     });
 }
