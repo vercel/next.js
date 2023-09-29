@@ -7,14 +7,19 @@ createNextDescribe(
   'app dir',
   {
     files: __dirname,
+    buildCommand: process.env.NEXT_EXPERIMENTAL_COMPILE
+      ? 'pnpm next experimental-compile'
+      : undefined,
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
     if (isNextStart) {
-      it('should have correct size in build output', async () => {
-        expect(next.cliOutput).toMatch(
-          /\/dashboard\/another.*? [^0]{1,} [\w]{1,}B/
-        )
-      })
+      if (!process.env.NEXT_EXPERIMENTAL_COMPILE) {
+        it('should have correct size in build output', async () => {
+          expect(next.cliOutput).toMatch(
+            /\/dashboard\/another.*? [^0]{1,} [\w]{1,}B/
+          )
+        })
+      }
 
       it('should have correct preferredRegion values in manifest', async () => {
         const middlewareManifest = JSON.parse(
