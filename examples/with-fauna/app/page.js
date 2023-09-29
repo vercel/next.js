@@ -1,3 +1,5 @@
+"use client"
+
 import Head from 'next/head'
 import { useState } from 'react'
 import cn from 'classnames'
@@ -21,7 +23,7 @@ const putEntry = (payload) =>
 
 const useEntriesFlow = ({ fallback }) => {
   const { data: entries } = useSWR('/api/entries', fetcher, {
-    fallbackData: fallback.entries,
+    fallbackData: fallback?.entries || [],
   })
   const onSubmit = async (payload) => {
     await putEntry(payload)
@@ -166,22 +168,22 @@ const Guestbook = ({ fallback }) => {
   )
 }
 
-export async function getStaticProps() {
-  let entries = []
-  let error = null
-  try {
-    entries = await fetch('/api/entries') 
-  } catch (error) {
-    error = error
-  }
-  return {
-    props: {
-      fallback: {
-        entries,
-        error,
-      },
-    },
-  }
-}
+// export async function getStaticProps() {
+//   let entries = []
+//   let error = null
+//   try {
+//     entries = await fetch('/api/entries') 
+//   } catch (error) {
+//     error = error
+//   }
+//   return {
+//     props: {
+//       fallback: {
+//         entries,
+//         error,
+//       },
+//     },
+//   }
+// }
 
 export default Guestbook
