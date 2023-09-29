@@ -4,7 +4,7 @@ import { NextConfig } from '../server/config-shared'
 import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 
 const supportedTurbopackNextConfigOptions = [
-  // options that affect compilation
+  // Options that affect compilation
   'output',
   'crossOrigin',
   'configFileName',
