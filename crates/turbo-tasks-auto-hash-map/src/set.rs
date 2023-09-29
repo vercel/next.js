@@ -135,6 +135,10 @@ impl<'a, K> Iterator for Iter<'a, K> {
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next().map(|(k, _)| k)
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
 }
 
 impl<'a, K> Clone for Iter<'a, K> {
@@ -150,6 +154,10 @@ impl<K> Iterator for IntoIter<K> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next().map(|(k, _)| k)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
     }
 }
 

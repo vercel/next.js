@@ -353,7 +353,7 @@ impl EcmascriptModuleAsset {
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<EcmascriptModuleContent>> {
         let this = self.await?;
-        if *self.analyze().needs_availability_info().await? {
+        let availability_info = if *self.analyze().needs_availability_info().await? {
             availability_info
         } else {
             Value::new(AvailabilityInfo::Untracked)
