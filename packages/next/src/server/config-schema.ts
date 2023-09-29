@@ -520,6 +520,9 @@ const configSchema = {
         serverSourceMaps: {
           type: 'boolean',
         },
+        bundlePagesExternals: {
+          type: 'boolean',
+        },
       },
       type: 'object',
     },

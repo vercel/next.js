@@ -60,14 +60,14 @@ impl CustomTransformer for NextJsDynamic {
         let p = std::mem::replace(program, Program::Module(Module::dummy()));
         *program = p.fold_with(&mut next_dynamic(
             match self.mode {
-                NextMode::Development | NextMode::DevServer => true,
+                NextMode::Development => true,
                 NextMode::Build => false,
             },
             self.is_server,
             self.is_server_components,
             NextDynamicMode::Turbopack {
                 dynamic_transition_name: match self.mode {
-                    NextMode::Development | NextMode::DevServer => "next-client-chunks".to_string(),
+                    NextMode::Development => "next-client-chunks".to_string(),
                     NextMode::Build => "next-dynamic".to_string(),
                 },
             },

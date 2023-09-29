@@ -245,14 +245,6 @@ pub async fn get_next_server_import_map(
         ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. } => {
-            match mode {
-                NextMode::Build => {}
-                NextMode::DevServer => {
-                    // The sandbox can't be bundled and needs to be external
-                    import_map.insert_exact_alias("next/dist/server/web/sandbox", external);
-                }
-                NextMode::Development => {}
-            }
             import_map.insert_exact_alias(
                 "next/head",
                 request_to_import_mapping(project_path, "next/dist/client/components/noop-head"),
@@ -424,10 +416,7 @@ async fn insert_next_server_special_aliases(
         }
         (_, ServerContextType::PagesData { .. }) => {}
         // the logic closely follows the one in createRSCAliases in webpack-config.ts
-        (
-            NextMode::DevServer | NextMode::Build | NextMode::Development,
-            ServerContextType::AppSSR { app_dir },
-        ) => {
+        (NextMode::Build | NextMode::Development, ServerContextType::AppSSR { app_dir }) => {
             import_map.insert_exact_alias(
                 "@opentelemetry/api",
                 // TODO(WEB-625) this actually need to prefer the local version of
@@ -547,7 +536,7 @@ async fn insert_next_server_special_aliases(
             );
         }
         (
-            NextMode::Build | NextMode::Development | NextMode::DevServer,
+            NextMode::Build | NextMode::Development,
             ServerContextType::AppRSC { app_dir, .. } | ServerContextType::AppRoute { app_dir },
         ) => {
             import_map.insert_exact_alias(
