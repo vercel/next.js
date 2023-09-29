@@ -151,19 +151,19 @@ impl EsmAssetReference {
 #[turbo_tasks::value_impl]
 impl ModuleReference for EsmAssetReference {
     #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
+    async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         let ty = Value::new(match &self.export_name {
             Some(part) => EcmaScriptModulesReferenceSubType::ImportPart(*part),
             None => EcmaScriptModulesReferenceSubType::Undefined,
         });
 
-        esm_resolve(
-            self.get_origin(),
+        Ok(esm_resolve(
+            self.get_origin().resolve().await?,
             self.request,
             ty,
             OptionIssueSource::none(),
             IssueSeverity::Error.cell(),
-        )
+        ))
     }
 }
 

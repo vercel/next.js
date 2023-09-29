@@ -444,7 +444,7 @@ impl AssetContext for ModuleAssetContext {
         let context_path = origin_path.parent().resolve().await?;
 
         let result = resolve(context_path, request, resolve_options);
-        let mut result = self.process_resolve_result(result, reference_type);
+        let mut result = self.process_resolve_result(result.resolve().await?, reference_type);
 
         if *self.is_types_resolving_enabled().await? {
             let types_reference = TypescriptTypesAssetReference::new(
@@ -464,15 +464,28 @@ impl AssetContext for ModuleAssetContext {
         result: Vc<ResolveResult>,
         reference_type: Value<ReferenceType>,
     ) -> Result<Vc<ModuleResolveResult>> {
+        let this = self.await?;
+        let transition = this.transition;
         Ok(result
             .await?
             .map_module(
                 |source| {
                     let reference_type = reference_type.clone();
                     async move {
-                        Ok(Vc::upcast(
-                            self.process(source, reference_type).resolve().await?,
-                        ))
+                        if let Some(transition) = transition {
+                            Ok(Vc::upcast(
+                                transition
+                                    .process(source, self, reference_type)
+                                    .resolve()
+                                    .await?,
+                            ))
+                        } else {
+                            Ok(Vc::upcast(
+                                self.process_default(source, reference_type)
+                                    .resolve()
+                                    .await?,
+                            ))
+                        }
                     }
                 },
                 |i| async move { Ok(Vc::upcast(AffectingResolvingAssetReference::new(i))) },
@@ -480,6 +493,7 @@ impl AssetContext for ModuleAssetContext {
             .await?
             .into())
     }
+
     #[turbo_tasks::function]
     async fn process(
         self: Vc<Self>,
