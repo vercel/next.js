@@ -763,7 +763,7 @@ function bindingToApi(binding: any, _wasm: boolean) {
       ...options,
       nextConfig:
         options.nextConfig && (await serializeNextConfig(options.nextConfig)),
-      jsConfig: options.jsConfig && JSON.stringify(options.jsConfig ?? {}),
+      jsConfig: options.jsConfig && JSON.stringify(options.jsConfig),
       env: options.env && rustifyEnv(options.env),
       defineEnv: options.defineEnv && {
         client: rustifyEnv(options.defineEnv.client),

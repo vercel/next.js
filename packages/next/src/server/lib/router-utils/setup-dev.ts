@@ -219,7 +219,7 @@ async function startWatcher(opts: SetupOpts) {
       projectPath: dir,
       rootPath: opts.nextConfig.experimental.outputFileTracingRoot || dir,
       nextConfig: opts.nextConfig,
-      jsConfig,
+      jsConfig: jsConfig ?? { compilerOptions: {} },
       watch: true,
       env: process.env as Record<string, string>,
       defineEnv: createDefineEnv({
