@@ -4,6 +4,7 @@ import { NextConfig } from '../server/config-shared'
 import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 
 const supportedTurbopackNextConfigOptions = [
+  'crossOrigin',
   'configFileName',
   'env',
   'basePath',
@@ -34,6 +35,12 @@ const supportedTurbopackNextConfigOptions = [
   'distDir',
   'skipMiddlewareUrlNormalize',
   'skipTrailingSlashRedirect',
+  'experimental.manualClientBasePath',
+  'experimental.optimisticClientCache',
+  'experimental.middlewarePrefetch',
+  'experimental.optimizeCss',
+  'experimental.nextScriptWorkers',
+  'experimental.webVitalsAttribution',
   'experimental.externalMiddlewareRewritesResolve',
   'experimental.scrollRestoration',
   'experimental.serverComponentsExternalPackages',
