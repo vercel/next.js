@@ -1122,9 +1122,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
                 getDynamicParamFromSegment,
                 query
               ),
-              isPrefetch &&
-              !Boolean(components.loading) &&
-              !hasLoadingComponentInTree(loaderTree)
+              isPrefetch && !Boolean(components.loading)
                 ? null
                 : // Create component tree using the slice of the loaderTree
                   // @ts-expect-error TODO-APP: fix async component type
@@ -1147,9 +1145,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
 
                     return <Component />
                   }),
-              isPrefetch &&
-              !Boolean(components.loading) &&
-              !hasLoadingComponentInTree(loaderTree)
+              isPrefetch && !Boolean(components.loading)
                 ? null
                 : (() => {
                     const { layoutOrPagePath } =
