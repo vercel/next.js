@@ -75,15 +75,15 @@ describe('Middleware Runtime', () => {
         packageJson: {
           scripts: {
             setup: `cp -r ./shared-package ./node_modules`,
-            build: 'pnpm setup && pnpm build',
-            dev: `pnpm setup && next ${
+            build: 'pnpm run setup && pnpm run build',
+            dev: `pnpm run setup && next ${
               shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
             }`,
             start: 'next start',
           },
         },
         startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
-        buildCommand: 'pnpm build',
+        buildCommand: 'pnpm run build',
         env: {
           ANOTHER_MIDDLEWARE_TEST: 'asdf2',
           STRING_ENV_VAR: 'asdf3',
