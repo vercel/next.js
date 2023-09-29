@@ -6,7 +6,7 @@ import getBaseWebpackConfig, {
   errorIfEnvConflicted,
 } from '../../webpack-config'
 
-interface DefineEnvPluginOptions {
+export interface DefineEnvPluginOptions {
   allowedRevalidateHeaderKeys: string[] | undefined
   clientRouterFilters: Parameters<
     typeof getBaseWebpackConfig

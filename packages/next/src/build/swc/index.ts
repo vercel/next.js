@@ -10,6 +10,10 @@ import { patchIncorrectLockfile } from '../../lib/patch-incorrect-lockfile'
 import { downloadWasmSwc, downloadNativeNextSwc } from '../../lib/download-swc'
 import { NextConfigComplete, TurboRule } from '../../server/config-shared'
 import { isDeepStrictEqual } from 'util'
+import {
+  DefineEnvPluginOptions,
+  getDefineEnv,
+} from '../webpack/plugins/define-env-plugin'
 
 const nextVersion = process.env.__NEXT_VERSION as string
 
@@ -365,7 +369,7 @@ function logLoadFailure(attempts: any, triedWasm = false) {
     })
 }
 
-interface ProjectOptions {
+export interface ProjectOptions {
   /**
    * A root path from which all files must be nested under. Trying to access
    * a file outside this root will fail. Think of this as a chroot.
@@ -398,6 +402,12 @@ interface ProjectOptions {
    */
   env: Record<string, string>
 
+  defineEnv: {
+    client: Record<string, string>
+    edge: Record<string, string>
+    nodejs: Record<string, string>
+  }
+
   /**
    * Whether to watch the filesystem for file changes.
    */
@@ -409,7 +419,57 @@ interface ProjectOptions {
   serverAddr: string
 }
 
-interface TurboEngineOptions {
+export interface DefineEnv {
+  client: Record<string, string>
+  edge: Record<string, string>
+  nodejs: Record<string, string>
+}
+
+export function createDefineEnv({
+  allowedRevalidateHeaderKeys,
+  clientRouterFilters,
+  config,
+  dev,
+  distDir,
+  fetchCacheKeyPrefix,
+  hasRewrites,
+  middlewareMatchers,
+  previewModeId,
+}: Omit<
+  DefineEnvPluginOptions,
+  'isClient' | 'isNodeOrEdgeCompilation' | 'isEdgeServer' | 'isNodeServer'
+>): DefineEnv {
+  let defineEnv: Record<
+    'client' | 'edge' | 'nodejs',
+    Record<string, string>
+  > = {
+    client: {},
+    edge: {},
+    nodejs: {},
+  }
+
+  for (const variant of Object.keys(defineEnv) as (keyof typeof defineEnv)[]) {
+    defineEnv[variant] = getDefineEnv({
+      allowedRevalidateHeaderKeys,
+      clientRouterFilters,
+      config,
+      dev,
+      distDir,
+      fetchCacheKeyPrefix,
+      hasRewrites,
+      isClient: variant === 'client',
+      isEdgeServer: variant === 'edge',
+      isNodeOrEdgeCompilation: variant === 'nodejs' || variant === 'edge',
+      isNodeServer: variant === 'nodejs',
+      middlewareMatchers,
+      previewModeId,
+    })
+  }
+
+  return defineEnv
+}
+
+export interface TurboEngineOptions {
   /**
    * An upper bound of memory that turbopack will attempt to stay under.
    */
@@ -481,7 +541,7 @@ export interface ServerClientChange {
 }
 
 export interface Project {
-  update(options: ProjectOptions): Promise<void>
+  update(options: Partial<ProjectOptions>): Promise<void>
   entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<Entrypoints>>
   hmrEvents(identifier: string): AsyncIterableIterator<TurbopackResult<Update>>
   hmrIdentifiersSubscribe(): AsyncIterableIterator<
@@ -687,15 +747,29 @@ function bindingToApi(binding: any, _wasm: boolean) {
     })
   }
 
-  async function rustifyProjectOptions(options: ProjectOptions): Promise<any> {
-    return {
-      ...options,
-      nextConfig: await serializeNextConfig(options.nextConfig),
-      jsConfig: JSON.stringify(options.jsConfig ?? {}),
-      env: Object.entries(options.env).map(([name, value]) => ({
+  function rustifyEnv(env: Record<string, string>) {
+    return Object.entries(env)
+      .filter(([_, value]) => value != null)
+      .map(([name, value]) => ({
         name,
         value,
-      })),
+      }))
+  }
+
+  async function rustifyProjectOptions(
+    options: Partial<ProjectOptions>
+  ): Promise<any> {
+    return {
+      ...options,
+      nextConfig:
+        options.nextConfig && (await serializeNextConfig(options.nextConfig)),
+      jsConfig: options.jsConfig && JSON.stringify(options.jsConfig ?? {}),
+      env: options.env && rustifyEnv(options.env),
+      defineEnv: options.defineEnv && {
+        client: rustifyEnv(options.defineEnv.client),
+        edge: rustifyEnv(options.defineEnv.edge),
+        nodejs: rustifyEnv(options.defineEnv.nodejs),
+      },
     }
   }
 

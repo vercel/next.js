@@ -104,6 +104,7 @@ async fn main_inner() -> Result<()> {
         full_stats: args.full_stats,
         build_context: None,
         dist_dir: args.dist_dir,
+        define_env: unimplemented!("this is passed directly from next.js to rust"),
     })
     .await
 }

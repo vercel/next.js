@@ -6,11 +6,13 @@ use std::{
 use anyhow::Context;
 use napi::bindgen_prelude::*;
 use next_build::{
-    build as turbo_next_build, build_options::BuildContext, BuildOptions as NextBuildOptions,
+    build as turbo_next_build,
+    build_options::{BuildContext, DefineEnv},
+    BuildOptions as NextBuildOptions,
 };
 use next_core::next_config::{Rewrite, Rewrites, RouteHas};
 
-use crate::util::MapErr;
+use crate::{next_api::project::NapiDefineEnv, util::MapErr};
 
 #[napi(object, object_to_js = false)]
 #[derive(Debug)]
@@ -38,6 +40,7 @@ pub struct NextBuildContext {
     // TODO(alexkirsz) These are used to generate route types.
     // pub original_rewrites: Option<Rewrites>,
     // pub original_redirects: Option<Vec<Redirect>>,
+    pub define_env: NapiDefineEnv,
 }
 
 impl TryFrom<NextBuildContext> for NextBuildOptions {
@@ -62,7 +65,30 @@ impl TryFrom<NextBuildContext> for NextBuildOptions {
                     .context("NextBuildContext must provide rewrites")?
                     .into(),
             }),
+            define_env: value.define_env.into(),
         })
+    }
+}
+
+impl From<NapiDefineEnv> for DefineEnv {
+    fn from(val: NapiDefineEnv) -> Self {
+        DefineEnv {
+            client: val
+                .client
+                .into_iter()
+                .map(|var| (var.name, var.value))
+                .collect(),
+            edge: val
+                .edge
+                .into_iter()
+                .map(|var| (var.name, var.value))
+                .collect(),
+            nodejs: val
+                .nodejs
+                .into_iter()
+                .map(|var| (var.name, var.value))
+                .collect(),
+        }
     }
 }
 
