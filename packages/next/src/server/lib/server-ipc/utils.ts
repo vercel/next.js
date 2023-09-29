@@ -1,4 +1,16 @@
-export const actionsForbiddenHeaders = ['content-length']
+export const actionsForbiddenHeaders = [
+  'accept-encoding',
+  'keepalive',
+  'keep-alive',
+  'content-encoding',
+  'transfer-encoding',
+  // https://github.com/nodejs/undici/issues/1470
+  'connection',
+  // marked as unsupported by undici: https://github.com/nodejs/undici/blob/c83b084879fa0bb8e0469d31ec61428ac68160d5/lib/core/request.js#L354
+  'expect',
+  // action specific
+  'content-length',
+]
 
 export const filterReqHeaders = (
   headers: Record<string, undefined | string | number | string[]>,
