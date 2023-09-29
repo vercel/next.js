@@ -171,7 +171,6 @@ export async function getStaticProps() {
   let error = null
   try {
     entries = await fetch('/api/entries') 
-    console.log('--->', entries)
   } catch (error) {
     error = error
   }
