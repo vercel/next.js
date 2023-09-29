@@ -22,6 +22,7 @@ use anyhow::Result;
 use auto_hash_map::{AutoMap, AutoSet};
 use nohash_hasher::BuildNoHashHasher;
 use parking_lot::{Mutex, RwLock};
+use smallvec::SmallVec;
 use stats::TaskStats;
 use tokio::task_local;
 use turbo_tasks::{
@@ -169,7 +170,7 @@ struct TaskState {
     stateful: bool,
 
     /// Children are only modified from execution
-    children: AutoSet<TaskId, BuildNoHashHasher<TaskId>>,
+    children: AutoSet<TaskId, BuildNoHashHasher<TaskId>, 2>,
 
     /// Collectibles are only modified from execution
     collectibles: MaybeCollectibles,
@@ -179,7 +180,7 @@ struct TaskState {
     prepared_type: PrepareTaskType,
 
     output: Output,
-    cells: AutoMap<ValueTypeId, Vec<Cell>, BuildNoHashHasher<ValueTypeId>>,
+    cells: AutoMap<ValueTypeId, SmallVec<[Cell; 1]>, BuildNoHashHasher<ValueTypeId>>,
 
     // GC state:
     gc: GcTaskState,
@@ -388,7 +389,7 @@ enum TaskStateType {
         event: Event,
         count_as_finished: bool,
         /// Children that need to be disconnected once leaving this state
-        outdated_children: AutoSet<TaskId, BuildNoHashHasher<TaskId>>,
+        outdated_children: AutoSet<TaskId, BuildNoHashHasher<TaskId>, 2>,
         outdated_collectibles: MaybeCollectibles,
     },
 

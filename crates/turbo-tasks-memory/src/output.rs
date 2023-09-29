@@ -15,7 +15,7 @@ use crate::MemoryBackend;
 pub struct Output {
     pub(crate) content: OutputContent,
     updates: u32,
-    pub(crate) dependent_tasks: AutoSet<TaskId, BuildNoHashHasher<TaskId>>,
+    pub(crate) dependent_tasks: AutoSet<TaskId, BuildNoHashHasher<TaskId>, 2>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -97,7 +97,7 @@ impl Output {
         }
     }
 
-    pub fn dependent_tasks(&self) -> &AutoSet<TaskId, BuildNoHashHasher<TaskId>> {
+    pub fn dependent_tasks(&self) -> &AutoSet<TaskId, BuildNoHashHasher<TaskId>, 2> {
         &self.dependent_tasks
     }
 

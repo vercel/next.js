@@ -26,19 +26,19 @@ pub(crate) enum Cell {
     /// Assigning a value will transition to the Value state.
     /// Reading this cell will transition to the Recomputing state.
     TrackedValueless {
-        dependent_tasks: AutoSet<TaskId, BuildNoHashHasher<TaskId>>,
+        dependent_tasks: AutoSet<TaskId, BuildNoHashHasher<TaskId>, 2>,
     },
     /// Someone wanted to read the content and it was not available. The content
     /// is now being recomputed.
     /// Assigning a value will transition to the Value state.
     Recomputing {
-        dependent_tasks: AutoSet<TaskId, BuildNoHashHasher<TaskId>>,
+        dependent_tasks: AutoSet<TaskId, BuildNoHashHasher<TaskId>, 2>,
         event: Event,
     },
     /// The content was set only once and is tracked.
     /// GC operation will transition to the TrackedValueless state.
     Value {
-        dependent_tasks: AutoSet<TaskId, BuildNoHashHasher<TaskId>>,
+        dependent_tasks: AutoSet<TaskId, BuildNoHashHasher<TaskId>, 2>,
         content: CellContent,
     },
 }
@@ -95,10 +95,11 @@ impl Cell {
     }
 
     /// Returns the list of dependent tasks.
-    pub fn dependent_tasks(&self) -> &AutoSet<TaskId, BuildNoHashHasher<TaskId>> {
+    pub fn dependent_tasks(&self) -> &AutoSet<TaskId, BuildNoHashHasher<TaskId>, 2> {
         match self {
             Cell::Empty => {
-                static EMPTY: AutoSet<TaskId, BuildNoHashHasher<TaskId>> = AutoSet::with_hasher();
+                static EMPTY: AutoSet<TaskId, BuildNoHashHasher<TaskId>, 2> =
+                    AutoSet::with_hasher();
                 &EMPTY
             }
             Cell::Value {
@@ -116,7 +117,7 @@ impl Cell {
     /// Switch the cell to recomputing state.
     fn recompute(
         &mut self,
-        dependent_tasks: AutoSet<TaskId, BuildNoHashHasher<TaskId>>,
+        dependent_tasks: AutoSet<TaskId, BuildNoHashHasher<TaskId>, 2>,
         description: impl Fn() -> String + Sync + Send + 'static,
         note: impl Fn() -> String + Sync + Send + 'static,
     ) -> EventListener {

@@ -197,7 +197,7 @@ pub trait Backend: Sync + Send {
     fn invalidate_tasks(&self, tasks: &[TaskId], turbo_tasks: &dyn TurboTasksBackendApi<Self>);
     fn invalidate_tasks_set(
         &self,
-        tasks: &AutoSet<TaskId, BuildNoHashHasher<TaskId>>,
+        tasks: &AutoSet<TaskId, BuildNoHashHasher<TaskId>, 2>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     );
 

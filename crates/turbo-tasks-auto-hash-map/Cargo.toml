@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
+smallvec = { workspace = true }
