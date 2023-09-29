@@ -3440,7 +3440,9 @@ dependencies = [
  "next-transform-font",
  "once_cell",
  "pathdiff",
+ "react_remove_properties",
  "regex",
+ "remove_console",
  "rustc-hash",
  "serde",
  "serde_json",
@@ -4424,6 +4426,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "react_remove_properties"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9dc14dca06a6d0f4796dde331bf9ae17fcb93b9f2d8c8fca8bdc0bd28ff2bd07"
+dependencies = [
+ "serde",
+ "swc_atoms",
+ "swc_cached",
+ "swc_common",
+ "swc_ecma_ast",
+ "swc_ecma_visit",
+]
+
+[[package]]
 name = "redox_syscall"
 version = "0.1.57"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4551,6 +4567,20 @@ name = "relative-path"
 version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c707298afce11da2efef2f600116fa93ffa7a032b5d7b628aa17711ec81383ca"
+
+[[package]]
+name = "remove_console"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "61b0da70a7bee5f2d9cdb94977225dac1d64946ec65aa2b30386a0a1f5bc5006"
+dependencies = [
+ "serde",
+ "swc_atoms",
+ "swc_cached",
+ "swc_common",
+ "swc_ecma_ast",
+ "swc_ecma_visit",
+]
 
 [[package]]
 name = "rend"
