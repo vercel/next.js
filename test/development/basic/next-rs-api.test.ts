@@ -2,6 +2,7 @@ import { NextInstance, createNext } from 'e2e-utils'
 import { trace } from 'next/src/trace'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 import {
+  createDefineEnv,
   Diagnostics,
   Entrypoints,
   Issue,
@@ -173,6 +174,22 @@ describe('next.rs api', () => {
         : next.testDir,
       watch: true,
       serverAddr: `127.0.0.1:3000`,
+      defineEnv: createDefineEnv({
+        allowedRevalidateHeaderKeys: undefined,
+        clientRouterFilters: undefined,
+        config: nextConfig,
+        dev: true,
+        distDir: path.join(
+          process.env.NEXT_SKIP_ISOLATE
+            ? path.resolve(__dirname, '../../..')
+            : next.testDir,
+          '.next'
+        ),
+        fetchCacheKeyPrefix: undefined,
+        hasRewrites: false,
+        middlewareMatchers: undefined,
+        previewModeId: undefined,
+      }),
     })
     projectUpdateSubscription = project.updateInfoSubscribe()
   })
