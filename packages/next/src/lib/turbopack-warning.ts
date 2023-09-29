@@ -83,25 +83,29 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.isrMemoryCacheSize',
   'experimental.largePageDataBytes',
   'experimental.gzipSize',
+  'experimental.trustHostHeader',
 
-  // Left to be implemented
-  'excludeDefaultMomentLocales',
+  // Left to be implemented (priority)
+  // 'experimental.serverActions',
+  // 'experimental.ppr', // Checked in `needs-experimental-react.ts`
+  // clientRouterFilter is `true` by default currently in config-shared.ts,
+  // might be removed as an option altogether.
+  'experimental.clientRouterFilter',
   'experimental.optimizePackageImports',
-  'experimental.optimizeServerReact',
-
   // 'compiler.emotion',
   // 'compiler.reactRemoveProperties',
   // 'compiler.relay',
   // 'compiler.removeConsole',
   // 'compiler.styledComponents',
-  // 'experimental.clientRouterFilterAllowedRate',
+  // 'experimental.fetchCacheKeyPrefix',
+  // 'experimental.instrumentationHook',
 
-  // clientRouterFilter is `true` by default currently in config-shared.ts,
-  // might be removed as an option altogether.
-  'experimental.clientRouterFilter',
+  // Left to be implemented
+  'excludeDefaultMomentLocales',
+  'experimental.optimizeServerReact',
+  // 'experimental.clientRouterFilterAllowedRate',
   'experimental.serverMinification',
   'experimental.serverSourceMaps',
-  'experimental.trustHostHeader',
 
   // 'experimental.adjustFontFallbacks',
   // 'experimental.adjustFontFallbacksWithSizeAdjust',
@@ -109,15 +113,12 @@ const supportedTurbopackNextConfigOptions = [
   // 'experimental.bundlePagesExternals',
   // 'experimental.extensionAlias',
   // 'experimental.fallbackNodePolyfills',
-  // 'experimental.fetchCacheKeyPrefix',
-  // 'experimental.instrumentationHook',
-  // 'experimental.ppr',
-  // 'experimental.serverActions',
+
   // 'experimental.sri.algorithm',
   // 'experimental.swcTraceProfiling',
   // 'experimental.typedRoutes',
 
-  // Might not be needed for Turbopack
+  // Left to be implemented (Might not be needed for Turbopack)
   // 'experimental.craCompat',
   // 'experimental.disablePostcssPresetEnv',
   // 'experimental.esmExternals',
