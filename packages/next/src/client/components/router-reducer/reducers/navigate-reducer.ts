@@ -263,7 +263,13 @@ export function navigateReducer(
 
   // Handle case when navigating to page in `pages` from `app`
   if (typeof flightData === 'string') {
-    return handleExternalUrl(state, mutable, flightData, pendingPush)
+    return handleExternalUrl(
+      state,
+      mutable,
+      // flightData omits the hash, use the href including the hash as the external url when the href has a different path
+      flightData ? href : flightData,
+      pendingPush
+    )
   }
 
   let currentTree = state.tree
