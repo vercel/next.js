@@ -64,7 +64,7 @@ use turbo_tasks::{
     mark_stateful, spawn_thread, trace::TraceRawVcs, Completion, InvalidationReason, Invalidator,
     ReadRef, ValueToString, Vc,
 };
-use turbo_tasks_hash::hash_xxh3_hash64;
+use turbo_tasks_hash::{hash_xxh3_hash64, DeterministicHash, DeterministicHasher};
 use util::{extract_disk_access, join_path, normalize_path, sys_to_unix, unix_to_sys};
 pub use virtual_fs::VirtualFileSystem;
 
@@ -1471,7 +1471,7 @@ impl RealPathResult {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, DeterministicHash)]
 #[turbo_tasks::value(shared)]
 pub enum Permissions {
     Readable,
@@ -1524,7 +1524,7 @@ impl From<std::fs::Permissions> for Permissions {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, DeterministicHash)]
 pub enum FileContent {
     Content(File),
     NotFound,
@@ -1629,7 +1629,7 @@ pub enum LinkContent {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone)]
+#[derive(Clone, DeterministicHash)]
 pub struct File {
     meta: FileMeta,
     #[turbo_tasks(debug_ignore)]
@@ -1677,6 +1677,7 @@ impl File {
         self.meta.content_type = Some(content_type);
         self
     }
+
     /// Returns a Read/AsyncRead/Stream/Iterator to access the File's contents.
     pub fn read(&self) -> RopeReader {
         self.content.read()
@@ -1752,7 +1753,6 @@ impl File {
         &self.content
     }
 }
-
 mod mime_option_serde {
     use std::{fmt, str::FromStr};
 
@@ -1817,6 +1817,15 @@ impl From<std::fs::Metadata> for FileMeta {
         Self {
             permissions,
             content_type: None,
+        }
+    }
+}
+
+impl DeterministicHash for FileMeta {
+    fn deterministic_hash<H: DeterministicHasher>(&self, state: &mut H) {
+        self.permissions.deterministic_hash(state);
+        if let Some(content_type) = &self.content_type {
+            content_type.to_string().deterministic_hash(state);
         }
     }
 }
@@ -1912,15 +1921,22 @@ impl FileContent {
         let this = self.await?;
         Ok(this.parse_json_ref().into())
     }
+
     #[turbo_tasks::function]
     pub async fn parse_json_with_comments(self: Vc<Self>) -> Result<Vc<FileJsonContent>> {
         let this = self.await?;
         Ok(this.parse_json_with_comments_ref().into())
     }
+
     #[turbo_tasks::function]
     pub async fn lines(self: Vc<Self>) -> Result<Vc<FileLinesContent>> {
         let this = self.await?;
         Ok(this.lines_ref().into())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn hash(self: Vc<Self>) -> Result<Vc<u64>> {
+        Ok(Vc::cell(hash_xxh3_hash64(&self.await?)))
     }
 }
 
