@@ -35,6 +35,8 @@ const supportedTurbopackNextConfigOptions = [
   'distDir',
   'skipMiddlewareUrlNormalize',
   'skipTrailingSlashRedirect',
+  'experimental.logging.level',
+  'experimental.swcPlugins',
   'experimental.manualClientBasePath',
   'experimental.optimisticClientCache',
   'experimental.middlewarePrefetch',
