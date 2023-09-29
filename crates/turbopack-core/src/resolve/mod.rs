@@ -1092,11 +1092,10 @@ async fn resolve_internal(
 
     // Apply import mappings if provided
     if let Some(import_map) = &options_value.import_map {
-        let result_ref = import_map.lookup(lookup_path, request).await?;
-        let result = &*result_ref;
+        let result = import_map.await?.lookup(lookup_path, request).await?;
         if !matches!(result, ImportMapResult::NoEntry) {
             let resolved_result = resolve_import_map_result(
-                result,
+                &result,
                 lookup_path,
                 lookup_path,
                 request,
@@ -1137,7 +1136,7 @@ async fn resolve_internal(
                 lookup_path,
                 "".to_string(),
                 *force_in_lookup_dir,
-                Pattern::new(path.clone()),
+                Pattern::new(path.clone()).resolve().await?,
             )
             .await?;
 
@@ -1162,21 +1161,25 @@ async fn resolve_internal(
             query,
             force_in_lookup_dir,
         } => {
-            let mut patterns = vec![path.clone()];
+            let mut requests = vec![Request::raw(
+                Value::new(path.clone()),
+                *query,
+                *force_in_lookup_dir,
+            )];
             for ext in options_value.extensions.iter() {
                 let mut path = path.clone();
                 path.push(ext.clone().into());
-                patterns.push(path);
+                requests.push(Request::raw(Value::new(path), *query, *force_in_lookup_dir));
             }
 
-            // This ensures the order of the patterns (extensions) is
+            // This ensures the order of the requests (extensions) is
             // preserved, `Pattern::Alternatives` inside a `Request::Raw` does not preserve
             // the order
             let mut results = Vec::new();
-            for pattern in patterns {
+            for request in requests {
                 results.push(resolve_internal(
                     lookup_path,
-                    Request::raw(Value::new(pattern), *query, *force_in_lookup_dir),
+                    request.resolve().await?,
                     options,
                 ));
             }
@@ -1212,7 +1215,11 @@ async fn resolve_internal(
             .cell()
             .emit();
 
-            resolve_internal(lookup_path.root(), relative, options)
+            resolve_internal(
+                lookup_path.root().resolve().await?,
+                relative.resolve().await?,
+                options,
+            )
         }
         Request::Windows { path: _, query: _ } => {
             ResolvingIssue {
@@ -1280,10 +1287,9 @@ async fn resolve_internal(
     // Apply fallback import mappings if provided
     if let Some(import_map) = &options_value.fallback_import_map {
         if *result.is_unresolveable().await? {
-            let result_ref = import_map.lookup(lookup_path, request).await?;
-            let result = &*result_ref;
+            let result = import_map.await?.lookup(lookup_path, request).await?;
             let resolved_result = resolve_import_map_result(
-                result,
+                &result,
                 lookup_path,
                 lookup_path,
                 request,
@@ -1318,7 +1324,11 @@ async fn resolve_into_folder(
                         )
                     })?;
                 let request = Request::parse(Value::new(str.into()));
-                return Ok(resolve_internal(package_path, request, options));
+                return Ok(resolve_internal(
+                    package_path,
+                    request.resolve().await?,
+                    options,
+                ));
             }
             ResolveIntoPackage::MainField(name) => {
                 if let Some(package_json) = &*read_package_json(package_json_path).await? {
@@ -1500,7 +1510,11 @@ async fn resolve_module_request(
         new_pat.push_front(".".to_string().into());
 
         let relative = Request::relative(Value::new(new_pat), query, true);
-        results.push(resolve_internal(*package_path, relative, options));
+        results.push(resolve_internal(
+            *package_path,
+            relative.resolve().await?,
+            options,
+        ));
     }
 
     Ok(merge_results_with_affecting_sources(
@@ -1565,17 +1579,14 @@ fn resolve_import_map_result_boxed<'a>(
     options: Vc<ResolveOptions>,
     query: Vc<String>,
 ) -> Pin<Box<dyn Future<Output = ResolveImportMapResult> + Send + 'a>> {
-    Box::pin(async move {
-        resolve_import_map_result(
-            result,
-            lookup_path,
-            original_lookup_path,
-            original_request,
-            options,
-            query,
-        )
-        .await
-    })
+    Box::pin(resolve_import_map_result(
+        result,
+        lookup_path,
+        original_lookup_path,
+        original_request,
+        options,
+        query,
+    ))
 }
 
 async fn resolve_alias_field_result(

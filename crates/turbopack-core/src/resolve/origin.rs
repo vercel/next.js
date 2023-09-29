@@ -86,12 +86,16 @@ async fn resolve_asset(
     if let Some(asset) = *resolve_origin.get_inner_asset(request).await? {
         return Ok(ModuleResolveResult::module(asset).cell());
     }
-    Ok(resolve_origin.asset_context().resolve_asset(
-        resolve_origin.origin_path(),
-        request,
-        options,
-        reference_type,
-    ))
+    Ok(resolve_origin
+        .asset_context()
+        .resolve()
+        .await?
+        .resolve_asset(
+            resolve_origin.origin_path().resolve().await?,
+            request,
+            options,
+            reference_type,
+        ))
 }
 
 /// A resolve origin for some path and context without additional modifications.

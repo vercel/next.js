@@ -103,7 +103,7 @@ impl CodeGenerateableWithAvailabilityInfo for EsmAsyncAssetReference {
                 self.origin,
                 self.request,
                 Value::new(EcmaScriptModulesReferenceSubType::Undefined),
-                OptionIssueSource::some(self.issue_source),
+                OptionIssueSource::some(self.issue_source).resolve().await?,
                 try_to_severity(self.in_try),
             ),
             Value::new(EsmAsync(availability_info.into_value())),
