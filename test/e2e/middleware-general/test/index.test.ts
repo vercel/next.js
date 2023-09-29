@@ -75,7 +75,7 @@ describe('Middleware Runtime', () => {
         packageJson: {
           scripts: {
             setup: `cp -r ./shared-package ./node_modules`,
-            build: 'pnpm run setup && pnpm run build',
+            build: 'pnpm run setup && next build',
             dev: `pnpm run setup && next ${
               shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
             }`,
