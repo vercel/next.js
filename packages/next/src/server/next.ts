@@ -167,10 +167,30 @@ export class NextServer {
 
   private async [SYMBOL_LOAD_CONFIG]() {
     const dir = resolve(this.options.dir || '.')
-    // use serialized build config when available
+
+    const config =
+      this.options.preloadedConfig ||
+      (await loadConfig(
+        this.options.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
+        dir,
+        {
+          customConfig: this.options.conf,
+          silent: true,
+        }
+      ))
+
+    // check serialized build config when available
     if (process.env.NODE_ENV === 'production') {
       try {
-        return require(path.join(dir, '.next', SERVER_FILES_MANIFEST)).config
+        const serializedConfig = require(path.join(
+          dir,
+          '.next',
+          SERVER_FILES_MANIFEST
+        )).config
+
+        // @ts-expect-error internal field
+        config.experimental.isExperimentalConfig =
+          serializedConfig.experimental.isExperimentalCompile
       } catch (_) {
         // if distDir is customized we don't know until we
         // load the config so fallback to loading the config
@@ -178,17 +198,7 @@ export class NextServer {
       }
     }
 
-    return (
-      this.options.preloadedConfig ||
-      loadConfig(
-        this.options.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
-        dir,
-        {
-          customConfig: this.options.conf,
-          silent: true,
-        }
-      )
-    )
+    return config
   }
 
   private async getServer() {
