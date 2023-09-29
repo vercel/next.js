@@ -357,6 +357,13 @@ impl<'a, K, V> Iterator for Iter<'a, K, V> {
             Iter::Map(iter) => iter.next().map(|(k, v)| (k, v)),
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self {
+            Iter::List(iter) => iter.size_hint(),
+            Iter::Map(iter) => iter.size_hint(),
+        }
+    }
 }
 
 impl<'a, K, V> Clone for Iter<'a, K, V> {
@@ -382,6 +389,13 @@ impl<'a, K, V> Iterator for IterMut<'a, K, V> {
             IterMut::Map(iter) => iter.next().map(|(k, v)| (k, v)),
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self {
+            IterMut::List(iter) => iter.size_hint(),
+            IterMut::Map(iter) => iter.size_hint(),
+        }
+    }
 }
 
 pub enum IntoIter<K, V> {
@@ -396,6 +410,13 @@ impl<K, V> Iterator for IntoIter<K, V> {
         match self {
             IntoIter::List(iter) => iter.next(),
             IntoIter::Map(iter) => iter.next(),
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self {
+            IntoIter::List(iter) => iter.size_hint(),
+            IntoIter::Map(iter) => iter.size_hint(),
         }
     }
 }
@@ -414,6 +435,13 @@ impl<'a, K, V> Iterator for Values<'a, K, V> {
             Values::Map(iter) => iter.next(),
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self {
+            Values::List(iter) => iter.size_hint(),
+            Values::Map(iter) => iter.size_hint(),
+        }
+    }
 }
 
 pub enum ValuesMut<'a, K, V> {
@@ -430,6 +458,13 @@ impl<'a, K, V> Iterator for ValuesMut<'a, K, V> {
             ValuesMut::Map(iter) => iter.next(),
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self {
+            ValuesMut::List(iter) => iter.size_hint(),
+            ValuesMut::Map(iter) => iter.size_hint(),
+        }
+    }
 }
 
 pub enum IntoValues<K, V> {
@@ -444,6 +479,13 @@ impl<K, V> Iterator for IntoValues<K, V> {
         match self {
             IntoValues::List(iter) => iter.next().map(|(_, v)| v),
             IntoValues::Map(iter) => iter.next(),
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self {
+            IntoValues::List(iter) => iter.size_hint(),
+            IntoValues::Map(iter) => iter.size_hint(),
         }
     }
 }

@@ -48,7 +48,7 @@ impl TurboTasksCallApi for VcStorage {
         let future = func();
         let i = {
             let mut tasks = self.tasks.lock().unwrap();
-            let i = tasks.len();
+            let i = tasks.len() + 1;
             tasks.push(Task::Spawned(Event::new(move || {
                 format!("Task({i})::event")
             })));
@@ -73,7 +73,7 @@ impl TurboTasksCallApi for VcStorage {
                     .map_err(SharedError::new);
 
                 let mut tasks = this.tasks.lock().unwrap();
-                if let Task::Spawned(event) = replace(&mut tasks[i], Task::Finished(result)) {
+                if let Task::Spawned(event) = replace(&mut tasks[i - 1], Task::Finished(result)) {
                     event.notify(usize::MAX);
                 }
             },
@@ -148,7 +148,7 @@ impl TurboTasksApi for VcStorage {
         _strongly_consistent: bool,
     ) -> Result<Result<RawVc, EventListener>> {
         let tasks = self.tasks.lock().unwrap();
-        let task = tasks.get(*task).unwrap();
+        let task = tasks.get(*task - 1).unwrap();
         match task {
             Task::Spawned(event) => Ok(Err(event.listen())),
             Task::Finished(result) => match result {

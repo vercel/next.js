@@ -58,7 +58,11 @@ impl MemoryBackend {
             memory_tasks: NoMoveVec::new(),
             backend_jobs: NoMoveVec::new(),
             backend_job_id_factory: IdFactory::new(),
-            task_cache: DashMap::default(),
+            task_cache: DashMap::with_hasher_and_shard_amount(
+                Default::default(),
+                (std::thread::available_parallelism().map_or(1, usize::from) * 32)
+                    .next_power_of_two(),
+            ),
             memory_limit,
             gc_queue: (memory_limit != usize::MAX).then(GcQueue::new),
             idle_gc_active: AtomicBool::new(false),
