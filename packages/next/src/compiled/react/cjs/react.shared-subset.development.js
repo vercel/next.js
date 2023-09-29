@@ -15,39 +15,6 @@ if (process.env.NODE_ENV !== "production") {
 'use strict';
 
 /**
- * Keeps track of the current dispatcher.
- */
-var ReactCurrentDispatcher$1 = {
-  current: null
-};
-
-/**
- * Keeps track of the current Cache dispatcher.
- */
-var ReactCurrentCache = {
-  current: null
-};
-
-/**
- * Keeps track of the current batch's configuration such as how long an update
- * should suspend for if it needs to.
- */
-var ReactCurrentBatchConfig = {
-  transition: null
-};
-
-var ReactCurrentActQueue = {
-  current: null,
-  // Used to reproduce behavior of `batchedUpdates` in legacy mode.
-  isBatchingLegacy: false,
-  didScheduleLegacyUpdate: false,
-  // Tracks whether something called `use` during the current batch of work.
-  // Determines whether we should yield to microtasks to unwrap already resolved
-  // promises without suspending.
-  didUsePromise: false
-};
-
-/**
  * Keeps track of the current owner.
  *
  * The current owner is the component who should own any components that are
@@ -109,22 +76,18 @@ var enableLegacyHidden = false; // Enables unstable_avoidThisFallback feature in
 
 var enableDebugTracing = false; // Track which Fiber(s) schedule render work.
 
-var ContextRegistry$1 = {};
+var ContextRegistry = {};
 
 var ReactSharedInternals = {
-  ReactCurrentDispatcher: ReactCurrentDispatcher$1,
-  ReactCurrentCache: ReactCurrentCache,
-  ReactCurrentBatchConfig: ReactCurrentBatchConfig,
   ReactCurrentOwner: ReactCurrentOwner
 };
 
 {
   ReactSharedInternals.ReactDebugCurrentFrame = ReactDebugCurrentFrame$1;
-  ReactSharedInternals.ReactCurrentActQueue = ReactCurrentActQueue;
 }
 
 {
-  ReactSharedInternals.ContextRegistry = ContextRegistry$1;
+  ReactSharedInternals.ContextRegistry = ContextRegistry;
 }
 
 // by calls to these methods by a Babel plugin.
@@ -181,6 +144,13 @@ function printWarning(level, format, args) {
 }
 
 var assign = Object.assign;
+
+/**
+ * Keeps track of the current Cache dispatcher.
+ */
+var ReactCurrentCache = {
+  current: null
+};
 
 function createFetchCache() {
   return new Map();
@@ -305,7 +275,19 @@ function generateCacheKey(request) {
   }
 }
 
-var ReactVersion = '18.3.0-canary-d900fadbf-20230929';
+/**
+ * Keeps track of the current dispatcher.
+ */
+var ReactCurrentDispatcher$1 = {
+  current: null
+};
+
+var ReactServerSharedInternals = {
+  ReactCurrentDispatcher: ReactCurrentDispatcher$1,
+  ReactCurrentCache: ReactCurrentCache
+};
+
+var ReactVersion = '18.3.0-canary-db69f95e4-20231002';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -2507,7 +2489,6 @@ function cloneElementWithValidation(element, props, children) {
   return newElement;
 }
 
-var ContextRegistry = ReactSharedInternals.ContextRegistry;
 function createServerContext(globalName, defaultValue) {
 
   {
@@ -2582,6 +2563,14 @@ function createServerContext(globalName, defaultValue) {
   return context;
 }
 
+/**
+ * Keeps track of the current batch's configuration such as how long an update
+ * should suspend for if it needs to.
+ */
+var ReactCurrentBatchConfig = {
+  transition: null
+};
+
 function startTransition(scope, options) {
   var prevTransition = ReactCurrentBatchConfig.transition;
   ReactCurrentBatchConfig.transition = {};
@@ -2626,6 +2615,7 @@ exports.Profiler = REACT_PROFILER_TYPE;
 exports.StrictMode = REACT_STRICT_MODE_TYPE;
 exports.Suspense = REACT_SUSPENSE_TYPE;
 exports.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = ReactSharedInternals;
+exports.__SECRET_SERVER_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = ReactServerSharedInternals;
 exports.cache = cache;
 exports.cloneElement = cloneElement;
 exports.createElement = createElement;

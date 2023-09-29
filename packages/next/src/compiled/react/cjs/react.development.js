@@ -23,7 +23,7 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
 }
-          var ReactVersion = '18.3.0-canary-d900fadbf-20230929';
+          var ReactVersion = '18.3.0-canary-db69f95e4-20231002';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -156,7 +156,7 @@ var enableLegacyHidden = false; // Enables unstable_avoidThisFallback feature in
 
 var enableDebugTracing = false; // Track which Fiber(s) schedule render work.
 
-var ContextRegistry$1 = {};
+var ContextRegistry = {};
 
 var ReactSharedInternals = {
   ReactCurrentDispatcher: ReactCurrentDispatcher$1,
@@ -171,7 +171,7 @@ var ReactSharedInternals = {
 }
 
 {
-  ReactSharedInternals.ContextRegistry = ContextRegistry$1;
+  ReactSharedInternals.ContextRegistry = ContextRegistry;
 }
 
 // by calls to these methods by a Babel plugin.
@@ -2580,7 +2580,6 @@ function cloneElementWithValidation(element, props, children) {
   return newElement;
 }
 
-var ContextRegistry = ReactSharedInternals.ContextRegistry;
 function createServerContext(globalName, defaultValue) {
 
   {

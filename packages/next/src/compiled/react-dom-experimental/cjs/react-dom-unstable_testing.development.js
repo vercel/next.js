@@ -125,7 +125,7 @@ var enableLazyContextPropagation = false; // FB-only usage. The new API has diff
 var enableLegacyHidden = false; // Enables unstable_avoidThisFallback feature in Fiber
 var enableHostSingletons = true;
 var enableAsyncActions = true;
-var alwaysThrottleRetries = true; // -----------------------------------------------------------------------------
+var alwaysThrottleRetries = true;
 // Chopping Block
 //
 // Planned feature deprecations and breaking changes. Sorted roughly in order of
@@ -3590,8 +3590,12 @@ function updateInput(element, value, defaultValue, lastDefaultValue, checked, de
     }
   }
 
-  if (checked != null && node.checked !== !!checked) {
-    node.checked = checked;
+  if (checked != null) {
+    // Important to set this even if it's not a change in order to update input
+    // value tracking with radio buttons
+    // TODO: Should really update input value tracking for the whole radio
+    // button group in an effect or something (similar to #27024)
+    node.checked = checked && typeof checked !== 'function' && typeof checked !== 'symbol';
   }
 
   if (name != null && typeof name !== 'function' && typeof name !== 'symbol' && typeof name !== 'boolean') {
@@ -3657,13 +3661,12 @@ function initInput(element, value, defaultValue, checked, defaultChecked, type, 
   var checkedOrDefault = checked != null ? checked : defaultChecked; // TODO: This 'function' or 'symbol' check isn't replicated in other places
   // so this semantic is inconsistent.
 
-  var initialChecked = typeof checkedOrDefault !== 'function' && typeof checkedOrDefault !== 'symbol' && !!checkedOrDefault; // The checked property never gets assigned. It must be manually set.
-  // We don't want to do this when hydrating so that existing user input isn't
-  // modified
-  // TODO: I'm pretty sure this is a bug because initialValueTracking won't be
-  // correct for the hydration case then.
+  var initialChecked = typeof checkedOrDefault !== 'function' && typeof checkedOrDefault !== 'symbol' && !!checkedOrDefault;
 
-  if (!isHydrating) {
+  if (isHydrating) {
+    // Detach .checked from .defaultChecked but leave user input alone
+    node.checked = node.checked;
+  } else {
     node.checked = !!initialChecked;
   }
 
@@ -28672,7 +28675,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks, formState) {
   return root;
 }
 
-var ReactVersion = '18.3.0-experimental-d900fadbf-20230929';
+var ReactVersion = '18.3.0-experimental-db69f95e4-20231002';
 
 function createPortal$1(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {
