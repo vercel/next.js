@@ -1097,6 +1097,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
          * Decide if the current segment is where rendering has to start.
          */
         const renderComponentsOnThisLevel =
+          // For a prefetch call, start rendering at the earliest possible point
           isPrefetch ||
           // No further router state available
           !flightRouterState ||
