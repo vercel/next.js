@@ -108,6 +108,9 @@ async function exportPageImpl(input: ExportPageInput) {
     // Check if this is an `app/` page.
     _isAppDir: isAppDir = false,
 
+    // Check if this is an `app/` prefix request.
+    _isAppPrefetch: isAppPrefetch = false,
+
     // Check if this should error when dynamic usage is detected.
     _isDynamicError: isDynamicError = false,
 
@@ -306,7 +309,8 @@ async function exportPageImpl(input: ExportPageInput) {
         renderOpts,
         htmlFilepath,
         debugOutput,
-        isDynamicError
+        isDynamicError,
+        isAppPrefetch
       )
     }
 

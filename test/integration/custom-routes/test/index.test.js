@@ -2660,6 +2660,7 @@ const runTests = (isDev = false, isTurbo = false) => {
           contentTypeHeader: 'text/x-component',
           varyHeader:
             'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url',
+          prefetchHeader: 'Next-Router-Prefetch',
         },
       })
     })
