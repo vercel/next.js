@@ -1,16 +1,11 @@
-import { Client, fql } from 'fauna'
+import { getAllEntries, createEntry } from '@/lib/fauna'
 import { NextResponse } from 'next/server'
 
-const client = new Client({
-  secret: process.env.FAUNA_CLIENT_SECRET,
-})
 
 export const GET = async (req, res) => {
   try {
-    const dbresponse = await client.query(fql`
-      Entry.all()
-    `)
-    return NextResponse.json(dbresponse.data.data)
+    const entries = await getAllEntries()
+    return NextResponse.json(entries)
   } catch (error) {
     throw new Error(error.message)
   }
@@ -19,14 +14,8 @@ export const GET = async (req, res) => {
 export const POST = async (req, res) => {
   const { name, message } = await req.json()
   try {
-    const dbresponse = await client.query(fql`
-      Entry.create({
-        name: ${name},
-        message: ${message},
-        createdAt: Time.now(),
-      })`
-    )
-    return NextResponse.json(dbresponse.data)
+    const newentry = await createEntry(name, message)
+    return NextResponse.json(newentry)
   } catch (error) {
     throw new Error(error.message)
   }
