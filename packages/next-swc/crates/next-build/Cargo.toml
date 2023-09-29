@@ -6,12 +6,6 @@ license = "MPL-2.0"
 edition = "2021"
 autobenches = false
 
-[[bin]]
-name = "next-build"
-path = "src/main.rs"
-bench = false
-required-features = ["cli"]
-
 [lib]
 bench = false
 
@@ -21,8 +15,7 @@ bench = false
 # `cargo xxx` without explicitly specifying features, not that we want to
 # promote this as default backend. Actual configuration is done when building next-swc,
 # and also turbopack standalone when we have it.
-default = ["cli", "custom_allocator", "native-tls"]
-cli = ["clap"]
+default = ["custom_allocator", "native-tls"]
 tokio_console = [
   "dep:console-subscriber",
   "tokio/tracing",
@@ -40,7 +33,6 @@ profile = []
 [dependencies]
 anyhow = { workspace = true }
 async-recursion = { workspace = true }
-clap = { workspace = true, features = ["derive", "env"], optional = true }
 console-subscriber = { workspace = true, optional = true }
 dunce = { workspace = true }
 next-core = { workspace = true }
