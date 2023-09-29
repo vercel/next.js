@@ -243,9 +243,9 @@ impl EcmascriptInputTransform {
                 // TODO(WEB-1213)
                 use_define_for_class_fields: _use_define_for_class_fields,
             } => {
-                use swc_core::ecma::transforms::typescript::strip_with_config;
+                use swc_core::ecma::transforms::typescript::typescript;
                 let config = Default::default();
-                program.visit_mut_with(&mut strip_with_config(config, top_level_mark));
+                program.visit_mut_with(&mut typescript(config, unresolved_mark));
             }
             EcmascriptInputTransform::Decorators {
                 is_legacy,
