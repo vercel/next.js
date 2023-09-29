@@ -334,8 +334,11 @@ async function startWatcher(opts: SetupOpts) {
       id: string,
       result: TurbopackResult<WrittenEndpoint>
     ): Promise<TurbopackResult<WrittenEndpoint>> {
+      // Figure out if the server files have changed
       let hasChange = false
       for (const { path: p, contentHash } of result.serverPaths) {
+        // We ignore source maps
+        if (p.endsWith('.map')) continue
         let key = `${id}:${p}`
         const previousHash = serverPathState.get(key)
         if (previousHash !== contentHash) {

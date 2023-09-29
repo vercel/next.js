@@ -10,6 +10,7 @@ use turbopack_binding::{
     },
 };
 
+/// A reference to a server file with content hash for change detection
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs)]
 pub struct ServerPath {
     /// Relative to the root_path
@@ -17,9 +18,13 @@ pub struct ServerPath {
     pub content_hash: u64,
 }
 
+/// A list of server paths
 #[turbo_tasks::value(transparent)]
 pub struct ServerPaths(Vec<ServerPath>);
 
+/// Return a list of all server paths with filename and hash for all output
+/// assets references from the `assets` list. Server paths are identified by
+/// being inside of `node_root`.
 #[turbo_tasks::function]
 pub async fn all_server_paths(
     assets: Vc<OutputAssets>,
