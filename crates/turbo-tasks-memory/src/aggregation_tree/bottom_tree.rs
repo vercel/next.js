@@ -3,6 +3,7 @@ use std::{hash::Hash, ops::ControlFlow, sync::Arc};
 use nohash_hasher::{BuildNoHashHasher, IsEnabled};
 use parking_lot::{Mutex, MutexGuard};
 use ref_cast::RefCast;
+use smallvec::SmallVec;
 
 use super::{
     bottom_connection::BottomConnection,
@@ -81,18 +82,18 @@ impl<T, I: Clone + Eq + Hash + IsEnabled> BottomTree<T, I> {
         }
     }
 
-    fn add_children_of_child_if_following(&self, children: &mut Vec<&I>) {
+    fn add_children_of_child_if_following(&self, children: &mut SmallVec<[&I; 16]>) {
         let mut state = self.state.lock();
-        children.retain(|&child| !state.following.add_if_entry(child));
+        children.retain(|&mut child| !state.following.add_if_entry(child));
     }
 
     fn add_children_of_child_following<C: AggregationContext<Info = T, ItemRef = I>>(
         self: &Arc<Self>,
         aggregation_context: &C,
-        mut children: Vec<&I>,
+        mut children: SmallVec<[&I; 16]>,
     ) {
         let mut state = self.state.lock();
-        children.retain(|&child| state.following.add_clonable(child));
+        children.retain(|&mut child| state.following.add_clonable(child));
         if children.is_empty() {
             return;
         }
@@ -113,7 +114,7 @@ impl<T, I: Clone + Eq + Hash + IsEnabled> BottomTree<T, I> {
     ) where
         I: 'a,
     {
-        let mut following = Vec::new();
+        let mut following = SmallVec::default();
         if self.height == 0 {
             for child in children {
                 let can_be_inner =
@@ -253,7 +254,7 @@ impl<T, I: Clone + Eq + Hash + IsEnabled> BottomTree<T, I> {
         children: &mut Vec<&'a I>,
     ) {
         let mut state = self.state.lock();
-        let mut removed = Vec::new();
+        let mut removed = SmallVec::<[_; 16]>::default();
         children.retain(|&child| match state.following.remove_if_entry(child) {
             RemoveIfEntryResult::PartiallyRemoved => false,
             RemoveIfEntryResult::NotPresent => true,
@@ -284,10 +285,10 @@ impl<T, I: Clone + Eq + Hash + IsEnabled> BottomTree<T, I> {
     fn remove_children_of_child_following<C: AggregationContext<Info = T, ItemRef = I>>(
         self: &Arc<Self>,
         aggregation_context: &C,
-        mut children: Vec<&I>,
+        mut children: SmallVec<[&I; 16]>,
     ) {
         let mut state = self.state.lock();
-        children.retain(|&child| state.following.remove_clonable(child));
+        children.retain(|&mut child| state.following.remove_clonable(child));
         propagate_lost_followings_to_uppers(state, aggregation_context, children);
     }
 
@@ -314,11 +315,11 @@ impl<T, I: Clone + Eq + Hash + IsEnabled> BottomTree<T, I> {
     ) where
         I: 'a,
     {
-        let unremoveable = if self.height == 0 {
+        let unremoveable: SmallVec<[_; 16]> = if self.height == 0 {
             children
                 .into_iter()
                 .filter(|&child| !remove_inner_upper_from_item(aggregation_context, child, self))
-                .collect::<Vec<_>>()
+                .collect()
         } else {
             children
                 .into_iter()
@@ -326,7 +327,7 @@ impl<T, I: Clone + Eq + Hash + IsEnabled> BottomTree<T, I> {
                     !bottom_tree(aggregation_context, child, self.height - 1)
                         .remove_inner_bottom_tree_upper(aggregation_context, self)
                 })
-                .collect::<Vec<_>>()
+                .collect()
         };
         if !unremoveable.is_empty() {
             self.remove_children_of_child_following(aggregation_context, unremoveable);
@@ -341,7 +342,11 @@ impl<T, I: Clone + Eq + Hash + IsEnabled> BottomTree<T, I> {
         let mut state = self.state.lock();
         let old_inner = state.bottom_upper.set_left_upper(upper);
         let add_change = aggregation_context.info_to_add_change(&state.data);
-        let children = state.following.iter().cloned().collect::<Vec<_>>();
+        let children = state
+            .following
+            .iter()
+            .cloned()
+            .collect::<SmallVec<[_; 16]>>();
 
         let remove_change = (!old_inner.is_unset())
             .then(|| aggregation_context.info_to_remove_change(&state.data))
@@ -438,7 +443,11 @@ impl<T, I: Clone + Eq + Hash + IsEnabled> BottomTree<T, I> {
             if let Some(change) = aggregation_context.info_to_add_change(&state.data) {
                 upper.child_change(aggregation_context, &change);
             }
-            let children = state.following.iter().cloned().collect::<Vec<_>>();
+            let children = state
+                .following
+                .iter()
+                .cloned()
+                .collect::<SmallVec<[_; 16]>>();
             drop(state);
             if !children.is_empty() {
                 upper.add_children_of_child(
@@ -462,7 +471,11 @@ impl<T, I: Clone + Eq + Hash + IsEnabled> BottomTree<T, I> {
         if let Some(change) = aggregation_context.info_to_remove_change(&state.data) {
             upper.child_change(aggregation_context, &change);
         }
-        let following = state.following.iter().cloned().collect::<Vec<_>>();
+        let following = state
+            .following
+            .iter()
+            .cloned()
+            .collect::<SmallVec<[_; 16]>>();
         if state.top_upper.is_empty() {
             drop(state);
             self.remove_self_from_lower(aggregation_context);
@@ -485,7 +498,11 @@ impl<T, I: Clone + Eq + Hash + IsEnabled> BottomTree<T, I> {
         let removed = inner.remove_clonable(BottomRef::ref_cast(upper));
         if removed {
             let remove_change = aggregation_context.info_to_remove_change(&state.data);
-            let following = state.following.iter().cloned().collect::<Vec<_>>();
+            let following = state
+                .following
+                .iter()
+                .cloned()
+                .collect::<SmallVec<[_; 16]>>();
             drop(state);
             if let Some(change) = remove_change {
                 upper.child_change(aggregation_context, &change);
@@ -583,7 +600,11 @@ fn propagate_lost_following_to_uppers<C: AggregationContext>(
     child_of_child: &C::ItemRef,
 ) {
     let bottom_uppers = state.bottom_upper.as_cloned_uppers();
-    let top_upper = state.top_upper.iter().cloned().collect::<Vec<_>>();
+    let top_upper = state
+        .top_upper
+        .iter()
+        .cloned()
+        .collect::<SmallVec<[_; 16]>>();
     drop(state);
     for TopRef { upper } in top_upper {
         upper.remove_child_of_child(aggregation_context, child_of_child);

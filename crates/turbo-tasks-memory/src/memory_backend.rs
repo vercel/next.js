@@ -221,7 +221,7 @@ impl MemoryBackend {
 
     pub(crate) fn schedule_when_dirty_from_aggregation(
         &self,
-        set: AutoSet<TaskId, BuildNoHashHasher<TaskId>>,
+        set: AutoSet<TaskId, BuildNoHashHasher<TaskId>, 2>,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) {
         for task in set {
@@ -262,7 +262,7 @@ impl Backend for MemoryBackend {
 
     fn invalidate_tasks_set(
         &self,
-        tasks: &AutoSet<TaskId, BuildNoHashHasher<TaskId>>,
+        tasks: &AutoSet<TaskId, BuildNoHashHasher<TaskId>, 2>,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) {
         for &task in tasks {

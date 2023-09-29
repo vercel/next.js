@@ -65,11 +65,11 @@ struct MemoryTaskState {
     need_persist: bool,
     has_changes: bool,
     freshness: TaskFreshness,
-    cells: HashMap<CellId, (TaskCell, AutoSet<TaskId, BuildNoHashHasher<TaskId>>)>,
+    cells: HashMap<CellId, (TaskCell, AutoSet<TaskId, BuildNoHashHasher<TaskId>, 2>)>,
     output: Option<Result<RawVc, SharedError>>,
-    output_dependent: AutoSet<TaskId, BuildNoHashHasher<TaskId>>,
+    output_dependent: AutoSet<TaskId, BuildNoHashHasher<TaskId>, 2>,
     dependencies: AutoSet<RawVc>,
-    children: AutoSet<TaskId, BuildNoHashHasher<TaskId>>,
+    children: AutoSet<TaskId, BuildNoHashHasher<TaskId>, 2>,
     event: Event,
     event_cells: Event,
 }
@@ -1040,7 +1040,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
 
     fn invalidate_tasks_set(
         &self,
-        tasks: &AutoSet<TaskId, BuildNoHashHasher<TaskId>>,
+        tasks: &AutoSet<TaskId, BuildNoHashHasher<TaskId>, 2>,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) {
         for &task in tasks {
