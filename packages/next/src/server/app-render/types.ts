@@ -5,55 +5,35 @@ import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import type { ParsedUrlQuery } from 'querystring'
 
-import zod from 'zod'
+import s from 'next/dist/compiled/superstruct'
 
 export type DynamicParamTypes = 'catchall' | 'optional-catchall' | 'dynamic'
 
-const dynamicParamTypesSchema = zod.enum(['c', 'oc', 'd'])
-/**
- * c = catchall
- * oc = optional catchall
- * d = dynamic
- */
-export type DynamicParamTypesShort = zod.infer<typeof dynamicParamTypesSchema>
+const dynamicParamTypesSchema = s.enums(['c', 'oc', 'd'])
 
-const segmentSchema = zod.union([
-  zod.string(),
-  zod.tuple([zod.string(), zod.string(), dynamicParamTypesSchema]),
+export type DynamicParamTypesShort = s.Infer<typeof dynamicParamTypesSchema>
+
+const segmentSchema = s.union([
+  s.string(),
+  s.tuple([s.string(), s.string(), dynamicParamTypesSchema]),
 ])
-/**
- * Segment in the router state.
- */
-export type Segment = zod.infer<typeof segmentSchema>
 
-export const flightRouterStateSchema: zod.ZodType<FlightRouterState> = zod.lazy(
-  () => {
-    const parallelRoutesSchema = zod.record(flightRouterStateSchema)
-    const urlSchema = zod.string().nullable().optional()
-    const refreshSchema = zod.literal('refetch').nullable().optional()
-    const isRootLayoutSchema = zod.boolean().optional()
+export type Segment = s.Infer<typeof segmentSchema>
 
-    // Due to the lack of optional tuple types in Zod, we need to use union here.
-    // https://github.com/colinhacks/zod/issues/1465
-    return zod.union([
-      zod.tuple([
-        segmentSchema,
-        parallelRoutesSchema,
-        urlSchema,
-        refreshSchema,
-        isRootLayoutSchema,
-      ]),
-      zod.tuple([
-        segmentSchema,
-        parallelRoutesSchema,
-        urlSchema,
-        refreshSchema,
-      ]),
-      zod.tuple([segmentSchema, parallelRoutesSchema, urlSchema]),
-      zod.tuple([segmentSchema, parallelRoutesSchema]),
-    ])
-  }
-)
+// unfortunately the tuple is not understood well by Describe so we have to
+// use any here. This does not have any impact on the runtime type since the validation
+// does work correctly.
+export const flightRouterStateSchema: s.Describe<any> = s.tuple([
+  segmentSchema,
+  s.record(
+    s.string(),
+    s.lazy(() => flightRouterStateSchema)
+  ),
+  s.optional(s.nullable(s.string())),
+  s.optional(s.nullable(s.literal('refetch'))),
+  s.optional(s.boolean()),
+])
+
 /**
  * Router state
  */

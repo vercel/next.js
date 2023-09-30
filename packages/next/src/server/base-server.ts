@@ -86,8 +86,6 @@ import {
   FLIGHT_PARAMETERS,
   NEXT_RSC_UNION_QUERY,
   ACTION,
-  NEXT_ROUTER_PREFETCH,
-  RSC_CONTENT_TYPE_HEADER,
 } from '../client/components/app-router-headers'
 import {
   MatchOptions,
@@ -288,6 +286,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     largePageDataBytes?: number
     appDirDevErrorLogger?: (err: any) => Promise<void>
     strictNextHead: boolean
+    isExperimentalCompile?: boolean
   }
   protected readonly serverOptions: Readonly<ServerOptions>
   protected readonly appPathRoutes?: Record<string, string[]>
@@ -479,6 +478,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         Object.keys(publicRuntimeConfig).length > 0
           ? publicRuntimeConfig
           : undefined,
+
+      // @ts-expect-error internal field not publicly exposed
+      isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
     }
 
     // Initialize next/config with the environment configuration
@@ -1807,7 +1809,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // For the edge runtime, we don't support preview mode in SSG.
       if (process.env.NEXT_RUNTIME !== 'edge') {
         const { tryGetPreviewData } =
-          require('./api-utils/node') as typeof import('./api-utils/node')
+          require('./api-utils/node/try-get-preview-data') as typeof import('./api-utils/node/try-get-preview-data')
         previewData = tryGetPreviewData(req, res, this.renderOpts.previewProps)
         isPreviewMode = previewData !== false
       }
@@ -2122,31 +2124,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       } else if (
         components.routeModule?.definition.kind === RouteKind.APP_PAGE
       ) {
-        const isAppPrefetch = req.headers[NEXT_ROUTER_PREFETCH.toLowerCase()]
-
-        if (
-          isAppPrefetch &&
-          ssgCacheKey &&
-          process.env.NODE_ENV === 'production'
-        ) {
-          try {
-            const prefetchRsc = await this.getPrefetchRsc(ssgCacheKey)
-
-            if (prefetchRsc) {
-              res.setHeader(
-                'cache-control',
-                'private, no-cache, no-store, max-age=0, must-revalidate'
-              )
-              res.setHeader('content-type', RSC_CONTENT_TYPE_HEADER)
-              res.body(prefetchRsc).send()
-              return null
-            }
-          } catch (_) {
-            // we fallback to invoking the function if prefetch
-            // data is not available
-          }
-        }
-
         const module = components.routeModule as AppPageRouteModule
 
         // Due to the way we pass data by mutating `renderOpts`, we can't extend the
@@ -2312,6 +2289,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
         const isPageIncludedInStaticPaths =
           staticPathKey && staticPaths?.includes(staticPathKey)
+
+        if ((this.nextConfig.experimental as any).isExperimentalCompile) {
+          fallbackMode = 'blocking'
+        }
 
         // When we did not respond from cache, we need to choose to block on
         // rendering or return a skeleton.

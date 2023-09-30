@@ -22,8 +22,8 @@ use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal},
     trace::TraceRawVcs,
-    Completion, Completions, IntoTraitRef, State, TaskInput, TransientInstance, TryFlatJoinIterExt,
-    Value, ValueToString, Vc,
+    Completion, Completions, IntoTraitRef, State, TaskInput, TraitRef, TransientInstance,
+    TryFlatJoinIterExt, Value, ValueToString, Vc,
 };
 use turbopack_binding::{
     turbo::{
@@ -292,8 +292,15 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) fn client_relative_path(self: Vc<Self>) -> Vc<FileSystemPath> {
-        self.client_root().join("_next".to_string())
+    pub(super) async fn client_relative_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        let next_config = self.next_config().await?;
+        Ok(self.client_root().join(format!(
+            "{}/_next",
+            next_config
+                .base_path
+                .clone()
+                .unwrap_or_else(|| "".to_string()),
+        )))
     }
 
     #[turbo_tasks::function]
@@ -348,10 +355,13 @@ impl Project {
     #[turbo_tasks::function]
     pub(super) async fn client_compile_time_info(self: Vc<Self>) -> Result<Vc<CompileTimeInfo>> {
         let this = self.await?;
+
         Ok(get_client_compile_time_info(
             this.mode,
             this.browserslist_query.clone(),
             self.dist_root_string(),
+            this.next_config,
+            find_app_dir(self.project_path()),
         ))
     }
 
@@ -381,7 +391,8 @@ impl Project {
         let this = self.await?;
         Ok(get_client_chunking_context(
             self.project_path(),
-            self.client_root(),
+            self.client_relative_path(),
+            self.next_config().computed_asset_prefix(),
             self.client_compile_time_info().environment(),
             this.mode,
         ))
@@ -392,7 +403,8 @@ impl Project {
         get_server_chunking_context(
             self.project_path(),
             self.node_root(),
-            self.client_root(),
+            self.client_relative_path(),
+            self.next_config().computed_asset_prefix(),
             self.server_compile_time_info().environment(),
         )
     }
@@ -402,7 +414,7 @@ impl Project {
         get_edge_chunking_context(
             self.project_path(),
             self.node_root(),
-            self.client_root(),
+            self.client_relative_path(),
             self.edge_compile_time_info().environment(),
         )
     }
@@ -559,6 +571,21 @@ impl Project {
             }
         }
 
+        let pages_document_endpoint = TraitRef::cell(
+            self.pages_project()
+                .document_endpoint()
+                .into_trait_ref()
+                .await?,
+        );
+        let pages_app_endpoint =
+            TraitRef::cell(self.pages_project().app_endpoint().into_trait_ref().await?);
+        let pages_error_endpoint = TraitRef::cell(
+            self.pages_project()
+                .error_endpoint()
+                .into_trait_ref()
+                .await?,
+        );
+
         let middleware = find_context_file(
             self.project_path(),
             middleware_files(self.next_config().page_extensions()),
@@ -566,7 +593,11 @@ impl Project {
         let middleware = if let FindContextFileResult::Found(fs_path, _) = *middleware.await? {
             let source = Vc::upcast(FileSource::new(fs_path));
             Some(Middleware {
-                endpoint: Vc::upcast(self.middleware_endpoint(source)),
+                endpoint: TraitRef::cell(
+                    Vc::upcast::<Box<dyn Endpoint>>(self.middleware_endpoint(source))
+                        .into_trait_ref()
+                        .await?,
+                ),
             })
         } else {
             None
@@ -575,9 +606,9 @@ impl Project {
         Ok(Entrypoints {
             routes,
             middleware,
-            pages_document_endpoint: self.pages_project().document_endpoint(),
-            pages_app_endpoint: self.pages_project().app_endpoint(),
-            pages_error_endpoint: self.pages_project().error_endpoint(),
+            pages_document_endpoint,
+            pages_app_endpoint,
+            pages_error_endpoint,
         }
         .cell())
     }
