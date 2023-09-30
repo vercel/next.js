@@ -1015,11 +1015,25 @@ export default async function build(
         return { duration, buildTraceContext: null }
       }
       let buildTraceContext: undefined | BuildTraceContext
+      let clientCompilationPromise: Promise<any> | undefined = undefined
 
       if (!isGenerate) {
         const { duration: webpackBuildDuration, ...rest } = turboNextBuild
           ? await turbopackBuild()
-          : await webpackBuild()
+          : await webpackBuild(
+              config.experimental.webpackBuildWorker
+                ? ['server', 'edge-server']
+                : undefined
+            )
+
+        if (config.experimental.webpackBuildWorker) {
+          clientCompilationPromise = await webpackBuild(
+            isCompile ? ['client'] : undefined
+          ).catch((err) => {
+            console.error(err)
+            process.exit(1)
+          })
+        }
 
         buildTraceContext = rest.buildTraceContext
 
@@ -1704,8 +1718,6 @@ export default async function build(
         return returnValue
       })
 
-      if (postCompileSpinner) postCompileSpinner.stopAndPersist()
-
       if (customAppGetInitialProps) {
         console.warn(
           bold(yellow(`Warning: `)) +
@@ -1768,6 +1780,12 @@ export default async function build(
           process.exit(1)
         })
       }
+
+      if (clientCompilationPromise) {
+        await clientCompilationPromise
+      }
+
+      if (postCompileSpinner) postCompileSpinner.stopAndPersist()
 
       if (serverPropsPages.size > 0 || ssgPages.size > 0) {
         // We update the routes manifest after the build with the

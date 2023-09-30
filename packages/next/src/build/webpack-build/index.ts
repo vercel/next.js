@@ -1,4 +1,7 @@
-import { COMPILER_INDEXES } from '../../shared/lib/constants'
+import {
+  COMPILER_INDEXES,
+  CompilerNameValues,
+} from '../../shared/lib/constants'
 import * as Log from '../output/log'
 import { NextBuildContext } from '../build-context'
 import type { BuildTraceContext } from '../webpack/plugins/next-trace-entrypoints-plugin'
@@ -9,7 +12,16 @@ import path from 'path'
 
 const debug = origDebug('next:build:webpack-build')
 
-async function webpackBuildWithWorker() {
+// order matters here
+const ORDERED_COMPILER_NAMES = [
+  'server',
+  'edge-server',
+  'client',
+] as (keyof typeof COMPILER_INDEXES)[]
+
+async function webpackBuildWithWorker(
+  compilerNames: typeof ORDERED_COMPILER_NAMES = ORDERED_COMPILER_NAMES
+) {
   const {
     config,
     telemetryPlugin,
@@ -52,14 +64,8 @@ async function webpackBuildWithWorker() {
     duration: 0,
     buildTraceContext: {} as BuildTraceContext,
   }
-  // order matters here
-  const ORDERED_COMPILER_NAMES = [
-    'server',
-    'edge-server',
-    'client',
-  ] as (keyof typeof COMPILER_INDEXES)[]
 
-  for (const compilerName of ORDERED_COMPILER_NAMES) {
+  for (const compilerName of compilerNames) {
     const worker = getWorker(compilerName)
 
     const curResult = await worker.workerMain({
@@ -115,15 +121,15 @@ async function webpackBuildWithWorker() {
   return combinedResult
 }
 
-export async function webpackBuild() {
+export async function webpackBuild(compilers?: typeof ORDERED_COMPILER_NAMES) {
   const config = NextBuildContext.config!
 
   if (config.experimental.webpackBuildWorker) {
     debug('using separate compiler workers')
-    return await webpackBuildWithWorker()
+    return await webpackBuildWithWorker(compilers)
   } else {
     debug('building all compilers in same process')
     const webpackBuildImpl = require('./impl').webpackBuildImpl
-    return await webpackBuildImpl()
+    return await webpackBuildImpl(compilers)
   }
 }
