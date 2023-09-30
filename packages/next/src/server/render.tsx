@@ -496,7 +496,7 @@ export async function renderToHTMLImpl(
     )
   }
 
-  const isAutoExport =
+  let isAutoExport =
     !hasPageGetInitialProps &&
     defaultAppGetInitialProps &&
     !isSSG &&
@@ -512,6 +512,7 @@ export async function renderToHTMLImpl(
       private: false,
       stateful: false,
     })
+    isAutoExport = false
   }
 
   if (hasPageGetInitialProps && isSSG) {
@@ -639,7 +640,8 @@ export async function renderToHTMLImpl(
   const routerIsReady = !!(
     getServerSideProps ||
     hasPageGetInitialProps ||
-    (!defaultAppGetInitialProps && !isSSG)
+    (!defaultAppGetInitialProps && !isSSG) ||
+    isExperimentalCompile
   )
   const router = new ServerRouter(
     pathname,
@@ -1444,6 +1446,7 @@ export async function renderToHTMLImpl(
       nextExport: nextExport === true ? true : undefined, // If this is a page exported by `next export`
       autoExport: isAutoExport === true ? true : undefined, // If this is an auto exported page
       isFallback,
+      isExperimentalCompile,
       dynamicIds:
         dynamicImportsIds.size === 0
           ? undefined
