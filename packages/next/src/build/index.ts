@@ -1027,7 +1027,7 @@ export default async function build(
             )
 
         if (config.experimental.webpackBuildWorker) {
-          clientCompilationPromise = await webpackBuild(
+          clientCompilationPromise = webpackBuild(
             isCompile ? ['client'] : undefined
           ).catch((err) => {
             console.error(err)
@@ -1077,14 +1077,6 @@ export default async function build(
       const pagesManifest = JSON.parse(
         await fs.readFile(manifestPath, 'utf8')
       ) as PagesManifest
-      const buildManifest = JSON.parse(
-        await fs.readFile(buildManifestPath, 'utf8')
-      ) as BuildManifest
-      const appBuildManifest = appDir
-        ? (JSON.parse(
-            await fs.readFile(appBuildManifestPath, 'utf8')
-          ) as AppBuildManifest)
-        : undefined
 
       const timeout = config.staticPageGenerationTimeout || 0
       const staticWorkerPath = require.resolve('./worker')
@@ -1310,12 +1302,6 @@ export default async function build(
         // eslint-disable-next-line @typescript-eslint/no-shadow
         let hasSsrAmpPages = false
 
-        const computedManifestData = await computeFromManifest(
-          { build: buildManifest, app: appBuildManifest },
-          distDir,
-          config.experimental.gzipSize
-        )
-
         const middlewareManifest: MiddlewareManifest = require(path.join(
           distDir,
           SERVER_DIRECTORY,
@@ -1373,15 +1359,6 @@ export default async function build(
               })
               return checkPageSpan.traceAsyncFn(async () => {
                 const actualPage = normalizePagePath(page)
-                const [selfSize, allSize] = await getJsPageSizeInKb(
-                  pageType,
-                  actualPage,
-                  distDir,
-                  buildManifest,
-                  appBuildManifest,
-                  config.experimental.gzipSize,
-                  computedManifestData
-                )
 
                 let isSsg = false
                 let isStatic = false
@@ -1687,8 +1664,6 @@ export default async function build(
                 }
 
                 pageInfos.set(page, {
-                  size: selfSize,
-                  totalSize: allSize,
                   static: isStatic,
                   isSsg,
                   isHybridAmp,
@@ -1784,6 +1759,59 @@ export default async function build(
       if (clientCompilationPromise) {
         await clientCompilationPromise
       }
+
+      const buildManifest = JSON.parse(
+        await fs.readFile(buildManifestPath, 'utf8')
+      ) as BuildManifest
+      const appBuildManifest = appDir
+        ? (JSON.parse(
+            await fs.readFile(appBuildManifestPath, 'utf8')
+          ) as AppBuildManifest)
+        : undefined
+      const computedManifestData = await computeFromManifest(
+        { build: buildManifest, app: appBuildManifest },
+        distDir,
+        config.experimental.gzipSize
+      )
+
+      await Promise.all(
+        Object.entries(pageKeys)
+          .reduce<Array<{ pageType: keyof typeof pageKeys; page: string }>>(
+            (acc, [key, files]) => {
+              if (!files) {
+                return acc
+              }
+
+              const pageType = key as keyof typeof pageKeys
+
+              for (const page of files) {
+                acc.push({ pageType, page })
+              }
+
+              return acc
+            },
+            []
+          )
+          .map(async ({ pageType, page }) => {
+            const actualPage = normalizePagePath(page)
+            const [selfSize, allSize] = await getJsPageSizeInKb(
+              pageType,
+              actualPage,
+              distDir,
+              buildManifest,
+              appBuildManifest,
+              config.experimental.gzipSize,
+              computedManifestData
+            )
+            const info = pageInfos.get(page)
+
+            if (info) {
+              info.size = selfSize
+              info.totalSize = allSize
+              pageInfos.set(page, info)
+            }
+          })
+      )
 
       if (postCompileSpinner) postCompileSpinner.stopAndPersist()
 

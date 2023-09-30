@@ -326,8 +326,8 @@ const filterAndSortList = (
 
 export interface PageInfo {
   isHybridAmp?: boolean
-  size: number
-  totalSize: number
+  size?: number
+  totalSize?: number
   static: boolean
   isSsg: boolean
   ssgPageRoutes: string[] | null
@@ -476,15 +476,15 @@ export async function printTreeView(
         pageInfo
           ? ampFirst
             ? cyan('AMP')
-            : pageInfo.size >= 0
-            ? prettyBytes(pageInfo.size)
+            : (pageInfo.size || 0) >= 0
+            ? prettyBytes(pageInfo.size || 0)
             : ''
           : '',
         pageInfo
           ? ampFirst
             ? cyan('AMP')
-            : pageInfo.size >= 0
-            ? getPrettySize(pageInfo.totalSize)
+            : (pageInfo.size || 0) >= 0
+            ? getPrettySize(pageInfo.totalSize || 0)
             : ''
           : '',
       ])

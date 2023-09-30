@@ -1,7 +1,4 @@
-import {
-  COMPILER_INDEXES,
-  CompilerNameValues,
-} from '../../shared/lib/constants'
+import { COMPILER_INDEXES } from '../../shared/lib/constants'
 import * as Log from '../output/log'
 import { NextBuildContext } from '../build-context'
 import type { BuildTraceContext } from '../webpack/plugins/next-trace-entrypoints-plugin'
