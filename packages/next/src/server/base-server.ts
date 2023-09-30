@@ -2128,13 +2128,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       ) {
         const isAppPrefetch = req.headers[NEXT_ROUTER_PREFETCH.toLowerCase()]
 
-        if (
-          isAppPrefetch &&
-          ssgCacheKey &&
-          process.env.NODE_ENV === 'production'
-        ) {
+        if (isAppPrefetch && process.env.NODE_ENV === 'production') {
           try {
-            const prefetchRsc = await this.getPrefetchRsc(ssgCacheKey)
+            const prefetchRsc = await this.getPrefetchRsc(resolvedUrlPathname)
 
             if (prefetchRsc) {
               res.setHeader(
