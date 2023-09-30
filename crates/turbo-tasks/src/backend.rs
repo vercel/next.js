@@ -10,8 +10,7 @@ use std::{
 };
 
 use anyhow::{anyhow, bail, Result};
-use auto_hash_map::{AutoMap, AutoSet};
-use nohash_hasher::BuildNoHashHasher;
+use auto_hash_map::AutoMap;
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 
@@ -19,7 +18,7 @@ pub use crate::id::BackendJobId;
 use crate::{
     event::EventListener, manager::TurboTasksBackendApi, raw_vc::CellId, registry,
     ConcreteTaskInput, FunctionId, RawVc, ReadRef, SharedReference, TaskId, TaskIdProvider,
-    TraitRef, TraitTypeId, VcValueTrait, VcValueType,
+    TaskIdSet, TraitRef, TraitTypeId, VcValueTrait, VcValueType,
 };
 
 pub enum TaskType {
@@ -195,11 +194,7 @@ pub trait Backend: Sync + Send {
     fn invalidate_task(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>);
 
     fn invalidate_tasks(&self, tasks: &[TaskId], turbo_tasks: &dyn TurboTasksBackendApi<Self>);
-    fn invalidate_tasks_set(
-        &self,
-        tasks: &AutoSet<TaskId, BuildNoHashHasher<TaskId>, 2>,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    );
+    fn invalidate_tasks_set(&self, tasks: &TaskIdSet, turbo_tasks: &dyn TurboTasksBackendApi<Self>);
 
     fn get_task_description(&self, task: TaskId) -> String;
 

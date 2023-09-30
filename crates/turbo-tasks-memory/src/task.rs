@@ -28,8 +28,8 @@ use tokio::task_local;
 use turbo_tasks::{
     backend::{PersistentTaskType, TaskExecutionSpec},
     event::{Event, EventListener},
-    get_invalidator, registry, CellId, Invalidator, RawVc, StatsType, TaskId, TraitTypeId,
-    TurboTasksBackendApi, ValueTypeId,
+    get_invalidator, registry, CellId, Invalidator, RawVc, StatsType, TaskId, TaskIdSet,
+    TraitTypeId, TurboTasksBackendApi, ValueTypeId,
 };
 
 use crate::{
@@ -170,7 +170,7 @@ struct TaskState {
     stateful: bool,
 
     /// Children are only modified from execution
-    children: AutoSet<TaskId, BuildNoHashHasher<TaskId>, 2>,
+    children: TaskIdSet,
 
     /// Collectibles are only modified from execution
     collectibles: MaybeCollectibles,
@@ -389,7 +389,7 @@ enum TaskStateType {
         event: Event,
         count_as_finished: bool,
         /// Children that need to be disconnected once leaving this state
-        outdated_children: AutoSet<TaskId, BuildNoHashHasher<TaskId>, 2>,
+        outdated_children: TaskIdSet,
         outdated_collectibles: MaybeCollectibles,
     },
 
