@@ -6,6 +6,7 @@ import { createAsyncLocalStorage } from './async-local-storage'
 
 export interface StaticGenerationStore {
   readonly isStaticGeneration: boolean
+  readonly isStaticPrefetch?: boolean
   readonly pagePath?: string
   readonly urlPathname: string
   readonly incrementalCache?: IncrementalCache

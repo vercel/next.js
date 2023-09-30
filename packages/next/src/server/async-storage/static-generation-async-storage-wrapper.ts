@@ -2,6 +2,7 @@ import type { AsyncStorageWrapper } from './async-storage-wrapper'
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import type { AsyncLocalStorage } from 'async_hooks'
 import type { IncrementalCache } from '../lib/incremental-cache'
+import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
 
 export type StaticGenerationContext = {
   urlPathname: string
@@ -12,6 +13,7 @@ export type StaticGenerationContext = {
     isRevalidate?: boolean
     isOnDemandRevalidate?: boolean
     isBot?: boolean
+    isPrefetch?: boolean
     nextExport?: boolean
     fetchCache?: StaticGenerationStore['fetchCache']
     isDraftMode?: boolean
@@ -63,6 +65,10 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
 
     const store: StaticGenerationStore = {
       isStaticGeneration,
+      isStaticPrefetch: Boolean(
+        process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD &&
+          renderOpts.isPrefetch
+      ),
       urlPathname,
       pagePath: renderOpts.originalPathname,
       incrementalCache:

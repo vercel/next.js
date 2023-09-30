@@ -300,5 +300,25 @@ createNextDescribe(
       expect(prefetchResponse).not.toContain('Hello World')
       expect(prefetchResponse).toContain('Loading Prefetch Auto')
     })
+
+    it('should not generate static prefetches for layouts that opt into dynamic rendering', async () => {
+      await next.stop()
+      const rootLoading = await next.readFile('./app/loading.js')
+      await next.deleteFile('./app/loading.js')
+      await next.start()
+      expect(
+        await next
+          .readFile('.next/server/app/prefetch-dynamic-usage/foo.prefetch.rsc')
+          .catch(() => false)
+      ).toBeFalsy()
+
+      expect(
+        await next
+          .readFile('.next/server/app/prefetch-dynamic-usage/foo.prefetch.rsc')
+          .catch(() => false)
+      ).toBeFalsy()
+
+      await next.patchFile('./app/loading', rootLoading)
+    })
   }
 )

@@ -131,6 +131,7 @@ export type RenderOptsPartial = {
   ) => Promise<NextConfigComplete>
   serverActionsBodySizeLimit?: SizeLimit
   params?: ParsedUrlQuery
+  isPrefetch?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial

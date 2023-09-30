@@ -38,6 +38,7 @@ export async function generatePrefetchRsc(
   req.headers[NEXT_ROUTER_PREFETCH.toLowerCase()] = '1'
 
   renderOpts.supportsDynamicHTML = true
+  renderOpts.isPrefetch = true
   delete renderOpts.isRevalidate
 
   const prefetchRenderResult = await render(
@@ -52,6 +53,8 @@ export async function generatePrefetchRsc(
   await res.hasStreamed
 
   const prefetchRscData = Buffer.concat(res.buffers)
+
+  if ((renderOpts as any).store.dynamicUsageDescription) return
 
   await fs.writeFile(
     htmlFilepath.replace(/\.html$/, '.prefetch.rsc'),

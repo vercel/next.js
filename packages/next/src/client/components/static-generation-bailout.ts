@@ -30,6 +30,10 @@ export const staticGenerationBailout: StaticGenerationBailout = (
     return true
   }
 
+  if (staticGenerationStore?.isStaticPrefetch) {
+    staticGenerationStore.dynamicUsageDescription = reason
+  }
+
   if (staticGenerationStore?.dynamicShouldError) {
     throw new StaticGenBailoutError(
       formatErrorMessage(reason, { ...opts, dynamic: opts?.dynamic ?? 'error' })
