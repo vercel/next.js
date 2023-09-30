@@ -26,9 +26,29 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
+import type { NextConfig } from '../../../../types'
 import { isWasm, transform } from '../../swc'
-import { getLoaderSWCOptions } from '../../swc/options'
+import { type BundleType, getLoaderSWCOptions } from '../../swc/options'
 import path, { isAbsolute } from 'path'
+
+export interface SWCLoaderOptions {
+  rootDir: string
+  isServer: boolean
+  pagesDir?: string
+  appDir?: string
+  hasReactRefresh: boolean
+  optimizeServerReact?: boolean
+  nextConfig: NextConfig
+  jsConfig: any
+  supportedBrowsers: string[] | undefined
+  swcCacheDir: string
+  bundleTarget: BundleType
+  hasServerComponents?: boolean
+  isServerLayer: boolean
+  optimizeBarrelExports?: {
+    wildcard: boolean
+  }
+}
 
 async function loaderTransform(
   this: any,
@@ -39,7 +59,7 @@ async function loaderTransform(
   // Make the loader async
   const filename = this.resourcePath
 
-  let loaderOptions = this.getOptions() || {}
+  let loaderOptions: SWCLoaderOptions = this.getOptions() || {}
 
   const {
     isServer,
@@ -53,9 +73,18 @@ async function loaderTransform(
     swcCacheDir,
     hasServerComponents,
     isServerLayer,
+    optimizeBarrelExports,
+    bundleTarget,
   } = loaderOptions
   const isPageFile = filename.startsWith(pagesDir)
   const relativeFilePathFromRoot = path.relative(rootDir, filename)
+
+  // For testing purposes
+  if (process.env.NEXT_TEST_MODE) {
+    if (loaderOptions.optimizeBarrelExports) {
+      console.log('optimizeBarrelExports:', filename)
+    }
+  }
 
   const swcOptions = getLoaderSWCOptions({
     pagesDir,
@@ -66,8 +95,10 @@ async function loaderTransform(
     development: this.mode === 'development',
     hasReactRefresh,
     modularizeImports: nextConfig?.modularizeImports,
+    optimizePackageImports: nextConfig?.experimental?.optimizePackageImports,
     swcPlugins: nextConfig?.experimental?.swcPlugins,
     compilerOptions: nextConfig?.compiler,
+    optimizeServerReact: nextConfig?.experimental?.optimizeServerReact,
     jsConfig,
     supportedBrowsers,
     swcCacheDir,
@@ -75,6 +106,8 @@ async function loaderTransform(
     hasServerComponents,
     isServerActionsEnabled: nextConfig?.experimental?.serverActions,
     isServerLayer,
+    optimizeBarrelExports,
+    bundleTarget,
   })
 
   const programmaticOptions = {
@@ -130,11 +163,9 @@ const EXCLUDED_PATHS =
 export function pitch(this: any) {
   const callback = this.async()
   ;(async () => {
-    let loaderOptions = this.getOptions() || {}
     if (
       // TODO: investigate swc file reading in PnP mode?
       !process.versions.pnp &&
-      loaderOptions.fileReading &&
       !EXCLUDED_PATHS.test(this.resourcePath) &&
       this.loaders.length - 1 === this.loaderIndex &&
       isAbsolute(this.resourcePath) &&

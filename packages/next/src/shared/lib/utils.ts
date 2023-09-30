@@ -1,4 +1,4 @@
-import type { HtmlProps } from './html-context'
+import type { HtmlProps } from './html-context.shared-runtime'
 import type { ComponentType } from 'react'
 import type { DomainLocale } from '../../server/config'
 import type { Env } from '@next/env'
@@ -94,6 +94,7 @@ export type NEXT_DATA = {
   nextExport?: boolean
   autoExport?: boolean
   isFallback?: boolean
+  isExperimentalCompile?: boolean
   dynamicIds?: (string | number)[]
   err?: Error & {
     statusCode?: number

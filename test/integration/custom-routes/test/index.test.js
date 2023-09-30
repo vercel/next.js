@@ -2660,7 +2660,6 @@ const runTests = (isDev = false, isTurbo = false) => {
           contentTypeHeader: 'text/x-component',
           varyHeader:
             'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url',
-          prefetchHeader: 'Next-Router-Prefetch',
         },
       })
     })
@@ -2785,8 +2784,7 @@ describe('Custom routes', () => {
       )
     })
   })
-
-  describe('server mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       const { stdout: buildStdout, stderr: buildStderr } = await nextBuild(
         appDir,
@@ -2970,9 +2968,11 @@ describe('Custom routes', () => {
     describe('dev mode', () => {
       runSoloTests(true)
     })
-
-    describe('production mode', () => {
-      runSoloTests()
-    })
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'production mode',
+      () => {
+        runSoloTests()
+      }
+    )
   })
 })

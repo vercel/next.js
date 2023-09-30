@@ -1,4 +1,4 @@
-export const ipcForbiddenHeaders = [
+export const actionsForbiddenHeaders = [
   'accept-encoding',
   'keepalive',
   'keep-alive',
@@ -8,10 +8,7 @@ export const ipcForbiddenHeaders = [
   'connection',
   // marked as unsupported by undici: https://github.com/nodejs/undici/blob/c83b084879fa0bb8e0469d31ec61428ac68160d5/lib/core/request.js#L354
   'expect',
-]
-
-export const actionsForbiddenHeaders = [
-  ...ipcForbiddenHeaders,
+  // action specific
   'content-length',
 ]
 

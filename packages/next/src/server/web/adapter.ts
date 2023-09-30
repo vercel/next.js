@@ -11,7 +11,6 @@ import { NextURL } from './next-url'
 import { stripInternalSearchParams } from '../internal-utils'
 import { normalizeRscPath } from '../../shared/lib/router/utils/app-paths'
 import {
-  FETCH_CACHE_HEADER,
   NEXT_ROUTER_PREFETCH,
   NEXT_ROUTER_STATE_TREE,
   RSC,
@@ -19,11 +18,12 @@ import {
 import { NEXT_QUERY_PARAM_PREFIX } from '../../lib/constants'
 import { ensureInstrumentationRegistered } from './globals'
 import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
-import { requestAsyncStorage } from '../../client/components/request-async-storage'
+import { requestAsyncStorage } from '../../client/components/request-async-storage.external'
 import { PrerenderManifest } from '../../build'
 
 class NextRequestHint extends NextRequest {
   sourcePage: string
+  fetchMetrics?: FetchEventResult['fetchMetrics']
 
   constructor(params: {
     init: RequestInit
@@ -51,7 +51,6 @@ const FLIGHT_PARAMETERS = [
   [RSC],
   [NEXT_ROUTER_STATE_TREE],
   [NEXT_ROUTER_PREFETCH],
-  [FETCH_CACHE_HEADER],
 ] as const
 
 export type AdapterOptions = {
@@ -188,7 +187,9 @@ export async function adapter(
   let cookiesFromResponse
 
   // we only care to make async storage available for middleware
-  if (params.page === '/middleware') {
+  const isMiddleware =
+    params.page === '/middleware' || params.page === '/src/middleware'
+  if (isMiddleware) {
     response = await RequestAsyncStorageWrapper.wrap(
       requestAsyncStorage,
       {
@@ -329,5 +330,6 @@ export async function adapter(
   return {
     response: finalResponse,
     waitUntil: Promise.all(event[waitUntilSymbol]),
+    fetchMetrics: request.fetchMetrics,
   }
 }

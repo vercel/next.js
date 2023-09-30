@@ -115,7 +115,7 @@ describe('jsconfig-path-reloading', () => {
         await check(async () => {
           const html3 = await browser.eval('document.documentElement.innerHTML')
           return html3.includes('id="first-data"') &&
-            !html3.includes('id="second-data"')
+            !html3.includes('second-data')
             ? 'success'
             : html3
         }, 'success')

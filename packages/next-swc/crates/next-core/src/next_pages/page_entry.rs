@@ -21,7 +21,10 @@ use turbopack_binding::{
     },
 };
 
-use crate::util::{load_next_js_template, virtual_next_js_template_path};
+use crate::{
+    next_edge::entry::wrap_edge_entry,
+    util::{load_next_js_template, virtual_next_js_template_path, NextRuntime},
+};
 
 #[turbo_tasks::function]
 pub async fn create_page_ssr_entry_module(
@@ -31,6 +34,7 @@ pub async fn create_page_ssr_entry_module(
     ssr_module_context: Vc<Box<dyn AssetContext>>,
     source: Vc<Box<dyn Source>>,
     next_original_name: Vc<String>,
+    runtime: NextRuntime,
 ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
     let definition_page = next_original_name.await?;
     let definition_pathname = pathname.await?;
@@ -39,14 +43,18 @@ pub async fn create_page_ssr_entry_module(
 
     let reference_type = reference_type.into_value();
 
-    let template_file = match reference_type {
-        ReferenceType::Entry(EntryReferenceSubType::Page) => {
+    let template_file = match (&reference_type, runtime) {
+        (ReferenceType::Entry(EntryReferenceSubType::Page), _) => {
             // Load the Page entry file.
-            "build/webpack/loaders/next-route-loader/templates/pages.js"
+            "pages.js"
         }
-        ReferenceType::Entry(EntryReferenceSubType::PagesApi) => {
+        (ReferenceType::Entry(EntryReferenceSubType::PagesApi), NextRuntime::NodeJs) => {
             // Load the Pages API entry file.
-            "build/webpack/loaders/next-route-loader/templates/pages-api.js"
+            "pages-api.js"
+        }
+        (ReferenceType::Entry(EntryReferenceSubType::PagesApi), NextRuntime::Edge) => {
+            // Load the Pages API entry file.
+            "pages-edge-api.js"
         }
         _ => bail!("Invalid path type"),
     };
@@ -106,12 +114,21 @@ pub async fn create_page_ssr_entry_module(
 
     let source = VirtualSource::new(template_path, AssetContent::file(file.into()));
 
-    let ssr_module = ssr_module_context.process(
+    let mut ssr_module = ssr_module_context.process(
         Vc::upcast(source),
         Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
             "VAR_USERLAND".to_string() => ssr_module,
         }))),
     );
+
+    if matches!(runtime, NextRuntime::Edge) {
+        ssr_module = wrap_edge_entry(
+            ssr_module_context,
+            project_root,
+            ssr_module,
+            definition_pathname.to_string(),
+        );
+    }
 
     let Some(ssr_module) =
         Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(ssr_module).await?

@@ -22,7 +22,7 @@ const runTests = () => {
 }
 
 describe('Auto Export', () => {
-  describe('server mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await nextBuild(appDir)
       const { stderr: curStderr, code: curCode } = await nextExport(

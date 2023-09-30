@@ -9,7 +9,11 @@ use next_core::{
         get_client_runtime_entries, ClientContextType, RuntimeEntries,
     },
     next_dynamic::NextDynamicTransition,
-    next_manifests::{BuildManifest, PagesManifest},
+    next_edge::route_regex::get_named_middleware_regex,
+    next_manifests::{
+        BuildManifest, EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2,
+        PagesManifest,
+    },
     next_pages::create_page_ssr_entry_module,
     next_server::{
         get_server_module_options_context, get_server_resolve_options_context,
@@ -22,14 +26,17 @@ use next_core::{
     PageLoaderAsset,
 };
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, Completion, TaskInput, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{
+    trace::TraceRawVcs, Completion, TaskInput, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc,
+};
 use turbopack_binding::{
-    turbo::tasks_fs::{File, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem},
+    turbo::tasks_fs::{
+        File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
+    },
     turbopack::{
         build::BuildChunkingContext,
         core::{
             asset::AssetContent,
-            changed::any_content_changed_of_output_assets,
             chunk::{ChunkableModule, ChunkingContext, EvaluatableAssets},
             context::AssetContext,
             file_source::FileSource,
@@ -601,11 +608,18 @@ impl PageEndpoint {
                 Vc::upcast(edge_module_context),
                 self.source(),
                 this.original_name,
+                config.runtime,
             );
+
+            let mut evaluatable_assets = edge_runtime_entries.await?.clone_value();
+            let Some(evaluatable) = Vc::try_resolve_sidecast(ssr_module).await? else {
+                bail!("Entry module must be evaluatable");
+            };
+            evaluatable_assets.push(evaluatable);
 
             let edge_files = edge_chunking_context.evaluated_chunk_group(
                 ssr_module.as_root_chunk(Vc::upcast(edge_chunking_context)),
-                edge_runtime_entries,
+                Vc::cell(evaluatable_assets),
             );
 
             Ok(SsrChunk::Edge { files: edge_files }.cell())
@@ -617,6 +631,7 @@ impl PageEndpoint {
                 Vc::upcast(module_context),
                 self.source(),
                 this.original_name,
+                config.runtime,
             );
 
             let asset_path = get_asset_path_from_pathname(&this.pathname.await?, ".js");
@@ -801,7 +816,65 @@ impl PageEndpoint {
                 }
             }
             SsrChunk::Edge { files } => {
-                server_assets.extend(files.await?.iter().copied());
+                let node_root = this.pages_project.project().node_root();
+                let files_value = files.await?;
+                if let Some(&file) = files_value.first() {
+                    let pages_manifest = self.pages_manifest(file);
+                    server_assets.push(pages_manifest);
+                }
+                server_assets.extend(files_value.iter().copied());
+
+                let node_root_value = node_root.await?;
+                let files_paths_from_root: Vec<String> = files_value
+                    .iter()
+                    .map(move |&file| {
+                        let node_root_value = node_root_value.clone();
+                        async move {
+                            Ok(node_root_value
+                                .get_path_to(&*file.ident().path().await?)
+                                .map(|path| path.to_string()))
+                        }
+                    })
+                    .try_flat_join()
+                    .await?;
+
+                let pathname = this.pathname.await?;
+                let named_regex = get_named_middleware_regex(&pathname);
+                let matchers = MiddlewareMatcher {
+                    regexp: Some(named_regex),
+                    original_source: pathname.to_string(),
+                    ..Default::default()
+                };
+                let original_name = this.original_name.await?;
+                let edge_function_definition = EdgeFunctionDefinition {
+                    files: files_paths_from_root,
+                    name: pathname.to_string(),
+                    page: original_name.to_string(),
+                    regions: None,
+                    matchers: vec![matchers],
+                    ..Default::default()
+                };
+                let middleware_manifest_v2 = MiddlewaresManifestV2 {
+                    sorted_middleware: vec![pathname.to_string()],
+                    middleware: Default::default(),
+                    functions: [(pathname.to_string(), edge_function_definition)]
+                        .into_iter()
+                        .collect(),
+                };
+                let manifest_path_prefix = get_asset_prefix_from_pathname(&this.pathname.await?);
+                let middleware_manifest_v2 = Vc::upcast(VirtualOutputAsset::new(
+                    node_root.join(format!(
+                        "server/pages{manifest_path_prefix}/middleware-manifest.json"
+                    )),
+                    AssetContent::file(
+                        FileContent::Content(File::from(serde_json::to_string_pretty(
+                            &middleware_manifest_v2,
+                        )?))
+                        .cell(),
+                    ),
+                ));
+                server_assets.push(middleware_manifest_v2);
+
                 PageEndpointOutput::Edge {
                     files,
                     server_assets: Vc::cell(server_assets),
@@ -870,13 +943,21 @@ impl Endpoint for PageEndpoint {
     }
 
     #[turbo_tasks::function]
-    fn server_changed(self: Vc<Self>) -> Vc<Completion> {
-        any_content_changed_of_output_assets(self.output().server_assets())
+    async fn server_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
+        Ok(self
+            .await?
+            .pages_project
+            .project()
+            .server_changed(self.output().server_assets()))
     }
 
     #[turbo_tasks::function]
-    fn client_changed(self: Vc<Self>) -> Vc<Completion> {
-        any_content_changed_of_output_assets(self.output().client_assets())
+    async fn client_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
+        Ok(self
+            .await?
+            .pages_project
+            .project()
+            .client_changed(self.output().client_assets()))
     }
 }
 

@@ -19,35 +19,25 @@ export function createServerComponentRenderer<Props>(
     }
   },
   {
-    transformStream,
+    inlinedDataTransformStream,
     clientReferenceManifest,
     serverContexts,
-    rscChunks,
+    formState,
   }: {
-    transformStream: TransformStream<Uint8Array, Uint8Array>
+    inlinedDataTransformStream: TransformStream<Uint8Array, Uint8Array>
     clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
     serverContexts: Array<
       [ServerContextName: string, JSONValue: Object | number | string]
     >
-    rscChunks: Uint8Array[]
+    formState: null | any
   },
   serverComponentsErrorHandler: ReturnType<typeof createErrorHandler>,
   nonce?: string
 ): (props: Props) => JSX.Element {
-  // We need to expose the bundled `require` API globally for
-  // react-server-dom-webpack. This is a hack until we find a better way.
-  if (ComponentMod.__next_app__) {
-    // @ts-ignore
-    globalThis.__next_require__ = ComponentMod.__next_app__.require
-
-    // @ts-ignore
-    globalThis.__next_chunk_load__ = ComponentMod.__next_app__.loadChunk
-  }
-
-  let RSCStream: ReadableStream<Uint8Array>
-  const createRSCStream = (props: Props) => {
-    if (!RSCStream) {
-      RSCStream = ComponentMod.renderToReadableStream(
+  let flightStream: ReadableStream<Uint8Array>
+  const createFlightStream = (props: Props) => {
+    if (!flightStream) {
+      flightStream = ComponentMod.renderToReadableStream(
         <ComponentToRender {...(props as any)} />,
         clientReferenceManifest.clientModules,
         {
@@ -56,20 +46,19 @@ export function createServerComponentRenderer<Props>(
         }
       )
     }
-    return RSCStream
+    return flightStream
   }
 
   const flightResponseRef: FlightResponseRef = { current: null }
 
-  const writable = transformStream.writable
+  const writable = inlinedDataTransformStream.writable
   return function ServerComponentWrapper(props: Props): JSX.Element {
-    const reqStream = createRSCStream(props)
     const response = useFlightResponse(
       writable,
-      reqStream,
+      createFlightStream(props),
       clientReferenceManifest,
-      rscChunks,
       flightResponseRef,
+      formState,
       nonce
     )
     return use(response)

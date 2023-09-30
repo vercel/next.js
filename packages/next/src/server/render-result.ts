@@ -1,3 +1,4 @@
+import { StaticGenerationStore } from '../client/components/static-generation-async-storage.external'
 import { pipeReadable, PipeTarget } from './pipe-readable'
 
 type ContentTypeOption = string | undefined
@@ -9,9 +10,12 @@ export type RenderResultMetadata = {
   assetQueryString?: string
   isNotFound?: boolean
   isRedirect?: boolean
+  fetchMetrics?: StaticGenerationStore['fetchMetrics']
+  fetchTags?: string
+  waitUntil?: Promise<any>
 }
 
-type RenderResultResponse = string | ReadableStream<Uint8Array> | null
+type RenderResultResponse = ReadableStream<Uint8Array> | string | null
 
 export default class RenderResult {
   /**
@@ -44,10 +48,13 @@ export default class RenderResult {
     return new RenderResult(value)
   }
 
+  private waitUntil?: Promise<void>
+
   constructor(
     response: RenderResultResponse,
     {
       contentType,
+      waitUntil,
       ...metadata
     }: {
       contentType?: ContentTypeOption
@@ -56,6 +63,11 @@ export default class RenderResult {
     this.response = response
     this.contentType = contentType
     this.metadata = metadata
+    this.waitUntil = waitUntil
+  }
+
+  public extendMetadata(metadata: RenderResultMetadata) {
+    Object.assign(this.metadata, metadata)
   }
 
   /**
@@ -90,7 +102,7 @@ export default class RenderResult {
     return this.response
   }
 
-  public async pipe(res: PipeTarget): Promise<void> {
+  public async pipe(res: PipeTarget<Uint8Array>): Promise<void> {
     if (this.response === null) {
       throw new Error('Invariant: response is null. This is a bug in Next.js')
     }
@@ -100,6 +112,6 @@ export default class RenderResult {
       )
     }
 
-    return await pipeReadable(this.response, res)
+    return await pipeReadable(this.response, res, this.waitUntil)
   }
 }

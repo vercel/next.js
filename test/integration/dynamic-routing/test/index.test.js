@@ -130,7 +130,8 @@ function runTests({ dev }) {
   }
 
   if (dev) {
-    it('should not have error after pinging WebSocket', async () => {
+    // TODO: pong event not longer exist, refactor test.
+    it.skip('should not have error after pinging WebSocket', async () => {
       const browser = await webdriver(appPort, '/')
       await browser.eval(`(function() {
         window.uncaughtErrs = []
@@ -1493,7 +1494,6 @@ function runTests({ dev }) {
           contentTypeHeader: 'text/x-component',
           varyHeader:
             'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url',
-          prefetchHeader: 'Next-Router-Prefetch',
         },
       })
     })
@@ -1568,8 +1568,7 @@ describe('Dynamic Routing', () => {
 
     runTests({ dev: true })
   })
-
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await fs.remove(nextConfig)
 
