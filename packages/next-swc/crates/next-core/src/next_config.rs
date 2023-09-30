@@ -495,8 +495,6 @@ pub struct ExperimentalConfig {
     server_source_maps: Option<bool>,
     sri: Option<serde_json::Value>,
     swc_minify: Option<bool>,
-    /// This option is removed
-    swc_minify_debug_options: Option<()>,
     swc_trace_profiling: Option<bool>,
     /// @internal Used by the Next.js internals only.
     trust_host_header: Option<bool>,
@@ -717,6 +715,25 @@ impl NextConfig {
         Ok(Vc::cell(
             self.await?.skip_trailing_slash_redirect.unwrap_or(false),
         ))
+    }
+
+    /// Returns the final asset prefix. If an assetPrefix is set, it's used.
+    /// Otherwise, the basePath is used.
+    #[turbo_tasks::function]
+    pub async fn computed_asset_prefix(self: Vc<Self>) -> Result<Vc<Option<String>>> {
+        let this = self.await?;
+
+        Ok(Vc::cell(Some(format!(
+            "{}/_next/",
+            if let Some(asset_prefix) = &this.asset_prefix {
+                asset_prefix
+            } else if let Some(base_path) = &this.base_path {
+                base_path
+            } else {
+                ""
+            }
+            .trim_end_matches('/')
+        ))))
     }
 }
 

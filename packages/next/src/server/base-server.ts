@@ -2290,6 +2290,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         const isPageIncludedInStaticPaths =
           staticPathKey && staticPaths?.includes(staticPathKey)
 
+        if ((this.nextConfig.experimental as any).isExperimentalCompile) {
+          fallbackMode = 'blocking'
+        }
+
         // When we did not respond from cache, we need to choose to block on
         // rendering or return a skeleton.
         //

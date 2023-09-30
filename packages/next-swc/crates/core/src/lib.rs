@@ -63,12 +63,9 @@ pub mod next_ssg;
 pub mod optimize_barrel;
 pub mod optimize_server_react;
 pub mod page_config;
-pub mod react_remove_properties;
 pub mod react_server_components;
-pub mod remove_console;
 pub mod server_actions;
 pub mod shake_exports;
-mod top_level_binding_collector;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -251,12 +248,15 @@ where
         relay_plugin,
         match &opts.remove_console {
             Some(config) if config.truthy() =>
-                Either::Left(remove_console::remove_console(config.clone())),
+                Either::Left(remove_console::remove_console(
+                    config.clone(),
+                    SyntaxContext::empty().apply_mark(unresolved_mark)
+                )),
             _ => Either::Right(noop()),
         },
         match &opts.react_remove_properties {
             Some(config) if config.truthy() =>
-                Either::Left(react_remove_properties::remove_properties(config.clone())),
+                Either::Left(react_remove_properties::react_remove_properties(config.clone())),
             _ => Either::Right(noop()),
         },
         match &opts.shake_exports {

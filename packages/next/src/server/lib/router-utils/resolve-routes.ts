@@ -9,7 +9,6 @@ import url from 'url'
 import { Redirect } from '../../../../types'
 import setupDebug from 'next/dist/compiled/debug'
 import { getCloneableBody } from '../../body-streams'
-import { filterReqHeaders, ipcForbiddenHeaders } from '../server-ipc/utils'
 import { Header } from '../../../lib/load-custom-routes'
 import { stringifyQuery } from '../../server-route-utils'
 import { formatHostname } from '../format-hostname'
@@ -457,7 +456,7 @@ export function getResolveRoutes(
               const { res: mockedRes } = await createRequestResponseMocks({
                 url: req.url || '/',
                 method: req.method || 'GET',
-                headers: filterReqHeaders(invokeHeaders, ipcForbiddenHeaders),
+                headers: invokeHeaders,
                 resWriter(chunk) {
                   readableController.enqueue(Buffer.from(chunk))
                   return true
@@ -560,7 +559,7 @@ export function getResolveRoutes(
             delete middlewareHeaders['x-middleware-next']
 
             for (const [key, value] of Object.entries({
-              ...filterReqHeaders(middlewareHeaders, ipcForbiddenHeaders),
+              ...middlewareHeaders,
             })) {
               if (
                 [

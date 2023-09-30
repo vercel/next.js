@@ -292,8 +292,15 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) fn client_relative_path(self: Vc<Self>) -> Vc<FileSystemPath> {
-        self.client_root().join("_next".to_string())
+    pub(super) async fn client_relative_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        let next_config = self.next_config().await?;
+        Ok(self.client_root().join(format!(
+            "{}/_next",
+            next_config
+                .base_path
+                .clone()
+                .unwrap_or_else(|| "".to_string()),
+        )))
     }
 
     #[turbo_tasks::function]
@@ -384,7 +391,8 @@ impl Project {
         let this = self.await?;
         Ok(get_client_chunking_context(
             self.project_path(),
-            self.client_root(),
+            self.client_relative_path(),
+            self.next_config().computed_asset_prefix(),
             self.client_compile_time_info().environment(),
             this.mode,
         ))
@@ -395,7 +403,8 @@ impl Project {
         get_server_chunking_context(
             self.project_path(),
             self.node_root(),
-            self.client_root(),
+            self.client_relative_path(),
+            self.next_config().computed_asset_prefix(),
             self.server_compile_time_info().environment(),
         )
     }
@@ -405,7 +414,7 @@ impl Project {
         get_edge_chunking_context(
             self.project_path(),
             self.node_root(),
-            self.client_root(),
+            self.client_relative_path(),
             self.edge_compile_time_info().environment(),
         )
     }
