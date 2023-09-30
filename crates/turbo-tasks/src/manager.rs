@@ -15,7 +15,7 @@ use std::{
 };
 
 use anyhow::{anyhow, Result};
-use auto_hash_map::{AutoMap, AutoSet};
+use auto_hash_map::AutoMap;
 use futures::FutureExt;
 use nohash_hasher::BuildNoHashHasher;
 use serde::{de::Visitor, Deserialize, Serialize};
@@ -35,7 +35,7 @@ use crate::{
     trace::TraceRawVcs,
     util::{FormatDuration, StaticOrArc},
     Completion, ConcreteTaskInput, InvalidationReason, InvalidationReasonSet, SharedReference,
-    TaskId, ValueTypeId, Vc, VcRead, VcValueTrait, VcValueType,
+    TaskId, TaskIdSet, ValueTypeId, Vc, VcRead, VcValueTrait, VcValueType,
 };
 
 pub trait TurboTasksCallApi: Sync + Send {
@@ -206,7 +206,7 @@ pub trait TurboTasksBackendApi<B: Backend + 'static>:
 
     /// Enqueues tasks for notification of changed dependencies. This will
     /// eventually call `invalidate_tasks()` on all tasks.
-    fn schedule_notify_tasks_set(&self, tasks: &AutoSet<TaskId, BuildNoHashHasher<TaskId>, 2>);
+    fn schedule_notify_tasks_set(&self, tasks: &TaskIdSet);
 
     /// Returns the stats reporting type.
     fn stats_type(&self) -> StatsType;
@@ -1111,7 +1111,7 @@ impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
 
     /// Enqueues tasks for notification of changed dependencies. This will
     /// eventually call `dependent_cell_updated()` on all tasks.
-    fn schedule_notify_tasks_set(&self, tasks: &AutoSet<TaskId, BuildNoHashHasher<TaskId>, 2>) {
+    fn schedule_notify_tasks_set(&self, tasks: &TaskIdSet) {
         let result = CURRENT_TASK_STATE.try_with(|cell| {
             let CurrentTaskState {
                 tasks_to_notify, ..

@@ -2,12 +2,11 @@ use std::{hash::Hash, ops::ControlFlow, sync::Arc};
 
 use auto_hash_map::{map::RawEntry, AutoMap};
 use nohash_hasher::{BuildNoHashHasher, IsEnabled};
-use smallvec::SmallVec;
 
 use super::{
     bottom_tree::BottomTree,
     inner_refs::{BottomRef, ChildLocation},
-    AggregationContext,
+    AggregationContext, StackVec,
 };
 
 struct BottomRefInfo {
@@ -197,7 +196,7 @@ impl<T, I: IsEnabled + Eq + Hash + Clone> BottomConnection<T, I> {
 
 pub enum BottomUppers<T, I: IsEnabled> {
     Left(Arc<BottomTree<T, I>>),
-    Inner(SmallVec<[(BottomRef<T, I>, u8); 16]>),
+    Inner(StackVec<(BottomRef<T, I>, u8)>),
 }
 
 impl<T, I: IsEnabled + Eq + Hash + Clone> BottomUppers<T, I> {

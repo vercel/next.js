@@ -3,7 +3,6 @@ use std::{hash::Hash, sync::Arc};
 use auto_hash_map::AutoSet;
 use nohash_hasher::IsEnabled;
 use ref_cast::RefCast;
-use smallvec::SmallVec;
 use tracing::Level;
 
 use super::{
@@ -11,7 +10,7 @@ use super::{
     bottom_tree::BottomTree,
     inner_refs::{BottomRef, ChildLocation},
     top_tree::TopTree,
-    AggregationContext, AggregationItemLock, CHILDREN_INNER_THRESHOLD,
+    AggregationContext, AggregationItemLock, LargeStackVec, CHILDREN_INNER_THRESHOLD,
 };
 
 /// The leaf of the aggregation tree. It's usually stored inside of the nodes
@@ -245,7 +244,7 @@ pub fn add_inner_upper_to_item<C: AggregationContext>(
                 change,
                 item.children()
                     .map(|r| r.into_owned())
-                    .collect::<SmallVec<[_; 128]>>(),
+                    .collect::<LargeStackVec<_>>(),
             )
         } else {
             return true;
@@ -267,7 +266,7 @@ pub fn add_inner_upper_to_item<C: AggregationContext>(
 
 struct AddLeftUpperIntermediateResult<C: AggregationContext>(
     Option<C::ItemChange>,
-    SmallVec<[C::ItemRef; 128]>,
+    LargeStackVec<C::ItemRef>,
     DistanceCountMap<BottomRef<C::Info, C::ItemRef>>,
     Option<C::ItemChange>,
 );
@@ -352,7 +351,7 @@ pub fn remove_inner_upper_from_item<C: AggregationContext>(
     let children = item
         .children()
         .map(|r| r.into_owned())
-        .collect::<SmallVec<[_; 128]>>();
+        .collect::<LargeStackVec<_>>();
     drop(item);
 
     if let Some(change) = change {

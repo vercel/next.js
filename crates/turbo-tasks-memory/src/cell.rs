@@ -4,11 +4,10 @@ use std::{
 };
 
 use auto_hash_map::AutoSet;
-use nohash_hasher::BuildNoHashHasher;
 use turbo_tasks::{
     backend::CellContent,
     event::{Event, EventListener},
-    TaskId, TurboTasksBackendApi,
+    TaskId, TaskIdSet, TurboTasksBackendApi,
 };
 
 use crate::MemoryBackend;
@@ -25,20 +24,18 @@ pub(crate) enum Cell {
     /// tracking is still active. Any update will invalidate dependent tasks.
     /// Assigning a value will transition to the Value state.
     /// Reading this cell will transition to the Recomputing state.
-    TrackedValueless {
-        dependent_tasks: AutoSet<TaskId, BuildNoHashHasher<TaskId>, 2>,
-    },
+    TrackedValueless { dependent_tasks: TaskIdSet },
     /// Someone wanted to read the content and it was not available. The content
     /// is now being recomputed.
     /// Assigning a value will transition to the Value state.
     Recomputing {
-        dependent_tasks: AutoSet<TaskId, BuildNoHashHasher<TaskId>, 2>,
+        dependent_tasks: TaskIdSet,
         event: Event,
     },
     /// The content was set only once and is tracked.
     /// GC operation will transition to the TrackedValueless state.
     Value {
-        dependent_tasks: AutoSet<TaskId, BuildNoHashHasher<TaskId>, 2>,
+        dependent_tasks: TaskIdSet,
         content: CellContent,
     },
 }
@@ -95,11 +92,10 @@ impl Cell {
     }
 
     /// Returns the list of dependent tasks.
-    pub fn dependent_tasks(&self) -> &AutoSet<TaskId, BuildNoHashHasher<TaskId>, 2> {
+    pub fn dependent_tasks(&self) -> &TaskIdSet {
         match self {
             Cell::Empty => {
-                static EMPTY: AutoSet<TaskId, BuildNoHashHasher<TaskId>, 2> =
-                    AutoSet::with_hasher();
+                static EMPTY: TaskIdSet = AutoSet::with_hasher();
                 &EMPTY
             }
             Cell::Value {
@@ -117,7 +113,7 @@ impl Cell {
     /// Switch the cell to recomputing state.
     fn recompute(
         &mut self,
-        dependent_tasks: AutoSet<TaskId, BuildNoHashHasher<TaskId>, 2>,
+        dependent_tasks: TaskIdSet,
         description: impl Fn() -> String + Sync + Send + 'static,
         note: impl Fn() -> String + Sync + Send + 'static,
     ) -> EventListener {

@@ -15,7 +15,6 @@ use std::{
 use anyhow::{bail, Result};
 use auto_hash_map::{AutoMap, AutoSet};
 use dashmap::{mapref::entry::Entry, DashMap};
-use nohash_hasher::BuildNoHashHasher;
 use rustc_hash::FxHasher;
 use tokio::task::futures::TaskLocalFuture;
 use tracing::trace_span;
@@ -26,7 +25,7 @@ use turbo_tasks::{
     },
     event::EventListener,
     util::{IdFactory, NoMoveVec},
-    CellId, RawVc, TaskId, TraitTypeId, TurboTasksBackendApi, Unused,
+    CellId, RawVc, TaskId, TaskIdSet, TraitTypeId, TurboTasksBackendApi, Unused,
 };
 
 use crate::{
@@ -221,7 +220,7 @@ impl MemoryBackend {
 
     pub(crate) fn schedule_when_dirty_from_aggregation(
         &self,
-        set: AutoSet<TaskId, BuildNoHashHasher<TaskId>, 2>,
+        set: TaskIdSet,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) {
         for task in set {
@@ -262,7 +261,7 @@ impl Backend for MemoryBackend {
 
     fn invalidate_tasks_set(
         &self,
-        tasks: &AutoSet<TaskId, BuildNoHashHasher<TaskId>, 2>,
+        tasks: &TaskIdSet,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) {
         for &task in tasks {

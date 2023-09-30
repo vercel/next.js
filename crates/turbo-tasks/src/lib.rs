@@ -73,6 +73,7 @@ mod value_type;
 mod vc;
 
 pub use anyhow::{Error, Result};
+use auto_hash_map::AutoSet;
 pub use collectibles::CollectiblesSource;
 pub use completion::{Completion, Completions};
 pub use display::ValueToString;
@@ -91,6 +92,7 @@ pub use manager::{
     Unused, UpdateInfo,
 };
 pub use native_function::NativeFunction;
+use nohash_hasher::BuildNoHashHasher;
 pub use raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveTypeError};
 pub use read_ref::ReadRef;
 pub use state::State;
@@ -106,6 +108,8 @@ pub use vc::{
     Dynamic, TypedForInput, Upcast, ValueDefault, Vc, VcCellNewMode, VcCellSharedMode,
     VcDefaultRead, VcRead, VcTransparentRead, VcValueTrait, VcValueType,
 };
+
+pub type TaskIdSet = AutoSet<TaskId, BuildNoHashHasher<TaskId>, 2>;
 
 pub mod test_helpers {
     pub use super::manager::{current_task_for_testing, with_turbo_tasks_for_testing};

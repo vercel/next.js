@@ -16,7 +16,6 @@ use anyhow::{anyhow, Result};
 use auto_hash_map::{AutoMap, AutoSet};
 use concurrent_queue::ConcurrentQueue;
 use dashmap::{mapref::entry::Entry, DashMap, DashSet};
-use nohash_hasher::BuildNoHashHasher;
 use turbo_tasks::{
     backend::{
         Backend, BackendJobId, CellContent, PersistentTaskType, TaskExecutionSpec,
@@ -28,7 +27,7 @@ use turbo_tasks::{
         PersistedGraphApi, ReadTaskState, TaskCell, TaskData,
     },
     util::{IdFactory, NoMoveVec, SharedError},
-    CellId, RawVc, TaskId, TraitTypeId, TurboTasksBackendApi, Unused,
+    CellId, RawVc, TaskId, TaskIdSet, TraitTypeId, TurboTasksBackendApi, Unused,
 };
 
 type RootTaskFn =
@@ -65,11 +64,11 @@ struct MemoryTaskState {
     need_persist: bool,
     has_changes: bool,
     freshness: TaskFreshness,
-    cells: HashMap<CellId, (TaskCell, AutoSet<TaskId, BuildNoHashHasher<TaskId>, 2>)>,
+    cells: HashMap<CellId, (TaskCell, TaskIdSet)>,
     output: Option<Result<RawVc, SharedError>>,
-    output_dependent: AutoSet<TaskId, BuildNoHashHasher<TaskId>, 2>,
+    output_dependent: TaskIdSet,
     dependencies: AutoSet<RawVc>,
-    children: AutoSet<TaskId, BuildNoHashHasher<TaskId>, 2>,
+    children: TaskIdSet,
     event: Event,
     event_cells: Event,
 }
@@ -1040,7 +1039,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
 
     fn invalidate_tasks_set(
         &self,
-        tasks: &AutoSet<TaskId, BuildNoHashHasher<TaskId>, 2>,
+        tasks: &TaskIdSet,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) {
         for &task in tasks {

@@ -35,6 +35,7 @@ mod top_tree;
 use std::{borrow::Cow, hash::Hash, ops::ControlFlow, sync::Arc};
 
 use nohash_hasher::IsEnabled;
+use smallvec::SmallVec;
 
 use self::{leaf::top_tree, top_tree::TopTree};
 pub use self::{
@@ -48,6 +49,9 @@ const CONNECTIVITY_LIMIT: u8 = 7;
 /// The maximum of number of children muliplied by number of upper bottom trees.
 /// When reached the parent of the children will form a new bottom tree.
 const CHILDREN_INNER_THRESHOLD: usize = 2000;
+
+type StackVec<I> = SmallVec<[I; 16]>;
+type LargeStackVec<I> = SmallVec<[I; 32]>;
 
 /// The context trait which defines how the aggregation tree should behave.
 pub trait AggregationContext {
