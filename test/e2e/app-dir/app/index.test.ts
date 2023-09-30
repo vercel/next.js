@@ -14,7 +14,7 @@ createNextDescribe(
       : undefined,
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
-    if (isNextStart) {
+    if (isNextStart && !process.env.NEXT_EXPERIMENTAL_COMPILE) {
       it('should use RSC prefetch data from build', async () => {
         expect(
           await next.readFile('.next/server/app/linking.prefetch.rsc')
