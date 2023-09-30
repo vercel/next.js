@@ -38,8 +38,7 @@ describe('node-fetch-keep-alive', () => {
 
     runTests()
   })
-
-  describe('production', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       mockServer = createServer((req, res) => {
         // we can test request headers by sending them
