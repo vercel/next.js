@@ -5,9 +5,5 @@ export default function UnexpectedErrorPage(props) {
   if (props.searchParams.error) {
     throw new Error('Oh no')
   }
-  return (
-    <>
-      <p id="page">/unexpected-error</p>
-    </>
-  )
+  return <p id="page">/unexpected-error</p>
 }
