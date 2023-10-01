@@ -47,7 +47,7 @@ export async function generatePrefetchRsc(
 
   const prefetchRscData = Buffer.concat(res.buffers)
 
-  if ((renderOpts as any).store.dynamicUsageDescription) return
+  if ((renderOpts as any).store.staticPrefetchBailout) return
 
   await fs.writeFile(
     htmlFilepath.replace(/\.html$/, '.prefetch.rsc'),
@@ -100,14 +100,16 @@ export async function exportAppPage(
         )
       }
 
-      await generatePrefetchRsc(
-        req,
-        path,
-        res,
-        pathname,
-        htmlFilepath,
-        renderOpts
-      )
+      if (!(renderOpts as any).store.staticPrefetchBailout) {
+        await generatePrefetchRsc(
+          req,
+          path,
+          res,
+          pathname,
+          htmlFilepath,
+          renderOpts
+        )
+      }
 
       const { staticBailoutInfo = {} } = metadata
 
