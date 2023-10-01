@@ -2,7 +2,7 @@ import { createNextDescribe } from '../../../lib/e2e-utils'
 import { waitFor } from '../../../lib/next-test-utils'
 
 createNextDescribe(
-  'app-prefetch-i18n',
+  'app-prefetch-static',
   {
     files: __dirname,
   },
