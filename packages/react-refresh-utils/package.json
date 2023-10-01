@@ -1,6 +1,6 @@
 {
   "name": "@next/react-refresh-utils",
-  "version": "13.5.4-canary.6",
+  "version": "13.5.4-canary.8",
   "description": "An experimental package providing utilities for React Refresh.",
   "repository": {
     "url": "vercel/next.js",

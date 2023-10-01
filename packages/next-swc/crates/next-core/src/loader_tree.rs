@@ -105,7 +105,7 @@ impl LoaderTreeBuilder {
             let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
 
             match self.mode {
-                NextMode::Development | NextMode::DevServer => {
+                NextMode::Development => {
                     let chunks_identifier =
                         magic_identifier::mangle(&format!("chunks of {name} #{i}"));
                     writeln!(
