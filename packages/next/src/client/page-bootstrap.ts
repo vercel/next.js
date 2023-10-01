@@ -25,7 +25,10 @@ export function pageBootrap(assetPrefix: string) {
       }, process.env.__NEXT_BUILD_INDICATOR_POSITION)
     }
 
+    let reloading = false
+
     addMessageListener((payload) => {
+      if (reloading) return
       if ('action' in payload) {
         if (payload.action === HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR) {
           const { stack, message } = JSON.parse(payload.errorJSON)
@@ -33,6 +36,7 @@ export function pageBootrap(assetPrefix: string) {
           error.stack = stack
           throw error
         } else if (payload.action === HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE) {
+          reloading = true
           window.location.reload()
         } else if (
           payload.action ===

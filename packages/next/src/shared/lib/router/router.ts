@@ -453,7 +453,7 @@ function fetchRetry(
     //
     // > `fetch` won’t send cookies, unless you set the credentials init
     // > option.
-    // https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
+    // https://developer.mozilla.org/docs/Web/API/Fetch_API/Using_Fetch
     //
     // > For maximum browser compatibility when it comes to sending &
     // > receiving cookies, always supply the `credentials: 'same-origin'`
@@ -830,6 +830,7 @@ export default class Router implements BaseRouter {
     this.isReady = !!(
       self.__NEXT_DATA__.gssp ||
       self.__NEXT_DATA__.gip ||
+      self.__NEXT_DATA__.isExperimentalCompile ||
       (self.__NEXT_DATA__.appGip && !self.__NEXT_DATA__.gsp) ||
       (!autoExportDynamic &&
         !self.location.search &&
@@ -1843,7 +1844,7 @@ export default class Router implements BaseRouter {
         } as HistoryState,
         // Most browsers currently ignores this parameter, although they may use it in the future.
         // Passing the empty string here should be safe against future changes to the method.
-        // https://developer.mozilla.org/en-US/docs/Web/API/History/replaceState
+        // https://developer.mozilla.org/docs/Web/API/History/replaceState
         '',
         as
       )

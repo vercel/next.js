@@ -1494,7 +1494,6 @@ function runTests({ dev }) {
           contentTypeHeader: 'text/x-component',
           varyHeader:
             'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url',
-          prefetchHeader: 'Next-Router-Prefetch',
         },
       })
     })
@@ -1569,8 +1568,7 @@ describe('Dynamic Routing', () => {
 
     runTests({ dev: true })
   })
-
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await fs.remove(nextConfig)
 

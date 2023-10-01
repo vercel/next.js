@@ -124,8 +124,6 @@ var enableLazyContextPropagation = false; // FB-only usage. The new API has diff
 
 var enableLegacyHidden = false; // Enables unstable_avoidThisFallback feature in Fiber
 var enableHostSingletons = true;
-
-var diffInCommitPhase = true;
 var enableAsyncActions = true;
 var alwaysThrottleRetries = true; // -----------------------------------------------------------------------------
 // Chopping Block
@@ -197,6 +195,13 @@ function useFormStatus() {
     var dispatcher = resolveDispatcher(); // $FlowFixMe[not-a-function] We know this exists because of the feature check above.
 
     return dispatcher.useHostTransitionStatus();
+  }
+}
+function useFormState(action, initialState, permalink) {
+  {
+    var dispatcher = resolveDispatcher(); // $FlowFixMe[not-a-function] This is unstable, thus optional
+
+    return dispatcher.useFormState(action, initialState, permalink);
   }
 }
 
@@ -3721,15 +3726,24 @@ function restoreControlledInputState(element, props) {
 
       if (!otherProps) {
         throw new Error('ReactDOMInput: Mixing React and non-React radio inputs with the ' + 'same `name` is not supported.');
-      } // We need update the tracked value on the named cousin since the value
-      // was changed but the input saw no event or value set
-
-
-      updateValueIfChanged(otherNode); // If this is a controlled radio button group, forcing the input that
+      } // If this is a controlled radio button group, forcing the input that
       // was previously checked to update will cause it to be come re-checked
       // as appropriate.
 
+
       updateInput(otherNode, otherProps.value, otherProps.defaultValue, otherProps.defaultValue, otherProps.checked, otherProps.defaultChecked, otherProps.type, otherProps.name);
+    } // If any updateInput() call set .checked to true, an input in this group
+    // (often, `rootNode` itself) may have become unchecked
+
+
+    for (var _i = 0; _i < group.length; _i++) {
+      var _otherNode = group[_i];
+
+      if (_otherNode.form !== rootNode.form) {
+        continue;
+      }
+
+      updateValueIfChanged(_otherNode);
     }
   }
 } // In Chrome, assigning defaultValue to certain input types triggers input validation.
@@ -7273,13 +7287,37 @@ function tryToClaimNextHydratableSuspenseInstance(fiber) {
   }
 }
 
+function tryToClaimNextHydratableFormMarkerInstance(fiber) {
+  if (!isHydrating) {
+    return false;
+  }
+
+  if (nextHydratableInstance) {
+    var markerInstance = canHydrateFormStateMarker(nextHydratableInstance, rootOrSingletonContext);
+
+    if (markerInstance) {
+      // Found the marker instance.
+      nextHydratableInstance = getNextHydratableSibling(markerInstance); // Return true if this marker instance should use the state passed
+      // to hydrateRoot.
+      // TODO: As an optimization, Fizz should only emit these markers if form
+      // state is passed at the root.
+
+      return isFormStateMarkerMatching(markerInstance);
+    }
+  } // Should have found a marker instance. Throw an error to trigger client
+  // rendering. We don't bother to check if we're in a concurrent root because
+  // useFormState is a new API, so backwards compat is not an issue.
+
+
+  throwOnHydrationMismatch();
+  return false;
+}
+
 function prepareToHydrateHostInstance(fiber, hostContext) {
 
   var instance = fiber.stateNode;
   var shouldWarnIfMismatchDev = !didSuspendOrErrorDEV;
-  hydrateInstance(instance, fiber.type, fiber.memoizedProps, hostContext, fiber, shouldWarnIfMismatchDev); // TODO: Type this specific to this type of component.
-
-  return false;
+  hydrateInstance(instance, fiber.type, fiber.memoizedProps, hostContext, fiber, shouldWarnIfMismatchDev);
 }
 
 function prepareToHydrateHostTextInstance(fiber) {
@@ -10575,90 +10613,95 @@ var currentEntangledListeners = null; // The number of pending async actions in 
 var currentEntangledPendingCount = 0; // The transition lane shared by all updates in the entangled scope.
 
 var currentEntangledLane = NoLane;
-function requestAsyncActionContext(actionReturnValue, finishedState) {
-  if (actionReturnValue !== null && typeof actionReturnValue === 'object' && typeof actionReturnValue.then === 'function') {
-    // This is an async action.
-    //
-    // Return a thenable that resolves once the action scope (i.e. the async
-    // function passed to startTransition) has finished running.
-    var thenable = actionReturnValue;
-    var entangledListeners;
+function requestAsyncActionContext(actionReturnValue, // If this is provided, this resulting thenable resolves to this value instead
+// of the return value of the action. This is a perf trick to avoid composing
+// an extra async function.
+overrideReturnValue) {
+  // This is an async action.
+  //
+  // Return a thenable that resolves once the action scope (i.e. the async
+  // function passed to startTransition) has finished running.
+  var thenable = actionReturnValue;
+  var entangledListeners;
 
-    if (currentEntangledListeners === null) {
-      // There's no outer async action scope. Create a new one.
-      entangledListeners = currentEntangledListeners = [];
-      currentEntangledPendingCount = 0;
-      currentEntangledLane = requestTransitionLane();
-    } else {
-      entangledListeners = currentEntangledListeners;
+  if (currentEntangledListeners === null) {
+    // There's no outer async action scope. Create a new one.
+    entangledListeners = currentEntangledListeners = [];
+    currentEntangledPendingCount = 0;
+    currentEntangledLane = requestTransitionLane();
+  } else {
+    entangledListeners = currentEntangledListeners;
+  }
+
+  currentEntangledPendingCount++; // Create a thenable that represents the result of this action, but doesn't
+  // resolve until the entire entangled scope has finished.
+  //
+  // Expressed using promises:
+  //   const [thisResult] = await Promise.all([thisAction, entangledAction]);
+  //   return thisResult;
+
+  var resultThenable = createResultThenable(entangledListeners);
+  var resultStatus = 'pending';
+  var resultValue;
+  var rejectedReason;
+  thenable.then(function (value) {
+    resultStatus = 'fulfilled';
+    resultValue = overrideReturnValue !== null ? overrideReturnValue : value;
+    pingEngtangledActionScope();
+  }, function (error) {
+    resultStatus = 'rejected';
+    rejectedReason = error;
+    pingEngtangledActionScope();
+  }); // Attach a listener to fill in the result.
+
+  entangledListeners.push(function () {
+    switch (resultStatus) {
+      case 'fulfilled':
+        {
+          var fulfilledThenable = resultThenable;
+          fulfilledThenable.status = 'fulfilled';
+          fulfilledThenable.value = resultValue;
+          break;
+        }
+
+      case 'rejected':
+        {
+          var rejectedThenable = resultThenable;
+          rejectedThenable.status = 'rejected';
+          rejectedThenable.reason = rejectedReason;
+          break;
+        }
+
+      case 'pending':
+      default:
+        {
+          // The listener above should have been called first, so `resultStatus`
+          // should already be set to the correct value.
+          throw new Error('Thenable should have already resolved. This ' + 'is a bug in React.');
+        }
     }
+  });
+  return resultThenable;
+}
+function requestSyncActionContext(actionReturnValue, // If this is provided, this resulting thenable resolves to this value instead
+// of the return value of the action. This is a perf trick to avoid composing
+// an extra async function.
+overrideReturnValue) {
+  var resultValue = overrideReturnValue !== null ? overrideReturnValue : actionReturnValue; // This is not an async action, but it may be part of an outer async action.
 
-    currentEntangledPendingCount++;
-    var resultStatus = 'pending';
-    var rejectedReason;
-    thenable.then(function () {
-      resultStatus = 'fulfilled';
-      pingEngtangledActionScope();
-    }, function (error) {
-      resultStatus = 'rejected';
-      rejectedReason = error;
-      pingEngtangledActionScope();
-    }); // Create a thenable that represents the result of this action, but doesn't
-    // resolve until the entire entangled scope has finished.
-    //
-    // Expressed using promises:
-    //   const [thisResult] = await Promise.all([thisAction, entangledAction]);
-    //   return thisResult;
-
-    var resultThenable = createResultThenable(entangledListeners); // Attach a listener to fill in the result.
-
+  if (currentEntangledListeners === null) {
+    return resultValue;
+  } else {
+    // Return a thenable that does not resolve until the entangled actions
+    // have finished.
+    var entangledListeners = currentEntangledListeners;
+    var resultThenable = createResultThenable(entangledListeners);
     entangledListeners.push(function () {
-      switch (resultStatus) {
-        case 'fulfilled':
-          {
-            var fulfilledThenable = resultThenable;
-            fulfilledThenable.status = 'fulfilled';
-            fulfilledThenable.value = finishedState;
-            break;
-          }
-
-        case 'rejected':
-          {
-            var rejectedThenable = resultThenable;
-            rejectedThenable.status = 'rejected';
-            rejectedThenable.reason = rejectedReason;
-            break;
-          }
-
-        case 'pending':
-        default:
-          {
-            // The listener above should have been called first, so `resultStatus`
-            // should already be set to the correct value.
-            throw new Error('Thenable should have already resolved. This ' + 'is a bug in React.');
-          }
-      }
+      var fulfilledThenable = resultThenable;
+      fulfilledThenable.status = 'fulfilled';
+      fulfilledThenable.value = resultValue;
     });
     return resultThenable;
-  } else {
-    // This is not an async action, but it may be part of an outer async action.
-    if (currentEntangledListeners === null) {
-      return finishedState;
-    } else {
-      // Return a thenable that does not resolve until the entangled actions
-      // have finished.
-      var _entangledListeners = currentEntangledListeners;
-
-      var _resultThenable = createResultThenable(_entangledListeners);
-
-      _entangledListeners.push(function () {
-        var fulfilledThenable = _resultThenable;
-        fulfilledThenable.status = 'fulfilled';
-        fulfilledThenable.value = finishedState;
-      });
-
-      return _resultThenable;
-    }
   }
 }
 
@@ -12004,13 +12047,17 @@ function mountOptimistic(passthrough, reducer) {
 }
 
 function updateOptimistic(passthrough, reducer) {
-  var hook = updateWorkInProgressHook(); // Optimistic updates are always rebased on top of the latest value passed in
+  var hook = updateWorkInProgressHook();
+  return updateOptimisticImpl(hook, currentHook, passthrough, reducer);
+}
+
+function updateOptimisticImpl(hook, current, passthrough, reducer) {
+  // Optimistic updates are always rebased on top of the latest value passed in
   // as an argument. It's called a passthrough because if there are no pending
   // updates, it will be returned as-is.
   //
   // Reset the base state and memoized state to the passthrough. Future
   // updates will be applied on top of this.
-
   hook.baseState = hook.memoizedState = passthrough; // If a reducer is not provided, default to the same one used by useState.
 
   var resolvedReducer = typeof reducer === 'function' ? reducer : basicStateReducer;
@@ -12025,18 +12072,242 @@ function rerenderOptimistic(passthrough, reducer) {
   // So instead of a forked re-render implementation that knows how to handle
   // render phase udpates, we can use the same implementation as during a
   // regular mount or update.
+  var hook = updateWorkInProgressHook();
+
   if (currentHook !== null) {
     // This is an update. Process the update queue.
-    return updateOptimistic(passthrough, reducer);
+    return updateOptimisticImpl(hook, currentHook, passthrough, reducer);
   } // This is a mount. No updates to process.
-
-
-  var hook = updateWorkInProgressHook(); // Reset the base state and memoized state to the passthrough. Future
+  // Reset the base state and memoized state to the passthrough. Future
   // updates will be applied on top of this.
+
 
   hook.baseState = hook.memoizedState = passthrough;
   var dispatch = hook.queue.dispatch;
   return [passthrough, dispatch];
+} // useFormState actions run sequentially, because each action receives the
+// previous state as an argument. We store pending actions on a queue.
+
+
+function dispatchFormState(fiber, actionQueue, setState, payload) {
+  if (isRenderPhaseUpdate(fiber)) {
+    throw new Error('Cannot update form state while rendering.');
+  }
+
+  var last = actionQueue.pending;
+
+  if (last === null) {
+    // There are no pending actions; this is the first one. We can run
+    // it immediately.
+    var newLast = {
+      payload: payload,
+      next: null // circular
+
+    };
+    newLast.next = actionQueue.pending = newLast;
+    runFormStateAction(actionQueue, setState, payload);
+  } else {
+    // There's already an action running. Add to the queue.
+    var first = last.next;
+    var _newLast = {
+      payload: payload,
+      next: first
+    };
+    last.next = _newLast;
+  }
+}
+
+function runFormStateAction(actionQueue, setState, payload) {
+  var action = actionQueue.action;
+  var prevState = actionQueue.state; // This is a fork of startTransition
+
+  var prevTransition = ReactCurrentBatchConfig$3.transition;
+  ReactCurrentBatchConfig$3.transition = {};
+  var currentTransition = ReactCurrentBatchConfig$3.transition;
+
+  {
+    ReactCurrentBatchConfig$3.transition._updatedFibers = new Set();
+  }
+
+  try {
+    var promise = action(prevState, payload);
+
+    if (true) {
+      if (promise === null || typeof promise !== 'object' || typeof promise.then !== 'function') {
+        error('The action passed to useFormState must be an async function.');
+      }
+    } // Attach a listener to read the return state of the action. As soon as this
+    // resolves, we can run the next action in the sequence.
+
+
+    promise.then(function (nextState) {
+      actionQueue.state = nextState;
+      finishRunningFormStateAction(actionQueue, setState);
+    }, function () {
+      return finishRunningFormStateAction(actionQueue, setState);
+    }); // Create a thenable that resolves once the current async action scope has
+    // finished. Then stash that thenable in state. We'll unwrap it with the
+    // `use` algorithm during render. This is the same logic used
+    // by startTransition.
+
+    var entangledThenable = requestAsyncActionContext(promise, null);
+    setState(entangledThenable);
+  } finally {
+    ReactCurrentBatchConfig$3.transition = prevTransition;
+
+    {
+      if (prevTransition === null && currentTransition._updatedFibers) {
+        var updatedFibersCount = currentTransition._updatedFibers.size;
+
+        currentTransition._updatedFibers.clear();
+
+        if (updatedFibersCount > 10) {
+          warn('Detected a large number of updates inside startTransition. ' + 'If this is due to a subscription please re-write it to use React provided hooks. ' + 'Otherwise concurrent mode guarantees are off the table.');
+        }
+      }
+    }
+  }
+}
+
+function finishRunningFormStateAction(actionQueue, setState) {
+  // The action finished running. Pop it from the queue and run the next pending
+  // action, if there are any.
+  var last = actionQueue.pending;
+
+  if (last !== null) {
+    var first = last.next;
+
+    if (first === last) {
+      // This was the last action in the queue.
+      actionQueue.pending = null;
+    } else {
+      // Remove the first node from the circular queue.
+      var next = first.next;
+      last.next = next; // Run the next action.
+
+      runFormStateAction(actionQueue, setState, next.payload);
+    }
+  }
+}
+
+function formStateReducer(oldState, newState) {
+  return newState;
+}
+
+function mountFormState(action, initialStateProp, permalink) {
+  var initialState = initialStateProp;
+
+  if (getIsHydrating()) {
+    var root = getWorkInProgressRoot();
+    var ssrFormState = root.formState; // If a formState option was passed to the root, there are form state
+    // markers that we need to hydrate. These indicate whether the form state
+    // matches this hook instance.
+
+    if (ssrFormState !== null) {
+      var isMatching = tryToClaimNextHydratableFormMarkerInstance();
+
+      if (isMatching) {
+        initialState = ssrFormState[0];
+      }
+    }
+  }
+
+  var initialStateThenable = {
+    status: 'fulfilled',
+    value: initialState,
+    then: function () {}
+  }; // State hook. The state is stored in a thenable which is then unwrapped by
+  // the `use` algorithm during render.
+
+  var stateHook = mountWorkInProgressHook();
+  stateHook.memoizedState = stateHook.baseState = initialStateThenable;
+  var stateQueue = {
+    pending: null,
+    lanes: NoLanes,
+    dispatch: null,
+    lastRenderedReducer: formStateReducer,
+    lastRenderedState: initialStateThenable
+  };
+  stateHook.queue = stateQueue;
+  var setState = dispatchSetState.bind(null, currentlyRenderingFiber$1, stateQueue);
+  stateQueue.dispatch = setState; // Action queue hook. This is used to queue pending actions. The queue is
+  // shared between all instances of the hook. Similar to a regular state queue,
+  // but different because the actions are run sequentially, and they run in
+  // an event instead of during render.
+
+  var actionQueueHook = mountWorkInProgressHook();
+  var actionQueue = {
+    state: initialState,
+    dispatch: null,
+    // circular
+    action: action,
+    pending: null
+  };
+  actionQueueHook.queue = actionQueue;
+  var dispatch = dispatchFormState.bind(null, currentlyRenderingFiber$1, actionQueue, setState);
+  actionQueue.dispatch = dispatch; // Stash the action function on the memoized state of the hook. We'll use this
+  // to detect when the action function changes so we can update it in
+  // an effect.
+
+  actionQueueHook.memoizedState = action;
+  return [initialState, dispatch];
+}
+
+function updateFormState(action, initialState, permalink) {
+  var stateHook = updateWorkInProgressHook();
+  var currentStateHook = currentHook;
+  return updateFormStateImpl(stateHook, currentStateHook, action);
+}
+
+function updateFormStateImpl(stateHook, currentStateHook, action, initialState, permalink) {
+  var _updateReducerImpl = updateReducerImpl(stateHook, currentStateHook, formStateReducer),
+      thenable = _updateReducerImpl[0]; // This will suspend until the action finishes.
+
+
+  var state = useThenable(thenable);
+  var actionQueueHook = updateWorkInProgressHook();
+  var actionQueue = actionQueueHook.queue;
+  var dispatch = actionQueue.dispatch; // Check if a new action was passed. If so, update it in an effect.
+
+  var prevAction = actionQueueHook.memoizedState;
+
+  if (action !== prevAction) {
+    currentlyRenderingFiber$1.flags |= Passive$1;
+    pushEffect(HasEffect | Passive, formStateActionEffect.bind(null, actionQueue, action), createEffectInstance(), null);
+  }
+
+  return [state, dispatch];
+}
+
+function formStateActionEffect(actionQueue, action) {
+  actionQueue.action = action;
+}
+
+function rerenderFormState(action, initialState, permalink) {
+  // Unlike useState, useFormState doesn't support render phase updates.
+  // Also unlike useState, we need to replay all pending updates again in case
+  // the passthrough value changed.
+  //
+  // So instead of a forked re-render implementation that knows how to handle
+  // render phase udpates, we can use the same implementation as during a
+  // regular mount or update.
+  var stateHook = updateWorkInProgressHook();
+  var currentStateHook = currentHook;
+
+  if (currentStateHook !== null) {
+    // This is an update. Process the update queue.
+    return updateFormStateImpl(stateHook, currentStateHook, action);
+  } // This is a mount. No updates to process.
+
+
+  var thenable = stateHook.memoizedState;
+  var state = useThenable(thenable);
+  var actionQueueHook = updateWorkInProgressHook();
+  var actionQueue = actionQueueHook.queue;
+  var dispatch = actionQueue.dispatch; // This may have changed during the rerender.
+
+  actionQueueHook.memoizedState = action;
+  return [state, dispatch];
 }
 
 function pushEffect(tag, create, inst, deps) {
@@ -12421,13 +12692,29 @@ function startTransition(fiber, queue, pendingState, finishedState, callback, op
 
   try {
     if (enableAsyncActions) {
-      var returnValue = callback(); // This is either `finishedState` or a thenable that resolves to
-      // `finishedState`, depending on whether the action scope is an async
-      // function. In the async case, the resulting render will suspend until
-      // the async action scope has finished.
+      var returnValue = callback(); // Check if we're inside an async action scope. If so, we'll entangle
+      // this new action with the existing scope.
+      //
+      // If we're not already inside an async action scope, and this action is
+      // async, then we'll create a new async scope.
+      //
+      // In the async case, the resulting render will suspend until the async
+      // action scope has finished.
 
-      var maybeThenable = requestAsyncActionContext(returnValue, finishedState);
-      dispatchSetState(fiber, queue, maybeThenable);
+      if (returnValue !== null && typeof returnValue === 'object' && typeof returnValue.then === 'function') {
+        var thenable = returnValue; // This is a thenable that resolves to `finishedState` once the async
+        // action scope has finished.
+
+        var entangledResult = requestAsyncActionContext(thenable, finishedState);
+        dispatchSetState(fiber, queue, entangledResult);
+      } else {
+        // This is either `finishedState` or a thenable that resolves to
+        // `finishedState`, depending on whether we're inside an async
+        // action scope.
+        var _entangledResult = requestSyncActionContext(returnValue, finishedState);
+
+        dispatchSetState(fiber, queue, _entangledResult);
+      }
     }
   } catch (error) {
     {
@@ -12886,6 +13173,7 @@ var ContextOnlyDispatcher = {
 
 {
   ContextOnlyDispatcher.useHostTransitionStatus = throwInvalidHookError;
+  ContextOnlyDispatcher.useFormState = throwInvalidHookError;
 }
 
 {
@@ -13040,6 +13328,12 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
 
   {
     HooksDispatcherOnMountInDEV.useHostTransitionStatus = useHostTransitionStatus;
+
+    HooksDispatcherOnMountInDEV.useFormState = function useFormState(action, initialState, permalink) {
+      currentHookNameInDev = 'useFormState';
+      mountHookTypesDev();
+      return mountFormState(action, initialState);
+    };
   }
 
   {
@@ -13175,6 +13469,12 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
 
   {
     HooksDispatcherOnMountWithHookTypesInDEV.useHostTransitionStatus = useHostTransitionStatus;
+
+    HooksDispatcherOnMountWithHookTypesInDEV.useFormState = function useFormState(action, initialState, permalink) {
+      currentHookNameInDev = 'useFormState';
+      updateHookTypesDev();
+      return mountFormState(action, initialState);
+    };
   }
 
   {
@@ -13310,6 +13610,12 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
 
   {
     HooksDispatcherOnUpdateInDEV.useHostTransitionStatus = useHostTransitionStatus;
+
+    HooksDispatcherOnUpdateInDEV.useFormState = function useFormState(action, initialState, permalink) {
+      currentHookNameInDev = 'useFormState';
+      updateHookTypesDev();
+      return updateFormState(action);
+    };
   }
 
   {
@@ -13445,6 +13751,12 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
 
   {
     HooksDispatcherOnRerenderInDEV.useHostTransitionStatus = useHostTransitionStatus;
+
+    HooksDispatcherOnRerenderInDEV.useFormState = function useFormState(action, initialState, permalink) {
+      currentHookNameInDev = 'useFormState';
+      updateHookTypesDev();
+      return rerenderFormState(action);
+    };
   }
 
   {
@@ -13603,6 +13915,13 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
 
   {
     InvalidNestedHooksDispatcherOnMountInDEV.useHostTransitionStatus = useHostTransitionStatus;
+
+    InvalidNestedHooksDispatcherOnMountInDEV.useFormState = function useFormState(action, initialState, permalink) {
+      currentHookNameInDev = 'useFormState';
+      warnInvalidHookAccess();
+      mountHookTypesDev();
+      return mountFormState(action, initialState);
+    };
   }
 
   {
@@ -13762,6 +14081,13 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
 
   {
     InvalidNestedHooksDispatcherOnUpdateInDEV.useHostTransitionStatus = useHostTransitionStatus;
+
+    InvalidNestedHooksDispatcherOnUpdateInDEV.useFormState = function useFormState(action, initialState, permalink) {
+      currentHookNameInDev = 'useFormState';
+      warnInvalidHookAccess();
+      updateHookTypesDev();
+      return updateFormState(action);
+    };
   }
 
   {
@@ -13921,6 +14247,13 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
 
   {
     InvalidNestedHooksDispatcherOnRerenderInDEV.useHostTransitionStatus = useHostTransitionStatus;
+
+    InvalidNestedHooksDispatcherOnRerenderInDEV.useFormState = function useFormState(action, initialState, permalink) {
+      currentHookNameInDev = 'useFormState';
+      warnInvalidHookAccess();
+      updateHookTypesDev();
+      return rerenderFormState(action);
+    };
   }
 
   {
@@ -15611,7 +15944,7 @@ function updateMemoComponent(current, workInProgress, Component, nextProps, rend
       }
     }
 
-    var child = createFiberFromTypeAndProps(Component.type, null, nextProps, workInProgress, workInProgress.mode, renderLanes);
+    var child = createFiberFromTypeAndProps(Component.type, null, nextProps, null, workInProgress, workInProgress.mode, renderLanes);
     child.ref = workInProgress.ref;
     child.return = workInProgress;
     workInProgress.child = child;
@@ -17329,7 +17662,10 @@ function updateDehydratedSuspenseComponent(current, workInProgress, didSuspend, 
       // reapply the update afterwards.
 
 
-      renderDidSuspendDelayIfPossible();
+      if (isSuspenseInstancePending(suspenseInstance)) ; else {
+        renderDidSuspendDelayIfPossible();
+      }
+
       return retrySuspenseComponentWithoutHydrating(current, workInProgress, renderLanes, null);
     } else if (isSuspenseInstancePending(suspenseInstance)) {
       // This component is still pending more data from the server, so we can't hydrate its
@@ -18173,7 +18509,7 @@ function beginWork$1(current, workInProgress, renderLanes) {
   {
     if (workInProgress._debugNeedsRemount && current !== null) {
       // This will restart the begin phase with a new fiber.
-      return remountFiber(current, workInProgress, createFiberFromTypeAndProps(workInProgress.type, workInProgress.key, workInProgress.pendingProps, workInProgress._debugOwner || null, workInProgress.mode, workInProgress.lanes));
+      return remountFiber(current, workInProgress, createFiberFromTypeAndProps(workInProgress.type, workInProgress.key, workInProgress.pendingProps, workInProgress._debugSource || null, workInProgress._debugOwner || null, workInProgress.mode, workInProgress.lanes));
     }
   }
 
@@ -18957,9 +19293,7 @@ function updateHostComponent(current, workInProgress, type, newProps, renderLane
       return;
     }
 
-    {
-      markUpdate(workInProgress);
-    }
+    markUpdate(workInProgress);
   }
 } // This function must be called at the very end of the complete phase, because
 // it might throw to suspend, and if the resource immediately loads, the work
@@ -19560,7 +19894,7 @@ function completeWork(current, workInProgress, renderLanes) {
             return null;
           }
 
-          var _currentHostContext2 = getHostContext(); // TODO: Move createInstance to beginWork and keep it on a context
+          var _currentHostContext = getHostContext(); // TODO: Move createInstance to beginWork and keep it on a context
           // "stack" as the parent. Then append children as we go in beginWork
           // or completeWork depending on whether we want to add them top->down or
           // bottom->up. Top->down is faster in IE11.
@@ -19571,15 +19905,11 @@ function completeWork(current, workInProgress, renderLanes) {
           if (_wasHydrated2) {
             // TODO: Move this and createInstance step into the beginPhase
             // to consolidate.
-            if (prepareToHydrateHostInstance(workInProgress, _currentHostContext2)) {
-              // If changes to the hydrated node need to be applied at the
-              // commit-phase we mark this as such.
-              markUpdate(workInProgress);
-            }
+            prepareToHydrateHostInstance(workInProgress, _currentHostContext);
           } else {
             var _rootContainerInstance = getRootHostContainer();
 
-            var _instance3 = createInstance(_type2, newProps, _rootContainerInstance, _currentHostContext2, workInProgress);
+            var _instance3 = createInstance(_type2, newProps, _rootContainerInstance, _currentHostContext, workInProgress);
 
             appendAllChildren(_instance3, workInProgress);
             workInProgress.stateNode = _instance3; // Certain renderers require commit-time effects for initial mount.
@@ -19625,7 +19955,7 @@ function completeWork(current, workInProgress, renderLanes) {
 
           var _rootContainerInstance2 = getRootHostContainer();
 
-          var _currentHostContext3 = getHostContext();
+          var _currentHostContext2 = getHostContext();
 
           var _wasHydrated3 = popHydrationState(workInProgress);
 
@@ -19634,7 +19964,7 @@ function completeWork(current, workInProgress, renderLanes) {
               markUpdate(workInProgress);
             }
           } else {
-            workInProgress.stateNode = createTextInstance(newText, _rootContainerInstance2, _currentHostContext3, workInProgress);
+            workInProgress.stateNode = createTextInstance(newText, _rootContainerInstance2, _currentHostContext2, workInProgress);
           }
         }
 
@@ -21568,6 +21898,7 @@ function detachFiberAfterEffects(fiber) {
   fiber.stateNode = null;
 
   {
+    fiber._debugSource = null;
     fiber._debugOwner = null;
   } // Theoretically, nothing in here should be necessary, because we already
   // disconnected the fiber from the tree. So even if something leaks this
@@ -22373,12 +22704,10 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
               var updatePayload = finishedWork.updateQueue;
               finishedWork.updateQueue = null;
 
-              if (updatePayload !== null || diffInCommitPhase) {
-                try {
-                  commitUpdate(finishedWork.stateNode, updatePayload, finishedWork.type, current.memoizedProps, finishedWork.memoizedProps, finishedWork);
-                } catch (error) {
-                  captureCommitPhaseError(finishedWork, finishedWork.return, error);
-                }
+              try {
+                commitUpdate(finishedWork.stateNode, updatePayload, finishedWork.type, current.memoizedProps, finishedWork.memoizedProps, finishedWork);
+              } catch (error) {
+                captureCommitPhaseError(finishedWork, finishedWork.return, error);
               }
             }
           }
@@ -22449,12 +22778,10 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
               var _updatePayload = finishedWork.updateQueue;
               finishedWork.updateQueue = null;
 
-              if (_updatePayload !== null || diffInCommitPhase) {
-                try {
-                  commitUpdate(_instance2, _updatePayload, type, oldProps, newProps, finishedWork);
-                } catch (error) {
-                  captureCommitPhaseError(finishedWork, finishedWork.return, error);
-                }
+              try {
+                commitUpdate(_instance2, _updatePayload, type, oldProps, newProps, finishedWork);
+              } catch (error) {
+                captureCommitPhaseError(finishedWork, finishedWork.return, error);
               }
             }
           }
@@ -27934,7 +28261,7 @@ function createHostRootFiber(tag, isStrictMode, concurrentUpdatesByDefaultOverri
   return createFiber(HostRoot, null, null, mode);
 }
 function createFiberFromTypeAndProps(type, // React$ElementType
-key, pendingProps, owner, mode, lanes) {
+key, pendingProps, source, owner, mode, lanes) {
   var fiberTag = IndeterminateComponent; // The resolved type is set if we know what the final type will be. I.e. it's not lazy.
 
   var resolvedType = type;
@@ -28065,22 +28392,25 @@ key, pendingProps, owner, mode, lanes) {
   fiber.lanes = lanes;
 
   {
+    fiber._debugSource = source;
     fiber._debugOwner = owner;
   }
 
   return fiber;
 }
 function createFiberFromElement(element, mode, lanes) {
+  var source = null;
   var owner = null;
 
   {
+    source = element._source;
     owner = element._owner;
   }
 
   var type = element.type;
   var key = element.key;
   var pendingProps = element.props;
-  var fiber = createFiberFromTypeAndProps(type, key, pendingProps, owner, mode, lanes);
+  var fiber = createFiberFromTypeAndProps(type, key, pendingProps, source, owner, mode, lanes);
 
   {
     fiber._debugSource = element._source;
@@ -28234,7 +28564,7 @@ function assignFiberPropertiesInDEV(target, source) {
 }
 
 function FiberRootNode(containerInfo, // $FlowFixMe[missing-local-annot]
-tag, hydrate, identifierPrefix, onRecoverableError) {
+tag, hydrate, identifierPrefix, onRecoverableError, formState) {
   this.tag = tag;
   this.containerInfo = containerInfo;
   this.pendingChildren = null;
@@ -28267,6 +28597,7 @@ tag, hydrate, identifierPrefix, onRecoverableError) {
     this.pooledCacheLanes = NoLanes;
   }
 
+  this.formState = formState;
   this.incompleteTransitions = new Map();
 
   {
@@ -28300,9 +28631,9 @@ function createFiberRoot(containerInfo, tag, hydrate, initialChildren, hydration
 // host config, but because they are passed in at runtime, we have to thread
 // them through the root constructor. Perhaps we should put them all into a
 // single type, like a DynamicHostConfig that is defined by the renderer.
-identifierPrefix, onRecoverableError, transitionCallbacks) {
+identifierPrefix, onRecoverableError, transitionCallbacks, formState) {
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  var root = new FiberRootNode(containerInfo, tag, hydrate, identifierPrefix, onRecoverableError);
+  var root = new FiberRootNode(containerInfo, tag, hydrate, identifierPrefix, onRecoverableError, formState);
   // stateNode is any.
 
 
@@ -28334,7 +28665,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks) {
   return root;
 }
 
-var ReactVersion = '18.3.0-experimental-dd480ef92-20230822';
+var ReactVersion = '18.3.0-experimental-09285d5a7-20230925';
 
 function createPortal$1(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {
@@ -28436,12 +28767,12 @@ function findHostInstanceWithWarning(component, methodName) {
 function createContainer(containerInfo, tag, hydrationCallbacks, isStrictMode, concurrentUpdatesByDefaultOverride, identifierPrefix, onRecoverableError, transitionCallbacks) {
   var hydrate = false;
   var initialChildren = null;
-  return createFiberRoot(containerInfo, tag, hydrate, initialChildren, hydrationCallbacks, isStrictMode, concurrentUpdatesByDefaultOverride, identifierPrefix, onRecoverableError);
+  return createFiberRoot(containerInfo, tag, hydrate, initialChildren, hydrationCallbacks, isStrictMode, concurrentUpdatesByDefaultOverride, identifierPrefix, onRecoverableError, transitionCallbacks, null);
 }
 function createHydrationContainer(initialChildren, // TODO: Remove `callback` when we delete legacy mode.
-callback, containerInfo, tag, hydrationCallbacks, isStrictMode, concurrentUpdatesByDefaultOverride, identifierPrefix, onRecoverableError, transitionCallbacks) {
+callback, containerInfo, tag, hydrationCallbacks, isStrictMode, concurrentUpdatesByDefaultOverride, identifierPrefix, onRecoverableError, transitionCallbacks, formState) {
   var hydrate = true;
-  var root = createFiberRoot(containerInfo, tag, hydrate, initialChildren, hydrationCallbacks, isStrictMode, concurrentUpdatesByDefaultOverride, identifierPrefix, onRecoverableError); // TODO: Move this to FiberRoot constructor
+  var root = createFiberRoot(containerInfo, tag, hydrate, initialChildren, hydrationCallbacks, isStrictMode, concurrentUpdatesByDefaultOverride, identifierPrefix, onRecoverableError, transitionCallbacks, formState); // TODO: Move this to FiberRoot constructor
 
   root.context = getContextForSubtree(null); // Schedule the initial render. In a hydration root, this is different from
   // a regular update because the initial render must match was was rendered
@@ -33040,7 +33371,7 @@ function setProp(domElement, tag, key, value, props, prevValue) {
             // If CSP is used to block javascript: URLs that's fine too. It just won't show this
             // error message but the URL will be logged.
             domElement.setAttribute(key, // eslint-disable-next-line no-script-url
-            "javascript:throw new Error('" + 'A React form was unexpectedly submitted. If you called form.submit() manually, ' + "consider using form.requestSubmit() instead. If you're trying to use " + 'event.stopPropagation() in a submit event handler, consider also calling ' + 'event.preventDefault().' + "')");
+            "javascript:throw new Error('" + 'A React form was unexpectedly submitted. If you called form.submit() manually, ' + "consider using form.requestSubmit() instead. If you\\'re trying to use " + 'event.stopPropagation() in a submit event handler, consider also calling ' + 'event.preventDefault().' + "')");
             break;
           } else if (typeof prevValue === 'function') {
             // When we're switching off a Server Action that was originally hydrated.
@@ -33886,7 +34217,7 @@ function setInitialProperties(domElement, tag, props) {
 
     setProp(domElement, tag, _propKey6, _propValue6, props, null);
   }
-} // Calculate the diff between the two objects.
+}
 function updateProperties(domElement, tag, lastProps, nextProps) {
   {
     validatePropertiesInDevelopment(tag, nextProps);
@@ -34322,7 +34653,7 @@ function updateProperties(domElement, tag, lastProps, nextProps) {
       setProp(domElement, tag, _propKey19, _nextProp6, nextProps, _lastProp13);
     }
   }
-} // Apply the diff.
+}
 
 function getPossibleStandardName(propName) {
   {
@@ -35166,7 +35497,6 @@ function diffHydratedProperties(domElement, tag, props, isConcurrentMode, should
       break;
   }
 
-  var updatePayload = null;
   var children = props.children; // For text content children we compare against textContent. This
   // might match additional HTML that is hidden when we read it using
   // textContent. E.g. "foo" will match "f<span>oo</span>" but that still
@@ -35184,15 +35514,13 @@ function diffHydratedProperties(domElement, tag, props, isConcurrentMode, should
       }
 
       if (!isConcurrentMode || !enableClientRenderFallbackOnTextMismatch) {
-        {
-          // We really should be patching this in the commit phase but since
-          // this only affects legacy mode hydration which is deprecated anyway
-          // we can get away with it.
-          // Host singletons get their children appended and don't use the text
-          // content mechanism.
-          if (tag !== 'body') {
-            domElement.textContent = children;
-          }
+        // We really should be patching this in the commit phase but since
+        // this only affects legacy mode hydration which is deprecated anyway
+        // we can get away with it.
+        // Host singletons get their children appended and don't use the text
+        // content mechanism.
+        if (tag !== 'body') {
+          domElement.textContent = children;
         }
       }
     }
@@ -35211,8 +35539,8 @@ function diffHydratedProperties(domElement, tag, props, isConcurrentMode, should
     var extraAttributes = new Set();
     var attributes = domElement.attributes;
 
-    for (var _i7 = 0; _i7 < attributes.length; _i7++) {
-      var name = attributes[_i7].name.toLowerCase();
+    for (var _i = 0; _i < attributes.length; _i++) {
+      var name = attributes[_i].name.toLowerCase();
 
       switch (name) {
         // Controlled attributes are not validated
@@ -35229,7 +35557,7 @@ function diffHydratedProperties(domElement, tag, props, isConcurrentMode, should
         default:
           // Intentionally use the original name.
           // See discussion in https://github.com/facebook/react/pull/10676.
-          extraAttributes.add(attributes[_i7].name);
+          extraAttributes.add(attributes[_i].name);
       }
     }
 
@@ -35243,8 +35571,6 @@ function diffHydratedProperties(domElement, tag, props, isConcurrentMode, should
       warnForExtraAttributes(extraAttributes);
     }
   }
-
-  return updatePayload;
 }
 function diffHydratedText(textNode, text, isConcurrentMode) {
   var isDifferent = textNode.nodeValue !== text;
@@ -35359,49 +35685,13 @@ function propNamesListJoin(list, combinator) {
   }
 }
 
-function validatePreinitArguments(href, options) {
-  {
-    if (!href || typeof href !== 'string') {
-      var typeOfArg = getValueDescriptorExpectingObjectForWarning(href);
-
-      error('ReactDOM.preinit() expected the first argument to be a string representing an href but found %s instead.', typeOfArg);
-    } else if (typeof options !== 'object' || options === null) {
-      var _typeOfArg = getValueDescriptorExpectingObjectForWarning(options);
-
-      error('ReactDOM.preinit() expected the second argument to be an options argument containing at least an "as" property' + ' specifying the Resource type. It found %s instead. The href for the preload call where this warning originated is "%s".', _typeOfArg, href);
-    } else {
-      var as = options.as;
-
-      switch (as) {
-        case 'style':
-        case 'script':
-          {
-            break;
-          }
-        // We have an invalid as type and need to warn
-
-        default:
-          {
-            var typeOfAs = getValueDescriptorExpectingEnumForWarning(as);
-
-            error('ReactDOM.preinit() expected the second argument to be an options argument containing at least an "as" property' + ' specifying the Resource type. It found %s instead. Currently, valid resource types for for preinit are "style"' + ' and "script". The href for the preinit call where this warning originated is "%s".', typeOfAs, href);
-          }
-      }
-    }
-  }
-}
-function getValueDescriptorExpectingObjectForWarning(thing) {
-  return thing === null ? '`null`' : thing === undefined ? '`undefined`' : thing === '' ? 'an empty string' : "something with type \"" + typeof thing + "\"";
-}
-function getValueDescriptorExpectingEnumForWarning(thing) {
-  return thing === null ? '`null`' : thing === undefined ? '`undefined`' : thing === '' ? 'an empty string' : typeof thing === 'string' ? JSON.stringify(thing) : "something with type \"" + typeof thing + "\"";
-}
-
 var SUPPRESS_HYDRATION_WARNING = 'suppressHydrationWarning';
 var SUSPENSE_START_DATA = '$';
 var SUSPENSE_END_DATA = '/$';
 var SUSPENSE_PENDING_START_DATA = '$?';
 var SUSPENSE_FALLBACK_START_DATA = '$!';
+var FORM_STATE_IS_MATCHING = 'F!';
+var FORM_STATE_IS_NOT_MATCHING = 'F';
 var STYLE = 'style';
 var HostContextNamespaceNone = 0;
 var HostContextNamespaceSvg = 1;
@@ -35772,12 +36062,9 @@ function commitMount(domElement, type, newProps, internalInstanceHandle) {
   }
 }
 function commitUpdate(domElement, updatePayload, type, oldProps, newProps, internalInstanceHandle) {
-  {
-    // Diff and update the properties.
-    updateProperties(domElement, type, oldProps, newProps);
-  } // Update the props handle so that we know which props are the ones with
+  // Diff and update the properties.
+  updateProperties(domElement, type, oldProps, newProps); // Update the props handle so that we know which props are the ones with
   // with current event handlers.
-
 
   updateFiberProps(domElement, newProps);
 }
@@ -36129,7 +36416,7 @@ function canHydrateTextInstance(instance, text, inRootOrSingleton) {
   if (text === '') return null;
 
   while (instance.nodeType !== TEXT_NODE) {
-    if (!inRootOrSingleton || !enableHostSingletons) {
+    if (instance.nodeType === ELEMENT_NODE && instance.nodeName === 'INPUT' && instance.type === 'hidden') ; else if (!inRootOrSingleton || !enableHostSingletons) {
       return null;
     }
 
@@ -36193,6 +36480,33 @@ function getSuspenseInstanceFallbackErrorDetails(instance) {
 function registerSuspenseInstanceRetry(instance, callback) {
   instance._reactRetry = callback;
 }
+function canHydrateFormStateMarker(instance, inRootOrSingleton) {
+  while (instance.nodeType !== COMMENT_NODE) {
+    if (!inRootOrSingleton || !enableHostSingletons) {
+      return null;
+    }
+
+    var nextInstance = getNextHydratableSibling(instance);
+
+    if (nextInstance === null) {
+      return null;
+    }
+
+    instance = nextInstance;
+  }
+
+  var nodeData = instance.data;
+
+  if (nodeData === FORM_STATE_IS_MATCHING || nodeData === FORM_STATE_IS_NOT_MATCHING) {
+    var markerInstance = instance;
+    return markerInstance;
+  }
+
+  return null;
+}
+function isFormStateMarkerMatching(markerInstance) {
+  return markerInstance.data === FORM_STATE_IS_MATCHING;
+}
 
 function getNextHydratable(node) {
   // Skip non-hydratable nodes.
@@ -36206,7 +36520,7 @@ function getNextHydratable(node) {
     if (nodeType === COMMENT_NODE) {
       var nodeData = node.data;
 
-      if (nodeData === SUSPENSE_START_DATA || nodeData === SUSPENSE_FALLBACK_START_DATA || nodeData === SUSPENSE_PENDING_START_DATA) {
+      if (nodeData === SUSPENSE_START_DATA || nodeData === SUSPENSE_FALLBACK_START_DATA || nodeData === SUSPENSE_PENDING_START_DATA || (nodeData === FORM_STATE_IS_MATCHING || nodeData === FORM_STATE_IS_NOT_MATCHING)) {
         break;
       }
 
@@ -36239,7 +36553,7 @@ function hydrateInstance(instance, type, props, hostContext, internalInstanceHan
   // when the legacy root API is removed.
 
   var isConcurrentMode = (internalInstanceHandle.mode & ConcurrentMode) !== NoMode;
-  return diffHydratedProperties(instance, type, props, isConcurrentMode, shouldWarnDev, hostContext);
+  diffHydratedProperties(instance, type, props, isConcurrentMode, shouldWarnDev, hostContext);
 }
 function hydrateTextInstance(textInstance, text, internalInstanceHandle, shouldWarnDev) {
   precacheFiberNode(internalInstanceHandle, textInstance); // TODO: Temporary hack to check if we're in a concurrent root. We can delete
@@ -36698,8 +37012,9 @@ var ReactDOMClientDispatcher = {
   preconnect: preconnect$1,
   preload: preload$1,
   preloadModule: preloadModule$1,
-  preinit: preinit$1,
-  preinitModule: preinitModule$1
+  preinitStyle: preinitStyle,
+  preinitScript: preinitScript,
+  preinitModuleScript: preinitModuleScript
 }; // We expect this to get inlined. It is a function mostly to communicate the special nature of
 // how we resolve the HoistableRoot for ReactDOM.pre*() methods. Because we support calling
 // these methods outside of render there is no way to know which Document or ShadowRoot is 'scoped'
@@ -36711,7 +37026,7 @@ function getDocumentForImperativeFloatMethods() {
   return document;
 }
 
-function preconnectAs(rel, crossOrigin, href) {
+function preconnectAs(rel, href, crossOrigin) {
   var ownerDocument = getDocumentForImperativeFloatMethods();
 
   if (typeof href === 'string' && href) {
@@ -36740,76 +37055,29 @@ function preconnectAs(rel, crossOrigin, href) {
   }
 }
 
-function prefetchDNS$1(href, options) {
+function prefetchDNS$1(href) {
 
-  {
-    if (typeof href !== 'string' || !href) {
-      error('ReactDOM.prefetchDNS(): Expected the `href` argument (first) to be a non-empty string but encountered %s instead.', getValueDescriptorExpectingObjectForWarning(href));
-    } else if (options != null) {
-      if (typeof options === 'object' && hasOwnProperty.call(options, 'crossOrigin')) {
-        error('ReactDOM.prefetchDNS(): Expected only one argument, `href`, but encountered %s as a second argument instead. This argument is reserved for future options and is currently disallowed. It looks like the you are attempting to set a crossOrigin property for this DNS lookup hint. Browsers do not perform DNS queries using CORS and setting this attribute on the resource hint has no effect. Try calling ReactDOM.prefetchDNS() with just a single string argument, `href`.', getValueDescriptorExpectingEnumForWarning(options));
-      } else {
-        error('ReactDOM.prefetchDNS(): Expected only one argument, `href`, but encountered %s as a second argument instead. This argument is reserved for future options and is currently disallowed. Try calling ReactDOM.prefetchDNS() with just a single string argument, `href`.', getValueDescriptorExpectingEnumForWarning(options));
-      }
-    }
-  }
-
-  preconnectAs('dns-prefetch', null, href);
+  preconnectAs('dns-prefetch', href, null);
 }
 
-function preconnect$1(href, options) {
+function preconnect$1(href, crossOrigin) {
 
-  {
-    if (typeof href !== 'string' || !href) {
-      error('ReactDOM.preconnect(): Expected the `href` argument (first) to be a non-empty string but encountered %s instead.', getValueDescriptorExpectingObjectForWarning(href));
-    } else if (options != null && typeof options !== 'object') {
-      error('ReactDOM.preconnect(): Expected the `options` argument (second) to be an object but encountered %s instead. The only supported option at this time is `crossOrigin` which accepts a string.', getValueDescriptorExpectingEnumForWarning(options));
-    } else if (options != null && typeof options.crossOrigin !== 'string') {
-      error('ReactDOM.preconnect(): Expected the `crossOrigin` option (second argument) to be a string but encountered %s instead. Try removing this option or passing a string value instead.', getValueDescriptorExpectingObjectForWarning(options.crossOrigin));
-    }
-  }
-
-  var crossOrigin = options == null || typeof options.crossOrigin !== 'string' ? null : options.crossOrigin === 'use-credentials' ? 'use-credentials' : '';
-  preconnectAs('preconnect', crossOrigin, href);
+  preconnectAs('preconnect', href, crossOrigin);
 }
 
-function preload$1(href, options) {
-
-  {
-    // TODO move this to ReactDOMFloat and expose a stricter function interface or possibly
-    // typed functions (preloadImage, preloadStyle, ...)
-    var encountered = '';
-
-    if (typeof href !== 'string' || !href) {
-      encountered += "The `href` argument encountered was " + getValueDescriptorExpectingObjectForWarning(href) + ".";
-    }
-
-    if (options == null || typeof options !== 'object') {
-      encountered += "The `options` argument encountered was " + getValueDescriptorExpectingObjectForWarning(options) + ".";
-    } else if (typeof options.as !== 'string' || !options.as) {
-      encountered += "The `as` option encountered was " + getValueDescriptorExpectingObjectForWarning(options.as) + ".";
-    }
-
-    if (encountered) {
-      error('ReactDOM.preload(): Expected two arguments, a non-empty `href` string and an `options` object with an `as` property valid for a `<link rel="preload" as="..." />` tag. %s', encountered);
-    }
-  }
+function preload$1(href, as, options) {
 
   var ownerDocument = getDocumentForImperativeFloatMethods();
 
-  if (typeof href === 'string' && href && typeof options === 'object' && options !== null && typeof options.as === 'string' && options.as && ownerDocument) {
-    var as = options.as;
+  if (href && as && ownerDocument) {
     var preloadSelector = "link[rel=\"preload\"][as=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(as) + "\"]";
 
     if (as === 'image') {
-      var imageSrcSet = options.imageSrcSet,
-          imageSizes = options.imageSizes;
+      if (options && options.imageSrcSet) {
+        preloadSelector += "[imagesrcset=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(options.imageSrcSet) + "\"]";
 
-      if (typeof imageSrcSet === 'string' && imageSrcSet !== '') {
-        preloadSelector += "[imagesrcset=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(imageSrcSet) + "\"]";
-
-        if (typeof imageSizes === 'string') {
-          preloadSelector += "[imagesizes=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(imageSizes) + "\"]";
+        if (typeof options.imageSizes === 'string') {
+          preloadSelector += "[imagesizes=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(options.imageSizes) + "\"]";
         }
       } else {
         preloadSelector += "[href=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(href) + "\"]";
@@ -36834,7 +37102,16 @@ function preload$1(href, options) {
     }
 
     if (!preloadPropsMap.has(key)) {
-      var preloadProps = preloadPropsFromPreloadOptions(href, as, options);
+      var preloadProps = assign({
+        rel: 'preload',
+        // There is a bug in Safari where imageSrcSet is not respected on preload links
+        // so we omit the href here if we have imageSrcSet b/c safari will load the wrong image.
+        // This harms older browers that do not support imageSrcSet by making their preloads not work
+        // but this population is shrinking fast and is already small so we accept this tradeoff.
+        href: as === 'image' && options && options.imageSrcSet ? undefined : href,
+        as: as
+      }, options);
+
       preloadPropsMap.set(key, preloadProps);
 
       if (null === ownerDocument.querySelector(preloadSelector)) {
@@ -36857,27 +37134,9 @@ function preload$1(href, options) {
 
 function preloadModule$1(href, options) {
 
-  {
-    var encountered = '';
-
-    if (typeof href !== 'string' || !href) {
-      encountered += " The `href` argument encountered was " + getValueDescriptorExpectingObjectForWarning(href) + ".";
-    }
-
-    if (options !== undefined && typeof options !== 'object') {
-      encountered += " The `options` argument encountered was " + getValueDescriptorExpectingObjectForWarning(options) + ".";
-    } else if (options && 'as' in options && typeof options.as !== 'string') {
-      encountered += " The `as` option encountered was " + getValueDescriptorExpectingObjectForWarning(options.as) + ".";
-    }
-
-    if (encountered) {
-      error('ReactDOM.preloadModule(): Expected two arguments, a non-empty `href` string and, optionally, an `options` object with an `as` property valid for a `<link rel="modulepreload" as="..." />` tag.%s', encountered);
-    }
-  }
-
   var ownerDocument = getDocumentForImperativeFloatMethods();
 
-  if (typeof href === 'string' && href) {
+  if (href) {
     var as = options && typeof options.as === 'string' ? options.as : 'script';
     var preloadSelector = "link[rel=\"modulepreload\"][as=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(as) + "\"][href=\"" + escapeSelectorAttributeValueInsideDoubleQuotes(href) + "\"]"; // Some preloads are keyed under their selector. This happens when the preload is for
     // an arbitrary type. Other preloads are keyed under the resource key they represent a preload for.
@@ -36899,8 +37158,12 @@ function preloadModule$1(href, options) {
     }
 
     if (!preloadPropsMap.has(key)) {
-      var preloadProps = preloadModulePropsFromPreloadModuleOptions(href, as, options);
-      preloadPropsMap.set(key, preloadProps);
+      var props = assign({
+        rel: 'modulepreload',
+        href: href
+      }, options);
+
+      preloadPropsMap.set(key, props);
 
       if (null === ownerDocument.querySelector(preloadSelector)) {
         switch (as) {
@@ -36918,7 +37181,7 @@ function preloadModule$1(href, options) {
         }
 
         var instance = ownerDocument.createElement('link');
-        setInitialProperties(instance, 'link', preloadProps);
+        setInitialProperties(instance, 'link', props);
         markNodeAsHoistable(instance);
         ownerDocument.head.appendChild(instance);
       }
@@ -36926,277 +37189,176 @@ function preloadModule$1(href, options) {
   }
 }
 
-function preloadPropsFromPreloadOptions(href, as, options) {
-  return {
-    rel: 'preload',
-    as: as,
-    // There is a bug in Safari where imageSrcSet is not respected on preload links
-    // so we omit the href here if we have imageSrcSet b/c safari will load the wrong image.
-    // This harms older browers that do not support imageSrcSet by making their preloads not work
-    // but this population is shrinking fast and is already small so we accept this tradeoff.
-    href: as === 'image' && options.imageSrcSet ? undefined : href,
-    crossOrigin: as === 'font' ? '' : options.crossOrigin,
-    integrity: options.integrity,
-    type: options.type,
-    nonce: options.nonce,
-    fetchPriority: options.fetchPriority,
-    imageSrcSet: options.imageSrcSet,
-    imageSizes: options.imageSizes,
-    referrerPolicy: options.referrerPolicy
-  };
-}
-
-function preloadModulePropsFromPreloadModuleOptions(href, as, options) {
-  return {
-    rel: 'modulepreload',
-    as: as !== 'script' ? as : undefined,
-    href: href,
-    crossOrigin: options ? options.crossOrigin : undefined,
-    integrity: options ? options.integrity : undefined
-  };
-}
-
-function preinit$1(href, options) {
-
-  {
-    validatePreinitArguments(href, options);
-  }
+function preinitStyle(href, precedence, options) {
 
   var ownerDocument = getDocumentForImperativeFloatMethods();
 
-  if (typeof href === 'string' && href && typeof options === 'object' && options !== null) {
-    var as = options.as;
+  if (href) {
+    var styles = getResourcesFromRoot(ownerDocument).hoistableStyles;
+    var key = getStyleKey(href);
+    precedence = precedence || 'default'; // Check if this resource already exists
 
-    switch (as) {
-      case 'style':
-        {
-          var styles = getResourcesFromRoot(ownerDocument).hoistableStyles;
-          var key = getStyleKey(href);
-          var precedence = options.precedence || 'default'; // Check if this resource already exists
+    var resource = styles.get(key);
 
-          var resource = styles.get(key);
-
-          if (resource) {
-            // We can early return. The resource exists and there is nothing
-            // more to do
-            return;
-          }
-
-          var state = {
-            loading: NotLoaded,
-            preload: null
-          }; // Attempt to hydrate instance from DOM
-
-          var instance = ownerDocument.querySelector(getStylesheetSelectorFromKey(key));
-
-          if (instance) {
-            state.loading = Loaded;
-          } else {
-            // Construct a new instance and insert it
-            var stylesheetProps = stylesheetPropsFromPreinitOptions(href, precedence, options);
-            var preloadProps = preloadPropsMap.get(key);
-
-            if (preloadProps) {
-              adoptPreloadPropsForStylesheet(stylesheetProps, preloadProps);
-            }
-
-            var link = instance = ownerDocument.createElement('link');
-            markNodeAsHoistable(link);
-            setInitialProperties(link, 'link', stylesheetProps);
-            link._p = new Promise(function (resolve, reject) {
-              link.onload = resolve;
-              link.onerror = reject;
-            });
-            link.addEventListener('load', function () {
-              state.loading |= Loaded;
-            });
-            link.addEventListener('error', function () {
-              state.loading |= Errored;
-            });
-            state.loading |= Inserted;
-            insertStylesheet(instance, precedence, ownerDocument);
-          } // Construct a Resource and cache it
-
-
-          resource = {
-            type: 'stylesheet',
-            instance: instance,
-            count: 1,
-            state: state
-          };
-          styles.set(key, resource);
-          return;
-        }
-
-      case 'script':
-        {
-          var src = href;
-          var scripts = getResourcesFromRoot(ownerDocument).hoistableScripts;
-
-          var _key = getScriptKey(src); // Check if this resource already exists
-
-
-          var _resource = scripts.get(_key);
-
-          if (_resource) {
-            // We can early return. The resource exists and there is nothing
-            // more to do
-            return;
-          } // Attempt to hydrate instance from DOM
-
-
-          var _instance = ownerDocument.querySelector(getScriptSelectorFromKey(_key));
-
-          if (!_instance) {
-            // Construct a new instance and insert it
-            var scriptProps = scriptPropsFromPreinitOptions(src, options); // Adopt certain preload props
-
-            var _preloadProps = preloadPropsMap.get(_key);
-
-            if (_preloadProps) {
-              adoptPreloadPropsForScript(scriptProps, _preloadProps);
-            }
-
-            _instance = ownerDocument.createElement('script');
-            markNodeAsHoistable(_instance);
-            setInitialProperties(_instance, 'link', scriptProps);
-            ownerDocument.head.appendChild(_instance);
-          } // Construct a Resource and cache it
-
-
-          _resource = {
-            type: 'script',
-            instance: _instance,
-            count: 1,
-            state: null
-          };
-          scripts.set(_key, _resource);
-          return;
-        }
-    }
-  }
-}
-
-function preinitModule$1(href, options) {
-
-  {
-    var encountered = '';
-
-    if (typeof href !== 'string' || !href) {
-      encountered += " The `href` argument encountered was " + getValueDescriptorExpectingObjectForWarning(href) + ".";
+    if (resource) {
+      // We can early return. The resource exists and there is nothing
+      // more to do
+      return;
     }
 
-    if (options !== undefined && typeof options !== 'object') {
-      encountered += " The `options` argument encountered was " + getValueDescriptorExpectingObjectForWarning(options) + ".";
-    } else if (options && 'as' in options && options.as !== 'script') {
-      encountered += " The `as` option encountered was " + getValueDescriptorExpectingEnumForWarning(options.as) + ".";
-    }
+    var state = {
+      loading: NotLoaded,
+      preload: null
+    }; // Attempt to hydrate instance from DOM
 
-    if (encountered) {
-      error('ReactDOM.preinitModule(): Expected up to two arguments, a non-empty `href` string and, optionally, an `options` object with a valid `as` property.%s', encountered);
+    var instance = ownerDocument.querySelector(getStylesheetSelectorFromKey(key));
+
+    if (instance) {
+      state.loading = Loaded;
     } else {
-      var as = options && typeof options.as === 'string' ? options.as : 'script';
+      // Construct a new instance and insert it
+      var stylesheetProps = assign({
+        rel: 'stylesheet',
+        href: href,
+        'data-precedence': precedence
+      }, options);
 
-      switch (as) {
-        case 'script':
-          {
-            break;
-          }
-        // We have an invalid as type and need to warn
+      var preloadProps = preloadPropsMap.get(key);
 
-        default:
-          {
-            var typeOfAs = getValueDescriptorExpectingEnumForWarning(as);
-
-            error('ReactDOM.preinitModule(): Currently the only supported "as" type for this function is "script"' + ' but received "%s" instead. This warning was generated for `href` "%s". In the future other' + ' module types will be supported, aligning with the import-attributes proposal. Learn more here:' + ' (https://github.com/tc39/proposal-import-attributes)', typeOfAs, href);
-          }
+      if (preloadProps) {
+        adoptPreloadPropsForStylesheet(stylesheetProps, preloadProps);
       }
-    }
+
+      var link = instance = ownerDocument.createElement('link');
+      markNodeAsHoistable(link);
+      setInitialProperties(link, 'link', stylesheetProps);
+      link._p = new Promise(function (resolve, reject) {
+        link.onload = resolve;
+        link.onerror = reject;
+      });
+      link.addEventListener('load', function () {
+        state.loading |= Loaded;
+      });
+      link.addEventListener('error', function () {
+        state.loading |= Errored;
+      });
+      state.loading |= Inserted;
+      insertStylesheet(instance, precedence, ownerDocument);
+    } // Construct a Resource and cache it
+
+
+    resource = {
+      type: 'stylesheet',
+      instance: instance,
+      count: 1,
+      state: state
+    };
+    styles.set(key, resource);
+    return;
   }
+}
+
+function preinitScript(src, options) {
 
   var ownerDocument = getDocumentForImperativeFloatMethods();
 
-  if (typeof href === 'string' && href) {
-    var _as = options && typeof options.as === 'string' ? options.as : 'script';
+  if (src) {
+    var scripts = getResourcesFromRoot(ownerDocument).hoistableScripts;
+    var key = getScriptKey(src); // Check if this resource already exists
 
-    switch (_as) {
-      case 'script':
-        {
-          var src = href;
-          var scripts = getResourcesFromRoot(ownerDocument).hoistableScripts;
-          var key = getScriptKey(src); // Check if this resource already exists
+    var resource = scripts.get(key);
 
-          var resource = scripts.get(key);
-
-          if (resource) {
-            // We can early return. The resource exists and there is nothing
-            // more to do
-            return;
-          } // Attempt to hydrate instance from DOM
+    if (resource) {
+      // We can early return. The resource exists and there is nothing
+      // more to do
+      return;
+    } // Attempt to hydrate instance from DOM
 
 
-          var instance = ownerDocument.querySelector(getScriptSelectorFromKey(key));
+    var instance = ownerDocument.querySelector(getScriptSelectorFromKey(key));
 
-          if (!instance) {
-            // Construct a new instance and insert it
-            var scriptProps = modulePropsFromPreinitModuleOptions(src, options); // Adopt certain preload props
-
-            var preloadProps = preloadPropsMap.get(key);
-
-            if (preloadProps) {
-              adoptPreloadPropsForScript(scriptProps, preloadProps);
-            }
-
-            instance = ownerDocument.createElement('script');
-            markNodeAsHoistable(instance);
-            setInitialProperties(instance, 'link', scriptProps);
-            ownerDocument.head.appendChild(instance);
-          } // Construct a Resource and cache it
+    if (!instance) {
+      // Construct a new instance and insert it
+      var scriptProps = assign({
+        src: src,
+        async: true
+      }, options); // Adopt certain preload props
 
 
-          resource = {
-            type: 'script',
-            instance: instance,
-            count: 1,
-            state: null
-          };
-          scripts.set(key, resource);
-          return;
-        }
-    }
+      var preloadProps = preloadPropsMap.get(key);
+
+      if (preloadProps) {
+        adoptPreloadPropsForScript(scriptProps, preloadProps);
+      }
+
+      instance = ownerDocument.createElement('script');
+      markNodeAsHoistable(instance);
+      setInitialProperties(instance, 'link', scriptProps);
+      ownerDocument.head.appendChild(instance);
+    } // Construct a Resource and cache it
+
+
+    resource = {
+      type: 'script',
+      instance: instance,
+      count: 1,
+      state: null
+    };
+    scripts.set(key, resource);
+    return;
   }
 }
 
-function stylesheetPropsFromPreinitOptions(href, precedence, options) {
-  return {
-    rel: 'stylesheet',
-    href: href,
-    'data-precedence': precedence,
-    crossOrigin: options.crossOrigin,
-    integrity: options.integrity,
-    fetchPriority: options.fetchPriority
-  };
-}
+function preinitModuleScript(src, options) {
 
-function scriptPropsFromPreinitOptions(src, options) {
-  return {
-    src: src,
-    async: true,
-    crossOrigin: options.crossOrigin,
-    integrity: options.integrity,
-    nonce: options.nonce,
-    fetchPriority: options.fetchPriority
-  };
-}
+  var ownerDocument = getDocumentForImperativeFloatMethods();
 
-function modulePropsFromPreinitModuleOptions(src, options) {
-  return {
-    src: src,
-    async: true,
-    type: 'module',
-    crossOrigin: options ? options.crossOrigin : undefined,
-    integrity: options ? options.integrity : undefined
-  };
+  if (src) {
+    var scripts = getResourcesFromRoot(ownerDocument).hoistableScripts;
+    var key = getScriptKey(src); // Check if this resource already exists
+
+    var resource = scripts.get(key);
+
+    if (resource) {
+      // We can early return. The resource exists and there is nothing
+      // more to do
+      return;
+    } // Attempt to hydrate instance from DOM
+
+
+    var instance = ownerDocument.querySelector(getScriptSelectorFromKey(key));
+
+    if (!instance) {
+      // Construct a new instance and insert it
+      var scriptProps = assign({
+        src: src,
+        async: true,
+        type: 'module'
+      }, options); // Adopt certain preload props
+
+
+      var preloadProps = preloadPropsMap.get(key);
+
+      if (preloadProps) {
+        adoptPreloadPropsForScript(scriptProps, preloadProps);
+      }
+
+      instance = ownerDocument.createElement('script');
+      markNodeAsHoistable(instance);
+      setInitialProperties(instance, 'link', scriptProps);
+      ownerDocument.head.appendChild(instance);
+    } // Construct a Resource and cache it
+
+
+    resource = {
+      type: 'script',
+      instance: instance,
+      count: 1,
+      state: null
+    };
+    scripts.set(key, resource);
+    return;
+  }
 } // This function is called in begin work and we should always have a currentDocument set
 
 
@@ -37247,16 +37409,16 @@ function getResource(type, currentProps, pendingProps) {
         if (pendingProps.rel === 'stylesheet' && typeof pendingProps.href === 'string' && typeof pendingProps.precedence === 'string') {
           var qualifiedProps = pendingProps;
 
-          var _key2 = getStyleKey(qualifiedProps.href);
+          var _key = getStyleKey(qualifiedProps.href);
 
           var _styles = getResourcesFromRoot(resourceRoot).hoistableStyles;
 
-          var _resource2 = _styles.get(_key2);
+          var _resource = _styles.get(_key);
 
-          if (!_resource2) {
+          if (!_resource) {
             // We asserted this above but Flow can't figure out that the type satisfies
             var ownerDocument = getDocumentFromRoot(resourceRoot);
-            _resource2 = {
+            _resource = {
               type: 'stylesheet',
               instance: null,
               count: 0,
@@ -37266,14 +37428,14 @@ function getResource(type, currentProps, pendingProps) {
               }
             };
 
-            _styles.set(_key2, _resource2);
+            _styles.set(_key, _resource);
 
-            if (!preloadPropsMap.has(_key2)) {
-              preloadStylesheet(ownerDocument, _key2, preloadPropsFromStylesheet(qualifiedProps), _resource2.state);
+            if (!preloadPropsMap.has(_key)) {
+              preloadStylesheet(ownerDocument, _key, preloadPropsFromStylesheet(qualifiedProps), _resource.state);
             }
           }
 
-          return _resource2;
+          return _resource;
         }
 
         return null;
@@ -37284,23 +37446,23 @@ function getResource(type, currentProps, pendingProps) {
         if (typeof pendingProps.src === 'string' && pendingProps.async === true) {
           var scriptProps = pendingProps;
 
-          var _key3 = getScriptKey(scriptProps.src);
+          var _key2 = getScriptKey(scriptProps.src);
 
           var scripts = getResourcesFromRoot(resourceRoot).hoistableScripts;
 
-          var _resource3 = scripts.get(_key3);
+          var _resource2 = scripts.get(_key2);
 
-          if (!_resource3) {
-            _resource3 = {
+          if (!_resource2) {
+            _resource2 = {
               type: 'script',
               instance: null,
               count: 0,
               state: null
             };
-            scripts.set(_key3, _resource3);
+            scripts.set(_key2, _resource2);
           }
 
-          return _resource3;
+          return _resource2;
         }
 
         return {
@@ -37442,12 +37604,12 @@ function acquireResource(hoistableRoot, resource, props) {
           var _qualifiedProps = props;
           var key = getStyleKey(_qualifiedProps.href); // Attempt to hydrate instance from DOM
 
-          var _instance2 = hoistableRoot.querySelector(getStylesheetSelectorFromKey(key));
+          var _instance = hoistableRoot.querySelector(getStylesheetSelectorFromKey(key));
 
-          if (_instance2) {
-            resource.instance = _instance2;
-            markNodeAsHoistable(_instance2);
-            return _instance2;
+          if (_instance) {
+            resource.instance = _instance;
+            markNodeAsHoistable(_instance);
+            return _instance;
           }
 
           var stylesheetProps = stylesheetPropsFromRawProps(props);
@@ -37460,18 +37622,18 @@ function acquireResource(hoistableRoot, resource, props) {
 
           var _ownerDocument = getDocumentFromRoot(hoistableRoot);
 
-          _instance2 = _ownerDocument.createElement('link');
-          markNodeAsHoistable(_instance2);
-          var linkInstance = _instance2;
+          _instance = _ownerDocument.createElement('link');
+          markNodeAsHoistable(_instance);
+          var linkInstance = _instance;
           linkInstance._p = new Promise(function (resolve, reject) {
             linkInstance.onload = resolve;
             linkInstance.onerror = reject;
           });
-          setInitialProperties(_instance2, 'link', stylesheetProps);
+          setInitialProperties(_instance, 'link', stylesheetProps);
           resource.state.loading |= Inserted;
-          insertStylesheet(_instance2, _qualifiedProps.precedence, hoistableRoot);
-          resource.instance = _instance2;
-          return _instance2;
+          insertStylesheet(_instance, _qualifiedProps.precedence, hoistableRoot);
+          resource.instance = _instance;
+          return _instance;
         }
 
       case 'script':
@@ -37481,37 +37643,37 @@ function acquireResource(hoistableRoot, resource, props) {
           // this cast still makes sense;
           var borrowedScriptProps = props;
 
-          var _key4 = getScriptKey(borrowedScriptProps.src); // Attempt to hydrate instance from DOM
+          var _key3 = getScriptKey(borrowedScriptProps.src); // Attempt to hydrate instance from DOM
 
 
-          var _instance3 = hoistableRoot.querySelector(getScriptSelectorFromKey(_key4));
+          var _instance2 = hoistableRoot.querySelector(getScriptSelectorFromKey(_key3));
 
-          if (_instance3) {
-            resource.instance = _instance3;
-            markNodeAsHoistable(_instance3);
-            return _instance3;
+          if (_instance2) {
+            resource.instance = _instance2;
+            markNodeAsHoistable(_instance2);
+            return _instance2;
           }
 
           var scriptProps = borrowedScriptProps;
 
-          var _preloadProps2 = preloadPropsMap.get(_key4);
+          var _preloadProps = preloadPropsMap.get(_key3);
 
-          if (_preloadProps2) {
+          if (_preloadProps) {
             scriptProps = assign({}, borrowedScriptProps);
-            adoptPreloadPropsForScript(scriptProps, _preloadProps2);
+            adoptPreloadPropsForScript(scriptProps, _preloadProps);
           } // Construct and insert a new instance
 
 
           var _ownerDocument2 = getDocumentFromRoot(hoistableRoot);
 
-          _instance3 = _ownerDocument2.createElement('script');
-          markNodeAsHoistable(_instance3);
-          setInitialProperties(_instance3, 'link', scriptProps);
+          _instance2 = _ownerDocument2.createElement('script');
+          markNodeAsHoistable(_instance2);
+          setInitialProperties(_instance2, 'link', scriptProps);
 
-          _ownerDocument2.head.appendChild(_instance3);
+          _ownerDocument2.head.appendChild(_instance2);
 
-          resource.instance = _instance3;
-          return _instance3;
+          resource.instance = _instance2;
+          return _instance2;
         }
 
       case 'void':
@@ -37539,9 +37701,9 @@ function acquireResource(hoistableRoot, resource, props) {
     // for the insertion.
     if (resource.type === 'stylesheet' && (resource.state.loading & Inserted) === NotLoaded) {
       var _qualifiedProps2 = props;
-      var _instance4 = resource.instance;
+      var _instance3 = resource.instance;
       resource.state.loading |= Inserted;
-      insertStylesheet(_instance4, _qualifiedProps2.precedence, hoistableRoot);
+      insertStylesheet(_instance3, _qualifiedProps2.precedence, hoistableRoot);
     }
   }
 
@@ -37644,9 +37806,9 @@ function hydrateHoistable(hoistableRoot, type, props, internalInstanceHandle) {
       {
         var _cache = getHydratableHoistableCache('meta', 'content', ownerDocument);
 
-        var _key5 = type + (props.content || '');
+        var _key4 = type + (props.content || '');
 
-        var _maybeNodes = _cache.get(_key5);
+        var _maybeNodes = _cache.get(_key4);
 
         if (_maybeNodes) {
           var _nodes = _maybeNodes;
@@ -38213,6 +38375,7 @@ function createRoot$1(container, options) {
   var concurrentUpdatesByDefaultOverride = false;
   var identifierPrefix = '';
   var onRecoverableError = defaultOnRecoverableError;
+  var transitionCallbacks = null;
 
   if (options !== null && options !== undefined) {
     {
@@ -38236,9 +38399,13 @@ function createRoot$1(container, options) {
     if (options.onRecoverableError !== undefined) {
       onRecoverableError = options.onRecoverableError;
     }
+
+    if (options.unstable_transitionCallbacks !== undefined) {
+      transitionCallbacks = options.unstable_transitionCallbacks;
+    }
   }
 
-  var root = createContainer(container, ConcurrentRoot, null, isStrictMode, concurrentUpdatesByDefaultOverride, identifierPrefix, onRecoverableError);
+  var root = createContainer(container, ConcurrentRoot, null, isStrictMode, concurrentUpdatesByDefaultOverride, identifierPrefix, onRecoverableError, transitionCallbacks);
   markContainerAsRoot(root.current, container);
   Dispatcher$1.current = ReactDOMClientDispatcher;
   var rootContainerElement = container.nodeType === COMMENT_NODE ? container.parentNode : container;
@@ -38279,6 +38446,8 @@ function hydrateRoot$1(container, initialChildren, options) {
   var concurrentUpdatesByDefaultOverride = false;
   var identifierPrefix = '';
   var onRecoverableError = defaultOnRecoverableError;
+  var transitionCallbacks = null;
+  var formState = null;
 
   if (options !== null && options !== undefined) {
     if (options.unstable_strictMode === true) {
@@ -38292,9 +38461,19 @@ function hydrateRoot$1(container, initialChildren, options) {
     if (options.onRecoverableError !== undefined) {
       onRecoverableError = options.onRecoverableError;
     }
+
+    if (options.unstable_transitionCallbacks !== undefined) {
+      transitionCallbacks = options.unstable_transitionCallbacks;
+    }
+
+    {
+      if (options.experimental_formState !== undefined) {
+        formState = options.experimental_formState;
+      }
+    }
   }
 
-  var root = createHydrationContainer(initialChildren, null, container, ConcurrentRoot, hydrationCallbacks, isStrictMode, concurrentUpdatesByDefaultOverride, identifierPrefix, onRecoverableError);
+  var root = createHydrationContainer(initialChildren, null, container, ConcurrentRoot, hydrationCallbacks, isStrictMode, concurrentUpdatesByDefaultOverride, identifierPrefix, onRecoverableError, transitionCallbacks, formState);
   markContainerAsRoot(root.current, container);
   Dispatcher$1.current = ReactDOMClientDispatcher; // This can't be a comment node since hydration doesn't work on comment nodes anyway.
 
@@ -38380,7 +38559,8 @@ function legacyCreateRootFromDOMContainer(container, initialChildren, parentComp
     false, // isStrictMode
     false, // concurrentUpdatesByDefaultOverride,
     '', // identifierPrefix
-    noopOnRecoverableError);
+    noopOnRecoverableError, // TODO(luna) Support hydration later
+    null, null);
     container._reactRootContainer = root;
     markContainerAsRoot(root.current, container);
     var rootContainerElement = container.nodeType === COMMENT_NODE ? container.parentNode : container; // $FlowFixMe[incompatible-call]
@@ -38406,7 +38586,9 @@ function legacyCreateRootFromDOMContainer(container, initialChildren, parentComp
     false, // isStrictMode
     false, // concurrentUpdatesByDefaultOverride,
     '', // identifierPrefix
-    noopOnRecoverableError);
+    noopOnRecoverableError, // onRecoverableError
+    null // transitionCallbacks
+    );
 
     container._reactRootContainer = _root;
     markContainerAsRoot(_root.current, container);
@@ -38600,82 +38782,227 @@ var ReactDOMSharedInternals = Internals;
 
 var Dispatcher = ReactDOMSharedInternals.Dispatcher;
 function prefetchDNS(href) {
-  var passedOptionArg;
-
   {
-    if (arguments[1] !== undefined) {
-      passedOptionArg = arguments[1];
+    if (typeof href !== 'string' || !href) {
+      error('ReactDOM.prefetchDNS(): Expected the `href` argument (first) to be a non-empty string but encountered %s instead.', getValueDescriptorExpectingObjectForWarning(href));
+    } else if (arguments.length > 1) {
+      var options = arguments[1];
+
+      if (typeof options === 'object' && options.hasOwnProperty('crossOrigin')) {
+        error('ReactDOM.prefetchDNS(): Expected only one argument, `href`, but encountered %s as a second argument instead. This argument is reserved for future options and is currently disallowed. It looks like the you are attempting to set a crossOrigin property for this DNS lookup hint. Browsers do not perform DNS queries using CORS and setting this attribute on the resource hint has no effect. Try calling ReactDOM.prefetchDNS() with just a single string argument, `href`.', getValueDescriptorExpectingEnumForWarning(options));
+      } else {
+        error('ReactDOM.prefetchDNS(): Expected only one argument, `href`, but encountered %s as a second argument instead. This argument is reserved for future options and is currently disallowed. Try calling ReactDOM.prefetchDNS() with just a single string argument, `href`.', getValueDescriptorExpectingEnumForWarning(options));
+      }
     }
   }
 
   var dispatcher = Dispatcher.current;
 
-  if (dispatcher) {
-    {
-      if (passedOptionArg !== undefined) {
-        // prefetchDNS will warn if you pass reserved options arg. We pass it along in Dev only to
-        // elicit the warning. In prod we do not forward since it is not a part of the interface.
-        // @TODO move all arg validation into this file. It needs to be universal anyway so may as well lock down the interace here and
-        // let the rest of the codebase trust the types
-        dispatcher.prefetchDNS(href, passedOptionArg);
-      } else {
-        dispatcher.prefetchDNS(href);
-      }
-    }
+  if (dispatcher && typeof href === 'string') {
+    dispatcher.prefetchDNS(href);
   } // We don't error because preconnect needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
 
 }
 function preconnect(href, options) {
+  {
+    if (typeof href !== 'string' || !href) {
+      error('ReactDOM.preconnect(): Expected the `href` argument (first) to be a non-empty string but encountered %s instead.', getValueDescriptorExpectingObjectForWarning(href));
+    } else if (options != null && typeof options !== 'object') {
+      error('ReactDOM.preconnect(): Expected the `options` argument (second) to be an object but encountered %s instead. The only supported option at this time is `crossOrigin` which accepts a string.', getValueDescriptorExpectingEnumForWarning(options));
+    } else if (options != null && typeof options.crossOrigin !== 'string') {
+      error('ReactDOM.preconnect(): Expected the `crossOrigin` option (second argument) to be a string but encountered %s instead. Try removing this option or passing a string value instead.', getValueDescriptorExpectingObjectForWarning(options.crossOrigin));
+    }
+  }
+
   var dispatcher = Dispatcher.current;
 
-  if (dispatcher) {
-    dispatcher.preconnect(href, options);
+  if (dispatcher && typeof href === 'string') {
+    var crossOrigin = options ? getCrossOrigin('preconnect', options.crossOrigin) : null;
+    dispatcher.preconnect(href, crossOrigin);
   } // We don't error because preconnect needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
 
 }
 function preload(href, options) {
+  {
+    var encountered = '';
+
+    if (typeof href !== 'string' || !href) {
+      encountered += " The `href` argument encountered was " + getValueDescriptorExpectingObjectForWarning(href) + ".";
+    }
+
+    if (options == null || typeof options !== 'object') {
+      encountered += " The `options` argument encountered was " + getValueDescriptorExpectingObjectForWarning(options) + ".";
+    } else if (typeof options.as !== 'string' || !options.as) {
+      encountered += " The `as` option encountered was " + getValueDescriptorExpectingObjectForWarning(options.as) + ".";
+    }
+
+    if (encountered) {
+      error('ReactDOM.preload(): Expected two arguments, a non-empty `href` string and an `options` object with an `as` property valid for a `<link rel="preload" as="..." />` tag.%s', encountered);
+    }
+  }
+
   var dispatcher = Dispatcher.current;
 
-  if (dispatcher) {
-    dispatcher.preload(href, options);
+  if (dispatcher && typeof href === 'string' && // We check existence because we cannot enforce this function is actually called with the stated type
+  typeof options === 'object' && options !== null && typeof options.as === 'string') {
+    var as = options.as;
+    var crossOrigin = getCrossOrigin(as, options.crossOrigin);
+    dispatcher.preload(href, as, {
+      crossOrigin: crossOrigin,
+      integrity: typeof options.integrity === 'string' ? options.integrity : undefined,
+      nonce: typeof options.nonce === 'string' ? options.nonce : undefined,
+      type: typeof options.type === 'string' ? options.type : undefined,
+      fetchPriority: typeof options.fetchPriority === 'string' ? options.fetchPriority : undefined,
+      referrerPolicy: typeof options.referrerPolicy === 'string' ? options.referrerPolicy : undefined,
+      imageSrcSet: typeof options.imageSrcSet === 'string' ? options.imageSrcSet : undefined,
+      imageSizes: typeof options.imageSizes === 'string' ? options.imageSizes : undefined
+    });
   } // We don't error because preload needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
 
 }
 function preloadModule(href, options) {
+  {
+    var encountered = '';
+
+    if (typeof href !== 'string' || !href) {
+      encountered += " The `href` argument encountered was " + getValueDescriptorExpectingObjectForWarning(href) + ".";
+    }
+
+    if (options !== undefined && typeof options !== 'object') {
+      encountered += " The `options` argument encountered was " + getValueDescriptorExpectingObjectForWarning(options) + ".";
+    } else if (options && 'as' in options && typeof options.as !== 'string') {
+      encountered += " The `as` option encountered was " + getValueDescriptorExpectingObjectForWarning(options.as) + ".";
+    }
+
+    if (encountered) {
+      error('ReactDOM.preloadModule(): Expected two arguments, a non-empty `href` string and, optionally, an `options` object with an `as` property valid for a `<link rel="modulepreload" as="..." />` tag.%s', encountered);
+    }
+  }
+
   var dispatcher = Dispatcher.current;
 
-  if (dispatcher) {
-    dispatcher.preloadModule(href, options);
+  if (dispatcher && typeof href === 'string') {
+    if (options) {
+      var crossOrigin = getCrossOrigin(options.as, options.crossOrigin);
+      dispatcher.preloadModule(href, {
+        as: typeof options.as === 'string' && options.as !== 'script' ? options.as : undefined,
+        crossOrigin: crossOrigin,
+        integrity: typeof options.integrity === 'string' ? options.integrity : undefined
+      });
+    } else {
+      dispatcher.preloadModule(href);
+    }
   } // We don't error because preload needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
 
 }
 function preinit(href, options) {
+  {
+    if (typeof href !== 'string' || !href) {
+      error('ReactDOM.preinit(): Expected the `href` argument (first) to be a non-empty string but encountered %s instead.', getValueDescriptorExpectingObjectForWarning(href));
+    } else if (options == null || typeof options !== 'object') {
+      error('ReactDOM.preinit(): Expected the `options` argument (second) to be an object with an `as` property describing the type of resource to be preinitialized but encountered %s instead.', getValueDescriptorExpectingEnumForWarning(options));
+    } else if (options.as !== 'style' && options.as !== 'script') {
+      error('ReactDOM.preinit(): Expected the `as` property in the `options` argument (second) to contain a valid value describing the type of resource to be preinitialized but encountered %s instead. Valid values for `as` are "style" and "script".', getValueDescriptorExpectingEnumForWarning(options.as));
+    }
+  }
+
   var dispatcher = Dispatcher.current;
 
-  if (dispatcher) {
-    dispatcher.preinit(href, options);
+  if (dispatcher && typeof href === 'string' && options && typeof options.as === 'string') {
+    var as = options.as;
+    var crossOrigin = getCrossOrigin(as, options.crossOrigin);
+    var integrity = typeof options.integrity === 'string' ? options.integrity : undefined;
+    var fetchPriority = typeof options.fetchPriority === 'string' ? options.fetchPriority : undefined;
+
+    if (as === 'style') {
+      dispatcher.preinitStyle(href, typeof options.precedence === 'string' ? options.precedence : undefined, {
+        crossOrigin: crossOrigin,
+        integrity: integrity,
+        fetchPriority: fetchPriority
+      });
+    } else if (as === 'script') {
+      dispatcher.preinitScript(href, {
+        crossOrigin: crossOrigin,
+        integrity: integrity,
+        fetchPriority: fetchPriority,
+        nonce: typeof options.nonce === 'string' ? options.nonce : undefined
+      });
+    }
   } // We don't error because preinit needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
 
 }
 function preinitModule(href, options) {
+  {
+    var encountered = '';
+
+    if (typeof href !== 'string' || !href) {
+      encountered += " The `href` argument encountered was " + getValueDescriptorExpectingObjectForWarning(href) + ".";
+    }
+
+    if (options !== undefined && typeof options !== 'object') {
+      encountered += " The `options` argument encountered was " + getValueDescriptorExpectingObjectForWarning(options) + ".";
+    } else if (options && 'as' in options && options.as !== 'script') {
+      encountered += " The `as` option encountered was " + getValueDescriptorExpectingEnumForWarning(options.as) + ".";
+    }
+
+    if (encountered) {
+      error('ReactDOM.preinitModule(): Expected up to two arguments, a non-empty `href` string and, optionally, an `options` object with a valid `as` property.%s', encountered);
+    } else {
+      var as = options && typeof options.as === 'string' ? options.as : 'script';
+
+      switch (as) {
+        case 'script':
+          {
+            break;
+          }
+        // We have an invalid as type and need to warn
+
+        default:
+          {
+            var typeOfAs = getValueDescriptorExpectingEnumForWarning(as);
+
+            error('ReactDOM.preinitModule(): Currently the only supported "as" type for this function is "script"' + ' but received "%s" instead. This warning was generated for `href` "%s". In the future other' + ' module types will be supported, aligning with the import-attributes proposal. Learn more here:' + ' (https://github.com/tc39/proposal-import-attributes)', typeOfAs, href);
+          }
+      }
+    }
+  }
+
   var dispatcher = Dispatcher.current;
 
-  if (dispatcher) {
-    dispatcher.preinitModule(href, options);
+  if (dispatcher && typeof href === 'string') {
+    if (options == null || typeof options === 'object' && (options.as == null || options.as === 'script')) {
+      var crossOrigin = options ? getCrossOrigin(undefined, options.crossOrigin) : undefined;
+      dispatcher.preinitModuleScript(href, {
+        crossOrigin: crossOrigin,
+        integrity: options && typeof options.integrity === 'string' ? options.integrity : undefined
+      });
+    }
   } // We don't error because preinit needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
 
+}
+
+function getCrossOrigin(as, crossOrigin) {
+  return as === 'font' ? '' : typeof crossOrigin === 'string' ? crossOrigin === 'use-credentials' ? 'use-credentials' : '' : undefined;
+}
+
+function getValueDescriptorExpectingObjectForWarning(thing) {
+  return thing === null ? '`null`' : thing === undefined ? '`undefined`' : thing === '' ? 'an empty string' : "something with type \"" + typeof thing + "\"";
+}
+
+function getValueDescriptorExpectingEnumForWarning(thing) {
+  return thing === null ? '`null`' : thing === undefined ? '`undefined`' : thing === '' ? 'an empty string' : typeof thing === 'string' ? JSON.stringify(thing) : typeof thing === 'number' ? '`' + thing + '`' : "something with type \"" + typeof thing + "\"";
 }
 
 {
@@ -38767,6 +39094,7 @@ exports.createRoleSelector = createRoleSelector;
 exports.createRoot = createRoot;
 exports.createTestNameSelector = createTestNameSelector;
 exports.createTextSelector = createTextSelector;
+exports.experimental_useFormState = useFormState;
 exports.experimental_useFormStatus = useFormStatus;
 exports.findAllNodes = findAllNodes;
 exports.findBoundingRects = findBoundingRects;

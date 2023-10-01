@@ -1,7 +1,7 @@
 import { COMPILER_INDEXES } from '../../shared/lib/constants'
 import * as Log from '../output/log'
 import { NextBuildContext } from '../build-context'
-import type { TurbotraceContext } from '../webpack/plugins/next-trace-entrypoints-plugin'
+import type { BuildTraceContext } from '../webpack/plugins/next-trace-entrypoints-plugin'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import origDebug from 'next/dist/compiled/debug'
 import { ChildProcess } from 'child_process'
@@ -50,7 +50,7 @@ async function webpackBuildWithWorker() {
 
   const combinedResult = {
     duration: 0,
-    turbotraceContext: {} as TurbotraceContext,
+    buildTraceContext: {} as BuildTraceContext,
   }
   // order matters here
   const ORDERED_COMPILER_NAMES = [
@@ -85,14 +85,27 @@ async function webpackBuildWithWorker() {
 
     combinedResult.duration += curResult.duration
 
-    if (curResult.turbotraceContext?.entriesTrace) {
-      combinedResult.turbotraceContext = curResult.turbotraceContext
+    if (curResult.buildTraceContext?.entriesTrace) {
+      const { entryNameMap } = curResult.buildTraceContext.entriesTrace!
 
-      const { entryNameMap } = combinedResult.turbotraceContext.entriesTrace!
       if (entryNameMap) {
-        combinedResult.turbotraceContext.entriesTrace!.entryNameMap = new Map(
+        combinedResult.buildTraceContext.entriesTrace =
+          curResult.buildTraceContext.entriesTrace
+        combinedResult.buildTraceContext.entriesTrace!.entryNameMap = new Map(
           entryNameMap
         )
+      }
+
+      if (curResult.buildTraceContext?.chunksTrace) {
+        const { entryNameFilesMap } = curResult.buildTraceContext.chunksTrace!
+
+        if (entryNameFilesMap) {
+          combinedResult.buildTraceContext.chunksTrace =
+            curResult.buildTraceContext.chunksTrace!
+
+          combinedResult.buildTraceContext.chunksTrace!.entryNameFilesMap =
+            new Map(entryNameFilesMap)
+        }
       }
     }
   }

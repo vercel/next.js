@@ -49,7 +49,7 @@ export type LoadComponentsReturnType = {
   ComponentMod: any
   routeModule?: RouteModule
   isAppPath?: boolean
-  pathname: string
+  page: string
 }
 
 /**
@@ -71,17 +71,18 @@ export async function loadManifestWithRetries<T>(
   }
 }
 
-async function loadJSManifest<T>(
+async function loadClientReferenceManifest(
   manifestPath: string,
-  name: string,
   entryName: string
-): Promise<T | undefined> {
+): Promise<ClientReferenceManifest | undefined> {
   process.env.NEXT_MINIMAL
     ? // @ts-ignore
       __non_webpack_require__(manifestPath)
     : require(manifestPath)
   try {
-    return JSON.parse((globalThis as any)[name][entryName]) as T
+    return (globalThis as any).__RSC_MANIFEST[
+      entryName
+    ] as ClientReferenceManifest
   } catch (err) {
     return undefined
   }
@@ -89,11 +90,11 @@ async function loadJSManifest<T>(
 
 async function loadComponentsImpl({
   distDir,
-  pathname,
+  page,
   isAppPath,
 }: {
   distDir: string
-  pathname: string
+  page: string
   isAppPath: boolean
 }): Promise<LoadComponentsReturnType> {
   let DocumentMod = {}
@@ -105,15 +106,13 @@ async function loadComponentsImpl({
     ])
   }
   const ComponentMod = await Promise.resolve().then(() =>
-    requirePage(pathname, distDir, isAppPath)
+    requirePage(page, distDir, isAppPath)
   )
 
   // Make sure to avoid loading the manifest for Route Handlers
   const hasClientManifest =
     isAppPath &&
-    (pathname.endsWith('/page') ||
-      pathname === '/not-found' ||
-      pathname === '/_not-found')
+    (page.endsWith('/page') || page === '/not-found' || page === '/_not-found')
 
   const [
     buildManifest,
@@ -126,18 +125,14 @@ async function loadComponentsImpl({
       join(distDir, REACT_LOADABLE_MANIFEST)
     ),
     hasClientManifest
-      ? loadJSManifest<ClientReferenceManifest>(
+      ? loadClientReferenceManifest(
           join(
             distDir,
             'server',
             'app',
-            pathname.replace(/%5F/g, '_') +
-              '_' +
-              CLIENT_REFERENCE_MANIFEST +
-              '.js'
+            page.replace(/%5F/g, '_') + '_' + CLIENT_REFERENCE_MANIFEST + '.js'
           ),
-          '__RSC_MANIFEST',
-          pathname.replace(/%5F/g, '_')
+          page.replace(/%5F/g, '_')
         )
       : undefined,
     isAppPath
@@ -168,7 +163,7 @@ async function loadComponentsImpl({
     clientReferenceManifest,
     serverActionsManifest,
     isAppPath,
-    pathname,
+    page,
     routeModule,
   }
 }
