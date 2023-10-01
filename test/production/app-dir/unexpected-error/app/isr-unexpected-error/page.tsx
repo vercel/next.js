@@ -1,4 +1,4 @@
-export const revalidate = 0
+export const revalidate = 1
 
 export default function UnexpectedErrorPage(props) {
   // use query param to only throw error during runtime, not build time
