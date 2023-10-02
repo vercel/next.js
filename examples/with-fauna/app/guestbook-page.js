@@ -1,5 +1,5 @@
 import cn from 'classnames'
-import 'tailwindcss/tailwind.css'
+// import 'tailwindcss/tailwind.css'
 import formatDate from 'date-fns/format'
 import EntryForm from '@/components/EntryForm'
 
