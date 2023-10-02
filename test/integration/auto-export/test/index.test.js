@@ -57,7 +57,7 @@ const runTests = () => {
 }
 
 describe('Auto Export', () => {
-  describe('production', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await nextBuild(appDir)
       appPort = await findPort()

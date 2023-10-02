@@ -3,7 +3,7 @@ import type { Writable, Readable } from 'stream'
 import type { SizeLimit } from 'next/types'
 
 import { NextApiRequestCookies, SYMBOL_CLEARED_COOKIES } from '../api-utils'
-import { parseBody } from '../api-utils/node'
+import { parseBody } from '../api-utils/node/parse-body'
 import { NEXT_REQUEST_META, RequestMeta } from '../request-meta'
 
 import { BaseNextRequest, BaseNextResponse } from './index'
@@ -17,7 +17,7 @@ type Req = IncomingMessage & {
 export class NodeNextRequest extends BaseNextRequest<Readable> {
   public headers = this._req.headers;
 
-  [NEXT_REQUEST_META]: RequestMeta = {}
+  [NEXT_REQUEST_META]: RequestMeta = this._req[NEXT_REQUEST_META] || {}
 
   get originalRequest() {
     // Need to mimic these changes to the original req object for places where we use it:

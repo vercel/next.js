@@ -1,12 +1,13 @@
-import LRUCache from 'next/dist/compiled/lru-cache'
-import { FETCH_CACHE_HEADER } from '../../../client/components/app-router-headers'
-import { CACHE_ONE_YEAR } from '../../../lib/constants'
 import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
-import { getDerivedTags } from './utils'
 
-let memoryCache: LRUCache<string, CacheHandlerValue> | undefined
+import LRUCache from 'next/dist/compiled/lru-cache'
+import {
+  CACHE_ONE_YEAR,
+  NEXT_CACHE_SOFT_TAGS_HEADER,
+} from '../../../lib/constants'
 
 let rateLimitedUntil = 0
+let memoryCache: LRUCache<string, CacheHandlerValue> | undefined
 
 interface NextFetchCacheParams {
   internal?: boolean
@@ -15,11 +16,17 @@ interface NextFetchCacheParams {
   fetchUrl?: string
 }
 
+const CACHE_TAGS_HEADER = 'x-vercel-cache-tags' as const
+const CACHE_HEADERS_HEADER = 'x-vercel-sc-headers' as const
+const CACHE_STATE_HEADER = 'x-vercel-cache-state' as const
+const CACHE_REVALIDATE_HEADER = 'x-vercel-revalidate' as const
+const CACHE_FETCH_URL_HEADER = 'x-vercel-cache-item-name' as const
+const CACHE_CONTROL_VALUE_HEADER = 'x-vercel-cache-control' as const
+
 export default class FetchCache implements CacheHandler {
   private headers: Record<string, string>
   private cacheEndpoint?: string
   private debug: boolean
-  private revalidatedTags: string[]
 
   static isAvailable(ctx: {
     _requestHeaders: CacheHandlerContext['_requestHeaders']
@@ -32,17 +39,16 @@ export default class FetchCache implements CacheHandler {
   constructor(ctx: CacheHandlerContext) {
     this.debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
     this.headers = {}
-    this.revalidatedTags = ctx.revalidatedTags
     this.headers['Content-Type'] = 'application/json'
 
-    if (FETCH_CACHE_HEADER in ctx._requestHeaders) {
+    if (CACHE_HEADERS_HEADER in ctx._requestHeaders) {
       const newHeaders = JSON.parse(
-        ctx._requestHeaders[FETCH_CACHE_HEADER] as string
+        ctx._requestHeaders[CACHE_HEADERS_HEADER] as string
       )
       for (const k in newHeaders) {
         this.headers[k] = newHeaders[k]
       }
-      delete ctx._requestHeaders[FETCH_CACHE_HEADER]
+      delete ctx._requestHeaders[CACHE_HEADERS_HEADER]
     }
     const scHost =
       ctx._requestHeaders['x-vercel-sc-host'] || process.env.SUSPENSE_CACHE_URL
@@ -118,7 +124,7 @@ export default class FetchCache implements CacheHandler {
         {
           method: 'POST',
           headers: this.headers,
-          // @ts-expect-error
+          // @ts-expect-error not on public type
           next: { internal: true },
         }
       )
@@ -138,10 +144,16 @@ export default class FetchCache implements CacheHandler {
 
   public async get(
     key: string,
-    fetchCache?: boolean,
-    fetchUrl?: string,
-    fetchIdx?: number
+    ctx: {
+      tags?: string[]
+      softTags?: string[]
+      fetchCache?: boolean
+      fetchUrl?: string
+      fetchIdx?: number
+    }
   ) {
+    const { tags, softTags, fetchCache, fetchIdx, fetchUrl } = ctx
+
     if (!fetchCache) return null
 
     if (Date.now() < rateLimitedUntil) {
@@ -175,7 +187,9 @@ export default class FetchCache implements CacheHandler {
             method: 'GET',
             headers: {
               ...this.headers,
-              'X-Vercel-Cache-Item-Name': fetchUrl,
+              [CACHE_FETCH_URL_HEADER]: fetchUrl,
+              [CACHE_TAGS_HEADER]: tags?.join(',') || '',
+              [NEXT_CACHE_SOFT_TAGS_HEADER]: softTags?.join(',') || '',
             } as any,
             next: fetchParams as NextFetchRequestConfig,
           }
@@ -209,7 +223,7 @@ export default class FetchCache implements CacheHandler {
           throw new Error(`invalid cache value`)
         }
 
-        const cacheState = res.headers.get('x-vercel-cache-state')
+        const cacheState = res.headers.get(CACHE_STATE_HEADER)
         const age = res.headers.get('age')
 
         data = {
@@ -221,13 +235,16 @@ export default class FetchCache implements CacheHandler {
               ? Date.now() - CACHE_ONE_YEAR
               : Date.now() - parseInt(age || '0', 10) * 1000,
         }
+
         if (this.debug) {
           console.log(
             `got fetch cache entry for ${key}, duration: ${
               Date.now() - start
             }ms, size: ${
               Object.keys(cached).length
-            }, cache-state: ${cacheState}`
+            }, cache-state: ${cacheState} tags: ${tags?.join(
+              ','
+            )} softTags: ${softTags?.join(',')}`
           )
         }
 
@@ -242,29 +259,23 @@ export default class FetchCache implements CacheHandler {
       }
     }
 
-    // if a tag was revalidated we don't return stale data
-    if (data?.value?.kind === 'FETCH') {
-      const innerData = data.value.data
-      const derivedTags = getDerivedTags(innerData.tags || [])
-
-      if (
-        derivedTags.some((tag) => {
-          return this.revalidatedTags.includes(tag)
-        })
-      ) {
-        data = undefined
-      }
-    }
-
     return data || null
   }
 
   public async set(
     key: string,
     data: CacheHandlerValue['value'],
-    fetchCache?: boolean,
-    fetchUrl?: string,
-    fetchIdx?: number
+    {
+      fetchCache,
+      fetchIdx,
+      fetchUrl,
+      tags,
+    }: {
+      tags?: string[]
+      fetchCache?: boolean
+      fetchUrl?: string
+      fetchIdx?: number
+    }
   ) {
     if (!fetchCache) return
 
@@ -284,26 +295,25 @@ export default class FetchCache implements CacheHandler {
       try {
         const start = Date.now()
         if (data !== null && 'revalidate' in data) {
-          this.headers['x-vercel-revalidate'] = data.revalidate.toString()
+          this.headers[CACHE_REVALIDATE_HEADER] = data.revalidate.toString()
         }
         if (
-          !this.headers['x-vercel-revalidate'] &&
+          !this.headers[CACHE_REVALIDATE_HEADER] &&
           data !== null &&
           'data' in data
         ) {
-          this.headers['x-vercel-cache-control'] =
+          this.headers[CACHE_CONTROL_VALUE_HEADER] =
             data.data.headers['cache-control']
         }
-        const body = JSON.stringify(data)
-        const headers = { ...this.headers }
-        if (data !== null && 'data' in data && data.data.tags) {
-          headers['x-vercel-cache-tags'] = data.data.tags.join(',')
-        }
+        const body = JSON.stringify({
+          ...data,
+          // we send the tags in the header instead
+          // of in the body here
+          tags: undefined,
+        })
 
         if (this.debug) {
-          console.log('set cache', key, {
-            tags: headers['x-vercel-cache-tags'],
-          })
+          console.log('set cache', key)
         }
         const fetchParams: NextFetchCacheParams = {
           internal: true,
@@ -316,8 +326,9 @@ export default class FetchCache implements CacheHandler {
           {
             method: 'POST',
             headers: {
-              ...headers,
-              'X-Vercel-Cache-Item-Name': fetchUrl || '',
+              ...this.headers,
+              [CACHE_FETCH_URL_HEADER]: fetchUrl || '',
+              [CACHE_TAGS_HEADER]: tags?.join(',') || '',
             },
             body: body,
             next: fetchParams as NextFetchRequestConfig,

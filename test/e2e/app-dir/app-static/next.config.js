@@ -1,20 +1,16 @@
-/**@type import('next').NextConfig */
+/** @type {import('next').NextConfig} */
 module.exports = {
   experimental: {
-    logging: 'verbose',
-    incrementalCacheHandlerPath: process.env.CUSTOM_CACHE_HANDLER
-      ? require.resolve('./cache-handler.js')
-      : undefined,
+    logging: {
+      level: 'verbose',
+    },
+    incrementalCacheHandlerPath: process.env.CUSTOM_CACHE_HANDLER,
   },
-  // assetPrefix: '/assets',
+
   rewrites: async () => {
     return {
       // beforeFiles: [ { source: '/assets/:path*', destination: '/:path*' } ],
       afterFiles: [
-        {
-          source: '/rewritten-to-dashboard',
-          destination: '/dashboard',
-        },
         {
           source: '/rewritten-use-search-params',
           destination: '/hooks/use-search-params',

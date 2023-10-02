@@ -16,12 +16,12 @@ export type ReactReadableStream = ReadableStream<Uint8Array> & {
 export const streamToBufferedResult = async (
   renderResult: RenderResult
 ): Promise<string> => {
-  const renderChunks: string[] = []
   const textDecoder = new TextDecoder()
+  let concatenatedString = ''
 
   const writable = {
     write(chunk: any) {
-      renderChunks.push(decodeText(chunk, textDecoder))
+      concatenatedString += decodeText(chunk, textDecoder)
     },
     end() {},
 
@@ -30,7 +30,7 @@ export const streamToBufferedResult = async (
     off() {},
   }
   await renderResult.pipe(writable)
-  return renderChunks.join('')
+  return concatenatedString
 }
 
 export function cloneTransformStream(source: TransformStream) {
@@ -45,7 +45,7 @@ export function cloneTransformStream(source: TransformStream) {
         controller.enqueue(value)
       }
     },
-    // skip the its own written chunks
+    // skip all piped chunks
     transform() {},
   })
 
@@ -67,12 +67,10 @@ export function chainStreams<T>(
   return readable
 }
 
-export function streamFromArray(strings: string[]): ReadableStream<Uint8Array> {
+export function streamFromString(str: string): ReadableStream<Uint8Array> {
   return new ReadableStream({
     start(controller) {
-      for (const str of strings) {
-        controller.enqueue(encodeText(str))
-      }
+      controller.enqueue(encodeText(str))
       controller.close()
     },
   })
@@ -107,15 +105,14 @@ export function createBufferedTransformStream(): TransformStream<
   const flushBuffer = (controller: TransformStreamDefaultController) => {
     if (!pendingFlush) {
       pendingFlush = new Promise((resolve) => {
-        setTimeout(async () => {
+        queueTask(() => {
           controller.enqueue(bufferedBytes)
           bufferedBytes = new Uint8Array()
           pendingFlush = null
           resolve()
-        }, 0)
+        })
       })
     }
-    return pendingFlush
   }
 
   return new TransformStream({
@@ -149,7 +146,7 @@ export function createInsertedHTMLStream(
   })
 }
 
-export function renderToInitialStream({
+export function renderToInitialFizzStream({
   ReactDOMServer,
   element,
   streamOptions,
@@ -230,7 +227,7 @@ function createDeferredSuffixStream(
           // NOTE: streaming flush
           // Enqueue suffix part before the major chunks are enqueued so that
           // suffix won't be flushed too early to interrupt the data stream
-          setTimeout(() => {
+          queueTask(() => {
             controller.enqueue(encodeText(suffix))
             res()
           })
@@ -247,7 +244,9 @@ function createDeferredSuffixStream(
   })
 }
 
-export function createInlineDataStream(
+// Merge two streams into one. Ensure the final transform stream is closed
+// when both are finished.
+function createMergedTransformStream(
   dataStream: ReadableStream<Uint8Array>
 ): TransformStream<Uint8Array, Uint8Array> {
   let dataStreamFinished: Promise<void> | null = null
@@ -373,17 +372,17 @@ export function createRootLayoutValidatorStream(
   })
 }
 
-export async function continueFromInitialStream(
+export async function continueFizzStream(
   renderStream: ReactReadableStream,
   {
     suffix,
-    dataStream,
+    inlinedDataStream,
     generateStaticHTML,
     getServerInsertedHTML,
     serverInsertedHTMLToHead,
     validateRootLayout,
   }: {
-    dataStream?: ReadableStream<Uint8Array>
+    inlinedDataStream?: ReadableStream<Uint8Array>
     generateStaticHTML: boolean
     getServerInsertedHTML?: () => Promise<string>
     serverInsertedHTMLToHead: boolean
@@ -416,8 +415,8 @@ export async function continueFromInitialStream(
     // Insert suffix content
     suffixUnclosed != null ? createDeferredSuffixStream(suffixUnclosed) : null,
 
-    // Insert the flight data stream
-    dataStream ? createInlineDataStream(dataStream) : null,
+    // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
+    inlinedDataStream ? createMergedTransformStream(inlinedDataStream) : null,
 
     // Close tags should always be deferred to the end
     createMoveSuffixStream(closeTag),

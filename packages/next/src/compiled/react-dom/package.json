@@ -2,7 +2,10 @@
   "name": "react-dom-builtin",
   "main": "index.js",
   "exports": {
-    ".": "./index.js",
+    ".": {
+      "react-server": "./react-dom.shared-subset.js",
+      "default": "./index.js"
+    },
     "./client": "./client.js",
     "./server": {
       "workerd": "./server.edge.js",
@@ -18,6 +21,18 @@
     "./server.bun": "./server.bun.js",
     "./server.edge": "./server.edge.js",
     "./server.node": "./server.node.js",
+    "./static": {
+      "workerd": "./static.edge.js",
+      "deno": "./static.browser.js",
+      "worker": "./static.browser.js",
+      "browser": "./static.browser.js",
+      "node": "./static.node.js",
+      "edge-light": "./static.edge.js",
+      "default": "./static.node.js"
+    },
+    "./static.browser": "./static.browser.js",
+    "./static.edge": "./static.edge.js",
+    "./static.node": "./static.node.js",
     "./server-rendering-stub": "./server-rendering-stub.js",
     "./profiling": "./profiling.js",
     "./test-utils": "./test-utils.js",
@@ -26,12 +41,13 @@
   },
   "dependencies": {
     "loose-envify": "^1.1.0",
-    "scheduler": "0.24.0-canary-1a001dac6-20230812"
+    "scheduler": "0.24.0-canary-09285d5a7-20230925"
   },
   "peerDependencies": {
-    "react": "18.3.0-canary-1a001dac6-20230812"
+    "react": "18.3.0-canary-09285d5a7-20230925"
   },
   "browser": {
-    "./server.js": "./server.browser.js"
+    "./server.js": "./server.browser.js",
+    "./static.js": "./static.browser.js"
   }
 }

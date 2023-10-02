@@ -60,6 +60,11 @@ function verifyTypeScriptSetup(
       typeCheckWorker.end()
       return result
     })
+    .catch(() => {
+      // The error is already logged in the worker, we simply exit the main thread to prevent the
+      // `Jest worker encountered 1 child process exceptions, exceeding retry limit` from showing up
+      process.exit(1)
+    })
 }
 
 export async function startTypeChecking({
@@ -114,9 +119,9 @@ export async function startTypeChecking({
   // we will not create a spinner if both ignoreTypeScriptErrors and ignoreESLint are
   // enabled, but we will still verifying project's tsconfig and dependencies.
   if (typeCheckingAndLintingSpinnerPrefixText) {
-    typeCheckingAndLintingSpinner = createSpinner({
-      prefixText: `${Log.prefixes.info} ${typeCheckingAndLintingSpinnerPrefixText}`,
-    })
+    typeCheckingAndLintingSpinner = createSpinner(
+      typeCheckingAndLintingSpinnerPrefixText
+    )
   }
 
   const typeCheckStart = process.hrtime()
@@ -147,8 +152,7 @@ export async function startTypeChecking({
             eslintCacheDir,
             config.eslint?.dirs,
             config.experimental.workerThreads,
-            telemetry,
-            !!appDir
+            telemetry
           )
         }),
     ])

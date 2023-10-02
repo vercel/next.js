@@ -21,7 +21,7 @@ use turbopack_binding::{
 };
 
 use crate::{
-    next_app::AppEntry,
+    next_app::{AppEntry, AppPage, AppPath},
     parse_segment_config_from_source,
     util::{load_next_js_template, virtual_next_js_template_path, NextRuntime},
 };
@@ -32,8 +32,7 @@ pub async fn get_app_route_entry(
     nodejs_context: Vc<ModuleAssetContext>,
     edge_context: Vc<ModuleAssetContext>,
     source: Vc<Box<dyn Source>>,
-    pathname: String,
-    original_name: String,
+    page: AppPage,
     project_root: Vc<FileSystemPath>,
 ) -> Result<Vc<AppEntry>> {
     let config = parse_segment_config_from_source(
@@ -52,10 +51,12 @@ pub async fn get_app_route_entry(
 
     let mut result = RopeBuilder::default();
 
-    let original_page_name = get_original_route_name(&original_name);
+    let original_name = page.to_string();
+    let pathname = AppPath::from(page.clone()).to_string();
+
     let path = source.ident().path();
 
-    let template_file = "build/webpack/loaders/next-route-loader/templates/app-route.js";
+    let template_file = "app-route.js";
 
     // Load the file from the next.js codebase.
     let file = load_next_js_template(project_root, template_file.to_string()).await?;
@@ -81,7 +82,7 @@ pub async fn get_app_route_entry(
         )
         .replace(
             "\"VAR_ORIGINAL_PATHNAME\"",
-            &StringifyJs(&original_page_name).to_string(),
+            &StringifyJs(&original_name).to_string(),
         )
         .replace(
             "\"VAR_RESOLVED_PAGE_PATH\"",
@@ -120,7 +121,7 @@ pub async fn get_app_route_entry(
     );
 
     if is_edge {
-        rsc_entry = wrap_edge_entry(context, project_root, rsc_entry, original_page_name.clone());
+        rsc_entry = wrap_edge_entry(context, project_root, rsc_entry, pathname.clone());
     }
 
     let Some(rsc_entry) =
@@ -130,8 +131,8 @@ pub async fn get_app_route_entry(
     };
 
     Ok(AppEntry {
-        pathname: pathname.to_string(),
-        original_name: original_page_name,
+        pathname,
+        original_name,
         rsc_entry,
         config,
     }
@@ -143,7 +144,7 @@ pub async fn wrap_edge_entry(
     context: Vc<ModuleAssetContext>,
     project_root: Vc<FileSystemPath>,
     entry: Vc<Box<dyn Module>>,
-    original_name: String,
+    pathname: String,
 ) -> Result<Vc<Box<dyn Module>>> {
     let mut source = RopeBuilder::default();
     writedoc!(
@@ -158,7 +159,7 @@ pub async fn wrap_edge_entry(
                 default: EdgeRouteModuleWrapper.wrap(module.routeModule),
             }}
         "#,
-        StringifyJs(&format_args!("middleware_{}", original_name))
+        StringifyJs(&format_args!("middleware_{}", pathname))
     )?;
     let file = File::from(source.build());
     // TODO(alexkirsz) Figure out how to name this virtual asset.
@@ -174,11 +175,4 @@ pub async fn wrap_edge_entry(
         Vc::upcast(virtual_source),
         Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
     ))
-}
-
-fn get_original_route_name(pathname: &str) -> String {
-    match pathname {
-        "/" => "/route".to_string(),
-        _ => format!("{}/route", pathname),
-    }
 }

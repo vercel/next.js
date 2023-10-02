@@ -3,7 +3,7 @@ title: fetch
 description: API reference for the extended fetch function.
 ---
 
-Next.js extends the native [Web `fetch()` API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) to allow each request on the server to set its own persistent caching semantics.
+Next.js extends the native [Web `fetch()` API](https://developer.mozilla.org/docs/Web/API/Fetch_API) to allow each request on the server to set its own persistent caching semantics.
 
 In the browser, the `cache` option indicates how a fetch request will interact with the _browser's_ HTTP cache. With this extension, `cache` indicates how a _server-side_ fetch request will interact with the framework's persistent HTTP cache.
 
@@ -53,9 +53,7 @@ export default async function Page() {
 
 ## `fetch(url, options)`
 
-Since Next.js extends the [Web `fetch()` API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API), you can use any of the [native options available](https://developer.mozilla.org/en-US/docs/Web/API/fetch#parameters).
-
-Further, Next.js polyfills `fetch` on both the client and the server, so you can use fetch in both [Server and Client Components](/docs/getting-started/react-essentials).
+Since Next.js extends the [Web `fetch()` API](https://developer.mozilla.org/docs/Web/API/Fetch_API), you can use any of the [native options available](https://developer.mozilla.org/docs/Web/API/fetch#parameters).
 
 ### `options.cache`
 
@@ -72,7 +70,7 @@ fetch(`https://...`, { cache: 'force-cache' | 'no-store' })
 
 > **Good to know**:
 >
-> - If you don't provide a `cache` option, Next.js will default to `force-cache`, unless a [dynamic function](/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-functions) such as `cookies()` is used, in which case it will default to `no-store`.
+> - If you don't provide a `cache` option, Next.js will default to `force-cache`, unless a [dynamic function](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies#dynamic-functions) such as `cookies()` is used, in which case it will default to `no-store`.
 > - The `no-cache` option behaves the same way as `no-store` in Next.js.
 
 ### `options.next.revalidate`
@@ -100,7 +98,7 @@ Set the cache lifetime of a resource (in seconds).
 fetch(`https://...`, { next: { tags: ['collection'] } })
 ```
 
-Set the cache tags of a resource. Data can then be revalidated on-demand using [`revalidateTag`](https://nextjs.org/docs/app/api-reference/functions/revalidateTag).
+Set the cache tags of a resource. Data can then be revalidated on-demand using [`revalidateTag`](https://nextjs.org/docs/app/api-reference/functions/revalidateTag). The max length for a custom tag is 256 characters.
 
 ## Version History
 

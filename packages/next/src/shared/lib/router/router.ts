@@ -40,6 +40,7 @@ import { removeLocale } from '../../../client/remove-locale'
 import { removeBasePath } from '../../../client/remove-base-path'
 import { addBasePath } from '../../../client/add-base-path'
 import { hasBasePath } from '../../../client/has-base-path'
+import { resolveHref } from '../../../client/resolve-href'
 import { isAPIRoute } from '../../../lib/is-api-route'
 import { getNextPathnameInfo } from './utils/get-next-pathname-info'
 import { formatNextPathnameInfo } from './utils/format-next-pathname-info'
@@ -47,7 +48,6 @@ import { compareRouterStates } from './utils/compare-states'
 import { isLocalURL } from './utils/is-local-url'
 import { isBot } from './utils/is-bot'
 import { omit } from './utils/omit'
-import { resolveHref } from './utils/resolve-href'
 import { interpolateAs } from './utils/interpolate-as'
 import { handleSmoothScroll } from './utils/handle-smooth-scroll'
 
@@ -453,7 +453,7 @@ function fetchRetry(
     //
     // > `fetch` won’t send cookies, unless you set the credentials init
     // > option.
-    // https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
+    // https://developer.mozilla.org/docs/Web/API/Fetch_API/Using_Fetch
     //
     // > For maximum browser compatibility when it comes to sending &
     // > receiving cookies, always supply the `credentials: 'same-origin'`
@@ -830,6 +830,7 @@ export default class Router implements BaseRouter {
     this.isReady = !!(
       self.__NEXT_DATA__.gssp ||
       self.__NEXT_DATA__.gip ||
+      self.__NEXT_DATA__.isExperimentalCompile ||
       (self.__NEXT_DATA__.appGip && !self.__NEXT_DATA__.gsp) ||
       (!autoExportDynamic &&
         !self.location.search &&
@@ -1843,7 +1844,7 @@ export default class Router implements BaseRouter {
         } as HistoryState,
         // Most browsers currently ignores this parameter, although they may use it in the future.
         // Passing the empty string here should be safe against future changes to the method.
-        // https://developer.mozilla.org/en-US/docs/Web/API/History/replaceState
+        // https://developer.mozilla.org/docs/Web/API/History/replaceState
         '',
         as
       )

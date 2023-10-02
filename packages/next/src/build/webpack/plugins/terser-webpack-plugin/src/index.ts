@@ -128,11 +128,11 @@ export class TerserPlugin {
             }
 
             if (debugMinify && debugMinify === '1') {
-              console.dir(
-                {
+              console.log(
+                JSON.stringify({
                   name,
                   source: source.source().toString(),
-                },
+                }),
                 {
                   breakLength: Infinity,
                   maxStringLength: Infinity,
@@ -166,7 +166,12 @@ export class TerserPlugin {
                       }
                     : {}),
                   compress: true,
-                  mangle: true,
+                  // This is the same option as terser
+                  mangle: {
+                    toplevel: true,
+                    keep_classnames: true,
+                    keep_fnames: true,
+                  },
                 }
               )
 

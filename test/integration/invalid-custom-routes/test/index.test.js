@@ -580,10 +580,11 @@ describe('Errors on invalid custom routes', () => {
   afterAll(() => fs.remove(nextConfigPath))
 
   describe('dev mode', () => {
+    let stderr = ''
     beforeAll(() => {
       getStderr = async () => {
-        let stderr = ''
-        await launchApp(appDir, await findPort(), {
+        const port = await findPort()
+        await launchApp(appDir, port, {
           onStderr: (msg) => {
             stderr += msg
           },
@@ -591,11 +592,13 @@ describe('Errors on invalid custom routes', () => {
         return stderr
       }
     })
+    afterEach(() => {
+      stderr = ''
+    })
 
     runTests()
   })
-
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(() => {
       getStderr = async () => {
         const { stderr } = await nextBuild(appDir, [], { stderr: true })

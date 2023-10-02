@@ -4,6 +4,9 @@
 /// <reference types="react-dom" />
 /// <reference types="react-dom/experimental" />
 
+import type { Agent as HttpAgent } from 'http'
+import type { Agent as HttpsAgent } from 'https'
+
 import React from 'react'
 import { ParsedUrlQuery } from 'querystring'
 import { IncomingMessage, ServerResponse } from 'http'
@@ -39,7 +42,7 @@ export type {
 
 /**
  * Stub route type for typedRoutes before `next dev` or `next build` is run
- * @link https://beta.nextjs.org/docs/configuring/typescript#statically-typed-links
+ * @link https://nextjs.org/docs/app/building-your-application/configuring/typescript#statically-typed-links
  * @example
  * ```ts
  * import type { Route } from 'next'
@@ -314,6 +317,26 @@ declare global {
     ): T
     randomUUID(): string
   }
+
+  // TODO: remove this polyfill when it is adopted into the spec.
+  interface PromiseConstructor {
+    /**
+     * Creates a new promise with exposed resolvers to resolve/reject. This will
+     * be adopted into the spec as `Promise.withResolvers`.
+     *
+     * @see https://tc39.es/proposal-promise-with-resolvers/
+     */
+    withResolvers<T>(): {
+      promise: Promise<T>
+      resolve: (value: T | PromiseLike<T>) => void
+      reject: (reason?: unknown) => void
+    }
+  }
+
+  var __NEXT_HTTP_AGENT_OPTIONS: { keepAlive?: boolean } | undefined
+  var __NEXT_UNDICI_AGENT_SET: boolean
+  var __NEXT_HTTP_AGENT: HttpAgent
+  var __NEXT_HTTPS_AGENT: HttpsAgent
 }
 
 export default next

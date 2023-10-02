@@ -2,12 +2,12 @@ import findUp from 'next/dist/compiled/find-up'
 import fsPromise from 'fs/promises'
 import child_process from 'child_process'
 import assert from 'assert'
-// @ts-ignore
 import fetch from 'next/dist/compiled/node-fetch'
 import os from 'os'
 import { createInterface } from 'readline'
 import { createReadStream } from 'fs'
 import path from 'path'
+import { Telemetry } from '../telemetry/storage'
 
 // Predefined set of the event names to be included in the trace.
 // If the trace span's name matches to one of the event names in the set,
@@ -17,6 +17,7 @@ const EVENT_FILTER = new Set([
   'hot-reloader',
   'webpack-invalid-client',
   'webpack-invalidated-server',
+  'navigation-to-hydration',
 ])
 
 const {
@@ -51,16 +52,28 @@ interface TraceEvent {
 }
 
 interface TraceMetadata {
+  anonymousId: string
   arch: string
   commit: string
   cpus: number
+  isTurboSession: boolean
   mode: string
+  nextVersion: string
   pkgName: string
   platform: string
-  isTurboSession: boolean
+  sessionId: string
 }
 
 ;(async function upload() {
+  const nextVersion = JSON.parse(
+    await fsPromise.readFile(
+      path.resolve(__dirname, '../../package.json'),
+      'utf8'
+    )
+  ).version
+
+  const telemetry = new Telemetry({ distDir })
+
   const projectPkgJsonPath = await findUp('package.json')
   assert(projectPkgJsonPath)
 
@@ -71,7 +84,7 @@ interface TraceMetadata {
 
   const commit = child_process
     .spawnSync(
-      os.platform() === 'win32' ? 'git.cmd' : 'git',
+      os.platform() === 'win32' ? 'git.exe' : 'git',
       ['rev-parse', 'HEAD'],
       { shell: true }
     )
@@ -116,13 +129,16 @@ interface TraceMetadata {
 
   const body: TraceRequestBody = {
     metadata: {
-      commit,
-      mode,
-      pkgName,
-      isTurboSession,
+      anonymousId: telemetry.anonymousId,
       arch: os.arch(),
+      commit,
       cpus: os.cpus().length,
+      isTurboSession,
+      mode,
+      nextVersion,
+      pkgName,
       platform: os.platform(),
+      sessionId: telemetry.sessionId,
     },
     traces: [...traces.values()],
   }

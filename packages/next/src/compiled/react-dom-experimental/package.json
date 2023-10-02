@@ -2,7 +2,10 @@
   "name": "react-dom-experimental-builtin",
   "main": "index.js",
   "exports": {
-    ".": "./index.js",
+    ".": {
+      "react-server": "./react-dom.shared-subset.js",
+      "default": "./index.js"
+    },
     "./client": "./client.js",
     "./server": {
       "workerd": "./server.edge.js",
@@ -39,10 +42,10 @@
   },
   "dependencies": {
     "loose-envify": "^1.1.0",
-    "scheduler": "0.0.0-experimental-1a001dac6-20230812"
+    "scheduler": "0.0.0-experimental-09285d5a7-20230925"
   },
   "peerDependencies": {
-    "react": "0.0.0-experimental-1a001dac6-20230812"
+    "react": "0.0.0-experimental-09285d5a7-20230925"
   },
   "browser": {
     "./server.js": "./server.browser.js",

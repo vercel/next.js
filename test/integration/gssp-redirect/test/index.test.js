@@ -514,8 +514,7 @@ describe('GS(S)P Redirect Support', () => {
 
     runTests(true)
   })
-
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     let output = ''
 
     beforeAll(async () => {

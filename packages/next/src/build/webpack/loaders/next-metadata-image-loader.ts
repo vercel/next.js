@@ -23,6 +23,8 @@ interface Options {
   basePath: string
 }
 
+// [NOTE] For turbopack
+// refer loader_tree's write_static|dynamic_metadata for corresponding features
 async function nextMetadataImageLoader(this: any, content: Buffer) {
   const options: Options = this.getOptions()
   const { type, segment, pageExtensions, basePath } = options

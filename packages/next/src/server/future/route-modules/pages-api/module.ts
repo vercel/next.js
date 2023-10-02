@@ -8,7 +8,7 @@ import {
   RouteModuleOptions,
   type RouteModuleHandleContext,
 } from '../route-module'
-import { apiResolver } from '../../../api-utils/node'
+import { apiResolver } from '../../../api-utils/node/api-resolver'
 import { __ApiPreviewProps } from '../../../api-utils'
 
 type PagesAPIHandleFn = (
@@ -100,6 +100,16 @@ export class PagesAPIRouteModule extends RouteModule<
   PagesAPIRouteDefinition,
   PagesAPIUserlandModule
 > {
+  constructor(options: PagesAPIRouteModuleOptions) {
+    super(options)
+
+    if (typeof options.userland.default !== 'function') {
+      throw new Error(
+        `Page ${options.definition.page} does not export a default function.`
+      )
+    }
+  }
+
   /**
    *
    * @param req the incoming server request
