@@ -1,6 +1,5 @@
 use anyhow::{bail, Context, Result};
 use next_core::{
-    all_server_paths,
     middleware::get_middleware_module,
     mode::NextMode,
     next_edge::entry::wrap_edge_entry,
@@ -27,6 +26,7 @@ use turbopack_binding::{
 use crate::{
     project::Project,
     route::{Endpoint, WrittenEndpoint},
+    server_paths::all_server_paths,
 };
 
 #[turbo_tasks::value]

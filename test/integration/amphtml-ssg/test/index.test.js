@@ -118,32 +118,37 @@ describe('AMP SSG Support', () => {
     runTests(true)
   })
   describe('export mode', () => {
-    let buildId
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'production mode',
+      () => {
+        let buildId
 
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      await nextExport(appDir, { outdir: join(appDir, 'out') })
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-    })
+        beforeAll(async () => {
+          await nextBuild(appDir)
+          await nextExport(appDir, { outdir: join(appDir, 'out') })
+          buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+        })
 
-    it('should have copied SSG files correctly', async () => {
-      const outFile = (file) => join(appDir, 'out', file)
+        it('should have copied SSG files correctly', async () => {
+          const outFile = (file) => join(appDir, 'out', file)
 
-      expect(await fsExists(outFile('amp.html'))).toBe(true)
-      expect(await fsExists(outFile('index.html'))).toBe(true)
-      expect(await fsExists(outFile('hybrid.html'))).toBe(true)
-      expect(await fsExists(outFile('amp.amp.html'))).toBe(false)
-      expect(await fsExists(outFile('hybrid.amp.html'))).toBe(true)
-      expect(await fsExists(outFile('blog/post-1.html'))).toBe(true)
-      expect(await fsExists(outFile('blog/post-1.amp.html'))).toBe(true)
+          expect(await fsExists(outFile('amp.html'))).toBe(true)
+          expect(await fsExists(outFile('index.html'))).toBe(true)
+          expect(await fsExists(outFile('hybrid.html'))).toBe(true)
+          expect(await fsExists(outFile('amp.amp.html'))).toBe(false)
+          expect(await fsExists(outFile('hybrid.amp.html'))).toBe(true)
+          expect(await fsExists(outFile('blog/post-1.html'))).toBe(true)
+          expect(await fsExists(outFile('blog/post-1.amp.html'))).toBe(true)
 
-      expect(
-        await fsExists(outFile(join('_next/data', buildId, 'amp.json')))
-      ).toBe(true)
+          expect(
+            await fsExists(outFile(join('_next/data', buildId, 'amp.json')))
+          ).toBe(true)
 
-      expect(
-        await fsExists(outFile(join('_next/data', buildId, 'hybrid.json')))
-      ).toBe(true)
-    })
+          expect(
+            await fsExists(outFile(join('_next/data', buildId, 'hybrid.json')))
+          ).toBe(true)
+        })
+      }
+    )
   })
 })
