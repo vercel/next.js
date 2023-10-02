@@ -643,8 +643,7 @@ describe('API routes', () => {
 
     runTests(true)
   })
-
-  describe('Server support', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await nextBuild(appDir)
       mode = 'server'

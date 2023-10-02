@@ -85,60 +85,67 @@ function runTests() {
   })
 
   describe('should build', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-    })
-    it('should trace correctly', async () => {
-      const singleAliasTrace = await fs.readJSON(
-        join(appDir, '.next/server/pages/single-alias.js.nft.json')
-      )
-      const wildcardAliasTrace = await fs.readJSON(
-        join(appDir, '.next/server/pages/wildcard-alias.js.nft.json')
-      )
-      const resolveOrderTrace = await fs.readJSON(
-        join(appDir, '.next/server/pages/resolve-order.js.nft.json')
-      )
-      const resolveFallbackTrace = await fs.readJSON(
-        join(appDir, '.next/server/pages/resolve-fallback.js.nft.json')
-      )
-      const basicAliasTrace = await fs.readJSON(
-        join(appDir, '.next/server/pages/basic-alias.js.nft.json')
-      )
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'production mode',
+      () => {
+        beforeAll(async () => {
+          await nextBuild(appDir)
+        })
+        it('should trace correctly', async () => {
+          const singleAliasTrace = await fs.readJSON(
+            join(appDir, '.next/server/pages/single-alias.js.nft.json')
+          )
+          const wildcardAliasTrace = await fs.readJSON(
+            join(appDir, '.next/server/pages/wildcard-alias.js.nft.json')
+          )
+          const resolveOrderTrace = await fs.readJSON(
+            join(appDir, '.next/server/pages/resolve-order.js.nft.json')
+          )
+          const resolveFallbackTrace = await fs.readJSON(
+            join(appDir, '.next/server/pages/resolve-fallback.js.nft.json')
+          )
+          const basicAliasTrace = await fs.readJSON(
+            join(appDir, '.next/server/pages/basic-alias.js.nft.json')
+          )
 
-      expect(
-        singleAliasTrace.files.some((file) =>
-          file.includes('components/hello.js')
-        )
-      ).toBe(false)
-      expect(
-        wildcardAliasTrace.files.some((file) =>
-          file.includes('mypackage/myfile.js')
-        )
-      ).toBe(true)
-      expect(
-        wildcardAliasTrace.files.some((file) =>
-          file.includes('mypackage/data.js')
-        )
-      ).toBe(false)
-      expect(
-        resolveOrderTrace.files.some((file) => file.includes('lib/a/api.js'))
-      ).toBe(false)
-      expect(
-        resolveOrderTrace.files.some((file) =>
-          file.includes('mypackage/data.js')
-        )
-      ).toBe(true)
-      expect(
-        resolveFallbackTrace.files.some((file) =>
-          file.includes('lib/b/b-only.js')
-        )
-      ).toBe(false)
-      expect(
-        basicAliasTrace.files.some((file) =>
-          file.includes('components/world.js')
-        )
-      ).toBe(false)
-    })
+          expect(
+            singleAliasTrace.files.some((file) =>
+              file.includes('components/hello.js')
+            )
+          ).toBe(false)
+          expect(
+            wildcardAliasTrace.files.some((file) =>
+              file.includes('mypackage/myfile.js')
+            )
+          ).toBe(true)
+          expect(
+            wildcardAliasTrace.files.some((file) =>
+              file.includes('mypackage/data.js')
+            )
+          ).toBe(false)
+          expect(
+            resolveOrderTrace.files.some((file) =>
+              file.includes('lib/a/api.js')
+            )
+          ).toBe(false)
+          expect(
+            resolveOrderTrace.files.some((file) =>
+              file.includes('mypackage/data.js')
+            )
+          ).toBe(true)
+          expect(
+            resolveFallbackTrace.files.some((file) =>
+              file.includes('lib/b/b-only.js')
+            )
+          ).toBe(false)
+          expect(
+            basicAliasTrace.files.some((file) =>
+              file.includes('components/world.js')
+            )
+          ).toBe(false)
+        })
+      }
+    )
   })
 }
 
