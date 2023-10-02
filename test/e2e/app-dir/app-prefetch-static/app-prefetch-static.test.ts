@@ -1,5 +1,5 @@
-import { createNextDescribe } from '../../../lib/e2e-utils'
-import { waitFor } from '../../../lib/next-test-utils'
+import { createNextDescribe } from 'e2e-utils'
+import { waitFor } from 'next-test-utils'
 
 createNextDescribe(
   'app-prefetch-static',
@@ -20,19 +20,19 @@ createNextDescribe(
       await browser.elementByCss('#static-prefetch').click()
 
       expect(await browser.elementByCss('#static-prefetch-page').text()).toBe(
-        'Hello from Static Page'
+        'Hello from Static Prefetch Page'
       )
 
       await browser.elementByCss('#dynamic-prefetch').click()
 
       expect(await browser.elementByCss('#dynamic-prefetch-page').text()).toBe(
-        'Hello from Dynamic Page'
+        'Hello from Dynamic Prefetch Page'
       )
 
       await browser.elementByCss('#static-prefetch').click()
 
       expect(await browser.elementByCss('#static-prefetch-page').text()).toBe(
-        'Hello from Static Page'
+        'Hello from Static Prefetch Page'
       )
     })
   }
