@@ -65,7 +65,9 @@ describe('turbopack unsupported features log', () => {
       await fs.writeFile(
         nextConfigPath,
         `module.exports = {
-          assetPrefix: '/idk'
+          experimental: {
+            urlImports: true
+          }
         }`
       )
       const appPort = await findPort()
@@ -91,6 +93,6 @@ describe('turbopack unsupported features log', () => {
       }
     })
   } else {
-    it.skip('turobpack only', () => {})
+    it.skip('turbopack only', () => {})
   }
 })

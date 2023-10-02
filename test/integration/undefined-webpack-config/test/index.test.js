@@ -8,12 +8,14 @@ const expectedErr =
   /Webpack config is undefined. You may have forgot to return properly from within the "webpack" method of your next.config.js/
 
 describe('undefined webpack config error', () => {
-  it.skip('should show in production mode', async () => {
-    const result = await nextBuild(appDir, [], {
-      stdout: true,
-      stderr: true,
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    it.skip('should show in production mode', async () => {
+      const result = await nextBuild(appDir, [], {
+        stdout: true,
+        stderr: true,
+      })
+      expect(result.stderr || '' + result.stdout || '').toMatch(expectedErr)
     })
-    expect(result.stderr || '' + result.stdout || '').toMatch(expectedErr)
   })
 
   it('should show in dev mode', async () => {
