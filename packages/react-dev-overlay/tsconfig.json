@@ -9,7 +9,7 @@
     "downlevelIteration": true,
     "preserveWatchOutput": true,
     "outDir": "dist",
-    "jsx": "react",
+    "jsx": "react-jsx",
     "noFallthroughCasesInSwitch": true,
     "skipLibCheck": true,
     "module": "Node16",

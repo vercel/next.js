@@ -56,7 +56,7 @@ module.exports = function (task) {
           },
           transform: {
             react: {
-              pragma: 'React.createElement',
+              runtime: 'automatic',
               pragmaFrag: 'React.Fragment',
               throwIfNamespace: true,
               development: false,
@@ -102,7 +102,7 @@ module.exports = function (task) {
           },
           transform: {
             react: {
-              pragma: 'React.createElement',
+              runtime: 'automatic',
               pragmaFrag: 'React.Fragment',
               throwIfNamespace: true,
               development: false,
