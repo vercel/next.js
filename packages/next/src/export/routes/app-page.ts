@@ -6,6 +6,11 @@ import type { NextParsedUrlQuery } from '../../server/request-meta'
 
 import fs from 'fs/promises'
 import { MockedRequest, MockedResponse } from '../../server/lib/mock-request'
+import {
+  RSC,
+  NEXT_URL,
+  NEXT_ROUTER_PREFETCH,
+} from '../../client/components/app-router-headers'
 import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
 import { NEXT_CACHE_TAGS_HEADER } from '../../lib/constants'
 import { hasNextSupport } from '../../telemetry/ci-info'
@@ -19,6 +24,37 @@ const render: AppPageRender = (...args) => {
   )
 }
 
+export async function generatePrefetchRsc(
+  req: MockedRequest,
+  path: string,
+  res: MockedResponse,
+  pathname: string,
+  htmlFilepath: string,
+  renderOpts: RenderOpts
+) {
+  req.headers[RSC.toLowerCase()] = '1'
+  req.headers[NEXT_URL.toLowerCase()] = path
+  req.headers[NEXT_ROUTER_PREFETCH.toLowerCase()] = '1'
+
+  renderOpts.supportsDynamicHTML = true
+  renderOpts.isPrefetch = true
+  delete renderOpts.isRevalidate
+
+  const prefetchRenderResult = await render(req, res, pathname, {}, renderOpts)
+
+  prefetchRenderResult.pipe(res)
+  await res.hasStreamed
+
+  const prefetchRscData = Buffer.concat(res.buffers)
+
+  if ((renderOpts as any).store.staticPrefetchBailout) return
+
+  await fs.writeFile(
+    htmlFilepath.replace(/\.html$/, '.prefetch.rsc'),
+    prefetchRscData
+  )
+}
+
 export async function exportAppPage(
   req: MockedRequest,
   res: MockedResponse,
@@ -29,7 +65,8 @@ export async function exportAppPage(
   renderOpts: RenderOpts,
   htmlFilepath: string,
   debugOutput: boolean,
-  isDynamicError: boolean
+  isDynamicError: boolean,
+  isAppPrefetch: boolean
 ): Promise<ExportPageResult> {
   // If the page is `/_not-found`, then we should update the page to be `/404`.
   if (page === '/_not-found') {
@@ -37,6 +74,19 @@ export async function exportAppPage(
   }
 
   try {
+    if (isAppPrefetch) {
+      await generatePrefetchRsc(
+        req,
+        path,
+        res,
+        pathname,
+        htmlFilepath,
+        renderOpts
+      )
+
+      return { fromBuildExportRevalidate: 0 }
+    }
+
     const result = await render(req, res, pathname, query, renderOpts)
     const html = result.toUnchunkedString()
     const { metadata } = result
@@ -47,6 +97,17 @@ export async function exportAppPage(
       if (isDynamicError) {
         throw new Error(
           `Page with dynamic = "error" encountered dynamic data method on ${path}.`
+        )
+      }
+
+      if (!(renderOpts as any).store.staticPrefetchBailout) {
+        await generatePrefetchRsc(
+          req,
+          path,
+          res,
+          pathname,
+          htmlFilepath,
+          renderOpts
         )
       }
 
