@@ -1,6 +1,5 @@
 use anyhow::{bail, Context, Result};
 use next_core::{
-    all_server_paths,
     app_structure::{
         get_entrypoints, Entrypoint as AppEntrypoint, Entrypoints as AppEntrypoints, LoaderTree,
         MetadataItem,
@@ -55,6 +54,7 @@ use turbopack_binding::{
 use crate::{
     project::Project,
     route::{Endpoint, Route, Routes, WrittenEndpoint},
+    server_paths::all_server_paths,
 };
 
 #[turbo_tasks::value]
