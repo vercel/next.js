@@ -341,8 +341,8 @@ export function makeExternalHandler({
 
     // If a package should be transpiled by Next.js, we skip making it external.
     // It doesn't matter what the extension is, as we'll transpile it anyway.
-    if (config.transpilePackages && !resolvedExternalPackageDirs) {
-      resolvedExternalPackageDirs = new Map()
+    if (config.transpilePackages) {
+      resolvedExternalPackageDirs ||= new Map()
       // We need to resolve all the external package dirs initially.
       for (const pkg of config.transpilePackages) {
         const pkgRes = await resolveExternal(
