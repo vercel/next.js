@@ -134,6 +134,7 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
       }.runtime.${dev ? 'dev' : 'prod'}.js`,
       libraryTarget: 'commonjs2',
     },
+    devtool: 'source-map',
     optimization: {
       moduleIds: 'named',
       minimize: true,
