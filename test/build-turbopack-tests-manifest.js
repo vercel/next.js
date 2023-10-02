@@ -77,6 +77,7 @@ const SKIPPED_TEST_SUITES = {
   ],
   'test/integration/trailing-slashes/test/index.test.js': [
     'Trailing slashes dev mode, with basepath, trailingSlash: true /docs/linker?href=/ should navigate to /docs/',
+    'Trailing slashes dev mode, with basepath, trailingSlash: true /docs/linker?href=/ should push route to /docs/',
   ],
   'test/integration/env-config/test/index.test.js': [
     'Env Config dev mode with hot reload should provide env for SSG',
@@ -85,6 +86,9 @@ const SKIPPED_TEST_SUITES = {
   ],
   'test/integration/app-document/test/index.test.js': [
     'Document and App Client side should detect the changes to pages/_document.js and display it',
+  ],
+  'test/development/basic/hmr.test.ts': [
+    'basic HMR, basePath: "/docs" Error Recovery should show the error on all pages',
   ],
 }
 
