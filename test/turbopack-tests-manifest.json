@@ -1419,6 +1419,7 @@
       "basic HMR, basePath: \"\" should have correct router.isReady for getStaticProps page",
       "basic HMR, basePath: \"\" should show hydration error correctly",
       "basic HMR, basePath: \"/docs\" Error Recovery should not continously poll a custom error page",
+      "basic HMR, basePath: \"/docs\" Error Recovery should show the error on all pages",
       "basic HMR, basePath: \"/docs\" Hot Module Reloading editing a page should detect the changes and display it",
       "basic HMR, basePath: \"/docs\" Hot Module Reloading editing a page should not reload unrelated pages",
       "basic HMR, basePath: \"/docs\" Hot Module Reloading editing a page should update styles correctly",
@@ -1459,7 +1460,6 @@
       "basic HMR, basePath: \"/docs\" Error Recovery should recover from 404 after a page has been added with dynamic segments",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover from errors in getInitialProps in client",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover from errors in the render function",
-      "basic HMR, basePath: \"/docs\" Error Recovery should show the error on all pages",
       "basic HMR, basePath: \"/docs\" Full reload should warn about full reload in cli output - anonymous page function",
       "basic HMR, basePath: \"/docs\" Full reload should warn about full reload in cli output - runtime-error",
       "basic HMR, basePath: \"/docs\" Hot Module Reloading delete a page and add it back should load the page properly",
@@ -1731,15 +1731,15 @@
   "test/development/jsconfig-path-reloading/index.test.ts": {
     "passed": [
       "jsconfig-path-reloading jsconfig added after starting dev should load with initial paths config correctly",
-      "jsconfig-path-reloading jsconfig added after starting dev should recover from module not found when paths is updated",
-      "jsconfig-path-reloading jsconfig should load with initial paths config correctly",
-      "jsconfig-path-reloading jsconfig should recover from module not found when paths is updated"
+      "jsconfig-path-reloading jsconfig should load with initial paths config correctly"
     ],
     "failed": [],
     "pending": [],
     "flakey": [
       "jsconfig-path-reloading jsconfig added after starting dev should automatically fast refresh content when path is added without error",
-      "jsconfig-path-reloading jsconfig should automatically fast refresh content when path is added without error"
+      "jsconfig-path-reloading jsconfig added after starting dev should recover from module not found when paths is updated",
+      "jsconfig-path-reloading jsconfig should automatically fast refresh content when path is added without error",
+      "jsconfig-path-reloading jsconfig should recover from module not found when paths is updated"
     ],
     "runtimeError": false
   },
@@ -6152,6 +6152,8 @@
   "test/integration/app-document/test/index.test.js": {
     "passed": [
       "Document and App Client side It should share module state with pages",
+      "Document and App Client side should detect the changes to pages/_app.js and display it",
+      "Document and App Client side should detect the changes to pages/_document.js and display it",
       "Document and App Client side should keep state between page navigations",
       "Document and App Rendering via HTTP _app It should share module state with pages",
       "Document and App Rendering via HTTP _app It should show valid error when thrown in _app getInitialProps",
@@ -6169,10 +6171,7 @@
       "Document and App With CSP enabled should load inline script by nonce",
       "Document and App should not have any missing key warnings"
     ],
-    "failed": [
-      "Document and App Client side should detect the changes to pages/_app.js and display it",
-      "Document and App Client side should detect the changes to pages/_document.js and display it"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6974,15 +6973,13 @@
       "Basic CSS Modules Ordering Development Mode should have correct color on index page (on hover)",
       "Basic CSS Modules Ordering Development Mode should have correct color on index page (on load)",
       "Basic CSS Modules Ordering Development Mode should have correct color on index page (on nav)",
+      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on hover)",
       "CSS Modules Composes Ordering Development Mode should have correct color on index page (on load)",
-      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on nav from index)",
       "Ordering with Global CSS and Modules (dev) should have the correct color (css ordering)",
       "Ordering with Global CSS and Modules (dev) should have the correct color (css ordering) during hot reloads",
       "Ordering with Global CSS and Modules (dev) should not execute scripts in any order"
     ],
-    "failed": [
-      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on hover)"
-    ],
+    "failed": [],
     "pending": [
       "Basic CSS Modules Ordering production mode should have correct color on index page (on hover)",
       "Basic CSS Modules Ordering production mode should have correct color on index page (on load)",
@@ -7001,6 +6998,7 @@
       "should handle unresolved files gracefully production mode should have correct file references in CSS output"
     ],
     "flakey": [
+      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on nav from index)",
       "CSS Modules Composes Ordering Development Mode should have correct color on index page (on nav from other)"
     ],
     "runtimeError": false
@@ -8221,6 +8219,9 @@
       "Env Config dev mode with hot reload should have process environment override .env",
       "Env Config dev mode with hot reload should have updated runtime values after change",
       "Env Config dev mode with hot reload should load env from .env",
+      "Env Config dev mode with hot reload should provide env correctly for API routes",
+      "Env Config dev mode with hot reload should provide env correctly for SSR",
+      "Env Config dev mode with hot reload should provide env for SSG",
       "Env Config dev mode with hot reload should provide global env to next.config.js",
       "Env Config test environment should provide env correctly for API routes",
       "Env Config test environment should provide global env to next.config.js"
@@ -8228,9 +8229,6 @@
     "failed": [
       "Env Config dev mode should inline global values during build",
       "Env Config dev mode with hot reload should inline global values during build",
-      "Env Config dev mode with hot reload should provide env correctly for API routes",
-      "Env Config dev mode with hot reload should provide env correctly for SSR",
-      "Env Config dev mode with hot reload should provide env for SSG",
       "Env Config dev mode with hot reload should trigger HMR correctly when NEXT_PUBLIC_ env is changed",
       "Env Config test environment should have process environment override .env",
       "Env Config test environment should inline global values during build",
@@ -14317,13 +14315,12 @@
       "Trailing slashes dev mode, with basepath, trailingSlash: true /docs/catch-all/hello.world/ should redirect to /docs/catch-all/hello.world",
       "Trailing slashes dev mode, with basepath, trailingSlash: true /docs/catch-all/hello/world should redirect to /docs/catch-all/hello/world/",
       "Trailing slashes dev mode, with basepath, trailingSlash: true /docs/linker?href=/ should have href /docs/",
+      "Trailing slashes dev mode, with basepath, trailingSlash: true /docs/linker?href=/ should push route to /docs/",
       "Trailing slashes dev mode, with basepath, trailingSlash: true /docs/linker?href=/about should have href /docs/about/",
       "Trailing slashes dev mode, with basepath, trailingSlash: true /docs/linker?href=/about should navigate to /docs/about/",
       "Trailing slashes dev mode, with basepath, trailingSlash: true /docs/linker?href=/about should push route to /docs/about/"
     ],
-    "failed": [
-      "Trailing slashes dev mode, with basepath, trailingSlash: true /docs/linker?href=/ should push route to /docs/"
-    ],
+    "failed": [],
     "pending": [
       "Trailing slashes production mode, trailingSlash: false / should client side render /index.js, with router path /",
       "Trailing slashes production mode, trailingSlash: false / should resolve to /index.js, with router path /",
