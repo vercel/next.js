@@ -370,29 +370,15 @@ export function makeExternalHandler({
         config.transpilePackages,
         resolvedExternalPackageDirs
       ) ||
-      (isEsm && isAppLayer) ||
+      isAppLayer ||
       (!isAppLayer && config.experimental.bundlePagesExternals)
 
-    if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
-      if (isWebpackServerLayer(layer)) {
-        // All packages should be bundled for the server layer if they're not opted out.
-        // This option takes priority over the transpilePackages option.
-
-        if (optOutBundlingPackageRegex.test(res)) {
-          return `${externalType} ${request}`
-        }
-
-        return
-      }
-
-      if (shouldBeBundled) return
-
-      // Anything else that is standard JavaScript within `node_modules`
-      // can be externalized.
+    if (
+      /node_modules[/\\].*\.[mc]?js$/.test(res) &&
+      (optOutBundlingPackageRegex.test(res) || !shouldBeBundled)
+    ) {
       return `${externalType} ${request}`
     }
-
-    if (shouldBeBundled) return
 
     // Default behavior: bundle the code!
   }
