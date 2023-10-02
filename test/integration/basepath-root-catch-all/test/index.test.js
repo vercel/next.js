@@ -27,8 +27,10 @@ const runTests = () => {
   })
 }
 
-describe('dev mode', () => {
+// Skip as it runs `next build`, seems that is a bug.
+;(process.env.TURBOPACK ? describe.skip : describe)('dev mode', () => {
   beforeAll(async () => {
+    // TODO: This look like a bug, `nextBuild` shouldn't be required here.
     await nextBuild(appDir)
     appPort = await findPort()
     buildId = 'development'
