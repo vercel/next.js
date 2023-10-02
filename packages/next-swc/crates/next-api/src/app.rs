@@ -637,6 +637,10 @@ impl AppEndpoint {
                 client_references_chunks,
                 this.app_project.project().client_chunking_context(),
                 Vc::upcast(this.app_project.project().ssr_chunking_context()),
+                this.app_project
+                    .project()
+                    .next_config()
+                    .computed_asset_prefix(),
             );
             server_assets.push(entry_manifest);
         }

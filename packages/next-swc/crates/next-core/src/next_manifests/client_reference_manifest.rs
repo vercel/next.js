@@ -30,9 +30,14 @@ impl ClientReferenceManifest {
         client_references_chunks: Vc<ClientReferencesChunks>,
         client_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
         ssr_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        asset_prefix: Vc<Option<String>>,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
         let mut entry_manifest: ClientReferenceManifest = Default::default();
-        entry_manifest.module_loading.prefix = "/_next/".to_string();
+        entry_manifest.module_loading.prefix = asset_prefix
+            .await?
+            .as_ref()
+            .map(|p| p.to_owned())
+            .unwrap_or_default();
         entry_manifest.module_loading.cross_origin = None;
         let client_references_chunks = client_references_chunks.await?;
         let client_relative_path = client_relative_path.await?;
