@@ -10,7 +10,7 @@ import {
   renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { outdent } from 'outdent'
 
@@ -21,10 +21,7 @@ describe.each([[''], ['/docs']])(
 
     beforeAll(async () => {
       next = await createNext({
-        files: {
-          pages: new FileRef(join(__dirname, 'hmr/pages')),
-          components: new FileRef(join(__dirname, 'hmr/components')),
-        },
+        files: join(__dirname, 'hmr'),
         nextConfig: {
           basePath,
         },

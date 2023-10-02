@@ -726,7 +726,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 13.5.4-canary.8
+        specifier: 13.5.4-canary.9
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.3.3
@@ -787,7 +787,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 13.5.4-canary.8
+        specifier: 13.5.4-canary.9
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.2
@@ -911,19 +911,19 @@ importers:
         specifier: 1.1.0
         version: 1.1.0
       '@next/polyfill-module':
-        specifier: 13.5.4-canary.8
+        specifier: 13.5.4-canary.9
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 13.5.4-canary.8
+        specifier: 13.5.4-canary.9
         version: link:../next-polyfill-nomodule
       '@next/react-dev-overlay':
-        specifier: 13.5.4-canary.8
+        specifier: 13.5.4-canary.9
         version: link:../react-dev-overlay
       '@next/react-refresh-utils':
-        specifier: 13.5.4-canary.8
+        specifier: 13.5.4-canary.9
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 13.5.4-canary.8
+        specifier: 13.5.4-canary.9
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.4.1
@@ -1055,8 +1055,8 @@ importers:
         specifier: 0.22.6
         version: 0.22.6
       '@vercel/turbopack-ecmascript-runtime':
-        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230929.3
-        version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230929.3(react-refresh@0.12.0)(webpack@5.86.0)'
+        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-231002.1
+        version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-231002.1(react-refresh@0.12.0)(webpack@5.86.0)'
       acorn:
         specifier: 8.5.0
         version: 8.5.0
@@ -1580,7 +1580,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 13.5.4-canary.8
+        specifier: 13.5.4-canary.9
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -26750,9 +26750,9 @@ packages:
   /zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
-  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230929.3(react-refresh@0.12.0)(webpack@5.86.0)':
-    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230929.3}
-    id: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-230929.3'
+  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-231002.1(react-refresh@0.12.0)(webpack@5.86.0)':
+    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-231002.1}
+    id: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-231002.1'
     name: '@vercel/turbopack-ecmascript-runtime'
     version: 0.0.0
     dependencies:

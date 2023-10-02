@@ -38,35 +38,37 @@ describe('Ordering with styled-jsx (dev)', () => {
 })
 
 describe('Ordering with styled-jsx (prod)', () => {
-  const appDir = join(fixturesDir, 'with-styled-jsx')
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    const appDir = join(fixturesDir, 'with-styled-jsx')
 
-  let appPort
-  let app
-  let stdout
-  let code
-  beforeAll(async () => {
-    await remove(join(appDir, '.next'))
-    ;({ code, stdout } = await nextBuild(appDir, [], {
-      stdout: true,
-    }))
-    appPort = await findPort()
-    app = await nextStart(appDir, appPort)
-  })
-  afterAll(async () => {
-    await killApp(app)
-  })
+    let appPort
+    let app
+    let stdout
+    let code
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+      ;({ code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      }))
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
 
-  it('should have compiled successfully', () => {
-    expect(code).toBe(0)
-    expect(stdout).toMatch(/Compiled successfully/)
-  })
+    it('should have compiled successfully', () => {
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
 
-  it('should have the correct color (css ordering)', async () => {
-    const browser = await webdriver(appPort, '/')
+    it('should have the correct color (css ordering)', async () => {
+      const browser = await webdriver(appPort, '/')
 
-    const currentColor = await browser.eval(
-      `window.getComputedStyle(document.querySelector('.my-text')).color`
-    )
-    expect(currentColor).toMatchInlineSnapshot(`"rgb(0, 128, 0)"`)
+      const currentColor = await browser.eval(
+        `window.getComputedStyle(document.querySelector('.my-text')).color`
+      )
+      expect(currentColor).toMatchInlineSnapshot(`"rgb(0, 128, 0)"`)
+    })
   })
 })
