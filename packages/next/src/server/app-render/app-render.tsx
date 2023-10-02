@@ -467,6 +467,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
                 href={fullHref}
                 // @ts-ignore
                 precedence={precedence}
+                crossOrigin={renderOpts.crossOrigin}
                 key={index}
               />
             )
@@ -511,7 +512,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
             const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFilename)![1]
             const type = `font/${ext}`
             const href = `${assetPrefix}/_next/${fontFilename}`
-            ComponentMod.preloadFont(href, type)
+            ComponentMod.preloadFont(href, type, renderOpts.crossOrigin)
           }
         } else {
           try {
@@ -546,7 +547,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
             const precedence =
               process.env.NODE_ENV === 'development' ? 'next_' + href : 'next'
 
-            ComponentMod.preloadStyle(fullHref)
+            ComponentMod.preloadStyle(fullHref, renderOpts.crossOrigin)
 
             return (
               <link
@@ -554,6 +555,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
                 href={fullHref}
                 // @ts-ignore
                 precedence={precedence}
+                crossOrigin={renderOpts.crossOrigin}
                 key={index}
               />
             )
@@ -1449,21 +1451,26 @@ export const renderToHTMLOrFlight: AppPageRender = (
         tree: LoaderTree
         formState: any
       }) => {
-        const polyfills = buildManifest.polyfillFiles
-          .filter(
-            (polyfill) =>
-              polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
-          )
-          .map((polyfill) => ({
-            src: `${assetPrefix}/_next/${polyfill}${getAssetQueryString(
-              false
-            )}`,
-            integrity: subresourceIntegrityManifest?.[polyfill],
-          }))
+        const polyfills: JSX.IntrinsicElements['script'][] =
+          buildManifest.polyfillFiles
+            .filter(
+              (polyfill) =>
+                polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
+            )
+            .map((polyfill) => ({
+              src: `${assetPrefix}/_next/${polyfill}${getAssetQueryString(
+                false
+              )}`,
+              integrity: subresourceIntegrityManifest?.[polyfill],
+              crossOrigin: renderOpts.crossOrigin,
+              noModule: true,
+              nonce,
+            }))
 
         const [preinitScripts, bootstrapScript] = getRequiredScripts(
           buildManifest,
           assetPrefix,
+          renderOpts.crossOrigin,
           subresourceIntegrityManifest,
           getAssetQueryString(true),
           nonce
@@ -1533,15 +1540,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
                 {polyfillsFlushed
                   ? null
                   : polyfills?.map((polyfill) => {
-                      return (
-                        <script
-                          key={polyfill.src}
-                          src={polyfill.src}
-                          integrity={polyfill.integrity}
-                          noModule={true}
-                          nonce={nonce}
-                        />
-                      )
+                      return <script key={polyfill.src} {...polyfill} />
                     })}
                 {renderServerInsertedHTML()}
                 {errorMetaTags}
@@ -1651,6 +1650,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
             getRequiredScripts(
               buildManifest,
               assetPrefix,
+              renderOpts.crossOrigin,
               subresourceIntegrityManifest,
               getAssetQueryString(false),
               nonce
