@@ -16,7 +16,7 @@ createNextDescribe(
       if (!process.env.NEXT_EXPERIMENTAL_COMPILE) {
         it('should have correct size in build output', async () => {
           expect(next.cliOutput).toMatch(
-            /\/dashboard\/another.*? [^0]{1,} [\w]{1,}B/
+            /\/dashboard\/another.*? *?[^0]\d{1,} [\w]{1,}B/
           )
         })
       }
