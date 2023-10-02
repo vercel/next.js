@@ -406,7 +406,6 @@ impl PagesProject {
         let this = self.await?;
         let client_runtime_entries = get_client_runtime_entries(
             self.project().project_path(),
-            self.project().env(),
             Value::new(ClientContextType::Pages {
                 pages_dir: self.pages_dir(),
             }),
@@ -421,13 +420,10 @@ impl PagesProject {
     async fn runtime_entries(self: Vc<Self>) -> Result<Vc<RuntimeEntries>> {
         let this = self.await?;
         Ok(get_server_runtime_entries(
-            self.project().project_path(),
-            self.project().env(),
             Value::new(ServerContextType::Pages {
                 pages_dir: self.pages_dir(),
             }),
             this.mode,
-            self.project().next_config(),
         ))
     }
 
@@ -435,13 +431,10 @@ impl PagesProject {
     async fn data_runtime_entries(self: Vc<Self>) -> Result<Vc<RuntimeEntries>> {
         let this = self.await?;
         Ok(get_server_runtime_entries(
-            self.project().project_path(),
-            self.project().env(),
             Value::new(ServerContextType::PagesData {
                 pages_dir: self.pages_dir(),
             }),
             this.mode,
-            self.project().next_config(),
         ))
     }
 

@@ -5,10 +5,7 @@ use indexmap::IndexMap;
 use turbo_tasks::{Value, Vc};
 use turbo_tasks_fs::FileSystem;
 use turbopack_binding::{
-    turbo::{
-        tasks_env::{EnvMap, ProcessEnv},
-        tasks_fs::FileSystemPath,
-    },
+    turbo::{tasks_env::EnvMap, tasks_fs::FileSystemPath},
     turbopack::{
         core::{
             compile_time_defines,
@@ -23,7 +20,6 @@ use turbopack_binding::{
         dev::{react_refresh::assert_can_resolve_react_refresh, DevChunkingContext},
         ecmascript::chunk::EcmascriptChunkingContext,
         ecmascript_plugin::transform::directives::server::ServerDirectiveTransformer,
-        env::ProcessEnvAsset,
         node::execution_context::ExecutionContext,
         turbopack::{
             condition::ContextCondition,
@@ -41,7 +37,6 @@ use super::transforms::get_next_client_transforms_rules;
 use crate::{
     babel::maybe_add_babel_loader,
     embed_js::next_js_fs,
-    env::env_for_js,
     mode::NextMode,
     next_build::{get_external_next_compiled_package_mapping, get_postcss_package_mapping},
     next_client::runtime_entry::{RuntimeEntries, RuntimeEntry},
@@ -336,26 +331,12 @@ pub fn get_client_assets_path(client_root: Vc<FileSystemPath>) -> Vc<FileSystemP
 #[turbo_tasks::function]
 pub async fn get_client_runtime_entries(
     project_root: Vc<FileSystemPath>,
-    env: Vc<Box<dyn ProcessEnv>>,
     ty: Value<ClientContextType>,
     mode: NextMode,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<RuntimeEntries>> {
     let mut runtime_entries = vec![];
-
-    if matches!(
-        *ty,
-        ClientContextType::App { .. } | ClientContextType::Pages { .. },
-    ) {
-        runtime_entries.push(
-            RuntimeEntry::Source(Vc::upcast(ProcessEnvAsset::new(
-                project_root,
-                env_for_js(env, true, next_config),
-            )))
-            .cell(),
-        );
-    }
 
     match mode {
         NextMode::Development => {

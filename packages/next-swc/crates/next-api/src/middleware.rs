@@ -68,11 +68,8 @@ impl MiddlewareEndpoint {
         );
 
         let mut evaluatable_assets = get_server_runtime_entries(
-            self.project.project_path(),
-            self.project.env(),
             Value::new(ServerContextType::Middleware),
             NextMode::Development,
-            self.project.next_config(),
         )
         .resolve_entries(self.context)
         .await?

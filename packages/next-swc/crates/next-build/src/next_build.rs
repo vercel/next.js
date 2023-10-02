@@ -148,7 +148,6 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
         next_router_root,
         project_root,
         execution_context,
-        env,
         client_compile_time_info,
         server_compile_time_info,
         next_config,
@@ -157,7 +156,6 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
     let app_entries = get_app_entries(
         project_root,
         execution_context,
-        env,
         client_compile_time_info,
         server_compile_time_info,
         next_config,

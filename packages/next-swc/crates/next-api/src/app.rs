@@ -295,13 +295,8 @@ impl AppProject {
     async fn runtime_entries(self: Vc<Self>) -> Result<Vc<RuntimeEntries>> {
         let this = self.await?;
         Ok(get_server_runtime_entries(
-            self.project().project_path(),
-            // TODO(alexkirsz) Should we pass env here or EnvMap::empty, as is done in
-            // app_source?
-            self.project().env(),
             Value::new(self.rsc_ty()),
             this.mode,
-            self.project().next_config(),
         ))
     }
 
@@ -330,7 +325,6 @@ impl AppProject {
         let this = self.await?;
         Ok(get_client_runtime_entries(
             self.project().project_path(),
-            self.client_env(),
             Value::new(self.client_ty()),
             this.mode,
             self.project().next_config(),

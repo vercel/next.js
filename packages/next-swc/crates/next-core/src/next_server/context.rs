@@ -22,7 +22,6 @@ use turbopack_binding::{
         ecmascript_plugin::transform::directives::{
             client::ClientDirectiveTransformer, server::ServerDirectiveTransformer,
         },
-        env::ProcessEnvAsset,
         node::execution_context::ExecutionContext,
         turbopack::{
             condition::ContextCondition,
@@ -44,7 +43,6 @@ use super::{
 use crate::{
     babel::maybe_add_babel_loader,
     embed_js::next_js_fs,
-    env::env_for_js,
     mode::NextMode,
     next_build::{get_external_next_compiled_package_mapping, get_postcss_package_mapping},
     next_client::{RuntimeEntries, RuntimeEntry},
@@ -582,17 +580,10 @@ pub fn get_build_module_options_context() -> Vc<ModuleOptionsContext> {
 
 #[turbo_tasks::function]
 pub fn get_server_runtime_entries(
-    project_root: Vc<FileSystemPath>,
-    env: Vc<Box<dyn ProcessEnv>>,
     ty: Value<ServerContextType>,
     mode: NextMode,
-    next_config: Vc<NextConfig>,
 ) -> Vc<RuntimeEntries> {
-    let mut runtime_entries = vec![RuntimeEntry::Source(Vc::upcast(ProcessEnvAsset::new(
-        project_root,
-        env_for_js(env, false, next_config),
-    )))
-    .cell()];
+    let mut runtime_entries = vec![];
 
     if matches!(mode, NextMode::Build) {
         if let ServerContextType::AppRSC { .. } = ty.into_value() {
