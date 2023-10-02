@@ -4,7 +4,6 @@ export default {
     maxInactiveAge: 1000 * 60 * 60,
   },
   poweredByHeader: false,
-  cssModules: true,
   serverRuntimeConfig: {
     mySecret: 'secret',
   },
