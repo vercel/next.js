@@ -524,14 +524,15 @@ export async function setupFsCheck(opts: {
           matchedItem = items.has(curItemPath)
           if (matchedItem) curItemPath = curDecodedItemPath
           else {
-            // check if we have a variant with the slug delimiters encoded - https://github.com/vercel/next.js/issues/54008
+            // x-ref: https://github.com/vercel/next.js/issues/54008
+            // There're cases that urls get decoded before requests, we should support both encoded and decoded ones.
+            // e.g. nginx could decode the proxy urls, the below ones should be treated as the same:
+            // decoded version: `/_next/static/chunks/pages/blog/[slug]-d4858831b91b69f6.js`
+            // encoded version: `/_next/static/chunks/pages/blog/%5Bslug%5D-d4858831b91b69f6.js`
             try {
-              const slugItemPathWithEncodedDelimiters = curItemPath.replace(
-                /(\[|\])/g,
-                (match) => encodeURIComponent(match)
-              )
-              matchedItem = items.has(slugItemPathWithEncodedDelimiters)
-              if (matchedItem) curItemPath = slugItemPathWithEncodedDelimiters
+              // encode the special characters in the path and retrieve again to determine if path exists.
+              const encodedCurItemPath = encodeURI(curItemPath)
+              matchedItem = items.has(encodedCurItemPath)
             } catch {}
           }
         }
