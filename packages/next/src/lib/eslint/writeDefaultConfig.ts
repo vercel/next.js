@@ -1,5 +1,5 @@
 import { promises as fs } from 'fs'
-import chalk from 'next/dist/compiled/chalk'
+import { bold, green } from '../picocolors'
 import os from 'os'
 import path from 'path'
 import * as CommentJson from 'next/dist/compiled/comment-json'
@@ -32,7 +32,7 @@ export async function writeDefaultConfig(
     await fs.writeFile(eslintrcFile, newFileContent + os.EOL)
 
     Log.info(
-      `We detected an empty ESLint configuration file (${chalk.bold(
+      `We detected an empty ESLint configuration file (${bold(
         path.basename(eslintrcFile)
       )}) and updated it for you!`
     )
@@ -46,7 +46,7 @@ export async function writeDefaultConfig(
       )
 
     Log.info(
-      `We detected an empty ${chalk.bold(
+      `We detected an empty ${bold(
         'eslintConfig'
       )} field in package.json and updated it for you!`
     )
@@ -57,8 +57,8 @@ export async function writeDefaultConfig(
     )
 
     console.log(
-      chalk.green(
-        `We created the ${chalk.bold(
+      green(
+        `We created the ${bold(
           '.eslintrc.json'
         )} file for you and included your selected configuration.`
       )

@@ -26,6 +26,9 @@ pub struct BuildCliArgs {
     #[clap(long, value_parser)]
     pub root: Option<PathBuf>,
 
+    #[clap(long, value_parser)]
+    pub dist_dir: Option<String>,
+
     /// Display version of the binary. Noop if used in library mode.
     #[clap(long)]
     pub display_version: bool,
@@ -100,6 +103,7 @@ async fn main_inner() -> Result<()> {
         log_detail: args.log_detail,
         full_stats: args.full_stats,
         build_context: None,
+        dist_dir: args.dist_dir,
     })
     .await
 }

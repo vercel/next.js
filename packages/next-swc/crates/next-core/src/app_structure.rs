@@ -8,8 +8,8 @@ use indexmap::{
 };
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, Completions, TaskInput, ValueToString,
-    Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, Completions, TaskInput, ValueDefault,
+    ValueToString, Vc,
 };
 use turbopack_binding::{
     turbo::tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath},
@@ -473,7 +473,27 @@ pub enum Entrypoint {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct Entrypoints(IndexMap<String, Entrypoint>);
+pub struct Entrypoints(IndexMap<AppPath, Entrypoint>);
+
+#[turbo_tasks::value_impl]
+impl Entrypoints {
+    #[turbo_tasks::function]
+    pub fn paths(&self) -> Vc<EntrypointPaths> {
+        Vc::cell(self.0.keys().cloned().collect())
+    }
+}
+
+#[turbo_tasks::value(transparent)]
+#[derive(Default)]
+pub struct EntrypointPaths(Vec<AppPath>);
+
+#[turbo_tasks::value_impl]
+impl ValueDefault for EntrypointPaths {
+    #[turbo_tasks::function]
+    fn value_default() -> Vc<Self> {
+        Self::default().cell()
+    }
+}
 
 fn is_parallel_route(name: &str) -> bool {
     name.starts_with('@')
@@ -505,7 +525,7 @@ async fn add_parallel_route(
 
 fn conflict_issue(
     app_dir: Vc<FileSystemPath>,
-    e: &OccupiedEntry<String, Entrypoint>,
+    e: &OccupiedEntry<AppPath, Entrypoint>,
     a: &str,
     b: &str,
     value_a: &AppPage,
@@ -532,13 +552,11 @@ fn conflict_issue(
 
 async fn add_app_page(
     app_dir: Vc<FileSystemPath>,
-    result: &mut IndexMap<String, Entrypoint>,
+    result: &mut IndexMap<AppPath, Entrypoint>,
     page: AppPage,
     loader_tree: Vc<LoaderTree>,
 ) -> Result<()> {
-    let pathname = AppPath::from(page.clone());
-
-    let mut e = match result.entry(format!("{pathname}")) {
+    let mut e = match result.entry(page.clone().into()) {
         Entry::Occupied(e) => e,
         Entry::Vacant(e) => {
             e.insert(Entrypoint::AppPage { page, loader_tree });
@@ -589,13 +607,11 @@ async fn add_app_page(
 
 fn add_app_route(
     app_dir: Vc<FileSystemPath>,
-    result: &mut IndexMap<String, Entrypoint>,
+    result: &mut IndexMap<AppPath, Entrypoint>,
     page: AppPage,
     path: Vc<FileSystemPath>,
 ) {
-    let pathname = AppPath::from(page.clone());
-
-    let e = match result.entry(format!("{pathname}")) {
+    let e = match result.entry(page.clone().into()) {
         Entry::Occupied(e) => e,
         Entry::Vacant(e) => {
             e.insert(Entrypoint::AppRoute { page, path });
@@ -632,13 +648,11 @@ fn add_app_route(
 
 fn add_app_metadata_route(
     app_dir: Vc<FileSystemPath>,
-    result: &mut IndexMap<String, Entrypoint>,
+    result: &mut IndexMap<AppPath, Entrypoint>,
     page: AppPage,
     metadata: MetadataItem,
 ) {
-    let pathname = AppPath::from(page.clone());
-
-    let e = match result.entry(format!("{pathname}")) {
+    let e = match result.entry(page.clone().into()) {
         Entry::Occupied(e) => e,
         Entry::Vacant(e) => {
             e.insert(Entrypoint::AppMetadata { page, metadata });
@@ -721,7 +735,7 @@ async fn directory_tree_to_entrypoints_internal(
         add_app_page(
             app_dir,
             &mut result,
-            app_page.clone().complete(PageType::Page)?,
+            app_page.complete(PageType::Page)?,
             if current_level_is_parallel_route {
                 LoaderTree {
                     page: app_page.clone(),
@@ -766,7 +780,7 @@ async fn directory_tree_to_entrypoints_internal(
         add_app_page(
             app_dir,
             &mut result,
-            app_page.clone().complete(PageType::Page)?,
+            app_page.complete(PageType::Page)?,
             if current_level_is_parallel_route {
                 LoaderTree {
                     page: app_page.clone(),
@@ -811,7 +825,7 @@ async fn directory_tree_to_entrypoints_internal(
         add_app_route(
             app_dir,
             &mut result,
-            app_page.clone().complete(PageType::Route)?,
+            app_page.complete(PageType::Route)?,
             route,
         );
     }
@@ -927,8 +941,14 @@ async fn directory_tree_to_entrypoints_internal(
         let parallel_route_key = match_parallel_route(subdir_name);
 
         let mut app_page = app_page.clone();
+        let mut illegal_path = None;
         if parallel_route_key.is_none() {
-            app_page.push_str(subdir_name)?;
+            // When constructing the app_page fails (e. g. due to limitations of the order),
+            // we only want to emit the error when there are actual pages below that
+            // directory.
+            if let Err(e) = app_page.push_str(subdir_name) {
+                illegal_path = Some(e);
+            }
         }
 
         let map = directory_tree_to_entrypoints_internal(
@@ -939,6 +959,12 @@ async fn directory_tree_to_entrypoints_internal(
             app_page.clone(),
         )
         .await?;
+
+        if let Some(illegal_path) = illegal_path {
+            if !map.is_empty() {
+                return Err(illegal_path);
+            }
+        }
 
         for (_, entrypoint) in map.iter() {
             match *entrypoint {

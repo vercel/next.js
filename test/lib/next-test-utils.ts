@@ -403,7 +403,8 @@ export function runNextCommandDev(
     }
 
     function handleStderr(data) {
-      const message = stripAnsi(data.toString()) as any
+      const message = data.toString()
+
       if (typeof opts.onStderr === 'function') {
         opts.onStderr(message)
       }
@@ -781,28 +782,15 @@ export async function hasRedbox(browser: BrowserInterface, expected = true) {
 export async function getRedboxHeader(browser: BrowserInterface) {
   return retry(
     () => {
-      if (shouldRunTurboDevTest()) {
-        return evaluate(browser, () => {
-          const portal = [].slice
-            .call(document.querySelectorAll('nextjs-portal'))
-            .find((p) =>
-              p.shadowRoot.querySelector('[data-nextjs-turbo-dialog-body]')
-            )
-          const root = portal?.shadowRoot
-          return root?.querySelector('[data-nextjs-turbo-dialog-body]')
-            ?.innerText
-        })
-      } else {
-        return evaluate(browser, () => {
-          const portal = [].slice
-            .call(document.querySelectorAll('nextjs-portal'))
-            .find((p) =>
-              p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
-            )
-          const root = portal?.shadowRoot
-          return root?.querySelector('[data-nextjs-dialog-header]')?.innerText
-        })
-      }
+      return evaluate(browser, () => {
+        const portal = [].slice
+          .call(document.querySelectorAll('nextjs-portal'))
+          .find((p) =>
+            p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
+          )
+        const root = portal?.shadowRoot
+        return root?.querySelector('[data-nextjs-dialog-header]')?.innerText
+      })
     },
     10000,
     500,
@@ -1008,7 +996,9 @@ export function runProdSuite(
     env?: NodeJS.ProcessEnv
   }
 ) {
-  return runSuite(suiteName, { appDir, env: 'prod' }, options)
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    runSuite(suiteName, { appDir, env: 'prod' }, options)
+  })
 }
 
 /**

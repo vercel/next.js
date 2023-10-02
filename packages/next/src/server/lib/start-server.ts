@@ -3,6 +3,8 @@ import '../node-polyfill-fetch'
 import '../require-hook'
 
 import type { IncomingMessage, ServerResponse } from 'http'
+import type { SelfSignedCertificate } from '../../lib/mkcert'
+import { type WorkerRequestHandler, type WorkerUpgradeHandler } from './types'
 
 import fs from 'fs'
 import path from 'path'
@@ -11,17 +13,12 @@ import https from 'https'
 import Watchpack from 'watchpack'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
-import { getDebugPort } from './utils'
+import { RESTART_EXIT_CODE, getDebugPort } from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
-import {
-  RESTART_EXIT_CODE,
-  type WorkerRequestHandler,
-  type WorkerUpgradeHandler,
-} from './setup-server-worker'
 import { checkIsNodeDebugging } from './is-node-debugging'
 import { CONFIG_FILES } from '../../shared/lib/constants'
-import chalk from '../../lib/chalk'
+import { bold, magenta } from '../../lib/picocolors'
 
 const debug = setupDebug('next:start-server')
 
@@ -38,10 +35,7 @@ export interface StartServerOptions {
   envInfo?: string[]
   expFeatureInfo?: string[]
   // this is dev-server only
-  selfSignedCertificate?: {
-    key: string
-    cert: string
-  }
+  selfSignedCertificate?: SelfSignedCertificate
   isExperimentalTestProxy?: boolean
 }
 
@@ -55,6 +49,7 @@ export async function getRequestHandlers({
   isNodeDebugging,
   keepAliveTimeout,
   experimentalTestProxy,
+  experimentalHttpsServer,
 }: {
   dir: string
   port: number
@@ -65,6 +60,7 @@ export async function getRequestHandlers({
   isNodeDebugging?: boolean
   keepAliveTimeout?: number
   experimentalTestProxy?: boolean
+  experimentalHttpsServer?: boolean
 }): ReturnType<typeof initialize> {
   return initialize({
     dir,
@@ -73,10 +69,10 @@ export async function getRequestHandlers({
     dev: isDev,
     minimalMode,
     server,
-    workerType: 'router',
     isNodeDebugging: isNodeDebugging || false,
     keepAliveTimeout,
     experimentalTestProxy,
+    experimentalHttpsServer,
   })
 }
 
@@ -96,8 +92,8 @@ function logStartInfo({
   formatDurationText: string
 }) {
   Log.bootstrap(
-    chalk.bold(
-      chalk.hex('#ad7fa8')(
+    bold(
+      magenta(
         `${`${Log.prefixes.ready} Next.js`} ${process.env.__NEXT_VERSION}`
       )
     )
@@ -282,9 +278,10 @@ export async function startServer({
           // This is the render worker, we keep the process alive
           console.error(err)
         }
-        process.on('exit', cleanup)
-        process.on('SIGINT', cleanup)
-        process.on('SIGTERM', cleanup)
+        process.on('exit', (code) => cleanup(code))
+        // callback value is signal string, exit with 0
+        process.on('SIGINT', () => cleanup(0))
+        process.on('SIGTERM', () => cleanup(0))
         process.on('uncaughtException', exception)
         process.on('unhandledRejection', exception)
 
@@ -298,6 +295,7 @@ export async function startServer({
           isNodeDebugging: Boolean(isNodeDebugging),
           keepAliveTimeout,
           experimentalTestProxy: !!isExperimentalTestProxy,
+          experimentalHttpsServer: !!selfSignedCertificate,
         })
         requestHandler = initResult[0]
         upgradeHandler = initResult[1]
@@ -357,4 +355,14 @@ export async function startServer({
       process.exit(RESTART_EXIT_CODE)
     })
   }
+}
+
+if (process.env.NEXT_PRIVATE_WORKER && process.send) {
+  process.addListener('message', async (msg: any) => {
+    if (msg && typeof msg && msg.nextWorkerOptions && process.send) {
+      await startServer(msg.nextWorkerOptions)
+      process.send({ nextServerReady: true })
+    }
+  })
+  process.send({ nextWorkerReady: true })
 }

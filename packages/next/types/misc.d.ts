@@ -43,6 +43,12 @@ declare module 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWe
   export = m
 }
 
+declare module 'next/dist/compiled/node-fetch' {
+  import fetch from 'node-fetch'
+  export * from 'node-fetch'
+  export default fetch
+}
+
 declare module 'next/dist/compiled/node-html-parser' {
   export * from 'node-html-parser'
 }
@@ -59,11 +65,6 @@ declare module 'next/dist/compiled/jest-worker' {
 
 declare module 'next/dist/compiled/react-is' {
   export * from 'react-is'
-}
-
-declare module 'next/dist/compiled/chalk' {
-  import m from 'chalk'
-  export = m
 }
 
 declare module 'next/dist/compiled/cssnano-simple' {
@@ -102,6 +103,11 @@ declare module 'next/dist/compiled/acorn' {
 }
 declare module 'next/dist/compiled/amphtml-validator' {
   import m from 'amphtml-validator'
+  export = m
+}
+
+declare module 'next/dist/compiled/superstruct' {
+  import m from 'superstruct'
   export = m
 }
 declare module 'next/dist/compiled/async-retry'

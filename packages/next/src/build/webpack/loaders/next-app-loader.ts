@@ -4,7 +4,7 @@ import type { ModuleReference, CollectedMetadata } from './metadata/types'
 
 import path from 'path'
 import { stringify } from 'querystring'
-import chalk from 'next/dist/compiled/chalk'
+import { bold } from '../../../lib/picocolors'
 import { getModuleBuildInfo } from './get-module-build-info'
 import { verifyRootLayout } from '../../../lib/verifyRootLayout'
 import * as Log from '../../output/log'
@@ -643,7 +643,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     if (!isDev) {
       // If we're building and missing a root layout, exit the build
       Log.error(
-        `${chalk.bold(
+        `${bold(
           pagePath.replace(`${APP_DIR_ALIAS}/`, '')
         )} doesn't have a root layout. To fix this error, make sure every page has a root layout.`
       )
@@ -658,12 +658,12 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         pageExtensions,
       })
       if (!createdRootLayout) {
-        let message = `${chalk.bold(
+        let message = `${bold(
           pagePath.replace(`${APP_DIR_ALIAS}/`, '')
         )} doesn't have a root layout. `
 
         if (rootLayoutPath) {
-          message += `We tried to create ${chalk.bold(
+          message += `We tried to create ${bold(
             path.relative(this._compiler?.context ?? '', rootLayoutPath)
           )} for you but something went wrong.`
         } else {

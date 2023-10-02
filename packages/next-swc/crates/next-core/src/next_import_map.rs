@@ -245,14 +245,6 @@ pub async fn get_next_server_import_map(
         ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. } => {
-            match mode {
-                NextMode::Build => {}
-                NextMode::DevServer => {
-                    // The sandbox can't be bundled and needs to be external
-                    import_map.insert_exact_alias("next/dist/server/web/sandbox", external);
-                }
-                NextMode::Development => {}
-            }
             import_map.insert_exact_alias(
                 "next/head",
                 request_to_import_mapping(project_path, "next/dist/client/components/noop-head"),
@@ -389,11 +381,6 @@ async fn insert_next_server_special_aliases(
         NextRuntime::Edge => request_to_import_mapping(context_dir, request),
         NextRuntime::NodeJs => external_request_to_import_mapping(request),
     };
-    let passthrough_external_if_node =
-        move |context_dir: Vc<FileSystemPath>, request: &str| match runtime {
-            NextRuntime::Edge => request_to_import_mapping(context_dir, request),
-            NextRuntime::NodeJs => ImportMapping::External(None).cell(),
-        };
     match (mode, ty) {
         (_, ServerContextType::Pages { pages_dir }) => {
             import_map.insert_exact_alias(
@@ -429,10 +416,7 @@ async fn insert_next_server_special_aliases(
         }
         (_, ServerContextType::PagesData { .. }) => {}
         // the logic closely follows the one in createRSCAliases in webpack-config.ts
-        (
-            NextMode::DevServer | NextMode::Build | NextMode::Development,
-            ServerContextType::AppSSR { app_dir },
-        ) => {
+        (NextMode::Build | NextMode::Development, ServerContextType::AppSSR { app_dir }) => {
             import_map.insert_exact_alias(
                 "@opentelemetry/api",
                 // TODO(WEB-625) this actually need to prefer the local version of
@@ -441,11 +425,11 @@ async fn insert_next_server_special_aliases(
             );
             import_map.insert_exact_alias(
                 "styled-jsx",
-                passthrough_external_if_node(app_dir, "next/dist/compiled/styled-jsx"),
+                request_to_import_mapping(get_next_package(app_dir), "styled-jsx"),
             );
             import_map.insert_wildcard_alias(
                 "styled-jsx/",
-                passthrough_external_if_node(app_dir, "next/dist/compiled/styled-jsx/*"),
+                request_to_import_mapping(get_next_package(app_dir), "styled-jsx/*"),
             );
             import_map.insert_exact_alias(
                 "react/jsx-runtime",
@@ -535,16 +519,7 @@ async fn insert_next_server_special_aliases(
             // layer TODO: add the rests
             import_map.insert_exact_alias(
                 "react-dom/server",
-                request_to_import_mapping(
-                    app_dir,
-                    match runtime {
-                        NextRuntime::Edge => "next/dist/compiled/react-dom/server.edge",
-                        NextRuntime::NodeJs => {
-                            "next/dist/server/future/route-modules/app-page/vendored/ssr/\
-                             react-dom-server-edge"
-                        }
-                    },
-                ),
+                request_to_import_mapping(app_dir, "next/dist/compiled/react-dom/server"),
             );
             import_map.insert_exact_alias(
                 "react-dom/server.edge",
@@ -561,7 +536,7 @@ async fn insert_next_server_special_aliases(
             );
         }
         (
-            NextMode::Build | NextMode::Development | NextMode::DevServer,
+            NextMode::Build | NextMode::Development,
             ServerContextType::AppRSC { app_dir, .. } | ServerContextType::AppRoute { app_dir },
         ) => {
             import_map.insert_exact_alias(
@@ -569,6 +544,14 @@ async fn insert_next_server_special_aliases(
                 // TODO(WEB-625) this actually need to prefer the local version of
                 // @opentelemetry/api
                 request_to_import_mapping(app_dir, "next/dist/compiled/@opentelemetry/api"),
+            );
+            import_map.insert_exact_alias(
+                "styled-jsx",
+                request_to_import_mapping(get_next_package(app_dir), "styled-jsx"),
+            );
+            import_map.insert_wildcard_alias(
+                "styled-jsx/",
+                request_to_import_mapping(get_next_package(app_dir), "styled-jsx/*"),
             );
 
             import_map.insert_exact_alias(
@@ -656,16 +639,11 @@ async fn insert_next_server_special_aliases(
             // layer TODO: add the rests
             import_map.insert_exact_alias(
                 "react-dom/server.edge",
-                request_to_import_mapping(
-                    app_dir,
-                    match runtime {
-                        NextRuntime::Edge => "next/dist/compiled/react-dom/server.edge",
-                        NextRuntime::NodeJs => {
-                            "next/dist/server/future/route-modules/app-page/vendored/ssr/\
-                             react-dom-server-edge"
-                        }
-                    },
-                ),
+                request_to_import_mapping(app_dir, "next/dist/compiled/react-dom/server.edge"),
+            );
+            import_map.insert_exact_alias(
+                "react-dom/server",
+                request_to_import_mapping(app_dir, "next/dist/compiled/react-dom/server"),
             );
         }
         (_, ServerContextType::Middleware) => {}

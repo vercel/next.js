@@ -45,7 +45,7 @@ export class BloomFilter {
       bitArray: this.bitArray,
     }
 
-    if (typeof window === 'undefined' && process.env.NEXT_RUNTIME !== 'edge') {
+    if (process.env.NEXT_RUNTIME === 'nodejs') {
       if (this.errorRate < 0.01) {
         const filterData = JSON.stringify(data)
         const gzipSize = require('next/dist/compiled/gzip-size').sync(

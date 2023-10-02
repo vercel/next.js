@@ -254,13 +254,24 @@ export async function handleAction({
   serverActionsManifest: any
   generateFlight: (options: {
     actionResult: ActionResult
+    formState?: any
     skipFlight: boolean
     asNotFound?: boolean
   }) => Promise<RenderResult>
   staticGenerationStore: StaticGenerationStore
   requestStore: RequestStore
   serverActionsBodySizeLimit?: SizeLimit
-}): Promise<undefined | RenderResult | 'not-found'> {
+}): Promise<
+  | undefined
+  | {
+      type: 'not-found'
+    }
+  | {
+      type: 'done'
+      result: RenderResult | undefined
+      formState?: any
+    }
+> {
   let actionId = req.headers[ACTION.toLowerCase()] as string
   const contentType = req.headers['content-type']
   const isURLEncodedAction =
@@ -302,12 +313,13 @@ export async function handleAction({
     }
 
     let actionResult: RenderResult | undefined
+    let formState: any | undefined
 
     try {
       await actionAsyncStorage.run({ isAction: true }, async () => {
         if (process.env.NEXT_RUNTIME === 'edge') {
           // Use react-server-dom-webpack/server.edge
-          const { decodeReply, decodeAction } = ComponentMod
+          const { decodeReply, decodeAction, decodeFormState } = ComponentMod
 
           const webRequest = req as unknown as WebNextRequest
           if (!webRequest.body) {
@@ -321,7 +333,9 @@ export async function handleAction({
               bound = await decodeReply(formData, serverModuleMap)
             } else {
               const action = await decodeAction(formData, serverModuleMap)
-              await action()
+              const actionReturnedState = await action()
+              formState = decodeFormState(actionReturnedState, formData)
+
               // Skip the fetch path
               return
             }
@@ -351,6 +365,7 @@ export async function handleAction({
             decodeReply,
             decodeReplyFromBusboy,
             decodeAction,
+            decodeFormState,
           } = require(`react-server-dom-webpack/server.node`)
 
           if (isMultipartAction) {
@@ -372,13 +387,15 @@ export async function handleAction({
               })
               const formData = await fakeRequest.formData()
               const action = await decodeAction(formData, serverModuleMap)
-              await action()
+              const actionReturnedState = await action()
+              formState = await decodeFormState(actionReturnedState, formData)
+
               // Skip the fetch path
               return
             }
           } else {
             const { parseBody } =
-              require('../api-utils/node') as typeof import('../api-utils/node')
+              require('../api-utils/node/parse-body') as typeof import('../api-utils/node/parse-body')
 
             let actionData
             try {
@@ -440,7 +457,11 @@ export async function handleAction({
         }
       })
 
-      return actionResult
+      return {
+        type: 'done',
+        result: actionResult,
+        formState,
+      }
     } catch (err) {
       if (isRedirectError(err)) {
         const redirectUrl = getURLFromRedirectError(err)
@@ -453,12 +474,15 @@ export async function handleAction({
         })
 
         if (isFetchAction) {
-          return createRedirectRenderResult(
-            req,
-            res,
-            redirectUrl,
-            staticGenerationStore
-          )
+          return {
+            type: 'done',
+            result: await createRedirectRenderResult(
+              req,
+              res,
+              redirectUrl,
+              staticGenerationStore
+            ),
+          }
         }
 
         if (err.mutableCookies) {
@@ -473,7 +497,10 @@ export async function handleAction({
 
         res.setHeader('Location', redirectUrl)
         res.statusCode = 303
-        return new RenderResult('')
+        return {
+          type: 'done',
+          result: new RenderResult(''),
+        }
       } else if (isNotFoundError(err)) {
         res.statusCode = 404
 
@@ -487,13 +514,18 @@ export async function handleAction({
           try {
             await promise
           } catch {}
-          return generateFlight({
-            skipFlight: false,
-            actionResult: promise,
-            asNotFound: true,
-          })
+          return {
+            type: 'done',
+            result: await generateFlight({
+              skipFlight: false,
+              actionResult: promise,
+              asNotFound: true,
+            }),
+          }
         }
-        return 'not-found'
+        return {
+          type: 'not-found',
+        }
       }
 
       if (isFetchAction) {
@@ -504,11 +536,14 @@ export async function handleAction({
           await promise
         } catch {}
 
-        return generateFlight({
-          actionResult: promise,
-          // if the page was not revalidated, we can skip the rendering the flight tree
-          skipFlight: !staticGenerationStore.pathWasRevalidated,
-        })
+        return {
+          type: 'done',
+          result: await generateFlight({
+            actionResult: promise,
+            // if the page was not revalidated, we can skip the rendering the flight tree
+            skipFlight: !staticGenerationStore.pathWasRevalidated,
+          }),
+        }
       }
 
       throw err

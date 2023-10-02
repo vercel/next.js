@@ -1,6 +1,6 @@
 import 'server-only'
 
-export const metdata = {
+export const metadata = {
   title: 'App Router',
 }
 

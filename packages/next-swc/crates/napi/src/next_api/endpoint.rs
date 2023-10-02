@@ -1,7 +1,10 @@
 use std::ops::Deref;
 
 use napi::{bindgen_prelude::External, JsFunction};
-use next_api::route::{Endpoint, WrittenEndpoint};
+use next_api::{
+    route::{Endpoint, WrittenEndpoint},
+    server_paths::ServerPath,
+};
 use turbo_tasks::Vc;
 use turbopack_binding::turbopack::core::error::PrettyPrintError;
 
@@ -16,10 +19,26 @@ pub struct NapiEndpointConfig {}
 
 #[napi(object)]
 #[derive(Default)]
+pub struct NapiServerPath {
+    pub path: String,
+    pub content_hash: String,
+}
+
+impl From<&ServerPath> for NapiServerPath {
+    fn from(server_path: &ServerPath) -> Self {
+        Self {
+            path: server_path.path.clone(),
+            content_hash: format!("{:x}", server_path.content_hash),
+        }
+    }
+}
+
+#[napi(object)]
+#[derive(Default)]
 pub struct NapiWrittenEndpoint {
     pub r#type: String,
     pub entry_path: Option<String>,
-    pub server_paths: Option<Vec<String>>,
+    pub server_paths: Option<Vec<NapiServerPath>>,
     pub files: Option<Vec<String>>,
     pub global_var_name: Option<String>,
     pub config: NapiEndpointConfig,
@@ -34,7 +53,7 @@ impl From<&WrittenEndpoint> for NapiWrittenEndpoint {
             } => Self {
                 r#type: "nodejs".to_string(),
                 entry_path: Some(server_entry_path.clone()),
-                server_paths: Some(server_paths.clone()),
+                server_paths: Some(server_paths.iter().map(From::from).collect()),
                 ..Default::default()
             },
             WrittenEndpoint::Edge {
@@ -44,7 +63,7 @@ impl From<&WrittenEndpoint> for NapiWrittenEndpoint {
             } => Self {
                 r#type: "edge".to_string(),
                 files: Some(files.clone()),
-                server_paths: Some(server_paths.clone()),
+                server_paths: Some(server_paths.iter().map(From::from).collect()),
                 global_var_name: Some(global_var_name.clone()),
                 ..Default::default()
             },
@@ -77,9 +96,9 @@ pub async fn endpoint_write_to_disk(
     let (written, issues, diags) = turbo_tasks
         .run_once(async move {
             let write_to_disk = endpoint.write_to_disk();
+            let written = write_to_disk.strongly_consistent().await?;
             let issues = get_issues(write_to_disk).await?;
             let diags = get_diagnostics(write_to_disk).await?;
-            let written = write_to_disk.strongly_consistent().await?;
             Ok((written, issues, diags))
         })
         .await
@@ -104,17 +123,16 @@ pub fn endpoint_server_changed_subscribe(
         func,
         move || async move {
             let changed = endpoint.server_changed();
-            let issues = get_issues(changed).await?;
-            let diags = get_diagnostics(changed).await?;
+            // We don't capture issues and diagonistics here since we don't want to be
+            // notified when they change
             changed.strongly_consistent().await?;
-            Ok((issues, diags))
+            Ok(())
         },
-        |ctx| {
-            let (issues, diags) = ctx.value;
+        |_| {
             Ok(vec![TurbopackResult {
                 result: (),
-                issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
-                diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
+                issues: vec![],
+                diagnostics: vec![],
             }])
         },
     )
@@ -132,17 +150,16 @@ pub fn endpoint_client_changed_subscribe(
         func,
         move || async move {
             let changed = endpoint.client_changed();
-            let issues = get_issues(changed).await?;
-            let diags = get_diagnostics(changed).await?;
+            // We don't capture issues and diagonistics here since we don't want to be
+            // notified when they change
             changed.strongly_consistent().await?;
-            Ok((issues, diags))
+            Ok(())
         },
-        |ctx| {
-            let (issues, diags) = ctx.value;
+        |_| {
             Ok(vec![TurbopackResult {
                 result: (),
-                issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
-                diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
+                issues: vec![],
+                diagnostics: vec![],
             }])
         },
     )

@@ -58,6 +58,10 @@ pub struct NapiProjectOptions {
     /// A path inside the root_path which contains the app/pages directories.
     pub project_path: String,
 
+    /// next.config's distDir. Project initialization occurs eariler than
+    /// deserializing next.config, so passing it as separate option.
+    pub dist_dir: Option<String>,
+
     /// Whether to watch he filesystem for file changes.
     pub watch: bool,
 
@@ -135,8 +139,12 @@ pub async fn project_new(
         let subscriber = Registry::default();
 
         let subscriber = subscriber.with(EnvFilter::builder().parse(trace).unwrap());
+        let dist_dir = options
+            .dist_dir
+            .as_ref()
+            .map_or_else(|| ".next".to_string(), |d| d.to_string());
 
-        let internal_dir = PathBuf::from(&options.project_path).join(".next");
+        let internal_dir = PathBuf::from(&options.project_path).join(dist_dir);
         std::fs::create_dir_all(&internal_dir)
             .context("Unable to create .next directory")
             .unwrap();
@@ -305,11 +313,11 @@ pub fn project_entrypoints_subscribe(
         turbo_tasks.clone(),
         func,
         move || async move {
-            let entrypoints = container.entrypoints();
-            let issues = get_issues(entrypoints).await?;
-            let diags = get_diagnostics(entrypoints).await?;
+            let entrypoints_operation = container.entrypoints();
+            let entrypoints = entrypoints_operation.strongly_consistent().await?;
 
-            let entrypoints = entrypoints.strongly_consistent().await?;
+            let issues = get_issues(entrypoints_operation).await?;
+            let diags = get_diagnostics(entrypoints_operation).await?;
 
             Ok((entrypoints, issues, diags))
         },
@@ -375,10 +383,10 @@ pub fn project_hmr_events(
                     let state = project
                         .project()
                         .hmr_version_state(identifier.clone(), session);
-                    let update = project.project().hmr_update(identifier, state);
-                    let issues = get_issues(update).await?;
-                    let diags = get_diagnostics(update).await?;
-                    let update = update.strongly_consistent().await?;
+                    let update_operation = project.project().hmr_update(identifier, state);
+                    let update = update_operation.strongly_consistent().await?;
+                    let issues = get_issues(update_operation).await?;
+                    let diags = get_diagnostics(update_operation).await?;
                     match &*update {
                         Update::None => {}
                         Update::Total(TotalUpdate { to }) => {
@@ -443,11 +451,11 @@ pub fn project_hmr_identifiers_subscribe(
         turbo_tasks.clone(),
         func,
         move || async move {
-            let hmr_identifiers = container.hmr_identifiers();
-            let issues = get_issues(hmr_identifiers).await?;
-            let diags = get_diagnostics(hmr_identifiers).await?;
+            let hmr_identifiers_operation = container.hmr_identifiers();
+            let hmr_identifiers = hmr_identifiers_operation.strongly_consistent().await?;
 
-            let hmr_identifiers = hmr_identifiers.strongly_consistent().await?;
+            let issues = get_issues(hmr_identifiers_operation).await?;
+            let diags = get_diagnostics(hmr_identifiers_operation).await?;
 
             Ok((hmr_identifiers, issues, diags))
         },

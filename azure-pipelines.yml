@@ -70,7 +70,7 @@ stages:
             condition: eq(variables['isDocsOnly'], 'No')
 
           - script: |
-              node run-tests.js -c 1 test/integration/production/test/index.test.js test/integration/css-client-nav/test/index.test.js test/integration/rewrites-has-condition/test/index.test.js
+              node run-tests.js -c 1 test/production/pages-dir/production/test/index.test.ts test/integration/css-client-nav/test/index.test.js test/integration/rewrites-has-condition/test/index.test.js
             condition: eq(variables['isDocsOnly'], 'No')
             displayName: 'Run tests'
 

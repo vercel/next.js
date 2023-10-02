@@ -251,8 +251,8 @@ import createMDX from '@next/mdx'
 const nextConfig = {}
 
 const withMDX = createMDX({
+  extension: /\.mdx?$/,
   options: {
-    extension: /\.mdx?$/,
     remarkPlugins: [remarkGfm],
     rehypePlugins: [],
     // If you use `MDXProvider`, uncomment the following line.

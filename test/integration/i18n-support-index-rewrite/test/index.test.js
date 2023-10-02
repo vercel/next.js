@@ -75,7 +75,7 @@ const runTests = () => {
   })
 }
 
-describe('Custom routes i18n', () => {
+describe('Custom routes i18n support index rewrite', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
@@ -84,8 +84,7 @@ describe('Custom routes i18n', () => {
     afterAll(() => killApp(app))
     runTests(true)
   })
-
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await nextBuild(appDir)
       appPort = await findPort()
