@@ -93,7 +93,6 @@ import { nodeFs } from './lib/node-fs-methods'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { invokeRequest } from './lib/server-ipc/invoke-request'
 import { pipeReadable } from './pipe-readable'
-import { filterReqHeaders, ipcForbiddenHeaders } from './lib/server-ipc/utils'
 import { createRequestResponseMocks } from './lib/mock-request'
 import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 import { signalFromNodeResponse } from './web/spec-extension/adapters/next-request'
@@ -539,13 +538,12 @@ export default class NextNodeServer extends BaseServer {
               signal: signalFromNodeResponse(res.originalResponse),
             }
           )
-          const filteredResHeaders = filterReqHeaders(
-            toNodeOutgoingHttpHeaders(invokeRes.headers),
-            ipcForbiddenHeaders
+          const nodeOutgoingHttpHeaders = toNodeOutgoingHttpHeaders(
+            invokeRes.headers
           )
 
-          for (const key of Object.keys(filteredResHeaders)) {
-            newRes.setHeader(key, filteredResHeaders[key] || '')
+          for (const key of Object.keys(nodeOutgoingHttpHeaders)) {
+            newRes.setHeader(key, nodeOutgoingHttpHeaders[key] || '')
           }
           newRes.statusCode = invokeRes.status || 200
 

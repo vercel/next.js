@@ -2817,57 +2817,62 @@ describe('Custom routes', () => {
   })
 
   describe('export', () => {
-    let exportStderr = ''
-    let exportVercelStderr = ''
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'production mode',
+      () => {
+        let exportStderr = ''
+        let exportVercelStderr = ''
 
-    beforeAll(async () => {
-      const { stdout: buildStdout, stderr: buildStderr } = await nextBuild(
-        appDir,
-        ['-d'],
-        {
-          stdout: true,
-          stderr: true,
-        }
-      )
-      const exportResult = await nextExport(
-        appDir,
-        { outdir: join(appDir, 'out') },
-        { stderr: true }
-      )
-      const exportVercelResult = await nextExport(
-        appDir,
-        { outdir: join(appDir, 'out') },
-        {
-          stderr: true,
-          env: {
-            NOW_BUILDER: '1',
-          },
-        }
-      )
+        beforeAll(async () => {
+          const { stdout: buildStdout, stderr: buildStderr } = await nextBuild(
+            appDir,
+            ['-d'],
+            {
+              stdout: true,
+              stderr: true,
+            }
+          )
+          const exportResult = await nextExport(
+            appDir,
+            { outdir: join(appDir, 'out') },
+            { stderr: true }
+          )
+          const exportVercelResult = await nextExport(
+            appDir,
+            { outdir: join(appDir, 'out') },
+            {
+              stderr: true,
+              env: {
+                NOW_BUILDER: '1',
+              },
+            }
+          )
 
-      stdout = buildStdout
-      stderr = buildStderr
-      exportStderr = exportResult.stderr
-      exportVercelStderr = exportVercelResult.stderr
-    })
+          stdout = buildStdout
+          stderr = buildStderr
+          exportStderr = exportResult.stderr
+          exportVercelStderr = exportVercelResult.stderr
+        })
 
-    it('should not show warning for custom routes when not next export', async () => {
-      expect(stderr).not.toContain(
-        `rewrites, redirects, and headers are not applied when exporting your application detected`
-      )
-    })
+        it('should not show warning for custom routes when not next export', async () => {
+          expect(stderr).not.toContain(
+            `rewrites, redirects, and headers are not applied when exporting your application detected`
+          )
+        })
 
-    it('should not show warning for custom routes when next export on Vercel', async () => {
-      expect(exportVercelStderr).not.toContain(
-        `rewrites, redirects, and headers are not applied when exporting your application detected`
-      )
-    })
+        it('should not show warning for custom routes when next export on Vercel', async () => {
+          expect(exportVercelStderr).not.toContain(
+            `rewrites, redirects, and headers are not applied when exporting your application detected`
+          )
+        })
 
-    it('should show warning for custom routes with next export', async () => {
-      expect(exportStderr).toContain(
-        `rewrites, redirects, and headers are not applied when exporting your application, detected (rewrites, redirects, headers)`
-      )
-    })
+        it('should show warning for custom routes with next export', async () => {
+          expect(exportStderr).toContain(
+            `rewrites, redirects, and headers are not applied when exporting your application, detected (rewrites, redirects, headers)`
+          )
+        })
+      }
+    )
   })
 
   describe('should load custom routes when only one type is used', () => {

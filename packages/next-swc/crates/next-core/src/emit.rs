@@ -1,36 +1,13 @@
 use anyhow::Result;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    Completion, Completions, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+    Completion, Completions, TryFlatJoinIterExt, Vc,
 };
 use turbo_tasks_fs::{rebase, FileSystemPath};
 use turbopack_binding::turbopack::core::{
     asset::Asset,
     output::{OutputAsset, OutputAssets},
 };
-
-#[turbo_tasks::function]
-pub async fn all_server_paths(
-    assets: Vc<OutputAssets>,
-    node_root: Vc<FileSystemPath>,
-) -> Result<Vc<Vec<String>>> {
-    let all_assets = all_assets_from_entries(assets).await?;
-    let node_root = &node_root.await?;
-    Ok(Vc::cell(
-        all_assets
-            .iter()
-            .map(|&asset| async move {
-                Ok(node_root
-                    .get_path_to(&*asset.ident().path().await?)
-                    .map(|s| s.to_string()))
-            })
-            .try_join()
-            .await?
-            .into_iter()
-            .flatten()
-            .collect(),
-    ))
-}
 
 /// Emits all assets transitively reachable from the given chunks, that are
 /// inside the node root or the client root.

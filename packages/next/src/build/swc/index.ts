@@ -540,20 +540,25 @@ interface EndpointConfig {
   preferredRegion?: string
 }
 
+export type ServerPath = {
+  path: string
+  contentHash: string
+}
+
 export type WrittenEndpoint =
   | {
       type: 'nodejs'
       /** The entry path for the endpoint. */
       entryPath: string
       /** All server paths that has been written for the endpoint. */
-      serverPaths: string[]
+      serverPaths: ServerPath[]
       config: EndpointConfig
     }
   | {
       type: 'edge'
       files: string[]
       /** All server paths that has been written for the endpoint. */
-      serverPaths: string[]
+      serverPaths: ServerPath[]
       globalVarName: string
       config: EndpointConfig
     }
