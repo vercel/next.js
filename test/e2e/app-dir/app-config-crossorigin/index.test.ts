@@ -5,9 +5,12 @@ createNextDescribe(
   {
     files: __dirname,
     skipDeployment: true,
-    skipStart: true,
   },
-  ({ next }) => {
+  ({ next, isNextStart }) => {
+    if (isNextStart) {
+      it('skip in start mode', () => {})
+      return
+    }
     it('should render correctly with assetPrefix: "/"', async () => {
       const $ = await next.render$('/')
       // Only potential external (assetPrefix) <script /> and <link /> should have crossorigin attribute
