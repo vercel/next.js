@@ -94,6 +94,7 @@ export type NEXT_DATA = {
   nextExport?: boolean
   autoExport?: boolean
   isFallback?: boolean
+  isExperimentalCompile?: boolean
   dynamicIds?: (string | number)[]
   err?: Error & {
     statusCode?: number

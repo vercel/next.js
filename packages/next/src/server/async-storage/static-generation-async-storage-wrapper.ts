@@ -12,6 +12,7 @@ export type StaticGenerationContext = {
     isRevalidate?: boolean
     isOnDemandRevalidate?: boolean
     isBot?: boolean
+    isPrefetch?: boolean
     nextExport?: boolean
     fetchCache?: StaticGenerationStore['fetchCache']
     isDraftMode?: boolean
