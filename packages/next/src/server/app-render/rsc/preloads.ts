@@ -7,7 +7,11 @@ Files in the rsc directory are meant to be packaged as part of the RSC graph usi
 import ReactDOM from 'react-dom'
 
 export function preloadStyle(href: string, crossOrigin?: string | undefined) {
-  ReactDOM.preload(href, { as: 'style', crossOrigin })
+  const opts: any = { as: 'style' }
+  if (typeof crossOrigin === 'string') {
+    opts.crossOrigin = crossOrigin
+  }
+  ReactDOM.preload(href, opts)
 }
 
 export function preloadFont(
@@ -15,13 +19,16 @@ export function preloadFont(
   type: string,
   crossOrigin?: string | undefined
 ) {
-  ;(ReactDOM as any).preload(href, { as: 'font', type, crossOrigin })
+  const opts: any = { as: 'font', type }
+  if (typeof crossOrigin === 'string') {
+    opts.crossOrigin = crossOrigin
+  }
+  ReactDOM.preload(href, opts)
 }
 
 export function preconnect(href: string, crossOrigin?: string | undefined) {
-  if (typeof crossOrigin === 'string') {
-    ;(ReactDOM as any).preconnect(href, { crossOrigin })
-  } else {
-    ;(ReactDOM as any).preconnect(href)
-  }
+  ;(ReactDOM as any).preconnect(
+    href,
+    typeof crossOrigin === 'string' ? { crossOrigin } : undefined
+  )
 }
