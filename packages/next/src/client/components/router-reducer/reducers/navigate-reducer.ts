@@ -261,16 +261,9 @@ export function navigateReducer(
     prefetchValues.lastUsedTime = Date.now()
   }
 
-  // Handle case when navigating to a scroll (empty string)
-  // or when navigating to page in `pages` from `app` (not an empty string)
+  // Handle case when navigating to page in `pages` from `app`
   if (typeof flightData === 'string') {
-    return handleExternalUrl(
-      state,
-      mutable,
-      // flightData omits the hash, use the href including the hash as the external url when navigating to the pages router
-      flightData ? href : flightData,
-      pendingPush
-    )
+    return handleExternalUrl(state, mutable, flightData, pendingPush)
   }
 
   let currentTree = state.tree
