@@ -10,7 +10,7 @@ import '../require-hook'
 
 import url from 'url'
 import path from 'path'
-import loadConfig from '../config'
+import loadConfig, { NextConfig } from '../config'
 import { serveStatic } from '../serve-static'
 import setupDebug from 'next/dist/compiled/debug'
 import { Telemetry } from '../../telemetry/storage'
