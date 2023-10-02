@@ -1,23 +1,14 @@
-/* eslint-env jest */
-import { join } from 'path'
-import { killApp, findPort, launchApp, renderViaHTTP } from 'next-test-utils'
-import cheerio from 'cheerio'
+import { createNextDescribe } from 'e2e-utils'
 
-const appDir = join(__dirname, '../')
-
-describe('App crossOrigin config', () => {
-  let appPort
-  let app
-
-  it('should render correctly with assetPrefix: "/"', async () => {
-    try {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-
-      const html = await renderViaHTTP(appPort, '/')
-
-      const $ = cheerio.load(html)
-
+createNextDescribe(
+  'app dir - crossOrigin config',
+  {
+    files: __dirname,
+    skipDeployment: true,
+  },
+  ({ next }) => {
+    it('should render correctly with assetPrefix: "/"', async () => {
+      const $ = await next.render$('/')
       // Only potential external (assetPrefix) <script /> and <link /> should have crossorigin attribute
       $(
         'script[src*="https://example.vercel.sh"], link[href*="https://example.vercel.sh"]'
@@ -37,8 +28,6 @@ describe('App crossOrigin config', () => {
         const crossOrigin = $(el).attr('crossorigin')
         expect(crossOrigin).toBeUndefined()
       })
-    } finally {
-      killApp(app)
-    }
-  })
-})
+    })
+  }
+)
