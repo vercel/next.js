@@ -5,6 +5,7 @@ createNextDescribe(
   {
     files: __dirname,
     skipDeployment: true,
+    skipStart: true,
   },
   ({ next }) => {
     it('should render correctly with assetPrefix: "/"', async () => {
