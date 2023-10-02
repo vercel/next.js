@@ -301,10 +301,8 @@ export function makeExternalHandler({
       return resolveResult.localRes
     }
 
-    // Forcedly resolve the styled-jsx installed by next.js,
-    // since `resolveExternal` cannot find the styled-jsx dep with pnpm
-    if (request === 'styled-jsx/style') {
-      resolveResult.res = defaultOverrides['styled-jsx/style']
+    if (request === 'styled-jsx/style' && !isAppLayer) {
+      return `commonjs ${defaultOverrides['styled-jsx/style']}`
     }
 
     const { res, isEsm } = resolveResult
