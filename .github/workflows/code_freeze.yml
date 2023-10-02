@@ -39,7 +39,6 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - run: corepack enable && pnpm --version
 
       - run: node ./scripts/code-freeze.js --type ${{ github.event.inputs.type }}
         env:
