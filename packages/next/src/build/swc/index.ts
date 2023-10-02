@@ -402,11 +402,7 @@ export interface ProjectOptions {
    */
   env: Record<string, string>
 
-  defineEnv: {
-    client: Record<string, string>
-    edge: Record<string, string>
-    nodejs: Record<string, string>
-  }
+  defineEnv: DefineEnv
 
   /**
    * Whether to watch the filesystem for file changes.
@@ -419,10 +415,12 @@ export interface ProjectOptions {
   serverAddr: string
 }
 
+type RustifiedEnv = { name: string; value: string }[]
+
 export interface DefineEnv {
-  client: Record<string, string>
-  edge: Record<string, string>
-  nodejs: Record<string, string>
+  client: RustifiedEnv
+  edge: RustifiedEnv
+  nodejs: RustifiedEnv
 }
 
 export function createDefineEnv({
@@ -439,31 +437,30 @@ export function createDefineEnv({
   DefineEnvPluginOptions,
   'isClient' | 'isNodeOrEdgeCompilation' | 'isEdgeServer' | 'isNodeServer'
 >): DefineEnv {
-  let defineEnv: Record<
-    'client' | 'edge' | 'nodejs',
-    Record<string, string>
-  > = {
-    client: {},
-    edge: {},
-    nodejs: {},
+  let defineEnv: DefineEnv = {
+    client: [],
+    edge: [],
+    nodejs: [],
   }
 
   for (const variant of Object.keys(defineEnv) as (keyof typeof defineEnv)[]) {
-    defineEnv[variant] = getDefineEnv({
-      allowedRevalidateHeaderKeys,
-      clientRouterFilters,
-      config,
-      dev,
-      distDir,
-      fetchCacheKeyPrefix,
-      hasRewrites,
-      isClient: variant === 'client',
-      isEdgeServer: variant === 'edge',
-      isNodeOrEdgeCompilation: variant === 'nodejs' || variant === 'edge',
-      isNodeServer: variant === 'nodejs',
-      middlewareMatchers,
-      previewModeId,
-    })
+    defineEnv[variant] = rustifyEnv(
+      getDefineEnv({
+        allowedRevalidateHeaderKeys,
+        clientRouterFilters,
+        config,
+        dev,
+        distDir,
+        fetchCacheKeyPrefix,
+        hasRewrites,
+        isClient: variant === 'client',
+        isEdgeServer: variant === 'edge',
+        isNodeOrEdgeCompilation: variant === 'nodejs' || variant === 'edge',
+        isNodeServer: variant === 'nodejs',
+        middlewareMatchers,
+        previewModeId,
+      })
+    )
   }
 
   return defineEnv
@@ -623,6 +620,15 @@ export type WrittenEndpoint =
       config: EndpointConfig
     }
 
+function rustifyEnv(env: Record<string, string>): RustifiedEnv {
+  return Object.entries(env)
+    .filter(([_, value]) => value != null)
+    .map(([name, value]) => ({
+      name,
+      value,
+    }))
+}
+
 // TODO(sokra) Support wasm option.
 function bindingToApi(binding: any, _wasm: boolean) {
   type NativeFunction<T> = (
@@ -747,15 +753,6 @@ function bindingToApi(binding: any, _wasm: boolean) {
     })
   }
 
-  function rustifyEnv(env: Record<string, string>) {
-    return Object.entries(env)
-      .filter(([_, value]) => value != null)
-      .map(([name, value]) => ({
-        name,
-        value,
-      }))
-  }
-
   async function rustifyProjectOptions(
     options: Partial<ProjectOptions>
   ): Promise<any> {
@@ -765,11 +762,7 @@ function bindingToApi(binding: any, _wasm: boolean) {
         options.nextConfig && (await serializeNextConfig(options.nextConfig)),
       jsConfig: options.jsConfig && JSON.stringify(options.jsConfig),
       env: options.env && rustifyEnv(options.env),
-      defineEnv: options.defineEnv && {
-        client: rustifyEnv(options.defineEnv.client),
-        edge: rustifyEnv(options.defineEnv.edge),
-        nodejs: rustifyEnv(options.defineEnv.nodejs),
-      },
+      defineEnv: options.defineEnv,
     }
   }
 
