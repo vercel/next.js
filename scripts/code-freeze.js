@@ -99,7 +99,7 @@ async function main() {
     console.log('Enabled code freeze')
   } else {
     if (!hasRule) {
-      console.log(`Not enabled`)
+      console.log(`Already disabled`)
       return
     }
     currentRules.required_status_checks.contexts =
