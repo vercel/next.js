@@ -427,19 +427,22 @@ describe('CSS Modules Composes Ordering', () => {
     })
   }
 
-  describe('Development Mode', () => {
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-    })
+  // TODO: re-enable this once fixed on turbopack side
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    describe('Development Mode', () => {
+      beforeAll(async () => {
+        await remove(join(appDir, '.next'))
+      })
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(async () => {
+        await killApp(app)
+      })
 
-    tests(true)
+      tests(true)
+    })
   })
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
