@@ -101,6 +101,12 @@ import { loadManifest } from './load-manifest'
 
 export * from './base-server'
 
+declare const __non_webpack_require__: NodeRequire
+
+const dynamicRequire = process.env.NEXT_MINIMAL
+  ? __non_webpack_require__
+  : require
+
 function writeStdoutLine(text: string) {
   process.stdout.write(' ' + text + '\n')
 }
@@ -244,12 +250,15 @@ export default class NextNodeServer extends BaseServer {
       this.nextConfig.experimental.instrumentationHook
     ) {
       try {
-        const instrumentationHook = await require(resolve(
-          this.serverOptions.dir || '.',
-          this.serverOptions.conf.distDir!,
-          'server',
-          INSTRUMENTATION_HOOK_FILENAME
-        ))
+        const instrumentationHook = await dynamicRequire(
+          resolve(
+            this.serverOptions.dir || '.',
+            this.serverOptions.conf.distDir!,
+            'server',
+            INSTRUMENTATION_HOOK_FILENAME
+          )
+        )
+
         await instrumentationHook.register?.()
       } catch (err: any) {
         if (err.code !== 'MODULE_NOT_FOUND') {
@@ -289,9 +298,11 @@ export default class NextNodeServer extends BaseServer {
     const { incrementalCacheHandlerPath } = this.nextConfig.experimental
 
     if (incrementalCacheHandlerPath) {
-      CacheHandler = require(isAbsolute(incrementalCacheHandlerPath)
-        ? incrementalCacheHandlerPath
-        : join(this.distDir, incrementalCacheHandlerPath))
+      CacheHandler = dynamicRequire(
+        isAbsolute(incrementalCacheHandlerPath)
+          ? incrementalCacheHandlerPath
+          : join(this.distDir, incrementalCacheHandlerPath)
+      )
       CacheHandler = CacheHandler.default || CacheHandler
     }
 
