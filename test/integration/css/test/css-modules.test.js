@@ -428,7 +428,7 @@ describe('CSS Modules Composes Ordering', () => {
   }
 
   // TODO: re-enable this once fixed on turbopack side
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('dev mode', () => {
     describe('Development Mode', () => {
       beforeAll(async () => {
         await remove(join(appDir, '.next'))
