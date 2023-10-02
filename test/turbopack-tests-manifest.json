@@ -7001,6 +7001,7 @@
       "should handle unresolved files gracefully production mode should have correct file references in CSS output"
     ],
     "flakey": [
+      "CSS Modules Composes Ordering production mode should have correct color on index page (on nav from index)",
       "CSS Modules Composes Ordering Development Mode should have correct color on index page (on nav from other)"
     ],
     "runtimeError": false
