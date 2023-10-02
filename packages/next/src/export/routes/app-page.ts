@@ -29,7 +29,6 @@ export async function generatePrefetchRsc(
   path: string,
   res: MockedResponse,
   pathname: string,
-  query: NextParsedUrlQuery,
   htmlFilepath: string,
   renderOpts: RenderOpts
 ) {
@@ -38,20 +37,17 @@ export async function generatePrefetchRsc(
   req.headers[NEXT_ROUTER_PREFETCH.toLowerCase()] = '1'
 
   renderOpts.supportsDynamicHTML = true
+  renderOpts.isPrefetch = true
   delete renderOpts.isRevalidate
 
-  const prefetchRenderResult = await render(
-    req,
-    res,
-    pathname,
-    query,
-    renderOpts
-  )
+  const prefetchRenderResult = await render(req, res, pathname, {}, renderOpts)
 
   prefetchRenderResult.pipe(res)
   await res.hasStreamed
 
   const prefetchRscData = Buffer.concat(res.buffers)
+
+  if ((renderOpts as any).store.staticPrefetchBailout) return
 
   await fs.writeFile(
     htmlFilepath.replace(/\.html$/, '.prefetch.rsc'),
@@ -84,7 +80,6 @@ export async function exportAppPage(
         path,
         res,
         pathname,
-        query,
         htmlFilepath,
         renderOpts
       )
@@ -105,15 +100,16 @@ export async function exportAppPage(
         )
       }
 
-      await generatePrefetchRsc(
-        req,
-        path,
-        res,
-        pathname,
-        query,
-        htmlFilepath,
-        renderOpts
-      )
+      if (!(renderOpts as any).store.staticPrefetchBailout) {
+        await generatePrefetchRsc(
+          req,
+          path,
+          res,
+          pathname,
+          htmlFilepath,
+          renderOpts
+        )
+      }
 
       const { staticBailoutInfo = {} } = metadata
 

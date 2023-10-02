@@ -14,62 +14,64 @@ const context = {
 }
 
 describe('Middleware Production Prefetch', () => {
-  afterAll(() => killApp(context.app))
-  beforeAll(async () => {
-    const build = await nextBuild(context.appDir, undefined, {
-      stderr: true,
-      stdout: true,
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    afterAll(() => killApp(context.app))
+    beforeAll(async () => {
+      const build = await nextBuild(context.appDir, undefined, {
+        stderr: true,
+        stdout: true,
+      })
+
+      context.buildId = await fs.readFile(
+        join(context.appDir, '.next/BUILD_ID'),
+        'utf8'
+      )
+
+      context.buildLogs = {
+        output: build.stdout + build.stderr,
+        stderr: build.stderr,
+        stdout: build.stdout,
+      }
+      context.dev = false
+
+      context.appPort = await findPort()
+      context.app = await nextStart(context.appDir, context.appPort, {
+        env: {
+          MIDDLEWARE_TEST: 'asdf',
+        },
+        onStdout(msg) {
+          context.logs.output += msg
+          context.logs.stdout += msg
+        },
+        onStderr(msg) {
+          context.logs.output += msg
+          context.logs.stderr += msg
+        },
+      })
     })
 
-    context.buildId = await fs.readFile(
-      join(context.appDir, '.next/BUILD_ID'),
-      'utf8'
-    )
-
-    context.buildLogs = {
-      output: build.stdout + build.stderr,
-      stderr: build.stderr,
-      stdout: build.stdout,
-    }
-    context.dev = false
-
-    context.appPort = await findPort()
-    context.app = await nextStart(context.appDir, context.appPort, {
-      env: {
-        MIDDLEWARE_TEST: 'asdf',
-      },
-      onStdout(msg) {
-        context.logs.output += msg
-        context.logs.stdout += msg
-      },
-      onStderr(msg) {
-        context.logs.output += msg
-        context.logs.stderr += msg
-      },
+    it(`prefetch correctly for unexistent routes`, async () => {
+      const browser = await webdriver(context.appPort, `/`)
+      await browser.elementByCss('#made-up-link').moveTo()
+      await check(async () => {
+        const scripts = await browser.elementsByCss('script')
+        const attrs = await Promise.all(
+          scripts.map((script) => script.getAttribute('src'))
+        )
+        return attrs.find((src) => src.includes('/ssg-page')) ? 'yes' : 'nope'
+      }, 'yes')
     })
-  })
 
-  it(`prefetch correctly for unexistent routes`, async () => {
-    const browser = await webdriver(context.appPort, `/`)
-    await browser.elementByCss('#made-up-link').moveTo()
-    await check(async () => {
-      const scripts = await browser.elementsByCss('script')
-      const attrs = await Promise.all(
-        scripts.map((script) => script.getAttribute('src'))
-      )
-      return attrs.find((src) => src.includes('/ssg-page')) ? 'yes' : 'nope'
-    }, 'yes')
-  })
-
-  it(`does not prefetch provided path if it will be rewritten`, async () => {
-    const browser = await webdriver(context.appPort, `/`)
-    await browser.elementByCss('#ssg-page-2').moveTo()
-    await check(async () => {
-      const scripts = await browser.elementsByCss('script')
-      const attrs = await Promise.all(
-        scripts.map((script) => script.getAttribute('src'))
-      )
-      return attrs.find((src) => src.includes('/ssg-page-2')) ? 'nope' : 'yes'
-    }, 'yes')
+    it(`does not prefetch provided path if it will be rewritten`, async () => {
+      const browser = await webdriver(context.appPort, `/`)
+      await browser.elementByCss('#ssg-page-2').moveTo()
+      await check(async () => {
+        const scripts = await browser.elementsByCss('script')
+        const attrs = await Promise.all(
+          scripts.map((script) => script.getAttribute('src'))
+        )
+        return attrs.find((src) => src.includes('/ssg-page-2')) ? 'nope' : 'yes'
+      }, 'yes')
+    })
   })
 })

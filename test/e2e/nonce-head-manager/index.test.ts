@@ -4,7 +4,7 @@ import webdriver from 'next-webdriver'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { join } from 'path'
 
-describe('should set-up next', () => {
+describe('nonce head manager', () => {
   let next: NextInstance
 
   beforeAll(async () => {

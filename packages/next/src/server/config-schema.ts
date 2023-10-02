@@ -400,9 +400,6 @@ const configSchema = {
         scrollRestoration: {
           type: 'boolean',
         },
-        sharedPool: {
-          type: 'boolean',
-        },
         sri: {
           properties: {
             algorithm: {
@@ -521,6 +518,9 @@ const configSchema = {
           type: 'boolean',
         },
         serverSourceMaps: {
+          type: 'boolean',
+        },
+        bundlePagesExternals: {
           type: 'boolean',
         },
       },

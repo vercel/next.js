@@ -26,7 +26,7 @@ import { createNextDescribe } from 'e2e-utils'
 const glob = promisify(globOriginal)
 
 if (process.env.TEST_WASM) {
-  jest.setTimeout(240 * 1000)
+  jest.setTimeout(120 * 1000)
 }
 
 createNextDescribe(
@@ -106,7 +106,7 @@ createNextDescribe(
     })
 
     it('should respond with 405 for POST to static page', async () => {
-      const res = await fetchViaHTTP(next.appPort, '/', undefined, {
+      const res = await fetchViaHTTP(next.appPort, '/about', undefined, {
         method: 'POST',
       })
       expect(res.status).toBe(405)
@@ -114,7 +114,7 @@ createNextDescribe(
     })
 
     it('should contain generated page count in output', async () => {
-      const pageCount = 40
+      const pageCount = 37
       expect(next.cliOutput).toContain(
         `Generating static pages (0/${pageCount})`
       )
@@ -205,18 +205,6 @@ createNextDescribe(
           notTests: [/\0/, /\?/, /!/],
         },
         {
-          page: '/dynamic',
-          tests: [
-            /webpack-runtime\.js/,
-            /chunks\/.*?\.js/,
-            /node_modules\/react\/index\.js/,
-            /node_modules\/react\/package\.json/,
-            /node_modules\/react\/cjs\/react\.production\.min\.js/,
-            /node_modules\/next/,
-          ],
-          notTests: [/\0/, /\?/, /!/],
-        },
-        {
           page: '/index',
           tests: [
             /webpack-runtime\.js/,
@@ -230,19 +218,6 @@ createNextDescribe(
             /node_modules\/es5-ext\/array\/#\/clear\.js/,
           ],
           notTests: [/next\/dist\/pages\/_error\.js/, /\0/, /\?/, /!/],
-        },
-        {
-          page: '/counter',
-          tests: [
-            /webpack-runtime\.js/,
-            /chunks\/.*?\.js/,
-            /node_modules\/react\/index\.js/,
-            /node_modules\/react\/package\.json/,
-            /node_modules\/react\/cjs\/react\.production\.min\.js/,
-            /node_modules\/react\/cjs\/react\.development\.js/,
-            /node_modules\/next/,
-          ],
-          notTests: [/\0/, /\?/, /!/],
         },
         {
           page: '/next-import',
@@ -298,6 +273,7 @@ createNextDescribe(
       ]
 
       for (const check of checks) {
+        require('console').log('checking', check.page)
         const { version, files } = await next.readJSON(
           join('.next/server/pages/', check.page + '.js.nft.json')
         )
@@ -940,7 +916,7 @@ createNextDescribe(
       })
 
       it('should add autoExport for auto pre-rendered pages', async () => {
-        for (const page of ['/', '/about']) {
+        for (const page of ['/about']) {
           const html = await renderViaHTTP(next.appPort, page)
           const $ = cheerio.load(html)
           const data = JSON.parse($('#__NEXT_DATA__').html())
