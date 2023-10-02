@@ -96,22 +96,27 @@ describe('SSG Prerender Revalidate', () => {
 
   // Regression test for https://github.com/vercel/next.js/issues/24806
   describe('[regression] production mode and incremental cache size exceeded', () => {
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      await nextBuild(appDir, [])
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort, {
-        // The lowest size of the LRU cache that can be set is "1"
-        // this will cause the cache size to always be exceeded
-        env: { __NEXT_TEST_MAX_ISR_CACHE: 1 },
-      })
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-    })
-    afterAll(() => killApp(app))
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'production mode',
+      () => {
+        beforeAll(async () => {
+          await fs.remove(join(appDir, '.next'))
+          await nextBuild(appDir, [])
+          appPort = await findPort()
+          app = await nextStart(appDir, appPort, {
+            // The lowest size of the LRU cache that can be set is "1"
+            // this will cause the cache size to always be exceeded
+            env: { __NEXT_TEST_MAX_ISR_CACHE: 1 },
+          })
+          buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+        })
+        afterAll(() => killApp(app))
 
-    runTests('/', '/')
-    runTests('/named', '/named')
-    runTests('/nested', '/nested')
-    runTests('/nested/named', '/nested/named')
+        runTests('/', '/')
+        runTests('/named', '/named')
+        runTests('/nested', '/nested')
+        runTests('/nested/named', '/nested/named')
+      }
+    )
   })
 })

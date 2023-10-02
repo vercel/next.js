@@ -59,8 +59,7 @@ describe('API routes', () => {
 
     runTests()
   })
-
-  describe('Server support', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await nextBuild(appDir)
       appPort = await findPort()

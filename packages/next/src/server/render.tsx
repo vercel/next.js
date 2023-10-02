@@ -283,6 +283,7 @@ export type RenderOptsPartial = {
   deploymentId?: string
   isServerAction?: boolean
   isExperimentalCompile?: boolean
+  isPrefetch?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial

@@ -243,44 +243,52 @@ describe('Can hot reload CSS Module without losing state', () => {
 })
 
 describe.skip('Invalid CSS Module Usage in node_modules', () => {
-  const appDir = join(fixturesDir, 'invalid-module')
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    const appDir = join(fixturesDir, 'invalid-module')
 
-  beforeAll(async () => {
-    await remove(join(appDir, '.next'))
-  })
-
-  it('should fail to build', async () => {
-    const { code, stderr } = await nextBuild(appDir, [], {
-      stderr: true,
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
     })
-    expect(code).not.toBe(0)
-    expect(stderr).toContain('Failed to compile')
-    expect(stderr).toContain('node_modules/example/index.module.css')
-    expect(stderr).toMatch(
-      /CSS Modules.*cannot.*be imported from within.*node_modules/
-    )
-    expect(stderr).toMatch(/Location:.*node_modules[\\/]example[\\/]index\.mjs/)
+
+    it('should fail to build', async () => {
+      const { code, stderr } = await nextBuild(appDir, [], {
+        stderr: true,
+      })
+      expect(code).not.toBe(0)
+      expect(stderr).toContain('Failed to compile')
+      expect(stderr).toContain('node_modules/example/index.module.css')
+      expect(stderr).toMatch(
+        /CSS Modules.*cannot.*be imported from within.*node_modules/
+      )
+      expect(stderr).toMatch(
+        /Location:.*node_modules[\\/]example[\\/]index\.mjs/
+      )
+    })
   })
 })
 
 describe.skip('Invalid Global CSS Module Usage in node_modules', () => {
-  const appDir = join(fixturesDir, 'invalid-global-module')
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    const appDir = join(fixturesDir, 'invalid-global-module')
 
-  beforeAll(async () => {
-    await remove(join(appDir, '.next'))
-  })
-
-  it('should fail to build', async () => {
-    const { code, stderr } = await nextBuild(appDir, [], {
-      stderr: true,
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
     })
-    expect(code).not.toBe(0)
-    expect(stderr).toContain('Failed to compile')
-    expect(stderr).toContain('node_modules/example/index.css')
-    expect(stderr).toMatch(
-      /Global CSS.*cannot.*be imported from within.*node_modules/
-    )
-    expect(stderr).toMatch(/Location:.*node_modules[\\/]example[\\/]index\.mjs/)
+
+    it('should fail to build', async () => {
+      const { code, stderr } = await nextBuild(appDir, [], {
+        stderr: true,
+      })
+      expect(code).not.toBe(0)
+      expect(stderr).toContain('Failed to compile')
+      expect(stderr).toContain('node_modules/example/index.css')
+      expect(stderr).toMatch(
+        /Global CSS.*cannot.*be imported from within.*node_modules/
+      )
+      expect(stderr).toMatch(
+        /Location:.*node_modules[\\/]example[\\/]index\.mjs/
+      )
+    })
   })
 })
 
