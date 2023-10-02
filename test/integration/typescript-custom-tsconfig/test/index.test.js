@@ -8,11 +8,13 @@ const appDir = join(__dirname, '..')
 const warnMessage = /Using tsconfig file:/
 
 describe('Custom TypeScript Config', () => {
-  it('should warn when using custom typescript path', async () => {
-    const { stdout } = await nextBuild(appDir, [], {
-      stdout: true,
-    })
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    it('should warn when using custom typescript path', async () => {
+      const { stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
 
-    expect(stdout).toMatch(warnMessage)
+      expect(stdout).toMatch(warnMessage)
+    })
   })
 })
