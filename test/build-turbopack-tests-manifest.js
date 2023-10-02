@@ -35,6 +35,7 @@ const SKIPPED_TEST_SUITES = {
   ],
   'test/development/jsconfig-path-reloading/index.test.ts': [
     /should automatically fast refresh content when path is added without error/,
+    /should recover from module not found when paths is updated/,
   ],
   'test/development/tsconfig-path-reloading/index.test.ts': [
     /should automatically fast refresh content when path is added without error/,
@@ -60,6 +61,7 @@ const SKIPPED_TEST_SUITES = {
   ],
   'test/integration/css/test/css-modules.test.js': [
     'CSS Modules Composes Ordering Development Mode should have correct color on index page (on nav from other)',
+    'CSS Modules Composes Ordering production mode should have correct color on index page (on nav from index)',
   ],
   'test/integration/custom-error/test/index.test.js': [/Custom _error/],
   'test/integration/dynamic-routing/test/index.test.js': [

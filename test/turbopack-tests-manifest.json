@@ -1738,7 +1738,6 @@
     "failed": [],
     "pending": [],
     "flakey": [
-      "jsconfig-path-reloading jsconfig should recover from module not found when paths is updated",
       "jsconfig-path-reloading jsconfig added after starting dev should automatically fast refresh content when path is added without error",
       "jsconfig-path-reloading jsconfig should automatically fast refresh content when path is added without error"
     ],
@@ -7002,7 +7001,6 @@
       "should handle unresolved files gracefully production mode should have correct file references in CSS output"
     ],
     "flakey": [
-      "CSS Modules Composes Ordering production mode should have correct color on index page (on nav from index)",
       "CSS Modules Composes Ordering Development Mode should have correct color on index page (on nav from other)"
     ],
     "runtimeError": false
