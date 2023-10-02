@@ -1,12 +1,6 @@
 /* eslint-env jest */
 import { join } from 'path'
-import {
-  killApp,
-  findPort,
-  launchApp,
-  renderViaHTTP,
-  File,
-} from 'next-test-utils'
+import { killApp, findPort, launchApp, renderViaHTTP } from 'next-test-utils'
 import cheerio from 'cheerio'
 
 const appDir = join(__dirname, '../')
