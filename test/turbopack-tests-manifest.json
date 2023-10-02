@@ -6153,7 +6153,6 @@
     "passed": [
       "Document and App Client side It should share module state with pages",
       "Document and App Client side should detect the changes to pages/_app.js and display it",
-      "Document and App Client side should detect the changes to pages/_document.js and display it",
       "Document and App Client side should keep state between page navigations",
       "Document and App Rendering via HTTP _app It should share module state with pages",
       "Document and App Rendering via HTTP _app It should show valid error when thrown in _app getInitialProps",
@@ -6173,7 +6172,9 @@
     ],
     "failed": [],
     "pending": [],
-    "flakey": [],
+    "flakey": [
+      "Document and App Client side should detect the changes to pages/_document.js and display it"
+    ],
     "runtimeError": false
   },
   "test/integration/app-dynamic-error/test/index.test.ts": {
@@ -8219,9 +8220,6 @@
       "Env Config dev mode with hot reload should have process environment override .env",
       "Env Config dev mode with hot reload should have updated runtime values after change",
       "Env Config dev mode with hot reload should load env from .env",
-      "Env Config dev mode with hot reload should provide env correctly for API routes",
-      "Env Config dev mode with hot reload should provide env correctly for SSR",
-      "Env Config dev mode with hot reload should provide env for SSG",
       "Env Config dev mode with hot reload should provide global env to next.config.js",
       "Env Config test environment should provide env correctly for API routes",
       "Env Config test environment should provide global env to next.config.js"
@@ -8245,7 +8243,11 @@
       "Env Config production mode should provide env for SSG",
       "Env Config production mode should provide global env to next.config.js"
     ],
-    "flakey": [],
+    "flakey": [
+      "Env Config dev mode with hot reload should provide env correctly for API routes",
+      "Env Config dev mode with hot reload should provide env correctly for SSR",
+      "Env Config dev mode with hot reload should provide env for SSG"
+    ],
     "runtimeError": false
   },
   "test/integration/error-in-error/test/index.test.js": {
