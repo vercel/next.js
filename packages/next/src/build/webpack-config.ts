@@ -2036,6 +2036,7 @@ export default async function getBaseWebpackConfig(
       isNodeOrEdgeCompilation &&
         new PagesManifestPlugin({
           dev,
+          distDir,
           isEdgeRuntime: isEdgeServer,
           appDirEnabled: hasAppDir,
         }),
