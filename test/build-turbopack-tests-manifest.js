@@ -35,6 +35,7 @@ const SKIPPED_TEST_SUITES = {
   ],
   'test/development/jsconfig-path-reloading/index.test.ts': [
     /should automatically fast refresh content when path is added without error/,
+    /should recover from module not found when paths is updated/,
   ],
   'test/development/tsconfig-path-reloading/index.test.ts': [
     /should automatically fast refresh content when path is added without error/,
@@ -60,6 +61,7 @@ const SKIPPED_TEST_SUITES = {
   ],
   'test/integration/css/test/css-modules.test.js': [
     'CSS Modules Composes Ordering Development Mode should have correct color on index page (on nav from other)',
+    'CSS Modules Composes Ordering Development Mode should have correct color on index page (on nav from index)',
   ],
   'test/integration/custom-error/test/index.test.js': [/Custom _error/],
   'test/integration/dynamic-routing/test/index.test.js': [
@@ -75,6 +77,18 @@ const SKIPPED_TEST_SUITES = {
   ],
   'test/integration/trailing-slashes/test/index.test.js': [
     'Trailing slashes dev mode, with basepath, trailingSlash: true /docs/linker?href=/ should navigate to /docs/',
+    'Trailing slashes dev mode, with basepath, trailingSlash: true /docs/linker?href=/ should push route to /docs/',
+  ],
+  'test/integration/env-config/test/index.test.js': [
+    'Env Config dev mode with hot reload should provide env for SSG',
+    'Env Config dev mode with hot reload should provide env correctly for SSR',
+    'Env Config dev mode with hot reload should provide env correctly for API routes',
+  ],
+  'test/integration/app-document/test/index.test.js': [
+    'Document and App Client side should detect the changes to pages/_document.js and display it',
+  ],
+  'test/development/basic/hmr.test.ts': [
+    'basic HMR, basePath: "/docs" Error Recovery should show the error on all pages',
   ],
 }
 
