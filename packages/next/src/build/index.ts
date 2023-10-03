@@ -2130,7 +2130,6 @@ export default async function build(
 
           await exportApp(dir, exportOptions, nextBuildSpan)
 
-          const postBuildSpinner = createSpinner('Finalizing page optimization')
           ssgNotFoundPaths = exportConfig.ssgNotFoundPaths
 
           // remove server bundles that were exported
@@ -2581,12 +2580,10 @@ export default async function build(
             JSON.stringify(pagesManifest, null, 2),
             'utf8'
           )
-
-          if (postBuildSpinner) postBuildSpinner.stopAndPersist()
-          console.log()
         })
       }
 
+      const postBuildSpinner = createSpinner('Finalizing page optimization')
       let buildTracesSpinner = createSpinner(`Collecting build traces`)
 
       // ensure the worker is not left hanging
@@ -2747,20 +2744,6 @@ export default async function build(
         return Promise.reject(err)
       })
 
-      await nextBuildSpan.traceChild('print-tree-view').traceAsyncFn(() =>
-        printTreeView(pageKeys, pageInfos, {
-          distPath: distDir,
-          buildId: buildId,
-          pagesDir,
-          useStaticPages404,
-          pageExtensions: config.pageExtensions,
-          appBuildManifest,
-          buildManifest,
-          middlewareManifest,
-          gzipSize: config.experimental.gzipSize,
-        })
-      )
-
       if (debugOutput) {
         nextBuildSpan
           .traceChild('print-custom-routes')
@@ -2906,6 +2889,23 @@ export default async function build(
         buildTracesSpinner.stopAndPersist()
         buildTracesSpinner = undefined
       }
+
+      if (postBuildSpinner) postBuildSpinner.stopAndPersist()
+      console.log()
+
+      await nextBuildSpan.traceChild('print-tree-view').traceAsyncFn(() =>
+        printTreeView(pageKeys, pageInfos, {
+          distPath: distDir,
+          buildId: buildId,
+          pagesDir,
+          useStaticPages404,
+          pageExtensions: config.pageExtensions,
+          appBuildManifest,
+          buildManifest,
+          middlewareManifest,
+          gzipSize: config.experimental.gzipSize,
+        })
+      )
 
       await nextBuildSpan
         .traceChild('telemetry-flush')
