@@ -339,55 +339,6 @@ export async function ncc_undici(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-export async function compile_config_schema(task, opts) {
-  const { configSchema } = require('./dist/server/config-schema')
-  // eslint-disable-next-line
-  const Ajv = require('ajv')
-  // eslint-disable-next-line
-  const standaloneCode = require('ajv/dist/standalone').default
-  // eslint-disable-next-line
-  const ajv = new Ajv({
-    code: { source: true },
-    allErrors: true,
-    verbose: true,
-  })
-
-  // errorMessage keyword will be consumed by @segment/ajv-human-errors to provide a custom error message
-  ajv.addKeyword('errorMessage')
-
-  ajv.addKeyword({
-    keyword: 'isFunction',
-    schemaType: 'boolean',
-    compile() {
-      return (data) => data == null || data instanceof Function
-    },
-    code(ctx) {
-      const { data } = ctx
-      ctx.fail(Ajv._`!(${data} == null || ${data} instanceof Function)`)
-    },
-    metaSchema: {
-      anyOf: [{ type: 'boolean' }],
-    },
-  })
-
-  const compiled = ajv.compile(configSchema)
-  const validateCode = standaloneCode(ajv, compiled)
-  const preNccFilename = join(__dirname, 'dist', 'next-config-validate.js')
-  await fs.writeFile(preNccFilename, validateCode)
-  await task
-    .source('./dist/next-config-validate.js')
-    .ncc({})
-    .target('dist/next-config-validate')
-
-  await fs.unlink(preNccFilename)
-  await fs.rename(
-    join(__dirname, 'dist/next-config-validate/next-config-validate.js'),
-    join(__dirname, 'dist/next-config-validate.js')
-  )
-  await fs.rmdir(join(__dirname, 'dist/next-config-validate'))
-}
-
-// eslint-disable-next-line camelcase
 externals['acorn'] = 'next/dist/compiled/acorn'
 export async function ncc_acorn(task, opts) {
   await task
@@ -1983,7 +1934,7 @@ export async function ncc_superstruct(task, opts) {
 }
 
 externals['zod'] = 'next/dist/compiled/zod'
-export async function ncc_superstruct(task, opts) {
+export async function ncc_zod(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('zod')))
     .ncc({ packageName: 'zod', externals })
@@ -2239,7 +2190,6 @@ export async function ncc(task, opts) {
         'ncc_arg',
         'ncc_async_retry',
         'ncc_async_sema',
-        'ncc_segment_ajv_human_errors',
         'ncc_postcss_plugin_stub_for_cssnano_simple',
         'ncc_assert',
         'ncc_browser_zlib',
@@ -2313,6 +2263,7 @@ export async function ncc(task, opts) {
         'ncc_string_hash',
         'ncc_strip_ansi',
         'ncc_superstruct',
+        'ncc_zod',
         'ncc_nft',
         'ncc_tar',
         'ncc_terser',
@@ -2611,10 +2562,7 @@ export async function trace(task, opts) {
 }
 
 export async function build(task, opts) {
-  await task.serial(
-    ['precompile', 'compile', 'compile_config_schema', 'generate_types'],
-    opts
-  )
+  await task.serial(['precompile', 'compile', 'generate_types'], opts)
 }
 
 export async function generate_types(task, opts) {

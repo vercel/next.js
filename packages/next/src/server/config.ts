@@ -878,6 +878,7 @@ export default async function loadConfig(
     const validateResult = validateConfig(userConfig)
 
     if (validateResult.errors) {
+      // TODO-ZOD: replace ajv with zod
       // Only load @segment/ajv-human-errors when invalid config is detected
       // const { AggregateAjvError } =
       //   require('next/dist/compiled/@segment/ajv-human-errors') as typeof import('next/dist/compiled/@segment/ajv-human-errors')

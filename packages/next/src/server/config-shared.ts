@@ -789,10 +789,12 @@ export function validateConfig(userConfig: NextConfig): {
       errors: [],
     }
   } else {
-    const configValidator = require('next/dist/next-config-validate.js')
-    configValidator(userConfig)
+    // TODO-ZOD: replace ajv with zod
+    // const configValidator = require('next/dist/next-config-validate.js')
+    // configValidator(userConfig)
     return {
-      errors: configValidator.errors,
+      // errors: configValidator.errors,
+      errors: [],
     }
   }
 }

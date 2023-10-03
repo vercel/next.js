@@ -931,9 +931,6 @@ importers:
       '@playwright/test':
         specifier: ^1.35.1
         version: 1.35.1
-      '@segment/ajv-human-errors':
-        specifier: 2.1.2
-        version: 2.1.2(ajv@8.11.0)
       '@taskr/clear':
         specifier: 1.1.0
         version: 1.1.0
@@ -1060,9 +1057,6 @@ importers:
       acorn:
         specifier: 8.5.0
         version: 8.5.0
-      ajv:
-        specifier: 8.11.0
-        version: 8.11.0
       amphtml-validator:
         specifier: 1.0.35
         version: 1.0.35
@@ -1317,7 +1311,7 @@ importers:
         version: 0.13.4
       sass-loader:
         specifier: 12.4.0
-        version: 12.4.0(webpack@5.86.0)
+        version: 12.4.0(sass@1.54.0)(webpack@5.86.0)
       schema-utils2:
         specifier: npm:schema-utils@2.7.1
         version: /schema-utils@2.7.1
@@ -7405,14 +7399,6 @@ packages:
     dependencies:
       any-observable: 0.3.0(rxjs@6.6.2)
       rxjs: 6.6.2
-    dev: true
-
-  /@segment/ajv-human-errors@2.1.2(ajv@8.11.0):
-    resolution: {integrity: sha512-d1uQndRFLRO01+xW1y5m+joxDgHf5SLJ70YCY2ArLoo2FJ50o6AoX2mEbuGvnKz/IdwnvDugm9Ti3mZQkW1OoA==}
-    peerDependencies:
-      ajv: ^8.0.0
-    dependencies:
-      ajv: 8.11.0
     dev: true
 
   /@shuding/opentype.js@1.4.0-beta.0:
@@ -23477,7 +23463,7 @@ packages:
   /safer-buffer@2.1.2:
     resolution: {integrity: sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg==}
 
-  /sass-loader@12.4.0(webpack@5.86.0):
+  /sass-loader@12.4.0(sass@1.54.0)(webpack@5.86.0):
     resolution: {integrity: sha512-7xN+8khDIzym1oL9XyS6zP6Ges+Bo2B2xbPrjdMHEYyV3AQYhd/wXeru++3ODHF0zMjYmVadblSKrPrjEkL8mg==}
     engines: {node: '>= 12.13.0'}
     peerDependencies:
@@ -23495,6 +23481,7 @@ packages:
     dependencies:
       klona: 2.0.4
       neo-async: 2.6.2
+      sass: 1.54.0
       webpack: 5.86.0(@swc/core@1.3.85)
     dev: true
 
