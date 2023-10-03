@@ -1984,12 +1984,20 @@ export async function ncc_unistore(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-externals['unistore'] = 'next/dist/compiled/superstruct'
+externals['superstruct'] = 'next/dist/compiled/superstruct'
 export async function ncc_superstruct(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('superstruct')))
     .ncc({ packageName: 'superstruct', externals })
     .target('src/compiled/superstruct')
+}
+
+externals['zod'] = 'next/dist/compiled/zod'
+export async function ncc_superstruct(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('zod')))
+    .ncc({ packageName: 'zod', externals })
+    .target('src/compiled/zod')
 }
 
 // eslint-disable-next-line camelcase
