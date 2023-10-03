@@ -61,10 +61,12 @@ export function useMDXComponents(components) {
 
 </AppOnly>
 
-Update `next.config.js` to configure it to use MDX:
+Update `next.config.js` to configure it to use Markdown and MDX:
 
 ```js filename="next.config.js"
-const withMDX = require('@next/mdx')()
+const withMDX = require('@next/mdx')({
+  extension: /\.(md|mdx)$/,
+})
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
