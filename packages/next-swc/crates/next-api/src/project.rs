@@ -83,11 +83,53 @@ pub struct ProjectOptions {
     /// A map of environment variables to use when compiling code.
     pub env: Vec<(String, String)>,
 
+    /// A map of environment variables which should get injected at compile
+    /// time.
+    pub define_env: DefineEnv,
+
     /// Whether to watch the filesystem for file changes.
     pub watch: bool,
 
     /// The address of the dev server.
     pub server_addr: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, TraceRawVcs)]
+#[serde(rename_all = "camelCase")]
+pub struct PartialProjectOptions {
+    /// A root path from which all files must be nested under. Trying to access
+    /// a file outside this root will fail. Think of this as a chroot.
+    pub root_path: Option<String>,
+
+    /// A path inside the root_path which contains the app/pages directories.
+    pub project_path: Option<String>,
+
+    /// The contents of next.config.js, serialized to JSON.
+    pub next_config: Option<String>,
+
+    /// The contents of ts/config read by load-jsconfig, serialized to JSON.
+    pub js_config: Option<String>,
+
+    /// A map of environment variables to use when compiling code.
+    pub env: Option<Vec<(String, String)>>,
+
+    /// A map of environment variables which should get injected at compile
+    /// time.
+    pub define_env: Option<DefineEnv>,
+
+    /// Whether to watch the filesystem for file changes.
+    pub watch: Option<bool>,
+
+    /// The address of the dev server.
+    pub server_addr: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, TraceRawVcs)]
+#[serde(rename_all = "camelCase")]
+pub struct DefineEnv {
+    pub client: Vec<(String, String)>,
+    pub edge: Vec<(String, String)>,
+    pub nodejs: Vec<(String, String)>,
 }
 
 #[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat)]
@@ -113,18 +155,52 @@ impl ProjectContainer {
     }
 
     #[turbo_tasks::function]
-    pub async fn update(self: Vc<Self>, options: ProjectOptions) -> Result<Vc<()>> {
-        self.await?.options_state.set(options);
-        Ok(Default::default())
+    pub fn update(&self, options: PartialProjectOptions) -> Vc<()> {
+        let mut new_options = self.options_state.get().clone();
+
+        if let Some(root_path) = options.root_path {
+            new_options.root_path = root_path;
+        }
+        if let Some(project_path) = options.project_path {
+            new_options.project_path = project_path;
+        }
+        if let Some(next_config) = options.next_config {
+            new_options.next_config = next_config;
+        }
+        if let Some(js_config) = options.js_config {
+            new_options.js_config = js_config;
+        }
+        if let Some(env) = options.env {
+            new_options.env = env;
+        }
+        if let Some(define_env) = options.define_env {
+            new_options.define_env = define_env;
+        }
+        if let Some(watch) = options.watch {
+            new_options.watch = watch;
+        }
+        if let Some(server_addr) = options.server_addr {
+            new_options.server_addr = server_addr;
+        }
+
+        self.options_state.set(new_options);
+
+        Default::default()
     }
 
     #[turbo_tasks::function]
     pub async fn project(self: Vc<Self>) -> Result<Vc<Project>> {
         let this = self.await?;
 
-        let (env, next_config, js_config, root_path, project_path, watch, server_addr) = {
+        let (env, define_env, next_config, js_config, root_path, project_path, watch, server_addr) = {
             let options = this.options_state.get();
             let env: Vc<EnvMap> = Vc::cell(options.env.iter().cloned().collect());
+            let define_env: Vc<ProjectDefineEnv> = ProjectDefineEnv {
+                client: Vc::cell(options.define_env.client.iter().cloned().collect()),
+                edge: Vc::cell(options.define_env.edge.iter().cloned().collect()),
+                nodejs: Vc::cell(options.define_env.nodejs.iter().cloned().collect()),
+            }
+            .cell();
             let next_config = NextConfig::from_string(Vc::cell(options.next_config.clone()));
             let js_config = JsConfig::from_string(Vc::cell(options.js_config.clone()));
             let root_path = options.root_path.clone();
@@ -133,6 +209,7 @@ impl ProjectContainer {
             let server_addr = options.server_addr.parse()?;
             (
                 env,
+                define_env,
                 next_config,
                 js_config,
                 root_path,
@@ -157,6 +234,7 @@ impl ProjectContainer {
             js_config,
             dist_dir,
             env: Vc::upcast(env),
+            define_env,
             browserslist_query: "last 1 Chrome versions, last 1 Firefox versions, last 1 Safari \
                                  versions, last 1 Edge versions"
                 .to_string(),
@@ -207,11 +285,40 @@ pub struct Project {
     /// A map of environment variables to use when compiling code.
     env: Vc<Box<dyn ProcessEnv>>,
 
+    /// A map of environment variables which should get injected at compile
+    /// time.
+    define_env: Vc<ProjectDefineEnv>,
+
     browserslist_query: String,
 
     mode: NextMode,
 
     versioned_content_map: Vc<VersionedContentMap>,
+}
+
+#[turbo_tasks::value]
+pub struct ProjectDefineEnv {
+    client: Vc<EnvMap>,
+    edge: Vc<EnvMap>,
+    nodejs: Vc<EnvMap>,
+}
+
+#[turbo_tasks::value_impl]
+impl ProjectDefineEnv {
+    #[turbo_tasks::function]
+    pub fn client(&self) -> Vc<EnvMap> {
+        self.client
+    }
+
+    #[turbo_tasks::function]
+    pub fn edge(&self) -> Vc<EnvMap> {
+        self.edge
+    }
+
+    #[turbo_tasks::function]
+    pub fn nodejs(&self) -> Vc<EnvMap> {
+        self.nodejs
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -353,15 +460,11 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn client_compile_time_info(self: Vc<Self>) -> Result<Vc<CompileTimeInfo>> {
-        let this = self.await?;
-
+    pub(super) async fn client_compile_time_info(&self) -> Result<Vc<CompileTimeInfo>> {
         Ok(get_client_compile_time_info(
-            this.mode,
-            this.browserslist_query.clone(),
-            self.dist_root_string(),
-            this.next_config,
-            find_app_dir(self.project_path()),
+            self.mode,
+            self.browserslist_query.clone(),
+            self.define_env.client(),
         ))
     }
 
@@ -372,16 +475,19 @@ impl Project {
             this.mode,
             self.env(),
             self.server_addr(),
+            this.define_env.nodejs(),
         ))
     }
 
     #[turbo_tasks::function]
-    pub(super) fn edge_compile_time_info(self: Vc<Self>) -> Vc<CompileTimeInfo> {
-        get_edge_compile_time_info(
+    pub(super) async fn edge_compile_time_info(self: Vc<Self>) -> Result<Vc<CompileTimeInfo>> {
+        let this = self.await?;
+        Ok(get_edge_compile_time_info(
+            this.mode,
             self.project_path(),
             self.server_addr(),
-            self.dist_root_string(),
-        )
+            this.define_env.nodejs(),
+        ))
     }
 
     #[turbo_tasks::function]

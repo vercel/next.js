@@ -123,6 +123,7 @@ import {
   teardownCrashReporter,
   loadBindings,
   teardownHeapProfiler,
+  createDefineEnv,
 } from './swc'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { flatReaddir } from '../lib/flat-readdir'
@@ -1018,10 +1019,28 @@ export default async function build(
             : packagePath
             ? path.dirname(packagePath)
             : undefined)
+
+        const hasRewrites =
+          rewrites.beforeFiles.length > 0 ||
+          rewrites.afterFiles.length > 0 ||
+          rewrites.fallback.length > 0
+
         await binding.turbo.nextBuild({
           ...NextBuildContext,
           root,
           distDir: config.distDir,
+          defineEnv: createDefineEnv({
+            allowedRevalidateHeaderKeys:
+              config.experimental.allowedRevalidateHeaderKeys,
+            clientRouterFilters: NextBuildContext.clientRouterFilters,
+            config,
+            dev: false,
+            distDir,
+            fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
+            hasRewrites,
+            middlewareMatchers: undefined,
+            previewModeId: undefined,
+          }),
         })
 
         const [duration] = process.hrtime(turboNextBuildStart)
