@@ -1,9 +1,9 @@
 import cn from 'classnames'
-// import 'tailwindcss/tailwind.css'
 import formatDate from 'date-fns/format'
 import EntryForm from '@/components/EntryForm'
+import { EntryType } from './page'
 
-const EntryItem = ({ entry }) => (
+const EntryItem = ({ entry }: { entry: EntryType }) => (
   <div className="flex flex-col space-y-2">
     <div className="prose dark:prose-dark w-full">{entry.message}</div>
     <div className="flex items-center space-x-3">
@@ -19,7 +19,11 @@ const EntryItem = ({ entry }) => (
   </div>
 )
 
-export default async function GuestbookPage({ entries }) {
+export default async function GuestbookPage({
+  entries,
+}: {
+  entries: EntryType[]
+}) {
   return (
     <main className="max-w-4xl mx-auto p-4">
       <div
