@@ -232,5 +232,93 @@ createNextDescribe(
         await browser.elementByCss('#prefetch-false-page-result').text()
       ).toBe('Result page')
     })
+
+    it('should not need to prefetch the layout if the prefetch is initiated at the same segment', async () => {
+      const stateTree = encodeURIComponent(
+        JSON.stringify([
+          '',
+          {
+            children: [
+              'prefetch-auto',
+              {
+                children: [
+                  ['slug', 'justputit', 'd'],
+                  { children: ['__PAGE__', {}] },
+                ],
+              },
+            ],
+          },
+          null,
+          null,
+          true,
+        ])
+      )
+      const response = await next.fetch(`/prefetch-auto/justputit?_rsc=dcqtr`, {
+        headers: {
+          RSC: '1',
+          'Next-Router-Prefetch': '1',
+          'Next-Router-State-Tree': stateTree,
+          'Next-Url': '/prefetch-auto/justputit',
+        },
+      })
+
+      const prefetchResponse = await response.text()
+      expect(prefetchResponse).not.toContain('Hello World')
+      expect(prefetchResponse).not.toContain('Loading Prefetch Auto')
+    })
+
+    it('should only prefetch the loading state and not the component tree when prefetching at the same segment', async () => {
+      const stateTree = encodeURIComponent(
+        JSON.stringify([
+          '',
+          {
+            children: [
+              'prefetch-auto',
+              {
+                children: [
+                  ['slug', 'vercel', 'd'],
+                  { children: ['__PAGE__', {}] },
+                ],
+              },
+            ],
+          },
+          null,
+          null,
+          true,
+        ])
+      )
+      const response = await next.fetch(`/prefetch-auto/justputit?_rsc=dcqtr`, {
+        headers: {
+          RSC: '1',
+          'Next-Router-Prefetch': '1',
+          'Next-Router-State-Tree': stateTree,
+          'Next-Url': '/prefetch-auto/vercel',
+        },
+      })
+
+      const prefetchResponse = await response.text()
+      expect(prefetchResponse).not.toContain('Hello World')
+      expect(prefetchResponse).toContain('Loading Prefetch Auto')
+    })
+
+    it('should not generate static prefetches for layouts that opt into dynamic rendering', async () => {
+      await next.stop()
+      const rootLoading = await next.readFile('./app/loading.js')
+      await next.deleteFile('./app/loading.js')
+      await next.start()
+      expect(
+        await next
+          .readFile('.next/server/app/prefetch-dynamic-usage/foo.prefetch.rsc')
+          .catch(() => false)
+      ).toBeFalsy()
+
+      expect(
+        await next
+          .readFile('.next/server/app/prefetch-dynamic-usage/foo.prefetch.rsc')
+          .catch(() => false)
+      ).toBeFalsy()
+
+      await next.patchFile('./app/loading', rootLoading)
+    })
   }
 )

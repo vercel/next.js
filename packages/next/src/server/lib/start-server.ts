@@ -18,7 +18,7 @@ import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
 import { checkIsNodeDebugging } from './is-node-debugging'
 import { CONFIG_FILES } from '../../shared/lib/constants'
-import chalk from '../../lib/chalk'
+import { bold, magenta } from '../../lib/picocolors'
 
 const debug = setupDebug('next:start-server')
 
@@ -92,8 +92,8 @@ function logStartInfo({
   formatDurationText: string
 }) {
   Log.bootstrap(
-    chalk.bold(
-      chalk.hex('#ad7fa8')(
+    bold(
+      magenta(
         `${`${Log.prefixes.ready} Next.js`} ${process.env.__NEXT_VERSION}`
       )
     )

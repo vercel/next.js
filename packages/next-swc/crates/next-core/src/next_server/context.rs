@@ -575,21 +575,17 @@ pub fn get_server_runtime_entries(
     )))
     .cell()];
 
-    match mode {
-        NextMode::Development => {}
-        NextMode::DevServer => {}
-        NextMode::Build => {
-            if let ServerContextType::AppRSC { .. } = ty.into_value() {
-                runtime_entries.push(
-                    RuntimeEntry::Request(
-                        Request::parse(Value::new(Pattern::Constant(
-                            "./build/server/app-bootstrap.ts".to_string(),
-                        ))),
-                        next_js_fs().root().join("_".to_string()),
-                    )
-                    .cell(),
-                );
-            }
+    if matches!(mode, NextMode::Build) {
+        if let ServerContextType::AppRSC { .. } = ty.into_value() {
+            runtime_entries.push(
+                RuntimeEntry::Request(
+                    Request::parse(Value::new(Pattern::Constant(
+                        "./build/server/app-bootstrap.ts".to_string(),
+                    ))),
+                    next_js_fs().root().join("_".to_string()),
+                )
+                .cell(),
+            );
         }
     }
 
@@ -603,6 +599,7 @@ pub fn get_server_chunking_context(
     // TODO(alexkirsz) Is this even necessary? Are assets not always on the client chunking context
     // anyway?
     client_root: Vc<FileSystemPath>,
+    asset_prefix: Vc<Option<String>>,
     environment: Vc<Environment>,
 ) -> Vc<BuildChunkingContext> {
     // TODO(alexkirsz) This should return a trait that can be implemented by the
@@ -611,10 +608,12 @@ pub fn get_server_chunking_context(
     BuildChunkingContext::builder(
         project_path,
         node_root,
+        client_root,
         node_root.join("server/chunks".to_string()),
-        client_root.join("_next/static/media".to_string()),
+        client_root.join("static/media".to_string()),
         environment,
     )
+    .asset_prefix(asset_prefix)
     .minify_type(MinifyType::NoMinify)
     .build()
 }

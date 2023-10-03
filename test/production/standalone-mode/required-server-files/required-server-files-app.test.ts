@@ -11,7 +11,7 @@ import {
   killApp,
 } from 'next-test-utils'
 
-describe('should set-up next', () => {
+describe('required server files app router', () => {
   let next: NextInstance
   let server
   let appPort
