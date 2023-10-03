@@ -66,9 +66,9 @@ async function getCurrentRules() {
       required_approving_review_count:
         data.required_pull_request_reviews.required_approving_review_count,
     },
-    restrictions: data.restrictions || {
-      users: [],
-      teams: [],
+    restrictions: {
+      users: data.restrictions.users?.map((user) => user.login) || [],
+      teams: data.restrictions.teams?.map((team) => team.slug) || [],
       apps: [],
     },
   }
