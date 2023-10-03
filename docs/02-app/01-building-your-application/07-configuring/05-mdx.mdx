@@ -42,32 +42,18 @@ Create a `mdx-components.tsx` file at the root of your application (the parent f
 ```tsx filename="mdx-components.tsx" switcher
 import type { MDXComponents } from 'mdx/types'
 
-// This file allows you to provide custom React components
-// to be used in MDX files. You can import and use any
-// React component you want, including components from
-// other libraries.
-
 // This file is required to use MDX in `app` directory.
 export function useMDXComponents(components: MDXComponents): MDXComponents {
   return {
-    // Allows customizing built-in components, e.g. to add styling.
-    // h1: ({ children }) => <h1 style={{ fontSize: "100px" }}>{children}</h1>,
     ...components,
   }
 }
 ```
 
 ```js filename="mdx-components.js" switcher
-// This file allows you to provide custom React components
-// to be used in MDX files. You can import and use any
-// React component you want, including components from
-// other libraries.
-
 // This file is required to use MDX in `app` directory.
 export function useMDXComponents(components) {
   return {
-    // Allows customizing built-in components, e.g. to add styling.
-    // h1: ({ children }) => <h1 style={{ fontSize: "100px" }}>{children}</h1>,
     ...components,
   }
 }
@@ -137,11 +123,11 @@ Checkout my React component:
 <MyComponent />
 ```
 
-Navigating to the `/my-mdx-page` route should display your rendered MDX.
+Navigating to the `/my-mdx-page` route should display your rendered Markdown.
 
 ## Remote MDX
 
-If your Markdown or MDX files do _not_ live inside your application, you can fetch them dynamically on the server. This is useful for fetching content from a CMS or other data source.
+If your Markdown or MDX files or content live _somewhere else_, you can fetch them dynamically on the server. This is useful for fetching content from a separate folder, CMS, database, or anywhere else.
 
 There are two popular community packages for fetching MDX content: [`next-mdx-remote`](https://github.com/hashicorp/next-mdx-remote#react-server-components-rsc--nextjs-app-directory-support) and [`contentlayer`](https://www.contentlayer.dev/).
 
@@ -155,6 +141,7 @@ For example, the following example uses `next-mdx-remote`:
 import { MDXRemote } from 'next-mdx-remote/rsc'
 
 export default async function RemoteMdxPage() {
+  // MDX text - can be from a local file, database, CMS, fetch, anywhere...
   const res = await fetch('https://...')
   const markdown = await res.text()
   return <MDXRemote source={markdown} />
@@ -165,6 +152,7 @@ export default async function RemoteMdxPage() {
 import { MDXRemote } from 'next-mdx-remote/rsc'
 
 export default async function RemoteMdxPage() {
+  // MDX text - can be from a local file, database, CMS, fetch, anywhere...
   const res = await fetch('https://...')
   const markdown = await res.text()
   return <MDXRemote source={markdown} />
@@ -175,9 +163,47 @@ export default async function RemoteMdxPage() {
 
 <PagesOnly>
 
-TODO
+```tsx filename="pages/my-mdx-page-remote.tsx" switcher
+import { serialize } from 'next-mdx-remote/serialize'
+import { MDXRemote, MDXRemoteSerializeResult } from 'next-mdx-remote'
+
+interface Props {
+  mdxSource: MDXRemoteSerializeResult
+}
+
+export default function RemoteMdxPage({ mdxSource }: Props) {
+  return <MDXRemote {...mdxSource} />
+}
+
+export async function getStaticProps() {
+  // MDX text - can be from a local file, database, CMS, fetch, anywhere...
+  const res = await fetch('https:...')
+  const mdxText = await res.text()
+  const mdxSource = await serialize(mdxText)
+  return { props: { source: mdxSource } }
+}
+```
+
+```jsx filename="pages/my-mdx-page-remote.js" switcher
+import { serialize } from 'next-mdx-remote/serialize'
+import { MDXRemote } from 'next-mdx-remote'
+
+export default function RemoteMdxPage({ mdxSource }) {
+  return <MDXRemote {...mdxSource} />
+}
+
+export async function getStaticProps() {
+  // MDX text - can be from a local file, database, CMS, fetch, anywhere...
+  const res = await fetch('https:...')
+  const mdxText = await res.text()
+  const mdxSource = await serialize(mdxText)
+  return { props: { source: mdxSource } }
+}
+```
 
 </PagesOnly>
+
+Navigating to the `/my-mdx-page-remote` route should display your rendered Markdown.
 
 ## Layouts
 
@@ -185,30 +211,49 @@ TODO
 
 To share a layout around MDX pages, you can use the [built-in layouts support](/docs/app/building-your-application/routing/pages-and-layouts#layouts) with the App Router.
 
+```tsx filename="app/my-mdx-page/layout.tsx"
+export default function MdxLayout({ children }: { children: React.ReactNode }) {
+  // Create any shared layout or styles here
+  return <div style={{ color: 'blue' }}>{children}</div>
+}
+```
+
+```jsx filename="app/my-mdx-page/layout.js"
+export default function MdxLayout({ children }) {
+  // Create any shared layout or styles here
+  return <div style={{ color: 'blue' }}>{children}</div>
+}
+```
+
 </AppOnly>
 
 <PagesOnly>
 
 To share a layout around MDX pages, create a layout component:
 
-```jsx filename="components/mdx-layout.js"
-export default MdxLayout({ children }) => (
+```tsx filename="components/mdx-layout.tsx"
+export default function MdxLayout({ children }: { children: React.ReactNode }) {
   // Create any shared layout or styles here
-  <div style={color: 'blue'}>{children}</div>
-);
+  return <div style={{ color: 'blue' }}>{children}</div>
+}
 ```
 
-Then, import the layout component into the MDX page:
+```jsx filename="components/mdx-layout.js"
+export default function MdxLayout({ children }) {
+  // Create any shared layout or styles here
+  return <div style={{ color: 'blue' }}>{children}</div>
+}
+```
 
+Then, import the layout component into the MDX page, wrap the MDX content in the layout, and export it:
+
+<!-- prettier-ignore -->
 ```mdx
-import { MdxLayout } from 'components/mdx-layout'
+import MdxLayout from '../components/mdx-layout'
 
 # Welcome to my MDX page!
 
-export default ({ children }) =>
-  <Post meta={meta}>{children}</Post
-
->
+export default ({ children }) => <MdxLayout>{children}</MdxLayout>
 ```
 
 </PagesOnly>
@@ -282,7 +327,11 @@ The above generates the following `HTML`:
 </ul>
 ```
 
-When you want to style your own elements to give a custom feel to your website or application, you can pass in shortcodes. These are your own custom components that map to `HTML` elements. To do this you use the `MDXProvider` and pass a components object as a prop. Each object key in the components object maps to a `HTML` element name.
+When you want to style your own elements to give a custom feel to your website or application, you can pass in shortcodes. These are your own custom components that map to `HTML` elements.
+
+To do this you use the `MDXProvider` and pass a components object as a prop. Each object key in the components object maps to a `HTML` element name.
+
+TODO
 
 To enable you need to specify `providerImportSource: "@mdx-js/react"` in `next.config.js`.
 
