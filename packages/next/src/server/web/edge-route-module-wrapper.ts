@@ -106,7 +106,7 @@ export class EdgeRouteModuleWrapper {
         },
         notFoundRoutes: [],
       },
-      staticGenerationContext: {
+      renderOpts: {
         supportsDynamicHTML: true,
       },
     }
@@ -114,8 +114,8 @@ export class EdgeRouteModuleWrapper {
     // Get the response from the handler.
     const res = await this.routeModule.handle(request, context)
 
-    if (context.staticGenerationContext.waitUntil) {
-      evt.waitUntil(context.staticGenerationContext.waitUntil)
+    if (context.renderOpts.waitUntil) {
+      evt.waitUntil(context.renderOpts.waitUntil)
     }
     return res
   }

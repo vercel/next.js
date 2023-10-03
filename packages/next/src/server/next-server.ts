@@ -60,6 +60,7 @@ import BaseServer, {
   NoFallbackError,
   RequestContext,
   NormalizedRouteManifest,
+  LoadedRenderOpts,
 } from './base-server'
 import { getMaybePagePath, getPagePath, requireFontManifest } from './require'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
@@ -98,8 +99,16 @@ import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 import { signalFromNodeResponse } from './web/spec-extension/adapters/next-request'
 import { RouteModuleLoader } from './future/helpers/module-loader/route-module-loader'
 import { loadManifest } from './load-manifest'
+import { lazyRenderAppPage } from './future/route-modules/app-page/module.render'
+import { lazyRenderPagesPage } from './future/route-modules/pages/module.render'
 
 export * from './base-server'
+
+declare const __non_webpack_require__: NodeRequire
+
+const dynamicRequire = process.env.NEXT_MINIMAL
+  ? __non_webpack_require__
+  : require
 
 function writeStdoutLine(text: string) {
   process.stdout.write(' ' + text + '\n')
@@ -244,12 +253,15 @@ export default class NextNodeServer extends BaseServer {
       this.nextConfig.experimental.instrumentationHook
     ) {
       try {
-        const instrumentationHook = await require(resolve(
-          this.serverOptions.dir || '.',
-          this.serverOptions.conf.distDir!,
-          'server',
-          INSTRUMENTATION_HOOK_FILENAME
-        ))
+        const instrumentationHook = await dynamicRequire(
+          resolve(
+            this.serverOptions.dir || '.',
+            this.serverOptions.conf.distDir!,
+            'server',
+            INSTRUMENTATION_HOOK_FILENAME
+          )
+        )
+
         await instrumentationHook.register?.()
       } catch (err: any) {
         if (err.code !== 'MODULE_NOT_FOUND') {
@@ -289,9 +301,11 @@ export default class NextNodeServer extends BaseServer {
     const { incrementalCacheHandlerPath } = this.nextConfig.experimental
 
     if (incrementalCacheHandlerPath) {
-      CacheHandler = require(isAbsolute(incrementalCacheHandlerPath)
-        ? incrementalCacheHandlerPath
-        : join(this.distDir, incrementalCacheHandlerPath))
+      CacheHandler = dynamicRequire(
+        isAbsolute(incrementalCacheHandlerPath)
+          ? incrementalCacheHandlerPath
+          : join(this.distDir, incrementalCacheHandlerPath)
+      )
       CacheHandler = CacheHandler.default || CacheHandler
     }
 
@@ -448,7 +462,7 @@ export default class NextNodeServer extends BaseServer {
     res: NodeNextResponse,
     pathname: string,
     query: NextParsedUrlQuery,
-    renderOpts: import('./render').RenderOpts
+    renderOpts: LoadedRenderOpts
   ): Promise<RenderResult> {
     return getTracer().trace(NextNodeServerSpan.renderHTML, async () =>
       this.renderHTMLImpl(req, res, pathname, query, renderOpts)
@@ -460,11 +474,11 @@ export default class NextNodeServer extends BaseServer {
     res: NodeNextResponse,
     pathname: string,
     query: NextParsedUrlQuery,
-    renderOpts: import('./render').RenderOpts
+    renderOpts: LoadedRenderOpts
   ): Promise<RenderResult> {
     if (process.env.NEXT_MINIMAL) {
       throw new Error(
-        'invariant: renderHTML should not be called in minimal mode'
+        'Invariant: renderHTML should not be called in minimal mode'
       )
       // the `else` branch is needed for tree-shaking
     } else {
@@ -474,9 +488,7 @@ export default class NextNodeServer extends BaseServer {
       renderOpts.nextFontManifest = this.nextFontManifest
 
       if (this.hasAppDir && renderOpts.isAppPath) {
-        const { renderToHTMLOrFlight: appRenderToHTMLOrFlight } =
-          require('./future/route-modules/app-page/module.compiled') as typeof import('./app-render/app-render')
-        return appRenderToHTMLOrFlight(
+        return lazyRenderAppPage(
           req.originalRequest,
           res.originalResponse,
           pathname,
@@ -488,7 +500,7 @@ export default class NextNodeServer extends BaseServer {
       // TODO: re-enable this once we've refactored to use implicit matches
       // throw new Error('Invariant: render should have used routeModule')
 
-      return require('./future/route-modules/pages/module.compiled').renderToHTML(
+      return lazyRenderPagesPage(
         req.originalRequest,
         res.originalResponse,
         pathname,

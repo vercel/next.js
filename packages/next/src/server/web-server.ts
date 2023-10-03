@@ -1,5 +1,4 @@
 import type { WebNextRequest, WebNextResponse } from './base-http/web'
-import type { RenderOpts } from './render'
 import type RenderResult from './render-result'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { Params } from '../shared/lib/router/utils/route-matcher'
@@ -10,6 +9,7 @@ import type { PrerenderManifest } from '../build'
 
 import { byteLength } from './api-utils/web'
 import BaseServer, {
+  LoadedRenderOpts,
   MiddlewareRoutingItem,
   NoFallbackError,
   NormalizedRouteManifest,
@@ -200,7 +200,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     res: WebNextResponse,
     pathname: string,
     query: NextParsedUrlQuery,
-    renderOpts: RenderOpts
+    renderOpts: LoadedRenderOpts
   ): Promise<RenderResult> {
     const { renderToHTML } = this.serverOptions.webServerConfig
     if (!renderToHTML) {
