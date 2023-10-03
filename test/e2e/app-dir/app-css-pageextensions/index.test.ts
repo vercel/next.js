@@ -1,7 +1,7 @@
 import { createNextDescribe } from 'e2e-utils'
 
 createNextDescribe(
-  'app dir css with pageextensions',
+  'app dir - css with pageextensions',
   {
     files: __dirname,
     skipDeployment: true,

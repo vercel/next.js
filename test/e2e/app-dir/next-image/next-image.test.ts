@@ -1,7 +1,7 @@
 import { createNextDescribe } from 'e2e-utils'
 
 createNextDescribe(
-  'app dir next-image',
+  'app dir - next-image',
   {
     files: __dirname,
     skipDeployment: true,

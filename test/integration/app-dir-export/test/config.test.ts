@@ -10,7 +10,7 @@ import {
   nextConfig,
 } from './utils'
 
-describe('app dir with output export (next dev / next build)', () => {
+describe('app dir - with output export (next dev / next build)', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     it('should throw when exportPathMap configured', async () => {
       nextConfig.replace(

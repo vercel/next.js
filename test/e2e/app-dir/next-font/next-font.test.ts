@@ -25,7 +25,7 @@ const getAttrs = (elems: Cheerio) =>
 
 describe.each([['app'], ['app-old']])('%s', (fixture: string) => {
   createNextDescribe(
-    'app dir next-font',
+    'app dir - next-font',
     {
       files: {
         app: new FileRef(join(__dirname, fixture)),
