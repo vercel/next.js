@@ -496,7 +496,7 @@ export default async function getBaseWebpackConfig(
     ? '-experimental'
     : ''
 
-  const babelConfigFile = await getBabelConfigFile(dir)
+  const babelConfigFile = getBabelConfigFile(dir)
   const distDir = path.join(dir, config.distDir)
 
   let useSWCLoader = !babelConfigFile || config.experimental.forceSwcTransforms
