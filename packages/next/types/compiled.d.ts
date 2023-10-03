@@ -27,6 +27,7 @@ declare module 'next/dist/compiled/webpack/webpack' {
     export type EntryObject = any
     export type Chunk = any
     export type ChunkGroup = any
+    export type DefinePlugin = any
     // eslint-disable-next-line @typescript-eslint/no-shadow
     namespace sources {
       export type RawSource = any
