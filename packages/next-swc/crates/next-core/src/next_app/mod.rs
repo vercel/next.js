@@ -3,6 +3,7 @@ pub mod app_client_shared_chunks;
 pub mod app_entry;
 pub mod app_page_entry;
 pub mod app_route_entry;
+pub mod bloom_filter;
 pub mod metadata;
 
 use std::{
@@ -152,15 +153,18 @@ impl AppPage {
         ) && !matches!(segment, PageSegment::PageType(..))
         {
             bail!(
-                "Invalid segment {}, catch all segment must be the last segment",
-                segment
+                "Invalid segment {:?}, catch all segment must be the last segment (segments: {:?})",
+                segment,
+                self.0
             )
         }
 
         if self.is_complete() {
             bail!(
-                "Invalid segment {}, this page path already has the final PageType appended",
-                segment
+                "Invalid segment {:?}, this page path already has the final PageType appended \
+                 (segments: {:?})",
+                segment,
+                self.0
             )
         }
 
@@ -206,7 +210,7 @@ impl AppPage {
         matches!(self.0.last(), Some(PageSegment::PageType(..)))
     }
 
-    pub fn complete(self, page_type: PageType) -> Result<Self> {
+    pub fn complete(&self, page_type: PageType) -> Result<Self> {
         self.clone_push(PageSegment::PageType(page_type))
     }
 }
@@ -281,6 +285,19 @@ impl Display for PathSegment {
     Clone, Debug, Hash, PartialEq, Eq, Default, Serialize, Deserialize, TaskInput, TraceRawVcs,
 )]
 pub struct AppPath(pub Vec<PathSegment>);
+
+impl AppPath {
+    pub fn is_dynamic(&self) -> bool {
+        self.iter().any(|segment| {
+            matches!(
+                (segment,),
+                (PathSegment::Dynamic(_)
+                    | PathSegment::CatchAll(_)
+                    | PathSegment::OptionalCatchAll(_),)
+            )
+        })
+    }
+}
 
 impl Deref for AppPath {
     type Target = [PathSegment];

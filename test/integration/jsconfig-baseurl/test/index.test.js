@@ -65,19 +65,26 @@ describe('TypeScript Features', () => {
   })
 
   describe('should build', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-    })
-    it('should trace correctly', async () => {
-      const helloTrace = await fs.readJSON(
-        join(appDir, '.next/server/pages/hello.js.nft.json')
-      )
-      expect(
-        helloTrace.files.some((file) => file.includes('components/world.js'))
-      ).toBe(false)
-      expect(
-        helloTrace.files.some((file) => file.includes('react/index.js'))
-      ).toBe(true)
-    })
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'production mode',
+      () => {
+        beforeAll(async () => {
+          await nextBuild(appDir)
+        })
+        it('should trace correctly', async () => {
+          const helloTrace = await fs.readJSON(
+            join(appDir, '.next/server/pages/hello.js.nft.json')
+          )
+          expect(
+            helloTrace.files.some((file) =>
+              file.includes('components/world.js')
+            )
+          ).toBe(false)
+          expect(
+            helloTrace.files.some((file) => file.includes('react/index.js'))
+          ).toBe(true)
+        })
+      }
+    )
   })
 })

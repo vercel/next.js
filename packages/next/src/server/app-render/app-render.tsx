@@ -18,13 +18,12 @@ import type { RequestAsyncStorage } from '../../client/components/request-async-
 import React from 'react'
 import { createServerComponentRenderer } from './create-server-components-renderer'
 
-import { ParsedUrlQuery } from 'querystring'
 import { NextParsedUrlQuery } from '../request-meta'
 import RenderResult, { type RenderResultMetadata } from '../render-result'
 import {
-  renderToInitialStream,
+  renderToInitialFizzStream,
   createBufferedTransformStream,
-  continueFromInitialStream,
+  continueFizzStream,
   streamToBufferedResult,
   cloneTransformStream,
 } from '../stream-utils/node-web-streams-helper'
@@ -156,14 +155,23 @@ function hasLoadingComponentInTree(tree: LoaderTree): boolean {
   ) as boolean
 }
 
-export async function renderToHTMLOrFlight(
+export type AppPageRender = (
   req: IncomingMessage,
   res: ServerResponse,
   pagePath: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts
-): Promise<RenderResult> {
+) => Promise<RenderResult>
+
+export const renderToHTMLOrFlight: AppPageRender = (
+  req,
+  res,
+  pagePath,
+  query,
+  renderOpts
+) => {
   const isFlight = req.headers[RSC.toLowerCase()] !== undefined
+  const isNotFoundPath = pagePath === '/404'
   const pathname = validateURL(req.url)
 
   // A unique request timestamp used by development to ensure that it's
@@ -186,6 +194,16 @@ export async function renderToHTMLOrFlight(
     deploymentId,
     appDirDevErrorLogger,
   } = renderOpts
+
+  // We need to expose the bundled `require` API globally for
+  // react-server-dom-webpack. This is a hack until we find a better way.
+  if (ComponentMod.__next_app__) {
+    // @ts-ignore
+    globalThis.__next_require__ = ComponentMod.__next_app__.require
+
+    // @ts-ignore
+    globalThis.__next_chunk_load__ = ComponentMod.__next_app__.loadChunk
+  }
 
   const extraRenderResultMeta: RenderResultMetadata = {}
 
@@ -250,6 +268,7 @@ export async function renderToHTMLOrFlight(
         `Invariant: Render expects to have staticGenerationAsyncStorage, none found`
       )
     }
+
     staticGenerationStore.fetchMetrics = []
     extraRenderResultMeta.fetchMetrics = staticGenerationStore.fetchMetrics
 
@@ -325,7 +344,7 @@ export async function renderToHTMLOrFlight(
     /**
      * Dynamic parameters. E.g. when you visit `/dashboard/vercel` which is rendered by `/dashboard/[slug]` the value will be {"slug": "vercel"}.
      */
-    const pathParams = (renderOpts as any).params as ParsedUrlQuery
+    const params = renderOpts.params ?? {}
 
     /**
      * Parse the dynamic segment and return the associated value.
@@ -341,7 +360,7 @@ export async function renderToHTMLOrFlight(
 
       const key = segmentParam.param
 
-      let value = pathParams[key]
+      let value = params[key]
 
       // this is a special marker that will be present for interception routes
       if (value === '__NEXT_EMPTY_PARAM__') {
@@ -448,6 +467,7 @@ export async function renderToHTMLOrFlight(
                 href={fullHref}
                 // @ts-ignore
                 precedence={precedence}
+                crossOrigin={renderOpts.crossOrigin}
                 key={index}
               />
             )
@@ -492,7 +512,7 @@ export async function renderToHTMLOrFlight(
             const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFilename)![1]
             const type = `font/${ext}`
             const href = `${assetPrefix}/_next/${fontFilename}`
-            ComponentMod.preloadFont(href, type)
+            ComponentMod.preloadFont(href, type, renderOpts.crossOrigin)
           }
         } else {
           try {
@@ -527,7 +547,7 @@ export async function renderToHTMLOrFlight(
             const precedence =
               process.env.NODE_ENV === 'development' ? 'next_' + href : 'next'
 
-            ComponentMod.preloadStyle(fullHref)
+            ComponentMod.preloadStyle(fullHref, renderOpts.crossOrigin)
 
             return (
               <link
@@ -535,6 +555,7 @@ export async function renderToHTMLOrFlight(
                 href={fullHref}
                 // @ts-ignore
                 precedence={precedence}
+                crossOrigin={renderOpts.crossOrigin}
                 key={index}
               />
             )
@@ -980,10 +1001,11 @@ export async function renderToHTMLOrFlight(
             <>
               {isPage ? metadataOutlet : null}
               {/* <Component /> needs to be the first element because we use `findDOMNode` in layout router to locate it. */}
-              {isPage && isClientComponent && isStaticGeneration ? (
+              {isPage && isClientComponent ? (
                 <StaticGenerationSearchParamsBailoutProvider
                   propsForComponent={props}
                   Component={Component}
+                  isStaticGeneration={isStaticGeneration}
                 />
               ) : (
                 <Component {...props} />
@@ -1086,6 +1108,13 @@ export async function renderToHTMLOrFlight(
           // Explicit refresh
           flightRouterState[3] === 'refetch'
 
+        const shouldSkipComponentTree =
+          isPrefetch &&
+          !Boolean(components.loading) &&
+          (flightRouterState ||
+            // If there is no flightRouterState, we need to check the entire loader tree, as otherwise we'll be only checking the root
+            !hasLoadingComponentInTree(loaderTree))
+
         if (!parentRendered && renderComponentsOnThisLevel) {
           const overriddenSegment =
             flightRouterState &&
@@ -1102,7 +1131,7 @@ export async function renderToHTMLOrFlight(
                 getDynamicParamFromSegment,
                 query
               ),
-              isPrefetch && !Boolean(components.loading)
+              shouldSkipComponentTree
                 ? null
                 : // Create component tree using the slice of the loaderTree
                   // @ts-expect-error TODO-APP: fix async component type
@@ -1125,7 +1154,7 @@ export async function renderToHTMLOrFlight(
 
                     return <Component />
                   }),
-              isPrefetch && !Boolean(components.loading)
+              shouldSkipComponentTree
                 ? null
                 : (() => {
                     const { layoutOrPagePath } =
@@ -1249,7 +1278,7 @@ export async function renderToHTMLOrFlight(
             injectedCSS: new Set(),
             injectedFontPreloadTags: new Set(),
             rootLayoutIncluded: false,
-            asNotFound: pagePath === '/404' || options?.asNotFound,
+            asNotFound: isNotFoundPath || options?.asNotFound,
             metadataOutlet: <MetadataOutlet />,
           })
         ).map((path) => path.slice(1)) // remove the '' (root) segment
@@ -1257,9 +1286,9 @@ export async function renderToHTMLOrFlight(
 
       const buildIdFlightDataPair = [buildId, flightData]
 
-      // For app dir, use the bundled version of Fizz renderer (renderToReadableStream)
+      // For app dir, use the bundled version of Flight server renderer (renderToReadableStream)
       // which contains the subset React.
-      const readable = ComponentMod.renderToReadableStream(
+      const flightReadableStream = ComponentMod.renderToReadableStream(
         options
           ? [options.actionResult, buildIdFlightDataPair]
           : buildIdFlightDataPair,
@@ -1270,7 +1299,7 @@ export async function renderToHTMLOrFlight(
         }
       ).pipeThrough(createBufferedTransformStream())
 
-      return new FlightRenderResult(readable)
+      return new FlightRenderResult(flightReadableStream)
     }
 
     if (isFlight && !staticGenerationStore.isStaticGeneration) {
@@ -1287,11 +1316,6 @@ export async function renderToHTMLOrFlight(
       /** GlobalError can be either the default error boundary or the overwritten app/global-error.js **/
       ComponentMod.GlobalError as typeof import('../../client/components/error-boundary').GlobalError
 
-    const serverComponentsInlinedTransformStream: TransformStream<
-      Uint8Array,
-      Uint8Array
-    > = new TransformStream()
-
     // Get the nonce from the incoming request if it has one.
     const csp = req.headers['content-security-policy']
     let nonce: string | undefined
@@ -1300,10 +1324,10 @@ export async function renderToHTMLOrFlight(
     }
 
     const serverComponentsRenderOpts = {
-      transformStream: serverComponentsInlinedTransformStream,
+      inlinedDataTransformStream: new TransformStream<Uint8Array, Uint8Array>(),
       clientReferenceManifest,
       serverContexts,
-      rscChunks: [],
+      formState: null,
     }
 
     const validateRootLayout = dev
@@ -1326,7 +1350,8 @@ export async function renderToHTMLOrFlight(
      */
     const createServerComponentsRenderer = (
       loaderTreeToRender: LoaderTree,
-      preinitScripts: () => void
+      preinitScripts: () => void,
+      formState: null | any
     ) =>
       createServerComponentRenderer<{
         asNotFound: boolean
@@ -1389,7 +1414,7 @@ export async function renderToHTMLOrFlight(
           )
         },
         ComponentMod,
-        serverComponentsRenderOpts,
+        { ...serverComponentsRenderOpts, formState },
         serverComponentsErrorHandler,
         nonce
       )
@@ -1414,6 +1439,7 @@ export async function renderToHTMLOrFlight(
       async ({
         asNotFound,
         tree,
+        formState,
       }: {
         /**
          * This option is used to indicate that the page should be rendered as
@@ -1423,29 +1449,36 @@ export async function renderToHTMLOrFlight(
          */
         asNotFound: boolean
         tree: LoaderTree
+        formState: any
       }) => {
-        const polyfills = buildManifest.polyfillFiles
-          .filter(
-            (polyfill) =>
-              polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
-          )
-          .map((polyfill) => ({
-            src: `${assetPrefix}/_next/${polyfill}${getAssetQueryString(
-              false
-            )}`,
-            integrity: subresourceIntegrityManifest?.[polyfill],
-          }))
+        const polyfills: JSX.IntrinsicElements['script'][] =
+          buildManifest.polyfillFiles
+            .filter(
+              (polyfill) =>
+                polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
+            )
+            .map((polyfill) => ({
+              src: `${assetPrefix}/_next/${polyfill}${getAssetQueryString(
+                false
+              )}`,
+              integrity: subresourceIntegrityManifest?.[polyfill],
+              crossOrigin: renderOpts.crossOrigin,
+              noModule: true,
+              nonce,
+            }))
 
         const [preinitScripts, bootstrapScript] = getRequiredScripts(
           buildManifest,
           assetPrefix,
+          renderOpts.crossOrigin,
           subresourceIntegrityManifest,
           getAssetQueryString(true),
           nonce
         )
         const ServerComponentsRenderer = createServerComponentsRenderer(
           tree,
-          preinitScripts
+          preinitScripts,
+          formState
         )
         const content = (
           <HeadManagerContext.Provider
@@ -1507,15 +1540,7 @@ export async function renderToHTMLOrFlight(
                 {polyfillsFlushed
                   ? null
                   : polyfills?.map((polyfill) => {
-                      return (
-                        <script
-                          key={polyfill.src}
-                          src={polyfill.src}
-                          integrity={polyfill.integrity}
-                          noModule={true}
-                          nonce={nonce}
-                        />
-                      )
+                      return <script key={polyfill.src} {...polyfill} />
                     })}
                 {renderServerInsertedHTML()}
                 {errorMetaTags}
@@ -1527,7 +1552,7 @@ export async function renderToHTMLOrFlight(
         }
 
         try {
-          const renderStream = await renderToInitialStream({
+          const fizzStream = await renderToInitialFizzStream({
             ReactDOMServer: require('react-dom/server.edge'),
             element: content,
             streamOptions: {
@@ -1535,11 +1560,13 @@ export async function renderToHTMLOrFlight(
               nonce,
               // Include hydration scripts in the HTML
               bootstrapScripts: [bootstrapScript],
+              experimental_formState: formState,
             },
           })
 
-          const result = await continueFromInitialStream(renderStream, {
-            dataStream: serverComponentsRenderOpts.transformStream.readable,
+          const result = await continueFizzStream(fizzStream, {
+            inlinedDataStream:
+              serverComponentsRenderOpts.inlinedDataTransformStream.readable,
             generateStaticHTML:
               staticGenerationStore.isStaticGeneration || generateStaticHTML,
             getServerInsertedHTML: () =>
@@ -1596,10 +1623,10 @@ export async function renderToHTMLOrFlight(
           const serverErrorComponentsRenderOpts: typeof serverComponentsRenderOpts =
             {
               ...serverComponentsRenderOpts,
-              rscChunks: [],
-              transformStream: cloneTransformStream(
-                serverComponentsRenderOpts.transformStream
+              inlinedDataTransformStream: cloneTransformStream(
+                serverComponentsRenderOpts.inlinedDataTransformStream
               ),
+              formState,
             }
 
           const errorType = is404
@@ -1623,6 +1650,7 @@ export async function renderToHTMLOrFlight(
             getRequiredScripts(
               buildManifest,
               assetPrefix,
+              renderOpts.crossOrigin,
               subresourceIntegrityManifest,
               getAssetQueryString(false),
               nonce
@@ -1679,19 +1707,21 @@ export async function renderToHTMLOrFlight(
           )
 
           try {
-            const renderStream = await renderToInitialStream({
+            const fizzStream = await renderToInitialFizzStream({
               ReactDOMServer: require('react-dom/server.edge'),
               element: <ErrorPage />,
               streamOptions: {
                 nonce,
                 // Include hydration scripts in the HTML
                 bootstrapScripts: [errorBootstrapScript],
+                experimental_formState: formState,
               },
             })
 
-            return await continueFromInitialStream(renderStream, {
-              dataStream:
-                serverErrorComponentsRenderOpts.transformStream.readable,
+            return await continueFizzStream(fizzStream, {
+              inlinedDataStream:
+                serverErrorComponentsRenderOpts.inlinedDataTransformStream
+                  .readable,
               generateStaticHTML: staticGenerationStore.isStaticGeneration,
               getServerInsertedHTML: () => getServerInsertedHTML([]),
               serverInsertedHTMLToHead: true,
@@ -1725,31 +1755,40 @@ export async function renderToHTMLOrFlight(
       serverActionsBodySizeLimit,
     })
 
-    if (actionRequestResult === 'not-found') {
-      const notFoundLoaderTree = createNotFoundLoaderTree(loaderTree)
-      return new RenderResult(
-        await bodyResult({
-          asNotFound: true,
-          tree: notFoundLoaderTree,
-        }),
-        { ...extraRenderResultMeta }
-      )
-    } else if (actionRequestResult) {
-      actionRequestResult.extendMetadata(extraRenderResultMeta)
-      return actionRequestResult
+    let formState: null | any = null
+    if (actionRequestResult) {
+      if (actionRequestResult.type === 'not-found') {
+        const notFoundLoaderTree = createNotFoundLoaderTree(loaderTree)
+        return new RenderResult(
+          await bodyResult({
+            asNotFound: true,
+            tree: notFoundLoaderTree,
+            formState,
+          }),
+          { ...extraRenderResultMeta }
+        )
+      } else if (actionRequestResult.type === 'done') {
+        if (actionRequestResult.result) {
+          actionRequestResult.result.extendMetadata(extraRenderResultMeta)
+          return actionRequestResult.result
+        } else if (actionRequestResult.formState) {
+          formState = actionRequestResult.formState
+        }
+      }
     }
 
     const renderResult = new RenderResult(
       await bodyResult({
-        asNotFound: pagePath === '/404',
+        asNotFound: isNotFoundPath,
         tree: loaderTree,
+        formState,
       }),
-      { ...extraRenderResultMeta }
+      {
+        ...extraRenderResultMeta,
+        waitUntil: Promise.all(staticGenerationStore.pendingRevalidates || []),
+      }
     )
 
-    if (staticGenerationStore.pendingRevalidates) {
-      await Promise.all(staticGenerationStore.pendingRevalidates)
-    }
     addImplicitTags(staticGenerationStore)
     extraRenderResultMeta.fetchTags = staticGenerationStore.tags?.join(',')
     renderResult.extendMetadata({
@@ -1767,7 +1806,7 @@ export async function renderToHTMLOrFlight(
 
       // TODO-APP: derive this from same pass to prevent additional
       // render during static generation
-      const filteredFlightData = await streamToBufferedResult(
+      const stringifiedFlightPayload = await streamToBufferedResult(
         await generateFlight()
       )
 
@@ -1775,7 +1814,7 @@ export async function renderToHTMLOrFlight(
         staticGenerationStore.revalidate = 0
       }
 
-      extraRenderResultMeta.pageData = filteredFlightData
+      extraRenderResultMeta.pageData = stringifiedFlightPayload
       extraRenderResultMeta.revalidate =
         staticGenerationStore.revalidate ?? defaultRevalidate
 

@@ -1,4 +1,4 @@
-import chalk from 'next/dist/compiled/chalk'
+import { cyan } from './picocolors'
 import path from 'path'
 
 import { MissingDependency } from './has-necessary-dependencies'
@@ -26,7 +26,7 @@ export async function installDependencies(
       } (${packageManager}):`
     )
     for (const dep of deps) {
-      console.log(`- ${chalk.cyan(dep.pkg)}`)
+      console.log(`- ${cyan(dep.pkg)}`)
     }
     console.log()
 

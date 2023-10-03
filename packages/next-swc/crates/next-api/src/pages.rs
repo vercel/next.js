@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use next_core::{
-    all_server_paths, create_page_loader_entry_module, get_asset_path_from_pathname,
+    create_page_loader_entry_module, get_asset_path_from_pathname,
     get_edge_resolve_options_context,
     mode::NextMode,
     next_client::{
@@ -37,7 +37,6 @@ use turbopack_binding::{
         build::BuildChunkingContext,
         core::{
             asset::AssetContent,
-            changed::any_content_changed_of_output_assets,
             chunk::{ChunkableModule, ChunkingContext, EvaluatableAssets},
             context::AssetContext,
             file_source::FileSource,
@@ -65,6 +64,7 @@ use turbopack_binding::{
 use crate::{
     project::Project,
     route::{Endpoint, Route, Routes, WrittenEndpoint},
+    server_paths::all_server_paths,
 };
 
 #[turbo_tasks::value]
@@ -944,13 +944,21 @@ impl Endpoint for PageEndpoint {
     }
 
     #[turbo_tasks::function]
-    fn server_changed(self: Vc<Self>) -> Vc<Completion> {
-        any_content_changed_of_output_assets(self.output().server_assets())
+    async fn server_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
+        Ok(self
+            .await?
+            .pages_project
+            .project()
+            .server_changed(self.output().server_assets()))
     }
 
     #[turbo_tasks::function]
-    fn client_changed(self: Vc<Self>) -> Vc<Completion> {
-        any_content_changed_of_output_assets(self.output().client_assets())
+    async fn client_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
+        Ok(self
+            .await?
+            .pages_project
+            .project()
+            .client_changed(self.output().client_assets()))
     }
 }
 

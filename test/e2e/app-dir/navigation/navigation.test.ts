@@ -498,6 +498,15 @@ createNextDescribe(
         expect(await browser.url()).toBe(next.url + '/some')
       })
 
+      it('should not omit the hash while navigating from app to pages', async () => {
+        const browser = await next.browser('/hash-link-to-pages-router')
+        await browser
+          .elementByCss('#link-to-pages-router')
+          .click()
+          .waitForElementByCss('#link-to-app')
+        await check(() => browser.url(), next.url + '/some#non-existent')
+      })
+
       if (!isNextDev) {
         // this test is pretty hard to test in playwright, so most of the heavy lifting is in the page component itself
         // it triggers a hover on a link to initiate a prefetch request every second, and so we check that

@@ -11,7 +11,7 @@ import { join } from 'path'
 const appDir = join(__dirname, '../app')
 
 describe('Image Generation', () => {
-  describe('Prod', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     let app
     let appPort
 

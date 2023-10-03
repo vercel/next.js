@@ -19,8 +19,11 @@ use next_core::{
 };
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, IntoTraitRef, State, TaskInput,
-    TransientInstance, Value, Vc,
+    debug::ValueDebugFormat,
+    graph::{AdjacencyMap, GraphTraversal},
+    trace::TraceRawVcs,
+    Completion, Completions, IntoTraitRef, State, TaskInput, TraitRef, TransientInstance,
+    TryFlatJoinIterExt, Value, ValueToString, Vc,
 };
 use turbopack_binding::{
     turbo::{
@@ -30,13 +33,14 @@ use turbopack_binding::{
     turbopack::{
         build::BuildChunkingContext,
         core::{
+            changed::content_changed,
             chunk::ChunkingContext,
             compile_time_info::CompileTimeInfo,
             context::AssetContext,
             diagnostics::DiagnosticExt,
             environment::ServerAddr,
             file_source::FileSource,
-            output::OutputAssets,
+            output::{OutputAsset, OutputAssets},
             reference_type::{EntryReferenceSubType, ReferenceType},
             resolve::{find_context_file, FindContextFileResult},
             source::Source,
@@ -117,17 +121,41 @@ impl ProjectContainer {
     #[turbo_tasks::function]
     pub async fn project(self: Vc<Self>) -> Result<Vc<Project>> {
         let this = self.await?;
-        let options = this.options_state.get();
-        let next_config = NextConfig::from_string(Vc::cell(options.next_config.clone()));
-        let js_config = JsConfig::from_string(Vc::cell(options.js_config.clone()));
-        let env: Vc<EnvMap> = Vc::cell(options.env.iter().cloned().collect());
+
+        let (env, next_config, js_config, root_path, project_path, watch, server_addr) = {
+            let options = this.options_state.get();
+            let env: Vc<EnvMap> = Vc::cell(options.env.iter().cloned().collect());
+            let next_config = NextConfig::from_string(Vc::cell(options.next_config.clone()));
+            let js_config = JsConfig::from_string(Vc::cell(options.js_config.clone()));
+            let root_path = options.root_path.clone();
+            let project_path = options.project_path.clone();
+            let watch = options.watch;
+            let server_addr = options.server_addr.parse()?;
+            (
+                env,
+                next_config,
+                js_config,
+                root_path,
+                project_path,
+                watch,
+                server_addr,
+            )
+        };
+
+        let dist_dir = next_config
+            .await?
+            .dist_dir
+            .as_ref()
+            .map_or_else(|| ".next".to_string(), |d| d.to_string());
+
         Ok(Project {
-            root_path: options.root_path.clone(),
-            project_path: options.project_path.clone(),
-            watch: options.watch,
-            server_addr: options.server_addr.parse()?,
+            root_path,
+            project_path,
+            watch,
+            server_addr,
             next_config,
             js_config,
+            dist_dir,
             env: Vc::upcast(env),
             browserslist_query: "last 1 Chrome versions, last 1 Firefox versions, last 1 Safari \
                                  versions, last 1 Edge versions"
@@ -156,6 +184,9 @@ pub struct Project {
     /// A root path from which all files must be nested under. Trying to access
     /// a file outside this root will fail. Think of this as a chroot.
     root_path: String,
+
+    /// A path where to emit the build outputs. next.config.js's distDir.
+    dist_dir: String,
 
     /// A path inside the root_path which contains the app/pages directories.
     project_path: String,
@@ -236,8 +267,9 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) fn node_root(self: Vc<Self>) -> Vc<FileSystemPath> {
-        self.node_fs().root().join(".next".to_string())
+    pub(super) async fn node_root(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        let this = self.await?;
+        Ok(self.node_fs().root().join(this.dist_dir.to_string()))
     }
 
     #[turbo_tasks::function]
@@ -250,9 +282,25 @@ impl Project {
         self.project_fs().root()
     }
 
+    /// Returns a path to dist_dir resolved from project root path as string.
+    /// Currently this is only for embedding process.env.__NEXT_DIST_DIR.
+    /// [Note] in webpack-config, it is being injected when
+    /// dev && (isClient || isEdgeServer)
     #[turbo_tasks::function]
-    pub(super) fn client_relative_path(self: Vc<Self>) -> Vc<FileSystemPath> {
-        self.client_root().join("_next".to_string())
+    async fn dist_root_string(self: Vc<Self>) -> Result<Vc<String>> {
+        Ok(self.node_root().to_string())
+    }
+
+    #[turbo_tasks::function]
+    pub(super) async fn client_relative_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        let next_config = self.next_config().await?;
+        Ok(self.client_root().join(format!(
+            "{}/_next",
+            next_config
+                .base_path
+                .clone()
+                .unwrap_or_else(|| "".to_string()),
+        )))
     }
 
     #[turbo_tasks::function]
@@ -305,8 +353,16 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) fn client_compile_time_info(&self) -> Vc<CompileTimeInfo> {
-        get_client_compile_time_info(self.mode, self.browserslist_query.clone())
+    pub(super) async fn client_compile_time_info(self: Vc<Self>) -> Result<Vc<CompileTimeInfo>> {
+        let this = self.await?;
+
+        Ok(get_client_compile_time_info(
+            this.mode,
+            this.browserslist_query.clone(),
+            self.dist_root_string(),
+            this.next_config,
+            find_app_dir(self.project_path()),
+        ))
     }
 
     #[turbo_tasks::function]
@@ -321,7 +377,11 @@ impl Project {
 
     #[turbo_tasks::function]
     pub(super) fn edge_compile_time_info(self: Vc<Self>) -> Vc<CompileTimeInfo> {
-        get_edge_compile_time_info(self.project_path(), self.server_addr())
+        get_edge_compile_time_info(
+            self.project_path(),
+            self.server_addr(),
+            self.dist_root_string(),
+        )
     }
 
     #[turbo_tasks::function]
@@ -331,7 +391,8 @@ impl Project {
         let this = self.await?;
         Ok(get_client_chunking_context(
             self.project_path(),
-            self.client_root(),
+            self.client_relative_path(),
+            self.next_config().computed_asset_prefix(),
             self.client_compile_time_info().environment(),
             this.mode,
         ))
@@ -342,7 +403,8 @@ impl Project {
         get_server_chunking_context(
             self.project_path(),
             self.node_root(),
-            self.client_root(),
+            self.client_relative_path(),
+            self.next_config().computed_asset_prefix(),
             self.server_compile_time_info().environment(),
         )
     }
@@ -352,7 +414,7 @@ impl Project {
         get_edge_chunking_context(
             self.project_path(),
             self.node_root(),
-            self.client_root(),
+            self.client_relative_path(),
             self.edge_compile_time_info().environment(),
         )
     }
@@ -509,6 +571,21 @@ impl Project {
             }
         }
 
+        let pages_document_endpoint = TraitRef::cell(
+            self.pages_project()
+                .document_endpoint()
+                .into_trait_ref()
+                .await?,
+        );
+        let pages_app_endpoint =
+            TraitRef::cell(self.pages_project().app_endpoint().into_trait_ref().await?);
+        let pages_error_endpoint = TraitRef::cell(
+            self.pages_project()
+                .error_endpoint()
+                .into_trait_ref()
+                .await?,
+        );
+
         let middleware = find_context_file(
             self.project_path(),
             middleware_files(self.next_config().page_extensions()),
@@ -516,7 +593,11 @@ impl Project {
         let middleware = if let FindContextFileResult::Found(fs_path, _) = *middleware.await? {
             let source = Vc::upcast(FileSource::new(fs_path));
             Some(Middleware {
-                endpoint: Vc::upcast(self.middleware_endpoint(source)),
+                endpoint: TraitRef::cell(
+                    Vc::upcast::<Box<dyn Endpoint>>(self.middleware_endpoint(source))
+                        .into_trait_ref()
+                        .await?,
+                ),
             })
         } else {
             None
@@ -525,9 +606,9 @@ impl Project {
         Ok(Entrypoints {
             routes,
             middleware,
-            pages_document_endpoint: self.pages_project().document_endpoint(),
-            pages_app_endpoint: self.pages_project().app_endpoint(),
-            pages_error_endpoint: self.pages_project().error_endpoint(),
+            pages_document_endpoint,
+            pages_app_endpoint,
+            pages_error_endpoint,
         }
         .cell())
     }
@@ -598,6 +679,18 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    async fn hmr_content_and_write(
+        self: Vc<Self>,
+        identifier: String,
+    ) -> Result<Vc<Box<dyn VersionedContent>>> {
+        Ok(self.await?.versioned_content_map.get_and_write(
+            self.client_relative_path().join(identifier),
+            self.client_relative_path(),
+            self.node_root(),
+        ))
+    }
+
+    #[turbo_tasks::function]
     async fn hmr_version(self: Vc<Self>, identifier: String) -> Result<Vc<Box<dyn Version>>> {
         let content = self.hmr_content(identifier);
 
@@ -633,7 +726,7 @@ impl Project {
         from: Vc<VersionState>,
     ) -> Result<Vc<Update>> {
         let from = from.get();
-        Ok(self.hmr_content(identifier).update(from))
+        Ok(self.hmr_content_and_write(identifier).update(from))
     }
 
     /// Gets a list of all HMR identifiers that can be subscribed to. This is
@@ -645,6 +738,55 @@ impl Project {
             .versioned_content_map
             .keys_in_path(self.client_relative_path()))
     }
+
+    /// Completion when server side changes are detected in output assets
+    /// referenced from the roots
+    #[turbo_tasks::function]
+    pub fn server_changed(self: Vc<Self>, roots: Vc<OutputAssets>) -> Vc<Completion> {
+        let path = self.node_root();
+        any_output_changed(roots, path)
+    }
+
+    /// Completion when client side changes are detected in output assets
+    /// referenced from the roots
+    #[turbo_tasks::function]
+    pub fn client_changed(self: Vc<Self>, roots: Vc<OutputAssets>) -> Vc<Completion> {
+        let path = self.client_root();
+        any_output_changed(roots, path)
+    }
+}
+
+#[turbo_tasks::function]
+async fn any_output_changed(
+    roots: Vc<OutputAssets>,
+    path: Vc<FileSystemPath>,
+) -> Result<Vc<Completion>> {
+    let path = &path.await?;
+    let completions = AdjacencyMap::new()
+        .skip_duplicates()
+        .visit(roots.await?.iter().copied(), get_referenced_output_assets)
+        .await
+        .completed()?
+        .into_inner()
+        .into_reverse_topological()
+        .map(|m| async move {
+            let asset_path = m.ident().path().await?;
+            if !asset_path.path.ends_with(".map") && asset_path.is_inside_ref(path) {
+                Ok(Some(content_changed(Vc::upcast(m))))
+            } else {
+                Ok(None)
+            }
+        })
+        .try_flat_join()
+        .await?;
+
+    Ok(Vc::<Completions>::cell(completions).completed())
+}
+
+async fn get_referenced_output_assets(
+    parent: Vc<Box<dyn OutputAsset>>,
+) -> Result<impl Iterator<Item = Vc<Box<dyn OutputAsset>>> + Send> {
+    Ok(parent.references().await?.clone_value().into_iter())
 }
 
 #[turbo_tasks::function]

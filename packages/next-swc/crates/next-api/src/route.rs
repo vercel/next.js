@@ -1,6 +1,8 @@
 use indexmap::IndexMap;
 use turbo_tasks::{Completion, Vc};
 
+use crate::server_paths::ServerPath;
+
 #[turbo_tasks::value(shared)]
 #[derive(Copy, Clone, Debug)]
 pub enum Route {
@@ -34,15 +36,13 @@ pub enum WrittenEndpoint {
     NodeJs {
         /// Relative to the root_path
         server_entry_path: String,
-        /// Relative to the root_path
-        server_paths: Vec<String>,
+        server_paths: Vec<ServerPath>,
     },
     Edge {
         /// Relative to the root_path
         files: Vec<String>,
         global_var_name: String,
-        /// Relative to the root_path
-        server_paths: Vec<String>,
+        server_paths: Vec<ServerPath>,
     },
 }
 

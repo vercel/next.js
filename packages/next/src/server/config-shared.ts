@@ -93,6 +93,13 @@ export type TurboLoaderItem =
       options: Record<string, JSONValue>
     }
 
+export type TurboRule =
+  | TurboLoaderItem[]
+  | {
+      loaders: TurboLoaderItem[]
+      as: string
+    }
+
 export interface ExperimentalTurboOptions {
   /**
    * (`next --turbo` only) A mapping of aliased imports to modules to load in their place.
@@ -110,6 +117,13 @@ export interface ExperimentalTurboOptions {
    * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
    */
   loaders?: Record<string, TurboLoaderItem[]>
+
+  /**
+   * (`next --turbo` only) A list of webpack loaders to apply when running with Turbopack.
+   *
+   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
+   */
+  rules?: Record<string, TurboRule>
 }
 
 export interface WebpackConfigContext {
@@ -151,7 +165,7 @@ export interface ExperimentalConfig {
   deploymentId?: string
   logging?: {
     level?: 'verbose'
-    fullUrl?: false
+    fullUrl?: boolean
   }
   appDocumentPreloading?: boolean
   strictNextHead?: boolean
@@ -174,7 +188,6 @@ export interface ExperimentalConfig {
   swcMinify?: boolean
   cpus?: number
   memoryBasedWorkersCount?: boolean
-  sharedPool?: boolean
   proxyTimeout?: number
   isrFlushToDisk?: boolean
   workerThreads?: boolean
@@ -194,6 +207,11 @@ export interface ExperimentalConfig {
   gzipSize?: boolean
   craCompat?: boolean
   esmExternals?: boolean | 'loose'
+  /**
+   * In-memory cache size in bytes.
+   *
+   * If `isrMemoryCacheSize: 0` disables in-memory caching.
+   */
   isrMemoryCacheSize?: number
   fullySpecified?: boolean
   urlImports?: NonNullable<webpack.Configuration['experiments']>['buildHttp']
@@ -204,10 +222,6 @@ export interface ExperimentalConfig {
   swcTraceProfiling?: boolean
   forceSwcTransforms?: boolean
 
-  /**
-   * This option is removed
-   */
-  swcMinifyDebugOptions?: never
   swcPlugins?: Array<[string, Record<string, unknown>]>
   largePageDataBytes?: number
   /**
@@ -283,9 +297,15 @@ export interface ExperimentalConfig {
   instrumentationHook?: boolean
 
   /**
-   * Enable `react@experimental` channel for the `app` directory.
+   * Enables server actions. Using this feature will enable the `react@experimental` for the `app` directory.
+   * @see https://nextjs.org/docs/app/api-reference/functions/server-actions
    */
   serverActions?: boolean
+
+  /**
+   * Using this feature will enable the `react@experimental` for the `app` directory.
+   */
+  ppr?: boolean
 
   /**
    * Allows adjusting body parser size limit for server actions.
@@ -306,6 +326,10 @@ export interface ExperimentalConfig {
    * @internal Used by the Next.js internals only.
    */
   trustHostHeader?: boolean
+  /**
+   * Enables the bundling of node_modules packages (externals) for pages server-side bundles.
+   */
+  bundlePagesExternals?: boolean
 }
 
 export type ExportPathMap = {
@@ -716,7 +740,6 @@ export const defaultConfig: NextConfig = {
         (os.cpus() || { length: 1 }).length) - 1
     ),
     memoryBasedWorkersCount: false,
-    sharedPool: true,
     isrFlushToDisk: true,
     workerThreads: false,
     proxyTimeout: undefined,
@@ -746,6 +769,7 @@ export const defaultConfig: NextConfig = {
     turbotrace: undefined,
     typedRoutes: false,
     instrumentationHook: false,
+    bundlePagesExternals: false,
   },
 }
 

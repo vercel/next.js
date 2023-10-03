@@ -93,8 +93,7 @@ describe('Basic CSS Modules Ordering', () => {
 
     tests()
   })
-
-  describe('Production Mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await remove(join(appDir, '.next'))
     })
@@ -112,57 +111,61 @@ describe('Basic CSS Modules Ordering', () => {
 })
 
 describe('should handle unresolved files gracefully', () => {
-  const workDir = join(fixturesDir, 'unresolved-css-url')
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    const workDir = join(fixturesDir, 'unresolved-css-url')
 
-  it('should build correctly', async () => {
-    await remove(join(workDir, '.next'))
-    const { code } = await nextBuild(workDir)
-    expect(code).toBe(0)
-  })
+    it('should build correctly', async () => {
+      await remove(join(workDir, '.next'))
+      const { code } = await nextBuild(workDir)
+      expect(code).toBe(0)
+    })
 
-  it('should have correct file references in CSS output', async () => {
-    const cssFiles = await readdir(join(workDir, '.next/static/css'))
+    it('should have correct file references in CSS output', async () => {
+      const cssFiles = await readdir(join(workDir, '.next/static/css'))
 
-    for (const file of cssFiles) {
-      if (file.endsWith('.css.map')) continue
+      for (const file of cssFiles) {
+        if (file.endsWith('.css.map')) continue
 
-      const content = await readFile(
-        join(workDir, '.next/static/css', file),
-        'utf8'
-      )
-      console.log(file, content)
+        const content = await readFile(
+          join(workDir, '.next/static/css', file),
+          'utf8'
+        )
+        console.log(file, content)
 
-      // if it is the combined global CSS file there are double the expected
-      // results
-      const howMany = content.includes('p{') || content.includes('p,') ? 2 : 1
+        // if it is the combined global CSS file there are double the expected
+        // results
+        const howMany = content.includes('p{') || content.includes('p,') ? 2 : 1
 
-      expect(content.match(/\(\/vercel\.svg/g).length).toBe(howMany)
-      // expect(content.match(/\(vercel\.svg/g).length).toBe(howMany)
-      expect(content.match(/\(\/_next\/static\/media/g).length).toBe(1)
-      expect(content.match(/\(https:\/\//g).length).toBe(howMany)
-    }
+        expect(content.match(/\(\/vercel\.svg/g).length).toBe(howMany)
+        // expect(content.match(/\(vercel\.svg/g).length).toBe(howMany)
+        expect(content.match(/\(\/_next\/static\/media/g).length).toBe(1)
+        expect(content.match(/\(https:\/\//g).length).toBe(howMany)
+      }
+    })
   })
 })
 
 describe('Data URLs', () => {
-  const workDir = join(fixturesDir, 'data-url')
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    const workDir = join(fixturesDir, 'data-url')
 
-  it('should compile successfully', async () => {
-    await remove(join(workDir, '.next'))
-    const { code } = await nextBuild(workDir)
-    expect(code).toBe(0)
-  })
+    it('should compile successfully', async () => {
+      await remove(join(workDir, '.next'))
+      const { code } = await nextBuild(workDir)
+      expect(code).toBe(0)
+    })
 
-  it('should have emitted expected files', async () => {
-    const cssFolder = join(workDir, '.next/static/css')
-    const files = await readdir(cssFolder)
-    const cssFiles = files.filter((f) => /\.css$/.test(f))
+    it('should have emitted expected files', async () => {
+      const cssFolder = join(workDir, '.next/static/css')
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
 
-    expect(cssFiles.length).toBe(1)
-    const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-    expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
-      /background:url\("data:[^"]+"\)/
-    )
+      expect(cssFiles.length).toBe(1)
+      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
+        /background:url\("data:[^"]+"\)/
+      )
+    })
   })
 })
 
@@ -250,36 +253,38 @@ describe('Ordering with Global CSS and Modules (dev)', () => {
 })
 
 describe('Ordering with Global CSS and Modules (prod)', () => {
-  const appDir = join(fixturesDir, 'global-and-module-ordering')
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    const appDir = join(fixturesDir, 'global-and-module-ordering')
 
-  let appPort
-  let app
-  let stdout
-  let code
-  beforeAll(async () => {
-    await remove(join(appDir, '.next'))
-    ;({ code, stdout } = await nextBuild(appDir, [], {
-      stdout: true,
-    }))
-    appPort = await findPort()
-    app = await nextStart(appDir, appPort)
-  })
-  afterAll(async () => {
-    await killApp(app)
-  })
+    let appPort
+    let app
+    let stdout
+    let code
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+      ;({ code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      }))
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
 
-  it('should have compiled successfully', () => {
-    expect(code).toBe(0)
-    expect(stdout).toMatch(/Compiled successfully/)
-  })
+    it('should have compiled successfully', () => {
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
 
-  it('should have the correct color (css ordering)', async () => {
-    const browser = await webdriver(appPort, '/')
+    it('should have the correct color (css ordering)', async () => {
+      const browser = await webdriver(appPort, '/')
 
-    const currentColor = await browser.eval(
-      `window.getComputedStyle(document.querySelector('#blueText')).color`
-    )
-    expect(currentColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
+      const currentColor = await browser.eval(
+        `window.getComputedStyle(document.querySelector('#blueText')).color`
+      )
+      expect(currentColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
+    })
   })
 })
 
@@ -436,8 +441,7 @@ describe('CSS Modules Composes Ordering', () => {
 
     tests(true)
   })
-
-  describe('Production Mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await remove(join(appDir, '.next'))
     })
