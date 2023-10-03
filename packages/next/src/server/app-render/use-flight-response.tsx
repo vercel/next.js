@@ -26,6 +26,7 @@ export function useFlightResponse(
   }
   // react-server-dom-webpack/client.edge must not be hoisted for require cache clearing to work correctly
   let createFromReadableStream
+  // @TODO: investigate why the aliasing for turbopack doesn't pick this up, requiring this runtime check
   if (process.env.TURBOPACK) {
     createFromReadableStream =
       // eslint-disable-next-line import/no-extraneous-dependencies
