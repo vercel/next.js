@@ -267,7 +267,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       if (event && event.waitUntil) {
         event.waitUntil(
           Promise.all(
-            [...res?.waitUntil, ...globalThis.__next_private_global_wait_until__]
+            [res?.waitUntil, ...globalThis.__next_private_global_wait_until__]
           )
         )
       }
