@@ -39,10 +39,11 @@ npm install @next/mdx @mdx-js/loader @mdx-js/react @types/mdx
 
 Create a `mdx-components.tsx` file at the root of your application (the parent folder of `app/` or `src/`):
 
+> **Good to know**: `mdx-components.tsx` is required to use MDX with App Router and will not work without it.
+
 ```tsx filename="mdx-components.tsx" switcher
 import type { MDXComponents } from 'mdx/types'
 
-// This file is required to use MDX in `app` directory.
 export function useMDXComponents(components: MDXComponents): MDXComponents {
   return {
     ...components,
@@ -51,7 +52,6 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
 ```
 
 ```js filename="mdx-components.js" switcher
-// This file is required to use MDX in `app` directory.
 export function useMDXComponents(components) {
   return {
     ...components,
@@ -329,56 +329,66 @@ The above generates the following `HTML`:
 
 When you want to style your own elements to give a custom feel to your website or application, you can pass in shortcodes. These are your own custom components that map to `HTML` elements.
 
-To do this you use the `MDXProvider` and pass a components object as a prop. Each object key in the components object maps to a `HTML` element name.
+<AppOnly>
 
-TODO
+To do this, open the `mdx-components.tsx` file at the root of your application and add custom elements:
 
-To enable you need to specify `providerImportSource: "@mdx-js/react"` in `next.config.js`.
+</AppOnly>
 
-```js filename="next.config.js"
-const withMDX = require('@next/mdx')({
-  // ...
-  options: {
-    providerImportSource: '@mdx-js/react',
-  },
-})
-```
+<PagesOnly>
 
-Then setup the provider in your page:
+To do this, create a `mdx-components.tsx` file at the root of your application (the parent folder of `pages/` or `src/`) and add custom elements:
 
-```jsx filename="pages/index.js"
-import { MDXProvider } from '@mdx-js/react'
+</PagesOnly>
+
+```tsx filename="mdx-components.tsx" switcher
+import type { MDXComponents } from 'mdx/types'
 import Image from 'next/image'
-import { Heading, InlineCode, Pre, Table, Text } from 'my-components'
 
-const ResponsiveImage = (props) => (
-  <Image
-    alt={props.alt}
-    sizes="100vw"
-    style={{ width: '100%', height: 'auto' }}
-    {...props}
-  />
-)
+// This file allows you to provide custom React components
+// to be used in MDX files. You can import and use any
+// React component you want, including inline styles,
+// components from other libraries, and more.
 
-const components = {
-  img: ResponsiveImage,
-  h1: Heading.H1,
-  h2: Heading.H2,
-  p: Text,
-  pre: Pre,
-  code: InlineCode,
-}
-
-export default function Post(props) {
-  return (
-    <MDXProvider components={components}>
-      <main {...props} />
-    </MDXProvider>
-  )
+export function useMDXComponents(components: MDXComponents): MDXComponents {
+  return {
+    // Allows customizing built-in components, e.g. to add styling.
+    h1: ({ children }) => <h1 style={{ fontSize: '100px' }}>{children}</h1>,
+    img: (props) => (
+      <Image
+        sizes="100vw"
+        style={{ width: '100%', height: 'auto' }}
+        {...props}
+      />
+    ),
+    ...components,
+  }
 }
 ```
 
-If you use it across the site you may want to add the provider to `_app.js` so all MDX pages pick up the custom element config.
+```js filename="mdx-components.js" switcher
+import Image from 'next/image'
+
+// This file allows you to provide custom React components
+// to be used in MDX files. You can import and use any
+// React component you want, including inline styles,
+// components from other libraries, and more.
+
+export function useMDXComponents(components) {
+  return {
+    // Allows customizing built-in components, e.g. to add styling.
+    h1: ({ children }) => <h1 style={{ fontSize: '100px' }}>{children}</h1>,
+    img: (props) => (
+      <Image
+        sizes="100vw"
+        style={{ width: '100%', height: 'auto' }}
+        {...props}
+      />
+    ),
+    ...components,
+  }
+}
+```
 
 ## Deep Dive: How do you transform markdown into HTML?
 
