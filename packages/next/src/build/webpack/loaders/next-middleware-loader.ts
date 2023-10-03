@@ -67,7 +67,7 @@ export default function middlewareLoader(this: any) {
           throw new Error('The Middleware "pages${page}" must export a \`middleware\` or a \`default\` function');
         }
 
-        export default function (opts) {
+        export default function nHandler(opts) {
           return adapter({
             ...opts,
             page: ${JSON.stringify(page)},

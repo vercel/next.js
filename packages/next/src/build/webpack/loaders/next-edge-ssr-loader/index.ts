@@ -257,7 +257,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
 
     export const ComponentMod = pageMod
 
-    export default async function(opts, event) {
+    export default async function nHandler (opts, event) {
       const res = await adapter({
         ...opts,
         IncrementalCache,
