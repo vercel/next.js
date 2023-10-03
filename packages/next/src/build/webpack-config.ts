@@ -1450,13 +1450,22 @@ export default async function getBaseWebpackConfig(
           // analysis result from the previous loader, and directly returns the
           // code that only exports values that are asked by the user.
           test: /__barrel_optimize__/,
-          use: ({ resourceQuery }: { resourceQuery: string }) => {
+          use: ({
+            resourceQuery,
+            issuerLayer,
+          }: {
+            resourceQuery: string
+            issuerLayer: WebpackLayerName | null
+          }) => {
             const names = (
               resourceQuery.match(/\?names=([^&]+)/)?.[1] || ''
             ).split(',')
             const isFromWildcardExport = /[&?]wildcard/.test(resourceQuery)
 
             return [
+              ...(hasServerComponents && isWebpackServerLayer(issuerLayer)
+                ? [swcLoaderForServerLayer]
+                : []),
               {
                 loader: 'next-barrel-loader',
                 options: {

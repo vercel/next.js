@@ -90,10 +90,13 @@ const NextBarrelLoader = async function (
   this: webpack.LoaderContext<{
     names: string[]
     wildcard: boolean
-  }>
+  }>,
+  src: string
 ) {
   this.async()
   const { names, wildcard } = this.getOptions()
+
+  console.log(src)
 
   const source = await new Promise<string>((resolve, reject) => {
     this.loadModule(

@@ -161,6 +161,7 @@ const EXCLUDED_PATHS =
   /[\\/](cache[\\/][^\\/]+\.zip[\\/]node_modules|__virtual__)[\\/]/g
 
 export function pitch(this: any) {
+  console.log(this.resourcePath)
   const callback = this.async()
   ;(async () => {
     if (
@@ -188,6 +189,7 @@ export default function swcLoader(
   inputSource: string,
   inputSourceMap: any
 ) {
+  console.log(this.resourcePath)
   const loaderSpan = this.currentTraceSpan.traceChild('next-swc-loader')
   const callback = this.async()
   loaderSpan
