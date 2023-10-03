@@ -58,7 +58,7 @@ export default async function loadJsConfig(
   )
 
   let implicitBaseurl
-  let jsConfig
+  let jsConfig: { compilerOptions: Record<string, any> } | undefined
   // jsconfig is a subset of tsconfig
   if (useTypeScript) {
     if (

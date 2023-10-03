@@ -23,7 +23,7 @@ use next_core::{
 };
 use turbo_tasks::Vc;
 use turbopack_binding::{
-    turbo::{tasks::Value, tasks_env::ProcessEnv, tasks_fs::FileSystemPath},
+    turbo::{tasks::Value, tasks_fs::FileSystemPath},
     turbopack::{
         build::BuildChunkingContext,
         core::{
@@ -57,7 +57,6 @@ pub async fn get_page_entries(
     next_router_root: Vc<FileSystemPath>,
     project_root: Vc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,
-    env: Vc<Box<dyn ProcessEnv>>,
     client_compile_time_info: Vc<CompileTimeInfo>,
     server_compile_time_info: Vc<CompileTimeInfo>,
     next_config: Vc<NextConfig>,
@@ -120,7 +119,6 @@ pub async fn get_page_entries(
 
     let client_runtime_entries = get_client_runtime_entries(
         project_root,
-        env,
         client_ty,
         mode,
         next_config,
@@ -150,8 +148,7 @@ pub async fn get_page_entries(
         ssr_resolve_options_context,
     ));
 
-    let ssr_runtime_entries =
-        get_server_runtime_entries(project_root, env, ssr_ty, mode, next_config);
+    let ssr_runtime_entries = get_server_runtime_entries(ssr_ty, mode);
     let ssr_runtime_entries = ssr_runtime_entries.resolve_entries(ssr_module_context);
 
     let entries = get_page_entries_for_root_directory(
