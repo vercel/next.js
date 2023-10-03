@@ -314,7 +314,8 @@
     "webpack": "5.86.0",
     "webpack-sources1": "npm:webpack-sources@1.4.3",
     "webpack-sources3": "npm:webpack-sources@3.2.3",
-    "ws": "8.2.3"
+    "ws": "8.2.3",
+    "zod": "3.22.2"
   },
   "engines": {
     "node": ">=16.14.0"
