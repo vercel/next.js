@@ -1,8 +1,10 @@
 #!/usr/bin/env node
+import type { ExportAppOptions } from '../export/types'
+
 import { resolve, join } from 'path'
 import { existsSync } from 'fs'
 import { cyan } from '../lib/picocolors'
-import exportApp, { ExportError, ExportOptions } from '../export'
+import exportApp, { ExportError } from '../export'
 import * as Log from '../build/output/log'
 import { printAndExit } from '../server/lib/utils'
 import { CliCommand } from '../lib/commands'
@@ -43,7 +45,7 @@ const nextExport: CliCommand = (args) => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  const options: ExportOptions = {
+  const options: ExportAppOptions = {
     silent: args['--silent'] || false,
     threads: args['--threads'],
     outdir: args['--outdir'] ? resolve(args['--outdir']) : join(dir, 'out'),
