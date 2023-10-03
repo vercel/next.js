@@ -28,7 +28,6 @@ import {
   TraceEntryPointsPlugin,
 } from '../webpack/plugins/next-trace-entrypoints-plugin'
 import { UnwrapPromise } from '../../lib/coalesced-function'
-import * as pagesPluginModule from '../webpack/plugins/pages-manifest-plugin'
 
 import origDebug from 'next/dist/compiled/debug'
 
@@ -62,7 +61,6 @@ export async function webpackBuildImpl(
   duration: number
   pluginState: any
   buildTraceContext?: BuildTraceContext
-  serializedPagesManifestEntries?: (typeof NextBuildContext)['serializedPagesManifestEntries']
 }> {
   let result: CompilerResult | null = {
     warnings: [],
@@ -327,12 +325,6 @@ export async function webpackBuildImpl(
       duration: webpackBuildEnd[0],
       buildTraceContext: traceEntryPointsPlugin?.buildTraceContext,
       pluginState: getPluginState(),
-      serializedPagesManifestEntries: {
-        edgeServerPages: pagesPluginModule.edgeServerPages,
-        edgeServerAppPaths: pagesPluginModule.edgeServerAppPaths,
-        nodeServerPages: pagesPluginModule.nodeServerPages,
-        nodeServerAppPaths: pagesPluginModule.nodeServerAppPaths,
-      },
     }
   }
 }
@@ -347,16 +339,6 @@ export async function workerMain(workerData: {
 
   // Resume plugin state
   resumePluginState(NextBuildContext.pluginState)
-
-  // restore module scope maps for flight plugins
-  const { serializedPagesManifestEntries } = NextBuildContext
-
-  for (const key of Object.keys(serializedPagesManifestEntries || {})) {
-    Object.assign(
-      (pagesPluginModule as any)[key],
-      (serializedPagesManifestEntries as any)?.[key]
-    )
-  }
 
   /// load the config because it's not serializable
   NextBuildContext.config = await loadConfig(
@@ -373,17 +355,12 @@ export async function workerMain(workerData: {
       result.buildTraceContext!.entriesTrace!.depModArray = depModArray
     }
     if (entryNameMap) {
-      const entryEntries = Array.from(entryNameMap?.entries() ?? [])
-      // @ts-expect-error
-      result.buildTraceContext.entriesTrace.entryNameMap = entryEntries
+      const entryEntries = entryNameMap
+      result.buildTraceContext!.entriesTrace!.entryNameMap = entryEntries
     }
   }
   if (chunksTrace?.entryNameFilesMap) {
-    const entryNameFilesMap = Array.from(
-      chunksTrace.entryNameFilesMap.entries() ?? []
-    )
-
-    // @ts-expect-error
+    const entryNameFilesMap = chunksTrace.entryNameFilesMap
     result.buildTraceContext!.chunksTrace!.entryNameFilesMap = entryNameFilesMap
   }
   return result

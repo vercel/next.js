@@ -69,7 +69,7 @@ export class Worker {
         }[]) {
           worker._child?.on('exit', (code, signal) => {
             // log unexpected exit if .end() wasn't called
-            if ((code || signal) && this._worker) {
+            if ((code || (signal && signal !== 'SIGINT')) && this._worker) {
               console.error(
                 `Static worker unexpectedly exited with code: ${code} and signal: ${signal}`
               )
