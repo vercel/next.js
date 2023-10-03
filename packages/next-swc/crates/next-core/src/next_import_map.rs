@@ -134,7 +134,7 @@ pub async fn get_next_client_import_map(
                 "react-server-dom-webpack/",
                 request_to_import_mapping(
                     app_dir,
-                    &format!("next/dist/compiled/react-server-dom-webpack{react_flavor}/*"),
+                    &format!("next/dist/compiled/react-server-dom-turbopack{react_flavor}/*"),
                 ),
             );
             import_map.insert_exact_alias(
