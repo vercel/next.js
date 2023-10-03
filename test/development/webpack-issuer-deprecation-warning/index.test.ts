@@ -2,28 +2,32 @@ import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { renderViaHTTP } from 'next-test-utils'
 
-describe('webpack-issuer-deprecation-warning', () => {
-  let next: NextInstance
+// Skip on Turbopack because it's not supported
+;(process.env.TURBOPACK ? describe.skip : describe)(
+  'webpack-issuer-deprecation-warning',
+  () => {
+    let next: NextInstance
 
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        'pages/index.js': `
+    beforeAll(async () => {
+      next = await createNext({
+        files: {
+          'pages/index.js': `
           export default function Page() { 
             return <p>hello world
           } 
         `,
-      },
-      dependencies: {},
+        },
+        dependencies: {},
+      })
     })
-  })
-  afterAll(() => next.destroy())
+    afterAll(() => next.destroy())
 
-  it('should not appear deprecation warning about webpack module issuer', async () => {
-    const html = await renderViaHTTP(next.url, '/')
-    expect(html).toContain('Syntax Error')
-    expect(next.cliOutput).not.toContain(
-      '[DEP_WEBPACK_MODULE_ISSUER] DeprecationWarning: Module.issuer: Use new ModuleGraph API'
-    )
-  })
-})
+    it('should not appear deprecation warning about webpack module issuer', async () => {
+      const html = await renderViaHTTP(next.url, '/')
+      expect(html).toContain('Syntax Error')
+      expect(next.cliOutput).not.toContain(
+        '[DEP_WEBPACK_MODULE_ISSUER] DeprecationWarning: Module.issuer: Use new ModuleGraph API'
+      )
+    })
+  }
+)

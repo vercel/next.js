@@ -12,10 +12,12 @@ export type StaticGenerationContext = {
     isRevalidate?: boolean
     isOnDemandRevalidate?: boolean
     isBot?: boolean
+    isPrefetch?: boolean
     nextExport?: boolean
     fetchCache?: StaticGenerationStore['fetchCache']
     isDraftMode?: boolean
     isServerAction?: boolean
+    waitUntil?: Promise<any>
 
     /**
      * A hack around accessing the store value outside the context of the

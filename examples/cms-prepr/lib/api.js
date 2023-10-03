@@ -2,6 +2,7 @@ async function fetchAPI(query, { variables, preview } = {}) {
   const response = await fetch(process.env.PREPRIO_API, {
     method: 'POST',
     headers: {
+      'Content-Type': 'application/json',
       Authorization:
         'Bearer ' +
         (preview

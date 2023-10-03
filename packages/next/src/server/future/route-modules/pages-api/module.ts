@@ -8,7 +8,7 @@ import {
   RouteModuleOptions,
   type RouteModuleHandleContext,
 } from '../route-module'
-import { apiResolver } from '../../../api-utils/node'
+import { apiResolver } from '../../../api-utils/node/api-resolver'
 import { __ApiPreviewProps } from '../../../api-utils'
 
 type PagesAPIHandleFn = (

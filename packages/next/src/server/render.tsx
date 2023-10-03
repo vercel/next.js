@@ -47,6 +47,7 @@ import {
   SERVER_PROPS_SSG_CONFLICT,
   SSG_GET_INITIAL_PROPS_CONFLICT,
   UNSTABLE_REVALIDATE_RENAME_ERROR,
+  CACHE_ONE_YEAR,
 } from '../lib/constants'
 import {
   COMPILER_NAMES,
@@ -81,24 +82,29 @@ import {
   streamFromString,
   streamToString,
   chainStreams,
-  renderToInitialStream,
-  continueFromInitialStream,
+  renderToInitialFizzStream,
+  continueFizzStream,
 } from './stream-utils/node-web-streams-helper'
 import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { stripInternalQueries } from './internal-utils'
 import {
   adaptForAppRouterInstance,
+  adaptForPathParams,
   adaptForSearchParams,
   PathnameContextProviderAdapter,
-} from '../shared/lib/router/adapters.shared-runtime'
+} from '../shared/lib/router/adapters'
 import { AppRouterContext } from '../shared/lib/app-router-context.shared-runtime'
-import { SearchParamsContext } from '../shared/lib/hooks-client-context.shared-runtime'
+import {
+  SearchParamsContext,
+  PathParamsContext,
+} from '../shared/lib/hooks-client-context.shared-runtime'
 import { getTracer } from './lib/trace/tracer'
 import { RenderSpan } from './lib/trace/constants'
 import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
+import { setRevalidateHeaders } from './send-payload'
 
-let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
+let tryGetPreviewData: typeof import('./api-utils/node/try-get-preview-data').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
 let postProcessHTML: typeof import('./post-process').postProcessHTML
 
@@ -106,7 +112,8 @@ const DOCTYPE = '<!DOCTYPE html>'
 
 if (process.env.NEXT_RUNTIME !== 'edge') {
   require('./node-polyfill-web-streams')
-  tryGetPreviewData = require('./api-utils/node').tryGetPreviewData
+  tryGetPreviewData =
+    require('./api-utils/node/try-get-preview-data').tryGetPreviewData
   warn = require('../build/output/log').warn
   postProcessHTML = require('./post-process').postProcessHTML
 } else {
@@ -241,7 +248,7 @@ export type RenderOptsPartial = {
   ampOptimizerConfig?: { [key: string]: any }
   isDataReq?: boolean
   params?: ParsedUrlQuery
-  previewProps: __ApiPreviewProps
+  previewProps: __ApiPreviewProps | undefined
   basePath: string
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
@@ -275,10 +282,17 @@ export type RenderOptsPartial = {
   isDraftMode?: boolean
   deploymentId?: string
   isServerAction?: boolean
+  isExperimentalCompile?: boolean
+  isPrefetch?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
 
+/**
+ * RenderOptsExtra is being used to split away functionality that's within the
+ * renderOpts. Eventually we can have more explicit render options for each
+ * route kind.
+ */
 export type RenderOptsExtra = {
   App: AppType
   Document: DocumentType
@@ -431,6 +445,7 @@ export async function renderToHTMLImpl(
     basePath,
     images,
     runtime: globalRuntime,
+    isExperimentalCompile,
   } = renderOpts
   const { App } = extra
 
@@ -481,11 +496,24 @@ export async function renderToHTMLImpl(
     )
   }
 
-  const isAutoExport =
+  let isAutoExport =
     !hasPageGetInitialProps &&
     defaultAppGetInitialProps &&
     !isSSG &&
     !getServerSideProps
+
+  // if we are running from experimental compile and the page
+  // would normally be automatically statically optimized
+  // ensure we set cache header so it's not rendered on-demand
+  // every request
+  if (isAutoExport && !dev && isExperimentalCompile) {
+    setRevalidateHeaders(res, {
+      revalidate: CACHE_ONE_YEAR,
+      private: false,
+      stateful: false,
+    })
+    isAutoExport = false
+  }
 
   if (hasPageGetInitialProps && isSSG) {
     throw new Error(SSG_GET_INITIAL_PROPS_CONFLICT + ` ${pathname}`)
@@ -598,7 +626,8 @@ export async function renderToHTMLImpl(
   if (
     (isSSG || getServerSideProps) &&
     !isFallback &&
-    process.env.NEXT_RUNTIME !== 'edge'
+    process.env.NEXT_RUNTIME !== 'edge' &&
+    previewProps
   ) {
     // Reads of this are cached on the `req` object, so this should resolve
     // instantly. There's no need to pass this data down from a previous
@@ -611,7 +640,8 @@ export async function renderToHTMLImpl(
   const routerIsReady = !!(
     getServerSideProps ||
     hasPageGetInitialProps ||
-    (!defaultAppGetInitialProps && !isSSG)
+    (!defaultAppGetInitialProps && !isSSG) ||
+    isExperimentalCompile
   )
   const router = new ServerRouter(
     pathname,
@@ -660,32 +690,36 @@ export async function renderToHTMLImpl(
           router={router}
           isAutoExport={isAutoExport}
         >
-          <RouterContext.Provider value={router}>
-            <AmpStateContext.Provider value={ampState}>
-              <HeadManagerContext.Provider
-                value={{
-                  updateHead: (state) => {
-                    head = state
-                  },
-                  updateScripts: (scripts) => {
-                    scriptLoader = scripts
-                  },
-                  scripts: initialScripts,
-                  mountedInstances: new Set(),
-                }}
-              >
-                <LoadableContext.Provider
-                  value={(moduleName) => reactLoadableModules.push(moduleName)}
+          <PathParamsContext.Provider value={adaptForPathParams(router)}>
+            <RouterContext.Provider value={router}>
+              <AmpStateContext.Provider value={ampState}>
+                <HeadManagerContext.Provider
+                  value={{
+                    updateHead: (state) => {
+                      head = state
+                    },
+                    updateScripts: (scripts) => {
+                      scriptLoader = scripts
+                    },
+                    scripts: initialScripts,
+                    mountedInstances: new Set(),
+                  }}
                 >
-                  <StyleRegistry registry={jsxStyleRegistry}>
-                    <ImageConfigContext.Provider value={images}>
-                      {children}
-                    </ImageConfigContext.Provider>
-                  </StyleRegistry>
-                </LoadableContext.Provider>
-              </HeadManagerContext.Provider>
-            </AmpStateContext.Provider>
-          </RouterContext.Provider>
+                  <LoadableContext.Provider
+                    value={(moduleName) =>
+                      reactLoadableModules.push(moduleName)
+                    }
+                  >
+                    <StyleRegistry registry={jsxStyleRegistry}>
+                      <ImageConfigContext.Provider value={images}>
+                        {children}
+                      </ImageConfigContext.Provider>
+                    </StyleRegistry>
+                  </LoadableContext.Provider>
+                </HeadManagerContext.Provider>
+              </AmpStateContext.Provider>
+            </RouterContext.Provider>
+          </PathParamsContext.Provider>
         </PathnameContextProviderAdapter>
       </SearchParamsContext.Provider>
     </AppRouterContext.Provider>
@@ -1282,7 +1316,7 @@ export async function renderToHTMLImpl(
       EnhancedComponent: NextComponentType
     ) => {
       const content = renderContent(EnhancedApp, EnhancedComponent)
-      return await renderToInitialStream({
+      return await renderToInitialFizzStream({
         ReactDOMServer,
         element: content,
       })
@@ -1297,9 +1331,9 @@ export async function renderToHTMLImpl(
           return renderToString(styledJsxInsertedHTML())
         }
 
-        return continueFromInitialStream(initialStream, {
+        return continueFizzStream(initialStream, {
           suffix,
-          dataStream: serverComponentsInlinedTransformStream?.readable,
+          inlinedDataStream: serverComponentsInlinedTransformStream?.readable,
           generateStaticHTML: true,
           getServerInsertedHTML,
           serverInsertedHTMLToHead: false,
@@ -1412,6 +1446,7 @@ export async function renderToHTMLImpl(
       nextExport: nextExport === true ? true : undefined, // If this is a page exported by `next export`
       autoExport: isAutoExport === true ? true : undefined, // If this is an auto exported page
       isFallback,
+      isExperimentalCompile,
       dynamicIds:
         dynamicImportsIds.size === 0
           ? undefined
@@ -1528,12 +1563,20 @@ export async function renderToHTMLImpl(
   return new RenderResult(optimizedHtml, renderResultMeta)
 }
 
-export async function renderToHTML(
+export type PagesRender = (
   req: IncomingMessage,
   res: ServerResponse,
   pathname: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts
-): Promise<RenderResult> {
+) => Promise<RenderResult>
+
+export const renderToHTML: PagesRender = (
+  req,
+  res,
+  pathname,
+  query,
+  renderOpts
+) => {
   return renderToHTMLImpl(req, res, pathname, query, renderOpts, renderOpts)
 }

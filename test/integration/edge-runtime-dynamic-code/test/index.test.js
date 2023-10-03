@@ -158,23 +158,29 @@ describe.each([
         expect(output).not.toContain('DynamicWasmCodeGenerationWarning')
       })
     })
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'production mode',
+      () => {
+        let buildResult
 
-    describe('production mode', () => {
-      let buildResult
-
-      beforeAll(async () => {
-        buildResult = await nextBuild(context.appDir, undefined, {
-          stderr: true,
-          stdout: true,
+        beforeAll(async () => {
+          buildResult = await nextBuild(context.appDir, undefined, {
+            stderr: true,
+            stdout: true,
+          })
         })
-      })
 
-      it('should have middleware warning during build', () => {
-        expect(buildResult.stderr).toContain(`Failed to compile`)
-        expect(buildResult.stderr).toContain(`Used by usingEval, usingEvalSync`)
-        expect(buildResult.stderr).toContain(`Used by usingWebAssemblyCompile`)
-        expect(buildResult.stderr).toContain(DYNAMIC_CODE_ERROR)
-      })
-    })
+        it('should have middleware warning during build', () => {
+          expect(buildResult.stderr).toContain(`Failed to compile`)
+          expect(buildResult.stderr).toContain(
+            `Used by usingEval, usingEvalSync`
+          )
+          expect(buildResult.stderr).toContain(
+            `Used by usingWebAssemblyCompile`
+          )
+          expect(buildResult.stderr).toContain(DYNAMIC_CODE_ERROR)
+        })
+      }
+    )
   }
 )

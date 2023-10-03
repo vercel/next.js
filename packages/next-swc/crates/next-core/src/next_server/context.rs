@@ -48,7 +48,7 @@ use crate::{
     next_shared::{
         resolve::{
             ModuleFeatureReportResolvePlugin, NextExternalResolvePlugin,
-            UnsupportedModulesResolvePlugin,
+            NextNodeSharedRuntimeResolvePlugin, UnsupportedModulesResolvePlugin,
         },
         transforms::{
             emotion::get_emotion_transform_plugin, get_relay_transform_plugin,
@@ -125,6 +125,8 @@ pub async fn get_server_resolve_options_context(
     );
 
     let next_external_plugin = NextExternalResolvePlugin::new(project_path);
+    let next_node_shared_runtime_plugin =
+        NextNodeSharedRuntimeResolvePlugin::new(project_path, Value::new(ty));
 
     let plugins = match ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
@@ -133,6 +135,7 @@ pub async fn get_server_resolve_options_context(
                 Vc::upcast(external_cjs_modules_plugin),
                 Vc::upcast(unsupported_modules_resolve_plugin),
                 Vc::upcast(next_external_plugin),
+                Vc::upcast(next_node_shared_runtime_plugin),
             ]
         }
         ServerContextType::AppSSR { .. }
@@ -144,6 +147,7 @@ pub async fn get_server_resolve_options_context(
                 Vc::upcast(server_component_externals_plugin),
                 Vc::upcast(unsupported_modules_resolve_plugin),
                 Vc::upcast(next_external_plugin),
+                Vc::upcast(next_node_shared_runtime_plugin),
             ]
         }
     };
@@ -175,7 +179,8 @@ fn defines(mode: NextMode) -> CompileTimeDefines {
         process.turbopack = true,
         process.env.NODE_ENV = mode.node_env(),
         process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false,
-        process.env.NEXT_RUNTIME = "nodejs"
+        process.env.NEXT_RUNTIME = "nodejs",
+        process.env.__NEXT_EXPERIMENTAL_REACT = false,
     )
     // TODO(WEB-937) there are more defines needed, see
     // packages/next/src/build/webpack-config.ts
@@ -260,7 +265,8 @@ pub async fn get_server_module_options_context(
     } else {
         None
     };
-    let jsx_runtime_options = get_jsx_transform_options(project_path, mode, None);
+    let jsx_runtime_options =
+        get_jsx_transform_options(project_path, mode, None, true, next_config);
 
     let source_transforms: Vec<Vc<TransformPlugin>> = vec![
         *get_swc_ecma_transform_plugin(project_path, next_config).await?,
@@ -569,21 +575,17 @@ pub fn get_server_runtime_entries(
     )))
     .cell()];
 
-    match mode {
-        NextMode::Development => {}
-        NextMode::DevServer => {}
-        NextMode::Build => {
-            if let ServerContextType::AppRSC { .. } = ty.into_value() {
-                runtime_entries.push(
-                    RuntimeEntry::Request(
-                        Request::parse(Value::new(Pattern::Constant(
-                            "./build/server/app-bootstrap.ts".to_string(),
-                        ))),
-                        next_js_fs().root().join("_".to_string()),
-                    )
-                    .cell(),
-                );
-            }
+    if matches!(mode, NextMode::Build) {
+        if let ServerContextType::AppRSC { .. } = ty.into_value() {
+            runtime_entries.push(
+                RuntimeEntry::Request(
+                    Request::parse(Value::new(Pattern::Constant(
+                        "./build/server/app-bootstrap.ts".to_string(),
+                    ))),
+                    next_js_fs().root().join("_".to_string()),
+                )
+                .cell(),
+            );
         }
     }
 
@@ -597,6 +599,7 @@ pub fn get_server_chunking_context(
     // TODO(alexkirsz) Is this even necessary? Are assets not always on the client chunking context
     // anyway?
     client_root: Vc<FileSystemPath>,
+    asset_prefix: Vc<Option<String>>,
     environment: Vc<Environment>,
 ) -> Vc<BuildChunkingContext> {
     // TODO(alexkirsz) This should return a trait that can be implemented by the
@@ -605,10 +608,12 @@ pub fn get_server_chunking_context(
     BuildChunkingContext::builder(
         project_path,
         node_root,
+        client_root,
         node_root.join("server/chunks".to_string()),
-        client_root.join("_next/static/media".to_string()),
+        client_root.join("static/media".to_string()),
         environment,
     )
+    .asset_prefix(asset_prefix)
     .minify_type(MinifyType::NoMinify)
     .build()
 }

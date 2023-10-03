@@ -502,6 +502,13 @@ createNextDescribe(
             'force-cache.html',
             'ssg-draft-mode.rsc',
             'ssr-forced/page.js',
+            'stale-cache-serving-edge/app-page/page.js',
+            'stale-cache-serving-edge/app-page/page_client-reference-manifest.js',
+            'stale-cache-serving-edge/route-handler/route.js',
+            'stale-cache-serving/app-page.prefetch.rsc',
+            'stale-cache-serving/app-page/page.js',
+            'stale-cache-serving/app-page/page_client-reference-manifest.js',
+            'stale-cache-serving/route-handler/route.js',
             'custom.prefetch.rsc',
             'force-cache/page.js',
             'ssg-draft-mode.html',
@@ -524,7 +531,6 @@ createNextDescribe(
             'force-static/second.html',
             'ssg-draft-mode/test.html',
             'blog/seb/second-post.html',
-            'force-static.prefetch.rsc',
             'ssg-draft-mode/test-2.rsc',
             'blog/styfle/first-post.rsc',
             'default-cache.prefetch.rsc',
@@ -700,6 +706,10 @@ createNextDescribe(
             'variable-revalidate-edge/post-method-request/page_client-reference-manifest.js',
             'partial-gen-params-no-additional-lang/[lang]/[slug]/page_client-reference-manifest.js',
             'partial-gen-params-no-additional-slug/[lang]/[slug]/page_client-reference-manifest.js',
+            'articles/[slug]/page.js',
+            'articles/[slug]/page_client-reference-manifest.js',
+            'articles/works.html',
+            'articles/works.rsc',
           ].sort()
         )
       })
@@ -751,6 +761,22 @@ createNextDescribe(
               ],
               "initialRevalidateSeconds": false,
               "srcRoute": "/",
+            },
+            "/articles/works": Object {
+              "dataRoute": "/articles/works.rsc",
+              "experimentalBypassFor": Array [
+                Object {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                Object {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": 1,
+              "srcRoute": "/articles/[slug]",
             },
             "/blog/seb": Object {
               "dataRoute": "/blog/seb.rsc",
@@ -1404,6 +1430,23 @@ createNextDescribe(
         `)
         expect(curManifest.dynamicRoutes).toMatchInlineSnapshot(`
           Object {
+            "/articles/[slug]": Object {
+              "dataRoute": "/articles/[slug].rsc",
+              "dataRouteRegex": "^\\\\/articles\\\\/([^\\\\/]+?)\\\\.rsc$",
+              "experimentalBypassFor": Array [
+                Object {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                Object {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "fallback": null,
+              "routeRegex": "^\\\\/articles\\\\/([^\\\\/]+?)(?:\\\\/)?$",
+            },
             "/blog/[author]": Object {
               "dataRoute": "/blog/[author].rsc",
               "dataRouteRegex": "^\\\\/blog\\\\/([^\\\\/]+?)\\\\.rsc$",
@@ -1589,6 +1632,53 @@ createNextDescribe(
         )
       })
     }
+
+    it.each([
+      { path: '/stale-cache-serving/app-page' },
+      { path: '/stale-cache-serving/route-handler' },
+      { path: '/stale-cache-serving-edge/app-page' },
+      { path: '/stale-cache-serving-edge/route-handler' },
+    ])('should stream properly for $path', async ({ path }) => {
+      // prime cache initially
+      await next.fetch(path)
+
+      for (let i = 0; i < 6; i++) {
+        await waitFor(1000)
+        const start = Date.now()
+        let streamStart = 0
+        const res = await next.fetch(path)
+        const chunks: any[] = []
+
+        await new Promise<void>((bodyResolve) => {
+          res.body.on('data', (chunk) => {
+            if (!streamStart) {
+              streamStart = Date.now()
+            }
+            chunks.push(chunk)
+          })
+
+          res.body.on('end', () => {
+            bodyResolve()
+          })
+        })
+        require('console').log({
+          start,
+          duration: Date.now() - start,
+          streamStart,
+          startDuration: streamStart - start,
+        })
+        expect(streamStart - start).toBeLessThan(3000)
+      }
+    })
+
+    it('should correctly handle statusCode with notFound + ISR', async () => {
+      for (let i = 0; i < 5; i++) {
+        const res = await next.fetch('/articles/non-existent')
+        expect(res.status).toBe(404)
+        expect(await res.text()).toContain('This page could not be found')
+        await waitFor(500)
+      }
+    })
 
     it('should cache correctly for fetchCache = default-cache', async () => {
       const res = await next.fetch('/default-cache')

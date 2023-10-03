@@ -69,7 +69,7 @@ store.subscribe((state) => {
         if (!loadingLogTimer) {
           // Only log compiling if compiled is not finished in 3 seconds
           loadingLogTimer = setTimeout(() => {
-            Log.wait(`compiling ${trigger} ...`)
+            Log.wait(`Compiling ${trigger} ...`)
           }, MAX_DURATION)
         }
       }

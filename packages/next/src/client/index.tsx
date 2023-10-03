@@ -19,7 +19,7 @@ import {
   urlQueryToSearchParams,
   assign,
 } from '../shared/lib/router/utils/querystring'
-import { setConfig } from '../shared/lib/runtime-config.shared-runtime'
+import { setConfig } from '../shared/lib/runtime-config.external'
 import {
   getURL,
   loadGetInitialProps,
@@ -41,10 +41,14 @@ import { hasBasePath } from './has-base-path'
 import { AppRouterContext } from '../shared/lib/app-router-context.shared-runtime'
 import {
   adaptForAppRouterInstance,
+  adaptForPathParams,
   adaptForSearchParams,
   PathnameContextProviderAdapter,
-} from '../shared/lib/router/adapters.shared-runtime'
-import { SearchParamsContext } from '../shared/lib/hooks-client-context.shared-runtime'
+} from '../shared/lib/router/adapters'
+import {
+  SearchParamsContext,
+  PathParamsContext,
+} from '../shared/lib/hooks-client-context.shared-runtime'
 import onRecoverableError from './on-recoverable-error'
 import tracer from './tracing/tracer'
 import reportToSocket from './tracing/report-to-socket'
@@ -316,17 +320,20 @@ function AppContainer({
             router={router}
             isAutoExport={self.__NEXT_DATA__.autoExport ?? false}
           >
-            <RouterContext.Provider value={makePublicRouterInstance(router)}>
-              <HeadManagerContext.Provider value={headManager}>
-                <ImageConfigContext.Provider
-                  value={
-                    process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
-                  }
-                >
-                  {children}
-                </ImageConfigContext.Provider>
-              </HeadManagerContext.Provider>
-            </RouterContext.Provider>
+            <PathParamsContext.Provider value={adaptForPathParams(router)}>
+              <RouterContext.Provider value={makePublicRouterInstance(router)}>
+                <HeadManagerContext.Provider value={headManager}>
+                  <ImageConfigContext.Provider
+                    value={
+                      process.env
+                        .__NEXT_IMAGE_OPTS as any as ImageConfigComplete
+                    }
+                  >
+                    {children}
+                  </ImageConfigContext.Provider>
+                </HeadManagerContext.Provider>
+              </RouterContext.Provider>
+            </PathParamsContext.Provider>
           </PathnameContextProviderAdapter>
         </SearchParamsContext.Provider>
       </AppRouterContext.Provider>

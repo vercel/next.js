@@ -36,13 +36,11 @@ createNextDescribe(
         await check(async () => {
           // Check that the client-side manifest is correct before any requests
           const clientReferenceManifest = JSON.parse(
-            JSON.parse(
-              (
-                await next.readFile(
-                  '.next/server/app/page_client-reference-manifest.js'
-                )
-              ).match(/]=(.+)$/)[1]
-            )
+            (
+              await next.readFile(
+                '.next/server/app/page_client-reference-manifest.js'
+              )
+            ).match(/]=(.+)$/)[1]
           )
           const clientModulesNames = Object.keys(
             clientReferenceManifest.clientModules
@@ -456,7 +454,7 @@ createNextDescribe(
       expect(await res.text()).toBe('Hello from import-test.js')
     })
 
-    it('should use bundled react for pages with app', async () => {
+    it('should not use bundled react for pages with app', async () => {
       const ssrPaths = ['/pages-react', '/edge-pages-react']
       const promises = ssrPaths.map(async (pathname) => {
         const resPages$ = await next.render$(pathname)
@@ -467,7 +465,7 @@ createNextDescribe(
         ]
 
         ssrPagesReactVersions.forEach((version) => {
-          expect(version).toMatch('-canary-')
+          expect(version).not.toMatch('-canary-')
         })
       })
       await Promise.all(promises)
@@ -502,10 +500,10 @@ createNextDescribe(
       `)
 
       browserPagesReactVersions.forEach((version) =>
-        expect(version).toMatch('-canary-')
+        expect(version).not.toMatch('-canary-')
       )
       browserEdgePagesReactVersions.forEach((version) =>
-        expect(version).toMatch('-canary-')
+        expect(version).not.toMatch('-canary-')
       )
     })
 
@@ -591,5 +589,54 @@ createNextDescribe(
         await Promise.all(promises)
       })
     }
+
+    describe('react@experimental', () => {
+      it.each([{ flag: 'ppr' }, { flag: 'serverActions' }])(
+        'should opt into the react@experimental when enabling $flag',
+        async ({ flag }) => {
+          await next.stop()
+          await next.patchFile(
+            'next.config.js',
+            `
+            module.exports = {
+              experimental: {
+                ${flag}: true
+              }
+            }
+            `
+          )
+
+          await next.start()
+          const resPages$ = await next.render$('/app-react')
+          const ssrPagesReactVersions = [
+            await resPages$('#react').text(),
+            await resPages$('#react-dom').text(),
+            await resPages$('#react-dom-server').text(),
+            await resPages$('#client-react').text(),
+            await resPages$('#client-react-dom').text(),
+            await resPages$('#client-react-dom-server').text(),
+          ]
+
+          ssrPagesReactVersions.forEach((version) => {
+            expect(version).toMatch('-experimental-')
+          })
+
+          const browser = await next.browser('/app-react')
+          const browserAppReactVersions = await browser.eval(`
+            [
+              document.querySelector('#react').innerText,
+              document.querySelector('#react-dom').innerText,
+              document.querySelector('#react-dom-server').innerText,
+              document.querySelector('#client-react').innerText,
+              document.querySelector('#client-react-dom').innerText,
+              document.querySelector('#client-react-dom-server').innerText,
+            ]
+          `)
+          browserAppReactVersions.forEach((version) =>
+            expect(version).toMatch('-experimental-')
+          )
+        }
+      )
+    })
   }
 )

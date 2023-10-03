@@ -1,6 +1,5 @@
 use anyhow::{bail, Context, Result};
 use next_core::{
-    all_server_paths,
     middleware::get_middleware_module,
     mode::NextMode,
     next_edge::entry::wrap_edge_entry,
@@ -14,7 +13,6 @@ use turbopack_binding::{
     turbopack::{
         core::{
             asset::AssetContent,
-            changed::any_content_changed_of_output_assets,
             chunk::{ChunkableModule, ChunkingContext},
             context::AssetContext,
             module::Module,
@@ -28,6 +26,7 @@ use turbopack_binding::{
 use crate::{
     project::Project,
     route::{Endpoint, WrittenEndpoint},
+    server_paths::all_server_paths,
 };
 
 #[turbo_tasks::value]
@@ -209,8 +208,8 @@ impl Endpoint for MiddlewareEndpoint {
     }
 
     #[turbo_tasks::function]
-    fn server_changed(self: Vc<Self>) -> Vc<Completion> {
-        any_content_changed_of_output_assets(self.output_assets())
+    async fn server_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
+        Ok(self.await?.project.server_changed(self.output_assets()))
     }
 
     #[turbo_tasks::function]

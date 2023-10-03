@@ -165,7 +165,7 @@ export interface ExperimentalConfig {
   deploymentId?: string
   logging?: {
     level?: 'verbose'
-    fullUrl?: false
+    fullUrl?: boolean
   }
   appDocumentPreloading?: boolean
   strictNextHead?: boolean
@@ -188,7 +188,6 @@ export interface ExperimentalConfig {
   swcMinify?: boolean
   cpus?: number
   memoryBasedWorkersCount?: boolean
-  sharedPool?: boolean
   proxyTimeout?: number
   isrFlushToDisk?: boolean
   workerThreads?: boolean
@@ -223,10 +222,6 @@ export interface ExperimentalConfig {
   swcTraceProfiling?: boolean
   forceSwcTransforms?: boolean
 
-  /**
-   * This option is removed
-   */
-  swcMinifyDebugOptions?: never
   swcPlugins?: Array<[string, Record<string, unknown>]>
   largePageDataBytes?: number
   /**
@@ -302,9 +297,15 @@ export interface ExperimentalConfig {
   instrumentationHook?: boolean
 
   /**
-   * Enable `react@experimental` channel for the `app` directory.
+   * Enables server actions. Using this feature will enable the `react@experimental` for the `app` directory.
+   * @see https://nextjs.org/docs/app/api-reference/functions/server-actions
    */
   serverActions?: boolean
+
+  /**
+   * Using this feature will enable the `react@experimental` for the `app` directory.
+   */
+  ppr?: boolean
 
   /**
    * Allows adjusting body parser size limit for server actions.
@@ -325,6 +326,10 @@ export interface ExperimentalConfig {
    * @internal Used by the Next.js internals only.
    */
   trustHostHeader?: boolean
+  /**
+   * Enables the bundling of node_modules packages (externals) for pages server-side bundles.
+   */
+  bundlePagesExternals?: boolean
 }
 
 export type ExportPathMap = {
@@ -735,7 +740,6 @@ export const defaultConfig: NextConfig = {
         (os.cpus() || { length: 1 }).length) - 1
     ),
     memoryBasedWorkersCount: false,
-    sharedPool: true,
     isrFlushToDisk: true,
     workerThreads: false,
     proxyTimeout: undefined,
@@ -765,6 +769,7 @@ export const defaultConfig: NextConfig = {
     turbotrace: undefined,
     typedRoutes: false,
     instrumentationHook: false,
+    bundlePagesExternals: false,
   },
 }
 

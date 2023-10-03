@@ -149,7 +149,7 @@ https://<your-site.com>/api/revalidate?tag=collection&secret=<token>
 ```
 
 ```ts filename="app/api/revalidate/route.ts" switcher
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { revalidateTag } from 'next/cache'
 
 // e.g a webhook to `your-website.com/api/revalidate?tag=collection&secret=<token>`
@@ -158,21 +158,20 @@ export async function POST(request: NextRequest) {
   const tag = request.nextUrl.searchParams.get('tag')
 
   if (secret !== process.env.MY_SECRET_TOKEN) {
-    return NextResponse.json({ message: 'Invalid secret' }, { status: 401 })
+    return Response.json({ message: 'Invalid secret' }, { status: 401 })
   }
 
   if (!tag) {
-    return NextResponse.json({ message: 'Missing tag param' }, { status: 400 })
+    return Response.json({ message: 'Missing tag param' }, { status: 400 })
   }
 
   revalidateTag(tag)
 
-  return NextResponse.json({ revalidated: true, now: Date.now() })
+  return Response.json({ revalidated: true, now: Date.now() })
 }
 ```
 
 ```js filename="app/api/revalidate/route.js" switcher
-import { NextResponse } from 'next/server'
 import { revalidateTag } from 'next/cache'
 
 // e.g a webhook to `your-website.com/api/revalidate?tag=collection&secret=<token>`
@@ -181,52 +180,51 @@ export async function POST(request) {
   const tag = request.nextUrl.searchParams.get('tag')
 
   if (secret !== process.env.MY_SECRET_TOKEN) {
-    return NextResponse.json({ message: 'Invalid secret' }, { status: 401 })
+    return Response.json({ message: 'Invalid secret' }, { status: 401 })
   }
 
   if (!tag) {
-    return NextResponse.json({ message: 'Missing tag param' }, { status: 400 })
+    return Response.json({ message: 'Missing tag param' }, { status: 400 })
   }
 
   revalidateTag(tag)
 
-  return NextResponse.json({ revalidated: true, now: Date.now() })
+  return Response.json({ revalidated: true, now: Date.now() })
 }
 ```
 
 Alternatively, you can use [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) to revalidate all data associated with a path.
 
 ```ts filename="app/api/revalidate/route.ts" switcher
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { revalidatePath } from 'next/cache'
 
 export async function POST(request: NextRequest) {
   const path = request.nextUrl.searchParams.get('path')
 
   if (!path) {
-    return NextResponse.json({ message: 'Missing path param' }, { status: 400 })
+    return Response.json({ message: 'Missing path param' }, { status: 400 })
   }
 
   revalidatePath(path)
 
-  return NextResponse.json({ revalidated: true, now: Date.now() })
+  return Response.json({ revalidated: true, now: Date.now() })
 }
 ```
 
 ```js filename="app/api/revalidate/route.js" switcher
-import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 
 export async function POST(request) {
   const path = request.nextUrl.searchParams.get('path')
 
   if (!path) {
-    return NextResponse.json({ message: 'Missing path param' }, { status: 400 })
+    return Response.json({ message: 'Missing path param' }, { status: 400 })
   }
 
   revalidatePath(path)
 
-  return NextResponse.json({ revalidated: true, now: Date.now() })
+  return Response.json({ revalidated: true, now: Date.now() })
 }
 ```
 

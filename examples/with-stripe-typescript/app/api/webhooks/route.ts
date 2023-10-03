@@ -42,7 +42,7 @@ export async function POST(req: Request) {
           data = event.data.object as Stripe.Checkout.Session
           console.log(`💰 CheckoutSession status: ${data.payment_status}`)
           break
-        case 'payment_intent.failed':
+        case 'payment_intent.payment_failed':
           data = event.data.object as Stripe.PaymentIntent
           console.log(`❌ Payment failed: ${data.last_payment_error?.message}`)
           break
@@ -51,7 +51,7 @@ export async function POST(req: Request) {
           console.log(`💰 PaymentIntent status: ${data.status}`)
           break
         default:
-          throw new Error(`Unhhandled event: ${event.type}`)
+          throw new Error(`Unhandled event: ${event.type}`)
       }
     } catch (error) {
       console.log(error)
