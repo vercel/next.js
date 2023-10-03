@@ -1018,20 +1018,72 @@ export default async function build(
         return { duration, buildTraceContext: null }
       }
       let buildTraceContext: undefined | BuildTraceContext
+      let buildTracesPromise: Promise<any> | undefined = undefined
 
       if (!isGenerate) {
-        const { duration: webpackBuildDuration, ...rest } = turboNextBuild
-          ? await turbopackBuild()
-          : await webpackBuild()
+        if (isCompile && config.experimental.webpackBuildWorker) {
+          let durationInSeconds = 0
 
-        buildTraceContext = rest.buildTraceContext
+          await webpackBuild(['server']).then((res) => {
+            buildTraceContext = res.buildTraceContext
+            durationInSeconds += res.duration
+            const buildTraceWorker = new Worker(
+              require.resolve('./collect-build-traces'),
+              {
+                numWorkers: 1,
+                exposedMethods: ['collectBuildTraces'],
+              }
+            ) as Worker & typeof import('./collect-build-traces')
 
-        telemetry.record(
-          eventBuildCompleted(pagesPaths, {
-            durationInSeconds: webpackBuildDuration,
-            totalAppPagesCount,
+            buildTracesPromise = buildTraceWorker
+              .collectBuildTraces({
+                dir,
+                config,
+                distDir,
+                pageKeys,
+                pageInfos: [],
+                staticPages: [],
+                hasSsrAmpPages: false,
+                buildTraceContext,
+                outputFileTracingRoot,
+              })
+              .catch((err) => {
+                console.error(err)
+                process.exit(1)
+              })
           })
-        )
+
+          await webpackBuild(['edge-server']).then((res) => {
+            durationInSeconds += res.duration
+          })
+
+          await webpackBuild(['client']).then((res) => {
+            durationInSeconds += res.duration
+          })
+
+          buildSpinner?.stopAndPersist()
+          Log.event('Compiled successfully')
+
+          telemetry.record(
+            eventBuildCompleted(pagesPaths, {
+              durationInSeconds,
+              totalAppPagesCount,
+            })
+          )
+        } else {
+          const { duration: webpackBuildDuration, ...rest } = turboNextBuild
+            ? await turbopackBuild()
+            : await webpackBuild()
+
+          buildTraceContext = rest.buildTraceContext
+
+          telemetry.record(
+            eventBuildCompleted(pagesPaths, {
+              durationInSeconds: webpackBuildDuration,
+              totalAppPagesCount,
+            })
+          )
+        }
       }
 
       // For app directory, we run type checking after build.
@@ -1761,16 +1813,14 @@ export default async function build(
         )
       }
 
-      let buildTracesPromise: Promise<any> | undefined = undefined
-
-      if (!isGenerate && config.outputFileTracing) {
+      if (!isGenerate && config.outputFileTracing && !buildTracesPromise) {
         buildTracesPromise = collectBuildTraces({
           dir,
           config,
           distDir,
           pageKeys,
-          pageInfos,
-          staticPages,
+          pageInfos: Object.entries(pageInfos),
+          staticPages: [...staticPages],
           nextBuildSpan,
           hasSsrAmpPages,
           buildTraceContext,
@@ -2080,7 +2130,6 @@ export default async function build(
 
           await exportApp(dir, exportOptions, nextBuildSpan)
 
-          const postBuildSpinner = createSpinner('Finalizing page optimization')
           ssgNotFoundPaths = exportConfig.ssgNotFoundPaths
 
           // remove server bundles that were exported
@@ -2531,12 +2580,10 @@ export default async function build(
             JSON.stringify(pagesManifest, null, 2),
             'utf8'
           )
-
-          if (postBuildSpinner) postBuildSpinner.stopAndPersist()
-          console.log()
         })
       }
 
+      const postBuildSpinner = createSpinner('Finalizing page optimization')
       let buildTracesSpinner = createSpinner(`Collecting build traces`)
 
       // ensure the worker is not left hanging
@@ -2697,20 +2744,6 @@ export default async function build(
         return Promise.reject(err)
       })
 
-      await nextBuildSpan.traceChild('print-tree-view').traceAsyncFn(() =>
-        printTreeView(pageKeys, pageInfos, {
-          distPath: distDir,
-          buildId: buildId,
-          pagesDir,
-          useStaticPages404,
-          pageExtensions: config.pageExtensions,
-          appBuildManifest,
-          buildManifest,
-          middlewareManifest,
-          gzipSize: config.experimental.gzipSize,
-        })
-      )
-
       if (debugOutput) {
         nextBuildSpan
           .traceChild('print-custom-routes')
@@ -2856,6 +2889,23 @@ export default async function build(
         buildTracesSpinner.stopAndPersist()
         buildTracesSpinner = undefined
       }
+
+      if (postBuildSpinner) postBuildSpinner.stopAndPersist()
+      console.log()
+
+      await nextBuildSpan.traceChild('print-tree-view').traceAsyncFn(() =>
+        printTreeView(pageKeys, pageInfos, {
+          distPath: distDir,
+          buildId: buildId,
+          pagesDir,
+          useStaticPages404,
+          pageExtensions: config.pageExtensions,
+          appBuildManifest,
+          buildManifest,
+          middlewareManifest,
+          gzipSize: config.experimental.gzipSize,
+        })
+      )
 
       await nextBuildSpan
         .traceChild('telemetry-flush')
