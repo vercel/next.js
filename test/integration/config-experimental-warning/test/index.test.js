@@ -123,19 +123,4 @@ describe('Config Experimental Warning', () => {
     expect(stdout).toMatch(' · workerThreads')
     expect(stdout).toMatch(' · scrollRestoration')
   })
-
-  it('should show warning for dropped experimental.appDir option', async () => {
-    configFile.write(`
-      module.exports = {
-        experimental: {
-          appDir: true,
-        }
-      }
-    `)
-
-    const stderr = await collectStderr(appDir)
-    expect(stderr).toMatch(
-      'App router is available by default now, `experimental.appDir` option can be safely removed.'
-    )
-  })
 })
