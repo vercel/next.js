@@ -1,4 +1,4 @@
-import { generateActionId } from './action-utils'
+import { generateActionId } from './utils'
 
 export type NextFlightActionEntryLoaderOptions = {
   actions: string
@@ -18,8 +18,6 @@ function nextFlightActionEntryLoader(this: any) {
     .flat()
 
   return `
-import { decodeActionBoundArg } from 'next/dist/build/webpack/loaders/action-utils'
-
 const actions = {
 ${individualActions
   .map(([id, path, name]) => {
@@ -37,7 +35,10 @@ async function endpoint(id, ...args) {
   const decodedArgs = []
   for (let i = 0; i < args.length; i++) {
     if (i < numberOfClosureArgs) {
-      decodedArgs.push(decodeActionBoundArg(id, args[i]))
+      // Don't pay the cost if there's no closure-closed arg.
+      const { decodeActionBoundArg } = await import('next/dist/build/webpack/loaders/action-utils')
+      const decoded = await decodeActionBoundArg(id, args[i])
+      decodedArgs.push(decoded)
     } else {
       decodedArgs.push(args[i])
     }
