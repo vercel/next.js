@@ -553,7 +553,7 @@ async fn insert_next_server_special_aliases(
                         // itself will substitute in the turbopack variant
                         (NextRuntime::NodeJs, _) => {
                             "next/dist/server/future/route-modules/app-page/vendored/ssr/\
-                             react-server-dom-webpack-client-edge"
+                             react-server-dom-turbopack-client-edge"
                         }
                     },
                 ),
@@ -576,7 +576,7 @@ async fn insert_next_server_special_aliases(
                         // itself will substitute in the turbopack variant
                         (NextRuntime::NodeJs, _) => {
                             "next/dist/server/future/route-modules/app-page/vendored/ssr/\
-                             react-server-dom-webpack-client-edge"
+                             react-server-dom-turbopack-client-edge"
                         }
                     },
                 ),
@@ -718,7 +718,7 @@ async fn insert_next_server_special_aliases(
                         // itself will substitute in the turbopack variant
                         (NextRuntime::NodeJs, _) => {
                             "next/dist/server/future/route-modules/app-page/vendored/rsc/\
-                             react-server-dom-webpack-server-edge"
+                             react-server-dom-turbopack-server-edge"
                         }
                     },
                 ),
@@ -738,7 +738,7 @@ async fn insert_next_server_special_aliases(
                         // itself will substitute in the turbopack variant
                         (NextRuntime::NodeJs, _) => {
                             "next/dist/server/future/route-modules/app-page/vendored/rsc/\
-                             react-server-dom-webpack-server-node"
+                             react-server-dom-turbopack-server-node"
                         }
                     },
                 ),
