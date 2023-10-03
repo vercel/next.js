@@ -879,21 +879,21 @@ export default async function loadConfig(
 
     if (validateResult.errors) {
       // Only load @segment/ajv-human-errors when invalid config is detected
-      const { AggregateAjvError } =
-        require('next/dist/compiled/@segment/ajv-human-errors') as typeof import('next/dist/compiled/@segment/ajv-human-errors')
-      const aggregatedAjvErrors = new AggregateAjvError(validateResult.errors, {
-        fieldLabels: 'js',
-      })
+      // const { AggregateAjvError } =
+      //   require('next/dist/compiled/@segment/ajv-human-errors') as typeof import('next/dist/compiled/@segment/ajv-human-errors')
+      // const aggregatedAjvErrors = new AggregateAjvError(validateResult.errors, {
+      //   fieldLabels: 'js',
+      // })
 
       let shouldExit = false
       const messages = [`Invalid ${configFileName} options detected: `]
 
-      for (const error of aggregatedAjvErrors) {
-        messages.push(`    ${error.message}`)
-        if (error.message.startsWith('The value at .images.')) {
-          shouldExit = true
-        }
-      }
+      // for (const error of aggregatedAjvErrors) {
+      //   messages.push(`    ${error.message}`)
+      //   if (error.message.startsWith('The value at .images.')) {
+      //     shouldExit = true
+      //   }
+      // }
 
       messages.push(
         'See more info here: https://nextjs.org/docs/messages/invalid-next-config'

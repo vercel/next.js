@@ -1150,16 +1150,6 @@ export async function ncc_async_sema(task, opts) {
     .ncc({ packageName: 'async-sema', externals })
     .target('src/compiled/async-sema')
 }
-// eslint-disable-next-line camelcase
-export async function ncc_segment_ajv_human_errors(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('@segment/ajv-human-errors/')))
-    .ncc({
-      packageName: '@segment/ajv-human-errors/',
-      externals,
-    })
-    .target('src/compiled/@segment/ajv-human-errors')
-}
 
 externals['postcss-plugin-stub-for-cssnano-simple'] =
   'next/dist/compiled/postcss-plugin-stub-for-cssnano-simple'
