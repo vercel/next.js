@@ -1,26 +1,24 @@
-import type { ExportPageResult } from '../types'
-import type { PagesRender, RenderOpts } from '../../server/render'
+import type { ExportRouteResult, FileWriter } from '../types'
+import type { RenderOpts } from '../../server/render'
 import type { LoadComponentsReturnType } from '../../server/load-components'
 import type { AmpValidation } from '../types'
 import type { NextParsedUrlQuery } from '../../server/request-meta'
 
-import fs from 'fs/promises'
 import RenderResult from '../../server/render-result'
-import { dirname, join } from 'path'
+import { join } from 'path'
 import { MockedRequest, MockedResponse } from '../../server/lib/mock-request'
 import { isInAmpMode } from '../../shared/lib/amp-mode'
 import { SERVER_PROPS_EXPORT_ERROR } from '../../lib/constants'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
 import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import { FileType, fileExists } from '../../lib/file-exists'
+import { lazyRenderPagesPage } from '../../server/future/route-modules/pages/module.render'
 
-/**
- * Lazily loads and runs the app page render function.
- */
-const render: PagesRender = (...args) => {
-  return require('../../server/future/route-modules/pages/module.compiled').renderToHTML(
-    ...args
-  )
+export const enum ExportedPagesFiles {
+  HTML = 'HTML',
+  DATA = 'DATA',
+  AMP_HTML = 'AMP_HTML',
+  AMP_DATA = 'AMP_PAGE_DATA',
 }
 
 export async function exportPages(
@@ -40,8 +38,9 @@ export async function exportPages(
   isDynamic: boolean,
   hasOrigQueryValues: boolean,
   renderOpts: RenderOpts,
-  components: LoadComponentsReturnType
-): Promise<ExportPageResult> {
+  components: LoadComponentsReturnType,
+  fileWriter: FileWriter
+): Promise<ExportRouteResult | undefined> {
   const ampState = {
     ampFirst: components.pageConfig?.amp === true,
     hasQuery: Boolean(query.amp),
@@ -58,7 +57,7 @@ export async function exportPages(
   // for non-dynamic SSG pages we should have already
   // prerendered the file
   if (!buildExport && components.getStaticProps && !isDynamic) {
-    return {}
+    return
   }
 
   if (components.getStaticProps && !htmlFilepath.endsWith('.html')) {
@@ -93,7 +92,13 @@ export async function exportPages(
       process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
     }
     try {
-      renderResult = await render(req, res, page, query, renderOpts)
+      renderResult = await lazyRenderPagesPage(
+        req,
+        res,
+        page,
+        query,
+        renderOpts
+      )
     } catch (err: any) {
       if (err.digest !== NEXT_DYNAMIC_NO_SSR_CODE) {
         throw err
@@ -140,13 +145,12 @@ export async function exportPages(
       ? join(ampPath, 'index.html')
       : `${ampPath}.html`
 
-    const ampBaseDir = join(outDir, dirname(ampHtmlFilename))
     const ampHtmlFilepath = join(outDir, ampHtmlFilename)
 
     const exists = await fileExists(ampHtmlFilepath, FileType.File)
     if (!exists) {
       try {
-        ampRenderResult = await render(
+        ampRenderResult = await lazyRenderPagesPage(
           req,
           res,
           page,
@@ -166,8 +170,13 @@ export async function exportPages(
       if (!renderOpts.ampSkipValidation) {
         await validateAmp(ampHtml, page + '?amp=1')
       }
-      await fs.mkdir(ampBaseDir, { recursive: true })
-      await fs.writeFile(ampHtmlFilepath, ampHtml, 'utf8')
+
+      await fileWriter(
+        ExportedPagesFiles.AMP_HTML,
+        ampHtmlFilepath,
+        ampHtml,
+        'utf8'
+      )
     }
   }
 
@@ -178,11 +187,16 @@ export async function exportPages(
       htmlFilename.replace(/\.html$/, '.json')
     )
 
-    await fs.mkdir(dirname(dataFile), { recursive: true })
-    await fs.writeFile(dataFile, JSON.stringify(metadata.pageData), 'utf8')
+    await fileWriter(
+      ExportedPagesFiles.DATA,
+      dataFile,
+      JSON.stringify(metadata.pageData),
+      'utf8'
+    )
 
     if (hybridAmp) {
-      await fs.writeFile(
+      await fileWriter(
+        ExportedPagesFiles.AMP_DATA,
         dataFile.replace(/\.json$/, '.amp.json'),
         JSON.stringify(metadata.pageData),
         'utf8'
@@ -192,12 +206,12 @@ export async function exportPages(
 
   if (!ssgNotFound) {
     // don't attempt writing to disk if getStaticProps returned not found
-    await fs.writeFile(htmlFilepath, html, 'utf8')
+    await fileWriter(ExportedPagesFiles.HTML, htmlFilepath, html, 'utf8')
   }
 
   return {
     ampValidations,
-    fromBuildExportRevalidate: metadata.revalidate,
+    revalidate: metadata.revalidate,
     ssgNotFound,
   }
 }

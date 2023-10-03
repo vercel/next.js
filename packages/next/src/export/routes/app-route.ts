@@ -1,9 +1,8 @@
-import type { ExportPageResult } from '../types'
+import type { ExportRouteResult, FileWriter } from '../types'
 import type AppRouteRouteModule from '../../server/future/route-modules/app-route/module'
 import type { AppRouteRouteHandlerContext } from '../../server/future/route-modules/app-route/module'
 import type { IncrementalCache } from '../../server/lib/incremental-cache'
 
-import fs from 'fs/promises'
 import { join } from 'path'
 import { NEXT_CACHE_TAGS_HEADER } from '../../lib/constants'
 import { NodeNextRequest } from '../../server/base-http/node'
@@ -18,6 +17,11 @@ import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
 import { SERVER_DIRECTORY } from '../../shared/lib/constants'
 import { hasNextSupport } from '../../telemetry/ci-info'
 
+export const enum ExportedAppRouteFiles {
+  BODY = 'BODY',
+  META = 'META',
+}
+
 export async function exportAppRoute(
   req: MockedRequest,
   res: MockedResponse,
@@ -25,8 +29,9 @@ export async function exportAppRoute(
   page: string,
   incrementalCache: IncrementalCache | undefined,
   distDir: string,
-  htmlFilepath: string
-): Promise<ExportPageResult> {
+  htmlFilepath: string,
+  fileWriter: FileWriter
+): Promise<ExportRouteResult> {
   // Ensure that the URL is absolute.
   req.url = `http://localhost:3000${req.url}`
 
@@ -51,7 +56,7 @@ export async function exportAppRoute(
       },
       notFoundRoutes: [],
     },
-    staticGenerationContext: {
+    renderOpts: {
       originalPathname: page,
       nextExport: true,
       supportsDynamicHTML: false,
@@ -60,7 +65,7 @@ export async function exportAppRoute(
   }
 
   if (hasNextSupport) {
-    context.staticGenerationContext.isRevalidate = true
+    context.renderOpts.isRevalidate = true
   }
 
   // This is a route handler, which means it has it's handler in the
@@ -74,15 +79,14 @@ export async function exportAppRoute(
 
     const isValidStatus = response.status < 400 || response.status === 404
     if (!isValidStatus) {
-      return { fromBuildExportRevalidate: 0 }
+      return { revalidate: 0 }
     }
 
     const blob = await response.blob()
-    const revalidate =
-      context.staticGenerationContext.store?.revalidate || false
+    const revalidate = context.renderOpts.store?.revalidate || false
 
     const headers = toNodeOutgoingHttpHeaders(response.headers)
-    const cacheTags = (context.staticGenerationContext as any).fetchTags
+    const cacheTags = (context.renderOpts as any).fetchTags
 
     if (cacheTags) {
       headers[NEXT_CACHE_TAGS_HEADER] = cacheTags
@@ -94,24 +98,30 @@ export async function exportAppRoute(
 
     // Writing response body to a file.
     const body = Buffer.from(await blob.arrayBuffer())
-    await fs.writeFile(htmlFilepath.replace(/\.html$/, '.body'), body, 'utf8')
+    await fileWriter(
+      ExportedAppRouteFiles.BODY,
+      htmlFilepath.replace(/\.html$/, '.body'),
+      body,
+      'utf8'
+    )
 
     // Write the request metadata to a file.
     const meta = { status: response.status, headers }
-    await fs.writeFile(
+    await fileWriter(
+      ExportedAppRouteFiles.META,
       htmlFilepath.replace(/\.html$/, '.meta'),
       JSON.stringify(meta)
     )
 
     return {
-      fromBuildExportRevalidate: revalidate,
-      fromBuildExportMeta: meta,
+      revalidate: revalidate,
+      metadata: meta,
     }
   } catch (err) {
     if (!isDynamicUsageError(err)) {
       throw err
     }
 
-    return { fromBuildExportRevalidate: 0 }
+    return { revalidate: 0 }
   }
 }
