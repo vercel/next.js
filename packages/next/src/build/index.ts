@@ -12,7 +12,7 @@ import { loadEnvConfig } from '@next/env'
 import { bold, yellow, green } from '../lib/picocolors'
 import crypto from 'crypto'
 import { isMatch, makeRe } from 'next/dist/compiled/micromatch'
-import fs from 'fs/promises'
+import { existsSync, promises as fs } from 'fs'
 import os from 'os'
 import { Worker } from '../lib/worker'
 import { defaultConfig } from '../server/config-shared'
@@ -408,7 +408,7 @@ export default async function build(
 
       const cacheDir = path.join(distDir, 'cache')
       if (ciEnvironment.isCI && !ciEnvironment.hasNextSupport) {
-        const hasCache = await fileExists(cacheDir)
+        const hasCache = existsSync(cacheDir)
 
         if (!hasCache) {
           // Intentionally not piping to stderr in case people fail in CI when
@@ -433,7 +433,7 @@ export default async function build(
       const isSrcDir = path
         .relative(dir, pagesDir || appDir || '')
         .startsWith('src')
-      const hasPublicDir = await fileExists(publicDir)
+      const hasPublicDir = existsSync(publicDir)
 
       telemetry.record(
         eventCliSession(dir, config, {
@@ -719,7 +719,7 @@ export default async function build(
         mappedPages['/_error'].startsWith(PAGES_DIR_ALIAS)
 
       if (hasPublicDir) {
-        const hasPublicUnderScoreNextDir = await fileExists(
+        const hasPublicUnderScoreNextDir = existsSync(
           path.join(publicDir, '_next')
         )
         if (hasPublicUnderScoreNextDir) {
@@ -2426,7 +2426,7 @@ export default async function build(
                   .join('pages', '404.html')
                   .replace(/\\/g, '/')
 
-                if (await fileExists(orig)) {
+                if (existsSync(orig)) {
                   await fs.copyFile(
                     orig,
                     path.join(distDir, 'server', updatedRelativeDest)
@@ -2901,7 +2901,7 @@ export default async function build(
                   SERVER_DIRECTORY,
                   'app'
                 )
-                if (await fileExists(originalServerApp)) {
+                if (existsSync(originalServerApp)) {
                   await recursiveCopy(
                     originalServerApp,
                     path.join(

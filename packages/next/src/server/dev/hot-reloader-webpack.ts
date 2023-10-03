@@ -48,7 +48,6 @@ import {
 import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page-path'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
-import { fileExists } from '../../lib/file-exists'
 import {
   difference,
   isMiddlewareFile,
@@ -58,7 +57,7 @@ import { DecodeError } from '../../shared/lib/utils'
 import { Span, trace } from '../../trace'
 import { getProperError } from '../../lib/is-error'
 import ws from 'next/dist/compiled/ws'
-import { promises as fs } from 'fs'
+import { existsSync, promises as fs } from 'fs'
 import { UnwrapPromise } from '../../lib/coalesced-function'
 import { getRegistry } from '../../lib/helpers/get-registry'
 import { RouteMatch } from '../future/route-matches/route-match'
@@ -768,7 +767,7 @@ export default class HotReloader implements NextJsHotReloaderInterface {
             // Check if the page was removed or disposed and remove it
             if (isEntry) {
               const pageExists =
-                !dispose && (await fileExists(entryData.absolutePagePath))
+                !dispose && existsSync(entryData.absolutePagePath)
               if (!pageExists) {
                 delete entries[entryKey]
                 return
@@ -779,8 +778,7 @@ export default class HotReloader implements NextJsHotReloaderInterface {
             if (isChildEntry) {
               if (entryData.absoluteEntryFilePath) {
                 const pageExists =
-                  !dispose &&
-                  (await fileExists(entryData.absoluteEntryFilePath))
+                  !dispose && existsSync(entryData.absoluteEntryFilePath)
                 if (!pageExists) {
                   delete entries[entryKey]
                   return
