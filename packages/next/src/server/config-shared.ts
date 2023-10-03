@@ -781,20 +781,17 @@ export async function normalizeConfig(phase: string, config: any) {
   return await config
 }
 
-export function validateConfig(userConfig: NextConfig): {
-  errors?: Array<any> | null
-} {
+export function validateConfig(userConfig: NextConfig) {
   if (process.env.NEXT_MINIMAL) {
-    return {
-      errors: [],
-    }
-  } else {
-    // TODO-ZOD: replace ajv with zod
-    // const configValidator = require('next/dist/next-config-validate.js')
-    // configValidator(userConfig)
-    return {
-      // errors: configValidator.errors,
-      errors: [],
-    }
+    return null
   }
+
+  const { configSchema } =
+    require('./config-schema') as typeof import('./config-schema')
+  const state = configSchema.safeParse(userConfig)
+  if (state.success) {
+    return null
+  }
+
+  return state.error
 }
