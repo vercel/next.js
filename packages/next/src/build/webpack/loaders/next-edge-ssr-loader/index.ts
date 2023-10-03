@@ -257,19 +257,15 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
 
     export const ComponentMod = pageMod
 
-    export default async function(opts, event) {
+    export default async function(opts) {
       const res = await adapter({
         ...opts,
         IncrementalCache,
         handler: render
       })
 
-      if (event && event.waitUntil) {
-        event.waitUntil(
-          Promise.all(
-            [res?.waitUntil, ...globalThis.__next_private_global_wait_until__]
-          )
-        )
+      if (res) {
+        res.waitUntil = Promise.all([res?.waitUntil, ...globalThis.__next_private_global_wait_until__])
       }
 
       return res
