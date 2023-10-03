@@ -264,11 +264,10 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
         handler: render
       })
 
-      if (res) {
-        res.waitUntil = Promise.all([res?.waitUntil, ...globalThis.__next_private_global_wait_until__])
+      return {
+        ...res,
+        waitUntil: Promise.all([res?.waitUntil, ...globalThis.__next_private_global_wait_until__])
       }
-
-      return res
     }`
 
     return transformed
