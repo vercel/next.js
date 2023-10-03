@@ -2145,7 +2145,7 @@ export default async function build(
           // If there was no result, there's nothing more to do.
           if (!exportResult) return
 
-          ssgNotFoundPaths = Array.from(exportConfig.ssgNotFoundPaths)
+          ssgNotFoundPaths = Array.from(exportResult.ssgNotFoundPaths)
 
           // remove server bundles that were exported
           for (const page of staticPages) {
