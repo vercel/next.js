@@ -14,6 +14,7 @@ export var $$ACTION_1 = async ($$ACTION_ARG_0, $$ACTION_ARG_1)=>{
     await deleteFromDb(v1);
     await deleteFromDb($$ACTION_ARG_1);
 };
+$$ACTION_1.$$closure_args = 2;
 var $$ACTION_0;
 const f = (x)=>{
     async function g(...args) {
@@ -26,6 +27,7 @@ const f = (x)=>{
 export async function $$ACTION_2($$ACTION_ARG_0, y, ...z) {
     return $$ACTION_ARG_0 + y + z[0];
 }
+$$ACTION_2.$$closure_args = 1;
 const g = (x)=>{
     f = ($$ACTION_3 = async (...args)=>$$ACTION_4.apply(null, ($$ACTION_3.$$bound || []).concat(args)), createActionProxy("9c0dd1f7c2b3f41d32e10f5c437de3d67ad32c6c", [
         x
@@ -34,4 +36,5 @@ const g = (x)=>{
 export var $$ACTION_4 = async ($$ACTION_ARG_0, y, ...z)=>{
     return $$ACTION_ARG_0 + y + z[0];
 };
+$$ACTION_4.$$closure_args = 1;
 var $$ACTION_3;

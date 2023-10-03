@@ -15,7 +15,9 @@ export default function Page({ foo, x, y }) {
 export async function $$ACTION_0($$ACTION_ARG_0, a, b, c, d) {
     console.log(a, b, $$ACTION_ARG_0, c, d);
 }
+$$ACTION_0.$$closure_args = 1;
 export var $$ACTION_2 = async ($$ACTION_ARG_0, a, b, c, d)=>{
     console.log(a, b, $$ACTION_ARG_0, c, d);
 };
+$$ACTION_2.$$closure_args = 1;
 var $$ACTION_1;

@@ -15,4 +15,5 @@ export function Item({ value }) {
 export var $$ACTION_1 = async ($$ACTION_ARG_0, value2)=>{
     return $$ACTION_ARG_0 * value2;
 };
+$$ACTION_1.$$closure_args = 1;
 var $$ACTION_0;

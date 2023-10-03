@@ -1,4 +1,4 @@
-import { generateActionId } from './utils'
+import { generateActionId } from './action-utils'
 
 export type NextFlightActionEntryLoaderOptions = {
   actions: string
@@ -18,6 +18,8 @@ function nextFlightActionEntryLoader(this: any) {
     .flat()
 
   return `
+import { decodeActionBoundArg } from 'next/dist/build/webpack/loaders/action-utils'
+
 const actions = {
 ${individualActions
   .map(([id, path, name]) => {
@@ -30,7 +32,18 @@ ${individualActions
 
 async function endpoint(id, ...args) {
   const action = await actions[id]()
-  return action.apply(null, args)
+
+  const numberOfClosureArgs = action.$$closure_args ?? 0
+  const decodedArgs = []
+  for (let i = 0; i < args.length; i++) {
+    if (i < numberOfClosureArgs) {
+      decodedArgs.push(decodeActionBoundArg(id, args[i]))
+    } else {
+      decodedArgs.push(args[i])
+    }
+  }
+
+  return action.apply(null, decodedArgs)
 }
 
 // Using CJS to avoid this to be tree-shaken away due to unused exports.

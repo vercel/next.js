@@ -1,8 +1,10 @@
+import { encodeActionBoundArg } from '../action-utils'
+
 const SERVER_REFERENCE_TAG = Symbol.for('react.server.reference')
 
 export function createActionProxy(
   id: string,
-  bound: null | any[],
+  boundArgsFromClosure: null | any[],
   action: any,
   originalAction?: any
 ) {
@@ -40,7 +42,9 @@ export function createActionProxy(
       value: id,
     },
     $$bound: {
-      value: bound,
+      value: boundArgsFromClosure
+        ? boundArgsFromClosure.map((arg) => encodeActionBoundArg(id, arg))
+        : null,
     },
     bind: {
       value: bindImpl,

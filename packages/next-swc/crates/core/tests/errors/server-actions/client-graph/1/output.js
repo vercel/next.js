@@ -7,3 +7,4 @@ export default function App() {
     return <div>App</div>;
 }
 export async function $$ACTION_0() {}
+$$ACTION_0.$$closure_args = 0;

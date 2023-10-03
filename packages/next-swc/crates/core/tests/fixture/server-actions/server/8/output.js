@@ -8,6 +8,7 @@ export async function $$ACTION_0(a, b, c) {
     'use strict';
     console.log('a');
 }
+$$ACTION_0.$$closure_args = 0;
 export default function Page() {
     return <Button action={myAction}>Delete</Button>;
 }

@@ -257,6 +257,7 @@ impl<C: Comments> ServerActions<C> {
                 new_params.push(p.clone());
             }
 
+            // Create the action export decl
             self.extra_items
                 .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
                     span: DUMMY_SP,
@@ -266,13 +267,31 @@ impl<C: Comments> ServerActions<C> {
                         declare: Default::default(),
                         decls: vec![VarDeclarator {
                             span: DUMMY_SP,
-                            name: action_ident.into(),
+                            name: action_ident.clone().into(),
                             init: Some(Box::new(Expr::Arrow(ArrowExpr {
                                 params: new_params,
                                 ..a.clone()
                             }))),
                             definite: Default::default(),
                         }],
+                    })),
+                })));
+            // Annotate the exported action with the number of clousure arguments.
+            self.extra_items
+                .push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+                    span: DUMMY_SP,
+                    expr: Box::new(Expr::Assign(AssignExpr {
+                        span: DUMMY_SP,
+                        left: PatOrExpr::Expr(Box::new(Expr::Member(MemberExpr {
+                            span: DUMMY_SP,
+                            obj: Box::new(Expr::Ident(action_ident.clone())),
+                            prop: MemberProp::Ident(Ident::new(
+                                "$$closure_args".into(),
+                                DUMMY_SP,
+                            )),
+                        }))),
+                        op: op!("="),
+                        right: Box::new(Expr::Lit(Lit::from(ids_from_closure.len()))),
                     })),
                 })));
 
@@ -376,7 +395,7 @@ impl<C: Comments> ServerActions<C> {
                 .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
                     span: DUMMY_SP,
                     decl: FnDecl {
-                        ident: action_ident,
+                        ident: action_ident.clone(),
                         function: Box::new(Function {
                             params: new_params,
                             ..*f.take()
@@ -384,6 +403,24 @@ impl<C: Comments> ServerActions<C> {
                         declare: Default::default(),
                     }
                     .into(),
+                })));
+            // Annotate the exported action with the number of clousure arguments.
+            self.extra_items
+                .push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+                    span: DUMMY_SP,
+                    expr: Box::new(Expr::Assign(AssignExpr {
+                        span: DUMMY_SP,
+                        left: PatOrExpr::Expr(Box::new(Expr::Member(MemberExpr {
+                            span: DUMMY_SP,
+                            obj: Box::new(Expr::Ident(action_ident)),
+                            prop: MemberProp::Ident(Ident::new(
+                                "$$closure_args".into(),
+                                DUMMY_SP,
+                            )),
+                        }))),
+                        op: op!("="),
+                        right: Box::new(Expr::Lit(Lit::from(ids_from_closure.len()))),
+                    })),
                 })));
 
             if return_paren {

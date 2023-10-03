@@ -1,6 +1,6 @@
 /* __next_internal_action_entry_do_not_use__ $$ACTION_0,$$ACTION_2 */ import { createActionProxy } from "private-next-rsc-action-proxy";
 import deleteFromDb from 'db';
-export function Item({ id1 , id2  }) {
+export function Item({ id1, id2 }) {
     async function deleteItem(...args) {
         return $$ACTION_0.apply(null, (deleteItem.$$bound || []).concat(args));
     }
@@ -14,6 +14,7 @@ export async function $$ACTION_0($$ACTION_ARG_0, $$ACTION_ARG_1) {
     await deleteFromDb($$ACTION_ARG_0);
     await deleteFromDb($$ACTION_ARG_1);
 }
+$$ACTION_0.$$closure_args = 2;
 export default function Home() {
     const info = {
         name: 'John',
@@ -29,4 +30,5 @@ export var $$ACTION_2 = async ($$ACTION_ARG_0, $$ACTION_ARG_1)=>{
     console.log($$ACTION_ARG_0);
     console.log($$ACTION_ARG_1);
 };
+$$ACTION_2.$$closure_args = 2;
 var $$ACTION_1;

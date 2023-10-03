@@ -23,12 +23,12 @@ import {
   SERVER_REFERENCE_MANIFEST,
 } from '../../../shared/lib/constants'
 import {
-  generateActionId,
   getActions,
   isClientComponentEntryModule,
   isCSSMod,
   regexCSS,
 } from '../loaders/utils'
+import { generateActionId } from '../loaders/action-utils'
 import { traverseModules, forEachEntryModule } from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { getProxiedPluginState } from '../../build-context'

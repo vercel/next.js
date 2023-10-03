@@ -1,4 +1,3 @@
-import { createHash } from 'crypto'
 import { RSC_MODULE_TYPES } from '../../../shared/lib/constants'
 
 const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif', 'ico', 'svg']
@@ -43,12 +42,6 @@ export function getActions(mod: {
   buildInfo?: any
 }): undefined | string[] {
   return mod.buildInfo?.rsc?.actions
-}
-
-export function generateActionId(filePath: string, exportName: string) {
-  return createHash('sha1')
-    .update(filePath + ':' + exportName)
-    .digest('hex')
 }
 
 export function encodeToBase64<T extends {}>(obj: T): string {

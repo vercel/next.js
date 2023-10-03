@@ -32,10 +32,12 @@ export var $$ACTION_1 = async ($$ACTION_ARG_0, $$ACTION_ARG_1)=>{
     await deleteFromDb(v1);
     await deleteFromDb($$ACTION_ARG_1);
 };
+$$ACTION_1.$$closure_args = 2;
 var $$ACTION_0;
 export async function $$ACTION_3($$ACTION_ARG_0, $$ACTION_ARG_1) {
     await deleteFromDb($$ACTION_ARG_0);
     await deleteFromDb(v1);
     await deleteFromDb($$ACTION_ARG_1);
 }
+$$ACTION_3.$$closure_args = 2;
 var $$ACTION_2;

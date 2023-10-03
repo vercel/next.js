@@ -3,6 +3,7 @@ const foo = ($$ACTION_0 = async (...args)=>$$ACTION_1.apply(null, ($$ACTION_0.$$
 export var $$ACTION_1 = async ()=>{
     'use strict';
 };
+$$ACTION_1.$$closure_args = 0;
 var $$ACTION_0;
 const bar = async ()=>{
     const x = 1;
