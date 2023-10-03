@@ -32,6 +32,10 @@ function makeAppAliases(reactChannel = '') {
     'react-dom/server$': `next/dist/compiled/react-dom${reactChannel}/server`,
     'react-dom/server.edge$': `next/dist/compiled/react-dom${reactChannel}/server.edge`,
     'react-dom/server.browser$': `next/dist/compiled/react-dom${reactChannel}/server.browser`,
+    'react-server-dom-turbopack/client$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/client`,
+    'react-server-dom-turbopack/client.edge$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/client.edge`,
+    'react-server-dom-turbopack/server.edge$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/server.edge`,
+    'react-server-dom-turbopack/server.node$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/server.node`,
     'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/client`,
     'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/client.edge`,
     'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/server.edge`,
@@ -192,6 +196,10 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
     },
     module: {
       rules: [
+        {
+          include: /[\\/]react-server.node/,
+          layer: 'react-server',
+        },
         {
           include: /vendored[\\/]rsc[\\/]entrypoints/,
           resolve: {

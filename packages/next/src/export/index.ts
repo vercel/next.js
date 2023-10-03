@@ -9,7 +9,7 @@ import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plug
 
 import { bold, yellow } from '../lib/picocolors'
 import findUp from 'next/dist/compiled/find-up'
-import fs from 'fs/promises'
+import { existsSync, promises as fs } from 'fs'
 
 import '../server/require-hook'
 
@@ -52,7 +52,6 @@ import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { isAppPageRoute } from '../lib/is-app-page-route'
 import isError from '../lib/is-error'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
-import { fileExists } from '../lib/file-exists'
 import { formatManifest } from '../build/manifests/formatter/format-manifest'
 
 function divideSegments(number: number, segments: number): number[] {
@@ -240,7 +239,7 @@ export async function exportAppImpl(
       )
       return null
     }
-    if (await fileExists(join(distDir, 'server', 'app'))) {
+    if (existsSync(join(distDir, 'server', 'app'))) {
       throw new ExportError(
         '"next export" does not work with App Router. Please use "output: export" in next.config.js https://nextjs.org/docs/advanced-features/static-html-export'
       )
@@ -284,7 +283,7 @@ export async function exportAppImpl(
 
   const buildIdFile = join(distDir, BUILD_ID_FILE)
 
-  if (!(await fileExists(buildIdFile))) {
+  if (!existsSync(buildIdFile)) {
     throw new ExportError(
       `Could not find a production build in the '${distDir}' directory. Try building your app with 'next build' before starting the static export. https://nextjs.org/docs/messages/next-export-no-build-id`
     )
@@ -407,7 +406,7 @@ export async function exportAppImpl(
   )
 
   // Copy static directory
-  if (!options.buildExport && (await fileExists(join(dir, 'static')))) {
+  if (!options.buildExport && existsSync(join(dir, 'static'))) {
     if (!options.silent) {
       Log.info('Copying "static" directory')
     }
@@ -421,7 +420,7 @@ export async function exportAppImpl(
   // Copy .next/static directory
   if (
     !options.buildExport &&
-    (await fileExists(join(distDir, CLIENT_STATIC_FILES_PATH)))
+    existsSync(join(distDir, CLIENT_STATIC_FILES_PATH))
   ) {
     if (!options.silent) {
       Log.info('Copying "static build" directory')
@@ -664,7 +663,7 @@ export async function exportAppImpl(
 
   const publicDir = join(dir, CLIENT_PUBLIC_FILES_PATH)
   // Copy public directory
-  if (!options.buildExport && (await fileExists(publicDir))) {
+  if (!options.buildExport && existsSync(publicDir)) {
     if (!options.silent) {
       Log.info('Copying "public" directory')
     }
@@ -818,7 +817,7 @@ export async function exportAppImpl(
         const handlerSrc = `${orig}.body`
         const handlerDest = join(outDir, route)
 
-        if (isAppRouteHandler && (await fileExists(handlerSrc))) {
+        if (isAppRouteHandler && existsSync(handlerSrc)) {
           await fs.mkdir(dirname(handlerDest), { recursive: true })
           await fs.copyFile(handlerSrc, handlerDest)
           return
@@ -852,7 +851,7 @@ export async function exportAppImpl(
         await fs.copyFile(htmlSrc, htmlDest)
         await fs.copyFile(jsonSrc, jsonDest)
 
-        if (await fileExists(`${orig}.amp.html`)) {
+        if (existsSync(`${orig}.amp.html`)) {
           await fs.mkdir(dirname(ampHtmlDest), { recursive: true })
           await fs.copyFile(`${orig}.amp.html`, ampHtmlDest)
         }

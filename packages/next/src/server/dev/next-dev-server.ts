@@ -15,6 +15,7 @@ import type {
   NextUrlWithParsedQuery,
 } from '../request-meta'
 
+import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import { join as pathJoin } from 'path'
 import { ampValidation } from '../../build/output'
@@ -22,7 +23,6 @@ import {
   INSTRUMENTATION_HOOK_FILENAME,
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
 } from '../../lib/constants'
-import { fileExists } from '../../lib/file-exists'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import {
   PHASE_DEVELOPMENT_SERVER,
@@ -453,7 +453,7 @@ export default class DevServer extends Server {
     const { pathname } = parsedUrl
 
     if (pathname!.startsWith('/_next')) {
-      if (await fileExists(pathJoin(this.publicDir, '_next'))) {
+      if (fs.existsSync(pathJoin(this.publicDir, '_next'))) {
         throw new Error(PUBLIC_DIR_MIDDLEWARE_CONFLICT)
       }
     }
