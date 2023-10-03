@@ -1,4 +1,4 @@
-import cookies from '../../../cookies'
+import cookies from '../../../cookies.mjs'
 
 export const runtime = 'edge'
 

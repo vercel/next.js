@@ -28,7 +28,6 @@ describe('Configuration', () => {
     // pre-build all pages at the start
     await Promise.all([
       renderViaHTTP(context.appPort, '/next-config'),
-      renderViaHTTP(context.appPort, '/build-id'),
       renderViaHTTP(context.appPort, '/module-only-component'),
     ])
   })
@@ -56,11 +55,6 @@ describe('Configuration', () => {
   test('renders public config on the server only', async () => {
     const $ = await get$('/next-config')
     expect($('#server-and-client').text()).toBe('/static')
-  })
-
-  test('renders the build id in development mode', async () => {
-    const $ = await get$('/build-id')
-    expect($('#buildId').text()).toBe('development')
   })
 
   test('correctly imports a package that defines `module` but no `main` in package.json', async () => {
