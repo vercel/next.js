@@ -2,7 +2,6 @@ import type { NextConfigComplete } from '../../../server/config-shared'
 import type { MiddlewareMatcher } from '../../analysis/get-page-static-info'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { needsExperimentalReact } from '../../../lib/needs-experimental-react'
-// import type getBaseWebpackConfig from '../../webpack-config'
 
 function errorIfEnvConflicted(config: NextConfigComplete, key: string) {
   const isPrivateKey = /^(?:NODE_.+)|^(?:__.+)$/i.test(key)
