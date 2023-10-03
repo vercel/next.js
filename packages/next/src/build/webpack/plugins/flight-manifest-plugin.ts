@@ -14,9 +14,10 @@ import {
 import { relative } from 'path'
 import { getProxiedPluginState } from '../../build-context'
 
-import { nonNullable } from '../../../lib/non-nullable'
 import { WEBPACK_LAYERS } from '../../../lib/constants'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
+import { CLIENT_STATIC_FILES_RUNTIME_MAIN_APP } from '../../../shared/lib/constants'
+import { getDeploymentIdQueryOrEmptyString } from '../../deployment-id'
 
 interface Options {
   dev: boolean
@@ -29,7 +30,8 @@ interface Options {
 // TODO-APP ensure `null` is included as it is used.
 type ModuleId = string | number /*| null*/
 
-export type ManifestChunks = Array<`${string}:${string}` | string>
+// double indexed chunkId, filename
+export type ManifestChunks = Array<string>
 
 const pluginState = getProxiedPluginState({
   serverModuleIds: {} as Record<string, string | number>,
@@ -60,6 +62,10 @@ export interface ManifestNode {
 }
 
 export type ClientReferenceManifest = {
+  moduleLoading: {
+    prefix: string
+    crossOrigin: string | null
+  }
   clientModules: ManifestNode
   ssrModuleMapping: {
     [moduleId: string]: ManifestNode
@@ -72,28 +78,41 @@ export type ClientReferenceManifest = {
   }
 }
 
-function getAppPathRequiredChunks(chunkGroup: webpack.ChunkGroup) {
-  return chunkGroup.chunks
-    .map((requiredChunk: webpack.Chunk) => {
-      if (SYSTEM_ENTRYPOINTS.has(requiredChunk.name || '')) {
-        return null
-      }
+function getAppPathRequiredChunks(
+  chunkGroup: webpack.ChunkGroup,
+  excludedFiles: Set<string>
+) {
+  const deploymentIdChunkQuery = getDeploymentIdQueryOrEmptyString()
 
-      // Get the actual chunk file names from the chunk file list.
-      // It's possible that the chunk is generated via `import()`, in
-      // that case the chunk file name will be '[name].[contenthash]'
-      // instead of '[name]-[chunkhash]'.
-      return [...requiredChunk.files].map((file) => {
+  const chunks: Array<string> = []
+  chunkGroup.chunks.forEach((chunk) => {
+    if (SYSTEM_ENTRYPOINTS.has(chunk.name || '')) {
+      return null
+    }
+
+    // Get the actual chunk file names from the chunk file list.
+    // It's possible that the chunk is generated via `import()`, in
+    // that case the chunk file name will be '[name].[contenthash]'
+    // instead of '[name]-[chunkhash]'.
+    if (chunk.id != null) {
+      const chunkId = '' + chunk.id
+      chunk.files.forEach((file) => {
         // It's possible that a chunk also emits CSS files, that will
         // be handled separatedly.
         if (!file.endsWith('.js')) return null
         if (file.endsWith('.hot-update.js')) return null
+        if (excludedFiles.has(file)) return null
 
-        return requiredChunk.id + ':' + file
+        // We encode the file as a URI because our server (and many other services such as S3)
+        // expect to receive reserved characters such as `[` and `]` as encoded. This was
+        // previously done for dynamic chunks by patching the webpack runtime but we want
+        // these filenames to be managed by React's Flight runtime instead and so we need
+        // to implement any special handling of the file name here.
+        return chunks.push(chunkId, encodeURI(file + deploymentIdChunkQuery))
       })
-    })
-    .flat()
-    .filter(nonNullable)
+    }
+  })
+  return chunks
 }
 
 // Normalize the entry names to their "group names" so a page can easily track
@@ -184,10 +203,42 @@ export class ClientReferenceManifestPlugin {
     const manifestsPerGroup = new Map<string, ClientReferenceManifest[]>()
     const manifestEntryFiles: string[] = []
 
+    const configuredCrossOriginLoading =
+      compilation.outputOptions.crossOriginLoading
+    const crossOriginMode =
+      typeof configuredCrossOriginLoading === 'string'
+        ? configuredCrossOriginLoading === 'use-credentials'
+          ? configuredCrossOriginLoading
+          : 'anonymous'
+        : null
+
+    if (typeof compilation.outputOptions.publicPath !== 'string') {
+      throw new Error(
+        'Expected webpack publicPath to be a string when using App Router. To customize where static assets are loaded from, use the `assetPrefix` option in next.config.js. If you are customizing your webpack config please make sure you are not modifying or removing the publicPath configuration option'
+      )
+    }
+    const prefix = compilation.outputOptions.publicPath || ''
+
+    // We want to omit any files that will always be loaded on any App Router page
+    // because they will already be loaded by the main entrypoint.
+    const rootMainFiles: Set<string> = new Set()
+    compilation.entrypoints
+      .get(CLIENT_STATIC_FILES_RUNTIME_MAIN_APP)
+      ?.getFiles()
+      .forEach((file) => {
+        if (/(?<!\.hot-update)\.(js|css)($|\?)/.test(file)) {
+          rootMainFiles.add(file.replace(/\\/g, '/'))
+        }
+      })
+
     compilation.chunkGroups.forEach((chunkGroup) => {
       // By default it's the shared chunkGroup (main-app) for every page.
       let entryName = ''
       const manifest: ClientReferenceManifest = {
+        moduleLoading: {
+          prefix,
+          crossOrigin: crossOriginMode,
+        },
         ssrModuleMapping: {},
         edgeSSRModuleMapping: {},
         clientModules: {},
@@ -209,7 +260,7 @@ export class ClientReferenceManifestPlugin {
         entryName = chunkGroup.name
       }
 
-      const requiredChunks = getAppPathRequiredChunks(chunkGroup)
+      const requiredChunks = getAppPathRequiredChunks(chunkGroup, rootMainFiles)
       const recordModule = (id: ModuleId, mod: webpack.NormalModule) => {
         // Skip all modules from the pages folder.
         if (mod.layer !== WEBPACK_LAYERS.appPagesBrowser) {
@@ -383,6 +434,10 @@ export class ClientReferenceManifestPlugin {
     // Generate per-page manifests.
     for (const pageName of manifestEntryFiles) {
       const mergedManifest: ClientReferenceManifest = {
+        moduleLoading: {
+          prefix,
+          crossOrigin: crossOriginMode,
+        },
         ssrModuleMapping: {},
         edgeSSRModuleMapping: {},
         clientModules: {},
