@@ -447,7 +447,7 @@ export function launchApp(
       dir,
       '-p',
       port as string,
-    ].filter((a) => a != null),
+    ].filter(Boolean),
     undefined,
     {
       ...options,
