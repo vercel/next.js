@@ -368,7 +368,7 @@ export default class NextNodeServer extends BaseServer {
     try {
       return fs.readFileSync(buildIdFile, 'utf8').trim()
     } catch (err) {
-      if (!fs.existsSync(buildIdFile)) {
+      if (err.code === 'ENOENT') {
         throw new Error(
           `Could not find a production build in the '${this.distDir}' directory. Try building your app with 'next build' before starting the production server. https://nextjs.org/docs/messages/production-start-no-build-id`
         )
