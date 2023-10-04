@@ -184,6 +184,8 @@ fn defines(
     server_actions: bool,
 ) -> CompileTimeDefines {
     let mut defines = compile_time_defines!(
+        process.turbopack = true,
+        process.env.NEXT_RUNTIME = "nodejs",
         process.env.NODE_ENV = mode.node_env(),
         process.env.TURBOPACK = true,
         process.env.__NEXT_EXPERIMENTAL_REACT = server_actions,
