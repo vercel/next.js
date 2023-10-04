@@ -40,27 +40,29 @@ export interface PipeTarget<R = any> {
   closed?: boolean
 }
 
+const kReaderDone = 1 << 0
+const kWritableClosed = 1 << 1
+
 export async function pipeReadable(
   readable: ReadableStream<Uint8Array>,
   writable: PipeTarget<Uint8Array>,
   waitUntilForEnd?: Promise<void>
 ) {
   const reader = readable.getReader()
-  let readerDone = false
-  let writableClosed = false
+  let state = 0
 
   // It's not enough just to check for `writable.destroyed`, because the client
   // may disconnect while we're waiting for a read. We need to immediately
   // cancel the readable, and that requires an out-of-band listener.
   function onClose() {
-    writableClosed = true
+    state |= kWritableClosed
     writable.off('close', onClose)
 
     // If the reader is not yet done, we need to cancel it so that the stream
     // source's resources can be cleaned up. If a read is in-progress, this
     // will also ensure the read promise rejects and frees our resources.
-    if (!readerDone) {
-      readerDone = true
+    if ((state & kReaderDone) === 0) {
+      state |= kReaderDone
       reader.cancel().catch(() => {})
     }
   }
@@ -69,9 +71,15 @@ export async function pipeReadable(
   try {
     while (true) {
       const { done, value } = await reader.read()
-      readerDone = done
 
-      if (done || writableClosed) {
+      if (done) {
+        state |= kReaderDone
+        break
+      }
+
+      state &= ~kReaderDone
+
+      if ((state & kWritableClosed) === 1) {
         break
       }
 
@@ -90,7 +98,7 @@ export async function pipeReadable(
 
     // If we broke out of the loop because of a client disconnect, and the
     // close event hasn't yet fired, we can early cancel.
-    if (!readerDone) {
+    if ((state & kReaderDone) === 0) {
       reader.cancel().catch(() => {})
     }
 
@@ -100,7 +108,7 @@ export async function pipeReadable(
       await waitUntilForEnd
     }
 
-    if (!writableClosed) {
+    if ((state & kWritableClosed) === 0) {
       writable.end()
     }
   }
