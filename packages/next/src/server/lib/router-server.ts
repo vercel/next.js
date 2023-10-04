@@ -11,7 +11,7 @@ import '../../lib/polyfill-promise-with-resolvers'
 
 import url from 'url'
 import path from 'path'
-import loadConfig from '../config'
+import loadConfig, { NextConfig } from '../config'
 import { serveStatic } from '../serve-static'
 import setupDebug from 'next/dist/compiled/debug'
 import { Telemetry } from '../../telemetry/storage'
@@ -71,6 +71,7 @@ export async function initialize(opts: {
   customServer?: boolean
   experimentalTestProxy?: boolean
   experimentalHttpsServer?: boolean
+  conf?: NextConfig
 }): Promise<[WorkerRequestHandler, WorkerUpgradeHandler]> {
   process.title = 'next-router-worker'
 
@@ -82,7 +83,10 @@ export async function initialize(opts: {
   const config = await loadConfig(
     opts.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
     opts.dir,
-    { silent: false }
+    {
+      customConfig: opts.conf,
+      silent: false,
+    }
   )
 
   let compress: ReturnType<typeof setupCompression> | undefined

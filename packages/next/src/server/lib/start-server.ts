@@ -19,6 +19,7 @@ import { initialize } from './router-server'
 import { checkIsNodeDebugging } from './is-node-debugging'
 import { CONFIG_FILES } from '../../shared/lib/constants'
 import { bold, magenta } from '../../lib/picocolors'
+import { NextConfig } from '../config-shared'
 
 const debug = setupDebug('next:start-server')
 
@@ -50,6 +51,7 @@ export async function getRequestHandlers({
   keepAliveTimeout,
   experimentalTestProxy,
   experimentalHttpsServer,
+  conf,
 }: {
   dir: string
   port: number
@@ -61,6 +63,7 @@ export async function getRequestHandlers({
   keepAliveTimeout?: number
   experimentalTestProxy?: boolean
   experimentalHttpsServer?: boolean
+  conf?: NextConfig
 }): ReturnType<typeof initialize> {
   return initialize({
     dir,
@@ -73,6 +76,7 @@ export async function getRequestHandlers({
     keepAliveTimeout,
     experimentalTestProxy,
     experimentalHttpsServer,
+    conf,
   })
 }
 
