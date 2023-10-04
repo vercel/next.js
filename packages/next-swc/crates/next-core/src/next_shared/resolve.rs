@@ -122,7 +122,9 @@ impl ResolvePlugin for NextExternalResolvePlugin {
     fn after_resolve_condition(&self) -> Vc<ResolvePluginCondition> {
         ResolvePluginCondition::new(
             self.root.root(),
-            Glob::new("**/next/dist/**/*.{external,runtime.dev,runtime.prod}.js".to_string()),
+            Glob::new(
+                "**/node_modules/next/dist/**/*.{external,runtime.dev,runtime.prod}.js".to_string(),
+            ),
         )
     }
 
