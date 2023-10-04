@@ -418,6 +418,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         localeDetection: z.literal(false).optional(),
         locales: z.array(z.string().min(1)),
       })
+      .nullable()
       .optional(),
     images: z
       .strictObject({
@@ -481,7 +482,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     productionBrowserSourceMaps: z.boolean().optional(),
     publicRuntimeConfig: z.record(z.string(), z.any()).optional(),
     reactProductionProfiling: z.boolean().optional(),
-    reactStrictMode: z.boolean().optional(),
+    reactStrictMode: z.boolean().nullable().optional(),
     redirects: z
       .function()
       .args()
@@ -521,6 +522,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .optional(),
     useFileSystemPublicRoutes: z.boolean().optional(),
     // The webpack config type is unknown, use z.any() here
-    webpack: z.any().optional(),
+    webpack: z.any().nullable().optional(),
   })
 )
