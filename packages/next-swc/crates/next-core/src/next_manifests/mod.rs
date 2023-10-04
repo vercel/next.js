@@ -176,7 +176,7 @@ pub enum ActionManifestWorkerEntry {
 #[serde(rename_all = "camelCase")]
 pub enum ActionLayer {
     Rsc,
-    ActionBrowser
+    ActionBrowser,
 }
 
 #[derive(Serialize, Default, Debug)]
