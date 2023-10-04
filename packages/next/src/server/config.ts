@@ -992,7 +992,7 @@ function normalizeZodErrors(
   let shouldExit = false
   return [
     error.issues.flatMap((issue) => {
-      const messages = [issue.message]
+      const messages = []
 
       if (issue.path.length > 0) {
         if (issue.path.length === 1) {
@@ -1009,20 +1009,26 @@ function normalizeZodErrors(
             // We exit the build when encountering an error in the images config
             shouldExit = true
           }
-
+          // joined path to be shown in the error message
           const path = issue.path.reduce<string>((acc, cur) => {
             if (typeof cur === 'number') {
+              // array index
               return `${acc}[${cur}]`
             }
             if (cur.includes('"')) {
+              // escape quotes
               return `${acc}["${cur.replaceAll('"', '\\"')}"]`
             }
+            // dot notation
             const separator = acc.length === 0 ? '' : '.'
             return acc + separator + cur
           }, '')
 
           messages.push(`${issue.message} at "${path}"`)
         }
+      } else {
+        // The path is empty
+        messages.push(issue.message)
       }
 
       if ('unionErrors' in issue) {

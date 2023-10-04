@@ -5,8 +5,13 @@ import { z } from 'next/dist/compiled/zod'
 import type zod from 'next/dist/compiled/zod'
 
 import type { SizeLimit } from '../../types'
-import { ExportPathMap, TurboLoaderItem, TurboRule } from './config-shared'
-import { Header, Rewrite, RouteHas, Redirect } from '../lib/load-custom-routes'
+import type { ExportPathMap, TurboLoaderItem, TurboRule } from './config-shared'
+import type {
+  Header,
+  Rewrite,
+  RouteHas,
+  Redirect,
+} from '../lib/load-custom-routes'
 
 // A custom zod schema for the SizeLimit type
 const zSizeLimit = z.custom<SizeLimit>((val) => {
@@ -103,202 +108,199 @@ const zTurboRule: zod.ZodType<TurboRule> = z.union([
 ])
 
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
-  z
-    .object({
-      amp: z
-        .object({
-          canonicalBase: z.string().optional(),
-        })
-        .catchall(z.never())
-        .optional(),
-      analyticsId: z.string().optional(),
-      assetPrefix: z.string().optional(),
-      basePath: z.string().optional(),
-      cleanDistDir: z.boolean().optional(),
-      compiler: z
-        .object({
-          emotion: z
-            .union([
-              z.boolean(),
-              z.object({
-                sourceMap: z.boolean().optional(),
-                autoLabel: z
-                  .union([
-                    z.literal('always'),
-                    z.literal('dev-only'),
-                    z.literal('never'),
-                  ])
-                  .optional(),
-                labelFormat: z.string().min(1).optional(),
-                importMap: z
-                  .record(
+  z.strictObject({
+    amp: z
+      .object({
+        canonicalBase: z.string().optional(),
+      })
+      .optional(),
+    analyticsId: z.string().optional(),
+    assetPrefix: z.string().optional(),
+    basePath: z.string().optional(),
+    cleanDistDir: z.boolean().optional(),
+    compiler: z
+      .strictObject({
+        emotion: z
+          .union([
+            z.boolean(),
+            z.object({
+              sourceMap: z.boolean().optional(),
+              autoLabel: z
+                .union([
+                  z.literal('always'),
+                  z.literal('dev-only'),
+                  z.literal('never'),
+                ])
+                .optional(),
+              labelFormat: z.string().min(1).optional(),
+              importMap: z
+                .record(
+                  z.string(),
+                  z.record(
                     z.string(),
-                    z.record(
-                      z.string(),
-                      z.object({
-                        canonicalImport: z
-                          .tuple([z.string(), z.string()])
-                          .optional(),
-                        styledBaseImport: z
-                          .tuple([z.string(), z.string()])
-                          .optional(),
-                      })
-                    )
+                    z.object({
+                      canonicalImport: z
+                        .tuple([z.string(), z.string()])
+                        .optional(),
+                      styledBaseImport: z
+                        .tuple([z.string(), z.string()])
+                        .optional(),
+                    })
                   )
-                  .optional(),
-              }),
-            ])
-            .optional(),
-          reactRemoveProperties: z
-            .union([
-              z.boolean().optional(),
-              z.object({
-                properties: z.array(z.string()).optional(),
-              }),
-            ])
-            .optional(),
-          relay: z
-            .object({
-              src: z.string(),
-              artifactDirectory: z.string().optional(),
-              language: z.enum(['javascript', 'typescript', 'flow']).optional(),
-              eagerEsModules: z.boolean().optional(),
-            })
-            .optional(),
-          removeConsole: z
-            .union([
-              z.boolean().optional(),
-              z.object({
-                exclude: z.array(z.string()).min(1).optional(),
-              }),
-            ])
-            .optional(),
-          styledComponents: z.union([
+                )
+                .optional(),
+            }),
+          ])
+          .optional(),
+        reactRemoveProperties: z
+          .union([
             z.boolean().optional(),
             z.object({
-              displayName: z.boolean().optional(),
-              topLevelImportPaths: z.array(z.string()).min(1).optional(),
-              ssr: z.boolean().optional(),
-              fileName: z.boolean().optional(),
-              meaninglessFileNames: z.array(z.string()).min(1).optional(),
-              minify: z.boolean().optional(),
-              transpileTemplateLiterals: z.boolean().optional(),
-              namespace: z.string().min(1).optional(),
-              pure: z.boolean().optional(),
-              cssProp: z.boolean().optional(),
+              properties: z.array(z.string()).optional(),
             }),
-          ]),
-        })
-        .catchall(z.never()),
-      compress: z.boolean().optional(),
-      configOrigin: z.string().optional(),
-      crossOrigin: z
-        .union([
-          z.literal(false),
-          z.literal('anonymous'),
-          z.literal('use-credentials'),
-        ])
-        .optional(),
-      devIndicators: z
-        .object({
-          buildActivity: z.boolean().optional(),
-          buildActivityPosition: z
-            .union([
-              z.literal('bottom-left'),
-              z.literal('bottom-right'),
-              z.literal('top-left'),
-              z.literal('top-right'),
-            ])
-            .optional(),
-        })
-        .optional(),
-      distDir: z.string().min(1).optional(),
-      env: z.record(z.string(), z.string()).optional(),
-      eslint: z
-        .object({
-          dirs: z.array(z.string().min(1)).optional(),
-          ignoreDuringBuilds: z.boolean().optional(),
-        })
-        .catchall(z.never())
-        .optional(),
-      excludeDefaultMomentLocales: z.boolean().optional(),
-      experimental: z
-        .object({
-          appDocumentPreloading: z.boolean().optional(),
-          adjustFontFallbacks: z.boolean().optional(),
-          adjustFontFallbacksWithSizeAdjust: z.boolean().optional(),
-          allowedRevalidateHeaderKeys: z.array(z.string()).optional(),
-          amp: z
-            .object({
-              // AMP optimizer option is unknown, use z.any() here
-              optimizer: z.any().optional(),
-              skipValidation: z.boolean().optional(),
-              validator: z.string().optional(),
-            })
-            .catchall(z.never())
-            .optional(),
-          clientRouterFilter: z.boolean().optional(),
-          clientRouterFilterRedirects: z.boolean().optional(),
-          clientRouterFilterAllowedRate: z.number().optional(),
-          cpus: z.number().optional(),
-          memoryBasedWorkersCount: z.boolean().optional(),
-          craCompat: z.boolean().optional(),
-          caseSensitiveRoutes: z.boolean().optional(),
-          useDeploymentId: z.boolean().optional(),
-          useDeploymentIdServerActions: z.boolean().optional(),
-          deploymentId: z.string().optional(),
-          disableOptimizedLoading: z.boolean().optional(),
-          disablePostcssPresetEnv: z.boolean().optional(),
-          esmExternals: z.union([z.boolean(), z.literal('loose')]).optional(),
-          serverActions: z.boolean().optional(),
-          serverActionsBodySizeLimit: zSizeLimit.optional(),
-          // The original type was Record<string, any>
-          extensionAlias: z.record(z.string(), z.any()).optional(),
-          externalDir: z.boolean().optional(),
-          externalMiddlewareRewritesResolve: z.boolean().optional(),
-          fallbackNodePolyfills: z.literal(false).optional(),
-          fetchCacheKeyPrefix: z.string().optional(),
-          forceSwcTransforms: z.boolean().optional(),
-          fullySpecified: z.boolean().optional(),
-          gzipSize: z.boolean().optional(),
-          incrementalCacheHandlerPath: z.string().optional(),
-          isrFlushToDisk: z.boolean().optional(),
-          isrMemoryCacheSize: z.number().optional(),
-          largePageDataBytes: z.number().optional(),
-          manualClientBasePath: z.boolean().optional(),
-          middlewarePrefetch: z.enum(['strict', 'flexible']).optional(),
-          nextScriptWorkers: z.boolean().optional(),
-          // The critter option is unknown, use z.any() here
-          optimizeCss: z.union([z.boolean(), z.any()]).optional(),
-          optimisticClientCache: z.boolean().optional(),
-          outputFileTracingRoot: z.string().optional(),
-          outputFileTracingExcludes: z
-            .record(z.string(), z.array(z.string()))
-            .optional(),
-          outputFileTracingIgnores: z.array(z.string()).optional(),
-          outputFileTracingIncludes: z
-            .record(z.string(), z.array(z.string()))
-            .optional(),
-          ppr: z.boolean().optional(),
-          proxyTimeout: z.number().gte(0).optional(),
-          serverComponentsExternalPackages: z.array(z.string()).optional(),
-          scrollRestoration: z.boolean().optional(),
-          sri: z
-            .object({
-              algorithm: z.enum(['sha256', 'sha384', 'sha512']).optional(),
-            })
-            .optional(),
-          strictNextHead: z.boolean().optional(),
-          swcMinify: z.boolean().optional(),
-          swcPlugins: z
-            // The specific swc plugin's option is unknown, use z.any() here
-            .array(z.tuple([z.string(), z.record(z.string(), z.any())]))
-            .optional(),
-          swcTraceProfiling: z.boolean().optional(),
-          // NonNullable<webpack.Configuration['experiments']>['buildHttp']
-          urlImports: z.any().optional(),
-          workerThreads: z.boolean().optional(),
-          webVitalsAttribution: z.array(
+          ])
+          .optional(),
+        relay: z
+          .object({
+            src: z.string(),
+            artifactDirectory: z.string().optional(),
+            language: z.enum(['javascript', 'typescript', 'flow']).optional(),
+            eagerEsModules: z.boolean().optional(),
+          })
+          .optional(),
+        removeConsole: z
+          .union([
+            z.boolean().optional(),
+            z.object({
+              exclude: z.array(z.string()).min(1).optional(),
+            }),
+          ])
+          .optional(),
+        styledComponents: z.union([
+          z.boolean().optional(),
+          z.object({
+            displayName: z.boolean().optional(),
+            topLevelImportPaths: z.array(z.string()).min(1).optional(),
+            ssr: z.boolean().optional(),
+            fileName: z.boolean().optional(),
+            meaninglessFileNames: z.array(z.string()).min(1).optional(),
+            minify: z.boolean().optional(),
+            transpileTemplateLiterals: z.boolean().optional(),
+            namespace: z.string().min(1).optional(),
+            pure: z.boolean().optional(),
+            cssProp: z.boolean().optional(),
+          }),
+        ]),
+      })
+      .optional(),
+    compress: z.boolean().optional(),
+    configOrigin: z.string().optional(),
+    crossOrigin: z
+      .union([
+        z.literal(false),
+        z.literal('anonymous'),
+        z.literal('use-credentials'),
+      ])
+      .optional(),
+    devIndicators: z
+      .object({
+        buildActivity: z.boolean().optional(),
+        buildActivityPosition: z
+          .union([
+            z.literal('bottom-left'),
+            z.literal('bottom-right'),
+            z.literal('top-left'),
+            z.literal('top-right'),
+          ])
+          .optional(),
+      })
+      .optional(),
+    distDir: z.string().min(1).optional(),
+    env: z.record(z.string(), z.string()).optional(),
+    eslint: z
+      .strictObject({
+        dirs: z.array(z.string().min(1)).optional(),
+        ignoreDuringBuilds: z.boolean().optional(),
+      })
+      .optional(),
+    excludeDefaultMomentLocales: z.boolean().optional(),
+    experimental: z
+      .strictObject({
+        appDocumentPreloading: z.boolean().optional(),
+        adjustFontFallbacks: z.boolean().optional(),
+        adjustFontFallbacksWithSizeAdjust: z.boolean().optional(),
+        allowedRevalidateHeaderKeys: z.array(z.string()).optional(),
+        amp: z
+          .object({
+            // AMP optimizer option is unknown, use z.any() here
+            optimizer: z.any().optional(),
+            skipValidation: z.boolean().optional(),
+            validator: z.string().optional(),
+          })
+          .optional(),
+        clientRouterFilter: z.boolean().optional(),
+        clientRouterFilterRedirects: z.boolean().optional(),
+        clientRouterFilterAllowedRate: z.number().optional(),
+        cpus: z.number().optional(),
+        memoryBasedWorkersCount: z.boolean().optional(),
+        craCompat: z.boolean().optional(),
+        caseSensitiveRoutes: z.boolean().optional(),
+        useDeploymentId: z.boolean().optional(),
+        useDeploymentIdServerActions: z.boolean().optional(),
+        deploymentId: z.string().optional(),
+        disableOptimizedLoading: z.boolean().optional(),
+        disablePostcssPresetEnv: z.boolean().optional(),
+        esmExternals: z.union([z.boolean(), z.literal('loose')]).optional(),
+        serverActions: z.boolean().optional(),
+        serverActionsBodySizeLimit: zSizeLimit.optional(),
+        // The original type was Record<string, any>
+        extensionAlias: z.record(z.string(), z.any()).optional(),
+        externalDir: z.boolean().optional(),
+        externalMiddlewareRewritesResolve: z.boolean().optional(),
+        fallbackNodePolyfills: z.literal(false).optional(),
+        fetchCacheKeyPrefix: z.string().optional(),
+        forceSwcTransforms: z.boolean().optional(),
+        fullySpecified: z.boolean().optional(),
+        gzipSize: z.boolean().optional(),
+        incrementalCacheHandlerPath: z.string().optional(),
+        isrFlushToDisk: z.boolean().optional(),
+        isrMemoryCacheSize: z.number().optional(),
+        largePageDataBytes: z.number().optional(),
+        manualClientBasePath: z.boolean().optional(),
+        middlewarePrefetch: z.enum(['strict', 'flexible']).optional(),
+        nextScriptWorkers: z.boolean().optional(),
+        // The critter option is unknown, use z.any() here
+        optimizeCss: z.union([z.boolean(), z.any()]).optional(),
+        optimisticClientCache: z.boolean().optional(),
+        outputFileTracingRoot: z.string().optional(),
+        outputFileTracingExcludes: z
+          .record(z.string(), z.array(z.string()))
+          .optional(),
+        outputFileTracingIgnores: z.array(z.string()).optional(),
+        outputFileTracingIncludes: z
+          .record(z.string(), z.array(z.string()))
+          .optional(),
+        ppr: z.boolean().optional(),
+        proxyTimeout: z.number().gte(0).optional(),
+        serverComponentsExternalPackages: z.array(z.string()).optional(),
+        scrollRestoration: z.boolean().optional(),
+        sri: z
+          .object({
+            algorithm: z.enum(['sha256', 'sha384', 'sha512']).optional(),
+          })
+          .optional(),
+        strictNextHead: z.boolean().optional(),
+        swcMinify: z.boolean().optional(),
+        swcPlugins: z
+          // The specific swc plugin's option is unknown, use z.any() here
+          .array(z.tuple([z.string(), z.record(z.string(), z.any())]))
+          .optional(),
+        swcTraceProfiling: z.boolean().optional(),
+        // NonNullable<webpack.Configuration['experiments']>['buildHttp']
+        urlImports: z.any().optional(),
+        workerThreads: z.boolean().optional(),
+        webVitalsAttribution: z
+          .array(
             z.union([
               z.literal('CLS'),
               z.literal('FCP'),
@@ -307,231 +309,218 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
               z.literal('LCP'),
               z.literal('TTFB'),
             ])
-          ),
-          mdxRs: z.boolean().optional(),
-          typedRoutes: z.boolean().optional(),
-          webpackBuildWorker: z.boolean().optional(),
-          turbo: z
-            .object({
-              loaders: z
-                .record(z.string(), z.array(zTurboLoaderItem))
-                .optional(),
-              rules: z.record(z.string(), zTurboRule).optional(),
-              resolveAlias: z
-                .record(
+          )
+          .optional(),
+        mdxRs: z.boolean().optional(),
+        typedRoutes: z.boolean().optional(),
+        webpackBuildWorker: z.boolean().optional(),
+        turbo: z
+          .object({
+            loaders: z.record(z.string(), z.array(zTurboLoaderItem)).optional(),
+            rules: z.record(z.string(), zTurboRule).optional(),
+            resolveAlias: z
+              .record(
+                z.string(),
+                z.union([
                   z.string(),
-                  z.union([
+                  z.array(z.string()),
+                  z.record(
                     z.string(),
-                    z.array(z.string()),
-                    z.record(
-                      z.string(),
-                      z.union([z.string(), z.array(z.string())])
-                    ),
-                  ])
-                )
-                .optional(),
-            })
-            .catchall(z.never())
-            .optional(),
-          optimizePackageImports: z.array(z.string()).optional(),
-          optimizeServerReact: z.boolean().optional(),
-          instrumentationHook: z.boolean().optional(),
-          turbotrace: z
-            .object({
-              logLevel: z
-                .enum([
-                  'bug',
-                  'fatal',
-                  'error',
-                  'warning',
-                  'hint',
-                  'note',
-                  'suggestions',
-                  'info',
+                    z.union([z.string(), z.array(z.string())])
+                  ),
                 ])
-                .optional(),
-              logAll: z.boolean().optional(),
-              logDetail: z.boolean().optional(),
-              contextDirectory: z.string().optional(),
-              processCwd: z.string().optional(),
-              memoryLimit: z.number().int().optional(),
-            })
-            .optional(),
-          logging: z
-            .object({
-              level: z.literal('verbose').optional(),
-              fullUrl: z.boolean().optional(),
-            })
-            .optional(),
-          serverMinification: z.boolean().optional(),
-          serverSourceMaps: z.boolean().optional(),
-          bundlePagesExternals: z.boolean().optional(),
-        })
-        .catchall(z.never())
-        .optional(),
-      exportPathMap: z
-        .function()
-        .args(
-          zExportMap,
-          z.object({
-            dev: z.boolean(),
-            dir: z.string(),
-            outDir: z.string().nullable(),
-            distDir: z.string(),
-            buildId: z.string(),
+              )
+              .optional(),
           })
-        )
-        .returns(z.union([zExportMap, z.promise(zExportMap)]))
-        .optional(),
-      generateBuildId: z
-        .function()
-        .args()
-        .returns(
+          .optional(),
+        optimizePackageImports: z.array(z.string()).optional(),
+        optimizeServerReact: z.boolean().optional(),
+        instrumentationHook: z.boolean().optional(),
+        turbotrace: z
+          .object({
+            logLevel: z
+              .enum([
+                'bug',
+                'fatal',
+                'error',
+                'warning',
+                'hint',
+                'note',
+                'suggestions',
+                'info',
+              ])
+              .optional(),
+            logAll: z.boolean().optional(),
+            logDetail: z.boolean().optional(),
+            contextDirectory: z.string().optional(),
+            processCwd: z.string().optional(),
+            memoryLimit: z.number().int().optional(),
+          })
+          .optional(),
+        logging: z
+          .object({
+            level: z.literal('verbose').optional(),
+            fullUrl: z.boolean().optional(),
+          })
+          .optional(),
+        serverMinification: z.boolean().optional(),
+        serverSourceMaps: z.boolean().optional(),
+        bundlePagesExternals: z.boolean().optional(),
+      })
+      .optional(),
+    exportPathMap: z
+      .function()
+      .args(
+        zExportMap,
+        z.object({
+          dev: z.boolean(),
+          dir: z.string(),
+          outDir: z.string().nullable(),
+          distDir: z.string(),
+          buildId: z.string(),
+        })
+      )
+      .returns(z.union([zExportMap, z.promise(zExportMap)]))
+      .optional(),
+    generateBuildId: z
+      .function()
+      .args()
+      .returns(
+        z.union([
+          z.string(),
+          z.null(),
+          z.promise(z.union([z.string(), z.null()])),
+        ])
+      )
+      .optional(),
+    generateEtags: z.boolean().optional(),
+    headers: z
+      .function()
+      .args()
+      .returns(z.promise(z.array(zHeader)))
+      .optional(),
+    httpAgentOptions: z
+      .strictObject({ keepAlive: z.boolean().optional() })
+      .optional(),
+    i18n: z
+      .strictObject({
+        defaultLocale: z.string().min(1),
+        domains: z
+          .array(
+            z.strictObject({
+              defaultLocale: z.string().min(1),
+              domain: z.string().min(1),
+              http: z.literal(true).optional(),
+              locales: z.array(z.string().min(1)).optional(),
+            })
+          )
+          .optional(),
+        localeDetection: z.literal(false).optional(),
+        locales: z.array(z.string().min(1)),
+      })
+      .optional(),
+    images: z
+      .strictObject({
+        remotePatterns: z
+          .array(
+            z.strictObject({
+              hostname: z.string(),
+              pathname: z.string().optional(),
+              port: z.string().max(5).optional(),
+              protocol: z.enum(['http', 'https']).optional(),
+            })
+          )
+          .max(50)
+          .optional(),
+        unoptimized: z.boolean().optional(),
+        contentSecurityPolicy: z.string().optional(),
+        contentDispositionType: z.enum(['inline', 'attachment']).optional(),
+        dangerouslyAllowSVG: z.boolean().optional(),
+        deviceSizes: z
+          .array(z.number().int().gte(1).lte(10000))
+          .max(25)
+          .optional(),
+        disableStaticImages: z.boolean().optional(),
+        domains: z.array(z.string()).max(50).optional(),
+        formats: z
+          .array(z.enum(['image/avif', 'image/webp']))
+          .max(4)
+          .optional(),
+        imageSizes: z
+          .array(z.number().int().gte(1).lte(10000))
+          .min(0)
+          .max(25)
+          .optional(),
+        loader: z.enum(VALID_LOADERS).optional(),
+        loaderFile: z.string().optional(),
+        minimumCacheTTL: z.number().int().gte(0).optional(),
+        path: z.string().optional(),
+      })
+      .optional(),
+    modularizeImports: z
+      .record(
+        z.string(),
+        z.object({
+          transform: z.union([z.string(), z.record(z.string(), z.string())]),
+          preventFullImport: z.boolean().optional(),
+          skipDefaultConversion: z.boolean().optional(),
+        })
+      )
+      .optional(),
+    onDemandEntries: z
+      .strictObject({
+        maxInactiveAge: z.number().optional(),
+        pagesBufferLength: z.number().optional(),
+      })
+      .optional(),
+    optimizeFonts: z.boolean().optional(),
+    output: z.enum(['standalone', 'export']).optional(),
+    outputFileTracing: z.boolean().optional(),
+    pageExtensions: z.array(z.string()).min(1).optional(),
+    poweredByHeader: z.boolean().optional(),
+    productionBrowserSourceMaps: z.boolean().optional(),
+    publicRuntimeConfig: z.record(z.string(), z.any()).optional(),
+    reactProductionProfiling: z.boolean().optional(),
+    reactStrictMode: z.boolean().optional(),
+    redirects: z
+      .function()
+      .args()
+      .returns(z.promise(z.array(zRedirect)))
+      .optional(),
+    rewrites: z
+      .function()
+      .args()
+      .returns(
+        z.promise(
           z.union([
-            z.string(),
-            z.null(),
-            z.promise(z.union([z.string(), z.null()])),
+            z.array(zRewrite),
+            z.object({
+              beforeFiles: z.array(zRewrite),
+              afterFiles: z.array(zRewrite),
+              fallback: z.array(zRewrite),
+            }),
           ])
         )
-        .optional(),
-      generateEtags: z.boolean().optional(),
-      headers: z
-        .function()
-        .args()
-        .returns(z.promise(z.array(zHeader)))
-        .optional(),
-      httpAgentOptions: z
-        .object({ keepAlive: z.boolean().optional() })
-        .catchall(z.never())
-        .optional(),
-      i18n: z
-        .object({
-          defaultLocale: z.string().min(1),
-          domains: z
-            .array(
-              z
-                .object({
-                  defaultLocale: z.string().min(1),
-                  domain: z.string().min(1),
-                  http: z.literal(true).optional(),
-                  locales: z.array(z.string().min(1)).optional(),
-                })
-                .catchall(z.never())
-            )
-            .optional(),
-          localeDetection: z.literal(false).optional(),
-          locales: z.array(z.string().min(1)),
-        })
-        .catchall(z.never())
-        .optional(),
-      images: z
-        .object({
-          remotePatterns: z
-            .array(
-              z
-                .object({
-                  hostname: z.string(),
-                  pathname: z.string().optional(),
-                  port: z.string().max(5).optional(),
-                  protocol: z.enum(['http', 'https']).optional(),
-                })
-                .catchall(z.never())
-            )
-            .max(50)
-            .optional(),
-          unoptimized: z.boolean().optional(),
-          contentSecurityPolicy: z.string().optional(),
-          contentDispositionType: z.enum(['inline', 'attachment']).optional(),
-          dangerouslyAllowSVG: z.boolean().optional(),
-          deviceSizes: z
-            .array(z.number().int().gte(1).lte(10000))
-            .max(25)
-            .optional(),
-          disableStaticImages: z.boolean().optional(),
-          domains: z.array(z.string()).max(50).optional(),
-          formats: z
-            .array(z.enum(['image/avif', 'image/webp']))
-            .max(4)
-            .optional(),
-          imageSizes: z
-            .array(z.number().int().gte(1).lte(10000))
-            .min(0)
-            .max(25)
-            .optional(),
-          loader: z.enum(VALID_LOADERS).optional(),
-          loaderFile: z.string().optional(),
-          minimumCacheTTL: z.number().int().gte(0).optional(),
-          path: z.string().optional(),
-        })
-        .catchall(z.never())
-        .optional(),
-      modularizeImports: z
-        .record(
-          z.string(),
-          z.object({
-            transform: z.union([z.string(), z.record(z.string(), z.string())]),
-            preventFullImport: z.boolean().optional(),
-            skipDefaultConversion: z.boolean().optional(),
-          })
-        )
-        .optional(),
-      onDemandEntries: z
-        .object({
-          maxInactiveAge: z.number().optional(),
-          pagesBufferLength: z.number().optional(),
-        })
-        .catchall(z.never())
-        .optional(),
-      optimizeFonts: z.boolean().optional(),
-      output: z.enum(['standalone', 'export']).optional(),
-      outputFileTracing: z.boolean().optional(),
-      pageExtensions: z.array(z.string()).min(1).optional(),
-      poweredByHeader: z.boolean().optional(),
-      productionBrowserSourceMaps: z.boolean().optional(),
-      publicRuntimeConfig: z.record(z.string(), z.any()).optional(),
-      reactProductionProfiling: z.boolean().optional(),
-      reactStrictMode: z.boolean().optional(),
-      redirects: z
-        .function()
-        .args()
-        .returns(z.promise(z.array(zRedirect)))
-        .optional(),
-      rewrites: z
-        .function()
-        .args()
-        .returns(
-          z.promise(
-            z.union([
-              z.array(zRewrite),
-              z.object({
-                beforeFiles: z.array(zRewrite),
-                afterFiles: z.array(zRewrite),
-                fallback: z.array(zRewrite),
-              }),
-            ])
-          )
-        )
-        .optional(),
-      // saas option is unknown, use z.any() here
-      sassOptions: z.record(z.string(), z.any()).optional(),
-      serverRuntimeConfig: z.record(z.string(), z.any()).optional(),
-      skipMiddlewareUrlNormalize: z.boolean().optional(),
-      skipTrailingSlashRedirect: z.boolean().optional(),
-      staticPageGenerationTimeout: z.number().optional(),
-      swcMinify: z.boolean().optional(),
-      target: z.string().optional(),
-      trailingSlash: z.boolean().optional(),
-      transpilePackages: z.array(z.string()).optional(),
-      typescript: z
-        .object({
-          ignoreBuildErrors: z.boolean().optional(),
-          tsconfigPath: z.string().min(1).optional(),
-        })
-        .catchall(z.never())
-        .optional(),
-      useFileSystemPublicRoutes: z.boolean().optional(),
-      // The webpack config type is unknown, use z.any() here
-      webpack: z.any().optional(),
-    })
-    .catchall(z.never())
+      )
+      .optional(),
+    // saas option is unknown, use z.any() here
+    sassOptions: z.record(z.string(), z.any()).optional(),
+    serverRuntimeConfig: z.record(z.string(), z.any()).optional(),
+    skipMiddlewareUrlNormalize: z.boolean().optional(),
+    skipTrailingSlashRedirect: z.boolean().optional(),
+    staticPageGenerationTimeout: z.number().optional(),
+    swcMinify: z.boolean().optional(),
+    target: z.string().optional(),
+    trailingSlash: z.boolean().optional(),
+    transpilePackages: z.array(z.string()).optional(),
+    typescript: z
+      .strictObject({
+        ignoreBuildErrors: z.boolean().optional(),
+        tsconfigPath: z.string().min(1).optional(),
+      })
+      .optional(),
+    useFileSystemPublicRoutes: z.boolean().optional(),
+    // The webpack config type is unknown, use z.any() here
+    webpack: z.any().optional(),
+  })
 )
