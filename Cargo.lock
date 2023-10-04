@@ -3378,7 +3378,6 @@ dependencies = [
  "anyhow",
  "async-recursion",
  "base64 0.21.4",
- "clap 4.4.2",
  "console-subscriber",
  "dunce",
  "indexmap 1.9.3",

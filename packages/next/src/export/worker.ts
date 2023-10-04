@@ -1,9 +1,10 @@
-import type { FontConfig } from '../server/font-utils'
-import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import type {
+  ExportPageInput,
   ExportPageResult,
+  ExportRouteResult,
+  ExportedPageFile,
+  FileWriter,
   WorkerRenderOpts,
-  WorkerRenderOptsPartial,
 } from './types'
 
 // Polyfill fetch for the export worker.
@@ -14,7 +15,7 @@ import '../server/node-environment'
 process.env.NEXT_IS_EXPORT_WORKER = 'true'
 
 import { extname, join, dirname, sep } from 'path'
-import fs from 'fs'
+import fs from 'fs/promises'
 import { loadComponents } from '../server/load-components'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
@@ -41,39 +42,10 @@ const envConfig = require('../shared/lib/runtime-config.external')
   nextExport: true,
 }
 
-type PathMap = ExportPathMap[keyof ExportPathMap]
-
-interface ExportPageInput {
-  path: string
-  pathMap: PathMap
-  distDir: string
-  outDir: string
-  pagesDataDir: string
-  renderOpts: WorkerRenderOptsPartial
-  ampValidatorPath?: string
-  trailingSlash?: boolean
-  buildExport?: boolean
-  serverRuntimeConfig: { [key: string]: any }
-  subFolders?: boolean
-  optimizeFonts: FontConfig
-  optimizeCss: any
-  disableOptimizedLoading: any
-  parentSpanId: any
-  httpAgentOptions: NextConfigComplete['httpAgentOptions']
-  debugOutput?: boolean
-  isrMemoryCacheSize?: NextConfigComplete['experimental']['isrMemoryCacheSize']
-  fetchCache?: boolean
-  incrementalCacheHandlerPath?: string
-  fetchCacheKeyPrefix?: string
-  nextConfigOutput?: NextConfigComplete['output']
-  enableExperimentalReact?: boolean
-}
-
-export interface ExportPageResults extends ExportPageResult {
-  duration: number
-}
-
-async function exportPageImpl(input: ExportPageInput) {
+async function exportPageImpl(
+  input: ExportPageInput,
+  fileWriter: FileWriter
+): Promise<ExportRouteResult | undefined> {
   const {
     path,
     pathMap,
@@ -242,7 +214,7 @@ async function exportPageImpl(input: ExportPageInput) {
     const baseDir = join(outDir, dirname(htmlFilename))
     let htmlFilepath = join(outDir, htmlFilename)
 
-    await fs.promises.mkdir(baseDir, { recursive: true })
+    await fs.mkdir(baseDir, { recursive: true })
 
     // If the fetch cache was enabled, we need to create an incremental
     // cache instance for this page.
@@ -265,7 +237,8 @@ async function exportPageImpl(input: ExportPageInput) {
         page,
         incrementalCache,
         distDir,
-        htmlFilepath
+        htmlFilepath,
+        fileWriter
       )
     }
 
@@ -310,7 +283,8 @@ async function exportPageImpl(input: ExportPageInput) {
         htmlFilepath,
         debugOutput,
         isDynamicError,
-        isAppPrefetch
+        isAppPrefetch,
+        fileWriter
       )
     }
 
@@ -331,7 +305,8 @@ async function exportPageImpl(input: ExportPageInput) {
       isDynamic,
       hasOrigQueryValues,
       renderOpts,
-      components
+      components,
+      fileWriter
     )
   } catch (err) {
     console.error(
@@ -345,21 +320,48 @@ async function exportPageImpl(input: ExportPageInput) {
 
 export default async function exportPage(
   input: ExportPageInput
-): Promise<ExportPageResults> {
+): Promise<ExportPageResult | undefined> {
   // Configure the http agent.
   setHttpClientAndAgentOptions({
     httpAgentOptions: input.httpAgentOptions,
   })
+
+  const files: ExportedPageFile[] = []
+  const baseFileWriter: FileWriter = async (
+    type,
+    path,
+    content,
+    encodingOptions = 'utf-8'
+  ) => {
+    await fs.mkdir(dirname(path), { recursive: true })
+    await fs.writeFile(path, content, encodingOptions)
+    files.push({ type, path })
+  }
 
   const exportPageSpan = trace('export-page-worker', input.parentSpanId)
 
   const start = Date.now()
 
   // Export the page.
-  const results = await exportPageSpan.traceAsyncFn(async () => {
-    return await exportPageImpl(input)
+  const result = await exportPageSpan.traceAsyncFn(async () => {
+    return await exportPageImpl(input, baseFileWriter)
   })
 
-  // Return it's results.
-  return { ...results, duration: Date.now() - start }
+  // If there was no result, then we can exit early.
+  if (!result) return
+
+  // If there was an error, then we can exit early.
+  if ('error' in result) {
+    return { error: result.error, duration: Date.now() - start, files: [] }
+  }
+
+  // Otherwise we can return the result.
+  return {
+    duration: Date.now() - start,
+    files,
+    ampValidations: result.ampValidations,
+    revalidate: result.revalidate,
+    metadata: result.metadata,
+    ssgNotFound: result.ssgNotFound,
+  }
 }

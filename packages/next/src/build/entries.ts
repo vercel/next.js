@@ -15,6 +15,7 @@ import type { AppLoaderOptions } from './webpack/loaders/next-app-loader'
 import { cyan } from '../lib/picocolors'
 import { posix, join, dirname, extname } from 'path'
 import { stringify } from 'querystring'
+import fs from 'fs'
 import {
   PAGES_DIR_ALIAS,
   ROOT_DIR_ALIAS,
@@ -51,7 +52,6 @@ import { encodeMatchers } from './webpack/loaders/next-middleware-loader'
 import { EdgeFunctionLoaderOptions } from './webpack/loaders/next-edge-function-loader'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { normalizeMetadataRoute } from '../lib/metadata/get-metadata-route'
-import { fileExists } from '../lib/file-exists'
 import { getRouteLoaderEntry } from './webpack/loaders/next-route-loader'
 import {
   isInternalComponent,
@@ -123,7 +123,7 @@ export async function getStaticInfoIncludingLayouts({
     while (dir.startsWith(appDir)) {
       for (const potentialLayoutFile of potentialLayoutFiles) {
         const layoutFile = join(dir, potentialLayoutFile)
-        if (!(await fileExists(layoutFile))) {
+        if (!fs.existsSync(layoutFile)) {
           continue
         }
         layoutFiles.unshift(layoutFile)
