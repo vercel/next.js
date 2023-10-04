@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fs from 'fs/promises'
 import { join } from 'path'
 import {
   killApp,
