@@ -377,7 +377,7 @@ ${ENDGROUP}`)
         '--runInBand',
         '--forceExit',
         '--verbose',
-        // '--silent',
+        '--silent',
         ...(isTestJob
           ? ['--json', `--outputFile=${test.file}${RESULTS_EXT}`]
           : []),
