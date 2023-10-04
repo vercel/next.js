@@ -732,7 +732,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 13.5.5-canary.0
+        specifier: 13.5.5-canary.2
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.3.3
@@ -793,7 +793,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 13.5.5-canary.0
+        specifier: 13.5.5-canary.2
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.2
@@ -917,19 +917,19 @@ importers:
         specifier: 1.1.0
         version: 1.1.0
       '@next/polyfill-module':
-        specifier: 13.5.5-canary.0
+        specifier: 13.5.5-canary.2
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 13.5.5-canary.0
+        specifier: 13.5.5-canary.2
         version: link:../next-polyfill-nomodule
       '@next/react-dev-overlay':
-        specifier: 13.5.5-canary.0
+        specifier: 13.5.5-canary.2
         version: link:../react-dev-overlay
       '@next/react-refresh-utils':
-        specifier: 13.5.5-canary.0
+        specifier: 13.5.5-canary.2
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 13.5.5-canary.0
+        specifier: 13.5.5-canary.2
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.4.1
@@ -1586,7 +1586,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 13.5.5-canary.0
+        specifier: 13.5.5-canary.2
         version: link:../next
       outdent:
         specifier: 0.8.0

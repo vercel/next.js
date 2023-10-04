@@ -47,7 +47,7 @@ const nextEdgeFunctionLoader: webpack.LoaderDefinitionFunction<EdgeFunctionLoade
           throw new Error('The Edge Function "pages${page}" must export a \`default\` function');
         }
 
-        export default function (opts) {
+        export default function nHandler (opts) {
           return adapter({
               ...opts,
               IncrementalCache,
