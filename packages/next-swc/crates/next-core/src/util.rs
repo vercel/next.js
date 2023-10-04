@@ -420,17 +420,21 @@ pub async fn load_next_js_template(
             .get_relative_path_to(&imported)
             .context("path has to be relative to package root")?;
 
-        if !relative.starts_with("next/") {
+        if !relative.starts_with("./next/") {
             bail!(
-                "Invariant: Expected relative import to start with \"next/\", found \"{}\"",
+                "Invariant: Expected relative import to start with \"./next/\", found \"{}\"",
                 relative
             )
         }
 
+        let relative = relative
+            .strip_prefix("./")
+            .context("should be able to strip the prefix")?;
+
         Ok(if is_from_request {
-            format!("from {}", StringifyJs(&relative))
+            format!("from {}", StringifyJs(relative))
         } else {
-            format!("import {}", StringifyJs(&relative))
+            format!("import {}", StringifyJs(relative))
         })
     })
     .context("replacing imports failed")?;
