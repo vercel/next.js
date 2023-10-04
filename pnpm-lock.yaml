@@ -1311,7 +1311,7 @@ importers:
         version: 0.13.4
       sass-loader:
         specifier: 12.4.0
-        version: 12.4.0(sass@1.54.0)(webpack@5.86.0)
+        version: 12.4.0(webpack@5.86.0)
       schema-utils2:
         specifier: npm:schema-utils@2.7.1
         version: /schema-utils@2.7.1
@@ -1415,8 +1415,8 @@ importers:
         specifier: 8.2.3
         version: 8.2.3
       zod:
-        specifier: 3.22.2
-        version: 3.22.2
+        specifier: 3.22.3
+        version: 3.22.3
 
   packages/next-bundle-analyzer:
     dependencies:
@@ -23463,7 +23463,7 @@ packages:
   /safer-buffer@2.1.2:
     resolution: {integrity: sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg==}
 
-  /sass-loader@12.4.0(sass@1.54.0)(webpack@5.86.0):
+  /sass-loader@12.4.0(webpack@5.86.0):
     resolution: {integrity: sha512-7xN+8khDIzym1oL9XyS6zP6Ges+Bo2B2xbPrjdMHEYyV3AQYhd/wXeru++3ODHF0zMjYmVadblSKrPrjEkL8mg==}
     engines: {node: '>= 12.13.0'}
     peerDependencies:
@@ -23481,7 +23481,6 @@ packages:
     dependencies:
       klona: 2.0.4
       neo-async: 2.6.2
-      sass: 1.54.0
       webpack: 5.86.0(@swc/core@1.3.85)
     dev: true
 
@@ -26732,8 +26731,8 @@ packages:
     resolution: {integrity: sha512-N+d4UJSJbt/R3wqY7Coqs5pcV0aUj2j9IaQ3rNj9bVCLld8tTGKRa2USARjnvZJWVx1NDmQev8EknoczaOQDOA==}
     dev: true
 
-  /zod@3.22.2:
-    resolution: {integrity: sha512-wvWkphh5WQsJbVk1tbx1l1Ly4yg+XecD+Mq280uBGt9wa5BKSWf4Mhp6GmrkPixhMxmabYY7RbzlwVP32pbGCg==}
+  /zod@3.22.3:
+    resolution: {integrity: sha512-EjIevzuJRiRPbVH4mGc8nApb/lVLKVpmUhAaR5R5doKGfAnGJ6Gr3CViAVjP+4FWSxCsybeWQdcgCtbX+7oZug==}
     dev: true
 
   /zwitch@1.0.5:
