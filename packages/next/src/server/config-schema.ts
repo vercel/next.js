@@ -215,8 +215,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .optional(),
       })
       .optional(),
-    // distDir is nullable
-    distDir: z.string().min(1).nullable().optional(),
+    distDir: z.string().min(1).optional(),
     env: z.record(z.string(), z.string()).optional(),
     eslint: z
       .strictObject({

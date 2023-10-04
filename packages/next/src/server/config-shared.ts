@@ -434,7 +434,7 @@ export interface NextConfig extends Record<string, any> {
   /**
    * Destination directory (defaults to `.next`)
    */
-  distDir?: string | null | undefined
+  distDir?: string
 
   /**
    * The build output directory (defaults to `.next`) is now cleared by default except for the Next.js caches.
