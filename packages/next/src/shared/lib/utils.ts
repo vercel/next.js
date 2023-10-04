@@ -450,6 +450,7 @@ export class MiddlewareNotFoundError extends Error {
 export interface CacheFs {
   readFile: typeof fs.promises.readFile
   readFileSync: typeof fs.readFileSync
+  existsSync: typeof fs.existsSync
   writeFile(f: string, d: any): Promise<void>
   mkdir(dir: string): Promise<void | string>
   stat(f: string): Promise<{ mtime: Date }>

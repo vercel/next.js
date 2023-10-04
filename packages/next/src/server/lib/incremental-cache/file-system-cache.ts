@@ -123,7 +123,7 @@ export default class FileSystemCache implements CacheHandler {
     // let's check the disk for seed data
     if (!data && process.env.NEXT_RUNTIME !== 'edge') {
       try {
-        const { filePath } = await this.getFsPath({
+        const { filePath } = this.getFsPath({
           pathname: `${key}.body`,
           appDir: true,
         })
@@ -149,7 +149,7 @@ export default class FileSystemCache implements CacheHandler {
       }
 
       try {
-        const { filePath, isAppPath } = await this.getFsPath({
+        const { filePath, isAppPath } = this.getFsPath({
           pathname: fetchCache ? key : `${key}.html`,
           fetchCache,
         })
@@ -177,22 +177,18 @@ export default class FileSystemCache implements CacheHandler {
         } else {
           const pageData = isAppPath
             ? await this.fs.readFile(
-                (
-                  await this.getFsPath({
-                    pathname: `${key}.rsc`,
-                    appDir: true,
-                  })
-                ).filePath,
+                this.getFsPath({
+                  pathname: `${key}.rsc`,
+                  appDir: true,
+                }).filePath,
                 'utf8'
               )
             : JSON.parse(
                 await this.fs.readFile(
-                  (
-                    await this.getFsPath({
-                      pathname: `${key}.json`,
-                      appDir: false,
-                    })
-                  ).filePath,
+                  this.getFsPath({
+                    pathname: `${key}.json`,
+                    appDir: false,
+                  }).filePath,
                   'utf8'
                 )
               )
@@ -298,7 +294,7 @@ export default class FileSystemCache implements CacheHandler {
     if (!this.flushToDisk) return
 
     if (data?.kind === 'ROUTE') {
-      const { filePath } = await this.getFsPath({
+      const { filePath } = this.getFsPath({
         pathname: `${key}.body`,
         appDir: true,
       })
@@ -313,7 +309,7 @@ export default class FileSystemCache implements CacheHandler {
 
     if (data?.kind === 'PAGE') {
       const isAppPath = typeof data.pageData === 'string'
-      const { filePath: htmlPath } = await this.getFsPath({
+      const { filePath: htmlPath } = this.getFsPath({
         pathname: `${key}.html`,
         appDir: isAppPath,
       })
@@ -321,12 +317,10 @@ export default class FileSystemCache implements CacheHandler {
       await this.fs.writeFile(htmlPath, data.html)
 
       await this.fs.writeFile(
-        (
-          await this.getFsPath({
-            pathname: `${key}.${isAppPath ? 'rsc' : 'json'}`,
-            appDir: isAppPath,
-          })
-        ).filePath,
+        this.getFsPath({
+          pathname: `${key}.${isAppPath ? 'rsc' : 'json'}`,
+          appDir: isAppPath,
+        }).filePath,
         isAppPath ? data.pageData : JSON.stringify(data.pageData)
       )
 
@@ -340,7 +334,7 @@ export default class FileSystemCache implements CacheHandler {
         )
       }
     } else if (data?.kind === 'FETCH') {
-      const { filePath } = await this.getFsPath({
+      const { filePath } = this.getFsPath({
         pathname: key,
         fetchCache: true,
       })
@@ -355,7 +349,7 @@ export default class FileSystemCache implements CacheHandler {
     }
   }
 
-  private async getFsPath({
+  private getFsPath({
     pathname,
     appDir,
     fetchCache,
@@ -363,10 +357,10 @@ export default class FileSystemCache implements CacheHandler {
     pathname: string
     appDir?: boolean
     fetchCache?: boolean
-  }): Promise<{
+  }): {
     filePath: string
     isAppPath: boolean
-  }> {
+  } {
     if (fetchCache) {
       // we store in .next/cache/fetch-cache so it can be persisted
       // across deploys
@@ -389,17 +383,17 @@ export default class FileSystemCache implements CacheHandler {
         filePath,
         isAppPath,
       }
-    try {
-      await this.fs.readFile(filePath)
+
+    if (this.fs.existsSync(filePath)) {
       return {
         filePath,
         isAppPath,
       }
-    } catch (err) {
-      return {
-        filePath: path.join(this.serverDistDir, 'app', pathname),
-        isAppPath: true,
-      }
+    }
+
+    return {
+      filePath: path.join(this.serverDistDir, 'app', pathname),
+      isAppPath: true,
     }
   }
 }
