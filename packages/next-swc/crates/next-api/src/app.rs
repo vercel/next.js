@@ -692,7 +692,7 @@ impl AppEndpoint {
                     node_root,
                     &app_entry.pathname,
                     &app_entry.original_name,
-                    NextRuntime::NodeJs,
+                    NextRuntime::Edge,
                     Vc::upcast(this.app_project.edge_rsc_module_context()),
                     Vc::upcast(chunking_context),
                     this.app_project
