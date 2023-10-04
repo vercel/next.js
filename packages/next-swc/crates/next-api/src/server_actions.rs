@@ -228,7 +228,7 @@ async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap
         );
     };
 
-    let Some(actions) = parse_server_actions(&program, comments.clone()) else {
+    let Some(actions) = parse_server_actions(program, comments.clone()) else {
         return Ok(OptionActionMap::none());
     };
 

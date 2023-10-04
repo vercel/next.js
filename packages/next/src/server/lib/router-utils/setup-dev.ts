@@ -675,11 +675,11 @@ async function startWatcher(opts: SetupOpts) {
       }
 
       function mergeActionIds(
-        manifest: ActionEntries,
+        actionEntries: ActionEntries,
         other: ActionEntries
       ): void {
         for (const key in other) {
-          const action = (manifest[key] ??= { workers: {}, layer: {} })
+          const action = (actionEntries[key] ??= { workers: {}, layer: {} })
           Object.assign(action.workers, other[key].workers)
           Object.assign(action.layer, other[key].layer)
         }
