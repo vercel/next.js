@@ -3,7 +3,7 @@ import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
 import { getNodeOptionsWithoutInspect } from '../server/lib/utils'
 
 // We need this as we're using `Promise.withResolvers` which is not available in the node typings
-import '../server/node-environment'
+import '../lib/polyfill-promise-with-resolvers'
 
 type FarmOptions = ConstructorParameters<typeof JestWorker>[1]
 
