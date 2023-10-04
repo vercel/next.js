@@ -888,7 +888,13 @@ export function onDemandEntryHandler({
   }
 
   // Make sure that we won't have multiple invalidations ongoing concurrently.
-  const batcher = Batcher.create<EnsurePageOptions, void, string>({
+  const batcher = Batcher.create<
+    Omit<EnsurePageOptions, 'match'> & {
+      definition?: RouteDefinition
+    },
+    void,
+    string
+  >({
     // The cache key here is composed of the elements that affect the
     // compilation, namely, the page, whether it's client only, and whether
     // it's an app page. This ensures that we don't have multiple compilations
@@ -924,7 +930,7 @@ export function onDemandEntryHandler({
       // wrapper, which will ensure that we don't have multiple compilations
       // for the same page happening concurrently.
       return batcher.batch(
-        { page, clientOnly, appPaths, match, isApp },
+        { page, clientOnly, appPaths, definition: match?.definition, isApp },
         async () => {
           await ensurePageImpl({ page, clientOnly, appPaths, match, isApp })
         }
