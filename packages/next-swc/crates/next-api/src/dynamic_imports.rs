@@ -1,4 +1,6 @@
-use anyhow::Result;
+use std::collections::HashMap;
+
+use anyhow::{bail, Result};
 use indexmap::IndexMap;
 use turbo_tasks::{
     graph::{GraphTraversal, NonDeterministic},
@@ -11,7 +13,12 @@ use turbopack_binding::{
     },
     turbo::tasks_fs::FileSystemPath,
     turbopack::{
+        build::BuildChunkingContext,
         core::{
+            chunk::{
+                availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext,
+                EvaluatableAssets,
+            },
             ident::AssetIdent,
             issue::{Issue, IssueExt, IssueSeverity, OptionIssueSource},
             module::Module,
@@ -21,11 +28,104 @@ use turbopack_binding::{
             resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
         },
         ecmascript::{
-            chunk::EcmascriptChunkPlaceable, parse::ParseResult, resolve::esm_resolve,
+            chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext},
+            parse::ParseResult,
+            resolve::esm_resolve,
             EcmascriptModuleAsset,
         },
     },
 };
+
+pub(crate) async fn collect_chunk_group(
+    chunking_context: Vc<BuildChunkingContext>,
+    dynamic_import_entries: IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>,
+    availability_info: Value<AvailabilityInfo>,
+) -> Result<Vc<DynamicImportedChunks>> {
+    let mut chunks_hash: HashMap<String, Vc<OutputAssets>> = HashMap::new();
+    let mut dynamic_import_chunks = IndexMap::new();
+
+    // Iterate over the collected import mappings, and create a chunk for each
+    // dynamic import.
+    for (origin_module, dynamic_imports) in dynamic_import_entries {
+        for (imported_raw_str, imported_module) in dynamic_imports {
+            let chunk = if let Some(chunk) = chunks_hash.get(&imported_raw_str) {
+                *chunk
+            } else {
+                let Some(imported_module) =
+                    Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(imported_module)
+                        .await?
+                else {
+                    bail!("module must be evaluatable");
+                };
+
+                // [Note]: this seems to create a duplicated chunk for the same module to the original import() call
+                // and the explicit chunk we ask in here. So there'll be at least 2
+                // chunks for the same module, relying on
+                // naive hash to have additonal
+                // chunks in case if there are same modules being imported in differnt
+                // origins.
+                let chunk =
+                    imported_module.as_chunk(Vc::upcast(chunking_context), availability_info);
+                let chunk_group = chunking_context.chunk_group(chunk);
+                chunks_hash.insert(imported_raw_str.to_string(), chunk_group);
+                chunk_group
+            };
+
+            dynamic_import_chunks
+                .entry(origin_module)
+                .or_insert_with(Vec::new)
+                .push((imported_raw_str.clone(), chunk));
+        }
+    }
+
+    Ok(Vc::cell(dynamic_import_chunks))
+}
+
+pub(crate) async fn collect_evaluated_chunk_group(
+    chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    dynamic_import_entries: IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>,
+    availability_info: Value<AvailabilityInfo>,
+    evaluatable_assets: Vc<EvaluatableAssets>,
+) -> Result<Vc<DynamicImportedChunks>> {
+    let mut chunks_hash: HashMap<String, Vc<OutputAssets>> = HashMap::new();
+    let mut dynamic_import_chunks = IndexMap::new();
+
+    // Iterate over the collected import mappings, and create a chunk for each
+    // dynamic import.
+    for (origin_module, dynamic_imports) in dynamic_import_entries {
+        for (imported_raw_str, imported_module) in dynamic_imports {
+            let chunk = if let Some(chunk) = chunks_hash.get(&imported_raw_str) {
+                *chunk
+            } else {
+                let Some(imported_module) =
+                    Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(imported_module)
+                        .await?
+                else {
+                    bail!("module must be evaluatable");
+                };
+
+                // [Note]: this seems to create a duplicated chunk for the same module to the original import() call
+                // and the explicit chunk we ask in here. So there'll be at least 2
+                // chunks for the same module, relying on
+                // naive hash to have additonal
+                // chunks in case if there are same modules being imported in differnt
+                // origins.
+                let chunk =
+                    imported_module.as_chunk(Vc::upcast(chunking_context), availability_info);
+                let chunk_group = chunking_context.evaluated_chunk_group(chunk, evaluatable_assets);
+                chunks_hash.insert(imported_raw_str.to_string(), chunk_group);
+                chunk_group
+            };
+
+            dynamic_import_chunks
+                .entry(origin_module)
+                .or_insert_with(Vec::new)
+                .push((imported_raw_str.clone(), chunk));
+        }
+    }
+
+    Ok(Vc::cell(dynamic_import_chunks))
+}
 
 pub(crate) async fn collect_next_dynamic_imports(
     entry: Vc<Box<dyn EcmascriptChunkPlaceable>>,

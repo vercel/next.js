@@ -57,9 +57,7 @@ use turbopack_binding::{
             virtual_output::VirtualOutputAsset,
         },
         ecmascript::{
-            chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext},
-            resolve::esm_resolve,
-            EcmascriptModuleAsset,
+            chunk::EcmascriptChunkingContext, resolve::esm_resolve, EcmascriptModuleAsset,
         },
         turbopack::{
             module_options::ModuleOptionsContext,
@@ -71,7 +69,10 @@ use turbopack_binding::{
 };
 
 use crate::{
-    dynamic_imports::{collect_next_dynamic_imports, DynamicImportedChunks},
+    dynamic_imports::{
+        collect_chunk_group, collect_evaluated_chunk_group, collect_next_dynamic_imports,
+        DynamicImportedChunks,
+    },
     project::Project,
     route::{Endpoint, Route, Routes, WrittenEndpoint},
     server_paths::all_server_paths,
@@ -621,54 +622,22 @@ impl PageEndpoint {
                 .evaluated_chunk_group(ssr_module.ident(), Vc::cell(evaluatable_assets.clone()));
 
 
-            let dynamic_import_entries = collect_next_dynamic_imports(ssr_module).await?;
+            let availability_info = Value::new(AvailabilityInfo::Root {
+                current_availability_root: Vc::upcast(ssr_module),
+            });
 
-            let mut chunks_hash: HashMap<String, Vc<OutputAssets>> = HashMap::new();
-            let mut dynamic_import_chunks = IndexMap::new();
-
-            // Iterate over the collected import mappings, and create a chunk for each
-            // dynamic import.
-            for (origin_module, dynamic_imports) in dynamic_import_entries {
-                for (imported_raw_str, imported_module) in dynamic_imports {
-                    let chunk = if let Some(chunk) = chunks_hash.get(&imported_raw_str) {
-                        *chunk
-                    } else {
-                        let Some(imported_module) = Vc::try_resolve_sidecast::<
-                            Box<dyn EcmascriptChunkPlaceable>,
-                        >(imported_module)
-                        .await?
-                        else {
-                            bail!("module must be evaluatable");
-                        };
-
-                        // [Note]: this seems to create a duplicated chunk for the same module to the original import() call
-                        // and the explicit chunk we ask in here. So there'll be at least 2
-                        // chunks for the same module, relying on
-                        // naive hash to have additonal
-                        // chunks in case if there are same modules being imported in differnt
-                        // origins.
-                        let chunk = imported_module.as_chunk(
-                            Vc::upcast(chunking_context),
-                            Value::new(AvailabilityInfo::Root {
-                                current_availability_root: Vc::upcast(ssr_module),
-                            }),
-                        );
-                        let chunk_group = edge_chunking_context
-                            .evaluated_chunk_group(chunk, Vc::cell(evaluatable_assets.clone()));
-                        chunks_hash.insert(imported_raw_str.to_string(), chunk_group);
-                        chunk_group
-                    };
-
-                    dynamic_import_chunks
-                        .entry(origin_module)
-                        .or_insert_with(Vec::new)
-                        .push((imported_raw_str.clone(), chunk));
-                }
-            }
+            let dynamic_import_modules = collect_next_dynamic_imports(ssr_module).await?;
+            let dynamic_import_entries = collect_evaluated_chunk_group(
+                edge_chunking_context,
+                dynamic_import_modules,
+                availability_info,
+                Vc::cell(evaluatable_assets.clone()),
+            )
+            .await?;
 
             Ok(SsrChunk::Edge {
                 files: edge_files,
-                dynamic_import_entries: Vc::cell(dynamic_import_chunks),
+                dynamic_import_entries,
             }
             .cell())
         } else {
@@ -692,53 +661,17 @@ impl PageEndpoint {
                 runtime_entries,
             );
 
-            let dynamic_import_entries = collect_next_dynamic_imports(ssr_module).await?;
-
-            let mut chunks_hash: HashMap<String, Vc<OutputAssets>> = HashMap::new();
-            let mut dynamic_import_chunks = IndexMap::new();
-
-            // Iterate over the collected import mappings, and create a chunk for each
-            // dynamic import.
-            for (origin_module, dynamic_imports) in dynamic_import_entries {
-                for (imported_raw_str, imported_module) in dynamic_imports {
-                    let chunk = if let Some(chunk) = chunks_hash.get(&imported_raw_str) {
-                        *chunk
-                    } else {
-                        let Some(imported_module) = Vc::try_resolve_sidecast::<
-                            Box<dyn EcmascriptChunkPlaceable>,
-                        >(imported_module)
-                        .await?
-                        else {
-                            bail!("module must be evaluatable");
-                        };
-
-                        // [Note]: this seems to create a duplicated chunk for the same module to the original import() call
-                        // and the explicit chunk we ask in here. So there'll be at least 2
-                        // chunks for the same module, relying on
-                        // naive hash to have additonal
-                        // chunks in case if there are same modules being imported in differnt
-                        // origins.
-                        let chunk = imported_module.as_chunk(
-                            Vc::upcast(chunking_context),
-                            Value::new(AvailabilityInfo::Root {
-                                current_availability_root: Vc::upcast(ssr_module),
-                            }),
-                        );
-                        let chunk_group = chunking_context.chunk_group(chunk);
-                        chunks_hash.insert(imported_raw_str.to_string(), chunk_group);
-                        chunk_group
-                    };
-
-                    dynamic_import_chunks
-                        .entry(origin_module)
-                        .or_insert_with(Vec::new)
-                        .push((imported_raw_str.clone(), chunk));
-                }
-            }
+            let availability_info = Value::new(AvailabilityInfo::Root {
+                current_availability_root: Vc::upcast(ssr_module),
+            });
+            let dynamic_import_modules = collect_next_dynamic_imports(ssr_module).await?;
+            let dynamic_import_entries =
+                collect_chunk_group(chunking_context, dynamic_import_modules, availability_info)
+                    .await?;
 
             Ok(SsrChunk::NodeJs {
                 entry: ssr_entry_chunk,
-                dynamic_import_entries: Vc::cell(dynamic_import_chunks),
+                dynamic_import_entries,
             }
             .cell())
         }
@@ -839,45 +772,51 @@ impl PageEndpoint {
     ) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
         let node_root = this.pages_project.project().node_root();
+        let pages_dir = this.pages_project.pages_dir().await?;
+
         let dynamic_import_entries = &*dynamic_import_entries.await?;
 
         let mut output = vec![];
         let mut lodable_manifest: HashMap<String, LodableManifest> = Default::default();
         for (origin, dynamic_imports) in dynamic_import_entries.into_iter() {
+            let origin_path = &*origin.ident().path().await?;
+
             for (import, chunk_output) in dynamic_imports {
                 let chunk_output = chunk_output.await?;
                 output.extend(chunk_output.iter().copied());
 
-                let pages_dir = this.pages_project.pages_dir().await?;
-                let origin_path = &*origin.ident().path().await?;
                 // https://github.com/vercel/next.js/blob/b7c85b87787283d8fb86f705f67bdfabb6b654bb/packages/next-swc/crates/next-transform-dynamic/src/lib.rs#L230
                 // For the pages dir, next_dynamic transform puts relative paths to the pages
                 // dir for the origin import.
-                let key = format!(
+                let id = format!(
                     "{} -> {}",
                     pages_dir
                         .get_path_to(origin_path)
                         .map_or_else(|| origin_path.to_string(), |path| path.to_string()),
                     import
                 );
-                let mut files = vec![];
 
-                for chunk in chunk_output.iter() {
-                    let chunk_path = chunk.ident().path().await?;
-                    let asset_path = node_root
-                        .join("server".to_string())
-                        .await?
-                        .get_path_to(&chunk_path)
-                        .context("ssr chunk entry path must be inside the node root")?;
-                    files.push(asset_path.to_string());
-                }
+                let server_path = node_root.join("server".to_string());
+                let server_path_value = server_path.await?;
+                let files = chunk_output
+                    .iter()
+                    .map(move |file| {
+                        let server_path_value = server_path_value.clone();
+                        async move {
+                            Ok(server_path_value
+                                .get_path_to(&*file.ident().path().await?)
+                                .map(|path| path.to_string()))
+                        }
+                    })
+                    .try_flat_join()
+                    .await?;
 
                 let manifest_item = LodableManifest {
-                    id: key.clone(),
+                    id: id.clone(),
                     files,
                 };
 
-                lodable_manifest.insert(key, manifest_item);
+                lodable_manifest.insert(id, manifest_item);
             }
         }
 

@@ -52,7 +52,6 @@ use turbopack_binding::{
             output::{OutputAsset, OutputAssets},
             virtual_output::VirtualOutputAsset,
         },
-        ecmascript::chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext},
         turbopack::{
             module_options::ModuleOptionsContext, resolve_options_context::ResolveOptionsContext,
             transition::ContextTransition, ModuleAssetContext,
@@ -61,7 +60,10 @@ use turbopack_binding::{
 };
 
 use crate::{
-    dynamic_imports::collect_next_dynamic_imports,
+    dynamic_imports::{
+        collect_chunk_group, collect_evaluated_chunk_group, collect_next_dynamic_imports,
+        DynamicImportedChunks,
+    },
     project::Project,
     route::{Endpoint, Route, Routes, WrittenEndpoint},
     server_actions::create_server_actions_manifest,
@@ -688,61 +690,25 @@ impl AppEndpoint {
             )))
         }
 
-        async fn create_lodable_manifest(
-            entry: Vc<Box<dyn EcmascriptChunkPlaceable>>,
-            chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        async fn create_react_lodable_manifest(
+            dynamic_import_entries: Vc<DynamicImportedChunks>,
             ty: &'static str,
             node_root: Vc<FileSystemPath>,
             pathname: &str,
         ) -> Result<Vc<OutputAssets>> {
-            let dynamic_import_entries = collect_next_dynamic_imports(entry).await?;
-            let Some(evaluatable) = Vc::try_resolve_sidecast(entry).await? else {
-                bail!("Entry module must be evaluatable");
-            };
-
-            let mut chunks_hash: HashMap<String, Vc<OutputAssets>> = HashMap::new();
+            let dynamic_import_entries = &*dynamic_import_entries.await?;
 
             let mut output = vec![];
             let mut lodable_manifest: HashMap<String, LodableManifest> = Default::default();
 
-            // Iterate over the collected import mappings, and create a chunk for each
-            // dynamic import.
-            for (origin, dynamic_imports) in dynamic_import_entries {
-                for (imported_raw_str, imported_module) in dynamic_imports {
-                    let chunk = if let Some(chunk) = chunks_hash.get(&imported_raw_str) {
-                        *chunk
-                    } else {
-                        let Some(imported_module) = Vc::try_resolve_sidecast::<
-                            Box<dyn EcmascriptChunkPlaceable>,
-                        >(imported_module)
-                        .await?
-                        else {
-                            bail!("module must be evaluatable");
-                        };
+            for (origin, dynamic_imports) in dynamic_import_entries.into_iter() {
+                let origin_path = &*origin.ident().path().await?;
 
-                        // [Note]: this seems to create a duplicated chunk for the same module to the original import() call
-                        // and the explicit chunk we ask in here. So there'll be at least 2
-                        // chunks for the same module, relying on
-                        // naive hash to have additonal
-                        // chunks in case if there are same modules being imported in differnt
-                        // origins.
-                        let chunk = imported_module.as_chunk(
-                            Vc::upcast(chunking_context),
-                            Value::new(AvailabilityInfo::Root {
-                                current_availability_root: Vc::upcast(entry),
-                            }),
-                        );
-                        let chunk_group = chunking_context
-                            .evaluated_chunk_group(chunk, Vc::cell(vec![evaluatable]));
-                        chunks_hash.insert(imported_raw_str.to_string(), chunk_group);
-                        chunk_group
-                    };
-
-                    let chunk_output = chunk.await?;
+                for (import, chunk_output) in dynamic_imports {
+                    let chunk_output = chunk_output.await?;
                     output.extend(chunk_output.iter().copied());
 
-                    let origin_path = &*origin.ident().path().await?;
-                    let key = format!("{} -> {}", origin_path, imported_raw_str);
+                    let id = format!("{} -> {}", origin_path, import);
 
                     let server_path = node_root.join("server".to_string());
                     let server_path_value = server_path.await?;
@@ -760,11 +726,11 @@ impl AppEndpoint {
                         .await?;
 
                     let manifest_item = LodableManifest {
-                        id: key.clone(),
+                        id: id.clone(),
                         files,
                     };
 
-                    lodable_manifest.insert(key, manifest_item);
+                    lodable_manifest.insert(id, manifest_item);
                 }
             }
 
@@ -820,7 +786,7 @@ impl AppEndpoint {
 
                 let files = chunking_context.evaluated_chunk_group(
                     app_entry.rsc_entry.ident(),
-                    Vc::cell(evaluatable_assets),
+                    Vc::cell(evaluatable_assets.clone()),
                 );
                 server_assets.extend(files.await?.iter().copied());
 
@@ -907,9 +873,21 @@ impl AppEndpoint {
                 )?;
                 server_assets.push(app_paths_manifest_output);
 
-                let lodable_manifest_output = create_lodable_manifest(
-                    app_entry.rsc_entry,
-                    this.app_project.project().client_chunking_context(),
+                // create react-lodable-manifest for next/dynamic
+                let availability_info = Value::new(AvailabilityInfo::Root {
+                    current_availability_root: Vc::upcast(app_entry.rsc_entry),
+                });
+                let dynamic_import_modules =
+                    collect_next_dynamic_imports(app_entry.rsc_entry).await?;
+                let dynamic_import_entries = collect_evaluated_chunk_group(
+                    chunking_context,
+                    dynamic_import_modules,
+                    availability_info,
+                    Vc::cell(evaluatable_assets),
+                )
+                .await?;
+                let lodable_manifest_output = create_react_lodable_manifest(
+                    dynamic_import_entries,
                     ty,
                     node_root,
                     &app_entry.pathname,
@@ -973,9 +951,20 @@ impl AppEndpoint {
                 )?;
                 server_assets.push(app_paths_manifest_output);
 
-                let lodable_manifest_output = create_lodable_manifest(
-                    app_entry.rsc_entry,
-                    this.app_project.project().client_chunking_context(),
+                // create react-lodable-manifest for next/dynamic
+                let availability_info = Value::new(AvailabilityInfo::Root {
+                    current_availability_root: Vc::upcast(app_entry.rsc_entry),
+                });
+                let dynamic_import_modules =
+                    collect_next_dynamic_imports(app_entry.rsc_entry).await?;
+                let dynamic_import_entries = collect_chunk_group(
+                    this.app_project.project().rsc_chunking_context(),
+                    dynamic_import_modules,
+                    availability_info,
+                )
+                .await?;
+                let lodable_manifest_output = create_react_lodable_manifest(
+                    dynamic_import_entries,
                     ty,
                     node_root,
                     &app_entry.pathname,
