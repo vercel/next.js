@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use next_core::{
-    all_server_paths, create_page_loader_entry_module, get_asset_path_from_pathname,
+    create_page_loader_entry_module, get_asset_path_from_pathname,
     get_edge_resolve_options_context,
     mode::NextMode,
     next_client::{
@@ -64,6 +64,7 @@ use turbopack_binding::{
 use crate::{
     project::Project,
     route::{Endpoint, Route, Routes, WrittenEndpoint},
+    server_paths::all_server_paths,
 };
 
 #[turbo_tasks::value]
@@ -405,7 +406,6 @@ impl PagesProject {
         let this = self.await?;
         let client_runtime_entries = get_client_runtime_entries(
             self.project().project_path(),
-            self.project().env(),
             Value::new(ClientContextType::Pages {
                 pages_dir: self.pages_dir(),
             }),
@@ -420,13 +420,10 @@ impl PagesProject {
     async fn runtime_entries(self: Vc<Self>) -> Result<Vc<RuntimeEntries>> {
         let this = self.await?;
         Ok(get_server_runtime_entries(
-            self.project().project_path(),
-            self.project().env(),
             Value::new(ServerContextType::Pages {
                 pages_dir: self.pages_dir(),
             }),
             this.mode,
-            self.project().next_config(),
         ))
     }
 
@@ -434,13 +431,10 @@ impl PagesProject {
     async fn data_runtime_entries(self: Vc<Self>) -> Result<Vc<RuntimeEntries>> {
         let this = self.await?;
         Ok(get_server_runtime_entries(
-            self.project().project_path(),
-            self.project().env(),
             Value::new(ServerContextType::PagesData {
                 pages_dir: self.pages_dir(),
             }),
             this.mode,
-            self.project().next_config(),
         ))
     }
 

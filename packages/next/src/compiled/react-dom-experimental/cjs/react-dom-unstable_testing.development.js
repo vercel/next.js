@@ -1074,9 +1074,7 @@ var DefaultHydrationLane =
 var DefaultLane =
 /*                     */
 32;
-var SyncUpdateLanes =
-/*                */
-42;
+var SyncUpdateLanes = SyncLane | InputContinuousLane | DefaultLane ;
 var TransitionHydrationLane =
 /*                */
 64;
@@ -1161,7 +1159,10 @@ var IdleLane =
 536870912;
 var OffscreenLane =
 /*                   */
-1073741824; // This function is used for the experimental timeline (react-devtools-timeline)
+1073741824; // Any lane that might schedule an update. This is used to detect infinite
+// update loops, so it doesn't include hydration lanes or retries.
+
+var UpdateLanes = SyncLane | InputContinuousLane | DefaultLane | TransitionLanes; // This function is used for the experimental timeline (react-devtools-timeline)
 // It should be kept in sync with the Lanes values above.
 
 function getLabelForLane(lane) {
@@ -10283,10 +10284,8 @@ function flushSyncWorkAcrossRoots_impl(onlyLegacy) {
   if (!mightHavePendingSyncWork) {
     // Fast path. There's no sync work to do.
     return;
-  }
+  } // There may or may not be synchronous work scheduled. Let's check.
 
-  var workInProgressRoot = getWorkInProgressRoot();
-  var workInProgressRootRenderLanes = getWorkInProgressRootRenderLanes(); // There may or may not be synchronous work scheduled. Let's check.
 
   var didPerformSomeWork;
   var errors = null;
@@ -10298,15 +10297,15 @@ function flushSyncWorkAcrossRoots_impl(onlyLegacy) {
 
     while (root !== null) {
       if (onlyLegacy && root.tag !== LegacyRoot) ; else {
+        var workInProgressRoot = getWorkInProgressRoot();
+        var workInProgressRootRenderLanes = getWorkInProgressRootRenderLanes();
         var nextLanes = getNextLanes(root, root === workInProgressRoot ? workInProgressRootRenderLanes : NoLanes);
 
         if (includesSyncLane(nextLanes)) {
           // This root has pending sync work. Flush it now.
           try {
-            // TODO: Pass nextLanes as an argument instead of computing it again
-            // inside performSyncWorkOnRoot.
             didPerformSomeWork = true;
-            performSyncWorkOnRoot(root);
+            performSyncWorkOnRoot(root, nextLanes);
           } catch (error) {
             // Collect errors so we can rethrow them at the end
             if (errors === null) {
@@ -25349,23 +25348,26 @@ function markRootSuspended(root, suspendedLanes) {
 // through Scheduler
 
 
-function performSyncWorkOnRoot(root) {
-  {
-    syncNestedUpdateFlag();
-  }
-
+function performSyncWorkOnRoot(root, lanes) {
   if ((executionContext & (RenderContext | CommitContext)) !== NoContext) {
     throw new Error('Should not already be working.');
   }
 
-  flushPassiveEffects(); // TODO: This was already computed in the caller. Pass it as an argument.
+  var didFlushPassiveEffects = flushPassiveEffects();
 
-  var lanes = getNextLanes(root, NoLanes);
-
-  if (!includesSyncLane(lanes)) {
-    // There's no remaining sync work left.
+  if (didFlushPassiveEffects) {
+    // If passive effects were flushed, exit to the outer work loop in the root
+    // scheduler, so we can recompute the priority.
+    // TODO: We don't actually need this `ensureRootIsScheduled` call because
+    // this path is only reachable if the root is already part of the schedule.
+    // I'm including it only for consistency with the other exit points from
+    // this function. Can address in a subsequent refactor.
     ensureRootIsScheduled(root);
     return null;
+  }
+
+  {
+    syncNestedUpdateFlag();
   }
 
   var exitStatus = renderRootSync(root, lanes);
@@ -26806,9 +26808,14 @@ function commitRootImpl(root, recoverableErrors, transitions, renderPriorityLeve
   } // Read this again, since a passive effect might have updated it
 
 
-  remainingLanes = root.pendingLanes;
+  remainingLanes = root.pendingLanes; // Check if this render scheduled a cascading synchronous update. This is a
+  // heurstic to detect infinite update loops. We are intentionally excluding
+  // hydration lanes in this check, because render triggered by selective
+  // hydration is conceptually not an update.
 
-  if (includesSyncLane(remainingLanes)) {
+  if ( // Was the finished render the result of an update (not hydration)?
+  includesSomeLane(lanes, UpdateLanes) && // Did it schedule a sync update?
+  includesSomeLane(remainingLanes, SyncUpdateLanes)) {
     {
       markNestedUpdateScheduled();
     } // Count the number of times the root synchronously re-renders without
@@ -28665,7 +28672,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks, formState) {
   return root;
 }
 
-var ReactVersion = '18.3.0-experimental-09285d5a7-20230925';
+var ReactVersion = '18.3.0-experimental-d900fadbf-20230929';
 
 function createPortal$1(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {
@@ -38780,6 +38787,25 @@ function unmountComponentAtNode(container) {
 
 var ReactDOMSharedInternals = Internals;
 
+function getCrossOriginString(input) {
+  if (typeof input === 'string') {
+    return input === 'use-credentials' ? input : '';
+  }
+
+  return undefined;
+}
+function getCrossOriginStringAs(as, input) {
+  if (as === 'font') {
+    return '';
+  }
+
+  if (typeof input === 'string') {
+    return input === 'use-credentials' ? input : '';
+  }
+
+  return undefined;
+}
+
 var Dispatcher = ReactDOMSharedInternals.Dispatcher;
 function prefetchDNS(href) {
   {
@@ -38819,7 +38845,7 @@ function preconnect(href, options) {
   var dispatcher = Dispatcher.current;
 
   if (dispatcher && typeof href === 'string') {
-    var crossOrigin = options ? getCrossOrigin('preconnect', options.crossOrigin) : null;
+    var crossOrigin = options ? getCrossOriginString(options.crossOrigin) : null;
     dispatcher.preconnect(href, crossOrigin);
   } // We don't error because preconnect needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
@@ -38850,7 +38876,7 @@ function preload(href, options) {
   if (dispatcher && typeof href === 'string' && // We check existence because we cannot enforce this function is actually called with the stated type
   typeof options === 'object' && options !== null && typeof options.as === 'string') {
     var as = options.as;
-    var crossOrigin = getCrossOrigin(as, options.crossOrigin);
+    var crossOrigin = getCrossOriginStringAs(as, options.crossOrigin);
     dispatcher.preload(href, as, {
       crossOrigin: crossOrigin,
       integrity: typeof options.integrity === 'string' ? options.integrity : undefined,
@@ -38889,7 +38915,7 @@ function preloadModule(href, options) {
 
   if (dispatcher && typeof href === 'string') {
     if (options) {
-      var crossOrigin = getCrossOrigin(options.as, options.crossOrigin);
+      var crossOrigin = getCrossOriginStringAs(options.as, options.crossOrigin);
       dispatcher.preloadModule(href, {
         as: typeof options.as === 'string' && options.as !== 'script' ? options.as : undefined,
         crossOrigin: crossOrigin,
@@ -38918,7 +38944,7 @@ function preinit(href, options) {
 
   if (dispatcher && typeof href === 'string' && options && typeof options.as === 'string') {
     var as = options.as;
-    var crossOrigin = getCrossOrigin(as, options.crossOrigin);
+    var crossOrigin = getCrossOriginStringAs(as, options.crossOrigin);
     var integrity = typeof options.integrity === 'string' ? options.integrity : undefined;
     var fetchPriority = typeof options.fetchPriority === 'string' ? options.fetchPriority : undefined;
 
@@ -38980,21 +39006,22 @@ function preinitModule(href, options) {
   var dispatcher = Dispatcher.current;
 
   if (dispatcher && typeof href === 'string') {
-    if (options == null || typeof options === 'object' && (options.as == null || options.as === 'script')) {
-      var crossOrigin = options ? getCrossOrigin(undefined, options.crossOrigin) : undefined;
-      dispatcher.preinitModuleScript(href, {
-        crossOrigin: crossOrigin,
-        integrity: options && typeof options.integrity === 'string' ? options.integrity : undefined
-      });
+    if (typeof options === 'object' && options !== null) {
+      if (options.as == null || options.as === 'script') {
+        var crossOrigin = getCrossOriginStringAs(options.as, options.crossOrigin);
+        dispatcher.preinitModuleScript(href, {
+          crossOrigin: crossOrigin,
+          integrity: typeof options.integrity === 'string' ? options.integrity : undefined,
+          nonce: typeof options.nonce === 'string' ? options.nonce : undefined
+        });
+      }
+    } else if (options == null) {
+      dispatcher.preinitModuleScript(href);
     }
   } // We don't error because preinit needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
 
-}
-
-function getCrossOrigin(as, crossOrigin) {
-  return as === 'font' ? '' : typeof crossOrigin === 'string' ? crossOrigin === 'use-credentials' ? 'use-credentials' : '' : undefined;
 }
 
 function getValueDescriptorExpectingObjectForWarning(thing) {

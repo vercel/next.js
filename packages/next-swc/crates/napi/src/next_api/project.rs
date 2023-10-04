@@ -7,7 +7,7 @@ use napi::{
     JsFunction, Status,
 };
 use next_api::{
-    project::{Middleware, ProjectContainer, ProjectOptions},
+    project::{DefineEnv, Middleware, PartialProjectOptions, ProjectContainer, ProjectOptions},
     route::{Endpoint, Route},
 };
 use next_core::tracing_presets::{
@@ -44,6 +44,7 @@ use super::{
 use crate::register;
 
 #[napi(object)]
+#[derive(Clone, Debug)]
 pub struct NapiEnvVar {
     pub name: String,
     pub value: String,
@@ -74,8 +75,54 @@ pub struct NapiProjectOptions {
     /// A map of environment variables to use when compiling code.
     pub env: Vec<NapiEnvVar>,
 
+    /// A map of environment variables which should get injected at compile
+    /// time.
+    pub define_env: NapiDefineEnv,
+
     /// The address of the dev server.
     pub server_addr: String,
+}
+
+/// [NapiProjectOptions] with all fields optional.
+#[napi(object)]
+pub struct NapiPartialProjectOptions {
+    /// A root path from which all files must be nested under. Trying to access
+    /// a file outside this root will fail. Think of this as a chroot.
+    pub root_path: Option<String>,
+
+    /// A path inside the root_path which contains the app/pages directories.
+    pub project_path: Option<String>,
+
+    /// next.config's distDir. Project initialization occurs eariler than
+    /// deserializing next.config, so passing it as separate option.
+    pub dist_dir: Option<Option<String>>,
+
+    /// Whether to watch he filesystem for file changes.
+    pub watch: Option<bool>,
+
+    /// The contents of next.config.js, serialized to JSON.
+    pub next_config: Option<String>,
+
+    /// The contents of ts/config read by load-jsconfig, serialized to JSON.
+    pub js_config: Option<String>,
+
+    /// A map of environment variables to use when compiling code.
+    pub env: Option<Vec<NapiEnvVar>>,
+
+    /// A map of environment variables which should get injected at compile
+    /// time.
+    pub define_env: Option<NapiDefineEnv>,
+
+    /// The address of the dev server.
+    pub server_addr: Option<String>,
+}
+
+#[napi(object)]
+#[derive(Clone, Debug)]
+pub struct NapiDefineEnv {
+    pub client: Vec<NapiEnvVar>,
+    pub edge: Vec<NapiEnvVar>,
+    pub nodejs: Vec<NapiEnvVar>,
 }
 
 #[napi(object)]
@@ -95,9 +142,49 @@ impl From<NapiProjectOptions> for ProjectOptions {
             env: val
                 .env
                 .into_iter()
-                .map(|NapiEnvVar { name, value }| (name, value))
+                .map(|var| (var.name, var.value))
                 .collect(),
+            define_env: val.define_env.into(),
             server_addr: val.server_addr,
+        }
+    }
+}
+
+impl From<NapiPartialProjectOptions> for PartialProjectOptions {
+    fn from(val: NapiPartialProjectOptions) -> Self {
+        PartialProjectOptions {
+            root_path: val.root_path,
+            project_path: val.project_path,
+            watch: val.watch,
+            next_config: val.next_config,
+            js_config: val.js_config,
+            env: val
+                .env
+                .map(|env| env.into_iter().map(|var| (var.name, var.value)).collect()),
+            define_env: val.define_env.map(|env| env.into()),
+            server_addr: val.server_addr,
+        }
+    }
+}
+
+impl From<NapiDefineEnv> for DefineEnv {
+    fn from(val: NapiDefineEnv) -> Self {
+        DefineEnv {
+            client: val
+                .client
+                .into_iter()
+                .map(|var| (var.name, var.value))
+                .collect(),
+            edge: val
+                .edge
+                .into_iter()
+                .map(|var| (var.name, var.value))
+                .collect(),
+            nodejs: val
+                .nodejs
+                .into_iter()
+                .map(|var| (var.name, var.value))
+                .collect(),
         }
     }
 }
@@ -190,7 +277,7 @@ pub async fn project_new(
 #[napi(ts_return_type = "{ __napiType: \"Project\" }")]
 pub async fn project_update(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
-    options: NapiProjectOptions,
+    options: NapiPartialProjectOptions,
 ) -> napi::Result<()> {
     let turbo_tasks = project.turbo_tasks.clone();
     let options = options.into();

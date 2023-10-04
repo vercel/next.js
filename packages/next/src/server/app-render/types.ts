@@ -101,7 +101,7 @@ export type ChildProp = {
   segment: Segment
 }
 
-export type RenderOptsPartial = {
+export interface RenderOptsPartial {
   err?: Error | null
   dev?: boolean
   buildId: string
@@ -111,6 +111,7 @@ export type RenderOptsPartial = {
   runtime?: ServerRuntime
   serverComponents?: boolean
   assetPrefix?: string
+  crossOrigin?: '' | 'anonymous' | 'use-credentials' | undefined
   nextFontManifest?: NextFontManifest
   isBot?: boolean
   incrementalCache?: import('../lib/incremental-cache').IncrementalCache
@@ -131,6 +132,7 @@ export type RenderOptsPartial = {
   ) => Promise<NextConfigComplete>
   serverActionsBodySizeLimit?: SizeLimit
   params?: ParsedUrlQuery
+  isPrefetch?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial

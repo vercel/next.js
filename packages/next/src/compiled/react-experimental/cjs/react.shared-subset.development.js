@@ -304,7 +304,7 @@ function generateCacheKey(request) {
   }
 }
 
-var ReactVersion = '18.3.0-experimental-09285d5a7-20230925';
+var ReactVersion = '18.3.0-experimental-d900fadbf-20230929';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -2546,6 +2546,10 @@ function cloneElementWithValidation(element, props, children) {
 
 var ContextRegistry = ReactSharedInternals.ContextRegistry;
 function createServerContext(globalName, defaultValue) {
+
+  {
+    error('Server Context is deprecated and will soon be removed. ' + 'It was never documented and we have found it not to be useful ' + 'enough to warrant the downside it imposes on all apps.');
+  }
 
   var wasDefined = true;
 

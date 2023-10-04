@@ -60,6 +60,7 @@ import BaseServer, {
   NoFallbackError,
   RequestContext,
   NormalizedRouteManifest,
+  LoadedRenderOpts,
 } from './base-server'
 import { getMaybePagePath, getPagePath, requireFontManifest } from './require'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
@@ -93,14 +94,21 @@ import { nodeFs } from './lib/node-fs-methods'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { invokeRequest } from './lib/server-ipc/invoke-request'
 import { pipeReadable } from './pipe-readable'
-import { filterReqHeaders, ipcForbiddenHeaders } from './lib/server-ipc/utils'
 import { createRequestResponseMocks } from './lib/mock-request'
 import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 import { signalFromNodeResponse } from './web/spec-extension/adapters/next-request'
 import { RouteModuleLoader } from './future/helpers/module-loader/route-module-loader'
 import { loadManifest } from './load-manifest'
+import { lazyRenderAppPage } from './future/route-modules/app-page/module.render'
+import { lazyRenderPagesPage } from './future/route-modules/pages/module.render'
 
 export * from './base-server'
+
+declare const __non_webpack_require__: NodeRequire
+
+const dynamicRequire = process.env.NEXT_MINIMAL
+  ? __non_webpack_require__
+  : require
 
 function writeStdoutLine(text: string) {
   process.stdout.write(' ' + text + '\n')
@@ -245,12 +253,15 @@ export default class NextNodeServer extends BaseServer {
       this.nextConfig.experimental.instrumentationHook
     ) {
       try {
-        const instrumentationHook = await require(resolve(
-          this.serverOptions.dir || '.',
-          this.serverOptions.conf.distDir!,
-          'server',
-          INSTRUMENTATION_HOOK_FILENAME
-        ))
+        const instrumentationHook = await dynamicRequire(
+          resolve(
+            this.serverOptions.dir || '.',
+            this.serverOptions.conf.distDir!,
+            'server',
+            INSTRUMENTATION_HOOK_FILENAME
+          )
+        )
+
         await instrumentationHook.register?.()
       } catch (err: any) {
         if (err.code !== 'MODULE_NOT_FOUND') {
@@ -290,9 +301,11 @@ export default class NextNodeServer extends BaseServer {
     const { incrementalCacheHandlerPath } = this.nextConfig.experimental
 
     if (incrementalCacheHandlerPath) {
-      CacheHandler = require(isAbsolute(incrementalCacheHandlerPath)
-        ? incrementalCacheHandlerPath
-        : join(this.distDir, incrementalCacheHandlerPath))
+      CacheHandler = dynamicRequire(
+        isAbsolute(incrementalCacheHandlerPath)
+          ? incrementalCacheHandlerPath
+          : join(this.distDir, incrementalCacheHandlerPath)
+      )
       CacheHandler = CacheHandler.default || CacheHandler
     }
 
@@ -354,8 +367,8 @@ export default class NextNodeServer extends BaseServer {
     const buildIdFile = join(this.distDir, BUILD_ID_FILE)
     try {
       return fs.readFileSync(buildIdFile, 'utf8').trim()
-    } catch (err) {
-      if (!fs.existsSync(buildIdFile)) {
+    } catch (err: any) {
+      if (err.code === 'ENOENT') {
         throw new Error(
           `Could not find a production build in the '${this.distDir}' directory. Try building your app with 'next build' before starting the production server. https://nextjs.org/docs/messages/production-start-no-build-id`
         )
@@ -449,7 +462,7 @@ export default class NextNodeServer extends BaseServer {
     res: NodeNextResponse,
     pathname: string,
     query: NextParsedUrlQuery,
-    renderOpts: import('./render').RenderOpts
+    renderOpts: LoadedRenderOpts
   ): Promise<RenderResult> {
     return getTracer().trace(NextNodeServerSpan.renderHTML, async () =>
       this.renderHTMLImpl(req, res, pathname, query, renderOpts)
@@ -461,11 +474,11 @@ export default class NextNodeServer extends BaseServer {
     res: NodeNextResponse,
     pathname: string,
     query: NextParsedUrlQuery,
-    renderOpts: import('./render').RenderOpts
+    renderOpts: LoadedRenderOpts
   ): Promise<RenderResult> {
     if (process.env.NEXT_MINIMAL) {
       throw new Error(
-        'invariant: renderHTML should not be called in minimal mode'
+        'Invariant: renderHTML should not be called in minimal mode'
       )
       // the `else` branch is needed for tree-shaking
     } else {
@@ -475,9 +488,7 @@ export default class NextNodeServer extends BaseServer {
       renderOpts.nextFontManifest = this.nextFontManifest
 
       if (this.hasAppDir && renderOpts.isAppPath) {
-        const { renderToHTMLOrFlight: appRenderToHTMLOrFlight } =
-          require('./future/route-modules/app-page/module.compiled') as typeof import('./app-render/app-render')
-        return appRenderToHTMLOrFlight(
+        return lazyRenderAppPage(
           req.originalRequest,
           res.originalResponse,
           pathname,
@@ -489,7 +500,7 @@ export default class NextNodeServer extends BaseServer {
       // TODO: re-enable this once we've refactored to use implicit matches
       // throw new Error('Invariant: render should have used routeModule')
 
-      return require('./future/route-modules/pages/module.compiled').renderToHTML(
+      return lazyRenderPagesPage(
         req.originalRequest,
         res.originalResponse,
         pathname,
@@ -539,13 +550,12 @@ export default class NextNodeServer extends BaseServer {
               signal: signalFromNodeResponse(res.originalResponse),
             }
           )
-          const filteredResHeaders = filterReqHeaders(
-            toNodeOutgoingHttpHeaders(invokeRes.headers),
-            ipcForbiddenHeaders
+          const nodeOutgoingHttpHeaders = toNodeOutgoingHttpHeaders(
+            invokeRes.headers
           )
 
-          for (const key of Object.keys(filteredResHeaders)) {
-            newRes.setHeader(key, filteredResHeaders[key] || '')
+          for (const key of Object.keys(nodeOutgoingHttpHeaders)) {
+            newRes.setHeader(key, nodeOutgoingHttpHeaders[key] || '')
           }
           newRes.statusCode = invokeRes.status || 200
 
@@ -712,14 +722,13 @@ export default class NextNodeServer extends BaseServer {
     )
   }
 
-  protected async getFallback(page: string): Promise<string> {
+  protected getFallback(page: string): Promise<string> {
     page = normalizePagePath(page)
     const cacheFs = this.getCacheFilesystem()
-    const html = await cacheFs.readFile(
-      join(this.serverDistDir, 'pages', `${page}.html`)
+    return cacheFs.readFile(
+      join(this.serverDistDir, 'pages', `${page}.html`),
+      'utf8'
     )
-
-    return html.toString('utf8')
   }
 
   protected async handleNextImageRequest(
@@ -975,10 +984,11 @@ export default class NextNodeServer extends BaseServer {
     return this.runApi(req, res, query, match)
   }
 
-  protected async getPrefetchRsc(pathname: string) {
-    return this.getCacheFilesystem()
-      .readFile(join(this.serverDistDir, 'app', `${pathname}.prefetch.rsc`))
-      .then((res) => res.toString())
+  protected getPrefetchRsc(pathname: string): Promise<string> {
+    return this.getCacheFilesystem().readFile(
+      join(this.serverDistDir, 'app', `${pathname}.prefetch.rsc`),
+      'utf8'
+    )
   }
 
   protected getCacheFilesystem(): CacheFs {

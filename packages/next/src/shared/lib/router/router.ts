@@ -830,6 +830,7 @@ export default class Router implements BaseRouter {
     this.isReady = !!(
       self.__NEXT_DATA__.gssp ||
       self.__NEXT_DATA__.gip ||
+      self.__NEXT_DATA__.isExperimentalCompile ||
       (self.__NEXT_DATA__.appGip && !self.__NEXT_DATA__.gsp) ||
       (!autoExportDynamic &&
         !self.location.search &&

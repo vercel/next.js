@@ -1,5 +1,5 @@
 import path from 'path'
-import { fileExists } from '../lib/file-exists'
+import fs from 'fs'
 import { NextConfigComplete } from '../server/config-shared'
 import * as Log from './output/log'
 import { getTypeScriptConfiguration } from '../lib/typescript/getTypeScriptConfiguration'
@@ -53,12 +53,10 @@ export default async function loadJsConfig(
     typeScriptPath = deps.resolved.get('typescript')
   } catch {}
   const tsConfigPath = path.join(dir, config.typescript.tsconfigPath)
-  const useTypeScript = Boolean(
-    typeScriptPath && (await fileExists(tsConfigPath))
-  )
+  const useTypeScript = Boolean(typeScriptPath && fs.existsSync(tsConfigPath))
 
   let implicitBaseurl
-  let jsConfig
+  let jsConfig: { compilerOptions: Record<string, any> } | undefined
   // jsconfig is a subset of tsconfig
   if (useTypeScript) {
     if (
@@ -78,7 +76,7 @@ export default async function loadJsConfig(
   }
 
   const jsConfigPath = path.join(dir, 'jsconfig.json')
-  if (!useTypeScript && (await fileExists(jsConfigPath))) {
+  if (!useTypeScript && fs.existsSync(jsConfigPath)) {
     jsConfig = parseJsonFile(jsConfigPath)
     implicitBaseurl = path.dirname(jsConfigPath)
   }

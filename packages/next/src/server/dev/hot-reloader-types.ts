@@ -4,7 +4,7 @@ import type { Duplex } from 'stream'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type getBaseWebpackConfig from '../../build/webpack-config'
 import type { RouteMatch } from '../future/route-matches/route-match'
-import type { Update as TurbopackUpdate } from '../../build/swc'
+import type { Project, Update as TurbopackUpdate } from '../../build/swc'
 import type { VersionInfo } from './parse-version-info'
 
 export const enum HMR_ACTIONS_SENT_TO_BROWSER {
@@ -107,6 +107,7 @@ export type HMR_ACTION_TYPES =
   | ServerErrorAction
 
 export interface NextJsHotReloaderInterface {
+  turbopackProject?: Project
   activeWebpackConfigs?: Array<Awaited<ReturnType<typeof getBaseWebpackConfig>>>
   serverStats: webpack.Stats | null
   edgeServerStats: webpack.Stats | null

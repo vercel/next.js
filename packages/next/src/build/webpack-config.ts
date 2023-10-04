@@ -142,17 +142,6 @@ function isModuleCSS(module: { type: string }) {
   )
 }
 
-export function errorIfEnvConflicted(config: NextConfigComplete, key: string) {
-  const isPrivateKey = /^(?:NODE_.+)|^(?:__.+)$/i.test(key)
-  const hasNextRuntimeKey = key === 'NEXT_RUNTIME'
-
-  if (isPrivateKey || hasNextRuntimeKey) {
-    throw new Error(
-      `The key "${key}" under "env" in ${config.configFileName} is not allowed. https://nextjs.org/docs/messages/env-key-not-allowed`
-    )
-  }
-}
-
 function getReactProfilingInProduction() {
   return {
     'react-dom$': 'react-dom/profiling',
@@ -507,7 +496,7 @@ export default async function getBaseWebpackConfig(
     ? '-experimental'
     : ''
 
-  const babelConfigFile = await getBabelConfigFile(dir)
+  const babelConfigFile = getBabelConfigFile(dir)
   const distDir = path.join(dir, config.distDir)
 
   let useSWCLoader = !babelConfigFile || config.experimental.forceSwcTransforms
@@ -2036,8 +2025,9 @@ export default async function getBaseWebpackConfig(
       isNodeOrEdgeCompilation &&
         new PagesManifestPlugin({
           dev,
-          isEdgeRuntime: isEdgeServer,
           appDirEnabled: hasAppDir,
+          isEdgeRuntime: isEdgeServer,
+          distDir: !dev ? distDir : undefined,
         }),
       // MiddlewarePlugin should be after DefinePlugin so  NEXT_PUBLIC_*
       // replacement is done before its process.env.* handling

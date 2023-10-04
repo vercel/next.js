@@ -28,7 +28,7 @@
 
 # Tooling & Telemetry
 
-/packages/next/src/build/                                @timneutkens @ijjk @shuding @huozhi @ztanner @vercel/web-tooling
+/packages/next/src/build/                                @timneutkens @ijjk @shuding @huozhi @ztanner @feedthejim @vercel/web-tooling
 /packages/next/src/server/lib/router-utils/setup-dev.ts  @timneutkens @ijjk @shuding @huozhi @feedthejim @ztanner @wyattjoh @vercel/web-tooling
 /packages/next/src/telemetry/                            @timneutkens @ijjk @shuding @padmaia
 /packages/next-swc/                                      @timneutkens @ijjk @shuding @huozhi @vercel/web-tooling

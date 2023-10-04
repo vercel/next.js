@@ -1,13 +1,19 @@
 use anyhow::Result;
+use indexmap::IndexMap;
 use turbo_tasks::{Value, Vc};
 use turbo_tasks_fs::FileSystem;
 use turbopack_binding::{
-    turbo::{tasks_env::ProcessEnv, tasks_fs::FileSystemPath},
+    turbo::{
+        tasks_env::{EnvMap, ProcessEnv},
+        tasks_fs::FileSystemPath,
+    },
     turbopack::{
         build::{BuildChunkingContext, MinifyType},
         core::{
             compile_time_defines,
-            compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReferences},
+            compile_time_info::{
+                CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReferences,
+            },
             environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, ServerAddr},
             free_var_references,
             resolve::{parse::Request, pattern::Pattern},
@@ -16,7 +22,6 @@ use turbopack_binding::{
         ecmascript_plugin::transform::directives::{
             client::ClientDirectiveTransformer, server::ServerDirectiveTransformer,
         },
-        env::ProcessEnvAsset,
         node::execution_context::ExecutionContext,
         turbopack::{
             condition::ContextCondition,
@@ -38,7 +43,6 @@ use super::{
 use crate::{
     babel::maybe_add_babel_loader,
     embed_js::next_js_fs,
-    env::env_for_js,
     mode::NextMode,
     next_build::{get_external_next_compiled_package_mapping, get_postcss_package_mapping},
     next_client::{RuntimeEntries, RuntimeEntry},
@@ -174,26 +178,38 @@ pub async fn get_server_resolve_options_context(
     .cell())
 }
 
-fn defines(mode: NextMode) -> CompileTimeDefines {
-    compile_time_defines!(
+fn defines(mode: NextMode, define_env: &IndexMap<String, String>) -> CompileTimeDefines {
+    let mut defines = compile_time_defines!(
         process.turbopack = true,
-        process.env.NODE_ENV = mode.node_env(),
-        process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false,
         process.env.NEXT_RUNTIME = "nodejs",
-        process.env.__NEXT_EXPERIMENTAL_REACT = false,
-    )
-    // TODO(WEB-937) there are more defines needed, see
-    // packages/next/src/build/webpack-config.ts
+        process.env.NODE_ENV = mode.node_env(),
+        process.env.TURBOPACK = true,
+    );
+
+    for (k, v) in define_env {
+        defines
+            .0
+            .entry(k.split('.').map(|s| s.to_string()).collect())
+            .or_insert_with(|| CompileTimeDefineValue::JSON(v.clone()));
+    }
+
+    defines
 }
 
 #[turbo_tasks::function]
-fn next_server_defines(mode: NextMode) -> Vc<CompileTimeDefines> {
-    defines(mode).cell()
+async fn next_server_defines(
+    mode: NextMode,
+    define_env: Vc<EnvMap>,
+) -> Result<Vc<CompileTimeDefines>> {
+    Ok(defines(mode, &*define_env.await?).cell())
 }
 
 #[turbo_tasks::function]
-async fn next_server_free_vars(mode: NextMode) -> Result<Vc<FreeVarReferences>> {
-    Ok(free_var_references!(..defines(mode).into_iter()).cell())
+async fn next_server_free_vars(
+    mode: NextMode,
+    define_env: Vc<EnvMap>,
+) -> Result<Vc<FreeVarReferences>> {
+    Ok(free_var_references!(..defines(mode, &*define_env.await?).into_iter()).cell())
 }
 
 #[turbo_tasks::function]
@@ -201,12 +217,13 @@ pub fn get_server_compile_time_info(
     mode: NextMode,
     process_env: Vc<Box<dyn ProcessEnv>>,
     server_addr: Vc<ServerAddr>,
+    define_env: Vc<EnvMap>,
 ) -> Vc<CompileTimeInfo> {
     CompileTimeInfo::builder(Environment::new(Value::new(
         ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::current(process_env, server_addr)),
     )))
-    .defines(next_server_defines(mode))
-    .free_var_references(next_server_free_vars(mode))
+    .defines(next_server_defines(mode, define_env))
+    .free_var_references(next_server_free_vars(mode, define_env))
     .cell()
 }
 
@@ -563,17 +580,10 @@ pub fn get_build_module_options_context() -> Vc<ModuleOptionsContext> {
 
 #[turbo_tasks::function]
 pub fn get_server_runtime_entries(
-    project_root: Vc<FileSystemPath>,
-    env: Vc<Box<dyn ProcessEnv>>,
     ty: Value<ServerContextType>,
     mode: NextMode,
-    next_config: Vc<NextConfig>,
 ) -> Vc<RuntimeEntries> {
-    let mut runtime_entries = vec![RuntimeEntry::Source(Vc::upcast(ProcessEnvAsset::new(
-        project_root,
-        env_for_js(env, false, next_config),
-    )))
-    .cell()];
+    let mut runtime_entries = vec![];
 
     if matches!(mode, NextMode::Build) {
         if let ServerContextType::AppRSC { .. } = ty.into_value() {

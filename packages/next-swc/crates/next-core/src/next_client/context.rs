@@ -1,15 +1,17 @@
 use core::result::Result::Ok;
 
 use anyhow::Result;
+use indexmap::IndexMap;
 use turbo_tasks::{Value, Vc};
 use turbo_tasks_fs::FileSystem;
 use turbopack_binding::{
-    turbo::{tasks_env::ProcessEnv, tasks_fs::FileSystemPath},
+    turbo::{tasks_env::EnvMap, tasks_fs::FileSystemPath},
     turbopack::{
         core::{
             compile_time_defines,
             compile_time_info::{
-                CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences,
+                CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReference,
+                FreeVarReferences,
             },
             environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
             free_var_references,
@@ -18,7 +20,6 @@ use turbopack_binding::{
         dev::{react_refresh::assert_can_resolve_react_refresh, DevChunkingContext},
         ecmascript::chunk::EcmascriptChunkingContext,
         ecmascript_plugin::transform::directives::server::ServerDirectiveTransformer,
-        env::ProcessEnvAsset,
         node::execution_context::ExecutionContext,
         turbopack::{
             condition::ContextCondition,
@@ -34,12 +35,9 @@ use turbopack_binding::{
 
 use super::transforms::get_next_client_transforms_rules;
 use crate::{
-    app_structure::{get_entrypoints, EntrypointPaths, OptionAppDir},
     babel::maybe_add_babel_loader,
     embed_js::next_js_fs,
-    env::env_for_js,
     mode::NextMode,
-    next_app::{bloom_filter::create_client_router_filter, AppPath},
     next_build::{get_external_next_compiled_package_mapping, get_postcss_package_mapping},
     next_client::runtime_entry::{RuntimeEntries, RuntimeEntry},
     next_config::NextConfig,
@@ -67,82 +65,40 @@ use crate::{
     util::foreign_code_context_condition,
 };
 
-fn defines(
-    mode: NextMode,
-    dist_root_path: &str,
-    next_config: &NextConfig,
-    app_paths: &[AppPath],
-) -> Result<CompileTimeDefines> {
-    let filter = create_client_router_filter(
-        app_paths,
-        if next_config
-            .experimental
-            .client_router_filter_redirects
-            .unwrap_or_default()
-        {
-            next_config
-                .original_redirects
-                .as_deref()
-                .unwrap_or_default()
-        } else {
-            &[]
-        },
-        next_config.experimental.client_router_filter_allowed_rate,
+fn defines(mode: NextMode, define_env: &IndexMap<String, String>) -> CompileTimeDefines {
+    // Need the empty NEXT_RUNTIME here for compile time evaluation.
+    let mut defines = compile_time_defines!(
+        process.turbopack = true,
+        process.env.NEXT_RUNTIME = "",
+        process.env.NODE_ENV = mode.node_env(),
+        process.env.TURBOPACK = true,
     );
 
-    // TODO: macro may need to allow dynamically expand from some iterable values
-    // TODO(WEB-937): there are more defines needed, see
-    // packages/next/src/build/webpack/plugins/define-env-plugin.ts
-    Ok(compile_time_defines!(
-        process.browser = true,
-        process.turbopack = true,
-        process.env.TURBOPACK = true,
-        process.env.NODE_ENV = mode.node_env(),
-        process.env.NEXT_RUNTIME = "".to_string(),
-        process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = next_config
-            .experimental
-            .client_router_filter
-            .unwrap_or_default(),
-        process.env.__NEXT_CLIENT_ROUTER_S_FILTER = serde_json::to_value(&filter.static_filter)?,
-        process.env.__NEXT_CLIENT_ROUTER_D_FILTER = serde_json::to_value(&filter.dynamic_filter)?,
-        process.env.__NEXT_DIST_DIR = dist_root_path.to_string(),
-        process.env.__NEXT_HAS_REWRITES = true,
-    ))
+    for (k, v) in define_env {
+        defines
+            .0
+            .entry(k.split('.').map(|s| s.to_string()).collect())
+            .or_insert_with(|| CompileTimeDefineValue::JSON(v.clone()));
+    }
+
+    defines
 }
 
 #[turbo_tasks::function]
 async fn next_client_defines(
     mode: NextMode,
-    dist_root_path: Vc<String>,
-    next_config: Vc<NextConfig>,
-    app_paths: Vc<EntrypointPaths>,
+    define_env: Vc<EnvMap>,
 ) -> Result<Vc<CompileTimeDefines>> {
-    let dist_root_path = &*dist_root_path.await?;
-    Ok(defines(
-        mode,
-        dist_root_path.as_str(),
-        &*next_config.await?,
-        &app_paths.await?,
-    )?
-    .cell())
+    Ok(defines(mode, &*define_env.await?).cell())
 }
 
 #[turbo_tasks::function]
 async fn next_client_free_vars(
     mode: NextMode,
-    dist_root_path: Vc<String>,
-    next_config: Vc<NextConfig>,
-    app_paths: Vc<EntrypointPaths>,
+    define_env: Vc<EnvMap>,
 ) -> Result<Vc<FreeVarReferences>> {
-    let dist_root_path = &*dist_root_path.await?;
     Ok(free_var_references!(
-        ..defines(
-            mode,
-            dist_root_path.as_str(),
-            &*next_config.await?,
-            &app_paths.await?
-        )?
-        .into_iter(),
+        ..defines(mode, &*define_env.await?).into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
             request: "node:buffer".to_string(),
             lookup_path: None,
@@ -158,27 +114,11 @@ async fn next_client_free_vars(
 }
 
 #[turbo_tasks::function]
-async fn get_app_paths(
-    app_dir: Vc<OptionAppDir>,
-    next_config: Vc<NextConfig>,
-) -> Result<Vc<EntrypointPaths>> {
-    Ok(if let Some(app_dir) = *app_dir.await? {
-        get_entrypoints(app_dir, next_config.page_extensions()).paths()
-    } else {
-        Default::default()
-    })
-}
-
-#[turbo_tasks::function]
 pub fn get_client_compile_time_info(
     mode: NextMode,
     browserslist_query: String,
-    dist_root_path: Vc<String>,
-    next_config: Vc<NextConfig>,
-    app_dir: Vc<OptionAppDir>,
+    define_env: Vc<EnvMap>,
 ) -> Vc<CompileTimeInfo> {
-    let app_paths = get_app_paths(app_dir, next_config);
-
     CompileTimeInfo::builder(Environment::new(Value::new(ExecutionEnvironment::Browser(
         BrowserEnvironment {
             dom: true,
@@ -188,18 +128,8 @@ pub fn get_client_compile_time_info(
         }
         .into(),
     ))))
-    .defines(next_client_defines(
-        mode,
-        dist_root_path,
-        next_config,
-        app_paths,
-    ))
-    .free_var_references(next_client_free_vars(
-        mode,
-        dist_root_path,
-        next_config,
-        app_paths,
-    ))
+    .defines(next_client_defines(mode, define_env))
+    .free_var_references(next_client_free_vars(mode, define_env))
     .cell()
 }
 
@@ -401,26 +331,12 @@ pub fn get_client_assets_path(client_root: Vc<FileSystemPath>) -> Vc<FileSystemP
 #[turbo_tasks::function]
 pub async fn get_client_runtime_entries(
     project_root: Vc<FileSystemPath>,
-    env: Vc<Box<dyn ProcessEnv>>,
     ty: Value<ClientContextType>,
     mode: NextMode,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<RuntimeEntries>> {
     let mut runtime_entries = vec![];
-
-    if matches!(
-        *ty,
-        ClientContextType::App { .. } | ClientContextType::Pages { .. },
-    ) {
-        runtime_entries.push(
-            RuntimeEntry::Source(Vc::upcast(ProcessEnvAsset::new(
-                project_root,
-                env_for_js(env, true, next_config),
-            )))
-            .cell(),
-        );
-    }
 
     match mode {
         NextMode::Development => {

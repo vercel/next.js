@@ -996,7 +996,9 @@ export function runProdSuite(
     env?: NodeJS.ProcessEnv
   }
 ) {
-  return runSuite(suiteName, { appDir, env: 'prod' }, options)
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    runSuite(suiteName, { appDir, env: 'prod' }, options)
+  })
 }
 
 /**

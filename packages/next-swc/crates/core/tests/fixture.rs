@@ -9,9 +9,7 @@ use next_swc::{
     optimize_barrel::optimize_barrel,
     optimize_server_react::optimize_server_react,
     page_config::page_config_test,
-    react_remove_properties::remove_properties,
     react_server_components::server_components,
-    remove_console::remove_console,
     server_actions::{
         server_actions, {self},
     },
@@ -225,48 +223,6 @@ fn relay_no_artifact_dir_fixture(input: PathBuf) {
                 Some(PathBuf::from("src/pages")),
                 None,
             )
-        },
-        &input,
-        &output,
-        Default::default(),
-    );
-}
-
-#[fixture("tests/fixture/remove-console/**/input.js")]
-fn remove_console_fixture(input: PathBuf) {
-    let output = input.parent().unwrap().join("output.js");
-    test_fixture(
-        syntax(),
-        &|_tr| remove_console(next_swc::remove_console::Config::All(true)),
-        &input,
-        &output,
-        Default::default(),
-    );
-}
-
-#[fixture("tests/fixture/react-remove-properties/default/**/input.js")]
-fn react_remove_properties_default_fixture(input: PathBuf) {
-    let output = input.parent().unwrap().join("output.js");
-    test_fixture(
-        syntax(),
-        &|_tr| remove_properties(next_swc::react_remove_properties::Config::All(true)),
-        &input,
-        &output,
-        Default::default(),
-    );
-}
-
-#[fixture("tests/fixture/react-remove-properties/custom/**/input.js")]
-fn react_remove_properties_custom_fixture(input: PathBuf) {
-    let output = input.parent().unwrap().join("output.js");
-    test_fixture(
-        syntax(),
-        &|_tr| {
-            remove_properties(next_swc::react_remove_properties::Config::WithOptions(
-                next_swc::react_remove_properties::Options {
-                    properties: vec!["^data-custom$".into()],
-                },
-            ))
         },
         &input,
         &output,

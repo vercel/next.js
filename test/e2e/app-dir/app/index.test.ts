@@ -2,19 +2,88 @@ import { createNextDescribe } from 'e2e-utils'
 import { check, getRedboxHeader, hasRedbox, waitFor } from 'next-test-utils'
 import cheerio from 'cheerio'
 import stripAnsi from 'strip-ansi'
+import { BrowserInterface } from 'test/lib/browsers/base'
+import { Request } from 'playwright-core'
 
 createNextDescribe(
   'app dir',
   {
     files: __dirname,
+    buildCommand: process.env.NEXT_EXPERIMENTAL_COMPILE
+      ? 'pnpm next experimental-compile'
+      : undefined,
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
-    if (isNextStart) {
-      it('should have correct size in build output', async () => {
-        expect(next.cliOutput).toMatch(
-          /\/dashboard\/another.*? [^0]{1,} [\w]{1,}B/
+    if (isNextStart && !process.env.NEXT_EXPERIMENTAL_COMPILE) {
+      it('should not have loader generated function for edge runtime', async () => {
+        expect(
+          await next.readFile('.next/server/app/dashboard/page.js')
+        ).not.toContain('_stringifiedConfig')
+        expect(await next.readFile('.next/server/middleware.js')).not.toContain(
+          '_middlewareConfig'
         )
       })
+
+      it('should use RSC prefetch data from build', async () => {
+        expect(
+          await next.readFile('.next/server/app/linking.prefetch.rsc')
+        ).toBeTruthy()
+        expect(
+          await next.readFile('.next/server/app/linking/about.prefetch.rsc')
+        ).toContain('About loading...')
+        expect(
+          await next.readFile(
+            '.next/server/app/dashboard/deployments/breakdown.prefetch.rsc'
+          )
+        ).toBeTruthy()
+        expect(
+          await next
+            .readFile(
+              '.next/server/app/dashboard/deployments/[id].prefetch.rsc'
+            )
+            .catch(() => false)
+        ).toBeFalsy()
+
+        const outputStart = next.cliOutput.length
+        const browser: BrowserInterface = await next.browser('/')
+        const rscReqs = []
+
+        browser.on('request', (req: Request) => {
+          if (req.headers()['rsc']) {
+            rscReqs.push(req.url())
+          }
+        })
+
+        await browser.eval('window.location.href = "/linking"')
+
+        await check(async () => {
+          return rscReqs.length > 3 ? 'success' : JSON.stringify(rscReqs)
+        }, 'success')
+
+        const trimmedOutput = next.cliOutput.substring(outputStart)
+
+        expect(trimmedOutput).not.toContain(
+          'rendering dashboard/(custom)/deployments/breakdown'
+        )
+        expect(trimmedOutput).not.toContain(
+          'rendering /dashboard/deployments/[id]'
+        )
+        expect(trimmedOutput).not.toContain('rendering linking about page')
+
+        await browser.elementByCss('#breakdown').click()
+        await check(
+          () => next.cliOutput.substring(outputStart),
+          /rendering .*breakdown/
+        )
+      })
+
+      if (!process.env.NEXT_EXPERIMENTAL_COMPILE) {
+        it('should have correct size in build output', async () => {
+          expect(next.cliOutput).toMatch(
+            /\/dashboard\/another.*? *?[^0]\d{1,} [\w]{1,}B/
+          )
+        })
+      }
 
       it('should have correct preferredRegion values in manifest', async () => {
         const middlewareManifest = JSON.parse(
@@ -1693,20 +1762,23 @@ createNextDescribe(
 
       it('should insert preload tags for beforeInteractive and afterInteractive scripts', async () => {
         const html = await next.render('/script')
-        expect(html).toContain(
-          '<link rel="preload" href="/test1.js" as="script"/>'
+        const $ = cheerio.load(html)
+
+        const scriptPreloads = $(
+          'link[rel="preload"][as="script"][href^="/test"]'
         )
-        expect(html).toContain(
-          '<link rel="preload" href="/test2.js" as="script"/>'
-        )
-        expect(html).toContain(
-          '<link rel="preload" href="/test3.js" as="script"/>'
-        )
+        const expectedHrefs = new Set(['/test1.js', '/test2.js', '/test3.js'])
+        expect(scriptPreloads.length).toBe(3)
+        scriptPreloads.each((i, el) => {
+          expect(expectedHrefs.has(el.attribs.href)).toBe(true)
+          expectedHrefs.delete(el.attribs.href)
+        })
 
         // test4.js has lazyOnload which doesn't need to be preloaded
-        expect(html).not.toContain(
-          '<script rel="preload" as="script" src="/test4.js"/>'
+        const lazyPreloads = $(
+          'link[rel="preload"][as="script"][href="/test4.js"]'
         )
+        expect(lazyPreloads.length).toBe(0)
       })
 
       it('should load stylesheets for next/scripts', async () => {

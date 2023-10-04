@@ -23,10 +23,7 @@ use next_core::{
 };
 use turbo_tasks::{TryJoinIterExt, Value, Vc};
 use turbopack_binding::{
-    turbo::{
-        tasks_env::{CustomProcessEnv, ProcessEnv},
-        tasks_fs::FileSystemPath,
-    },
+    turbo::tasks_fs::FileSystemPath,
     turbopack::{
         build::BuildChunkingContext,
         core::{
@@ -56,7 +53,6 @@ pub struct AppEntries {
 pub async fn get_app_entries(
     project_root: Vc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,
-    env: Vc<Box<dyn ProcessEnv>>,
     client_compile_time_info: Vc<CompileTimeInfo>,
     server_compile_time_info: Vc<CompileTimeInfo>,
     next_config: Vc<NextConfig>,
@@ -85,9 +81,7 @@ pub async fn get_app_entries(
 
     // TODO(alexkirsz) Should we pass env here or EnvMap::empty, as is done in
     // app_source?
-    let runtime_entries = get_server_runtime_entries(project_root, env, rsc_ty, mode, next_config);
-
-    let env = Vc::upcast(CustomProcessEnv::new(env, next_config.env()));
+    let runtime_entries = get_server_runtime_entries(rsc_ty, mode);
 
     let ssr_ty: Value<ServerContextType> = Value::new(ServerContextType::AppSSR { app_dir });
 
@@ -228,7 +222,6 @@ pub async fn get_app_entries(
 
     let client_runtime_entries = get_client_runtime_entries(
         project_root,
-        env,
         client_ty,
         mode,
         next_config,
@@ -246,6 +239,7 @@ pub async fn get_app_entries(
 /// to `all_chunks`, and the chunking information will be added to the provided
 /// manifests.
 pub async fn compute_app_entries_chunks(
+    next_config: Vc<NextConfig>,
     app_entries: &AppEntries,
     app_client_reference_graph: Vc<ClientReferenceGraph>,
     app_client_references_chunks: Vc<ClientReferencesChunks>,
@@ -347,6 +341,7 @@ pub async fn compute_app_entries_chunks(
             app_client_references_chunks,
             client_chunking_context,
             ssr_chunking_context,
+            next_config.computed_asset_prefix(),
         );
 
         all_chunks.push(entry_manifest);

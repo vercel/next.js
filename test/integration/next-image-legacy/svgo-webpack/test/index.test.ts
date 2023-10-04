@@ -15,7 +15,7 @@ let app
 let devOutput
 
 describe('svgo-webpack with Image Component', () => {
-  describe('next build', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     it('should not fail to build invalid usage of the Image component', async () => {
       const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
       expect(stderr).toBeFalsy()
@@ -23,7 +23,7 @@ describe('svgo-webpack with Image Component', () => {
     })
   })
 
-  describe('next dev', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       devOutput = { stdout: '', stderr: '' }
       appPort = await findPort()

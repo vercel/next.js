@@ -67,6 +67,7 @@
     "nextjs",
     "opentelemetry",
     "Threadsafe",
+    "Turbopack",
     "zipkin"
   ],
   "grammarly.selectors": [
