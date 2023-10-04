@@ -663,7 +663,7 @@ async fn insert_next_server_special_aliases(
                         }
                         (NextRuntime::Edge, false) => "next/dist/compiled/react/jsx-dev-runtime",
                         (NextRuntime::NodeJs, _) => {
-                            "next/dist/server/future/route-modules/app-page/vendored/ssr/\
+                            "next/dist/server/future/route-modules/app-page/vendored/rsc/\
                              react-jsx-dev-runtime"
                         }
                     },
