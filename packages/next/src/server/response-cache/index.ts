@@ -55,10 +55,10 @@ export default class ResponseCache {
     // cache so just return the result of the response generator.
     if (!key) return responseGenerator(false, null)
 
-    const { incrementalCache } = context
+    const { incrementalCache, isOnDemandRevalidate = false } = context
 
     return this.batcher.batch(
-      { key, isOnDemandRevalidate: false },
+      { key, isOnDemandRevalidate },
       async (cacheKey, resolve) => {
         // We keep the previous cache entry around to leverage when the
         // incremental cache is disabled in minimal mode.
@@ -77,7 +77,7 @@ export default class ResponseCache {
             ? await incrementalCache.get(key)
             : null
 
-          if (cachedResponse && !context.isOnDemandRevalidate) {
+          if (cachedResponse && !isOnDemandRevalidate) {
             if (cachedResponse.value?.kind === 'FETCH') {
               throw new Error(
                 `invariant: unexpected cachedResponse of kind fetch in response cache`
@@ -118,7 +118,7 @@ export default class ResponseCache {
 
           // For on-demand revalidate wait to resolve until cache is set.
           // Otherwise resolve now.
-          if (!context.isOnDemandRevalidate && !resolved) {
+          if (!isOnDemandRevalidate && !resolved) {
             resolve(resolveValue)
             resolved = true
           }
