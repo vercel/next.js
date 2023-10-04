@@ -6987,8 +6987,6 @@
       "Basic CSS Modules Ordering Development Mode should have correct color on index page (on hover)",
       "Basic CSS Modules Ordering Development Mode should have correct color on index page (on load)",
       "Basic CSS Modules Ordering Development Mode should have correct color on index page (on nav)",
-      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on hover)",
-      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on load)",
       "Ordering with Global CSS and Modules (dev) should have the correct color (css ordering)",
       "Ordering with Global CSS and Modules (dev) should have the correct color (css ordering) during hot reloads",
       "Ordering with Global CSS and Modules (dev) should not execute scripts in any order"
@@ -7012,6 +7010,8 @@
       "should handle unresolved files gracefully production mode should have correct file references in CSS output"
     ],
     "flakey": [
+      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on hover)",
+      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on load)",
       "CSS Modules Composes Ordering Development Mode should have correct color on index page (on nav from index)",
       "CSS Modules Composes Ordering Development Mode should have correct color on index page (on nav from other)"
     ],

@@ -7,6 +7,7 @@ import {
   ServerClientChange,
   ServerClientChangeType,
   Issue,
+  createDefineEnv,
 } from '../../../build/swc'
 import type { Socket } from 'net'
 import ws from 'next/dist/compiled/ws'
@@ -209,13 +210,29 @@ async function startWatcher(opts: SetupOpts) {
       })
     }
 
+    const hasRewrites =
+      opts.fsChecker.rewrites.afterFiles.length > 0 ||
+      opts.fsChecker.rewrites.beforeFiles.length > 0 ||
+      opts.fsChecker.rewrites.fallback.length > 0
+
     const project = await bindings.turbo.createProject({
       projectPath: dir,
       rootPath: opts.nextConfig.experimental.outputFileTracingRoot || dir,
       nextConfig: opts.nextConfig,
-      jsConfig,
+      jsConfig: jsConfig ?? { compilerOptions: {} },
       watch: true,
       env: process.env as Record<string, string>,
+      defineEnv: createDefineEnv({
+        allowedRevalidateHeaderKeys: undefined,
+        clientRouterFilters: undefined,
+        config: nextConfig,
+        dev: true,
+        distDir,
+        fetchCacheKeyPrefix: undefined,
+        hasRewrites,
+        middlewareMatchers: undefined,
+        previewModeId: undefined,
+      }),
       serverAddr: `127.0.0.1:${opts.port}`,
     })
     const iter = project.entrypointsSubscribe()
@@ -966,6 +983,7 @@ async function startWatcher(opts: SetupOpts) {
     await writeFontManifest()
 
     const turbopackHotReloader: NextJsHotReloaderInterface = {
+      turbopackProject: project,
       activeWebpackConfigs: undefined,
       serverStats: null,
       edgeServerStats: null,
@@ -1731,6 +1749,27 @@ async function startWatcher(opts: SetupOpts) {
           } catch (_) {
             /* do we want to log if there are syntax errors in tsconfig  while editing? */
           }
+        }
+
+        if (hotReloader.turbopackProject) {
+          const hasRewrites =
+            opts.fsChecker.rewrites.afterFiles.length > 0 ||
+            opts.fsChecker.rewrites.beforeFiles.length > 0 ||
+            opts.fsChecker.rewrites.fallback.length > 0
+
+          await hotReloader.turbopackProject.update({
+            defineEnv: createDefineEnv({
+              allowedRevalidateHeaderKeys: undefined,
+              clientRouterFilters,
+              config: nextConfig,
+              dev: true,
+              distDir,
+              fetchCacheKeyPrefix: undefined,
+              hasRewrites,
+              middlewareMatchers: undefined,
+              previewModeId: undefined,
+            }),
+          })
         }
 
         hotReloader.activeWebpackConfigs?.forEach((config, idx) => {

@@ -7,7 +7,6 @@ use std::{
 use anyhow::{Context, Result};
 use dunce::canonicalize;
 use next_core::{
-    app_structure::find_app_dir_if_enabled,
     mode::NextMode,
     next_app::get_app_client_references_chunks,
     next_client::{get_client_chunking_context, get_client_compile_time_info},
@@ -26,7 +25,7 @@ use next_core::{
 use serde::Serialize;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    Completion, Completions, TransientInstance, TryJoinIterExt, ValueToString, Vc,
+    Completion, Completions, TransientInstance, TryJoinIterExt, Vc,
 };
 use turbopack_binding::{
     turbo::tasks_fs::{rebase, DiskFileSystem, FileContent, FileSystem, FileSystemPath},
@@ -133,15 +132,14 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
     let next_config = load_next_config(execution_context.with_layer("next_config".to_string()));
 
     let mode = NextMode::Build;
-    let app_dir = find_app_dir_if_enabled(project_root);
-    let client_compile_time_info = get_client_compile_time_info(
-        mode,
-        browserslist_query,
-        node_root.to_string(),
-        next_config,
-        app_dir,
-    );
-    let server_compile_time_info = get_server_compile_time_info(mode, env, ServerAddr::empty());
+
+    let client_define_env = Vc::cell(options.define_env.client.iter().cloned().collect());
+    let client_compile_time_info =
+        get_client_compile_time_info(mode, browserslist_query, client_define_env);
+
+    let server_define_env = Vc::cell(options.define_env.nodejs.iter().cloned().collect());
+    let server_compile_time_info =
+        get_server_compile_time_info(mode, env, ServerAddr::empty(), server_define_env);
 
     // TODO(alexkirsz) Pages should build their own routes, outside of a FS.
     let next_router_fs = Vc::upcast::<Box<dyn FileSystem>>(VirtualFileSystem::new());
@@ -150,7 +148,6 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
         next_router_root,
         project_root,
         execution_context,
-        env,
         client_compile_time_info,
         server_compile_time_info,
         next_config,
@@ -159,7 +156,6 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
     let app_entries = get_app_entries(
         project_root,
         execution_context,
-        env,
         client_compile_time_info,
         server_compile_time_info,
         next_config,
@@ -335,6 +331,7 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
     // TODO(alexkirsz) Do some of that in parallel with the above.
 
     compute_app_entries_chunks(
+        next_config,
         &app_entries,
         app_client_references,
         app_client_references_chunks,

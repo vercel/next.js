@@ -212,6 +212,7 @@ impl AppProject {
                 "next-dynamic".to_string(),
                 Vc::upcast(NextDynamicTransition::new(self.client_transition())),
             ),
+            ("next-ssr".to_string(), Vc::upcast(self.ssr_transition())),
         ]
         .into_iter()
         .collect();
@@ -295,13 +296,8 @@ impl AppProject {
     async fn runtime_entries(self: Vc<Self>) -> Result<Vc<RuntimeEntries>> {
         let this = self.await?;
         Ok(get_server_runtime_entries(
-            self.project().project_path(),
-            // TODO(alexkirsz) Should we pass env here or EnvMap::empty, as is done in
-            // app_source?
-            self.project().env(),
             Value::new(self.rsc_ty()),
             this.mode,
-            self.project().next_config(),
         ))
     }
 
@@ -330,7 +326,6 @@ impl AppProject {
         let this = self.await?;
         Ok(get_client_runtime_entries(
             self.project().project_path(),
-            self.client_env(),
             Value::new(self.client_ty()),
             this.mode,
             self.project().next_config(),
@@ -642,6 +637,10 @@ impl AppEndpoint {
                 client_references_chunks,
                 this.app_project.project().client_chunking_context(),
                 Vc::upcast(this.app_project.project().ssr_chunking_context()),
+                this.app_project
+                    .project()
+                    .next_config()
+                    .computed_asset_prefix(),
             );
             server_assets.push(entry_manifest);
         }
