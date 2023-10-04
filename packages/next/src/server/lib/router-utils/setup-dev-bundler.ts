@@ -2244,7 +2244,7 @@ async function startWatcher(opts: SetupOpts) {
   }
 }
 
-export async function setupDev(opts: SetupOpts) {
+export async function setupDevBundler(opts: SetupOpts) {
   const isSrcDir = path
     .relative(opts.dir, opts.pagesDir || opts.appDir || '')
     .startsWith('src')
@@ -2269,3 +2269,5 @@ export async function setupDev(opts: SetupOpts) {
   )
   return result
 }
+
+export type DevBundler = Awaited<ReturnType<typeof setupDevBundler>>

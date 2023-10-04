@@ -14,7 +14,7 @@ import type {
   NextParsedUrlQuery,
   NextUrlWithParsedQuery,
 } from '../request-meta'
-import type { DevHandlers } from '../lib/dev-handlers'
+import type { DevBundlerService } from '../lib/dev-bundler-service'
 
 import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
@@ -81,6 +81,11 @@ export interface Options extends ServerOptions {
    * Tells of Next.js is running from the `next dev` command
    */
   isNextDevCommand?: boolean
+
+  /**
+   * Interface to the development bundler.
+   */
+  bundlerService: DevBundlerService
 }
 
 export default class DevServer extends Server {
@@ -93,24 +98,11 @@ export default class DevServer extends Server {
   private actualInstrumentationHookFile?: string
   private middleware?: MiddlewareRoutingItem
   private originalFetch: typeof fetch
+  private readonly bundlerService: DevBundlerService
   private staticPathsCache: LRUCache<
     string,
     UnwrapPromise<ReturnType<DevServer['getStaticPaths']>>
   >
-
-  private invokeDevMethod<M extends keyof DevHandlers>({
-    method,
-    args,
-  }: {
-    method: M
-    /**
-     * This filters out the first `dir` argument from the method signature, as
-     * it's added by this method when invoking.
-     */
-    args: DevHandlers[M] extends (_: any, ...rest: infer P) => any ? P : never
-  }) {
-    return (global as any)._nextDevHandlers[method](this.dir, ...args)
-  }
 
   protected staticPathsWorker?: { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -151,6 +143,7 @@ export default class DevServer extends Server {
       Error.stackTraceLimit = 50
     } catch {}
     super({ ...options, dev: true })
+    this.bundlerService = options.bundlerService
     this.originalFetch = global.fetch
     this.renderOpts.dev = true
     this.renderOpts.appDirDevErrorLogger = (err: any) =>
@@ -498,10 +491,7 @@ export default class DevServer extends Server {
     err?: unknown,
     type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
   ): Promise<void> {
-    await this.invokeDevMethod({
-      method: 'logErrorWithOriginalStack',
-      args: [err, type],
-    })
+    await this.bundlerService.logErrorWithOriginalStack(err, type)
   }
 
   protected getPagesManifest(): PagesManifest | undefined {
@@ -743,10 +733,7 @@ export default class DevServer extends Server {
     appPaths?: ReadonlyArray<string> | null
     definition: RouteDefinition | undefined
   }): Promise<void> {
-    await this.invokeDevMethod({
-      method: 'ensurePage',
-      args: [opts],
-    })
+    await this.bundlerService.ensurePage(opts)
   }
 
   protected async findPageComponents({
@@ -804,17 +791,11 @@ export default class DevServer extends Server {
   }
 
   protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
-    await this.invokeDevMethod({
-      method: 'getFallbackErrorComponents',
-      args: [],
-    })
+    await this.bundlerService.getFallbackErrorComponents()
     return await loadDefaultErrorComponents(this.distDir)
   }
 
   async getCompilationError(page: string): Promise<any> {
-    return await this.invokeDevMethod({
-      method: 'getCompilationError',
-      args: [page],
-    })
+    return await this.bundlerService.getCompilationError(page)
   }
 }
