@@ -13,13 +13,4 @@ module.exports = {
   env: {
     customVar: 'hello',
   },
-  webpack(config, { buildId, webpack }) {
-    config.plugins.push(
-      new webpack.DefinePlugin({
-        'process.env.CONFIG_BUILD_ID': JSON.stringify(buildId),
-      })
-    )
-
-    return config
-  },
 }
