@@ -17,10 +17,14 @@ import { PrerenderManifest } from '../../..'
 import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
 import { SizeLimit } from '../../../../../types'
 
+const NEXT_PRIVATE_GLOBAL_WAIT_UNTIL = Symbol.for(
+  '__next_private_global_wait_until__'
+)
+
 // @ts-ignore
-globalThis.__next_private_global_wait_until__ =
+globalThis[NEXT_PRIVATE_GLOBAL_WAIT_UNTIL] =
   // @ts-ignore
-  globalThis.__next_private_global_wait_until__ || []
+  globalThis[NEXT_PRIVATE_GLOBAL_WAIT_UNTIL] || []
 
 export function getRender({
   dev,
@@ -159,7 +163,7 @@ export function getRender({
     if (event && event.waitUntil) {
       event.waitUntil(
         // @ts-ignore
-        Promise.all([...globalThis.__next_private_global_wait_until__])
+        Promise.all([...globalThis[NEXT_PRIVATE_GLOBAL_WAIT_UNTIL]])
       )
     }
 
