@@ -1,4 +1,5 @@
 'use server'
+
 import { revalidatePath } from 'next/cache'
 import { createEntry } from '@/lib/fauna'
 
