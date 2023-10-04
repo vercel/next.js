@@ -225,8 +225,6 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
     }
     const nextFontManifest = maybeJSONParse(self.__NEXT_FONT_MANIFEST)
 
-    globalThis.__next_private_global_wait_until__ = []
-
     const render = getRender({
       pagesType,
       dev: ${dev},
@@ -257,22 +255,12 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
 
     export const ComponentMod = pageMod
 
-    export default async function(opts, event) {
-      const res = await adapter({
+    export default function nHandler (opts, event) {
+      return adapter({
         ...opts,
         IncrementalCache,
         handler: render
       })
-
-      if (event && event.waitUntil) {
-        event.waitUntil(
-          Promise.all(
-            [res?.waitUntil, ...globalThis.__next_private_global_wait_until__]
-          )
-        )
-      }
-
-      return res
     }`
 
     return transformed
