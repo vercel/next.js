@@ -8,12 +8,13 @@ import type { UrlWithParsedQuery } from 'url'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { FallbackMode, MiddlewareRoutingItem } from '../base-server'
 import type { FunctionComponent } from 'react'
-import type { RouteMatch } from '../future/route-matches/route-match'
+import type { RouteDefinition } from '../future/route-definitions/route-definition'
 import type { RouteMatcherManager } from '../future/route-matcher-managers/route-matcher-manager'
 import type {
   NextParsedUrlQuery,
   NextUrlWithParsedQuery,
 } from '../request-meta'
+import type { DevHandlers } from '../lib/dev-handlers'
 
 import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
@@ -97,7 +98,17 @@ export default class DevServer extends Server {
     UnwrapPromise<ReturnType<DevServer['getStaticPaths']>>
   >
 
-  private invokeDevMethod({ method, args }: { method: string; args: any[] }) {
+  private invokeDevMethod<M extends keyof DevHandlers>({
+    method,
+    args,
+  }: {
+    method: M
+    /**
+     * This filters out the first `dir` argument from the method signature, as
+     * it's added by this method when invoking.
+     */
+    args: DevHandlers[M] extends (_: any, ...rest: infer P) => any ? P : never
+  }) {
     return (global as any)._nextDevHandlers[method](this.dir, ...args)
   }
 
@@ -190,7 +201,7 @@ export default class DevServer extends Server {
     const ensurer: RouteEnsurer = {
       ensure: async (match) => {
         await this.ensurePage({
-          match,
+          definition: match.definition,
           page: match.definition.page,
           clientOnly: false,
         })
@@ -534,6 +545,7 @@ export default class DevServer extends Server {
     return this.ensurePage({
       page: this.actualMiddlewareFile!,
       clientOnly: false,
+      definition: undefined,
     })
   }
 
@@ -543,6 +555,7 @@ export default class DevServer extends Server {
       (await this.ensurePage({
         page: this.actualInstrumentationHookFile!,
         clientOnly: false,
+        definition: undefined,
       })
         .then(() => true)
         .catch(() => false))
@@ -570,7 +583,12 @@ export default class DevServer extends Server {
     page: string
     appPaths: string[] | null
   }) {
-    return this.ensurePage({ page, appPaths, clientOnly: false })
+    return this.ensurePage({
+      page,
+      appPaths,
+      clientOnly: false,
+      definition: undefined,
+    })
   }
 
   generateRoutes(_dev?: boolean) {
@@ -723,7 +741,7 @@ export default class DevServer extends Server {
     page: string
     clientOnly: boolean
     appPaths?: ReadonlyArray<string> | null
-    match?: RouteMatch
+    definition: RouteDefinition | undefined
   }): Promise<void> {
     await this.invokeDevMethod({
       method: 'ensurePage',
@@ -759,6 +777,7 @@ export default class DevServer extends Server {
           page,
           appPaths,
           clientOnly: false,
+          definition: undefined,
         })
       }
 

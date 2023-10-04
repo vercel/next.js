@@ -1,5 +1,3 @@
-import type { IncomingMessage } from 'http'
-
 // this must come first as it includes require hooks
 import type { WorkerRequestHandler, WorkerUpgradeHandler } from './types'
 
@@ -35,7 +33,7 @@ import {
   PHASE_DEVELOPMENT_SERVER,
   PERMANENT_REDIRECT_STATUS,
 } from '../../shared/lib/constants'
-import type { NextJsHotReloaderInterface } from '../dev/hot-reloader-types'
+import { DevHandlers } from './dev-handlers'
 
 const debug = setupDebug('next:router-server:main')
 
@@ -130,20 +128,16 @@ export async function initialize(opts: {
     })
     devInstances[opts.dir] = devInstance
     ;(global as any)._nextDevHandlers = {
-      async ensurePage(
-        dir: string,
-        match: Parameters<NextJsHotReloaderInterface['ensurePage']>[0]
-      ) {
+      async ensurePage(dir, definition) {
         const curDevInstance = devInstances[dir]
         // TODO: remove after ensure is pulled out of server
-        return await curDevInstance?.hotReloader.ensurePage(match)
+        return await curDevInstance?.hotReloader.ensurePage(definition)
       },
-      async logErrorWithOriginalStack(dir: string, ...args: any[]) {
+      async logErrorWithOriginalStack(dir, ...args) {
         const curDevInstance = devInstances[dir]
-        // @ts-ignore
         return await curDevInstance?.logErrorWithOriginalStack(...args)
       },
-      async getFallbackErrorComponents(dir: string) {
+      async getFallbackErrorComponents(dir) {
         const curDevInstance = devInstances[dir]
         await curDevInstance.hotReloader.buildFallbackError()
         // Build the error page to ensure the fallback is built too.
@@ -151,9 +145,10 @@ export async function initialize(opts: {
         await curDevInstance.hotReloader.ensurePage({
           page: '/_error',
           clientOnly: false,
+          definition: undefined,
         })
       },
-      async getCompilationError(dir: string, page: string) {
+      async getCompilationError(dir, page) {
         const curDevInstance = devInstances[dir]
         const errors = await curDevInstance?.hotReloader?.getCompilationErrors(
           page
@@ -164,16 +159,8 @@ export async function initialize(opts: {
         return errors[0]
       },
       async revalidate(
-        dir: string,
-        {
-          urlPath,
-          revalidateHeaders,
-          opts: revalidateOpts,
-        }: {
-          urlPath: string
-          revalidateHeaders: IncomingMessage['headers']
-          opts: any
-        }
+        dir,
+        { urlPath, revalidateHeaders, opts: revalidateOpts }
       ) {
         const mocked = createRequestResponseMocks({
           url: urlPath,
@@ -195,7 +182,7 @@ export async function initialize(opts: {
         }
         return {}
       },
-    } as any
+    } satisfies DevHandlers
   }
 
   renderServer.instance =

@@ -1065,6 +1065,7 @@ async function startWatcher(opts: SetupOpts) {
               .ensurePage({
                 page: decodedPagePath,
                 clientOnly: false,
+                definition: undefined,
               })
               .catch(console.error)
           }
@@ -1166,10 +1167,10 @@ async function startWatcher(opts: SetupOpts) {
         // Unused parameters
         // clientOnly,
         // appPaths,
-        match,
+        definition,
         isApp,
       }) {
-        let page = match?.definition?.pathname ?? inputPage
+        let page = definition?.pathname ?? inputPage
 
         if (page === '/_error') {
           if (globalEntries.app) {
@@ -1218,7 +1219,7 @@ async function startWatcher(opts: SetupOpts) {
           curEntries.get(page) ??
           curEntries.get(
             normalizeAppPath(
-              normalizeMetadataRoute(match?.definition?.page ?? inputPage)
+              normalizeMetadataRoute(definition?.page ?? inputPage)
             )
           )
 
@@ -1457,6 +1458,7 @@ async function startWatcher(opts: SetupOpts) {
         clientOnly: false,
         page: item.itemPath,
         isApp: item.type === 'appFile',
+        definition: undefined,
       })
     }
   })
@@ -2236,6 +2238,7 @@ async function startWatcher(opts: SetupOpts) {
       return hotReloader.ensurePage({
         page: serverFields.actualMiddlewareFile,
         clientOnly: false,
+        definition: undefined,
       })
     },
   }
