@@ -781,7 +781,9 @@ export async function normalizeConfig(phase: string, config: any) {
   return await config
 }
 
-export function validateConfig(userConfig: NextConfig) {
+export function validateConfig(
+  userConfig: NextConfig
+): import('next/dist/compiled/zod').ZodError | null {
   if (process.env.NEXT_MINIMAL) {
     return null
   }

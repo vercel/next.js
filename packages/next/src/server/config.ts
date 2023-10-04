@@ -26,6 +26,83 @@ import type { ZodError, ZodIssue } from 'next/dist/compiled/zod'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
+function processZodErrorMessage(issue: ZodIssue) {
+  let message = issue.message
+
+  let path = ''
+
+  if (issue.path.length > 0) {
+    if (issue.path.length === 1) {
+      const identifier = issue.path[0]
+      if (typeof identifier === 'number') {
+        // The first identifier inside path is a number
+        path = `index ${identifier}`
+      } else {
+        path = `"${identifier}"`
+      }
+    } else {
+      // joined path to be shown in the error message
+      path = `"${issue.path.reduce<string>((acc, cur) => {
+        if (typeof cur === 'number') {
+          // array index
+          return `${acc}[${cur}]`
+        }
+        if (cur.includes('"')) {
+          // escape quotes
+          return `${acc}["${cur.replaceAll('"', '\\"')}"]`
+        }
+        // dot notation
+        const separator = acc.length === 0 ? '' : '.'
+        return acc + separator + cur
+      }, '')}"`
+    }
+  }
+
+  if (
+    issue.code === 'invalid_type' &&
+    issue.received === ZodParsedType.undefined
+  ) {
+    // missing key in object
+    return `${path} is missing, expected ${issue.expected}`
+  }
+  if (issue.code === 'invalid_enum_value') {
+    // Remove "Invalid enum value" prefix from zod default error message
+    return `Expected ${ZodUtil.joinValues(issue.options)}, received '${
+      issue.received
+    }' at ${path}`
+  }
+
+  return message + (path ? ` at ${path}` : '')
+}
+
+function normalizeZodErrors(
+  error: ZodError<NextConfig>
+): [errorMessages: string[], shouldExit: boolean] {
+  let shouldExit = false
+  return [
+    error.issues.flatMap((issue) => {
+      const messages = [processZodErrorMessage(issue)]
+      if (issue.path[0] === 'images') {
+        // We exit the build when encountering an error in the images config
+        shouldExit = true
+      }
+
+      if ('unionErrors' in issue) {
+        issue.unionErrors
+          .map(normalizeZodErrors)
+          .forEach(([unionMessages, unionShouldExit]) => {
+            messages.push(...unionMessages)
+            // If any of the union results shows exit the build, we exit the build
+            shouldExit = shouldExit || unionShouldExit
+          })
+      }
+
+      return messages
+    }),
+    shouldExit,
+  ]
+}
+
 export function warnOptionHasBeenDeprecated(
   config: NextConfig,
   nestedPropertyKey: string,
@@ -986,83 +1063,6 @@ export default async function loadConfig(
   completeConfig.configFileName = configFileName
   setHttpClientAndAgentOptions(completeConfig)
   return completeConfig
-}
-
-function processZodErrorMessage(issue: ZodIssue) {
-  let message = issue.message
-
-  let path = ''
-
-  if (issue.path.length > 0) {
-    if (issue.path.length === 1) {
-      const identifier = issue.path[0]
-      if (typeof identifier === 'number') {
-        // The first identifier inside path is a number
-        path = `index ${identifier}`
-      } else {
-        path = `"${identifier}"`
-      }
-    } else {
-      // joined path to be shown in the error message
-      path = `"${issue.path.reduce<string>((acc, cur) => {
-        if (typeof cur === 'number') {
-          // array index
-          return `${acc}[${cur}]`
-        }
-        if (cur.includes('"')) {
-          // escape quotes
-          return `${acc}["${cur.replaceAll('"', '\\"')}"]`
-        }
-        // dot notation
-        const separator = acc.length === 0 ? '' : '.'
-        return acc + separator + cur
-      }, '')}"`
-    }
-  }
-
-  if (
-    issue.code === 'invalid_type' &&
-    issue.received === ZodParsedType.undefined
-  ) {
-    // missing key in object
-    return `${path} is missing, expected ${issue.expected}`
-  }
-  if (issue.code === 'invalid_enum_value') {
-    // Remove "Invalid enum value" prefix from zod default error message
-    return `Expected ${ZodUtil.joinValues(issue.options)}, received '${
-      issue.received
-    }' at ${path}`
-  }
-
-  return message + (path ? ` at ${path}` : '')
-}
-
-function normalizeZodErrors(
-  error: ZodError<NextConfig>
-): [errorMessages: string[], shouldExit: boolean] {
-  let shouldExit = false
-  return [
-    error.issues.flatMap((issue) => {
-      const messages = [processZodErrorMessage(issue)]
-      if (issue.path[0] === 'images') {
-        // We exit the build when encountering an error in the images config
-        shouldExit = true
-      }
-
-      if ('unionErrors' in issue) {
-        issue.unionErrors
-          .map(normalizeZodErrors)
-          .forEach(([unionMessages, unionShouldExit]) => {
-            messages.push(...unionMessages)
-            // If any of the union results shows exit the build, we exit the build
-            shouldExit = shouldExit || unionShouldExit
-          })
-      }
-
-      return messages
-    }),
-    shouldExit,
-  ]
 }
 
 export function getEnabledExperimentalFeatures(
