@@ -15,6 +15,13 @@ if (process.env.NODE_ENV !== "production") {
 'use strict';
 
 /**
+ * Keeps track of the current dispatcher.
+ */
+var ReactCurrentDispatcher$1 = {
+  current: null
+};
+
+/**
  * Keeps track of the current owner.
  *
  * The current owner is the component who should own any components that are
@@ -79,6 +86,7 @@ var enableDebugTracing = false; // Track which Fiber(s) schedule render work.
 var ContextRegistry = {};
 
 var ReactSharedInternals = {
+  ReactCurrentDispatcher: ReactCurrentDispatcher$1,
   ReactCurrentOwner: ReactCurrentOwner
 };
 
@@ -275,19 +283,11 @@ function generateCacheKey(request) {
   }
 }
 
-/**
- * Keeps track of the current dispatcher.
- */
-var ReactCurrentDispatcher$1 = {
-  current: null
-};
-
 var ReactServerSharedInternals = {
-  ReactCurrentDispatcher: ReactCurrentDispatcher$1,
   ReactCurrentCache: ReactCurrentCache
 };
 
-var ReactVersion = '18.3.0-canary-db69f95e4-20231002';
+var ReactVersion = '18.3.0-canary-6f1324395-20231004';
 
 // ATTENTION
 // When adding new symbols to this file,

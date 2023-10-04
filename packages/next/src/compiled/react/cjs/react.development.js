@@ -23,7 +23,7 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
 }
-          var ReactVersion = '18.3.0-canary-db69f95e4-20231002';
+          var ReactVersion = '18.3.0-canary-6f1324395-20231004';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -1818,6 +1818,11 @@ function use(usable) {
   var dispatcher = resolveDispatcher();
   return dispatcher.use(usable);
 }
+function useOptimistic(passthrough, reducer) {
+  var dispatcher = resolveDispatcher(); // $FlowFixMe[not-a-function] This is unstable, thus optional
+
+  return dispatcher.useOptimistic(passthrough, reducer);
+}
 
 // Helpers to patch console.logs to avoid logging during side-effect free
 // replaying on render function. This currently only patches the object
@@ -3040,6 +3045,7 @@ exports.useImperativeHandle = useImperativeHandle;
 exports.useInsertionEffect = useInsertionEffect;
 exports.useLayoutEffect = useLayoutEffect;
 exports.useMemo = useMemo;
+exports.useOptimistic = useOptimistic;
 exports.useReducer = useReducer;
 exports.useRef = useRef;
 exports.useState = useState;

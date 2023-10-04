@@ -17,14 +17,6 @@ if (process.env.NODE_ENV !== "production") {
 var React = require("next/dist/compiled/react-experimental");
 var Scheduler = require("next/dist/compiled/scheduler-experimental");
 
-var Internals = {
-  usingClientEntryPoint: false,
-  Events: null,
-  Dispatcher: {
-    current: null
-  }
-};
-
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
 var suppressWarning = false;
@@ -86,6 +78,14 @@ function printWarning(level, format, args) {
   }
 }
 
+var Internals = {
+  usingClientEntryPoint: false,
+  Events: null,
+  Dispatcher: {
+    current: null
+  }
+};
+
 var assign = Object.assign;
 
 // -----------------------------------------------------------------------------
@@ -102,7 +102,9 @@ var assign = Object.assign;
 // -----------------------------------------------------------------------------
 // TODO: Finish rolling out in www
 
-var enableClientRenderFallbackOnTextMismatch = true; // Not sure if www still uses this. We don't have a replacement but whatever we
+var enableClientRenderFallbackOnTextMismatch = true;
+var enableFormActions = true;
+var enableAsyncActions = true; // Not sure if www still uses this. We don't have a replacement but whatever we
 // Slated for removal in the future (significant effort)
 //
 // These are experiments that didn't work out, and never shipped, but we can't
@@ -118,13 +120,11 @@ var enableClientRenderFallbackOnTextMismatch = true; // Not sure if www still us
 // This will eventually be replaced by the Transition Tracing proposal.
 
 var enableSuspenseCallback = false; // Experimental Scope support.
-var enableFormActions = true;
 
 var enableLazyContextPropagation = false; // FB-only usage. The new API has different semantics.
 
 var enableLegacyHidden = false; // Enables unstable_avoidThisFallback feature in Fiber
 var enableHostSingletons = true;
-var enableAsyncActions = true;
 var alwaysThrottleRetries = true;
 // Chopping Block
 //
@@ -12058,9 +12058,9 @@ function updateOptimisticImpl(hook, current, passthrough, reducer) {
   // as an argument. It's called a passthrough because if there are no pending
   // updates, it will be returned as-is.
   //
-  // Reset the base state and memoized state to the passthrough. Future
-  // updates will be applied on top of this.
-  hook.baseState = hook.memoizedState = passthrough; // If a reducer is not provided, default to the same one used by useState.
+  // Reset the base state to the passthrough. Future updates will be applied
+  // on top of this.
+  hook.baseState = passthrough; // If a reducer is not provided, default to the same one used by useState.
 
   var resolvedReducer = typeof reducer === 'function' ? reducer : basicStateReducer;
   return updateReducerImpl(hook, currentHook, resolvedReducer);
@@ -12080,11 +12080,11 @@ function rerenderOptimistic(passthrough, reducer) {
     // This is an update. Process the update queue.
     return updateOptimisticImpl(hook, currentHook, passthrough, reducer);
   } // This is a mount. No updates to process.
-  // Reset the base state and memoized state to the passthrough. Future
-  // updates will be applied on top of this.
+  // Reset the base state to the passthrough. Future updates will be applied
+  // on top of this.
 
 
-  hook.baseState = hook.memoizedState = passthrough;
+  hook.baseState = passthrough;
   var dispatch = hook.queue.dispatch;
   return [passthrough, dispatch];
 } // useFormState actions run sequentially, because each action receives the
@@ -12675,6 +12675,7 @@ function startTransition(fiber, queue, pendingState, finishedState, callback, op
   var previousPriority = getCurrentUpdatePriority();
   setCurrentUpdatePriority(higherEventPriority(previousPriority, ContinuousEventPriority));
   var prevTransition = ReactCurrentBatchConfig$3.transition;
+  var currentTransition = {};
 
   {
     // We don't really need to use an optimistic update here, because we
@@ -12683,10 +12684,9 @@ function startTransition(fiber, queue, pendingState, finishedState, callback, op
     // optimistic update anyway to make it less likely the behavior accidentally
     // diverges; for example, both an optimistic update and this one should
     // share the same lane.
+    ReactCurrentBatchConfig$3.transition = currentTransition;
     dispatchOptimisticSetState(fiber, false, queue, pendingState);
   }
-
-  var currentTransition = ReactCurrentBatchConfig$3.transition = {};
 
   {
     ReactCurrentBatchConfig$3.transition._updatedFibers = new Set();
@@ -13045,14 +13045,38 @@ function dispatchSetState(fiber, queue, action) {
 }
 
 function dispatchOptimisticSetState(fiber, throwIfDuringRender, queue, action) {
+  {
+    if (ReactCurrentBatchConfig$3.transition === null) {
+      // An optimistic update occurred, but startTransition is not on the stack.
+      // There are two likely scenarios.
+      // One possibility is that the optimistic update is triggered by a regular
+      // event handler (e.g. `onSubmit`) instead of an action. This is a mistake
+      // and we will warn.
+      // The other possibility is the optimistic update is inside an async
+      // action, but after an `await`. In this case, we can make it "just work"
+      // by associating the optimistic update with the pending async action.
+      // Technically it's possible that the optimistic update is unrelated to
+      // the pending action, but we don't have a way of knowing this for sure
+      // because browsers currently do not provide a way to track async scope.
+      // (The AsyncContext proposal, if it lands, will solve this in the
+      // future.) However, this is no different than the problem of unrelated
+      // transitions being grouped together — it's not wrong per se, but it's
+      // not ideal.
+      // Once AsyncContext starts landing in browsers, we will provide better
+      // warnings in development for these cases.
+      if (peekEntangledActionLane() !== NoLane) ; else {
+        // There's no pending async action. The most likely cause is that we're
+        // inside a regular event handler (e.g. onSubmit) instead of an action.
+        error('An optimistic state update occurred outside a transition or ' + 'action. To fix, move the update to an action, or wrap ' + 'with startTransition.');
+      }
+    }
+  }
+
   var update = {
     // An optimistic update commits synchronously.
     lane: SyncLane,
     // After committing, the optimistic update is "reverted" using the same
     // lane as the transition it's associated with.
-    //
-    // TODO: Warn if there's no transition/action associated with this
-    // optimistic update.
     revertLane: requestTransitionLane(),
     action: action,
     hasEagerState: false,
@@ -28675,7 +28699,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks, formState) {
   return root;
 }
 
-var ReactVersion = '18.3.0-experimental-db69f95e4-20231002';
+var ReactVersion = '18.3.0-experimental-6f1324395-20231004';
 
 function createPortal$1(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {
@@ -38477,8 +38501,8 @@ function hydrateRoot$1(container, initialChildren, options) {
     }
 
     {
-      if (options.experimental_formState !== undefined) {
-        formState = options.experimental_formState;
+      if (options.formState !== undefined) {
+        formState = options.formState;
       }
     }
   }
@@ -39116,6 +39140,21 @@ var foundDevTools = injectIntoDevTools({
   }
 }
 
+function experimental_useFormStatus() {
+  {
+    error('useFormStatus is now in canary. Remove the experimental_ prefix. ' + 'The prefixed alias will be removed in an upcoming release.');
+  }
+
+  return useFormStatus();
+}
+function experimental_useFormState(action, initialState, permalink) {
+  {
+    error('useFormState is now in canary. Remove the experimental_ prefix. ' + 'The prefixed alias will be removed in an upcoming release.');
+  }
+
+  return useFormState(action, initialState, permalink);
+}
+
 exports.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = Internals;
 exports.createComponentSelector = createComponentSelector;
 exports.createHasPseudoClassSelector = createHasPseudoClassSelector;
@@ -39124,8 +39163,8 @@ exports.createRoleSelector = createRoleSelector;
 exports.createRoot = createRoot;
 exports.createTestNameSelector = createTestNameSelector;
 exports.createTextSelector = createTextSelector;
-exports.experimental_useFormState = useFormState;
-exports.experimental_useFormStatus = useFormStatus;
+exports.experimental_useFormState = experimental_useFormState;
+exports.experimental_useFormStatus = experimental_useFormStatus;
 exports.findAllNodes = findAllNodes;
 exports.findBoundingRects = findBoundingRects;
 exports.findDOMNode = findDOMNode;
@@ -39146,6 +39185,8 @@ exports.unmountComponentAtNode = unmountComponentAtNode;
 exports.unstable_batchedUpdates = batchedUpdates$1;
 exports.unstable_renderSubtreeIntoContainer = renderSubtreeIntoContainer;
 exports.unstable_runWithPriority = runWithPriority;
+exports.useFormState = useFormState;
+exports.useFormStatus = useFormStatus;
 exports.version = ReactVersion;
   })();
 }

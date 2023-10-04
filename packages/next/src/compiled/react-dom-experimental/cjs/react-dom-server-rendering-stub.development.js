@@ -16,7 +16,7 @@ if (process.env.NODE_ENV !== "production") {
 
 var React = require("next/dist/compiled/react-experimental");
 
-var ReactVersion = '18.3.0-experimental-db69f95e4-20231002';
+var ReactVersion = '18.3.0-experimental-6f1324395-20231004';
 
 var Internals = {
   usingClientEntryPoint: false,
@@ -360,8 +360,6 @@ function batchedUpdates(fn, a) {
 
 exports.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = Internals;
 exports.createPortal = createPortal;
-exports.experimental_useFormState = useFormState;
-exports.experimental_useFormStatus = useFormStatus;
 exports.flushSync = flushSync;
 exports.preconnect = preconnect;
 exports.prefetchDNS = prefetchDNS;
@@ -370,6 +368,8 @@ exports.preinitModule = preinitModule;
 exports.preload = preload;
 exports.preloadModule = preloadModule;
 exports.unstable_batchedUpdates = batchedUpdates;
+exports.useFormState = useFormState;
+exports.useFormStatus = useFormStatus;
 exports.version = ReactVersion;
   })();
 }

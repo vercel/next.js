@@ -1534,8 +1534,8 @@ var PENDING$1 = 0;
 var COMPLETED = 1;
 var ABORTED = 3;
 var ERRORED$1 = 4;
-var ReactCurrentDispatcher = ReactSharedServerInternals.ReactCurrentDispatcher,
-    ReactCurrentCache = ReactSharedServerInternals.ReactCurrentCache;
+var ReactCurrentCache = ReactSharedServerInternals.ReactCurrentCache;
+var ReactCurrentDispatcher = ReactSharedInternals.ReactCurrentDispatcher;
 
 function defaultErrorHandler(error) {
   console['error'](error); // Don't transform to our wrapper

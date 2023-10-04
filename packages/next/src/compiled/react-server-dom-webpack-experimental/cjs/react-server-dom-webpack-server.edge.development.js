@@ -1581,8 +1581,8 @@ var TaintRegistryObjects = ReactSharedServerInternals.TaintRegistryObjects,
     TaintRegistryValues = ReactSharedServerInternals.TaintRegistryValues,
     TaintRegistryByteLengths = ReactSharedServerInternals.TaintRegistryByteLengths,
     TaintRegistryPendingRequests = ReactSharedServerInternals.TaintRegistryPendingRequests,
-    ReactCurrentDispatcher = ReactSharedServerInternals.ReactCurrentDispatcher,
     ReactCurrentCache = ReactSharedServerInternals.ReactCurrentCache;
+var ReactCurrentDispatcher = ReactSharedInternals.ReactCurrentDispatcher;
 
 function throwTaintViolation(message) {
   // eslint-disable-next-line react-internal/prod-error-codes

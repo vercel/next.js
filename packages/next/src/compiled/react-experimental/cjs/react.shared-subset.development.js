@@ -15,6 +15,13 @@ if (process.env.NODE_ENV !== "production") {
 'use strict';
 
 /**
+ * Keeps track of the current dispatcher.
+ */
+var ReactCurrentDispatcher$1 = {
+  current: null
+};
+
+/**
  * Keeps track of the current owner.
  *
  * The current owner is the component who should own any components that are
@@ -78,6 +85,7 @@ var enableDebugTracing = false; // Track which Fiber(s) schedule render work.
 var ContextRegistry = {};
 
 var ReactSharedInternals = {
+  ReactCurrentDispatcher: ReactCurrentDispatcher$1,
   ReactCurrentOwner: ReactCurrentOwner
 };
 
@@ -274,13 +282,6 @@ function generateCacheKey(request) {
   }
 }
 
-/**
- * Keeps track of the current dispatcher.
- */
-var ReactCurrentDispatcher$1 = {
-  current: null
-};
-
 var TaintRegistryObjects$1 = new WeakMap();
 var TaintRegistryValues$1 = new Map(); // Byte lengths of all binary values we've ever seen. We don't both refcounting this.
 // We expect to see only a few lengths here such as the length of token.
@@ -292,7 +293,6 @@ var TaintRegistryByteLengths$1 = new Set(); // When a value is finalized, it mea
 var TaintRegistryPendingRequests$1 = new Set();
 
 var ReactServerSharedInternals = {
-  ReactCurrentDispatcher: ReactCurrentDispatcher$1,
   ReactCurrentCache: ReactCurrentCache
 };
 
@@ -399,7 +399,7 @@ function taintObjectReference(message, object) {
   TaintRegistryObjects.set(object, message);
 }
 
-var ReactVersion = '18.3.0-experimental-db69f95e4-20231002';
+var ReactVersion = '18.3.0-experimental-6f1324395-20231004';
 
 // ATTENTION
 // When adding new symbols to this file,
