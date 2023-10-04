@@ -6,20 +6,36 @@ import type {
 } from './types'
 
 import RenderResult from '../render-result'
+import { Batcher } from '../../lib/batcher'
+import { scheduleOnNextTick } from '../lib/schedule-on-next-tick'
 
 export * from './types'
 
 export default class ResponseCache {
-  pendingResponses: Map<string, Promise<ResponseCacheEntry | null>>
-  previousCacheItem?: {
+  private readonly batcher = Batcher.create<
+    { key: string; isOnDemandRevalidate: boolean },
+    ResponseCacheEntry | null,
+    string
+  >({
+    // Ensure on-demand revalidate doesn't block normal requests, it should be
+    // safe to run an on-demand revalidate for the same key as a normal request.
+    cacheKeyFn: ({ key, isOnDemandRevalidate }) =>
+      `${key}-${isOnDemandRevalidate ? '1' : '0'}`,
+    // We wait to do any async work until after we've added our promise to
+    // `pendingResponses` to ensure that any any other calls will reuse the
+    // same promise until we've fully finished our work.
+    schedulerFn: scheduleOnNextTick,
+  })
+
+  private previousCacheItem?: {
     key: string
     entry: ResponseCacheEntry | null
     expiresAt: number
   }
-  minimalMode?: boolean
+
+  private minimalMode?: boolean
 
   constructor(minimalMode: boolean) {
-    this.pendingResponses = new Map()
     // this is a hack to avoid Webpack knowing this is equal to this.minimalMode
     // because we replace this.minimalMode to true in production bundles.
     const minimalModeKey = 'minimalMode'
@@ -35,166 +51,130 @@ export default class ResponseCache {
       incrementalCache: IncrementalCache
     }
   ): Promise<ResponseCacheEntry | null> {
-    const { incrementalCache } = context
-    // ensure on-demand revalidate doesn't block normal requests
-    const pendingResponseKey = key
-      ? `${key}-${context.isOnDemandRevalidate ? '1' : '0'}`
-      : null
+    // If there is no key for the cache, we can't possibly look this up in the
+    // cache so just return the result of the response generator.
+    if (!key) return responseGenerator(false, null)
 
-    const pendingResponse = pendingResponseKey
-      ? this.pendingResponses.get(pendingResponseKey)
-      : null
+    const { incrementalCache, isOnDemandRevalidate = false } = context
 
-    if (pendingResponse) {
-      return pendingResponse
-    }
-
-    let resolver: (cacheEntry: ResponseCacheEntry | null) => void = () => {}
-    let rejecter: (error: Error) => void = () => {}
-    const promise: Promise<ResponseCacheEntry | null> = new Promise(
-      (resolve, reject) => {
-        resolver = resolve
-        rejecter = reject
-      }
-    )
-    if (pendingResponseKey) {
-      this.pendingResponses.set(pendingResponseKey, promise)
-    }
-
-    let resolved = false
-    const resolve = (cacheEntry: ResponseCacheEntry | null) => {
-      if (pendingResponseKey) {
-        // Ensure all reads from the cache get the latest value.
-        this.pendingResponses.set(
-          pendingResponseKey,
-          Promise.resolve(cacheEntry)
-        )
-      }
-      if (!resolved) {
-        resolved = true
-        resolver(cacheEntry)
-      }
-    }
-
-    // we keep the previous cache entry around to leverage
-    // when the incremental cache is disabled in minimal mode
-    if (
-      pendingResponseKey &&
-      this.minimalMode &&
-      this.previousCacheItem?.key === pendingResponseKey &&
-      this.previousCacheItem.expiresAt > Date.now()
-    ) {
-      resolve(this.previousCacheItem.entry)
-      this.pendingResponses.delete(pendingResponseKey)
-      return promise
-    }
-
-    // We wait to do any async work until after we've added our promise to
-    // `pendingResponses` to ensure that any any other calls will reuse the
-    // same promise until we've fully finished our work.
-    ;(async () => {
-      let cachedResponse: IncrementalCacheItem = null
-      try {
-        cachedResponse =
-          key && !this.minimalMode ? await incrementalCache.get(key) : null
-
-        if (cachedResponse && !context.isOnDemandRevalidate) {
-          if (cachedResponse.value?.kind === 'FETCH') {
-            throw new Error(
-              `invariant: unexpected cachedResponse of kind fetch in response cache`
-            )
-          }
-
-          resolve({
-            isStale: cachedResponse.isStale,
-            revalidate: cachedResponse.curRevalidate,
-            value:
-              cachedResponse.value?.kind === 'PAGE'
-                ? {
-                    kind: 'PAGE',
-                    html: RenderResult.fromStatic(cachedResponse.value.html),
-                    pageData: cachedResponse.value.pageData,
-                    headers: cachedResponse.value.headers,
-                    status: cachedResponse.value.status,
-                  }
-                : cachedResponse.value,
-          })
-          if (!cachedResponse.isStale || context.isPrefetch) {
-            // The cached value is still valid, so we don't need
-            // to update it yet.
-            return
-          }
+    return this.batcher.batch(
+      { key, isOnDemandRevalidate },
+      async (cacheKey, resolve) => {
+        // We keep the previous cache entry around to leverage when the
+        // incremental cache is disabled in minimal mode.
+        if (
+          this.minimalMode &&
+          this.previousCacheItem?.key === cacheKey &&
+          this.previousCacheItem.expiresAt > Date.now()
+        ) {
+          return this.previousCacheItem.entry
         }
 
-        const cacheEntry = await responseGenerator(resolved, cachedResponse)
-        const resolveValue =
-          cacheEntry === null
-            ? null
-            : {
-                ...cacheEntry,
-                isMiss: !cachedResponse,
+        let resolved = false
+        let cachedResponse: IncrementalCacheItem = null
+        try {
+          cachedResponse = !this.minimalMode
+            ? await incrementalCache.get(key)
+            : null
+
+          if (cachedResponse && !isOnDemandRevalidate) {
+            if (cachedResponse.value?.kind === 'FETCH') {
+              throw new Error(
+                `invariant: unexpected cachedResponse of kind fetch in response cache`
+              )
+            }
+
+            resolve({
+              isStale: cachedResponse.isStale,
+              revalidate: cachedResponse.curRevalidate,
+              value:
+                cachedResponse.value?.kind === 'PAGE'
+                  ? {
+                      kind: 'PAGE',
+                      html: RenderResult.fromStatic(cachedResponse.value.html),
+                      pageData: cachedResponse.value.pageData,
+                      headers: cachedResponse.value.headers,
+                      status: cachedResponse.value.status,
+                    }
+                  : cachedResponse.value,
+            })
+            resolved = true
+
+            if (!cachedResponse.isStale || context.isPrefetch) {
+              // The cached value is still valid, so we don't need
+              // to update it yet.
+              return null
+            }
+          }
+
+          const cacheEntry = await responseGenerator(resolved, cachedResponse)
+          const resolveValue =
+            cacheEntry === null
+              ? null
+              : {
+                  ...cacheEntry,
+                  isMiss: !cachedResponse,
+                }
+
+          // For on-demand revalidate wait to resolve until cache is set.
+          // Otherwise resolve now.
+          if (!isOnDemandRevalidate && !resolved) {
+            resolve(resolveValue)
+            resolved = true
+          }
+
+          if (cacheEntry && typeof cacheEntry.revalidate !== 'undefined') {
+            if (this.minimalMode) {
+              this.previousCacheItem = {
+                key: cacheKey,
+                entry: cacheEntry,
+                expiresAt: Date.now() + 1000,
               }
-
-        // for on-demand revalidate wait to resolve until cache is set
-        if (!context.isOnDemandRevalidate) {
-          resolve(resolveValue)
-        }
-
-        if (key && cacheEntry && typeof cacheEntry.revalidate !== 'undefined') {
-          if (this.minimalMode) {
-            this.previousCacheItem = {
-              key: pendingResponseKey || key,
-              entry: cacheEntry,
-              expiresAt: Date.now() + 1000,
+            } else {
+              await incrementalCache.set(
+                key,
+                cacheEntry.value?.kind === 'PAGE'
+                  ? {
+                      kind: 'PAGE',
+                      html: cacheEntry.value.html.toUnchunkedString(),
+                      pageData: cacheEntry.value.pageData,
+                      headers: cacheEntry.value.headers,
+                      status: cacheEntry.value.status,
+                    }
+                  : cacheEntry.value,
+                {
+                  revalidate: cacheEntry.revalidate,
+                }
+              )
             }
           } else {
-            await incrementalCache.set(
-              key,
-              cacheEntry.value?.kind === 'PAGE'
-                ? {
-                    kind: 'PAGE',
-                    html: cacheEntry.value.html.toUnchunkedString(),
-                    pageData: cacheEntry.value.pageData,
-                    headers: cacheEntry.value.headers,
-                    status: cacheEntry.value.status,
-                  }
-                : cacheEntry.value,
-              {
-                revalidate: cacheEntry.revalidate,
-              }
-            )
+            this.previousCacheItem = undefined
           }
-        } else {
-          this.previousCacheItem = undefined
-        }
 
-        if (context.isOnDemandRevalidate) {
-          resolve(resolveValue)
-        }
-      } catch (err) {
-        // when a getStaticProps path is erroring we automatically re-set the
-        // existing cache under a new expiration to prevent non-stop retrying
-        if (cachedResponse && key) {
-          await incrementalCache.set(key, cachedResponse.value, {
-            revalidate: Math.min(
-              Math.max(cachedResponse.revalidate || 3, 3),
-              30
-            ),
-          })
-        }
-        // while revalidating in the background we can't reject as
-        // we already resolved the cache entry so log the error here
-        if (resolved) {
-          console.error(err)
-        } else {
-          rejecter(err as Error)
-        }
-      } finally {
-        if (pendingResponseKey) {
-          this.pendingResponses.delete(pendingResponseKey)
+          return resolveValue
+        } catch (err) {
+          // When a getStaticProps path is erroring we automatically re-set the
+          // existing cache under a new expiration to prevent non-stop retrying.
+          if (cachedResponse) {
+            await incrementalCache.set(key, cachedResponse.value, {
+              revalidate: Math.min(
+                Math.max(cachedResponse.revalidate || 3, 3),
+                30
+              ),
+            })
+          }
+
+          // While revalidating in the background we can't reject as we already
+          // resolved the cache entry so log the error here.
+          if (resolved) {
+            console.error(err)
+            return null
+          }
+
+          // We haven't resolved yet, so let's throw to indicate an error.
+          throw err
         }
       }
-    })()
-    return promise
+    )
   }
 }
