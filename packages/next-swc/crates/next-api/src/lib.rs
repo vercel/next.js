@@ -11,6 +11,7 @@ pub mod route;
 mod server_actions;
 pub mod server_paths;
 mod versioned_content_map;
+mod dynamic_imports;
 
 // Declare build-time information variables generated in build.rs
 shadow_rs::shadow!(build);
