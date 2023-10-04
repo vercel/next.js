@@ -147,7 +147,8 @@ pub struct AppPathsManifest {
 
 // A struct represent a single entry in react-lodable-manifest.json.
 // The manifest is in a format of:
-// { [`${origin} -> ${imported}`]: { id: `${origin} -> ${imported}`, files: string[] } }
+// { [`${origin} -> ${imported}`]: { id: `${origin} -> ${imported}`, files:
+// string[] } }
 #[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct LodableManifest {

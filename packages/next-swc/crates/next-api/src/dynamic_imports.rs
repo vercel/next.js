@@ -120,8 +120,8 @@ async fn build_dynamic_imports_map_for_module(
     Ok(Vc::cell(Some(Vc::cell((module.clone(), import_sources)))))
 }
 
-/// A visitor to check if there's import to `next/dynamic`, then collecting the import wrapped with dynamic()
-/// via CollectImportSourceVisitor.
+/// A visitor to check if there's import to `next/dynamic`, then collecting the
+/// import wrapped with dynamic() via CollectImportSourceVisitor.
 struct LodableImportVisitor {
     dynamic_ident: Option<Ident>,
     pub import_sources: Vec<String>,

@@ -65,6 +65,8 @@ impl CustomTransformer for NextJsDynamic {
             },
             self.is_server,
             self.is_server_components,
+            // [NOTE] We do not use `NextDynamicMode::Turbopack` yet, it isn't compatible with
+            // current lodable manifest, which causes hydration errors.
             NextDynamicMode::Webpack,
             FileName::Real(ctx.file_path_str.into()),
             self.pages_dir.clone(),
