@@ -7,8 +7,8 @@ createNextDescribe(
     files: __dirname,
   },
   ({ next }) => {
-    // Refreshing should re-render the segment, the data should be new without error
-    it('should show the header after refreshing the router', async () => {
+    // Reseting should only re-render the error boundary, the data should be the same so it should still be an error
+    it('should not show the header after reseting the error', async () => {
       const browser = await next.browser('/')
 
       await browser.elementByCss('button#reset').click()
@@ -16,8 +16,8 @@ createNextDescribe(
       await browser.elementByCss('button#reset')
     })
 
-    // Reseting should only re-render the error boundary, the data should be the same so it should still be an error
-    it('should not show the header after reseting the error', async () => {
+    // Refreshing should re-render the segment, the data should be new without error
+    it('should show the header after refreshing the router', async () => {
       const browser = await next.browser('/')
 
       await browser.elementByCss('button#refresh').click()
