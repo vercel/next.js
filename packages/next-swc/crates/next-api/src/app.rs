@@ -23,7 +23,7 @@ use next_core::{
     next_edge::route_regex::get_named_middleware_regex,
     next_manifests::{
         AppBuildManifest, AppPathsManifest, BuildManifest, ClientReferenceManifest,
-        EdgeFunctionDefinition, LodableManifest, MiddlewareMatcher, MiddlewaresManifestV2,
+        EdgeFunctionDefinition, LoadableManifest, MiddlewareMatcher, MiddlewaresManifestV2,
         PagesManifest, Regions,
     },
     next_server::{
@@ -690,7 +690,7 @@ impl AppEndpoint {
             )))
         }
 
-        async fn create_react_lodable_manifest(
+        async fn create_react_loadable_manifest(
             dynamic_import_entries: Vc<DynamicImportedChunks>,
             ty: &'static str,
             node_root: Vc<FileSystemPath>,
@@ -699,7 +699,7 @@ impl AppEndpoint {
             let dynamic_import_entries = &*dynamic_import_entries.await?;
 
             let mut output = vec![];
-            let mut lodable_manifest: HashMap<String, LodableManifest> = Default::default();
+            let mut loadable_manifest: HashMap<String, LoadableManifest> = Default::default();
 
             for (origin, dynamic_imports) in dynamic_import_entries.into_iter() {
                 let origin_path = &*origin.ident().path().await?;
@@ -725,29 +725,29 @@ impl AppEndpoint {
                         .try_flat_join()
                         .await?;
 
-                    let manifest_item = LodableManifest {
+                    let manifest_item = LoadableManifest {
                         id: id.clone(),
                         files,
                     };
 
-                    lodable_manifest.insert(id, manifest_item);
+                    loadable_manifest.insert(id, manifest_item);
                 }
             }
 
-            let lodable_path_prefix = get_asset_prefix_from_pathname(pathname);
-            let lodable_manifest = Vc::upcast(VirtualOutputAsset::new(
+            let loadable_path_prefix = get_asset_prefix_from_pathname(pathname);
+            let loadable_manifest = Vc::upcast(VirtualOutputAsset::new(
                 node_root.join(format!(
-                    "server/app{lodable_path_prefix}/{ty}/react-loadable-manifest.json",
+                    "server/app{loadable_path_prefix}/{ty}/react-loadable-manifest.json",
                 )),
                 AssetContent::file(
                     FileContent::Content(File::from(serde_json::to_string_pretty(
-                        &lodable_manifest,
+                        &loadable_manifest,
                     )?))
                     .cell(),
                 ),
             ));
 
-            output.push(lodable_manifest);
+            output.push(loadable_manifest);
             Ok(Vc::cell(output))
         }
 
@@ -873,7 +873,7 @@ impl AppEndpoint {
                 )?;
                 server_assets.push(app_paths_manifest_output);
 
-                // create react-lodable-manifest for next/dynamic
+                // create react-loadable-manifest for next/dynamic
                 let availability_info = Value::new(AvailabilityInfo::Root {
                     current_availability_root: Vc::upcast(app_entry.rsc_entry),
                 });
@@ -886,14 +886,14 @@ impl AppEndpoint {
                     Vc::cell(evaluatable_assets),
                 )
                 .await?;
-                let lodable_manifest_output = create_react_lodable_manifest(
+                let loadable_manifest_output = create_react_loadable_manifest(
                     dynamic_import_entries,
                     ty,
                     node_root,
                     &app_entry.pathname,
                 )
                 .await?;
-                server_assets.extend(lodable_manifest_output.await?.iter().copied());
+                server_assets.extend(loadable_manifest_output.await?.iter().copied());
 
                 AppEndpointOutput::Edge {
                     files,
@@ -951,7 +951,7 @@ impl AppEndpoint {
                 )?;
                 server_assets.push(app_paths_manifest_output);
 
-                // create react-lodable-manifest for next/dynamic
+                // create react-loadable-manifest for next/dynamic
                 let availability_info = Value::new(AvailabilityInfo::Root {
                     current_availability_root: Vc::upcast(app_entry.rsc_entry),
                 });
@@ -963,14 +963,14 @@ impl AppEndpoint {
                     availability_info,
                 )
                 .await?;
-                let lodable_manifest_output = create_react_lodable_manifest(
+                let loadable_manifest_output = create_react_loadable_manifest(
                     dynamic_import_entries,
                     ty,
                     node_root,
                     &app_entry.pathname,
                 )
                 .await?;
-                server_assets.extend(lodable_manifest_output.await?.iter().copied());
+                server_assets.extend(loadable_manifest_output.await?.iter().copied());
 
                 AppEndpointOutput::NodeJs {
                     rsc_chunk,

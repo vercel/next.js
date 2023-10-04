@@ -13,7 +13,7 @@ use next_core::{
     next_dynamic::NextDynamicTransition,
     next_edge::route_regex::get_named_middleware_regex,
     next_manifests::{
-        BuildManifest, EdgeFunctionDefinition, LodableManifest, MiddlewareMatcher,
+        BuildManifest, EdgeFunctionDefinition, LoadableManifest, MiddlewareMatcher,
         MiddlewaresManifestV2, PagesManifest,
     },
     next_pages::create_page_ssr_entry_module,
@@ -766,7 +766,7 @@ impl PageEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn react_lodable_manifest(
+    async fn react_loadable_manifest(
         self: Vc<Self>,
         dynamic_import_entries: Vc<DynamicImportedChunks>,
     ) -> Result<Vc<OutputAssets>> {
@@ -777,7 +777,7 @@ impl PageEndpoint {
         let dynamic_import_entries = &*dynamic_import_entries.await?;
 
         let mut output = vec![];
-        let mut lodable_manifest: HashMap<String, LodableManifest> = Default::default();
+        let mut loadable_manifest: HashMap<String, LoadableManifest> = Default::default();
         for (origin, dynamic_imports) in dynamic_import_entries.into_iter() {
             let origin_path = &*origin.ident().path().await?;
 
@@ -811,27 +811,29 @@ impl PageEndpoint {
                     .try_flat_join()
                     .await?;
 
-                let manifest_item = LodableManifest {
+                let manifest_item = LoadableManifest {
                     id: id.clone(),
                     files,
                 };
 
-                lodable_manifest.insert(id, manifest_item);
+                loadable_manifest.insert(id, manifest_item);
             }
         }
 
-        let lodable_path_prefix = get_asset_prefix_from_pathname(&this.pathname.await?);
-        let lodable_manifest = Vc::upcast(VirtualOutputAsset::new(
+        let loadable_path_prefix = get_asset_prefix_from_pathname(&this.pathname.await?);
+        let loadable_manifest = Vc::upcast(VirtualOutputAsset::new(
             node_root.join(format!(
-                "server/pages{lodable_path_prefix}/react-loadable-manifest.json"
+                "server/pages{loadable_path_prefix}/react-loadable-manifest.json"
             )),
             AssetContent::file(
-                FileContent::Content(File::from(serde_json::to_string_pretty(&lodable_manifest)?))
-                    .cell(),
+                FileContent::Content(File::from(serde_json::to_string_pretty(
+                    &loadable_manifest,
+                )?))
+                .cell(),
             ),
         ));
 
-        output.push(lodable_manifest);
+        output.push(loadable_manifest);
         Ok(Vc::cell(output))
     }
 
@@ -911,8 +913,8 @@ impl PageEndpoint {
                 server_assets.push(pages_manifest);
                 server_assets.push(entry);
 
-                let lodable_manifest_output = self.react_lodable_manifest(dynamic_import_entries);
-                server_assets.extend(lodable_manifest_output.await?.iter().copied());
+                let loadable_manifest_output = self.react_loadable_manifest(dynamic_import_entries);
+                server_assets.extend(loadable_manifest_output.await?.iter().copied());
 
                 PageEndpointOutput::NodeJs {
                     entry_chunk: entry,
@@ -983,8 +985,8 @@ impl PageEndpoint {
                 ));
                 server_assets.push(middleware_manifest_v2);
 
-                let lodable_manifest_output = self.react_lodable_manifest(dynamic_import_entries);
-                server_assets.extend(lodable_manifest_output.await?.iter().copied());
+                let loadable_manifest_output = self.react_loadable_manifest(dynamic_import_entries);
+                server_assets.extend(loadable_manifest_output.await?.iter().copied());
 
                 PageEndpointOutput::Edge {
                     files,

@@ -193,7 +193,7 @@ async fn build_dynamic_imports_map_for_module(
 
     // Reading the Program AST, collect raw imported module str if it's wrapped in
     // dynamic()
-    let mut visitor = LodableImportVisitor::new();
+    let mut visitor = DynamicImportVisitor::new();
     program.visit_with(&mut visitor);
 
     if visitor.import_sources.is_empty() {
@@ -227,12 +227,12 @@ async fn build_dynamic_imports_map_for_module(
 
 /// A visitor to check if there's import to `next/dynamic`, then collecting the
 /// import wrapped with dynamic() via CollectImportSourceVisitor.
-struct LodableImportVisitor {
+struct DynamicImportVisitor {
     dynamic_ident: Option<Ident>,
     pub import_sources: Vec<String>,
 }
 
-impl LodableImportVisitor {
+impl DynamicImportVisitor {
     fn new() -> Self {
         Self {
             import_sources: vec![],
@@ -241,7 +241,7 @@ impl LodableImportVisitor {
     }
 }
 
-impl Visit for LodableImportVisitor {
+impl Visit for DynamicImportVisitor {
     fn visit_import_decl(&mut self, decl: &turbopack_binding::swc::core::ecma::ast::ImportDecl) {
         // find import decl from next/dynamic, i.e import dynamic from 'next/dynamic'
         if decl.src.value == *"next/dynamic" {
