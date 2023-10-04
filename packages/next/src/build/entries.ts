@@ -356,6 +356,7 @@ export function getEdgeServerEntry(opts: {
       layer: WEBPACK_LAYERS.reactServerComponents,
     }
   }
+
   if (isMiddlewareFile(opts.page)) {
     const loaderParams: MiddlewareLoaderOptions = {
       absolutePagePath: opts.absolutePagePath,

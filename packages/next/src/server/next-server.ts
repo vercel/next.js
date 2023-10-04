@@ -4,6 +4,7 @@ import './node-polyfill-fetch'
 import './node-polyfill-form'
 import './node-polyfill-web-streams'
 import './node-polyfill-crypto'
+import '../lib/polyfill-promise-with-resolvers'
 
 import type { TLSSocket } from 'tls'
 import {
@@ -722,14 +723,13 @@ export default class NextNodeServer extends BaseServer {
     )
   }
 
-  protected async getFallback(page: string): Promise<string> {
+  protected getFallback(page: string): Promise<string> {
     page = normalizePagePath(page)
     const cacheFs = this.getCacheFilesystem()
-    const html = await cacheFs.readFile(
-      join(this.serverDistDir, 'pages', `${page}.html`)
+    return cacheFs.readFile(
+      join(this.serverDistDir, 'pages', `${page}.html`),
+      'utf8'
     )
-
-    return html.toString('utf8')
   }
 
   protected async handleNextImageRequest(
@@ -985,10 +985,11 @@ export default class NextNodeServer extends BaseServer {
     return this.runApi(req, res, query, match)
   }
 
-  protected async getPrefetchRsc(pathname: string) {
-    return this.getCacheFilesystem()
-      .readFile(join(this.serverDistDir, 'app', `${pathname}.prefetch.rsc`))
-      .then((res) => res.toString())
+  protected getPrefetchRsc(pathname: string): Promise<string> {
+    return this.getCacheFilesystem().readFile(
+      join(this.serverDistDir, 'app', `${pathname}.prefetch.rsc`),
+      'utf8'
+    )
   }
 
   protected getCacheFilesystem(): CacheFs {

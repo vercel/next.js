@@ -39,6 +39,7 @@ import HotReloader from './hot-reloader-webpack'
 import { isAppPageRouteDefinition } from '../future/route-definitions/app-page-route-definition'
 import { scheduleOnNextTick } from '../lib/schedule-on-next-tick'
 import { RouteDefinition } from '../future/route-definitions/route-definition'
+import { Batcher } from '../../lib/batcher'
 
 const debug = origDebug('next:on-demand-entry-handler')
 
@@ -878,8 +879,34 @@ export function onDemandEntryHandler({
     }
   }
 
+  type EnsurePageOptions = {
+    page: string
+    clientOnly: boolean
+    appPaths?: ReadonlyArray<string> | null
+    match?: RouteMatch
+    isApp?: boolean
+  }
+
   // Make sure that we won't have multiple invalidations ongoing concurrently.
-  const curEnsurePage = new Map<string, Promise<void>>()
+  const batcher = Batcher.create<
+    Omit<EnsurePageOptions, 'match'> & {
+      definition?: RouteDefinition
+    },
+    void,
+    string
+  >({
+    // The cache key here is composed of the elements that affect the
+    // compilation, namely, the page, whether it's client only, and whether
+    // it's an app page. This ensures that we don't have multiple compilations
+    // for the same page happening concurrently.
+    //
+    // We don't include the whole match because it contains match specific
+    // parameters (like route params) that would just bust this cache. Any
+    // details that would possibly bust the cache should be listed here.
+    cacheKeyFn: (options) => JSON.stringify(options),
+    // Schedule the invocation of the ensurePageImpl function on the next tick.
+    schedulerFn: scheduleOnNextTick,
+  })
 
   return {
     async ensurePage({
@@ -888,13 +915,7 @@ export function onDemandEntryHandler({
       appPaths = null,
       match,
       isApp,
-    }: {
-      page: string
-      clientOnly: boolean
-      appPaths?: ReadonlyArray<string> | null
-      match?: RouteMatch
-      isApp?: boolean
-    }) {
+    }: EnsurePageOptions) {
       // If the route is actually an app page route, then we should have access
       // to the app route match, and therefore, the appPaths from it.
       if (
@@ -905,43 +926,15 @@ export function onDemandEntryHandler({
         appPaths = match.definition.appPaths
       }
 
-      // The cache key here is composed of the elements that affect the
-      // compilation, namely, the page, whether it's client only, and whether
-      // it's an app page. This ensures that we don't have multiple compilations
+      // Wrap the invocation of the ensurePageImpl function in the pending
+      // wrapper, which will ensure that we don't have multiple compilations
       // for the same page happening concurrently.
-      //
-      // We don't include the whole match because it contains match specific
-      // parameters (like route params) that would just bust this cache. Any
-      // details that would possibly bust the cache should be listed here.
-      const key = JSON.stringify({
-        page,
-        clientOnly,
-        appPaths,
-        definition: match?.definition,
-        isApp,
-      })
-
-      // See if we're already building this page.
-      const pending = curEnsurePage.get(key)
-      if (pending) return pending
-
-      const { promise, resolve, reject } = Promise.withResolvers<void>()
-      curEnsurePage.set(key, promise)
-
-      // Schedule the build to occur on the next tick, but don't wait and
-      // instead return the promise immediately.
-      scheduleOnNextTick(async () => {
-        try {
+      return batcher.batch(
+        { page, clientOnly, appPaths, definition: match?.definition, isApp },
+        async () => {
           await ensurePageImpl({ page, clientOnly, appPaths, match, isApp })
-          resolve()
-        } catch (err) {
-          reject(err)
-        } finally {
-          curEnsurePage.delete(key)
         }
-      })
-
-      return promise
+      )
     },
     onHMR(client: ws, getHmrServerError: () => Error | null) {
       let bufferedHmrServerError: Error | null = null
