@@ -452,7 +452,7 @@ async fn insert_next_server_special_aliases(
                     match runtime {
                         NextRuntime::Edge => "next/dist/compiled/react/jsx-runtime",
                         NextRuntime::NodeJs => {
-                            "next/dist/server/future/route-modules/app-page/vendored/shared/\
+                            "next/dist/server/future/route-modules/app-page/vendored/ssr/\
                              react-jsx-runtime"
                         }
                     },
@@ -465,7 +465,7 @@ async fn insert_next_server_special_aliases(
                     match runtime {
                         NextRuntime::Edge => "next/dist/compiled/react/jsx-dev-runtime",
                         NextRuntime::NodeJs => {
-                            "next/dist/server/future/route-modules/app-page/vendored/shared/\
+                            "next/dist/server/future/route-modules/app-page/vendored/ssr/\
                              react-jsx-dev-runtime"
                         }
                     },
@@ -579,7 +579,7 @@ async fn insert_next_server_special_aliases(
                     match runtime {
                         NextRuntime::Edge => "next/dist/compiled/react/jsx-runtime",
                         NextRuntime::NodeJs => {
-                            "next/dist/server/future/route-modules/app-page/vendored/shared/\
+                            "next/dist/server/future/route-modules/app-page/vendored/rsc/\
                              react-jsx-runtime"
                         }
                     },
@@ -592,7 +592,7 @@ async fn insert_next_server_special_aliases(
                     match runtime {
                         NextRuntime::Edge => "next/dist/compiled/react/jsx-dev-runtime",
                         NextRuntime::NodeJs => {
-                            "next/dist/server/future/route-modules/app-page/vendored/shared/\
+                            "next/dist/server/future/route-modules/app-page/vendored/rsc/\
                              react-jsx-dev-runtime"
                         }
                     },
