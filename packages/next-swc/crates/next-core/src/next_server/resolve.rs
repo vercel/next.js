@@ -153,7 +153,7 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
 
         // check if we can resolve the package from the project dir with node.js resolve
         // options (might be hidden by pnpm)
-        if *is_node_resolveable(self.root, request, fs_path).await? {
+        if *is_node_resolveable(self.project_path, request, fs_path).await? {
             // mark as external
             return Ok(ResolveResultOption::some(
                 ResolveResult::primary(ResolveResultItem::OriginalReferenceExternal).cell(),
