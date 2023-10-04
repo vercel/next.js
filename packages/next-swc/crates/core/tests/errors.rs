@@ -2,13 +2,13 @@ use std::path::PathBuf;
 
 use next_swc::{
     disallow_re_export_all_in_page::disallow_re_export_all_in_page,
-    next_dynamic::next_dynamic,
     next_ssg::next_ssg,
     react_server_components::server_components,
     server_actions::{
         server_actions, {self},
     },
 };
+use next_transform_dynamic::{next_dynamic, NextDynamicMode};
 use next_transform_font::{next_font_loaders, Config as FontLoaderConfig};
 use turbopack_binding::swc::{
     core::{
@@ -56,6 +56,7 @@ fn next_dynamic_errors(input: PathBuf) {
                 true,
                 false,
                 false,
+                NextDynamicMode::Webpack,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
             )

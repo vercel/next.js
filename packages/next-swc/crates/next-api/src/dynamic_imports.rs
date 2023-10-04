@@ -29,7 +29,7 @@ use turbopack_binding::{
 
 pub(crate) async fn collect_next_dynamic_imports(
     entry: Vc<Box<dyn EcmascriptChunkPlaceable>>,
-) -> Result<IndexMap<Vc<Box<dyn Module>>, Vec<(String, Vc<Box<dyn Module>>)>>> {
+) -> Result<IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>> {
     // Traverse referenced modules graph, collect all of the dynamic imports:
     // - Read the Program AST of the Module, this is the origin (A)
     //  - If there's `dynamic(import(B))`, then B is the module that is being
@@ -44,19 +44,19 @@ pub(crate) async fn collect_next_dynamic_imports(
         .completed()?
         .into_inner()
         .into_iter()
-        .map(|module| build_dynamic_imports_map_for_module(module));
+        .map(build_dynamic_imports_map_for_module);
 
     // Consolidate import mappings into a single indexmap
-    let mut import_mappings: IndexMap<Vc<Box<dyn Module>>, Vec<(String, Vc<Box<dyn Module>>)>> =
+    let mut import_mappings: IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules> =
         IndexMap::new();
 
     for module_mapping in imported_modules_mapping {
         if let Some(module_mapping) = &*module_mapping.await? {
             let (origin_module, dynamic_imports) = &*module_mapping.await?;
             import_mappings
-                .entry(origin_module.clone())
+                .entry(*origin_module)
                 .or_insert_with(Vec::new)
-                .extend(dynamic_imports.clone().drain(..))
+                .append(&mut dynamic_imports.clone())
         }
     }
 
@@ -122,7 +122,7 @@ async fn build_dynamic_imports_map_for_module(
         }
     }
 
-    Ok(Vc::cell(Some(Vc::cell((module.clone(), import_sources)))))
+    Ok(Vc::cell(Some(Vc::cell((module, import_sources)))))
 }
 
 /// A visitor to check if there's import to `next/dynamic`, then collecting the
@@ -145,7 +145,7 @@ impl Visit for LodableImportVisitor {
     fn visit_import_decl(&mut self, decl: &turbopack_binding::swc::core::ecma::ast::ImportDecl) {
         // find import decl from next/dynamic, i.e import dynamic from 'next/dynamic'
         if decl.src.value == *"next/dynamic" {
-            if let Some(specifier) = decl.specifiers.first().map(|s| s.as_default()).flatten() {
+            if let Some(specifier) = decl.specifiers.first().and_then(|s| s.as_default()) {
                 self.dynamic_ident = Some(specifier.local.clone());
             }
         }
@@ -193,10 +193,8 @@ impl Visit for CollectImportSourceVisitor {
         // Renamed chunk in the comment will be ignored.
         if let Callee::Import(_import) = call_expr.callee {
             if let Some(arg) = call_expr.args.first() {
-                if let Expr::Lit(lit) = &*arg.expr {
-                    if let Lit::Str(str_) = &lit {
-                        self.import_source = Some(str_.value.to_string());
-                    }
+                if let Expr::Lit(Lit::Str(str_)) = &*arg.expr {
+                    self.import_source = Some(str_.value.to_string());
                 }
             }
         }
@@ -206,10 +204,13 @@ impl Visit for CollectImportSourceVisitor {
     }
 }
 
+pub type DynamicImportedModules = Vec<(String, Vc<Box<dyn Module>>)>;
+pub type DynamicImportedOutputAssets = Vec<(String, Vc<OutputAssets>)>;
+
 /// A struct contains mapping for the dynamic imports to construct chunk per
 /// each individual module (Origin Module, Vec<(ImportSourceString, Module)>)
 #[turbo_tasks::value(transparent)]
-pub struct DynamicImportsMap(pub (Vc<Box<dyn Module>>, Vec<(String, Vc<Box<dyn Module>>)>));
+pub struct DynamicImportsMap(pub (Vc<Box<dyn Module>>, DynamicImportedModules));
 
 /// An Option wrapper around [DynamicImportsMap].
 #[turbo_tasks::value(transparent)]
@@ -224,9 +225,7 @@ impl OptionDynamicImportsMap {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct DynamicImportedChunks(
-    pub IndexMap<Vc<Box<dyn Module>>, Vec<(String, Vc<OutputAssets>)>>,
-);
+pub struct DynamicImportedChunks(pub IndexMap<Vc<Box<dyn Module>>, DynamicImportedOutputAssets>);
 
 /// An issue that occurred while parsing given source file.
 #[turbo_tasks::value(shared)]
