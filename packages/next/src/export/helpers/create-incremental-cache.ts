@@ -35,8 +35,8 @@ export function createIncrementalCache(
       notFoundRoutes: [],
     }),
     fs: {
-      readFile: (f) => fs.promises.readFile(f),
-      readFileSync: (f) => fs.readFileSync(f),
+      readFile: fs.promises.readFile,
+      readFileSync: fs.readFileSync,
       writeFile: (f, d) => fs.promises.writeFile(f, d),
       mkdir: (dir) => fs.promises.mkdir(dir, { recursive: true }),
       stat: (f) => fs.promises.stat(f),
