@@ -85,6 +85,14 @@ impl ChunkableModule for NextServerComponentModule {
             availability_info,
         ))
     }
+
+    #[turbo_tasks::function]
+    fn as_chunk_item(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Vc<Box<dyn turbopack_binding::turbopack::core::chunk::ChunkItem>> {
+        todo!();
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -128,7 +136,9 @@ impl EcmascriptChunkItem for BuildServerComponentChunkItem {
         let this = self.await?;
         let inner = this.inner.await?;
 
-        let module_id = inner.module.as_chunk_item(this.context).id().await?;
+        let module_id = EcmascriptChunkPlaceable::as_chunk_item(inner.module, this.context)
+            .id()
+            .await?;
         Ok(EcmascriptChunkItemContent {
             inner_code: formatdoc!(
                 r#"

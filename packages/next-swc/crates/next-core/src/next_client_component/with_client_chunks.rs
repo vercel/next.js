@@ -80,6 +80,14 @@ impl ChunkableModule for WithClientChunksAsset {
             availability_info,
         ))
     }
+
+    #[turbo_tasks::function]
+    fn as_chunk_item(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Vc<Box<dyn turbopack_binding::turbopack::core::chunk::ChunkItem>> {
+        todo!();
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -183,7 +191,9 @@ impl EcmascriptChunkItem for WithClientChunksChunkItem {
             .map(|chunk_data| EcmascriptChunkData::new(chunk_data))
             .collect();
 
-        let module_id = inner.asset.as_chunk_item(this.context).id().await?;
+        let module_id = EcmascriptChunkPlaceable::as_chunk_item(inner.asset, this.context)
+            .id()
+            .await?;
         Ok(EcmascriptChunkItemContent {
             inner_code: formatdoc!(
                 // We store the chunks in a binding, otherwise a new array would be created every

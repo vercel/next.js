@@ -60,6 +60,14 @@ impl ChunkableModule for WithChunkingContextScopeAsset {
             availability_info,
         ))
     }
+
+    #[turbo_tasks::function]
+    fn as_chunk_item(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Vc<Box<dyn turbopack_binding::turbopack::core::chunk::ChunkItem>> {
+        todo!();
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -69,7 +77,8 @@ impl EcmascriptChunkPlaceable for WithChunkingContextScopeAsset {
         &self,
         context: Vc<Box<dyn EcmascriptChunkingContext>>,
     ) -> Result<Vc<Box<dyn EcmascriptChunkItem>>> {
-        Ok(self.asset.as_chunk_item(
+        Ok(EcmascriptChunkPlaceable::as_chunk_item(
+            self.asset,
             Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkingContext>>(
                 context.with_layer(self.layer.clone()),
             )

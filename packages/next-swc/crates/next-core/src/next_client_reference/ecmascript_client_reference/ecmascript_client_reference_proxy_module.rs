@@ -85,7 +85,7 @@ impl EcmascriptClientReferenceProxyModule {
                 // and the $$typeof value is for rendering logic to determine if the module
                 // is a client boundary.
                 const {{ __esModule, $$typeof }} = proxy;
-                
+
                 export {{ __esModule, $$typeof }};
                 export default proxy;
             "#,
@@ -175,6 +175,14 @@ impl ChunkableModule for EcmascriptClientReferenceProxyModule {
             availability_info,
         ))
     }
+
+    #[turbo_tasks::function]
+    fn as_chunk_item(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Vc<Box<dyn turbopack_binding::turbopack::core::chunk::ChunkItem>> {
+        todo!();
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -187,7 +195,10 @@ impl EcmascriptChunkPlaceable for EcmascriptClientReferenceProxyModule {
         Vc::upcast(
             ProxyModuleChunkItem {
                 client_proxy_asset: self,
-                inner_proxy_module_chunk_item: self.proxy_module().as_chunk_item(chunking_context),
+                inner_proxy_module_chunk_item: EcmascriptChunkPlaceable::as_chunk_item(
+                    self.proxy_module(),
+                    chunking_context,
+                ),
                 chunking_context,
             }
             .cell(),
