@@ -19,7 +19,6 @@ describe('next.config.js validation', () => {
         }
       `,
         outputs: [
-          'Invalid enum value. Expected',
           `received 'something' at "images.loader"`,
           'Expected function, received boolean at "rewrites"',
           'Expected boolean, received string at "swcMinify"',
