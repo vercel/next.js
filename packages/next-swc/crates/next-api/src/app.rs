@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use anyhow::{bail, Context, Result};
 use next_core::{
     app_structure::{
@@ -21,7 +23,8 @@ use next_core::{
     next_edge::route_regex::get_named_middleware_regex,
     next_manifests::{
         AppBuildManifest, AppPathsManifest, BuildManifest, ClientReferenceManifest,
-        EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2, PagesManifest, Regions,
+        EdgeFunctionDefinition, LodableManifest, MiddlewareMatcher, MiddlewaresManifestV2,
+        PagesManifest, Regions,
     },
     next_server::{
         get_server_module_options_context, get_server_resolve_options_context,
@@ -39,12 +42,17 @@ use turbopack_binding::{
     turbopack::{
         core::{
             asset::{Asset, AssetContent},
-            chunk::{ChunkingContext, EvaluatableAssets},
+            chunk::{
+                availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext,
+                EvaluatableAssets,
+            },
+
             file_source::FileSource,
             module::Module,
             output::{OutputAsset, OutputAssets},
             virtual_output::VirtualOutputAsset,
         },
+        ecmascript::chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext},
         turbopack::{
             module_options::ModuleOptionsContext, resolve_options_context::ResolveOptionsContext,
             transition::ContextTransition, ModuleAssetContext,
@@ -54,6 +62,7 @@ use turbopack_binding::{
 
 use crate::{
     project::Project,
+    dynamic_imports::collect_next_dynamic_imports,
     route::{Endpoint, Route, Routes, WrittenEndpoint},
     server_actions::create_server_actions_manifest,
     server_paths::all_server_paths,
@@ -679,6 +688,104 @@ impl AppEndpoint {
             )))
         }
 
+        async fn create_lodable_manifest(
+            entry: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+            chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+            ty: &'static str,
+            node_root: Vc<FileSystemPath>,
+            pathname: &str,
+        ) -> Result<Vc<OutputAssets>> {
+            let dynamic_import_entries = collect_next_dynamic_imports(entry).await?;
+            let Some(evaluatable) = Vc::try_resolve_sidecast(entry).await? else {
+                bail!("Entry module must be evaluatable");
+            };
+
+            let mut chunks_hash: HashMap<String, Vc<OutputAssets>> = HashMap::new();
+
+            let mut output = vec![];
+            let mut lodable_manifest: HashMap<String, LodableManifest> = Default::default();
+
+            // Iterate over the collected import mappings, and create a chunk for each
+            // dynamic import.
+            for (origin, dynamic_imports) in dynamic_import_entries {
+                for (imported_raw_str, imported_module) in dynamic_imports {
+                    let chunk = if let Some(chunk) = chunks_hash.get(&imported_raw_str) {
+                        chunk.clone()
+                    } else {
+                        let Some(imported_module) =
+                            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(
+                                imported_module.clone(),
+                            )
+                            .await?
+                        else {
+                            bail!("module must be evaluatable");
+                        };
+
+                        // [Note]: this seems to create a duplicated chunk for the same module to the original import() call
+                        // and the explicit chunk we ask in here. So there'll be at least 2
+                        // chunks for the same module, relying on
+                        // naive hash to have additonal
+                        // chunks in case if there are same modules being imported in differnt
+                        // origins.
+                        let chunk = imported_module.as_chunk(
+                            Vc::upcast(chunking_context),
+                            Value::new(AvailabilityInfo::Root {
+                                current_availability_root: Vc::upcast(entry),
+                            }),
+                        );
+                        let chunk_group = chunking_context
+                            .evaluated_chunk_group(chunk, Vc::cell(vec![evaluatable]));
+                        chunks_hash.insert(imported_raw_str.to_string(), chunk_group.clone());
+                        chunk_group
+                    };
+
+                    let chunk_output = chunk.await?;
+                    output.extend(chunk_output.iter().copied());
+
+                    let origin_path = &*origin.ident().path().await?;
+                    let key = format!("{} -> {}", origin_path, imported_raw_str);
+
+                    let server_path = node_root.join("server".to_string());
+                    let server_path_value = server_path.await?;
+                    let files = chunk_output
+                        .iter()
+                        .map(move |&file| {
+                            let server_path_value = server_path_value.clone();
+                            async move {
+                                Ok(server_path_value
+                                    .get_path_to(&*file.ident().path().await?)
+                                    .map(|path| path.to_string()))
+                            }
+                        })
+                        .try_flat_join()
+                        .await?;
+
+                    let manifest_item = LodableManifest {
+                        id: key.clone(),
+                        files,
+                    };
+
+                    lodable_manifest.insert(key, manifest_item);
+                }
+            }
+
+            let lodable_path_prefix = get_asset_prefix_from_pathname(pathname);
+            let lodable_manifest = Vc::upcast(VirtualOutputAsset::new(
+                node_root.join(format!(
+                    "server/app{lodable_path_prefix}/{ty}/react-loadable-manifest.json",
+                )),
+                AssetContent::file(
+                    FileContent::Content(File::from(serde_json::to_string_pretty(
+                        &lodable_manifest,
+                    )?))
+                    .cell(),
+                ),
+            ));
+
+            output.push(lodable_manifest);
+            Ok(Vc::cell(output))
+        }
+
         let endpoint_output = match app_entry.config.await?.runtime.unwrap_or_default() {
             NextRuntime::Edge => {
                 // create edge chunks
@@ -801,6 +908,16 @@ impl AppEndpoint {
                 )?;
                 server_assets.push(app_paths_manifest_output);
 
+                let lodable_manifest_output = create_lodable_manifest(
+                    app_entry.rsc_entry,
+                    this.app_project.project().client_chunking_context(),
+                    ty,
+                    node_root,
+                    &app_entry.pathname,
+                )
+                .await?;
+                server_assets.extend(lodable_manifest_output.await?.iter().copied());
+
                 AppEndpointOutput::Edge {
                     files,
                     server_assets: Vc::cell(server_assets),
@@ -856,6 +973,16 @@ impl AppEndpoint {
                         .to_string(),
                 )?;
                 server_assets.push(app_paths_manifest_output);
+
+                let lodable_manifest_output = create_lodable_manifest(
+                    app_entry.rsc_entry,
+                    this.app_project.project().client_chunking_context(),
+                    ty,
+                    node_root,
+                    &app_entry.pathname,
+                )
+                .await?;
+                server_assets.extend(lodable_manifest_output.await?.iter().copied());
 
                 AppEndpointOutput::NodeJs {
                     rsc_chunk,

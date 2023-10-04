@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use next_core::{
@@ -11,8 +13,8 @@ use next_core::{
     next_dynamic::NextDynamicTransition,
     next_edge::route_regex::get_named_middleware_regex,
     next_manifests::{
-        BuildManifest, EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2,
-        PagesManifest,
+        BuildManifest, EdgeFunctionDefinition, LodableManifest, MiddlewareMatcher,
+        MiddlewaresManifestV2, PagesManifest,
     },
     next_pages::create_page_ssr_entry_module,
     next_server::{
@@ -37,7 +39,11 @@ use turbopack_binding::{
         build::BuildChunkingContext,
         core::{
             asset::AssetContent,
-            chunk::{ChunkingContext, EvaluatableAssets},
+            chunk::{
+                availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext,
+                EvaluatableAssets,
+            },
+
             context::AssetContext,
             file_source::FileSource,
             issue::{IssueSeverity, OptionIssueSource},
@@ -51,7 +57,9 @@ use turbopack_binding::{
             virtual_output::VirtualOutputAsset,
         },
         ecmascript::{
-            chunk::EcmascriptChunkingContext, resolve::esm_resolve, EcmascriptModuleAsset,
+            chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext},
+            resolve::esm_resolve,
+            EcmascriptModuleAsset,
         },
         turbopack::{
             module_options::ModuleOptionsContext,
@@ -64,6 +72,7 @@ use turbopack_binding::{
 
 use crate::{
     project::Project,
+    dynamic_imports::{collect_next_dynamic_imports, DynamicImportedChunks},
     route::{Endpoint, Route, Routes, WrittenEndpoint},
     server_paths::all_server_paths,
 };
@@ -609,9 +618,60 @@ impl PageEndpoint {
             evaluatable_assets.push(evaluatable);
 
             let edge_files = edge_chunking_context
-                .evaluated_chunk_group(ssr_module.ident(), Vc::cell(evaluatable_assets));
+                .evaluated_chunk_group(ssr_module.ident(), Vc::cell(evaluatable_assets.clone()));
 
-            Ok(SsrChunk::Edge { files: edge_files }.cell())
+
+            let dynamic_import_entries = collect_next_dynamic_imports(ssr_module).await?;
+
+            let mut chunks_hash: HashMap<String, Vc<OutputAssets>> = HashMap::new();
+            let mut dynamic_import_chunks = IndexMap::new();
+
+            // Iterate over the collected import mappings, and create a chunk for each
+            // dynamic import.
+            for (origin_module, dynamic_imports) in dynamic_import_entries {
+                for (imported_raw_str, imported_module) in dynamic_imports {
+                    let chunk = if let Some(chunk) = chunks_hash.get(&imported_raw_str) {
+                        chunk.clone()
+                    } else {
+                        let Some(imported_module) =
+                            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(
+                                imported_module.clone(),
+                            )
+                            .await?
+                        else {
+                            bail!("module must be evaluatable");
+                        };
+
+                        // [Note]: this seems to create a duplicated chunk for the same module to the original import() call
+                        // and the explicit chunk we ask in here. So there'll be at least 2
+                        // chunks for the same module, relying on
+                        // naive hash to have additonal
+                        // chunks in case if there are same modules being imported in differnt
+                        // origins.
+                        let chunk = imported_module.as_chunk(
+                            Vc::upcast(chunking_context),
+                            Value::new(AvailabilityInfo::Root {
+                                current_availability_root: Vc::upcast(ssr_module),
+                            }),
+                        );
+                        let chunk_group = edge_chunking_context
+                            .evaluated_chunk_group(chunk, Vc::cell(evaluatable_assets.clone()));
+                        chunks_hash.insert(imported_raw_str.to_string(), chunk_group.clone());
+                        chunk_group
+                    };
+
+                    dynamic_import_chunks
+                        .entry(origin_module.clone())
+                        .or_insert_with(Vec::new)
+                        .push((imported_raw_str.clone(), chunk));
+                }
+            }
+
+            Ok(SsrChunk::Edge {
+                files: edge_files,
+                dynamic_import_entries: Vc::cell(dynamic_import_chunks),
+            }
+            .cell())
         } else {
             let ssr_module = create_page_ssr_entry_module(
                 this.pathname,
@@ -633,8 +693,54 @@ impl PageEndpoint {
                 runtime_entries,
             );
 
+            let dynamic_import_entries = collect_next_dynamic_imports(ssr_module).await?;
+
+            let mut chunks_hash: HashMap<String, Vc<OutputAssets>> = HashMap::new();
+            let mut dynamic_import_chunks = IndexMap::new();
+
+            // Iterate over the collected import mappings, and create a chunk for each
+            // dynamic import.
+            for (origin_module, dynamic_imports) in dynamic_import_entries {
+                for (imported_raw_str, imported_module) in dynamic_imports {
+                    let chunk = if let Some(chunk) = chunks_hash.get(&imported_raw_str) {
+                        chunk.clone()
+                    } else {
+                        let Some(imported_module) =
+                            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(
+                                imported_module.clone(),
+                            )
+                            .await?
+                        else {
+                            bail!("module must be evaluatable");
+                        };
+
+                        // [Note]: this seems to create a duplicated chunk for the same module to the original import() call
+                        // and the explicit chunk we ask in here. So there'll be at least 2
+                        // chunks for the same module, relying on
+                        // naive hash to have additonal
+                        // chunks in case if there are same modules being imported in differnt
+                        // origins.
+                        let chunk = imported_module.as_chunk(
+                            Vc::upcast(chunking_context),
+                            Value::new(AvailabilityInfo::Root {
+                                current_availability_root: Vc::upcast(ssr_module),
+                            }),
+                        );
+                        let chunk_group = chunking_context.chunk_group(chunk);
+                        chunks_hash.insert(imported_raw_str.to_string(), chunk_group.clone());
+                        chunk_group
+                    };
+
+                    dynamic_import_chunks
+                        .entry(origin_module.clone())
+                        .or_insert_with(Vec::new)
+                        .push((imported_raw_str.clone(), chunk));
+                }
+            }
+
             Ok(SsrChunk::NodeJs {
                 entry: ssr_entry_chunk,
+                dynamic_import_entries: Vc::cell(dynamic_import_chunks),
             }
             .cell())
         }
@@ -729,6 +835,70 @@ impl PageEndpoint {
     }
 
     #[turbo_tasks::function]
+    async fn react_lodable_manifest(
+        self: Vc<Self>,
+        dynamic_import_entries: Vc<DynamicImportedChunks>,
+    ) -> Result<Vc<OutputAssets>> {
+        let this = self.await?;
+        let node_root = this.pages_project.project().node_root();
+        let dynamic_import_entries = &*dynamic_import_entries.await?;
+
+        let mut output = vec![];
+        let mut lodable_manifest: HashMap<String, LodableManifest> = Default::default();
+        for (origin, dynamic_imports) in dynamic_import_entries.into_iter() {
+            for (import, chunk_output) in dynamic_imports {
+                let chunk_output = chunk_output.await?;
+                output.extend(chunk_output.iter().copied());
+
+                let pages_dir = this.pages_project.pages_dir().await?;
+                let origin_path = &*origin.ident().path().await?;
+                // https://github.com/vercel/next.js/blob/b7c85b87787283d8fb86f705f67bdfabb6b654bb/packages/next-swc/crates/next-transform-dynamic/src/lib.rs#L230
+                // For the pages dir, next_dynamic transform puts relative paths to the pages
+                // dir for the origin import.
+                let key = format!(
+                    "{} -> {}",
+                    pages_dir
+                        .get_path_to(origin_path)
+                        .map_or_else(|| origin_path.to_string(), |path| path.to_string()),
+                    import
+                );
+                let mut files = vec![];
+
+                for chunk in chunk_output.iter() {
+                    let chunk_path = chunk.ident().path().await?;
+                    let asset_path = node_root
+                        .join("server".to_string())
+                        .await?
+                        .get_path_to(&chunk_path)
+                        .context("ssr chunk entry path must be inside the node root")?;
+                    files.push(asset_path.to_string());
+                }
+
+                let manifest_item = LodableManifest {
+                    id: key.clone(),
+                    files,
+                };
+
+                lodable_manifest.insert(key, manifest_item);
+            }
+        }
+
+        let lodable_path_prefix = get_asset_prefix_from_pathname(&this.pathname.await?);
+        let lodable_manifest = Vc::upcast(VirtualOutputAsset::new(
+            node_root.join(format!(
+                "server/pages{lodable_path_prefix}/react-loadable-manifest.json"
+            )),
+            AssetContent::file(
+                FileContent::Content(File::from(serde_json::to_string_pretty(&lodable_manifest)?))
+                    .cell(),
+            ),
+        ));
+
+        output.push(lodable_manifest);
+        Ok(Vc::cell(output))
+    }
+
+    #[turbo_tasks::function]
     async fn build_manifest(
         self: Vc<Self>,
         client_chunks: Vc<OutputAssets>,
@@ -796,10 +966,16 @@ impl PageEndpoint {
         };
 
         let page_output = match *ssr_chunk.await? {
-            SsrChunk::NodeJs { entry } => {
+            SsrChunk::NodeJs {
+                entry,
+                dynamic_import_entries,
+            } => {
                 let pages_manifest = self.pages_manifest(entry);
                 server_assets.push(pages_manifest);
                 server_assets.push(entry);
+
+                let lodable_manifest_output = self.react_lodable_manifest(dynamic_import_entries);
+                server_assets.extend(lodable_manifest_output.await?.iter().copied());
 
                 PageEndpointOutput::NodeJs {
                     entry_chunk: entry,
@@ -807,7 +983,10 @@ impl PageEndpoint {
                     client_assets: Vc::cell(client_assets),
                 }
             }
-            SsrChunk::Edge { files } => {
+            SsrChunk::Edge {
+                files,
+                dynamic_import_entries,
+            } => {
                 let node_root = this.pages_project.project().node_root();
                 let files_value = files.await?;
                 if let Some(&file) = files_value.first() {
@@ -866,6 +1045,9 @@ impl PageEndpoint {
                     ),
                 ));
                 server_assets.push(middleware_manifest_v2);
+
+                let lodable_manifest_output = self.react_lodable_manifest(dynamic_import_entries);
+                server_assets.extend(lodable_manifest_output.await?.iter().copied());
 
                 PageEndpointOutput::Edge {
                     files,
@@ -1001,6 +1183,12 @@ impl PageEndpointOutput {
 
 #[turbo_tasks::value]
 pub enum SsrChunk {
-    NodeJs { entry: Vc<Box<dyn OutputAsset>> },
-    Edge { files: Vc<OutputAssets> },
+    NodeJs {
+        entry: Vc<Box<dyn OutputAsset>>,
+        dynamic_import_entries: Vc<DynamicImportedChunks>,
+    },
+    Edge {
+        files: Vc<OutputAssets>,
+        dynamic_import_entries: Vc<DynamicImportedChunks>,
+    },
 }
