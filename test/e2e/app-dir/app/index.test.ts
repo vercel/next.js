@@ -15,6 +15,15 @@ createNextDescribe(
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
     if (isNextStart && !process.env.NEXT_EXPERIMENTAL_COMPILE) {
+      it('should not have loader generated function for edge runtime', async () => {
+        expect(
+          await next.readFile('.next/server/app/dashboard/page.js')
+        ).not.toContain('_stringifiedConfig')
+        expect(await next.readFile('.next/server/middleware.js')).not.toContain(
+          '_middlewareConfig'
+        )
+      })
+
       it('should use RSC prefetch data from build', async () => {
         expect(
           await next.readFile('.next/server/app/linking.prefetch.rsc')
