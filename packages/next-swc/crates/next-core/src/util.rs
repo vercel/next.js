@@ -376,12 +376,12 @@ pub async fn load_next_js_templateon<T: DeserializeOwned>(
     project_path: Vc<FileSystemPath>,
     path: String,
 ) -> Result<T> {
-    let file_path = get_next_package(project_path).join(path);
+    let file_path = get_next_package(project_path).join(path.clone());
 
     let content = &*file_path.read().await?;
 
     let FileContent::Content(file) = content else {
-        bail!("Expected file content for metrics data");
+        bail!("Expected file content at {}", path);
     };
 
     let result: T = parse_json_rope_with_source_context(file.content())?;
