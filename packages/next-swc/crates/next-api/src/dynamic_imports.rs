@@ -1,17 +1,19 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
 use indexmap::IndexMap;
 use turbo_tasks::{
     graph::{GraphTraversal, NonDeterministic},
-    Value, ValueToString, Vc,
+    Value, Vc,
 };
 use turbopack_binding::{
     swc::core::ecma::{
         ast::{CallExpr, Callee, Expr, Ident, Lit},
         visit::{Visit, VisitWith},
     },
+    turbo::tasks_fs::FileSystemPath,
     turbopack::{
         core::{
-            issue::{IssueSeverity, OptionIssueSource},
+            ident::AssetIdent,
+            issue::{Issue, IssueExt, IssueSeverity, OptionIssueSource},
             module::Module,
             output::OutputAssets,
             reference::primary_referenced_modules,
@@ -80,10 +82,13 @@ async fn build_dynamic_imports_map_for_module(
     };
 
     let ParseResult::Ok { program, .. } = &*ecmascript_asset.parse().await? else {
-        bail!(
-            "failed to parse module '{}'",
-            &*module.ident().to_string().await?
-        );
+        NextDynamicParsingIssue {
+            ident: module.ident(),
+        }
+        .cell()
+        .emit();
+
+        return Ok(OptionDynamicImportsMap::none());
     };
 
     // Reading the Program AST, collect raw imported module str if it's wrapped in
@@ -222,3 +227,48 @@ impl OptionDynamicImportsMap {
 pub struct DynamicImportedChunks(
     pub IndexMap<Vc<Box<dyn Module>>, Vec<(String, Vc<OutputAssets>)>>,
 );
+
+/// An issue that occurred while parsing given source file.
+#[turbo_tasks::value(shared)]
+pub struct NextDynamicParsingIssue {
+    ident: Vc<AssetIdent>,
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for NextDynamicParsingIssue {
+    #[turbo_tasks::function]
+    fn severity(&self) -> Vc<IssueSeverity> {
+        IssueSeverity::Warning.into()
+    }
+
+    #[turbo_tasks::function]
+    fn title(&self) -> Vc<String> {
+        Vc::cell("Unable to parse source file".to_string())
+    }
+
+    #[turbo_tasks::function]
+    fn category(&self) -> Vc<String> {
+        Vc::cell("parsing".to_string())
+    }
+
+    #[turbo_tasks::function]
+    fn file_path(&self) -> Vc<FileSystemPath> {
+        self.ident.path()
+    }
+
+    #[turbo_tasks::function]
+    fn description(&self) -> Vc<String> {
+        Vc::cell(
+            "Failed to parse source file. This is likely due to a syntax error in the source file."
+                .to_string(),
+        )
+    }
+
+    #[turbo_tasks::function]
+    fn detail(&self) -> Vc<String> {
+        Vc::cell(
+            "Failed to parse source file. This is likely due to a syntax error in the source file."
+                .to_string(),
+        )
+    }
+}
