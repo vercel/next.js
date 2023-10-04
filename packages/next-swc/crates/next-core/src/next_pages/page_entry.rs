@@ -3,7 +3,7 @@ use std::io::Write;
 use anyhow::{bail, Result};
 use indexmap::indexmap;
 use turbo_tasks::Vc;
-use turbo_tasks_fs::{rope::Rope, FileSystemPath};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_binding::{
     turbo::{
         tasks::Value,
@@ -90,9 +90,8 @@ pub async fn create_page_ssr_entry_module(
         file.push('\n');
     }
 
-    let file = Rope::from(file);
     let mut result = RopeBuilder::default();
-    result += &file;
+    result.push_bytes(file.as_bytes());
 
     if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page) {
         // When we're building the instrumentation page (only when the

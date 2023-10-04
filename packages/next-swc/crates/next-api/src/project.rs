@@ -476,6 +476,7 @@ impl Project {
             self.env(),
             self.server_addr(),
             this.define_env.nodejs(),
+            self.next_config(),
         ))
     }
 
