@@ -40,5 +40,10 @@ createNextDescribe(
       const browser = await next.browser('/hello')
       expect(await browser.elementByCss('#content').text()).toBe('hello-bar')
     })
+
+    it('should handle app router rendering correctly', async () => {
+      const browser = await next.browser('/')
+      expect(await browser.elementByCss('body').text()).toBe('page')
+    })
   }
 )

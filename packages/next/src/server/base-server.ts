@@ -759,7 +759,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       // ensure cookies set in middleware are merged and
       // not overridden by API routes/getServerSideProps
-      const _res = (res as any).originalResponse || res
+      const _res = (res as any).originalResponse || res.destination || res
       const origSetHeader = _res.setHeader.bind(_res)
 
       _res.setHeader = (name: string, val: string | string[]) => {
