@@ -109,6 +109,7 @@ pub async fn get_server_resolve_options_context(
     let unsupported_modules_resolve_plugin = UnsupportedModulesResolvePlugin::new(project_path);
     let server_component_externals_plugin = ExternalCjsModulesResolvePlugin::new(
         project_path,
+        project_path.root(),
         ExternalPredicate::Only(next_config.server_component_externals()).cell(),
     );
     let ty = ty.into_value();
@@ -125,6 +126,7 @@ pub async fn get_server_resolve_options_context(
     };
     let external_cjs_modules_plugin = ExternalCjsModulesResolvePlugin::new(
         project_path,
+        project_path.root(),
         ExternalPredicate::AllExcept(next_config.transpile_packages()).cell(),
     );
 
