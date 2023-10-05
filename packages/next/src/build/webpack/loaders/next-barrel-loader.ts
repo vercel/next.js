@@ -125,7 +125,7 @@ async function getBarrelMapping(
     isWildcard: boolean
   ) {
     const isTypeScript = filename.endsWith('.ts') || filename.endsWith('.tsx')
-    return new Promise<string>((resolve) =>
+    return new Promise<string>((res) =>
       transform(source, {
         filename,
         inputSourceMap: undefined,
@@ -143,30 +143,30 @@ async function getBarrelMapping(
           },
         },
       }).then((output) => {
-        resolve(output.code)
+        res(output.code)
       })
     )
   }
 
   // Avoid circular `export *` dependencies
   const visited = new Set<string>()
-  async function getMatches(resourcePath: string, isWildcard: boolean) {
-    if (visited.has(resourcePath)) {
+  async function getMatches(file: string, isWildcard: boolean) {
+    if (visited.has(file)) {
       return null
     }
-    visited.add(resourcePath)
+    visited.add(file)
 
-    const source = await new Promise<string>((resolve, reject) => {
-      fs.readFile(resourcePath, (err, data) => {
+    const source = await new Promise<string>((res, rej) => {
+      fs.readFile(file, (err, data) => {
         if (err || data === undefined) {
-          reject(err)
+          rej(err)
         } else {
-          resolve(data.toString())
+          res(data.toString())
         }
       })
     })
 
-    const output = await transpileSource(resourcePath, source, isWildcard)
+    const output = await transpileSource(file, source, isWildcard)
 
     const matches = output.match(
       /^([^]*)export (const|var) __next_private_export_map__ = ('[^']+'|"[^"]+")/
@@ -187,10 +187,10 @@ async function getBarrelMapping(
 
     // In the wildcard case, if the value is exported from another file, we
     // redirect to that file (decl[0]). Otherwise, export from the current
-    // file itself (this.resourcePath).
+    // file itself.
     if (isWildcard) {
       for (const decl of exportList) {
-        decl[1] = resourcePath
+        decl[1] = file
         decl[2] = decl[0]
       }
     }
@@ -200,7 +200,7 @@ async function getBarrelMapping(
       await Promise.all(
         wildcardExports.map(async (req) => {
           const targetPath = await resolve(
-            path.dirname(resourcePath),
+            path.dirname(file),
             req.replace('__barrel_optimize__?names=__PLACEHOLDER__!=!', '')
           )
 
