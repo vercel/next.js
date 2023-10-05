@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use indexmap::indexmap;
 use turbo_tasks::{Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
@@ -115,35 +115,29 @@ impl Asset for WebAssemblyModuleAsset {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for WebAssemblyModuleAsset {
     #[turbo_tasks::function]
-    fn as_chunk(
+    async fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        availability_info: Value<AvailabilityInfo>,
-    ) -> Vc<Box<dyn Chunk>> {
-        Vc::upcast(EcmascriptChunk::new(
-            chunking_context,
-            Vc::upcast(self),
-            availability_info,
+    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
+        let chunking_context =
+            Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkingContext>>(chunking_context)
+                .await?
+                .context(
+                    "chunking context must impl EcmascriptChunkingContext to use \
+                     WebAssemblyModuleAsset",
+                )?;
+        Ok(Vc::upcast(
+            ModuleChunkItem {
+                module: self,
+                chunking_context,
+            }
+            .cell(),
         ))
     }
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for WebAssemblyModuleAsset {
-    #[turbo_tasks::function]
-    fn as_chunk_item(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
-    ) -> Vc<Box<dyn EcmascriptChunkItem>> {
-        Vc::upcast(
-            ModuleChunkItem {
-                module: self,
-                chunking_context,
-            }
-            .cell(),
-        )
-    }
-
     #[turbo_tasks::function]
     fn get_exports(self: Vc<Self>) -> Vc<EcmascriptExports> {
         self.loader().get_exports()
@@ -188,9 +182,26 @@ impl ChunkItem for ModuleChunkItem {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        let loader = self.module.loader().as_chunk_item(self.chunking_context);
+        let loader = self
+            .module
+            .loader()
+            .as_chunk_item(Vc::upcast(self.chunking_context));
 
         Ok(loader.references())
+    }
+
+    #[turbo_tasks::function]
+    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+        Vc::upcast(self.chunking_context)
+    }
+
+    #[turbo_tasks::function]
+    fn as_chunk(&self, availability_info: Value<AvailabilityInfo>) -> Vc<Box<dyn Chunk>> {
+        Vc::upcast(EcmascriptChunk::new(
+            Vc::upcast(self.chunking_context),
+            Vc::upcast(self.module),
+            availability_info,
+        ))
     }
 }
 
@@ -212,9 +223,13 @@ impl EcmascriptChunkItem for ModuleChunkItem {
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let loader_asset = self.module.loader();
+        let item = loader_asset.as_chunk_item(Vc::upcast(self.chunking_context));
 
-        let chunk_item_content = loader_asset
-            .as_chunk_item(self.chunking_context)
+        let ecmascript_item = Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkItem>>(item)
+            .await?
+            .context("EcmascriptModuleAsset must implement EcmascriptChunkItem")?;
+
+        let chunk_item_content = ecmascript_item
             .content_with_availability_info(availability_info)
             .await?;
 

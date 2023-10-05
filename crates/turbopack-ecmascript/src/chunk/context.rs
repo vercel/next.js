@@ -1,8 +1,5 @@
-use anyhow::Result;
-use turbo_tasks::{ValueToString, Vc};
-use turbopack_core::chunk::{ChunkItem, ChunkingContext, ModuleId};
-
-use super::item::EcmascriptChunkItem;
+use turbo_tasks::Vc;
+use turbopack_core::chunk::ChunkingContext;
 
 /// [`EcmascriptChunkingContext`] must be implemented by [`ChunkingContext`]
 /// implementors that want to operate on [`EcmascriptChunk`]s.
@@ -12,17 +9,5 @@ pub trait EcmascriptChunkingContext: ChunkingContext {
     /// the `__turbopack_refresh__` argument.
     fn has_react_refresh(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(false)
-    }
-
-    async fn chunk_item_id(
-        self: Vc<Self>,
-        chunk_item: Vc<Box<dyn EcmascriptChunkItem>>,
-    ) -> Result<Vc<ModuleId>> {
-        let layer = self.layer();
-        let mut ident = chunk_item.asset_ident();
-        if !layer.await?.is_empty() {
-            ident = ident.with_modifier(layer)
-        }
-        Ok(ModuleId::String(ident.to_string().await?.clone_value()).cell())
     }
 }

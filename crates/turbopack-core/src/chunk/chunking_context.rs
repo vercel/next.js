@@ -1,9 +1,10 @@
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use super::{Chunk, EvaluatableAssets};
 use crate::{
+    chunk::{ChunkItem, ModuleId},
     environment::Environment,
     ident::AssetIdent,
     module::Module,
@@ -63,4 +64,16 @@ pub trait ChunkingContext {
         entry: Vc<Box<dyn Chunk>>,
         evaluatable_assets: Vc<EvaluatableAssets>,
     ) -> Vc<OutputAssets>;
+
+    async fn chunk_item_id(
+        self: Vc<Self>,
+        chunk_item: Vc<Box<dyn ChunkItem>>,
+    ) -> Result<Vc<ModuleId>> {
+        let layer = self.layer();
+        let mut ident = chunk_item.asset_ident();
+        if !layer.await?.is_empty() {
+            ident = ident.with_modifier(layer)
+        }
+        Ok(ModuleId::String(ident.to_string().await?.clone_value()).cell())
+    }
 }

@@ -17,7 +17,7 @@ use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{to_sys_path, File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkableModule, ChunkingContext, EvaluatableAsset, EvaluatableAssets},
+    chunk::{ChunkableModuleExt, ChunkingContext, EvaluatableAsset, EvaluatableAssets},
     module::Module,
     output::{OutputAsset, OutputAssetsSet},
     source_map::GenerateSourceMap,

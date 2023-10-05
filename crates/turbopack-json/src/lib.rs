@@ -11,7 +11,7 @@
 
 use std::fmt::Write;
 
-use anyhow::{bail, Error, Result};
+use anyhow::{bail, Context, Error, Result};
 use turbo_tasks::{Value, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileJsonContent};
 use turbopack_core::{
@@ -66,32 +66,25 @@ impl Asset for JsonModuleAsset {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for JsonModuleAsset {
     #[turbo_tasks::function]
-    fn as_chunk(
+    async fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        availability_info: Value<AvailabilityInfo>,
-    ) -> Vc<Box<dyn Chunk>> {
-        Vc::upcast(EcmascriptChunk::new(
+    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
+        let chunking_context =
+            Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkingContext>>(chunking_context)
+                .await?
+                .context(
+                    "chunking context must impl EcmascriptChunkingContext to use JsonModuleAsset",
+                )?;
+        Ok(Vc::upcast(JsonChunkItem::cell(JsonChunkItem {
+            module: self,
             chunking_context,
-            Vc::upcast(self),
-            availability_info,
-        ))
+        })))
     }
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for JsonModuleAsset {
-    #[turbo_tasks::function]
-    fn as_chunk_item(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
-    ) -> Vc<Box<dyn EcmascriptChunkItem>> {
-        Vc::upcast(JsonChunkItem::cell(JsonChunkItem {
-            module: self,
-            chunking_context,
-        }))
-    }
-
     #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         EcmascriptExports::Value.cell()
@@ -114,6 +107,20 @@ impl ChunkItem for JsonChunkItem {
     #[turbo_tasks::function]
     fn references(&self) -> Vc<ModuleReferences> {
         self.module.references()
+    }
+
+    #[turbo_tasks::function]
+    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+        Vc::upcast(self.chunking_context)
+    }
+
+    #[turbo_tasks::function]
+    fn as_chunk(&self, availability_info: Value<AvailabilityInfo>) -> Vc<Box<dyn Chunk>> {
+        Vc::upcast(EcmascriptChunk::new(
+            Vc::upcast(self.chunking_context),
+            Vc::upcast(self.module),
+            availability_info,
+        ))
     }
 }
 

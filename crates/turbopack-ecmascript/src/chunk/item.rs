@@ -7,7 +7,7 @@ use turbo_tasks_fs::rope::Rope;
 use turbopack_core::{
     chunk::{
         availability_info::AvailabilityInfo, available_modules::AvailableAssets, ChunkItem,
-        ChunkableModule, ChunkingContext, FromChunkableModule, ModuleId,
+        ChunkItemExt, ChunkableModule, ChunkingContext, FromChunkableModule,
     },
     code_builder::{Code, CodeBuilder},
     error::PrettyPrintError,
@@ -180,9 +180,6 @@ pub trait EcmascriptChunkItem: ChunkItem {
 }
 
 pub trait EcmascriptChunkItemExt: Send {
-    /// Returns the module id of this chunk item.
-    fn id(self: Vc<Self>) -> Vc<ModuleId>;
-
     /// Generates the module factory for this chunk item.
     fn code(self: Vc<Self>, availability_info: Value<AvailabilityInfo>) -> Vc<Code>;
 }
@@ -191,12 +188,6 @@ impl<T> EcmascriptChunkItemExt for T
 where
     T: Upcast<Box<dyn EcmascriptChunkItem>>,
 {
-    /// Returns the module id of this chunk item.
-    fn id(self: Vc<Self>) -> Vc<ModuleId> {
-        let chunk_item = Vc::upcast(self);
-        chunk_item.chunking_context().chunk_item_id(chunk_item)
-    }
-
     /// Generates the module factory for this chunk item.
     fn code(self: Vc<Self>, availability_info: Value<AvailabilityInfo>) -> Vc<Code> {
         module_factory_with_code_generation_issue(Vc::upcast(self), availability_info)
@@ -255,14 +246,13 @@ impl FromChunkableModule for Box<dyn EcmascriptChunkItem> {
             return Ok(None);
         };
 
-        let Some(context) =
-            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkingContext>>(chunking_context)
-                .await?
+        let item = placeable.as_chunk_item(Vc::upcast(chunking_context));
+        let Some(ecmascript_item) =
+            Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkItem>>(item).await?
         else {
             return Ok(None);
         };
-
-        Ok(Some(placeable.as_chunk_item(context)))
+        Ok(Some(ecmascript_item))
     }
 
     async fn from_async_asset(
@@ -271,7 +261,7 @@ impl FromChunkableModule for Box<dyn EcmascriptChunkItem> {
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Option<Vc<Self>>> {
         let Some(context) =
-            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkingContext>>(chunking_context)
+            Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkingContext>>(chunking_context)
                 .await?
         else {
             return Ok(None);
@@ -296,7 +286,10 @@ impl FromChunkableModule for Box<dyn EcmascriptChunkItem> {
 
         let manifest_asset =
             ManifestChunkAsset::new(module, context, Value::new(next_availability_info));
-        Ok(Some(Vc::upcast(ManifestLoaderItem::new(manifest_asset))))
+        Ok(Some(Vc::upcast(ManifestLoaderItem::new(
+            manifest_asset,
+            chunking_context,
+        ))))
     }
 }
 

@@ -5,7 +5,9 @@ use swc_core::{
 };
 use turbo_tasks::{Value, ValueToString, Vc};
 use turbopack_core::{
-    chunk::{ChunkableModuleReference, ChunkingType, ChunkingTypeOption},
+    chunk::{
+        ChunkItemExt, ChunkableModule, ChunkableModuleReference, ChunkingType, ChunkingTypeOption,
+    },
     environment::Rendering,
     issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, IssueSource},
     reference::ModuleReference,
@@ -15,7 +17,7 @@ use turbopack_core::{
 
 use super::base::ReferencedAsset;
 use crate::{
-    chunk::{item::EcmascriptChunkItemExt, EcmascriptChunkPlaceable, EcmascriptChunkingContext},
+    chunk::EcmascriptChunkingContext,
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
     references::AstPath,
@@ -151,7 +153,10 @@ impl CodeGenerateable for UrlAssetReference {
             ReferencedAsset::Some(asset) => {
                 // We rewrite the first `new URL()` arguments to be a require() of the chunk
                 // item, which exports the static asset path to the linked file.
-                let id = asset.as_chunk_item(chunking_context).id().await?;
+                let id = asset
+                    .as_chunk_item(Vc::upcast(chunking_context))
+                    .id()
+                    .await?;
 
                 visitors.push(
                     create_visitor!(ast_path, visit_mut_expr(new_expr: &mut Expr) {

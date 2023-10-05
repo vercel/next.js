@@ -1,8 +1,11 @@
 use anyhow::Result;
 use indoc::formatdoc;
-use turbo_tasks::{TryJoinIterExt, Vc};
+use turbo_tasks::{TryJoinIterExt, Value, Vc};
 use turbopack_core::{
-    chunk::{ChunkData, ChunkItem, ChunkingContext, ChunksData},
+    chunk::{
+        availability_info::AvailabilityInfo, Chunk, ChunkData, ChunkItem, ChunkingContext,
+        ChunksData,
+    },
     ident::AssetIdent,
     module::Module,
     reference::{ModuleReferences, SingleOutputAssetReference},
@@ -11,8 +14,8 @@ use turbopack_core::{
 use super::chunk_asset::ManifestChunkAsset;
 use crate::{
     chunk::{
-        data::EcmascriptChunkData, EcmascriptChunkItem, EcmascriptChunkItemContent,
-        EcmascriptChunkingContext,
+        data::EcmascriptChunkData, EcmascriptChunk, EcmascriptChunkItem,
+        EcmascriptChunkItemContent, EcmascriptChunkingContext,
     },
     utils::StringifyJs,
 };
@@ -90,5 +93,19 @@ impl ChunkItem for ManifestChunkItem {
         }
 
         Ok(Vc::cell(references))
+    }
+
+    #[turbo_tasks::function]
+    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+        Vc::upcast(self.chunking_context)
+    }
+
+    #[turbo_tasks::function]
+    fn as_chunk(&self, availability_info: Value<AvailabilityInfo>) -> Vc<Box<dyn Chunk>> {
+        Vc::upcast(EcmascriptChunk::new(
+            Vc::upcast(self.chunking_context),
+            Vc::upcast(self.manifest),
+            availability_info,
+        ))
     }
 }

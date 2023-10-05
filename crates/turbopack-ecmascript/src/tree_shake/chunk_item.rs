@@ -1,7 +1,7 @@
 use anyhow::Result;
 use turbo_tasks::{Value, Vc};
 use turbopack_core::{
-    chunk::{availability_info::AvailabilityInfo, ChunkItem},
+    chunk::{availability_info::AvailabilityInfo, Chunk, ChunkItem, ChunkingContext},
     ident::AssetIdent,
     module::Module,
     reference::ModuleReferences,
@@ -10,8 +10,8 @@ use turbopack_core::{
 use super::{asset::EcmascriptModulePartAsset, part_of_module, split_module};
 use crate::{
     chunk::{
-        placeable::EcmascriptChunkPlaceable, EcmascriptChunkItem, EcmascriptChunkItemContent,
-        EcmascriptChunkingContext,
+        placeable::EcmascriptChunkPlaceable, EcmascriptChunk, EcmascriptChunkItem,
+        EcmascriptChunkItemContent, EcmascriptChunkingContext,
     },
     EcmascriptModuleContent,
 };
@@ -85,5 +85,19 @@ impl ChunkItem for EcmascriptModulePartChunkItem {
     #[turbo_tasks::function]
     async fn asset_ident(&self) -> Result<Vc<AssetIdent>> {
         Ok(self.module.ident())
+    }
+
+    #[turbo_tasks::function]
+    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+        Vc::upcast(self.chunking_context)
+    }
+
+    #[turbo_tasks::function]
+    fn as_chunk(&self, availability_info: Value<AvailabilityInfo>) -> Vc<Box<dyn Chunk>> {
+        Vc::upcast(EcmascriptChunk::new(
+            Vc::upcast(self.chunking_context),
+            Vc::upcast(self.module),
+            availability_info,
+        ))
     }
 }

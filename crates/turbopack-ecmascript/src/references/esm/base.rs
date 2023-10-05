@@ -8,7 +8,8 @@ use swc_core::{
 use turbo_tasks::{Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
-        ChunkableModuleReference, ChunkingContext, ChunkingType, ChunkingTypeOption, ModuleId,
+        ChunkItemExt, ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
+        ChunkingTypeOption, ModuleId,
     },
     issue::{IssueSeverity, OptionIssueSource},
     module::Module,
@@ -23,7 +24,7 @@ use turbopack_core::{
 
 use crate::{
     analyzer::imports::ImportAnnotations,
-    chunk::{item::EcmascriptChunkItemExt, EcmascriptChunkPlaceable, EcmascriptChunkingContext},
+    chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext},
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor, magic_identifier,
     references::util::{request_to_string, throw_module_not_found_expr},
@@ -233,7 +234,10 @@ impl CodeGenerateable for EsmAssetReference {
             if let Some(ident) = referenced_asset.get_ident().await? {
                 match &*referenced_asset {
                     ReferencedAsset::Some(asset) => {
-                        let id = asset.as_chunk_item(chunking_context).id().await?;
+                        let id = asset
+                            .as_chunk_item(Vc::upcast(chunking_context))
+                            .id()
+                            .await?;
                         visitors.push(create_visitor!(visit_mut_program(program: &mut Program) {
                             let stmt = quote!(
                                 "var $name = __turbopack_import__($id);" as Stmt,

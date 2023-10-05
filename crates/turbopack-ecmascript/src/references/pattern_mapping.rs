@@ -7,8 +7,8 @@ use swc_core::{
 use turbo_tasks::{debug::ValueDebug, Value, Vc};
 use turbopack_core::{
     chunk::{
-        availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext, FromChunkableModule,
-        ModuleId,
+        availability_info::AvailabilityInfo, ChunkItemExt, ChunkableModule, ChunkingContext,
+        FromChunkableModule, ModuleId,
     },
     issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity},
     resolve::{
@@ -17,10 +17,7 @@ use turbopack_core::{
 };
 
 use super::util::{request_to_string, throw_module_not_found_expr};
-use crate::{
-    chunk::{item::EcmascriptChunkItemExt, EcmascriptChunkItem},
-    utils::module_id_to_lit,
-};
+use crate::{chunk::EcmascriptChunkItem, utils::module_id_to_lit};
 
 /// A mapping from a request pattern (e.g. "./module", `./images/${name}.png`)
 /// to corresponding module ids. The same pattern can map to multiple module ids

@@ -28,7 +28,7 @@ pub mod typescript;
 pub mod utils;
 pub mod webpack;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use chunk::{
     EcmascriptChunk, EcmascriptChunkItem, EcmascriptChunkPlaceables, EcmascriptChunkingContext,
 };
@@ -404,32 +404,26 @@ impl Asset for EcmascriptModuleAsset {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for EcmascriptModuleAsset {
     #[turbo_tasks::function]
-    fn as_chunk(
+    async fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        availability_info: Value<AvailabilityInfo>,
-    ) -> Vc<Box<dyn Chunk>> {
-        Vc::upcast(EcmascriptChunk::new(
+    ) -> Result<Vc<Box<dyn ChunkItem>>> {
+        let chunking_context =
+            Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkingContext>>(chunking_context)
+                .await?
+                .context(
+                    "chunking context must impl EcmascriptChunkingContext to use \
+                     EcmascriptModuleAsset",
+                )?;
+        Ok(Vc::upcast(ModuleChunkItem::cell(ModuleChunkItem {
+            module: self,
             chunking_context,
-            Vc::upcast(self),
-            availability_info,
-        ))
+        })))
     }
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
-    #[turbo_tasks::function]
-    fn as_chunk_item(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
-    ) -> Vc<Box<dyn EcmascriptChunkItem>> {
-        Vc::upcast(ModuleChunkItem::cell(ModuleChunkItem {
-            module: self,
-            chunking_context,
-        }))
-    }
-
     #[turbo_tasks::function]
     async fn get_exports(self: Vc<Self>) -> Result<Vc<EcmascriptExports>> {
         Ok(self.failsafe_analyze().await?.exports)
@@ -486,6 +480,20 @@ impl ChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
     fn references(&self) -> Vc<ModuleReferences> {
         self.module.references()
+    }
+
+    #[turbo_tasks::function]
+    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+        Vc::upcast(self.chunking_context)
+    }
+
+    #[turbo_tasks::function]
+    fn as_chunk(&self, availability_info: Value<AvailabilityInfo>) -> Vc<Box<dyn Chunk>> {
+        Vc::upcast(EcmascriptChunk::new(
+            Vc::upcast(self.chunking_context),
+            Vc::upcast(self.module),
+            availability_info,
+        ))
     }
 }
 
