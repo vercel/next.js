@@ -35,6 +35,11 @@ declare module 'react-dom/server-rendering-stub'
 declare module 'react-dom/server.browser'
 declare module 'react-dom/server.edge'
 
+declare module 'VAR_MODULE_GLOBAL_ERROR'
+declare module 'VAR_USERLAND'
+declare module 'VAR_MODULE_DOCUMENT'
+declare module 'VAR_MODULE_APP'
+
 declare module 'next/dist/compiled/@next/react-dev-overlay/dist/client' {
   export * from '@next/react-dev-overlay/dist/client'
 }

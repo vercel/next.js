@@ -16,6 +16,13 @@ type PagesAPIHandleFn = (
   res: ServerResponse
 ) => Promise<void>
 
+/**
+ * The PagesAPIModule is the type of the module exported by the bundled Pages
+ * API module.
+ */
+export type PagesAPIModule =
+  typeof import('../../../../build/templates/pages-api')
+
 type PagesAPIUserlandModule = {
   /**
    * The exported handler method.

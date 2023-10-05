@@ -22,6 +22,13 @@ if (process.env.NEXT_RUNTIME !== 'edge') {
   vendoredReactSSR = require('./vendored/ssr/entrypoints')
 }
 
+/**
+ * The AppPageModule is the type of the module exported by the bundled app page
+ * module.
+ */
+export type AppPageModule =
+  typeof import('../../../../build/templates/app-page')
+
 type AppPageUserlandModule = {
   /**
    * The tree created in next-app-loader that holds component segments and modules
