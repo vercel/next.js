@@ -48,11 +48,9 @@ describe('app bundle externals ', () => {
       await waitFor(1000)
       if (process.env.TURBOPACK) {
         const appBundles = await getAppPageChunkPaths(appDir, 'predefined')
-        console.log({ appBundles })
         const bundleTexts = await Promise.all(
           appBundles.map((b) => fs.readFile(b, 'utf8'))
         )
-        console.log({ bundleTexts })
         expect(
           bundleTexts.find((t) =>
             t.includes('__turbopack_external_require__("sqlite3", true)')
@@ -75,8 +73,6 @@ async function getAppPageChunkPaths(appDir, pageName) {
   const pageRegex = new RegExp(
     `app${pageName ? '_' + pageName : ''}_page_[0-9a-f]+\.js$`
   )
-
-  console.log({ pageRegex })
 
   return (await fs.readdir(rscPath))
     .filter((p) => p.match(pageRegex))
