@@ -33,7 +33,7 @@ export type ManifestItem = {
 
 export type ReactLoadableManifest = { [moduleId: string]: ManifestItem }
 
-export type LoadComponentsReturnType = {
+export type LoadComponentsReturnType<NextModule = any> = {
   Component: NextComponentType
   pageConfig: PageConfig
   buildManifest: BuildManifest
@@ -46,7 +46,7 @@ export type LoadComponentsReturnType = {
   getStaticProps?: GetStaticProps
   getStaticPaths?: GetStaticPaths
   getServerSideProps?: GetServerSideProps
-  ComponentMod: any
+  ComponentMod: NextModule
   routeModule?: RouteModule
   isAppPath?: boolean
   page: string
@@ -88,7 +88,7 @@ async function loadClientReferenceManifest(
   }
 }
 
-async function loadComponentsImpl({
+async function loadComponentsImpl<N = any>({
   distDir,
   page,
   isAppPath,
@@ -96,7 +96,7 @@ async function loadComponentsImpl({
   distDir: string
   page: string
   isAppPath: boolean
-}): Promise<LoadComponentsReturnType> {
+}): Promise<LoadComponentsReturnType<N>> {
   let DocumentMod = {}
   let AppMod = {}
   if (!isAppPath) {

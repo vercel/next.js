@@ -34,6 +34,7 @@ import type { UnwrapPromise } from '../lib/coalesced-function'
 import type { ReactReadableStream } from './stream-utils/node-web-streams-helper'
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
+import type { PagesModule } from './future/route-modules/pages/module'
 
 import React from 'react'
 import ReactDOMServer from 'react-dom/server.browser'
@@ -286,7 +287,8 @@ export type RenderOptsPartial = {
   isPrefetch?: boolean
 }
 
-export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
+export type RenderOpts = LoadComponentsReturnType<PagesModule> &
+  RenderOptsPartial
 
 /**
  * RenderOptsExtra is being used to split away functionality that's within the
