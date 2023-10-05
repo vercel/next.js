@@ -388,11 +388,6 @@ declare module 'next/dist/compiled/@edge-runtime/primitives' {
   export = m
 }
 
-declare module 'next/dist/compiled/@segment/ajv-human-errors' {
-  import * as m from '@segment/ajv-human-errors'
-  export = m
-}
-
 declare module 'next/dist/compiled/react' {
   import * as m from 'react'
   export = m
@@ -478,5 +473,10 @@ declare module 'next/dist/compiled/is-animated' {
 
 declare module 'next/dist/compiled/@opentelemetry/api' {
   import * as m from '@opentelemetry/api'
+  export = m
+}
+
+declare module 'next/dist/compiled/zod' {
+  import * as m from 'zod'
   export = m
 }
