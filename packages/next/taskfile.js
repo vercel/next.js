@@ -118,7 +118,7 @@ export async function capsize_metrics() {
     'dist/server/capsize-font-metrics.json'
   )
 
-  await writeJson(outputPathDist, entireMetricsCollection)
+  await writeJson(outputPathDist, entireMetricsCollection, { spaces: 2 })
 }
 
 // eslint-disable-next-line camelcase
@@ -2857,8 +2857,8 @@ export async function next_bundle(task, opts) {
   )
 }
 
-function writeJson(file, obj) {
-  return fs.writeFile(file, JSON.stringify(obj, null, 2))
+function writeJson(file, obj, { spaces } = {}) {
+  return fs.writeFile(file, JSON.stringify(obj, null, spaces))
 }
 
 function rmrf(path, options) {
