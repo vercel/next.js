@@ -1,12 +1,12 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use indexmap::IndexSet;
 use turbo_tasks::{TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        availability_info::AvailabilityInfo, Chunk, ChunkItem, ChunkableModule, ChunkingContext,
-        EvaluatableAssets,
+        availability_info::AvailabilityInfo, Chunk, ChunkItem, ChunkableModule, ChunkableModuleExt,
+        ChunkingContext, EvaluatableAssets,
     },
     ident::AssetIdent,
     introspect::{
@@ -91,27 +91,18 @@ impl Asset for ChunkGroupFilesAsset {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for ChunkGroupFilesAsset {
     #[turbo_tasks::function]
-    fn as_chunk(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-        availability_info: Value<AvailabilityInfo>,
-    ) -> Vc<Box<dyn Chunk>> {
-        Vc::upcast(EcmascriptChunk::new(
-            chunking_context,
-            Vc::upcast(self),
-            availability_info,
-        ))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl EcmascriptChunkPlaceable for ChunkGroupFilesAsset {
-    #[turbo_tasks::function]
     async fn as_chunk_item(
         self: Vc<Self>,
-        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
-    ) -> Result<Vc<Box<dyn EcmascriptChunkItem>>> {
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
         let this = self.await?;
+        let chunking_context =
+            Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkingContext>>(chunking_context)
+                .await?
+                .context(
+                    "chunking context must impl EcmascriptChunkingContext to use \
+                     ChunkGroupFilesAsset",
+                )?;
         Ok(Vc::upcast(
             ChunkGroupFilesChunkItem {
                 chunking_context,
@@ -121,7 +112,10 @@ impl EcmascriptChunkPlaceable for ChunkGroupFilesAsset {
             .cell(),
         ))
     }
+}
 
+#[turbo_tasks::value_impl]
+impl EcmascriptChunkPlaceable for ChunkGroupFilesAsset {
     #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         EcmascriptExports::Value.cell()
@@ -224,6 +218,20 @@ impl ChunkItem for ChunkGroupFilesChunkItem {
                 })
                 .map(Vc::upcast)
                 .collect(),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+        Vc::upcast(self.chunking_context)
+    }
+
+    #[turbo_tasks::function]
+    fn as_chunk(&self, availability_info: Value<AvailabilityInfo>) -> Vc<Box<dyn Chunk>> {
+        Vc::upcast(EcmascriptChunk::new(
+            Vc::upcast(self.chunking_context),
+            Vc::upcast(self.inner),
+            availability_info,
         ))
     }
 }

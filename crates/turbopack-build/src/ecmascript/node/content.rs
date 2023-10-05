@@ -6,6 +6,7 @@ use turbo_tasks::{TryJoinIterExt, Value, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::AssetContent,
+    chunk::ChunkItemExt,
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
     source_map::{GenerateSourceMap, OptionSourceMap},

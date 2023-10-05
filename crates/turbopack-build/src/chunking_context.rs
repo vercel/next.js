@@ -8,7 +8,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::{Chunk, ChunkableModule, ChunkingContext, Chunks, EvaluatableAssets},
+    chunk::{Chunk, ChunkableModuleExt, ChunkingContext, Chunks, EvaluatableAssets},
     environment::Environment,
     ident::AssetIdent,
     module::Module,

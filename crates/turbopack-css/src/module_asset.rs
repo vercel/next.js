@@ -1,6 +1,6 @@
 use std::{fmt::Write, iter::once, sync::Arc};
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use indoc::formatdoc;
 use swc_core::{
@@ -12,7 +12,8 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        availability_info::AvailabilityInfo, Chunk, ChunkItem, ChunkableModule, ChunkingContext,
+        availability_info::AvailabilityInfo, Chunk, ChunkItem, ChunkItemExt, ChunkableModule,
+        ChunkingContext,
     },
     context::AssetContext,
     ident::AssetIdent,
@@ -25,8 +26,8 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     chunk::{
-        EcmascriptChunk, EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemExt,
-        EcmascriptChunkPlaceable, EcmascriptChunkingContext, EcmascriptExports,
+        EcmascriptChunk, EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
+        EcmascriptChunkingContext, EcmascriptExports,
     },
     utils::StringifyJs,
     ParseResultSourceMap,
@@ -211,35 +212,28 @@ impl ModuleCssAsset {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for ModuleCssAsset {
     #[turbo_tasks::function]
-    fn as_chunk(
+    async fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        availability_info: Value<AvailabilityInfo>,
-    ) -> Vc<Box<dyn Chunk>> {
-        Vc::upcast(EcmascriptChunk::new(
-            chunking_context,
-            Vc::upcast(self),
-            availability_info,
+    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
+        let chunking_context =
+            Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkingContext>>(chunking_context)
+                .await?
+                .context(
+                    "chunking context must impl EcmascriptChunkingContext to use ModuleCssAsset",
+                )?;
+        Ok(Vc::upcast(
+            ModuleChunkItem {
+                chunking_context,
+                module: self,
+            }
+            .cell(),
         ))
     }
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for ModuleCssAsset {
-    #[turbo_tasks::function]
-    fn as_chunk_item(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
-    ) -> Vc<Box<dyn EcmascriptChunkItem>> {
-        Vc::upcast(
-            ModuleChunkItem {
-                chunking_context,
-                module: self,
-            }
-            .cell(),
-        )
-    }
-
     #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         EcmascriptExports::Value.cell()
@@ -275,6 +269,20 @@ impl ChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
     fn references(&self) -> Vc<ModuleReferences> {
         self.module.references()
+    }
+
+    #[turbo_tasks::function]
+    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+        Vc::upcast(self.chunking_context)
+    }
+
+    #[turbo_tasks::function]
+    fn as_chunk(&self, availability_info: Value<AvailabilityInfo>) -> Vc<Box<dyn Chunk>> {
+        Vc::upcast(EcmascriptChunk::new(
+            Vc::upcast(self.chunking_context),
+            Vc::upcast(self.module),
+            availability_info,
+        ))
     }
 }
 
@@ -338,7 +346,10 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                         let placeable: Vc<Box<dyn EcmascriptChunkPlaceable>> =
                             Vc::upcast(css_module);
 
-                        let module_id = placeable.as_chunk_item(self.chunking_context).id().await?;
+                        let module_id = placeable
+                            .as_chunk_item(Vc::upcast(self.chunking_context))
+                            .id()
+                            .await?;
                         let module_id = StringifyJs(&*module_id);
                         let original_name = StringifyJs(&original_name);
                         exported_class_names.push(format! {

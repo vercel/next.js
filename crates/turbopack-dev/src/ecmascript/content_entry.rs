@@ -5,7 +5,7 @@ use indexmap::IndexMap;
 use tracing::{info_span, Instrument};
 use turbo_tasks::{ReadRef, TryJoinIterExt, Value, ValueToString, Vc};
 use turbopack_core::{
-    chunk::{availability_info::AvailabilityInfo, ChunkItem, ModuleId},
+    chunk::{availability_info::AvailabilityInfo, ChunkItem, ChunkItemExt, ModuleId},
     code_builder::{Code, CodeBuilder},
     error::PrettyPrintError,
     issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity},

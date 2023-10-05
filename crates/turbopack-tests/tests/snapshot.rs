@@ -29,7 +29,10 @@ use turbopack::{
 use turbopack_build::{BuildChunkingContext, MinifyType};
 use turbopack_core::{
     asset::Asset,
-    chunk::{ChunkableModule, ChunkingContext, EvaluatableAssetExt, EvaluatableAssets},
+    chunk::{
+        ChunkableModule, ChunkableModuleExt, ChunkingContext, EvaluatableAssetExt,
+        EvaluatableAssets,
+    },
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
     context::AssetContext,

@@ -14,7 +14,7 @@ use turbopack_build::{BuildChunkingContext, MinifyType};
 use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
     asset::Asset,
-    chunk::{ChunkableModule, ChunkingContext, EvaluatableAssets},
+    chunk::{ChunkableModule, ChunkableModuleExt, ChunkingContext, EvaluatableAssets},
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
     issue::{handle_issues, IssueReporter, IssueSeverity},
     module::Module,

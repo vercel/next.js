@@ -6,16 +6,13 @@ use turbo_tasks::{ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkingContext, EvaluatableAssets},
+    chunk::{ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAssets},
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
     output::{OutputAsset, OutputAssets},
     source_map::{GenerateSourceMap, OptionSourceMap, SourceMapAsset},
 };
-use turbopack_ecmascript::{
-    chunk::{EcmascriptChunkItemExt, EcmascriptChunkPlaceable},
-    utils::StringifyJs,
-};
+use turbopack_ecmascript::{chunk::EcmascriptChunkPlaceable, utils::StringifyJs};
 
 use super::runtime::EcmascriptBuildNodeRuntimeChunk;
 use crate::BuildChunkingContext;

@@ -22,7 +22,7 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{ChunkableModule, ChunkingContext, EvaluatableAsset, EvaluatableAssets},
+    chunk::{ChunkableModuleExt, ChunkingContext, EvaluatableAsset, EvaluatableAssets},
     context::AssetContext,
     file_source::FileSource,
     ident::AssetIdent,

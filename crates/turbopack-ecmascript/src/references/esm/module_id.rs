@@ -2,14 +2,16 @@ use anyhow::Result;
 use swc_core::{ecma::ast::Expr, quote};
 use turbo_tasks::{ValueToString, Vc};
 use turbopack_core::{
-    chunk::{ChunkableModuleReference, ChunkingTypeOption, ModuleId},
+    chunk::{
+        ChunkItemExt, ChunkableModule, ChunkableModuleReference, ChunkingTypeOption, ModuleId,
+    },
     reference::ModuleReference,
     resolve::ModuleResolveResult,
 };
 
 use super::{base::ReferencedAsset, EsmAssetReference};
 use crate::{
-    chunk::{item::EcmascriptChunkItemExt, EcmascriptChunkPlaceable, EcmascriptChunkingContext},
+    chunk::EcmascriptChunkingContext,
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
     references::AstPath,
@@ -67,13 +69,17 @@ impl CodeGenerateable for EsmModuleIdAssetReference {
         let mut visitors = Vec::new();
 
         if let ReferencedAsset::Some(asset) = &*self.inner.get_referenced_asset().await? {
-            let id = asset.as_chunk_item(chunking_context).id().await?;
+            let id = asset
+                .as_chunk_item(Vc::upcast(chunking_context))
+                .id()
+                .await?;
+            let id = Expr::Lit(match &*id {
+                ModuleId::String(s) => s.clone().into(),
+                ModuleId::Number(n) => (*n as f64).into(),
+            });
             visitors.push(
                 create_visitor!(self.ast_path.await?, visit_mut_expr(expr: &mut Expr) {
-                    *expr = Expr::Lit(match &*id {
-                        ModuleId::String(s) => s.clone().into(),
-                        ModuleId::Number(n) => (*n as f64).into(),
-                    })
+                    *expr = id.clone()
                 }),
             );
         } else {

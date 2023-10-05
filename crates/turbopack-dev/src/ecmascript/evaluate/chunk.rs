@@ -7,7 +7,10 @@ use turbo_tasks::{ReadRef, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{Chunk, ChunkData, ChunkingContext, ChunksData, EvaluatableAssets, ModuleId},
+    chunk::{
+        Chunk, ChunkData, ChunkItemExt, ChunkableModule, ChunkingContext, ChunksData,
+        EvaluatableAssets, ModuleId,
+    },
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
     module::Module,
@@ -15,7 +18,7 @@ use turbopack_core::{
     source_map::{GenerateSourceMap, OptionSourceMap, SourceMapAsset},
 };
 use turbopack_ecmascript::{
-    chunk::{EcmascriptChunkData, EcmascriptChunkItemExt, EcmascriptChunkPlaceable},
+    chunk::{EcmascriptChunkData, EcmascriptChunkPlaceable},
     utils::StringifyJs,
 };
 use turbopack_ecmascript_runtime::RuntimeType;
