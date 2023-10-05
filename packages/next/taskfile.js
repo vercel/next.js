@@ -366,13 +366,11 @@ export async function ncc_edge_runtime_cookies() {
 
   await fs.cp(
     require.resolve('@edge-runtime/cookies/dist/index.js'),
-    join(dest, 'index.js'),
-    { force: true }
+    join(dest, 'index.js')
   )
   await fs.cp(
     require.resolve('@edge-runtime/cookies/dist/index.d.ts'),
-    join(dest, 'index.d.ts'),
-    { force: true }
+    join(dest, 'index.d.ts')
   )
 }
 
