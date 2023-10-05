@@ -34,6 +34,7 @@ declare module 'next/dist/compiled/webpack/webpack' {
   export let sources: typeof webpackSources
   export let StringXor: any
   export {
+    default as webpack,
     Compiler,
     Compilation,
     Module,
@@ -43,6 +44,8 @@ declare module 'next/dist/compiled/webpack/webpack' {
     RuntimeGlobals,
     NormalModule,
     ResolvePluginInstance,
+    ModuleFilenameHelpers,
+    LoaderDefinitionFunction,
+    LoaderContext,
   } from 'webpack'
-  export { default as webpack, ModuleFilenameHelpers } from 'webpack'
 }
