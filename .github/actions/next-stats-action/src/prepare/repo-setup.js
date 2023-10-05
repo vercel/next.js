@@ -55,6 +55,7 @@ module.exports = (actionInfo) => {
     async linkPackages({ repoDir, nextSwcVersion }) {
       const pkgPaths = new Map()
       const pkgDatas = new Map()
+
       let pkgs
 
       try {
@@ -104,10 +105,21 @@ module.exports = (actionInfo) => {
             pkgData.files = []
           }
           pkgData.files.push('native')
-          require('console').log(
-            'using swc binaries: ',
-            await exec(`ls ${path.join(path.dirname(pkgDataPath), 'native')}`)
-          )
+
+          try {
+            const swcBinariesDirContents = await fs.readdir(
+              path.join(path.dirname(pkgDataPath), 'native')
+            )
+            require('console').log(
+              'using swc binaries: ',
+              swcBinariesDirContents.join(', ')
+            )
+          } catch (err) {
+            if (err.code === 'ENOENT') {
+              require('console').log('swc binaries dir is missing!')
+            }
+            throw err
+          }
         }
 
         if (pkg === 'next') {
