@@ -269,8 +269,8 @@ const NextBarrelLoader = async function (
   const prefix = mapping.prefix
   const exportList = mapping.exportList
   const exportMap = new Map<string, [string, string]>()
-  for (const [name, path, orig] of exportList) {
-    exportMap.set(name, [path, orig])
+  for (const [name, filePath, orig] of exportList) {
+    exportMap.set(name, [filePath, orig])
   }
 
   let output = prefix
