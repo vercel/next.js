@@ -4,5 +4,6 @@ import React from 'react'
 
 export default function Button() {
   const router = useRouter()
-  return <button>My Button</button>
+  const onClick = () => router.push('/')
+  return <button onClick={onClick}>My Button</button>
 }
