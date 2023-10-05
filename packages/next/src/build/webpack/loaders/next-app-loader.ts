@@ -1,4 +1,4 @@
-import type webpack from 'webpack'
+import type webpack from 'next/dist/compiled/webpack/webpack'
 import type { ValueOf } from '../../../shared/lib/constants'
 import type { ModuleReference, CollectedMetadata } from './metadata/types'
 
