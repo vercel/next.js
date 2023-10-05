@@ -71,7 +71,7 @@ describe('app bundle externals ', () => {
 async function getAppPageChunkPaths(appDir, pageName) {
   const rscPath = join(appDir, '.next/server/chunks/rsc')
   const pageRegex = new RegExp(
-    `app${pageName ? '_' + pageName : ''}_page_[0-9a-f]+\.js$`
+    `app${pageName ? '_' + pageName : ''}_page_[0-9a-f]+.js$`
   )
 
   return (await fs.readdir(rscPath))

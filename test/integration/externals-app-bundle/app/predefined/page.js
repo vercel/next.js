@@ -1,5 +1,5 @@
 import { foo } from 'sqlite3'
 
-export default function Predefined({ foo }) {
-  return <div>{foo}</div>
+export default function Predefined() {
+  return <div>{foo.foo}</div>
 }
