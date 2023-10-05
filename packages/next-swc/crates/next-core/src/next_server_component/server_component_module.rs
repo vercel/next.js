@@ -74,19 +74,6 @@ impl Asset for NextServerComponentModule {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for NextServerComponentModule {
     #[turbo_tasks::function]
-    fn as_chunk(
-        self: Vc<Self>,
-        context: Vc<Box<dyn ChunkingContext>>,
-        availability_info: Value<AvailabilityInfo>,
-    ) -> Vc<Box<dyn Chunk>> {
-        Vc::upcast(EcmascriptChunk::new(
-            context,
-            Vc::upcast(self),
-            availability_info,
-        ))
-    }
-
-    #[turbo_tasks::function]
     async fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
@@ -171,5 +158,14 @@ impl ChunkItem for BuildServerComponentChunkItem {
     #[turbo_tasks::function]
     async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         Vc::upcast(self.context)
+    }
+
+    #[turbo_tasks::function]
+    fn as_chunk(&self, availability_info: Value<AvailabilityInfo>) -> Vc<Box<dyn Chunk>> {
+        Vc::upcast(EcmascriptChunk::new(
+            Vc::upcast(self.context),
+            Vc::upcast(self.inner),
+            availability_info,
+        ))
     }
 }

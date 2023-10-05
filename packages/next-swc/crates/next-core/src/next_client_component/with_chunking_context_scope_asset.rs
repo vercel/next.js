@@ -1,13 +1,13 @@
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::Vc;
 use turbopack_binding::turbopack::{
     core::{
         asset::{Asset, AssetContent},
-        chunk::{availability_info::AvailabilityInfo, Chunk, ChunkableModule, ChunkingContext},
+        chunk::{ChunkableModule, ChunkingContext},
         ident::AssetIdent,
         module::Module,
         reference::ModuleReferences,
     },
-    turbopack::ecmascript::chunk::{EcmascriptChunk, EcmascriptChunkPlaceable, EcmascriptExports},
+    turbopack::ecmascript::chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
 };
 
 #[turbo_tasks::function]
@@ -44,19 +44,6 @@ impl Asset for WithChunkingContextScopeAsset {
 
 #[turbo_tasks::value_impl]
 impl ChunkableModule for WithChunkingContextScopeAsset {
-    #[turbo_tasks::function]
-    fn as_chunk(
-        &self,
-        context: Vc<Box<dyn ChunkingContext>>,
-        availability_info: Value<AvailabilityInfo>,
-    ) -> Vc<Box<dyn Chunk>> {
-        Vc::upcast(EcmascriptChunk::new(
-            context.with_layer(self.layer.clone()),
-            self.asset,
-            availability_info,
-        ))
-    }
-
     #[turbo_tasks::function]
     fn as_chunk_item(
         &self,

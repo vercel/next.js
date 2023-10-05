@@ -37,7 +37,7 @@ use turbopack_binding::{
         build::BuildChunkingContext,
         core::{
             asset::AssetContent,
-            chunk::{ChunkableModule, ChunkingContext, EvaluatableAssets},
+            chunk::{ChunkableModuleExt, ChunkingContext, EvaluatableAssets},
             context::AssetContext,
             file_source::FileSource,
             issue::{IssueSeverity, OptionIssueSource},

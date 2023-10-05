@@ -8,8 +8,8 @@ use turbopack_binding::{
             asset::{Asset, AssetContent},
             chunk::{
                 availability_info::AvailabilityInfo, Chunk, ChunkData, ChunkItem, ChunkItemExt,
-                ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
-                ChunkingTypeOption, ChunksData,
+                ChunkableModule, ChunkableModuleExt, ChunkableModuleReference, ChunkingContext,
+                ChunkingType, ChunkingTypeOption, ChunksData,
             },
             ident::AssetIdent,
             module::Module,
@@ -68,19 +68,6 @@ impl Asset for WithClientChunksAsset {
 
 #[turbo_tasks::value_impl]
 impl ChunkableModule for WithClientChunksAsset {
-    #[turbo_tasks::function]
-    fn as_chunk(
-        self: Vc<Self>,
-        context: Vc<Box<dyn ChunkingContext>>,
-        availability_info: Value<AvailabilityInfo>,
-    ) -> Vc<Box<dyn Chunk>> {
-        Vc::upcast(EcmascriptChunk::new(
-            context.with_layer("rsc".to_string()),
-            Vc::upcast(self),
-            availability_info,
-        ))
-    }
-
     #[turbo_tasks::function]
     async fn as_chunk_item(
         self: Vc<Self>,
@@ -251,6 +238,15 @@ impl ChunkItem for WithClientChunksChunkItem {
     #[turbo_tasks::function]
     async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         Vc::upcast(self.context)
+    }
+
+    #[turbo_tasks::function]
+    fn as_chunk(&self, availability_info: Value<AvailabilityInfo>) -> Vc<Box<dyn Chunk>> {
+        Vc::upcast(EcmascriptChunk::new(
+            Vc::upcast(self.context.with_layer("rsc".to_string())),
+            Vc::upcast(self.inner),
+            availability_info,
+        ))
     }
 }
 
