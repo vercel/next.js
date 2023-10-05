@@ -37,10 +37,11 @@ use turbopack_binding::{
         build::BuildChunkingContext,
         core::{
             asset::AssetContent,
-            chunk::{ChunkableModuleExt, ChunkingContext, EvaluatableAssets},
+            chunk::{ChunkingContext, EvaluatableAssets},
             context::AssetContext,
             file_source::FileSource,
             issue::{IssueSeverity, OptionIssueSource},
+            module::Module,
             output::{OutputAsset, OutputAssets},
             reference_type::{
                 EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType,
@@ -549,11 +550,9 @@ impl PageEndpoint {
 
         let client_chunking_context = this.pages_project.project().client_chunking_context();
 
-        let client_entry_chunk = client_module.as_root_chunk(Vc::upcast(client_chunking_context));
-
         let mut client_chunks = client_chunking_context
             .evaluated_chunk_group(
-                client_entry_chunk,
+                client_module.ident(),
                 this.pages_project
                     .client_runtime_entries()
                     .with_entry(Vc::upcast(client_main_module))
@@ -611,10 +610,8 @@ impl PageEndpoint {
             };
             evaluatable_assets.push(evaluatable);
 
-            let edge_files = edge_chunking_context.evaluated_chunk_group(
-                ssr_module.as_root_chunk(Vc::upcast(edge_chunking_context)),
-                Vc::cell(evaluatable_assets),
-            );
+            let edge_files = edge_chunking_context
+                .evaluated_chunk_group(ssr_module.ident(), Vc::cell(evaluatable_assets));
 
             Ok(SsrChunk::Edge { files: edge_files }.cell())
         } else {
