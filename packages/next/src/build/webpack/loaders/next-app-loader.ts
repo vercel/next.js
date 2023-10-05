@@ -471,6 +471,24 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     middlewareConfig: middlewareConfigBase64,
   } = loaderOptions
 
+  const routeGroupMatch = name.match(/\(([^)]+)\)/);
+  const routeGroup = routeGroupMatch ? routeGroupMatch[1] : null;
+
+  // Search upwards for parallel segments within routing groups and treat
+  // them as if they're within the same directory as the current pagePath.
+  if (routeGroup) {
+    const absoluteRouteGroupPath = _path.default.join(appDir, `(${routeGroup})`);
+    const parallelSegmentsInRoot = _fs.readdirSync(absoluteRouteGroupPath)
+      .filter(dir => dir.startsWith('@') && isDirectory(_path.default.join(absoluteRouteGroupPath, dir)));
+  
+    for (const segment of parallelSegmentsInRoot) {
+      const newAppPath = `/(${routeGroup})/${segment}/page`;
+      if (!appPaths.includes(newAppPath)) {
+        appPaths.push(newAppPath);
+      }
+    }
+  }
+
   const buildInfo = getModuleBuildInfo((this as any)._module)
   const page = name.replace(/^app/, '')
   const middlewareConfig: MiddlewareConfig = JSON.parse(
