@@ -10,7 +10,7 @@ use turbopack_binding::{
         core::{
             asset::{Asset, AssetContent},
             chunk::{
-                ChunkData, ChunkableModule, ChunkingContext, ChunksData, EvaluatableAsset,
+                ChunkData, ChunkableModuleExt, ChunkingContext, ChunksData, EvaluatableAsset,
                 EvaluatableAssets,
             },
             context::AssetContext,
