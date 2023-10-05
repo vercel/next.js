@@ -2861,8 +2861,11 @@ export async function next_bundle(task, opts) {
   )
 }
 
-function writeJson(file, obj, { spaces } = {}) {
-  return fs.writeFile(file, JSON.stringify(obj, null, spaces))
+function writeJson(file, obj, { spaces = 0 } = {}) {
+  return fs.writeFile(
+    file,
+    JSON.stringify(obj, null, spaces) + (spaces === 0 ? '\n' : '')
+  )
 }
 
 function rmrf(path, options) {
