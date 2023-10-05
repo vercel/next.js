@@ -110,7 +110,7 @@ function fastRefreshReducerImpl(
       }
       return handleMutable(state, mutable)
     },
-    () => Promise.resolve(state)
+    () => state
   )
 }
 

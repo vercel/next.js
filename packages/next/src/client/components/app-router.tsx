@@ -329,13 +329,11 @@ function Router({
             'fastRefresh can only be used in development mode. Please use refresh instead.'
           )
         } else {
-          startTransition(() => {
-            dispatch({
-              type: ACTION_FAST_REFRESH,
-              cache: createEmptyCacheNode(),
-              mutable: {},
-              origin: window.location.origin,
-            })
+          dispatch({
+            type: ACTION_FAST_REFRESH,
+            cache: createEmptyCacheNode(),
+            mutable: {},
+            origin: window.location.origin,
           })
         }
       },
@@ -402,6 +400,7 @@ function Router({
   if (pushRef.mpaNavigation) {
     // if there's a re-render, we don't want to trigger another redirect if one is already in flight to the same URL
     if (globalMutable.pendingMpaPath !== canonicalUrl) {
+      console.log('push to', pushRef)
       const location = window.location
       if (pushRef.pendingPush) {
         location.assign(canonicalUrl)
