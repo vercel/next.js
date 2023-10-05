@@ -13,7 +13,7 @@ use turbopack_binding::{
     turbopack::{
         core::{
             asset::AssetContent,
-            chunk::{ChunkableModule, ChunkingContext},
+            chunk::{ChunkableModuleExt, ChunkingContext},
             context::AssetContext,
             module::Module,
             output::{OutputAsset, OutputAssets},

@@ -39,7 +39,7 @@ use turbopack_binding::{
     turbopack::{
         core::{
             asset::{Asset, AssetContent},
-            chunk::{ChunkableModule, ChunkingContext, EvaluatableAssets},
+            chunk::{ChunkableModuleExt, ChunkingContext, EvaluatableAssets},
             file_source::FileSource,
             output::{OutputAsset, OutputAssets},
             virtual_output::VirtualOutputAsset,

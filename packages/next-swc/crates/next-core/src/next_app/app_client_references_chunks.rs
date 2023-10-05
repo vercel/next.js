@@ -5,7 +5,7 @@ use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, TryJoinIterExt, V
 use turbopack_binding::turbopack::{
     build::BuildChunkingContext,
     core::{
-        chunk::{ChunkableModule, ChunkingContext},
+        chunk::{ChunkableModuleExt, ChunkingContext},
         output::OutputAssets,
     },
     ecmascript::chunk::EcmascriptChunkingContext,
