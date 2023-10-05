@@ -66,7 +66,7 @@ use crate::{
         get_decorators_transform_options, get_jsx_transform_options,
         get_typescript_transform_options,
     },
-    util::foreign_code_context_condition,
+    util::{foreign_code_context_condition, load_next_js_templateon},
 };
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
@@ -107,10 +107,25 @@ pub async fn get_server_resolve_options_context(
     let root_dir = project_path.root().resolve().await?;
     let module_feature_report_resolve_plugin = ModuleFeatureReportResolvePlugin::new(project_path);
     let unsupported_modules_resolve_plugin = UnsupportedModulesResolvePlugin::new(project_path);
+
+    // Always load these predefined packages as external.
+    let mut external_packages: Vec<String> = load_next_js_templateon(
+        project_path,
+        "dist/lib/server-external-packages.json".to_string(),
+    )
+    .await?;
+
+    // Add the config's own list of external packages.
+    external_packages.extend(
+        (*next_config.server_component_externals().await?)
+            .iter()
+            .cloned(),
+    );
+
     let server_component_externals_plugin = ExternalCjsModulesResolvePlugin::new(
         project_path,
         project_path.root(),
-        ExternalPredicate::Only(next_config.server_component_externals()).cell(),
+        ExternalPredicate::Only(Vc::cell(external_packages)).cell(),
     );
     let ty = ty.into_value();
 

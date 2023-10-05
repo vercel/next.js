@@ -29,7 +29,7 @@ use crate::{
         local::{NextFontLocalCssModuleReplacer, NextFontLocalReplacer},
     },
     next_server::context::ServerContextType,
-    util::{load_next_js_templateon, NextRuntime},
+    util::NextRuntime,
 };
 
 // Make sure to not add any external requests here.
@@ -292,18 +292,6 @@ pub async fn get_next_server_import_map(
                 "react-server-dom-webpack/",
                 ImportMapping::External(Some("react-server-dom-turbopack".into())).cell(),
             );
-
-            // Always load these predefined packages as external.
-            let external_packages: Vec<String> = load_next_js_templateon(
-                project_path,
-                "dist/lib/server-external-packages.json".to_string(),
-            )
-            .await?;
-
-            for external_package in external_packages {
-                import_map.insert_exact_alias(&external_package, external);
-                import_map.insert_wildcard_alias(external_package + "/", external);
-            }
         }
         ServerContextType::Middleware => {}
     }
