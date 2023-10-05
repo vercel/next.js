@@ -397,8 +397,8 @@ pub async fn load_next_js_template(
 
     let mut count = 0;
     let mut content = replace_all(regex, &content, |caps| {
-        let from_request = caps.get(1usize).map_or("", |c| c.as_str());
-        let import_request = caps.get(2usize).map_or("", |c| c.as_str());
+        let from_request = caps.get(1).map_or("", |c| c.as_str());
+        let import_request = caps.get(2).map_or("", |c| c.as_str());
 
         count += 1;
         let is_from_request = !from_request.is_empty();
