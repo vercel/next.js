@@ -42,6 +42,7 @@ describe('optimizePackageImports', () => {
         '@headlessui/react': '1.7.17',
         '@heroicons/react': '2.0.18',
         '@visx/visx': '3.3.0',
+        'recursive-barrel': '1.0.0',
       },
     })
   })
@@ -91,6 +92,42 @@ describe('optimizePackageImports', () => {
 
     expect(modules.length).toBeGreaterThanOrEqual(1)
     for (const [, , , , moduleCount] of modules) {
+      // Ensure that the number of modules is less than 1000 - otherwise we're
+      // importing the entire library.
+      expect(parseInt(moduleCount)).toBeLessThan(1000)
+    }
+  })
+
+  it('app - should optimize recursive wildcard export mapping', async () => {
+    let logs = ''
+    next.on('stdout', (log) => {
+      logs += log
+    })
+
+    await next.render('/recursive-barrel-app')
+
+    const modules = [...logs.matchAll(/\((\d+) modules\)/g)]
+
+    expect(modules.length).toBeGreaterThanOrEqual(1)
+    for (const [, , moduleCount] of modules) {
+      // Ensure that the number of modules is less than 1000 - otherwise we're
+      // importing the entire library.
+      expect(parseInt(moduleCount)).toBeLessThan(1000)
+    }
+  })
+
+  it('pages - should optimize recursive wildcard export mapping', async () => {
+    let logs = ''
+    next.on('stdout', (log) => {
+      logs += log
+    })
+
+    await next.render('/recursive-barrel')
+
+    const modules = [...logs.matchAll(/\((\d+) modules\)/g)]
+
+    expect(modules.length).toBeGreaterThanOrEqual(1)
+    for (const [, , moduleCount] of modules) {
       // Ensure that the number of modules is less than 1000 - otherwise we're
       // importing the entire library.
       expect(parseInt(moduleCount)).toBeLessThan(1000)
