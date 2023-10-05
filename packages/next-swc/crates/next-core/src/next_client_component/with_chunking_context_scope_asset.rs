@@ -63,10 +63,13 @@ impl ChunkableModule for WithChunkingContextScopeAsset {
 
     #[turbo_tasks::function]
     fn as_chunk_item(
-        self: Vc<Self>,
+        &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn turbopack_binding::turbopack::core::chunk::ChunkItem>> {
-        todo!();
+        Vc::upcast(ChunkableModule::as_chunk_item(
+            self.asset,
+            chunking_context.with_layer(self.layer.clone()),
+        ))
     }
 }
 

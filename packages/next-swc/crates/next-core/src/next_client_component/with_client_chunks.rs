@@ -82,11 +82,24 @@ impl ChunkableModule for WithClientChunksAsset {
     }
 
     #[turbo_tasks::function]
-    fn as_chunk_item(
+    async fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Vc<Box<dyn turbopack_binding::turbopack::core::chunk::ChunkItem>> {
-        todo!();
+    ) -> Result<Vc<Box<dyn turbopack_binding::turbopack::core::chunk::ChunkItem>>> {
+        let context = Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkingContext>>(
+            chunking_context.with_layer("rsc".to_string()),
+        )
+        .await?
+        .context(
+            "ChunkingContext::with_layer should not return a different kind of chunking context",
+        )?;
+        Ok(Vc::upcast(
+            WithClientChunksChunkItem {
+                context,
+                inner: self,
+            }
+            .cell(),
+        ))
     }
 }
 

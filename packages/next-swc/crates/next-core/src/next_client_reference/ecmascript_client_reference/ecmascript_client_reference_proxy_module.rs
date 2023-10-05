@@ -1,6 +1,6 @@
 use std::{io::Write, iter::once};
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use indoc::writedoc;
 use turbo_tasks::{Value, ValueToString, Vc};
 use turbo_tasks_fs::File;
@@ -177,11 +177,28 @@ impl ChunkableModule for EcmascriptClientReferenceProxyModule {
     }
 
     #[turbo_tasks::function]
-    fn as_chunk_item(
+    async fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Vc<Box<dyn turbopack_binding::turbopack::core::chunk::ChunkItem>> {
-        todo!();
+    ) -> Result<Vc<Box<dyn turbopack_binding::turbopack::core::chunk::ChunkItem>>> {
+        let chunking_context =
+            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkingContext>>(chunking_context)
+                .await?
+                .context(
+                    "chunking context must impl EcmascriptChunkingContext to use \
+                     ChunkGroupFilesAsset",
+                )?;
+        Ok(Vc::upcast(
+            ProxyModuleChunkItem {
+                client_proxy_asset: self,
+                inner_proxy_module_chunk_item: EcmascriptChunkPlaceable::as_chunk_item(
+                    self.proxy_module(),
+                    chunking_context,
+                ),
+                chunking_context,
+            }
+            .cell(),
+        ))
     }
 }
 

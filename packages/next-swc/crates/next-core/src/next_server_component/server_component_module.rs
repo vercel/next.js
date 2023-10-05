@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use indoc::formatdoc;
 use turbo_tasks::{Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
@@ -87,11 +87,24 @@ impl ChunkableModule for NextServerComponentModule {
     }
 
     #[turbo_tasks::function]
-    fn as_chunk_item(
+    async fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Vc<Box<dyn turbopack_binding::turbopack::core::chunk::ChunkItem>> {
-        todo!();
+    ) -> Result<Vc<Box<dyn turbopack_binding::turbopack::core::chunk::ChunkItem>>> {
+        let context =
+            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkingContext>>(chunking_context)
+                .await?
+                .context(
+                    "chunking context must impl EcmascriptChunkingContext to use \
+                     NextServerComponentModule",
+                )?;
+        Ok(Vc::upcast(
+            BuildServerComponentChunkItem {
+                context,
+                inner: self,
+            }
+            .cell(),
+        ))
     }
 }
 
