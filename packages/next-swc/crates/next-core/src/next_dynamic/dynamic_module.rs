@@ -2,7 +2,7 @@ use anyhow::{bail, Result};
 use turbo_tasks::Vc;
 use turbopack_binding::turbopack::core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkableModule, ChunkingContext},
+    chunk::{ChunkableModule, ChunkableModuleExt, ChunkingContext},
     ident::AssetIdent,
     module::Module,
     output::OutputAssets,

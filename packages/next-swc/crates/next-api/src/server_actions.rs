@@ -16,13 +16,18 @@ use turbopack_binding::{
     turbo::tasks_fs::{rope::RopeBuilder, File, FileSystemPath},
     turbopack::{
         core::{
-            asset::AssetContent, chunk::EvaluatableAsset, context::AssetContext, module::Module,
-            output::OutputAsset, reference::primary_referenced_modules,
-            reference_type::ReferenceType, virtual_output::VirtualOutputAsset,
+            asset::AssetContent,
+            chunk::{ChunkItemExt, ChunkableModule, EvaluatableAsset},
+            context::AssetContext,
+            module::Module,
+            output::OutputAsset,
+            reference::primary_referenced_modules,
+            reference_type::ReferenceType,
+            virtual_output::VirtualOutputAsset,
             virtual_source::VirtualSource,
         },
         ecmascript::{
-            chunk::{EcmascriptChunkItemExt, EcmascriptChunkPlaceable, EcmascriptChunkingContext},
+            chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext},
             parse::ParseResult,
             EcmascriptModuleAsset,
         },
@@ -72,7 +77,10 @@ pub(crate) async fn create_server_actions_manifest(
         bail!("loader module must be evaluatable");
     };
 
-    let loader_id = loader.as_chunk_item(chunking_context).id().to_string();
+    let loader_id = loader
+        .as_chunk_item(Vc::upcast(chunking_context))
+        .id()
+        .to_string();
     let manifest =
         build_manifest(node_root, pathname, page_name, runtime, actions, loader_id).await?;
     Ok((Some(evaluable), manifest))
