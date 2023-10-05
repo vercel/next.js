@@ -4,6 +4,7 @@ import type { Duplex } from 'stream'
 import type { Telemetry } from '../../telemetry/storage'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { UrlObject } from 'url'
+import type { RouteDefinition } from '../future/route-definitions/route-definition'
 
 import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
 import { getOverlayMiddleware } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
@@ -60,7 +61,6 @@ import ws from 'next/dist/compiled/ws'
 import { existsSync, promises as fs } from 'fs'
 import { UnwrapPromise } from '../../lib/coalesced-function'
 import { getRegistry } from '../../lib/helpers/get-registry'
-import { RouteMatch } from '../future/route-matches/route-match'
 import { parseVersionInfo, VersionInfo } from './parse-version-info'
 import { isAPIRoute } from '../../lib/is-api-route'
 import { getRouteLoaderEntry } from '../../build/webpack/loaders/next-route-loader'
@@ -1466,14 +1466,14 @@ export default class HotReloader implements NextJsHotReloaderInterface {
     page,
     clientOnly,
     appPaths,
-    match,
+    definition,
     isApp,
   }: {
     page: string
     clientOnly: boolean
     appPaths?: ReadonlyArray<string> | null
     isApp?: boolean
-    match?: RouteMatch
+    definition?: RouteDefinition
   }): Promise<void> {
     // Make sure we don't re-build or dispose prebuilt pages
     if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
@@ -1490,7 +1490,7 @@ export default class HotReloader implements NextJsHotReloaderInterface {
       page,
       clientOnly,
       appPaths,
-      match,
+      definition,
       isApp,
     })
   }
