@@ -1,26 +1,18 @@
-/* eslint-env jest */
-
 import fs from 'fs/promises'
-import { join } from 'path'
-import {
-  killApp,
-  launchApp,
-  findPort,
-  renderViaHTTP,
-  waitFor,
-} from 'next-test-utils'
+import path from 'path'
+import { createNextDescribe } from 'e2e-utils'
 
-const appDir = join(__dirname, '../')
-
-describe('app bundle externals ', () => {
-  describe('dev mode', () => {
+createNextDescribe(
+  'externals-app',
+  {
+    files: __dirname,
+  },
+  ({ next, isNextDev, isTurbopack }) => {
     it('should have externals for those in config.experimental.serverComponentsExternalPackages', async () => {
-      const port = await findPort()
-      const app = await launchApp(appDir, port)
-      await renderViaHTTP(port, '/')
-      await waitFor(1000)
-      if (process.env.TURBOPACK) {
-        const appBundles = await getAppPageChunkPaths(appDir)
+      await next.render$('/')
+
+      if (isTurbopack) {
+        const appBundles = await getAppPageChunkPaths(next.testDir)
         const bundleTexts = await Promise.all(
           appBundles.map((b) => fs.readFile(b, 'utf8'))
         )
@@ -33,21 +25,21 @@ describe('app bundle externals ', () => {
         ).not.toBeUndefined()
       } else {
         const output = await fs.readFile(
-          join(appDir, '.next/server/app/page.js'),
+          path.join(next.testDir, '.next/server/app/page.js'),
           'utf8'
         )
         expect(output).toContain('require("external-package")')
       }
-      await killApp(app)
     })
 
     it('uses externals for predefined list in server-external-packages.json', async () => {
-      const port = await findPort()
-      const app = await launchApp(appDir, port)
-      await renderViaHTTP(port, '/predefined')
-      await waitFor(1000)
-      if (process.env.TURBOPACK) {
-        const appBundles = await getAppPageChunkPaths(appDir, 'predefined')
+      await next.render$('/predefined')
+
+      if (isTurbopack) {
+        const appBundles = await getAppPageChunkPaths(
+          next.testDir,
+          'predefined'
+        )
         const bundleTexts = await Promise.all(
           appBundles.map((b) => fs.readFile(b, 'utf8'))
         )
@@ -58,23 +50,22 @@ describe('app bundle externals ', () => {
         ).not.toBeUndefined()
       } else {
         const output = await fs.readFile(
-          join(appDir, '.next/server/app/predefined/page.js'),
+          path.join(next.testDir, '.next/server/app/predefined/page.js'),
           'utf8'
         )
         expect(output).toContain('require("sqlite3")')
       }
-      await killApp(app)
     })
-  })
-})
+  }
+)
 
-async function getAppPageChunkPaths(appDir, pageName) {
-  const rscPath = join(appDir, '.next/server/chunks/rsc')
+async function getAppPageChunkPaths(appDir: string, pageName?: string) {
+  const rscPath = path.join(appDir, '.next/server/chunks/rsc')
   const pageRegex = new RegExp(
-    `app${pageName ? '_' + pageName : ''}_page_[0-9a-f]+.js$`
+    `app${pageName ? '_' + pageName : ''}_page_tsx_[0-9a-f]+\._\.js$`
   )
 
   return (await fs.readdir(rscPath))
     .filter((p) => p.match(pageRegex))
-    .map((basename) => join(rscPath, basename))
+    .map((basename) => path.join(rscPath, basename))
 }

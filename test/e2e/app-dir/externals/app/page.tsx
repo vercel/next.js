@@ -1,5 +1,5 @@
 import { foo } from 'external-package'
 
-export default function Index() {
+export default function Page() {
   return <div>{foo}</div>
 }
