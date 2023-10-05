@@ -18,7 +18,7 @@ import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
 import { checkIsNodeDebugging } from './is-node-debugging'
 import { CONFIG_FILES } from '../../shared/lib/constants'
-import { bold, magenta } from '../../lib/picocolors'
+import { bold, purple } from '../../lib/picocolors'
 
 const debug = setupDebug('next:start-server')
 
@@ -92,11 +92,7 @@ function logStartInfo({
   formatDurationText: string
 }) {
   Log.bootstrap(
-    bold(
-      magenta(
-        `${`${Log.prefixes.ready} Next.js`} ${process.env.__NEXT_VERSION}`
-      )
-    )
+    bold(purple(`${Log.prefixes.ready} Next.js ${process.env.__NEXT_VERSION}`))
   )
   Log.bootstrap(`- Local:        ${appUrl}`)
   if (hostname) {
