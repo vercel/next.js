@@ -1,11 +1,13 @@
-import type { reducer } from './router-reducer/router-reducer'
-import type {
-  ReducerState,
-  ReducerAction,
-  MutableRefObject,
-  Dispatch,
-} from 'react'
-import { useRef, useReducer, useEffect, useCallback } from 'react'
+import { reducer } from './router-reducer/router-reducer'
+import type { MutableRefObject, Dispatch } from 'react'
+import React, { use } from 'react'
+import { useRef, useEffect, useCallback } from 'react'
+import {
+  AppRouterState,
+  ReducerActions,
+} from './router-reducer/router-reducer-types'
+
+export let flightRouterState: AppRouterState
 
 function normalizeRouterState(val: any): any {
   if (val instanceof Map) {
@@ -88,43 +90,52 @@ interface ReduxDevToolsInstance {
   init(initialState: any): void
 }
 
-function devToolReducer(
-  fn: typeof reducer,
-  ref: MutableRefObject<ReduxDevToolsInstance | undefined>
-) {
-  return (
-    state: ReducerState<typeof reducer>,
-    action: ReducerAction<typeof reducer>
-  ) => {
-    const res = fn(state, action)
-    if (ref.current) {
-      ref.current.send(action, normalizeRouterState(res))
-    }
-    return res
-  }
+function useReducerWithReduxDevtoolsNoop(
+  initialState: AppRouterState
+): [AppRouterState, Dispatch<ReducerActions>, () => void] {
+  return [initialState, () => {}, () => {}]
 }
 
-function useReducerWithReduxDevtoolsNoop(
-  fn: typeof reducer,
-  initialState: ReturnType<typeof reducer>
-): [
-  ReturnType<typeof reducer>,
-  Dispatch<ReducerAction<typeof reducer>>,
-  () => void
-] {
-  const [state, dispatch] = useReducer(fn, initialState)
+function dispatch(
+  action: ReducerActions,
+  ref: MutableRefObject<ReduxDevToolsInstance | undefined>
+) {
+  if (!flightRouterState) throw new Error('Missing state')
+  const result = reducer(flightRouterState, action)
 
-  return [state, dispatch, () => {}]
+  if (ref.current) {
+    ref.current.send(action, normalizeRouterState(result))
+  }
+
+  return result
+}
+
+function isThenable(value: any): value is Promise<any> {
+  return (
+    value &&
+    (typeof value === 'object' || typeof value === 'function') &&
+    typeof value.then === 'function'
+  )
+}
+
+function unwrapStateIfNeeded(state: AppRouterState | Promise<AppRouterState>) {
+  if (isThenable(state)) {
+    const result = use(state)
+    flightRouterState = result
+    return result
+  }
+
+  flightRouterState = state
+  return state
 }
 
 function useReducerWithReduxDevtoolsImpl(
-  fn: typeof reducer,
-  initialState: ReturnType<typeof reducer>
-): [
-  ReturnType<typeof reducer>,
-  Dispatch<ReducerAction<typeof reducer>>,
-  () => void
-] {
+  initialState: AppRouterState
+): [AppRouterState, Dispatch<ReducerActions>, () => void] {
+  const [state, setState] = React.useState<
+    AppRouterState | Promise<AppRouterState>
+  >(initialState)
+
   const devtoolsConnectionRef = useRef<ReduxDevToolsInstance>()
   const enabledRef = useRef<boolean>()
 
@@ -156,10 +167,10 @@ function useReducerWithReduxDevtoolsImpl(
     }
   }, [initialState])
 
-  const [state, dispatch] = useReducer(
-    devToolReducer(/* logReducer( */ fn /*)*/, devtoolsConnectionRef),
-    initialState
-  )
+  const _dispatch = useCallback((action: ReducerActions) => {
+    const result = dispatch(action, devtoolsConnectionRef)
+    setState(result)
+  }, [])
 
   const sync = useCallback(() => {
     if (devtoolsConnectionRef.current) {
@@ -169,7 +180,10 @@ function useReducerWithReduxDevtoolsImpl(
       )
     }
   }, [state])
-  return [state, dispatch, sync]
+
+  const applicationState = unwrapStateIfNeeded(state)
+
+  return [applicationState, _dispatch, sync]
 }
 
 export const useReducerWithReduxDevtools =

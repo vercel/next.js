@@ -517,8 +517,7 @@ createNextDescribe(
             beforePageLoad(page) {
               page.on('request', (request) => {
                 const url = new URL(request.url())
-                // skip rsc prefetches
-                if (url.pathname === '/slow-page' && !url.search) {
+                if (url.pathname === '/slow-page') {
                   requestCount++
                 }
               })
@@ -530,6 +529,7 @@ createNextDescribe(
           // wait a few seconds since prefetches are triggered in 1s intervals in the page component
           await waitFor(5000)
 
+          // there should be no more prefetch requests after the initial one
           expect(requestCount).toBe(1)
         })
       }

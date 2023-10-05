@@ -24,7 +24,6 @@ import type {
   FlightData,
 } from '../../server/app-render/types'
 import type { ErrorComponent } from './error-boundary'
-import { reducer } from './router-reducer/router-reducer'
 import {
   ACTION_FAST_REFRESH,
   ACTION_NAVIGATE,
@@ -33,7 +32,6 @@ import {
   ACTION_RESTORE,
   ACTION_SERVER_ACTION,
   ACTION_SERVER_PATCH,
-  Mutable,
   PrefetchKind,
   ReducerActions,
   RouterChangeByServerResponse,
@@ -45,7 +43,7 @@ import {
   SearchParamsContext,
   PathnameContext,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
-import { useReducerWithReduxDevtools } from './use-reducer-with-devtools'
+import { useReducerWithReduxDevtools } from './use-flight-router-state'
 import { ErrorBoundary } from './error-boundary'
 import {
   createInitialRouterState,
@@ -73,9 +71,7 @@ export function getServerActionDispatcher() {
   return globalServerActionDispatcher
 }
 
-let globalMutable: Mutable['globalMutable'] = {
-  refresh: () => {}, // noop until the router is initialized
-}
+const globalMutable: { pendingMpaPath?: string } = {}
 
 export function urlToUrlWithoutFlightMarker(url: string): URL {
   const urlWithoutFlightParameters = new URL(url, location.origin)
@@ -145,7 +141,7 @@ function useServerActionDispatcher(dispatch: React.Dispatch<ReducerActions>) {
         dispatch({
           ...actionPayload,
           type: ACTION_SERVER_ACTION,
-          mutable: { globalMutable },
+          mutable: {},
           cache: createEmptyCacheNode(),
         })
       })
@@ -174,7 +170,7 @@ function useChangeByServerResponse(
           previousTree,
           overrideCanonicalUrl,
           cache: createEmptyCacheNode(),
-          mutable: { globalMutable },
+          mutable: {},
         })
       })
     },
@@ -186,7 +182,6 @@ function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
   return useCallback(
     (href, navigateType, forceOptimisticNavigation, shouldScroll) => {
       const url = new URL(addBasePath(href), location.href)
-      globalMutable.pendingNavigatePath = createHrefFromUrl(url)
 
       return dispatch({
         type: ACTION_NAVIGATE,
@@ -197,7 +192,7 @@ function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
         shouldScroll: shouldScroll ?? true,
         navigateType,
         cache: createEmptyCacheNode(),
-        mutable: { globalMutable },
+        mutable: {},
       })
     },
     [dispatch]
@@ -241,7 +236,7 @@ function Router({
     },
     dispatch,
     sync,
-  ] = useReducerWithReduxDevtools(reducer, initialState)
+  ] = useReducerWithReduxDevtools(initialState)
 
   useEffect(() => {
     // Ensure initialParallelRoutes is cleaned up from memory once it's used.
@@ -322,7 +317,7 @@ function Router({
           dispatch({
             type: ACTION_REFRESH,
             cache: createEmptyCacheNode(),
-            mutable: { globalMutable },
+            mutable: {},
             origin: window.location.origin,
           })
         })
@@ -338,7 +333,7 @@ function Router({
             dispatch({
               type: ACTION_FAST_REFRESH,
               cache: createEmptyCacheNode(),
-              mutable: { globalMutable },
+              mutable: {},
               origin: window.location.origin,
             })
           })
@@ -355,10 +350,6 @@ function Router({
       window.next.router = appRouter
     }
   }, [appRouter])
-
-  useEffect(() => {
-    globalMutable.refresh = appRouter.refresh
-  }, [appRouter.refresh])
 
   if (process.env.NODE_ENV !== 'production') {
     // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
@@ -513,7 +504,7 @@ function Router({
               <LayoutRouterContext.Provider
                 value={{
                   childNodes: cache.parallelRoutes,
-                  tree: tree,
+                  tree,
                   // Root node always has `url`
                   // Provided in AppTreeContext to ensure it can be overwritten in layout-router
                   url: canonicalUrl,

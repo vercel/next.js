@@ -106,10 +106,6 @@ const getInitialRouterStateTree = (): FlightRouterState => [
   true,
 ]
 
-const globalMutable = {
-  refresh: () => {},
-}
-
 async function runPromiseThrowChain(fn: any): Promise<any> {
   try {
     return await fn()
@@ -198,7 +194,7 @@ describe('navigateReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: { globalMutable },
+      mutable: {},
     }
 
     const newState = await runPromiseThrowChain(() =>
@@ -442,7 +438,7 @@ describe('navigateReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: { globalMutable },
+      mutable: {},
     }
 
     await runPromiseThrowChain(() => navigateReducer(state, action))
@@ -637,7 +633,7 @@ describe('navigateReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: { globalMutable },
+      mutable: {},
     }
 
     await runPromiseThrowChain(() => navigateReducer(state, action))
@@ -796,7 +792,7 @@ describe('navigateReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: { globalMutable },
+      mutable: {},
     }
 
     await runPromiseThrowChain(() => navigateReducer(state, action))
@@ -952,7 +948,7 @@ describe('navigateReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: { globalMutable },
+      mutable: {},
     }
 
     await runPromiseThrowChain(() => navigateReducer(state, action))
@@ -1151,7 +1147,7 @@ describe('navigateReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: { globalMutable },
+      mutable: {},
     }
 
     await runPromiseThrowChain(() => navigateReducer(state, action))
@@ -1321,7 +1317,7 @@ describe('navigateReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: { globalMutable },
+      mutable: {},
     }
 
     await runPromiseThrowChain(() => navigateReducer(state, action))
@@ -1634,7 +1630,7 @@ describe('navigateReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: { globalMutable },
+      mutable: {},
     }
 
     await runPromiseThrowChain(() => navigateReducer(state, action))
@@ -1845,7 +1841,6 @@ describe('navigateReducer', () => {
         hashFragment: '#hash',
         pendingPush: true,
         shouldScroll: true,
-        globalMutable,
       },
     }
 
@@ -1988,7 +1983,7 @@ describe('navigateReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: { globalMutable },
+      mutable: {},
     }
 
     const newState = await runPromiseThrowChain(() =>
