@@ -10,9 +10,6 @@ import type {
   RenderOpts,
   Segment,
 } from './types'
-import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
-import type { StaticGenerationBailout } from '../../client/components/static-generation-bailout'
-import type { RequestAsyncStorage } from '../../client/components/request-async-storage.external'
 
 import React from 'react'
 import { createServerComponentRenderer } from './create-server-components-renderer'
@@ -237,6 +234,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
   })
 
   patchFetch(ComponentMod)
+
   /**
    * Rules of Static & Dynamic HTML:
    *
@@ -252,12 +250,25 @@ export const renderToHTMLOrFlight: AppPageRender = (
    */
   const generateStaticHTML = supportsDynamicHTML !== true
 
-  const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
-    ComponentMod.staticGenerationAsyncStorage
-  const requestAsyncStorage: RequestAsyncStorage =
-    ComponentMod.requestAsyncStorage
-  const staticGenerationBailout: StaticGenerationBailout =
-    ComponentMod.staticGenerationBailout
+  // Pull out the hooks/references from the component.
+  const {
+    staticGenerationAsyncStorage,
+    requestAsyncStorage,
+    staticGenerationBailout,
+    LayoutRouter,
+    RenderFromTemplateContext,
+    createSearchParamsBailoutProxy,
+    StaticGenerationSearchParamsBailoutProvider,
+    serverHooks: { DynamicServerError },
+    NotFoundBoundary,
+    renderToReadableStream,
+    AppRouter,
+    GlobalError,
+    tree: loaderTree,
+    preloadFont,
+    preconnect,
+    preloadStyle,
+  } = ComponentMod
 
   // we wrap the render in an AsyncLocalStorage context
   const wrappedRender = async () => {
@@ -295,11 +306,6 @@ export const renderToHTMLOrFlight: AppPageRender = (
       : undefined
 
     /**
-     * The tree created in next-app-loader that holds component segments and modules
-     */
-    const loaderTree: LoaderTree = ComponentMod.tree
-
-    /**
      * The metadata items array created in next-app-loader with all relevant information
      * that we need to resolve the final metadata.
      */
@@ -311,15 +317,6 @@ export const renderToHTMLOrFlight: AppPageRender = (
     } else {
       requestId = require('next/dist/compiled/nanoid').nanoid()
     }
-
-    const LayoutRouter =
-      ComponentMod.LayoutRouter as typeof import('../../client/components/layout-router').default
-    const RenderFromTemplateContext =
-      ComponentMod.RenderFromTemplateContext as typeof import('../../client/components/render-from-template-context').default
-    const createSearchParamsBailoutProxy =
-      ComponentMod.createSearchParamsBailoutProxy as typeof import('../../client/components/searchparams-bailout-proxy').createSearchParamsBailoutProxy
-    const StaticGenerationSearchParamsBailoutProvider =
-      ComponentMod.StaticGenerationSearchParamsBailoutProvider as typeof import('../../client/components/static-generation-searchparams-bailout-provider').default
 
     const isStaticGeneration = staticGenerationStore.isStaticGeneration
     // During static generation we need to call the static generation bailout when reading searchParams
@@ -511,16 +508,16 @@ export const renderToHTMLOrFlight: AppPageRender = (
             const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFilename)![1]
             const type = `font/${ext}`
             const href = `${assetPrefix}/_next/${fontFilename}`
-            ComponentMod.preloadFont(href, type, renderOpts.crossOrigin)
+            preloadFont(href, type, renderOpts.crossOrigin)
           }
         } else {
           try {
             let url = new URL(assetPrefix)
-            ComponentMod.preconnect(url.origin, 'anonymous')
+            preconnect(url.origin, 'anonymous')
           } catch (error) {
             // assetPrefix must not be a fully qualified domain name. We assume
             // we should preconnect to same origin instead
-            ComponentMod.preconnect('/', 'anonymous')
+            preconnect('/', 'anonymous')
           }
         }
       }
@@ -546,7 +543,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
             const precedence =
               process.env.NODE_ENV === 'development' ? 'next_' + href : 'next'
 
-            ComponentMod.preloadStyle(fullHref, renderOpts.crossOrigin)
+            preloadStyle(fullHref, renderOpts.crossOrigin)
 
             return (
               <link
@@ -732,9 +729,6 @@ export const renderToHTMLOrFlight: AppPageRender = (
           staticGenerationStore.isStaticGeneration &&
           defaultRevalidate === 0
         ) {
-          const { DynamicServerError } =
-            ComponentMod.serverHooks as typeof import('../../client/components/hooks-server-context')
-
           const dynamicUsageDescription = `revalidate: 0 configured ${segment}`
           staticGenerationStore.dynamicUsageDescription =
             dynamicUsageDescription
@@ -759,8 +753,6 @@ export const renderToHTMLOrFlight: AppPageRender = (
       const hasSlotKey = parallelKeys.length > 1
 
       if (hasSlotKey && rootLayoutAtThisLevel) {
-        const NotFoundBoundary =
-          ComponentMod.NotFoundBoundary as typeof import('../../client/components/not-found-boundary').NotFoundBoundary
         Component = (componentProps: any) => {
           const NotFoundComponent = NotFound
           const RootLayoutComponent = LayoutOrPage
@@ -1287,7 +1279,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
 
       // For app dir, use the bundled version of Flight server renderer (renderToReadableStream)
       // which contains the subset React.
-      const flightReadableStream = ComponentMod.renderToReadableStream(
+      const flightReadableStream = renderToReadableStream(
         options
           ? [options.actionResult, buildIdFlightDataPair]
           : buildIdFlightDataPair,
@@ -1304,16 +1296,6 @@ export const renderToHTMLOrFlight: AppPageRender = (
     if (isFlight && !staticGenerationStore.isStaticGeneration) {
       return generateFlight()
     }
-
-    // Below this line is handling for rendering to HTML.
-
-    // AppRouter is provided by next-app-loader
-    const AppRouter =
-      ComponentMod.AppRouter as typeof import('../../client/components/app-router').default
-
-    const GlobalError =
-      /** GlobalError can be either the default error boundary or the overwritten app/global-error.js **/
-      ComponentMod.GlobalError as typeof import('../../client/components/error-boundary').GlobalError
 
     // Get the nonce from the incoming request if it has one.
     const csp = req.headers['content-security-policy']
