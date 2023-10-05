@@ -61,6 +61,15 @@ createNextDescribe(
         ).toBe(false)
       })
 
+      it('should resolve client component without error', async () => {
+        const logs = []
+        next.on('stderr', (log) => {
+          logs.push(log)
+        })
+        await next.render('with-client')
+        expect(logs).toEqual([])
+      })
+
       it('should handle edge rsc hmr', async () => {
         const pageFile = 'app/edge/basic/page.tsx'
         const content = await next.readFile(pageFile)
