@@ -15,6 +15,7 @@ createNextDescribe(
         expect(functionsConfigManifest).toMatchInlineSnapshot(`
           Object {
             "functions": Object {
+              "/_not-found": Object {},
               "/api/page-route": Object {
                 "maxDuration": 1,
               },
