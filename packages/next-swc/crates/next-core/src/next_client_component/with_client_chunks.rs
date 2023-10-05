@@ -8,7 +8,7 @@ use turbopack_binding::{
             asset::{Asset, AssetContent},
             chunk::{
                 availability_info::AvailabilityInfo, Chunk, ChunkData, ChunkItem, ChunkItemExt,
-                ChunkableModule, ChunkableModuleExt, ChunkableModuleReference, ChunkingContext,
+                ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingContextExt,
                 ChunkingType, ChunkingTypeOption, ChunksData,
             },
             ident::AssetIdent,
@@ -111,9 +111,7 @@ impl WithClientChunksChunkItem {
     async fn chunks(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
         let inner = this.inner.await?;
-        Ok(this
-            .context
-            .chunk_group(inner.asset.as_root_chunk(Vc::upcast(this.context))))
+        Ok(this.context.root_chunk_group(Vc::upcast(inner.asset)))
     }
 
     #[turbo_tasks::function]
