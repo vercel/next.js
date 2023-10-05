@@ -104,10 +104,6 @@ module.exports = (actionInfo) => {
             pkgData.files = []
           }
           pkgData.files.push('native')
-          require('console').log(
-            'using swc binaries: ',
-            await exec(`ls ${path.join(path.dirname(pkgDataPath), 'native')}`)
-          )
         }
 
         if (pkg === 'next') {
