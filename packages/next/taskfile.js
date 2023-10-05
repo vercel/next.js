@@ -224,20 +224,24 @@ export async function copy_vercel_og(task, opts) {
     })
     .target('src/compiled/@vercel/og')
 
-  await writeJson(join(__dirname, 'src/compiled/@vercel/og/package.json'), {
-    name: '@vercel/og',
-    LICENSE: 'MLP-2.0',
-    type: 'module',
-    main: './index.node.js',
-    exports: {
-      '.': {
-        'edge-light': './index.edge.js',
-        import: './index.node.js',
-        node: './index.node.js',
-        default: './index.node.js',
+  await writeJson(
+    join(__dirname, 'src/compiled/@vercel/og/package.json'),
+    {
+      name: '@vercel/og',
+      LICENSE: 'MLP-2.0',
+      type: 'module',
+      main: './index.node.js',
+      exports: {
+        '.': {
+          'edge-light': './index.edge.js',
+          import: './index.node.js',
+          node: './index.node.js',
+          default: './index.node.js',
+        },
       },
     },
-  })
+    { spaces: 2 }
+  )
 }
 
 // eslint-disable-next-line camelcase
