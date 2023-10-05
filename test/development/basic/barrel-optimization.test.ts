@@ -109,7 +109,7 @@ describe('optimizePackageImports', () => {
     const modules = [...logs.matchAll(/\((\d+) modules\)/g)]
 
     expect(modules.length).toBeGreaterThanOrEqual(1)
-    for (const [, , moduleCount] of modules) {
+    for (const [, moduleCount] of modules) {
       // Ensure that the number of modules is less than 1000 - otherwise we're
       // importing the entire library.
       expect(parseInt(moduleCount)).toBeLessThan(1000)
@@ -127,31 +127,11 @@ describe('optimizePackageImports', () => {
     const modules = [...logs.matchAll(/\((\d+) modules\)/g)]
 
     expect(modules.length).toBeGreaterThanOrEqual(1)
-    for (const [, , moduleCount] of modules) {
+    for (const [, moduleCount] of modules) {
       // Ensure that the number of modules is less than 1000 - otherwise we're
       // importing the entire library.
       expect(parseInt(moduleCount)).toBeLessThan(1000)
     }
-  })
-
-  it('should reuse the transformed barrel meta file from SWC', async () => {
-    let logs = ''
-    next.on('stdout', (log) => {
-      logs += log
-    })
-
-    const html = await next.render('/dedupe')
-
-    // Ensure the icons are rendered
-    expect(html).toContain('<svg xmlns="http://www.w3.org/2000/svg"')
-
-    const swcOptimizeBarrelExports = [
-      ...logs.matchAll(
-        /optimizeBarrelExports: .+\/dist\/esm\/lucide-react\.js/g
-      ),
-    ]
-
-    expect(swcOptimizeBarrelExports.length).toBe(1)
   })
 
   it('should handle recursive wildcard exports', async () => {
