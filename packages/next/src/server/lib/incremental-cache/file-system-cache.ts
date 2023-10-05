@@ -75,7 +75,7 @@ export default class FileSystemCache implements CacheHandler {
     if (!this.tagsManifestPath || !this.fs || tagsManifest) return
     try {
       tagsManifest = JSON.parse(
-        this.fs.readFileSync(this.tagsManifestPath).toString('utf8')
+        this.fs.readFileSync(this.tagsManifestPath, 'utf8')
       )
     } catch (err: any) {
       tagsManifest = { version: 1, items: {} }
@@ -131,9 +131,7 @@ export default class FileSystemCache implements CacheHandler {
         const { mtime } = await this.fs.stat(filePath)
 
         const meta = JSON.parse(
-          (
-            await this.fs.readFile(filePath.replace(/\.body$/, '.meta'))
-          ).toString('utf8')
+          await this.fs.readFile(filePath.replace(/\.body$/, '.meta'), 'utf8')
         )
 
         const cacheEntry: CacheHandlerValue = {
@@ -155,7 +153,7 @@ export default class FileSystemCache implements CacheHandler {
           pathname: fetchCache ? key : `${key}.html`,
           fetchCache,
         })
-        const fileData = (await this.fs.readFile(filePath)).toString('utf-8')
+        const fileData = await this.fs.readFile(filePath, 'utf8')
         const { mtime } = await this.fs.stat(filePath)
 
         if (fetchCache) {
@@ -178,27 +176,25 @@ export default class FileSystemCache implements CacheHandler {
           }
         } else {
           const pageData = isAppPath
-            ? (
+            ? await this.fs.readFile(
+                (
+                  await this.getFsPath({
+                    pathname: `${key}.rsc`,
+                    appDir: true,
+                  })
+                ).filePath,
+                'utf8'
+              )
+            : JSON.parse(
                 await this.fs.readFile(
                   (
                     await this.getFsPath({
-                      pathname: `${key}.rsc`,
-                      appDir: true,
+                      pathname: `${key}.json`,
+                      appDir: false,
                     })
-                  ).filePath
+                  ).filePath,
+                  'utf8'
                 )
-              ).toString('utf8')
-            : JSON.parse(
-                (
-                  await this.fs.readFile(
-                    (
-                      await this.getFsPath({
-                        pathname: `${key}.json`,
-                        appDir: false,
-                      })
-                    ).filePath
-                  )
-                ).toString('utf8')
               )
 
           let meta: { status?: number; headers?: OutgoingHttpHeaders } = {}
@@ -206,9 +202,10 @@ export default class FileSystemCache implements CacheHandler {
           if (isAppPath) {
             try {
               meta = JSON.parse(
-                (
-                  await this.fs.readFile(filePath.replace(/\.html$/, '.meta'))
-                ).toString('utf-8')
+                await this.fs.readFile(
+                  filePath.replace(/\.html$/, '.meta'),
+                  'utf8'
+                )
               )
             } catch {}
           }

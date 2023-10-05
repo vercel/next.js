@@ -54,6 +54,7 @@ use turbopack_binding::{
 use crate::{
     project::Project,
     route::{Endpoint, Route, Routes, WrittenEndpoint},
+    server_actions::create_server_actions_manifest,
     server_paths::all_server_paths,
 };
 
@@ -212,6 +213,7 @@ impl AppProject {
                 "next-dynamic".to_string(),
                 Vc::upcast(NextDynamicTransition::new(self.client_transition())),
             ),
+            ("next-ssr".to_string(), Vc::upcast(self.ssr_transition())),
         ]
         .into_iter()
         .collect();
@@ -295,13 +297,8 @@ impl AppProject {
     async fn runtime_entries(self: Vc<Self>) -> Result<Vc<RuntimeEntries>> {
         let this = self.await?;
         Ok(get_server_runtime_entries(
-            self.project().project_path(),
-            // TODO(alexkirsz) Should we pass env here or EnvMap::empty, as is done in
-            // app_source?
-            self.project().env(),
             Value::new(self.rsc_ty()),
             this.mode,
-            self.project().next_config(),
         ))
     }
 
@@ -330,7 +327,6 @@ impl AppProject {
         let this = self.await?;
         Ok(get_client_runtime_entries(
             self.project().project_path(),
-            self.client_env(),
             Value::new(self.client_ty()),
             this.mode,
             self.project().next_config(),
@@ -642,6 +638,10 @@ impl AppEndpoint {
                 client_references_chunks,
                 this.app_project.project().client_chunking_context(),
                 Vc::upcast(this.app_project.project().ssr_chunking_context()),
+                this.app_project
+                    .project()
+                    .next_config()
+                    .computed_asset_prefix(),
             );
             server_assets.push(entry_manifest);
         }
@@ -686,6 +686,26 @@ impl AppEndpoint {
                     bail!("Entry module must be evaluatable");
                 };
                 evaluatable_assets.push(evaluatable);
+
+                let (loader, manifest) = create_server_actions_manifest(
+                    app_entry.rsc_entry,
+                    node_root,
+                    &app_entry.pathname,
+                    &app_entry.original_name,
+                    NextRuntime::Edge,
+                    Vc::upcast(this.app_project.edge_rsc_module_context()),
+                    Vc::upcast(chunking_context),
+                    this.app_project
+                        .project()
+                        .next_config()
+                        .enable_server_actions(),
+                )
+                .await?;
+                server_assets.push(manifest);
+                if let Some(loader) = loader {
+                    evaluatable_assets.push(loader);
+                }
+
                 let files = chunking_context.evaluated_chunk_group(
                     app_entry
                         .rsc_entry
@@ -784,6 +804,28 @@ impl AppEndpoint {
                 }
             }
             NextRuntime::NodeJs => {
+                let mut evaluatable_assets =
+                    this.app_project.rsc_runtime_entries().await?.clone_value();
+
+                let (loader, manifest) = create_server_actions_manifest(
+                    app_entry.rsc_entry,
+                    node_root,
+                    &app_entry.pathname,
+                    &app_entry.original_name,
+                    NextRuntime::NodeJs,
+                    Vc::upcast(this.app_project.rsc_module_context()),
+                    Vc::upcast(this.app_project.project().rsc_chunking_context()),
+                    this.app_project
+                        .project()
+                        .next_config()
+                        .enable_server_actions(),
+                )
+                .await?;
+                server_assets.push(manifest);
+                if let Some(loader) = loader {
+                    evaluatable_assets.push(loader);
+                }
+
                 let rsc_chunk = this
                     .app_project
                     .project()
@@ -794,7 +836,7 @@ impl AppEndpoint {
                             original_name = app_entry.original_name
                         )),
                         app_entry.rsc_entry,
-                        this.app_project.rsc_runtime_entries(),
+                        Vc::cell(evaluatable_assets),
                     );
                 server_assets.push(rsc_chunk);
 
@@ -817,8 +859,10 @@ impl AppEndpoint {
                     client_assets: Vc::cell(client_assets),
                 }
             }
-        };
-        Ok(endpoint_output.cell())
+        }
+        .cell();
+
+        Ok(endpoint_output)
     }
 }
 

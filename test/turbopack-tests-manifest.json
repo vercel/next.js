@@ -820,19 +820,19 @@
       "ReactRefreshLogBox app turbo Import trace when module not found in layout",
       "ReactRefreshLogBox app turbo Server component errors should open up in fullscreen",
       "ReactRefreshLogBox app turbo Should not show __webpack_exports__ when exporting anonymous arrow function",
-      "ReactRefreshLogBox app turbo Unhandled errors and rejections opens up in the minimized state",
       "ReactRefreshLogBox app turbo boundaries",
       "ReactRefreshLogBox app turbo client component can recover from error thrown in the module",
-      "ReactRefreshLogBox app turbo module init error not shown",
       "ReactRefreshLogBox app turbo server component can recover from error thrown in the module",
       "ReactRefreshLogBox app turbo should strip whitespace correctly with newline"
     ],
     "failed": [
       "ReactRefreshLogBox app turbo Call stack count is correct for client error",
       "ReactRefreshLogBox app turbo Call stack count is correct for server error",
+      "ReactRefreshLogBox app turbo Unhandled errors and rejections opens up in the minimized state",
       "ReactRefreshLogBox app turbo conversion to class component (1)",
       "ReactRefreshLogBox app turbo css syntax errors",
       "ReactRefreshLogBox app turbo logbox: anchors links in error messages",
+      "ReactRefreshLogBox app turbo module init error not shown",
       "ReactRefreshLogBox app turbo unterminated JSX"
     ],
     "pending": [
@@ -1186,12 +1186,12 @@
   },
   "test/development/acceptance/ReactRefreshRegression.test.ts": {
     "passed": [
-      "ReactRefreshRegression can fast refresh a page with config",
       "ReactRefreshRegression can fast refresh a page with getServerSideProps",
       "ReactRefreshRegression can fast refresh a page with getStaticProps",
       "ReactRefreshRegression styled-components hydration mismatch"
     ],
     "failed": [
+      "ReactRefreshRegression can fast refresh a page with config",
       "ReactRefreshRegression custom loader (mdx) should have Fast Refresh enabled",
       "ReactRefreshRegression shows an overlay for a server-side error"
     ],
@@ -2041,7 +2041,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir-legacy-edge-runtime-config/index.test.ts": {
     "passed": [],
@@ -2072,7 +2072,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/actions/app-action-export.test.ts": {
     "passed": ["app-dir action handling - next export skip test for dev mode"],
@@ -2090,14 +2090,14 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/actions/app-action-invalid.test.ts": {
     "passed": [],
     "failed": ["app-dir action invalid config skip test for dev mode"],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/actions/app-action-progressive-enhancement.test.ts": {
     "passed": [],
@@ -2107,7 +2107,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/actions/app-action-size-limit-invalid.test.ts": {
     "passed": [],
@@ -2116,7 +2116,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/actions/app-action.test.ts": {
     "passed": [],
@@ -2162,7 +2162,7 @@
       "app-dir action handling fetch actions should handle revalidateTag + redirect"
     ],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/app-a11y/index.test.ts": {
     "passed": [
@@ -2189,12 +2189,12 @@
   "test/e2e/app-dir/app-basepath/index.test.ts": {
     "passed": [
       "app dir - basepath should prefix redirect() with basePath",
-      "app dir - basepath should render usePathname without the basePath",
       "app dir - basepath should support Link with basePath prefixed",
       "app dir - basepath should support `basePath`"
     ],
     "failed": [
-      "app dir - basepath should prefix metadata og image with basePath"
+      "app dir - basepath should prefix metadata og image with basePath",
+      "app dir - basepath should render usePathname without the basePath"
     ],
     "pending": [],
     "flakey": [],
@@ -2804,11 +2804,9 @@
       "app dir should not serve when layout is provided but no folder index",
       "app dir should return the `vary` header from pages for flight requests",
       "app dir should serve /index as separate page",
-      "app dir should serve dynamic parameter",
       "app dir should serve dynamic route from pages",
       "app dir should serve from pages",
       "app dir should serve from public",
-      "app dir should serve nested parent",
       "app dir should serve page as a segment name correctly",
       "app dir should use new root layout when provided",
       "app dir should use text/x-component for flight",
@@ -2833,7 +2831,9 @@
       "app dir should not share edge workers",
       "app dir should pass props from getServerSideProps in root layout",
       "app dir should return the `vary` header from edge runtime",
+      "app dir should serve dynamic parameter",
       "app dir should serve from app",
+      "app dir should serve nested parent",
       "app dir should serve polyfills for browsers that do not support modules",
       "app dir should use text/x-component for flight with edge runtime",
       "app dir should work for catch-all edge page"
@@ -3300,7 +3300,6 @@
       "app dir - metadata icons should support basic complex descriptor icons field",
       "app dir - metadata icons should support basic object icons field",
       "app dir - metadata icons should support basic string icons field",
-      "app dir - metadata navigation should render root not-found with default metadata",
       "app dir - metadata navigation should support notFound in generateMetadata",
       "app dir - metadata navigation should support redirect in generateMetadata",
       "app dir - metadata opengraph should override file based images when opengraph-image and twitter-image specify images property",
@@ -3310,7 +3309,6 @@
       "app dir - metadata react cache should have same title and page value when navigating",
       "app dir - metadata should not effect metadata images convention like files under pages directory",
       "app dir - metadata static routes should have /favicon.ico as route",
-      "app dir - metadata static routes should support root dir robots.txt",
       "app dir - metadata static routes should support sitemap.xml under every routes",
       "app dir - metadata static routes should support static manifest.webmanifest",
       "app dir - metadata twitter should render twitter card summary when image is not present",
@@ -3324,8 +3322,10 @@
       "app dir - metadata file based icons should not render if image file is not specified",
       "app dir - metadata file based icons should render icon and apple touch icon meta if their images are specified",
       "app dir - metadata icons should support root level of favicon.ico",
+      "app dir - metadata navigation should render root not-found with default metadata",
       "app dir - metadata opengraph should pick up opengraph-image and twitter-image as static metadata files",
-      "app dir - metadata static routes should have icons as route"
+      "app dir - metadata static routes should have icons as route",
+      "app dir - metadata static routes should support root dir robots.txt"
     ],
     "pending": [],
     "flakey": [],
@@ -3346,6 +3346,7 @@
       "app dir - navigation hash-with-scroll-offset should scroll to the specified hash",
       "app dir - navigation navigation between pages and app should not contain _rsc query while navigating from app to pages",
       "app dir - navigation navigation between pages and app should not contain _rsc query while navigating from pages to app",
+      "app dir - navigation navigation between pages and app should not omit the hash while navigating from app to pages",
       "app dir - navigation navigations when attaching a Proxy to `window.Promise` should navigate without issue",
       "app dir - navigation nested navigation should navigate to nested pages",
       "app dir - navigation not-found should trigger not-found client-side",
@@ -3476,11 +3477,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/not-found/conflict-route/index.test.ts": {
-    "passed": [
-      "app dir - not-found - conflict route with default runtime should use the not-found page for non-matching routes"
-    ],
+    "passed": [],
     "failed": [
       "app dir - not-found - conflict route with default runtime should allow to have a valid /not-found route",
+      "app dir - not-found - conflict route with default runtime should use the not-found page for non-matching routes",
       "app dir - not-found - conflict route with runtime = edge should allow to have a valid /not-found route",
       "app dir - not-found - conflict route with runtime = edge should use the not-found page for non-matching routes"
     ],
@@ -3526,32 +3526,31 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/parallel-routes-and-interception/parallel-routes-and-interception.test.ts": {
-    "passed": [
-      "parallel-routes-and-interception parallel routes should apply the catch-all route to the parallel route if no matching route is found",
-      "parallel-routes-and-interception parallel routes should match parallel routes",
-      "parallel-routes-and-interception parallel routes should render nested parallel routes",
-      "parallel-routes-and-interception route intercepting should re-render the layout on the server when it had a default child route",
-      "parallel-routes-and-interception route intercepting should render intercepted route",
-      "parallel-routes-and-interception route intercepting should render intercepted route from a nested route",
-      "parallel-routes-and-interception route intercepting should support intercepting with beforeFiles rewrites",
-      "parallel-routes-and-interception route intercepting with dynamic catch-all routes should render intercepted route",
-      "parallel-routes-and-interception route intercepting with dynamic optional catch-all routes should render intercepted route",
-      "parallel-routes-and-interception route intercepting with dynamic routes should render intercepted route"
-    ],
+    "passed": [],
     "failed": [
+      "parallel-routes-and-interception parallel routes should apply the catch-all route to the parallel route if no matching route is found",
       "parallel-routes-and-interception parallel routes should display all parallel route params with useParams",
+      "parallel-routes-and-interception parallel routes should match parallel routes",
       "parallel-routes-and-interception parallel routes should match parallel routes in route groups",
       "parallel-routes-and-interception parallel routes should navigate with a link with prefetch=false",
       "parallel-routes-and-interception parallel routes should only scroll to the parallel route that was navigated to",
+      "parallel-routes-and-interception parallel routes should render nested parallel routes",
       "parallel-routes-and-interception parallel routes should support layout files in parallel routes",
       "parallel-routes-and-interception parallel routes should support nested parallel routes",
       "parallel-routes-and-interception parallel routes should support parallel route tab bars",
       "parallel-routes-and-interception parallel routes should support parallel routes with no page component",
       "parallel-routes-and-interception parallel routes should throw a 404 when no matching parallel route is found",
       "parallel-routes-and-interception parallel routes should throw an error when a route groups causes a conflict with a parallel segment",
+      "parallel-routes-and-interception route intercepting should re-render the layout on the server when it had a default child route",
       "parallel-routes-and-interception route intercepting should render an intercepted route at the top level from a nested path",
       "parallel-routes-and-interception route intercepting should render an intercepted route from a slot",
-      "parallel-routes-and-interception route intercepting should render modal when paired with parallel routes"
+      "parallel-routes-and-interception route intercepting should render intercepted route",
+      "parallel-routes-and-interception route intercepting should render intercepted route from a nested route",
+      "parallel-routes-and-interception route intercepting should render modal when paired with parallel routes",
+      "parallel-routes-and-interception route intercepting should support intercepting with beforeFiles rewrites",
+      "parallel-routes-and-interception route intercepting with dynamic catch-all routes should render intercepted route",
+      "parallel-routes-and-interception route intercepting with dynamic optional catch-all routes should render intercepted route",
+      "parallel-routes-and-interception route intercepting with dynamic routes should render intercepted route"
     ],
     "pending": [],
     "flakey": [],
@@ -3614,11 +3613,11 @@
     "passed": [
       "app-dir root layout Should do a mpa navigation when switching root layout should work with basic routes",
       "app-dir root layout Should do a mpa navigation when switching root layout should work with dynamic catchall routes",
-      "app-dir root layout Should do a mpa navigation when switching root layout should work with dynamic routes",
       "app-dir root layout Should do a mpa navigation when switching root layout should work with static routes",
       "app-dir root layout should correctly handle navigation between multiple root layouts"
     ],
     "failed": [
+      "app-dir root layout Should do a mpa navigation when switching root layout should work with dynamic routes",
       "app-dir root layout Should do a mpa navigation when switching root layout should work with parallel routes",
       "app-dir root layout Should do a mpa navigation when switching root layout should work with route groups"
     ],
@@ -3696,7 +3695,6 @@
       "app dir - rsc basics should stick to the url without trailing /page suffix",
       "app dir - rsc basics should support multi-level server component imports",
       "app dir - rsc basics should support native modules in server component",
-      "app dir - rsc basics should support next/link in server components",
       "app dir - rsc basics should support partial hydration with inlined server data",
       "app dir - rsc basics should support streaming for flight response",
       "app dir - rsc basics should suspense next/image in server components",
@@ -3708,6 +3706,7 @@
       "app dir - rsc basics react@experimental should opt into the react@experimental when enabling ppr",
       "app dir - rsc basics react@experimental should opt into the react@experimental when enabling serverActions",
       "app dir - rsc basics should create client reference successfully for all file conventions",
+      "app dir - rsc basics should support next/link in server components",
       "app dir - rsc basics should support webpack loader rules"
     ],
     "pending": [
@@ -3746,7 +3745,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/set-cookies/set-cookies.test.ts": {
     "passed": [],
@@ -3849,7 +3848,7 @@
     "failed": ["with babel should support babel in app dir"],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/with-exported-function-config/with-exported-function-config.test.ts": {
     "passed": [
@@ -3973,12 +3972,13 @@
       "streaming responses cancel inner stream after disconnect middleware cancels stream that never sent data",
       "streaming responses cancel inner stream after disconnect node app route handler cancels stalled stream",
       "streaming responses cancel inner stream after disconnect node app route handler cancels stream making progress",
-      "streaming responses cancel inner stream after disconnect node app route handler cancels stream that never sent data",
       "streaming responses cancel inner stream after disconnect node pages api cancels stalled stream",
       "streaming responses cancel inner stream after disconnect node pages api cancels stream making progress",
       "streaming responses cancel inner stream after disconnect node pages api cancels stream that never sent data"
     ],
-    "failed": [],
+    "failed": [
+      "streaming responses cancel inner stream after disconnect node app route handler cancels stream that never sent data"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -4115,13 +4115,13 @@
   },
   "test/e2e/edge-compiler-can-import-blob-assets/index.test.ts": {
     "passed": [
-      "Edge Compiler can import asset assets allows to assets from node_modules",
       "Edge Compiler can import asset assets allows to fetch a remote URL",
-      "Edge Compiler can import asset assets allows to fetch a remote URL with a path and basename",
-      "Edge Compiler can import asset assets allows to fetch text assets"
+      "Edge Compiler can import asset assets allows to fetch a remote URL with a path and basename"
     ],
     "failed": [
+      "Edge Compiler can import asset assets allows to assets from node_modules",
       "Edge Compiler can import asset assets allows to fetch image assets",
+      "Edge Compiler can import asset assets allows to fetch text assets",
       "Edge Compiler can import asset assets extracts all the assets from the bundle"
     ],
     "pending": [],
@@ -4680,7 +4680,6 @@
     "passed": [
       "Middleware Runtime with i18n allows to access env variables",
       "Middleware Runtime with i18n hard-navigates when the data request failed",
-      "Middleware Runtime with i18n passes search params with rewrites",
       "Middleware Runtime with i18n should accept a URL instance for fetch",
       "Middleware Runtime with i18n should add a rewrite header on data requests for rewrites",
       "Middleware Runtime with i18n should allow to abort a fetch request",
@@ -4690,7 +4689,6 @@
       "Middleware Runtime with i18n should have correct dynamic route params for middleware rewrite to dynamic route",
       "Middleware Runtime with i18n should have correct dynamic route params on client-transition to dynamic route",
       "Middleware Runtime with i18n should have correct query values for rewrite to ssg page",
-      "Middleware Runtime with i18n should have correct route params for chained rewrite from middleware to config rewrite",
       "Middleware Runtime with i18n should have init header for NextResponse.redirect",
       "Middleware Runtime with i18n should keep non data requests in their original shape",
       "Middleware Runtime with i18n should normalize data requests into page requests",
@@ -4723,7 +4721,6 @@
       "Middleware Runtime without i18n should have correct dynamic route params for middleware rewrite to dynamic route",
       "Middleware Runtime without i18n should have correct dynamic route params on client-transition to dynamic route",
       "Middleware Runtime without i18n should have correct query values for rewrite to ssg page",
-      "Middleware Runtime without i18n should have init header for NextResponse.redirect",
       "Middleware Runtime without i18n should keep non data requests in their original shape",
       "Middleware Runtime without i18n should normalize data requests into page requests",
       "Middleware Runtime without i18n should only contain middleware route in dev middleware manifest",
@@ -4745,7 +4742,9 @@
     ],
     "failed": [
       "Middleware Runtime with i18n allows shallow linking with middleware",
+      "Middleware Runtime with i18n passes search params with rewrites",
       "Middleware Runtime with i18n refreshes the page when middleware changes ",
+      "Middleware Runtime with i18n should have correct route params for chained rewrite from middleware to config rewrite",
       "Middleware Runtime with i18n should have correct route params for rewrite from config dynamic route",
       "Middleware Runtime with i18n should have correct route params for rewrite from config non-dynamic route",
       "Middleware Runtime without i18n allows shallow linking with middleware",
@@ -4753,7 +4752,8 @@
       "Middleware Runtime without i18n refreshes the page when middleware changes ",
       "Middleware Runtime without i18n should have correct route params for chained rewrite from middleware to config rewrite",
       "Middleware Runtime without i18n should have correct route params for rewrite from config dynamic route",
-      "Middleware Runtime without i18n should have correct route params for rewrite from config non-dynamic route"
+      "Middleware Runtime without i18n should have correct route params for rewrite from config non-dynamic route",
+      "Middleware Runtime without i18n should have init header for NextResponse.redirect"
     ],
     "pending": [],
     "flakey": [],
@@ -4889,8 +4889,6 @@
       "Middleware Rewrite should add a cookie and rewrite to a/b test",
       "Middleware Rewrite should allow to opt-out prefetch caching",
       "Middleware Rewrite should allow to rewrite keeping the locale in pathname",
-      "Middleware Rewrite should allow to rewrite to a `afterFiles` rewrite config",
-      "Middleware Rewrite should allow to rewrite to a `beforeFiles` rewrite config",
       "Middleware Rewrite should allow to rewrite to a different locale",
       "Middleware Rewrite should allow to switch locales",
       "Middleware Rewrite should behave consistently on recursive rewrites",
@@ -4923,6 +4921,8 @@
       "Middleware Rewrite support colons in path"
     ],
     "failed": [
+      "Middleware Rewrite should allow to rewrite to a `afterFiles` rewrite config",
+      "Middleware Rewrite should allow to rewrite to a `beforeFiles` rewrite config",
       "Middleware Rewrite should handle static rewrite from next.config.js correctly"
     ],
     "pending": [
@@ -4945,8 +4945,6 @@
       "Middleware Runtime trailing slash should add a rewrite header on data requests for rewrites",
       "Middleware Runtime trailing slash should have correct dynamic route params for middleware rewrite to dynamic route",
       "Middleware Runtime trailing slash should have correct dynamic route params on client-transition to dynamic route",
-      "Middleware Runtime trailing slash should have correct query values for rewrite to ssg page",
-      "Middleware Runtime trailing slash should have init header for NextResponse.redirect",
       "Middleware Runtime trailing slash should keep non data requests in their original shape",
       "Middleware Runtime trailing slash should normalize data requests into page requests",
       "Middleware Runtime trailing slash should redirect the same for direct visit and client-transition",
@@ -4965,9 +4963,11 @@
     "failed": [
       "Middleware Runtime trailing slash allows shallow linking with middleware",
       "Middleware Runtime trailing slash refreshes the page when middleware changes ",
+      "Middleware Runtime trailing slash should have correct query values for rewrite to ssg page",
       "Middleware Runtime trailing slash should have correct route params for chained rewrite from middleware to config rewrite",
       "Middleware Runtime trailing slash should have correct route params for rewrite from config dynamic route",
-      "Middleware Runtime trailing slash should have correct route params for rewrite from config non-dynamic route"
+      "Middleware Runtime trailing slash should have correct route params for rewrite from config non-dynamic route",
+      "Middleware Runtime trailing slash should have init header for NextResponse.redirect"
     ],
     "pending": [],
     "flakey": [],
@@ -6080,9 +6080,10 @@
     "runtimeError": false
   },
   "test/integration/app-dir-export/test/dynamicpage-prod.test.ts": {
-    "passed": ["should work in prod with dynamicPage 'force-dynamic'"],
+    "passed": [],
     "failed": [
       "should work in prod with dynamicPage $dynamicPage",
+      "should work in prod with dynamicPage 'force-dynamic'",
       "should work in prod with dynamicPage 'force-static'",
       "should work in prod with dynamicPage undefined"
     ],
@@ -6986,8 +6987,6 @@
       "Basic CSS Modules Ordering Development Mode should have correct color on index page (on hover)",
       "Basic CSS Modules Ordering Development Mode should have correct color on index page (on load)",
       "Basic CSS Modules Ordering Development Mode should have correct color on index page (on nav)",
-      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on hover)",
-      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on load)",
       "Ordering with Global CSS and Modules (dev) should have the correct color (css ordering)",
       "Ordering with Global CSS and Modules (dev) should have the correct color (css ordering) during hot reloads",
       "Ordering with Global CSS and Modules (dev) should not execute scripts in any order"
@@ -7011,6 +7010,8 @@
       "should handle unresolved files gracefully production mode should have correct file references in CSS output"
     ],
     "flakey": [
+      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on hover)",
+      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on load)",
       "CSS Modules Composes Ordering Development Mode should have correct color on index page (on nav from index)",
       "CSS Modules Composes Ordering Development Mode should have correct color on index page (on nav from other)"
     ],
@@ -14574,10 +14575,9 @@
   },
   "test/integration/typescript-hmr/test/index.test.js": {
     "passed": [
-      "TypeScript HMR delete a page and add it back should detect the changes to typescript pages and display it",
-      "TypeScript HMR should ignore type errors in development"
+      "TypeScript HMR delete a page and add it back should detect the changes to typescript pages and display it"
     ],
-    "failed": [],
+    "failed": ["TypeScript HMR should ignore type errors in development"],
     "pending": ["TypeScript HMR should recover from a type error"],
     "flakey": [],
     "runtimeError": false
