@@ -8,7 +8,6 @@ import {
   findPort,
   File,
   renderViaHTTP,
-  waitFor,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
