@@ -9,7 +9,6 @@ import {
   normalizeConfig,
   ExperimentalConfig,
   NextConfigComplete,
-  validateConfig,
   NextConfig,
   TurboLoaderItem,
 } from './config-shared'
@@ -955,31 +954,36 @@ export default async function loadConfig(
       userConfigModule.default || userConfigModule
     )
 
-    const validateError = validateConfig(userConfig)
+    if (!process.env.NEXT_MINIMAL) {
+      // We only validate the config against schema in non minimal mode
+      const { configSchema } =
+        require('./config-schema') as typeof import('./config-schema')
+      const state = configSchema.safeParse(userConfig)
 
-    if (validateError) {
-      // error message header
-      const messages = [`Invalid ${configFileName} options detected: `]
+      if (!state.success) {
+        // error message header
+        const messages = [`Invalid ${configFileName} options detected: `]
 
-      const [errorMessages, shouldExit] = normalizeZodErrors(validateError)
-      // ident list item
-      for (const error of errorMessages) {
-        messages.push(`    ${error}`)
-      }
-
-      // error message footer
-      messages.push(
-        'See more info here: https://nextjs.org/docs/messages/invalid-next-config'
-      )
-
-      if (shouldExit) {
-        for (const message of messages) {
-          console.error(message)
+        const [errorMessages, shouldExit] = normalizeZodErrors(state.error)
+        // ident list item
+        for (const error of errorMessages) {
+          messages.push(`    ${error}`)
         }
-        await flushAndExit(1)
-      } else {
-        for (const message of messages) {
-          curLog.warn(message)
+
+        // error message footer
+        messages.push(
+          'See more info here: https://nextjs.org/docs/messages/invalid-next-config'
+        )
+
+        if (shouldExit) {
+          for (const message of messages) {
+            console.error(message)
+          }
+          await flushAndExit(1)
+        } else {
+          for (const message of messages) {
+            curLog.warn(message)
+          }
         }
       }
     }

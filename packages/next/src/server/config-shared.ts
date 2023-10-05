@@ -10,7 +10,6 @@ import { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/subresou
 import { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
 import { SizeLimit } from '../../types'
-import type { ZodError } from 'zod'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -780,19 +779,4 @@ export async function normalizeConfig(phase: string, config: any) {
   }
   // Support `new Promise` and `async () =>` as return values of the config export
   return await config
-}
-
-export function validateConfig(userConfig: NextConfig): ZodError | null {
-  if (process.env.NEXT_MINIMAL) {
-    return null
-  }
-
-  const { configSchema } =
-    require('./config-schema') as typeof import('./config-schema')
-  const state = configSchema.safeParse(userConfig)
-  if (state.success) {
-    return null
-  }
-
-  return state.error
 }
