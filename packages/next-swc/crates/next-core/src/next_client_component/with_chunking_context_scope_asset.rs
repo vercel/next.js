@@ -1,4 +1,3 @@
-use anyhow::{Context, Result};
 use turbo_tasks::{Value, Vc};
 use turbopack_binding::turbopack::{
     core::{
@@ -8,10 +7,7 @@ use turbopack_binding::turbopack::{
         module::Module,
         reference::ModuleReferences,
     },
-    ecmascript::chunk::EcmascriptChunkingContext,
-    turbopack::ecmascript::chunk::{
-        EcmascriptChunk, EcmascriptChunkItem, EcmascriptChunkPlaceable, EcmascriptExports,
-    },
+    turbopack::ecmascript::chunk::{EcmascriptChunk, EcmascriptChunkPlaceable, EcmascriptExports},
 };
 
 #[turbo_tasks::function]
@@ -75,24 +71,6 @@ impl ChunkableModule for WithChunkingContextScopeAsset {
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for WithChunkingContextScopeAsset {
-    #[turbo_tasks::function]
-    async fn as_chunk_item(
-        &self,
-        context: Vc<Box<dyn EcmascriptChunkingContext>>,
-    ) -> Result<Vc<Box<dyn EcmascriptChunkItem>>> {
-        Ok(EcmascriptChunkPlaceable::as_chunk_item(
-            self.asset,
-            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkingContext>>(
-                context.with_layer(self.layer.clone()),
-            )
-            .await?
-            .context(
-                "ChunkingContext::with_layer should not return a different kind of chunking \
-                 context",
-            )?,
-        ))
-    }
-
     #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         self.asset.get_exports()

@@ -6,13 +6,13 @@ use turbopack_binding::turbopack::{
     core::{
         asset::{Asset, AssetContent},
         chunk::{
-            availability_info::AvailabilityInfo, Chunk, ChunkItem, ChunkableModule, ChunkingContext,
+            availability_info::AvailabilityInfo, Chunk, ChunkItem, ChunkItemExt, ChunkableModule,
+            ChunkingContext,
         },
         ident::AssetIdent,
         module::Module,
         reference::ModuleReferences,
     },
-    ecmascript::chunk::EcmascriptChunkItemExt,
     turbopack::ecmascript::{
         chunk::{
             EcmascriptChunk, EcmascriptChunkItem, EcmascriptChunkItemContent,
@@ -111,20 +111,6 @@ impl ChunkableModule for NextServerComponentModule {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for NextServerComponentModule {
     #[turbo_tasks::function]
-    async fn as_chunk_item(
-        self: Vc<Self>,
-        context: Vc<Box<dyn EcmascriptChunkingContext>>,
-    ) -> Result<Vc<Box<dyn EcmascriptChunkItem>>> {
-        Ok(Vc::upcast(
-            BuildServerComponentChunkItem {
-                context,
-                inner: self,
-            }
-            .cell(),
-        ))
-    }
-
-    #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         // TODO This should be EsmExports
         EcmascriptExports::Value.cell()
@@ -149,7 +135,9 @@ impl EcmascriptChunkItem for BuildServerComponentChunkItem {
         let this = self.await?;
         let inner = this.inner.await?;
 
-        let module_id = EcmascriptChunkPlaceable::as_chunk_item(inner.module, this.context)
+        let module_id = inner
+            .module
+            .as_chunk_item(Vc::upcast(this.context))
             .id()
             .await?;
         Ok(EcmascriptChunkItemContent {
@@ -178,5 +166,10 @@ impl ChunkItem for BuildServerComponentChunkItem {
     #[turbo_tasks::function]
     fn references(&self) -> Vc<ModuleReferences> {
         self.inner.references()
+    }
+
+    #[turbo_tasks::function]
+    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+        Vc::upcast(self.context)
     }
 }

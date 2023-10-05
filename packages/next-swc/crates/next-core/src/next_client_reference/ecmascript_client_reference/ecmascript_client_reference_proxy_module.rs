@@ -181,20 +181,22 @@ impl ChunkableModule for EcmascriptClientReferenceProxyModule {
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Box<dyn turbopack_binding::turbopack::core::chunk::ChunkItem>>> {
+        let item = self.proxy_module().as_chunk_item(chunking_context);
+        let ecmascript_item = Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkItem>>(item)
+            .await?
+            .context("EcmascriptModuleAsset must implement EcmascriptChunkItem")?;
         let chunking_context =
             Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkingContext>>(chunking_context)
                 .await?
                 .context(
                     "chunking context must impl EcmascriptChunkingContext to use \
-                     ChunkGroupFilesAsset",
+                     EcmascriptClientReferenceProxyModule",
                 )?;
+
         Ok(Vc::upcast(
             ProxyModuleChunkItem {
                 client_proxy_asset: self,
-                inner_proxy_module_chunk_item: EcmascriptChunkPlaceable::as_chunk_item(
-                    self.proxy_module(),
-                    chunking_context,
-                ),
+                inner_proxy_module_chunk_item: ecmascript_item,
                 chunking_context,
             }
             .cell(),
@@ -204,24 +206,6 @@ impl ChunkableModule for EcmascriptClientReferenceProxyModule {
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for EcmascriptClientReferenceProxyModule {
-    #[turbo_tasks::function]
-    fn as_chunk_item(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
-    ) -> Vc<Box<dyn EcmascriptChunkItem>> {
-        Vc::upcast(
-            ProxyModuleChunkItem {
-                client_proxy_asset: self,
-                inner_proxy_module_chunk_item: EcmascriptChunkPlaceable::as_chunk_item(
-                    self.proxy_module(),
-                    chunking_context,
-                ),
-                chunking_context,
-            }
-            .cell(),
-        )
-    }
-
     #[turbo_tasks::function]
     fn get_exports(self: Vc<Self>) -> Vc<EcmascriptExports> {
         self.proxy_module().get_exports()
@@ -260,6 +244,11 @@ impl ChunkItem for ProxyModuleChunkItem {
     fn references(&self) -> Vc<ModuleReferences> {
         self.client_proxy_asset.references()
     }
+
+    #[turbo_tasks::function]
+    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+        Vc::upcast(self.chunking_context)
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -280,6 +269,6 @@ impl EcmascriptChunkItem for ProxyModuleChunkItem {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn EcmascriptChunkingContext>> {
-        self.inner_proxy_module_chunk_item.chunking_context()
+        EcmascriptChunkItem::chunking_context(self.inner_proxy_module_chunk_item)
     }
 }
