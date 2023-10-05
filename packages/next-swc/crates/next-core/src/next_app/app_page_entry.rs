@@ -116,7 +116,7 @@ pub async fn get_app_page_entry(
         file.push('\n');
     }
 
-    result.concat(&file.into());
+    result.push_bytes(file.as_bytes());
 
     let file = File::from(result.build());
 

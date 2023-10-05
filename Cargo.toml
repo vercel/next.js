@@ -27,6 +27,7 @@ opt-level = 3
 next-api = { path = "packages/next-swc/crates/next-api", default-features = false }
 next-build = { path = "packages/next-swc/crates/next-build", default-features = false }
 next-core = { path = "packages/next-swc/crates/next-core", default-features = false }
+next-swc = { path = "packages/next-swc/crates/core" }
 next-transform-font = { path = "packages/next-swc/crates/next-transform-font" }
 next-transform-dynamic = { path = "packages/next-swc/crates/next-transform-dynamic" }
 next-transform-strip-page-exports = { path = "packages/next-swc/crates/next-transform-strip-page-exports" }
