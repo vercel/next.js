@@ -10,6 +10,7 @@ import { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/subresou
 import { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
 import { SizeLimit } from '../../types'
+import type { ZodError } from 'zod'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -781,9 +782,7 @@ export async function normalizeConfig(phase: string, config: any) {
   return await config
 }
 
-export function validateConfig(
-  userConfig: NextConfig
-): import('next/dist/compiled/zod').ZodError | null {
+export function validateConfig(userConfig: NextConfig): ZodError | null {
   if (process.env.NEXT_MINIMAL) {
     return null
   }
