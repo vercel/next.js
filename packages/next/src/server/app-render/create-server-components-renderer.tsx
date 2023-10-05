@@ -1,5 +1,6 @@
 import type { RenderOpts } from './types'
 import type { FlightResponseRef } from './flight-response-ref'
+import type { AppPageModule } from '../future/route-modules/app-page/module'
 
 import React, { use } from 'react'
 import { createErrorHandler } from './create-error-handler'
@@ -11,13 +12,7 @@ import { useFlightResponse } from './use-flight-response'
  */
 export function createServerComponentRenderer<Props>(
   ComponentToRender: (props: Props) => any,
-  ComponentMod: {
-    renderToReadableStream: any
-    __next_app__?: {
-      require: any
-      loadChunk: any
-    }
-  },
+  ComponentMod: AppPageModule,
   {
     inlinedDataTransformStream,
     clientReferenceManifest,

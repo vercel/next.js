@@ -1,17 +1,13 @@
-use anyhow::{Context, Result};
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::Vc;
 use turbopack_binding::turbopack::{
     core::{
         asset::{Asset, AssetContent},
-        chunk::{availability_info::AvailabilityInfo, Chunk, ChunkableModule, ChunkingContext},
+        chunk::{ChunkableModule, ChunkingContext},
         ident::AssetIdent,
         module::Module,
         reference::ModuleReferences,
     },
-    ecmascript::chunk::EcmascriptChunkingContext,
-    turbopack::ecmascript::chunk::{
-        EcmascriptChunk, EcmascriptChunkItem, EcmascriptChunkPlaceable, EcmascriptExports,
-    },
+    turbopack::ecmascript::chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
 };
 
 #[turbo_tasks::function]
@@ -49,38 +45,19 @@ impl Asset for WithChunkingContextScopeAsset {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for WithChunkingContextScopeAsset {
     #[turbo_tasks::function]
-    fn as_chunk(
+    fn as_chunk_item(
         &self,
-        context: Vc<Box<dyn ChunkingContext>>,
-        availability_info: Value<AvailabilityInfo>,
-    ) -> Vc<Box<dyn Chunk>> {
-        Vc::upcast(EcmascriptChunk::new(
-            context.with_layer(self.layer.clone()),
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Vc<Box<dyn turbopack_binding::turbopack::core::chunk::ChunkItem>> {
+        Vc::upcast(ChunkableModule::as_chunk_item(
             self.asset,
-            availability_info,
+            chunking_context.with_layer(self.layer.clone()),
         ))
     }
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for WithChunkingContextScopeAsset {
-    #[turbo_tasks::function]
-    async fn as_chunk_item(
-        &self,
-        context: Vc<Box<dyn EcmascriptChunkingContext>>,
-    ) -> Result<Vc<Box<dyn EcmascriptChunkItem>>> {
-        Ok(self.asset.as_chunk_item(
-            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkingContext>>(
-                context.with_layer(self.layer.clone()),
-            )
-            .await?
-            .context(
-                "ChunkingContext::with_layer should not return a different kind of chunking \
-                 context",
-            )?,
-        ))
-    }
-
     #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         self.asset.get_exports()

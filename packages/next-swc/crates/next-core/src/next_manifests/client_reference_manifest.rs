@@ -4,13 +4,12 @@ use turbo_tasks::{TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_binding::turbopack::{
     core::{
-        asset::AssetContent, chunk::ModuleId as TurbopackModuleId, output::OutputAsset,
+        asset::AssetContent,
+        chunk::{ChunkItemExt, ChunkableModule, ModuleId as TurbopackModuleId},
+        output::OutputAsset,
         virtual_output::VirtualOutputAsset,
     },
-    ecmascript::{
-        chunk::{EcmascriptChunkItemExt, EcmascriptChunkPlaceable, EcmascriptChunkingContext},
-        utils::StringifyJs,
-    },
+    ecmascript::{chunk::EcmascriptChunkingContext, utils::StringifyJs},
 };
 
 use super::{ClientReferenceManifest, ManifestNode, ManifestNodeEntry, ModuleId};
@@ -117,12 +116,12 @@ impl ClientReferenceManifest {
 
                     let client_module_id = ecmascript_client_reference
                         .client_module
-                        .as_chunk_item(client_chunking_context)
+                        .as_chunk_item(Vc::upcast(client_chunking_context))
                         .id()
                         .await?;
                     let ssr_module_id = ecmascript_client_reference
                         .ssr_module
-                        .as_chunk_item(ssr_chunking_context)
+                        .as_chunk_item(Vc::upcast(ssr_chunking_context))
                         .id()
                         .await?;
 

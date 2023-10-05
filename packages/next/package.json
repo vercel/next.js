@@ -151,7 +151,6 @@
     "@next/swc": "13.5.5-canary.2",
     "@opentelemetry/api": "1.4.1",
     "@playwright/test": "^1.35.1",
-    "@segment/ajv-human-errors": "2.1.2",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
     "@types/amphtml-validator": "1.0.0",
@@ -192,9 +191,8 @@
     "@types/ws": "8.2.0",
     "@vercel/ncc": "0.34.0",
     "@vercel/nft": "0.22.6",
-    "@vercel/turbopack-ecmascript-runtime": "https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-231002.1",
+    "@vercel/turbopack-ecmascript-runtime": "https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-231005.2",
     "acorn": "8.5.0",
-    "ajv": "8.11.0",
     "amphtml-validator": "1.0.35",
     "anser": "1.4.9",
     "arg": "4.1.0",
@@ -314,7 +312,8 @@
     "webpack": "5.86.0",
     "webpack-sources1": "npm:webpack-sources@1.4.3",
     "webpack-sources3": "npm:webpack-sources@3.2.3",
-    "ws": "8.2.3"
+    "ws": "8.2.3",
+    "zod": "3.22.3"
   },
   "engines": {
     "node": ">=16.14.0"
