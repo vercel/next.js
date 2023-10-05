@@ -477,9 +477,9 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   // Search upwards for parallel segments within routing groups and treat
   // them as if they're within the same directory as the current pagePath.
   if (routeGroup) {
-    const absoluteRouteGroupPath = _path.default.join(appDir, `(${routeGroup})`);
-    const parallelSegmentsInRoot = _fs.readdirSync(absoluteRouteGroupPath)
-      .filter(dir => dir.startsWith('@') && isDirectory(_path.default.join(absoluteRouteGroupPath, dir)));
+    const absoluteRouteGroupPath = path.join(appDir, `(${routeGroup})`);
+    const parallelSegmentsInRoot = fs.readdirSync(absoluteRouteGroupPath)
+      .filter(dir => dir.startsWith('@') && isDirectory(path.join(absoluteRouteGroupPath, dir)));
   
     for (const segment of parallelSegmentsInRoot) {
       const newAppPath = `/(${routeGroup})/${segment}/page`;
