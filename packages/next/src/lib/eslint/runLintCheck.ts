@@ -136,9 +136,13 @@ async function lint(
     )
 
     const mod = await Promise.resolve(require(modPath))
-    const unsupportedApi = await Promise.resolve(
-      require(unsupportedApiPath)
-    ).catch(() => null)
+    const unsupportedApi = await new Promise<any>((resolve) => {
+      try {
+        resolve(require(unsupportedApiPath))
+      } catch (err) {
+        resolve(null)
+      }
+    })
 
     let { ESLint } = mod
     let shouldUseFlatConfig = false
