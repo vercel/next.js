@@ -1587,7 +1587,7 @@ export default async function getBaseWebpackConfig(
                   ],
                 },
                 resolve: {
-                  mainFields: getMainField('app', 'server'),
+                  mainFields: getMainField('app', compilerType),
                   conditionNames: reactServerCondition,
                   // If missing the alias override here, the default alias will be used which aliases
                   // react to the direct file path, not the package name. In that case the condition
@@ -1733,7 +1733,7 @@ export default async function getBaseWebpackConfig(
                     exclude: [codeCondition.exclude],
                     use: swcLoaderForClientLayer,
                     resolve: {
-                      mainFields: getMainField('app', 'server'),
+                      mainFields: getMainField('app', compilerType),
                     },
                   },
                 ]
