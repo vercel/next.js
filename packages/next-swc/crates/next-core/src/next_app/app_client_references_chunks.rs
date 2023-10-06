@@ -4,10 +4,7 @@ use serde::{Deserialize, Serialize};
 use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, TryJoinIterExt, Vc};
 use turbopack_binding::turbopack::{
     build::BuildChunkingContext,
-    core::{
-        chunk::{ChunkableModule, ChunkingContext},
-        output::OutputAssets,
-    },
+    core::{chunk::ChunkingContextExt, output::OutputAssets},
     ecmascript::chunk::EcmascriptChunkingContext,
 };
 
@@ -46,24 +43,21 @@ pub async fn get_app_client_references_chunks(
                 match client_reference_ty {
                     ClientReferenceType::EcmascriptClientReference(ecmascript_client_reference) => {
                         let ecmascript_client_reference_ref = ecmascript_client_reference.await?;
-                        let client_entry_chunk = ecmascript_client_reference_ref
-                            .client_module
-                            .as_root_chunk(Vc::upcast(client_chunking_context));
-                        let ssr_entry_chunk = ecmascript_client_reference_ref
-                            .ssr_module
-                            .as_root_chunk(Vc::upcast(ssr_chunking_context));
                         ClientReferenceChunks {
-                            client_chunks: client_chunking_context.chunk_group(client_entry_chunk),
-                            ssr_chunks: ssr_chunking_context.chunk_group(ssr_entry_chunk),
+                            client_chunks: client_chunking_context.root_chunk_group(Vc::upcast(
+                                ecmascript_client_reference_ref.client_module,
+                            )),
+                            ssr_chunks: ssr_chunking_context.root_chunk_group(Vc::upcast(
+                                ecmascript_client_reference_ref.ssr_module,
+                            )),
                         }
                     }
                     ClientReferenceType::CssClientReference(css_client_reference) => {
                         let css_client_reference_ref = css_client_reference.await?;
-                        let client_entry_chunk = css_client_reference_ref
-                            .client_module
-                            .as_root_chunk(Vc::upcast(client_chunking_context));
                         ClientReferenceChunks {
-                            client_chunks: client_chunking_context.chunk_group(client_entry_chunk),
+                            client_chunks: client_chunking_context.root_chunk_group(Vc::upcast(
+                                css_client_reference_ref.client_module,
+                            )),
                             ssr_chunks: OutputAssets::empty(),
                         }
                     }
