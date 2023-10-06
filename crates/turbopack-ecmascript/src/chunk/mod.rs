@@ -1,3 +1,4 @@
+pub(crate) mod chunk_type;
 pub(crate) mod content;
 pub(crate) mod context;
 pub(crate) mod data;
@@ -30,6 +31,7 @@ use turbopack_core::{
 
 use self::content::ecmascript_chunk_content;
 pub use self::{
+    chunk_type::EcmascriptChunkType,
     content::EcmascriptChunkContent,
     context::EcmascriptChunkingContext,
     data::EcmascriptChunkData,

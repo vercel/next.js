@@ -355,20 +355,25 @@ where
                 }
             }
             ChunkingType::Parallel => {
-                let chunk = chunkable_module
-                    .as_chunk_item(chunk_content_context.chunking_context)
-                    .as_chunk(chunk_content_context.availability_info);
+                let chunk_item =
+                    chunkable_module.as_chunk_item(chunk_content_context.chunking_context);
+                let chunk = chunk_item
+                    .ty()
+                    .as_chunk(chunk_item, chunk_content_context.availability_info);
                 graph_nodes.push((
                     Some((module, chunking_type)),
                     ChunkContentGraphNode::Chunk(chunk),
                 ));
             }
             ChunkingType::IsolatedParallel => {
-                let chunk = chunkable_module
-                    .as_chunk_item(chunk_content_context.chunking_context)
-                    .as_chunk(Value::new(AvailabilityInfo::Root {
+                let chunk_item =
+                    chunkable_module.as_chunk_item(chunk_content_context.chunking_context);
+                let chunk = chunk_item.ty().as_chunk(
+                    chunk_item,
+                    Value::new(AvailabilityInfo::Root {
                         current_availability_root: Vc::upcast(chunkable_module),
-                    }));
+                    }),
+                );
                 graph_nodes.push((
                     Some((module, chunking_type)),
                     ChunkContentGraphNode::Chunk(chunk),
@@ -397,9 +402,11 @@ where
                     }
                 }
 
-                let chunk = chunkable_module
-                    .as_chunk_item(chunk_content_context.chunking_context)
-                    .as_chunk(chunk_content_context.availability_info);
+                let chunk_item =
+                    chunkable_module.as_chunk_item(chunk_content_context.chunking_context);
+                let chunk = chunk_item
+                    .ty()
+                    .as_chunk(chunk_item, chunk_content_context.availability_info);
                 graph_nodes.push((
                     Some((module, chunking_type)),
                     ChunkContentGraphNode::Chunk(chunk),
@@ -613,8 +620,6 @@ where
 
 #[turbo_tasks::value_trait]
 pub trait ChunkItem {
-    fn as_chunk(self: Vc<Self>, availability_info: Value<AvailabilityInfo>) -> Vc<Box<dyn Chunk>>;
-
     /// The [AssetIdent] of the [Module] that this [ChunkItem] was created from.
     /// For most chunk types this must uniquely identify the asset as it's the
     /// source of the module id used at runtime.
@@ -625,7 +630,24 @@ pub trait ChunkItem {
     /// references.
     fn references(self: Vc<Self>) -> Vc<ModuleReferences>;
 
+    /// The type of chunk this item should be assembled into.
+    fn ty(self: Vc<Self>) -> Vc<Box<dyn ChunkType>>;
+
+    /// A temporary method to retrieve the module associated with this
+    /// ChunkItem. TODO: Remove this as part of the chunk refactoring.
+    fn module(self: Vc<Self>) -> Vc<Box<dyn Module>>;
+
     fn chunking_context(self: Vc<Self>) -> Vc<Box<dyn ChunkingContext>>;
+}
+
+#[turbo_tasks::value_trait]
+pub trait ChunkType {
+    /// Create a new chunk for the given subgraph.
+    fn as_chunk(
+        &self,
+        chunk_item: Vc<Box<dyn ChunkItem>>,
+        availability_info: Value<AvailabilityInfo>,
+    ) -> Vc<Box<dyn Chunk>>;
 }
 
 #[turbo_tasks::value(transparent)]

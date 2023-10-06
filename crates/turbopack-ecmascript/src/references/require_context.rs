@@ -18,8 +18,8 @@ use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        availability_info::AvailabilityInfo, Chunk, ChunkItem, ChunkItemExt, ChunkableModule,
-        ChunkableModuleReference, ChunkingContext,
+        ChunkItem, ChunkItemExt, ChunkType, ChunkableModule, ChunkableModuleReference,
+        ChunkingContext,
     },
     ident::AssetIdent,
     issue::{IssueSeverity, OptionIssueSource},
@@ -31,7 +31,7 @@ use turbopack_core::{
 
 use crate::{
     chunk::{
-        EcmascriptChunk, EcmascriptChunkItem, EcmascriptChunkItemContent,
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkType,
         EcmascriptChunkingContext, EcmascriptExports,
     },
     code_gen::CodeGeneration,
@@ -516,11 +516,12 @@ impl ChunkItem for RequireContextChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn as_chunk(&self, availability_info: Value<AvailabilityInfo>) -> Vc<Box<dyn Chunk>> {
-        Vc::upcast(EcmascriptChunk::new(
-            Vc::upcast(self.chunking_context),
-            Vc::upcast(self.inner),
-            availability_info,
-        ))
+    fn ty(&self) -> Vc<Box<dyn ChunkType>> {
+        Vc::upcast(Vc::<EcmascriptChunkType>::default())
+    }
+
+    #[turbo_tasks::function]
+    fn module(&self) -> Vc<Box<dyn Module>> {
+        Vc::upcast(self.inner)
     }
 }
