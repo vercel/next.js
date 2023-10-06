@@ -54,7 +54,7 @@ module.exports = (actionInfo) => {
         }
       }
     },
-    async linkPackages({ repoDir, nextSwcVersion, usePnpmPack = false }) {
+    async linkPackages({ repoDir, nextSwcVersion }) {
       const pkgPaths = new Map()
 
       /**
@@ -192,17 +192,13 @@ module.exports = (actionInfo) => {
               }
             }
 
-            const { stdout } = await execa(
-              usePnpmPack ? 'pnpm' : 'npm',
-              ['pack'],
-              {
-                cwd: pkgPath,
-                env: {
-                  ...process.env,
-                  COREPACK_ENABLE_STRICT: '0',
-                },
-              }
-            )
+            const { stdout } = await execa('pnpm', ['pack'], {
+              cwd: pkgPath,
+              env: {
+                ...process.env,
+                COREPACK_ENABLE_STRICT: '0',
+              },
+            })
 
             return Promise.all([
               fsp.rename(path.resolve(pkgPath, stdout.trim()), packedPkgPath),

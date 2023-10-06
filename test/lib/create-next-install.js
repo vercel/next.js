@@ -122,7 +122,6 @@ async function createNextInstall({
         pkgPaths = await rootSpan.traceChild('linkPackages').traceAsyncFn(() =>
           linkPackages({
             repoDir: tmpRepoDir,
-            usePnpmPack: true,
           })
         )
       }
