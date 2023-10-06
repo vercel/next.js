@@ -852,8 +852,13 @@ export default async function getBaseWebpackConfig(
               'components',
               'navigation'
             )]: 'next/dist/esm/client/components/navigation',
-            [path.join(NEXT_PROJECT_ROOT, 'dist', 'components', 'headers')]:
-              'next/dist/esm/client/components/headers',
+            [path.join(
+              NEXT_PROJECT_ROOT,
+              'dist',
+              'client',
+              'components',
+              'headers'
+            )]: 'next/dist/esm/client/components/headers',
           }
         : undefined),
 
