@@ -199,6 +199,7 @@ async fn run_test(resource: String) -> Result<Vc<RunTestResult>> {
         .defines(
             compile_time_defines!(
                 process.turbopack = true,
+                process.env.TURBOPACK = true,
                 process.env.NODE_ENV = "development",
             )
             .cell(),

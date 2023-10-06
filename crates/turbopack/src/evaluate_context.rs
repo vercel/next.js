@@ -76,8 +76,12 @@ pub async fn node_evaluate_asset_context(
         transitions.unwrap_or_else(|| Vc::cell(Default::default())),
         CompileTimeInfo::builder(node_build_environment())
             .defines(
-                compile_time_defines!(process.turbopack = true, process.env.NODE_ENV = node_env,)
-                    .cell(),
+                compile_time_defines!(
+                    process.turbopack = true,
+                    process.env.NODE_ENV = node_env,
+                    process.env.TURBOPACK = true
+                )
+                .cell(),
             )
             .cell(),
         ModuleOptionsContext {
