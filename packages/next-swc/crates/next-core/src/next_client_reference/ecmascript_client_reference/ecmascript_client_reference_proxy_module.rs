@@ -8,7 +8,8 @@ use turbopack_binding::turbopack::{
     core::{
         asset::{Asset, AssetContent},
         chunk::{
-            availability_info::AvailabilityInfo, Chunk, ChunkItem, ChunkableModule, ChunkingContext,
+            availability_info::AvailabilityInfo, ChunkItem, ChunkType, ChunkableModule,
+            ChunkingContext,
         },
         code_builder::CodeBuilder,
         context::AssetContext,
@@ -20,8 +21,8 @@ use turbopack_binding::turbopack::{
     },
     ecmascript::{
         chunk::{
-            EcmascriptChunk, EcmascriptChunkItem, EcmascriptChunkItemContent,
-            EcmascriptChunkPlaceable, EcmascriptChunkingContext, EcmascriptExports,
+            EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
+            EcmascriptChunkType, EcmascriptChunkingContext, EcmascriptExports,
         },
         utils::StringifyJs,
         EcmascriptModuleAsset,
@@ -238,12 +239,13 @@ impl ChunkItem for ProxyModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn as_chunk(&self, availability_info: Value<AvailabilityInfo>) -> Vc<Box<dyn Chunk>> {
-        Vc::upcast(EcmascriptChunk::new(
-            Vc::upcast(self.chunking_context),
-            Vc::upcast(self.client_proxy_asset),
-            availability_info,
-        ))
+    fn ty(&self) -> Vc<Box<dyn ChunkType>> {
+        Vc::upcast(Vc::<EcmascriptChunkType>::default())
+    }
+
+    #[turbo_tasks::function]
+    fn module(&self) -> Vc<Box<dyn Module>> {
+        Vc::upcast(self.client_proxy_asset)
     }
 }
 
