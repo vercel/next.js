@@ -90,7 +90,7 @@ module.exports = (actionInfo) => {
           require('console').log(`Skipping ${pkgDataPath}`)
           continue
         }
-        const pkgData = require(pkgDataPath)
+        const pkgData = await fse.readJSON(pkgDataPath)
         const { name } = pkgData
 
         pkgDatas.set(name, {
@@ -165,6 +165,7 @@ module.exports = (actionInfo) => {
       await Promise.all(
         Array.from(pkgDatas.entries()).map(
           async ([pkgName, { pkgPath, packedPkgPath }]) => {
+            /** @type {null | () => Promise<void>} */
             let cleanup = null
 
             if (pkgName === '@next/swc') {
@@ -173,32 +174,34 @@ module.exports = (actionInfo) => {
               // When we used yarn to pack these packages the gitignore was ignored so the native builds were packed
               // however npm does respect gitignore when packing so we need to remove it in this specific case
               // to ensure the native builds are packed for use in gh actions and related scripts
-              await fse.rename(
-                path.join(pkgPath, 'native/.gitignore'),
-                path.join(pkgPath, 'disabled-native-gitignore')
+
+              const nativeGitignorePath = path.join(
+                pkgPath,
+                'native/.gitignore'
               )
+              const renamedGitignorePath = path.join(
+                pkgPath,
+                'disabled-native-gitignore'
+              )
+
+              await fsp.rename(nativeGitignorePath, renamedGitignorePath)
               cleanup = async () => {
-                await fse.rename(
-                  path.join(pkgPath, 'disabled-native-gitignore'),
-                  path.join(pkgPath, 'native/.gitignore')
-                )
+                await fsp.rename(renamedGitignorePath, nativeGitignorePath)
               }
             }
 
-            const { stdout } = await execa('npm', ['pack'], {
+            const { stdout } = await execa('pnpm', ['pack'], {
               cwd: pkgPath,
               env: {
                 ...process.env,
                 COREPACK_ENABLE_STRICT: '0',
               },
             })
-            await fse.rename(
-              path.resolve(pkgPath, stdout.trim()),
-              packedPkgPath
-            )
-            if (cleanup) {
-              await cleanup()
-            }
+
+            return Promise.all([
+              fsp.rename(path.resolve(pkgPath, stdout.trim()), packedPkgPath),
+              cleanup?.(),
+            ])
           }
         )
       )
