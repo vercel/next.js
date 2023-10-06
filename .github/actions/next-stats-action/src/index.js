@@ -122,9 +122,10 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
       }
 
       await fs
-        .copy(
+        .cp(
           path.join(__dirname, '../native'),
-          path.join(dir, 'packages/next-swc/native')
+          path.join(dir, 'packages/next-swc/native'),
+          { recursive: true, force: true }
         )
         .catch(console.error)
 
