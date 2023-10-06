@@ -20,7 +20,10 @@ module.exports = function (task) {
     return new Promise((resolve) => {
       compiler.run((err, stats) => {
         if (err || stats.hasErrors()) {
-          throw err ?? new Error(stats.toString())
+          return this.emit('plugin_error', {
+            plugin: 'taskfile-webpack',
+            error: err?.message ?? stats.toString(),
+          })
         }
 
         if (process.env.ANALYZE) {
