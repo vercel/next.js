@@ -9,7 +9,7 @@ import {
   NEXT_URL,
   NEXT_ROUTER_PREFETCH,
 } from '../../client/components/app-router-headers'
-import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
+import { isDynamicUsageError } from '../../lib/is-dynamic-usage-error'
 import { NEXT_CACHE_TAGS_HEADER } from '../../lib/constants'
 import { hasNextSupport } from '../../telemetry/ci-info'
 import { lazyRenderAppPage } from '../../server/future/route-modules/app-page/module.render'

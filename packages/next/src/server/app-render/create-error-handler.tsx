@@ -1,7 +1,7 @@
 import stringHash from 'next/dist/compiled/string-hash'
 import { formatServerError } from '../../lib/format-server-error'
 import { SpanStatusCode, getTracer } from '../lib/trace/tracer'
-import { isDynamicUsageError } from '../../export/helpers/is-dynamic-usage-error'
+import { isDynamicUsageError } from '../../lib/is-dynamic-usage-error'
 
 /**
  * Create error handler for renderers.

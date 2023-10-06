@@ -13,7 +13,7 @@ import {
 } from '../../server/web/spec-extension/adapters/next-request'
 import { toNodeOutgoingHttpHeaders } from '../../server/web/utils'
 import { MockedRequest, MockedResponse } from '../../server/lib/mock-request'
-import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
+import { isDynamicUsageError } from '../../lib/is-dynamic-usage-error'
 import { SERVER_DIRECTORY } from '../../shared/lib/constants'
 import { hasNextSupport } from '../../telemetry/ci-info'
 
