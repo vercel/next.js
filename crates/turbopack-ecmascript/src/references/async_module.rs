@@ -7,7 +7,10 @@ use swc_core::{
     quote,
 };
 use turbo_tasks::{trace::TraceRawVcs, TryFlatJoinIterExt, Value, Vc};
-use turbopack_core::chunk::availability_info::AvailabilityInfo;
+use turbopack_core::{
+    chunk::availability_info::{AvailabilityInfo, AvailabilityInfoNeeds},
+    module::Module,
+};
 
 use super::esm::base::ReferencedAsset;
 use crate::{
@@ -67,20 +70,20 @@ impl OptionAsyncModule {
     #[turbo_tasks::function]
     pub async fn is_async(
         self: Vc<Self>,
-        availability_info: Value<AvailabilityInfo>,
+        availability_root: Option<Vc<Box<dyn Module>>>,
     ) -> Result<Vc<bool>> {
         Ok(Vc::cell(
-            self.module_options(availability_info).await?.is_some(),
+            self.module_options(availability_root).await?.is_some(),
         ))
     }
 
     #[turbo_tasks::function]
     pub async fn module_options(
         self: Vc<Self>,
-        availability_info: Value<AvailabilityInfo>,
+        availability_root: Option<Vc<Box<dyn Module>>>,
     ) -> Result<Vc<OptionAsyncModuleOptions>> {
         if let Some(async_module) = &*self.await? {
-            return Ok(async_module.module_options(availability_info));
+            return Ok(async_module.module_options(availability_root));
         }
 
         Ok(OptionAsyncModuleOptions::none())
@@ -124,7 +127,14 @@ impl AsyncModuleScc {
         for scc in &*this.scope.get_scc_children(this.scc).await? {
             // Because we generated SCCs there can be no loops in the children, so calling
             // recursively is fine.
-            if *AsyncModuleScc::new(*scc, this.scope).is_async().await? {
+            // AsyncModuleScc::new is resolved here to avoid unnecessary resolve tasks for
+            // is_async in this hot code path.
+            if *AsyncModuleScc::new(*scc, this.scope)
+                .resolve()
+                .await?
+                .is_async()
+                .await?
+            {
                 return Ok(Vc::cell(true));
             }
         }
@@ -141,7 +151,7 @@ impl AsyncModule {
     #[turbo_tasks::function]
     async fn get_async_idents(
         self: Vc<Self>,
-        availability_info: Value<AvailabilityInfo>,
+        availability_root: Option<Vc<Box<dyn Module>>>,
     ) -> Result<Vc<AsyncModuleIdents>> {
         let this = self.await?;
 
@@ -158,7 +168,7 @@ impl AsyncModule {
                     ReferencedAsset::Some(placeable) => {
                         if *placeable
                             .get_async_module()
-                            .is_async(availability_info)
+                            .is_async(availability_root)
                             .await?
                         {
                             referenced_asset.get_ident().await?
@@ -183,11 +193,11 @@ impl AsyncModule {
     #[turbo_tasks::function]
     async fn get_scc(
         self: Vc<Self>,
-        availability_info: Value<AvailabilityInfo>,
+        availability_root: Option<Vc<Box<dyn Module>>>,
     ) -> Result<Vc<OptionAsyncModuleScc>> {
         let this = self.await?;
 
-        let scope = EsmScope::new(availability_info);
+        let scope = EsmScope::new(availability_root);
         let Some(scc) = &*scope.get_scc(this.placeable).await? else {
             // I'm not sure if this should be possible.
             return Ok(Vc::cell(None));
@@ -195,7 +205,7 @@ impl AsyncModule {
 
         let scc = AsyncModuleScc::new(*scc, scope);
 
-        Ok(Vc::cell(Some(scc)))
+        Ok(Vc::cell(Some(scc.resolve().await?)))
     }
 
     /// Check if the current module or any of it's ESM children contain a top
@@ -203,10 +213,10 @@ impl AsyncModule {
     #[turbo_tasks::function]
     pub async fn is_async(
         self: Vc<Self>,
-        availability_info: Value<AvailabilityInfo>,
+        availability_root: Option<Vc<Box<dyn Module>>>,
     ) -> Result<Vc<bool>> {
         Ok(
-            if let Some(scc) = &*self.get_scc(availability_info).await? {
+            if let Some(scc) = &*self.get_scc(availability_root).await? {
                 scc.is_async()
             } else {
                 self.is_self_async()
@@ -218,9 +228,9 @@ impl AsyncModule {
     #[turbo_tasks::function]
     pub async fn module_options(
         self: Vc<Self>,
-        availability_info: Value<AvailabilityInfo>,
+        availability_root: Option<Vc<Box<dyn Module>>>,
     ) -> Result<Vc<OptionAsyncModuleOptions>> {
-        if !*self.is_async(availability_info).await? {
+        if !*self.is_async(availability_root).await? {
             return Ok(Vc::cell(None));
         }
 
@@ -240,15 +250,33 @@ impl CodeGenerateableWithAvailabilityInfo for AsyncModule {
     ) -> Result<Vc<CodeGeneration>> {
         let mut visitors = Vec::new();
 
-        let async_idents = self.get_async_idents(availability_info).await?;
+        let availability_info = availability_info.into_value();
 
-        if !async_idents.is_empty() {
-            visitors.push(create_visitor!(visit_mut_program(program: &mut Program) {
-                add_async_dependency_handler(program, &async_idents);
-            }));
+        if !matches!(availability_info, AvailabilityInfo::Untracked) {
+            let async_idents = self
+                .get_async_idents(availability_info.current_availability_root())
+                .await?;
+
+            if !async_idents.is_empty() {
+                visitors.push(create_visitor!(visit_mut_program(program: &mut Program) {
+                    add_async_dependency_handler(program, &async_idents);
+                }));
+            }
         }
 
         Ok(CodeGeneration { visitors }.into())
+    }
+
+    #[turbo_tasks::function]
+    async fn get_availability_info_needs(
+        self: Vc<Self>,
+        is_async_module: bool,
+    ) -> Result<Vc<AvailabilityInfoNeeds>> {
+        let mut needs = AvailabilityInfoNeeds::none();
+        if is_async_module {
+            needs.current_availability_root = true;
+        }
+        Ok(needs.cell())
     }
 }
 

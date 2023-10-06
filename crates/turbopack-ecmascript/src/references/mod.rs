@@ -48,6 +48,7 @@ use swc_core::{
 use turbo_tasks::{TryJoinIterExt, Upcast, Value, Vc};
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath};
 use turbopack_core::{
+    chunk::availability_info::AvailabilityInfoNeeds,
     compile_time_info::{CompileTimeInfo, FreeVarReference},
     error::PrettyPrintError,
     issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, IssueSource, OptionIssueSource},
@@ -139,27 +140,43 @@ pub struct AnalyzeEcmascriptModuleResult {
 
 #[turbo_tasks::value_impl]
 impl AnalyzeEcmascriptModuleResult {
+    /// Returns the pieces of AvailabilityInfo that are required for code
+    /// generation.
     #[turbo_tasks::function]
-    pub async fn needs_availability_info(self: Vc<Self>) -> Result<Vc<bool>> {
+    pub async fn get_availability_info_needs(
+        self: Vc<Self>,
+        is_async_module: bool,
+    ) -> Result<Vc<AvailabilityInfoNeeds>> {
         let AnalyzeEcmascriptModuleResult {
             references,
             code_generation,
             ..
         } = &*self.await?;
+        let mut needs = AvailabilityInfoNeeds::none();
         for c in code_generation.await?.iter() {
-            if matches!(c, CodeGen::CodeGenerateableWithAvailabilityInfo(..)) {
-                return Ok(Vc::cell(true));
+            if let CodeGen::CodeGenerateableWithAvailabilityInfo(code_gen) = c {
+                needs |= *code_gen
+                    .get_availability_info_needs(is_async_module)
+                    .await?;
+                if needs.is_complete() {
+                    return Ok(needs.cell());
+                }
             }
         }
         for r in references.await?.iter() {
-            if Vc::try_resolve_sidecast::<Box<dyn CodeGenerateableWithAvailabilityInfo>>(*r)
-                .await?
-                .is_some()
+            if let Some(code_gen) =
+                Vc::try_resolve_sidecast::<Box<dyn CodeGenerateableWithAvailabilityInfo>>(*r)
+                    .await?
             {
-                return Ok(Vc::cell(true));
+                needs |= *code_gen
+                    .get_availability_info_needs(is_async_module)
+                    .await?;
+                if needs.is_complete() {
+                    return Ok(needs.cell());
+                }
             }
         }
-        Ok(Vc::cell(false))
+        Ok(needs.cell())
     }
 }
 

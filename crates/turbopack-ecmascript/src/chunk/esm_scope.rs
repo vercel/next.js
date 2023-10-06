@@ -2,9 +2,9 @@ use std::collections::HashMap;
 
 use anyhow::{Context, Result};
 use petgraph::{algo::tarjan_scc, prelude::DiGraphMap};
-use turbo_tasks::{TryFlatJoinIterExt, Value, Vc};
+use turbo_tasks::{TryFlatJoinIterExt, Vc};
 use turbopack_core::{
-    chunk::{availability_info::AvailabilityInfo, available_modules::chunkable_modules_set},
+    chunk::available_modules::chunkable_modules_set,
     module::{Module, ModulesSet},
 };
 
@@ -38,8 +38,8 @@ pub(crate) struct EsmScopeSccs(Vec<Vc<EsmScopeScc>>);
 impl EsmScope {
     /// Create a new [EsmScope] from the availability root given.
     #[turbo_tasks::function]
-    pub(crate) async fn new(availability_info: Value<AvailabilityInfo>) -> Result<Vc<Self>> {
-        let assets = if let Some(root) = availability_info.current_availability_root() {
+    pub(crate) async fn new(availability_root: Option<Vc<Box<dyn Module>>>) -> Result<Vc<Self>> {
+        let assets = if let Some(root) = availability_root {
             chunkable_modules_set(root)
         } else {
             ModulesSet::empty()
