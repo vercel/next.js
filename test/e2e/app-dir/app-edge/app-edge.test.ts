@@ -66,7 +66,8 @@ createNextDescribe(
         next.on('stderr', (log) => {
           logs.push(log)
         })
-        await next.render('with-client')
+        const html = await next.render('/with-client')
+        expect(html).toContain('My Button')
         expect(logs).toEqual([])
       })
 

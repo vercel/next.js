@@ -90,12 +90,6 @@ const NEXT_PROJECT_ROOT_DIST_CLIENT = path.join(
   'client'
 )
 
-console.log({
-  broken: `${NEXT_PROJECT_ROOT}/dist/client/link`,
-  fixed: require.resolve('next/dist/client/link'),
-  attempt: path.join(NEXT_PROJECT_ROOT, 'dist', 'client', 'link'),
-})
-
 if (parseInt(React.version) < 18) {
   throw new Error('Next.js requires react >= 18.2.0 to be installed.')
 }
