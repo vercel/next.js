@@ -24,7 +24,7 @@ import { BuildManifest } from './get-page-files'
 import { interopDefault } from '../lib/interop-default'
 import { getTracer } from './lib/trace/tracer'
 import { LoadComponentsSpan } from './lib/trace/constants'
-import { loadManifest } from './load-manifest'
+import { evalManifest, loadManifest } from './load-manifest'
 import { wait } from '../lib/wait'
 export type ManifestItem = {
   id: number | string
@@ -71,14 +71,31 @@ export async function loadManifestWithRetries<T>(
   }
 }
 
+/**
+ * Load manifest file with retries, defaults to 3 attempts.
+ */
+export async function evalManifestWithRetries(
+  manifestPath: string,
+  attempts = 3
+): Promise<void> {
+  while (true) {
+    try {
+      evalManifest(manifestPath)
+      return
+    } catch (err) {
+      attempts--
+      if (attempts <= 0) throw err
+
+      await wait(100)
+    }
+  }
+}
+
 async function loadClientReferenceManifest(
   manifestPath: string,
   entryName: string
 ): Promise<ClientReferenceManifest | undefined> {
-  process.env.NEXT_MINIMAL
-    ? // @ts-ignore
-      __non_webpack_require__(manifestPath)
-    : require(manifestPath)
+  await evalManifestWithRetries(manifestPath)
   try {
     return (globalThis as any).__RSC_MANIFEST[
       entryName
