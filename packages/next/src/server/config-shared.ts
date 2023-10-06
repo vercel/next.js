@@ -780,19 +780,3 @@ export async function normalizeConfig(phase: string, config: any) {
   // Support `new Promise` and `async () =>` as return values of the config export
   return await config
 }
-
-export function validateConfig(userConfig: NextConfig): {
-  errors?: Array<any> | null
-} {
-  if (process.env.NEXT_MINIMAL) {
-    return {
-      errors: [],
-    }
-  } else {
-    const configValidator = require('next/dist/next-config-validate.js')
-    configValidator(userConfig)
-    return {
-      errors: configValidator.errors,
-    }
-  }
-}

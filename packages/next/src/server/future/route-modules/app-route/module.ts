@@ -45,6 +45,13 @@ import { actionAsyncStorage } from '../../../../client/components/action-async-s
 import * as sharedModules from './shared-modules'
 
 /**
+ * The AppRouteModule is the type of the module exported by the bundled App
+ * Route module.
+ */
+export type AppRouteModule =
+  typeof import('../../../../build/templates/app-route')
+
+/**
  * AppRouteRouteHandlerContext is the context that is passed to the route
  * handler for app routes.
  */
