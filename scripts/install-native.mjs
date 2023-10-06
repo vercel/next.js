@@ -73,13 +73,14 @@ import fs from 'fs/promises'
     await fs.mkdir(path.join(cwd, 'node_modules/@next'), { recursive: true })
 
     await Promise.all(
-      pkgs.map((pkg) =>
-        fs.rename(
-          path.join(tmpdir, 'node_modules/@next', pkg),
-          path.join(cwd, 'node_modules/@next', pkg),
-          { overwrite: true }
-        )
-      )
+      pkgs.map(async (pkg) => {
+        let dest = path.join(cwd, 'node_modules/@next', pkg)
+        try {
+          // fs.rename() fails if the destination is a symlink
+          await fs.unlink(dest)
+        } catch {}
+        await fs.rename(path.join(tmpdir, 'node_modules/@next', pkg), dest)
+      })
     )
     await fs.rm(tmpdir, { recursive: true, force: true })
     console.log('Installed the following binary packages:', pkgs)
