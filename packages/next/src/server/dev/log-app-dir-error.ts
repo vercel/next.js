@@ -25,7 +25,7 @@ export function logAppDirError(err: unknown) {
       console.error(`digest: ${JSON.stringify((err as any).digest)}`)
     }
 
-    if (err.cause) Log.error('Cause:', err.cause)
+    if (err.cause) console.error('Cause:', err.cause)
   } else {
     Log.error(err)
   }
