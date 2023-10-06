@@ -1,5 +1,5 @@
 const path = require('path')
-const fs = require('fs-extra')
+const fs = require('fs/promises')
 const exec = require('./util/exec')
 const logger = require('./util/logger')
 const runConfigs = require('./run')

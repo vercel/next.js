@@ -1,5 +1,6 @@
 const path = require('path')
-const fs = require('fs-extra')
+const fs = require('fs/promises')
+const { existsSync } = require('fs')
 const exec = require('../util/exec')
 const glob = require('../util/glob')
 const logger = require('../util/logger')
@@ -12,15 +13,17 @@ module.exports = async function collectDiffs(
   if (initial) {
     logger('Setting up directory for diffing')
     // set-up diffing directory
-    await fs.remove(diffingDir)
-    await fs.mkdirp(diffingDir)
+    await fs.rm(diffingDir, { recursive: true, force: true })
+    await fs.mkdir(diffingDir, { recursive: true })
     await exec(`cd ${diffingDir} && git init`)
   } else {
     // remove any previous files in case they won't be overwritten
     const toRemove = await glob('!(.git)', { cwd: diffingDir, dot: true })
 
     await Promise.all(
-      toRemove.map((file) => fs.remove(path.join(diffingDir, file)))
+      toRemove.map((file) =>
+        fs.rm(path.join(diffingDir, file), { recursive: true, force: true })
+      )
     )
   }
   const diffs = {}
@@ -40,7 +43,7 @@ module.exports = async function collectDiffs(
         const absPath = path.join(statsAppDir, file)
 
         const diffDest = path.join(diffingDir, file)
-        await fs.copy(absPath, diffDest)
+        await fs.cp(absPath, diffDest, { force: true })
       }
 
       if (curFiles.length > 0) {
@@ -75,7 +78,7 @@ module.exports = async function collectDiffs(
 
     for (const line of renamedFiles) {
       const [, prev, cur] = line.split('\t')
-      await fs.move(path.join(diffingDir, cur), path.join(diffingDir, prev))
+      await fs.rename(path.join(diffingDir, cur), path.join(diffingDir, prev))
       diffs._renames.push({
         prev,
         cur,
@@ -91,7 +94,7 @@ module.exports = async function collectDiffs(
 
     for (const file of changedFiles) {
       const fileKey = path.basename(file)
-      const hasFile = await fs.exists(path.join(diffingDir, file))
+      const hasFile = existsSync(path.join(diffingDir, file))
 
       if (!hasFile) {
         diffs[fileKey] = 'deleted'

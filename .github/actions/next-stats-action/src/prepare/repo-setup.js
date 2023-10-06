@@ -1,14 +1,14 @@
 const path = require('path')
-const fs = require('fs-extra')
+const fs = require('fs/promises')
+const { existsSync } = require('fs')
 const exec = require('../util/exec')
-const { remove } = require('fs-extra')
 const logger = require('../util/logger')
 const execa = require('execa')
 
 module.exports = (actionInfo) => {
   return {
     async cloneRepo(repoPath = '', dest = '', branch = '', depth = '20') {
-      await remove(dest)
+      await fs.rm(dest, { recursive: true, force: true })
       await exec(
         `git clone ${actionInfo.gitRoot}${repoPath} --single-branch --branch ${branch} --depth=${depth} ${dest}`
       )
@@ -72,7 +72,7 @@ module.exports = (actionInfo) => {
         const packedPkgPath = path.join(pkgPath, `${pkg}-packed.tgz`)
 
         const pkgDataPath = path.join(pkgPath, 'package.json')
-        if (!fs.existsSync(pkgDataPath)) {
+        if (!existsSync(pkgDataPath)) {
           require('console').log(`Skipping ${pkgDataPath}`)
           continue
         }
