@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-
 import '../server/lib/cpu-profile'
 import { startServer } from '../server/lib/start-server'
 import { getPort, printAndExit } from '../server/lib/utils'
