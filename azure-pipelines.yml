@@ -142,7 +142,7 @@ stages:
             condition: eq(variables['isDocsOnly'], 'No')
 
           - script: |
-              node run-tests.js -c 1 --debug test/e2e/app-dir/app/index.test.ts
+              node run-tests.js -c 1 --debug test/e2e/app-dir/app/index.test.ts test/e2e/app-dir/app-edge/app-edge.test.ts
             condition: eq(variables['isDocsOnly'], 'No')
             displayName: 'Run tests (E2E Development)'
             env:
@@ -179,7 +179,7 @@ stages:
             condition: eq(variables['isDocsOnly'], 'No')
 
           - script: |
-              node run-tests.js -c 1 --debug test/e2e/app-dir/app/index.test.ts
+              node run-tests.js -c 1 --debug test/e2e/app-dir/app/index.test.ts test/e2e/app-dir/app-edge/app-edge.test.ts
             condition: eq(variables['isDocsOnly'], 'No')
             displayName: 'Run tests (E2E Production)'
             env:
