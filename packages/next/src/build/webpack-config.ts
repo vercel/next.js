@@ -1016,7 +1016,6 @@ export default async function getBaseWebpackConfig(
     config,
     optOutBundlingPackageRegex,
     dir,
-    hasAppDir,
   })
 
   const shouldIncludeExternalDirs =

@@ -17,7 +17,7 @@ const mainFieldsPerCompiler: Record<
   [COMPILER_NAMES.client]: ['browser', 'module', 'main'],
   [COMPILER_NAMES.edgeServer]: edgeConditionNames,
   // For app router since everything is bundled, prefer ESM over CJS
-  ['app-router-server']: ['module', 'main'],
+  'app-router-server': ['module', 'main'],
 }
 
 export function getMainField(

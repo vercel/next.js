@@ -129,12 +129,10 @@ export function makeExternalHandler({
   config,
   optOutBundlingPackageRegex,
   dir,
-  hasAppDir,
 }: {
   config: NextConfigComplete
   optOutBundlingPackageRegex: RegExp
   dir: string
-  hasAppDir: boolean
 }) {
   let resolvedExternalPackageDirs: Map<string, string>
   const looseEsmExternals = config.experimental?.esmExternals === 'loose'
