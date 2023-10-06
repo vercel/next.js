@@ -27,7 +27,7 @@ function HandleRedirect({
 
   useEffect(() => {
     React.startTransition(() => {
-      if (redirectType === RedirectType.push) {
+      if (redirectType === 'push') {
         router.push(redirect, {})
       } else {
         router.replace(redirect, {})

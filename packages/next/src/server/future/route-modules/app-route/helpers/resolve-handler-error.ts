@@ -9,7 +9,7 @@ import {
   handleRedirectResponse,
 } from '../../helpers/response-handlers'
 
-export function resolveHandlerError(err: any): Response | false {
+export function resolveHandlerError(err: unknown): Response | false {
   if (isRedirectError(err)) {
     const redirect = getURLFromRedirectError(err)
     if (!redirect) {

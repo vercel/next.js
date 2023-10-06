@@ -1,16 +1,41 @@
 const NOT_FOUND_ERROR_CODE = 'NEXT_NOT_FOUND'
 
-type NotFoundError = Error & { digest: typeof NOT_FOUND_ERROR_CODE }
+export class NotFoundError extends Error {
+  digest = NOT_FOUND_ERROR_CODE
+}
 
 /**
- * When used in a React server component, this will set the status code to 404.
- * When used in a custom app route it will just send a 404 status.
+ * In a React Server Component (RSC),
+ * it will redirect - using the 404 status -
+ * and render the closest `not-found.js` file.
+ *
+ * @example
+ * ```ts
+ * import { notFound } from 'next/navigation'
+ *
+ * function User() {
+ *   if(userNotFound) notFound()
+ *   return "render user..."
+ * }
+ * ```
+ *
+ * In a Route Handler, it will send a response with a 404 status code.
+ *
+ * @example
+ * ```ts
+ * import { notFound } from 'next/navigation'
+ *
+ * export async function GET() {
+ *   const user = await getUser()
+ *   if(!user) notFound()
+ *   return Response.json(user)
+ * }
+ * ```
+ *
+ * [Documentation](https://nextjs.org/docs/app/api-reference/functions/not-found) | [not-found.js](https://nextjs.org/docs/app/api-reference/file-conventions/not-found) | [React Server Components](https://nextjs.org/docs/app/building-your-application/rendering/server-components) | [Route Handlers](https://nextjs.org/docs/app/building-your-application/routing/route-handlers)
  */
 export function notFound(): never {
-  // eslint-disable-next-line no-throw-literal
-  const error = new Error(NOT_FOUND_ERROR_CODE)
-  ;(error as NotFoundError).digest = NOT_FOUND_ERROR_CODE
-  throw error
+  throw new NotFoundError()
 }
 
 /**
@@ -19,7 +44,8 @@ export function notFound(): never {
  *
  * @param error the error that may reference a not found error
  * @returns true if the error is a not found error
+ * @internal
  */
-export function isNotFoundError(error: any): error is NotFoundError {
-  return error?.digest === NOT_FOUND_ERROR_CODE
+export function isNotFoundError(error: unknown): error is NotFoundError {
+  return error instanceof NotFoundError
 }

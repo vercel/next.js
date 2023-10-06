@@ -1,8 +1,6 @@
 import { isNotFoundError } from './not-found'
 import { isRedirectError } from './redirect'
 
-export function isNextRouterError(error: any): boolean {
-  return (
-    error && error.digest && (isRedirectError(error) || isNotFoundError(error))
-  )
+export function isNextRouterError(error: unknown): boolean {
+  return isRedirectError(error) || isNotFoundError(error)
 }

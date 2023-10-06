@@ -3,56 +3,105 @@ import type { ResponseCookies } from '../../server/web/spec-extension/cookies'
 
 const REDIRECT_ERROR_CODE = 'NEXT_REDIRECT'
 
-export enum RedirectType {
-  push = 'push',
-  replace = 'replace',
-}
+export type RedirectType = 'replace' | 'push'
 
-export type RedirectError<U extends string> = Error & {
-  digest: `${typeof REDIRECT_ERROR_CODE};${RedirectType};${U};${boolean}`
+export class RedirectError<
+  P extends string = string,
+  T extends RedirectType = 'replace'
+> extends Error {
+  digest: `${typeof REDIRECT_ERROR_CODE};${T};${P};${boolean}`
   mutableCookies: ResponseCookies
-}
 
-export function getRedirectError(
-  url: string,
-  type: RedirectType,
-  permanent: boolean = false
-): RedirectError<typeof url> {
-  const error = new Error(REDIRECT_ERROR_CODE) as RedirectError<typeof url>
-  error.digest = `${REDIRECT_ERROR_CODE};${type};${url};${permanent}`
-  const requestStore = requestAsyncStorage.getStore()
-  if (requestStore) {
-    error.mutableCookies = requestStore.mutableCookies
+  constructor(path: P, type: T, permanent: boolean) {
+    super(REDIRECT_ERROR_CODE)
+    this.digest = `${REDIRECT_ERROR_CODE};${type};${path};${permanent}`
+    // @ts-expect-error mutableCookies can be undefined but we expect it to be defined elsewhere
+    this.mutableCookies = requestAsyncStorage.getStore()?.mutableCookies
   }
-  return error
 }
 
 /**
- * When used in a streaming context, this will insert a meta tag to
- * redirect the user to the target page. When used in a custom app route, it
- * will serve a 307 to the caller.
+ * In a React Server Component (RSC),
+ * it will insert a meta tag to redirect the user to the target page.
  *
- * @param url the url to redirect to
+ * @example
+ * ```ts
+ * import { redirect } from 'next/navigation'
+ *
+ * function Page() {
+ *   if(user) redirect("/dashboard")
+ *   return "render login page"
+ * }
+ * ```
+ *
+ * In a Server Action / Route Handler, it will send a response with a 307 status code.
+ *
+ * @example
+ * ```ts
+ * "use server"
+ * import { redirect } from 'next/navigation'
+ *
+ * export async function login {
+ *   const user = await getUser()
+ *   if(!user) redirect("/login")
+ *   return Response.json(user)
+ * }
+ * ```
+ *
+ * [Documentation](https://nextjs.org/docs/app/api-reference/functions/redirect) | [React Server Components](https://nextjs.org/docs/app/building-your-application/rendering/server-components) | [Server Actions](https://nextjs.org/docs/app/api-reference/functions/server-actions) | [Route Handlers](https://nextjs.org/docs/app/building-your-application/routing/route-handlers)
  */
 export function redirect(
-  url: string,
-  type: RedirectType = RedirectType.replace
+  /** The URL to redirect to. Can be a relative or absolute path. */
+  path: string,
+  /**
+   * The type of redirect to perform.
+   * `'replace'` (default) or `'push'` (default in Server Actions)
+   */
+  type: RedirectType = 'replace'
 ): never {
-  throw getRedirectError(url, type, false)
+  throw new RedirectError(path, type, false)
 }
 
 /**
- * When used in a streaming context, this will insert a meta tag to
- * redirect the user to the target page. When used in a custom app route, it
- * will serve a 308 to the caller.
+ * In a React Server Component (RSC),
+ * it will insert a meta tag to redirect the user to the target page.
  *
- * @param url the url to redirect to
+ * @example
+ * ```ts
+ * import { permanentRedirect } from 'next/navigation'
+ *
+ * function Page() {
+ *   if(user) permanentRedirect("/dashboard")
+ *   return "render login page"
+ * }
+ * ```
+ *
+ * In a Server Action / Route Handler, it will send a response with a 308 status code.
+ *
+ * @example
+ * ```ts
+ * "use server"
+ * import { permanentRedirect } from 'next/navigation'
+ *
+ * export async function login {
+ *   const user = await getUser()
+ *   if(!user) permanentRedirect("/login")
+ *   return Response.json(user)
+ * }
+ * ```
+ *
+ * [Documentation](https://nextjs.org/docs/app/api-reference/functions/permanentRedirect) | [React Server Components](https://nextjs.org/docs/app/building-your-application/rendering/server-components) | [Server Actions](https://nextjs.org/docs/app/api-reference/functions/server-actions) | [Route Handlers](https://nextjs.org/docs/app/building-your-application/routing/route-handlers)
  */
 export function permanentRedirect(
-  url: string,
-  type: RedirectType = RedirectType.replace
+  /** The URL to redirect to. Can be a relative or absolute path. */
+  path: string,
+  /**
+   * The type of redirect to perform.
+   * `'replace'` (default) or `'push'` (default in Server Actions)
+   */
+  type: RedirectType = 'replace'
 ): never {
-  throw getRedirectError(url, type, true)
+  throw new RedirectError(path, type, true)
 }
 
 /**
@@ -61,22 +110,12 @@ export function permanentRedirect(
  *
  * @param error the error that may reference a redirect error
  * @returns true if the error is a redirect error
+ * @internal
  */
 export function isRedirectError<U extends string>(
-  error: any
+  error: unknown
 ): error is RedirectError<U> {
-  if (typeof error?.digest !== 'string') return false
-
-  const [errorCode, type, destination, permanent] = (
-    error.digest as string
-  ).split(';', 4)
-
-  return (
-    errorCode === REDIRECT_ERROR_CODE &&
-    (type === 'replace' || type === 'push') &&
-    typeof destination === 'string' &&
-    (permanent === 'true' || permanent === 'false')
-  )
+  return error instanceof RedirectError
 }
 
 /**
@@ -85,11 +124,12 @@ export function isRedirectError<U extends string>(
  *
  * @param error the error that may be a redirect error
  * @return the url if the error was a redirect error
+ * @internal
  */
 export function getURLFromRedirectError<U extends string>(
   error: RedirectError<U>
 ): U
-export function getURLFromRedirectError(error: any): string | null {
+export function getURLFromRedirectError(error: unknown): string | null {
   if (!isRedirectError(error)) return null
 
   // Slices off the beginning of the digest that contains the code and the
@@ -100,9 +140,6 @@ export function getURLFromRedirectError(error: any): string | null {
 export function getRedirectTypeFromError<U extends string>(
   error: RedirectError<U>
 ): RedirectType {
-  if (!isRedirectError(error)) {
-    throw new Error('Not a redirect error')
-  }
-
+  if (!isRedirectError(error)) throw new TypeError('Not a redirect error')
   return error.digest.split(';', 3)[1] as RedirectType
 }
