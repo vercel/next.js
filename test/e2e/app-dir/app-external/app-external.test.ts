@@ -39,7 +39,7 @@ createNextDescribe(
     buildCommand: 'yarn build',
     skipDeployment: true,
   },
-  ({ next, isNextDev }) => {
+  ({ next }) => {
     it('should be able to opt-out 3rd party packages being bundled in server components', async () => {
       await next.fetch('/react-server/optout').then(async (response) => {
         const result = await resolveStreamResponse(response)
@@ -47,6 +47,7 @@ createNextDescribe(
         expect(result).toContain('Server subpath: subpath.default')
         expect(result).toContain('Client: index.default')
         expect(result).toContain('Client subpath: subpath.default')
+        expect(result).toContain('opt-out-react-version: 18.2.0')
       })
     })
 
