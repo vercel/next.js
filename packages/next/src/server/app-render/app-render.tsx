@@ -154,8 +154,8 @@ function hasLoadingComponentInTree(tree: LoaderTree): boolean {
 }
 
 type AppRenderContext = {
-  staticGeneration: StaticGenerationStore
-  request: RequestStore
+  staticGenerationStore: StaticGenerationStore
+  requestStore: RequestStore
 }
 
 const wrappedRender = async (
@@ -269,11 +269,11 @@ const wrappedRender = async (
     preloadStyle,
   } = ComponentMod
 
-  const { staticGeneration, request } = ctx
-  const { urlPathname } = staticGeneration
+  const { staticGenerationStore, requestStore } = ctx
+  const { urlPathname } = staticGenerationStore
 
-  staticGeneration.fetchMetrics = []
-  extraRenderResultMeta.fetchMetrics = staticGeneration.fetchMetrics
+  staticGenerationStore.fetchMetrics = []
+  extraRenderResultMeta.fetchMetrics = staticGenerationStore.fetchMetrics
 
   // don't modify original query object
   query = { ...query }
@@ -304,7 +304,7 @@ const wrappedRender = async (
     requestId = require('next/dist/compiled/nanoid').nanoid()
   }
 
-  const isStaticGeneration = staticGeneration.isStaticGeneration
+  const isStaticGeneration = staticGenerationStore.isStaticGeneration
   // During static generation we need to call the static generation bailout when reading searchParams
   const providedSearchParams = isStaticGeneration
     ? createSearchParamsBailoutProxy()
@@ -659,8 +659,8 @@ const wrappedRender = async (
       if (!dynamic || dynamic === 'auto') {
         dynamic = 'error'
       } else if (dynamic === 'force-dynamic') {
-        staticGeneration.forceDynamic = true
-        staticGeneration.dynamicShouldError = true
+        staticGenerationStore.forceDynamic = true
+        staticGenerationStore.dynamicShouldError = true
         staticGenerationBailout(`output: export`, {
           dynamic,
           link: 'https://nextjs.org/docs/advanced-features/static-html-export',
@@ -673,45 +673,45 @@ const wrappedRender = async (
       // if it's configured above any parent that configured
       // otherwise
       if (dynamic === 'error') {
-        staticGeneration.dynamicShouldError = true
+        staticGenerationStore.dynamicShouldError = true
       } else if (dynamic === 'force-dynamic') {
-        staticGeneration.forceDynamic = true
+        staticGenerationStore.forceDynamic = true
         staticGenerationBailout(`force-dynamic`, { dynamic })
       } else {
-        staticGeneration.dynamicShouldError = false
+        staticGenerationStore.dynamicShouldError = false
         if (dynamic === 'force-static') {
-          staticGeneration.forceStatic = true
+          staticGenerationStore.forceStatic = true
         } else {
-          staticGeneration.forceStatic = false
+          staticGenerationStore.forceStatic = false
         }
       }
     }
 
     if (typeof layoutOrPageMod?.fetchCache === 'string') {
-      staticGeneration.fetchCache = layoutOrPageMod?.fetchCache
+      staticGenerationStore.fetchCache = layoutOrPageMod?.fetchCache
     }
 
     if (typeof layoutOrPageMod?.revalidate === 'number') {
       defaultRevalidate = layoutOrPageMod.revalidate as number
 
       if (
-        typeof staticGeneration.revalidate === 'undefined' ||
-        (typeof staticGeneration.revalidate === 'number' &&
-          staticGeneration.revalidate > defaultRevalidate)
+        typeof staticGenerationStore.revalidate === 'undefined' ||
+        (typeof staticGenerationStore.revalidate === 'number' &&
+          staticGenerationStore.revalidate > defaultRevalidate)
       ) {
-        staticGeneration.revalidate = defaultRevalidate
+        staticGenerationStore.revalidate = defaultRevalidate
       }
 
-      if (staticGeneration.isStaticGeneration && defaultRevalidate === 0) {
+      if (staticGenerationStore.isStaticGeneration && defaultRevalidate === 0) {
         const dynamicUsageDescription = `revalidate: 0 configured ${segment}`
-        staticGeneration.dynamicUsageDescription = dynamicUsageDescription
+        staticGenerationStore.dynamicUsageDescription = dynamicUsageDescription
 
         throw new DynamicServerError(dynamicUsageDescription)
       }
     }
 
-    if (staticGeneration?.dynamicUsageErr) {
-      throw staticGeneration.dynamicUsageErr
+    if (staticGenerationStore?.dynamicUsageErr) {
+      throw staticGenerationStore.dynamicUsageErr
     }
 
     const LayoutOrPage = layoutOrPageMod
@@ -1263,7 +1263,7 @@ const wrappedRender = async (
     return new FlightRenderResult(flightReadableStream)
   }
 
-  if (isFlight && !staticGeneration.isStaticGeneration) {
+  if (isFlight && !staticGenerationStore.isStaticGeneration) {
     return generateFlight()
   }
 
@@ -1514,7 +1514,7 @@ const wrappedRender = async (
           inlinedDataStream:
             serverComponentsRenderOpts.inlinedDataTransformStream.readable,
           generateStaticHTML:
-            staticGeneration.isStaticGeneration || generateStaticHTML,
+            staticGenerationStore.isStaticGeneration || generateStaticHTML,
           getServerInsertedHTML: () => getServerInsertedHTML(allCapturedErrors),
           serverInsertedHTMLToHead: true,
           ...validateRootLayout,
@@ -1664,7 +1664,7 @@ const wrappedRender = async (
             inlinedDataStream:
               serverErrorComponentsRenderOpts.inlinedDataTransformStream
                 .readable,
-            generateStaticHTML: staticGeneration.isStaticGeneration,
+            generateStaticHTML: staticGenerationStore.isStaticGeneration,
             getServerInsertedHTML: () => getServerInsertedHTML([]),
             serverInsertedHTMLToHead: true,
             ...validateRootLayout,
@@ -1692,8 +1692,8 @@ const wrappedRender = async (
     page: renderOpts.page,
     serverActionsManifest,
     generateFlight,
-    staticGenerationStore: staticGeneration,
-    requestStore: request,
+    staticGenerationStore: staticGenerationStore,
+    requestStore: requestStore,
     serverActionsBodySizeLimit,
   })
 
@@ -1727,17 +1727,17 @@ const wrappedRender = async (
     }),
     {
       ...extraRenderResultMeta,
-      waitUntil: Promise.all(staticGeneration.pendingRevalidates || []),
+      waitUntil: Promise.all(staticGenerationStore.pendingRevalidates || []),
     }
   )
 
-  addImplicitTags(staticGeneration)
-  extraRenderResultMeta.fetchTags = staticGeneration.tags?.join(',')
+  addImplicitTags(staticGenerationStore)
+  extraRenderResultMeta.fetchTags = staticGenerationStore.tags?.join(',')
   renderResult.extendMetadata({
     fetchTags: extraRenderResultMeta.fetchTags,
   })
 
-  if (staticGeneration.isStaticGeneration) {
+  if (staticGenerationStore.isStaticGeneration) {
     const htmlResult = await streamToBufferedResult(renderResult)
 
     // if we encountered any unexpected errors during build
@@ -1752,19 +1752,19 @@ const wrappedRender = async (
       await generateFlight()
     )
 
-    if (staticGeneration.forceStatic === false) {
-      staticGeneration.revalidate = 0
+    if (staticGenerationStore.forceStatic === false) {
+      staticGenerationStore.revalidate = 0
     }
 
     extraRenderResultMeta.pageData = stringifiedFlightPayload
     extraRenderResultMeta.revalidate =
-      staticGeneration.revalidate ?? defaultRevalidate
+      staticGenerationStore.revalidate ?? defaultRevalidate
 
     // provide bailout info for debugging
     if (extraRenderResultMeta.revalidate === 0) {
       extraRenderResultMeta.staticBailoutInfo = {
-        description: staticGeneration.dynamicUsageDescription,
-        stack: staticGeneration.dynamicUsageStack,
+        description: staticGenerationStore.dynamicUsageDescription,
+        stack: staticGenerationStore.dynamicUsageStack,
       }
     }
 
@@ -1794,14 +1794,14 @@ export const renderToHTMLOrFlight: AppPageRender = (
   return RequestAsyncStorageWrapper.wrap(
     renderOpts.ComponentMod.requestAsyncStorage,
     { req, res, renderOpts },
-    (request) =>
+    (requestStore) =>
       StaticGenerationAsyncStorageWrapper.wrap(
         renderOpts.ComponentMod.staticGenerationAsyncStorage,
         { urlPathname: pathname, renderOpts },
-        (staticGeneration) =>
+        (staticGenerationStore) =>
           wrappedRender(req, res, pagePath, query, renderOpts, {
-            request,
-            staticGeneration,
+            requestStore,
+            staticGenerationStore,
           })
       )
   )
