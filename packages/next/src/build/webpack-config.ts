@@ -74,6 +74,10 @@ import { needsExperimentalReact } from '../lib/needs-experimental-react'
 import { getDefineEnvPlugin } from './webpack/plugins/define-env-plugin'
 import { SWCLoaderOptions } from './webpack/loaders/next-swc-loader'
 import { isResourceInPackages, makeExternalHandler } from './handle-externals'
+import {
+  getMainField,
+  edgeConditionNames,
+} from './webpack-config-rules/resolve'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -103,21 +107,6 @@ const babelIncludeRegexes: RegExp[] = [
 
 const asyncStoragesRegex =
   /next[\\/]dist[\\/](esm[\\/])?client[\\/]components[\\/](static-generation-async-storage|action-async-storage|request-async-storage)/
-
-// exports.<conditionName>
-const edgeConditionNames = [
-  'edge-light',
-  'worker',
-  // inherits the default conditions
-  '...',
-]
-
-// packageJson.<mainField>
-const mainFieldsPerCompiler: Record<CompilerNameValues, string[]> = {
-  [COMPILER_NAMES.server]: ['main', 'module'],
-  [COMPILER_NAMES.client]: ['browser', 'module', 'main'],
-  [COMPILER_NAMES.edgeServer]: edgeConditionNames,
-}
 
 // Support for NODE_PATH
 const nodePathList = (process.env.NODE_PATH || '')
@@ -918,7 +907,8 @@ export default async function getBaseWebpackConfig(
           },
         }
       : undefined),
-    mainFields: mainFieldsPerCompiler[compilerType],
+    // default main fields use pages dir ones, and customize app router ones in loaders.
+    mainFields: getMainField('pages', compilerType),
     ...(isEdgeServer && {
       conditionNames: edgeConditionNames,
     }),
@@ -1597,10 +1587,7 @@ export default async function getBaseWebpackConfig(
                   ],
                 },
                 resolve: {
-                  mainFields: isEdgeServer
-                    ? mainFieldsPerCompiler[COMPILER_NAMES.edgeServer]
-                    : // Prefer module fields over main fields for isomorphic packages on server layer
-                      ['module', 'main'],
+                  mainFields: getMainField('app', 'server'),
                   conditionNames: reactServerCondition,
                   // If missing the alias override here, the default alias will be used which aliases
                   // react to the direct file path, not the package name. In that case the condition
@@ -1745,6 +1732,9 @@ export default async function getBaseWebpackConfig(
                     ],
                     exclude: [codeCondition.exclude],
                     use: swcLoaderForClientLayer,
+                    resolve: {
+                      mainFields: getMainField('app', 'server'),
+                    },
                   },
                 ]
               : []),
