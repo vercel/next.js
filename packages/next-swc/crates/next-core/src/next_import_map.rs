@@ -95,14 +95,6 @@ pub async fn get_next_client_import_map(
                 ""
             };
             import_map.insert_exact_alias(
-                "server-only",
-                request_to_import_mapping(app_dir, "next/dist/compiled/server-only"),
-            );
-            import_map.insert_exact_alias(
-                "client-only",
-                request_to_import_mapping(app_dir, "next/dist/compiled/client-only"),
-            );
-            import_map.insert_exact_alias(
                 "react",
                 request_to_import_mapping(
                     app_dir,
@@ -134,7 +126,7 @@ pub async fn get_next_client_import_map(
                 "react-server-dom-webpack/",
                 request_to_import_mapping(
                     app_dir,
-                    &format!("next/dist/compiled/react-server-dom-turbopack{react_flavor}/*"),
+                    &format!("next/dist/compiled/react-server-dom-webpack{react_flavor}/*"),
                 ),
             );
             import_map.insert_exact_alias(
@@ -267,6 +259,7 @@ pub async fn get_next_server_import_map(
             import_map.insert_wildcard_alias("react-dom/", external);
             import_map.insert_exact_alias("styled-jsx", external);
             import_map.insert_wildcard_alias("styled-jsx/", external);
+            import_map.insert_wildcard_alias("react-server-dom-webpack/", external);
             // TODO: we should not bundle next/dist/build/utils in the pages renderer at all
             import_map.insert_wildcard_alias("next/dist/build/utils", external);
         }
@@ -287,10 +280,6 @@ pub async fn get_next_server_import_map(
             import_map.insert_exact_alias(
                 "next/dynamic",
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
-            );
-            import_map.insert_exact_alias(
-                "react-server-dom-webpack/",
-                ImportMapping::External(Some("react-server-dom-turbopack".into())).cell(),
             );
         }
         ServerContextType::Middleware => {}
@@ -544,16 +533,14 @@ async fn insert_next_server_special_aliases(
                     app_dir,
                     match (runtime, server_actions) {
                         (NextRuntime::Edge, true) => {
-                            "next/dist/compiled/react-server-dom-turbopack-experimental/client.edge"
+                            "next/dist/compiled/react-server-dom-webpack-experimental/client.edge"
                         }
                         (NextRuntime::Edge, false) => {
-                            "next/dist/compiled/react-server-dom-turbopack/client.edge"
+                            "next/dist/compiled/react-server-dom-webpack/client.edge"
                         }
-                        // When we access the runtime we still use the webpack name. The runtime
-                        // itself will substitute in the turbopack variant
                         (NextRuntime::NodeJs, _) => {
                             "next/dist/server/future/route-modules/app-page/vendored/ssr/\
-                             react-server-dom-turbopack-client-edge"
+                             react-server-dom-webpack-client-edge"
                         }
                     },
                 ),
@@ -567,16 +554,14 @@ async fn insert_next_server_special_aliases(
                     app_dir,
                     match (runtime, server_actions) {
                         (NextRuntime::Edge, true) => {
-                            "next/dist/compiled/react-server-dom-turbopack-experimental/client.edge"
+                            "next/dist/compiled/react-server-dom-webpack-experimental/client.edge"
                         }
                         (NextRuntime::Edge, false) => {
-                            "next/dist/compiled/react-server-dom-turbopack/client.edge"
+                            "next/dist/compiled/react-server-dom-webpack/client.edge"
                         }
-                        // When we access the runtime we still use the webpack name. The runtime
-                        // itself will substitute in the turbopack variant
                         (NextRuntime::NodeJs, _) => {
                             "next/dist/server/future/route-modules/app-page/vendored/ssr/\
-                             react-server-dom-turbopack-client-edge"
+                             react-server-dom-webpack-client-edge"
                         }
                     },
                 ),
@@ -670,14 +655,6 @@ async fn insert_next_server_special_aliases(
                 ),
             );
             import_map.insert_exact_alias(
-                "server-only",
-                request_to_import_mapping(app_dir, "next/dist/compiled/server-only"),
-            );
-            import_map.insert_exact_alias(
-                "client-only",
-                request_to_import_mapping(app_dir, "next/dist/compiled/client-only"),
-            );
-            import_map.insert_exact_alias(
                 "react",
                 request_to_import_mapping(
                     app_dir,
@@ -709,16 +686,14 @@ async fn insert_next_server_special_aliases(
                     app_dir,
                     match (runtime, server_actions) {
                         (NextRuntime::Edge, true) => {
-                            "next/dist/compiled/react-server-dom-turbopack-experimental/server.edge"
+                            "next/dist/compiled/react-server-dom-webpack-experimental/server.edge"
                         }
                         (NextRuntime::Edge, false) => {
-                            "next/dist/compiled/react-server-dom-turbopack/server.edge"
+                            "next/dist/compiled/react-server-dom-webpack/server.edge"
                         }
-                        // When we access the runtime we still use the webpack name. The runtime
-                        // itself will substitute in the turbopack variant
                         (NextRuntime::NodeJs, _) => {
                             "next/dist/server/future/route-modules/app-page/vendored/rsc/\
-                             react-server-dom-turbopack-server-edge"
+                             react-server-dom-webpack-server-edge"
                         }
                     },
                 ),
@@ -729,16 +704,14 @@ async fn insert_next_server_special_aliases(
                     app_dir,
                     match (runtime, server_actions) {
                         (NextRuntime::Edge, true) => {
-                            "next/dist/compiled/react-server-dom-turbopack-experimental/server.node"
+                            "next/dist/compiled/react-server-dom-webpack-experimental/server.node"
                         }
                         (NextRuntime::Edge, false) => {
-                            "next/dist/compiled/react-server-dom-turbopack/server.node"
+                            "next/dist/compiled/react-server-dom-webpack/server.node"
                         }
-                        // When we access the runtime we still use the webpack name. The runtime
-                        // itself will substitute in the turbopack variant
                         (NextRuntime::NodeJs, _) => {
                             "next/dist/server/future/route-modules/app-page/vendored/rsc/\
-                             react-server-dom-turbopack-server-node"
+                             react-server-dom-webpack-server-node"
                         }
                     },
                 ),

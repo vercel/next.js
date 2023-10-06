@@ -336,7 +336,6 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
     // TODO(alexkirsz) Do some of that in parallel with the above.
 
     compute_app_entries_chunks(
-        next_config,
         &app_entries,
         app_client_references,
         app_client_references_chunks,

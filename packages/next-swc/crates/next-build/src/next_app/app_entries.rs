@@ -242,7 +242,6 @@ pub async fn get_app_entries(
 /// to `all_chunks`, and the chunking information will be added to the provided
 /// manifests.
 pub async fn compute_app_entries_chunks(
-    next_config: Vc<NextConfig>,
     app_entries: &AppEntries,
     app_client_reference_graph: Vc<ClientReferenceGraph>,
     app_client_references_chunks: Vc<ClientReferencesChunks>,
@@ -351,7 +350,6 @@ pub async fn compute_app_entries_chunks(
             app_client_references_chunks,
             client_chunking_context,
             ssr_chunking_context,
-            next_config.computed_asset_prefix(),
         );
 
         all_chunks.push(entry_manifest);

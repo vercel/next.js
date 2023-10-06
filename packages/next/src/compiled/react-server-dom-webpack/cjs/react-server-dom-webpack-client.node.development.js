@@ -34,34 +34,11 @@ function readFinalStringChunk(decoder, buffer) {
   return decoder.decode(buffer);
 }
 
-// This is the parsed shape of the wire format which is why it is
-// condensed to only the essentialy information
-var ID = 0;
-var CHUNKS = 1;
-var NAME = 2; // export const ASYNC = 3;
-// This logic is correct because currently only include the 4th tuple member
-// when the module is async. If that changes we will need to actually assert
-// the value is true. We don't index into the 4th slot because flow does not
-// like the potential out of bounds access
-
-function isAsyncImport(metadata) {
-  return metadata.length === 4;
-}
-
-// The reason this function needs to defined here in this file instead of just
-// being exported directly from the WebpackDestination... file is because the
-// ClientReferenceMetadata is opaque and we can't unwrap it there.
-// This should get inlined and we could also just implement an unwrapping function
-// though that risks it getting used in places it shouldn't be. This is unfortunate
-// but currently it seems to be the best option we have.
-
-function prepareDestinationForModule(moduleLoading, nonce, metadata) {
-  prepareDestinationWithChunks(moduleLoading, metadata[CHUNKS], nonce);
-}
+// eslint-disable-next-line no-unused-vars
 function resolveClientReference(bundlerConfig, metadata) {
   if (bundlerConfig) {
-    var moduleExports = bundlerConfig[metadata[ID]];
-    var resolvedModuleData = moduleExports[metadata[NAME]];
+    var moduleExports = bundlerConfig[metadata.id];
+    var resolvedModuleData = moduleExports[metadata.name];
     var name;
 
     if (resolvedModuleData) {
@@ -72,19 +49,18 @@ function resolveClientReference(bundlerConfig, metadata) {
       resolvedModuleData = moduleExports['*'];
 
       if (!resolvedModuleData) {
-        throw new Error('Could not find the module "' + metadata[ID] + '" in the React SSR Manifest. ' + 'This is probably a bug in the React Server Components bundler.');
+        throw new Error('Could not find the module "' + metadata.id + '" in the React SSR Manifest. ' + 'This is probably a bug in the React Server Components bundler.');
       }
 
-      name = metadata[NAME];
+      name = metadata.name;
     }
 
-    if (isAsyncImport(metadata)) {
-      return [resolvedModuleData.id, resolvedModuleData.chunks, name, 1
-      /* async */
-      ];
-    } else {
-      return [resolvedModuleData.id, resolvedModuleData.chunks, name];
-    }
+    return {
+      id: resolvedModuleData.id,
+      chunks: resolvedModuleData.chunks,
+      name: name,
+      async: !!metadata.async
+    };
   }
 
   return metadata;
@@ -126,17 +102,16 @@ function ignoreReject() {// We rely on rejected promises to be handled by anothe
 
 
 function preloadModule(metadata) {
-  var chunks = metadata[CHUNKS];
+  var chunks = metadata.chunks;
   var promises = [];
-  var i = 0;
 
-  while (i < chunks.length) {
-    var chunkId = chunks[i++];
-    chunks[i++];
+  for (var i = 0; i < chunks.length; i++) {
+    var chunkId = chunks[i];
     var entry = chunkCache.get(chunkId);
 
     if (entry === undefined) {
-      var thenable = loadChunk(chunkId);
+      var thenable = globalThis.__next_chunk_load__(chunkId);
+
       promises.push(thenable); // $FlowFixMe[method-unbinding]
 
       var resolve = chunkCache.set.bind(chunkCache, chunkId, null);
@@ -147,12 +122,12 @@ function preloadModule(metadata) {
     }
   }
 
-  if (isAsyncImport(metadata)) {
+  if (metadata.async) {
     if (promises.length === 0) {
-      return requireAsyncModule(metadata[ID]);
+      return requireAsyncModule(metadata.id);
     } else {
       return Promise.all(promises).then(function () {
-        return requireAsyncModule(metadata[ID]);
+        return requireAsyncModule(metadata.id);
       });
     }
   } else if (promises.length > 0) {
@@ -164,9 +139,9 @@ function preloadModule(metadata) {
 // Increase priority if necessary.
 
 function requireModule(metadata) {
-  var moduleExports = globalThis.__next_require__(metadata[ID]);
+  var moduleExports = globalThis.__next_require__(metadata.id);
 
-  if (isAsyncImport(metadata)) {
+  if (metadata.async) {
     if (typeof moduleExports.then !== 'function') ; else if (moduleExports.status === 'fulfilled') {
       // This Promise should've been instrumented by preloadModule.
       moduleExports = moduleExports.value;
@@ -175,43 +150,22 @@ function requireModule(metadata) {
     }
   }
 
-  if (metadata[NAME] === '*') {
+  if (metadata.name === '*') {
     // This is a placeholder value that represents that the caller imported this
     // as a CommonJS module as is.
     return moduleExports;
   }
 
-  if (metadata[NAME] === '') {
+  if (metadata.name === '') {
     // This is a placeholder value that represents that the caller accessed the
     // default property of this if it was an ESM interop module.
     return moduleExports.__esModule ? moduleExports.default : moduleExports;
   }
 
-  return moduleExports[metadata[NAME]];
-}
-
-function loadChunk(chunkId, filename) {
-  return __webpack_chunk_load__(chunkId);
-}
-
-function prepareDestinationWithChunks(moduleLoading, // Chunks are double-indexed [..., idx, filenamex, idy, filenamey, ...]
-chunks, nonce) {
-  if (moduleLoading !== null) {
-    for (var i = 1; i < chunks.length; i += 2) {
-      preinitScriptForSSR(moduleLoading.prefix + chunks[i], nonce, moduleLoading.crossOrigin);
-    }
-  }
+  return moduleExports[metadata.name];
 }
 
 var ReactDOMSharedInternals = ReactDOM.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
-
-function getCrossOriginString(input) {
-  if (typeof input === 'string') {
-    return input === 'use-credentials' ? input : '';
-  }
-
-  return undefined;
-}
 
 // This client file is in the shared folder because it applies to both SSR and browser contexts.
 var ReactDOMCurrentDispatcher = ReactDOMSharedInternals.Dispatcher;
@@ -335,16 +289,6 @@ function dispatchHint(code, model) {
 function refineModel(code, model) {
   return model;
 }
-function preinitScriptForSSR(href, nonce, crossOrigin) {
-  var dispatcher = ReactDOMCurrentDispatcher.current;
-
-  if (dispatcher) {
-    dispatcher.preinitScript(href, {
-      crossOrigin: getCrossOriginString(crossOrigin),
-      nonce: nonce
-    });
-  }
-}
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -391,7 +335,6 @@ function printWarning(level, format, args) {
 // The Symbol used to tag the ReactElement-like types.
 var REACT_ELEMENT_TYPE = Symbol.for('react.element');
 var REACT_PROVIDER_TYPE = Symbol.for('react.provider');
-var REACT_SERVER_CONTEXT_TYPE = Symbol.for('react.server_context');
 var REACT_FORWARD_REF_TYPE = Symbol.for('react.forward_ref');
 var REACT_SUSPENSE_TYPE = Symbol.for('react.suspense');
 var REACT_SUSPENSE_LIST_TYPE = Symbol.for('react.suspense_list');
@@ -1232,49 +1175,8 @@ function createServerReference$1(id, callServer) {
 var ContextRegistry = ReactSharedInternals.ContextRegistry;
 function getOrCreateServerContext(globalName) {
   if (!ContextRegistry[globalName]) {
-    var context = {
-      $$typeof: REACT_SERVER_CONTEXT_TYPE,
-      // As a workaround to support multiple concurrent renderers, we categorize
-      // some renderers as primary and others as secondary. We only expect
-      // there to be two concurrent renderers at most: React Native (primary) and
-      // Fabric (secondary); React DOM (primary) and React ART (secondary).
-      // Secondary renderers store their context values on separate fields.
-      _currentValue: REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED,
-      _currentValue2: REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED,
-      _defaultValue: REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED,
-      // Used to track how many concurrent renderers this context currently
-      // supports within in a single renderer. Such as parallel server rendering.
-      _threadCount: 0,
-      // These are circular
-      Provider: null,
-      Consumer: null,
-      _globalName: globalName
-    };
-    context.Provider = {
-      $$typeof: REACT_PROVIDER_TYPE,
-      _context: context
-    };
-
-    {
-      var hasWarnedAboutUsingConsumer;
-      context._currentRenderer = null;
-      context._currentRenderer2 = null;
-      Object.defineProperties(context, {
-        Consumer: {
-          get: function () {
-            if (!hasWarnedAboutUsingConsumer) {
-              error('Consumer pattern is not supported by ReactServerContext');
-
-              hasWarnedAboutUsingConsumer = true;
-            }
-
-            return null;
-          }
-        }
-      });
-    }
-
-    ContextRegistry[globalName] = context;
+    ContextRegistry[globalName] = React.createServerContext(globalName, // $FlowFixMe[incompatible-call] function signature doesn't reflect the symbol value
+    REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED);
   }
 
   return ContextRegistry[globalName];
@@ -1880,13 +1782,11 @@ function missingCall() {
   throw new Error('Trying to call a function from "use server" but the callServer option ' + 'was not implemented in your router runtime.');
 }
 
-function createResponse(bundlerConfig, moduleLoading, callServer, nonce) {
+function createResponse(bundlerConfig, callServer) {
   var chunks = new Map();
   var response = {
     _bundlerConfig: bundlerConfig,
-    _moduleLoading: moduleLoading,
     _callServer: callServer !== undefined ? callServer : missingCall,
-    _nonce: nonce,
     _chunks: chunks,
     _stringDecoder: createStringDecoder(),
     _fromJSON: null,
@@ -1923,8 +1823,7 @@ function resolveModule(response, id, model) {
   var chunks = response._chunks;
   var chunk = chunks.get(id);
   var clientReferenceMetadata = parseModel(response, model);
-  var clientReference = resolveClientReference(response._bundlerConfig, clientReferenceMetadata);
-  prepareDestinationForModule(response._moduleLoading, response._nonce, clientReferenceMetadata); // TODO: Add an option to encode modules that are lazy loaded.
+  var clientReference = resolveClientReference(response._bundlerConfig, clientReferenceMetadata); // TODO: Add an option to encode modules that are lazy loaded.
   // For now we preload all modules as early as possible since it's likely
   // that we'll need them.
 
@@ -2217,8 +2116,8 @@ function createServerReference(id, callServer) {
   return createServerReference$1(id, noServerCall);
 }
 
-function createFromNodeStream(stream, ssrManifest, options) {
-  var response = createResponse(ssrManifest.moduleMap, ssrManifest.moduleLoading, noServerCall, options && typeof options.nonce === 'string' ? options.nonce : undefined);
+function createFromNodeStream(stream, moduleMap) {
+  var response = createResponse(moduleMap, noServerCall);
   stream.on('data', function (chunk) {
     processBinaryChunk(response, chunk);
   });

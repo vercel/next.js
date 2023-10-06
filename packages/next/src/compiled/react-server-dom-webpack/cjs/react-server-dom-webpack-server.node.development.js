@@ -477,11 +477,12 @@ function resolveClientReferenceMetadata(config, clientReference) {
     }
   }
 
-  if (clientReference.$$async === true) {
-    return [resolvedModuleData.id, resolvedModuleData.chunks, name, 1];
-  } else {
-    return [resolvedModuleData.id, resolvedModuleData.chunks, name];
-  }
+  return {
+    id: resolvedModuleData.id,
+    chunks: resolvedModuleData.chunks,
+    name: name,
+    async: !!clientReference.$$async
+  };
 }
 function getServerReferenceId(config, serverReference) {
   return serverReference.$$id;
@@ -1561,49 +1562,8 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
 var ContextRegistry = ReactSharedInternals.ContextRegistry;
 function getOrCreateServerContext(globalName) {
   if (!ContextRegistry[globalName]) {
-    var context = {
-      $$typeof: REACT_SERVER_CONTEXT_TYPE,
-      // As a workaround to support multiple concurrent renderers, we categorize
-      // some renderers as primary and others as secondary. We only expect
-      // there to be two concurrent renderers at most: React Native (primary) and
-      // Fabric (secondary); React DOM (primary) and React ART (secondary).
-      // Secondary renderers store their context values on separate fields.
-      _currentValue: REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED,
-      _currentValue2: REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED,
-      _defaultValue: REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED,
-      // Used to track how many concurrent renderers this context currently
-      // supports within in a single renderer. Such as parallel server rendering.
-      _threadCount: 0,
-      // These are circular
-      Provider: null,
-      Consumer: null,
-      _globalName: globalName
-    };
-    context.Provider = {
-      $$typeof: REACT_PROVIDER_TYPE,
-      _context: context
-    };
-
-    {
-      var hasWarnedAboutUsingConsumer;
-      context._currentRenderer = null;
-      context._currentRenderer2 = null;
-      Object.defineProperties(context, {
-        Consumer: {
-          get: function () {
-            if (!hasWarnedAboutUsingConsumer) {
-              error('Consumer pattern is not supported by ReactServerContext');
-
-              hasWarnedAboutUsingConsumer = true;
-            }
-
-            return null;
-          }
-        }
-      });
-    }
-
-    ContextRegistry[globalName] = context;
+    ContextRegistry[globalName] = React.createServerContext(globalName, // $FlowFixMe[incompatible-call] function signature doesn't reflect the symbol value
+    REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED);
   }
 
   return ContextRegistry[globalName];
@@ -2774,20 +2734,7 @@ function importServerContexts(contexts) {
   return rootContextSnapshot;
 }
 
-// This is the parsed shape of the wire format which is why it is
-// condensed to only the essentialy information
-var ID = 0;
-var CHUNKS = 1;
-var NAME = 2; // export const ASYNC = 3;
-// This logic is correct because currently only include the 4th tuple member
-// when the module is async. If that changes we will need to actually assert
-// the value is true. We don't index into the 4th slot because flow does not
-// like the potential out of bounds access
-
-function isAsyncImport(metadata) {
-  return metadata.length === 4;
-}
-
+// eslint-disable-next-line no-unused-vars
 function resolveServerReference(bundlerConfig, id) {
   var name = '';
   var resolvedModuleData = bundlerConfig[id];
@@ -2813,7 +2760,12 @@ function resolveServerReference(bundlerConfig, id) {
   } // TODO: This needs to return async: true if it's an async module.
 
 
-  return [resolvedModuleData.id, resolvedModuleData.chunks, name];
+  return {
+    id: resolvedModuleData.id,
+    chunks: resolvedModuleData.chunks,
+    name: name,
+    async: false
+  };
 } // The chunk cache contains all the chunks we've preloaded so far.
 // If they're still pending they're a thenable. This map also exists
 // in Webpack but unfortunately it's not exposed so we have to
@@ -2852,17 +2804,16 @@ function ignoreReject() {// We rely on rejected promises to be handled by anothe
 
 
 function preloadModule(metadata) {
-  var chunks = metadata[CHUNKS];
+  var chunks = metadata.chunks;
   var promises = [];
-  var i = 0;
 
-  while (i < chunks.length) {
-    var chunkId = chunks[i++];
-    chunks[i++];
+  for (var i = 0; i < chunks.length; i++) {
+    var chunkId = chunks[i];
     var entry = chunkCache.get(chunkId);
 
     if (entry === undefined) {
-      var thenable = loadChunk(chunkId);
+      var thenable = globalThis.__next_chunk_load__(chunkId);
+
       promises.push(thenable); // $FlowFixMe[method-unbinding]
 
       var resolve = chunkCache.set.bind(chunkCache, chunkId, null);
@@ -2873,12 +2824,12 @@ function preloadModule(metadata) {
     }
   }
 
-  if (isAsyncImport(metadata)) {
+  if (metadata.async) {
     if (promises.length === 0) {
-      return requireAsyncModule(metadata[ID]);
+      return requireAsyncModule(metadata.id);
     } else {
       return Promise.all(promises).then(function () {
-        return requireAsyncModule(metadata[ID]);
+        return requireAsyncModule(metadata.id);
       });
     }
   } else if (promises.length > 0) {
@@ -2890,9 +2841,9 @@ function preloadModule(metadata) {
 // Increase priority if necessary.
 
 function requireModule(metadata) {
-  var moduleExports = globalThis.__next_require__(metadata[ID]);
+  var moduleExports = globalThis.__next_require__(metadata.id);
 
-  if (isAsyncImport(metadata)) {
+  if (metadata.async) {
     if (typeof moduleExports.then !== 'function') ; else if (moduleExports.status === 'fulfilled') {
       // This Promise should've been instrumented by preloadModule.
       moduleExports = moduleExports.value;
@@ -2901,23 +2852,19 @@ function requireModule(metadata) {
     }
   }
 
-  if (metadata[NAME] === '*') {
+  if (metadata.name === '*') {
     // This is a placeholder value that represents that the caller imported this
     // as a CommonJS module as is.
     return moduleExports;
   }
 
-  if (metadata[NAME] === '') {
+  if (metadata.name === '') {
     // This is a placeholder value that represents that the caller accessed the
     // default property of this if it was an ESM interop module.
     return moduleExports.__esModule ? moduleExports.default : moduleExports;
   }
 
-  return moduleExports[metadata[NAME]];
-}
-
-function loadChunk(chunkId, filename) {
-  return __webpack_chunk_load__(chunkId);
+  return moduleExports[metadata.name];
 }
 
 // The server acts as a Client of itself when resolving Server References.

@@ -182,7 +182,6 @@ pub enum ActionLayer {
 #[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientReferenceManifest {
-    pub module_loading: ModuleLoading,
     /// Mapping of module path and export name to client module ID and required
     /// client chunks.
     pub client_modules: ManifestNode,
@@ -195,13 +194,6 @@ pub struct ClientReferenceManifest {
     /// Mapping of server component path to required CSS client chunks.
     #[serde(rename = "entryCSSFiles")]
     pub entry_css_files: HashMap<String, Vec<String>>,
-}
-
-#[derive(Serialize, Default, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct ModuleLoading {
-    pub prefix: String,
-    pub cross_origin: Option<String>,
 }
 
 #[derive(Serialize, Default, Debug)]

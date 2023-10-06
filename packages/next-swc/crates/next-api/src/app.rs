@@ -214,7 +214,6 @@ impl AppProject {
                 "next-dynamic".to_string(),
                 Vc::upcast(NextDynamicTransition::new(self.client_transition())),
             ),
-            ("next-ssr".to_string(), Vc::upcast(self.ssr_transition())),
         ]
         .into_iter()
         .collect();
@@ -644,10 +643,6 @@ impl AppEndpoint {
                 client_references_chunks,
                 this.app_project.project().client_chunking_context(),
                 Vc::upcast(this.app_project.project().ssr_chunking_context()),
-                this.app_project
-                    .project()
-                    .next_config()
-                    .computed_asset_prefix(),
             );
             server_assets.push(entry_manifest);
         }
