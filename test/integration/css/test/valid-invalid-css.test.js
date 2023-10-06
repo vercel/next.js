@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import 'flat-map-polyfill'
-import { readdir, readFile, remove } from 'fs-extra'
-import { nextBuild } from 'next-test-utils'
+import { readdir, readFile } from 'fs/promises'
+import { nextBuild, rmrf } from 'next-test-utils'
 import { join } from 'path'
 
 const fixturesDir = join(__dirname, '../..', 'css-fixtures')
@@ -11,7 +11,7 @@ describe('Invalid CSS in _document', () => {
     const appDir = join(fixturesDir, 'invalid-module-document')
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await rmrf(join(appDir, '.next'))
     })
 
     it('should fail to build', async () => {
@@ -34,7 +34,7 @@ describe('Invalid Global CSS', () => {
     const appDir = join(fixturesDir, 'invalid-global')
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await rmrf(join(appDir, '.next'))
     })
 
     it('should fail to build', async () => {
@@ -57,7 +57,7 @@ describe('Valid Global CSS from npm', () => {
     const appDir = join(fixturesDir, 'import-global-from-module')
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await rmrf(join(appDir, '.next'))
     })
 
     it('should compile successfully', async () => {
@@ -88,7 +88,7 @@ describe('Invalid Global CSS with Custom App', () => {
     const appDir = join(fixturesDir, 'invalid-global-with-app')
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await rmrf(join(appDir, '.next'))
     })
 
     it('should fail to build', async () => {
@@ -111,7 +111,7 @@ describe('Valid and Invalid Global CSS with Custom App', () => {
     const appDir = join(fixturesDir, 'valid-and-invalid-global')
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await rmrf(join(appDir, '.next'))
     })
 
     it('should fail to build', async () => {

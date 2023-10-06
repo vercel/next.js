@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import cheerio from 'cheerio'
 import 'flat-map-polyfill'
-import { readdir, readFile, remove } from 'fs-extra'
+import { readdir, readFile } from 'fs/promises'
 import {
   check,
   File,
@@ -11,6 +11,7 @@ import {
   nextBuild,
   nextStart,
   renderViaHTTP,
+  rmrf,
   waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
@@ -81,7 +82,7 @@ describe('Basic CSS Modules Ordering', () => {
 
   describe('Development Mode', () => {
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await rmrf(join(appDir, '.next'))
     })
     beforeAll(async () => {
       appPort = await findPort()
@@ -95,7 +96,7 @@ describe('Basic CSS Modules Ordering', () => {
   })
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await rmrf(join(appDir, '.next'))
     })
     beforeAll(async () => {
       await nextBuild(appDir, [], {})
@@ -115,7 +116,7 @@ describe('should handle unresolved files gracefully', () => {
     const workDir = join(fixturesDir, 'unresolved-css-url')
 
     it('should build correctly', async () => {
-      await remove(join(workDir, '.next'))
+      await rmrf(join(workDir, '.next'))
       const { code } = await nextBuild(workDir)
       expect(code).toBe(0)
     })
@@ -150,7 +151,7 @@ describe('Data URLs', () => {
     const workDir = join(fixturesDir, 'data-url')
 
     it('should compile successfully', async () => {
-      await remove(join(workDir, '.next'))
+      await rmrf(join(workDir, '.next'))
       const { code } = await nextBuild(workDir)
       expect(code).toBe(0)
     })
@@ -175,7 +176,7 @@ describe('Ordering with Global CSS and Modules (dev)', () => {
   let appPort
   let app
   beforeAll(async () => {
-    await remove(join(appDir, '.next'))
+    await rmrf(join(appDir, '.next'))
     appPort = await findPort()
     app = await launchApp(appDir, appPort)
   })
@@ -261,7 +262,7 @@ describe('Ordering with Global CSS and Modules (prod)', () => {
     let stdout
     let code
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await rmrf(join(appDir, '.next'))
       ;({ code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       }))
@@ -429,7 +430,7 @@ describe('CSS Modules Composes Ordering', () => {
 
   describe('Development Mode', () => {
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await rmrf(join(appDir, '.next'))
     })
     beforeAll(async () => {
       appPort = await findPort()
@@ -443,7 +444,7 @@ describe('CSS Modules Composes Ordering', () => {
   })
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await rmrf(join(appDir, '.next'))
     })
     beforeAll(async () => {
       await nextBuild(appDir, [], {})

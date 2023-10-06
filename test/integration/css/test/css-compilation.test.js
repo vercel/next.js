@@ -1,13 +1,14 @@
 /* eslint-env jest */
 import cheerio from 'cheerio'
 import 'flat-map-polyfill'
-import { readdir, readFile, remove } from 'fs-extra'
+import { readdir, readFile } from 'fs/promises'
 import {
   findPort,
   killApp,
   nextBuild,
   nextStart,
   renderViaHTTP,
+  rmrf,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -20,7 +21,7 @@ describe('CSS Support', () => {
       const appDir = join(fixturesDir, 'compilation-and-prefixing')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await rmrf(join(appDir, '.next'))
       })
 
       it('should compile successfully', async () => {
@@ -97,7 +98,7 @@ describe('CSS Support', () => {
     describe('React Lifecyce Order (production)', () => {
       const appDir = join(fixturesDir, 'transition-react')
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await rmrf(join(appDir, '.next'))
       })
 
       let appPort
@@ -145,7 +146,7 @@ describe('CSS Support', () => {
       let stdout
       let code
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await rmrf(join(appDir, '.next'))
         ;({ code, stdout } = await nextBuild(appDir, [], {
           stdout: true,
         }))
@@ -197,7 +198,7 @@ describe('CSS Support', () => {
       const appDir = join(fixturesDir, 'npm-import')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await rmrf(join(appDir, '.next'))
       })
 
       it('should compile successfully', async () => {
@@ -226,7 +227,7 @@ describe('CSS Support', () => {
       const appDir = join(fixturesDir, 'npm-import-nested')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await rmrf(join(appDir, '.next'))
       })
 
       it('should compile successfully', async () => {
@@ -263,7 +264,7 @@ describe('CSS Property Ordering', () => {
     let stdout
     let code
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await rmrf(join(appDir, '.next'))
       ;({ code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       }))

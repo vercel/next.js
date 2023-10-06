@@ -1,5 +1,5 @@
 import glob from 'glob'
-import fs from 'fs-extra'
+import fs from 'fs/promises'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import { createNext, FileRef } from 'e2e-utils'
@@ -27,13 +27,13 @@ describe('minimal-mode-response-cache', () => {
     })
     await next.stop()
 
-    await fs.move(
+    await fs.rename(
       join(next.testDir, '.next/standalone'),
       join(next.testDir, 'standalone')
     )
     for (const file of await fs.readdir(next.testDir)) {
       if (file !== 'standalone') {
-        await fs.remove(join(next.testDir, file))
+        await fs.rm(join(next.testDir, file), { force: true })
         console.log('removed', file)
       }
     }
@@ -45,7 +45,9 @@ describe('minimal-mode-response-cache', () => {
 
     for (const file of files) {
       if (file.match(/(pages|app)[/\\]/) && !file.endsWith('.js')) {
-        await fs.remove(join(next.testDir, 'standalone/.next/server', file))
+        await fs.rm(join(next.testDir, 'standalone/.next/server', file), {
+          force: true,
+        })
         console.log(
           'removing',
           join(next.testDir, 'standalone/.next/server', file)

@@ -1,7 +1,7 @@
 import os from 'os'
 import path from 'path'
 import execa from 'execa'
-import fs from 'fs-extra'
+import fs from 'fs/promises'
 ;(async function () {
   if (process.env.NEXT_SKIP_NATIVE_POSTINSTALL) {
     console.log(
@@ -10,10 +10,15 @@ import fs from 'fs-extra'
     return
   }
   let cwd = process.cwd()
-  const { version: nextVersion } = await fs.readJSON(
-    path.join(cwd, 'packages', 'next', 'package.json')
+  const { version: nextVersion } = JSON.parse(
+    await fs.readFile(
+      path.join(cwd, 'packages', 'next', 'package.json'),
+      'utf8'
+    )
   )
-  const { packageManager } = await fs.readJSON(path.join(cwd, 'package.json'))
+  const { packageManager } = JSON.parse(
+    await fs.readFile(path.join(cwd, 'package.json'), 'utf8')
+  )
 
   try {
     // if installed swc package version matches monorepo version
@@ -23,9 +28,10 @@ import fs from 'fs-extra'
     )) {
       if (
         pkg.startsWith('swc-') &&
-        (
-          await fs.readJSON(
-            path.join(cwd, 'node_modules', '@next', pkg, 'package.json')
+        JSON.parse(
+          await fs.readFile(
+            path.join(cwd, 'node_modules', '@next', pkg, 'package.json'),
+            'utf8'
           )
         ).version === nextVersion
       ) {
@@ -37,7 +43,7 @@ import fs from 'fs-extra'
 
   try {
     let tmpdir = path.join(os.tmpdir(), `next-swc-${Date.now()}`)
-    await fs.ensureDir(tmpdir)
+    await fs.mkdir(tmpdir, { recursive: true })
     let pkgJson = {
       name: 'dummy-package',
       version: '1.0.0',
@@ -64,18 +70,18 @@ import fs from 'fs-extra'
     })
     console.log(stdout)
     let pkgs = await fs.readdir(path.join(tmpdir, 'node_modules/@next'))
-    await fs.ensureDir(path.join(cwd, 'node_modules/@next'))
+    await fs.mkdir(path.join(cwd, 'node_modules/@next'), { recursive: true })
 
     await Promise.all(
       pkgs.map((pkg) =>
-        fs.move(
+        fs.rename(
           path.join(tmpdir, 'node_modules/@next', pkg),
           path.join(cwd, 'node_modules/@next', pkg),
           { overwrite: true }
         )
       )
     )
-    await fs.remove(tmpdir)
+    await fs.rm(tmpdir, { recursive: true, force: true })
     console.log('Installed the following binary packages:', pkgs)
   } catch (e) {
     console.error(e)

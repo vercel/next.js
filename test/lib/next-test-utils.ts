@@ -5,13 +5,15 @@ import {
   unlinkSync,
   writeFileSync,
   createReadStream,
+  type PathLike,
+  type RmOptions,
 } from 'fs'
 import { promisify } from 'util'
 import http from 'http'
 import path from 'path'
 
 import spawn from 'cross-spawn'
-import { writeFile } from 'fs-extra'
+import fs from 'fs/promises'
 import getPort from 'get-port'
 import { getRandomPort } from 'get-port-please'
 import fetch from 'node-fetch'
@@ -891,7 +893,7 @@ export function getPagesManifest(dir: string) {
 export function updatePagesManifest(dir: string, content: any) {
   const serverFile = path.join(dir, '.next/server/pages-manifest.json')
 
-  return writeFile(serverFile, content)
+  return fs.writeFile(serverFile, content)
 }
 
 export function getPageFileFromPagesManifest(dir: string, page: string) {
@@ -1075,4 +1077,11 @@ export const describeVariants = {
       }
     }
   },
+}
+
+export function rmrf(
+  file: PathLike,
+  options: Omit<RmOptions, 'recursive' | 'force'>
+): Promise<void> {
+  return fs.rm(file, { recursive: true, force: true, ...options })
 }

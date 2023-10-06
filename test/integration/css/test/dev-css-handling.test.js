@@ -1,12 +1,13 @@
 /* eslint-env jest */
 import 'flat-map-polyfill'
-import { remove } from 'fs-extra'
+import fs from 'fs/promises'
 import {
   check,
   File,
   findPort,
   killApp,
   launchApp,
+  rmrf,
   waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
@@ -18,7 +19,7 @@ describe('Can hot reload CSS without losing state', () => {
   const appDir = join(fixturesDir, 'multi-page')
 
   beforeAll(async () => {
-    await remove(join(appDir, '.next'))
+    await fs.rm(join(appDir, '.next'), { recursive: true, force: true })
   })
 
   let appPort
@@ -78,7 +79,7 @@ describe('Has CSS in computed styles in Development', () => {
   const appDir = join(fixturesDir, 'multi-page')
 
   beforeAll(async () => {
-    await remove(join(appDir, '.next'))
+    await rmrf(join(appDir, '.next'))
   })
 
   let appPort
@@ -112,7 +113,7 @@ describe('Body is not hidden when unused in Development', () => {
   const appDir = join(fixturesDir, 'unused')
 
   beforeAll(async () => {
-    await remove(join(appDir, '.next'))
+    await rmrf(join(appDir, '.next'))
   })
 
   let appPort
@@ -147,7 +148,7 @@ describe('Body is not hidden when broken in Development', () => {
   let appPort
   let app
   beforeAll(async () => {
-    await remove(join(appDir, '.next'))
+    await rmrf(join(appDir, '.next'))
     appPort = await findPort()
     app = await launchApp(appDir, appPort)
   })
@@ -179,7 +180,7 @@ describe('Body is not hidden when broken in Development', () => {
 describe('React Lifecyce Order (dev)', () => {
   const appDir = join(fixturesDir, 'transition-react')
   beforeAll(async () => {
-    await remove(join(appDir, '.next'))
+    await rmrf(join(appDir, '.next'))
   })
 
   let appPort

@@ -1,6 +1,6 @@
 import os from 'os'
 import path from 'path'
-import fs from 'fs-extra'
+import fs from 'fs/promises'
 import treeKill from 'tree-kill'
 import type { NextConfig } from 'next'
 import { FileRef } from '../e2e-utils'
@@ -102,17 +102,17 @@ export class NextInstance {
           `FileRef passed to "files" in "createNext" is not a directory ${files.fsPath}`
         )
       }
-      await fs.copy(files.fsPath, this.testDir)
+      await fs.cp(files.fsPath, this.testDir, { recursive: true, force: true })
     } else {
       for (const filename of Object.keys(files)) {
         const item = files[filename]
         const outputFilename = path.join(this.testDir, filename)
 
         if (typeof item === 'string') {
-          await fs.ensureDir(path.dirname(outputFilename))
+          await fs.mkdir(path.dirname(outputFilename), { recursive: true })
           await fs.writeFile(outputFilename, item)
         } else {
-          await fs.copy(item.fsPath, outputFilename)
+          await fs.cp(item.fsPath, outputFilename)
         }
       }
     }
@@ -426,13 +426,18 @@ export class NextInstance {
 
   // TODO: block these in deploy mode
   public async hasFile(filename: string) {
-    return fs.pathExists(path.join(this.testDir, filename))
+    try {
+      await fs.stat(path.join(this.testDir, filename))
+      return true
+    } catch {
+      return false
+    }
   }
   public async readFile(filename: string) {
     return fs.readFile(path.join(this.testDir, filename), 'utf8')
   }
   public async readJSON(filename: string) {
-    return fs.readJSON(path.join(this.testDir, filename))
+    return JSON.parse(await this.readFile(filename))
   }
   private async handleDevWatchDelayBeforeChange(filename: string) {
     // This is a temporary workaround for turbopack starting watching too late.
@@ -461,8 +466,8 @@ export class NextInstance {
     await this.handleDevWatchDelayBeforeChange(filename)
 
     const outputPath = path.join(this.testDir, filename)
-    const newFile = !(await fs.pathExists(outputPath))
-    await fs.ensureDir(path.dirname(outputPath))
+    const newFile = !(await this.hasFile(outputPath))
+    await fs.mkdir(path.dirname(outputPath), { recursive: true })
     await fs.writeFile(outputPath, content)
 
     if (newFile) {
@@ -481,7 +486,7 @@ export class NextInstance {
   public async renameFolder(foldername: string, newFoldername: string) {
     await this.handleDevWatchDelayBeforeChange(foldername)
 
-    await fs.move(
+    await fs.rename(
       path.join(this.testDir, foldername),
       path.join(this.testDir, newFoldername)
     )
@@ -490,7 +495,7 @@ export class NextInstance {
   public async deleteFile(filename: string) {
     await this.handleDevWatchDelayBeforeChange(filename)
 
-    await fs.remove(path.join(this.testDir, filename))
+    await fs.rm(path.join(this.testDir, filename), { force: true })
     await this.handleDevWatchDelayAfterChange(filename)
   }
 

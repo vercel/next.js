@@ -1,8 +1,7 @@
 /* eslint-env jest */
 
 import 'flat-map-polyfill'
-import { remove } from 'fs-extra'
-import { nextBuild, File } from 'next-test-utils'
+import { nextBuild, File, rmrf } from 'next-test-utils'
 import { join } from 'path'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 
@@ -24,7 +23,7 @@ describe('Build Output', () => {
         const hasExperimentalConfig = Object.keys(experimental).length > 0
 
         beforeAll(async () => {
-          await remove(join(appDir, '.next'))
+          await rmrf(join(appDir, '.next'))
           if (hasExperimentalConfig) {
             nextConfig.write(
               `module.exports = { experimental: ${JSON.stringify(
@@ -195,7 +194,7 @@ describe('Build Output', () => {
       const appDir = join(fixturesDir, 'with-app')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await rmrf(join(appDir, '.next'))
       })
 
       it('should not include custom error', async () => {
@@ -224,7 +223,7 @@ describe('Build Output', () => {
       const appDir = join(fixturesDir, 'with-amp')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await rmrf(join(appDir, '.next'))
       })
 
       it('should not include custom error', async () => {
@@ -253,7 +252,7 @@ describe('Build Output', () => {
       const appDir = join(fixturesDir, 'with-error')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await rmrf(join(appDir, '.next'))
       })
 
       it('should not include custom app', async () => {
@@ -282,7 +281,7 @@ describe('Build Output', () => {
       const appDir = join(fixturesDir, 'with-error-static')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await rmrf(join(appDir, '.next'))
       })
 
       it('should not specify /404 as lambda when static', async () => {

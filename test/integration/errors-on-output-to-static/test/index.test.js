@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import path from 'path'
-import fs from 'fs-extra'
+import fs from 'fs/promises'
 import { nextBuild, nextExport } from 'next-test-utils'
 
 const appDir = path.join(__dirname, '..')
@@ -10,7 +10,7 @@ const nextConfig = path.join(appDir, 'next.config.js')
 describe('Errors on output to static', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     it('Throws error when export out dir is static', async () => {
-      await fs.remove(nextConfig)
+      await fs.rm(nextConfig, { force: true })
       await nextBuild(appDir)
       const outdir = path.join(appDir, 'static')
       const results = await nextExport(

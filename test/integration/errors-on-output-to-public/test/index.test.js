@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import path from 'path'
-import fs from 'fs-extra'
+import fs from 'fs/promises'
 import { nextBuild, nextExport } from 'next-test-utils'
 
 const appDir = path.join(__dirname, '..')
@@ -18,11 +18,11 @@ describe('Errors on output to public', () => {
       expect(results.stdout + results.stderr).toMatch(
         /The 'public' directory is reserved in Next\.js and can not be set as/
       )
-      await fs.remove(nextConfig)
+      await fs.rm(nextConfig)
     })
 
     it('Throws error when export out dir is public', async () => {
-      await fs.remove(nextConfig)
+      await fs.rm(nextConfig, { force: true })
       await nextBuild(appDir)
       const outdir = path.join(appDir, 'public')
       const results = await nextExport(

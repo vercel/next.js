@@ -1,12 +1,12 @@
 /* eslint-env jest */
 import 'flat-map-polyfill'
-import { remove } from 'fs-extra'
 import {
   findPort,
   killApp,
   launchApp,
   nextBuild,
   nextStart,
+  rmrf,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -19,7 +19,7 @@ describe('Ordering with styled-jsx (dev)', () => {
   let appPort
   let app
   beforeAll(async () => {
-    await remove(join(appDir, '.next'))
+    await rmrf(join(appDir, '.next'))
     appPort = await findPort()
     app = await launchApp(appDir, appPort)
   })
@@ -46,7 +46,7 @@ describe('Ordering with styled-jsx (prod)', () => {
     let stdout
     let code
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await rmrf(join(appDir, '.next'))
       ;({ code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       }))

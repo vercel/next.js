@@ -1,7 +1,7 @@
 const os = require('os')
 const path = require('path')
 const _glob = require('glob')
-const fs = require('fs-extra')
+const fs = require('fs/promises')
 const nodeFetch = require('node-fetch')
 const vercelFetch = require('@vercel/fetch')
 const fetch = vercelFetch(nodeFetch)
@@ -9,6 +9,8 @@ const { promisify } = require('util')
 const { Sema } = require('async-sema')
 const { spawn, exec: execOrig } = require('child_process')
 const { createNextInstall } = require('./test/lib/create-next-install')
+const { rmrf } = require('./test/lib/next-test-utils')
+const fileExists = require('next/dist/lib/file-exists')
 const glob = promisify(_glob)
 const exec = promisify(execOrig)
 
@@ -76,10 +78,10 @@ const configuredTestTypes = Object.values(testFilters)
 
 const cleanUpAndExit = async (code) => {
   if (process.env.NEXT_TEST_STARTER) {
-    await fs.remove(process.env.NEXT_TEST_STARTER)
+    await rmrf(process.env.NEXT_TEST_STARTER)
   }
   if (process.env.NEXT_TEST_TEMP_REPO) {
-    await fs.remove(process.env.NEXT_TEST_TEMP_REPO)
+    await rmrf(process.env.NEXT_TEST_TEMP_REPO)
   }
   console.log(`exiting with code ${code}`)
 
@@ -494,17 +496,15 @@ ${ENDGROUP}`)
 
           return reject(err)
         }
-        await fs
-          .remove(
-            path.join(
-              __dirname,
-              'test/traces',
-              path
-                .relative(path.join(__dirname, 'test'), test.file)
-                .replace(/\//g, '-')
-            )
+        await rmrf(
+          path.join(
+            __dirname,
+            'test/traces',
+            path
+              .relative(path.join(__dirname, 'test'), test.file)
+              .replace(/\//g, '-')
           )
-          .catch(() => {})
+        ).catch(() => {})
         resolve(new Date().getTime() - start)
       })
     })
@@ -658,7 +658,7 @@ ${ENDGROUP}`)
         }
 
         for (const test of Object.keys(newTimings)) {
-          if (!(await fs.pathExists(path.join(__dirname, test)))) {
+          if (!(await fileExists(path.join(__dirname, test)))) {
             console.log('removing stale timing', test)
             delete newTimings[test]
           }

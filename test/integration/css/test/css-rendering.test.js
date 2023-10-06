@@ -1,15 +1,17 @@
 /* eslint-env jest */
 import 'flat-map-polyfill'
-import { pathExists, readFile, readJSON, remove } from 'fs-extra'
+import { readFile } from 'fs/promises'
 import {
   check,
   findPort,
   killApp,
   nextBuild,
   nextStart,
+  rmrf,
   waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
+import fileExists from 'next/dist/lib/file-exists'
 import { join } from 'path'
 
 const fixturesDir = join(__dirname, '../..', 'css-fixtures')
@@ -20,7 +22,7 @@ describe('CSS Support', () => {
       const appDir = join(fixturesDir, 'npm-import-bad')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await rmrf(join(appDir, '.next'))
       })
 
       it('should fail the build', async () => {
@@ -174,7 +176,7 @@ describe('CSS Support', () => {
       'production mode',
       () => {
         beforeAll(async () => {
-          await remove(join(appDir, '.next'))
+          await rmrf(join(appDir, '.next'))
         })
         beforeAll(async () => {
           await nextBuild(appDir, [], {})
@@ -240,7 +242,7 @@ describe('CSS Support', () => {
       'production mode',
       () => {
         beforeAll(async () => {
-          await remove(join(appDir, '.next'))
+          await rmrf(join(appDir, '.next'))
         })
         beforeAll(async () => {
           await nextBuild(appDir, [], {})
@@ -292,7 +294,7 @@ describe('CSS Support', () => {
       'production mode',
       () => {
         beforeAll(async () => {
-          await remove(join(appDir, '.next'))
+          await rmrf(join(appDir, '.next'))
         })
         beforeAll(async () => {
           await nextBuild(appDir, [], {})
@@ -300,14 +302,14 @@ describe('CSS Support', () => {
           app = await nextStart(appDir, appPort)
 
           // Remove other page CSS files:
-          const manifest = await readJSON(
-            join(appDir, '.next', 'build-manifest.json')
+          const manifest = JSON.parse(
+            await readFile(join(appDir, '.next', 'build-manifest.json'))
           )
           const files = manifest['pages']['/other'].filter((e) =>
             e.endsWith('.css')
           )
           if (files.length < 1) throw new Error()
-          await Promise.all(files.map((f) => remove(join(appDir, '.next', f))))
+          await Promise.all(files.map((f) => rmrf(join(appDir, '.next', f))))
         })
         afterAll(async () => {
           await killApp(app)
@@ -388,7 +390,7 @@ describe('CSS Support', () => {
       'production mode',
       () => {
         beforeAll(async () => {
-          await remove(join(appDir, '.next'))
+          await rmrf(join(appDir, '.next'))
         })
         beforeAll(async () => {
           await nextBuild(appDir, [], {})
@@ -404,10 +406,10 @@ describe('CSS Support', () => {
             buildId,
             '_buildManifest.js'
           )
-          if (!(await pathExists(fileName))) {
+          if (!(await fileExists(fileName))) {
             throw new Error('Missing build manifest')
           }
-          await remove(fileName)
+          await rmrf(fileName)
         })
         afterAll(async () => {
           await killApp(app)
