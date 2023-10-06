@@ -43,7 +43,7 @@ module.exports = async function collectDiffs(
         const absPath = path.join(statsAppDir, file)
 
         const diffDest = path.join(diffingDir, file)
-        await fs.cp(absPath, diffDest, { force: true })
+        await fs.cp(absPath, diffDest, { recursive: true, force: true })
       }
 
       if (curFiles.length > 0) {
