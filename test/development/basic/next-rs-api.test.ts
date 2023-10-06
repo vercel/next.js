@@ -204,8 +204,7 @@ describe('next.rs api', () => {
       '/api/edge',
       '/api/nodejs',
       '/app',
-      // TODO app edge pages are not supported yet
-      // '/app-edge',
+      '/app-edge',
       '/app-nodejs',
       '/page-edge',
       '/page-nodejs',
@@ -241,14 +240,13 @@ describe('next.rs api', () => {
       runtime: 'nodejs',
       config: {},
     },
-    // TODO app edge pages are not supported yet
-    // {
-    //   name: 'app edge page',
-    //   path: '/app-edge',
-    //   type: 'app-page',
-    //   runtime: 'edge',
-    //   config: {},
-    // },
+    {
+      name: 'app edge page',
+      path: '/app-edge',
+      type: 'app-page',
+      runtime: 'edge',
+      config: {},
+    },
     {
       name: 'app Node.js page',
       path: '/app-nodejs',
