@@ -1927,7 +1927,8 @@ export async function copyTracedFiles(
     serverOutputPath,
     `${
       moduleType
-        ? `import path from 'path'
+        ? `performance.mark('next-start');
+import path from 'path'
 import { fileURLToPath } from 'url'
 import module from 'module'
 const require = module.createRequire(import.meta.url)
