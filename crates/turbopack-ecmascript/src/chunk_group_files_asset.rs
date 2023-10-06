@@ -1,12 +1,12 @@
 use anyhow::{Context, Result};
 use indexmap::IndexSet;
-use turbo_tasks::{TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        availability_info::AvailabilityInfo, Chunk, ChunkItem, ChunkableModule, ChunkingContext,
-        ChunkingContextExt, EvaluatableAssets,
+        ChunkItem, ChunkType, ChunkableModule, ChunkingContext, ChunkingContextExt,
+        EvaluatableAssets,
     },
     ident::AssetIdent,
     introspect::{
@@ -22,8 +22,8 @@ use turbopack_core::{
 
 use crate::{
     chunk::{
-        EcmascriptChunk, EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
-        EcmascriptChunkingContext, EcmascriptExports,
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
+        EcmascriptChunkType, EcmascriptChunkingContext, EcmascriptExports,
     },
     utils::StringifyJs,
     EcmascriptModuleAsset,
@@ -227,12 +227,13 @@ impl ChunkItem for ChunkGroupFilesChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn as_chunk(&self, availability_info: Value<AvailabilityInfo>) -> Vc<Box<dyn Chunk>> {
-        Vc::upcast(EcmascriptChunk::new(
-            Vc::upcast(self.chunking_context),
-            Vc::upcast(self.inner),
-            availability_info,
-        ))
+    fn ty(&self) -> Vc<Box<dyn ChunkType>> {
+        Vc::upcast(Vc::<EcmascriptChunkType>::default())
+    }
+
+    #[turbo_tasks::function]
+    fn module(&self) -> Vc<Box<dyn Module>> {
+        Vc::upcast(self.inner)
     }
 }
 

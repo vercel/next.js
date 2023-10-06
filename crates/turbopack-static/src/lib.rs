@@ -15,13 +15,11 @@
 pub mod fixed;
 
 use anyhow::{anyhow, Context, Result};
-use turbo_tasks::{Value, ValueToString, Vc};
+use turbo_tasks::{ValueToString, Vc};
 use turbo_tasks_fs::FileContent;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{
-        availability_info::AvailabilityInfo, Chunk, ChunkItem, ChunkableModule, ChunkingContext,
-    },
+    chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     context::AssetContext,
     ident::AssetIdent,
     module::Module,
@@ -32,8 +30,8 @@ use turbopack_core::{
 use turbopack_css::embed::{CssEmbed, CssEmbeddable};
 use turbopack_ecmascript::{
     chunk::{
-        EcmascriptChunk, EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
-        EcmascriptChunkingContext, EcmascriptExports,
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
+        EcmascriptChunkType, EcmascriptChunkingContext, EcmascriptExports,
     },
     utils::StringifyJs,
 };
@@ -197,12 +195,13 @@ impl ChunkItem for ModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn as_chunk(&self, availability_info: Value<AvailabilityInfo>) -> Vc<Box<dyn Chunk>> {
-        Vc::upcast(EcmascriptChunk::new(
-            Vc::upcast(self.chunking_context),
-            Vc::upcast(self.module),
-            availability_info,
-        ))
+    fn ty(&self) -> Vc<Box<dyn ChunkType>> {
+        Vc::upcast(Vc::<EcmascriptChunkType>::default())
+    }
+
+    #[turbo_tasks::function]
+    fn module(&self) -> Vc<Box<dyn Module>> {
+        Vc::upcast(self.module)
     }
 }
 

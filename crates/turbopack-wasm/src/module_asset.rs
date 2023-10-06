@@ -5,7 +5,7 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        availability_info::AvailabilityInfo, Chunk, ChunkItem, ChunkableModule, ChunkingContext,
+        availability_info::AvailabilityInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext,
     },
     context::AssetContext,
     ident::AssetIdent,
@@ -17,8 +17,8 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     chunk::{
-        EcmascriptChunk, EcmascriptChunkItem, EcmascriptChunkItemContent,
-        EcmascriptChunkItemOptions, EcmascriptChunkPlaceable, EcmascriptChunkingContext,
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemOptions,
+        EcmascriptChunkPlaceable, EcmascriptChunkType, EcmascriptChunkingContext,
         EcmascriptExports,
     },
     references::async_module::OptionAsyncModule,
@@ -196,12 +196,13 @@ impl ChunkItem for ModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn as_chunk(&self, availability_info: Value<AvailabilityInfo>) -> Vc<Box<dyn Chunk>> {
-        Vc::upcast(EcmascriptChunk::new(
-            Vc::upcast(self.chunking_context),
-            Vc::upcast(self.module),
-            availability_info,
-        ))
+    fn ty(&self) -> Vc<Box<dyn ChunkType>> {
+        Vc::upcast(Vc::<EcmascriptChunkType>::default())
+    }
+
+    #[turbo_tasks::function]
+    fn module(&self) -> Vc<Box<dyn Module>> {
+        Vc::upcast(self.module)
     }
 }
 
