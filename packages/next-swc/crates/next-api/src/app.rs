@@ -39,8 +39,9 @@ use turbopack_binding::{
     turbopack::{
         core::{
             asset::{Asset, AssetContent},
-            chunk::{ChunkableModuleExt, ChunkingContext, EvaluatableAssets},
+            chunk::{ChunkingContext, EvaluatableAssets},
             file_source::FileSource,
+            module::Module,
             output::{OutputAsset, OutputAssets},
             virtual_output::VirtualOutputAsset,
         },
@@ -507,7 +508,13 @@ impl AppEndpoint {
         let mut server_assets = vec![];
         let mut client_assets = vec![];
 
+        let app_entry = app_entry.await?;
+
         let client_shared_chunks = get_app_client_shared_chunks(
+            app_entry
+                .rsc_entry
+                .ident()
+                .with_modifier(Vc::cell("client_shared_chunks".to_string())),
             this.app_project.client_runtime_entries(),
             this.app_project.project().client_chunking_context(),
         );
@@ -524,7 +531,6 @@ impl AppEndpoint {
             }
         }
 
-        let app_entry = app_entry.await?;
         let rsc_entry = app_entry.rsc_entry;
 
         let rsc_entry_asset = Vc::upcast(rsc_entry);
@@ -707,9 +713,7 @@ impl AppEndpoint {
                 }
 
                 let files = chunking_context.evaluated_chunk_group(
-                    app_entry
-                        .rsc_entry
-                        .as_root_chunk(Vc::upcast(chunking_context)),
+                    app_entry.rsc_entry.ident(),
                     Vc::cell(evaluatable_assets),
                 );
                 server_assets.extend(files.await?.iter().copied());
