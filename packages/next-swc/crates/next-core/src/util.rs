@@ -87,6 +87,13 @@ pub fn get_asset_path_from_pathname(pathname: &str, ext: &str) -> String {
     format!("{}{}", get_asset_prefix_from_pathname(pathname), ext)
 }
 
+/// Returns a context condition that matches all files that are not part of the
+/// user's code, a.k.a `foreign`.
+///
+/// If transpile_packages is not enabled, this matches to any codes under
+/// `node_modules` or next.js internal template ("dist/esm/build/templates")
+/// files. Otherwise, it matches to files under node_modules except for the
+/// packages specified in transpile_packages or next.js internal templates.
 pub async fn foreign_code_context_condition(
     next_config: Vc<NextConfig>,
     project_path: Vc<FileSystemPath>,
