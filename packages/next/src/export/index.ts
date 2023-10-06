@@ -3,6 +3,7 @@ import type {
   ExportAppOptions,
   ExportWorker,
   WorkerRenderOptsPartial,
+  ExportPageInput,
 } from './types'
 import type { PrerenderManifest } from '../build'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
@@ -172,7 +173,7 @@ function setupWorkers(
 
   let infoPrinted = false
 
-  const worker = Worker.create<typeof import('./worker')>(
+  const worker = Worker.create<typeof import('./worker'), [ExportPageInput]>(
     require.resolve('./worker'),
     {
       timeout: timeout * 1000,
