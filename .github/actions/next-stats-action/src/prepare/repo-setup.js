@@ -81,27 +81,29 @@ module.exports = (actionInfo) => {
         throw err
       }
 
-      for (const pkg of pkgs) {
-        const pkgPath = path.join(repoDir, 'packages', pkg)
-        const packedPkgPath = path.join(pkgPath, `${pkg}-packed.tgz`)
+      await Promise.all(
+        pkgs.map(async (pkg) => {
+          const pkgPath = path.join(repoDir, 'packages', pkg)
+          const packedPkgPath = path.join(pkgPath, `${pkg}-packed.tgz`)
 
-        const pkgDataPath = path.join(pkgPath, 'package.json')
-        if (!fs.existsSync(pkgDataPath)) {
-          require('console').log(`Skipping ${pkgDataPath}`)
-          continue
-        }
-        const pkgData = await fse.readJSON(pkgDataPath)
-        const { name } = pkgData
+          const pkgDataPath = path.join(pkgPath, 'package.json')
+          if (fs.existsSync(pkgDataPath)) {
+            const pkgData = JSON.parse(await fsp.readFile(pkgDataPath))
+            const { name } = pkgData
 
-        pkgDatas.set(name, {
-          pkgDataPath,
-          pkg,
-          pkgPath,
-          pkgData,
-          packedPkgPath,
+            pkgDatas.set(name, {
+              pkgDataPath,
+              pkg,
+              pkgPath,
+              pkgData,
+              packedPkgPath,
+            })
+            pkgPaths.set(name, packedPkgPath)
+          } else {
+            require('console').log(`Skipping ${pkgDataPath}`)
+          }
         })
-        pkgPaths.set(name, packedPkgPath)
-      }
+      )
 
       for (const [
         pkg,
