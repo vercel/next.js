@@ -14,7 +14,7 @@ use turbopack_build::{BuildChunkingContext, MinifyType};
 use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
     asset::Asset,
-    chunk::{ChunkableModule, ChunkableModuleExt, ChunkingContext, EvaluatableAssets},
+    chunk::{ChunkableModule, ChunkingContextExt, EvaluatableAssets},
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
     issue::{handle_issues, IssueReporter, IssueSeverity},
     module::Module,
@@ -269,7 +269,7 @@ async fn build_internal(
                 } else if let Some(chunkable) =
                     Vc::try_resolve_sidecast::<Box<dyn ChunkableModule>>(entry_module).await?
                 {
-                    chunking_context.chunk_group(chunkable.as_root_chunk(chunking_context))
+                    chunking_context.root_chunk_group(chunkable)
                 } else {
                     // TODO convert into a serve-able asset
                     bail!(

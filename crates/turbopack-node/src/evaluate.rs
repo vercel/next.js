@@ -22,7 +22,7 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{ChunkableModuleExt, ChunkingContext, EvaluatableAsset, EvaluatableAssets},
+    chunk::{ChunkingContext, EvaluatableAsset, EvaluatableAssets},
     context::AssetContext,
     file_source::FileSource,
     ident::AssetIdent,
@@ -174,7 +174,6 @@ pub async fn get_evaluate_pool(
         NodeJsBootstrapAsset {
             path,
             chunking_context,
-            entry: entry_module.as_root_chunk(chunking_context),
             evaluatable_assets: runtime_entries.with_entry(entry_module),
         }
         .cell(),
