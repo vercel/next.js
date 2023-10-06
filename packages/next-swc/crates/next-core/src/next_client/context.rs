@@ -19,7 +19,6 @@ use turbopack_binding::{
         },
         dev::{react_refresh::assert_can_resolve_react_refresh, DevChunkingContext},
         ecmascript::chunk::EcmascriptChunkingContext,
-        ecmascript_plugin::transform::directives::server::ServerDirectiveTransformer,
         node::execution_context::ExecutionContext,
         turbopack::{
             condition::ContextCondition,
@@ -232,11 +231,6 @@ pub async fn get_client_module_options_context(
         *get_emotion_transform_plugin(next_config).await?,
         *get_styled_components_transform_plugin(next_config).await?,
         *get_styled_jsx_transform_plugin().await?,
-        Some(Vc::cell(Box::new(ServerDirectiveTransformer::new(
-            // ServerDirective is not implemented yet and always reports an issue.
-            // We don't have to pass a valid transition name yet, but the API is prepared.
-            &Vc::cell("TODO".to_string()),
-        )) as _)),
     ]
     .into_iter()
     .flatten()
