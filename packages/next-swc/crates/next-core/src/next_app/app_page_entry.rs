@@ -9,6 +9,7 @@ use turbopack_binding::{
         core::{
             asset::{Asset, AssetContent},
             context::AssetContext,
+            module::Module,
             reference_type::ReferenceType,
             source::Source,
             virtual_source::VirtualSource,
