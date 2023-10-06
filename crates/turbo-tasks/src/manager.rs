@@ -410,7 +410,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
     /// Calls a native function with arguments. Resolves arguments when needed
     /// with a wrapper [Task].
     pub fn dynamic_call(&self, func: FunctionId, inputs: Vec<ConcreteTaskInput>) -> RawVc {
-        if inputs.iter().all(|i| i.is_resolved() && !i.is_nothing()) {
+        if inputs.iter().all(|i| i.is_resolved()) {
             self.native_call(func, inputs)
         } else {
             RawVc::TaskOutput(self.backend.get_or_create_persistent_task(
