@@ -230,6 +230,7 @@ type BaseRenderOpts = {
   distDir: string
   runtime?: ServerRuntime
   serverComponents?: boolean
+  enableTainting?: boolean
   crossOrigin?: 'anonymous' | 'use-credentials' | '' | undefined
   supportsDynamicHTML?: boolean
   isBot?: boolean
@@ -478,6 +479,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       domainLocales: this.nextConfig.i18n?.domains,
       distDir: this.distDir,
       serverComponents,
+      enableTainting: this.nextConfig.experimental.taint,
       crossOrigin: this.nextConfig.crossOrigin
         ? this.nextConfig.crossOrigin
         : undefined,
