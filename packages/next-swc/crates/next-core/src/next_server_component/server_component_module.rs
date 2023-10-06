@@ -1,22 +1,20 @@
 use anyhow::{bail, Context, Result};
 use indoc::formatdoc;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_binding::turbopack::{
     core::{
         asset::{Asset, AssetContent},
-        chunk::{
-            availability_info::AvailabilityInfo, Chunk, ChunkItem, ChunkItemExt, ChunkableModule,
-            ChunkingContext,
-        },
+        chunk::{ChunkItem, ChunkItemExt, ChunkType, ChunkableModule, ChunkingContext},
         ident::AssetIdent,
         module::Module,
         reference::ModuleReferences,
     },
+    ecmascript::chunk::EcmascriptChunkType,
     turbopack::ecmascript::{
         chunk::{
-            EcmascriptChunk, EcmascriptChunkItem, EcmascriptChunkItemContent,
-            EcmascriptChunkPlaceable, EcmascriptChunkingContext, EcmascriptExports,
+            EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
+            EcmascriptChunkingContext, EcmascriptExports,
         },
         utils::StringifyJs,
     },
@@ -161,11 +159,12 @@ impl ChunkItem for BuildServerComponentChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn as_chunk(&self, availability_info: Value<AvailabilityInfo>) -> Vc<Box<dyn Chunk>> {
-        Vc::upcast(EcmascriptChunk::new(
-            Vc::upcast(self.context),
-            Vc::upcast(self.inner),
-            availability_info,
-        ))
+    fn ty(&self) -> Vc<Box<dyn ChunkType>> {
+        Vc::upcast(Vc::<EcmascriptChunkType>::default())
+    }
+
+    #[turbo_tasks::function]
+    fn module(&self) -> Vc<Box<dyn Module>> {
+        Vc::upcast(self.inner)
     }
 }
