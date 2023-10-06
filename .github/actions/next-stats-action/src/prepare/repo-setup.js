@@ -1,5 +1,7 @@
 const path = require('path')
-const fs = require('fs-extra')
+const fse = require('fs-extra')
+const fs = require('fs')
+const fsp = require('fs/promises')
 const exec = require('../util/exec')
 const { remove } = require('fs-extra')
 const logger = require('../util/logger')
@@ -54,12 +56,23 @@ module.exports = (actionInfo) => {
     },
     async linkPackages({ repoDir, nextSwcVersion }) {
       const pkgPaths = new Map()
+
+      /**
+       * @typedef {Object} PkgData
+       * @property {string} pkgDataPath Where the package.json file is located
+       * @property {string} pkg The folder name of the package
+       * @property {string} pkgPath The path to the package folder
+       * @property {any} pkgData The content of package.json
+       * @property {string} packedPkgPath The npm pack output .tgz file path
+       */
+
+      /** @type {Map<string, PkgData>} */
       const pkgDatas = new Map()
 
       let pkgs
 
       try {
-        pkgs = await fs.readdir(path.join(repoDir, 'packages'))
+        pkgs = await fsp.readdir(path.join(repoDir, 'packages'))
       } catch (err) {
         if (err.code === 'ENOENT') {
           require('console').log('no packages to link')
@@ -90,25 +103,25 @@ module.exports = (actionInfo) => {
         pkgPaths.set(name, packedPkgPath)
       }
 
-      for (const pkg of pkgDatas.keys()) {
-        const { pkgDataPath, pkgData } = pkgDatas.get(pkg)
-
-        for (const pkg of pkgDatas.keys()) {
-          const { packedPkgPath } = pkgDatas.get(pkg)
+      for (const [
+        pkg,
+        { pkgDataPath, pkgData, pkgPath },
+      ] of pkgDatas.entries()) {
+        // update the current package dependencies to point to packed tgz path
+        for (const [pkg, { packedPkgPath }] of pkgDatas.entries()) {
           if (!pkgData.dependencies || !pkgData.dependencies[pkg]) continue
           pkgData.dependencies[pkg] = packedPkgPath
         }
 
         // make sure native binaries are included in local linking
         if (pkg === '@next/swc') {
-          if (!pkgData.files) {
-            pkgData.files = []
-          }
+          pkgData.files ||= []
+
           pkgData.files.push('native')
 
           try {
-            const swcBinariesDirContents = await fs.readdir(
-              path.join(path.dirname(pkgDataPath), 'native')
+            const swcBinariesDirContents = await fsp.readdir(
+              path.join(pkgPath, 'native')
             )
             require('console').log(
               'using swc binaries: ',
@@ -120,28 +133,27 @@ module.exports = (actionInfo) => {
             }
             throw err
           }
-        }
+        } else if (pkg === 'next') {
+          const nextSwcPkg = pkgDatas.get('@next/swc')
 
-        if (pkg === 'next') {
           console.log('using swc dep', {
             nextSwcVersion,
-            nextSwcPkg: pkgDatas.get('@next/swc'),
+            nextSwcPkg,
           })
           if (nextSwcVersion) {
             Object.assign(pkgData.dependencies, {
               '@next/swc-linux-x64-gnu': nextSwcVersion,
             })
           } else {
-            if (pkgDatas.get('@next/swc')) {
-              pkgData.dependencies['@next/swc'] =
-                pkgDatas.get('@next/swc').packedPkgPath
+            if (nextSwcPkg) {
+              pkgData.dependencies['@next/swc'] = nextSwcPkg.packedPkgPath
             } else {
               pkgData.files.push('native')
             }
           }
         }
 
-        await fs.writeFile(
+        await fsp.writeFile(
           pkgDataPath,
           JSON.stringify(pkgData, null, 2),
           'utf8'
@@ -151,41 +163,44 @@ module.exports = (actionInfo) => {
       // wait to pack packages until after dependency paths have been updated
       // to the correct versions
       await Promise.all(
-        Array.from(pkgDatas.keys()).map(async (pkgName) => {
-          const { pkgPath, packedPkgPath } = pkgDatas.get(pkgName)
+        Array.from(pkgDatas.entries()).map(
+          async ([pkgName, { pkgPath, packedPkgPath }]) => {
+            let cleanup = null
 
-          let cleanup = null
-
-          if (pkgName === '@next/swc') {
-            // next-swc uses a gitignore to prevent the committing of native builds but it doesn't
-            // use files in package.json because it publishes to individual packages based on architecture.
-            // When we used yarn to pack these packages the gitignore was ignored so the native builds were packed
-            // however npm does respect gitignore when packing so we need to remove it in this specific case
-            // to ensure the native builds are packed for use in gh actions and related scripts
-            await fs.rename(
-              path.join(pkgPath, 'native/.gitignore'),
-              path.join(pkgPath, 'disabled-native-gitignore')
-            )
-            cleanup = async () => {
-              await fs.rename(
-                path.join(pkgPath, 'disabled-native-gitignore'),
-                path.join(pkgPath, 'native/.gitignore')
+            if (pkgName === '@next/swc') {
+              // next-swc uses a gitignore to prevent the committing of native builds but it doesn't
+              // use files in package.json because it publishes to individual packages based on architecture.
+              // When we used yarn to pack these packages the gitignore was ignored so the native builds were packed
+              // however npm does respect gitignore when packing so we need to remove it in this specific case
+              // to ensure the native builds are packed for use in gh actions and related scripts
+              await fse.rename(
+                path.join(pkgPath, 'native/.gitignore'),
+                path.join(pkgPath, 'disabled-native-gitignore')
               )
+              cleanup = async () => {
+                await fse.rename(
+                  path.join(pkgPath, 'disabled-native-gitignore'),
+                  path.join(pkgPath, 'native/.gitignore')
+                )
+              }
+            }
+
+            const { stdout } = await execa('npm', ['pack'], {
+              cwd: pkgPath,
+              env: {
+                ...process.env,
+                COREPACK_ENABLE_STRICT: '0',
+              },
+            })
+            await fse.rename(
+              path.resolve(pkgPath, stdout.trim()),
+              packedPkgPath
+            )
+            if (cleanup) {
+              await cleanup()
             }
           }
-
-          const { stdout } = await execa('npm', ['pack'], {
-            cwd: pkgPath,
-            env: {
-              ...process.env,
-              COREPACK_ENABLE_STRICT: '0',
-            },
-          })
-          await fs.rename(path.resolve(pkgPath, stdout.trim()), packedPkgPath)
-          if (cleanup) {
-            await cleanup()
-          }
-        })
+        )
       )
       return pkgPaths
     },
