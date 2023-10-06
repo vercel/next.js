@@ -6,7 +6,7 @@ import { BrowserInterface } from 'test/lib/browsers/base'
 import { Request } from 'playwright-core'
 
 createNextDescribe(
-  'app dir basic',
+  'app dir - basic',
   {
     files: __dirname,
     buildCommand: process.env.NEXT_EXPERIMENTAL_COMPILE

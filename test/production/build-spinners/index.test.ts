@@ -66,7 +66,7 @@ describe('build-spinners', () => {
   })
 
   it.each([
-    { name: 'app dir basic', files: appDirFiles },
+    { name: 'app dir - basic', files: appDirFiles },
     {
       name: 'app dir - (compile workers)',
       files: [
