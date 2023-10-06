@@ -17,7 +17,7 @@ use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{to_sys_path, File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkableModuleExt, ChunkingContext, EvaluatableAsset, EvaluatableAssets},
+    chunk::{ChunkingContext, EvaluatableAsset, EvaluatableAssets},
     module::Module,
     output::{OutputAsset, OutputAssetsSet},
     source_map::GenerateSourceMap,
@@ -268,7 +268,6 @@ pub async fn get_intermediate_asset(
         NodeJsBootstrapAsset {
             path: chunking_context.chunk_path(main_entry.ident(), ".js".to_string()),
             chunking_context,
-            entry: main_entry.as_root_chunk(chunking_context),
             evaluatable_assets: other_entries.with_entry(main_entry),
         }
         .cell(),

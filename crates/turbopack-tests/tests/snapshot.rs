@@ -30,7 +30,7 @@ use turbopack_build::{BuildChunkingContext, MinifyType};
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        ChunkableModule, ChunkableModuleExt, ChunkingContext, EvaluatableAssetExt,
+        ChunkableModule, ChunkingContext, ChunkingContextExt, EvaluatableAssetExt,
         EvaluatableAssets,
     },
     compile_time_defines,
@@ -326,7 +326,7 @@ async fn run_test(resource: String) -> Result<Vc<FileSystemPath>> {
         // TODO: Load runtime entries from snapshots
         match options.runtime {
             Runtime::Dev => chunking_context.evaluated_chunk_group(
-                ecmascript.as_root_chunk(chunking_context),
+                ecmascript.ident(),
                 runtime_entries
                     .unwrap_or_else(EvaluatableAssets::empty)
                     .with_entry(Vc::upcast(ecmascript)),
@@ -359,9 +359,9 @@ async fn run_test(resource: String) -> Result<Vc<FileSystemPath>> {
             }
         }
     } else if let Some(chunkable) =
-        Vc::try_resolve_sidecast::<Box<dyn ChunkableModule>>(entry_module).await?
+        Vc::try_resolve_downcast::<Box<dyn ChunkableModule>>(entry_module).await?
     {
-        chunking_context.chunk_group(chunkable.as_root_chunk(chunking_context))
+        chunking_context.root_chunk_group(chunkable)
     } else {
         // TODO convert into a serve-able asset
         bail!("Entry module is not chunkable, so it can't be used to bootstrap the application")

@@ -5,8 +5,9 @@ use turbo_tasks_fs::{File, FileSystemPath};
 use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkableModule, ChunkableModuleExt, ChunkingContext, EvaluatableAssets},
+    chunk::{ChunkableModule, ChunkingContext, ChunkingContextExt, EvaluatableAssets},
     ident::AssetIdent,
+    module::Module,
     output::{OutputAsset, OutputAssets},
     version::{Version, VersionedContent},
 };
@@ -131,11 +132,18 @@ impl DevHtmlAsset {
             .map(|entry| async move {
                 let (chunkable_module, chunking_context, runtime_entries) = entry;
 
-                let chunk = chunkable_module.as_root_chunk(*chunking_context);
                 let assets = if let Some(runtime_entries) = runtime_entries {
-                    chunking_context.evaluated_chunk_group(chunk, *runtime_entries)
+                    let runtime_entries = if let Some(evaluatable) =
+                        Vc::try_resolve_downcast(*chunkable_module).await?
+                    {
+                        runtime_entries.with_entry(evaluatable)
+                    } else {
+                        *runtime_entries
+                    };
+                    chunking_context
+                        .evaluated_chunk_group(chunkable_module.ident(), runtime_entries)
                 } else {
-                    chunking_context.chunk_group(chunk)
+                    chunking_context.root_chunk_group(Vc::upcast(*chunkable_module))
                 };
 
                 assets.await

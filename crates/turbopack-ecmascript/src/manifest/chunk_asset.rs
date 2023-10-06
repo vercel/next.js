@@ -2,10 +2,7 @@ use anyhow::{Context, Result};
 use turbo_tasks::{Value, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{
-        availability_info::AvailabilityInfo, Chunk, ChunkableModule, ChunkableModuleExt,
-        ChunkingContext,
-    },
+    chunk::{availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext},
     ident::AssetIdent,
     module::Module,
     output::OutputAssets,
@@ -53,27 +50,19 @@ impl ManifestChunkAsset {
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn entry_chunk(self: Vc<Self>) -> Result<Vc<Box<dyn Chunk>>> {
-        let this = self.await?;
-        Ok(this.asset.as_chunk(
-            Vc::upcast(this.chunking_context),
-            Value::new(this.availability_info),
-        ))
-    }
-
-    #[turbo_tasks::function]
     pub(super) async fn chunks(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
-        Ok(this.chunking_context.chunk_group(self.entry_chunk()))
+        Ok(this
+            .chunking_context
+            .chunk_group(Vc::upcast(this.asset), Value::new(this.availability_info)))
     }
 
     #[turbo_tasks::function]
     pub async fn manifest_chunks(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
-        Ok(this.chunking_context.chunk_group(self.as_chunk(
-            Vc::upcast(this.chunking_context),
-            Value::new(this.availability_info),
-        )))
+        Ok(this
+            .chunking_context
+            .chunk_group(Vc::upcast(self), Value::new(this.availability_info)))
     }
 }
 
