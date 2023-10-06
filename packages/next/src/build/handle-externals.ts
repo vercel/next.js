@@ -43,7 +43,6 @@ export async function resolveExternal(
   context: string,
   request: string,
   isEsmRequested: boolean,
-  hasAppDir: boolean,
   getResolve: (
     options: any
   ) => (
@@ -288,7 +287,6 @@ export function makeExternalHandler({
       context,
       request,
       isEsmRequested,
-      hasAppDir,
       getResolve,
       isLocal ? resolveNextExternal : undefined
     )
@@ -348,7 +346,6 @@ export function makeExternalHandler({
           config.experimental.esmExternals,
           context,
           pkg + '/package.json',
-          hasAppDir,
           isEsmRequested,
           getResolve,
           isLocal ? resolveNextExternal : undefined
