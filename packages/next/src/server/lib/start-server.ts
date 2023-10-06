@@ -1,3 +1,6 @@
+if (performance.getEntriesByName('next-start').length === 0) {
+  performance.mark('next-start')
+}
 import '../next'
 import '../node-polyfill-fetch'
 import '../require-hook'
@@ -130,7 +133,6 @@ export async function startServer({
   envInfo,
   expFeatureInfo,
 }: StartServerOptions): Promise<void> {
-  const startServerProcessStartTime = Date.now()
   let handlersReady = () => {}
   let handlersError = () => {}
 
@@ -297,11 +299,17 @@ export async function startServer({
         upgradeHandler = initResult[1]
 
         const startServerProcessDuration =
-          Date.now() - startServerProcessStartTime
+          performance.mark('next-start-end') &&
+          performance.measure(
+            'next-start-duration',
+            'next-start',
+            'next-start-end'
+          ).duration
+
         const formatDurationText =
           startServerProcessDuration > 2000
             ? `${Math.round(startServerProcessDuration / 100) / 10}s`
-            : `${startServerProcessDuration}ms`
+            : `${Math.round(startServerProcessDuration)}ms`
 
         handlersReady()
         logStartInfo({
