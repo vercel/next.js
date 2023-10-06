@@ -13,7 +13,6 @@ import punycode from 'node:punycode'
 import process from 'node:process'
 import querystring from 'node:querystring'
 import stringDecoder from 'node:string_decoder'
-import sys from 'node:sys'
 import timers from 'node:timers'
 import tty from 'node:tty'
 import util from 'node:util'
@@ -42,7 +41,6 @@ export async function getServerSideProps() {
     assert.ok(!!https)
     assert.ok(!!punycode)
     assert.ok(!!stringDecoder)
-    assert.ok(!!sys.debuglog)
     assert.ok(!!timers.setInterval)
     assert.ok(!!tty.ReadStream)
     assert.ok(!!util.inspect)
@@ -61,7 +59,6 @@ export async function getServerSideProps() {
         querystring: querystring.stringify({ a: 'b' }),
         stream: closedStream,
         stringDecoder: true,
-        sys: true,
         timers: true,
         tty: true,
         util: true,

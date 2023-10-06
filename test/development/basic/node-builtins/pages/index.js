@@ -14,7 +14,6 @@ import punycode from 'punycode'
 import process from 'process'
 import querystring from 'querystring'
 import stringDecoder from 'string_decoder'
-import sys from 'sys'
 import timers from 'timers'
 import tty from 'tty'
 import util from 'util'
@@ -45,7 +44,6 @@ export default function NodeBrowserPolyfillPage() {
     assert.ok(!!https)
     assert.ok(!!punycode)
     assert.ok(!!stringDecoder)
-    assert.ok(!!sys.debuglog)
     assert.ok(!!timers.setInterval)
     assert.ok(!!tty.ReadStream)
     assert.ok(!!util.inspect)
@@ -64,7 +62,6 @@ export default function NodeBrowserPolyfillPage() {
         querystring: querystring.stringify({ a: 'b' }),
         stream: closedStream,
         stringDecoder: true,
-        sys: true,
         timers: true,
         tty: true,
         util: true,

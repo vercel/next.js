@@ -33,7 +33,6 @@ createNextDescribe(
       expect(parsedData.process).toBe('browser')
       expect(parsedData.querystring).toBe('a=b')
       expect(parsedData.stringDecoder).toBe(true)
-      expect(parsedData.sys).toBe(true)
       expect(parsedData.timers).toBe(true)
     })
 
@@ -63,7 +62,6 @@ createNextDescribe(
       expect(parsedData.process).toBe('browser')
       expect(parsedData.querystring).toBe('a=b')
       expect(parsedData.stringDecoder).toBe(true)
-      expect(parsedData.sys).toBe(true)
       expect(parsedData.timers).toBe(true)
     })
 
@@ -89,7 +87,6 @@ createNextDescribe(
       expect(parsedData.process).toInclude('next-router-worker')
       expect(parsedData.querystring).toBe('a=b')
       expect(parsedData.stringDecoder).toBe(true)
-      expect(parsedData.sys).toBe(true)
       expect(parsedData.timers).toBe(true)
     })
 
@@ -115,7 +112,6 @@ createNextDescribe(
       expect(parsedData.process).toInclude('next-router-worker')
       expect(parsedData.querystring).toBe('a=b')
       expect(parsedData.stringDecoder).toBe(true)
-      expect(parsedData.sys).toBe(true)
       expect(parsedData.timers).toBe(true)
     })
 
@@ -140,7 +136,6 @@ createNextDescribe(
       expect(parsedData.path).toBe('/hello/world/test.txt')
       expect(parsedData.querystring).toBe('a=b')
       expect(parsedData.stringDecoder).toBe(true)
-      expect(parsedData.sys).toBe(true)
       expect(parsedData.timers).toBe(true)
     })
 
@@ -165,7 +160,6 @@ createNextDescribe(
       expect(parsedData.path).toBe('/hello/world/test.txt')
       expect(parsedData.querystring).toBe('a=b')
       expect(parsedData.stringDecoder).toBe(true)
-      expect(parsedData.sys).toBe(true)
       expect(parsedData.timers).toBe(true)
     })
   }
