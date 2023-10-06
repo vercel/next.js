@@ -2,6 +2,17 @@ import fs from 'fs/promises'
 import path from 'path'
 import { createNextDescribe } from 'e2e-utils'
 
+async function getAppPageChunkPaths(appDir: string, pageName?: string) {
+  const rscPath = path.join(appDir, '.next/server/chunks/rsc')
+  const pageRegex = new RegExp(
+    `app${pageName ? '_' + pageName : ''}_page_tsx_[0-9a-f]+._.js$`
+  )
+
+  return (await fs.readdir(rscPath))
+    .filter((p) => p.match(pageRegex))
+    .map((basename) => path.join(rscPath, basename))
+}
+
 createNextDescribe(
   'externals-app',
   {
@@ -58,14 +69,3 @@ createNextDescribe(
     })
   }
 )
-
-async function getAppPageChunkPaths(appDir: string, pageName?: string) {
-  const rscPath = path.join(appDir, '.next/server/chunks/rsc')
-  const pageRegex = new RegExp(
-    `app${pageName ? '_' + pageName : ''}_page_tsx_[0-9a-f]+\._\.js$`
-  )
-
-  return (await fs.readdir(rscPath))
-    .filter((p) => p.match(pageRegex))
-    .map((basename) => path.join(rscPath, basename))
-}
