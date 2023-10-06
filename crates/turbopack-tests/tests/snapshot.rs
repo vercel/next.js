@@ -214,6 +214,7 @@ async fn run_test(resource: String) -> Result<Vc<FileSystemPath>> {
 
     let defines = compile_time_defines!(
         process.turbopack = true,
+        process.env.TURBOPACK = true,
         process.env.NODE_ENV = "development",
         DEFINED_VALUE = "value",
         DEFINED_TRUE = true,
