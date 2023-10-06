@@ -19,17 +19,6 @@ async function collectStdout(appDir) {
   return stdout
 }
 
-async function collectStderr(appDir) {
-  let stderr = ''
-  const port = await findPort()
-  app = await launchApp(appDir, port, {
-    onStderr(msg) {
-      stderr += msg
-    },
-  })
-  return stderr
-}
-
 describe('Config Experimental Warning', () => {
   afterEach(() => {
     configFile.write('')
