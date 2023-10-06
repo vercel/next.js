@@ -6,8 +6,10 @@ import {
   AppRouterState,
   ReducerActions,
 } from './router-reducer/router-reducer-types'
-
-export let flightRouterState: AppRouterState
+import {
+  flightRouterState,
+  updateFlightRouterState,
+} from '../../shared/lib/app-router-context.shared-runtime'
 
 function normalizeRouterState(val: any): any {
   if (val instanceof Map) {
@@ -96,7 +98,7 @@ function useReducerWithReduxDevtoolsNoop(
   return [initialState, () => {}, () => {}]
 }
 
-function dispatch(
+function dispatchWithDevtools(
   action: ReducerActions,
   ref: MutableRefObject<ReduxDevToolsInstance | undefined>
 ) {
@@ -121,11 +123,11 @@ function isThenable(value: any): value is Promise<any> {
 function unwrapStateIfNeeded(state: AppRouterState | Promise<AppRouterState>) {
   if (isThenable(state)) {
     const result = use(state)
-    flightRouterState = result
+    updateFlightRouterState(result)
     return result
   }
 
-  flightRouterState = state
+  updateFlightRouterState(state)
   return state
 }
 
@@ -167,10 +169,29 @@ function useReducerWithReduxDevtoolsImpl(
     }
   }, [initialState])
 
-  const _dispatch = useCallback((action: ReducerActions) => {
-    const result = dispatch(action, devtoolsConnectionRef)
+  const lastPromiseRef = useRef<Promise<any>>(Promise.resolve())
+
+  const dispatchAction = useCallback((action: ReducerActions) => {
+    const result = dispatchWithDevtools(action, devtoolsConnectionRef)
     setState(result)
+    return result
   }, [])
+
+  const dispatch = useCallback(
+    (action: ReducerActions) => {
+      if (action.type === 'navigate') {
+        // a navigation event should not wait for other actions to run to completion
+        const result = dispatchAction(action)
+        lastPromiseRef.current = Promise.resolve(result)
+        return
+      }
+
+      lastPromiseRef.current = lastPromiseRef.current.then(() => {
+        return dispatchAction(action)
+      })
+    },
+    [dispatchAction]
+  )
 
   const sync = useCallback(() => {
     if (devtoolsConnectionRef.current) {
@@ -183,7 +204,7 @@ function useReducerWithReduxDevtoolsImpl(
 
   const applicationState = unwrapStateIfNeeded(state)
 
-  return [applicationState, _dispatch, sync]
+  return [applicationState, dispatch, sync]
 }
 
 export const useReducerWithReduxDevtools =

@@ -71,7 +71,9 @@ export function getServerActionDispatcher() {
   return globalServerActionDispatcher
 }
 
-const globalMutable: { pendingMpaPath?: string } = {}
+const globalMutable: {
+  pendingMpaPath?: string
+} = {}
 
 export function urlToUrlWithoutFlightMarker(url: string): URL {
   const urlWithoutFlightParameters = new URL(url, location.origin)
@@ -329,11 +331,13 @@ function Router({
             'fastRefresh can only be used in development mode. Please use refresh instead.'
           )
         } else {
-          dispatch({
-            type: ACTION_FAST_REFRESH,
-            cache: createEmptyCacheNode(),
-            mutable: {},
-            origin: window.location.origin,
+          startTransition(() => {
+            dispatch({
+              type: ACTION_FAST_REFRESH,
+              cache: createEmptyCacheNode(),
+              mutable: {},
+              origin: window.location.origin,
+            })
           })
         }
       },

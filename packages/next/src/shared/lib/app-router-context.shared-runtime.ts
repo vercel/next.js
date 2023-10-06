@@ -1,6 +1,7 @@
 'use client'
 
 import type {
+  AppRouterState,
   FocusAndScrollRef,
   PrefetchKind,
   ThenableRecord,
@@ -134,4 +135,10 @@ if (process.env.NODE_ENV !== 'production') {
   LayoutRouterContext.displayName = 'LayoutRouterContext'
   GlobalLayoutRouterContext.displayName = 'GlobalLayoutRouterContext'
   TemplateContext.displayName = 'TemplateContext'
+}
+
+export let flightRouterState: AppRouterState
+
+export function updateFlightRouterState(newState: AppRouterState) {
+  flightRouterState = newState
 }
