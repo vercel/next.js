@@ -15,11 +15,13 @@ import * as vendoredContexts from './vendored/contexts/entrypoints'
 
 let vendoredReactRSC
 let vendoredReactSSR
+let vendoredReactShared
 
 // the vendored Reacts are loaded from their original source in the edge runtime
 if (process.env.NEXT_RUNTIME !== 'edge') {
   vendoredReactRSC = require('./vendored/rsc/entrypoints')
   vendoredReactSSR = require('./vendored/ssr/entrypoints')
+  vendoredReactShared = require('./vendored/shared/entrypoints')
 }
 
 /**
@@ -69,6 +71,7 @@ export class AppPageRouteModule extends RouteModule<
 const vendored = {
   'react-rsc': vendoredReactRSC,
   'react-ssr': vendoredReactSSR,
+  'react-shared': vendoredReactShared,
   contexts: vendoredContexts,
 }
 

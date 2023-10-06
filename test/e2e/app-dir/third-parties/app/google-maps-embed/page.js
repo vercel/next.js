@@ -2,7 +2,7 @@ import { GoogleMapsEmbed } from '@next/third-parties/google'
 
 const Page = () => {
   return (
-    <div className="container">
+    <div class="container">
       <h1>Google Maps Embed</h1>
       <GoogleMapsEmbed
         apiKey="XYZ"
