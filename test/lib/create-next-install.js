@@ -1,9 +1,10 @@
 const os = require('os')
 const path = require('path')
 const execa = require('execa')
-const fs = require('fs-extra')
+const fs = require('fs/promises')
 const childProcess = require('child_process')
 const { randomBytes } = require('crypto')
+const { existsSync } = require('fs')
 const { linkPackages } =
   require('../../.github/actions/next-stats-action/src/prepare/repo-setup')()
 
@@ -81,17 +82,21 @@ async function createNextInstall({
                   origRepoDir,
                   'packages/next-swc/native'
                 )
-                await fs.copy(swcPkgPath, outputPath, {
-                  filter: (item) => {
-                    return (
-                      item === swcPkgPath ||
-                      (item.endsWith('.node') &&
-                        !fs.pathExistsSync(
-                          path.join(outputPath, path.basename(item))
-                        ))
+                const newNativeBinaries = (await fs.readdir(swcPkgPath)).filter(
+                  (basename) =>
+                    basename.endsWith('.node') &&
+                    !existsSync(path.join(outputPath, basename))
+                )
+
+                await fs.mkdir(outputPath, { recursive: true })
+                await Promise.all(
+                  newNativeBinaries.map((basename) =>
+                    fs.cp(
+                      path.join(swcPkgPath, basename),
+                      path.join(outputPath, basename)
                     )
-                  },
-                })
+                  )
+                )
               }
             }
           })
@@ -197,7 +202,7 @@ async function createNextInstall({
       }
 
       if (!keepRepoDir && tmpRepoDir) {
-        await fs.remove(tmpRepoDir)
+        await fs.rm(tmpRepoDir, { recursive: true, force: true })
       }
       if (keepRepoDir) {
         return {

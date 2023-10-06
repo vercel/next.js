@@ -1,5 +1,5 @@
 import path from 'path'
-import fs from 'fs-extra'
+import fs from 'fs/promises'
 import { NextInstance } from './base'
 import spawn from 'cross-spawn'
 import { Span } from 'next/src/trace'

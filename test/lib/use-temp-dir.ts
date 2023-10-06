@@ -1,4 +1,4 @@
-import fs from 'fs-extra'
+import fs from 'fs/promises'
 import os from 'os'
 import path from 'path'
 
@@ -14,7 +14,7 @@ export async function useTempDir(
     os.tmpdir(),
     'next-test-' + Math.random().toString(36).slice(2)
   )
-  await fs.mkdirp(folder)
+  await fs.mkdir(folder, { recursive: true })
 
   if (mode) {
     await fs.chmod(folder, mode)
@@ -24,7 +24,7 @@ export async function useTempDir(
     await fn(folder)
   } finally {
     if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
-      await fs.remove(folder)
+      await fs.rm(folder, { recursive: true, force: true })
     }
   }
 }
