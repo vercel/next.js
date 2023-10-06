@@ -1,15 +1,15 @@
 use anyhow::{Context, Result};
 use indoc::formatdoc;
-use turbo_tasks::{TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{TryJoinIterExt, ValueToString, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::FileSystemPath,
     turbopack::{
         core::{
             asset::{Asset, AssetContent},
             chunk::{
-                availability_info::AvailabilityInfo, Chunk, ChunkData, ChunkItem, ChunkItemExt,
-                ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingContextExt,
-                ChunkingType, ChunkingTypeOption, ChunksData,
+                ChunkData, ChunkItem, ChunkItemExt, ChunkType, ChunkableModule,
+                ChunkableModuleReference, ChunkingContext, ChunkingContextExt, ChunkingType,
+                ChunkingTypeOption, ChunksData,
             },
             ident::AssetIdent,
             module::Module,
@@ -18,11 +18,11 @@ use turbopack_binding::{
             reference::{ModuleReference, ModuleReferences, SingleOutputAssetReference},
             resolve::ModuleResolveResult,
         },
-        ecmascript::chunk::EcmascriptChunkData,
+        ecmascript::chunk::{EcmascriptChunkData, EcmascriptChunkType},
         turbopack::ecmascript::{
             chunk::{
-                EcmascriptChunk, EcmascriptChunkItem, EcmascriptChunkItemContent,
-                EcmascriptChunkPlaceable, EcmascriptChunkingContext, EcmascriptExports,
+                EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
+                EcmascriptChunkingContext, EcmascriptExports,
             },
             utils::StringifyJs,
         },
@@ -239,12 +239,13 @@ impl ChunkItem for WithClientChunksChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn as_chunk(&self, availability_info: Value<AvailabilityInfo>) -> Vc<Box<dyn Chunk>> {
-        Vc::upcast(EcmascriptChunk::new(
-            Vc::upcast(self.context.with_layer("rsc".to_string())),
-            Vc::upcast(self.inner),
-            availability_info,
-        ))
+    fn ty(&self) -> Vc<Box<dyn ChunkType>> {
+        Vc::upcast(Vc::<EcmascriptChunkType>::default())
+    }
+
+    #[turbo_tasks::function]
+    fn module(&self) -> Vc<Box<dyn Module>> {
+        Vc::upcast(self.inner)
     }
 }
 
