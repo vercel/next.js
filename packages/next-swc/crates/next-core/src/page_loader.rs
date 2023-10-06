@@ -9,10 +9,7 @@ use turbopack_binding::{
     turbopack::{
         core::{
             asset::{Asset, AssetContent},
-            chunk::{
-                ChunkData, ChunkableModuleExt, ChunkingContext, ChunksData, EvaluatableAsset,
-                EvaluatableAssets,
-            },
+            chunk::{ChunkData, ChunkingContext, ChunksData, EvaluatableAsset, EvaluatableAssets},
             context::AssetContext,
             ident::AssetIdent,
             module::Module,
@@ -138,10 +135,9 @@ impl PageLoaderAsset {
             bail!("internal module must be evaluatable");
         };
 
-        Ok(this.client_chunking_context.evaluated_chunk_group(
-            module.as_root_chunk(this.client_chunking_context),
-            EvaluatableAssets::one(module),
-        ))
+        Ok(this
+            .client_chunking_context
+            .evaluated_chunk_group(module.ident(), EvaluatableAssets::one(module)))
     }
 
     #[turbo_tasks::function]

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+performance.mark('next-start')
 import '../server/require-hook'
 import * as log from '../build/output/log'
 import arg from 'next/dist/compiled/arg/index.js'
