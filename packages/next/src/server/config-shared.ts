@@ -410,6 +410,11 @@ export interface ExperimentalConfig {
    * Enables early import feature for app router modules
    */
   useEarlyImport?: boolean
+
+  /**
+   * CSS class names are minified by default in production builds without references to file names.
+   */
+  minifiedCSSClassNamesForCSSModules?: boolean
 }
 
 export type ExportPathMap = {
@@ -902,6 +907,7 @@ export const defaultConfig: NextConfig = {
     missingSuspenseWithCSRBailout: true,
     optimizeServerReact: false,
     useEarlyImport: false,
+    minifiedCSSClassNamesForCSSModules: false,
   },
 }
 
