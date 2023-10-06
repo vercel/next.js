@@ -2372,6 +2372,7 @@ export async function next_compile(task, opts) {
       'nextbuildjest',
       'nextbuildstatic',
       'nextbuild_esm',
+      'nextexport_esm',
       'pages',
       'pages_esm',
       'lib',
@@ -2465,6 +2466,21 @@ export async function nextbuild(task, opts) {
     })
     .swc('server', { dev: opts.dev })
     .target('dist/build')
+}
+
+export async function nextexport_esm(task, opts) {
+  await task
+    .source('src/export/**/*.+(js|ts|tsx)', {
+      ignore: [
+        '**/fixture/**',
+        '**/tests/**',
+        '**/jest/**',
+        '**/*.test.d.ts',
+        '**/*.test.+(js|ts|tsx)',
+      ],
+    })
+    .swc('server', { dev: opts.dev, esm: true })
+    .target('dist/esm/export')
 }
 
 export async function nextbuild_esm(task, opts) {
@@ -2633,7 +2649,7 @@ export default async function (task) {
   await task.watch('src/server', ['server', 'server_esm', 'server_wasm'], opts)
   await task.watch(
     'src/build',
-    ['nextbuild', 'nextbuild_esm', 'nextbuildjest'],
+    ['nextbuild', 'nextexport_esm', 'nextbuild_esm', 'nextbuildjest'],
     opts
   )
   await task.watch('src/export', 'nextbuildstatic', opts)
