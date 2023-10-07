@@ -188,8 +188,7 @@ function useReducerWithReduxDevtoolsImpl(
         return
       }
 
-      const result = dispatchAction(action)
-      lastPromiseRef.current = result
+      lastPromiseRef.current = dispatchAction(action)
     },
     [dispatchAction]
   )
