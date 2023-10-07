@@ -352,7 +352,7 @@ function ImagePreload({
   )
 }
 
-export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
+export const ClientImage = forwardRef<HTMLImageElement | null, ImageProps>(
   (props, forwardedRef) => {
     const pagesRouter = useContext(RouterContext)
     // We're in the app directory if there is no pages router.
