@@ -5,6 +5,7 @@ import { useRef, useEffect, useCallback } from 'react'
 import {
   AppRouterState,
   ReducerActions,
+  ReducerState,
 } from './router-reducer/router-reducer-types'
 import {
   flightRouterState,
@@ -169,7 +170,7 @@ function useReducerWithReduxDevtoolsImpl(
     }
   }, [initialState])
 
-  const lastPromiseRef = useRef<Promise<any>>(Promise.resolve())
+  const lastPromiseRef = useRef<ReducerState>()
 
   const dispatchAction = useCallback((action: ReducerActions) => {
     const result = dispatchWithDevtools(action, devtoolsConnectionRef)
@@ -179,16 +180,16 @@ function useReducerWithReduxDevtoolsImpl(
 
   const dispatch = useCallback(
     (action: ReducerActions) => {
-      if (action.type === 'navigate') {
-        // a navigation event should not wait for other actions to run to completion
-        const result = dispatchAction(action)
-        lastPromiseRef.current = Promise.resolve(result)
+      if (
+        isThenable(lastPromiseRef.current) &&
+        (action.type === 'refresh' || action.type === 'fast-refresh')
+      ) {
+        // don't refresh if another action is in flight (is this a good idea?)
         return
       }
 
-      lastPromiseRef.current = lastPromiseRef.current.then(() => {
-        return dispatchAction(action)
-      })
+      const result = dispatchAction(action)
+      lastPromiseRef.current = result
     },
     [dispatchAction]
   )
@@ -203,6 +204,7 @@ function useReducerWithReduxDevtoolsImpl(
   }, [state])
 
   const applicationState = unwrapStateIfNeeded(state)
+  lastPromiseRef.current = undefined
 
   return [applicationState, dispatch, sync]
 }
