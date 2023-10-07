@@ -517,8 +517,7 @@ createNextDescribe(
             beforePageLoad(page) {
               page.on('request', (request) => {
                 const url = new URL(request.url())
-                // skip rsc prefetches
-                if (url.pathname === '/slow-page' && !url.search) {
+                if (url.pathname === '/slow-page') {
                   requestCount++
                 }
               })

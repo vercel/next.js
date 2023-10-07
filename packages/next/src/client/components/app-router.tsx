@@ -35,7 +35,6 @@ import {
   PrefetchKind,
 } from './router-reducer/router-reducer-types'
 import type {
-  Mutable,
   ReducerActions,
   RouterChangeByServerResponse,
   RouterNavigate,
