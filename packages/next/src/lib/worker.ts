@@ -1,4 +1,4 @@
-import { ChildProcess } from 'child_process'
+import type { ChildProcess } from 'child_process'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
 import { getNodeOptionsWithoutInspect } from '../server/lib/utils'
 

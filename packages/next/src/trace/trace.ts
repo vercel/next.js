@@ -1,4 +1,4 @@
-import { SpanId } from './shared'
+import type { SpanId } from './shared'
 import { reporter } from './report'
 
 const NUM_OF_MICROSEC_IN_NANOSEC = BigInt('1000')

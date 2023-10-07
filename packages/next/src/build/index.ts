@@ -35,9 +35,11 @@ import {
 import { FileType, fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
 import loadCustomRoutes, {
+  normalizeRouteRegex,
+} from '../lib/load-custom-routes'
+import type {
   CustomRoutes,
   Header,
-  normalizeRouteRegex,
   Redirect,
   Rewrite,
   RouteHas,
@@ -76,9 +78,9 @@ import {
   FUNCTIONS_CONFIG_MANIFEST,
 } from '../shared/lib/constants'
 import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
-import { __ApiPreviewProps } from '../server/api-utils'
+import type { __ApiPreviewProps } from '../server/api-utils'
 import loadConfig from '../server/config'
-import { BuildManifest } from '../server/get-page-files'
+import type { BuildManifest } from '../server/get-page-files'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getPagePath } from '../server/require'
 import * as ciEnvironment from '../telemetry/ci-info'
@@ -88,10 +90,10 @@ import {
   eventBuildFeatureUsage,
   eventNextPlugins,
   EVENT_BUILD_FEATURE_USAGE,
-  EventBuildFeatureUsage,
   eventPackageUsedInGetServerSideProps,
   eventBuildCompleted,
 } from '../telemetry/events'
+import type { EventBuildFeatureUsage } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import {
   isDynamicMetadataRoute,
@@ -107,17 +109,17 @@ import {
   detectConflictingPaths,
   computeFromManifest,
   getJsPageSizeInKb,
-  PageInfo,
   printCustomRoutes,
   printTreeView,
   copyTracedFiles,
   isReservedPage,
-  AppConfig,
   isAppBuiltinNotFoundPage,
 } from './utils'
+import type { PageInfo, AppConfig } from './utils'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
-import isError, { NextError } from '../lib/is-error'
+import isError from '../lib/is-error'
+import type { NextError } from '../lib/is-error'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveReadDir } from '../lib/recursive-readdir'
@@ -153,7 +155,7 @@ import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
 import { initialize as initializeIncrementalCache } from '../server/lib/incremental-cache-server'
 import { nodeFs } from '../server/lib/node-fs-methods'
 import { collectBuildTraces } from './collect-build-traces'
-import { BuildTraceContext } from './webpack/plugins/next-trace-entrypoints-plugin'
+import type { BuildTraceContext } from './webpack/plugins/next-trace-entrypoints-plugin'
 import { formatManifest } from './manifests/formatter/format-manifest'
 
 interface ExperimentalBypassForInfo {

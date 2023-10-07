@@ -18,7 +18,7 @@ import {
 import { IconsMetadata } from './generate/icons'
 import { resolveMetadata } from './resolve-metadata'
 import { MetaFilter } from './generate/meta'
-import { ResolvedMetadata } from './types/metadata-interface'
+import type { ResolvedMetadata } from './types/metadata-interface'
 import { createDefaultMetadata } from './default-metadata'
 import { isNotFoundError } from '../../client/components/not-found'
 

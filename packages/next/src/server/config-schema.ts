@@ -1,4 +1,4 @@
-import { NextConfig } from './config'
+import type { NextConfig } from './config'
 import { VALID_LOADERS } from '../shared/lib/image-config'
 
 import { z } from 'next/dist/compiled/zod'

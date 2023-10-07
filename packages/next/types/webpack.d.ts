@@ -27,7 +27,7 @@ declare module 'mini-css-extract-plugin'
 declare module 'next/dist/compiled/loader-utils3'
 
 declare module 'next/dist/compiled/webpack/webpack' {
-  import webpackSources from 'webpack-sources1'
+  import type webpackSources from 'webpack-sources1'
   export function init(): void
   export let BasicEvaluatedExpression: any
   export let GraphHelpers: any

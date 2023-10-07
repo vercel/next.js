@@ -1,7 +1,7 @@
 import type { ResolvedMetadata } from '../types/metadata-interface'
 
 import React from 'react'
-import { AlternateLinkDescriptor } from '../types/alternative-urls-types'
+import type { AlternateLinkDescriptor } from '../types/alternative-urls-types'
 import { MetaFilter } from './meta'
 
 function AlternateLink({

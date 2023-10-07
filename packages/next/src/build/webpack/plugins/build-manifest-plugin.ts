@@ -12,7 +12,7 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   SYSTEM_ENTRYPOINTS,
 } from '../../../shared/lib/constants'
-import { BuildManifest } from '../../../server/get-page-files'
+import type { BuildManifest } from '../../../server/get-page-files'
 import getRouteFromEntrypoint from '../../../server/get-route-from-entrypoint'
 import { ampFirstEntryNamesMap } from './next-drop-client-page-plugin'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
