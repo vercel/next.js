@@ -4,17 +4,21 @@ import { promises as fs } from 'fs'
 
 export async function writeAppTypeDeclarations({
   baseDir,
+  distDir,
   imageImportsEnabled,
   hasPagesDir,
   isAppDirEnabled,
 }: {
   baseDir: string
+  distDir: string
   imageImportsEnabled: boolean
   hasPagesDir: boolean
   isAppDirEnabled: boolean
 }): Promise<void> {
   // Reference `next` types
-  const appTypeDeclarations = path.join(baseDir, 'next-env.d.ts')
+  const appTypeDeclarations = isAppDirEnabled
+    ? path.join(baseDir, distDir, 'types/next-env.d.ts')
+    : path.join(baseDir, 'next-env.d.ts')
 
   // Defaults EOL to system default
   let eol = os.EOL
