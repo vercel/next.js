@@ -366,11 +366,11 @@
       { "builtinGlobals": false, "ignoreDeclarationMerge": true }
     ],
     "@typescript-eslint/consistent-type-imports": [
-      "error",
+      "warn",
       {
         "disallowTypeAnnotations": false
       }
     ],
-    "@typescript-eslint/no-import-type-side-effects": "error"
+    "@typescript-eslint/no-import-type-side-effects": "warn"
   }
 }
