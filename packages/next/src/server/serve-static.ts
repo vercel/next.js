@@ -1,4 +1,4 @@
-import { IncomingMessage, ServerResponse } from 'http'
+import type { IncomingMessage, ServerResponse } from 'http'
 import send from 'next/dist/compiled/send'
 
 // TODO: Remove this once "send" has updated the "mime", or next.js use custom version of "mime"

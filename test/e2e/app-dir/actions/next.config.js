@@ -2,7 +2,9 @@
 module.exports = {
   productionBrowserSourceMaps: true,
   experimental: {
-    logging: 'verbose',
+    logging: {
+      level: 'verbose',
+    },
     serverActions: true,
   },
 }

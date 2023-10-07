@@ -27,10 +27,11 @@ use turbopack_binding::{
     turbopack::{
         build::BuildChunkingContext,
         core::{
-            chunk::{ChunkableModule, ChunkingContext, EvaluatableAssets},
+            chunk::{ChunkingContext, EvaluatableAssets},
             compile_time_info::CompileTimeInfo,
             context::AssetContext,
             file_source::FileSource,
+            module::Module,
             output::OutputAsset,
             reference_type::{EntryReferenceSubType, ReferenceType},
             source::Source,
@@ -400,12 +401,8 @@ pub async fn compute_page_entries_chunks(
                 .insert(pathname.clone_value(), asset_path.to_string());
         }
 
-        let client_entry_chunk = page_entry
-            .client_module
-            .as_root_chunk(Vc::upcast(client_chunking_context));
-
         let client_chunks = client_chunking_context.evaluated_chunk_group(
-            client_entry_chunk,
+            page_entry.client_module.ident(),
             page_entries
                 .client_runtime_entries
                 .with_entry(Vc::upcast(page_entry.client_module)),

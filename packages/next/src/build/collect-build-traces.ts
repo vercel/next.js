@@ -14,7 +14,7 @@ import {
 
 import path from 'path'
 import fs from 'fs/promises'
-import { PageInfo } from './utils'
+import type { PageInfo } from './utils'
 import { loadBindings } from './swc'
 import { nonNullable } from '../lib/non-nullable'
 import * as ciEnvironment from '../telemetry/ci-info'

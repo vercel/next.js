@@ -208,6 +208,9 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
               react$: `next/dist/compiled/react${
                 experimental ? '-experimental' : ''
               }/react.shared-subset`,
+              'next/dist/compiled/react$': `next/dist/compiled/react${
+                experimental ? '-experimental' : ''
+              }/react.shared-subset`,
             },
           },
           layer: 'react-server',
@@ -218,6 +221,9 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
             conditionNames: ['react-server', '...'],
             alias: {
               react$: `next/dist/compiled/react${
+                experimental ? '-experimental' : ''
+              }/react.shared-subset`,
+              'next/dist/compiled/react$': `next/dist/compiled/react${
                 experimental ? '-experimental' : ''
               }/react.shared-subset`,
             },

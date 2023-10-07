@@ -567,6 +567,63 @@ import path from 'path'
     `)
     })
 
+    it('allows you to set verbatimModuleSyntax true via extends without adding isolatedModules', async () => {
+      expect(await exists(tsConfig)).toBe(false)
+      expect(await exists(tsConfigBase)).toBe(false)
+
+      await writeFile(
+        tsConfigBase,
+        `{ "compilerOptions": { "verbatimModuleSyntax": true } }`
+      )
+      await writeFile(tsConfig, `{ "extends": "./tsconfig.base.json" }`)
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      const { code, stderr, stdout } = await nextBuild(appDir, undefined, {
+        stderr: true,
+        stdout: true,
+      })
+      expect(stderr + stdout).not.toContain('isolatedModules')
+      expect(code).toBe(0)
+
+      expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+        "{
+          \\"extends\\": \\"./tsconfig.base.json\\",
+          \\"compilerOptions\\": {
+            \\"lib\\": [
+              \\"dom\\",
+              \\"dom.iterable\\",
+              \\"esnext\\"
+            ],
+            \\"allowJs\\": true,
+            \\"skipLibCheck\\": true,
+            \\"strict\\": false,
+            \\"noEmit\\": true,
+            \\"incremental\\": true,
+            \\"esModuleInterop\\": true,
+            \\"module\\": \\"esnext\\",
+            \\"moduleResolution\\": \\"node\\",
+            \\"resolveJsonModule\\": true,
+            \\"jsx\\": \\"preserve\\",
+            \\"plugins\\": [
+              {
+                \\"name\\": \\"next\\"
+              }
+            ],
+            \\"strictNullChecks\\": true
+          },
+          \\"include\\": [
+            \\"next-env.d.ts\\",
+            \\".next/types/**/*.ts\\",
+            \\"**/*.ts\\",
+            \\"**/*.tsx\\"
+          ],
+          \\"exclude\\": [
+            \\"node_modules\\"
+          ]
+        }
+        "
+      `)
+    })
+
     it('allows you to extend another configuration file', async () => {
       expect(await exists(tsConfig)).toBe(false)
       expect(await exists(tsConfigBase)).toBe(false)
