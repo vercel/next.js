@@ -2,7 +2,7 @@ import { reducer } from './router-reducer/router-reducer'
 import type { MutableRefObject, Dispatch } from 'react'
 import React, { use } from 'react'
 import { useRef, useEffect, useCallback } from 'react'
-import {
+import type {
   AppRouterState,
   ReducerActions,
   ReducerState,
