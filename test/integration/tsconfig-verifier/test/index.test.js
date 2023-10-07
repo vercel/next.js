@@ -570,7 +570,7 @@ import path from 'path'
     it('allows you to set verbatimModuleSyntax true via extends without adding isolatedModules', async () => {
       expect(await exists(tsConfig)).toBe(false)
       expect(await exists(tsConfigBase)).toBe(false)
-  
+
       await writeFile(
         tsConfigBase,
         `{ "compilerOptions": { "verbatimModuleSyntax": true } }`
@@ -583,7 +583,7 @@ import path from 'path'
       })
       expect(stderr + stdout).not.toContain('isolatedModules')
       expect(code).toBe(0)
-  
+
       expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
         "{
           \\"extends\\": \\"./tsconfig.base.json\\",
