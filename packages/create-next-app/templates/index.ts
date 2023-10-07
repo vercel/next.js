@@ -9,6 +9,7 @@ import path from 'path'
 import { cyan, bold } from 'picocolors'
 import { Sema } from 'async-sema'
 import { version } from '../package.json'
+import { peerDependencies as NextPeerDependencies } from '../../next/package.json'
 
 import { GetTemplateFileArgs, InstallTemplateArgs } from './types'
 
@@ -182,8 +183,8 @@ export const installTemplate = async ({
      * Default dependencies.
      */
     dependencies: {
-      react: '^18',
-      'react-dom': '^18',
+      react: NextPeerDependencies.react,
+      'react-dom': NextPeerDependencies['react-dom'],
       next: process.env.NEXT_PRIVATE_TEST_VERSION ?? version,
     },
     devDependencies: {},
@@ -197,8 +198,8 @@ export const installTemplate = async ({
       ...packageJson.devDependencies,
       typescript: '^5',
       '@types/node': '^20',
-      '@types/react': '^18',
-      '@types/react-dom': '^18',
+      '@types/react': NextPeerDependencies.react,
+      '@types/react-dom': NextPeerDependencies['react-dom'],
     }
   }
 
