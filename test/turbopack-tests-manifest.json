@@ -385,6 +385,19 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/lib/batcher.test.ts": {
+    "passed": [
+      "Batcher batch should batch multiple calls to the same key",
+      "Batcher batch should execute the work function immediately",
+      "Batcher batch should not batch calls to different keys",
+      "Batcher batch should use the cacheKeyFn to generate cache keys",
+      "Batcher batch should use the schedulerFn to schedule work"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/lib/format-server-error.test.ts": {
     "passed": ["formatServerError should not append message several times"],
     "failed": [],
@@ -820,19 +833,19 @@
       "ReactRefreshLogBox app turbo Import trace when module not found in layout",
       "ReactRefreshLogBox app turbo Server component errors should open up in fullscreen",
       "ReactRefreshLogBox app turbo Should not show __webpack_exports__ when exporting anonymous arrow function",
+      "ReactRefreshLogBox app turbo Unhandled errors and rejections opens up in the minimized state",
       "ReactRefreshLogBox app turbo boundaries",
       "ReactRefreshLogBox app turbo client component can recover from error thrown in the module",
+      "ReactRefreshLogBox app turbo module init error not shown",
       "ReactRefreshLogBox app turbo server component can recover from error thrown in the module",
       "ReactRefreshLogBox app turbo should strip whitespace correctly with newline"
     ],
     "failed": [
       "ReactRefreshLogBox app turbo Call stack count is correct for client error",
       "ReactRefreshLogBox app turbo Call stack count is correct for server error",
-      "ReactRefreshLogBox app turbo Unhandled errors and rejections opens up in the minimized state",
       "ReactRefreshLogBox app turbo conversion to class component (1)",
       "ReactRefreshLogBox app turbo css syntax errors",
       "ReactRefreshLogBox app turbo logbox: anchors links in error messages",
-      "ReactRefreshLogBox app turbo module init error not shown",
       "ReactRefreshLogBox app turbo unterminated JSX"
     ],
     "pending": [
@@ -1035,7 +1048,6 @@
       "Error overlay - RSC build errors should allow to use and handle rsc poisoning client-only",
       "Error overlay - RSC build errors should allow to use and handle rsc poisoning server-only",
       "Error overlay - RSC build errors should freeze parent resolved metadata to avoid mutating in generateMetadata",
-      "Error overlay - RSC build errors should show which import caused an error in node_modules",
       "Error overlay - RSC build errors should throw an error when \"Component\" is imported in server components",
       "Error overlay - RSC build errors should throw an error when \"use client\" is on the top level but after other expressions",
       "Error overlay - RSC build errors should throw an error when error file is a server component",
@@ -1047,6 +1059,16 @@
     "pending": [
       "Error overlay - RSC build errors should throw an error when getStaticProps is used"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/acceptance-app/rsc-runtime-errors.test.ts": {
+    "passed": [
+      "Error overlay - RSC runtime errors should show runtime errors if invalid client API from node_modules is executed",
+      "Error overlay - RSC runtime errors should show runtime errors if invalid server API from node_modules is executed"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -1186,12 +1208,12 @@
   },
   "test/development/acceptance/ReactRefreshRegression.test.ts": {
     "passed": [
+      "ReactRefreshRegression can fast refresh a page with config",
       "ReactRefreshRegression can fast refresh a page with getServerSideProps",
       "ReactRefreshRegression can fast refresh a page with getStaticProps",
       "ReactRefreshRegression styled-components hydration mismatch"
     ],
     "failed": [
-      "ReactRefreshRegression can fast refresh a page with config",
       "ReactRefreshRegression custom loader (mdx) should have Fast Refresh enabled",
       "ReactRefreshRegression shows an overlay for a server-side error"
     ],
@@ -1388,21 +1410,20 @@
   },
   "test/development/basic/gssp-ssr-change-reloading/test/index.test.ts": {
     "passed": [
+      "GS(S)P Server-Side Change Reloading should keep scroll position when updating from change in getStaticProps",
       "GS(S)P Server-Side Change Reloading should not reload page when client-side is changed too GSP",
       "GS(S)P Server-Side Change Reloading should not reload page when client-side is changed too GSSP",
-      "GS(S)P Server-Side Change Reloading should update page when getServerSideProps is changed only",
-      "GS(S)P Server-Side Change Reloading should update page when getStaticProps is changed only for /index"
-    ],
-    "failed": [
-      "GS(S)P Server-Side Change Reloading should keep scroll position when updating from change in getStaticProps",
       "GS(S)P Server-Side Change Reloading should refresh data when server import is updated",
       "GS(S)P Server-Side Change Reloading should show indicator when re-fetching data",
       "GS(S)P Server-Side Change Reloading should update on props error in getStaticProps",
       "GS(S)P Server-Side Change Reloading should update on thrown error in getStaticProps",
+      "GS(S)P Server-Side Change Reloading should update page when getServerSideProps is changed only",
       "GS(S)P Server-Side Change Reloading should update page when getStaticPaths is changed only",
       "GS(S)P Server-Side Change Reloading should update page when getStaticProps is changed only",
-      "GS(S)P Server-Side Change Reloading should update page when getStaticProps is changed only for /another/index"
+      "GS(S)P Server-Side Change Reloading should update page when getStaticProps is changed only for /another/index",
+      "GS(S)P Server-Side Change Reloading should update page when getStaticProps is changed only for /index"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2072,7 +2093,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/app-dir/actions/app-action-export.test.ts": {
     "passed": ["app-dir action handling - next export skip test for dev mode"],
@@ -2084,20 +2105,21 @@
   "test/e2e/app-dir/actions/app-action-form-state.test.ts": {
     "passed": [],
     "failed": [
+      "app-dir action useFormState should send the action to the provided permalink with form state when JS disabled",
       "app-dir action useFormState should support hydrating the app from progressively enhanced form request",
       "app-dir action useFormState should support submitting form state with JS",
       "app-dir action useFormState should support submitting form state without JS"
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/app-dir/actions/app-action-invalid.test.ts": {
-    "passed": [],
-    "failed": ["app-dir action invalid config skip test for dev mode"],
+    "passed": ["app-dir action invalid config skip test for dev mode"],
+    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/app-dir/actions/app-action-progressive-enhancement.test.ts": {
     "passed": [],
@@ -2107,19 +2129,21 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/app-dir/actions/app-action-size-limit-invalid.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app-dir action size limit invalid config skip test for dev mode"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/app-dir/actions/app-action.test.ts": {
-    "passed": [],
+    "passed": [
+      "app-dir action handling should support setting cookies in route handlers with the correct overrides"
+    ],
     "failed": [
       "app-dir action handling Edge SSR should allow cookie and header async storages",
       "app-dir action handling Edge SSR should handle basic actions correctly",
@@ -2155,14 +2179,13 @@
       "app-dir action handling should support next/dynamic with ssr: false",
       "app-dir action handling should support notFound",
       "app-dir action handling should support notFound (javascript disabled)",
-      "app-dir action handling should support setting cookies in route handlers with the correct overrides",
       "app-dir action handling should support uploading files"
     ],
     "pending": [
       "app-dir action handling fetch actions should handle revalidateTag + redirect"
     ],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/app-dir/app-a11y/index.test.ts": {
     "passed": [
@@ -3477,10 +3500,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/not-found/conflict-route/index.test.ts": {
-    "passed": [],
+    "passed": [
+      "app dir - not-found - conflict route with default runtime should use the not-found page for non-matching routes"
+    ],
     "failed": [
       "app dir - not-found - conflict route with default runtime should allow to have a valid /not-found route",
-      "app dir - not-found - conflict route with default runtime should use the not-found page for non-matching routes",
       "app dir - not-found - conflict route with runtime = edge should allow to have a valid /not-found route",
       "app dir - not-found - conflict route with runtime = edge should use the not-found page for non-matching routes"
     ],
@@ -3526,31 +3550,32 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/parallel-routes-and-interception/parallel-routes-and-interception.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "parallel-routes-and-interception parallel routes should apply the catch-all route to the parallel route if no matching route is found",
-      "parallel-routes-and-interception parallel routes should display all parallel route params with useParams",
       "parallel-routes-and-interception parallel routes should match parallel routes",
+      "parallel-routes-and-interception parallel routes should render nested parallel routes",
+      "parallel-routes-and-interception route intercepting should re-render the layout on the server when it had a default child route",
+      "parallel-routes-and-interception route intercepting should render intercepted route",
+      "parallel-routes-and-interception route intercepting should render intercepted route from a nested route",
+      "parallel-routes-and-interception route intercepting with dynamic catch-all routes should render intercepted route",
+      "parallel-routes-and-interception route intercepting with dynamic optional catch-all routes should render intercepted route",
+      "parallel-routes-and-interception route intercepting with dynamic routes should render intercepted route"
+    ],
+    "failed": [
+      "parallel-routes-and-interception parallel routes should display all parallel route params with useParams",
       "parallel-routes-and-interception parallel routes should match parallel routes in route groups",
       "parallel-routes-and-interception parallel routes should navigate with a link with prefetch=false",
       "parallel-routes-and-interception parallel routes should only scroll to the parallel route that was navigated to",
-      "parallel-routes-and-interception parallel routes should render nested parallel routes",
       "parallel-routes-and-interception parallel routes should support layout files in parallel routes",
       "parallel-routes-and-interception parallel routes should support nested parallel routes",
       "parallel-routes-and-interception parallel routes should support parallel route tab bars",
       "parallel-routes-and-interception parallel routes should support parallel routes with no page component",
       "parallel-routes-and-interception parallel routes should throw a 404 when no matching parallel route is found",
       "parallel-routes-and-interception parallel routes should throw an error when a route groups causes a conflict with a parallel segment",
-      "parallel-routes-and-interception route intercepting should re-render the layout on the server when it had a default child route",
       "parallel-routes-and-interception route intercepting should render an intercepted route at the top level from a nested path",
       "parallel-routes-and-interception route intercepting should render an intercepted route from a slot",
-      "parallel-routes-and-interception route intercepting should render intercepted route",
-      "parallel-routes-and-interception route intercepting should render intercepted route from a nested route",
       "parallel-routes-and-interception route intercepting should render modal when paired with parallel routes",
-      "parallel-routes-and-interception route intercepting should support intercepting with beforeFiles rewrites",
-      "parallel-routes-and-interception route intercepting with dynamic catch-all routes should render intercepted route",
-      "parallel-routes-and-interception route intercepting with dynamic optional catch-all routes should render intercepted route",
-      "parallel-routes-and-interception route intercepting with dynamic routes should render intercepted route"
+      "parallel-routes-and-interception route intercepting should support intercepting with beforeFiles rewrites"
     ],
     "pending": [],
     "flakey": [],
@@ -3745,17 +3770,18 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/app-dir/set-cookies/set-cookies.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "set-cookies for edge runtime for /app should set two set-cookie headers",
-      "set-cookies for edge runtime for /pages should set two set-cookie headers",
       "set-cookies for experimental-edge runtime for /app should set two set-cookie headers",
-      "set-cookies for experimental-edge runtime for /pages should set two set-cookie headers",
       "set-cookies for node runtime for /app should set two set-cookie headers",
       "set-cookies for node runtime for /pages should set two set-cookie headers"
+    ],
+    "failed": [
+      "set-cookies for edge runtime for /pages should set two set-cookie headers",
+      "set-cookies for experimental-edge runtime for /pages should set two set-cookie headers"
     ],
     "pending": [],
     "flakey": [],
@@ -3972,13 +3998,12 @@
       "streaming responses cancel inner stream after disconnect middleware cancels stream that never sent data",
       "streaming responses cancel inner stream after disconnect node app route handler cancels stalled stream",
       "streaming responses cancel inner stream after disconnect node app route handler cancels stream making progress",
+      "streaming responses cancel inner stream after disconnect node app route handler cancels stream that never sent data",
       "streaming responses cancel inner stream after disconnect node pages api cancels stalled stream",
       "streaming responses cancel inner stream after disconnect node pages api cancels stream making progress",
       "streaming responses cancel inner stream after disconnect node pages api cancels stream that never sent data"
     ],
-    "failed": [
-      "streaming responses cancel inner stream after disconnect node app route handler cancels stream that never sent data"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -4297,18 +4322,22 @@
   "test/e2e/i18n-data-fetching-redirect/index.test.ts": {
     "passed": [
       "i18n-data-fetching-redirect Redirect to another locale gsp-blocking-redirect en -> sv",
+      "i18n-data-fetching-redirect Redirect to another locale gsp-blocking-redirect sv -> en",
       "i18n-data-fetching-redirect Redirect to another locale gsp-fallback-redirect en -> sv",
       "i18n-data-fetching-redirect Redirect to another locale gsp-fallback-redirect sv -> en",
       "i18n-data-fetching-redirect Redirect to another locale gssp-redirect en -> sv",
+      "i18n-data-fetching-redirect Redirect to another locale gssp-redirect sv -> en",
       "i18n-data-fetching-redirect Redirect to another locale next/link gsp-blocking-redirect en -> sv",
       "i18n-data-fetching-redirect Redirect to another locale next/link gsp-blocking-redirect sv -> en",
       "i18n-data-fetching-redirect Redirect to another locale next/link gsp-fallback-redirect en -> sv",
       "i18n-data-fetching-redirect Redirect to another locale next/link gsp-fallback-redirect sv -> en",
       "i18n-data-fetching-redirect Redirect to another locale next/link gssp-redirect en -> sv",
       "i18n-data-fetching-redirect Redirect to another locale next/link gssp-redirect sv -> en",
+      "i18n-data-fetching-redirect Redirect to locale from context gsp-blocking-redirect en",
       "i18n-data-fetching-redirect Redirect to locale from context gsp-blocking-redirect sv",
       "i18n-data-fetching-redirect Redirect to locale from context gsp-fallback-redirect en",
       "i18n-data-fetching-redirect Redirect to locale from context gsp-fallback-redirect sv",
+      "i18n-data-fetching-redirect Redirect to locale from context gssp-redirect en",
       "i18n-data-fetching-redirect Redirect to locale from context gssp-redirect sv",
       "i18n-data-fetching-redirect Redirect to locale from context next/link gsp-blocking-redirect en",
       "i18n-data-fetching-redirect Redirect to locale from context next/link gsp-blocking-redirect sv",
@@ -4317,12 +4346,7 @@
       "i18n-data-fetching-redirect Redirect to locale from context next/link gssp-redirect en",
       "i18n-data-fetching-redirect Redirect to locale from context next/link gssp-redirect sv"
     ],
-    "failed": [
-      "i18n-data-fetching-redirect Redirect to another locale gsp-blocking-redirect sv -> en",
-      "i18n-data-fetching-redirect Redirect to another locale gssp-redirect sv -> en",
-      "i18n-data-fetching-redirect Redirect to locale from context gsp-blocking-redirect en",
-      "i18n-data-fetching-redirect Redirect to locale from context gssp-redirect en"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -4641,9 +4665,10 @@
   "test/e2e/middleware-dynamic-basepath-matcher/test/index.test.ts": {
     "passed": [
       "Middleware custom matchers basePath should match",
+      "Middleware custom matchers basePath should match query path",
       "Middleware custom matchers basePath should not match"
     ],
-    "failed": ["Middleware custom matchers basePath should match query path"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6987,11 +7012,14 @@
       "Basic CSS Modules Ordering Development Mode should have correct color on index page (on hover)",
       "Basic CSS Modules Ordering Development Mode should have correct color on index page (on load)",
       "Basic CSS Modules Ordering Development Mode should have correct color on index page (on nav)",
+      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on load)",
       "Ordering with Global CSS and Modules (dev) should have the correct color (css ordering)",
       "Ordering with Global CSS and Modules (dev) should have the correct color (css ordering) during hot reloads",
       "Ordering with Global CSS and Modules (dev) should not execute scripts in any order"
     ],
-    "failed": [],
+    "failed": [
+      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on hover)"
+    ],
     "pending": [
       "Basic CSS Modules Ordering production mode should have correct color on index page (on hover)",
       "Basic CSS Modules Ordering production mode should have correct color on index page (on load)",
@@ -7010,8 +7038,6 @@
       "should handle unresolved files gracefully production mode should have correct file references in CSS output"
     ],
     "flakey": [
-      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on hover)",
-      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on load)",
       "CSS Modules Composes Ordering Development Mode should have correct color on index page (on nav from index)",
       "CSS Modules Composes Ordering Development Mode should have correct color on index page (on nav from other)"
     ],
@@ -7490,7 +7516,7 @@
       "distDir With basic usage production mode should build the app within the given `dist` directory",
       "distDir With basic usage production mode should not build the app within the default `.next` directory",
       "distDir With basic usage production mode should render the page",
-      "distDir production mode should handle null/undefined distDir",
+      "distDir production mode should handle undefined distDir",
       "distDir production mode should throw error with invalid distDir"
     ],
     "flakey": [],
@@ -7901,9 +7927,10 @@
       "Dynamic Routing dev mode should serve file with space from static folder",
       "Dynamic Routing dev mode should support long URLs for dynamic routes",
       "Dynamic Routing dev mode should update dynamic values on mount",
-      "Dynamic Routing dev mode should update with a hash in the URL"
+      "Dynamic Routing dev mode should update with a hash in the URL",
+      "Dynamic Routing dev mode should work with HMR correctly"
     ],
-    "failed": ["Dynamic Routing dev mode should work with HMR correctly"],
+    "failed": [],
     "pending": [
       "Dynamic Routing dev mode should not have error after pinging WebSocket",
       "Dynamic Routing production mode [catch all] should not decode slashes (end)",
@@ -8236,13 +8263,13 @@
       "Env Config dev mode with hot reload should have updated runtime values after change",
       "Env Config dev mode with hot reload should load env from .env",
       "Env Config dev mode with hot reload should provide global env to next.config.js",
+      "Env Config dev mode with hot reload should trigger HMR correctly when NEXT_PUBLIC_ env is changed",
       "Env Config test environment should provide env correctly for API routes",
       "Env Config test environment should provide global env to next.config.js"
     ],
     "failed": [
       "Env Config dev mode should inline global values during build",
       "Env Config dev mode with hot reload should inline global values during build",
-      "Env Config dev mode with hot reload should trigger HMR correctly when NEXT_PUBLIC_ env is changed",
       "Env Config test environment should have process environment override .env",
       "Env Config test environment should inline global values during build",
       "Env Config test environment should load env from .env",
@@ -12721,8 +12748,8 @@
     "runtimeError": false
   },
   "test/integration/next-image-new/export-config/test/index.test.ts": {
-    "passed": [],
-    "failed": ["next/image with output export config dev mode should error"],
+    "passed": ["next/image with output export config dev mode should error"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -13791,12 +13818,11 @@
   "test/integration/router-is-ready-app-gip/test/index.test.js": {
     "passed": [
       "router.isReady with appGip dev mode isReady should be true after query update for getStaticProps page with query",
+      "router.isReady with appGip dev mode isReady should be true immediately for getStaticProps page without query",
       "router.isReady with appGip dev mode isReady should be true immediately for pages without getStaticProps",
       "router.isReady with appGip dev mode isReady should be true immediately for pages without getStaticProps, with query"
     ],
-    "failed": [
-      "router.isReady with appGip dev mode isReady should be true immediately for getStaticProps page without query"
-    ],
+    "failed": [],
     "pending": [
       "router.isReady with appGip production mode isReady should be true after query update for getStaticProps page with query",
       "router.isReady with appGip production mode isReady should be true immediately for getStaticProps page without query",
@@ -13812,15 +13838,14 @@
       "router.isReady dev mode isReady should be true after query update for dynamic auto-export page with query",
       "router.isReady dev mode isReady should be true after query update for dynamic auto-export page without query",
       "router.isReady dev mode isReady should be true after query update for getStaticProps page with query",
+      "router.isReady dev mode isReady should be true immediately for auto-export page without query",
       "router.isReady dev mode isReady should be true immediately for getInitialProps page",
       "router.isReady dev mode isReady should be true immediately for getInitialProps page with query",
       "router.isReady dev mode isReady should be true immediately for getServerSideProps page",
-      "router.isReady dev mode isReady should be true immediately for getServerSideProps page with query"
-    ],
-    "failed": [
-      "router.isReady dev mode isReady should be true immediately for auto-export page without query",
+      "router.isReady dev mode isReady should be true immediately for getServerSideProps page with query",
       "router.isReady dev mode isReady should be true immediately for getStaticProps page without query"
     ],
+    "failed": [],
     "pending": [
       "router.isReady production mode isReady should be true after query update for auto-export page with query",
       "router.isReady production mode isReady should be true after query update for dynamic auto-export page with query",
@@ -13849,10 +13874,10 @@
     "runtimeError": false
   },
   "test/integration/router-rerender/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "router rerender dev mode with middleware should not trigger unncessary rerenders when middleware is used"
     ],
+    "failed": [],
     "pending": [
       "router rerender dev mode with rewrites should not trigger unncessary rerenders when rewrites are used",
       "router rerender dev mode with rewrites should rerender with the correct query parameter if present with rewrites",
