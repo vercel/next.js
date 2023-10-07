@@ -366,7 +366,7 @@ export async function handleAction({
             decodeReplyFromBusboy,
             decodeAction,
             decodeFormState,
-          } = require(`react-server-dom-webpack/server.node`)
+          } = require(`./react-server.node`)
 
           if (isMultipartAction) {
             if (isFetchAction) {

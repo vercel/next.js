@@ -5,7 +5,7 @@ export function createRouterCacheKey(
   withoutSearchParameters: boolean = false
 ) {
   return Array.isArray(segment)
-    ? `${segment[0]}|${segment[1]}|${segment[2]}`
+    ? `${segment[0]}|${segment[1]}|${segment[2]}`.toLowerCase()
     : withoutSearchParameters && segment.startsWith('__PAGE__')
     ? '__PAGE__'
     : segment

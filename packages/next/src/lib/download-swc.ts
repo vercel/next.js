@@ -8,7 +8,6 @@ const { fetch } = require('next/dist/compiled/undici') as {
 const { WritableStream } = require('node:stream/web') as {
   WritableStream: typeof global.WritableStream
 }
-import { fileExists } from './file-exists'
 import { getRegistry } from './helpers/get-registry'
 import { getCacheDirectory } from './helpers/get-cache-directory'
 
@@ -19,20 +18,19 @@ async function extractBinary(
   pkgName: string,
   tarFileName: string
 ) {
-  const cacheDirectory = await getCacheDirectory(
+  const cacheDirectory = getCacheDirectory(
     'next-swc',
     process.env['NEXT_SWC_PATH']
   )
 
-  const extractFromTar = async () => {
-    await tar.x({
+  const extractFromTar = () =>
+    tar.x({
       file: path.join(cacheDirectory, tarFileName),
       cwd: outputDirectory,
       strip: 1,
     })
-  }
 
-  if (!(await fileExists(path.join(cacheDirectory, tarFileName)))) {
+  if (!fs.existsSync(path.join(cacheDirectory, tarFileName))) {
     Log.info(`Downloading swc package ${pkgName}...`)
     await fs.promises.mkdir(cacheDirectory, { recursive: true })
     const tempFile = path.join(
@@ -99,7 +97,7 @@ export async function downloadNativeNextSwc(
     const tarFileName = `${pkgName.substring(6)}-${version}.tgz`
     const outputDirectory = path.join(bindingsDirectory, pkgName)
 
-    if (await fileExists(outputDirectory)) {
+    if (fs.existsSync(outputDirectory)) {
       // if the package is already downloaded a different
       // failure occurred than not being present
       return
@@ -119,7 +117,7 @@ export async function downloadWasmSwc(
   const tarFileName = `${pkgName.substring(6)}-${version}.tgz`
   const outputDirectory = path.join(wasmDirectory, pkgName)
 
-  if (await fileExists(outputDirectory)) {
+  if (fs.existsSync(outputDirectory)) {
     // if the package is already downloaded a different
     // failure occurred than not being present
     return

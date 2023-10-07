@@ -14,13 +14,14 @@ import type {
   EdgeFunctionDefinition,
   MiddlewareManifest,
 } from './webpack/plugins/middleware-plugin'
-import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage.external'
 import type { WebpackLayerName } from '../lib/constants'
+import type { AppPageModule } from '../server/future/route-modules/app-page/module'
 
 import '../server/require-hook'
 import '../server/node-polyfill-fetch'
 import '../server/node-polyfill-crypto'
 import '../server/node-environment'
+import '../lib/polyfill-promise-with-resolvers'
 
 import { green, yellow, red, cyan, bold, underline } from '../lib/picocolors'
 import getGzipSize from 'next/dist/compiled/gzip-size'
@@ -67,9 +68,7 @@ import { nodeFs } from '../server/lib/node-fs-methods'
 import * as ciEnvironment from '../telemetry/ci-info'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { denormalizeAppPagePath } from '../shared/lib/page-path/denormalize-app-path'
-
-const { AppRouteRouteModule } =
-  require('../server/future/route-modules/app-route/module.compiled') as typeof import('../server/future/route-modules/app-route/module')
+import { AppRouteRouteModule } from '../server/future/route-modules/app-route/module.compiled'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -1468,25 +1467,12 @@ export async function isPageStatic({
         | undefined
 
       if (pageType === 'app') {
+        const ComponentMod: AppPageModule = componentsResult.ComponentMod
+
         isClientComponent = isClientReference(componentsResult.ComponentMod)
-        const tree = componentsResult.ComponentMod.tree
 
-        const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
-          componentsResult.ComponentMod.staticGenerationAsyncStorage
-        if (!staticGenerationAsyncStorage) {
-          throw new Error(
-            'Invariant: staticGenerationAsyncStorage should be defined on the module'
-          )
-        }
-
-        const serverHooks = componentsResult.ComponentMod.serverHooks
-        if (!serverHooks) {
-          throw new Error(
-            'Invariant: serverHooks should be defined on the module'
-          )
-        }
-
-        const { routeModule } = componentsResult
+        const { tree, staticGenerationAsyncStorage, serverHooks, routeModule } =
+          ComponentMod
 
         const generateParams: GenerateParams =
           routeModule && AppRouteRouteModule.is(routeModule)
@@ -1941,7 +1927,8 @@ export async function copyTracedFiles(
     serverOutputPath,
     `${
       moduleType
-        ? `import path from 'path'
+        ? `performance.mark('next-start');
+import path from 'path'
 import { fileURLToPath } from 'url'
 import module from 'module'
 const require = module.createRequire(import.meta.url)

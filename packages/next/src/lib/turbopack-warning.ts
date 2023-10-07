@@ -62,8 +62,11 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.useDeploymentId',
   'experimental.useDeploymentIdServerActions',
   'experimental.deploymentId',
+  'experimental.serverActions',
 
   // Experimental options that don't affect compilation
+  'serverRuntimeConfig',
+  'publicRuntimeConfig',
   'experimental.proxyTimeout',
   'experimental.caseSensitiveRoutes',
   'experimental.workerThreads',
@@ -86,7 +89,6 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.trustHostHeader',
 
   // Left to be implemented (priority)
-  // 'experimental.serverActions',
   // 'experimental.ppr', // Checked in `needs-experimental-react.ts`
   // clientRouterFilter is `true` by default currently in config-shared.ts,
   // might be removed as an option altogether.

@@ -142,17 +142,6 @@ function isModuleCSS(module: { type: string }) {
   )
 }
 
-export function errorIfEnvConflicted(config: NextConfigComplete, key: string) {
-  const isPrivateKey = /^(?:NODE_.+)|^(?:__.+)$/i.test(key)
-  const hasNextRuntimeKey = key === 'NEXT_RUNTIME'
-
-  if (isPrivateKey || hasNextRuntimeKey) {
-    throw new Error(
-      `The key "${key}" under "env" in ${config.configFileName} is not allowed. https://nextjs.org/docs/messages/env-key-not-allowed`
-    )
-  }
-}
-
 function getReactProfilingInProduction() {
   return {
     'react-dom$': 'react-dom/profiling',
@@ -187,16 +176,16 @@ function createRSCAliases(
   if (!opts.isEdgeServer) {
     if (opts.layer === WEBPACK_LAYERS.serverSideRendering) {
       alias = Object.assign(alias, {
-        'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-runtime`,
-        'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-dev-runtime`,
+        'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-jsx-runtime`,
+        'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-jsx-dev-runtime`,
         react$: `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react`,
         'react-dom$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom`,
         'react-server-dom-webpack/client.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-client-edge`,
       })
     } else if (opts.layer === WEBPACK_LAYERS.reactServerComponents) {
       alias = Object.assign(alias, {
-        'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-runtime`,
-        'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-dev-runtime`,
+        'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-jsx-runtime`,
+        'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-jsx-dev-runtime`,
         react$: `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react`,
         'react-dom$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom`,
         'react-server-dom-webpack/server.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-server-edge`,
@@ -507,7 +496,7 @@ export default async function getBaseWebpackConfig(
     ? '-experimental'
     : ''
 
-  const babelConfigFile = await getBabelConfigFile(dir)
+  const babelConfigFile = getBabelConfigFile(dir)
   const distDir = path.join(dir, config.distDir)
 
   let useSWCLoader = !babelConfigFile || config.experimental.forceSwcTransforms
@@ -1424,27 +1413,6 @@ export default async function getBaseWebpackConfig(
     module: {
       rules: [
         {
-          // This loader rule passes the resource to the SWC loader with
-          // `optimizeBarrelExports` enabled. This option makes the SWC to
-          // transform the original code to be a JSON of its export map, so
-          // the barrel loader can analyze it and only keep the needed ones.
-          test: /__barrel_transform__/,
-          use: ({ resourceQuery }: { resourceQuery: string }) => {
-            const isFromWildcardExport = /[&?]wildcard/.test(resourceQuery)
-
-            return [
-              getSwcLoader({
-                isServerLayer: false,
-                bundleTarget: 'client',
-                hasServerComponents: false,
-                optimizeBarrelExports: {
-                  wildcard: isFromWildcardExport,
-                },
-              }),
-            ]
-          },
-        },
-        {
           // This loader rule works like a bridge between user's import and
           // the target module behind a package's barrel file. It reads SWC's
           // analysis result from the previous loader, and directly returns the
@@ -1454,14 +1422,18 @@ export default async function getBaseWebpackConfig(
             const names = (
               resourceQuery.match(/\?names=([^&]+)/)?.[1] || ''
             ).split(',')
-            const isFromWildcardExport = /[&?]wildcard/.test(resourceQuery)
 
             return [
               {
                 loader: 'next-barrel-loader',
                 options: {
                   names,
-                  wildcard: isFromWildcardExport,
+                  swcCacheDir: path.join(
+                    dir,
+                    config?.distDir ?? '.next',
+                    'cache',
+                    'swc'
+                  ),
                 },
                 // This is part of the request value to serve as the module key.
                 // The barrel loader are no-op re-exported modules keyed by
@@ -2036,8 +2008,9 @@ export default async function getBaseWebpackConfig(
       isNodeOrEdgeCompilation &&
         new PagesManifestPlugin({
           dev,
-          isEdgeRuntime: isEdgeServer,
           appDirEnabled: hasAppDir,
+          isEdgeRuntime: isEdgeServer,
+          distDir: !dev ? distDir : undefined,
         }),
       // MiddlewarePlugin should be after DefinePlugin so  NEXT_PUBLIC_*
       // replacement is done before its process.env.* handling

@@ -5,7 +5,6 @@ import type { __ApiPreviewProps } from '../server/api-utils'
 import type { NextConfigComplete } from '../server/config-shared'
 import type { Span } from '../trace'
 import type getBaseWebpackConfig from './webpack-config'
-import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import type { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 
 // A layer for storing data that is used by plugins to communicate with each
@@ -48,12 +47,6 @@ export function getPluginState() {
 export const NextBuildContext: Partial<{
   compilerIdx?: number
   pluginState: Record<string, any>
-  serializedPagesManifestEntries: {
-    edgeServerPages?: PagesManifest
-    nodeServerPages?: PagesManifest
-    edgeServerAppPaths?: PagesManifest
-    nodeServerAppPaths?: PagesManifest
-  }
   // core fields
   dir: string
   buildId: string

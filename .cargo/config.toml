@@ -35,8 +35,4 @@ rustflags = [
   "-Zshare-generics=y",
   "-Csymbol-mangling-version=v0",
   "-Aclippy::too_many_arguments",
-  # Clippy's needless mut lint is buggy: https://github.com/rust-lang/rust-clippy/issues/11299
-  "-Aclippy::needless_pass_by_ref_mut",
-  # Clippy's partial_eq lint is buggy: https://github.com/rust-lang/rust-clippy/issues/11178
-  "-Aclippy::non_canonical_partial_ord_impl",
 ]
