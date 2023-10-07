@@ -5,7 +5,7 @@ import {
 } from '../../route-matchers/pages-route-matcher'
 import { RouteKind } from '../../route-kind'
 import path from 'path'
-import { LocaleRouteNormalizer } from '../../normalizers/locale-route-normalizer'
+import type { LocaleRouteNormalizer } from '../../normalizers/locale-route-normalizer'
 import { FileCacheRouteMatcherProvider } from './file-cache-route-matcher-provider'
 import { DevPagesNormalizers } from '../../normalizers/built/pages'
 

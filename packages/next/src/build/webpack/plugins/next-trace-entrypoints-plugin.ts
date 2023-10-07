@@ -1,5 +1,5 @@
 import nodePath from 'path'
-import { Span } from '../../../trace'
+import type { Span } from '../../../trace'
 import { spans } from './profiling-plugin'
 import isError from '../../../lib/is-error'
 import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'

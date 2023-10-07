@@ -41,8 +41,8 @@ import HotReloader, {
   matchNextPageBundleRequest,
 } from '../../dev/hot-reloader-webpack'
 import { setGlobal } from '../../../trace/shared'
-import { Telemetry } from '../../../telemetry/storage'
-import { IncomingMessage, ServerResponse } from 'http'
+import type { Telemetry } from '../../../telemetry/storage'
+import type { IncomingMessage, ServerResponse } from 'http'
 import loadJsConfig from '../../../build/load-jsconfig'
 import { createValidFileMatcher } from '../find-page-file'
 import { eventCliSession } from '../../../telemetry/events'

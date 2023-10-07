@@ -1,7 +1,7 @@
 import { getModuleBuildInfo } from '../get-module-build-info'
 import { stringifyRequest } from '../../stringify-request'
 import type { NextConfig } from '../../../../server/config-shared'
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../../lib/constants'
 import type { MiddlewareConfig } from '../../../analysis/get-page-static-info'
 import { loadEntrypoint } from '../../../load-entrypoint'

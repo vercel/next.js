@@ -51,8 +51,8 @@ import {
   UNSTABLE_REVALIDATE_RENAME_ERROR,
   CACHE_ONE_YEAR,
 } from '../lib/constants'
+import type { COMPILER_NAMES } from '../shared/lib/constants'
 import {
-  COMPILER_NAMES,
   NEXT_BUILTIN_DOCUMENT,
   SERVER_PROPS_ID,
   STATIC_PROPS_ID,

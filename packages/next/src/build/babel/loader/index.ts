@@ -1,4 +1,4 @@
-import { Span } from '../../../trace'
+import type { Span } from '../../../trace'
 import transform from './transform'
 import type { NextJsLoaderContext } from './types'
 

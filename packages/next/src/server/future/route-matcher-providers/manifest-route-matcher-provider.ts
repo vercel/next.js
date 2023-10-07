@@ -1,4 +1,4 @@
-import { RouteMatcher } from '../route-matchers/route-matcher'
+import type { RouteMatcher } from '../route-matchers/route-matcher'
 import type {
   Manifest,
   ManifestLoader,

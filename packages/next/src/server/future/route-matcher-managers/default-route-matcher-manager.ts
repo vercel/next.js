@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
-import { RouteKind } from '../route-kind'
+import type { RouteKind } from '../route-kind'
 import type { RouteMatch } from '../route-matches/route-match'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 import type { RouteMatcherProvider } from '../route-matcher-providers/route-matcher-provider'
-import { RouteMatcher } from '../route-matchers/route-matcher'
+import type { RouteMatcher } from '../route-matchers/route-matcher'
 import type { MatchOptions, RouteMatcherManager } from './route-matcher-manager'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { LocaleRouteMatcher } from '../route-matchers/locale-route-matcher'

@@ -17,7 +17,8 @@ import {
   RequestCookiesAdapter,
   type ReadonlyRequestCookies,
 } from '../web/spec-extension/adapters/request-cookies'
-import { RequestCookies, ResponseCookies } from '../web/spec-extension/cookies'
+import type { ResponseCookies } from '../web/spec-extension/cookies'
+import { RequestCookies } from '../web/spec-extension/cookies'
 import { DraftModeProvider } from './draft-mode-provider'
 
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {

@@ -1,5 +1,5 @@
 import curry from 'next/dist/compiled/lodash.curry'
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { loader, plugin } from '../../helpers'
 import { pipe } from '../../utils'
 import type { ConfigurationContext, ConfigurationFn } from '../../utils'

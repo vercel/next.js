@@ -1,4 +1,4 @@
-import { RouteMatcher } from '../../route-matchers/route-matcher'
+import type { RouteMatcher } from '../../route-matchers/route-matcher'
 import { CachedRouteMatcherProvider } from '../helpers/cached-route-matcher-provider'
 import type { FileReader } from './helpers/file-reader/file-reader'
 

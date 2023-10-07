@@ -5,7 +5,7 @@ import type { UrlWithParsedQuery } from 'url'
 import type { BaseNextRequest } from './base-http'
 import type { CloneableBody } from './body-streams'
 import type { RouteMatch } from './future/route-matches/route-match'
-import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
+import type { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 
 // FIXME: (wyattjoh) this is a temporary solution to allow us to pass data between bundled modules
 export const NEXT_REQUEST_META = Symbol.for('NextInternalRequestMeta')

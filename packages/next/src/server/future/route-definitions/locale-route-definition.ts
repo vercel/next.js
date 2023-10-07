@@ -1,5 +1,5 @@
 import type { RouteDefinition } from './route-definition'
-import { RouteKind } from '../route-kind'
+import type { RouteKind } from '../route-kind'
 
 export interface LocaleRouteDefinition<K extends RouteKind = RouteKind>
   extends RouteDefinition<K> {

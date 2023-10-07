@@ -6,7 +6,7 @@ import type { MatchOptions, RouteMatcherManager } from './route-matcher-manager'
 import path from '../../../shared/lib/isomorphic/path'
 import * as Log from '../../../build/output/log'
 import { cyan } from '../../../lib/picocolors'
-import { RouteMatcher } from '../route-matchers/route-matcher'
+import type { RouteMatcher } from '../route-matchers/route-matcher'
 
 export interface RouteEnsurer {
   ensure(match: RouteMatch): Promise<void>

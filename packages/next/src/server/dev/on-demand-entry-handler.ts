@@ -34,7 +34,7 @@ import {
 } from '../../shared/lib/constants'
 import type { CompilerNameValues } from '../../shared/lib/constants'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
-import HotReloader from './hot-reloader-webpack'
+import type HotReloader from './hot-reloader-webpack'
 import { isAppPageRouteDefinition } from '../future/route-definitions/app-page-route-definition'
 import { scheduleOnNextTick } from '../lib/schedule-on-next-tick'
 import type { RouteDefinition } from '../future/route-definitions/route-definition'

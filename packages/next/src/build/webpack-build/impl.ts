@@ -1,13 +1,13 @@
-import { type webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { red } from '../../lib/picocolors'
 import formatWebpackMessages from '../../client/dev/error-overlay/format-webpack-messages'
 import { nonNullable } from '../../lib/non-nullable'
+import type { COMPILER_INDEXES } from '../../shared/lib/constants'
 import {
   COMPILER_NAMES,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   APP_CLIENT_INTERNALS,
   PHASE_PRODUCTION_BUILD,
-  COMPILER_INDEXES,
 } from '../../shared/lib/constants'
 import { runCompiler } from '../compiler'
 import * as Log from '../output/log'

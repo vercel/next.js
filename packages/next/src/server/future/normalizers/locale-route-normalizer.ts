@@ -1,4 +1,4 @@
-import { I18NProvider } from '../helpers/i18n-provider'
+import type { I18NProvider } from '../helpers/i18n-provider'
 import type { Normalizer } from './normalizer'
 
 /**
