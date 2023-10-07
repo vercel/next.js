@@ -199,7 +199,7 @@
     "react-dom-experimental-builtin": "npm:react-dom@0.0.0-experimental-d900fadbf-20230929",
     "react-experimental-builtin": "npm:react@0.0.0-experimental-d900fadbf-20230929",
     "react-server-dom-turbopack": "18.3.0-canary-d900fadbf-20230929",
-    "react-server-dom-turbopack-experimental": "npm:react-server-dom-webpack@0.0.0-experimental-d900fadbf-20230929",
+    "react-server-dom-turbopack-experimental": "npm:react-server-dom-turbopack@0.0.0-experimental-d900fadbf-20230929",
     "react-server-dom-webpack": "18.3.0-canary-d900fadbf-20230929",
     "react-server-dom-webpack-experimental": "npm:react-server-dom-webpack@0.0.0-experimental-d900fadbf-20230929",
     "react-ssr-prepass": "1.0.8",
