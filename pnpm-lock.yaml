@@ -444,8 +444,8 @@ importers:
         specifier: 18.3.0-canary-d900fadbf-20230929
         version: 18.3.0-canary-d900fadbf-20230929(react-dom@18.2.0)(react@18.2.0)
       react-server-dom-turbopack-experimental:
-        specifier: npm:react-server-dom-webpack@0.0.0-experimental-d900fadbf-20230929
-        version: /react-server-dom-webpack@0.0.0-experimental-d900fadbf-20230929(react-dom@18.2.0)(react@18.2.0)(webpack@5.86.0)
+        specifier: npm:react-server-dom-turbopack@0.0.0-experimental-d900fadbf-20230929
+        version: /react-server-dom-turbopack@0.0.0-experimental-d900fadbf-20230929(react-dom@18.2.0)(react@18.2.0)
       react-server-dom-webpack:
         specifier: 18.3.0-canary-d900fadbf-20230929
         version: 18.3.0-canary-d900fadbf-20230929(react-dom@18.2.0)(react@18.2.0)(webpack@5.86.0)
@@ -22375,6 +22375,20 @@ packages:
   /react-refresh@0.12.0:
     resolution: {integrity: sha512-suLIhrU2IHKL5JEKR/fAwJv7bbeq4kJ+pJopf77jHwuR+HmJS/HbrPIGsTBUVfw7tXPOmYv7UJ7PCaN49e8x4A==}
     engines: {node: '>=0.10.0'}
+    dev: true
+
+  /react-server-dom-turbopack@0.0.0-experimental-d900fadbf-20230929(react-dom@18.2.0)(react@18.2.0):
+    resolution: {integrity: sha512-MTk3sZt+wVJAosQnTmg+rfznovI2FFRWv4cKcZdk90ebDBL7rZItEIwZzGKqVVhKVetppIYT7gIPMt7CJJ5LCQ==}
+    engines: {node: '>=0.10.0'}
+    peerDependencies:
+      react: 0.0.0-experimental-d900fadbf-20230929
+      react-dom: 0.0.0-experimental-d900fadbf-20230929
+    dependencies:
+      acorn-loose: 8.3.0
+      loose-envify: 1.4.0
+      neo-async: 2.6.1
+      react: 18.2.0
+      react-dom: 18.2.0(react@18.2.0)
     dev: true
 
   /react-server-dom-turbopack@18.3.0-canary-d900fadbf-20230929(react-dom@18.2.0)(react@18.2.0):
