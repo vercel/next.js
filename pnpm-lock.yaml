@@ -122,6 +122,9 @@ importers:
       '@types/cross-spawn':
         specifier: 6.0.0
         version: 6.0.0
+      '@types/fs-extra':
+        specifier: 8.1.0
+        version: 8.1.0
       '@types/glob':
         specifier: 7.1.1
         version: 7.1.1
@@ -281,6 +284,9 @@ importers:
       form-data:
         specifier: 4.0.0
         version: 4.0.0
+      fs-extra:
+        specifier: 9.0.0
+        version: 9.0.0
       get-port:
         specifier: 5.1.1
         version: 5.1.1
@@ -8042,6 +8048,12 @@ packages:
     resolution: {integrity: sha512-eGPzuyc6wZM3sSHJdF7NM2jW6B/xsB014Rqg/iDa6xY02mlfy1w/TE2sYhR8vbHxkzJOXiGo6NuIk3xk35vsgQ==}
     dev: true
 
+  /@types/fs-extra@8.1.0:
+    resolution: {integrity: sha512-UoOfVEzAUpeSPmjm7h1uk5MH6KZma2z2O7a75onTGjnNvAvMVrPzPL/vBbT65iIGHWj6rokwfmYcmxmlSf2uwg==}
+    dependencies:
+      '@types/node': 20.2.5
+    dev: true
+
   /@types/glob@7.1.1:
     resolution: {integrity: sha512-1Bh06cbWJUHMC97acuD6UMG29nMt0Aqz1vF3guLfG+kHHJhy3AyohZFFxYk2f7Q1SQIrNwvncxAE0N/9s70F2w==}
     dependencies:
@@ -14158,6 +14170,16 @@ packages:
       universalify: 0.1.2
     dev: true
 
+  /fs-extra@9.0.0:
+    resolution: {integrity: sha512-pmEYSk3vYsG/bF651KPUXZ+hvjpgWYw/Gc7W9NFUe3ZVLczKKWIij3IKpOrQcdw4TILtibFslZ0UmR8Vvzig4g==}
+    engines: {node: '>=10'}
+    dependencies:
+      at-least-node: 1.0.0
+      graceful-fs: 4.2.9
+      jsonfile: 6.0.1
+      universalify: 1.0.0
+    dev: true
+
   /fs-extra@9.1.0:
     resolution: {integrity: sha512-hcg3ZmepS30/7BSFqRvoo3DOMQu7IjqxO5nCDt+zM9XWjb33Wg7ziNT+Qvqbuc3+gWpzO02JubVyk2G4Zvo1OQ==}
     engines: {node: '>=10'}
@@ -14739,7 +14761,6 @@ packages:
 
   /graceful-fs@4.2.9:
     resolution: {integrity: sha512-NtNxqUcXgpW2iMrfqSfR73Glt39K+BLwWsPs94yR63v45T0Wbej7eRmL5cWfwEgqXnmjQp3zaJTshdRW/qC2ZQ==}
-    dev: false
 
   /grapheme-splitter@1.0.4:
     resolution: {integrity: sha512-bzh50DW9kTPM00T8y4o8vQg89Di9oLJVLW/KaOGIXJWP/iqCN6WKYkbNOF04vFLJhwcpYUh9ydh/+5vpOqV4YQ==}
