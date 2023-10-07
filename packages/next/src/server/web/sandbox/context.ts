@@ -1,5 +1,10 @@
-import { AsyncLocalStorage } from 'async_hooks'
 import type { AssetBinding } from '../../../build/webpack/loaders/get-module-build-info'
+import type {
+  EdgeFunctionDefinition,
+  SUPPORTED_NATIVE_MODULES,
+} from '../../../build/webpack/plugins/middleware-plugin'
+import type { UnwrapPromise } from '../../../lib/coalesced-function'
+import { AsyncLocalStorage } from 'async_hooks'
 import {
   decorateServerError,
   getServerError,
@@ -13,11 +18,6 @@ import { readFileSync, promises as fs } from 'fs'
 import { validateURL } from '../utils'
 import { pick } from '../../../lib/pick'
 import { fetchInlineAsset } from './fetch-inline-assets'
-import type {
-  EdgeFunctionDefinition,
-  SUPPORTED_NATIVE_MODULES,
-} from '../../../build/webpack/plugins/middleware-plugin'
-import { UnwrapPromise } from '../../../lib/coalesced-function'
 import { runInContext } from 'vm'
 import BufferImplementation from 'node:buffer'
 import EventsImplementation from 'node:events'

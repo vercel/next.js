@@ -3,7 +3,7 @@ import { createRecordFromThenable } from '../create-record-from-thenable'
 import { createHrefFromUrl } from '../create-href-from-url'
 import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
-import {
+import type {
   ReadonlyReducerState,
   ReducerState,
   FastRefreshAction,

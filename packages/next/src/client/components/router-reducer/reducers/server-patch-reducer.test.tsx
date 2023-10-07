@@ -4,7 +4,13 @@ import type {
   FlightData,
   FlightRouterState,
 } from '../../../../server/app-render/types'
-
+import { CacheStates } from '../../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
+import { createInitialRouterState } from '../create-initial-router-state'
+import { ACTION_SERVER_PATCH, ACTION_NAVIGATE } from '../router-reducer-types'
+import type { ServerPatchAction, NavigateAction } from '../router-reducer-types'
+import { navigateReducer } from './navigate-reducer'
+import { serverPatchReducer } from './server-patch-reducer'
 const buildId = 'development'
 
 jest.mock('../fetch-server-response', () => {
@@ -38,19 +44,6 @@ jest.mock('../fetch-server-response', () => {
     },
   }
 })
-import {
-  CacheNode,
-  CacheStates,
-} from '../../../../shared/lib/app-router-context.shared-runtime'
-import { createInitialRouterState } from '../create-initial-router-state'
-import {
-  ServerPatchAction,
-  ACTION_SERVER_PATCH,
-  NavigateAction,
-  ACTION_NAVIGATE,
-} from '../router-reducer-types'
-import { navigateReducer } from './navigate-reducer'
-import { serverPatchReducer } from './server-patch-reducer'
 
 const flightDataForPatch: FlightData = [
   [

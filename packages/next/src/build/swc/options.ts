@@ -321,7 +321,6 @@ export function getLoaderSWCOptions({
   hasServerComponents,
   isServerLayer,
   isServerActionsEnabled,
-  optimizeBarrelExports,
   bundleTarget,
 }: // This is not passed yet as "paths" resolving is handled by webpack currently.
 // resolvedBaseUrl,
@@ -348,9 +347,6 @@ export function getLoaderSWCOptions({
   hasServerComponents?: boolean
   isServerLayer: boolean
   isServerActionsEnabled?: boolean
-  optimizeBarrelExports?: {
-    wildcard: boolean
-  }
 }) {
   let baseOptions: any = getBaseSWCOptions({
     filename,
@@ -404,9 +400,6 @@ export function getLoaderSWCOptions({
     baseOptions.autoModularizeImports = {
       packages: optimizePackageImports,
     }
-  }
-  if (optimizeBarrelExports) {
-    baseOptions.optimizeBarrelExports = optimizeBarrelExports
   }
 
   const isNextDist = nextDistPath.test(filename)

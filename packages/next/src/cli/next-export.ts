@@ -7,7 +7,7 @@ import { cyan } from '../lib/picocolors'
 import exportApp, { ExportError } from '../export'
 import * as Log from '../build/output/log'
 import { printAndExit } from '../server/lib/utils'
-import { CliCommand } from '../lib/commands'
+import type { CliCommand } from '../lib/commands'
 import { trace } from '../trace'
 import { getProjectDir } from '../lib/get-project-dir'
 

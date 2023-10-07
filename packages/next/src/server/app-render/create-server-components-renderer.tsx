@@ -3,7 +3,7 @@ import type { FlightResponseRef } from './flight-response-ref'
 import type { AppPageModule } from '../future/route-modules/app-page/module'
 
 import React, { use } from 'react'
-import { createErrorHandler } from './create-error-handler'
+import type { createErrorHandler } from './create-error-handler'
 import { useFlightResponse } from './use-flight-response'
 
 /**
