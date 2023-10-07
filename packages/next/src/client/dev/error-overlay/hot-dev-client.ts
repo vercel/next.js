@@ -122,6 +122,8 @@ function handleSuccess() {
     if (isHotUpdate) {
       tryApplyUpdates(onBeforeFastRefresh, onFastRefresh)
     }
+  } else {
+    onBuildOk()
   }
 }
 

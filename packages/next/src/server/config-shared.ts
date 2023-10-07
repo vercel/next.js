@@ -165,7 +165,7 @@ export interface ExperimentalConfig {
   deploymentId?: string
   logging?: {
     level?: 'verbose'
-    fullUrl?: false
+    fullUrl?: boolean
   }
   appDocumentPreloading?: boolean
   strictNextHead?: boolean
@@ -222,10 +222,6 @@ export interface ExperimentalConfig {
   swcTraceProfiling?: boolean
   forceSwcTransforms?: boolean
 
-  /**
-   * This option is removed
-   */
-  swcMinifyDebugOptions?: never
   swcPlugins?: Array<[string, Record<string, unknown>]>
   largePageDataBytes?: number
   /**
@@ -330,6 +326,10 @@ export interface ExperimentalConfig {
    * @internal Used by the Next.js internals only.
    */
   trustHostHeader?: boolean
+  /**
+   * Enables the bundling of node_modules packages (externals) for pages server-side bundles.
+   */
+  bundlePagesExternals?: boolean
 }
 
 export type ExportPathMap = {
@@ -769,6 +769,7 @@ export const defaultConfig: NextConfig = {
     turbotrace: undefined,
     typedRoutes: false,
     instrumentationHook: false,
+    bundlePagesExternals: false,
   },
 }
 
@@ -778,20 +779,4 @@ export async function normalizeConfig(phase: string, config: any) {
   }
   // Support `new Promise` and `async () =>` as return values of the config export
   return await config
-}
-
-export function validateConfig(userConfig: NextConfig): {
-  errors?: Array<any> | null
-} {
-  if (process.env.NEXT_MINIMAL) {
-    return {
-      errors: [],
-    }
-  } else {
-    const configValidator = require('next/dist/next-config-validate.js')
-    configValidator(userConfig)
-    return {
-      errors: configValidator.errors,
-    }
-  }
 }

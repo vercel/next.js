@@ -2,7 +2,7 @@
 import type arg from 'next/dist/compiled/arg/index.js'
 import { existsSync } from 'fs'
 import { join } from 'path'
-import chalk from 'next/dist/compiled/chalk'
+import { green } from '../lib/picocolors'
 
 import { CliCommand } from '../lib/commands'
 import { ESLINT_DEFAULT_DIRS } from '../lib/constants'
@@ -187,7 +187,7 @@ const nextLint: CliCommand = async (args) => {
       if (lintOutput) {
         printAndExit(lintOutput, 0)
       } else if (lintResults && !lintOutput) {
-        printAndExit(chalk.green('✔ No ESLint warnings or errors'), 0)
+        printAndExit(green('✔ No ESLint warnings or errors'), 0)
       }
     })
     .catch((err) => {

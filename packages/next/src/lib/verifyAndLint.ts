@@ -1,4 +1,4 @@
-import chalk from 'next/dist/compiled/chalk'
+import { red } from './picocolors'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import { existsSync } from 'fs'
 import { join } from 'path'
@@ -68,7 +68,7 @@ export async function verifyAndLint(
   } catch (err) {
     if (isError(err)) {
       if (err.type === 'CompileError' || err instanceof CompileError) {
-        console.error(chalk.red('\nFailed to compile.'))
+        console.error(red('\nFailed to compile.'))
         console.error(err.message)
         process.exit(1)
       } else if (err.type === 'FatalError') {

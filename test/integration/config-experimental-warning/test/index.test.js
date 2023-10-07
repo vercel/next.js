@@ -19,17 +19,6 @@ async function collectStdout(appDir) {
   return stdout
 }
 
-async function collectStderr(appDir) {
-  let stderr = ''
-  const port = await findPort()
-  app = await launchApp(appDir, port, {
-    onStderr(msg) {
-      stderr += msg
-    },
-  })
-  return stderr
-}
-
 describe('Config Experimental Warning', () => {
   afterEach(() => {
     configFile.write('')
@@ -122,20 +111,5 @@ describe('Config Experimental Warning', () => {
     expect(stdout).toMatch(' - Experiments (use at your own risk):')
     expect(stdout).toMatch(' · workerThreads')
     expect(stdout).toMatch(' · scrollRestoration')
-  })
-
-  it('should show warning for dropped experimental.appDir option', async () => {
-    configFile.write(`
-      module.exports = {
-        experimental: {
-          appDir: true,
-        }
-      }
-    `)
-
-    const stderr = await collectStderr(appDir)
-    expect(stderr).toMatch(
-      'App router is available by default now, `experimental.appDir` option can be safely removed.'
-    )
   })
 })

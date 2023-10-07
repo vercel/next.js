@@ -141,15 +141,17 @@ function trackFetchMetric(
   })
 }
 
+interface PatchableModule {
+  serverHooks: typeof ServerHooks
+  staticGenerationAsyncStorage: StaticGenerationAsyncStorage
+}
+
 // we patch fetch to collect cache information used for
 // determining if a page is static or not
 export function patchFetch({
   serverHooks,
   staticGenerationAsyncStorage,
-}: {
-  serverHooks: typeof ServerHooks
-  staticGenerationAsyncStorage: StaticGenerationAsyncStorage
-}) {
+}: PatchableModule) {
   if (!(globalThis as any)._nextOriginalFetch) {
     ;(globalThis as any)._nextOriginalFetch = globalThis.fetch
   }

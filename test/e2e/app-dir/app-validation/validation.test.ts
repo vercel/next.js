@@ -1,7 +1,7 @@
 import { createNextDescribe } from 'e2e-utils'
 
 createNextDescribe(
-  'app dir validation',
+  'app dir - validation',
   {
     files: __dirname,
     skipDeployment: true,

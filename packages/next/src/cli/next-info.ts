@@ -3,7 +3,7 @@
 import os from 'os'
 import childProcess from 'child_process'
 
-import chalk from 'next/dist/compiled/chalk'
+import { bold, cyan, yellow } from '../lib/picocolors'
 const { fetch } = require('next/dist/compiled/undici') as {
   fetch: typeof global.fetch
 }
@@ -93,7 +93,7 @@ Options
   --help, -h    Displays this message
   --verbose     Collect additional information for debugging
 
-Learn more: ${chalk.cyan('https://nextjs.org/docs/api-reference/cli#info')}`
+Learn more: ${cyan('https://nextjs.org/docs/api-reference/cli#info')}`
   )
 }
 
@@ -134,8 +134,8 @@ Next.js Config:
 
     if (installedRelease !== newestRelease) {
       console.warn(
-        `${chalk.yellow(
-          chalk.bold('warn')
+        `${yellow(
+          bold('warn')
         )}  - Latest canary version not detected, detected: "${installedRelease}", newest: "${newestRelease}".
         Please try the latest canary version (\`npm install next@canary\`) to confirm the issue still exists before creating a new issue.
         Read more - https://nextjs.org/docs/messages/opening-an-issue`
@@ -143,8 +143,8 @@ Next.js Config:
     }
   } catch (e) {
     console.warn(
-      `${chalk.yellow(
-        chalk.bold('warn')
+      `${yellow(
+        bold('warn')
       )}  - Failed to fetch latest canary version. (Reason: ${
         (e as Error).message
       }.)
@@ -555,7 +555,7 @@ async function printVerbose() {
     })
   }
 
-  console.log(`\n${chalk.bold('Generated diagnostics report')}`)
+  console.log(`\n${bold('Generated diagnostics report')}`)
 
   console.log(`\nPlease copy below report and paste it into your issue.`)
   for (const { title, result } of report) {

@@ -1,4 +1,4 @@
-import chalk from 'next/dist/compiled/chalk'
+import { bold, cyan, red, yellow } from './picocolors'
 import path from 'path'
 
 import {
@@ -78,15 +78,17 @@ export async function verifyTypeScriptSetup({
         missingDepsError(dir, deps.missing)
       }
       console.log(
-        chalk.bold.yellow(
-          `It looks like you're trying to use TypeScript but do not have the required package(s) installed.`
+        bold(
+          yellow(
+            `It looks like you're trying to use TypeScript but do not have the required package(s) installed.`
+          )
         ) +
           '\n' +
           'Installing dependencies' +
           '\n\n' +
-          chalk.bold(
+          bold(
             'If you are not trying to use TypeScript, please remove the ' +
-              chalk.cyan('tsconfig.json') +
+              cyan('tsconfig.json') +
               ' file from your package root (and any TypeScript files in your pages directory).'
           ) +
           '\n'
@@ -152,7 +154,7 @@ export async function verifyTypeScriptSetup({
   } catch (err) {
     // These are special errors that should not show a stack trace:
     if (err instanceof CompileError) {
-      console.error(chalk.red('Failed to compile.\n'))
+      console.error(red('Failed to compile.\n'))
       console.error(err.message)
       process.exit(1)
     }

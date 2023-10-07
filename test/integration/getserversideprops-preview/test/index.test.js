@@ -269,8 +269,7 @@ describe('ServerSide Props Preview Mode', () => {
       await killApp(app)
     })
   })
-
-  describe('Server Mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     runTests()
   })
 })

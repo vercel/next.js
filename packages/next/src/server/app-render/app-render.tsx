@@ -11,19 +11,15 @@ import type {
   Segment,
 } from './types'
 
-import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
-import type { StaticGenerationBailout } from '../../client/components/static-generation-bailout'
-import type { RequestAsyncStorage } from '../../client/components/request-async-storage.external'
-
 import React from 'react'
 import { createServerComponentRenderer } from './create-server-components-renderer'
 
 import { NextParsedUrlQuery } from '../request-meta'
 import RenderResult, { type RenderResultMetadata } from '../render-result'
 import {
-  renderToInitialStream,
+  renderToInitialFizzStream,
   createBufferedTransformStream,
-  continueFromInitialStream,
+  continueFizzStream,
   streamToBufferedResult,
   cloneTransformStream,
 } from '../stream-utils/node-web-streams-helper'
@@ -171,6 +167,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
   renderOpts
 ) => {
   const isFlight = req.headers[RSC.toLowerCase()] !== undefined
+  const isNotFoundPath = pagePath === '/404'
   const pathname = validateURL(req.url)
 
   // A unique request timestamp used by development to ensure that it's
@@ -237,6 +234,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
   })
 
   patchFetch(ComponentMod)
+
   /**
    * Rules of Static & Dynamic HTML:
    *
@@ -252,12 +250,25 @@ export const renderToHTMLOrFlight: AppPageRender = (
    */
   const generateStaticHTML = supportsDynamicHTML !== true
 
-  const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
-    ComponentMod.staticGenerationAsyncStorage
-  const requestAsyncStorage: RequestAsyncStorage =
-    ComponentMod.requestAsyncStorage
-  const staticGenerationBailout: StaticGenerationBailout =
-    ComponentMod.staticGenerationBailout
+  // Pull out the hooks/references from the component.
+  const {
+    staticGenerationAsyncStorage,
+    requestAsyncStorage,
+    staticGenerationBailout,
+    LayoutRouter,
+    RenderFromTemplateContext,
+    createSearchParamsBailoutProxy,
+    StaticGenerationSearchParamsBailoutProvider,
+    serverHooks: { DynamicServerError },
+    NotFoundBoundary,
+    renderToReadableStream,
+    AppRouter,
+    GlobalError,
+    tree: loaderTree,
+    preloadFont,
+    preconnect,
+    preloadStyle,
+  } = ComponentMod
 
   // we wrap the render in an AsyncLocalStorage context
   const wrappedRender = async () => {
@@ -267,6 +278,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
         `Invariant: Render expects to have staticGenerationAsyncStorage, none found`
       )
     }
+
     staticGenerationStore.fetchMetrics = []
     extraRenderResultMeta.fetchMetrics = staticGenerationStore.fetchMetrics
 
@@ -294,11 +306,6 @@ export const renderToHTMLOrFlight: AppPageRender = (
       : undefined
 
     /**
-     * The tree created in next-app-loader that holds component segments and modules
-     */
-    const loaderTree: LoaderTree = ComponentMod.tree
-
-    /**
      * The metadata items array created in next-app-loader with all relevant information
      * that we need to resolve the final metadata.
      */
@@ -310,15 +317,6 @@ export const renderToHTMLOrFlight: AppPageRender = (
     } else {
       requestId = require('next/dist/compiled/nanoid').nanoid()
     }
-
-    const LayoutRouter =
-      ComponentMod.LayoutRouter as typeof import('../../client/components/layout-router').default
-    const RenderFromTemplateContext =
-      ComponentMod.RenderFromTemplateContext as typeof import('../../client/components/render-from-template-context').default
-    const createSearchParamsBailoutProxy =
-      ComponentMod.createSearchParamsBailoutProxy as typeof import('../../client/components/searchparams-bailout-proxy').createSearchParamsBailoutProxy
-    const StaticGenerationSearchParamsBailoutProvider =
-      ComponentMod.StaticGenerationSearchParamsBailoutProvider as typeof import('../../client/components/static-generation-searchparams-bailout-provider').default
 
     const isStaticGeneration = staticGenerationStore.isStaticGeneration
     // During static generation we need to call the static generation bailout when reading searchParams
@@ -465,6 +463,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
                 href={fullHref}
                 // @ts-ignore
                 precedence={precedence}
+                crossOrigin={renderOpts.crossOrigin}
                 key={index}
               />
             )
@@ -509,16 +508,16 @@ export const renderToHTMLOrFlight: AppPageRender = (
             const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFilename)![1]
             const type = `font/${ext}`
             const href = `${assetPrefix}/_next/${fontFilename}`
-            ComponentMod.preloadFont(href, type)
+            preloadFont(href, type, renderOpts.crossOrigin)
           }
         } else {
           try {
             let url = new URL(assetPrefix)
-            ComponentMod.preconnect(url.origin, 'anonymous')
+            preconnect(url.origin, 'anonymous')
           } catch (error) {
             // assetPrefix must not be a fully qualified domain name. We assume
             // we should preconnect to same origin instead
-            ComponentMod.preconnect('/', 'anonymous')
+            preconnect('/', 'anonymous')
           }
         }
       }
@@ -544,7 +543,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
             const precedence =
               process.env.NODE_ENV === 'development' ? 'next_' + href : 'next'
 
-            ComponentMod.preloadStyle(fullHref)
+            preloadStyle(fullHref, renderOpts.crossOrigin)
 
             return (
               <link
@@ -552,6 +551,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
                 href={fullHref}
                 // @ts-ignore
                 precedence={precedence}
+                crossOrigin={renderOpts.crossOrigin}
                 key={index}
               />
             )
@@ -729,9 +729,6 @@ export const renderToHTMLOrFlight: AppPageRender = (
           staticGenerationStore.isStaticGeneration &&
           defaultRevalidate === 0
         ) {
-          const { DynamicServerError } =
-            ComponentMod.serverHooks as typeof import('../../client/components/hooks-server-context')
-
           const dynamicUsageDescription = `revalidate: 0 configured ${segment}`
           staticGenerationStore.dynamicUsageDescription =
             dynamicUsageDescription
@@ -756,8 +753,6 @@ export const renderToHTMLOrFlight: AppPageRender = (
       const hasSlotKey = parallelKeys.length > 1
 
       if (hasSlotKey && rootLayoutAtThisLevel) {
-        const NotFoundBoundary =
-          ComponentMod.NotFoundBoundary as typeof import('../../client/components/not-found-boundary').NotFoundBoundary
         Component = (componentProps: any) => {
           const NotFoundComponent = NotFound
           const RootLayoutComponent = LayoutOrPage
@@ -1104,6 +1099,13 @@ export const renderToHTMLOrFlight: AppPageRender = (
           // Explicit refresh
           flightRouterState[3] === 'refetch'
 
+        const shouldSkipComponentTree =
+          isPrefetch &&
+          !Boolean(components.loading) &&
+          (flightRouterState ||
+            // If there is no flightRouterState, we need to check the entire loader tree, as otherwise we'll be only checking the root
+            !hasLoadingComponentInTree(loaderTree))
+
         if (!parentRendered && renderComponentsOnThisLevel) {
           const overriddenSegment =
             flightRouterState &&
@@ -1120,9 +1122,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
                 getDynamicParamFromSegment,
                 query
               ),
-              isPrefetch &&
-              !Boolean(components.loading) &&
-              !hasLoadingComponentInTree(loaderTree)
+              shouldSkipComponentTree
                 ? null
                 : // Create component tree using the slice of the loaderTree
                   // @ts-expect-error TODO-APP: fix async component type
@@ -1145,9 +1145,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
 
                     return <Component />
                   }),
-              isPrefetch &&
-              !Boolean(components.loading) &&
-              !hasLoadingComponentInTree(loaderTree)
+              shouldSkipComponentTree
                 ? null
                 : (() => {
                     const { layoutOrPagePath } =
@@ -1271,7 +1269,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
             injectedCSS: new Set(),
             injectedFontPreloadTags: new Set(),
             rootLayoutIncluded: false,
-            asNotFound: pagePath === '/404' || options?.asNotFound,
+            asNotFound: isNotFoundPath || options?.asNotFound,
             metadataOutlet: <MetadataOutlet />,
           })
         ).map((path) => path.slice(1)) // remove the '' (root) segment
@@ -1279,9 +1277,9 @@ export const renderToHTMLOrFlight: AppPageRender = (
 
       const buildIdFlightDataPair = [buildId, flightData]
 
-      // For app dir, use the bundled version of Fizz renderer (renderToReadableStream)
+      // For app dir, use the bundled version of Flight server renderer (renderToReadableStream)
       // which contains the subset React.
-      const readable = ComponentMod.renderToReadableStream(
+      const flightReadableStream = renderToReadableStream(
         options
           ? [options.actionResult, buildIdFlightDataPair]
           : buildIdFlightDataPair,
@@ -1292,27 +1290,12 @@ export const renderToHTMLOrFlight: AppPageRender = (
         }
       ).pipeThrough(createBufferedTransformStream())
 
-      return new FlightRenderResult(readable)
+      return new FlightRenderResult(flightReadableStream)
     }
 
     if (isFlight && !staticGenerationStore.isStaticGeneration) {
       return generateFlight()
     }
-
-    // Below this line is handling for rendering to HTML.
-
-    // AppRouter is provided by next-app-loader
-    const AppRouter =
-      ComponentMod.AppRouter as typeof import('../../client/components/app-router').default
-
-    const GlobalError =
-      /** GlobalError can be either the default error boundary or the overwritten app/global-error.js **/
-      ComponentMod.GlobalError as typeof import('../../client/components/error-boundary').GlobalError
-
-    const serverComponentsInlinedTransformStream: TransformStream<
-      Uint8Array,
-      Uint8Array
-    > = new TransformStream()
 
     // Get the nonce from the incoming request if it has one.
     const csp = req.headers['content-security-policy']
@@ -1322,10 +1305,9 @@ export const renderToHTMLOrFlight: AppPageRender = (
     }
 
     const serverComponentsRenderOpts = {
-      transformStream: serverComponentsInlinedTransformStream,
+      inlinedDataTransformStream: new TransformStream<Uint8Array, Uint8Array>(),
       clientReferenceManifest,
       serverContexts,
-      rscChunks: [],
       formState: null,
     }
 
@@ -1450,21 +1432,26 @@ export const renderToHTMLOrFlight: AppPageRender = (
         tree: LoaderTree
         formState: any
       }) => {
-        const polyfills = buildManifest.polyfillFiles
-          .filter(
-            (polyfill) =>
-              polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
-          )
-          .map((polyfill) => ({
-            src: `${assetPrefix}/_next/${polyfill}${getAssetQueryString(
-              false
-            )}`,
-            integrity: subresourceIntegrityManifest?.[polyfill],
-          }))
+        const polyfills: JSX.IntrinsicElements['script'][] =
+          buildManifest.polyfillFiles
+            .filter(
+              (polyfill) =>
+                polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
+            )
+            .map((polyfill) => ({
+              src: `${assetPrefix}/_next/${polyfill}${getAssetQueryString(
+                false
+              )}`,
+              integrity: subresourceIntegrityManifest?.[polyfill],
+              crossOrigin: renderOpts.crossOrigin,
+              noModule: true,
+              nonce,
+            }))
 
         const [preinitScripts, bootstrapScript] = getRequiredScripts(
           buildManifest,
           assetPrefix,
+          renderOpts.crossOrigin,
           subresourceIntegrityManifest,
           getAssetQueryString(true),
           nonce
@@ -1534,15 +1521,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
                 {polyfillsFlushed
                   ? null
                   : polyfills?.map((polyfill) => {
-                      return (
-                        <script
-                          key={polyfill.src}
-                          src={polyfill.src}
-                          integrity={polyfill.integrity}
-                          noModule={true}
-                          nonce={nonce}
-                        />
-                      )
+                      return <script key={polyfill.src} {...polyfill} />
                     })}
                 {renderServerInsertedHTML()}
                 {errorMetaTags}
@@ -1554,7 +1533,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
         }
 
         try {
-          const renderStream = await renderToInitialStream({
+          const fizzStream = await renderToInitialFizzStream({
             ReactDOMServer: require('react-dom/server.edge'),
             element: content,
             streamOptions: {
@@ -1566,8 +1545,9 @@ export const renderToHTMLOrFlight: AppPageRender = (
             },
           })
 
-          const result = await continueFromInitialStream(renderStream, {
-            dataStream: serverComponentsRenderOpts.transformStream.readable,
+          const result = await continueFizzStream(fizzStream, {
+            inlinedDataStream:
+              serverComponentsRenderOpts.inlinedDataTransformStream.readable,
             generateStaticHTML:
               staticGenerationStore.isStaticGeneration || generateStaticHTML,
             getServerInsertedHTML: () =>
@@ -1624,9 +1604,8 @@ export const renderToHTMLOrFlight: AppPageRender = (
           const serverErrorComponentsRenderOpts: typeof serverComponentsRenderOpts =
             {
               ...serverComponentsRenderOpts,
-              rscChunks: [],
-              transformStream: cloneTransformStream(
-                serverComponentsRenderOpts.transformStream
+              inlinedDataTransformStream: cloneTransformStream(
+                serverComponentsRenderOpts.inlinedDataTransformStream
               ),
               formState,
             }
@@ -1652,6 +1631,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
             getRequiredScripts(
               buildManifest,
               assetPrefix,
+              renderOpts.crossOrigin,
               subresourceIntegrityManifest,
               getAssetQueryString(false),
               nonce
@@ -1708,7 +1688,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
           )
 
           try {
-            const renderStream = await renderToInitialStream({
+            const fizzStream = await renderToInitialFizzStream({
               ReactDOMServer: require('react-dom/server.edge'),
               element: <ErrorPage />,
               streamOptions: {
@@ -1719,9 +1699,10 @@ export const renderToHTMLOrFlight: AppPageRender = (
               },
             })
 
-            return await continueFromInitialStream(renderStream, {
-              dataStream:
-                serverErrorComponentsRenderOpts.transformStream.readable,
+            return await continueFizzStream(fizzStream, {
+              inlinedDataStream:
+                serverErrorComponentsRenderOpts.inlinedDataTransformStream
+                  .readable,
               generateStaticHTML: staticGenerationStore.isStaticGeneration,
               getServerInsertedHTML: () => getServerInsertedHTML([]),
               serverInsertedHTMLToHead: true,
@@ -1779,7 +1760,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
 
     const renderResult = new RenderResult(
       await bodyResult({
-        asNotFound: pagePath === '/404',
+        asNotFound: isNotFoundPath,
         tree: loaderTree,
         formState,
       }),
@@ -1806,7 +1787,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
 
       // TODO-APP: derive this from same pass to prevent additional
       // render during static generation
-      const filteredFlightData = await streamToBufferedResult(
+      const stringifiedFlightPayload = await streamToBufferedResult(
         await generateFlight()
       )
 
@@ -1814,7 +1795,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
         staticGenerationStore.revalidate = 0
       }
 
-      extraRenderResultMeta.pageData = filteredFlightData
+      extraRenderResultMeta.pageData = stringifiedFlightPayload
       extraRenderResultMeta.revalidate =
         staticGenerationStore.revalidate ?? defaultRevalidate
 

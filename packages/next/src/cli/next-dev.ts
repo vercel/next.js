@@ -245,14 +245,17 @@ const nextDev: CliCommand = async (args) => {
   async function startServer(options: StartServerOptions) {
     return new Promise<void>((resolve) => {
       let resolved = false
+      const defaultEnv = (initialEnv || process.env) as typeof process.env
 
       child = fork(startServerPath, {
         stdio: 'inherit',
         env: {
-          ...((initialEnv || process.env) as typeof process.env),
+          ...defaultEnv,
           TURBOPACK: process.env.TURBOPACK,
           NEXT_PRIVATE_WORKER: '1',
-          NODE_EXTRA_CA_CERTS: options.selfSignedCertificate?.rootCA,
+          NODE_EXTRA_CA_CERTS: options.selfSignedCertificate
+            ? options.selfSignedCertificate.rootCA
+            : defaultEnv.NODE_EXTRA_CA_CERTS,
         },
       })
 

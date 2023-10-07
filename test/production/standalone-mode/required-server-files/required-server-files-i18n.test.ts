@@ -15,7 +15,7 @@ import {
 } from 'next-test-utils'
 import nodeFetch from 'node-fetch'
 
-describe('should set-up next', () => {
+describe('required server files i18n', () => {
   let next: NextInstance
   let server
   let appPort

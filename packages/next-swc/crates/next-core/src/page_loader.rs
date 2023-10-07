@@ -9,10 +9,7 @@ use turbopack_binding::{
     turbopack::{
         core::{
             asset::{Asset, AssetContent},
-            chunk::{
-                ChunkData, ChunkableModule, ChunkingContext, ChunksData, EvaluatableAsset,
-                EvaluatableAssets,
-            },
+            chunk::{ChunkData, ChunkingContext, ChunksData, EvaluatableAsset, EvaluatableAssets},
             context::AssetContext,
             ident::AssetIdent,
             module::Module,
@@ -138,10 +135,9 @@ impl PageLoaderAsset {
             bail!("internal module must be evaluatable");
         };
 
-        Ok(this.client_chunking_context.evaluated_chunk_group(
-            module.as_root_chunk(this.client_chunking_context),
-            EvaluatableAssets::one(module),
-        ))
+        Ok(this
+            .client_chunking_context
+            .evaluated_chunk_group(module.ident(), EvaluatableAssets::one(module)))
     }
 
     #[turbo_tasks::function]
@@ -182,8 +178,9 @@ fn page_loader_chunk_reference_description() -> Vc<String> {
 impl OutputAsset for PageLoaderAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(AssetIdent::from_path(self.server_root.join(format!(
-            "_next/static/chunks/pages{}",
+        let root = self.rebase_prefix_path.await?.unwrap_or(self.server_root);
+        Ok(AssetIdent::from_path(root.join(format!(
+            "static/chunks/pages{}",
             get_asset_path_from_pathname(&self.pathname.await?, ".js")
         ))))
     }
@@ -213,10 +210,6 @@ impl Asset for PageLoaderAsset {
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let this = &*self.await?;
 
-        // The asset emits `__turbopack_load_page_chunks__`, which is implemented using
-        // `__turbopack_load__`. `__turbopack_load__` will prefix the path with the
-        // relative client path (`_next/`), so we need to remove that when we emit the
-        // chunk paths.
         let chunks_data = self.chunks_data(this.rebase_prefix_path).await?;
         let chunks_data = chunks_data.iter().try_join().await?;
         let chunks_data: Vec<_> = chunks_data

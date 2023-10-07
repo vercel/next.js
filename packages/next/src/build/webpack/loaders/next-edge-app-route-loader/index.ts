@@ -4,6 +4,7 @@ import { NextConfig } from '../../../../server/config-shared'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../../lib/constants'
 import { MiddlewareConfig } from '../../../analysis/get-page-static-info'
+import { loadEntrypoint } from '../../../load-entrypoint'
 
 export type EdgeAppRouteLoaderQuery = {
   absolutePagePath: string
@@ -15,7 +16,7 @@ export type EdgeAppRouteLoaderQuery = {
 }
 
 const EdgeAppRouteLoader: webpack.LoaderDefinitionFunction<EdgeAppRouteLoaderQuery> =
-  function (this) {
+  async function (this) {
     const {
       page,
       absolutePagePath,
@@ -52,13 +53,9 @@ const EdgeAppRouteLoader: webpack.LoaderDefinitionFunction<EdgeAppRouteLoaderQue
       stringifiedPagePath.length - 1
     )}?${WEBPACK_RESOURCE_QUERIES.edgeSSREntry}`
 
-    return `
-    import { EdgeRouteModuleWrapper } from 'next/dist/esm/server/web/edge-route-module-wrapper'
-    import * as module from ${JSON.stringify(modulePath)}
-
-    export const ComponentMod = module
-
-    export default EdgeRouteModuleWrapper.wrap(module.routeModule)`
+    return await loadEntrypoint('edge-app-route', {
+      VAR_USERLAND: modulePath,
+    })
   }
 
 export default EdgeAppRouteLoader

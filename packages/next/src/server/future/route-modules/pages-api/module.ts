@@ -8,13 +8,20 @@ import {
   RouteModuleOptions,
   type RouteModuleHandleContext,
 } from '../route-module'
-import { apiResolver } from '../../../api-utils/node'
+import { apiResolver } from '../../../api-utils/node/api-resolver'
 import { __ApiPreviewProps } from '../../../api-utils'
 
 type PagesAPIHandleFn = (
   req: IncomingMessage,
   res: ServerResponse
 ) => Promise<void>
+
+/**
+ * The PagesAPIModule is the type of the module exported by the bundled Pages
+ * API module.
+ */
+export type PagesAPIModule =
+  typeof import('../../../../build/templates/pages-api')
 
 type PagesAPIUserlandModule = {
   /**

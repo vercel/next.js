@@ -7,274 +7,296 @@ import { join } from 'path'
 
 const fixturesDir = join(__dirname, '../..', 'scss-fixtures')
 
-describe('Basic Global Support', () => {
-  const appDir = join(fixturesDir, 'single-global')
+describe('Basic Global Support scss', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    const appDir = join(fixturesDir, 'single-global')
 
-  beforeAll(async () => {
-    await remove(join(appDir, '.next'))
-  })
-
-  it('should compile successfully', async () => {
-    const { code, stdout } = await nextBuild(appDir, [], {
-      stdout: true,
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
     })
-    expect(code).toBe(0)
-    expect(stdout).toMatch(/Compiled successfully/)
-  })
 
-  it(`should've emitted a single CSS file`, async () => {
-    const cssFolder = join(appDir, '.next/static/css')
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
 
-    const files = await readdir(cssFolder)
-    const cssFiles = files.filter((f) => /\.css$/.test(f))
+    it(`should've emitted a single CSS file`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
 
-    expect(cssFiles.length).toBe(1)
-    expect(await readFile(join(cssFolder, cssFiles[0]), 'utf8')).toContain(
-      'color:red'
-    )
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      expect(await readFile(join(cssFolder, cssFiles[0]), 'utf8')).toContain(
+        'color:red'
+      )
+    })
   })
 })
 
 describe('Basic Module Include Paths Support', () => {
-  const appDir = join(fixturesDir, 'basic-module-include-paths')
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    const appDir = join(fixturesDir, 'basic-module-include-paths')
 
-  beforeAll(async () => {
-    await remove(join(appDir, '.next'))
-  })
-
-  it('should compile successfully', async () => {
-    const { code, stdout } = await nextBuild(appDir, [], {
-      stdout: true,
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
     })
-    expect(code).toBe(0)
-    expect(stdout).toMatch(/Compiled successfully/)
-  })
 
-  it(`should've emitted a single CSS file`, async () => {
-    const cssFolder = join(appDir, '.next/static/css')
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
 
-    const files = await readdir(cssFolder)
-    const cssFiles = files.filter((f) => /\.css$/.test(f))
+    it(`should've emitted a single CSS file`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
 
-    expect(cssFiles.length).toBe(1)
-    expect(await readFile(join(cssFolder, cssFiles[0]), 'utf8')).toContain(
-      'color:red'
-    )
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      expect(await readFile(join(cssFolder, cssFiles[0]), 'utf8')).toContain(
+        'color:red'
+      )
+    })
   })
 })
 
 describe('Basic Module Prepend Data Support', () => {
-  const appDir = join(fixturesDir, 'basic-module-prepend-data')
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    const appDir = join(fixturesDir, 'basic-module-prepend-data')
 
-  beforeAll(async () => {
-    await remove(join(appDir, '.next'))
-  })
-
-  it('should compile successfully', async () => {
-    const { code, stdout } = await nextBuild(appDir, [], {
-      stdout: true,
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
     })
-    expect(code).toBe(0)
-    expect(stdout).toMatch(/Compiled successfully/)
-  })
 
-  it(`should've emitted a single CSS file`, async () => {
-    const cssFolder = join(appDir, '.next/static/css')
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
 
-    const files = await readdir(cssFolder)
-    const cssFiles = files.filter((f) => /\.css$/.test(f))
+    it(`should've emitted a single CSS file`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
 
-    expect(cssFiles.length).toBe(1)
-    expect(await readFile(join(cssFolder, cssFiles[0]), 'utf8')).toContain(
-      'color:red'
-    )
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      expect(await readFile(join(cssFolder, cssFiles[0]), 'utf8')).toContain(
+        'color:red'
+      )
+    })
   })
 })
 
 describe('Basic Global Support with src/ dir', () => {
-  const appDir = join(fixturesDir, 'single-global-src')
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    const appDir = join(fixturesDir, 'single-global-src')
 
-  beforeAll(async () => {
-    await remove(join(appDir, '.next'))
-  })
-
-  it('should compile successfully', async () => {
-    const { code, stdout } = await nextBuild(appDir, [], {
-      stdout: true,
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
     })
-    expect(code).toBe(0)
-    expect(stdout).toMatch(/Compiled successfully/)
-  })
 
-  it(`should've emitted a single CSS file`, async () => {
-    const cssFolder = join(appDir, '.next/static/css')
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
 
-    const files = await readdir(cssFolder)
-    const cssFiles = files.filter((f) => /\.css$/.test(f))
+    it(`should've emitted a single CSS file`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
 
-    expect(cssFiles.length).toBe(1)
-    expect(await readFile(join(cssFolder, cssFiles[0]), 'utf8')).toContain(
-      'color:red'
-    )
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      expect(await readFile(join(cssFolder, cssFiles[0]), 'utf8')).toContain(
+        'color:red'
+      )
+    })
   })
 })
 
 describe('Multi Global Support', () => {
-  const appDir = join(fixturesDir, 'multi-global')
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    const appDir = join(fixturesDir, 'multi-global')
 
-  beforeAll(async () => {
-    await remove(join(appDir, '.next'))
-  })
-
-  it('should compile successfully', async () => {
-    const { code, stdout } = await nextBuild(appDir, [], {
-      stdout: true,
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
     })
-    expect(code).toBe(0)
-    expect(stdout).toMatch(/Compiled successfully/)
-  })
 
-  it(`should've emitted a single CSS file`, async () => {
-    const cssFolder = join(appDir, '.next/static/css')
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
 
-    const files = await readdir(cssFolder)
-    const cssFiles = files.filter((f) => /\.css$/.test(f))
+    it(`should've emitted a single CSS file`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
 
-    expect(cssFiles.length).toBe(1)
-    const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-    expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".red-text{color:red}.blue-text{color:blue}"`
-    )
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      expect(
+        cssContent.replace(/\/\*.*?\*\//g, '').trim()
+      ).toMatchInlineSnapshot(`".red-text{color:red}.blue-text{color:blue}"`)
+    })
   })
 })
 
 describe('Nested @import() Global Support', () => {
-  const appDir = join(fixturesDir, 'nested-global')
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    const appDir = join(fixturesDir, 'nested-global')
 
-  beforeAll(async () => {
-    await remove(join(appDir, '.next'))
-  })
-
-  it('should compile successfully', async () => {
-    const { code, stdout } = await nextBuild(appDir, [], {
-      stdout: true,
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
     })
-    expect(code).toBe(0)
-    expect(stdout).toMatch(/Compiled successfully/)
-  })
 
-  it(`should've emitted a single CSS file`, async () => {
-    const cssFolder = join(appDir, '.next/static/css')
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
 
-    const files = await readdir(cssFolder)
-    const cssFiles = files.filter((f) => /\.css$/.test(f))
+    it(`should've emitted a single CSS file`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
 
-    expect(cssFiles.length).toBe(1)
-    const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-    expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".red-text{color:purple;font-weight:bolder;color:red}.blue-text{color:orange;font-weight:bolder;color:blue}"`
-    )
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      expect(
+        cssContent.replace(/\/\*.*?\*\//g, '').trim()
+      ).toMatchInlineSnapshot(
+        `".red-text{color:purple;font-weight:bolder;color:red}.blue-text{color:orange;font-weight:bolder;color:blue}"`
+      )
+    })
   })
 })
 
 // Tests css ordering
 describe('Multi Global Support (reversed)', () => {
-  const appDir = join(fixturesDir, 'multi-global-reversed')
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    const appDir = join(fixturesDir, 'multi-global-reversed')
 
-  beforeAll(async () => {
-    await remove(join(appDir, '.next'))
-  })
-
-  it('should compile successfully', async () => {
-    const { code, stdout } = await nextBuild(appDir, [], {
-      stdout: true,
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
     })
-    expect(code).toBe(0)
-    expect(stdout).toMatch(/Compiled successfully/)
-  })
 
-  it(`should've emitted a single CSS file`, async () => {
-    const cssFolder = join(appDir, '.next/static/css')
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
 
-    const files = await readdir(cssFolder)
-    const cssFiles = files.filter((f) => /\.css$/.test(f))
+    it(`should've emitted a single CSS file`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
 
-    expect(cssFiles.length).toBe(1)
-    const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-    expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".blue-text{color:blue}.red-text{color:red}"`
-    )
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      expect(
+        cssContent.replace(/\/\*.*?\*\//g, '').trim()
+      ).toMatchInlineSnapshot(`".blue-text{color:blue}.red-text{color:red}"`)
+    })
   })
 })
 
 describe('Good CSS Import from node_modules', () => {
-  const appDir = join(fixturesDir, 'npm-import')
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    const appDir = join(fixturesDir, 'npm-import')
 
-  beforeAll(async () => {
-    await remove(join(appDir, '.next'))
-  })
-
-  it('should compile successfully', async () => {
-    const { code, stdout } = await nextBuild(appDir, [], {
-      stdout: true,
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
     })
-    expect(code).toBe(0)
-    expect(stdout).toMatch(/Compiled successfully/)
-  })
 
-  it(`should've emitted a single CSS file`, async () => {
-    const cssFolder = join(appDir, '.next/static/css')
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
 
-    const files = await readdir(cssFolder)
-    const cssFiles = files.filter((f) => /\.css$/.test(f))
+    it(`should've emitted a single CSS file`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
 
-    expect(cssFiles.length).toBe(1)
-    const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-    expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(/nprogress/)
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(/nprogress/)
+    })
   })
 })
 
 describe('Good Nested CSS Import from node_modules', () => {
-  const appDir = join(fixturesDir, 'npm-import-nested')
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    const appDir = join(fixturesDir, 'npm-import-nested')
 
-  beforeAll(async () => {
-    await remove(join(appDir, '.next'))
-  })
-
-  it('should compile successfully', async () => {
-    const { code, stdout } = await nextBuild(appDir, [], {
-      stdout: true,
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
     })
-    expect(code).toBe(0)
-    expect(stdout).toMatch(/Compiled successfully/)
-  })
 
-  it(`should've emitted a single CSS file`, async () => {
-    const cssFolder = join(appDir, '.next/static/css')
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
 
-    const files = await readdir(cssFolder)
-    const cssFiles = files.filter((f) => /\.css$/.test(f))
+    it(`should've emitted a single CSS file`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
 
-    expect(cssFiles.length).toBe(1)
-    const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-    expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".other{color:blue}.test{color:red}"`
-    )
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      expect(
+        cssContent.replace(/\/\*.*?\*\//g, '').trim()
+      ).toMatchInlineSnapshot(`".other{color:blue}.test{color:red}"`)
+    })
   })
 })
 
 describe('CSS Import from node_modules', () => {
-  const appDir = join(fixturesDir, 'npm-import-bad')
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    const appDir = join(fixturesDir, 'npm-import-bad')
 
-  beforeAll(async () => {
-    await remove(join(appDir, '.next'))
-  })
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
 
-  it('should fail the build', async () => {
-    const { code, stderr } = await nextBuild(appDir, [], { stderr: true })
+    it('should fail the build', async () => {
+      const { code, stderr } = await nextBuild(appDir, [], { stderr: true })
 
-    expect(code).toBe(0)
-    expect(stderr).not.toMatch(/Can't resolve '[^']*?nprogress[^']*?'/)
-    expect(stderr).not.toMatch(/Build error occurred/)
+      expect(code).toBe(0)
+      expect(stderr).not.toMatch(/Can't resolve '[^']*?nprogress[^']*?'/)
+      expect(stderr).not.toMatch(/Build error occurred/)
+    })
   })
 })

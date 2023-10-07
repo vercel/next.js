@@ -6,12 +6,24 @@ import { BrowserInterface } from 'test/lib/browsers/base'
 import { Request } from 'playwright-core'
 
 createNextDescribe(
-  'app dir',
+  'app dir - basic',
   {
     files: __dirname,
+    buildCommand: process.env.NEXT_EXPERIMENTAL_COMPILE
+      ? 'pnpm next experimental-compile'
+      : undefined,
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
-    if (isNextStart) {
+    if (isNextStart && !process.env.NEXT_EXPERIMENTAL_COMPILE) {
+      it('should not have loader generated function for edge runtime', async () => {
+        expect(
+          await next.readFile('.next/server/app/dashboard/page.js')
+        ).not.toContain('_stringifiedConfig')
+        expect(await next.readFile('.next/server/middleware.js')).not.toContain(
+          '_middlewareConfig'
+        )
+      })
+
       it('should use RSC prefetch data from build', async () => {
         expect(
           await next.readFile('.next/server/app/linking.prefetch.rsc')
@@ -65,11 +77,13 @@ createNextDescribe(
         )
       })
 
-      it('should have correct size in build output', async () => {
-        expect(next.cliOutput).toMatch(
-          /\/dashboard\/another.*? [^0]{1,} [\w]{1,}B/
-        )
-      })
+      if (!process.env.NEXT_EXPERIMENTAL_COMPILE) {
+        it('should have correct size in build output', async () => {
+          expect(next.cliOutput).toMatch(
+            /\/dashboard\/another.*? *?[^0]\d{1,} [\w]{1,}B/
+          )
+        })
+      }
 
       it('should have correct preferredRegion values in manifest', async () => {
         const middlewareManifest = JSON.parse(
@@ -1748,20 +1762,23 @@ createNextDescribe(
 
       it('should insert preload tags for beforeInteractive and afterInteractive scripts', async () => {
         const html = await next.render('/script')
-        expect(html).toContain(
-          '<link rel="preload" href="/test1.js" as="script"/>'
+        const $ = cheerio.load(html)
+
+        const scriptPreloads = $(
+          'link[rel="preload"][as="script"][href^="/test"]'
         )
-        expect(html).toContain(
-          '<link rel="preload" href="/test2.js" as="script"/>'
-        )
-        expect(html).toContain(
-          '<link rel="preload" href="/test3.js" as="script"/>'
-        )
+        const expectedHrefs = new Set(['/test1.js', '/test2.js', '/test3.js'])
+        expect(scriptPreloads.length).toBe(3)
+        scriptPreloads.each((i, el) => {
+          expect(expectedHrefs.has(el.attribs.href)).toBe(true)
+          expectedHrefs.delete(el.attribs.href)
+        })
 
         // test4.js has lazyOnload which doesn't need to be preloaded
-        expect(html).not.toContain(
-          '<script rel="preload" as="script" src="/test4.js"/>'
+        const lazyPreloads = $(
+          'link[rel="preload"][as="script"][href="/test4.js"]'
         )
+        expect(lazyPreloads.length).toBe(0)
       })
 
       it('should load stylesheets for next/scripts', async () => {

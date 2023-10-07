@@ -3,7 +3,7 @@ import type { Writable, Readable } from 'stream'
 import type { SizeLimit } from 'next/types'
 
 import { NextApiRequestCookies, SYMBOL_CLEARED_COOKIES } from '../api-utils'
-import { parseBody } from '../api-utils/node'
+import { parseBody } from '../api-utils/node/parse-body'
 import { NEXT_REQUEST_META, RequestMeta } from '../request-meta'
 
 import { BaseNextRequest, BaseNextResponse } from './index'

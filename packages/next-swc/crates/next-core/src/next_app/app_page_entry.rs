@@ -1,12 +1,16 @@
 use std::io::Write;
 
 use anyhow::{bail, Result};
+use indexmap::indexmap;
 use turbo_tasks::{TryJoinIterExt, Value, ValueToString, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{rope::RopeBuilder, File, FileSystemPath},
     turbopack::{
         core::{
-            asset::AssetContent, context::AssetContext, reference_type::ReferenceType,
+            asset::{Asset, AssetContent},
+            context::AssetContext,
+            reference_type::ReferenceType,
+            source::Source,
             virtual_source::VirtualSource,
         },
         ecmascript::{chunk::EcmascriptChunkPlaceable, utils::StringifyJs},
@@ -22,7 +26,7 @@ use crate::{
     next_app::{AppPage, AppPath},
     next_server_component::NextServerComponentTransition,
     parse_segment_config_from_loader_tree,
-    util::{load_next_js_template, virtual_next_js_template_path, NextRuntime},
+    util::{file_content_rope, load_next_js_template, NextRuntime},
 };
 
 /// Computes the entry for a Next.js app page.
@@ -70,59 +74,32 @@ pub async fn get_app_page_entry(
     let original_name = page.to_string();
     let pathname = AppPath::from(page.clone()).to_string();
 
-    let template_file = "app-page.js";
-
     // Load the file from the next.js codebase.
-    let file = load_next_js_template(project_root, template_file.to_string()).await?;
+    let source = load_next_js_template(
+        "app-page.js",
+        project_root,
+        indexmap! {
+            "VAR_DEFINITION_PAGE" => page.to_string(),
+            "VAR_DEFINITION_PATHNAME" => pathname.clone(),
+            "VAR_ORIGINAL_PATHNAME" => original_name.clone(),
+            // TODO(alexkirsz) Support custom global error.
+            "VAR_MODULE_GLOBAL_ERROR" => "next/dist/client/components/error-boundary".to_string(),
+        },
+        indexmap! {
+            "tree" => loader_tree_code,
+            "pages" => StringifyJs(&pages).to_string(),
+            "__next_app_require__" => "__turbopack_require__".to_string(),
+            "__next_app_load_chunk__" => " __turbopack_load__".to_string(),
+        },
+    )
+    .await?;
 
-    let mut file = file
-        .to_str()?
-        .replace(
-            "\"VAR_DEFINITION_PAGE\"",
-            &StringifyJs(&page.to_string()).to_string(),
-        )
-        .replace(
-            "\"VAR_DEFINITION_PATHNAME\"",
-            &StringifyJs(&pathname).to_string(),
-        )
-        .replace(
-            "\"VAR_ORIGINAL_PATHNAME\"",
-            &StringifyJs(&original_name).to_string(),
-        )
-        // TODO(alexkirsz) Support custom global error.
-        .replace(
-            "\"VAR_MODULE_GLOBAL_ERROR\"",
-            &StringifyJs("next/dist/client/components/error-boundary").to_string(),
-        )
-        .replace(
-            "// INJECT:tree",
-            format!("const tree = {};", loader_tree_code).as_str(),
-        )
-        .replace(
-            "// INJECT:pages",
-            format!("const pages = {};", StringifyJs(&pages)).as_str(),
-        )
-        .replace(
-            "// INJECT:__next_app_require__",
-            "const __next_app_require__ = __turbopack_require__",
-        )
-        .replace(
-            "// INJECT:__next_app_load_chunk__",
-            "const __next_app_load_chunk__ = __turbopack_load__",
-        );
+    let source_content = &*file_content_rope(source.content().file_content()).await?;
 
-    // Ensure that the last line is a newline.
-    if !file.ends_with('\n') {
-        file.push('\n');
-    }
-
-    result.concat(&file.into());
+    result.concat(source_content);
 
     let file = File::from(result.build());
-
-    let template_path = virtual_next_js_template_path(project_root, template_file.to_string());
-
-    let source = VirtualSource::new(template_path, AssetContent::file(file.into()));
+    let source = VirtualSource::new(source.ident().path(), AssetContent::file(file.into()));
 
     let rsc_entry = context.process(
         Vc::upcast(source),
@@ -140,7 +117,7 @@ pub async fn get_app_page_entry(
     };
 
     Ok(AppEntry {
-        pathname: pathname.to_string(),
+        pathname,
         original_name,
         rsc_entry,
         config,

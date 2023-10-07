@@ -23,6 +23,7 @@ import { PrerenderManifest } from '../../build'
 
 class NextRequestHint extends NextRequest {
   sourcePage: string
+  fetchMetrics?: FetchEventResult['fetchMetrics']
 
   constructor(params: {
     init: RequestInit
@@ -329,5 +330,6 @@ export async function adapter(
   return {
     response: finalResponse,
     waitUntil: Promise.all(event[waitUntilSymbol]),
+    fetchMetrics: request.fetchMetrics,
   }
 }
