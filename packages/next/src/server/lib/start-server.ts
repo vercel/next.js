@@ -7,7 +7,7 @@ import '../require-hook'
 
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { SelfSignedCertificate } from '../../lib/mkcert'
-import { type WorkerRequestHandler, type WorkerUpgradeHandler } from './types'
+import type { WorkerRequestHandler, WorkerUpgradeHandler } from './types'
 
 import fs from 'fs'
 import path from 'path'

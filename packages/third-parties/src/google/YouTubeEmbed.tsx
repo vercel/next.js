@@ -1,9 +1,10 @@
 import React from 'react'
-import Script, { ScriptProps } from 'next/script'
+import type { ScriptProps } from 'next/script'
+import Script from 'next/script'
 import { YouTubeEmbed as TPCYouTubeEmbed } from 'third-party-capital'
 
 import ThirdPartyScriptEmbed from '../ThirdPartyScriptEmbed'
-import { YouTubeEmbed as YouTubeEmbedTypes } from '../types/google'
+import type { YouTubeEmbed as YouTubeEmbedTypes } from '../types/google'
 
 const scriptStrategy = {
   server: 'beforeInteractive',

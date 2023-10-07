@@ -10,11 +10,13 @@ import type {
   RenderOpts,
   Segment,
 } from './types'
+import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
+import type { RequestStore } from '../../client/components/request-async-storage.external'
 
 import React from 'react'
 import { createServerComponentRenderer } from './create-server-components-renderer'
 
-import { NextParsedUrlQuery } from '../request-meta'
+import type { NextParsedUrlQuery } from '../request-meta'
 import RenderResult, { type RenderResultMetadata } from '../render-result'
 import {
   renderToInitialFizzStream,
@@ -37,7 +39,8 @@ import { createMetadataComponents } from '../../lib/metadata/metadata'
 import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
 import { StaticGenerationAsyncStorageWrapper } from '../async-storage/static-generation-async-storage-wrapper'
 import { isClientReference } from '../../lib/client-reference'
-import { getLayoutOrPageModule, LoaderTree } from '../lib/app-dir-module'
+import { getLayoutOrPageModule } from '../lib/app-dir-module'
+import type { LoaderTree } from '../lib/app-dir-module'
 import { isNotFoundError } from '../../client/components/not-found'
 import {
   getURLFromRedirectError,
@@ -73,8 +76,6 @@ import { appendMutableCookies } from '../web/spec-extension/adapters/request-coo
 import { createServerInsertedHTML } from './server-inserted-html'
 import { getRequiredScripts } from './required-scripts'
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
-import { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
-import { RequestStore } from '../../client/components/request-async-storage.external'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]

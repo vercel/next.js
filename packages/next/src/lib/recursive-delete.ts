@@ -1,4 +1,5 @@
-import { Dirent, promises } from 'fs'
+import type { Dirent } from 'fs'
+import { promises } from 'fs'
 import { join, isAbsolute, dirname } from 'path'
 import isError from './is-error'
 

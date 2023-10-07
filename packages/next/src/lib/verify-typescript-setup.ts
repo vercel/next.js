@@ -1,16 +1,14 @@
 import { bold, cyan, red, yellow } from './picocolors'
 import path from 'path'
 
-import {
-  hasNecessaryDependencies,
-  NecessaryDependencies,
-} from './has-necessary-dependencies'
+import { hasNecessaryDependencies } from './has-necessary-dependencies'
+import type { NecessaryDependencies } from './has-necessary-dependencies'
 import semver from 'next/dist/compiled/semver'
 import { CompileError } from './compile-error'
 import * as log from '../build/output/log'
 
 import { getTypeScriptIntent } from './typescript/getTypeScriptIntent'
-import { TypeCheckResult } from './typescript/runTypeCheck'
+import type { TypeCheckResult } from './typescript/runTypeCheck'
 import { writeAppTypeDeclarations } from './typescript/writeAppTypeDeclarations'
 import { writeConfigurationDefaults } from './typescript/writeConfigurationDefaults'
 import { installDependencies } from './install-dependencies'
