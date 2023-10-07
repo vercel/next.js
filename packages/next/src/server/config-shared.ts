@@ -450,7 +450,7 @@ export interface NextConfig extends Record<string, any> {
 
   /**
    * By default, `Next` will serve each file in the `pages` folder under a pathname matching the filename.
-   * To disable this behavior and prevent routing based set this to `true`.
+   * To disable this behavior and prevent routing based on files, set this to `false`.
    *
    * @default true
    * @see [Disabling file-system routing](https://nextjs.org/docs/advanced-features/custom-server#disabling-file-system-routing)
