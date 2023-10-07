@@ -2,7 +2,8 @@ import curry from 'next/dist/compiled/lodash.curry'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { nextImageLoaderRegex } from '../../../../webpack-config'
 import { loader } from '../../helpers'
-import { ConfigurationContext, ConfigurationFn, pipe } from '../../utils'
+import { pipe } from '../../utils'
+import type { ConfigurationContext, ConfigurationFn } from '../../utils'
 import { getCustomDocumentImageError } from './messages'
 
 export const images = curry(async function images(

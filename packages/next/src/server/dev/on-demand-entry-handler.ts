@@ -28,16 +28,16 @@ import {
 } from '../../build/utils'
 import { PageNotFoundError, stringifyError } from '../../shared/lib/utils'
 import {
-  CompilerNameValues,
   COMPILER_INDEXES,
   COMPILER_NAMES,
   RSC_MODULE_TYPES,
 } from '../../shared/lib/constants'
+import type { CompilerNameValues } from '../../shared/lib/constants'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
 import HotReloader from './hot-reloader-webpack'
 import { isAppPageRouteDefinition } from '../future/route-definitions/app-page-route-definition'
 import { scheduleOnNextTick } from '../lib/schedule-on-next-tick'
-import { RouteDefinition } from '../future/route-definitions/route-definition'
+import type { RouteDefinition } from '../future/route-definitions/route-definition'
 import { Batcher } from '../../lib/batcher'
 
 const debug = origDebug('next:on-demand-entry-handler')

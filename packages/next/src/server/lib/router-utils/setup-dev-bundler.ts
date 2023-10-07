@@ -1,17 +1,32 @@
 import type { NextConfigComplete } from '../../config-shared'
-import {
+import type {
   Endpoint,
   Route,
   TurbopackResult,
   WrittenEndpoint,
   ServerClientChange,
-  ServerClientChangeType,
   Issue,
-  createDefineEnv,
 } from '../../../build/swc'
 import type { Socket } from 'net'
-import ws from 'next/dist/compiled/ws'
+import type { FilesystemDynamicRoute } from './filesystem'
+import type { UnwrapPromise } from '../../../lib/coalesced-function'
+import type { MiddlewareMatcher } from '../../../build/analysis/get-page-static-info'
+import type { OutputState } from '../../../build/output/store'
+import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/middleware-route-matcher'
+import type { BuildManifest } from '../../get-page-files'
+import type { PagesManifest } from '../../../build/webpack/plugins/pages-manifest-plugin'
+import type { AppBuildManifest } from '../../../build/webpack/plugins/app-build-manifest-plugin'
+import type { PropagateToWorkersField } from './types'
+import type { MiddlewareManifest } from '../../../build/webpack/plugins/middleware-plugin'
+import type {
+  HMR_ACTION_TYPES,
+  NextJsHotReloaderInterface,
+  ReloadPageAction,
+  TurbopackConnectedAction,
+} from '../../dev/hot-reloader-types'
 
+import ws from 'next/dist/compiled/ws'
+import { ServerClientChangeType, createDefineEnv } from '../../../build/swc'
 import fs from 'fs'
 import url from 'url'
 import path from 'path'
@@ -20,7 +35,7 @@ import Watchpack from 'watchpack'
 import { loadEnvConfig } from '@next/env'
 import isError from '../../../lib/is-error'
 import findUp from 'next/dist/compiled/find-up'
-import { FilesystemDynamicRoute, buildCustomRoute } from './filesystem'
+import { buildCustomRoute } from './filesystem'
 import * as Log from '../../../build/output/log'
 import HotReloader, {
   matchNextPageBundleRequest,
@@ -33,24 +48,22 @@ import { createValidFileMatcher } from '../find-page-file'
 import { eventCliSession } from '../../../telemetry/events'
 import { getDefineEnv } from '../../../build/webpack/plugins/define-env-plugin'
 import { logAppDirError } from '../../dev/log-app-dir-error'
-import { UnwrapPromise } from '../../../lib/coalesced-function'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import {
   getStaticInfoIncludingLayouts,
   sortByPageExts,
 } from '../../../build/entries'
-import { verifyTypeScriptSetup } from '../../../lib/verifyTypeScriptSetup'
+import { verifyTypeScriptSetup } from '../../../lib/verify-typescript-setup'
 import { verifyPartytownSetup } from '../../../lib/verify-partytown-setup'
 import { getRouteRegex } from '../../../shared/lib/router/utils/route-regex'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { buildDataRoute } from './build-data-route'
-import { MiddlewareMatcher } from '../../../build/analysis/get-page-static-info'
 import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { createClientRouterFilter } from '../../../lib/create-client-router-filter'
 import { absolutePathToPage } from '../../../shared/lib/page-path/absolute-path-to-page'
 import { generateInterceptionRoutesRewrites } from '../../../lib/generate-interception-routes-rewrites'
-import { OutputState, store as consoleStore } from '../../../build/output/store'
+import { store as consoleStore } from '../../../build/output/store'
 
 import {
   APP_BUILD_MANIFEST,
@@ -67,10 +80,7 @@ import {
   SERVER_REFERENCE_MANIFEST,
 } from '../../../shared/lib/constants'
 
-import {
-  MiddlewareRouteMatch,
-  getMiddlewareRouteMatcher,
-} from '../../../shared/lib/router/utils/middleware-route-matcher'
+import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
 import { NextBuildContext } from '../../../build/build-context'
 
 import {
@@ -86,24 +96,13 @@ import {
   getSourceById,
   parseStack,
 } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
-import { BuildManifest } from '../../get-page-files'
 import { mkdir, readFile, writeFile, rename, unlink } from 'fs/promises'
-import { PagesManifest } from '../../../build/webpack/plugins/pages-manifest-plugin'
-import { AppBuildManifest } from '../../../build/webpack/plugins/app-build-manifest-plugin'
 import { PageNotFoundError } from '../../../shared/lib/utils'
 import { srcEmptySsgManifest } from '../../../build/webpack/plugins/build-manifest-plugin'
-import { PropagateToWorkersField } from './types'
-import { MiddlewareManifest } from '../../../build/webpack/plugins/middleware-plugin'
 import { devPageFiles } from '../../../build/webpack/plugins/next-types-plugin/shared'
 import type { LazyRenderServerInstance } from '../router-server'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
-import {
-  HMR_ACTIONS_SENT_TO_BROWSER,
-  HMR_ACTION_TYPES,
-  NextJsHotReloaderInterface,
-  ReloadPageAction,
-  TurbopackConnectedAction,
-} from '../../dev/hot-reloader-types'
+import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../dev/hot-reloader-types'
 import type { Update as TurbopackUpdate } from '../../../build/swc'
 import { debounce } from '../../utils'
 import {

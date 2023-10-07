@@ -12,7 +12,7 @@ import {
 import { runCompiler } from '../compiler'
 import * as Log from '../output/log'
 import getBaseWebpackConfig, { loadProjectInfo } from '../webpack-config'
-import { NextError } from '../../lib/is-error'
+import type { NextError } from '../../lib/is-error'
 import { TelemetryPlugin } from '../webpack/plugins/telemetry-plugin'
 import {
   NextBuildContext,
@@ -23,11 +23,9 @@ import { createEntrypoints } from '../entries'
 import loadConfig from '../../server/config'
 import { trace } from '../../trace'
 import { WEBPACK_LAYERS } from '../../lib/constants'
-import {
-  BuildTraceContext,
-  TraceEntryPointsPlugin,
-} from '../webpack/plugins/next-trace-entrypoints-plugin'
-import { UnwrapPromise } from '../../lib/coalesced-function'
+import { TraceEntryPointsPlugin } from '../webpack/plugins/next-trace-entrypoints-plugin'
+import type { BuildTraceContext } from '../webpack/plugins/next-trace-entrypoints-plugin'
+import type { UnwrapPromise } from '../../lib/coalesced-function'
 
 import origDebug from 'next/dist/compiled/debug'
 

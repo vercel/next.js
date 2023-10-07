@@ -5,7 +5,7 @@ import {
   PagesAPILocaleRouteMatcher,
   PagesAPIRouteMatcher,
 } from '../route-matchers/pages-api-route-matcher'
-import {
+import type {
   Manifest,
   ManifestLoader,
 } from './helpers/manifest-loaders/manifest-loader'

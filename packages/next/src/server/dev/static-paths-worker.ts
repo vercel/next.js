@@ -9,8 +9,8 @@ import {
   buildAppStaticPaths,
   buildStaticPaths,
   collectGenerateParams,
-  GenerateParams,
 } from '../../build/utils'
+import type { GenerateParams } from '../../build/utils'
 import { loadComponents } from '../load-components'
 import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
 import { IncrementalCache } from '../lib/incremental-cache'

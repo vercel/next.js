@@ -1,6 +1,7 @@
 import cssnanoSimple from 'next/dist/compiled/cssnano-simple'
 import postcssScss from 'next/dist/compiled/postcss-scss'
-import postcss, { Parser } from 'postcss'
+import postcss from 'postcss'
+import type { Parser } from 'postcss'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { spans } from './profiling-plugin'
 

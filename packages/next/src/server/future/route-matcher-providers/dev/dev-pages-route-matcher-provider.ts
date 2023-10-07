@@ -1,4 +1,4 @@
-import { FileReader } from './helpers/file-reader/file-reader'
+import type { FileReader } from './helpers/file-reader/file-reader'
 import {
   PagesRouteMatcher,
   PagesLocaleRouteMatcher,

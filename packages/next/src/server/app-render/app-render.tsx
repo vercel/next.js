@@ -14,7 +14,7 @@ import type {
 import React from 'react'
 import { createServerComponentRenderer } from './create-server-components-renderer'
 
-import { NextParsedUrlQuery } from '../request-meta'
+import type { NextParsedUrlQuery } from '../request-meta'
 import RenderResult, { type RenderResultMetadata } from '../render-result'
 import {
   renderToInitialFizzStream,
@@ -37,7 +37,8 @@ import { createMetadataComponents } from '../../lib/metadata/metadata'
 import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
 import { StaticGenerationAsyncStorageWrapper } from '../async-storage/static-generation-async-storage-wrapper'
 import { isClientReference } from '../../lib/client-reference'
-import { getLayoutOrPageModule, LoaderTree } from '../lib/app-dir-module'
+import { getLayoutOrPageModule } from '../lib/app-dir-module'
+import type { LoaderTree } from '../lib/app-dir-module'
 import { isNotFoundError } from '../../client/components/not-found'
 import {
   getURLFromRedirectError,

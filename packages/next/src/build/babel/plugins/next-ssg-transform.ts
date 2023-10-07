@@ -1,8 +1,5 @@
-import {
-  NodePath,
-  PluginObj,
-  types as BabelTypes,
-} from 'next/dist/compiled/babel/core'
+import { NodePath, types as BabelTypes } from 'next/dist/compiled/babel/core'
+import type { PluginObj } from 'next/dist/compiled/babel/core'
 import { SERVER_PROPS_SSG_CONFLICT } from '../../../lib/constants'
 import { SERVER_PROPS_ID, STATIC_PROPS_ID } from '../../../shared/lib/constants'
 

@@ -5,7 +5,7 @@ import {
   PagesLocaleRouteMatcher,
   PagesRouteMatcher,
 } from '../route-matchers/pages-route-matcher'
-import {
+import type {
   Manifest,
   ManifestLoader,
 } from './helpers/manifest-loaders/manifest-loader'

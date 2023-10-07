@@ -1,5 +1,5 @@
+import type { RouteMatcherProvider } from '../route-matcher-provider'
 import { RouteMatcher } from '../../route-matchers/route-matcher'
-import { RouteMatcherProvider } from '../route-matcher-provider'
 
 interface LoaderComparable<D> {
   load(): Promise<D>
