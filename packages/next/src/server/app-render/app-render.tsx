@@ -10,6 +10,8 @@ import type {
   RenderOpts,
   Segment,
 } from './types'
+import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
+import type { RequestStore } from '../../client/components/request-async-storage.external'
 
 import React from 'react'
 import { createServerComponentRenderer } from './create-server-components-renderer'
@@ -74,8 +76,6 @@ import { appendMutableCookies } from '../web/spec-extension/adapters/request-coo
 import { createServerInsertedHTML } from './server-inserted-html'
 import { getRequiredScripts } from './required-scripts'
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
-import { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
-import { RequestStore } from '../../client/components/request-async-storage.external'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
