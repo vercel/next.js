@@ -45,5 +45,7 @@
   "ts-node",
   "typescript",
   "vscode-oniguruma",
-  "webpack"
+  "webpack",
+  "socket.io",
+  "socket.io-client"
 ]
