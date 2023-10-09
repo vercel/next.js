@@ -1,21 +1,26 @@
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
+use indexmap::{IndexMap, IndexSet};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use swc_core::ecma::ast::Program;
 use turbo_tasks::{trace::TraceRawVcs, TaskInput, ValueDefault, ValueToString, Vc};
-use turbo_tasks_fs::rope::Rope;
+use turbo_tasks_fs::{rope::Rope, util::join_path, File};
 use turbopack_binding::{
     turbo::tasks_fs::{json::parse_json_rope_with_source_context, FileContent, FileSystemPath},
     turbopack::{
         core::{
+            asset::AssetContent,
             environment::{ServerAddr, ServerInfo},
             ident::AssetIdent,
             issue::{Issue, IssueExt, IssueSeverity},
             module::Module,
+            source::Source,
+            virtual_source::VirtualSource,
         },
         ecmascript::{
             analyzer::{JsValue, ObjectPart},
             parse::ParseResult,
+            utils::StringifyJs,
             EcmascriptModuleAsset,
         },
         turbopack::condition::ContextCondition,
@@ -347,14 +352,200 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
     config
 }
 
-#[turbo_tasks::function]
+/// Loads a next.js template, replaces `replacements` and `injections` and makes
+/// sure there are none left over.
 pub async fn load_next_js_template(
+    path: &str,
     project_path: Vc<FileSystemPath>,
-    file: String,
-) -> Result<Vc<Rope>> {
-    let file_path = virtual_next_js_template_path(project_path, file);
+    replacements: IndexMap<&'static str, String>,
+    injections: IndexMap<&'static str, String>,
+) -> Result<Vc<Box<dyn Source>>> {
+    let path = virtual_next_js_template_path(project_path, path.to_string());
 
-    let content = &*file_path.read().await?;
+    let content = &*file_content_rope(path.read()).await?;
+    let content = content.to_str()?.to_string();
+
+    let parent_path = path.parent();
+    let parent_path_value = &*parent_path.await?;
+
+    let package_root = get_next_package(project_path).parent();
+    let package_root_value = &*package_root.await?;
+
+    /// See [regex::Regex::replace_all].
+    fn replace_all<E>(
+        re: &regex::Regex,
+        haystack: &str,
+        mut replacement: impl FnMut(&regex::Captures) -> Result<String, E>,
+    ) -> Result<String, E> {
+        let mut new = String::with_capacity(haystack.len());
+        let mut last_match = 0;
+        for caps in re.captures_iter(haystack) {
+            let m = caps.get(0).unwrap();
+            new.push_str(&haystack[last_match..m.start()]);
+            new.push_str(&replacement(&caps)?);
+            last_match = m.end();
+        }
+        new.push_str(&haystack[last_match..]);
+        Ok(new)
+    }
+
+    // Update the relative imports to be absolute. This will update any relative
+    // imports to be relative to the root of the `next` package.
+    let regex = lazy_regex::regex!("(?:from \"(\\..*)\"|import \"(\\..*)\")");
+
+    let mut count = 0;
+    let mut content = replace_all(regex, &content, |caps| {
+        let from_request = caps.get(1).map_or("", |c| c.as_str());
+        let import_request = caps.get(2).map_or("", |c| c.as_str());
+
+        count += 1;
+        let is_from_request = !from_request.is_empty();
+
+        let imported = FileSystemPath {
+            fs: package_root_value.fs,
+            path: join_path(
+                &parent_path_value.path,
+                if is_from_request {
+                    from_request
+                } else {
+                    import_request
+                },
+            )
+            .context("path should not leave the fs")?,
+        };
+
+        let relative = package_root_value
+            .get_relative_path_to(&imported)
+            .context("path has to be relative to package root")?;
+
+        if !relative.starts_with("./next/") {
+            bail!(
+                "Invariant: Expected relative import to start with \"./next/\", found \"{}\"",
+                relative
+            )
+        }
+
+        let relative = relative
+            .strip_prefix("./")
+            .context("should be able to strip the prefix")?;
+
+        Ok(if is_from_request {
+            format!("from {}", StringifyJs(relative))
+        } else {
+            format!("import {}", StringifyJs(relative))
+        })
+    })
+    .context("replacing imports failed")?;
+
+    // Verify that at least one import was replaced. It's the case today where
+    // every template file has at least one import to update, so this ensures that
+    // we don't accidentally remove the import replacement code or use the wrong
+    // template file.
+    if count == 0 {
+        bail!("Invariant: Expected to replace at least one import")
+    }
+
+    // Replace all the template variables with the actual values. If a template
+    // variable is missing, throw an error.
+    let mut replaced = IndexSet::new();
+    for (key, replacement) in &replacements {
+        let full = format!("\"{}\"", key);
+
+        if content.contains(&full) {
+            replaced.insert(*key);
+            content = content.replace(&full, &StringifyJs(&replacement).to_string());
+        }
+    }
+
+    // Check to see if there's any remaining template variables.
+    let regex = lazy_regex::regex!("/VAR_[A-Z_]+");
+    let matches = regex
+        .find_iter(&content)
+        .map(|m| m.as_str().to_string())
+        .collect::<Vec<_>>();
+
+    if !matches.is_empty() {
+        bail!(
+            "Invariant: Expected to replace all template variables, found {}",
+            matches.join(", "),
+        )
+    }
+
+    // Check to see if any template variable was provided but not used.
+    if replaced.len() != replacements.len() {
+        // Find the difference between the provided replacements and the replaced
+        // template variables. This will let us notify the user of any template
+        // variables that were not used but were provided.
+        let difference = replacements
+            .keys()
+            .filter(|k| !replaced.contains(*k))
+            .cloned()
+            .collect::<Vec<_>>();
+
+        bail!(
+            "Invariant: Expected to replace all template variables, missing {} in template",
+            difference.join(", "),
+        )
+    }
+
+    // Replace the injections.
+    let mut injected = IndexSet::new();
+    for (key, injection) in &injections {
+        let full = format!("// INJECT:{}", key);
+
+        if content.contains(&full) {
+            // Track all the injections to ensure that we're not missing any.
+            injected.insert(*key);
+            content = content.replace(&full, &format!("const {} = {}", key, injection));
+        }
+    }
+
+    // Check to see if there's any remaining injections.
+    let regex = lazy_regex::regex!("// INJECT:[A-Za-z0-9_]+");
+    let matches = regex
+        .find_iter(&content)
+        .map(|m| m.as_str().to_string())
+        .collect::<Vec<_>>();
+
+    if !matches.is_empty() {
+        bail!(
+            "Invariant: Expected to inject all injections, found {}",
+            matches.join(", "),
+        )
+    }
+
+    // Check to see if any injection was provided but not used.
+    if injected.len() != injections.len() {
+        // Find the difference between the provided replacements and the replaced
+        // template variables. This will let us notify the user of any template
+        // variables that were not used but were provided.
+        let difference = injections
+            .keys()
+            .filter(|k| !injected.contains(*k))
+            .cloned()
+            .collect::<Vec<_>>();
+
+        bail!(
+            "Invariant: Expected to inject all injections, missing {} in template",
+            difference.join(", "),
+        )
+    }
+
+    // Ensure that the last line is a newline.
+    if !content.ends_with('\n') {
+        content.push('\n');
+    }
+
+    let file = File::from(content);
+
+    let source = VirtualSource::new(path, AssetContent::file(file.into()));
+
+    Ok(Vc::upcast(source))
+}
+
+#[turbo_tasks::function]
+pub async fn file_content_rope(content: Vc<FileContent>) -> Result<Vc<Rope>> {
+    let content = &*content.await?;
 
     let FileContent::Content(file) = content else {
         bail!("Expected file content for file");
@@ -363,7 +554,6 @@ pub async fn load_next_js_template(
     Ok(file.content().to_owned().cell())
 }
 
-#[turbo_tasks::function]
 pub fn virtual_next_js_template_path(
     project_path: Vc<FileSystemPath>,
     file: String,
@@ -376,12 +566,12 @@ pub async fn load_next_js_templateon<T: DeserializeOwned>(
     project_path: Vc<FileSystemPath>,
     path: String,
 ) -> Result<T> {
-    let file_path = get_next_package(project_path).join(path);
+    let file_path = get_next_package(project_path).join(path.clone());
 
     let content = &*file_path.read().await?;
 
     let FileContent::Content(file) = content else {
-        bail!("Expected file content for metrics data");
+        bail!("Expected file content at {}", path);
     };
 
     let result: T = parse_json_rope_with_source_context(file.content())?;

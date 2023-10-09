@@ -34,7 +34,7 @@ describe('dev mode', () => {
 })
 
 // TODO enable that once turbopack supports middleware in dev mode
-describe.skip('production mode', () => {
+;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
   beforeAll(async () => {
     await nextBuild(appDir)
 

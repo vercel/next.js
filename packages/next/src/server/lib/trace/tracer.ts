@@ -1,4 +1,5 @@
-import { NextVanillaSpanAllowlist, SpanTypes } from './constants'
+import type { SpanTypes } from './constants'
+import { NextVanillaSpanAllowlist } from './constants'
 
 import type {
   ContextAPI,
@@ -362,13 +363,5 @@ const getTracer = (() => {
   return () => tracer
 })()
 
-export {
-  NextTracer,
-  getTracer,
-  Span,
-  SpanOptions,
-  ContextAPI,
-  SpanStatusCode,
-  TracerSpanOptions,
-  SpanKind,
-}
+export { getTracer, SpanStatusCode, SpanKind }
+export type { NextTracer, Span, SpanOptions, ContextAPI, TracerSpanOptions }

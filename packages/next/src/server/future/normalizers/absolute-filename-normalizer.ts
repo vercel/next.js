@@ -1,5 +1,5 @@
 import { absolutePathToPage } from '../../../shared/lib/page-path/absolute-path-to-page'
-import { Normalizer } from './normalizer'
+import type { Normalizer } from './normalizer'
 
 /**
  * Normalizes a given filename so that it's relative to the provided directory.

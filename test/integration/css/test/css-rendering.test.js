@@ -15,19 +15,21 @@ import { join } from 'path'
 const fixturesDir = join(__dirname, '../..', 'css-fixtures')
 
 describe('CSS Support', () => {
-  describe('CSS Import from node_modules', () => {
-    const appDir = join(fixturesDir, 'npm-import-bad')
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    describe('CSS Import from node_modules', () => {
+      const appDir = join(fixturesDir, 'npm-import-bad')
 
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
+      beforeAll(async () => {
+        await remove(join(appDir, '.next'))
+      })
 
-    it('should fail the build', async () => {
-      const { code, stderr } = await nextBuild(appDir, [], { stderr: true })
+      it('should fail the build', async () => {
+        const { code, stderr } = await nextBuild(appDir, [], { stderr: true })
 
-      expect(code).toBe(0)
-      expect(stderr).not.toMatch(/Can't resolve '[^']*?nprogress[^']*?'/)
-      expect(stderr).not.toMatch(/Build error occurred/)
+        expect(code).toBe(0)
+        expect(stderr).not.toMatch(/Can't resolve '[^']*?nprogress[^']*?'/)
+        expect(stderr).not.toMatch(/Build error occurred/)
+      })
     })
   })
 

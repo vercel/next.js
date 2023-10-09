@@ -1,4 +1,4 @@
-import {
+import type {
   ActionFlightResponse,
   ActionResult,
   FlightData,
@@ -24,7 +24,7 @@ const { createFromFetch, encodeReply } = (
       require('react-server-dom-webpack/client')
 ) as typeof import('react-server-dom-webpack/client')
 
-import {
+import type {
   ReadonlyReducerState,
   ReducerState,
   ServerActionAction,

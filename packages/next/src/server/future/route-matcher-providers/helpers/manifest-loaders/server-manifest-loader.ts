@@ -1,4 +1,4 @@
-import { Manifest, ManifestLoader } from './manifest-loader'
+import type { Manifest, ManifestLoader } from './manifest-loader'
 
 export class ServerManifestLoader implements ManifestLoader {
   constructor(private readonly getter: (name: string) => Manifest | null) {}
