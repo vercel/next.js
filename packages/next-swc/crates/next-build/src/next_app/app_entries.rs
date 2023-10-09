@@ -291,7 +291,7 @@ pub async fn compute_app_entries_chunks(
             .entry(Vc::upcast(app_entry.rsc_entry))
             .await?;
 
-        let rsc_chunk = rsc_chunking_context.entry_chunk(
+        let rsc_chunk = rsc_chunking_context.entry_chunk_group(
             node_root.join(format!(
                 "server/app/{original_name}.js",
                 original_name = app_entry.original_name

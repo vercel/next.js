@@ -474,6 +474,7 @@ async fn get_mock_stylesheet(
         vec![],
         Completion::immutable(),
         should_debug("next_font::google"),
+        Some(Vc::upcast(mocked_response_asset)),
     )
     .await?;
 

@@ -557,6 +557,7 @@ impl PageEndpoint {
                     .client_runtime_entries()
                     .with_entry(Vc::upcast(client_main_module))
                     .with_entry(Vc::upcast(client_module)),
+                Some(Vc::upcast(client_module)),
             )
             .await?
             .clone_value();
@@ -610,8 +611,11 @@ impl PageEndpoint {
             };
             evaluatable_assets.push(evaluatable);
 
-            let edge_files = edge_chunking_context
-                .evaluated_chunk_group(ssr_module.ident(), Vc::cell(evaluatable_assets));
+            let edge_files = edge_chunking_context.evaluated_chunk_group(
+                ssr_module.ident(),
+                Vc::cell(evaluatable_assets),
+                Some(Vc::upcast(ssr_module)),
+            );
 
             Ok(SsrChunk::Edge { files: edge_files }.cell())
         } else {
@@ -629,8 +633,11 @@ impl PageEndpoint {
 
             let ssr_entry_chunk_path_string = format!("pages{asset_path}");
             let ssr_entry_chunk_path = node_path.join(ssr_entry_chunk_path_string);
-            let ssr_entry_chunk =
-                chunking_context.entry_chunk(ssr_entry_chunk_path, ssr_module, runtime_entries);
+            let ssr_entry_chunk = chunking_context.entry_chunk_group(
+                ssr_entry_chunk_path,
+                ssr_module,
+                runtime_entries,
+            );
 
             Ok(SsrChunk::NodeJs {
                 entry: ssr_entry_chunk,

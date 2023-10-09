@@ -135,9 +135,11 @@ impl PageLoaderAsset {
             bail!("internal module must be evaluatable");
         };
 
-        Ok(this
-            .client_chunking_context
-            .evaluated_chunk_group(module.ident(), EvaluatableAssets::one(module)))
+        Ok(this.client_chunking_context.evaluated_chunk_group(
+            module.ident(),
+            EvaluatableAssets::one(module),
+            Some(Vc::upcast(module)),
+        ))
     }
 
     #[turbo_tasks::function]

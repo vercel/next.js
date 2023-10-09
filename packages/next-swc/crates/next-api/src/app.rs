@@ -715,6 +715,7 @@ impl AppEndpoint {
                 let files = chunking_context.evaluated_chunk_group(
                     app_entry.rsc_entry.ident(),
                     Vc::cell(evaluatable_assets),
+                    Some(Vc::upcast(app_entry.rsc_entry)),
                 );
                 server_assets.extend(files.await?.iter().copied());
 
@@ -834,7 +835,7 @@ impl AppEndpoint {
                     .app_project
                     .project()
                     .rsc_chunking_context()
-                    .entry_chunk(
+                    .entry_chunk_group(
                         server_path.join(format!(
                             "app{original_name}.js",
                             original_name = app_entry.original_name
