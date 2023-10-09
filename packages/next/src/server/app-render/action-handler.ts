@@ -285,6 +285,29 @@ export async function handleAction({
     req.method === 'POST'
 
   if (isFetchAction || isURLEncodedAction || isMultipartAction) {
+    const host = req.headers['host']
+    const forwardedHost = req.headers['x-forwarded-host']
+
+    // This is to prevent CSRF attacks. If `x-forwarded-host` is set, we need to
+    // ensure that the request is coming from the same host.
+    if (forwardedHost) {
+      if (!host) {
+        // This might be an old browser that doesn't send `host` header. We
+        // also skip the action just in case.
+        // TODO: Maybe we still proceed the action and blame the browser?
+        console.warn(
+          'Missing `host` header from a forwarded Server Actions request. Skipping the action.'
+        )
+        return
+      } else if (forwardedHost !== host) {
+        // This is an attack. We should not proceed the action.
+        console.warn(
+          '`x-forwarded-host` header does not match `host` header from a forwarded Server Actions request. Skipping the action.'
+        )
+        return
+      }
+    }
+
     // ensure we avoid caching server actions unexpectedly
     res.setHeader(
       'Cache-Control',
