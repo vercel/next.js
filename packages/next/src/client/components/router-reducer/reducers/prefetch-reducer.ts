@@ -1,11 +1,11 @@
 import { createHrefFromUrl } from '../create-href-from-url'
 import { fetchServerResponse } from '../fetch-server-response'
-import {
+import type {
   PrefetchAction,
   ReducerState,
   ReadonlyReducerState,
-  PrefetchKind,
 } from '../router-reducer-types'
+import { PrefetchKind } from '../router-reducer-types'
 import { createRecordFromThenable } from '../create-record-from-thenable'
 import { prunePrefetchCache } from './prune-prefetch-cache'
 import { NEXT_RSC_UNION_QUERY } from '../../app-router-headers'

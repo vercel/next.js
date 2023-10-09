@@ -153,8 +153,7 @@ describe('Errors on invalid custom middleware matchers', () => {
 
     runTests()
   })
-
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(() => {
       getStderr = async () => {
         const { stderr } = await nextBuild(appDir, [], { stderr: true })

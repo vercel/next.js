@@ -13,7 +13,8 @@ import { splitCookiesString } from './web/utils'
 export async function sendResponse(
   req: BaseNextRequest,
   res: BaseNextResponse,
-  response: Response
+  response: Response,
+  waitUntil?: Promise<any>
 ): Promise<void> {
   // Don't use in edge runtime
   if (process.env.NEXT_RUNTIME !== 'edge') {
@@ -45,7 +46,7 @@ export async function sendResponse(
 
     // A response body must not be sent for HEAD requests. See https://httpwg.org/specs/rfc9110.html#HEAD
     if (response.body && req.method !== 'HEAD') {
-      await pipeReadable(response.body, originalResponse)
+      await pipeReadable(response.body, originalResponse, waitUntil)
     } else {
       originalResponse.end()
     }

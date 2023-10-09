@@ -1,484 +1,345 @@
-import { NextConfig } from './config'
-import type { JSONSchemaType } from 'ajv'
+import type { NextConfig } from './config'
 import { VALID_LOADERS } from '../shared/lib/image-config'
 
-const configSchema = {
-  type: 'object',
-  additionalProperties: false,
-  properties: {
-    amp: {
-      additionalProperties: false,
-      properties: {
-        canonicalBase: {
-          nullable: true,
-          type: 'string',
-        },
-      },
-      type: 'object',
-    },
-    analyticsId: {
-      type: 'string',
-    },
-    assetPrefix: {
-      nullable: true,
-      type: 'string',
-    },
-    basePath: {
-      type: 'string',
-    },
-    cleanDistDir: {
-      type: 'boolean',
-    },
-    compiler: {
-      additionalProperties: false,
-      properties: {
-        emotion: {
-          oneOf: [
-            {
-              type: 'boolean',
-            },
-            {
-              type: 'object',
-              additionalProperties: false,
-              properties: {
-                sourceMap: {
-                  type: 'boolean',
-                },
-                autoLabel: {
-                  type: 'string',
-                  enum: ['always', 'dev-only', 'never'],
-                },
-                labelFormat: {
-                  type: 'string',
-                  minLength: 1,
-                },
-                importMap: {
-                  type: 'object',
-                },
-              },
-            },
-          ] as any,
-        },
-        reactRemoveProperties: {
-          oneOf: [
-            {
-              type: 'boolean',
-            },
-            {
-              type: 'object',
-              additionalProperties: false,
-              properties: {
-                properties: {
-                  type: 'array',
-                  items: {
-                    type: 'string',
-                  },
-                },
-              },
-            },
-          ] as any,
-        },
-        relay: {
-          type: 'object',
-        },
-        removeConsole: {
-          oneOf: [
-            {
-              type: 'boolean',
-            },
-            {
-              type: 'object',
-              additionalProperties: false,
-              properties: {
-                exclude: {
-                  type: 'array',
-                  items: {
-                    type: 'string',
-                    minLength: 1,
-                  },
-                },
-              },
-            },
-          ] as any,
-        },
-        styledComponents: {
-          oneOf: [
-            {
-              type: 'boolean',
-            },
-            {
-              type: 'object',
-              additionalProperties: false,
-              properties: {
-                displayName: {
-                  type: 'boolean',
-                },
-                topLevelImportPaths: {
-                  oneOf: [
-                    { type: 'boolean' },
-                    {
-                      type: 'array',
-                      items: {
-                        type: 'string',
-                        minLength: 1,
-                      },
-                    },
-                  ],
-                },
-                ssr: {
-                  type: 'boolean',
-                },
-                fileName: {
-                  type: 'boolean',
-                },
-                meaninglessFileNames: {
-                  oneOf: [
-                    { type: 'boolean' },
-                    {
-                      type: 'array',
-                      items: {
-                        type: 'string',
-                        minLength: 1,
-                      },
-                    },
-                  ],
-                },
-                minify: {
-                  type: 'boolean',
-                },
-                transpileTemplateLiterals: {
-                  type: 'boolean',
-                },
-                namespace: {
-                  type: 'string',
-                  minLength: 1,
-                },
-                pure: {
-                  type: 'boolean',
-                },
-                cssProp: {
-                  type: 'boolean',
-                },
-              },
-            },
-          ] as any,
-        },
-      },
-      type: 'object',
-    },
-    compress: {
-      type: 'boolean',
-    },
-    configOrigin: {
-      type: 'string',
-    },
-    crossOrigin: {
-      oneOf: [
-        false,
-        {
-          enum: ['anonymous', 'use-credentials'],
-          type: 'string',
-        },
-      ], // automatic typing does not like enum
-    } as any,
-    devIndicators: {
-      additionalProperties: false,
-      properties: {
-        buildActivity: {
-          type: 'boolean',
-        },
-        buildActivityPosition: {
-          // automatic typing does not like enum
-          enum: ['bottom-left', 'bottom-right', 'top-left', 'top-right'] as any,
-          type: 'string',
-        },
-      },
-      type: 'object',
-    },
-    distDir: {
-      minLength: 1,
-      type: 'string',
-      nullable: true,
-    },
-    env: {
-      type: 'object',
-    },
-    eslint: {
-      additionalProperties: false,
-      properties: {
-        dirs: {
-          items: {
-            minLength: 1,
-            type: 'string',
-          },
-          type: 'array',
-        },
-        ignoreDuringBuilds: {
-          type: 'boolean',
-        },
-      },
-      type: 'object',
-    },
-    excludeDefaultMomentLocales: {
-      type: 'boolean',
-    },
-    experimental: {
-      additionalProperties: false,
-      properties: {
-        appDocumentPreloading: {
-          type: 'boolean',
-        },
-        adjustFontFallbacks: {
-          type: 'boolean',
-        },
-        adjustFontFallbacksWithSizeAdjust: {
-          type: 'boolean',
-        },
-        allowedRevalidateHeaderKeys: {
-          type: 'array',
-        },
-        amp: {
-          additionalProperties: false,
-          properties: {
-            optimizer: {
-              type: 'object',
-            },
-            skipValidation: {
-              type: 'boolean',
-            },
-            validator: {
-              type: 'string',
-            },
-          },
-          type: 'object',
-        },
-        clientRouterFilter: {
-          type: 'boolean',
-        },
-        clientRouterFilterRedirects: {
-          type: 'boolean',
-        },
-        clientRouterFilterAllowedRate: {
-          type: 'number',
-        },
-        cpus: {
-          type: 'number',
-        },
-        memoryBasedWorkersCount: {
-          type: 'boolean',
-        },
-        craCompat: {
-          type: 'boolean',
-        },
-        caseSensitiveRoutes: {
-          type: 'boolean',
-        },
-        useDeploymentId: {
-          type: 'boolean',
-        },
-        useDeploymentIdServerActions: {
-          type: 'boolean',
-        },
-        deploymentId: {
-          type: 'string',
-        },
-        disableOptimizedLoading: {
-          type: 'boolean',
-        },
-        disablePostcssPresetEnv: {
-          type: 'boolean',
-        },
-        esmExternals: {
-          oneOf: [
-            {
-              type: 'boolean',
-            },
-            {
-              const: 'loose',
-            },
-          ] as any,
-        },
-        serverActions: {
-          type: 'boolean',
-        },
-        serverActionsBodySizeLimit: {
-          oneOf: [
-            {
-              type: 'number',
-            },
-            {
-              type: 'string',
-            },
-          ] as any,
-        },
-        extensionAlias: {
-          type: 'object',
-        },
-        externalDir: {
-          type: 'boolean',
-        },
-        externalMiddlewareRewritesResolve: {
-          type: 'boolean',
-        },
-        fallbackNodePolyfills: {
-          type: 'boolean',
-        },
-        fetchCacheKeyPrefix: {
-          type: 'string',
-        },
-        forceSwcTransforms: {
-          type: 'boolean',
-        },
-        fullySpecified: {
-          type: 'boolean',
-        },
-        gzipSize: {
-          type: 'boolean',
-        },
-        incrementalCacheHandlerPath: {
-          type: 'string',
-        },
-        isrFlushToDisk: {
-          type: 'boolean',
-        },
-        isrMemoryCacheSize: {
-          type: 'number',
-        },
-        largePageDataBytes: {
-          type: 'number',
-        },
-        manualClientBasePath: {
-          type: 'boolean',
-        },
-        middlewarePrefetch: {
-          // automatic typing doesn't like enum
-          enum: ['strict', 'flexible'] as any,
-          type: 'string',
-        },
-        nextScriptWorkers: {
-          type: 'boolean',
-        },
-        optimizeCss: {
-          oneOf: [
-            {
-              type: 'boolean',
-            },
-            {
-              type: 'object',
-            },
-          ] as any,
-        },
-        optimisticClientCache: {
-          type: 'boolean',
-        },
-        outputFileTracingRoot: {
-          nullable: true,
-          type: 'string',
-        },
-        outputFileTracingExcludes: {
-          type: 'object',
-        },
-        outputFileTracingIgnores: {
-          type: 'array',
-        },
-        outputFileTracingIncludes: {
-          type: 'object',
-        },
-        ppr: {
-          type: 'boolean',
-        },
-        proxyTimeout: {
-          minimum: 0,
-          type: 'number',
-        },
-        serverComponentsExternalPackages: {
-          items: {
-            type: 'string',
-          },
-          type: 'array',
-        },
-        scrollRestoration: {
-          type: 'boolean',
-        },
-        sharedPool: {
-          type: 'boolean',
-        },
-        sri: {
-          properties: {
-            algorithm: {
-              enum: ['sha256', 'sha384', 'sha512'] as any,
-              type: 'string',
-            },
-          },
-          type: 'object',
-        },
-        strictNextHead: {
-          type: 'boolean',
-        },
-        swcMinify: {
-          type: 'boolean',
-        },
-        swcPlugins: {
-          type: 'array',
-        },
-        swcTraceProfiling: {
-          type: 'boolean',
-        },
-        urlImports: {
-          items: {
-            type: 'string',
-          },
-          type: 'array',
-        },
-        workerThreads: {
-          type: 'boolean',
-        },
-        webVitalsAttribution: {
-          type: 'array',
-          items: {
-            type: 'string',
-            enum: ['CLS', 'FCP', 'FID', 'INP', 'LCP', 'TTFB'],
-          } as any,
-        },
-        mdxRs: {
-          type: 'boolean',
-        },
-        typedRoutes: {
-          type: 'boolean',
-        },
-        webpackBuildWorker: {
-          type: 'boolean',
-        },
-        turbo: {
-          type: 'object',
-          additionalProperties: false,
-          properties: {
-            loaders: {
-              type: 'object',
-            },
-            rules: {
-              type: 'object',
-            },
-            resolveAlias: {
-              type: 'object',
-            },
-          },
-        },
-        optimizePackageImports: {
-          type: 'array',
-        },
-        optimizeServerReact: {
-          type: 'boolean',
-        },
-        instrumentationHook: {
-          type: 'boolean',
-        },
-        turbotrace: {
-          type: 'object',
-          properties: {
-            logLevel: {
-              type: 'string',
-              enum: [
+import { z } from 'next/dist/compiled/zod'
+import type zod from 'next/dist/compiled/zod'
+
+import type { SizeLimit } from '../../types'
+import type { ExportPathMap, TurboLoaderItem, TurboRule } from './config-shared'
+import type {
+  Header,
+  Rewrite,
+  RouteHas,
+  Redirect,
+} from '../lib/load-custom-routes'
+
+// A custom zod schema for the SizeLimit type
+const zSizeLimit = z.custom<SizeLimit>((val) => {
+  if (typeof val === 'number' || typeof val === 'string') {
+    return true
+  }
+  return false
+})
+
+const zExportMap: zod.ZodType<ExportPathMap> = z.record(
+  z.string(),
+  z.object({
+    page: z.string(),
+    query: z.any(), // NextParsedUrlQuery
+    // private optional properties
+    _isAppDir: z.boolean().optional(),
+    _isAppPrefetch: z.boolean().optional(),
+    _isDynamicError: z.boolean().optional(),
+  })
+)
+
+const zRouteHas: zod.ZodType<RouteHas> = z.union([
+  z.object({
+    type: z.enum(['header', 'query', 'cookie']),
+    key: z.string(),
+    value: z.string().optional(),
+  }),
+  z.object({
+    type: z.literal('host'),
+    key: z.undefined().optional(),
+    value: z.string(),
+  }),
+])
+
+const zRewrite: zod.ZodType<Rewrite> = z.object({
+  source: z.string(),
+  destination: z.string(),
+  basePath: z.literal(false).optional(),
+  locale: z.literal(false).optional(),
+  has: z.array(zRouteHas).optional(),
+  missing: z.array(zRouteHas).optional(),
+  internal: z.boolean().optional(),
+})
+
+const zRedirect: zod.ZodType<Redirect> = z
+  .object({
+    source: z.string(),
+    destination: z.string(),
+    basePath: z.literal(false).optional(),
+    locale: z.literal(false).optional(),
+    has: z.array(zRouteHas).optional(),
+    missing: z.array(zRouteHas).optional(),
+    internal: z.boolean().optional(),
+  })
+  .and(
+    z.union([
+      z.object({
+        statusCode: z.never().optional(),
+        permanent: z.boolean(),
+      }),
+      z.object({
+        statusCode: z.number(),
+        permanent: z.never().optional(),
+      }),
+    ])
+  )
+
+const zHeader: zod.ZodType<Header> = z.object({
+  source: z.string(),
+  basePath: z.literal(false).optional(),
+  locale: z.literal(false).optional(),
+  headers: z.array(z.object({ key: z.string(), value: z.string() })),
+  has: z.array(zRouteHas).optional(),
+  missing: z.array(zRouteHas).optional(),
+
+  internal: z.boolean().optional(),
+})
+
+const zTurboLoaderItem: zod.ZodType<TurboLoaderItem> = z.union([
+  z.string(),
+  z.object({
+    loader: z.string(),
+    // Any JSON value can be used as turbo loader options, so use z.any() here
+    options: z.record(z.string(), z.any()),
+  }),
+])
+
+const zTurboRule: zod.ZodType<TurboRule> = z.union([
+  z.array(zTurboLoaderItem),
+  z.object({
+    loaders: z.array(zTurboLoaderItem),
+    as: z.string(),
+  }),
+])
+
+export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
+  z.strictObject({
+    amp: z
+      .object({
+        canonicalBase: z.string().optional(),
+      })
+      .optional(),
+    analyticsId: z.string().optional(),
+    assetPrefix: z.string().optional(),
+    basePath: z.string().optional(),
+    cleanDistDir: z.boolean().optional(),
+    compiler: z
+      .strictObject({
+        emotion: z
+          .union([
+            z.boolean(),
+            z.object({
+              sourceMap: z.boolean().optional(),
+              autoLabel: z
+                .union([
+                  z.literal('always'),
+                  z.literal('dev-only'),
+                  z.literal('never'),
+                ])
+                .optional(),
+              labelFormat: z.string().min(1).optional(),
+              importMap: z
+                .record(
+                  z.string(),
+                  z.record(
+                    z.string(),
+                    z.object({
+                      canonicalImport: z
+                        .tuple([z.string(), z.string()])
+                        .optional(),
+                      styledBaseImport: z
+                        .tuple([z.string(), z.string()])
+                        .optional(),
+                    })
+                  )
+                )
+                .optional(),
+            }),
+          ])
+          .optional(),
+        reactRemoveProperties: z
+          .union([
+            z.boolean().optional(),
+            z.object({
+              properties: z.array(z.string()).optional(),
+            }),
+          ])
+          .optional(),
+        relay: z
+          .object({
+            src: z.string(),
+            artifactDirectory: z.string().optional(),
+            language: z.enum(['javascript', 'typescript', 'flow']).optional(),
+            eagerEsModules: z.boolean().optional(),
+          })
+          .optional(),
+        removeConsole: z
+          .union([
+            z.boolean().optional(),
+            z.object({
+              exclude: z.array(z.string()).min(1).optional(),
+            }),
+          ])
+          .optional(),
+        styledComponents: z.union([
+          z.boolean().optional(),
+          z.object({
+            displayName: z.boolean().optional(),
+            topLevelImportPaths: z.array(z.string()).min(1).optional(),
+            ssr: z.boolean().optional(),
+            fileName: z.boolean().optional(),
+            meaninglessFileNames: z.array(z.string()).min(1).optional(),
+            minify: z.boolean().optional(),
+            transpileTemplateLiterals: z.boolean().optional(),
+            namespace: z.string().min(1).optional(),
+            pure: z.boolean().optional(),
+            cssProp: z.boolean().optional(),
+          }),
+        ]),
+      })
+      .optional(),
+    compress: z.boolean().optional(),
+    configOrigin: z.string().optional(),
+    crossOrigin: z
+      .union([
+        z.literal(false),
+        z.literal('anonymous'),
+        z.literal('use-credentials'),
+      ])
+      .optional(),
+    devIndicators: z
+      .object({
+        buildActivity: z.boolean().optional(),
+        buildActivityPosition: z
+          .union([
+            z.literal('bottom-left'),
+            z.literal('bottom-right'),
+            z.literal('top-left'),
+            z.literal('top-right'),
+          ])
+          .optional(),
+      })
+      .optional(),
+    distDir: z.string().min(1).optional(),
+    env: z.record(z.string(), z.string()).optional(),
+    eslint: z
+      .strictObject({
+        dirs: z.array(z.string().min(1)).optional(),
+        ignoreDuringBuilds: z.boolean().optional(),
+      })
+      .optional(),
+    excludeDefaultMomentLocales: z.boolean().optional(),
+    experimental: z
+      .strictObject({
+        appDocumentPreloading: z.boolean().optional(),
+        adjustFontFallbacks: z.boolean().optional(),
+        adjustFontFallbacksWithSizeAdjust: z.boolean().optional(),
+        allowedRevalidateHeaderKeys: z.array(z.string()).optional(),
+        amp: z
+          .object({
+            // AMP optimizer option is unknown, use z.any() here
+            optimizer: z.any().optional(),
+            skipValidation: z.boolean().optional(),
+            validator: z.string().optional(),
+          })
+          .optional(),
+        clientRouterFilter: z.boolean().optional(),
+        clientRouterFilterRedirects: z.boolean().optional(),
+        clientRouterFilterAllowedRate: z.number().optional(),
+        cpus: z.number().optional(),
+        memoryBasedWorkersCount: z.boolean().optional(),
+        craCompat: z.boolean().optional(),
+        caseSensitiveRoutes: z.boolean().optional(),
+        useDeploymentId: z.boolean().optional(),
+        useDeploymentIdServerActions: z.boolean().optional(),
+        deploymentId: z.string().optional(),
+        disableOptimizedLoading: z.boolean().optional(),
+        disablePostcssPresetEnv: z.boolean().optional(),
+        esmExternals: z.union([z.boolean(), z.literal('loose')]).optional(),
+        serverActions: z.boolean().optional(),
+        serverActionsBodySizeLimit: zSizeLimit.optional(),
+        // The original type was Record<string, any>
+        extensionAlias: z.record(z.string(), z.any()).optional(),
+        externalDir: z.boolean().optional(),
+        externalMiddlewareRewritesResolve: z.boolean().optional(),
+        fallbackNodePolyfills: z.literal(false).optional(),
+        fetchCacheKeyPrefix: z.string().optional(),
+        forceSwcTransforms: z.boolean().optional(),
+        fullySpecified: z.boolean().optional(),
+        gzipSize: z.boolean().optional(),
+        incrementalCacheHandlerPath: z.string().optional(),
+        isrFlushToDisk: z.boolean().optional(),
+        isrMemoryCacheSize: z.number().optional(),
+        largePageDataBytes: z.number().optional(),
+        manualClientBasePath: z.boolean().optional(),
+        middlewarePrefetch: z.enum(['strict', 'flexible']).optional(),
+        nextScriptWorkers: z.boolean().optional(),
+        // The critter option is unknown, use z.any() here
+        optimizeCss: z.union([z.boolean(), z.any()]).optional(),
+        optimisticClientCache: z.boolean().optional(),
+        outputFileTracingRoot: z.string().optional(),
+        outputFileTracingExcludes: z
+          .record(z.string(), z.array(z.string()))
+          .optional(),
+        outputFileTracingIgnores: z.array(z.string()).optional(),
+        outputFileTracingIncludes: z
+          .record(z.string(), z.array(z.string()))
+          .optional(),
+        ppr: z.boolean().optional(),
+        proxyTimeout: z.number().gte(0).optional(),
+        serverComponentsExternalPackages: z.array(z.string()).optional(),
+        scrollRestoration: z.boolean().optional(),
+        sri: z
+          .object({
+            algorithm: z.enum(['sha256', 'sha384', 'sha512']).optional(),
+          })
+          .optional(),
+        strictNextHead: z.boolean().optional(),
+        swcMinify: z.boolean().optional(),
+        swcPlugins: z
+          // The specific swc plugin's option is unknown, use z.any() here
+          .array(z.tuple([z.string(), z.record(z.string(), z.any())]))
+          .optional(),
+        swcTraceProfiling: z.boolean().optional(),
+        // NonNullable<webpack.Configuration['experiments']>['buildHttp']
+        urlImports: z.any().optional(),
+        workerThreads: z.boolean().optional(),
+        webVitalsAttribution: z
+          .array(
+            z.union([
+              z.literal('CLS'),
+              z.literal('FCP'),
+              z.literal('FID'),
+              z.literal('INP'),
+              z.literal('LCP'),
+              z.literal('TTFB'),
+            ])
+          )
+          .optional(),
+        mdxRs: z.boolean().optional(),
+        typedRoutes: z.boolean().optional(),
+        webpackBuildWorker: z.boolean().optional(),
+        turbo: z
+          .object({
+            loaders: z.record(z.string(), z.array(zTurboLoaderItem)).optional(),
+            rules: z.record(z.string(), zTurboRule).optional(),
+            resolveAlias: z
+              .record(
+                z.string(),
+                z.union([
+                  z.string(),
+                  z.array(z.string()),
+                  z.record(
+                    z.string(),
+                    z.union([z.string(), z.array(z.string())])
+                  ),
+                ])
+              )
+              .optional(),
+          })
+          .optional(),
+        optimizePackageImports: z.array(z.string()).optional(),
+        optimizeServerReact: z.boolean().optional(),
+        instrumentationHook: z.boolean().optional(),
+        turbotrace: z
+          .object({
+            logLevel: z
+              .enum([
                 'bug',
                 'fatal',
                 'error',
@@ -487,338 +348,180 @@ const configSchema = {
                 'note',
                 'suggestions',
                 'info',
-              ],
-            } as any,
-            logAll: {
-              type: 'boolean',
-            },
-            logDetail: {
-              type: 'boolean',
-            },
-            contextDirectory: {
-              type: 'string',
-            },
-            processCwd: {
-              type: 'string',
-            },
-            memoryLimit: {
-              type: 'integer',
-            },
-          },
-        },
-        logging: {
-          type: 'object',
-          properties: {
-            level: {
-              type: 'string',
-            },
-            fullUrl: {
-              type: 'boolean',
-            },
-          },
-        },
-        serverMinification: {
-          type: 'boolean',
-        },
-        serverSourceMaps: {
-          type: 'boolean',
-        },
-      },
-      type: 'object',
-    },
-    exportPathMap: {
-      isFunction: true,
-      errorMessage: 'must be a function that returns a Promise',
-    } as any,
-    generateBuildId: {
-      isFunction: true,
-      errorMessage: 'must be a function that returns a Promise',
-    } as any,
-    generateEtags: {
-      type: 'boolean',
-    },
-    headers: {
-      isFunction: true,
-      errorMessage: 'must be a function that returns a Promise',
-    } as any,
-    httpAgentOptions: {
-      additionalProperties: false,
-      properties: {
-        keepAlive: {
-          type: 'boolean',
-        },
-      },
-      type: 'object',
-    },
-    i18n: {
-      additionalProperties: false,
-      nullable: true,
-      properties: {
-        defaultLocale: {
-          minLength: 1,
-          type: 'string',
-        },
-        domains: {
-          items: {
-            additionalProperties: false,
-            properties: {
-              defaultLocale: {
-                minLength: 1,
-                type: 'string',
-              },
-              domain: {
-                minLength: 1,
-                type: 'string',
-              },
-              http: {
-                type: 'boolean',
-              },
-              locales: {
-                items: {
-                  minLength: 1,
-                  type: 'string',
-                },
-                type: 'array',
-              },
-            },
-            type: 'object',
-          },
-          type: 'array',
-        },
-        localeDetection: {
-          type: 'boolean',
-        },
-        locales: {
-          items: {
-            minLength: 1,
-            type: 'string',
-          },
-          type: 'array',
-        },
-      },
-      type: 'object',
-    },
-    images: {
-      additionalProperties: false,
-      nullable: true,
-      properties: {
-        remotePatterns: {
-          nullable: true,
-          items: {
-            additionalProperties: false,
-            properties: {
-              hostname: {
-                type: 'string',
-              },
-              pathname: {
-                type: 'string',
-              },
-              port: {
-                maxLength: 5,
-                type: 'string',
-              },
-              protocol: {
-                // automatic typing doesn't like enum
-                enum: ['http', 'https'] as any,
-                type: 'string',
-              },
-            },
-            required: ['hostname'] as any,
-            type: 'object',
-          },
-          maxItems: 50,
-          type: 'array',
-        },
-        unoptimized: {
-          type: 'boolean',
-        },
-        contentSecurityPolicy: {
-          type: 'string',
-          nullable: true,
-        },
-        contentDispositionType: {
-          enum: ['inline', 'attachment'] as any, // automatic typing does not like enum
-          type: 'string',
-          nullable: true,
-        },
-        dangerouslyAllowSVG: {
-          type: 'boolean',
-          nullable: true,
-        },
-        deviceSizes: {
-          items: {
-            type: 'integer',
-            minimum: 1,
-            maximum: 10000,
-          },
-          maxItems: 25,
-          type: 'array',
-          nullable: true,
-        },
-        disableStaticImages: {
-          type: 'boolean',
-          nullable: true,
-        },
-        domains: {
-          items: {
-            type: 'string',
-          },
-          maxItems: 50,
-          type: 'array',
-          nullable: true,
-        },
-        formats: {
-          items: {
-            enum: ['image/avif', 'image/webp'], // automatic typing does not like enum
-            type: 'string',
-          } as any,
-          maxItems: 4,
-          type: 'array',
-          nullable: true,
-        },
-        imageSizes: {
-          items: {
-            type: 'integer',
-            minimum: 1,
-            maximum: 10000,
-          },
-          minItems: 0,
-          maxItems: 25,
-          type: 'array',
-          nullable: true,
-        },
-        loader: {
-          // automatic typing does not like enum
-          enum: VALID_LOADERS as any,
-          type: 'string',
-          nullable: true,
-        },
-        loaderFile: {
-          type: 'string',
-          nullable: true,
-        },
-        minimumCacheTTL: {
-          type: 'integer',
-          minimum: 0,
-          nullable: true,
-        },
-        path: {
-          type: 'string',
-          nullable: true,
-        },
-      },
-      type: 'object',
-    },
-    modularizeImports: {
-      type: 'object',
-    },
-    onDemandEntries: {
-      additionalProperties: false,
-      properties: {
-        maxInactiveAge: {
-          type: 'number',
-        },
-        pagesBufferLength: {
-          type: 'number',
-        },
-      },
-      type: 'object',
-    },
-    optimizeFonts: {
-      type: 'boolean',
-    },
-    output: {
-      // automatic typing doesn't like enum
-      enum: ['standalone', 'export'] as any,
-      type: 'string',
-    },
-    outputFileTracing: {
-      type: 'boolean',
-    },
-    pageExtensions: {
-      minItems: 1,
-      type: 'array',
-    },
-    poweredByHeader: {
-      type: 'boolean',
-    },
-    productionBrowserSourceMaps: {
-      type: 'boolean',
-    },
-    publicRuntimeConfig: {
-      type: 'object',
-    },
-    reactProductionProfiling: {
-      type: 'boolean',
-    },
-    reactStrictMode: {
-      type: 'boolean',
-      nullable: true,
-    },
-    redirects: {
-      isFunction: true,
-      errorMessage: 'must be a function that returns a Promise',
-    } as any,
-    rewrites: {
-      isFunction: true,
-      errorMessage: 'must be a function that returns a Promise',
-    } as any,
-    sassOptions: {
-      type: 'object',
-    },
-    serverRuntimeConfig: {
-      type: 'object',
-    },
-    skipMiddlewareUrlNormalize: {
-      type: 'boolean',
-    },
-    skipTrailingSlashRedirect: {
-      type: 'boolean',
-    },
-    staticPageGenerationTimeout: {
-      type: 'number',
-    },
-    swcMinify: {
-      type: 'boolean',
-    },
-    target: {
-      type: 'string',
-    },
-    trailingSlash: {
-      type: 'boolean',
-    },
-    transpilePackages: {
-      items: {
-        type: 'string',
-      },
-      type: 'array',
-    },
-    typescript: {
-      additionalProperties: false,
-      properties: {
-        ignoreBuildErrors: {
-          type: 'boolean',
-        },
-        tsconfigPath: {
-          minLength: 1,
-          type: 'string',
-        },
-      },
-      type: 'object',
-    },
-    useFileSystemPublicRoutes: {
-      type: 'boolean',
-    },
-    webpack: {
-      isFunction: true,
-      errorMessage:
-        'must be a function that returns a webpack configuration object',
-    } as any,
-  },
-} as JSONSchemaType<NextConfig & { configOrigin?: any; target?: any }>
-
-// module.exports is used to get around an export bug with TypeScript
-// and the Ajv automatic typing
-module.exports = {
-  configSchema,
-}
+              ])
+              .optional(),
+            logAll: z.boolean().optional(),
+            logDetail: z.boolean().optional(),
+            contextDirectory: z.string().optional(),
+            processCwd: z.string().optional(),
+            memoryLimit: z.number().int().optional(),
+          })
+          .optional(),
+        logging: z
+          .object({
+            level: z.literal('verbose').optional(),
+            fullUrl: z.boolean().optional(),
+          })
+          .optional(),
+        serverMinification: z.boolean().optional(),
+        serverSourceMaps: z.boolean().optional(),
+        bundlePagesExternals: z.boolean().optional(),
+      })
+      .optional(),
+    exportPathMap: z
+      .function()
+      .args(
+        zExportMap,
+        z.object({
+          dev: z.boolean(),
+          dir: z.string(),
+          outDir: z.string().nullable(),
+          distDir: z.string(),
+          buildId: z.string(),
+        })
+      )
+      .returns(z.union([zExportMap, z.promise(zExportMap)]))
+      .optional(),
+    generateBuildId: z
+      .function()
+      .args()
+      .returns(
+        z.union([
+          z.string(),
+          z.null(),
+          z.promise(z.union([z.string(), z.null()])),
+        ])
+      )
+      .optional(),
+    generateEtags: z.boolean().optional(),
+    headers: z
+      .function()
+      .args()
+      .returns(z.promise(z.array(zHeader)))
+      .optional(),
+    httpAgentOptions: z
+      .strictObject({ keepAlive: z.boolean().optional() })
+      .optional(),
+    i18n: z
+      .strictObject({
+        defaultLocale: z.string().min(1),
+        domains: z
+          .array(
+            z.strictObject({
+              defaultLocale: z.string().min(1),
+              domain: z.string().min(1),
+              http: z.literal(true).optional(),
+              locales: z.array(z.string().min(1)).optional(),
+            })
+          )
+          .optional(),
+        localeDetection: z.literal(false).optional(),
+        locales: z.array(z.string().min(1)),
+      })
+      .nullable()
+      .optional(),
+    images: z
+      .strictObject({
+        remotePatterns: z
+          .array(
+            z.strictObject({
+              hostname: z.string(),
+              pathname: z.string().optional(),
+              port: z.string().max(5).optional(),
+              protocol: z.enum(['http', 'https']).optional(),
+            })
+          )
+          .max(50)
+          .optional(),
+        unoptimized: z.boolean().optional(),
+        contentSecurityPolicy: z.string().optional(),
+        contentDispositionType: z.enum(['inline', 'attachment']).optional(),
+        dangerouslyAllowSVG: z.boolean().optional(),
+        deviceSizes: z
+          .array(z.number().int().gte(1).lte(10000))
+          .max(25)
+          .optional(),
+        disableStaticImages: z.boolean().optional(),
+        domains: z.array(z.string()).max(50).optional(),
+        formats: z
+          .array(z.enum(['image/avif', 'image/webp']))
+          .max(4)
+          .optional(),
+        imageSizes: z
+          .array(z.number().int().gte(1).lte(10000))
+          .min(0)
+          .max(25)
+          .optional(),
+        loader: z.enum(VALID_LOADERS).optional(),
+        loaderFile: z.string().optional(),
+        minimumCacheTTL: z.number().int().gte(0).optional(),
+        path: z.string().optional(),
+      })
+      .optional(),
+    modularizeImports: z
+      .record(
+        z.string(),
+        z.object({
+          transform: z.union([z.string(), z.record(z.string(), z.string())]),
+          preventFullImport: z.boolean().optional(),
+          skipDefaultConversion: z.boolean().optional(),
+        })
+      )
+      .optional(),
+    onDemandEntries: z
+      .strictObject({
+        maxInactiveAge: z.number().optional(),
+        pagesBufferLength: z.number().optional(),
+      })
+      .optional(),
+    optimizeFonts: z.boolean().optional(),
+    output: z.enum(['standalone', 'export']).optional(),
+    outputFileTracing: z.boolean().optional(),
+    pageExtensions: z.array(z.string()).min(1).optional(),
+    poweredByHeader: z.boolean().optional(),
+    productionBrowserSourceMaps: z.boolean().optional(),
+    publicRuntimeConfig: z.record(z.string(), z.any()).optional(),
+    reactProductionProfiling: z.boolean().optional(),
+    reactStrictMode: z.boolean().nullable().optional(),
+    redirects: z
+      .function()
+      .args()
+      .returns(z.promise(z.array(zRedirect)))
+      .optional(),
+    rewrites: z
+      .function()
+      .args()
+      .returns(
+        z.promise(
+          z.union([
+            z.array(zRewrite),
+            z.object({
+              beforeFiles: z.array(zRewrite),
+              afterFiles: z.array(zRewrite),
+              fallback: z.array(zRewrite),
+            }),
+          ])
+        )
+      )
+      .optional(),
+    // saas option is unknown, use z.any() here
+    sassOptions: z.record(z.string(), z.any()).optional(),
+    serverRuntimeConfig: z.record(z.string(), z.any()).optional(),
+    skipMiddlewareUrlNormalize: z.boolean().optional(),
+    skipTrailingSlashRedirect: z.boolean().optional(),
+    staticPageGenerationTimeout: z.number().optional(),
+    swcMinify: z.boolean().optional(),
+    target: z.string().optional(),
+    trailingSlash: z.boolean().optional(),
+    transpilePackages: z.array(z.string()).optional(),
+    typescript: z
+      .strictObject({
+        ignoreBuildErrors: z.boolean().optional(),
+        tsconfigPath: z.string().min(1).optional(),
+      })
+      .optional(),
+    useFileSystemPublicRoutes: z.boolean().optional(),
+    // The webpack config type is unknown, use z.any() here
+    webpack: z.any().nullable().optional(),
+  })
+)

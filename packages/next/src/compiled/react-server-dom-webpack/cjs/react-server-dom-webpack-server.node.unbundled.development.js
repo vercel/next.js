@@ -16,6 +16,7 @@ if (process.env.NODE_ENV !== "production") {
 
 var React = require('react');
 var util = require('util');
+require('crypto');
 var async_hooks = require('async_hooks');
 var ReactDOM = require('react-dom');
 
@@ -476,12 +477,11 @@ function resolveClientReferenceMetadata(config, clientReference) {
     }
   }
 
-  return {
-    id: resolvedModuleData.id,
-    chunks: resolvedModuleData.chunks,
-    name: name,
-    async: !!clientReference.$$async
-  };
+  if (clientReference.$$async === true) {
+    return [resolvedModuleData.id, resolvedModuleData.chunks, name, 1];
+  } else {
+    return [resolvedModuleData.id, resolvedModuleData.chunks, name];
+  }
 }
 function getServerReferenceId(config, serverReference) {
   return serverReference.$$id;
@@ -1561,8 +1561,49 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
 var ContextRegistry = ReactSharedInternals.ContextRegistry;
 function getOrCreateServerContext(globalName) {
   if (!ContextRegistry[globalName]) {
-    ContextRegistry[globalName] = React.createServerContext(globalName, // $FlowFixMe[incompatible-call] function signature doesn't reflect the symbol value
-    REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED);
+    var context = {
+      $$typeof: REACT_SERVER_CONTEXT_TYPE,
+      // As a workaround to support multiple concurrent renderers, we categorize
+      // some renderers as primary and others as secondary. We only expect
+      // there to be two concurrent renderers at most: React Native (primary) and
+      // Fabric (secondary); React DOM (primary) and React ART (secondary).
+      // Secondary renderers store their context values on separate fields.
+      _currentValue: REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED,
+      _currentValue2: REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED,
+      _defaultValue: REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED,
+      // Used to track how many concurrent renderers this context currently
+      // supports within in a single renderer. Such as parallel server rendering.
+      _threadCount: 0,
+      // These are circular
+      Provider: null,
+      Consumer: null,
+      _globalName: globalName
+    };
+    context.Provider = {
+      $$typeof: REACT_PROVIDER_TYPE,
+      _context: context
+    };
+
+    {
+      var hasWarnedAboutUsingConsumer;
+      context._currentRenderer = null;
+      context._currentRenderer2 = null;
+      Object.defineProperties(context, {
+        Consumer: {
+          get: function () {
+            if (!hasWarnedAboutUsingConsumer) {
+              error('Consumer pattern is not supported by ReactServerContext');
+
+              hasWarnedAboutUsingConsumer = true;
+            }
+
+            return null;
+          }
+        }
+      });
+    }
+
+    ContextRegistry[globalName] = context;
   }
 
   return ContextRegistry[globalName];
@@ -1708,7 +1749,8 @@ function serializeThenable(request, thenable) {
     newTask.model = value;
     pingTask(request, newTask);
   }, function (reason) {
-    newTask.status = ERRORED$1; // TODO: We should ideally do this inside performWork so it's scheduled
+    newTask.status = ERRORED$1;
+    request.abortableTasks.delete(newTask); // TODO: We should ideally do this inside performWork so it's scheduled
 
     var digest = logRecoverableError(request, reason);
     emitErrorChunk(request, newTask.id, digest, reason);
@@ -2679,6 +2721,9 @@ function startFlowing(request, destination) {
     logRecoverableError(request, error);
     fatalError(request, error);
   }
+}
+function stopFlowing(request) {
+  request.destination = null;
 } // This is called to early terminate a request. It creates an error at all pending tasks.
 
 function abort(request, reason) {
@@ -2729,7 +2774,6 @@ function importServerContexts(contexts) {
   return rootContextSnapshot;
 }
 
-// eslint-disable-next-line no-unused-vars
 function resolveServerReference(bundlerConfig, id) {
   var idx = id.lastIndexOf('#');
   var specifier = id.slice(0, idx);
@@ -3446,6 +3490,14 @@ function createDrainHandler(destination, request) {
   };
 }
 
+function createCancelHandler(request, reason) {
+  return function () {
+    stopFlowing(request); // eslint-disable-next-line react-internal/prod-error-codes
+
+    abort(request, new Error(reason));
+  };
+}
+
 function renderToPipeableStream(model, webpackMap, options) {
   var request = createRequest(model, webpackMap, options ? options.onError : undefined, options ? options.context : undefined, options ? options.identifierPrefix : undefined, options ? options.onPostpone : undefined);
   var hasStartedFlowing = false;
@@ -3459,6 +3511,8 @@ function renderToPipeableStream(model, webpackMap, options) {
       hasStartedFlowing = true;
       startFlowing(request, destination);
       destination.on('drain', createDrainHandler(destination, request));
+      destination.on('error', createCancelHandler(request, 'The destination stream errored while writing data.'));
+      destination.on('close', createCancelHandler(request, 'The destination stream closed early.'));
       return destination;
     },
     abort: function (reason) {

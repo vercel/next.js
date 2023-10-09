@@ -1,12 +1,10 @@
 import React from 'react'
 import type { FetchServerResponseResult } from './fetch-server-response'
 import { fillCacheWithDataProperty } from './fill-cache-with-data-property'
-import {
-  CacheStates,
-  CacheNode,
-} from '../../../shared/lib/app-router-context.shared-runtime'
+import { CacheStates } from '../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import { createRecordFromThenable } from './create-record-from-thenable'
-import { ThenableRecord } from './router-reducer-types'
+import type { ThenableRecord } from './router-reducer-types'
 describe('fillCacheWithDataProperty', () => {
   it('should add data property', () => {
     const fetchServerResponseMock: jest.Mock<

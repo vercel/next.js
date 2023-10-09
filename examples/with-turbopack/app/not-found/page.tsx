@@ -9,13 +9,13 @@ export default function Page() {
       <ul>
         <li>
           <code>
-            <Link href="https://beta.nextjs.org/docs/api-reference/file-conventions/not-found">
+            <Link href="https://nextjs.org/docs/app/api-reference/file-conventions/not-found">
               not-found.js
             </Link>
           </code>{' '}
           file is used to render UI when the{' '}
           <code>
-            <Link href="https://beta.nextjs.org/docs/api-reference/notfound">
+            <Link href="https://nextjs.org/docs/app/api-reference/functions/not-found">
               notFound()
             </Link>
           </code>{' '}
@@ -41,7 +41,7 @@ export default function Page() {
       </ul>
 
       <div className="flex gap-2">
-        <ExternalLink href="https://beta.nextjs.org/docs/api-reference/file-conventions/not-found">
+        <ExternalLink href="https://nextjs.org/docs/app/api-reference/file-conventions/not-found">
           Docs
         </ExternalLink>
 

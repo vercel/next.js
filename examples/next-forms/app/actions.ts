@@ -11,7 +11,7 @@ import { z } from 'zod'
 
 export async function createTodo(prevState: any, formData: FormData) {
   const schema = z.object({
-    todo: z.string().nonempty(),
+    todo: z.string().min(1),
   })
   const data = schema.parse({
     todo: formData.get('todo'),
@@ -32,10 +32,12 @@ export async function createTodo(prevState: any, formData: FormData) {
 
 export async function deleteTodo(prevState: any, formData: FormData) {
   const schema = z.object({
-    id: z.string().nonempty(),
+    id: z.string().min(1),
+    todo: z.string().min(1),
   })
   const data = schema.parse({
     id: formData.get('id'),
+    todo: formData.get('todo'),
   })
 
   try {

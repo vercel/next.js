@@ -10,7 +10,7 @@
   "dependencies": {
     "@types/node": "18.11.9",
     "@types/react": "18.0.25",
-    "@types/react-dom": "18.0.8",
+    "@types/react-dom": "18.2.7",
     "graphql": "16.8.1",
     "graphql-request": "5.0.0",
     "next": "latest",

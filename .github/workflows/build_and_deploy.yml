@@ -254,6 +254,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
+      - run: corepack enable
 
       - name: Install Rust
         uses: ./.github/actions/setup-rust

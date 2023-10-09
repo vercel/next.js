@@ -40,3 +40,5 @@ export function getPort(args: arg.Result<arg.Spec>): number {
 
   return 3000
 }
+
+export const RESTART_EXIT_CODE = 77

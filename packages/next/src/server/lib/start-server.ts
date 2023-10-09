@@ -1,9 +1,13 @@
+if (performance.getEntriesByName('next-start').length === 0) {
+  performance.mark('next-start')
+}
 import '../next'
 import '../node-polyfill-fetch'
 import '../require-hook'
 
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { SelfSignedCertificate } from '../../lib/mkcert'
+import type { WorkerRequestHandler, WorkerUpgradeHandler } from './types'
 
 import fs from 'fs'
 import path from 'path'
@@ -12,17 +16,12 @@ import https from 'https'
 import Watchpack from 'watchpack'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
-import { getDebugPort } from './utils'
+import { RESTART_EXIT_CODE, getDebugPort } from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
-import {
-  RESTART_EXIT_CODE,
-  type WorkerRequestHandler,
-  type WorkerUpgradeHandler,
-} from './setup-server-worker'
 import { checkIsNodeDebugging } from './is-node-debugging'
 import { CONFIG_FILES } from '../../shared/lib/constants'
-import chalk from '../../lib/chalk'
+import { bold, purple } from '../../lib/picocolors'
 
 const debug = setupDebug('next:start-server')
 
@@ -53,6 +52,7 @@ export async function getRequestHandlers({
   isNodeDebugging,
   keepAliveTimeout,
   experimentalTestProxy,
+  experimentalHttpsServer,
 }: {
   dir: string
   port: number
@@ -63,6 +63,7 @@ export async function getRequestHandlers({
   isNodeDebugging?: boolean
   keepAliveTimeout?: number
   experimentalTestProxy?: boolean
+  experimentalHttpsServer?: boolean
 }): ReturnType<typeof initialize> {
   return initialize({
     dir,
@@ -71,10 +72,10 @@ export async function getRequestHandlers({
     dev: isDev,
     minimalMode,
     server,
-    workerType: 'router',
     isNodeDebugging: isNodeDebugging || false,
     keepAliveTimeout,
     experimentalTestProxy,
+    experimentalHttpsServer,
   })
 }
 
@@ -94,11 +95,7 @@ function logStartInfo({
   formatDurationText: string
 }) {
   Log.bootstrap(
-    chalk.bold(
-      chalk.hex('#ad7fa8')(
-        `${`${Log.prefixes.ready} Next.js`} ${process.env.__NEXT_VERSION}`
-      )
-    )
+    bold(purple(`${Log.prefixes.ready} Next.js ${process.env.__NEXT_VERSION}`))
   )
   Log.bootstrap(`- Local:        ${appUrl}`)
   if (hostname) {
@@ -136,7 +133,6 @@ export async function startServer({
   envInfo,
   expFeatureInfo,
 }: StartServerOptions): Promise<void> {
-  const startServerProcessStartTime = Date.now()
   let handlersReady = () => {}
   let handlersError = () => {}
 
@@ -297,16 +293,23 @@ export async function startServer({
           isNodeDebugging: Boolean(isNodeDebugging),
           keepAliveTimeout,
           experimentalTestProxy: !!isExperimentalTestProxy,
+          experimentalHttpsServer: !!selfSignedCertificate,
         })
         requestHandler = initResult[0]
         upgradeHandler = initResult[1]
 
         const startServerProcessDuration =
-          Date.now() - startServerProcessStartTime
+          performance.mark('next-start-end') &&
+          performance.measure(
+            'next-start-duration',
+            'next-start',
+            'next-start-end'
+          ).duration
+
         const formatDurationText =
           startServerProcessDuration > 2000
             ? `${Math.round(startServerProcessDuration / 100) / 10}s`
-            : `${startServerProcessDuration}ms`
+            : `${Math.round(startServerProcessDuration)}ms`
 
         handlersReady()
         logStartInfo({

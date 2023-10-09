@@ -1,15 +1,12 @@
-import type { IncomingMessage } from 'http'
-
 // this must come first as it includes require hooks
-import type {
-  WorkerRequestHandler,
-  WorkerUpgradeHandler,
-} from './setup-server-worker'
-
+import type { WorkerRequestHandler, WorkerUpgradeHandler } from './types'
+import type { DevBundler } from './router-utils/setup-dev-bundler'
+import type { NextUrlWithParsedQuery } from '../request-meta'
 // This is required before other imports to ensure the require hook is setup.
 import '../node-polyfill-fetch'
 import '../node-environment'
 import '../require-hook'
+import '../../lib/polyfill-promise-with-resolvers'
 
 import url from 'url'
 import path from 'path'
@@ -22,10 +19,8 @@ import { findPagesDir } from '../../lib/find-pages-dir'
 import { setupFsCheck } from './router-utils/filesystem'
 import { proxyRequest } from './router-utils/proxy-request'
 import { isAbortError, pipeReadable } from '../pipe-readable'
-import { createRequestResponseMocks } from './mock-request'
-import { UnwrapPromise } from '../../lib/coalesced-function'
 import { getResolveRoutes } from './router-utils/resolve-routes'
-import { NextUrlWithParsedQuery, getRequestMeta } from '../request-meta'
+import { getRequestMeta } from '../request-meta'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import setupCompression from 'next/dist/compiled/compression'
@@ -37,11 +32,11 @@ import {
   PHASE_DEVELOPMENT_SERVER,
   PERMANENT_REDIRECT_STATUS,
 } from '../../shared/lib/constants'
-import type { NextJsHotReloaderInterface } from '../dev/hot-reloader-types'
+import { DevBundlerService } from './dev-bundler-service'
 
 const debug = setupDebug('next:router-server:main')
 
-export type RenderWorker = Pick<
+export type RenderServer = Pick<
   typeof import('./render-server'),
   | 'initialize'
   | 'deleteCache'
@@ -50,15 +45,9 @@ export type RenderWorker = Pick<
   | 'propagateServerField'
 >
 
-export interface RenderWorkers {
-  app?: RenderWorker
-  pages?: RenderWorker
+export interface LazyRenderServerInstance {
+  instance?: RenderServer
 }
-
-const devInstances: Record<
-  string,
-  UnwrapPromise<ReturnType<typeof import('./router-utils/setup-dev').setupDev>>
-> = {}
 
 const requestHandlers: Record<string, WorkerRequestHandler> = {}
 
@@ -69,11 +58,11 @@ export async function initialize(opts: {
   server?: import('http').Server
   minimalMode?: boolean
   hostname?: string
-  workerType: 'router' | 'render'
   isNodeDebugging: boolean
   keepAliveTimeout?: number
   customServer?: boolean
   experimentalTestProxy?: boolean
+  experimentalHttpsServer?: boolean
 }): Promise<[WorkerRequestHandler, WorkerUpgradeHandler]> {
   process.title = 'next-router-worker'
 
@@ -101,13 +90,11 @@ export async function initialize(opts: {
     minimalMode: opts.minimalMode,
   })
 
-  const renderWorkers: RenderWorkers = {}
+  const renderServer: LazyRenderServerInstance = {}
 
-  let devInstance:
-    | UnwrapPromise<
-        ReturnType<typeof import('./router-utils/setup-dev').setupDev>
-      >
-    | undefined
+  let developmentBundler: DevBundler | undefined
+
+  let devBundlerService: DevBundlerService | undefined
 
   if (opts.dev) {
     const telemetry = new Telemetry({
@@ -115,12 +102,12 @@ export async function initialize(opts: {
     })
     const { pagesDir, appDir } = findPagesDir(opts.dir)
 
-    const { setupDev } =
-      (await require('./router-utils/setup-dev')) as typeof import('./router-utils/setup-dev')
+    const { setupDevBundler } =
+      require('./router-utils/setup-dev-bundler') as typeof import('./router-utils/setup-dev-bundler')
 
-    devInstance = await setupDev({
+    developmentBundler = await setupDevBundler({
       // Passed here but the initialization of this object happens below, doing the initialization before the setupDev call breaks.
-      renderWorkers,
+      renderServer,
       appDir,
       pagesDir,
       telemetry,
@@ -131,125 +118,44 @@ export async function initialize(opts: {
       turbo: !!process.env.TURBOPACK,
       port: opts.port,
     })
-    devInstances[opts.dir] = devInstance
-    ;(global as any)._nextDevHandlers = {
-      async ensurePage(
-        dir: string,
-        match: Parameters<NextJsHotReloaderInterface['ensurePage']>[0]
-      ) {
-        const curDevInstance = devInstances[dir]
-        // TODO: remove after ensure is pulled out of server
-        return await curDevInstance?.hotReloader.ensurePage(match)
-      },
-      async logErrorWithOriginalStack(dir: string, ...args: any[]) {
-        const curDevInstance = devInstances[dir]
-        // @ts-ignore
-        return await curDevInstance?.logErrorWithOriginalStack(...args)
-      },
-      async getFallbackErrorComponents(dir: string) {
-        const curDevInstance = devInstances[dir]
-        await curDevInstance.hotReloader.buildFallbackError()
-        // Build the error page to ensure the fallback is built too.
-        // TODO: See if this can be moved into hotReloader or removed.
-        await curDevInstance.hotReloader.ensurePage({
-          page: '/_error',
-          clientOnly: false,
-        })
-      },
-      async getCompilationError(dir: string, page: string) {
-        const curDevInstance = devInstances[dir]
-        const errors = await curDevInstance?.hotReloader?.getCompilationErrors(
-          page
-        )
-        if (!errors) return
 
-        // Return the very first error we found.
-        return errors[0]
-      },
-      async revalidate(
-        dir: string,
-        {
-          urlPath,
-          revalidateHeaders,
-          opts: revalidateOpts,
-        }: {
-          urlPath: string
-          revalidateHeaders: IncomingMessage['headers']
-          opts: any
-        }
-      ) {
-        const mocked = createRequestResponseMocks({
-          url: urlPath,
-          headers: revalidateHeaders,
-        })
-        const curRequestHandler = requestHandlers[dir]
-        // eslint-disable-next-line @typescript-eslint/no-use-before-define
-        await curRequestHandler(mocked.req, mocked.res)
-        await mocked.res.hasStreamed
-
-        if (
-          mocked.res.getHeader('x-nextjs-cache') !== 'REVALIDATED' &&
-          !(
-            mocked.res.statusCode === 404 &&
-            revalidateOpts.unstable_onlyGenerated
-          )
-        ) {
-          throw new Error(`Invalid response ${mocked.res.statusCode}`)
-        }
-        return {}
-      },
-    } as any
+    devBundlerService = new DevBundlerService(
+      developmentBundler,
+      // The request handler is assigned below, this allows us to create a lazy
+      // reference to it.
+      (req, res) => {
+        return requestHandlers[opts.dir](req, res)
+      }
+    )
   }
 
-  renderWorkers.app =
+  renderServer.instance =
     require('./render-server') as typeof import('./render-server')
 
-  renderWorkers.pages = renderWorkers.app
-
-  const renderWorkerOpts: Parameters<RenderWorker['initialize']>[0] = {
+  const renderServerOpts: Parameters<RenderServer['initialize']>[0] = {
     port: opts.port,
     dir: opts.dir,
-    workerType: 'render',
     hostname: opts.hostname,
     minimalMode: opts.minimalMode,
     dev: !!opts.dev,
     server: opts.server,
     isNodeDebugging: !!opts.isNodeDebugging,
-    serverFields: devInstance?.serverFields || {},
+    serverFields: developmentBundler?.serverFields || {},
     experimentalTestProxy: !!opts.experimentalTestProxy,
+    experimentalHttpsServer: !!opts.experimentalHttpsServer,
+    bundlerService: devBundlerService,
   }
 
   // pre-initialize workers
-  const handlers = await renderWorkers.app?.initialize(renderWorkerOpts)
-  const initialized = {
-    app: handlers,
-    pages: handlers,
-  }
+  const handlers = await renderServer.instance.initialize(renderServerOpts)
 
   const logError = async (
     type: 'uncaughtException' | 'unhandledRejection',
     err: Error | undefined
   ) => {
-    await devInstance?.logErrorWithOriginalStack(err, type)
+    await developmentBundler?.logErrorWithOriginalStack(err, type)
   }
 
-  const cleanup = () => {
-    debug('router-server process cleanup')
-    for (const curWorker of [
-      ...((renderWorkers.pages as any)?._workerPool?._workers || []),
-    ] as {
-      _child?: import('child_process').ChildProcess
-    }[]) {
-      curWorker._child?.kill('SIGINT')
-    }
-
-    if (!process.env.__NEXT_PRIVATE_CPU_PROFILE) {
-      process.exit(0)
-    }
-  }
-  process.on('exit', cleanup)
-  process.on('SIGINT', cleanup)
-  process.on('SIGTERM', cleanup)
   process.on('uncaughtException', logError.bind(null, 'uncaughtException'))
   process.on('unhandledRejection', logError.bind(null, 'unhandledRejection'))
 
@@ -257,9 +163,9 @@ export async function initialize(opts: {
     fsChecker,
     config,
     opts,
-    renderWorkers,
-    renderWorkerOpts,
-    devInstance?.ensureMiddleware
+    renderServer.instance,
+    renderServerOpts,
+    developmentBundler?.ensureMiddleware
   )
 
   const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
@@ -278,7 +184,6 @@ export async function initialize(opts: {
 
     async function invokeRender(
       parsedUrl: NextUrlWithParsedQuery,
-      type: keyof typeof renderWorkers,
       invokePath: string,
       handleIndex: number,
       additionalInvokeHeaders: Record<string, string> = {}
@@ -308,10 +213,8 @@ export async function initialize(opts: {
         return null
       }
 
-      const workerResult = initialized[type]
-
-      if (!workerResult) {
-        throw new Error(`Failed to initialize render worker ${type}`)
+      if (!handlers) {
+        throw new Error('Failed to initialize render server')
       }
 
       const invokeHeaders: typeof req.headers = {
@@ -326,10 +229,9 @@ export async function initialize(opts: {
       debug('invokeRender', req.url, invokeHeaders)
 
       try {
-        const initResult = await renderWorkers.pages?.initialize(
-          renderWorkerOpts
+        const initResult = await renderServer?.instance?.initialize(
+          renderServerOpts
         )
-
         try {
           await initResult?.requestHandler(req, res)
         } catch (err) {
@@ -358,7 +260,7 @@ export async function initialize(opts: {
       }
 
       // handle hot-reloader first
-      if (devInstance) {
+      if (developmentBundler) {
         const origUrl = req.url || '/'
 
         if (config.basePath && pathHasPrefix(origUrl, config.basePath)) {
@@ -366,7 +268,7 @@ export async function initialize(opts: {
         }
         const parsedUrl = url.parse(req.url || '/')
 
-        const hotReloaderResult = await devInstance.hotReloader.run(
+        const hotReloaderResult = await developmentBundler.hotReloader.run(
           req,
           res,
           parsedUrl
@@ -397,7 +299,7 @@ export async function initialize(opts: {
         return
       }
 
-      if (devInstance && matchedOutput?.type === 'devVirtualFsItem') {
+      if (developmentBundler && matchedOutput?.type === 'devVirtualFsItem') {
         const origUrl = req.url || '/'
 
         if (config.basePath && pathHasPrefix(origUrl, config.basePath)) {
@@ -409,7 +311,7 @@ export async function initialize(opts: {
             res.setHeader(key, resHeaders[key])
           }
         }
-        const result = await devInstance.requestHandler(req, res)
+        const result = await developmentBundler.requestHandler(req, res)
 
         if (result.finished) {
           return
@@ -471,7 +373,7 @@ export async function initialize(opts: {
             fsChecker.pageFiles.has(matchedOutput.itemPath))
         ) {
           res.statusCode = 500
-          await invokeRender(parsedUrl, 'pages', '/_error', handleIndex, {
+          await invokeRender(parsedUrl, '/_error', handleIndex, {
             'x-invoke-status': '500',
             'x-invoke-error': JSON.stringify({
               message: `A conflicting public file and page file was found for path ${matchedOutput.itemPath} https://nextjs.org/docs/messages/conflicting-public-file-page`,
@@ -498,7 +400,6 @@ export async function initialize(opts: {
           res.statusCode = 405
           return await invokeRender(
             url.parse('/405', true),
-            'pages',
             '/405',
             handleIndex,
             {
@@ -564,7 +465,6 @@ export async function initialize(opts: {
             res.statusCode = err.statusCode
             return await invokeRender(
               url.parse(invokePath, true),
-              'pages',
               invokePath,
               handleIndex,
               {
@@ -581,7 +481,6 @@ export async function initialize(opts: {
 
         return await invokeRender(
           parsedUrl,
-          matchedOutput.type === 'appFile' ? 'app' : 'pages',
           parsedUrl.pathname || '/',
           handleIndex,
           {
@@ -604,7 +503,7 @@ export async function initialize(opts: {
       }
 
       const appNotFound = opts.dev
-        ? devInstance?.serverFields.hasAppNotFound
+        ? developmentBundler?.serverFields.hasAppNotFound
         : await fsChecker.getItem('/_not-found')
 
       res.statusCode = 404
@@ -612,7 +511,6 @@ export async function initialize(opts: {
       if (appNotFound) {
         return await invokeRender(
           parsedUrl,
-          'app',
           opts.dev ? '/not-found' : '/_not-found',
           handleIndex,
           {
@@ -621,7 +519,7 @@ export async function initialize(opts: {
         )
       }
 
-      await invokeRender(parsedUrl, 'pages', '/404', handleIndex, {
+      await invokeRender(parsedUrl, '/404', handleIndex, {
         'x-invoke-status': '404',
       })
     }
@@ -640,15 +538,9 @@ export async function initialize(opts: {
           console.error(err)
         }
         res.statusCode = Number(invokeStatus)
-        return await invokeRender(
-          url.parse(invokePath, true),
-          'pages',
-          invokePath,
-          0,
-          {
-            'x-invoke-status': invokeStatus,
-          }
-        )
+        return await invokeRender(url.parse(invokePath, true), invokePath, 0, {
+          'x-invoke-status': invokeStatus,
+        })
       } catch (err2) {
         console.error(err2)
       }
@@ -680,9 +572,9 @@ export async function initialize(opts: {
         // console.error(_err);
       })
 
-      if (opts.dev && devInstance) {
+      if (opts.dev && developmentBundler) {
         if (req.url?.includes(`/_next/webpack-hmr`)) {
-          return devInstance.hotReloader.onHMR(req, socket, head)
+          return developmentBundler.hotReloader.onHMR(req, socket, head)
         }
       }
 

@@ -36,7 +36,7 @@ function getBinaryName() {
 async function downloadBinary() {
   try {
     const binaryName = getBinaryName()
-    const cacheDirectory = await getCacheDirectory('mkcert')
+    const cacheDirectory = getCacheDirectory('mkcert')
     const binaryPath = path.join(cacheDirectory, binaryName)
 
     if (fs.existsSync(binaryPath)) {
@@ -98,13 +98,13 @@ export async function createSelfSignedCertificate(
         : defaultHosts
 
     execSync(
-      `${binaryPath} -install -key-file ${keyPath} -cert-file ${certPath} ${hosts.join(
+      `"${binaryPath}" -install -key-file "${keyPath}" -cert-file "${certPath}" ${hosts.join(
         ' '
       )}`,
       { stdio: 'ignore' }
     )
 
-    const caLocation = execSync(`${binaryPath} -CAROOT`).toString().trim()
+    const caLocation = execSync(`"${binaryPath}" -CAROOT`).toString().trim()
 
     if (!fs.existsSync(keyPath) || !fs.existsSync(certPath)) {
       throw new Error('Certificate files not found')

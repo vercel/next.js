@@ -133,8 +133,6 @@ var enableLazyContextPropagation = false; // FB-only usage. The new API has diff
 
 var enableLegacyHidden = false; // Enables unstable_avoidThisFallback feature in Fiber
 var enableHostSingletons = true;
-
-var diffInCommitPhase = true;
 var enableAsyncActions = true;
 var alwaysThrottleRetries = true; // -----------------------------------------------------------------------------
 // Chopping Block
@@ -1085,9 +1083,7 @@ var DefaultHydrationLane =
 var DefaultLane =
 /*                     */
 32;
-var SyncUpdateLanes =
-/*                */
-42;
+var SyncUpdateLanes = SyncLane | InputContinuousLane | DefaultLane ;
 var TransitionHydrationLane =
 /*                */
 64;
@@ -1172,7 +1168,10 @@ var IdleLane =
 536870912;
 var OffscreenLane =
 /*                   */
-1073741824; // This function is used for the experimental timeline (react-devtools-timeline)
+1073741824; // Any lane that might schedule an update. This is used to detect infinite
+// update loops, so it doesn't include hydration lanes or retries.
+
+var UpdateLanes = SyncLane | InputContinuousLane | DefaultLane | TransitionLanes; // This function is used for the experimental timeline (react-devtools-timeline)
 // It should be kept in sync with the Lanes values above.
 
 function getLabelForLane(lane) {
@@ -3590,15 +3589,24 @@ function restoreControlledInputState(element, props) {
 
       if (!otherProps) {
         throw new Error('ReactDOMInput: Mixing React and non-React radio inputs with the ' + 'same `name` is not supported.');
-      } // We need update the tracked value on the named cousin since the value
-      // was changed but the input saw no event or value set
-
-
-      updateValueIfChanged(otherNode); // If this is a controlled radio button group, forcing the input that
+      } // If this is a controlled radio button group, forcing the input that
       // was previously checked to update will cause it to be come re-checked
       // as appropriate.
 
+
       updateInput(otherNode, otherProps.value, otherProps.defaultValue, otherProps.defaultValue, otherProps.checked, otherProps.defaultChecked, otherProps.type, otherProps.name);
+    } // If any updateInput() call set .checked to true, an input in this group
+    // (often, `rootNode` itself) may have become unchecked
+
+
+    for (var _i = 0; _i < group.length; _i++) {
+      var _otherNode = group[_i];
+
+      if (_otherNode.form !== rootNode.form) {
+        continue;
+      }
+
+      updateValueIfChanged(_otherNode);
     }
   }
 } // In Chrome, assigning defaultValue to certain input types triggers input validation.
@@ -7172,9 +7180,7 @@ function prepareToHydrateHostInstance(fiber, hostContext) {
 
   var instance = fiber.stateNode;
   var shouldWarnIfMismatchDev = !didSuspendOrErrorDEV;
-  hydrateInstance(instance, fiber.type, fiber.memoizedProps, hostContext, fiber, shouldWarnIfMismatchDev); // TODO: Type this specific to this type of component.
-
-  return false;
+  hydrateInstance(instance, fiber.type, fiber.memoizedProps, hostContext, fiber, shouldWarnIfMismatchDev);
 }
 
 function prepareToHydrateHostTextInstance(fiber) {
@@ -10140,10 +10146,8 @@ function flushSyncWorkAcrossRoots_impl(onlyLegacy) {
   if (!mightHavePendingSyncWork) {
     // Fast path. There's no sync work to do.
     return;
-  }
+  } // There may or may not be synchronous work scheduled. Let's check.
 
-  var workInProgressRoot = getWorkInProgressRoot();
-  var workInProgressRootRenderLanes = getWorkInProgressRootRenderLanes(); // There may or may not be synchronous work scheduled. Let's check.
 
   var didPerformSomeWork;
   var errors = null;
@@ -10155,15 +10159,15 @@ function flushSyncWorkAcrossRoots_impl(onlyLegacy) {
 
     while (root !== null) {
       if (onlyLegacy && root.tag !== LegacyRoot) ; else {
+        var workInProgressRoot = getWorkInProgressRoot();
+        var workInProgressRootRenderLanes = getWorkInProgressRootRenderLanes();
         var nextLanes = getNextLanes(root, root === workInProgressRoot ? workInProgressRootRenderLanes : NoLanes);
 
         if (includesSyncLane(nextLanes)) {
           // This root has pending sync work. Flush it now.
           try {
-            // TODO: Pass nextLanes as an argument instead of computing it again
-            // inside performSyncWorkOnRoot.
             didPerformSomeWork = true;
-            performSyncWorkOnRoot(root);
+            performSyncWorkOnRoot(root, nextLanes);
           } catch (error) {
             // Collect errors so we can rethrow them at the end
             if (errors === null) {
@@ -19150,9 +19154,7 @@ function updateHostComponent(current, workInProgress, type, newProps, renderLane
       return;
     }
 
-    {
-      markUpdate(workInProgress);
-    }
+    markUpdate(workInProgress);
   }
 } // This function must be called at the very end of the complete phase, because
 // it might throw to suspend, and if the resource immediately loads, the work
@@ -19753,7 +19755,7 @@ function completeWork(current, workInProgress, renderLanes) {
             return null;
           }
 
-          var _currentHostContext2 = getHostContext(); // TODO: Move createInstance to beginWork and keep it on a context
+          var _currentHostContext = getHostContext(); // TODO: Move createInstance to beginWork and keep it on a context
           // "stack" as the parent. Then append children as we go in beginWork
           // or completeWork depending on whether we want to add them top->down or
           // bottom->up. Top->down is faster in IE11.
@@ -19764,15 +19766,11 @@ function completeWork(current, workInProgress, renderLanes) {
           if (_wasHydrated2) {
             // TODO: Move this and createInstance step into the beginPhase
             // to consolidate.
-            if (prepareToHydrateHostInstance(workInProgress, _currentHostContext2)) {
-              // If changes to the hydrated node need to be applied at the
-              // commit-phase we mark this as such.
-              markUpdate(workInProgress);
-            }
+            prepareToHydrateHostInstance(workInProgress, _currentHostContext);
           } else {
             var _rootContainerInstance = getRootHostContainer();
 
-            var _instance3 = createInstance(_type2, newProps, _rootContainerInstance, _currentHostContext2, workInProgress);
+            var _instance3 = createInstance(_type2, newProps, _rootContainerInstance, _currentHostContext, workInProgress);
 
             appendAllChildren(_instance3, workInProgress);
             workInProgress.stateNode = _instance3; // Certain renderers require commit-time effects for initial mount.
@@ -19818,7 +19816,7 @@ function completeWork(current, workInProgress, renderLanes) {
 
           var _rootContainerInstance2 = getRootHostContainer();
 
-          var _currentHostContext3 = getHostContext();
+          var _currentHostContext2 = getHostContext();
 
           var _wasHydrated3 = popHydrationState(workInProgress);
 
@@ -19827,7 +19825,7 @@ function completeWork(current, workInProgress, renderLanes) {
               markUpdate(workInProgress);
             }
           } else {
-            workInProgress.stateNode = createTextInstance(newText, _rootContainerInstance2, _currentHostContext3, workInProgress);
+            workInProgress.stateNode = createTextInstance(newText, _rootContainerInstance2, _currentHostContext2, workInProgress);
           }
         }
 
@@ -22567,12 +22565,10 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
               var updatePayload = finishedWork.updateQueue;
               finishedWork.updateQueue = null;
 
-              if (updatePayload !== null || diffInCommitPhase) {
-                try {
-                  commitUpdate(finishedWork.stateNode, updatePayload, finishedWork.type, current.memoizedProps, finishedWork.memoizedProps, finishedWork);
-                } catch (error) {
-                  captureCommitPhaseError(finishedWork, finishedWork.return, error);
-                }
+              try {
+                commitUpdate(finishedWork.stateNode, updatePayload, finishedWork.type, current.memoizedProps, finishedWork.memoizedProps, finishedWork);
+              } catch (error) {
+                captureCommitPhaseError(finishedWork, finishedWork.return, error);
               }
             }
           }
@@ -22643,12 +22639,10 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
               var _updatePayload = finishedWork.updateQueue;
               finishedWork.updateQueue = null;
 
-              if (_updatePayload !== null || diffInCommitPhase) {
-                try {
-                  commitUpdate(_instance2, _updatePayload, type, oldProps, newProps, finishedWork);
-                } catch (error) {
-                  captureCommitPhaseError(finishedWork, finishedWork.return, error);
-                }
+              try {
+                commitUpdate(_instance2, _updatePayload, type, oldProps, newProps, finishedWork);
+              } catch (error) {
+                captureCommitPhaseError(finishedWork, finishedWork.return, error);
               }
             }
           }
@@ -24791,23 +24785,26 @@ function markRootSuspended(root, suspendedLanes) {
 // through Scheduler
 
 
-function performSyncWorkOnRoot(root) {
-  {
-    syncNestedUpdateFlag();
-  }
-
+function performSyncWorkOnRoot(root, lanes) {
   if ((executionContext & (RenderContext | CommitContext)) !== NoContext) {
     throw new Error('Should not already be working.');
   }
 
-  flushPassiveEffects(); // TODO: This was already computed in the caller. Pass it as an argument.
+  var didFlushPassiveEffects = flushPassiveEffects();
 
-  var lanes = getNextLanes(root, NoLanes);
-
-  if (!includesSyncLane(lanes)) {
-    // There's no remaining sync work left.
+  if (didFlushPassiveEffects) {
+    // If passive effects were flushed, exit to the outer work loop in the root
+    // scheduler, so we can recompute the priority.
+    // TODO: We don't actually need this `ensureRootIsScheduled` call because
+    // this path is only reachable if the root is already part of the schedule.
+    // I'm including it only for consistency with the other exit points from
+    // this function. Can address in a subsequent refactor.
     ensureRootIsScheduled(root);
     return null;
+  }
+
+  {
+    syncNestedUpdateFlag();
   }
 
   var exitStatus = renderRootSync(root, lanes);
@@ -26248,9 +26245,14 @@ function commitRootImpl(root, recoverableErrors, transitions, renderPriorityLeve
   } // Read this again, since a passive effect might have updated it
 
 
-  remainingLanes = root.pendingLanes;
+  remainingLanes = root.pendingLanes; // Check if this render scheduled a cascading synchronous update. This is a
+  // heurstic to detect infinite update loops. We are intentionally excluding
+  // hydration lanes in this check, because render triggered by selective
+  // hydration is conceptually not an update.
 
-  if (includesSyncLane(remainingLanes)) {
+  if ( // Was the finished render the result of an update (not hydration)?
+  includesSomeLane(lanes, UpdateLanes) && // Did it schedule a sync update?
+  includesSomeLane(remainingLanes, SyncUpdateLanes)) {
     {
       markNestedUpdateScheduled();
     } // Count the number of times the root synchronously re-renders without
@@ -28107,7 +28109,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks, formState) {
   return root;
 }
 
-var ReactVersion = '18.3.0-experimental-2807d781a-20230918';
+var ReactVersion = '18.3.0-experimental-d900fadbf-20230929';
 
 function createPortal$1(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {
@@ -33659,7 +33661,7 @@ function setInitialProperties(domElement, tag, props) {
 
     setProp(domElement, tag, _propKey6, _propValue6, props, null);
   }
-} // Calculate the diff between the two objects.
+}
 function updateProperties(domElement, tag, lastProps, nextProps) {
   {
     validatePropertiesInDevelopment(tag, nextProps);
@@ -34095,7 +34097,7 @@ function updateProperties(domElement, tag, lastProps, nextProps) {
       setProp(domElement, tag, _propKey19, _nextProp6, nextProps, _lastProp13);
     }
   }
-} // Apply the diff.
+}
 
 function getPossibleStandardName(propName) {
   {
@@ -34939,7 +34941,6 @@ function diffHydratedProperties(domElement, tag, props, isConcurrentMode, should
       break;
   }
 
-  var updatePayload = null;
   var children = props.children; // For text content children we compare against textContent. This
   // might match additional HTML that is hidden when we read it using
   // textContent. E.g. "foo" will match "f<span>oo</span>" but that still
@@ -34957,15 +34958,13 @@ function diffHydratedProperties(domElement, tag, props, isConcurrentMode, should
       }
 
       if (!isConcurrentMode || !enableClientRenderFallbackOnTextMismatch) {
-        {
-          // We really should be patching this in the commit phase but since
-          // this only affects legacy mode hydration which is deprecated anyway
-          // we can get away with it.
-          // Host singletons get their children appended and don't use the text
-          // content mechanism.
-          if (tag !== 'body') {
-            domElement.textContent = children;
-          }
+        // We really should be patching this in the commit phase but since
+        // this only affects legacy mode hydration which is deprecated anyway
+        // we can get away with it.
+        // Host singletons get their children appended and don't use the text
+        // content mechanism.
+        if (tag !== 'body') {
+          domElement.textContent = children;
         }
       }
     }
@@ -34984,8 +34983,8 @@ function diffHydratedProperties(domElement, tag, props, isConcurrentMode, should
     var extraAttributes = new Set();
     var attributes = domElement.attributes;
 
-    for (var _i7 = 0; _i7 < attributes.length; _i7++) {
-      var name = attributes[_i7].name.toLowerCase();
+    for (var _i = 0; _i < attributes.length; _i++) {
+      var name = attributes[_i].name.toLowerCase();
 
       switch (name) {
         // Controlled attributes are not validated
@@ -35002,7 +35001,7 @@ function diffHydratedProperties(domElement, tag, props, isConcurrentMode, should
         default:
           // Intentionally use the original name.
           // See discussion in https://github.com/facebook/react/pull/10676.
-          extraAttributes.add(attributes[_i7].name);
+          extraAttributes.add(attributes[_i].name);
       }
     }
 
@@ -35016,8 +35015,6 @@ function diffHydratedProperties(domElement, tag, props, isConcurrentMode, should
       warnForExtraAttributes(extraAttributes);
     }
   }
-
-  return updatePayload;
 }
 function diffHydratedText(textNode, text, isConcurrentMode) {
   var isDifferent = textNode.nodeValue !== text;
@@ -35506,12 +35503,9 @@ function commitMount(domElement, type, newProps, internalInstanceHandle) {
   }
 }
 function commitUpdate(domElement, updatePayload, type, oldProps, newProps, internalInstanceHandle) {
-  {
-    // Diff and update the properties.
-    updateProperties(domElement, type, oldProps, newProps);
-  } // Update the props handle so that we know which props are the ones with
+  // Diff and update the properties.
+  updateProperties(domElement, type, oldProps, newProps); // Update the props handle so that we know which props are the ones with
   // with current event handlers.
-
 
   updateFiberProps(domElement, newProps);
 }
@@ -36000,7 +35994,7 @@ function hydrateInstance(instance, type, props, hostContext, internalInstanceHan
   // when the legacy root API is removed.
 
   var isConcurrentMode = (internalInstanceHandle.mode & ConcurrentMode) !== NoMode;
-  return diffHydratedProperties(instance, type, props, isConcurrentMode, shouldWarnDev, hostContext);
+  diffHydratedProperties(instance, type, props, isConcurrentMode, shouldWarnDev, hostContext);
 }
 function hydrateTextInstance(textInstance, text, internalInstanceHandle, shouldWarnDev) {
   precacheFiberNode(internalInstanceHandle, textInstance); // TODO: Temporary hack to check if we're in a concurrent root. We can delete
@@ -38093,6 +38087,25 @@ function unmountComponentAtNode(container) {
   }
 }
 
+function getCrossOriginString(input) {
+  if (typeof input === 'string') {
+    return input === 'use-credentials' ? input : '';
+  }
+
+  return undefined;
+}
+function getCrossOriginStringAs(as, input) {
+  if (as === 'font') {
+    return '';
+  }
+
+  if (typeof input === 'string') {
+    return input === 'use-credentials' ? input : '';
+  }
+
+  return undefined;
+}
+
 var Dispatcher = Internals.Dispatcher;
 function prefetchDNS(href) {
   {
@@ -38132,7 +38145,7 @@ function preconnect(href, options) {
   var dispatcher = Dispatcher.current;
 
   if (dispatcher && typeof href === 'string') {
-    var crossOrigin = options ? getCrossOrigin('preconnect', options.crossOrigin) : null;
+    var crossOrigin = options ? getCrossOriginString(options.crossOrigin) : null;
     dispatcher.preconnect(href, crossOrigin);
   } // We don't error because preconnect needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
@@ -38163,7 +38176,7 @@ function preload(href, options) {
   if (dispatcher && typeof href === 'string' && // We check existence because we cannot enforce this function is actually called with the stated type
   typeof options === 'object' && options !== null && typeof options.as === 'string') {
     var as = options.as;
-    var crossOrigin = getCrossOrigin(as, options.crossOrigin);
+    var crossOrigin = getCrossOriginStringAs(as, options.crossOrigin);
     dispatcher.preload(href, as, {
       crossOrigin: crossOrigin,
       integrity: typeof options.integrity === 'string' ? options.integrity : undefined,
@@ -38202,7 +38215,7 @@ function preloadModule(href, options) {
 
   if (dispatcher && typeof href === 'string') {
     if (options) {
-      var crossOrigin = getCrossOrigin(options.as, options.crossOrigin);
+      var crossOrigin = getCrossOriginStringAs(options.as, options.crossOrigin);
       dispatcher.preloadModule(href, {
         as: typeof options.as === 'string' && options.as !== 'script' ? options.as : undefined,
         crossOrigin: crossOrigin,
@@ -38231,7 +38244,7 @@ function preinit(href, options) {
 
   if (dispatcher && typeof href === 'string' && options && typeof options.as === 'string') {
     var as = options.as;
-    var crossOrigin = getCrossOrigin(as, options.crossOrigin);
+    var crossOrigin = getCrossOriginStringAs(as, options.crossOrigin);
     var integrity = typeof options.integrity === 'string' ? options.integrity : undefined;
     var fetchPriority = typeof options.fetchPriority === 'string' ? options.fetchPriority : undefined;
 
@@ -38293,21 +38306,22 @@ function preinitModule(href, options) {
   var dispatcher = Dispatcher.current;
 
   if (dispatcher && typeof href === 'string') {
-    if (options == null || typeof options === 'object' && (options.as == null || options.as === 'script')) {
-      var crossOrigin = options ? getCrossOrigin(undefined, options.crossOrigin) : undefined;
-      dispatcher.preinitModuleScript(href, {
-        crossOrigin: crossOrigin,
-        integrity: options && typeof options.integrity === 'string' ? options.integrity : undefined
-      });
+    if (typeof options === 'object' && options !== null) {
+      if (options.as == null || options.as === 'script') {
+        var crossOrigin = getCrossOriginStringAs(options.as, options.crossOrigin);
+        dispatcher.preinitModuleScript(href, {
+          crossOrigin: crossOrigin,
+          integrity: typeof options.integrity === 'string' ? options.integrity : undefined,
+          nonce: typeof options.nonce === 'string' ? options.nonce : undefined
+        });
+      }
+    } else if (options == null) {
+      dispatcher.preinitModuleScript(href);
     }
   } // We don't error because preinit needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
 
-}
-
-function getCrossOrigin(as, crossOrigin) {
-  return as === 'font' ? '' : typeof crossOrigin === 'string' ? crossOrigin === 'use-credentials' ? 'use-credentials' : '' : undefined;
 }
 
 function getValueDescriptorExpectingObjectForWarning(thing) {

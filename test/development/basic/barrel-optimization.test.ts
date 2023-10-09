@@ -42,6 +42,7 @@ describe('optimizePackageImports', () => {
         '@headlessui/react': '1.7.17',
         '@heroicons/react': '2.0.18',
         '@visx/visx': '3.3.0',
+        'recursive-barrel': '1.0.0',
       },
     })
   })
@@ -97,24 +98,40 @@ describe('optimizePackageImports', () => {
     }
   })
 
-  it('should reuse the transformed barrel meta file from SWC', async () => {
+  it('app - should optimize recursive wildcard export mapping', async () => {
     let logs = ''
     next.on('stdout', (log) => {
       logs += log
     })
 
-    const html = await next.render('/dedupe')
+    await next.render('/recursive-barrel-app')
 
-    // Ensure the icons are rendered
-    expect(html).toContain('<svg xmlns="http://www.w3.org/2000/svg"')
+    const modules = [...logs.matchAll(/\((\d+) modules\)/g)]
 
-    const swcOptimizeBarrelExports = [
-      ...logs.matchAll(
-        /optimizeBarrelExports: .+\/dist\/esm\/lucide-react\.js/g
-      ),
-    ]
+    expect(modules.length).toBeGreaterThanOrEqual(1)
+    for (const [, moduleCount] of modules) {
+      // Ensure that the number of modules is less than 1000 - otherwise we're
+      // importing the entire library.
+      expect(parseInt(moduleCount)).toBeLessThan(1000)
+    }
+  })
 
-    expect(swcOptimizeBarrelExports.length).toBe(1)
+  it('pages - should optimize recursive wildcard export mapping', async () => {
+    let logs = ''
+    next.on('stdout', (log) => {
+      logs += log
+    })
+
+    await next.render('/recursive-barrel')
+
+    const modules = [...logs.matchAll(/\((\d+) modules\)/g)]
+
+    expect(modules.length).toBeGreaterThanOrEqual(1)
+    for (const [, moduleCount] of modules) {
+      // Ensure that the number of modules is less than 1000 - otherwise we're
+      // importing the entire library.
+      expect(parseInt(moduleCount)).toBeLessThan(1000)
+    }
   })
 
   it('should handle recursive wildcard exports', async () => {
@@ -125,5 +142,10 @@ describe('optimizePackageImports', () => {
   it('should support visx', async () => {
     const html = await next.render('/visx')
     expect(html).toContain('<linearGradient')
+  })
+
+  it('should not break "use client" directive in optimized packages', async () => {
+    const html = await next.render('/client')
+    expect(html).toContain('this is a client component')
   })
 })

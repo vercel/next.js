@@ -2,29 +2,26 @@
 
 import '../server/lib/cpu-profile'
 import type { StartServerOptions } from '../server/lib/start-server'
-import { getPort, printAndExit } from '../server/lib/utils'
+import { RESTART_EXIT_CODE, getPort, printAndExit } from '../server/lib/utils'
 import * as Log from '../build/output/log'
-import { CliCommand } from '../lib/commands'
+import type { CliCommand } from '../lib/commands'
 import { getProjectDir } from '../lib/get-project-dir'
 import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import path from 'path'
-import { NextConfigComplete } from '../server/config-shared'
+import type { NextConfigComplete } from '../server/config-shared'
 import { setGlobal, traceGlobals } from '../trace/shared'
 import { Telemetry } from '../telemetry/storage'
 import loadConfig, { getEnabledExperimentalFeatures } from '../server/config'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { fileExists, FileType } from '../lib/file-exists'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
-import {
-  SelfSignedCertificate,
-  createSelfSignedCertificate,
-} from '../lib/mkcert'
+import { createSelfSignedCertificate } from '../lib/mkcert'
+import type { SelfSignedCertificate } from '../lib/mkcert'
 import uploadTrace from '../trace/upload-trace'
 import { initialEnv, loadEnvConfig } from '@next/env'
 import { trace } from '../trace'
 import { validateTurboNextConfig } from '../lib/turbopack-warning'
 import { fork } from 'child_process'
-import { RESTART_EXIT_CODE } from '../server/lib/setup-server-worker'
 import {
   getReservedPortExplanation,
   isPortIsReserved,
@@ -246,14 +243,17 @@ const nextDev: CliCommand = async (args) => {
   async function startServer(options: StartServerOptions) {
     return new Promise<void>((resolve) => {
       let resolved = false
+      const defaultEnv = (initialEnv || process.env) as typeof process.env
 
       child = fork(startServerPath, {
         stdio: 'inherit',
         env: {
-          ...((initialEnv || process.env) as typeof process.env),
+          ...defaultEnv,
           TURBOPACK: process.env.TURBOPACK,
           NEXT_PRIVATE_WORKER: '1',
-          NODE_EXTRA_CA_CERTS: options.selfSignedCertificate?.rootCA,
+          NODE_EXTRA_CA_CERTS: options.selfSignedCertificate
+            ? options.selfSignedCertificate.rootCA
+            : defaultEnv.NODE_EXTRA_CA_CERTS,
         },
       })
 

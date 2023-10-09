@@ -11,27 +11,29 @@ let app
 let server
 
 describe('Top Level Error', () => {
-  beforeAll(async () => {
-    const appDir = join(__dirname, '../')
-    await nextBuild(appDir)
-    app = nextServer({
-      dir: appDir,
-      dev: false,
-      quiet: true,
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      const appDir = join(__dirname, '../')
+      await nextBuild(appDir)
+      app = nextServer({
+        dir: appDir,
+        dev: false,
+        quiet: true,
+      })
+
+      server = await startApp(app)
+      appPort = server.address().port
     })
+    afterAll(() => stopApp(server))
 
-    server = await startApp(app)
-    appPort = server.address().port
-  })
-  afterAll(() => stopApp(server))
-
-  it('should render error page with getInitialProps', async () => {
-    const browser = await webdriver(appPort, '/')
-    try {
-      const text = await browser.waitForElementByCss('#error-p').text()
-      expect(text).toBe('Error Rendered with: top level error')
-    } finally {
-      await browser.close()
-    }
+    it('should render error page with getInitialProps', async () => {
+      const browser = await webdriver(appPort, '/')
+      try {
+        const text = await browser.waitForElementByCss('#error-p').text()
+        expect(text).toBe('Error Rendered with: top level error')
+      } finally {
+        await browser.close()
+      }
+    })
   })
 })

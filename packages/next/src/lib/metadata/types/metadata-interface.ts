@@ -577,4 +577,4 @@ declare namespace MetadataRoute {
   export type Manifest = ManifestFile
 }
 
-export { Metadata, ResolvedMetadata, ResolvingMetadata, MetadataRoute }
+export type { Metadata, ResolvedMetadata, ResolvingMetadata, MetadataRoute }

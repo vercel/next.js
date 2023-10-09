@@ -117,8 +117,7 @@ describe('Test Draft Mode', () => {
       await killApp(app)
     })
   })
-
-  describe('Server Mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     let appPort, app, cookieString, initialRand
     const getOpts = () => ({ headers: { Cookie: cookieString } })
 

@@ -2,21 +2,21 @@ import type { TLSSocket } from 'tls'
 import type { FsOutput } from './filesystem'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextConfigComplete } from '../../config-shared'
-import type { RenderWorker, initialize } from '../router-server'
+import type { RenderServer, initialize } from '../router-server'
 import type { PatchMatcher } from '../../../shared/lib/router/utils/path-match'
+import type { Redirect } from '../../../../types'
+import type { Header } from '../../../lib/load-custom-routes'
+import type { UnwrapPromise } from '../../../lib/coalesced-function'
+import type { NextUrlWithParsedQuery } from '../../request-meta'
 
 import url from 'url'
-import { Redirect } from '../../../../types'
 import setupDebug from 'next/dist/compiled/debug'
 import { getCloneableBody } from '../../body-streams'
-import { filterReqHeaders, ipcForbiddenHeaders } from '../server-ipc/utils'
-import { Header } from '../../../lib/load-custom-routes'
 import { stringifyQuery } from '../../server-route-utils'
 import { formatHostname } from '../format-hostname'
 import { toNodeOutgoingHttpHeaders } from '../../web/utils'
 import { isAbortError } from '../../pipe-readable'
 import { getHostname } from '../../../shared/lib/get-hostname'
-import { UnwrapPromise } from '../../../lib/coalesced-function'
 import { getRedirectStatus } from '../../../lib/redirect-status'
 import { normalizeRepeatedSlashes } from '../../../shared/lib/utils'
 import { relativizeURL } from '../../../shared/lib/router/utils/relativize-url'
@@ -26,7 +26,7 @@ import { detectDomainLocale } from '../../../shared/lib/i18n/detect-domain-local
 import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-path'
 import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-prefix'
 
-import { NextUrlWithParsedQuery, addRequestMeta } from '../../request-meta'
+import { addRequestMeta } from '../../request-meta'
 import {
   compileNonPath,
   matchHas,
@@ -44,11 +44,8 @@ export function getResolveRoutes(
   >,
   config: NextConfigComplete,
   opts: Parameters<typeof initialize>[0],
-  renderWorkers: {
-    app?: RenderWorker
-    pages?: RenderWorker
-  },
-  renderWorkerOpts: Parameters<RenderWorker['initialize']>[0],
+  renderServer: RenderServer,
+  renderServerOpts: Parameters<RenderServer['initialize']>[0],
   ensureMiddleware?: () => Promise<void>
 ) {
   type Route = {
@@ -435,12 +432,12 @@ export function getResolveRoutes(
                 .then(() => true)
                 .catch(() => false)))
           ) {
-            const workerResult = await (
-              renderWorkers.app || renderWorkers.pages
-            )?.initialize(renderWorkerOpts)
+            const serverResult = await renderServer?.initialize(
+              renderServerOpts
+            )
 
-            if (!workerResult) {
-              throw new Error(`Failed to initialize render worker "middleware"`)
+            if (!serverResult) {
+              throw new Error(`Failed to initialize render server "middleware"`)
             }
 
             const invokeHeaders: typeof req.headers = {
@@ -460,23 +457,19 @@ export function getResolveRoutes(
               const { res: mockedRes } = await createRequestResponseMocks({
                 url: req.url || '/',
                 method: req.method || 'GET',
-                headers: filterReqHeaders(invokeHeaders, ipcForbiddenHeaders),
+                headers: invokeHeaders,
                 resWriter(chunk) {
                   readableController.enqueue(Buffer.from(chunk))
                   return true
                 },
               })
 
-              const initResult = await renderWorkers.pages?.initialize(
-                renderWorkerOpts
-              )
-
               mockedRes.on('close', () => {
                 readableController.close()
               })
 
               try {
-                await initResult?.requestHandler(req, res, parsedUrl)
+                await serverResult.requestHandler(req, res, parsedUrl)
               } catch (err: any) {
                 if (!('result' in err) || !('response' in err.result)) {
                   throw err
@@ -567,7 +560,7 @@ export function getResolveRoutes(
             delete middlewareHeaders['x-middleware-next']
 
             for (const [key, value] of Object.entries({
-              ...filterReqHeaders(middlewareHeaders, ipcForbiddenHeaders),
+              ...middlewareHeaders,
             })) {
               if (
                 [
