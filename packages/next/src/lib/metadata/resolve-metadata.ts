@@ -9,6 +9,7 @@ import type { Twitter } from './types/twitter-types'
 import type { OpenGraph } from './types/opengraph-types'
 import type { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
 import type { MetadataContext } from './types/resolvers'
+import type { LoaderTree } from '../../server/lib/app-dir-module'
 import { createDefaultMetadata } from './default-metadata'
 import { resolveOpenGraph, resolveTwitter } from './resolvers/resolve-opengraph'
 import { resolveTitle } from './resolvers/resolve-title'
@@ -17,7 +18,6 @@ import { isClientReference } from '../client-reference'
 import {
   getComponentTypeModule,
   getLayoutOrPageModule,
-  LoaderTree,
 } from '../../server/lib/app-dir-module'
 import { interopDefault } from '../interop-default'
 import {

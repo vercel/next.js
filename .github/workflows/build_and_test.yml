@@ -58,6 +58,7 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: 18
+      - run: corepack enable
       - name: 'Run link checker'
         run: node ./.github/actions/validate-docs-links/lib
         env:

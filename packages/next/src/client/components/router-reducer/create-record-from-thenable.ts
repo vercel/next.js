@@ -1,4 +1,4 @@
-import { ThenableRecord } from './router-reducer-types'
+import type { ThenableRecord } from './router-reducer-types'
 
 /**
  * Create data fetching record for Promise.

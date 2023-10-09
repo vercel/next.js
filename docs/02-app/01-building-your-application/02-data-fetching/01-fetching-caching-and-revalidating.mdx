@@ -310,7 +310,7 @@ export const getItem = cache(async (id) => {
 
 Although the `getItem` function is called twice, only one query will be made to the database.
 
-```tsx filename="app/item/layout.tsx" switcher
+```tsx filename="app/item/[id]/layout.tsx" switcher
 import { getItem } from '@/utils/get-item'
 
 export default async function Layout({
@@ -323,7 +323,7 @@ export default async function Layout({
 }
 ```
 
-```jsx filename="app/item/layout.js" switcher
+```jsx filename="app/item/[id]/layout.js" switcher
 import { getItem } from '@/utils/get-item'
 
 export default async function Layout({ params: { id } }) {

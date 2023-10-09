@@ -32,6 +32,7 @@ jobs:
         with:
           node-version: 18
           check-latest: true
+      - run: corepack enable
 
       - run: git clone https://github.com/vercel/next.js.git --depth=1 .
 

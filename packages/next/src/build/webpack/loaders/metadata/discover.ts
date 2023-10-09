@@ -6,7 +6,7 @@ import path from 'path'
 import { stringify } from 'querystring'
 import { STATIC_METADATA_IMAGES } from '../../../../lib/metadata/is-metadata-route'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../../lib/constants'
-import { MetadataResolver } from '../next-app-loader'
+import type { MetadataResolver } from '../next-app-loader'
 
 const METADATA_TYPE = 'metadata'
 
