@@ -21,7 +21,6 @@ import {
 import RenderResult from '../render-result'
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import { FlightRenderResult } from './flight-render-result'
-import type { ActionResult } from './types'
 import type { ActionAsyncStorage } from '../../client/components/action-async-storage.external'
 import {
   filterReqHeaders,
@@ -514,7 +513,7 @@ export async function handleAction({
           } catch {}
           return {
             type: 'done',
-            result: await generateFlight({
+            result: await generateFlight(ctx, {
               skipFlight: false,
               actionResult: promise,
               asNotFound: true,
@@ -536,7 +535,7 @@ export async function handleAction({
 
         return {
           type: 'done',
-          result: await generateFlight({
+          result: await generateFlight(ctx, {
             actionResult: promise,
             // if the page was not revalidated, we can skip the rendering the flight tree
             skipFlight: !staticGenerationStore.pathWasRevalidated,
