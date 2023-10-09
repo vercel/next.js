@@ -7,7 +7,8 @@ import { useEffect, useState } from 'react'
 export default function Page() {
   const [state, appendNameFormAction] = experimental_useFormState(
     appendName,
-    'initial-state'
+    'initial-state',
+    '/client/form-state'
   )
 
   const [hydrated, setHydrated] = useState(false)

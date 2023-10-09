@@ -1,5 +1,6 @@
 import type { IncomingMessage } from 'http'
-import { PassThrough, Readable } from 'stream'
+import type { Readable } from 'stream'
+import { PassThrough } from 'stream'
 
 export function requestToBodyStream(
   context: { ReadableStream: typeof ReadableStream },

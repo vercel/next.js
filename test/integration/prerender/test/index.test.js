@@ -265,35 +265,35 @@ describe('SSG Prerender', () => {
       }
     })
   })
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    describe('export mode', () => {
+      // disable fallback: true since this is an error during `next export`
+      const fallbackTruePages = [
+        '/blog/[post]/[comment].js',
+        '/user/[user]/profile.js',
+        '/catchall/[...slug].js',
+        '/non-json/[p].js',
+        '/blog/[post]/index.js',
+        '/fallback-only/[slug].js',
+        '/api-docs/[...slug].js',
+      ]
+      const fallbackBlockingPages = [
+        '/blocking-fallback/[slug].js',
+        '/blocking-fallback-once/[slug].js',
+        '/blocking-fallback-some/[slug].js',
+        '/non-json-blocking/[p].js',
+      ]
 
-  describe('export mode', () => {
-    // disable fallback: true since this is an error during `next export`
-    const fallbackTruePages = [
-      '/blog/[post]/[comment].js',
-      '/user/[user]/profile.js',
-      '/catchall/[...slug].js',
-      '/non-json/[p].js',
-      '/blog/[post]/index.js',
-      '/fallback-only/[slug].js',
-      '/api-docs/[...slug].js',
-    ]
-    const fallbackBlockingPages = [
-      '/blocking-fallback/[slug].js',
-      '/blocking-fallback-once/[slug].js',
-      '/blocking-fallback-some/[slug].js',
-      '/non-json-blocking/[p].js',
-    ]
+      const brokenPages = ['/bad-gssp.js', '/bad-ssr.js']
 
-    const brokenPages = ['/bad-gssp.js', '/bad-ssr.js']
+      const fallbackTruePageContents = {}
+      const fallbackBlockingPageContents = {}
 
-    const fallbackTruePageContents = {}
-    const fallbackBlockingPageContents = {}
-
-    beforeAll(async () => {
-      exportDir = join(appDir, 'out')
-      await fs.writeFile(
-        nextConfigPath,
-        `module.exports = {
+      beforeAll(async () => {
+        exportDir = join(appDir, 'out')
+        await fs.writeFile(
+          nextConfigPath,
+          `module.exports = {
           exportTrailingSlash: true,
           exportPathMap: function(defaultPathMap) {
             if (defaultPathMap['/blog/[post]']) {
@@ -302,82 +302,88 @@ describe('SSG Prerender', () => {
             return defaultPathMap
           },
         }`
-      )
-      await fs.remove(join(appDir, '.next'))
-
-      for (const page of fallbackTruePages) {
-        const pagePath = join(appDir, 'pages', page)
-        fallbackTruePageContents[page] = await fs.readFile(pagePath, 'utf8')
-        await fs.writeFile(
-          pagePath,
-          fallbackTruePageContents[page].replace(
-            'fallback: true',
-            'fallback: false'
-          )
         )
-      }
-
-      for (const page of fallbackBlockingPages) {
-        const pagePath = join(appDir, 'pages', page)
-        fallbackBlockingPageContents[page] = await fs.readFile(pagePath, 'utf8')
-        await fs.writeFile(
-          pagePath,
-          fallbackBlockingPageContents[page].replace(
-            "fallback: 'blocking'",
-            'fallback: false'
-          )
-        )
-      }
-
-      for (const page of brokenPages) {
-        const pagePath = join(appDir, 'pages', page)
-        await fs.rename(pagePath, `${pagePath}.bak`)
-      }
-
-      await nextBuild(appDir, undefined, { cwd: appDir })
-      await nextExport(appDir, { outdir: exportDir, cwd: appDir })
-      app = await startStaticServer(exportDir)
-      appPort = app.address().port
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-    })
-    afterAll(async () => {
-      try {
-        stopApp(app)
-        await fs.remove(nextConfigPath)
+        await fs.remove(join(appDir, '.next'))
 
         for (const page of fallbackTruePages) {
           const pagePath = join(appDir, 'pages', page)
-          await fs.writeFile(pagePath, fallbackTruePageContents[page])
+          fallbackTruePageContents[page] = await fs.readFile(pagePath, 'utf8')
+          await fs.writeFile(
+            pagePath,
+            fallbackTruePageContents[page].replace(
+              'fallback: true',
+              'fallback: false'
+            )
+          )
         }
 
         for (const page of fallbackBlockingPages) {
           const pagePath = join(appDir, 'pages', page)
-          await fs.writeFile(pagePath, fallbackBlockingPageContents[page])
+          fallbackBlockingPageContents[page] = await fs.readFile(
+            pagePath,
+            'utf8'
+          )
+          await fs.writeFile(
+            pagePath,
+            fallbackBlockingPageContents[page].replace(
+              "fallback: 'blocking'",
+              'fallback: false'
+            )
+          )
         }
 
         for (const page of brokenPages) {
           const pagePath = join(appDir, 'pages', page)
-          await fs.rename(`${pagePath}.bak`, pagePath)
+          await fs.rename(pagePath, `${pagePath}.bak`)
         }
-      } catch (err) {
-        console.error(err)
-      }
+
+        await nextBuild(appDir, undefined, { cwd: appDir })
+        await nextExport(appDir, { outdir: exportDir, cwd: appDir })
+        app = await startStaticServer(exportDir)
+        appPort = app.address().port
+        buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+      })
+      afterAll(async () => {
+        try {
+          stopApp(app)
+          await fs.remove(nextConfigPath)
+
+          for (const page of fallbackTruePages) {
+            const pagePath = join(appDir, 'pages', page)
+            await fs.writeFile(pagePath, fallbackTruePageContents[page])
+          }
+
+          for (const page of fallbackBlockingPages) {
+            const pagePath = join(appDir, 'pages', page)
+            await fs.writeFile(pagePath, fallbackBlockingPageContents[page])
+          }
+
+          for (const page of brokenPages) {
+            const pagePath = join(appDir, 'pages', page)
+            await fs.rename(`${pagePath}.bak`, pagePath)
+          }
+        } catch (err) {
+          console.error(err)
+        }
+      })
+
+      it('should copy prerender files and honor exportTrailingSlash', async () => {
+        const routes = [
+          '/another',
+          '/something',
+          '/blog/post-1',
+          '/blog/post-2/comment-2',
+        ]
+
+        for (const route of routes) {
+          await fs.access(join(exportDir, `${route}/index.html`))
+          await fs.access(
+            join(exportDir, '_next/data', buildId, `${route}.json`)
+          )
+        }
+      })
+
+      navigateTest()
     })
-
-    it('should copy prerender files and honor exportTrailingSlash', async () => {
-      const routes = [
-        '/another',
-        '/something',
-        '/blog/post-1',
-        '/blog/post-2/comment-2',
-      ]
-
-      for (const route of routes) {
-        await fs.access(join(exportDir, `${route}/index.html`))
-        await fs.access(join(exportDir, '_next/data', buildId, `${route}.json`))
-      }
-    })
-
-    navigateTest()
   })
 })

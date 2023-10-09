@@ -8,8 +8,8 @@ use indexmap::{
 };
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, Completions, TaskInput, ValueDefault,
-    ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, Completions, TaskInput, ValueToString,
+    Vc,
 };
 use turbopack_binding::{
     turbo::tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath},
@@ -474,26 +474,6 @@ pub enum Entrypoint {
 
 #[turbo_tasks::value(transparent)]
 pub struct Entrypoints(IndexMap<AppPath, Entrypoint>);
-
-#[turbo_tasks::value_impl]
-impl Entrypoints {
-    #[turbo_tasks::function]
-    pub fn paths(&self) -> Vc<EntrypointPaths> {
-        Vc::cell(self.0.keys().cloned().collect())
-    }
-}
-
-#[turbo_tasks::value(transparent)]
-#[derive(Default)]
-pub struct EntrypointPaths(Vec<AppPath>);
-
-#[turbo_tasks::value_impl]
-impl ValueDefault for EntrypointPaths {
-    #[turbo_tasks::function]
-    fn value_default() -> Vc<Self> {
-        Self::default().cell()
-    }
-}
 
 fn is_parallel_route(name: &str) -> bool {
     name.starts_with('@')

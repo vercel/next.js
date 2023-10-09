@@ -45,9 +45,6 @@ export interface SWCLoaderOptions {
   bundleTarget: BundleType
   hasServerComponents?: boolean
   isServerLayer: boolean
-  optimizeBarrelExports?: {
-    wildcard: boolean
-  }
 }
 
 async function loaderTransform(
@@ -73,18 +70,10 @@ async function loaderTransform(
     swcCacheDir,
     hasServerComponents,
     isServerLayer,
-    optimizeBarrelExports,
     bundleTarget,
   } = loaderOptions
   const isPageFile = filename.startsWith(pagesDir)
   const relativeFilePathFromRoot = path.relative(rootDir, filename)
-
-  // For testing purposes
-  if (process.env.NEXT_TEST_MODE) {
-    if (loaderOptions.optimizeBarrelExports) {
-      console.log('optimizeBarrelExports:', filename)
-    }
-  }
 
   const swcOptions = getLoaderSWCOptions({
     pagesDir,
@@ -106,7 +95,6 @@ async function loaderTransform(
     hasServerComponents,
     isServerActionsEnabled: nextConfig?.experimental?.serverActions,
     isServerLayer,
-    optimizeBarrelExports,
     bundleTarget,
   })
 

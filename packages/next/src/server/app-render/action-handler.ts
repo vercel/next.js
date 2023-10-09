@@ -19,10 +19,10 @@ import {
   isRedirectError,
 } from '../../client/components/redirect'
 import RenderResult from '../render-result'
-import { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
+import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import { FlightRenderResult } from './flight-render-result'
-import { ActionResult } from './types'
-import { ActionAsyncStorage } from '../../client/components/action-async-storage.external'
+import type { ActionResult } from './types'
+import type { ActionAsyncStorage } from '../../client/components/action-async-storage.external'
 import {
   filterReqHeaders,
   actionsForbiddenHeaders,
@@ -32,7 +32,7 @@ import {
   getModifiedCookieValues,
 } from '../web/spec-extension/adapters/request-cookies'
 
-import { RequestStore } from '../../client/components/request-async-storage.external'
+import type { RequestStore } from '../../client/components/request-async-storage.external'
 import {
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
@@ -366,7 +366,7 @@ export async function handleAction({
             decodeReplyFromBusboy,
             decodeAction,
             decodeFormState,
-          } = require(`react-server-dom-webpack/server.node`)
+          } = require(`./react-server.node`)
 
           if (isMultipartAction) {
             if (isFetchAction) {

@@ -1,9 +1,10 @@
-import '../../server/web/globals'
 import type { AdapterOptions } from '../../server/web/adapter'
+
+import '../../server/web/globals'
+
 import { adapter } from '../../server/web/adapter'
 
 // Import the userland code.
-// @ts-expect-error - replaced by webpack/turbopack loader
 import * as _mod from 'VAR_USERLAND'
 
 const mod = { ..._mod }
