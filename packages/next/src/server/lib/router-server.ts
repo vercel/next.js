@@ -571,14 +571,15 @@ export async function initialize(opts: {
 
   const upgradeHandler: WorkerUpgradeHandler = async (req, socket, head) => {
     try {
-      req.on('error', (_err) => {
-        // TODO: log socket errors?
-        // console.error(_err);
-      })
-      socket.on('error', (_err) => {
-        // TODO: log socket errors?
-        // console.error(_err);
-      })
+      // Log request and socket errors in dev mode
+      if (opts.dev) {
+        req.on('error', (err) => {
+          console.error(err)
+        })
+        socket.on('error', (err) => {
+          console.error(err)
+        })
+      }
 
       if (opts.dev && developmentBundler) {
         if (req.url?.includes(`/_next/webpack-hmr`)) {
@@ -593,17 +594,14 @@ export async function initialize(opts: {
         signal: signalFromNodeResponse(socket),
       })
 
-      // TODO: allow upgrade requests to pages/app paths?
-      // this was not previously supported
-      if (matchedOutput) {
+      if (!matchedOutput && !req.socket) {
         return socket.end()
       }
 
+      // Do not end socket again if protocol is present
       if (parsedUrl.protocol) {
         return await proxyRequest(req, socket as any, parsedUrl, head)
       }
-      // no match close socket
-      socket.end()
     } catch (err) {
       console.error('Error handling upgrade request', err)
       socket.end()
