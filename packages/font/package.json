@@ -20,8 +20,10 @@
     "ncc-fontkit": "ncc build ./fontkit.js -o dist/fontkit"
   },
   "devDependencies": {
+    "@types/async-retry": "1.4.2",
     "@types/fontkit": "2.0.0",
     "@vercel/ncc": "0.34.0",
+    "async-retry": "1.3.3",
     "fontkit": "2.0.2"
   }
 }

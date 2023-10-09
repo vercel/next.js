@@ -1,18 +1,17 @@
+// eslint-disable-next-line import/no-extraneous-dependencies
+import asyncRetry from 'async-retry'
+
 export async function retry<T>(
-  fn: () => Promise<T>,
-  attempts: number
-): Promise<T> {
-  let cnt = attempts
-  while (true) {
-    try {
-      return await fn()
-    } catch (err) {
-      cnt--
-      if (cnt <= 0) throw err
+  fn: asyncRetry.RetryFunction<T>,
+  retries: number
+) {
+  return await asyncRetry(fn, {
+    retries,
+    onRetry(e, attempt) {
       console.error(
-        (err as Error).message + `\n\nRetrying ${attempts - cnt}/3...`
+        (e as Error).message + `\n\nRetrying ${attempt}/${retries}...`
       )
-      await new Promise((resolve) => setTimeout(resolve, 100))
-    }
-  }
+    },
+    minTimeout: 100,
+  })
 }
