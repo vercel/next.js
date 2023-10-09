@@ -354,8 +354,6 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
 
 /// Loads a next.js template, replaces `replacements` and `injections` and makes
 /// sure there are none left over.
-// TODO: should this be a turbo tasks function?
-// #[turbo_tasks::function]
 pub async fn load_next_js_template(
     path: &str,
     project_path: Vc<FileSystemPath>,
