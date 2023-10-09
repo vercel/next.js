@@ -21,7 +21,7 @@ export async function createTodo(prevState: any, formData: FormData) {
     return { message: 'Failed to create todo' }
   }
 
-  const data = parse.data;
+  const data = parse.data
 
   try {
     await sql`
