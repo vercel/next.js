@@ -446,7 +446,7 @@ export async function handleAction({
         // When this happens, it could be a deployment skew where the action came
         // from a different deployment. We'll just return a 404 with a message logged.
         console.error(
-          'Failed to find Server Action "${actionId}". This request might be from an older or newer deployment.'
+          `Failed to find Server Action "${actionId}". This request might be from an older or newer deployment.`
         )
         return {
           type: 'not-found',
