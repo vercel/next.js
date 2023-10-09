@@ -141,7 +141,8 @@ describe('next.rs api', () => {
           'app/app/page.ts': appPageCode('hello world'),
           'app/app/client.ts':
             '"use client";\nexport default () => <div>hello world</div>',
-          // 'app/app-edge/page.ts': 'export default () => <div>hello world</div>\nexport const runtime = "edge"',
+          'app/app-edge/page.ts':
+            'export default () => <div>hello world</div>\nexport const runtime = "edge"',
           'app/app-nodejs/page.ts':
             'export default () => <div>hello world</div>',
           'app/route-nodejs/route.ts':
