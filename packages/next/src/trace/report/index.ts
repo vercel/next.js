@@ -1,4 +1,4 @@
-import { SpanId } from '../shared'
+import type { SpanId } from '../shared'
 import reportToTelemetry from './to-telemetry'
 import reportToJson from './to-json'
 

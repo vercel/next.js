@@ -36,7 +36,7 @@ import {
   COMPILER_NAMES,
   RSC_MODULE_TYPES,
 } from '../../shared/lib/constants'
-import { __ApiPreviewProps } from '../api-utils'
+import type { __ApiPreviewProps } from '../api-utils'
 import { getPathMatch } from '../../shared/lib/router/utils/path-match'
 import { findPageFile } from '../lib/find-page-file'
 import {
@@ -59,9 +59,10 @@ import { Span, trace } from '../../trace'
 import { getProperError } from '../../lib/is-error'
 import ws from 'next/dist/compiled/ws'
 import { existsSync, promises as fs } from 'fs'
-import { UnwrapPromise } from '../../lib/coalesced-function'
+import type { UnwrapPromise } from '../../lib/coalesced-function'
 import { getRegistry } from '../../lib/helpers/get-registry'
-import { parseVersionInfo, VersionInfo } from './parse-version-info'
+import { parseVersionInfo } from './parse-version-info'
+import type { VersionInfo } from './parse-version-info'
 import { isAPIRoute } from '../../lib/is-api-route'
 import { getRouteLoaderEntry } from '../../build/webpack/loaders/next-route-loader'
 import {
@@ -71,9 +72,9 @@ import {
 import { RouteKind } from '../future/route-kind'
 import {
   HMR_ACTIONS_SENT_TO_BROWSER,
-  HMR_ACTION_TYPES,
   type NextJsHotReloaderInterface,
 } from './hot-reloader-types'
+import type { HMR_ACTION_TYPES } from './hot-reloader-types'
 
 const MILLISECONDS_IN_NANOSECOND = 1_000_000
 

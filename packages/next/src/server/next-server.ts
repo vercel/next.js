@@ -7,8 +7,8 @@ import './node-polyfill-crypto'
 import '../lib/polyfill-promise-with-resolvers'
 
 import type { TLSSocket } from 'tls'
+import type { CacheFs } from '../shared/lib/utils'
 import {
-  CacheFs,
   DecodeError,
   PageNotFoundError,
   MiddlewareNotFoundError,
@@ -17,20 +17,18 @@ import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plu
 import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
 import type { PrerenderManifest } from '../build'
-import { BaseNextRequest, BaseNextResponse } from './base-http'
+import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { PayloadOptions } from './send-payload'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
-import {
-  getRouteMatcher,
-  Params,
-} from '../shared/lib/router/utils/route-matcher'
+import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
+import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { RouteMatch } from './future/route-matches/route-match'
 
 import fs from 'fs'
 import { join, resolve, isAbsolute } from 'path'
-import { IncomingMessage, ServerResponse } from 'http'
+import type { IncomingMessage, ServerResponse } from 'http'
 import type { PagesAPIRouteModule } from './future/route-modules/pages-api/module'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import {
@@ -47,28 +45,30 @@ import {
   INTERNAL_HEADERS,
 } from '../shared/lib/constants'
 import { findDir } from '../lib/find-pages-dir'
-import { UrlWithParsedQuery } from 'url'
+import type { UrlWithParsedQuery } from 'url'
 import { NodeNextRequest, NodeNextResponse } from './base-http/node'
 import { sendRenderResult } from './send-payload'
-import { ParsedUrlQuery } from 'querystring'
-import { ParsedUrl, parseUrl } from '../shared/lib/router/utils/parse-url'
+import type { ParsedUrlQuery } from 'querystring'
+import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
+import { parseUrl } from '../shared/lib/router/utils/parse-url'
 import * as Log from '../build/output/log'
 
-import BaseServer, {
+import type {
   Options,
   FindComponentsResult,
   MiddlewareRoutingItem,
-  NoFallbackError,
   RequestContext,
   NormalizedRouteManifest,
   LoadedRenderOpts,
 } from './base-server'
+import BaseServer, { NoFallbackError } from './base-server'
 import { getMaybePagePath, getPagePath, requireFontManifest } from './require'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
-import { LoadComponentsReturnType, loadComponents } from './load-components'
+import { loadComponents } from './load-components'
+import type { LoadComponentsReturnType } from './load-components'
 import isError, { getProperError } from '../lib/is-error'
-import { FontManifest } from './font-utils'
+import type { FontManifest } from './font-utils'
 import { splitCookiesString, toNodeOutgoingHttpHeaders } from './web/utils'
 import { getMiddlewareRouteMatcher } from '../shared/lib/router/utils/middleware-route-matcher'
 import { loadEnvConfig } from '@next/env'
@@ -83,11 +83,9 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
 import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 
-import {
-  PagesAPIRouteMatch,
-  isPagesAPIRouteMatch,
-} from './future/route-matches/pages-api-route-match'
-import { MatchOptions } from './future/route-matcher-managers/route-matcher-manager'
+import { isPagesAPIRouteMatch } from './future/route-matches/pages-api-route-match'
+import type { PagesAPIRouteMatch } from './future/route-matches/pages-api-route-match'
+import type { MatchOptions } from './future/route-matcher-managers/route-matcher-manager'
 import { INSTRUMENTATION_HOOK_FILENAME } from '../lib/constants'
 import { getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'

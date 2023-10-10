@@ -17,10 +17,10 @@ import {
   RSC_ACTION_CLIENT_WRAPPER_ALIAS,
   RSC_ACTION_VALIDATE_ALIAS,
   WEBPACK_RESOURCE_QUERIES,
-  WebpackLayerName,
 } from '../lib/constants'
+import type { WebpackLayerName } from '../lib/constants'
 import { isWebpackDefaultLayer, isWebpackServerLayer } from './utils'
-import { CustomRoutes } from '../lib/load-custom-routes.js'
+import type { CustomRoutes } from '../lib/load-custom-routes.js'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
@@ -32,10 +32,10 @@ import {
   REACT_LOADABLE_MANIFEST,
   SERVER_DIRECTORY,
   COMPILER_NAMES,
-  CompilerNameValues,
 } from '../shared/lib/constants'
+import type { CompilerNameValues } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
-import { NextConfigComplete } from '../server/config-shared'
+import type { NextConfigComplete } from '../server/config-shared'
 import { finalizeEntrypoint } from './entries'
 import * as Log from './output/log'
 import { buildConfiguration } from './webpack/config'
@@ -72,7 +72,7 @@ import { getBabelConfigFile } from './get-babel-config-file'
 import { defaultOverrides } from '../server/require-hook'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 import { getDefineEnvPlugin } from './webpack/plugins/define-env-plugin'
-import { SWCLoaderOptions } from './webpack/loaders/next-swc-loader'
+import type { SWCLoaderOptions } from './webpack/loaders/next-swc-loader'
 import { isResourceInPackages, makeExternalHandler } from './handle-externals'
 import {
   getMainField,
@@ -811,28 +811,41 @@ export default async function getBaseWebpackConfig(
             'next/dist/server': 'next/dist/esm/server',
 
             // Alias the usage of next public APIs
-            [`${NEXT_PROJECT_ROOT}/server`]:
+            [path.join(NEXT_PROJECT_ROOT, 'server')]:
               'next/dist/esm/server/web/exports/index',
-            [`${NEXT_PROJECT_ROOT}/dist/client/link`]:
+            [path.join(NEXT_PROJECT_ROOT_DIST, 'client', 'link')]:
               'next/dist/esm/client/link',
-            [`${NEXT_PROJECT_ROOT}/dist/shared/lib/image-external`]:
-              'next/dist/esm/shared/lib/image-external',
-            [`${NEXT_PROJECT_ROOT}/dist/client/script`]:
+            [path.join(
+              NEXT_PROJECT_ROOT,
+              'dist',
+              'shared',
+              'lib',
+              'image-external'
+            )]: 'next/dist/esm/shared/lib/image-external',
+            [path.join(NEXT_PROJECT_ROOT_DIST, 'client', 'script')]:
               'next/dist/esm/client/script',
-            [`${NEXT_PROJECT_ROOT}/dist/client/router`]:
+            [path.join(NEXT_PROJECT_ROOT_DIST, 'client', 'router')]:
               'next/dist/esm/client/router',
-            [`${NEXT_PROJECT_ROOT}/dist/shared/lib/head`]:
+            [path.join(NEXT_PROJECT_ROOT_DIST, 'shared', 'lib', 'head')]:
               'next/dist/esm/shared/lib/head',
-            [`${NEXT_PROJECT_ROOT}/dist/shared/lib/dynamic`]:
+            [path.join(NEXT_PROJECT_ROOT_DIST, 'shared', 'lib', 'dynamic')]:
               'next/dist/esm/shared/lib/dynamic',
-            [`${NEXT_PROJECT_ROOT}/dist/pages/_document`]:
+            [path.join(NEXT_PROJECT_ROOT_DIST, 'pages', '_document')]:
               'next/dist/esm/pages/_document',
-            [`${NEXT_PROJECT_ROOT}/dist/pages/_app`]:
+            [path.join(NEXT_PROJECT_ROOT_DIST, 'pages', '_app')]:
               'next/dist/esm/pages/_app',
-            [`${NEXT_PROJECT_ROOT}/dist/client/components/navigation`]:
-              'next/dist/esm/client/components/navigation',
-            [`${NEXT_PROJECT_ROOT}/dist/client/components/headers`]:
-              'next/dist/esm/client/components/headers',
+            [path.join(
+              NEXT_PROJECT_ROOT_DIST,
+              'client',
+              'components',
+              'navigation'
+            )]: 'next/dist/esm/client/components/navigation',
+            [path.join(
+              NEXT_PROJECT_ROOT_DIST,
+              'client',
+              'components',
+              'headers'
+            )]: 'next/dist/esm/client/components/headers',
           }
         : undefined),
 

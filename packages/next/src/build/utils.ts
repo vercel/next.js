@@ -50,10 +50,8 @@ import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import * as Log from './output/log'
-import {
-  loadComponents,
-  LoadComponentsReturnType,
-} from '../server/load-components'
+import { loadComponents } from '../server/load-components'
+import type { LoadComponentsReturnType } from '../server/load-components'
 import { trace } from '../trace'
 import { setHttpClientAndAgentOptions } from '../server/setup-http-agent-env'
 import { Sema } from 'next/dist/compiled/async-sema'
