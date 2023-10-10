@@ -1,6 +1,5 @@
 const path = require('path')
 const fs = require('fs/promises')
-const { existsSync } = require('fs')
 const exec = require('../util/exec')
 const logger = require('../util/logger')
 const execa = require('execa')
