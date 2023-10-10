@@ -806,21 +806,7 @@ impl AppEndpoint {
                     .try_flat_join()
                     .await?;
 
-                let server_path_value = server_path.await?;
-                let files_paths_from_server = files
-                    .await?
-                    .iter()
-                    .map(move |&file| {
-                        let server_path_value = server_path_value.clone();
-                        async move {
-                            Ok(server_path_value
-                                .get_path_to(&*file.ident().path().await?)
-                                .map(|path| path.to_string()))
-                        }
-                    })
-                    .try_flat_join()
-                    .await?;
-                let base_file = files_paths_from_server[0].to_string();
+                let entry_file = "app-edge-has-no-entrypoint".to_string();
 
                 // create middleware manifest
                 // TODO(alexkirsz) This should be shared with next build.
@@ -870,7 +856,7 @@ impl AppEndpoint {
                     ty,
                     &app_entry.pathname,
                     &app_entry.original_name,
-                    base_file,
+                    entry_file,
                 )?;
                 server_assets.push(app_paths_manifest_output);
 

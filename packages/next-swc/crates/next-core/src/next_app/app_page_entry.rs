@@ -9,7 +9,6 @@ use turbopack_binding::{
         core::{
             asset::{Asset, AssetContent},
             context::AssetContext,
-            module::Module,
             reference_type::ReferenceType,
             source::Source,
             virtual_source::VirtualSource,
@@ -24,7 +23,7 @@ use crate::{
     app_structure::LoaderTree,
     loader_tree::LoaderTreeModule,
     mode::NextMode,
-    next_app::{AppPage, AppPath},
+    next_app::{app_route_entry::wrap_edge_entry, AppPage, AppPath},
     next_server_component::NextServerComponentTransition,
     parse_segment_config_from_loader_tree,
     util::{file_content_rope, load_next_js_template, NextRuntime},
@@ -109,7 +108,7 @@ pub async fn get_app_page_entry(
     );
 
     if is_edge {
-        rsc_entry = wrap_edge_entry(context, project_root, rsc_entry).await?;
+        rsc_entry = wrap_edge_entry(context, project_root, rsc_entry, pathname.clone());
     };
 
     let Some(rsc_entry) =
@@ -125,32 +124,4 @@ pub async fn get_app_page_entry(
         config,
     }
     .cell())
-}
-
-async fn wrap_edge_entry(
-    context: Vc<ModuleAssetContext>,
-    project_root: Vc<FileSystemPath>,
-    entry: Vc<Box<dyn Module>>,
-) -> Result<Vc<Box<dyn Module>>> {
-    const INNER: &str = "INNER_RSC_ENTRY";
-
-    let source = load_next_js_template(
-        "edge-app-route.js",
-        project_root,
-        indexmap! {
-            "VAR_USERLAND" => INNER.to_string(),
-        },
-        indexmap! {},
-        indexmap! {},
-    )
-    .await?;
-
-    let inner_assets = indexmap! {
-        INNER.to_string() => entry
-    };
-
-    Ok(context.process(
-        Vc::upcast(source),
-        Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
-    ))
 }

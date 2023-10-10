@@ -885,7 +885,8 @@ async function startWatcher(opts: SetupOpts) {
       )
       const middlewareManifestPath = path.join(
         distDir,
-        'server/middleware-manifest.json'
+        'server',
+        MIDDLEWARE_MANIFEST
       )
       deleteCache(middlewareManifestPath)
       await writeFileAtomic(
@@ -1471,10 +1472,18 @@ async function startWatcher(opts: SetupOpts) {
                 }
               })
 
-              await loadAppBuildManifest(page)
-              await loadBuildManifest(page, 'app')
-              await loadAppPathManifest(page, 'app')
-              await loadActionManifest(page)
+              const type = writtenEndpoint?.type
+
+            if (type === 'edge') {
+              await loadMiddlewareManifest(page, 'app')
+            } else {
+              middlewareManifests.delete(page)
+            }
+
+            await loadAppBuildManifest(page)
+            await loadBuildManifest(page, 'app')
+            await loadAppPathManifest(page, 'app')
+            await loadActionManifest(page)
 
               await writeAppBuildManifest()
               await writeBuildManifest(opts.fsChecker.rewrites)
