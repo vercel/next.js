@@ -141,7 +141,8 @@ describe('next.rs api', () => {
           'app/app/page.ts': appPageCode('hello world'),
           'app/app/client.ts':
             '"use client";\nexport default () => <div>hello world</div>',
-          // 'app/app-edge/page.ts': 'export default () => <div>hello world</div>\nexport const runtime = "edge"',
+          'app/app-edge/page.ts':
+            'export default () => <div>hello world</div>\nexport const runtime = "edge"',
           'app/app-nodejs/page.ts':
             'export default () => <div>hello world</div>',
           'app/route-nodejs/route.ts':
@@ -204,8 +205,7 @@ describe('next.rs api', () => {
       '/api/edge',
       '/api/nodejs',
       '/app',
-      // TODO app edge pages are not supported yet
-      // '/app-edge',
+      '/app-edge',
       '/app-nodejs',
       '/page-edge',
       '/page-nodejs',
@@ -241,14 +241,13 @@ describe('next.rs api', () => {
       runtime: 'nodejs',
       config: {},
     },
-    // TODO app edge pages are not supported yet
-    // {
-    //   name: 'app edge page',
-    //   path: '/app-edge',
-    //   type: 'app-page',
-    //   runtime: 'edge',
-    //   config: {},
-    // },
+    {
+      name: 'app edge page',
+      path: '/app-edge',
+      type: 'app-page',
+      runtime: 'edge',
+      config: {},
+    },
     {
       name: 'app Node.js page',
       path: '/app-nodejs',

@@ -4,7 +4,11 @@ import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import type { ActionManifest } from './webpack/plugins/flight-client-entry-plugin'
-import type { ExportAppOptions, ExportAppWorker } from '../export/types'
+import type {
+  ExportAppOptions,
+  ExportAppWorker,
+  ExportPageInput,
+} from '../export/types'
 
 import '../lib/setup-exception-listeners'
 
@@ -1211,12 +1215,13 @@ export default async function build(
             | 'isPageStatic'
             | 'getDefinedNamedExports'
             | 'exportPage'
-          >
+          >,
+          [ExportPageInput]
         >(staticWorkerPath, {
           timeout: timeout * 1000,
           onRestart: (method, [arg], attempts) => {
             if (method === 'exportPage') {
-              const { path: pagePath } = arg
+              const pagePath = arg.path
               if (attempts >= 3) {
                 throw new Error(
                   `Static page generation for ${pagePath} is still timing out after 3 attempts. See more info here https://nextjs.org/docs/messages/static-page-generation-timeout`
@@ -1226,7 +1231,7 @@ export default async function build(
                 `Restarted static page generation for ${pagePath} because it took more than ${timeout} seconds`
               )
             } else {
-              const pagePath = arg
+              const pagePath = arg.path
               if (attempts >= 2) {
                 throw new Error(
                   `Collecting page data for ${pagePath} is still timing out after 2 attempts. See more info here https://nextjs.org/docs/messages/page-data-collection-timeout`
