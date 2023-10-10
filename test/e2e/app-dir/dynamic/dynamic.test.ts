@@ -6,7 +6,7 @@ createNextDescribe(
     files: __dirname,
     skipDeployment: true,
   },
-  ({ next }) => {
+  ({ next, isNextStart }) => {
     it('should handle ssr: false in pages when appDir is enabled', async () => {
       const $ = await next.render$('/legacy/no-ssr')
       expect($.html()).not.toContain('navigator')
@@ -57,5 +57,15 @@ createNextDescribe(
       const $ = await next.render$('/chunk-loading/server')
       expect($('h1').text()).toBe('hello')
     })
+
+    if (isNextStart) {
+      it('should not contain ssr:false module in edge server bundle', async () => {
+        const edgeServerChunk = await next.readFile(
+          '.next/server/app/dynamic-edge/page.js'
+        )
+        expect(edgeServerChunk).toContain('ssr-false-server-module-text')
+        expect(edgeServerChunk).not.toContain('ssr-false-client-module-text')
+      })
+    }
   }
 )
