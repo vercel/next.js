@@ -36,6 +36,9 @@ createNextDescribe(
       await browser.waitForElementByCss('#_next-gtm')
       await waitFor(1000)
 
+      const gtmInlineScript = await browser.elementsByCss('#_next-gtm-init')
+      expect(gtmInlineScript.length).toBe(1)
+
       const gtmScript = await browser.elementsByCss(
         '[src^="https://www.googletagmanager.com/gtm.js?id=GTM-XYZ"]'
       )
