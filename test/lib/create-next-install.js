@@ -103,7 +103,7 @@ async function createNextInstall({
 
         await rootSpan
           .traceChild(`copy package.json to temp dir`)
-          .traceAsyncFn(async () =>
+          .traceAsyncFn(() =>
             fs.cp(
               path.join(origRepoDir, 'package.json'),
               path.join(tmpRepoDir, 'package.json')
@@ -127,10 +127,14 @@ async function createNextInstall({
                     !/next-swc[\\/]target/.test(item)
                 )
                 .map((item) =>
-                  fs.cp(path.join(dir, item), path.join(tmpRepoDir, item), {
-                    recursive: true,
-                    force: true,
-                  })
+                  fs.cp(
+                    path.join(dir, item),
+                    path.join(tmpRepoDir, 'packages', item),
+                    {
+                      recursive: true,
+                      force: true,
+                    }
+                  )
                 )
             )
           })
