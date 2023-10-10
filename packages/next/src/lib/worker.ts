@@ -17,28 +17,31 @@ const cleanupWorkers = (worker: JestWorker) => {
   }
 }
 
-type Options<T extends object = object> = FarmOptions & {
+type Options<
+  T extends object = object,
+  Args extends any[] = any[]
+> = FarmOptions & {
   timeout?: number
-  onRestart?: (method: string, args: any[], attempts: number) => void
+  onRestart?: (method: string, args: Args, attempts: number) => void
   exposedMethods: ReadonlyArray<keyof T>
   enableWorkerThreads?: boolean
 }
 
-export class Worker<T extends object = object> {
+export class Worker<T extends object = object, Args extends any[] = any[]> {
   private _worker?: JestWorker
 
   /**
    * Creates a new worker with the correct typings associated with the selected
    * methods.
    */
-  public static create<T extends object>(
+  public static create<T extends object, Args extends any[] = any[]>(
     workerPath: string,
-    options: Options<T>
-  ): Worker<T> & T {
-    return new Worker(workerPath, options) as Worker<T> & T
+    options: Options<T, Args>
+  ): Worker<T, Args> & T {
+    return new Worker(workerPath, options) as Worker<T, Args> & T
   }
 
-  constructor(workerPath: string, options: Options<T>) {
+  constructor(workerPath: string, options: Options<T, Args>) {
     let { timeout, onRestart, ...farmOptions } = options
 
     let restartPromise: Promise<typeof RESTARTED>
@@ -133,7 +136,7 @@ export class Worker<T extends object = object> {
       <M extends (...args: unknown[]) => Promise<unknown> | unknown>(
         method: M
       ) =>
-      async (...args: Parameters<M>) => {
+      async (...args: Args) => {
         activeTasks++
 
         try {

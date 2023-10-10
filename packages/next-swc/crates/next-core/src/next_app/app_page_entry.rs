@@ -9,6 +9,7 @@ use turbopack_binding::{
         core::{
             asset::{Asset, AssetContent},
             context::AssetContext,
+            module::Module,
             reference_type::ReferenceType,
             source::Source,
             virtual_source::VirtualSource,
@@ -101,14 +102,14 @@ pub async fn get_app_page_entry(
     let file = File::from(result.build());
     let source = VirtualSource::new(source.ident().path(), AssetContent::file(file.into()));
 
-    let rsc_entry = context.process(
+    let mut rsc_entry = context.process(
         Vc::upcast(source),
         Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
     );
 
     if is_edge {
-        todo!("edge pages are not supported yet")
-    }
+        rsc_entry = wrap_edge_entry(context, project_root, rsc_entry).await?;
+    };
 
     let Some(rsc_entry) =
         Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(rsc_entry).await?
@@ -123,4 +124,31 @@ pub async fn get_app_page_entry(
         config,
     }
     .cell())
+}
+
+async fn wrap_edge_entry(
+    context: Vc<ModuleAssetContext>,
+    project_root: Vc<FileSystemPath>,
+    entry: Vc<Box<dyn Module>>,
+) -> Result<Vc<Box<dyn Module>>> {
+    const INNER: &str = "INNER_RSC_ENTRY";
+
+    let source = load_next_js_template(
+        "edge-app-route.js",
+        project_root,
+        indexmap! {
+            "VAR_USERLAND" => INNER.to_string(),
+        },
+        indexmap! {},
+    )
+    .await?;
+
+    let inner_assets = indexmap! {
+        INNER.to_string() => entry
+    };
+
+    Ok(context.process(
+        Vc::upcast(source),
+        Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+    ))
 }
