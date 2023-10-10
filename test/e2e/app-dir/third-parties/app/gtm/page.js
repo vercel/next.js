@@ -1,5 +1,8 @@
 'use client'
-import GoogleTagManager, {
+
+import React from 'react'
+import {
+  GoogleTagManager,
   useGoogleTagManager,
 } from '@next/third-parties/google'
 
@@ -17,6 +20,7 @@ const Page = () => {
       <button id="gtm-send" onClick={onClick}>
         Click
       </button>
+      <GoogleTagManager gtmId="GTM-XYZ" />
     </div>
   )
 }
