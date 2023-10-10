@@ -90,11 +90,12 @@ Create an `app/` folder, then add a `layout.tsx` and `page.tsx` file. These will
 Create a [root layout](/docs/app/building-your-application/routing/pages-and-layouts#root-layout-required) inside `app/layout.tsx` with the required `<html>` and `<body>` tags:
 
 ```tsx filename="app/layout.tsx" switcher
+export interface RootLayoutProps {
+  children: React.ReactNode;
+}
 export default function RootLayout({
   children,
-}: {
-  children: React.ReactNode
-}) {
+}: RootLayoutProps) {
   return (
     <html lang="en">
       <body>{children}</body>
