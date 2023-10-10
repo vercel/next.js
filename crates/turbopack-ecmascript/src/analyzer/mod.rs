@@ -1370,6 +1370,10 @@ impl JsValue {
                         "process",
                         "The Node.js process module: https://nodejs.org/api/process.html",
                     ),
+                    WellKnownObjectKind::NodeProcessArgv => (
+                        "process.argv",
+                        "The Node.js process.argv property: https://nodejs.org/api/process.html#processargv",
+                    ),
                     WellKnownObjectKind::NodeProcessEnv => (
                         "process.env",
                         "The Node.js process.env property: https://nodejs.org/api/process.html#processenv",
@@ -2960,6 +2964,7 @@ pub enum WellKnownObjectKind {
     OsModule,
     OsModuleDefault,
     NodeProcess,
+    NodeProcessArgv,
     NodeProcessEnv,
     NodePreGyp,
     NodeExpressApp,
@@ -2978,6 +2983,7 @@ impl WellKnownObjectKind {
             Self::ChildProcess => Some(&["child_process"]),
             Self::OsModule => Some(&["os"]),
             Self::NodeProcess => Some(&["process"]),
+            Self::NodeProcessArgv => Some(&["process", "argv"]),
             Self::NodeProcessEnv => Some(&["process", "env"]),
             Self::NodeBuffer => Some(&["Buffer"]),
             Self::RequireCache => Some(&["require", "cache"]),

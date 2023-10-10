@@ -666,6 +666,7 @@ pub fn child_process_module_member(kind: WellKnownObjectKind, prop: JsValue) -> 
         (WellKnownObjectKind::ChildProcess, Some("default")) => {
             JsValue::WellKnownObject(WellKnownObjectKind::ChildProcessDefault)
         }
+
         _ => JsValue::unknown(
             JsValue::member(
                 Box::new(JsValue::WellKnownObject(WellKnownObjectKind::ChildProcess)),
@@ -714,6 +715,7 @@ async fn node_process_member(
             .as_str()
             .into(),
         Some("cwd") => JsValue::WellKnownFunction(WellKnownFunctionKind::ProcessCwd),
+        Some("argv") => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessArgv),
         Some("env") => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessEnv),
         _ => JsValue::unknown(
             JsValue::member(

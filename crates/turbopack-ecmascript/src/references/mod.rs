@@ -27,6 +27,7 @@ use constant_condition::{ConstantCondition, ConstantConditionValue};
 use constant_value::ConstantValue;
 use indexmap::IndexSet;
 use lazy_static::lazy_static;
+use num_traits::Zero;
 use parking_lot::Mutex;
 use regex::Regex;
 use swc_core::{
@@ -88,7 +89,8 @@ use super::{
         graph::{create_graph, Effect},
         linker::link,
         well_known::replace_well_known,
-        JsValue, ObjectPart, WellKnownFunctionKind, WellKnownObjectKind,
+        ConstantValue as JsConstantValue, JsValue, ObjectPart, WellKnownFunctionKind,
+        WellKnownObjectKind,
     },
     errors,
     parse::{parse, ParseResult},
@@ -108,7 +110,7 @@ use crate::{
         imports::{ImportedSymbol, Reexport},
         parse_require_context,
         top_level_await::has_top_level_await,
-        ModuleValue, RequireContextValue,
+        ConstantNumber, ConstantString, ModuleValue, RequireContextValue,
     },
     chunk::EcmascriptExports,
     code_gen::{
@@ -1323,6 +1325,12 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
         }
         JsValue::WellKnownFunction(WellKnownFunctionKind::ChildProcessSpawnMethod(name)) => {
             let args = linked_args(args).await?;
+
+            // Is this specifically `spawn(process.argv[0], ['-e', ...])`?
+            if is_invoking_node_process_eval(&args) {
+                return Ok(());
+            }
+
             if !args.is_empty() {
                 let mut show_dynamic_warning = false;
                 let pat = js_value_to_pattern(&args[0]);
@@ -2714,4 +2722,50 @@ fn detect_dynamic_export(p: &Program) -> DetectedDynamicExportType {
     } else {
         DetectedDynamicExportType::None
     }
+}
+
+/// Detects whether a list of arguments is specifically
+/// `(process.argv[0], ['-e', ...])`. This is useful for detecting if a node
+/// process is being spawned to interpret a string of JavaScript code, and does
+/// not require static analysis.
+fn is_invoking_node_process_eval(args: &[JsValue]) -> bool {
+    if args.len() < 2 {
+        return false;
+    }
+
+    if let JsValue::Member(_, obj, constant) = &args[0] {
+        // Is the first argument to spawn `process.argv[]`?
+        if let (
+            box JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessArgv),
+            box JsValue::Constant(JsConstantValue::Num(ConstantNumber(num))),
+        ) = (obj, constant)
+        {
+            // Is it specifically `process.argv[0]`?
+            if num.is_zero() {
+                if let JsValue::Array {
+                    total_nodes: _,
+                    items,
+                    mutable: _,
+                } = &args[1]
+                {
+                    // Is `-e` one of the arguments passed to the program?
+                    if items.iter().any(|e| {
+                        if let JsValue::Constant(JsConstantValue::Str(ConstantString::Word(arg))) =
+                            e
+                        {
+                            arg == "-e"
+                        } else {
+                            false
+                        }
+                    }) {
+                        // If so, this is likely spawning node to evaluate a string, and
+                        // does not need to be statically analyzed.
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+
+    false
 }
