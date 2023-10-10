@@ -1,4 +1,7 @@
-import { COMPILER_NAMES, CompilerNameValues } from '../../shared/lib/constants'
+import {
+  COMPILER_NAMES,
+  type CompilerNameValues,
+} from '../../shared/lib/constants'
 
 // exports.<conditionName>
 export const edgeConditionNames = [
