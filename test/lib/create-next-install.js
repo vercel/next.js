@@ -104,24 +104,28 @@ async function createNextInstall({
         for (const item of ['package.json', 'packages']) {
           await rootSpan
             .traceChild(`copy ${item} to temp dir`)
-            .traceAsyncFn(() =>
-              fs.copy(
-                path.join(origRepoDir, item),
-                path.join(tmpRepoDir, item),
-                {
-                  filter: (item) => {
-                    return (
+            .traceAsyncFn(async () => {
+              let dir = path.join(origRepoDir, item)
+              let items = await fs.readdir(dir)
+              await Promise.all(
+                items
+                  .filter(
+                    (item) =>
                       !item.includes('node_modules') &&
                       !item.includes('pnpm-lock.yaml') &&
                       !item.includes('.DS_Store') &&
                       // Exclude Rust compilation files
                       !/next[\\/]build[\\/]swc[\\/]target/.test(item) &&
                       !/next-swc[\\/]target/.test(item)
-                    )
-                  },
-                }
+                  )
+                  .map((item) =>
+                    fs.cp(path.join(dir, item), path.join(tmpRepoDir, item), {
+                      recursive: true,
+                      force: true,
+                    })
+                  )
               )
-            )
+            })
         }
 
         pkgPaths = await rootSpan.traceChild('linkPackages').traceAsyncFn(() =>
@@ -146,7 +150,7 @@ async function createNextInstall({
         }
       }
 
-      await fs.ensureDir(installDir)
+      await fs.mkdir(installDir, { recursive: true })
       await fs.writeFile(
         path.join(installDir, 'package.json'),
         JSON.stringify(
