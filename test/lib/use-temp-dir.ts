@@ -24,7 +24,14 @@ export async function useTempDir(
     await fn(folder)
   } finally {
     if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
-      await fs.rm(folder, { recursive: true, force: true })
+      await fs.rm(folder, {
+        recursive: true,
+        force: true,
+        // It seems like there's a timing issue where `.next` is still written
+        // to (possibly by a prior test) while this removal happens. Retry for now.
+        // TODO: Fix this.
+        maxRetries: 3,
+      })
     }
   }
 }
