@@ -1,5 +1,3 @@
-import path from 'path'
-import fs from 'fs/promises'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
   PAGES_MANIFEST,
@@ -22,28 +20,24 @@ export default class PagesManifestPlugin
   implements webpack.WebpackPluginInstance
 {
   dev: boolean
-  distDir?: string
   isEdgeRuntime: boolean
   appDirEnabled: boolean
 
   constructor({
     dev,
-    distDir,
     isEdgeRuntime,
     appDirEnabled,
   }: {
     dev: boolean
-    distDir?: string
     isEdgeRuntime: boolean
     appDirEnabled: boolean
   }) {
     this.dev = dev
-    this.distDir = distDir
     this.isEdgeRuntime = isEdgeRuntime
     this.appDirEnabled = appDirEnabled
   }
 
-  async createAssets(compilation: any, assets: any) {
+  createAssets(compilation: any, assets: any) {
     const entrypoints = compilation.entrypoints
     const pages: PagesManifest = {}
     const appPaths: PagesManifest = {}
@@ -98,91 +92,45 @@ export default class PagesManifestPlugin
       nodeServerAppPaths = appPaths
     }
 
-    // handle parallel compilers writing to the same
-    // manifest path by merging existing manifest with new
-    const writeMergedManifest = async (
-      manifestPath: string,
-      entries: Record<string, string>
-    ) => {
-      await fs.mkdir(path.dirname(manifestPath), { recursive: true })
-      await fs.writeFile(
-        manifestPath,
-        JSON.stringify(
-          {
-            ...(await fs
-              .readFile(manifestPath, 'utf8')
-              .then((res) => JSON.parse(res))
-              .catch(() => ({}))),
-            ...entries,
-          },
-          null,
-          2
-        )
+    assets[
+      `${!this.dev && !this.isEdgeRuntime ? '../' : ''}` + PAGES_MANIFEST
+    ] = new sources.RawSource(
+      JSON.stringify(
+        {
+          ...edgeServerPages,
+          ...nodeServerPages,
+        },
+        null,
+        2
       )
-    }
+    )
 
-    if (this.distDir) {
-      const pagesManifestPath = path.join(
-        this.distDir,
-        'server',
-        PAGES_MANIFEST
-      )
-      await writeMergedManifest(pagesManifestPath, {
-        ...edgeServerPages,
-        ...nodeServerPages,
-      })
-    } else {
+    if (this.appDirEnabled) {
       assets[
-        `${!this.dev && !this.isEdgeRuntime ? '../' : ''}` + PAGES_MANIFEST
+        `${!this.dev && !this.isEdgeRuntime ? '../' : ''}` + APP_PATHS_MANIFEST
       ] = new sources.RawSource(
         JSON.stringify(
           {
-            ...edgeServerPages,
-            ...nodeServerPages,
+            ...edgeServerAppPaths,
+            ...nodeServerAppPaths,
           },
           null,
           2
         )
       )
-    }
-
-    if (this.appDirEnabled) {
-      if (this.distDir) {
-        const appPathsManifestPath = path.join(
-          this.distDir,
-          'server',
-          APP_PATHS_MANIFEST
-        )
-        await writeMergedManifest(appPathsManifestPath, {
-          ...edgeServerAppPaths,
-          ...nodeServerAppPaths,
-        })
-      } else {
-        assets[
-          `${!this.dev && !this.isEdgeRuntime ? '../' : ''}` +
-            APP_PATHS_MANIFEST
-        ] = new sources.RawSource(
-          JSON.stringify(
-            {
-              ...edgeServerAppPaths,
-              ...nodeServerAppPaths,
-            },
-            null,
-            2
-          )
-        )
-      }
     }
   }
 
   apply(compiler: webpack.Compiler): void {
     compiler.hooks.make.tap('NextJsPagesManifest', (compilation) => {
-      compilation.hooks.processAssets.tapPromise(
+      compilation.hooks.processAssets.tap(
         {
           name: 'NextJsPagesManifest',
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
-        (assets) => this.createAssets(compilation, assets)
+        (assets: any) => {
+          this.createAssets(compilation, assets)
+        }
       )
     })
   }

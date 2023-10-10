@@ -9,29 +9,7 @@ import path from 'path'
 
 const debug = origDebug('next:build:webpack-build')
 
-const ORDERED_COMPILER_NAMES = [
-  'server',
-  'edge-server',
-  'client',
-] as (keyof typeof COMPILER_INDEXES)[]
-
-let pluginState: Record<any, any> = {}
-
-function deepMerge(target: any, source: any) {
-  const result = { ...target, ...source }
-  for (const key of Object.keys(result)) {
-    result[key] = Array.isArray(target[key])
-      ? (target[key] = [...target[key], ...(source[key] || [])])
-      : typeof target[key] == 'object' && typeof source[key] == 'object'
-      ? deepMerge(target[key], source[key])
-      : result[key]
-  }
-  return result
-}
-
-async function webpackBuildWithWorker(
-  compilerNames: typeof ORDERED_COMPILER_NAMES = ORDERED_COMPILER_NAMES
-) {
+async function webpackBuildWithWorker() {
   const {
     config,
     telemetryPlugin,
@@ -39,8 +17,6 @@ async function webpackBuildWithWorker(
     nextBuildSpan,
     ...prunedBuildContext
   } = NextBuildContext
-
-  prunedBuildContext.pluginState = pluginState
 
   const getWorker = (compilerName: string) => {
     const _worker = new Worker(path.join(__dirname, 'impl.js'), {
@@ -61,7 +37,7 @@ async function webpackBuildWithWorker(
       _child: ChildProcess
     }[]) {
       worker._child.on('exit', (code, signal) => {
-        if (code || (signal && signal !== 'SIGINT')) {
+        if (code || signal) {
           console.error(
             `Compiler ${compilerName} unexpectedly exited with code: ${code} and signal: ${signal}`
           )
@@ -76,8 +52,14 @@ async function webpackBuildWithWorker(
     duration: 0,
     buildTraceContext: {} as BuildTraceContext,
   }
+  // order matters here
+  const ORDERED_COMPILER_NAMES = [
+    'server',
+    'edge-server',
+    'client',
+  ] as (keyof typeof COMPILER_INDEXES)[]
 
-  for (const compilerName of compilerNames) {
+  for (const compilerName of ORDERED_COMPILER_NAMES) {
     const worker = getWorker(compilerName)
 
     const curResult = await worker.workerMain({
@@ -88,8 +70,18 @@ async function webpackBuildWithWorker(
     await worker.end()
 
     // Update plugin state
-    pluginState = deepMerge(pluginState, curResult.pluginState)
-    prunedBuildContext.pluginState = pluginState
+    prunedBuildContext.pluginState = curResult.pluginState
+
+    prunedBuildContext.serializedPagesManifestEntries = {
+      edgeServerAppPaths:
+        curResult.serializedPagesManifestEntries?.edgeServerAppPaths,
+      edgeServerPages:
+        curResult.serializedPagesManifestEntries?.edgeServerPages,
+      nodeServerAppPaths:
+        curResult.serializedPagesManifestEntries?.nodeServerAppPaths,
+      nodeServerPages:
+        curResult.serializedPagesManifestEntries?.nodeServerPages,
+    }
 
     combinedResult.duration += curResult.duration
 
@@ -99,8 +91,9 @@ async function webpackBuildWithWorker(
       if (entryNameMap) {
         combinedResult.buildTraceContext.entriesTrace =
           curResult.buildTraceContext.entriesTrace
-        combinedResult.buildTraceContext.entriesTrace!.entryNameMap =
+        combinedResult.buildTraceContext.entriesTrace!.entryNameMap = new Map(
           entryNameMap
+        )
       }
 
       if (curResult.buildTraceContext?.chunksTrace) {
@@ -111,28 +104,23 @@ async function webpackBuildWithWorker(
             curResult.buildTraceContext.chunksTrace!
 
           combinedResult.buildTraceContext.chunksTrace!.entryNameFilesMap =
-            entryNameFilesMap
+            new Map(entryNameFilesMap)
         }
       }
     }
   }
-
-  if (compilerNames.length === 3) {
-    buildSpinner?.stopAndPersist()
-    Log.event('Compiled successfully')
-  }
+  buildSpinner?.stopAndPersist()
+  Log.event('Compiled successfully')
 
   return combinedResult
 }
 
-export async function webpackBuild(
-  compilerNames?: typeof ORDERED_COMPILER_NAMES
-) {
+export async function webpackBuild() {
   const config = NextBuildContext.config!
 
   if (config.experimental.webpackBuildWorker) {
     debug('using separate compiler workers')
-    return await webpackBuildWithWorker(compilerNames)
+    return await webpackBuildWithWorker()
   } else {
     debug('building all compilers in same process')
     const webpackBuildImpl = require('./impl').webpackBuildImpl

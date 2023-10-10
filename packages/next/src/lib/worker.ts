@@ -89,7 +89,7 @@ export class Worker<T extends object = object, Args extends any[] = any[]> {
 
           poolWorker._child.once('exit', (code, signal) => {
             // log unexpected exit if .end() wasn't called
-            if ((code || (signal && signal !== 'SIGINT')) && this._worker) {
+            if ((code || signal) && this._worker) {
               console.error(
                 `Static worker unexpectedly exited with code: ${code} and signal: ${signal}`
               )

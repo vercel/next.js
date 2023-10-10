@@ -118,12 +118,12 @@ export interface BuildTraceContext {
     appDir: string
     outputPath: string
     depModArray: string[]
-    entryNameMap: Record<string, string>
+    entryNameMap: Map<string, string>
   }
   chunksTrace?: {
     action: TurbotraceAction
     outputPath: string
-    entryNameFilesMap: Record<string, Array<string>>
+    entryNameFilesMap: Map<string, Array<string>>
   }
 }
 
@@ -222,7 +222,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
           logLevel: this.turbotrace?.logLevel,
         },
         outputPath,
-        entryNameFilesMap: Object.fromEntries(entryNameFilesMap),
+        entryNameFilesMap,
       }
 
       for (const [entrypoint, entryFiles] of entryFilesMap) {
@@ -434,7 +434,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
               },
               appDir: this.rootDir,
               depModArray: Array.from(depModMap.keys()),
-              entryNameMap: Object.fromEntries(entryNameMap),
+              entryNameMap,
               outputPath: compilation.outputOptions.path!,
             }
 

@@ -1053,72 +1053,20 @@ export default async function build(
         return { duration, buildTraceContext: null }
       }
       let buildTraceContext: undefined | BuildTraceContext
-      let buildTracesPromise: Promise<any> | undefined = undefined
 
       if (!isGenerate) {
-        if (isCompile && config.experimental.webpackBuildWorker) {
-          let durationInSeconds = 0
+        const { duration: webpackBuildDuration, ...rest } = turboNextBuild
+          ? await turbopackBuild()
+          : await webpackBuild()
 
-          await webpackBuild(['server']).then((res) => {
-            buildTraceContext = res.buildTraceContext
-            durationInSeconds += res.duration
-            const buildTraceWorker = new Worker(
-              require.resolve('./collect-build-traces'),
-              {
-                numWorkers: 1,
-                exposedMethods: ['collectBuildTraces'],
-              }
-            ) as Worker & typeof import('./collect-build-traces')
+        buildTraceContext = rest.buildTraceContext
 
-            buildTracesPromise = buildTraceWorker
-              .collectBuildTraces({
-                dir,
-                config,
-                distDir,
-                pageKeys,
-                pageInfos: [],
-                staticPages: [],
-                hasSsrAmpPages: false,
-                buildTraceContext,
-                outputFileTracingRoot,
-              })
-              .catch((err) => {
-                console.error(err)
-                process.exit(1)
-              })
+        telemetry.record(
+          eventBuildCompleted(pagesPaths, {
+            durationInSeconds: webpackBuildDuration,
+            totalAppPagesCount,
           })
-
-          await webpackBuild(['edge-server']).then((res) => {
-            durationInSeconds += res.duration
-          })
-
-          await webpackBuild(['client']).then((res) => {
-            durationInSeconds += res.duration
-          })
-
-          buildSpinner?.stopAndPersist()
-          Log.event('Compiled successfully')
-
-          telemetry.record(
-            eventBuildCompleted(pagesPaths, {
-              durationInSeconds,
-              totalAppPagesCount,
-            })
-          )
-        } else {
-          const { duration: webpackBuildDuration, ...rest } = turboNextBuild
-            ? await turbopackBuild()
-            : await webpackBuild()
-
-          buildTraceContext = rest.buildTraceContext
-
-          telemetry.record(
-            eventBuildCompleted(pagesPaths, {
-              durationInSeconds: webpackBuildDuration,
-              totalAppPagesCount,
-            })
-          )
-        }
+        )
       }
 
       // For app directory, we run type checking after build.
@@ -1852,14 +1800,16 @@ export default async function build(
         )
       }
 
-      if (!isGenerate && config.outputFileTracing && !buildTracesPromise) {
+      let buildTracesPromise: Promise<any> | undefined = undefined
+
+      if (!isGenerate && config.outputFileTracing) {
         buildTracesPromise = collectBuildTraces({
           dir,
           config,
           distDir,
           pageKeys,
-          pageInfos: Object.entries(pageInfos),
-          staticPages: [...staticPages],
+          pageInfos,
+          staticPages,
           nextBuildSpan,
           hasSsrAmpPages,
           buildTraceContext,
