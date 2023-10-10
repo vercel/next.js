@@ -1,5 +1,6 @@
 const path = require('path')
 const fs = require('fs/promises')
+const { existsSync } = require('fs')
 const exec = require('../util/exec')
 const logger = require('../util/logger')
 const execa = require('execa')
@@ -84,7 +85,7 @@ module.exports = (actionInfo) => {
           const packedPkgPath = path.join(pkgPath, `${pkg}-packed.tgz`)
 
           const pkgDataPath = path.join(pkgPath, 'package.json')
-          if (fs.existsSync(pkgDataPath)) {
+          if (existsSync(pkgDataPath)) {
             const pkgData = JSON.parse(await fs.readFile(pkgDataPath))
             const { name } = pkgData
 
