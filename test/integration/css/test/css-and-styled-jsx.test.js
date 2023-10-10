@@ -46,7 +46,12 @@ describe('Ordering with styled-jsx (prod)', () => {
     let stdout
     let code
     beforeAll(async () => {
-      await rmrf(join(appDir, '.next'))
+      await rmrf(join(appDir, '.next'), {
+        // It seems like there's a timing issue where `.next` is still written
+        // to (possibly by a prior test) while this removal happens. Retry for now.
+        // TODO: Fix this.
+        maxRetries: 3,
+      })
       ;({ code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       }))
