@@ -9,7 +9,6 @@ const { promisify } = require('util')
 const { Sema } = require('async-sema')
 const { spawn, exec: execOrig } = require('child_process')
 const { createNextInstall } = require('./test/lib/create-next-install')
-const { rmrf } = require('./test/lib/next-test-utils')
 const fileExists = require('next/dist/lib/file-exists')
 const glob = promisify(_glob)
 const exec = promisify(execOrig)
@@ -78,10 +77,13 @@ const configuredTestTypes = Object.values(testFilters)
 
 const cleanUpAndExit = async (code) => {
   if (process.env.NEXT_TEST_STARTER) {
-    await rmrf(process.env.NEXT_TEST_STARTER)
+    await fs.rm(process.env.NEXT_TEST_STARTER, { recursive: true, force: true })
   }
   if (process.env.NEXT_TEST_TEMP_REPO) {
-    await rmrf(process.env.NEXT_TEST_TEMP_REPO)
+    await fs.rm(process.env.NEXT_TEST_TEMP_REPO, {
+      recursive: true,
+      force: true,
+    })
   }
   console.log(`exiting with code ${code}`)
 
@@ -496,15 +498,18 @@ ${ENDGROUP}`)
 
           return reject(err)
         }
-        await rmrf(
-          path.join(
-            __dirname,
-            'test/traces',
-            path
-              .relative(path.join(__dirname, 'test'), test.file)
-              .replace(/\//g, '-')
+        await fs
+          .rm(
+            path.join(
+              __dirname,
+              'test/traces',
+              path
+                .relative(path.join(__dirname, 'test'), test.file)
+                .replace(/\//g, '-')
+            ),
+            { recursive: true, force: true }
           )
-        ).catch(() => {})
+          .catch(() => {})
         resolve(new Date().getTime() - start)
       })
     })
