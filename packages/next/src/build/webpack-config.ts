@@ -811,7 +811,7 @@ export default async function getBaseWebpackConfig(
     ],
     alias: {
       // Alias 3rd party @vercel/og package to vendored og image package to reduce bundle size
-      '@vercel/og': 'next/dist/server/web/spec-extension/image-response',
+      '@vercel/og': 'next/dist/server/og/image-response',
 
       // Alias next/dist imports to next/dist/esm assets,
       // let this alias hit before `next` alias.
@@ -827,6 +827,8 @@ export default async function getBaseWebpackConfig(
             // Alias the usage of next public APIs
             [path.join(NEXT_PROJECT_ROOT, 'server')]:
               'next/dist/esm/server/web/exports/index',
+            [path.join(NEXT_PROJECT_ROOT, 'og')]:
+              'next/dist/esm/server/og/image-response',
             [path.join(NEXT_PROJECT_ROOT_DIST, 'client', 'link')]:
               'next/dist/esm/client/link',
             [path.join(
