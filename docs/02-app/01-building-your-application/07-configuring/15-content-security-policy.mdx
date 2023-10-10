@@ -53,22 +53,18 @@ export function middleware(request: NextRequest) {
     frame-ancestors 'none';
     block-all-mixed-content;
     upgrade-insecure-requests;
-`
+`.replace(/\s{2,}/g, ' ').trim() // Replace newline characters and spaces
 
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-nonce', nonce)
-  requestHeaders.set(
-    'Content-Security-Policy',
-    // Replace newline characters and spaces
-    cspHeader.replace(/\s{2,}/g, ' ').trim()
-  )
+  requestHeaders.set('Content-Security-Policy', cspHeader)
 
-  return NextResponse.next({
-    headers: requestHeaders,
-    request: {
-      headers: requestHeaders,
-    },
-  })
+  // Create response and set request headers
+  const response = NextResponse.next({ request: { headers: requestHeaders } })
+  // Now update the response headers
+  response.headers.set("content-security-policy", contentSecurityPolicy)
+
+  return response
 }
 ```
 
