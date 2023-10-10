@@ -100,7 +100,7 @@ impl<T> std::hash::Hash for TransientInstance<T> {
 
 impl<T> PartialOrd for TransientInstance<T> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.inner.partial_cmp(&other.inner)
+        Some(self.cmp(other))
     }
 }
 

@@ -230,7 +230,7 @@ where
     T: ?Sized + Send,
 {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.node.partial_cmp(&other.node)
+        Some(self.cmp(other))
     }
 }
 

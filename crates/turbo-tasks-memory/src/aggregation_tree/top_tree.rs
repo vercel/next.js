@@ -111,7 +111,7 @@ impl<T> TopTree<T> {
     ) {
         let mut state = self.state.lock();
         let change = aggregation_context.apply_change(&mut state.data, change);
-        propagate_change_to_upper(&mut state, aggregation_context, change);
+        propagate_change_to_upper(&state, aggregation_context, change);
     }
 
     pub fn get_root_info<C: AggregationContext<Info = T>>(
@@ -147,7 +147,7 @@ impl<T> TopTree<T> {
 }
 
 fn propagate_change_to_upper<C: AggregationContext>(
-    state: &mut MutexGuard<TopTreeState<C::Info>>,
+    state: &MutexGuard<TopTreeState<C::Info>>,
     aggregation_context: &C,
     change: Option<C::ItemChange>,
 ) {

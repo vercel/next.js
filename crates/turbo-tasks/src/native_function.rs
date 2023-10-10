@@ -91,10 +91,7 @@ impl Hash for &'static NativeFunction {
 
 impl PartialOrd for &'static NativeFunction {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        PartialOrd::partial_cmp(
-            &(*self as *const NativeFunction),
-            &(*other as *const NativeFunction),
-        )
+        Some(self.cmp(other))
     }
 }
 impl Ord for &'static NativeFunction {

@@ -47,7 +47,7 @@ where
 
         let orphan_values = Self::add_values_to_tree(&mut trees, values);
 
-        let roots = Self::treeify(relationships, &mut trees);
+        let roots = Self::treeify(relationships, &trees);
 
         // optimize tree by removing unnecessary nodes
         Self::skip_unnecessary_nodes(&mut trees);
@@ -146,7 +146,7 @@ where
     /// Nest each tree by relationship, compute the roots
     fn treeify(
         relationships: Vec<(Option<K>, K)>,
-        trees: &mut IndexMap<K, Rc<RefCell<Node<K, V>>>>,
+        trees: &IndexMap<K, Rc<RefCell<Node<K, V>>>>,
     ) -> Vec<Rc<RefCell<Node<K, V>>>> {
         relationships
             .into_iter()

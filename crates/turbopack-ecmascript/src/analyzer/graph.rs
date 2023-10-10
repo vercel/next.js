@@ -1644,7 +1644,7 @@ impl<'a> Analyzer<'a> {
     fn add_conditional_effect(
         &mut self,
         test: &Expr,
-        ast_path: &mut AstNodePath<AstParentNodeRef<'_>>,
+        ast_path: &AstNodePath<AstParentNodeRef<'_>>,
         ast_kind: AstParentKind,
         span: Span,
         mut cond_kind: ConditionalKind,
