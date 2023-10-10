@@ -113,7 +113,7 @@ export class NextInstance {
           await fs.mkdir(path.dirname(outputFilename), { recursive: true })
           await fs.writeFile(outputFilename, item)
         } else {
-          await fs.cp(item.fsPath, outputFilename)
+          await fs.cp(item.fsPath, outputFilename, { recursive: true })
         }
       }
     }

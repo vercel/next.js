@@ -101,32 +101,39 @@ async function createNextInstall({
             }
           })
 
-        for (const item of ['package.json', 'packages']) {
-          await rootSpan
-            .traceChild(`copy ${item} to temp dir`)
-            .traceAsyncFn(async () => {
-              let dir = path.join(origRepoDir, item)
-              let items = await fs.readdir(dir)
-              await Promise.all(
-                items
-                  .filter(
-                    (item) =>
-                      !item.includes('node_modules') &&
-                      !item.includes('pnpm-lock.yaml') &&
-                      !item.includes('.DS_Store') &&
-                      // Exclude Rust compilation files
-                      !/next[\\/]build[\\/]swc[\\/]target/.test(item) &&
-                      !/next-swc[\\/]target/.test(item)
-                  )
-                  .map((item) =>
-                    fs.cp(path.join(dir, item), path.join(tmpRepoDir, item), {
-                      recursive: true,
-                      force: true,
-                    })
-                  )
-              )
-            })
-        }
+        await rootSpan
+          .traceChild(`copy package.json to temp dir`)
+          .traceAsyncFn(async () =>
+            fs.cp(
+              path.join(origRepoDir, 'package.json'),
+              path.join(tmpRepoDir, 'package.json')
+            )
+          )
+
+        await rootSpan
+          .traceChild(`copy packages to temp dir`)
+          .traceAsyncFn(async () => {
+            let dir = path.join(origRepoDir, 'packages')
+            let items = await fs.readdir(dir)
+            await Promise.all(
+              items
+                .filter(
+                  (item) =>
+                    !item.includes('node_modules') &&
+                    !item.includes('pnpm-lock.yaml') &&
+                    !item.includes('.DS_Store') &&
+                    // Exclude Rust compilation files
+                    !/next[\\/]build[\\/]swc[\\/]target/.test(item) &&
+                    !/next-swc[\\/]target/.test(item)
+                )
+                .map((item) =>
+                  fs.cp(path.join(dir, item), path.join(tmpRepoDir, item), {
+                    recursive: true,
+                    force: true,
+                  })
+                )
+            )
+          })
 
         pkgPaths = await rootSpan.traceChild('linkPackages').traceAsyncFn(() =>
           linkPackages({
