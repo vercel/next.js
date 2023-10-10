@@ -42,11 +42,7 @@ use turbopack_binding::{
     turbopack::{
         core::{
             asset::{Asset, AssetContent},
-            chunk::{
-                availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext,
-                EvaluatableAssets,
-            },
-
+            chunk::{availability_info::AvailabilityInfo, ChunkingContext, EvaluatableAssets},
             file_source::FileSource,
             module::Module,
             output::{OutputAsset, OutputAssets},
@@ -874,15 +870,11 @@ impl AppEndpoint {
                 server_assets.push(app_paths_manifest_output);
 
                 // create react-loadable-manifest for next/dynamic
-                let availability_info = Value::new(AvailabilityInfo::Root {
-                    current_availability_root: Vc::upcast(app_entry.rsc_entry),
-                });
                 let dynamic_import_modules =
                     collect_next_dynamic_imports(app_entry.rsc_entry).await?;
                 let dynamic_import_entries = collect_evaluated_chunk_group(
                     chunking_context,
                     dynamic_import_modules,
-                    availability_info,
                     Vc::cell(evaluatable_assets),
                 )
                 .await?;

@@ -51,9 +51,8 @@ pub(crate) async fn collect_chunk_group(
             let chunk = if let Some(chunk) = chunks_hash.get(&imported_raw_str) {
                 *chunk
             } else {
-                let Some(imported_module) =
-                    Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(imported_module)
-                        .await?
+                let Some(chunk_item) =
+                    Vc::try_resolve_sidecast::<Box<dyn ChunkableModule>>(imported_module).await?
                 else {
                     bail!("module must be evaluatable");
                 };
@@ -64,9 +63,7 @@ pub(crate) async fn collect_chunk_group(
                 // naive hash to have additonal
                 // chunks in case if there are same modules being imported in differnt
                 // origins.
-                let chunk =
-                    imported_module.as_chunk(Vc::upcast(chunking_context), availability_info);
-                let chunk_group = chunking_context.chunk_group(chunk);
+                let chunk_group = chunking_context.chunk_group(chunk_item, availability_info);
                 chunks_hash.insert(imported_raw_str.to_string(), chunk_group);
                 chunk_group
             };
@@ -84,7 +81,6 @@ pub(crate) async fn collect_chunk_group(
 pub(crate) async fn collect_evaluated_chunk_group(
     chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
     dynamic_import_entries: IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>,
-    availability_info: Value<AvailabilityInfo>,
     evaluatable_assets: Vc<EvaluatableAssets>,
 ) -> Result<Vc<DynamicImportedChunks>> {
     let mut chunks_hash: HashMap<String, Vc<OutputAssets>> = HashMap::new();
@@ -97,22 +93,14 @@ pub(crate) async fn collect_evaluated_chunk_group(
             let chunk = if let Some(chunk) = chunks_hash.get(&imported_raw_str) {
                 *chunk
             } else {
-                let Some(imported_module) =
-                    Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(imported_module)
-                        .await?
-                else {
-                    bail!("module must be evaluatable");
-                };
-
                 // [Note]: this seems to create a duplicated chunk for the same module to the original import() call
                 // and the explicit chunk we ask in here. So there'll be at least 2
                 // chunks for the same module, relying on
                 // naive hash to have additonal
                 // chunks in case if there are same modules being imported in differnt
                 // origins.
-                let chunk =
-                    imported_module.as_chunk(Vc::upcast(chunking_context), availability_info);
-                let chunk_group = chunking_context.evaluated_chunk_group(chunk, evaluatable_assets);
+                let chunk_group = chunking_context
+                    .evaluated_chunk_group(imported_module.ident(), evaluatable_assets);
                 chunks_hash.insert(imported_raw_str.to_string(), chunk_group);
                 chunk_group
             };

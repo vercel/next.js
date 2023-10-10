@@ -39,11 +39,7 @@ use turbopack_binding::{
         build::BuildChunkingContext,
         core::{
             asset::AssetContent,
-            chunk::{
-                availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext,
-                EvaluatableAssets,
-            },
-
+            chunk::{availability_info::AvailabilityInfo, ChunkingContext, EvaluatableAssets},
             context::AssetContext,
             file_source::FileSource,
             issue::{IssueSeverity, OptionIssueSource},
@@ -621,16 +617,10 @@ impl PageEndpoint {
             let edge_files = edge_chunking_context
                 .evaluated_chunk_group(ssr_module.ident(), Vc::cell(evaluatable_assets.clone()));
 
-
-            let availability_info = Value::new(AvailabilityInfo::Root {
-                current_availability_root: Vc::upcast(ssr_module),
-            });
-
             let dynamic_import_modules = collect_next_dynamic_imports(ssr_module).await?;
             let dynamic_import_entries = collect_evaluated_chunk_group(
                 edge_chunking_context,
                 dynamic_import_modules,
-                availability_info,
                 Vc::cell(evaluatable_assets.clone()),
             )
             .await?;
