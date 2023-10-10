@@ -3,6 +3,7 @@ import type {
   ExportAppOptions,
   ExportWorker,
   WorkerRenderOptsPartial,
+  ExportPageInput,
 } from './types'
 import type { PrerenderManifest } from '../build'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
@@ -15,7 +16,8 @@ import '../server/require-hook'
 
 import { Worker } from '../lib/worker'
 import { dirname, join, resolve, sep } from 'path'
-import { AmpPageStatus, formatAmpMessages } from '../build/output/index'
+import { formatAmpMessages } from '../build/output/index'
+import type { AmpPageStatus } from '../build/output/index'
 import * as Log from '../build/output/log'
 import createSpinner from '../build/spinner'
 import { SSG_FALLBACK_EXPORT_ERROR } from '../lib/constants'
@@ -36,7 +38,7 @@ import {
   APP_PATH_ROUTES_MANIFEST,
 } from '../shared/lib/constants'
 import loadConfig from '../server/config'
-import { ExportPathMap, NextConfigComplete } from '../server/config-shared'
+import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import { eventCliSession } from '../telemetry/events'
 import { hasNextSupport } from '../telemetry/ci-info'
 import { Telemetry } from '../telemetry/storage'
@@ -45,9 +47,9 @@ import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-pa
 import { loadEnvConfig } from '@next/env'
 import { isAPIRoute } from '../lib/is-api-route'
 import { getPagePath } from '../server/require'
-import { Span } from '../trace'
-import { FontConfig } from '../server/font-utils'
-import { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
+import type { Span } from '../trace'
+import type { FontConfig } from '../server/font-utils'
+import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { isAppPageRoute } from '../lib/is-app-page-route'
 import isError from '../lib/is-error'
@@ -172,7 +174,7 @@ function setupWorkers(
 
   let infoPrinted = false
 
-  const worker = Worker.create<typeof import('./worker')>(
+  const worker = Worker.create<typeof import('./worker'), [ExportPageInput]>(
     require.resolve('./worker'),
     {
       timeout: timeout * 1000,

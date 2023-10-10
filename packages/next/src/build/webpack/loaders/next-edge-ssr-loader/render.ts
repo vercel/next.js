@@ -13,9 +13,9 @@ import {
   WebNextResponse,
 } from '../../../../server/base-http/web'
 import { SERVER_RUNTIME } from '../../../../lib/constants'
-import { PrerenderManifest } from '../../..'
+import type { PrerenderManifest } from '../../..'
 import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
-import { SizeLimit } from '../../../../../types'
+import type { SizeLimit } from '../../../../../types'
 
 const NEXT_PRIVATE_GLOBAL_WAIT_UNTIL = Symbol.for(
   '__next_private_global_wait_until__'
