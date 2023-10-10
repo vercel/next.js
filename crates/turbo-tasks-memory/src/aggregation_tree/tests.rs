@@ -79,7 +79,7 @@ struct NodeGuard {
 }
 
 impl NodeGuard {
-    unsafe fn new<'a>(guard: MutexGuard<'a, NodeInner>, node: Arc<Node>) -> Self {
+    unsafe fn new(guard: MutexGuard<'_, NodeInner>, node: Arc<Node>) -> Self {
         NodeGuard {
             guard: unsafe { std::mem::transmute(guard) },
             node,
@@ -154,13 +154,11 @@ impl<'a> AggregationContext for NodeAggregationContext<'a> {
         if self.add_value {
             info.value += change.value;
         }
-        Some(change.clone())
+        Some(*change)
     }
 
     fn info_to_add_change(&self, info: &Self::Info) -> Option<Self::ItemChange> {
-        let change = Change {
-            value: info.value as i32,
-        };
+        let change = Change { value: info.value };
         if change.is_empty() {
             None
         } else {
@@ -169,9 +167,7 @@ impl<'a> AggregationContext for NodeAggregationContext<'a> {
     }
 
     fn info_to_remove_change(&self, info: &Self::Info) -> Option<Self::ItemChange> {
-        let change = Change {
-            value: -(info.value as i32),
-        };
+        let change = Change { value: -info.value };
         if change.is_empty() {
             None
         } else {
@@ -184,6 +180,7 @@ impl<'a> AggregationContext for NodeAggregationContext<'a> {
     type RootInfoType = ();
 
     fn new_root_info(&self, root_info_type: &Self::RootInfoType) -> Self::RootInfo {
+        #[allow(clippy::match_single_binding)]
         match root_info_type {
             () => false,
         }
@@ -194,6 +191,7 @@ impl<'a> AggregationContext for NodeAggregationContext<'a> {
         info: &Self::Info,
         root_info_type: &Self::RootInfoType,
     ) -> Self::RootInfo {
+        #[allow(clippy::match_single_binding)]
         match root_info_type {
             () => info.active,
         }
@@ -248,7 +246,7 @@ fn chain() {
 
     {
         let root_info = leaf.inner.lock().aggregation_leaf.get_root_info(&ctx, &());
-        assert_eq!(root_info, false);
+        assert!(!root_info);
     }
 
     {
@@ -262,7 +260,7 @@ fn chain() {
 
     {
         let root_info = leaf.inner.lock().aggregation_leaf.get_root_info(&ctx, &());
-        assert_eq!(root_info, false);
+        assert!(!root_info);
     }
 
     leaf.incr(&ctx);
@@ -274,14 +272,14 @@ fn chain() {
         let aggregated = aggregation_info(&ctx, &current);
         let mut aggregated = aggregated.lock();
         assert_eq!(aggregated.value, 25050);
-        (*aggregated).active = true;
+        aggregated.active = true;
     }
     assert_eq!(ctx.additions.load(Ordering::SeqCst), 0);
     ctx.additions.store(0, Ordering::SeqCst);
 
     {
         let root_info = leaf.inner.lock().aggregation_leaf.get_root_info(&ctx, &());
-        assert_eq!(root_info, true);
+        assert!(root_info);
     }
 
     let i = 101;
@@ -310,7 +308,7 @@ fn chain() {
 
     {
         let root_info = leaf.inner.lock().aggregation_leaf.get_root_info(&ctx, &());
-        assert_eq!(root_info, true);
+        assert!(root_info);
     }
 }
 

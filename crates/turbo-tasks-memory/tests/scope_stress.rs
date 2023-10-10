@@ -8,6 +8,7 @@ use turbo_tasks_testing::register;
 
 register!();
 
+#[allow(clippy::no_effect)] // for *REGISTER
 #[test]
 fn rectangle_stress() {
     *REGISTER;
