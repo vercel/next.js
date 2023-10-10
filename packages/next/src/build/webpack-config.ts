@@ -822,28 +822,41 @@ export default async function getBaseWebpackConfig(
             'next/dist/server': 'next/dist/esm/server',
 
             // Alias the usage of next public APIs
-            [`${NEXT_PROJECT_ROOT}/server`]:
+            [path.join(NEXT_PROJECT_ROOT, 'server')]:
               'next/dist/esm/server/web/exports/index',
-            [`${NEXT_PROJECT_ROOT}/dist/client/link`]:
+            [path.join(NEXT_PROJECT_ROOT_DIST, 'client', 'link')]:
               'next/dist/esm/client/link',
-            [`${NEXT_PROJECT_ROOT}/dist/shared/lib/image-external`]:
-              'next/dist/esm/shared/lib/image-external',
-            [`${NEXT_PROJECT_ROOT}/dist/client/script`]:
+            [path.join(
+              NEXT_PROJECT_ROOT,
+              'dist',
+              'shared',
+              'lib',
+              'image-external'
+            )]: 'next/dist/esm/shared/lib/image-external',
+            [path.join(NEXT_PROJECT_ROOT_DIST, 'client', 'script')]:
               'next/dist/esm/client/script',
-            [`${NEXT_PROJECT_ROOT}/dist/client/router`]:
+            [path.join(NEXT_PROJECT_ROOT_DIST, 'client', 'router')]:
               'next/dist/esm/client/router',
-            [`${NEXT_PROJECT_ROOT}/dist/shared/lib/head`]:
+            [path.join(NEXT_PROJECT_ROOT_DIST, 'shared', 'lib', 'head')]:
               'next/dist/esm/shared/lib/head',
-            [`${NEXT_PROJECT_ROOT}/dist/shared/lib/dynamic`]:
+            [path.join(NEXT_PROJECT_ROOT_DIST, 'shared', 'lib', 'dynamic')]:
               'next/dist/esm/shared/lib/dynamic',
-            [`${NEXT_PROJECT_ROOT}/dist/pages/_document`]:
+            [path.join(NEXT_PROJECT_ROOT_DIST, 'pages', '_document')]:
               'next/dist/esm/pages/_document',
-            [`${NEXT_PROJECT_ROOT}/dist/pages/_app`]:
+            [path.join(NEXT_PROJECT_ROOT_DIST, 'pages', '_app')]:
               'next/dist/esm/pages/_app',
-            [`${NEXT_PROJECT_ROOT}/dist/client/components/navigation`]:
-              'next/dist/esm/client/components/navigation',
-            [`${NEXT_PROJECT_ROOT}/dist/client/components/headers`]:
-              'next/dist/esm/client/components/headers',
+            [path.join(
+              NEXT_PROJECT_ROOT_DIST,
+              'client',
+              'components',
+              'navigation'
+            )]: 'next/dist/esm/client/components/navigation',
+            [path.join(
+              NEXT_PROJECT_ROOT_DIST,
+              'client',
+              'components',
+              'headers'
+            )]: 'next/dist/esm/client/components/headers',
           }
         : undefined),
 
