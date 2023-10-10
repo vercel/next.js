@@ -333,7 +333,10 @@ export class NextInstance {
     ]
     for (const file of await fs.readdir(this.testDir)) {
       if (!keptFiles.includes(file)) {
-        await fs.rm(path.join(this.testDir, file), { force: true })
+        await fs.rm(path.join(this.testDir, file), {
+          recursive: true,
+          force: true,
+        })
       }
     }
     await this.writeInitialFiles()
