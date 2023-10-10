@@ -1081,7 +1081,7 @@ export const describeVariants = {
 
 export function rmrf(
   file: PathLike,
-  options: Omit<RmOptions, 'recursive' | 'force'>
+  options?: Omit<RmOptions, 'recursive' | 'force'>
 ): Promise<void> {
   return fs.rm(file, { recursive: true, force: true, ...options })
 }

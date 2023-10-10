@@ -11,10 +11,11 @@ import {
 } from '../create-next-install'
 import { Span } from 'next/src/trace'
 import webdriver from '../next-webdriver'
-import { renderViaHTTP, fetchViaHTTP } from 'next-test-utils'
+import { renderViaHTTP, fetchViaHTTP, rmrf } from 'next-test-utils'
 import cheerio from 'cheerio'
 import { BrowserInterface } from '../browsers/base'
 import escapeStringRegexp from 'escape-string-regexp'
+import { fileExists } from 'next/dist/lib/file-exists'
 
 type Event = 'stdout' | 'stderr' | 'error' | 'destroy'
 export type InstallCommand =
@@ -160,7 +161,7 @@ export class NextInstance {
 
         if (skipInstall || skipIsolatedNext) {
           const pkgScripts = (this.packageJson['scripts'] as {}) || {}
-          await fs.ensureDir(this.testDir)
+          await fs.mkdir(this.testDir, { recursive: true })
           await fs.writeFile(
             path.join(this.testDir, 'package.json'),
             JSON.stringify(
@@ -196,7 +197,9 @@ export class NextInstance {
             !this.packageJson &&
             !(global as any).isNextDeploy
           ) {
-            await fs.copy(process.env.NEXT_TEST_STARTER, this.testDir)
+            await fs.cp(process.env.NEXT_TEST_STARTER, this.testDir, {
+              recursive: true,
+            })
           } else {
             this.testDir = await createNextInstall({
               parentSpan: rootSpan,
@@ -220,7 +223,7 @@ export class NextInstance {
           file.startsWith('next.config.')
         )
 
-        if (await fs.pathExists(path.join(this.testDir, 'next.config.js'))) {
+        if (await fileExists(path.join(this.testDir, 'next.config.js'))) {
           nextConfigFile = 'next.config.js'
         }
 
@@ -330,7 +333,7 @@ export class NextInstance {
     ]
     for (const file of await fs.readdir(this.testDir)) {
       if (!keptFiles.includes(file)) {
-        await fs.remove(path.join(this.testDir, file))
+        await fs.rm(path.join(this.testDir, file), { force: true })
       }
     }
     await this.writeInitialFiles()
@@ -382,7 +385,7 @@ export class NextInstance {
 
       if (process.env.TRACE_PLAYWRIGHT) {
         await fs
-          .copy(
+          .cp(
             path.join(this.testDir, '.next/trace'),
             path.join(
               __dirname,
@@ -400,7 +403,7 @@ export class NextInstance {
       }
 
       if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
-        await fs.remove(this.testDir)
+        await rmrf(this.testDir)
       }
       require('console').log(`destroyed next instance`)
     } catch (err) {
