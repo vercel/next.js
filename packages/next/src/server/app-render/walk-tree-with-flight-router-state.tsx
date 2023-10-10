@@ -17,12 +17,9 @@ import {
   createFlightRouterStateFromLoaderTree,
 } from './create-flight-router-state-from-loader-tree'
 import { parseLoaderTree } from './parse-loader-tree'
-import {
-  type CreateSegmentPath,
-  type AppRenderContext,
-  hasLoadingComponentInTree,
-  getLayerAssets,
-} from './app-render'
+import { type CreateSegmentPath, type AppRenderContext } from './app-render'
+import { getLayerAssets } from './get-layer-assets'
+import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
 import { createComponentTree } from './create-component-tree'
 
 /**

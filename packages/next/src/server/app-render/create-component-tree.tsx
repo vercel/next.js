@@ -7,13 +7,10 @@ import { interopDefault } from './interop-default'
 import { preloadComponent } from './preload-component'
 import { addSearchParamsIfPageSegment } from './create-flight-router-state-from-loader-tree'
 import { parseLoaderTree } from './parse-loader-tree'
-import {
-  type CreateSegmentPath,
-  type AppRenderContext,
-  getLayerAssets,
-  createComponentAndStyles,
-  hasLoadingComponentInTree,
-} from './app-render'
+import type { CreateSegmentPath, AppRenderContext } from './app-render'
+import { createComponentAndStyles } from './create-component-and-styles'
+import { getLayerAssets } from './get-layer-assets'
+import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
 
 /**
  * Use the provided loader tree to create the React Component tree.

@@ -43,7 +43,6 @@ import { getRedirectStatusCodeFromError } from '../../client/components/get-redi
 import { addImplicitTags, patchFetch } from '../lib/patch-fetch'
 import { AppRenderSpan } from '../lib/trace/constants'
 import { getTracer } from '../lib/trace/tracer'
-import { interopDefault } from './interop-default'
 import { FlightRenderResult } from './flight-render-result'
 import { createErrorHandler, type ErrorHandler } from './create-error-handler'
 import {
@@ -51,8 +50,6 @@ import {
   dynamicParamTypes,
 } from './get-short-dynamic-param-type'
 import { getSegmentParam } from './get-segment-param'
-import { getCssInlinedLinkTags } from './get-css-inlined-link-tags'
-import { getPreloadableFonts } from './get-preloadable-fonts'
 import { getScriptNonceFromHeader } from './get-script-nonce-from-header'
 import { parseAndValidateFlightRouterState } from './parse-and-validate-flight-router-state'
 import { validateURL } from './validate-url'
@@ -69,6 +66,7 @@ import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight
 import { makeGetServerInsertedHTML } from './make-get-server-inserted-html'
 import { walkTreeWithFlightRouterState } from './walk-tree-with-flight-router-state'
 import { createComponentTree } from './create-component-tree'
+import { getAssetQueryString } from './get-asset-query-string'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -89,6 +87,8 @@ type AppRenderBaseContext = {
 
 // TODO-APP: improve type
 type ServerContext = [string, any]
+
+export type GenerateFlight = typeof generateFlight
 
 export type AppRenderContext = AppRenderBaseContext & {
   getDynamicParamFromSegment: GetDynamicParamFromSegment
@@ -166,33 +166,7 @@ function findDynamicParamFromRouterState(
   return null
 }
 
-export function hasLoadingComponentInTree(tree: LoaderTree): boolean {
-  const [, parallelRoutes, { loading }] = tree
-
-  if (loading) {
-    return true
-  }
-
-  return Object.values(parallelRoutes).some((parallelRoute) =>
-    hasLoadingComponentInTree(parallelRoute)
-  ) as boolean
-}
-
 export type CreateSegmentPath = (child: FlightSegmentPath) => FlightSegmentPath
-
-function getAssetQueryString(ctx: AppRenderContext, addTimestamp: boolean) {
-  const isDev = process.env.NODE_ENV === 'development'
-  let qs = ''
-
-  if (isDev && addTimestamp) {
-    qs += `?v=${ctx.requestTimestamp}`
-  }
-
-  if (ctx.renderOpts.deploymentId) {
-    qs += `${isDev ? '&' : '?'}dpl=${ctx.renderOpts.deploymentId}`
-  }
-  return qs
-}
 
 /**
  * Returns a function that parses the dynamic segment and return the associated value.
@@ -252,154 +226,6 @@ function makeGetDynamicParamFromSegment(
     }
   }
 }
-
-export async function createComponentAndStyles({
-  filePath,
-  getComponent,
-  injectedCSS,
-  ctx,
-}: {
-  filePath: string
-  getComponent: () => any
-  injectedCSS: Set<string>
-  ctx: AppRenderContext
-}): Promise<any> {
-  const cssHrefs = getCssInlinedLinkTags(
-    ctx.clientReferenceManifest,
-    filePath,
-    injectedCSS
-  )
-
-  const styles = cssHrefs
-    ? cssHrefs.map((href, index) => {
-        // In dev, Safari and Firefox will cache the resource during HMR:
-        // - https://github.com/vercel/next.js/issues/5860
-        // - https://bugs.webkit.org/show_bug.cgi?id=187726
-        // Because of this, we add a `?v=` query to bypass the cache during
-        // development. We need to also make sure that the number is always
-        // increasing.
-        const fullHref = `${ctx.assetPrefix}/_next/${href}${getAssetQueryString(
-          ctx,
-          true
-        )}`
-
-        // `Precedence` is an opt-in signal for React to handle resource
-        // loading and deduplication, etc. It's also used as the key to sort
-        // resources so they will be injected in the correct order.
-        // During HMR, it's critical to use different `precedence` values
-        // for different stylesheets, so their order will be kept.
-        // https://github.com/facebook/react/pull/25060
-        const precedence =
-          process.env.NODE_ENV === 'development' ? 'next_' + href : 'next'
-
-        return (
-          <link
-            rel="stylesheet"
-            href={fullHref}
-            // @ts-ignore
-            precedence={precedence}
-            crossOrigin={ctx.renderOpts.crossOrigin}
-            key={index}
-          />
-        )
-      })
-    : null
-
-  const Comp = interopDefault(await getComponent())
-
-  return [Comp, styles]
-}
-
-export function getLayerAssets({
-  ctx,
-  layoutOrPagePath,
-  injectedCSS: injectedCSSWithCurrentLayout,
-  injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
-}: {
-  layoutOrPagePath: string | undefined
-  injectedCSS: Set<string>
-  injectedFontPreloadTags: Set<string>
-  ctx: AppRenderContext
-}): React.ReactNode {
-  const stylesheets: string[] = layoutOrPagePath
-    ? getCssInlinedLinkTags(
-        ctx.clientReferenceManifest,
-        layoutOrPagePath,
-        injectedCSSWithCurrentLayout,
-        true
-      )
-    : []
-
-  const preloadedFontFiles = layoutOrPagePath
-    ? getPreloadableFonts(
-        ctx.renderOpts.nextFontManifest,
-        layoutOrPagePath,
-        injectedFontPreloadTagsWithCurrentLayout
-      )
-    : null
-
-  if (preloadedFontFiles) {
-    if (preloadedFontFiles.length) {
-      for (let i = 0; i < preloadedFontFiles.length; i++) {
-        const fontFilename = preloadedFontFiles[i]
-        const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFilename)![1]
-        const type = `font/${ext}`
-        const href = `${ctx.assetPrefix}/_next/${fontFilename}`
-        ctx.componentMod.preloadFont(href, type, ctx.renderOpts.crossOrigin)
-      }
-    } else {
-      try {
-        let url = new URL(ctx.assetPrefix)
-        ctx.componentMod.preconnect(url.origin, 'anonymous')
-      } catch (error) {
-        // assetPrefix must not be a fully qualified domain name. We assume
-        // we should preconnect to same origin instead
-        ctx.componentMod.preconnect('/', 'anonymous')
-      }
-    }
-  }
-
-  const styles = stylesheets
-    ? stylesheets.map((href, index) => {
-        // In dev, Safari and Firefox will cache the resource during HMR:
-        // - https://github.com/vercel/next.js/issues/5860
-        // - https://bugs.webkit.org/show_bug.cgi?id=187726
-        // Because of this, we add a `?v=` query to bypass the cache during
-        // development. We need to also make sure that the number is always
-        // increasing.
-        const fullHref = `${ctx.assetPrefix}/_next/${href}${getAssetQueryString(
-          ctx,
-          true
-        )}`
-
-        // `Precedence` is an opt-in signal for React to handle resource
-        // loading and deduplication, etc. It's also used as the key to sort
-        // resources so they will be injected in the correct order.
-        // During HMR, it's critical to use different `precedence` values
-        // for different stylesheets, so their order will be kept.
-        // https://github.com/facebook/react/pull/25060
-        const precedence =
-          process.env.NODE_ENV === 'development' ? 'next_' + href : 'next'
-
-        ctx.componentMod.preloadStyle(fullHref, ctx.renderOpts.crossOrigin)
-
-        return (
-          <link
-            rel="stylesheet"
-            href={fullHref}
-            // @ts-ignore
-            precedence={precedence}
-            crossOrigin={ctx.renderOpts.crossOrigin}
-            key={index}
-          />
-        )
-      })
-    : null
-
-  return styles
-}
-
-export type GenerateFlight = typeof generateFlight
 
 // Handle Flight render request. This is only used when client-side navigating. E.g. when you `router.push('/dashboard')` or `router.reload()`.
 async function generateFlight(
