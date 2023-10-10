@@ -1,7 +1,6 @@
 'use client'
 // TODO: Evaluate import 'client only'
 import React from 'react'
-import { useCallback } from 'react'
 import Script from 'next/script'
 
 declare global {
@@ -51,14 +50,10 @@ export function GoogleTagManager(props: GTMParams) {
   )
 }
 
-export function useGoogleTagManager() {
-  const sendData = useCallback((data: Object) => {
-    if (window[currDataLayerName]) {
-      window[currDataLayerName].push(data)
-    } else {
-      console.warn(`dataLayer ${currDataLayerName} does not exist`)
-    }
-  }, [])
-
-  return { sendData }
+export const gtag = (data: Object) => {
+  if (window[currDataLayerName]) {
+    window[currDataLayerName].push(data)
+  } else {
+    console.warn(`dataLayer ${currDataLayerName} does not exist`)
+  }
 }

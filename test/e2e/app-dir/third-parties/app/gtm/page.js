@@ -1,16 +1,11 @@
 'use client'
 
 import React from 'react'
-import {
-  GoogleTagManager,
-  useGoogleTagManager,
-} from '@next/third-parties/google'
+import { GoogleTagManager, gtag } from '@next/third-parties/google'
 
 const Page = () => {
-  const { sendData } = useGoogleTagManager()
-
   const onClick = () => {
-    sendData({ event: 'buttonClicked', value: 'xyz' })
+    gtag({ event: 'buttonClicked', value: 'xyz' })
   }
 
   return (
