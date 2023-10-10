@@ -191,13 +191,9 @@ async fn build_dynamic_imports_map_for_module(
         return Ok(OptionDynamicImportsMap::none());
     };
 
+    // https://github.com/vercel/next.js/pull/56389#discussion_r1349336374
+    // don't emit specific error as we expect there's a parse error already reported
     let ParseResult::Ok { program, .. } = &*ecmascript_asset.parse().await? else {
-        NextDynamicParsingIssue {
-            ident: module.ident(),
-        }
-        .cell()
-        .emit();
-
         return Ok(OptionDynamicImportsMap::none());
     };
 
