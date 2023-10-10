@@ -160,6 +160,7 @@ async function createTreeCodeFromPath(
     metadataResolver,
     pageExtensions,
     basePath,
+    loaderContext,
   }: {
     page: string
     resolveDir: DirResolver
@@ -178,8 +179,11 @@ async function createTreeCodeFromPath(
   rootLayout: string | undefined
   globalError: string | undefined
 }> {
+  const isDev = loaderContext.mode === 'development'
+  const notFoundRoute = isDev ? '/not-found' : '/_not-found'
+
   const splittedPath = pagePath.split(/[\\/]/)
-  const isNotFoundRoute = page === '/_not-found'
+  const isNotFoundRoute = page === notFoundRoute
   const isDefaultNotFound = isAppBuiltinNotFoundPage(pagePath)
   const appDirPrefix = isDefaultNotFound ? APP_DIR_ALIAS : splittedPath[0]
   const hasRootNotFound = await resolver(
