@@ -70,7 +70,7 @@ module.exports = (actionInfo) => {
       let pkgs
 
       try {
-        pkgs = await fsp.readdir(path.join(repoDir, 'packages'))
+        pkgs = await fs.readdir(path.join(repoDir, 'packages'))
       } catch (err) {
         if (err.code === 'ENOENT') {
           require('console').log('no packages to link')
@@ -120,7 +120,7 @@ module.exports = (actionInfo) => {
           pkgData.files.push('native')
 
           try {
-            const swcBinariesDirContents = await fsp.readdir(
+            const swcBinariesDirContents = await fs.readdir(
               path.join(pkgPath, 'native')
             )
             require('console').log(
@@ -153,7 +153,7 @@ module.exports = (actionInfo) => {
           }
         }
 
-        await fsp.writeFile(
+        await fs.writeFile(
           pkgDataPath,
           JSON.stringify(pkgData, null, 2),
           'utf8'
@@ -184,9 +184,9 @@ module.exports = (actionInfo) => {
                 'disabled-native-gitignore'
               )
 
-              await fsp.rename(nativeGitignorePath, renamedGitignorePath)
+              await fs.rename(nativeGitignorePath, renamedGitignorePath)
               cleanup = async () => {
-                await fsp.rename(renamedGitignorePath, nativeGitignorePath)
+                await fs.rename(renamedGitignorePath, nativeGitignorePath)
               }
             }
 
@@ -199,7 +199,7 @@ module.exports = (actionInfo) => {
             })
 
             return Promise.all([
-              fsp.rename(path.resolve(pkgPath, stdout.trim()), packedPkgPath),
+              fs.rename(path.resolve(pkgPath, stdout.trim()), packedPkgPath),
               cleanup?.(),
             ])
           }
