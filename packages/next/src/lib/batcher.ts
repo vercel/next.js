@@ -2,7 +2,7 @@
 // this imported module.
 import './polyfill-promise-with-resolvers'
 
-import { SchedulerFn } from '../server/lib/schedule-on-next-tick'
+import type { SchedulerFn } from '../server/lib/schedule-on-next-tick'
 
 type CacheKeyFn<K, C extends string | number | null> = (
   key: K

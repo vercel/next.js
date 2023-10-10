@@ -35,7 +35,8 @@ import type { ReactReadableStream } from './stream-utils/node-web-streams-helper
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 import type { PagesModule } from './future/route-modules/pages/module'
-
+import type { ComponentsEnhancer } from '../shared/lib/utils'
+import type { NextParsedUrlQuery } from './request-meta'
 import React from 'react'
 import ReactDOMServer from 'react-dom/server.browser'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
@@ -50,8 +51,8 @@ import {
   UNSTABLE_REVALIDATE_RENAME_ERROR,
   CACHE_ONE_YEAR,
 } from '../lib/constants'
+import type { COMPILER_NAMES } from '../shared/lib/constants'
 import {
-  COMPILER_NAMES,
   NEXT_BUILTIN_DOCUMENT,
   SERVER_PROPS_ID,
   STATIC_PROPS_ID,
@@ -67,7 +68,6 @@ import { LoadableContext } from '../shared/lib/loadable-context.shared-runtime'
 import { RouterContext } from '../shared/lib/router-context.shared-runtime'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import {
-  ComponentsEnhancer,
   getDisplayName,
   isResSent,
   loadGetInitialProps,
@@ -75,7 +75,7 @@ import {
 import { HtmlContext } from '../shared/lib/html-context.shared-runtime'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
-import { getRequestMeta, NextParsedUrlQuery } from './request-meta'
+import { getRequestMeta } from './request-meta'
 import { allowedStatusCodes, getRedirectStatus } from '../lib/redirect-status'
 import RenderResult, { type RenderResultMetadata } from './render-result'
 import isError from '../lib/is-error'

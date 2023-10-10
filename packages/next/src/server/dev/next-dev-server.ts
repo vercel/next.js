@@ -38,31 +38,27 @@ import { Telemetry } from '../../telemetry/storage'
 import { setGlobal } from '../../trace'
 import { findPageFile } from '../lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from '../lib/utils'
-import {
-  UnwrapPromise,
-  withCoalescedInvoke,
-} from '../../lib/coalesced-function'
+import { withCoalescedInvoke } from '../../lib/coalesced-function'
+import type { UnwrapPromise } from '../../lib/coalesced-function'
 import { loadDefaultErrorComponents } from '../load-default-error-components'
 import { DecodeError, MiddlewareNotFoundError } from '../../shared/lib/utils'
 import * as Log from '../../build/output/log'
 import isError, { getProperError } from '../../lib/is-error'
-import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
+import type { NodeNextResponse, NodeNextRequest } from '../base-http/node'
 import { isMiddlewareFile } from '../../build/utils'
 import { formatServerError } from '../../lib/format-server-error'
-import {
-  DevRouteMatcherManager,
-  RouteEnsurer,
-} from '../future/route-matcher-managers/dev-route-matcher-manager'
+import { DevRouteMatcherManager } from '../future/route-matcher-managers/dev-route-matcher-manager'
+import type { RouteEnsurer } from '../future/route-matcher-managers/dev-route-matcher-manager'
 import { DevPagesRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-pages-route-matcher-provider'
 import { DevPagesAPIRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-pages-api-route-matcher-provider'
 import { DevAppPageRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-app-page-route-matcher-provider'
 import { DevAppRouteRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-app-route-route-matcher-provider'
-import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
+import type { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
 import { NodeManifestLoader } from '../future/route-matcher-providers/helpers/manifest-loaders/node-manifest-loader'
 import { BatchedFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/batched-file-reader'
 import { DefaultFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/default-file-reader'
 import { NextBuildContext } from '../../build/build-context'
-import { IncrementalCache } from '../lib/incremental-cache'
+import type { IncrementalCache } from '../lib/incremental-cache'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 

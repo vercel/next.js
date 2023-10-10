@@ -1,8 +1,8 @@
 import type { NextServer, RequestHandler } from '../next'
 import type { DevBundlerService } from './dev-bundler-service'
+import type { PropagateToWorkersField } from './router-utils/types'
 
 import next from '../next'
-import { PropagateToWorkersField } from './router-utils/types'
 
 let initializations: Record<
   string,

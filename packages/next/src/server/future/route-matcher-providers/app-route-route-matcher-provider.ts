@@ -2,7 +2,7 @@ import { isAppRouteRoute } from '../../../lib/is-app-route-route'
 import { APP_PATHS_MANIFEST } from '../../../shared/lib/constants'
 import { RouteKind } from '../route-kind'
 import { AppRouteRouteMatcher } from '../route-matchers/app-route-route-matcher'
-import {
+import type {
   Manifest,
   ManifestLoader,
 } from './helpers/manifest-loaders/manifest-loader'

@@ -1,10 +1,10 @@
 import type { OutgoingHttpHeaders } from 'http'
 import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
+import type { CacheFs } from '../../../shared/lib/utils'
+import type { CachedFetchValue } from '../../response-cache'
 
 import LRUCache from 'next/dist/compiled/lru-cache'
-import { CacheFs } from '../../../shared/lib/utils'
 import path from '../../../shared/lib/isomorphic/path'
-import { CachedFetchValue } from '../../response-cache'
 import { NEXT_CACHE_TAGS_HEADER } from '../../../lib/constants'
 
 type FileSystemCacheContext = Omit<

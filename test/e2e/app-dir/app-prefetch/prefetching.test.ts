@@ -28,7 +28,7 @@ const browserConfigWithFixedTime = {
 }
 
 createNextDescribe(
-  'app dir prefetching',
+  'app dir - prefetching',
   {
     files: __dirname,
     skipDeployment: true,

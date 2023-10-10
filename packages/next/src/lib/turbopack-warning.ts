@@ -1,6 +1,6 @@
 import path from 'path'
 import loadConfig from '../server/config'
-import { NextConfig } from '../server/config-shared'
+import type { NextConfig } from '../server/config-shared'
 import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 
 const supportedTurbopackNextConfigOptions = [
