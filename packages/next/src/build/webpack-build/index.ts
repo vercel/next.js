@@ -24,7 +24,7 @@ function deepMerge(target: any, source: any) {
       ? (target[key] = [...target[key], ...(source[key] || [])])
       : typeof target[key] == 'object' && typeof source[key] == 'object'
       ? deepMerge(target[key], source[key])
-      : structuredClone(result[key])
+      : result[key]
   }
   return result
 }
