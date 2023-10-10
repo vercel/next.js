@@ -249,7 +249,7 @@
   },
   "engines": {
     "node": ">=16.14.0",
-    "pnpm": "8.7.1"
+    "pnpm": "8.9.0"
   },
-  "packageManager": "pnpm@8.7.1"
+  "packageManager": "pnpm@8.9.0"
 }
