@@ -1,6 +1,6 @@
-import { FileReader } from './helpers/file-reader/file-reader'
+import type { FileReader } from './helpers/file-reader/file-reader'
+import type { Normalizer } from '../../normalizers/normalizer'
 import { AppRouteRouteMatcher } from '../../route-matchers/app-route-route-matcher'
-import { Normalizer } from '../../normalizers/normalizer'
 import { RouteKind } from '../../route-kind'
 import { FileCacheRouteMatcherProvider } from './file-cache-route-matcher-provider'
 import { isAppRouteRoute } from '../../../../lib/is-app-route-route'

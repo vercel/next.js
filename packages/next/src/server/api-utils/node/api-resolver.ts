@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextApiRequest, NextApiResponse } from '../../../shared/lib/utils'
 import type { PageConfig, ResponseLimit } from 'next/types'
-import { __ApiPreviewProps } from '../.'
+import type { __ApiPreviewProps } from '../.'
 import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
 
 import bytes from 'next/dist/compiled/bytes'

@@ -12,7 +12,7 @@ import { IncrementalCache } from '../lib/incremental-cache'
 import { RouteMatcher } from '../future/route-matchers/route-matcher'
 import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
-import { NextFetchEvent } from './spec-extension/fetch-event'
+import type { NextFetchEvent } from './spec-extension/fetch-event'
 
 type WrapOptions = Partial<Pick<AdapterOptions, 'page'>>
 

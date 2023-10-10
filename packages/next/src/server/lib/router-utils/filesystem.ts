@@ -5,6 +5,9 @@ import type {
 } from '../../../build'
 import type { NextConfigComplete } from '../../config-shared'
 import type { MiddlewareManifest } from '../../../build/webpack/plugins/middleware-plugin'
+import type { UnwrapPromise } from '../../../lib/coalesced-function'
+import type { PatchMatcher } from '../../../shared/lib/router/utils/path-match'
+import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/middleware-route-matcher'
 
 import path from 'path'
 import fs from 'fs/promises'
@@ -13,25 +16,18 @@ import setupDebug from 'next/dist/compiled/debug'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import loadCustomRoutes from '../../../lib/load-custom-routes'
 import { modifyRouteRegex } from '../../../lib/redirect-status'
-import { UnwrapPromise } from '../../../lib/coalesced-function'
 import { FileType, fileExists } from '../../../lib/file-exists'
 import { recursiveReadDir } from '../../../lib/recursive-readdir'
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
 import { escapeStringRegexp } from '../../../shared/lib/escape-regexp'
-import {
-  PatchMatcher,
-  getPathMatch,
-} from '../../../shared/lib/router/utils/path-match'
+import { getPathMatch } from '../../../shared/lib/router/utils/path-match'
 import { getRouteRegex } from '../../../shared/lib/router/utils/route-regex'
 import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
 import { pathHasPrefix } from '../../../shared/lib/router/utils/path-has-prefix'
 import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-path'
 import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-prefix'
 
-import {
-  MiddlewareRouteMatch,
-  getMiddlewareRouteMatcher,
-} from '../../../shared/lib/router/utils/middleware-route-matcher'
+import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
 
 import {
   APP_PATH_ROUTES_MANIFEST,
