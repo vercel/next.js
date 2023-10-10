@@ -555,7 +555,7 @@ impl<T, I: Clone + Eq + Hash + IsEnabled> BottomTree<T, I> {
     ) {
         let mut state = self.state.write();
         let change = aggregation_context.apply_change(&mut state.data, change);
-        propagate_change_to_upper(&mut state, aggregation_context, change);
+        propagate_change_to_upper(&state, aggregation_context, change);
     }
 
     pub fn get_root_info<C: AggregationContext<Info = T, ItemRef = I>>(
@@ -627,7 +627,7 @@ fn propagate_new_following_to_uppers<C: AggregationContext>(
 }
 
 fn propagate_change_to_upper<C: AggregationContext>(
-    state: &mut RwLockWriteGuard<BottomTreeState<C::Info, C::ItemRef>>,
+    state: &RwLockWriteGuard<BottomTreeState<C::Info, C::ItemRef>>,
     aggregation_context: &C,
     change: Option<C::ItemChange>,
 ) {

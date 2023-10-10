@@ -49,7 +49,7 @@ impl<T> Eq for TraitRef<T> {}
 
 impl<T> PartialOrd for TraitRef<T> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.shared_reference.partial_cmp(&other.shared_reference)
+        Some(self.cmp(other))
     }
 }
 

@@ -47,10 +47,7 @@ impl PartialEq for SharedReference {
 impl Eq for SharedReference {}
 impl PartialOrd for SharedReference {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        PartialOrd::partial_cmp(
-            &(&*self.1 as *const (dyn Any + Send + Sync)),
-            &(&*other.1 as *const (dyn Any + Send + Sync)),
-        )
+        Some(self.cmp(other))
     }
 }
 impl Ord for SharedReference {

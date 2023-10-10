@@ -58,7 +58,7 @@ impl PartialEq for ValueType {
 
 impl PartialOrd for ValueType {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        (self as *const ValueType).partial_cmp(&(other as *const ValueType))
+        Some(self.cmp(other))
     }
 }
 impl Ord for ValueType {
@@ -225,7 +225,7 @@ impl PartialEq for TraitType {
 
 impl PartialOrd for TraitType {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        (self as *const TraitType).partial_cmp(&(other as *const TraitType))
+        Some(self.cmp(other))
     }
 }
 
