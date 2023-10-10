@@ -6,6 +6,8 @@ import { isRedirectError } from '../../client/components/redirect'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
 import { SpanStatusCode, getTracer } from '../lib/trace/tracer'
 
+export type ErrorHandler = (err: any) => string
+
 /**
  * Create error handler for renderers.
  * Tolerate dynamic server errors during prerendering so console
@@ -28,7 +30,7 @@ export function createErrorHandler({
   errorLogger?: (err: any) => Promise<void>
   capturedErrors: Error[]
   allCapturedErrors?: Error[]
-}) {
+}): ErrorHandler {
   return (err: any): string => {
     if (allCapturedErrors) allCapturedErrors.push(err)
 
