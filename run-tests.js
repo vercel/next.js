@@ -17,7 +17,7 @@ function escapeRegexp(str) {
 }
 
 /**
- * @typedef {{ file: string, cases: 'all' | string[] }} TestFile
+ * @typedef {{ file: string, excludedCases: string[] }} TestFile
  */
 
 const GROUP = process.env.CI ? '##[group]' : ''
@@ -162,7 +162,7 @@ async function main() {
     .filter((arg) => arg.match(/\.test\.(js|ts|tsx)/))
     .map((file) => ({
       file,
-      cases: 'all',
+      excludedCases: [],
     }))
   let prevTimings
 
@@ -198,7 +198,7 @@ async function main() {
       })
       .map((file) => ({
         file,
-        cases: 'all',
+        excludedCases: [],
       }))
   }
 
@@ -238,10 +238,9 @@ async function main() {
       })
       .map((test) => {
         const info = externalTestsFilterLists[test.file]
-        // only run filtered mode when there are failing tests.
-        // When the whole test suite passes we can run all tests, including newly added ones.
+        // Exclude failing and flakey tests, newly added tests are automatically included
         if (info.failed.length > 0 || info.flakey.length > 0) {
-          test.cases = info.passed
+          test.excludedCases = info.failed.concat(info.flakey)
         }
         return test
       })
@@ -382,11 +381,11 @@ ${ENDGROUP}`)
           ? ['--json', `--outputFile=${test.file}${RESULTS_EXT}`]
           : []),
         test.file,
-        ...(test.cases === 'all'
+        ...(test.excludedCases.length === 0
           ? []
           : [
               '--testNamePattern',
-              `^(${test.cases.map(escapeRegexp).join('|')})$`,
+              `^(?!${test.excludedCases.map(escapeRegexp).join('|')})$`,
             ]),
       ]
       const env = {
