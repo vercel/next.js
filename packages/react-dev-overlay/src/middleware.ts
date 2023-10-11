@@ -11,6 +11,7 @@ import url from 'url'
 import type webpack from 'webpack'
 import { getRawSourceMap } from './internal/helpers/getRawSourceMap'
 import { launchEditor } from './internal/helpers/launchEditor'
+import { findOriginalSourcePositionAndContent } from './utils'
 
 export { getErrorSource } from './internal/helpers/nodeStackFrames'
 export {
@@ -79,38 +80,6 @@ function getSourcePath(source: string) {
   }
 
   return source
-}
-
-async function findOriginalSourcePositionAndContent(
-  webpackSource: any,
-  position: { line: number; column: number | null }
-) {
-  const consumer = await new SourceMapConsumer(webpackSource.map())
-  try {
-    const sourcePosition: NullableMappedPosition = consumer.originalPositionFor(
-      {
-        line: position.line,
-        column: position.column ?? 0,
-      }
-    )
-
-    if (!sourcePosition.source) {
-      return null
-    }
-
-    const sourceContent: string | null =
-      consumer.sourceContentFor(
-        sourcePosition.source,
-        /* returnNullOnMissing */ true
-      ) ?? null
-
-    return {
-      sourcePosition,
-      sourceContent,
-    }
-  } finally {
-    consumer.destroy()
-  }
 }
 
 function findOriginalSourcePositionAndContentFromCompilation(
@@ -194,7 +163,7 @@ export async function createOriginalStackFrame({
 
       return moduleNotFoundResult
     }
-    return await findOriginalSourcePositionAndContent(source, {
+    return await findOriginalSourcePositionAndContent(source.map(), {
       line,
       column,
     })

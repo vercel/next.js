@@ -96,6 +96,7 @@ import {
   getSourceById,
   parseStack,
 } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
+import { getOverlayMiddleware } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware-turbopack'
 import { mkdir, readFile, writeFile, rename, unlink } from 'fs/promises'
 import { PageNotFoundError } from '../../../shared/lib/utils'
 import { srcEmptySsgManifest } from '../../../build/webpack/plugins/build-manifest-plugin'
@@ -1045,6 +1046,8 @@ async function startWatcher(opts: SetupOpts) {
     await writeOtherManifests()
     await writeFontManifest()
 
+    const middleware = getOverlayMiddleware(opts.dir)
+
     const turbopackHotReloader: NextJsHotReloaderInterface = {
       turbopackProject: project,
       activeWebpackConfigs: undefined,
@@ -1069,8 +1072,15 @@ async function startWatcher(opts: SetupOpts) {
               .catch(console.error)
           }
         }
+
+        await new Promise<void>((resolve, reject) => {
+          middleware(req, _res, (err?: Error) => {
+            if (err) return reject(err)
+            resolve()
+          })
+        })
         // Request was not finished.
-        return { finished: undefined }
+        return { finished: _res.writableEnded ? true : undefined }
       },
 
       // TODO: Figure out if socket type can match the NextJsHotReloaderInterface
@@ -2141,33 +2151,43 @@ async function startWatcher(opts: SetupOpts) {
             !file?.includes('<anonymous>')
         )
 
-        if (frame?.lineNumber && frame?.file) {
-          const moduleId = frame.file!.replace(
-            /^(webpack-internal:\/\/\/|file:\/\/)/,
-            ''
-          )
-          const modulePath = frame.file.replace(
-            /^(webpack-internal:\/\/\/|file:\/\/)(\(.*\)\/)?/,
-            ''
-          )
+        const { lineNumber, file } = frame || {}
+        if (frame && lineNumber && file) {
+          let source, moduleId, modulePath, isEdgeCompiler
+          if (opts.turbo) {
+            let map: any
+            try {
+              map = JSON.parse(await readFile(file + '.map', 'utf8'))
+            } catch (e) {}
 
-          const src = getErrorSource(err as Error)
-          const isEdgeCompiler = src === COMPILER_NAMES.edgeServer
-          const compilation = (
-            isEdgeCompiler
-              ? hotReloader.edgeServerStats?.compilation
-              : hotReloader.serverStats?.compilation
-          )!
+            source = {
+              map() {
+                return map
+              },
+            }
+          } else {
+            moduleId = file!.replace(/^(webpack-internal:\/\/\/|file:\/\/)/, '')
+            modulePath = file.replace(
+              /^(webpack-internal:\/\/\/|file:\/\/)(\(.*\)\/)?/,
+              ''
+            )
 
-          const source = await getSourceById(
-            !!frame.file?.startsWith(path.sep) ||
-              !!frame.file?.startsWith('file:'),
-            moduleId,
-            compilation
-          )
+            const src = getErrorSource(err as Error)
+            isEdgeCompiler = src === COMPILER_NAMES.edgeServer
+            const compilation = (
+              isEdgeCompiler
+                ? hotReloader.edgeServerStats?.compilation
+                : hotReloader.serverStats?.compilation
+            )!
 
+            source = await getSourceById(
+              !!file.startsWith(path.sep) || !!file.startsWith('file:'),
+              moduleId,
+              compilation
+            )
+          }
           const originalFrame = await createOriginalStackFrame({
-            line: frame.lineNumber,
+            line: lineNumber,
             column: frame.column,
             source,
             frame,
@@ -2185,7 +2205,7 @@ async function startWatcher(opts: SetupOpts) {
 
           if (originalFrame) {
             const { originalCodeFrame, originalStackFrame } = originalFrame
-            const { file, lineNumber, column, methodName } = originalStackFrame
+            const { column, methodName } = originalStackFrame
 
             Log[type === 'warning' ? 'warn' : 'error'](
               `${file} (${lineNumber}:${column}) @ ${methodName}`
