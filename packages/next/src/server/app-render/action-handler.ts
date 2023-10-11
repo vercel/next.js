@@ -21,7 +21,6 @@ import {
 import RenderResult from '../render-result'
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import { FlightRenderResult } from './flight-render-result'
-import type { ActionResult } from './types'
 import type { ActionAsyncStorage } from '../../client/components/action-async-storage.external'
 import {
   filterReqHeaders,
@@ -37,6 +36,7 @@ import {
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
 } from '../../lib/constants'
+import type { AppRenderContext, GenerateFlight } from './app-render'
 
 function nodeToWebReadableStream(nodeReadable: import('stream').Readable) {
   if (process.env.NEXT_RUNTIME !== 'edge') {
@@ -246,21 +246,18 @@ export async function handleAction({
   staticGenerationStore,
   requestStore,
   serverActionsBodySizeLimit,
+  ctx,
 }: {
   req: IncomingMessage
   res: ServerResponse
   ComponentMod: any
   page: string
   serverActionsManifest: any
-  generateFlight: (options: {
-    actionResult: ActionResult
-    formState?: any
-    skipFlight: boolean
-    asNotFound?: boolean
-  }) => Promise<RenderResult>
+  generateFlight: GenerateFlight
   staticGenerationStore: StaticGenerationStore
   requestStore: RequestStore
   serverActionsBodySizeLimit?: SizeLimit
+  ctx: AppRenderContext
 }): Promise<
   | undefined
   | {
@@ -466,7 +463,7 @@ export async function handleAction({
           requestStore,
         })
 
-        actionResult = await generateFlight({
+        actionResult = await generateFlight(ctx, {
           actionResult: Promise.resolve(returnVal),
           // if the page was not revalidated, we can skip the rendering the flight tree
           skipFlight: !staticGenerationStore.pathWasRevalidated,
@@ -533,7 +530,7 @@ export async function handleAction({
         } catch {}
         return {
           type: 'done',
-          result: await generateFlight({
+          result: await generateFlight(ctx, {
             skipFlight: false,
             actionResult: promise,
             asNotFound: true,
@@ -555,7 +552,7 @@ export async function handleAction({
 
       return {
         type: 'done',
-        result: await generateFlight({
+        result: await generateFlight(ctx, {
           actionResult: promise,
           // if the page was not revalidated, we can skip the rendering the flight tree
           skipFlight: !staticGenerationStore.pathWasRevalidated,
