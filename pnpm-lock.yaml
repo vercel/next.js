@@ -423,8 +423,8 @@ importers:
         specifier: npm:react@17.0.2
         version: /react@17.0.2
       react-builtin:
-        specifier: npm:react@18.3.0-canary-d900fadbf-20230929
-        version: /react@18.3.0-canary-d900fadbf-20230929
+        specifier: npm:react@18.3.0-canary-be67db46b-20231010
+        version: /react@18.3.0-canary-be67db46b-20231010
       react-dom:
         specifier: 18.2.0
         version: 18.2.0(react@18.2.0)
@@ -432,26 +432,26 @@ importers:
         specifier: npm:react-dom@17.0.2
         version: /react-dom@17.0.2(react@18.2.0)
       react-dom-builtin:
-        specifier: npm:react-dom@18.3.0-canary-d900fadbf-20230929
-        version: /react-dom@18.3.0-canary-d900fadbf-20230929(react@18.2.0)
+        specifier: npm:react-dom@18.3.0-canary-be67db46b-20231010
+        version: /react-dom@18.3.0-canary-be67db46b-20231010(react@18.2.0)
       react-dom-experimental-builtin:
-        specifier: npm:react-dom@0.0.0-experimental-d900fadbf-20230929
-        version: /react-dom@0.0.0-experimental-d900fadbf-20230929(react@18.2.0)
+        specifier: npm:react-dom@0.0.0-experimental-be67db46b-20231010
+        version: /react-dom@0.0.0-experimental-be67db46b-20231010(react@18.2.0)
       react-experimental-builtin:
-        specifier: npm:react@0.0.0-experimental-d900fadbf-20230929
-        version: /react@0.0.0-experimental-d900fadbf-20230929
+        specifier: npm:react@0.0.0-experimental-be67db46b-20231010
+        version: /react@0.0.0-experimental-be67db46b-20231010
       react-server-dom-turbopack:
-        specifier: 18.3.0-canary-d900fadbf-20230929
-        version: 18.3.0-canary-d900fadbf-20230929(react-dom@18.2.0)(react@18.2.0)
+        specifier: 18.3.0-canary-be67db46b-20231010
+        version: 18.3.0-canary-be67db46b-20231010(react-dom@18.2.0)(react@18.2.0)
       react-server-dom-turbopack-experimental:
-        specifier: npm:react-server-dom-turbopack@0.0.0-experimental-d900fadbf-20230929
-        version: /react-server-dom-turbopack@0.0.0-experimental-d900fadbf-20230929(react-dom@18.2.0)(react@18.2.0)
+        specifier: npm:react-server-dom-turbopack@0.0.0-experimental-be67db46b-20231010
+        version: /react-server-dom-turbopack@0.0.0-experimental-be67db46b-20231010(react-dom@18.2.0)(react@18.2.0)
       react-server-dom-webpack:
-        specifier: 18.3.0-canary-d900fadbf-20230929
-        version: 18.3.0-canary-d900fadbf-20230929(react-dom@18.2.0)(react@18.2.0)(webpack@5.86.0)
+        specifier: 18.3.0-canary-be67db46b-20231010
+        version: 18.3.0-canary-be67db46b-20231010(react-dom@18.2.0)(react@18.2.0)(webpack@5.86.0)
       react-server-dom-webpack-experimental:
-        specifier: npm:react-server-dom-webpack@0.0.0-experimental-d900fadbf-20230929
-        version: /react-server-dom-webpack@0.0.0-experimental-d900fadbf-20230929(react-dom@18.2.0)(react@18.2.0)(webpack@5.86.0)
+        specifier: npm:react-server-dom-webpack@0.0.0-experimental-be67db46b-20231010
+        version: /react-server-dom-webpack@0.0.0-experimental-be67db46b-20231010(react-dom@18.2.0)(react@18.2.0)(webpack@5.86.0)
       react-ssr-prepass:
         specifier: 1.0.8
         version: 1.0.8(react-is@16.13.1)(react@18.2.0)
@@ -480,11 +480,11 @@ importers:
         specifier: 0.10.6
         version: 0.10.6
       scheduler-builtin:
-        specifier: npm:scheduler@0.24.0-canary-d900fadbf-20230929
-        version: /scheduler@0.24.0-canary-d900fadbf-20230929
+        specifier: npm:scheduler@0.24.0-canary-be67db46b-20231010
+        version: /scheduler@0.24.0-canary-be67db46b-20231010
       scheduler-experimental-builtin:
-        specifier: npm:scheduler@0.0.0-experimental-d900fadbf-20230929
-        version: /scheduler@0.0.0-experimental-d900fadbf-20230929
+        specifier: npm:scheduler@0.0.0-experimental-be67db46b-20231010
+        version: /scheduler@0.0.0-experimental-be67db46b-20231010
       seedrandom:
         specifier: 3.0.5
         version: 3.0.5
@@ -22306,14 +22306,14 @@ packages:
       strip-json-comments: 2.0.1
     dev: true
 
-  /react-dom@0.0.0-experimental-d900fadbf-20230929(react@18.2.0):
-    resolution: {integrity: sha512-PbZor0pz+MdjhJ0dKcNABB9vvkfINYzNbHUwrSUDAAi8leM4nOrqdnXOIPlSHkWvKMHbDfxpJgIliGmB75ysxw==}
+  /react-dom@0.0.0-experimental-be67db46b-20231010(react@18.2.0):
+    resolution: {integrity: sha512-OrEx88JnG2vpX4DEFx9v4lQbaaW4Hke2ir/gB9fBEDC1oB9402P0z4wJLDccrkEoWlz7Z+NXmCvnnNSjtcbV1w==}
     peerDependencies:
-      react: 0.0.0-experimental-d900fadbf-20230929
+      react: 0.0.0-experimental-be67db46b-20231010
     dependencies:
       loose-envify: 1.4.0
       react: 18.2.0
-      scheduler: 0.0.0-experimental-d900fadbf-20230929
+      scheduler: 0.0.0-experimental-be67db46b-20231010
     dev: true
 
   /react-dom@17.0.2(react@17.0.2):
@@ -22347,14 +22347,14 @@ packages:
       react: 18.2.0
       scheduler: 0.23.0
 
-  /react-dom@18.3.0-canary-d900fadbf-20230929(react@18.2.0):
-    resolution: {integrity: sha512-XygtMLIfrmyvs8AqXZ0jafG48Lnna3hov52NbaJ0ra2e0boAnG6Ae266AMSeDQHRNTnMzOsn0oyjH3qHEiP6rg==}
+  /react-dom@18.3.0-canary-be67db46b-20231010(react@18.2.0):
+    resolution: {integrity: sha512-b4ml6oTWXWLJRizaIP60OVqPwoOu+GE4f5RIuSPn5/C1vkAfKdfIYT8Am9IhvOER09wUYSx5xZB/ysvRfslBKA==}
     peerDependencies:
-      react: 18.3.0-canary-d900fadbf-20230929
+      react: 18.3.0-canary-be67db46b-20231010
     dependencies:
       loose-envify: 1.4.0
       react: 18.2.0
-      scheduler: 0.24.0-canary-d900fadbf-20230929
+      scheduler: 0.24.0-canary-be67db46b-20231010
     dev: true
 
   /react-is@16.13.1:
@@ -22377,12 +22377,12 @@ packages:
     engines: {node: '>=0.10.0'}
     dev: true
 
-  /react-server-dom-turbopack@0.0.0-experimental-d900fadbf-20230929(react-dom@18.2.0)(react@18.2.0):
-    resolution: {integrity: sha512-MTk3sZt+wVJAosQnTmg+rfznovI2FFRWv4cKcZdk90ebDBL7rZItEIwZzGKqVVhKVetppIYT7gIPMt7CJJ5LCQ==}
+  /react-server-dom-turbopack@0.0.0-experimental-be67db46b-20231010(react-dom@18.2.0)(react@18.2.0):
+    resolution: {integrity: sha512-7NenBCbTOQ9eFLMyEMGcfAGpw+/cBcsKKXsxuJ7Iwf1L0joG5KEStXngVDTUlJZWOvOQ4UfJ6wW8kf4PHpxcxA==}
     engines: {node: '>=0.10.0'}
     peerDependencies:
-      react: 0.0.0-experimental-d900fadbf-20230929
-      react-dom: 0.0.0-experimental-d900fadbf-20230929
+      react: 0.0.0-experimental-be67db46b-20231010
+      react-dom: 0.0.0-experimental-be67db46b-20231010
     dependencies:
       acorn-loose: 8.3.0
       loose-envify: 1.4.0
@@ -22391,12 +22391,12 @@ packages:
       react-dom: 18.2.0(react@18.2.0)
     dev: true
 
-  /react-server-dom-turbopack@18.3.0-canary-d900fadbf-20230929(react-dom@18.2.0)(react@18.2.0):
-    resolution: {integrity: sha512-aD2S8Fu4UWhyO1YJXt3ZITQohdymG/CfxT8xMw/OyVy2cbescTKLdZ215D4CUQc3368GhRDlsCUmyKpQFb5tlg==}
+  /react-server-dom-turbopack@18.3.0-canary-be67db46b-20231010(react-dom@18.2.0)(react@18.2.0):
+    resolution: {integrity: sha512-KTXE8M9CglAXlIoCpgt4333Y+7lMYKQ8DHuWTnrJxVaPUHwIAxIj2yLGj/c0WndOPsXF1JSXU2c7MIFSy4Hb1Q==}
     engines: {node: '>=0.10.0'}
     peerDependencies:
-      react: 18.3.0-canary-d900fadbf-20230929
-      react-dom: 18.3.0-canary-d900fadbf-20230929
+      react: 18.3.0-canary-be67db46b-20231010
+      react-dom: 18.3.0-canary-be67db46b-20231010
     dependencies:
       acorn-loose: 8.3.0
       loose-envify: 1.4.0
@@ -22405,12 +22405,12 @@ packages:
       react-dom: 18.2.0(react@18.2.0)
     dev: true
 
-  /react-server-dom-webpack@0.0.0-experimental-d900fadbf-20230929(react-dom@18.2.0)(react@18.2.0)(webpack@5.86.0):
-    resolution: {integrity: sha512-aycuGdxhhJ7iQnbxyYPISjR16cbWSdwHfHuAtzjuB2Hr6bd3ievyKusrFQMhZ+piJwYJJNKGLboz4eeVKq6lfw==}
+  /react-server-dom-webpack@0.0.0-experimental-be67db46b-20231010(react-dom@18.2.0)(react@18.2.0)(webpack@5.86.0):
+    resolution: {integrity: sha512-1eSlFSVZwvz4aH0pfuV9uot88xfnxEX6bKIiIQnY9wtyyz8VjCklkNQF80v9MSY9AeFVUmHM9PNvT0sDF47cJA==}
     engines: {node: '>=0.10.0'}
     peerDependencies:
-      react: 0.0.0-experimental-d900fadbf-20230929
-      react-dom: 0.0.0-experimental-d900fadbf-20230929
+      react: 0.0.0-experimental-be67db46b-20231010
+      react-dom: 0.0.0-experimental-be67db46b-20231010
       webpack: 5.86.0
     dependencies:
       acorn-loose: 8.3.0
@@ -22421,12 +22421,12 @@ packages:
       webpack: 5.86.0(@swc/core@1.3.85)
     dev: true
 
-  /react-server-dom-webpack@18.3.0-canary-d900fadbf-20230929(react-dom@18.2.0)(react@18.2.0)(webpack@5.86.0):
-    resolution: {integrity: sha512-THectocKbBfhzk4oakFh+ws6nEnDFWRxzNC79BFW9stP4TDsyqAFqb6dYNeCnQhlzs6plgBhaxDmZ1m1R6BmKg==}
+  /react-server-dom-webpack@18.3.0-canary-be67db46b-20231010(react-dom@18.2.0)(react@18.2.0)(webpack@5.86.0):
+    resolution: {integrity: sha512-8UaJ+lX/SvzwhE5KPdhVUhZWbs31HlnNxYbgFR0eysUbhIUe4CQtE3ktd+z87mFi+Q77HmzrVNfWwUbBCxby3g==}
     engines: {node: '>=0.10.0'}
     peerDependencies:
-      react: 18.3.0-canary-d900fadbf-20230929
-      react-dom: 18.3.0-canary-d900fadbf-20230929
+      react: 18.3.0-canary-be67db46b-20231010
+      react-dom: 18.3.0-canary-be67db46b-20231010
       webpack: 5.86.0
     dependencies:
       acorn-loose: 8.3.0
@@ -22464,8 +22464,8 @@ packages:
       react-lifecycles-compat: 3.0.4
     dev: true
 
-  /react@0.0.0-experimental-d900fadbf-20230929:
-    resolution: {integrity: sha512-oriYDTyPzAeRxec5pJnOWYU9RnocpbE0V3LXuuVueTFM2E62C6GKEUFAu3fKlS52knvuZs4czCO1nkfqVxu5yg==}
+  /react@0.0.0-experimental-be67db46b-20231010:
+    resolution: {integrity: sha512-Y67z4XTDKSupIriZyzPrdVhNdvSuoLxy31xyPeSxx/g7mUBCSGJARiONzC9DBdfzOGyrFDpEs4sjseO43i/HYg==}
     engines: {node: '>=0.10.0'}
     dependencies:
       loose-envify: 1.4.0
@@ -22484,8 +22484,8 @@ packages:
     dependencies:
       loose-envify: 1.4.0
 
-  /react@18.3.0-canary-d900fadbf-20230929:
-    resolution: {integrity: sha512-wZmxUlj5Z4W9f3rMB1XxhtrLiBjEriztjvTkuBoC+EOsRvM1r7+2j306WEV5p0ARS05kCYJWj7PSz9ZngDjEHw==}
+  /react@18.3.0-canary-be67db46b-20231010:
+    resolution: {integrity: sha512-q1emlr6nW+cfYXf01FgiJBA/Zorvok4YMmpR3K9N4twY8PPhMIO5igYrlCzLthXY41J/r2zhkVgwjaS5hRXHtg==}
     engines: {node: '>=0.10.0'}
     dependencies:
       loose-envify: 1.4.0
@@ -23555,8 +23555,8 @@ packages:
       xmlchars: 2.2.0
     dev: true
 
-  /scheduler@0.0.0-experimental-d900fadbf-20230929:
-    resolution: {integrity: sha512-RnVZ/lzGlo5kSU2BcCOrvi1+NOExcAUAFVMrSbpN2vgNTT2Mk6uODXkEAcP5lCvMoCaCuqxFzxGqgrAE52Ilgw==}
+  /scheduler@0.0.0-experimental-be67db46b-20231010:
+    resolution: {integrity: sha512-ISdUYot1XxxFNCzqFLS9rOGUkE75W/7u2Wn/fr5LnvnnxdLMo7LI2HKmVsyK03dW7zBewXBKVmAuSDefKfNlUg==}
     dependencies:
       loose-envify: 1.4.0
     dev: true
@@ -23572,8 +23572,8 @@ packages:
     dependencies:
       loose-envify: 1.4.0
 
-  /scheduler@0.24.0-canary-d900fadbf-20230929:
-    resolution: {integrity: sha512-OIVnJmdCFy9O+qxqgLISdvXx3T2Lxe2x6JzOu3a76tkYVsDHCZQ/nBVt/ljmOduY2E6HwArwPz2EyQS75RZHCg==}
+  /scheduler@0.24.0-canary-be67db46b-20231010:
+    resolution: {integrity: sha512-JEgiNtHKxwb2S8XwN66Nlzu5Vmtl5f/lwclmw6+jbWZicrOwtPIyBqSo5GlO3jsWRKc5LNlvql5BGmW0NjfPkg==}
     dependencies:
       loose-envify: 1.4.0
     dev: true

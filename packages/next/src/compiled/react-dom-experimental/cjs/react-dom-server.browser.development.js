@@ -17,7 +17,7 @@ if (process.env.NODE_ENV !== "production") {
 var React = require("next/dist/compiled/react-experimental");
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-experimental-d900fadbf-20230929';
+var ReactVersion = '18.3.0-experimental-be67db46b-20231010';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -8199,9 +8199,12 @@ function useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot) {
   return getServerSnapshot();
 }
 
-function useDeferredValue(value) {
+function useDeferredValue(value, initialValue) {
   resolveCurrentlyRenderingComponent();
-  return value;
+
+  {
+    return initialValue !== undefined ? initialValue : value;
+  }
 }
 
 function unsupportedStartTransition() {
@@ -8600,7 +8603,7 @@ function resumeRequest(children, postponedState, renderState, onError, onAllRead
     progressiveChunkSize: postponedState.progressiveChunkSize,
     status: OPEN,
     fatalError: null,
-    nextSegmentId: 0,
+    nextSegmentId: postponedState.nextSegmentId,
     allPendingTasks: 0,
     pendingRootTasks: 0,
     completedRootSegment: null,
@@ -9036,11 +9039,7 @@ function replaySuspenseBoundary(request, task, keyPath, props, id, childNodes, c
 
   try {
     // We use the safe form because we don't handle suspending here. Only error handling.
-    if (typeof childSlots === 'number') {
-      resumeNode(request, task, childSlots, content, -1);
-    } else {
-      renderNode(request, task, content, -1);
-    }
+    renderNode(request, task, content, -1);
 
     if (task.replay.pendingTasks === 1 && task.replay.nodes.length > 0) {
       throw new Error("Couldn't find all resumable slots by key/index during replaying. " + "The tree doesn't match so React will fallback to client rendering.");
@@ -9091,24 +9090,15 @@ function replaySuspenseBoundary(request, task, keyPath, props, id, childNodes, c
     task.keyPath = prevKeyPath;
   }
 
-  var fallbackKeyPath = [keyPath[0], 'Suspense Fallback', keyPath[2]];
-  var suspendedFallbackTask; // We create suspended task for the fallback because we don't want to actually work
+  var fallbackKeyPath = [keyPath[0], 'Suspense Fallback', keyPath[2]]; // We create suspended task for the fallback because we don't want to actually work
   // on it yet in case we finish the main content, so we queue for later.
 
-  if (typeof fallbackSlots === 'number') {
-    // Resuming directly in the fallback.
-    var resumedSegment = createPendingSegment(request, 0, null, task.formatContext, false, false);
-    resumedSegment.id = fallbackSlots;
-    resumedSegment.parentFlushed = true;
-    suspendedFallbackTask = createRenderTask(request, null, fallback, -1, parentBoundary, resumedSegment, fallbackAbortSet, fallbackKeyPath, task.formatContext, task.legacyContext, task.context, task.treeContext);
-  } else {
-    var fallbackReplay = {
-      nodes: fallbackNodes,
-      slots: fallbackSlots,
-      pendingTasks: 0
-    };
-    suspendedFallbackTask = createReplayTask(request, null, fallbackReplay, fallback, -1, parentBoundary, fallbackAbortSet, fallbackKeyPath, task.formatContext, task.legacyContext, task.context, task.treeContext);
-  }
+  var fallbackReplay = {
+    nodes: fallbackNodes,
+    slots: fallbackSlots,
+    pendingTasks: 0
+  };
+  var suspendedFallbackTask = createReplayTask(request, null, fallbackReplay, fallback, -1, parentBoundary, fallbackAbortSet, fallbackKeyPath, task.formatContext, task.legacyContext, task.context, task.treeContext);
 
   {
     suspendedFallbackTask.componentStack = task.componentStack;
@@ -9116,8 +9106,7 @@ function replaySuspenseBoundary(request, task, keyPath, props, id, childNodes, c
   // on preparing fallbacks if we don't have any more main content to task on.
 
 
-  request.pingedTasks.push(suspendedFallbackTask); // TODO: Should this be in the finally?
-
+  request.pingedTasks.push(suspendedFallbackTask);
   popComponentStackInDEV(task);
 }
 
@@ -9658,37 +9647,6 @@ function resumeNode(request, task, segmentId, node, childIndex) {
   }
 }
 
-function resumeElement(request, task, keyPath, segmentId, prevThenableState, type, props, ref) {
-  var prevReplay = task.replay;
-  var blockedBoundary = task.blockedBoundary;
-  var resumedSegment = createPendingSegment(request, 0, null, task.formatContext, false, false);
-  resumedSegment.id = segmentId;
-  resumedSegment.parentFlushed = true;
-
-  try {
-    // Convert the current ReplayTask to a RenderTask.
-    var renderTask = task;
-    renderTask.replay = null;
-    renderTask.blockedSegment = resumedSegment;
-    renderElement(request, task, keyPath, prevThenableState, type, props, ref);
-    resumedSegment.status = COMPLETED;
-
-    if (blockedBoundary === null) {
-      request.completedRootSegment = resumedSegment;
-    } else {
-      queueCompletedSegment(blockedBoundary, resumedSegment);
-
-      if (blockedBoundary.parentFlushed) {
-        request.partialBoundaries.push(blockedBoundary);
-      }
-    }
-  } finally {
-    // Restore to a ReplayTask.
-    task.replay = prevReplay;
-    task.blockedSegment = null;
-  }
-}
-
 function replayElement(request, task, keyPath, prevThenableState, name, keyOrIndex, childIndex, type, props, ref, replay) {
   // We're replaying. Find the path to follow.
   var replayNodes = replay.nodes;
@@ -9699,15 +9657,15 @@ function replayElement(request, task, keyPath, prevThenableState, name, keyOrInd
 
     if (keyOrIndex !== node[1]) {
       continue;
-    } // Let's double check that the component name matches as a precaution.
-
-
-    if (name !== null && name !== node[0]) {
-      throw new Error('Expected to see a component of type "' + name + '" in this slot. ' + "The tree doesn't match so React will fallback to client rendering.");
     }
 
     if (node.length === 4) {
       // Matched a replayable path.
+      // Let's double check that the component name matches as a precaution.
+      if (name !== null && name !== node[0]) {
+        throw new Error('Expected the resume to render <' + node[0] + '> in this slot but instead it rendered <' + name + '>. ' + "The tree doesn't match so React will fallback to client rendering.");
+      }
+
       var childNodes = node[2];
       var childSlots = node[3];
       task.replay = {
@@ -9717,12 +9675,7 @@ function replayElement(request, task, keyPath, prevThenableState, name, keyOrInd
       };
 
       try {
-        if (typeof childSlots === 'number') {
-          // Matched a resumable element.
-          resumeElement(request, task, keyPath, childSlots, prevThenableState, type, props, ref);
-        } else {
-          renderElement(request, task, keyPath, prevThenableState, type, props, ref);
-        }
+        renderElement(request, task, keyPath, prevThenableState, type, props, ref);
 
         if (task.replay.pendingTasks === 1 && task.replay.nodes.length > 0 // TODO check remaining slots
         ) {
@@ -9747,7 +9700,8 @@ function replayElement(request, task, keyPath, prevThenableState, name, keyOrInd
     } else {
       // Let's double check that the component type matches.
       if (type !== REACT_SUSPENSE_TYPE) {
-        throw new Error('Expected to see a Suspense boundary in this slot. ' + "The tree doesn't match so React will fallback to client rendering.");
+        var expectedType = 'Suspense';
+        throw new Error('Expected the resume to render <' + expectedType + '> in this slot but instead it rendered <' + (getComponentNameFromType(type) || 'Unknown') + '>. ' + "The tree doesn't match so React will fallback to client rendering.");
       } // Matched a replayable path.
 
 
@@ -9811,8 +9765,15 @@ prevThenableState, node, childIndex) {
 
 
 function renderNodeDestructiveImpl(request, task, prevThenableState, node, childIndex) {
-  // Stash the node we're working on. We'll pick up from this task in case
+  if (task.replay !== null && typeof task.replay.slots === 'number') {
+    // TODO: Figure out a cheaper place than this hot path to do this check.
+    var resumeSegmentID = task.replay.slots;
+    resumeNode(request, task, resumeSegmentID, node, childIndex);
+    return;
+  } // Stash the node we're working on. We'll pick up from this task in case
   // something suspends.
+
+
   task.node = node;
   task.childIndex = childIndex; // Handle object types
 
@@ -9999,6 +9960,7 @@ function replayFragment(request, task, children, childIndex) {
       // in the original prerender. What's unable to complete is the child
       // replay nodes which might be Suspense boundaries which are able to
       // absorb the error and we can still continue with siblings.
+      // This is an error, stash the component stack if it is null.
 
 
       erroredReplay(request, task.blockedBoundary, x, childNodes, childSlots);
@@ -10367,6 +10329,7 @@ function renderNode(request, task, node, childIndex) {
               task.componentStack = previousComponentStack;
             }
 
+            lastBoundaryErrorComponentStackDev = null;
             return;
           }
       }
@@ -10428,6 +10391,7 @@ function erroredTask(request, boundary, error) {
   }
 
   if (boundary === null) {
+    lastBoundaryErrorComponentStackDev = null;
     fatalError(request, error);
   } else {
     boundary.pendingTasks--;
@@ -10449,6 +10413,8 @@ function erroredTask(request, boundary, error) {
         // We reuse the same queue for errors.
         request.clientRenderedBoundaries.push(boundary);
       }
+    } else {
+      lastBoundaryErrorComponentStackDev = null;
     }
   }
 
@@ -10562,8 +10528,6 @@ function abortTask(task, request, error) {
   }
 
   if (boundary === null) {
-    request.allPendingTasks--;
-
     if (request.status !== CLOSING && request.status !== CLOSED) {
       var replay = task.replay;
 
@@ -10572,6 +10536,7 @@ function abortTask(task, request, error) {
         // the request;
         logRecoverableError(request, error);
         fatalError(request, error);
+        return;
       } else {
         // If the shell aborts during a replay, that's not a fatal error. Instead
         // we should be able to recover by client rendering all the root boundaries in
@@ -10581,6 +10546,14 @@ function abortTask(task, request, error) {
         if (replay.pendingTasks === 0 && replay.nodes.length > 0) {
           var errorDigest = logRecoverableError(request, error);
           abortRemainingReplayNodes(request, null, replay.nodes, replay.slots, error, errorDigest);
+        }
+
+        request.pendingRootTasks--;
+
+        if (request.pendingRootTasks === 0) {
+          request.onShellError = noop;
+          var onShellReady = request.onShellReady;
+          onShellReady();
         }
       }
     }
@@ -10623,12 +10596,13 @@ function abortTask(task, request, error) {
       return abortTask(fallbackTask, request, error);
     });
     boundary.fallbackAbortableTasks.clear();
-    request.allPendingTasks--;
+  }
 
-    if (request.allPendingTasks === 0) {
-      var onAllReady = request.onAllReady;
-      onAllReady();
-    }
+  request.allPendingTasks--;
+
+  if (request.allPendingTasks === 0) {
+    var onAllReady = request.onAllReady;
+    onAllReady();
   }
 }
 
@@ -10812,6 +10786,7 @@ function retryRenderTask(request, task, segment) {
           logPostpone(request, postponeInstance.message);
           trackPostpone(request, trackedPostpones, task, segment);
           finishedTask(request, task.blockedBoundary, segment);
+          lastBoundaryErrorComponentStackDev = null;
           return;
         }
     }
@@ -10888,6 +10863,14 @@ function retryReplayTask(request, task) {
     task.replay.pendingTasks--;
     task.abortSet.delete(task);
     erroredReplay(request, task.blockedBoundary, x, task.replay.nodes, task.replay.slots);
+    request.pendingRootTasks--;
+
+    if (request.pendingRootTasks === 0) {
+      request.onShellError = noop;
+      var onShellReady = request.onShellReady;
+      onShellReady();
+    }
+
     request.allPendingTasks--;
 
     if (request.allPendingTasks === 0) {
@@ -11486,7 +11469,7 @@ function renderToReadableStream(children, options) {
     }
 
     var resumableState = createResumableState(options ? options.identifierPrefix : undefined, options ? options.unstable_externalRuntimeSrc : undefined);
-    var request = createRequest(children, resumableState, createRenderState(resumableState, options ? options.nonce : undefined, options ? options.bootstrapScriptContent : undefined, options ? options.bootstrapScripts : undefined, options ? options.bootstrapModules : undefined, options ? options.unstable_externalRuntimeSrc : undefined, options ? options.importMap : undefined), createRootFormatContext(options ? options.namespaceURI : undefined), options ? options.progressiveChunkSize : undefined, options ? options.onError : undefined, onAllReady, onShellReady, onShellError, onFatalError, options ? options.onPostpone : undefined, options ? options.experimental_formState : undefined);
+    var request = createRequest(children, resumableState, createRenderState(resumableState, options ? options.nonce : undefined, options ? options.bootstrapScriptContent : undefined, options ? options.bootstrapScripts : undefined, options ? options.bootstrapModules : undefined, options ? options.unstable_externalRuntimeSrc : undefined, options ? options.importMap : undefined), createRootFormatContext(options ? options.namespaceURI : undefined), options ? options.progressiveChunkSize : undefined, options ? options.onError : undefined, onAllReady, onShellReady, onShellError, onFatalError, options ? options.onPostpone : undefined, options ? options.formState : undefined);
 
     if (options && options.signal) {
       var signal = options.signal;
