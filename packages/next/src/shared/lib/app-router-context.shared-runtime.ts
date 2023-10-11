@@ -12,6 +12,7 @@ import type {
   FlightData,
 } from '../../server/app-render/types'
 import React from 'react'
+import type { AppRouterActionQueue } from '../../client/app-index'
 
 export type ChildSegmentMap = Map<string, CacheNode>
 
@@ -138,6 +139,9 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 export let flightRouterState: AppRouterState
+
+export const ActionQueueContext =
+  React.createContext<AppRouterActionQueue | null>(null)
 
 export function updateFlightRouterState(newState: AppRouterState) {
   flightRouterState = newState

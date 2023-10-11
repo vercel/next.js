@@ -1,16 +1,11 @@
-import { reducer } from './router-reducer/router-reducer'
-import type { MutableRefObject, Dispatch } from 'react'
-import React, { use } from 'react'
+import type { Dispatch, Usable } from 'react'
+import React, { useContext } from 'react'
 import { useRef, useEffect, useCallback } from 'react'
 import type {
   AppRouterState,
   ReducerActions,
-  ReducerState,
 } from './router-reducer/router-reducer-types'
-import {
-  flightRouterState,
-  updateFlightRouterState,
-} from '../../shared/lib/app-router-context.shared-runtime'
+import { ActionQueueContext } from '../../shared/lib/app-router-context.shared-runtime'
 
 function normalizeRouterState(val: any): any {
   if (val instanceof Map) {
@@ -88,57 +83,33 @@ declare global {
   }
 }
 
-interface ReduxDevToolsInstance {
+export interface ReduxDevToolsInstance {
   send(action: any, state: any): void
   init(initialState: any): void
 }
 
 function useReducerWithReduxDevtoolsNoop(
   initialState: AppRouterState
-): [AppRouterState, Dispatch<ReducerActions>, () => void] {
+): [
+  Usable<AppRouterState> | AppRouterState,
+  Dispatch<ReducerActions>,
+  () => void
+] {
   return [initialState, () => {}, () => {}]
-}
-
-function dispatchWithDevtools(
-  action: ReducerActions,
-  ref: MutableRefObject<ReduxDevToolsInstance | undefined>
-) {
-  if (!flightRouterState) throw new Error('Missing state')
-  const result = reducer(flightRouterState, action)
-
-  if (ref.current) {
-    ref.current.send(action, normalizeRouterState(result))
-  }
-
-  return result
-}
-
-function isThenable(value: any): value is Promise<any> {
-  return (
-    value &&
-    (typeof value === 'object' || typeof value === 'function') &&
-    typeof value.then === 'function'
-  )
-}
-
-function unwrapStateIfNeeded(state: AppRouterState | Promise<AppRouterState>) {
-  if (isThenable(state)) {
-    const result = use(state)
-    updateFlightRouterState(result)
-    return result
-  }
-
-  updateFlightRouterState(state)
-  return state
 }
 
 function useReducerWithReduxDevtoolsImpl(
   initialState: AppRouterState
-): [AppRouterState, Dispatch<ReducerActions>, () => void] {
+): [
+  Usable<AppRouterState> | AppRouterState,
+  Dispatch<ReducerActions>,
+  () => void
+] {
   const [state, setState] = React.useState<
-    AppRouterState | Promise<AppRouterState>
+    Usable<AppRouterState> | AppRouterState
   >(initialState)
 
+  const actionQueue = useContext(ActionQueueContext)
   const devtoolsConnectionRef = useRef<ReduxDevToolsInstance>()
   const enabledRef = useRef<boolean>()
 
@@ -163,34 +134,27 @@ function useReducerWithReduxDevtoolsImpl(
     )
     if (devtoolsConnectionRef.current) {
       devtoolsConnectionRef.current.init(normalizeRouterState(initialState))
+
+      if (actionQueue) {
+        actionQueue.devToolsInstance = devtoolsConnectionRef.current
+      }
     }
 
     return () => {
       devtoolsConnectionRef.current = undefined
     }
-  }, [initialState])
-
-  const lastPromiseRef = useRef<ReducerState>()
-
-  const dispatchAction = useCallback((action: ReducerActions) => {
-    const result = dispatchWithDevtools(action, devtoolsConnectionRef)
-    setState(result)
-    return result
-  }, [])
+  }, [initialState, actionQueue])
 
   const dispatch = useCallback(
     (action: ReducerActions) => {
-      if (
-        isThenable(lastPromiseRef.current) &&
-        (action.type === 'refresh' || action.type === 'fast-refresh')
-      ) {
-        // don't refresh if another action is in flight (is this a good idea?)
-        return
+      if (!actionQueue) return
+      if (!actionQueue.state) {
+        actionQueue.state = initialState
       }
 
-      lastPromiseRef.current = dispatchAction(action)
+      actionQueue.dispatch(action, setState)
     },
-    [dispatchAction]
+    [actionQueue, initialState]
   )
 
   const sync = useCallback(() => {
@@ -202,10 +166,7 @@ function useReducerWithReduxDevtoolsImpl(
     }
   }, [state])
 
-  const applicationState = unwrapStateIfNeeded(state)
-  lastPromiseRef.current = undefined
-
-  return [applicationState, dispatch, sync]
+  return [state, dispatch, sync]
 }
 
 export const useReducerWithReduxDevtools =

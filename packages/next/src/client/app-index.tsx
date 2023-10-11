@@ -2,16 +2,25 @@
 import '../build/polyfills/polyfill-module'
 // @ts-ignore react-dom/client exists when using React 18
 import ReactDOMClient from 'react-dom/client'
-import React, { use } from 'react'
+import React, { use, startTransition } from 'react'
 // @ts-ignore
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { createFromReadableStream } from 'react-server-dom-webpack/client'
 
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
-import { GlobalLayoutRouterContext } from '../shared/lib/app-router-context.shared-runtime'
+import {
+  ActionQueueContext,
+  GlobalLayoutRouterContext,
+} from '../shared/lib/app-router-context.shared-runtime'
 import onRecoverableError from './on-recoverable-error'
 import { callServer } from './app-call-server'
 import { isNextRouterError } from './components/is-next-router-error'
+import type {
+  AppRouterState,
+  ReducerActions,
+} from './components/router-reducer/router-reducer-types'
+import { reducer } from './components/router-reducer/router-reducer'
+import type { ReduxDevToolsInstance } from './components/use-flight-router-state'
 
 // Since React doesn't call onerror for errors caught in error boundaries.
 const origConsoleError = window.console.error
@@ -32,6 +41,101 @@ window.addEventListener('error', (ev: WindowEventMap['error']): void => {
 /// <reference types="react-dom/experimental" />
 
 const appElement: HTMLElement | Document | null = document
+
+export type AppRouterActionQueue = {
+  state: AppRouterState | null
+  devToolsInstance?: ReduxDevToolsInstance
+  dispatch: any
+  action: (
+    state: AppRouterState | null,
+    action: ReducerActions
+  ) => Promise<AppRouterState | null>
+  pending: ActionQueueNode | null
+}
+
+type ActionQueueNode = {
+  payload: any
+  next: ActionQueueNode | null
+}
+
+function finishRunningAction(
+  actionQueue: AppRouterActionQueue,
+  setState: React.Dispatch<Promise<AppRouterState | null>>
+) {
+  if (actionQueue.pending !== null) {
+    actionQueue.pending = actionQueue.pending.next
+    if (actionQueue.pending !== null) {
+      // eslint-disable-next-line @typescript-eslint/no-use-before-define
+      runAction(actionQueue, actionQueue.pending.payload, setState)
+    }
+  }
+}
+async function runAction(
+  actionQueue: AppRouterActionQueue,
+  payload: ReducerActions,
+  setState: React.Dispatch<Promise<AppRouterState | null>>
+) {
+  const prevState = actionQueue.state
+  const promise = actionQueue.action(prevState, payload)
+
+  promise.then(
+    (nextState: AppRouterState | null) => {
+      actionQueue.state = nextState
+
+      if (actionQueue.devToolsInstance) {
+        actionQueue.devToolsInstance.send(payload, nextState)
+      }
+
+      finishRunningAction(actionQueue, setState)
+    },
+    () => {
+      finishRunningAction(actionQueue, setState)
+    }
+  )
+
+  startTransition(() => {
+    setState(promise)
+  })
+}
+
+function dispatchAction(
+  actionQueue: AppRouterActionQueue,
+  payload: ReducerActions,
+  setState: React.Dispatch<Promise<AppRouterState | null>>
+) {
+  const newAction: ActionQueueNode = {
+    payload,
+    next: null,
+  }
+  // Check if the queue is empty
+  if (actionQueue.pending === null || payload.type === 'navigate') {
+    // The queue is empty, so add the action and start it immediately
+    actionQueue.pending = newAction
+    runAction(actionQueue, newAction.payload, setState)
+  } else {
+    // The queue is not empty, so add the action to the end of the queue
+    // It will be started by finishActions after the previous action finishes
+    let last = actionQueue.pending
+    while (last.next !== null) {
+      last = last.next
+    }
+    last.next = newAction
+  }
+}
+
+let actionQueue: AppRouterActionQueue = {
+  state: null,
+  dispatch: (
+    payload: any,
+    setState: React.Dispatch<Promise<AppRouterState | null>>
+  ) => dispatchAction(actionQueue, payload, setState),
+  action: async (state: AppRouterState | null, action: ReducerActions) => {
+    if (state === null) throw new Error('Missing state')
+    const result = reducer(state, action)
+    return result
+  },
+  pending: null,
+}
 
 const getCacheKey = () => {
   const { pathname, search } = location
@@ -230,7 +334,9 @@ export function hydrate() {
         }}
       >
         <Root>
-          <RSCComponent />
+          <ActionQueueContext.Provider value={actionQueue}>
+            <RSCComponent />
+          </ActionQueueContext.Provider>
         </Root>
       </HeadManagerContext.Provider>
     </StrictModeIfEnabled>
