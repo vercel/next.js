@@ -110,18 +110,6 @@ function dispatchAction(
   }
 }
 
-let actionQueue: AppRouterActionQueue = {
-  state: null,
-  dispatch: (payload: ReducerActions, setState: DispatchStatePromise) =>
-    dispatchAction(actionQueue, payload, setState),
-  action: async (state: AppRouterState | null, action: ReducerActions) => {
-    if (state === null) throw new Error('Missing state')
-    const result = reducer(state, action)
-    return result
-  },
-  pending: null,
-}
-
 const getCacheKey = () => {
   const { pathname, search } = location
   return pathname + search
@@ -311,6 +299,18 @@ export function hydrate() {
     }
   }
 
+  const actionQueue: AppRouterActionQueue = {
+    state: null,
+    dispatch: (payload: ReducerActions, setState: DispatchStatePromise) =>
+      dispatchAction(actionQueue, payload, setState),
+    action: async (state: AppRouterState | null, action: ReducerActions) => {
+      if (state === null) throw new Error('Missing state')
+      const result = reducer(state, action)
+      return result
+    },
+    pending: null,
+  }
+
   const reactEl = (
     <StrictModeIfEnabled>
       <HeadManagerContext.Provider
@@ -318,11 +318,11 @@ export function hydrate() {
           appDir: true,
         }}
       >
-        <Root>
-          <ActionQueueContext.Provider value={actionQueue}>
+        <ActionQueueContext.Provider value={actionQueue}>
+          <Root>
             <RSCComponent />
-          </ActionQueueContext.Provider>
-        </Root>
+          </Root>
+        </ActionQueueContext.Provider>
       </HeadManagerContext.Provider>
     </StrictModeIfEnabled>
   )
