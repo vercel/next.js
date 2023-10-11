@@ -103,7 +103,7 @@ module.exports = async function collectDiffs(
           `cd ${diffingDir} && git diff --minimal HEAD ${file}`
         )
         stdout = (stdout.split(file).pop() || '').trim()
-        if (stdout.length > 0) {
+        if (stdout.length > 0 && !isLikelyHashOrIDChange(stdout)) {
           diffs[fileKey] = stdout
         }
       } catch (err) {
@@ -113,4 +113,49 @@ module.exports = async function collectDiffs(
     }
   }
   return diffs
+}
+
+function isLikelyHashOrIDChange(diff) {
+  const lines = diff.split('\n')
+  let additions = []
+  let deletions = []
+
+  // Separate additions and deletions
+  for (const line of lines) {
+    if (line.startsWith('+')) {
+      additions.push(line.substring(1).split(/\b/))
+    } else if (line.startsWith('-')) {
+      deletions.push(line.substring(1).split(/\b/))
+    }
+  }
+
+  // If the number of additions and deletions is different, it's not a hash or ID change
+  if (additions.length !== deletions.length) {
+    return false
+  }
+
+  // Compare each addition with each deletion
+  for (let i = 0; i < additions.length; i++) {
+    const additionTokens = additions[i]
+    const deletionTokens = deletions[i]
+
+    // Identify differing tokens
+    const differingTokens = additionTokens.filter(
+      (token, index) => token !== deletionTokens[index]
+    )
+
+    // Analyze differing tokens
+    for (const token of differingTokens) {
+      const isLikelyHash = /^[a-f0-9]+$/.test(token)
+      const isLikelyID = /^[0-9]+$/.test(token)
+      // this is most likely noise because some path include the repo name, which can be main or diff
+      const isLikelyNoise = ['main', 'diff'].includes(token)
+
+      if (!isLikelyHash && !isLikelyID && !isLikelyNoise) {
+        return false
+      }
+    }
+  }
+
+  return true
 }
