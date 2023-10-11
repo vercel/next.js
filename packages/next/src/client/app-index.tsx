@@ -11,6 +11,9 @@ import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-ru
 import {
   ActionQueueContext,
   GlobalLayoutRouterContext,
+  type AppRouterActionQueue,
+  type DispatchStatePromise,
+  type ActionQueueNode,
 } from '../shared/lib/app-router-context.shared-runtime'
 import onRecoverableError from './on-recoverable-error'
 import { callServer } from './app-call-server'
@@ -20,7 +23,6 @@ import type {
   ReducerActions,
 } from './components/router-reducer/router-reducer-types'
 import { reducer } from './components/router-reducer/router-reducer'
-import type { ReduxDevToolsInstance } from './components/use-flight-router-state'
 
 // Since React doesn't call onerror for errors caught in error boundaries.
 const origConsoleError = window.console.error
@@ -42,25 +44,9 @@ window.addEventListener('error', (ev: WindowEventMap['error']): void => {
 
 const appElement: HTMLElement | Document | null = document
 
-export type AppRouterActionQueue = {
-  state: AppRouterState | null
-  devToolsInstance?: ReduxDevToolsInstance
-  dispatch: any
-  action: (
-    state: AppRouterState | null,
-    action: ReducerActions
-  ) => Promise<AppRouterState | null>
-  pending: ActionQueueNode | null
-}
-
-type ActionQueueNode = {
-  payload: any
-  next: ActionQueueNode | null
-}
-
 function finishRunningAction(
   actionQueue: AppRouterActionQueue,
-  setState: React.Dispatch<Promise<AppRouterState | null>>
+  setState: DispatchStatePromise
 ) {
   if (actionQueue.pending !== null) {
     actionQueue.pending = actionQueue.pending.next
@@ -73,7 +59,7 @@ function finishRunningAction(
 async function runAction(
   actionQueue: AppRouterActionQueue,
   payload: ReducerActions,
-  setState: React.Dispatch<Promise<AppRouterState | null>>
+  setState: DispatchStatePromise
 ) {
   const prevState = actionQueue.state
   const promise = actionQueue.action(prevState, payload)
@@ -101,20 +87,21 @@ async function runAction(
 function dispatchAction(
   actionQueue: AppRouterActionQueue,
   payload: ReducerActions,
-  setState: React.Dispatch<Promise<AppRouterState | null>>
+  setState: DispatchStatePromise
 ) {
   const newAction: ActionQueueNode = {
     payload,
     next: null,
   }
-  // Check if the queue is empty
+  // Check if the queue is empty or if the action is a navigation action
   if (actionQueue.pending === null || payload.type === 'navigate') {
     // The queue is empty, so add the action and start it immediately
+    // We also immediately start navigations as those shouldn't be blocked
     actionQueue.pending = newAction
     runAction(actionQueue, newAction.payload, setState)
   } else {
     // The queue is not empty, so add the action to the end of the queue
-    // It will be started by finishActions after the previous action finishes
+    // It will be started by finishRunningAction after the previous action finishes
     let last = actionQueue.pending
     while (last.next !== null) {
       last = last.next
@@ -125,10 +112,8 @@ function dispatchAction(
 
 let actionQueue: AppRouterActionQueue = {
   state: null,
-  dispatch: (
-    payload: any,
-    setState: React.Dispatch<Promise<AppRouterState | null>>
-  ) => dispatchAction(actionQueue, payload, setState),
+  dispatch: (payload: ReducerActions, setState: DispatchStatePromise) =>
+    dispatchAction(actionQueue, payload, setState),
   action: async (state: AppRouterState | null, action: ReducerActions) => {
     if (state === null) throw new Error('Missing state')
     const result = reducer(state, action)

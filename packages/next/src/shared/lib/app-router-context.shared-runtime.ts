@@ -4,6 +4,7 @@ import type {
   AppRouterState,
   FocusAndScrollRef,
   PrefetchKind,
+  ReducerActions,
   ThenableRecord,
 } from '../../client/components/router-reducer/router-reducer-types'
 import type { FetchServerResponseResult } from '../../client/components/router-reducer/fetch-server-response'
@@ -12,7 +13,7 @@ import type {
   FlightData,
 } from '../../server/app-render/types'
 import React from 'react'
-import type { AppRouterActionQueue } from '../../client/app-index'
+import type { ReduxDevToolsInstance } from '../../client/components/use-flight-router-state'
 
 export type ChildSegmentMap = Map<string, CacheNode>
 
@@ -138,11 +139,21 @@ if (process.env.NODE_ENV !== 'production') {
   TemplateContext.displayName = 'TemplateContext'
 }
 
-export let flightRouterState: AppRouterState
+export type StatePromise = Promise<AppRouterState>
+export type DispatchStatePromise = React.Dispatch<StatePromise>
+
+export type AppRouterActionQueue = {
+  state: AppRouterState | null
+  devToolsInstance?: ReduxDevToolsInstance
+  dispatch: (payload: ReducerActions, setState: DispatchStatePromise) => void
+  action: (state: AppRouterState | null, action: ReducerActions) => StatePromise
+  pending: ActionQueueNode | null
+}
+
+export type ActionQueueNode = {
+  payload: ReducerActions
+  next: ActionQueueNode | null
+}
 
 export const ActionQueueContext =
   React.createContext<AppRouterActionQueue | null>(null)
-
-export function updateFlightRouterState(newState: AppRouterState) {
-  flightRouterState = newState
-}

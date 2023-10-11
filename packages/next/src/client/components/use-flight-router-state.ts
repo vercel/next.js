@@ -1,9 +1,10 @@
-import type { Dispatch, Usable } from 'react'
+import type { Dispatch } from 'react'
 import React, { useContext } from 'react'
 import { useRef, useEffect, useCallback } from 'react'
 import type {
   AppRouterState,
   ReducerActions,
+  ReducerState,
 } from './router-reducer/router-reducer-types'
 import { ActionQueueContext } from '../../shared/lib/app-router-context.shared-runtime'
 
@@ -61,22 +62,6 @@ function normalizeRouterState(val: any): any {
   return val
 }
 
-// Log router state when actions are triggered.
-// function logReducer(fn: typeof reducer) {
-//   return (
-//     state: ReducerState<typeof reducer>,
-//     action: ReducerAction<typeof reducer>
-//   ) => {
-//     console.groupCollapsed(action.type)
-//     console.log('action', action)
-//     console.log('old', state)
-//     const res = fn(state, action)
-//     console.log('new', res)
-//     console.groupEnd()
-//     return res
-//   }
-// }
-
 declare global {
   interface Window {
     __REDUX_DEVTOOLS_EXTENSION__: any
@@ -90,24 +75,14 @@ export interface ReduxDevToolsInstance {
 
 function useReducerWithReduxDevtoolsNoop(
   initialState: AppRouterState
-): [
-  Usable<AppRouterState> | AppRouterState,
-  Dispatch<ReducerActions>,
-  () => void
-] {
+): [ReducerState, Dispatch<ReducerActions>, () => void] {
   return [initialState, () => {}, () => {}]
 }
 
 function useReducerWithReduxDevtoolsImpl(
   initialState: AppRouterState
-): [
-  Usable<AppRouterState> | AppRouterState,
-  Dispatch<ReducerActions>,
-  () => void
-] {
-  const [state, setState] = React.useState<
-    Usable<AppRouterState> | AppRouterState
-  >(initialState)
+): [ReducerState, Dispatch<ReducerActions>, () => void] {
+  const [state, setState] = React.useState<ReducerState>(initialState)
 
   const actionQueue = useContext(ActionQueueContext)
   const devtoolsConnectionRef = useRef<ReduxDevToolsInstance>()
@@ -148,6 +123,7 @@ function useReducerWithReduxDevtoolsImpl(
   const dispatch = useCallback(
     (action: ReducerActions) => {
       if (!actionQueue) return
+
       if (!actionQueue.state) {
         actionQueue.state = initialState
       }

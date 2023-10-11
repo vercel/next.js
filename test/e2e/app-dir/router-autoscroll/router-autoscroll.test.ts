@@ -163,9 +163,7 @@ createNextDescribe(
     describe('bugs', () => {
       it('Should scroll to the top of the layout when the first child is display none', async () => {
         const browser = await webdriver(next.url, '/')
-        await browser.eval(
-          'document.getElementById("to-invisible-first-element").scrollIntoView()'
-        )
+        await browser.eval('window.scrollTo(0, 500)')
         await browser
           .elementByCss('#to-invisible-first-element')
           .click()
@@ -175,9 +173,7 @@ createNextDescribe(
 
       it('Should scroll to the top of the layout when the first child is position fixed', async () => {
         const browser = await webdriver(next.url, '/')
-        await browser.eval(
-          'document.getElementById("to-fixed-first-element").scrollIntoView()'
-        )
+        await browser.eval('window.scrollTo(0, 500)')
         await browser
           .elementByCss('#to-fixed-first-element')
           .click()
@@ -201,9 +197,7 @@ createNextDescribe(
 
       it('Should scroll to the top of the layout when the first child is position sticky', async () => {
         const browser = await webdriver(next.url, '/')
-        await browser.eval(
-          'document.getElementById("to-sticky-first-element").scrollIntoView()'
-        )
+        await browser.eval('window.scrollTo(0, 500)')
         await browser
           .elementByCss('#to-sticky-first-element')
           .click()
@@ -227,9 +221,7 @@ createNextDescribe(
 
       it('Should apply scroll when loading.js is used', async () => {
         const browser = await webdriver(next.url, '/')
-        await browser.eval(
-          'document.getElementById("to-loading-scroll").scrollIntoView()'
-        )
+        await browser.eval('window.scrollTo(0, 500)')
         await browser
           .elementByCss('#to-loading-scroll')
           .click()

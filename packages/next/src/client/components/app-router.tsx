@@ -1,6 +1,6 @@
 'use client'
 
-import type { ReactNode, Usable } from 'react'
+import type { ReactNode } from 'react'
 import React, {
   use,
   useEffect,
@@ -18,6 +18,7 @@ import {
 import type {
   CacheNode,
   AppRouterInstance,
+  StatePromise,
 } from '../../shared/lib/app-router-context.shared-runtime'
 import type {
   FlightRouterState,
@@ -84,7 +85,7 @@ function isThenable(value: any): value is Promise<any> {
   )
 }
 
-function useUnwrapState(state: AppRouterState | Usable<AppRouterState>) {
+function useUnwrapState(state: AppRouterState | StatePromise) {
   if (isThenable(state)) {
     const result = use(state)
     return result
