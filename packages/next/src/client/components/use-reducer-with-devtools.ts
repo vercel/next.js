@@ -1,12 +1,15 @@
 import type { Dispatch } from 'react'
-import React, { useContext } from 'react'
+import React, { use, useContext } from 'react'
 import { useRef, useEffect, useCallback } from 'react'
 import type {
   AppRouterState,
   ReducerActions,
   ReducerState,
 } from './router-reducer/router-reducer-types'
-import { ActionQueueContext } from '../../shared/lib/app-router-context.shared-runtime'
+import {
+  ActionQueueContext,
+  type StatePromise,
+} from '../../shared/lib/app-router-context.shared-runtime'
 
 function normalizeRouterState(val: any): any {
   if (val instanceof Map) {
@@ -71,6 +74,23 @@ declare global {
 export interface ReduxDevToolsInstance {
   send(action: any, state: any): void
   init(initialState: any): void
+}
+
+function isThenable(value: any): value is Promise<any> {
+  return (
+    value &&
+    (typeof value === 'object' || typeof value === 'function') &&
+    typeof value.then === 'function'
+  )
+}
+
+export function useUnwrapState(state: AppRouterState | StatePromise) {
+  if (isThenable(state)) {
+    const result = use(state)
+    return result
+  }
+
+  return state
 }
 
 function useReducerWithReduxDevtoolsNoop(

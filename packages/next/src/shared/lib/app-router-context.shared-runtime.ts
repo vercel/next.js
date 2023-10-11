@@ -13,7 +13,7 @@ import type {
   FlightData,
 } from '../../server/app-render/types'
 import React from 'react'
-import type { ReduxDevToolsInstance } from '../../client/components/use-flight-router-state'
+import type { ReduxDevToolsInstance } from '../../client/components/use-reducer-with-devtools'
 
 export type ChildSegmentMap = Map<string, CacheNode>
 

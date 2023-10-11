@@ -36,7 +36,6 @@ import {
   PrefetchKind,
 } from './router-reducer/router-reducer-types'
 import type {
-  AppRouterState,
   ReducerActions,
   RouterChangeByServerResponse,
   RouterNavigate,
@@ -47,7 +46,10 @@ import {
   SearchParamsContext,
   PathnameContext,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
-import { useReducerWithReduxDevtools } from './use-flight-router-state'
+import {
+  useReducerWithReduxDevtools,
+  useUnwrapState,
+} from './use-reducer-with-devtools'
 import { ErrorBoundary } from './error-boundary'
 import { createInitialRouterState } from './router-reducer/create-initial-router-state'
 import type { InitialRouterStateParameters } from './router-reducer/create-initial-router-state'
@@ -76,23 +78,6 @@ export function getServerActionDispatcher() {
 const globalMutable: {
   pendingMpaPath?: string
 } = {}
-
-function isThenable(value: any): value is Promise<any> {
-  return (
-    value &&
-    (typeof value === 'object' || typeof value === 'function') &&
-    typeof value.then === 'function'
-  )
-}
-
-function useUnwrapState(state: AppRouterState | StatePromise) {
-  if (isThenable(state)) {
-    const result = use(state)
-    return result
-  }
-
-  return state
-}
 
 export function urlToUrlWithoutFlightMarker(url: string): URL {
   const urlWithoutFlightParameters = new URL(url, location.origin)
