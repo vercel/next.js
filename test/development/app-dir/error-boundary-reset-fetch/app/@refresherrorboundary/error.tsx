@@ -2,18 +2,17 @@
 
 import { useRouter } from 'next/navigation'
 
-export default function RefreshErrorPage({ reset }) {
+export default function RefreshErrorBoundaryPage() {
   const router = useRouter()
 
   return (
     <button
-      id="refresh"
+      id="refresherrorboundary"
       onClick={() => {
         router.refresh()
-        reset()
       }}
     >
-      Refresh page (this should not be shown)
+      Refresh page (@refresherrorboundary/error.tsx)
     </button>
   )
 }

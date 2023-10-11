@@ -3,7 +3,7 @@
 export default function ResetErrorPage({ reset }) {
   return (
     <button id="reset" onClick={() => reset()}>
-      Reset error
+      Reset error (@reset/error.tsx)
     </button>
   )
 }

@@ -20,11 +20,11 @@ createNextDescribe(
     it('should show the header after refreshing the router', async () => {
       const browser = await next.browser('/')
 
-      await browser.elementByCss('button#refresh').click()
+      await browser.elementByCss('button#refresherrorboundary').click()
 
       await check(
-        () => browser.elementByCss('nav#refresh').text(),
-        'Refresh: Hello, world!'
+        () => browser.elementByCss('nav#refresherrorboundary').text(),
+        'Refresh error boundary: Hello, world!'
       )
     })
   }

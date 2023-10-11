@@ -1,10 +1,9 @@
-let run: boolean = false
+let calls: number = 0
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  if (run === false) {
-    run = true
+  if (calls++ < 1) {
     throw new Error('Random error')
   }
 

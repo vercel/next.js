@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 
-export default function RefreshErrorPage({ reset }) {
+export default function RefreshClientPage() {
   const router = useRouter()
 
   return (
@@ -10,10 +10,9 @@ export default function RefreshErrorPage({ reset }) {
       id="refresh"
       onClick={() => {
         router.refresh()
-        reset()
       }}
     >
-      Refresh page (this should not be shown)
+      Refresh page (@refresh/client.tsx)
     </button>
   )
 }
