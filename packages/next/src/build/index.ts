@@ -941,7 +941,7 @@ export default async function build(
                 ? path.relative(distDir, incrementalCacheHandlerPath)
                 : undefined,
 
-              isExperimentalCompile: true,
+              isExperimentalCompile: isCompile,
             },
           },
           appDir: dir,

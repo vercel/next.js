@@ -688,7 +688,8 @@ export default class NextNodeServer extends BaseServer {
         return {
           components,
           query: {
-            ...(components.getStaticProps
+            ...(!this.renderOpts.isExperimentalCompile &&
+            components.getStaticProps
               ? ({
                   amp: query.amp,
                   __nextDataReq: query.__nextDataReq,
