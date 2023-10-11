@@ -1,11 +1,5 @@
 import 'server-only'
-import {
-  Client,
-  fql,
-  QuerySuccess,
-  QueryValueObject,
-  QueryFailure,
-} from 'fauna'
+import { Client, fql, QuerySuccess, QueryValueObject } from 'fauna'
 
 const client = new Client({
   secret: process.env.FAUNA_CLIENT_SECRET,
@@ -17,7 +11,7 @@ export const getAllEntries = async () => {
 		Entry.all()
 	`)
     return dbresponse.data.data
-  } catch (error: QueryFailure | any) {
+  } catch (error: any) {
     throw new Error(error.message)
   }
 }
@@ -31,7 +25,7 @@ export const createEntry = async (name: string, message: string) => {
 				createdAt: Time.now(),
 			})`)
     return dbresponse.data
-  } catch (error: QueryFailure | any) {
+  } catch (error: any) {
     throw new Error(error.message)
   }
 }
