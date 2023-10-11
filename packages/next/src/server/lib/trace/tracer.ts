@@ -38,7 +38,7 @@ type BubbledError = Error & { bubble?: boolean }
 
 const closeSpanWithError = (span: Span, error?: Error) => {
   if ((error as BubbledError | undefined)?.bubble === true) {
-    span.recordException('next.bubble')
+    span.setAttribute('next.bubble', true)
   } else {
     if (error) {
       span.recordException(error)
