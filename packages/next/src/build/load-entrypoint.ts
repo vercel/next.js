@@ -29,6 +29,8 @@ export async function loadEntrypoint(
     | 'app-page'
     | 'app-route'
     | 'edge-app-route'
+    | 'edge-ssr'
+    | 'edge-ssr-app'
     | 'middleware'
     | 'pages'
     | 'pages-api',
