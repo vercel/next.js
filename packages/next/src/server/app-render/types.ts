@@ -1,9 +1,10 @@
 import type { LoadComponentsReturnType } from '../load-components'
 import type { ServerRuntime, SizeLimit } from '../../../types'
-import { NextConfigComplete } from '../../server/config-shared'
+import type { NextConfigComplete } from '../../server/config-shared'
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import type { ParsedUrlQuery } from 'querystring'
+import type { AppPageModule } from '../future/route-modules/app-page/module'
 
 import s from 'next/dist/compiled/superstruct'
 
@@ -135,4 +136,5 @@ export interface RenderOptsPartial {
   isPrefetch?: boolean
 }
 
-export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
+export type RenderOpts = LoadComponentsReturnType<AppPageModule> &
+  RenderOptsPartial

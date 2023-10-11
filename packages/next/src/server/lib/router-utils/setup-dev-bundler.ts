@@ -1,17 +1,32 @@
 import type { NextConfigComplete } from '../../config-shared'
-import {
+import type {
   Endpoint,
   Route,
   TurbopackResult,
   WrittenEndpoint,
   ServerClientChange,
-  ServerClientChangeType,
   Issue,
-  createDefineEnv,
 } from '../../../build/swc'
 import type { Socket } from 'net'
-import ws from 'next/dist/compiled/ws'
+import type { FilesystemDynamicRoute } from './filesystem'
+import type { UnwrapPromise } from '../../../lib/coalesced-function'
+import type { MiddlewareMatcher } from '../../../build/analysis/get-page-static-info'
+import type { OutputState } from '../../../build/output/store'
+import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/middleware-route-matcher'
+import type { BuildManifest } from '../../get-page-files'
+import type { PagesManifest } from '../../../build/webpack/plugins/pages-manifest-plugin'
+import type { AppBuildManifest } from '../../../build/webpack/plugins/app-build-manifest-plugin'
+import type { PropagateToWorkersField } from './types'
+import type { MiddlewareManifest } from '../../../build/webpack/plugins/middleware-plugin'
+import type {
+  HMR_ACTION_TYPES,
+  NextJsHotReloaderInterface,
+  ReloadPageAction,
+  TurbopackConnectedAction,
+} from '../../dev/hot-reloader-types'
 
+import ws from 'next/dist/compiled/ws'
+import { ServerClientChangeType, createDefineEnv } from '../../../build/swc'
 import fs from 'fs'
 import url from 'url'
 import path from 'path'
@@ -20,37 +35,35 @@ import Watchpack from 'watchpack'
 import { loadEnvConfig } from '@next/env'
 import isError from '../../../lib/is-error'
 import findUp from 'next/dist/compiled/find-up'
-import { FilesystemDynamicRoute, buildCustomRoute } from './filesystem'
+import { buildCustomRoute } from './filesystem'
 import * as Log from '../../../build/output/log'
 import HotReloader, {
   matchNextPageBundleRequest,
 } from '../../dev/hot-reloader-webpack'
 import { setGlobal } from '../../../trace/shared'
-import { Telemetry } from '../../../telemetry/storage'
-import { IncomingMessage, ServerResponse } from 'http'
+import type { Telemetry } from '../../../telemetry/storage'
+import type { IncomingMessage, ServerResponse } from 'http'
 import loadJsConfig from '../../../build/load-jsconfig'
 import { createValidFileMatcher } from '../find-page-file'
 import { eventCliSession } from '../../../telemetry/events'
 import { getDefineEnv } from '../../../build/webpack/plugins/define-env-plugin'
 import { logAppDirError } from '../../dev/log-app-dir-error'
-import { UnwrapPromise } from '../../../lib/coalesced-function'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import {
   getStaticInfoIncludingLayouts,
   sortByPageExts,
 } from '../../../build/entries'
-import { verifyTypeScriptSetup } from '../../../lib/verifyTypeScriptSetup'
+import { verifyTypeScriptSetup } from '../../../lib/verify-typescript-setup'
 import { verifyPartytownSetup } from '../../../lib/verify-partytown-setup'
 import { getRouteRegex } from '../../../shared/lib/router/utils/route-regex'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { buildDataRoute } from './build-data-route'
-import { MiddlewareMatcher } from '../../../build/analysis/get-page-static-info'
 import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { createClientRouterFilter } from '../../../lib/create-client-router-filter'
 import { absolutePathToPage } from '../../../shared/lib/page-path/absolute-path-to-page'
 import { generateInterceptionRoutesRewrites } from '../../../lib/generate-interception-routes-rewrites'
-import { OutputState, store as consoleStore } from '../../../build/output/store'
+import { store as consoleStore } from '../../../build/output/store'
 
 import {
   APP_BUILD_MANIFEST,
@@ -64,12 +77,10 @@ import {
   NEXT_FONT_MANIFEST,
   PAGES_MANIFEST,
   PHASE_DEVELOPMENT_SERVER,
+  SERVER_REFERENCE_MANIFEST,
 } from '../../../shared/lib/constants'
 
-import {
-  MiddlewareRouteMatch,
-  getMiddlewareRouteMatcher,
-} from '../../../shared/lib/router/utils/middleware-route-matcher'
+import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
 import { NextBuildContext } from '../../../build/build-context'
 
 import {
@@ -85,24 +96,17 @@ import {
   getSourceById,
   parseStack,
 } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
-import { BuildManifest } from '../../get-page-files'
 import { mkdir, readFile, writeFile, rename, unlink } from 'fs/promises'
-import { PagesManifest } from '../../../build/webpack/plugins/pages-manifest-plugin'
-import { AppBuildManifest } from '../../../build/webpack/plugins/app-build-manifest-plugin'
 import { PageNotFoundError } from '../../../shared/lib/utils'
-import { srcEmptySsgManifest } from '../../../build/webpack/plugins/build-manifest-plugin'
-import { PropagateToWorkersField } from './types'
-import { MiddlewareManifest } from '../../../build/webpack/plugins/middleware-plugin'
+import {
+  type ClientBuildManifest,
+  normalizeRewritesForBuildManifest,
+  srcEmptySsgManifest,
+} from '../../../build/webpack/plugins/build-manifest-plugin'
 import { devPageFiles } from '../../../build/webpack/plugins/next-types-plugin/shared'
 import type { LazyRenderServerInstance } from '../router-server'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
-import {
-  HMR_ACTIONS_SENT_TO_BROWSER,
-  HMR_ACTION_TYPES,
-  NextJsHotReloaderInterface,
-  ReloadPageAction,
-  TurbopackConnectedAction,
-} from '../../dev/hot-reloader-types'
+import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../dev/hot-reloader-types'
 import type { Update as TurbopackUpdate } from '../../../build/swc'
 import { debounce } from '../../utils'
 import {
@@ -111,6 +115,7 @@ import {
 } from '../../../build/webpack/plugins/nextjs-require-cache-hot-reloader'
 import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
 import { clearModuleContext } from '../render-server'
+import type { ActionManifest } from '../../../build/webpack/plugins/flight-client-entry-plugin'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -492,6 +497,7 @@ async function startWatcher(opts: SetupOpts) {
     const pagesManifests = new Map<string, PagesManifest>()
     const appPathsManifests = new Map<string, PagesManifest>()
     const middlewareManifests = new Map<string, MiddlewareManifest>()
+    const actionManifests = new Map<string, ActionManifest>()
     const clientToHmrSubscription = new Map<
       ws,
       Map<string, AsyncIterator<any>>
@@ -539,6 +545,17 @@ async function startWatcher(opts: SetupOpts) {
       appPathsManifests.set(
         pageName,
         await loadPartialManifest(APP_PATHS_MANIFEST, pageName, type)
+      )
+    }
+
+    async function loadActionManifest(pageName: string): Promise<void> {
+      actionManifests.set(
+        pageName,
+        await loadPartialManifest(
+          `${SERVER_REFERENCE_MANIFEST}.json`,
+          pageName,
+          'app'
+        )
       )
     }
 
@@ -653,6 +670,32 @@ async function startWatcher(opts: SetupOpts) {
       return manifest
     }
 
+    function mergeActionManifests(manifests: Iterable<ActionManifest>) {
+      type ActionEntries = ActionManifest['edge' | 'node']
+      const manifest: ActionManifest = {
+        node: {},
+        edge: {},
+      }
+
+      function mergeActionIds(
+        actionEntries: ActionEntries,
+        other: ActionEntries
+      ): void {
+        for (const key in other) {
+          const action = (actionEntries[key] ??= { workers: {}, layer: {} })
+          Object.assign(action.workers, other[key].workers)
+          Object.assign(action.layer, other[key].layer)
+        }
+      }
+
+      for (const m of manifests) {
+        mergeActionIds(manifest.node, m.node)
+        mergeActionIds(manifest.edge, m.edge)
+      }
+
+      return manifest
+    }
+
     async function writeFileAtomic(
       filePath: string,
       content: string
@@ -671,7 +714,9 @@ async function startWatcher(opts: SetupOpts) {
       }
     }
 
-    async function writeBuildManifest(): Promise<void> {
+    async function writeBuildManifest(
+      rewrites: SetupOpts['fsChecker']['rewrites']
+    ): Promise<void> {
       const buildManifest = mergeBuildManifests(buildManifests.values())
       const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
       deleteCache(buildManifestPath)
@@ -679,8 +724,11 @@ async function startWatcher(opts: SetupOpts) {
         buildManifestPath,
         JSON.stringify(buildManifest, null, 2)
       )
-      const content = {
-        __rewrites: { afterFiles: [], beforeFiles: [], fallback: [] },
+
+      const content: ClientBuildManifest = {
+        __rewrites: rewrites
+          ? (normalizeRewritesForBuildManifest(rewrites) as any)
+          : { afterFiles: [], beforeFiles: [], fallback: [] },
         ...Object.fromEntries(
           [...curEntries.keys()].map((pathname) => [
             pathname,
@@ -767,6 +815,29 @@ async function startWatcher(opts: SetupOpts) {
       await writeFileAtomic(
         middlewareManifestPath,
         JSON.stringify(middlewareManifest, null, 2)
+      )
+    }
+
+    async function writeActionManifest(): Promise<void> {
+      const actionManifest = mergeActionManifests(actionManifests.values())
+      const actionManifestJsonPath = path.join(
+        distDir,
+        'server',
+        `${SERVER_REFERENCE_MANIFEST}.json`
+      )
+      const actionManifestJsPath = path.join(
+        distDir,
+        'server',
+        `${SERVER_REFERENCE_MANIFEST}.js`
+      )
+      const json = JSON.stringify(actionManifest, null, 2)
+      deleteCache(actionManifestJsonPath)
+      deleteCache(actionManifestJsPath)
+      await writeFile(actionManifestJsonPath, json, 'utf-8')
+      await writeFile(
+        actionManifestJsPath,
+        `self.__RSC_SERVER_MANIFEST=${JSON.stringify(json)}`,
+        'utf-8'
       )
     }
 
@@ -973,12 +1044,13 @@ async function startWatcher(opts: SetupOpts) {
       )
     )
     await currentEntriesHandling
-    await writeBuildManifest()
+    await writeBuildManifest(opts.fsChecker.rewrites)
     await writeAppBuildManifest()
     await writeFallbackBuildManifest()
     await writePagesManifest()
     await writeAppPathsManifest()
     await writeMiddlewareManifest()
+    await writeActionManifest()
     await writeOtherManifests()
     await writeFontManifest()
 
@@ -1001,6 +1073,7 @@ async function startWatcher(opts: SetupOpts) {
               .ensurePage({
                 page: decodedPagePath,
                 clientOnly: false,
+                definition: undefined,
               })
               .catch(console.error)
           }
@@ -1102,10 +1175,10 @@ async function startWatcher(opts: SetupOpts) {
         // Unused parameters
         // clientOnly,
         // appPaths,
-        match,
+        definition,
         isApp,
       }) {
-        let page = match?.definition?.pathname ?? inputPage
+        let page = definition?.pathname ?? inputPage
 
         if (page === '/_error') {
           if (globalEntries.app) {
@@ -1140,7 +1213,7 @@ async function startWatcher(opts: SetupOpts) {
           await loadBuildManifest('_error')
           await loadPagesManifest('_error')
 
-          await writeBuildManifest()
+          await writeBuildManifest(opts.fsChecker.rewrites)
           await writeFallbackBuildManifest()
           await writePagesManifest()
           await writeMiddlewareManifest()
@@ -1154,7 +1227,7 @@ async function startWatcher(opts: SetupOpts) {
           curEntries.get(page) ??
           curEntries.get(
             normalizeAppPath(
-              normalizeMetadataRoute(match?.definition?.page ?? inputPage)
+              normalizeMetadataRoute(definition?.page ?? inputPage)
             )
           )
 
@@ -1254,7 +1327,7 @@ async function startWatcher(opts: SetupOpts) {
               middlewareManifests.delete(page)
             }
 
-            await writeBuildManifest()
+            await writeBuildManifest(opts.fsChecker.rewrites)
             await writeFallbackBuildManifest()
             await writePagesManifest()
             await writeMiddlewareManifest()
@@ -1312,11 +1385,13 @@ async function startWatcher(opts: SetupOpts) {
             await loadAppBuildManifest(page)
             await loadBuildManifest(page, 'app')
             await loadAppPathManifest(page, 'app')
+            await loadActionManifest(page)
 
             await writeAppBuildManifest()
-            await writeBuildManifest()
+            await writeBuildManifest(opts.fsChecker.rewrites)
             await writeAppPathsManifest()
             await writeMiddlewareManifest()
+            await writeActionManifest()
             await writeOtherManifests()
 
             processIssues(page, page, writtenEndpoint, true)
@@ -1391,6 +1466,7 @@ async function startWatcher(opts: SetupOpts) {
         clientOnly: false,
         page: item.itemPath,
         isApp: item.type === 'appFile',
+        definition: undefined,
       })
     }
   })
@@ -2170,12 +2246,13 @@ async function startWatcher(opts: SetupOpts) {
       return hotReloader.ensurePage({
         page: serverFields.actualMiddlewareFile,
         clientOnly: false,
+        definition: undefined,
       })
     },
   }
 }
 
-export async function setupDev(opts: SetupOpts) {
+export async function setupDevBundler(opts: SetupOpts) {
   const isSrcDir = path
     .relative(opts.dir, opts.pagesDir || opts.appDir || '')
     .startsWith('src')
@@ -2200,3 +2277,5 @@ export async function setupDev(opts: SetupOpts) {
   )
   return result
 }
+
+export type DevBundler = Awaited<ReturnType<typeof setupDevBundler>>

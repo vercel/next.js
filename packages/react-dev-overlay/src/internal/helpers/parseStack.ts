@@ -1,4 +1,5 @@
-import { parse, StackFrame } from 'stacktrace-parser'
+import type { StackFrame } from 'stacktrace-parser'
+import { parse } from 'stacktrace-parser'
 
 const regexNextStatic = /\/_next(\/static\/.+)/g
 

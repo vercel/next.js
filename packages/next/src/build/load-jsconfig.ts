@@ -1,6 +1,6 @@
 import path from 'path'
 import fs from 'fs'
-import { NextConfigComplete } from '../server/config-shared'
+import type { NextConfigComplete } from '../server/config-shared'
 import * as Log from './output/log'
 import { getTypeScriptConfiguration } from '../lib/typescript/getTypeScriptConfiguration'
 import { readFileSync } from 'fs'

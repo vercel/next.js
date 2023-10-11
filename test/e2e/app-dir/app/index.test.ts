@@ -6,7 +6,7 @@ import { BrowserInterface } from 'test/lib/browsers/base'
 import { Request } from 'playwright-core'
 
 createNextDescribe(
-  'app dir',
+  'app dir - basic',
   {
     files: __dirname,
     buildCommand: process.env.NEXT_EXPERIMENTAL_COMPILE
@@ -14,6 +14,16 @@ createNextDescribe(
       : undefined,
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
+    if (process.env.NEXT_EXPERIMENTAL_COMPILE) {
+      it('should provide query for getStaticProps page correctly', async () => {
+        const res = await next.fetch('/ssg?hello=world')
+        expect(res.status).toBe(200)
+
+        const $ = cheerio.load(await res.text())
+        expect(JSON.parse($('#query').text())).toEqual({ hello: 'world' })
+      })
+    }
+
     if (isNextStart && !process.env.NEXT_EXPERIMENTAL_COMPILE) {
       it('should not have loader generated function for edge runtime', async () => {
         expect(

@@ -1,4 +1,4 @@
-import { Segment } from '../../../server/app-render/types'
+import type { Segment } from '../../../server/app-render/types'
 
 export function createRouterCacheKey(
   segment: Segment,
