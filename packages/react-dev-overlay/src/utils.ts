@@ -1,3 +1,4 @@
+import fs from 'fs/promises'
 import { type NullableMappedPosition, SourceMapConsumer } from 'source-map'
 
 export async function findOriginalSourcePositionAndContent(
@@ -30,4 +31,13 @@ export async function findOriginalSourcePositionAndContent(
   } finally {
     consumer.destroy()
   }
+}
+
+export async function extractSourceMapFilepath(
+  sourceFilePath: string
+): Promise<string | undefined> {
+  try {
+    const sourceFileContents = await fs.readFile(sourceFilePath, 'utf8')
+    return sourceFileContents.match(/\/\/#\s*sourceMappingURL\s*=(.*)/)?.[1]
+  } catch {}
 }

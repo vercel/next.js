@@ -96,7 +96,10 @@ import {
   getSourceById,
   parseStack,
 } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
-import { getOverlayMiddleware } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware-turbopack'
+import {
+  getOverlayMiddleware,
+  extractSourceMapFilepath,
+} from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware-turbopack'
 import { mkdir, readFile, writeFile, rename, unlink } from 'fs/promises'
 import { PageNotFoundError } from '../../../shared/lib/utils'
 import { srcEmptySsgManifest } from '../../../build/webpack/plugins/build-manifest-plugin'
@@ -2156,9 +2159,12 @@ async function startWatcher(opts: SetupOpts) {
           let source, moduleId, modulePath, isEdgeCompiler
           if (opts.turbo) {
             let map: any
-            try {
-              map = JSON.parse(await readFile(file + '.map', 'utf8'))
-            } catch (e) {}
+            let mapFile = extractSourceMapFilepath(file)
+            if (mapFile) {
+              try {
+                map = JSON.parse(await readFile(file + '.map', 'utf8'))
+              } catch (e) {}
+            }
 
             source = {
               map() {

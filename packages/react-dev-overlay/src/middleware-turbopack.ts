@@ -4,8 +4,13 @@ import type { StackFrame } from 'stacktrace-parser'
 import fs from 'fs/promises'
 import url from 'url'
 import path from 'path'
-import { findOriginalSourcePositionAndContent } from './utils'
+import {
+  extractSourceMapFilepath,
+  findOriginalSourcePositionAndContent,
+} from './utils'
 import { codeFrameColumns } from '@babel/code-frame'
+
+export { extractSourceMapFilepath }
 
 export function getOverlayMiddleware(rootDirectory: string) {
   return async function (
@@ -35,10 +40,7 @@ export function getOverlayMiddleware(rootDirectory: string) {
         return res.end()
       }
 
-      const sourceFileContents = await fs.readFile(file, 'utf8')
-      const sourceMapFile = sourceFileContents.match(
-        /\/\/#\s*sourceMappingURL\s*=(.*)/
-      )?.[1]
+      const sourceMapFile = await extractSourceMapFilepath(file)
       if (sourceMapFile === undefined) {
         res.statusCode = 404
         res.write('Source map file not found')
@@ -79,7 +81,7 @@ export function getOverlayMiddleware(rootDirectory: string) {
       }
 
       const originalFile = sourcePosition.source?.replace(
-        /^\/turbopack\/\[project\]/,
+        /^\/turbopack\/\[project\]\//,
         ''
       )
 
