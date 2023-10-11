@@ -18,7 +18,6 @@ import {
 import type {
   CacheNode,
   AppRouterInstance,
-  StatePromise,
 } from '../../shared/lib/app-router-context.shared-runtime'
 import type {
   FlightRouterState,
