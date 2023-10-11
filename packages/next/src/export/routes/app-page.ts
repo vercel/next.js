@@ -3,7 +3,10 @@ import type { RenderOpts } from '../../server/app-render/types'
 import type { OutgoingHttpHeaders } from 'http'
 import type { NextParsedUrlQuery } from '../../server/request-meta'
 
-import { MockedRequest, MockedResponse } from '../../server/lib/mock-request'
+import type {
+  MockedRequest,
+  MockedResponse,
+} from '../../server/lib/mock-request'
 import {
   RSC,
   NEXT_URL,

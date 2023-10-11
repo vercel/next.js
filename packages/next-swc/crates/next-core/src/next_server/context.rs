@@ -19,9 +19,7 @@ use turbopack_binding::{
             resolve::{parse::Request, pattern::Pattern},
         },
         ecmascript::TransformPlugin,
-        ecmascript_plugin::transform::directives::{
-            client::ClientDirectiveTransformer, server::ServerDirectiveTransformer,
-        },
+        ecmascript_plugin::transform::directives::client::ClientDirectiveTransformer,
         node::execution_context::ExecutionContext,
         turbopack::{
             condition::ContextCondition,
@@ -66,7 +64,7 @@ use crate::{
         get_decorators_transform_options, get_jsx_transform_options,
         get_typescript_transform_options,
     },
-    util::foreign_code_context_condition,
+    util::{foreign_code_context_condition, load_next_js_templateon},
 };
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
@@ -107,10 +105,25 @@ pub async fn get_server_resolve_options_context(
     let root_dir = project_path.root().resolve().await?;
     let module_feature_report_resolve_plugin = ModuleFeatureReportResolvePlugin::new(project_path);
     let unsupported_modules_resolve_plugin = UnsupportedModulesResolvePlugin::new(project_path);
+
+    // Always load these predefined packages as external.
+    let mut external_packages: Vec<String> = load_next_js_templateon(
+        project_path,
+        "dist/lib/server-external-packages.json".to_string(),
+    )
+    .await?;
+
+    // Add the config's own list of external packages.
+    external_packages.extend(
+        (*next_config.server_component_externals().await?)
+            .iter()
+            .cloned(),
+    );
+
     let server_component_externals_plugin = ExternalCjsModulesResolvePlugin::new(
         project_path,
         project_path.root(),
-        ExternalPredicate::Only(next_config.server_component_externals()).cell(),
+        ExternalPredicate::Only(Vc::cell(external_packages)).cell(),
     );
     let ty = ty.into_value();
 
@@ -259,9 +272,28 @@ pub async fn get_server_module_options_context(
         ..Default::default()
     });
 
-    let webpack_rules =
-        *maybe_add_babel_loader(project_path, *next_config.webpack_rules().await?).await?;
-    let webpack_rules = maybe_add_sass_loader(next_config.sass_config(), webpack_rules).await?;
+    // A separate webpack rules will be applied to codes matching
+    // foreign_code_context_condition. This allows to import codes from
+    // node_modules that requires webpack loaders, which next-dev implicitly
+    // does by default.
+    let foreign_webpack_rules = maybe_add_sass_loader(
+        next_config.sass_config(),
+        *next_config.webpack_rules().await?,
+    )
+    .await?;
+    let foreign_webpack_loaders = foreign_webpack_rules.map(|rules| {
+        WebpackLoadersOptions {
+            rules,
+            loader_runner_package: Some(get_external_next_compiled_package_mapping(Vc::cell(
+                "loader-runner".to_owned(),
+            ))),
+        }
+        .cell()
+    });
+
+    // Now creates a webpack rules that applies to all codes.
+    let webpack_rules = *foreign_webpack_rules.clone();
+    let webpack_rules = *maybe_add_babel_loader(project_path, webpack_rules).await?;
     let enable_webpack_loaders = webpack_rules.map(|rules| {
         WebpackLoadersOptions {
             rules,
@@ -276,12 +308,6 @@ pub async fn get_server_module_options_context(
     let styled_components_transform_plugin =
         *get_styled_components_transform_plugin(next_config).await?;
     let styled_jsx_transform_plugin = *get_styled_jsx_transform_plugin().await?;
-    let server_directive_transform_plugin =
-        Some(Vc::cell(Box::new(ServerDirectiveTransformer::new(
-            // ServerDirective is not implemented yet and always reports an issue.
-            // We don't have to pass a valid transition name yet, but the API is prepared.
-            &Vc::cell("TODO".to_string()),
-        )) as _));
 
     // ModuleOptionsContext related options
     let tsconfig = get_typescript_transform_options(project_path);
@@ -341,6 +367,12 @@ pub async fn get_server_module_options_context(
                 ..Default::default()
             };
 
+            let foreign_code_module_options_context = ModuleOptionsContext {
+                custom_rules: internal_custom_rules.clone(),
+                enable_webpack_loaders: foreign_webpack_loaders,
+                ..module_options_context.clone()
+            };
+
             let internal_module_options_context = ModuleOptionsContext {
                 enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
                 enable_jsx: Some(JsxTransformOptions::default().cell()),
@@ -358,7 +390,7 @@ pub async fn get_server_module_options_context(
                 rules: vec![
                     (
                         foreign_code_context_condition,
-                        module_options_context.clone().cell(),
+                        foreign_code_module_options_context.cell(),
                     ),
                     (
                         ContextCondition::InPath(next_js_fs().root()),
@@ -374,7 +406,6 @@ pub async fn get_server_module_options_context(
             let mut base_source_transforms: Vec<Vc<TransformPlugin>> = vec![
                 styled_components_transform_plugin,
                 styled_jsx_transform_plugin,
-                server_directive_transform_plugin,
             ]
             .into_iter()
             .flatten()
@@ -401,6 +432,11 @@ pub async fn get_server_module_options_context(
                 execution_context: Some(execution_context),
                 ..Default::default()
             };
+            let foreign_code_module_options_context = ModuleOptionsContext {
+                custom_rules: internal_custom_rules.clone(),
+                enable_webpack_loaders: foreign_webpack_loaders,
+                ..module_options_context.clone()
+            };
             let internal_module_options_context = ModuleOptionsContext {
                 enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
                 custom_rules: internal_custom_rules,
@@ -417,7 +453,7 @@ pub async fn get_server_module_options_context(
                 rules: vec![
                     (
                         foreign_code_context_condition,
-                        module_options_context.clone().cell(),
+                        foreign_code_module_options_context.cell(),
                     ),
                     (
                         ContextCondition::InPath(next_js_fs().root()),
@@ -433,13 +469,11 @@ pub async fn get_server_module_options_context(
             ecmascript_client_reference_transition_name,
             ..
         } => {
-            let mut base_source_transforms: Vec<Vc<TransformPlugin>> = vec![
-                styled_components_transform_plugin,
-                server_directive_transform_plugin,
-            ]
-            .into_iter()
-            .flatten()
-            .collect();
+            let mut base_source_transforms: Vec<Vc<TransformPlugin>> =
+                vec![styled_components_transform_plugin]
+                    .into_iter()
+                    .flatten()
+                    .collect();
 
             if let Some(ecmascript_client_reference_transition_name) =
                 ecmascript_client_reference_transition_name
@@ -470,6 +504,11 @@ pub async fn get_server_module_options_context(
                 execution_context: Some(execution_context),
                 ..Default::default()
             };
+            let foreign_code_module_options_context = ModuleOptionsContext {
+                custom_rules: internal_custom_rules.clone(),
+                enable_webpack_loaders: foreign_webpack_loaders,
+                ..module_options_context.clone()
+            };
             let internal_module_options_context = ModuleOptionsContext {
                 enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
                 custom_rules: internal_custom_rules,
@@ -485,7 +524,7 @@ pub async fn get_server_module_options_context(
                 rules: vec![
                     (
                         foreign_code_context_condition,
-                        module_options_context.clone().cell(),
+                        foreign_code_module_options_context.cell(),
                     ),
                     (
                         ContextCondition::InPath(next_js_fs().root()),

@@ -4,7 +4,11 @@ import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import type { ActionManifest } from './webpack/plugins/flight-client-entry-plugin'
-import type { ExportAppOptions, ExportAppWorker } from '../export/types'
+import type {
+  ExportAppOptions,
+  ExportAppWorker,
+  ExportPageInput,
+} from '../export/types'
 
 import '../lib/setup-exception-listeners'
 
@@ -31,9 +35,11 @@ import {
 import { FileType, fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
 import loadCustomRoutes, {
+  normalizeRouteRegex,
+} from '../lib/load-custom-routes'
+import type {
   CustomRoutes,
   Header,
-  normalizeRouteRegex,
   Redirect,
   Rewrite,
   RouteHas,
@@ -72,9 +78,9 @@ import {
   FUNCTIONS_CONFIG_MANIFEST,
 } from '../shared/lib/constants'
 import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
-import { __ApiPreviewProps } from '../server/api-utils'
+import type { __ApiPreviewProps } from '../server/api-utils'
 import loadConfig from '../server/config'
-import { BuildManifest } from '../server/get-page-files'
+import type { BuildManifest } from '../server/get-page-files'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getPagePath } from '../server/require'
 import * as ciEnvironment from '../telemetry/ci-info'
@@ -84,10 +90,10 @@ import {
   eventBuildFeatureUsage,
   eventNextPlugins,
   EVENT_BUILD_FEATURE_USAGE,
-  EventBuildFeatureUsage,
   eventPackageUsedInGetServerSideProps,
   eventBuildCompleted,
 } from '../telemetry/events'
+import type { EventBuildFeatureUsage } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import {
   isDynamicMetadataRoute,
@@ -103,17 +109,17 @@ import {
   detectConflictingPaths,
   computeFromManifest,
   getJsPageSizeInKb,
-  PageInfo,
   printCustomRoutes,
   printTreeView,
   copyTracedFiles,
   isReservedPage,
-  AppConfig,
   isAppBuiltinNotFoundPage,
 } from './utils'
+import type { PageInfo, AppConfig } from './utils'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
-import isError, { NextError } from '../lib/is-error'
+import isError from '../lib/is-error'
+import type { NextError } from '../lib/is-error'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveReadDir } from '../lib/recursive-readdir'
@@ -149,7 +155,7 @@ import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
 import { initialize as initializeIncrementalCache } from '../server/lib/incremental-cache-server'
 import { nodeFs } from '../server/lib/node-fs-methods'
 import { collectBuildTraces } from './collect-build-traces'
-import { BuildTraceContext } from './webpack/plugins/next-trace-entrypoints-plugin'
+import type { BuildTraceContext } from './webpack/plugins/next-trace-entrypoints-plugin'
 import { formatManifest } from './manifests/formatter/format-manifest'
 
 interface ExperimentalBypassForInfo {
@@ -935,7 +941,7 @@ export default async function build(
                 ? path.relative(distDir, incrementalCacheHandlerPath)
                 : undefined,
 
-              isExperimentalCompile: true,
+              isExperimentalCompile: isCompile,
             },
           },
           appDir: dir,
@@ -1209,12 +1215,13 @@ export default async function build(
             | 'isPageStatic'
             | 'getDefinedNamedExports'
             | 'exportPage'
-          >
+          >,
+          [ExportPageInput]
         >(staticWorkerPath, {
           timeout: timeout * 1000,
           onRestart: (method, [arg], attempts) => {
             if (method === 'exportPage') {
-              const { path: pagePath } = arg
+              const pagePath = arg.path
               if (attempts >= 3) {
                 throw new Error(
                   `Static page generation for ${pagePath} is still timing out after 3 attempts. See more info here https://nextjs.org/docs/messages/static-page-generation-timeout`
@@ -1224,7 +1231,7 @@ export default async function build(
                 `Restarted static page generation for ${pagePath} because it took more than ${timeout} seconds`
               )
             } else {
-              const pagePath = arg
+              const pagePath = arg.path
               if (attempts >= 2) {
                 throw new Error(
                   `Collecting page data for ${pagePath} is still timing out after 2 attempts. See more info here https://nextjs.org/docs/messages/page-data-collection-timeout`

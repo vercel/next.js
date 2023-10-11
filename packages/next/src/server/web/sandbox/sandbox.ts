@@ -1,9 +1,9 @@
 import type { NodejsRequestData, FetchEventResult, RequestData } from '../types'
+import type { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
+import type { EdgeRuntime } from 'next/dist/compiled/edge-runtime'
 import { getServerError } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
 import { getModuleContext } from './context'
-import { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
 import { requestToBodyStream } from '../../body-streams'
-import type { EdgeRuntime } from 'next/dist/compiled/edge-runtime'
 import { NEXT_RSC_UNION_QUERY } from '../../../client/components/app-router-headers'
 
 export const ErrorSource = Symbol('SandboxError')

@@ -13,7 +13,7 @@ import './require-hook'
 import './node-polyfill-fetch'
 import './node-polyfill-crypto'
 
-import { default as Server } from './next-server'
+import type { default as Server } from './next-server'
 import * as log from '../build/output/log'
 import loadConfig from './config'
 import path, { resolve } from 'path'
@@ -199,7 +199,7 @@ export class NextServer {
         )).config
 
         // @ts-expect-error internal field
-        config.experimental.isExperimentalConfig =
+        config.experimental.isExperimentalCompile =
           serializedConfig.experimental.isExperimentalCompile
       } catch (_) {
         // if distDir is customized we don't know until we

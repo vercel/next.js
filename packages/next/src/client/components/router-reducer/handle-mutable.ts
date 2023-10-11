@@ -1,5 +1,5 @@
 import { computeChangedPath } from './compute-changed-path'
-import {
+import type {
   Mutable,
   ReadonlyReducerState,
   ReducerState,

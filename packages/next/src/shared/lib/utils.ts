@@ -6,7 +6,7 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextRouter } from './router/router'
 import type { ParsedUrlQuery } from 'querystring'
 import type { PreviewData } from 'next/types'
-import { COMPILER_NAMES } from './constants'
+import type { COMPILER_NAMES } from './constants'
 import type fs from 'fs'
 
 export type NextComponentType<
