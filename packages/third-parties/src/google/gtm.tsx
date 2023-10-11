@@ -50,7 +50,7 @@ export function GoogleTagManager(props: GTMParams) {
   )
 }
 
-export const gtag = (data: Object) => {
+export const sendGTMEvent = (data: Object) => {
   if (window[currDataLayerName]) {
     window[currDataLayerName].push(data)
   } else {
