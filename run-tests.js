@@ -77,7 +77,6 @@ const configuredTestTypes = Object.values(testFilters)
 const errorsPerTests = new Map()
 
 async function maybeLogSummary() {
-  console.log('DEBUG - tests failed', errorsPerTests.size)
   if (process.env.CI && errorsPerTests.size > 0) {
     const toIDHash = (str) => {
       let hash = 0,
@@ -100,15 +99,16 @@ async function maybeLogSummary() {
         return `
 <details>
 <summary><a name="${toIDHash(test)}">${test}</a></summary>
+
 \`\`\`
-${output}\`\`\`
+${output}
+\`\`\`
 
 </details>
 `
       })
       .join('\n')}`
 
-    console.log('DEBUG - outputTemplate', outputTemplate)
     await core.summary
       .addHeading('Test failures')
       .addTable([
@@ -544,11 +544,7 @@ ${ENDGROUP}`)
               output += chunk.toString()
             }
 
-            if (process.env.CI) {
-              console.log(
-                'DEBUG: writing output to',
-                test.file + '.log' + output.length
-              )
+            if (process.env.CI && !killed) {
               errorsPerTests.set(test.file, output)
             }
 
