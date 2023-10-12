@@ -523,6 +523,7 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
       VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
       VERCEL_TEST_TEAM: vtest314-next-e2e-tests
+      DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
     steps:
       - uses: actions/cache@v3
         timeout-minutes: 5
