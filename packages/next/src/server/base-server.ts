@@ -701,7 +701,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     parsedUrl?: NextUrlWithParsedQuery
   ): Promise<void> {
     await this.prepare()
-
     const method = req.method.toUpperCase()
 
     // Extract the w3c trace context headers and pass them to tracer

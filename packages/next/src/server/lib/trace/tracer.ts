@@ -48,8 +48,8 @@ type TracerSpanOptions = Omit<SpanOptions, 'attributes'> & {
   attributes?: Partial<Record<AttributeNames, AttributeValue | undefined>>
   hideSpan?: boolean
   reqHeaderTraceContext?: {
-    traceParent: string | undefined
-    traceState: string | undefined
+    traceParent?: string
+    traceState?: string
   }
 }
 
