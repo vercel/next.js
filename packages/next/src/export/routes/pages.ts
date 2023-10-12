@@ -214,7 +214,7 @@ export async function exportPages(
 
   return {
     ampValidations,
-    revalidate: metadata.revalidate,
+    revalidate: metadata.revalidate ?? false,
     ssgNotFound,
   }
 }
