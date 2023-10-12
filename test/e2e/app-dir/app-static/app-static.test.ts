@@ -1884,7 +1884,7 @@ createNextDescribe(
     it('should skip cache in draft mode', async () => {
       const draftRes = await next.fetch('/api/draft-mode?status=enable')
       const setCookie = draftRes.headers.get('set-cookie')
-      const cookieHeader = { Cookie: setCookie?.split(';')[0] }
+      const cookieHeader = { Cookie: setCookie?.split(';', 1)[0] }
 
       expect(cookieHeader.Cookie).toBeTruthy()
 
