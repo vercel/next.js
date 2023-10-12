@@ -72,38 +72,27 @@ const mockTrace = () => ({
   traceChild: () => mockTrace(),
 })
 
+function pathToHashSimple(fsPath) {
+  return fsPath.replace(/[^a-zA-Z0-9]/g, '_') + process.env.NEXT_TEST_MODE
+}
 // which types we have configured to run separate
 const configuredTestTypes = Object.values(testFilters)
 const errorsPerTests = new Map()
 
 async function maybeLogSummary() {
   if (process.env.CI && errorsPerTests.size > 0) {
-    const toIDHash = (str) => {
-      let hash = 0,
-        i,
-        chr
-      if (str.length === 0) return hash
-      for (i = 0; i < str.length; i++) {
-        chr = str.charCodeAt(i)
-        hash = (hash << 5) - hash + chr
-        hash |= 0 // Convert to 32bit integer
-      }
-      return hash
-    }
-
     const outputTemplate = `
 ${Array.from(errorsPerTests.entries())
   .map(([test, output]) => {
     return `
-<details id="${toIDHash(test)}">
-<summary>
-<a href="${toIDHash(test)}"}>${test}</a>
-</summary>
+<details>
+<summary>${test}</summary>
 
+<div id="${pathToHashSimple(test)}">
 \`\`\`
 ${output}
 \`\`\`
-
+</div>
 </details>
 `
   })
@@ -125,7 +114,7 @@ ${output}
         ...Array.from(errorsPerTests.entries()).map(([test]) => {
           return [
             `<a href="https://github.com/vercel/next.js/blob/canary/${test}">${test}</a>`,
-            `<a href="#${toIDHash(test)}">Logs</a>`,
+            `<a href="#${pathToHashSimple(test)}">Logs</a>`,
           ]
         }),
       ])
