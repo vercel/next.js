@@ -20,6 +20,9 @@ importers:
 
   .:
     devDependencies:
+      '@actions/core':
+        specifier: 1.10.1
+        version: 1.10.1
       '@babel/core':
         specifier: 7.18.0
         version: 7.18.0
@@ -732,7 +735,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 13.5.5-canary.8
+        specifier: 13.5.5-canary.9
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.3.3
@@ -793,7 +796,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 13.5.5-canary.8
+        specifier: 13.5.5-canary.9
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.2
@@ -917,19 +920,19 @@ importers:
         specifier: 1.1.0
         version: 1.1.0
       '@next/polyfill-module':
-        specifier: 13.5.5-canary.8
+        specifier: 13.5.5-canary.9
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 13.5.5-canary.8
+        specifier: 13.5.5-canary.9
         version: link:../next-polyfill-nomodule
       '@next/react-dev-overlay':
-        specifier: 13.5.5-canary.8
+        specifier: 13.5.5-canary.9
         version: link:../react-dev-overlay
       '@next/react-refresh-utils':
-        specifier: 13.5.5-canary.8
+        specifier: 13.5.5-canary.9
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 13.5.5-canary.8
+        specifier: 13.5.5-canary.9
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.4.1
@@ -1583,7 +1586,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 13.5.5-canary.8
+        specifier: 13.5.5-canary.9
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -1593,6 +1596,20 @@ importers:
         version: 2.5.1
 
 packages:
+
+  /@actions/core@1.10.1:
+    resolution: {integrity: sha512-3lBR9EDAY+iYIpTnTIXmWcNbX3T2kCkAEQGIQx4NVQ0575nk2k3GRZDTPQG+vVtS2izSLmINlxXf0uLtnrTP+g==}
+    dependencies:
+      '@actions/http-client': 2.2.0
+      uuid: 8.3.2
+    dev: true
+
+  /@actions/http-client@2.2.0:
+    resolution: {integrity: sha512-q+epW0trjVUUHboliPb4UF9g2msf+w61b32tAkFEwL/IwP0DQWgbCMM0Hbe3e3WXSKz5VcUXbzJQgy8Hkra/Lg==}
+    dependencies:
+      tunnel: 0.0.6
+      undici: 5.26.3
+    dev: true
 
   /@adobe/css-tools@4.3.1:
     resolution: {integrity: sha512-/62yikz7NLScCGAAST5SHdnjaDJQBDq0M2muyRTpf2VQhw6StBg2ALiu73zSJQ4fMVLA+0uBhBHAle7Wg+2kSg==}
@@ -5224,6 +5241,11 @@ packages:
     transitivePeerDependencies:
       - supports-color
     dev: false
+
+  /@fastify/busboy@2.0.0:
+    resolution: {integrity: sha512-JUFJad5lv7jxj926GPgymrWQxxjPYuJNiNjNMzqT+HiuP6Vl3dk5xzG+8sTX96np0ZAluvaMzPsjhHZ5rNuNQQ==}
+    engines: {node: '>=14'}
+    dev: true
 
   /@firebase/analytics-types@0.3.1:
     resolution: {integrity: sha512-63vVJ5NIBh/JF8l9LuPrQYSzFimk7zYHySQB4Dk9rVdJ8kV/vGQoVTvRu1UW05sEc2Ug5PqtEChtTHU+9hvPcA==}
@@ -25341,6 +25363,11 @@ packages:
       safe-buffer: 5.2.1
     dev: true
 
+  /tunnel@0.0.6:
+    resolution: {integrity: sha512-1h/Lnq9yajKY2PEbBadPXj3VxsDDu844OnaAo52UVmIzIvwwtBPIuNvkjuzBlTWpfJyUbG3ez0KSBibQkj4ojg==}
+    engines: {node: '>=0.6.11 <=0.7.0 || >=0.7.3'}
+    dev: true
+
   /turbo-darwin-64@1.10.9:
     resolution: {integrity: sha512-Avz3wsYYb8/vjyHPVRFbNbowIiaF33vcBRklIUkPchTLvZekrT5x3ltQBCflyoi2zJV9g08hK4xXTGuCxeVvPA==}
     cpu: [x64]
@@ -25581,6 +25608,13 @@ packages:
     engines: {node: '>=14.0'}
     dependencies:
       busboy: 1.6.0
+    dev: true
+
+  /undici@5.26.3:
+    resolution: {integrity: sha512-H7n2zmKEWgOllKkIUkLvFmsJQj062lSm3uA4EYApG8gLuiOM0/go9bIoC3HVaSnfg4xunowDE2i9p8drkXuvDw==}
+    engines: {node: '>=14.0'}
+    dependencies:
+      '@fastify/busboy': 2.0.0
     dev: true
 
   /unfetch@4.2.0:

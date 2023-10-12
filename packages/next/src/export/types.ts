@@ -7,6 +7,7 @@ import type AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import type { FontConfig } from '../server/font-utils'
 import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import type { Span } from '../trace'
+import type { Revalidate } from '../server/lib/revalidate'
 
 export interface AmpValidation {
   page: string
@@ -62,7 +63,7 @@ export type ExportedPageFile = {
 export type ExportRouteResult =
   | {
       ampValidations?: AmpValidation[]
-      revalidate: number | false
+      revalidate: Revalidate
       metadata?: {
         status?: number
         headers?: OutgoingHttpHeaders
@@ -126,7 +127,7 @@ export type ExportAppResult = {
       /**
        * The revalidation time for the page in seconds.
        */
-      revalidate?: number | false
+      revalidate?: Revalidate
       /**
        * The metadata for the page.
        */
