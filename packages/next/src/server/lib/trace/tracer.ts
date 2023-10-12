@@ -210,8 +210,6 @@ class NextTracerImpl implements NextTracer {
             options: { ...fnOrOptions },
           }
 
-    console.log('DEBUG - TRACING!!!', { options: options, fn: fn, args })
-
     if (
       (!NextVanillaSpanAllowlist.includes(type) &&
         process.env.NEXT_OTEL_VERBOSE !== '1') ||

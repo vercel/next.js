@@ -712,7 +712,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const traceState =
       typeof traceStateHeader === 'string' ? traceStateHeader : undefined
 
-    console.log('DEBUG', { traceParent, traceState })
     return getTracer().trace(
       BaseServerSpan.handleRequest,
       {
