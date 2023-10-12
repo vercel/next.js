@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 
 use anyhow::{Context, Result};
+use indexmap::{indexmap, IndexMap};
 use turbo_tasks::{Value, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{glob::Glob, FileSystem, FileSystemPath},
@@ -94,14 +95,7 @@ pub async fn get_next_client_import_map(
             } else {
                 ""
             };
-            import_map.insert_exact_alias(
-                "server-only",
-                request_to_import_mapping(app_dir, "next/dist/compiled/server-only"),
-            );
-            import_map.insert_exact_alias(
-                "client-only",
-                request_to_import_mapping(app_dir, "next/dist/compiled/client-only"),
-            );
+
             import_map.insert_exact_alias(
                 "react",
                 request_to_import_mapping(
@@ -153,6 +147,18 @@ pub async fn get_next_client_import_map(
         ClientContextType::Fallback => {}
         ClientContextType::Other => {}
     }
+
+    // see https://github.com/vercel/next.js/blob/8013ef7372fc545d49dbd060461224ceb563b454/packages/next/src/build/webpack-config.ts#L1449-L1531
+    insert_exact_alias_map(
+        &mut import_map,
+        project_path,
+        indexmap! {
+            "server-only" => "next/dist/compiled/server-only/index".to_string(),
+            "client-only" => "next/dist/compiled/client-only/index".to_string(),
+            "next/dist/compiled/server-only" => "next/dist/compiled/server-only/index".to_string(),
+            "next/dist/compiled/client-only" => "next/dist/compiled/client-only/index".to_string(),
+        },
+    );
 
     match ty.into_value() {
         ClientContextType::Pages { .. }
@@ -829,6 +835,30 @@ async fn insert_next_server_special_aliases(
         (_, ServerContextType::Middleware) => {}
     }
 
+    // see https://github.com/vercel/next.js/blob/8013ef7372fc545d49dbd060461224ceb563b454/packages/next/src/build/webpack-config.ts#L1449-L1531
+    insert_exact_alias_map(
+        import_map,
+        project_path,
+        indexmap! {
+            "server-only" => "next/dist/compiled/server-only/empty".to_string(),
+            "client-only" => "next/dist/compiled/client-only/error".to_string(),
+            "next/dist/compiled/server-only" => "next/dist/compiled/server-only/empty".to_string(),
+            "next/dist/compiled/client-only" => "next/dist/compiled/client-only/error".to_string(),
+        },
+    );
+
+    if ty == ServerContextType::Middleware {
+        insert_exact_alias_map(
+            import_map,
+            project_path,
+            indexmap! {
+                "client-only" => "next/dist/compiled/client-only/index".to_string(),
+                "next/dist/compiled/client-only" => "next/dist/compiled/client-only/index".to_string(),
+                "next/dist/compiled/client-only/error" => "next/dist/compiled/client-only/index".to_string(),
+            },
+        );
+    }
+
     import_map.insert_exact_alias(
         "@vercel/og",
         external_if_node(
@@ -1019,6 +1049,16 @@ fn export_value_to_import_mapping(
             )
             .cell()
         })
+    }
+}
+
+fn insert_exact_alias_map(
+    import_map: &mut ImportMap,
+    project_path: Vc<FileSystemPath>,
+    map: IndexMap<&'static str, String>,
+) {
+    for (pattern, request) in map {
+        import_map.insert_exact_alias(pattern, request_to_import_mapping(project_path, &request));
     }
 }
 
