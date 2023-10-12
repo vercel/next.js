@@ -98,7 +98,11 @@ import {
 } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
 import { mkdir, readFile, writeFile, rename, unlink } from 'fs/promises'
 import { PageNotFoundError } from '../../../shared/lib/utils'
-import { srcEmptySsgManifest } from '../../../build/webpack/plugins/build-manifest-plugin'
+import {
+  type ClientBuildManifest,
+  normalizeRewritesForBuildManifest,
+  srcEmptySsgManifest,
+} from '../../../build/webpack/plugins/build-manifest-plugin'
 import { devPageFiles } from '../../../build/webpack/plugins/next-types-plugin/shared'
 import type { LazyRenderServerInstance } from '../router-server'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
@@ -112,6 +116,7 @@ import {
 import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
 import { clearModuleContext } from '../render-server'
 import type { ActionManifest } from '../../../build/webpack/plugins/flight-client-entry-plugin'
+import { denormalizePagePath } from '../../../shared/lib/page-path/denormalize-page-path'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -710,7 +715,9 @@ async function startWatcher(opts: SetupOpts) {
       }
     }
 
-    async function writeBuildManifest(): Promise<void> {
+    async function writeBuildManifest(
+      rewrites: SetupOpts['fsChecker']['rewrites']
+    ): Promise<void> {
       const buildManifest = mergeBuildManifests(buildManifests.values())
       const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
       deleteCache(buildManifestPath)
@@ -718,8 +725,11 @@ async function startWatcher(opts: SetupOpts) {
         buildManifestPath,
         JSON.stringify(buildManifest, null, 2)
       )
-      const content = {
-        __rewrites: { afterFiles: [], beforeFiles: [], fallback: [] },
+
+      const content: ClientBuildManifest = {
+        __rewrites: rewrites
+          ? (normalizeRewritesForBuildManifest(rewrites) as any)
+          : { afterFiles: [], beforeFiles: [], fallback: [] },
         ...Object.fromEntries(
           [...curEntries.keys()].map((pathname) => [
             pathname,
@@ -1035,7 +1045,7 @@ async function startWatcher(opts: SetupOpts) {
       )
     )
     await currentEntriesHandling
-    await writeBuildManifest()
+    await writeBuildManifest(opts.fsChecker.rewrites)
     await writeAppBuildManifest()
     await writeFallbackBuildManifest()
     await writePagesManifest()
@@ -1060,9 +1070,11 @@ async function startWatcher(opts: SetupOpts) {
               .map((param: string) => decodeURIComponent(param))
               .join('/')}`
 
+            const denormalizedPagePath = denormalizePagePath(decodedPagePath)
+
             await hotReloader
               .ensurePage({
-                page: decodedPagePath,
+                page: denormalizedPagePath,
                 clientOnly: false,
                 definition: undefined,
               })
@@ -1204,7 +1216,7 @@ async function startWatcher(opts: SetupOpts) {
           await loadBuildManifest('_error')
           await loadPagesManifest('_error')
 
-          await writeBuildManifest()
+          await writeBuildManifest(opts.fsChecker.rewrites)
           await writeFallbackBuildManifest()
           await writePagesManifest()
           await writeMiddlewareManifest()
@@ -1318,7 +1330,7 @@ async function startWatcher(opts: SetupOpts) {
               middlewareManifests.delete(page)
             }
 
-            await writeBuildManifest()
+            await writeBuildManifest(opts.fsChecker.rewrites)
             await writeFallbackBuildManifest()
             await writePagesManifest()
             await writeMiddlewareManifest()
@@ -1379,7 +1391,7 @@ async function startWatcher(opts: SetupOpts) {
             await loadActionManifest(page)
 
             await writeAppBuildManifest()
-            await writeBuildManifest()
+            await writeBuildManifest(opts.fsChecker.rewrites)
             await writeAppPathsManifest()
             await writeMiddlewareManifest()
             await writeActionManifest()
