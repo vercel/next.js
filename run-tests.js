@@ -74,6 +74,61 @@ const mockTrace = () => ({
 
 // which types we have configured to run separate
 const configuredTestTypes = Object.values(testFilters)
+const errorsPerTests = new Map()
+
+async function maybeLogSummary() {
+  console.log('DEBUG - tests failed', errorsPerTests.size)
+  if (process.env.CI && errorsPerTests.size > 0) {
+    const toIDHash = (str) => {
+      let hash = 0,
+        i,
+        chr
+      if (str.length === 0) return hash
+      for (i = 0; i < str.length; i++) {
+        chr = str.charCodeAt(i)
+        hash = (hash << 5) - hash + chr
+        hash |= 0 // Convert to 32bit integer
+      }
+      return hash
+    }
+
+    const outputTemplate = `
+    ## Output per test
+
+    ${Array.from(errorsPerTests.entries())
+      .map(([test, output]) => {
+        return `### <a name="${toIDHash(test)}">${test}</a>
+
+\`\`\`bash
+${output}
+
+\`\`\`
+`
+      })
+      .join('\n')}`
+
+    console.log('DEBUG - outputTemplate', outputTemplate)
+    await core.summary
+      .addHeading('Test failures')
+      .addTable([
+        [
+          {
+            data: 'Test',
+            header: true,
+          },
+          {
+            data: 'Link',
+            header: true,
+          },
+        ],
+        ...Array.from(errorsPerTests.entries()).map(([test]) => {
+          return [test, `[Link](#${toIDHash(test)})`]
+        }),
+      ])
+      .addRaw(outputTemplate)
+      .write()
+  }
+}
 
 const cleanUpAndExit = async (code) => {
   if (process.env.NEXT_TEST_STARTER) {
@@ -81,6 +136,9 @@ const cleanUpAndExit = async (code) => {
   }
   if (process.env.NEXT_TEST_TEMP_REPO) {
     await fs.remove(process.env.NEXT_TEST_TEMP_REPO)
+  }
+  if (process.env.CI) {
+    await maybeLogSummary()
   }
   console.log(`exiting with code ${code}`)
 
@@ -138,7 +196,6 @@ async function main() {
   const testPattern = testPatternIdx !== -1 && process.argv[testPatternIdx + 1]
   const testTypeIdx = process.argv.indexOf('--type')
   const testType = testTypeIdx > -1 ? process.argv[testTypeIdx + 1] : undefined
-  const errorsPerTests = new Map()
   let filterTestsBy
 
   switch (testType) {
@@ -635,58 +692,6 @@ ${ENDGROUP}`)
       if (dirSema) dirSema.release()
     })
   )
-
-  console.log('DEBUG - tests failed', errorsPerTests.size)
-  if (process.env.CI && errorsPerTests.size > 0) {
-    const toIDHash = (str) => {
-      let hash = 0,
-        i,
-        chr
-      if (str.length === 0) return hash
-      for (i = 0; i < str.length; i++) {
-        chr = str.charCodeAt(i)
-        hash = (hash << 5) - hash + chr
-        hash |= 0 // Convert to 32bit integer
-      }
-      return hash
-    }
-
-    const outputTemplate = `
-    ## Output per test
-
-    ${Array.from(errorsPerTests.entries())
-      .map(([test, output]) => {
-        return `### <a name="${toIDHash(test)}">${test}</a>
-
-\`\`\`bash
-${output}
-
-\`\`\`
-`
-      })
-      .join('\n')}`
-
-    console.log('DEBUG - outputTemplate', outputTemplate)
-    await core.summary
-      .addHeading('Test failures')
-      .addTable([
-        [
-          {
-            data: 'Test',
-            header: true,
-          },
-          {
-            data: 'Link',
-            header: true,
-          },
-        ],
-        ...Array.from(errorsPerTests.entries()).map(([test]) => {
-          return [test, `[Link](#${toIDHash(test)})`]
-        }),
-      ])
-      .addRaw(outputTemplate)
-      .write()
-  }
 
   if (outputTimings) {
     const curTimings = {}
