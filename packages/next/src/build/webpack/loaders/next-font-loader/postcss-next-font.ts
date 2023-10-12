@@ -1,5 +1,6 @@
 import type { AdjustFontFallback } from '../../../../../font'
-import postcss, { Declaration } from 'postcss'
+import type { Declaration } from 'postcss'
+import postcss from 'postcss'
 
 /**
  * The next/font postcss plugin recieves the @font-face declarations returned from the next/font loaders.

@@ -145,7 +145,7 @@ export async function fetchServerResponse(
     return [flightData, canonicalUrl]
   } catch (err) {
     console.error(
-      'Failed to fetch RSC payload. Falling back to browser navigation.',
+      `Failed to fetch RSC payload for ${url}. Falling back to browser navigation.`,
       err
     )
     // If fetch fails handle it like a mpa navigation

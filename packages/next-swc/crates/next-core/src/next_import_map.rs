@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 
 use anyhow::{Context, Result};
+use indexmap::{indexmap, IndexMap};
 use turbo_tasks::{Value, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{glob::Glob, FileSystem, FileSystemPath},
@@ -89,35 +90,49 @@ pub async fn get_next_client_import_map(
             );
         }
         ClientContextType::App { app_dir } => {
-            import_map.insert_exact_alias(
-                "server-only",
-                request_to_import_mapping(app_dir, "next/dist/compiled/server-only"),
-            );
-            import_map.insert_exact_alias(
-                "client-only",
-                request_to_import_mapping(app_dir, "next/dist/compiled/client-only"),
-            );
+            let react_flavor = if *next_config.enable_server_actions().await? {
+                "-experimental"
+            } else {
+                ""
+            };
+
             import_map.insert_exact_alias(
                 "react",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react"),
+                request_to_import_mapping(
+                    app_dir,
+                    &format!("next/dist/compiled/react{react_flavor}"),
+                ),
             );
             import_map.insert_wildcard_alias(
                 "react/",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react/*"),
+                request_to_import_mapping(
+                    app_dir,
+                    &format!("next/dist/compiled/react{react_flavor}/*"),
+                ),
             );
             import_map.insert_exact_alias(
                 "react-dom",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react-dom"),
+                request_to_import_mapping(
+                    app_dir,
+                    &format!("next/dist/compiled/react-dom{react_flavor}"),
+                ),
             );
             import_map.insert_wildcard_alias(
                 "react-dom/",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react-dom/*"),
+                request_to_import_mapping(
+                    app_dir,
+                    &format!("next/dist/compiled/react-dom{react_flavor}/*"),
+                ),
             );
             import_map.insert_wildcard_alias(
                 "react-server-dom-webpack/",
+                request_to_import_mapping(app_dir, "react-server-dom-turbopack/*"),
+            );
+            import_map.insert_wildcard_alias(
+                "react-server-dom-turbopack/",
                 request_to_import_mapping(
                     app_dir,
-                    "next/dist/compiled/react-server-dom-turbopack/*",
+                    &format!("next/dist/compiled/react-server-dom-turbopack{react_flavor}/*"),
                 ),
             );
             import_map.insert_exact_alias(
@@ -132,6 +147,18 @@ pub async fn get_next_client_import_map(
         ClientContextType::Fallback => {}
         ClientContextType::Other => {}
     }
+
+    // see https://github.com/vercel/next.js/blob/8013ef7372fc545d49dbd060461224ceb563b454/packages/next/src/build/webpack-config.ts#L1449-L1531
+    insert_exact_alias_map(
+        &mut import_map,
+        project_path,
+        indexmap! {
+            "server-only" => "next/dist/compiled/server-only/index".to_string(),
+            "client-only" => "next/dist/compiled/client-only/index".to_string(),
+            "next/dist/compiled/server-only" => "next/dist/compiled/server-only/index".to_string(),
+            "next/dist/compiled/client-only" => "next/dist/compiled/client-only/index".to_string(),
+        },
+    );
 
     match ty.into_value() {
         ClientContextType::Pages { .. }
@@ -230,14 +257,6 @@ pub async fn get_next_server_import_map(
 
     let ty = ty.into_value();
 
-    insert_next_server_special_aliases(
-        &mut import_map,
-        project_path,
-        ty,
-        mode,
-        NextRuntime::NodeJs,
-    )
-    .await?;
     let external: Vc<ImportMapping> = ImportMapping::External(None).cell();
 
     import_map.insert_exact_alias("next/dist/server/require-hook", external);
@@ -255,6 +274,33 @@ pub async fn get_next_server_import_map(
         ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. } => {
+            let react_flavor = if *next_config.enable_server_actions().await? {
+                "-experimental"
+            } else {
+                ""
+            };
+
+            import_map.insert_exact_alias(
+                "private-next-rsc-action-proxy",
+                request_to_import_mapping(
+                    project_path,
+                    "next/dist/build/webpack/loaders/next-flight-loader/action-proxy",
+                ),
+            );
+            import_map.insert_exact_alias(
+                "private-next-rsc-action-client-wrapper",
+                request_to_import_mapping(
+                    project_path,
+                    "next/dist/build/webpack/loaders/next-flight-loader/action-client-wrapper",
+                ),
+            );
+            import_map.insert_exact_alias(
+                "private-next-rsc-action-validate",
+                request_to_import_mapping(
+                    project_path,
+                    "next/dist/build/webpack/loaders/next-flight-loader/action-validate",
+                ),
+            );
             import_map.insert_exact_alias(
                 "next/head",
                 request_to_import_mapping(project_path, "next/dist/client/components/noop-head"),
@@ -263,13 +309,47 @@ pub async fn get_next_server_import_map(
                 "next/dynamic",
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
-            import_map.insert_exact_alias(
-                "react-server-dom-webpack/",
-                ImportMapping::External(Some("react-server-dom-turbopack".into())).cell(),
+
+            let mapping = request_to_import_mapping(
+                project_path,
+                &format!("next/dist/compiled/react-server-dom-turbopack{react_flavor}/client"),
             );
+            import_map.insert_exact_alias("react-server-dom-webpack/client", mapping);
+            import_map.insert_exact_alias("react-server-dom-turbopack/client", mapping);
+
+            let mapping = request_to_import_mapping(
+                project_path,
+                &format!("next/dist/compiled/react-server-dom-turbopack{react_flavor}/client.edge"),
+            );
+            import_map.insert_exact_alias("react-server-dom-webpack/client.edge", mapping);
+            import_map.insert_exact_alias("react-server-dom-turbopack/client.edge", mapping);
+
+            let mapping = request_to_import_mapping(
+                project_path,
+                &format!("next/dist/compiled/react-server-dom-turbopack{react_flavor}/server.edge"),
+            );
+            import_map.insert_exact_alias("react-server-dom-webpack/server.edge", mapping);
+            import_map.insert_exact_alias("react-server-dom-turbopack/server.edge", mapping);
+
+            let mapping = request_to_import_mapping(
+                project_path,
+                &format!("next/dist/compiled/react-server-dom-turbopack{react_flavor}/server.node"),
+            );
+            import_map.insert_exact_alias("react-server-dom-webpack/server.node", mapping);
+            import_map.insert_exact_alias("react-server-dom-turbopack/server.node", mapping);
         }
         ServerContextType::Middleware => {}
     }
+
+    insert_next_server_special_aliases(
+        &mut import_map,
+        project_path,
+        ty,
+        mode,
+        NextRuntime::NodeJs,
+        next_config,
+    )
+    .await?;
 
     Ok(import_map.cell())
 }
@@ -303,15 +383,17 @@ pub async fn get_next_edge_import_map(
     .await?;
 
     let ty = ty.into_value();
-
-    insert_next_server_special_aliases(&mut import_map, project_path, ty, mode, NextRuntime::Edge)
-        .await?;
-
     match ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {}
         ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. } => {
+            let react_flavor = if *next_config.enable_server_actions().await? {
+                "-experimental"
+            } else {
+                ""
+            };
+
             import_map.insert_exact_alias(
                 "next/head",
                 request_to_import_mapping(project_path, "next/dist/client/components/noop-head"),
@@ -320,9 +402,47 @@ pub async fn get_next_edge_import_map(
                 "next/dynamic",
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
+
+            let mapping = request_to_import_mapping(
+                project_path,
+                &format!("next/dist/compiled/react-server-dom-turbopack{react_flavor}/client"),
+            );
+            import_map.insert_exact_alias("react-server-dom-webpack/client", mapping);
+            import_map.insert_exact_alias("react-server-dom-turbopack/client", mapping);
+
+            let mapping = request_to_import_mapping(
+                project_path,
+                &format!("next/dist/compiled/react-server-dom-turbopack{react_flavor}/client.edge"),
+            );
+            import_map.insert_exact_alias("react-server-dom-webpack/client.edge", mapping);
+            import_map.insert_exact_alias("react-server-dom-turbopack/client.edge", mapping);
+
+            let mapping = request_to_import_mapping(
+                project_path,
+                &format!("next/dist/compiled/react-server-dom-turbopack{react_flavor}/server.edge"),
+            );
+            import_map.insert_exact_alias("react-server-dom-webpack/server.edge", mapping);
+            import_map.insert_exact_alias("react-server-dom-turbopack/server.edge", mapping);
+
+            let mapping = request_to_import_mapping(
+                project_path,
+                &format!("next/dist/compiled/react-server-dom-turbopack{react_flavor}/server.node"),
+            );
+            import_map.insert_exact_alias("react-server-dom-webpack/server.node", mapping);
+            import_map.insert_exact_alias("react-server-dom-turbopack/server.node", mapping);
         }
         ServerContextType::Middleware => {}
     }
+
+    insert_next_server_special_aliases(
+        &mut import_map,
+        project_path,
+        ty,
+        mode,
+        NextRuntime::Edge,
+        next_config,
+    )
+    .await?;
 
     Ok(import_map.cell())
 }
@@ -390,6 +510,7 @@ async fn insert_next_server_special_aliases(
     ty: ServerContextType,
     mode: NextMode,
     runtime: NextRuntime,
+    next_config: Vc<NextConfig>,
 ) -> Result<()> {
     let external_if_node = move |context_dir: Vc<FileSystemPath>, request: &str| match runtime {
         NextRuntime::Edge => request_to_import_mapping(context_dir, request),
@@ -445,13 +566,18 @@ async fn insert_next_server_special_aliases(
                 "styled-jsx/",
                 request_to_import_mapping(get_next_package(app_dir), "styled-jsx/*"),
             );
+
+            let server_actions = *next_config.enable_server_actions().await?;
             import_map.insert_exact_alias(
                 "react/jsx-runtime",
                 request_to_import_mapping(
                     app_dir,
-                    match runtime {
-                        NextRuntime::Edge => "next/dist/compiled/react/jsx-runtime",
-                        NextRuntime::NodeJs => {
+                    match (runtime, server_actions) {
+                        (NextRuntime::Edge, true) => {
+                            "next/dist/compiled/react-experimental/jsx-runtime"
+                        }
+                        (NextRuntime::Edge, false) => "next/dist/compiled/react/jsx-runtime",
+                        (NextRuntime::NodeJs, _) => {
                             "next/dist/server/future/route-modules/app-page/vendored/ssr/\
                              react-jsx-runtime"
                         }
@@ -462,9 +588,12 @@ async fn insert_next_server_special_aliases(
                 "react/jsx-dev-runtime",
                 request_to_import_mapping(
                     app_dir,
-                    match runtime {
-                        NextRuntime::Edge => "next/dist/compiled/react/jsx-dev-runtime",
-                        NextRuntime::NodeJs => {
+                    match (runtime, server_actions) {
+                        (NextRuntime::Edge, true) => {
+                            "next/dist/compiled/react-experimental/jsx-dev-runtime"
+                        }
+                        (NextRuntime::Edge, false) => "next/dist/compiled/react/jsx-dev-runtime",
+                        (NextRuntime::NodeJs, _) => {
                             "next/dist/server/future/route-modules/app-page/vendored/ssr/\
                              react-jsx-dev-runtime"
                         }
@@ -475,9 +604,10 @@ async fn insert_next_server_special_aliases(
                 "react",
                 request_to_import_mapping(
                     app_dir,
-                    match runtime {
-                        NextRuntime::Edge => "next/dist/compiled/react",
-                        NextRuntime::NodeJs => {
+                    match (runtime, server_actions) {
+                        (NextRuntime::Edge, true) => "next/dist/compiled/react-experimental",
+                        (NextRuntime::Edge, false) => "next/dist/compiled/react",
+                        (NextRuntime::NodeJs, _) => {
                             "next/dist/server/future/route-modules/app-page/vendored/ssr/react"
                         }
                     },
@@ -487,65 +617,67 @@ async fn insert_next_server_special_aliases(
                 "react-dom",
                 request_to_import_mapping(
                     app_dir,
-                    match runtime {
-                        NextRuntime::Edge => "next/dist/compiled/react-dom",
-                        NextRuntime::NodeJs => {
+                    match (runtime, server_actions) {
+                        (NextRuntime::Edge, true) => "next/dist/compiled/react-dom-experimental",
+                        (NextRuntime::Edge, false) => "next/dist/compiled/react-dom",
+                        (NextRuntime::NodeJs, _) => {
                             "next/dist/server/future/route-modules/app-page/vendored/ssr/react-dom"
                         }
                     },
                 ),
             );
-            import_map.insert_exact_alias(
-                "react-server-dom-webpack/client.edge",
-                request_to_import_mapping(
-                    app_dir,
-                    match runtime {
-                        NextRuntime::Edge => {
-                            "next/dist/compiled/react-server-dom-turbopack/client.edge"
-                        }
-                        // When we access the runtime we still use the webpack name. The runtime
-                        // itself will substitute in the turbopack variant
-                        NextRuntime::NodeJs => {
-                            "next/dist/server/future/route-modules/app-page/vendored/ssr/\
-                             react-server-dom-turbopack-client-edge"
-                        }
-                    },
-                ),
+
+            let mapping = request_to_import_mapping(
+                app_dir,
+                match (runtime, server_actions) {
+                    (NextRuntime::Edge, true) => {
+                        "next/dist/compiled/react-server-dom-turbopack-experimental/client.edge"
+                    }
+                    (NextRuntime::Edge, false) => {
+                        "next/dist/compiled/react-server-dom-turbopack/client.edge"
+                    }
+                    // When we access the runtime we still use the webpack name. The runtime
+                    // itself will substitute in the turbopack variant
+                    (NextRuntime::NodeJs, _) => {
+                        "next/dist/server/future/route-modules/app-page/vendored/ssr/\
+                         react-server-dom-turbopack-client-edge"
+                    }
+                },
             );
-            // some code also imports react-server-dom-webpack/client on the server
-            // it should never run so it's fine to just point it to the same place as
-            // react-server-dom-webpack/client.edge
-            import_map.insert_exact_alias(
-                "react-server-dom-webpack/client",
-                request_to_import_mapping(
-                    app_dir,
-                    match runtime {
-                        NextRuntime::Edge => {
-                            "next/dist/compiled/react-server-dom-turbopack/client.edge"
-                        }
-                        // When we access the runtime we still use the webpack name. The runtime
-                        // itself will substitute in the turbopack variant
-                        NextRuntime::NodeJs => {
-                            "next/dist/server/future/route-modules/app-page/vendored/ssr/\
-                             react-server-dom-turbopack-client-edge"
-                        }
-                    },
-                ),
-            );
+            import_map.insert_exact_alias("react-server-dom-webpack/client.edge", mapping);
+            import_map.insert_exact_alias("react-server-dom-turbopack/client.edge", mapping);
+
+            // import_map.insert_exact_alias("react-server-dom-turbopack/client", mapping);
             // not essential but we're providing this alias for people who might use it.
             // A note here is that this will point toward the ReactDOMServer on the SSR
             // layer TODO: add the rests
             import_map.insert_exact_alias(
                 "react-dom/server",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react-dom/server"),
+                request_to_import_mapping(
+                    app_dir,
+                    match (runtime, server_actions) {
+                        (NextRuntime::Edge, true) => {
+                            "next/dist/compiled/react-dom-experimental/server.edge"
+                        }
+                        (NextRuntime::Edge, false) => "next/dist/compiled/react-dom/server.edge",
+                        (NextRuntime::NodeJs, _) => {
+                            "next/dist/server/future/route-modules/app-page/vendored/ssr/\
+                             react-dom-server-edge"
+                        }
+                    },
+                ),
             );
+
             import_map.insert_exact_alias(
                 "react-dom/server.edge",
                 request_to_import_mapping(
                     app_dir,
-                    match runtime {
-                        NextRuntime::Edge => "next/dist/compiled/react-dom/server.edge",
-                        NextRuntime::NodeJs => {
+                    match (runtime, server_actions) {
+                        (NextRuntime::Edge, true) => {
+                            "next/dist/compiled/react-dom-experimental/server.edge"
+                        }
+                        (NextRuntime::Edge, false) => "next/dist/compiled/react-dom/server.edge",
+                        (NextRuntime::NodeJs, _) => {
                             "next/dist/server/future/route-modules/app-page/vendored/ssr/\
                              react-dom-server-edge"
                         }
@@ -572,13 +704,17 @@ async fn insert_next_server_special_aliases(
                 request_to_import_mapping(get_next_package(app_dir), "styled-jsx/*"),
             );
 
+            let server_actions = *next_config.enable_server_actions().await?;
             import_map.insert_exact_alias(
                 "react/jsx-runtime",
                 request_to_import_mapping(
                     app_dir,
-                    match runtime {
-                        NextRuntime::Edge => "next/dist/compiled/react/jsx-runtime",
-                        NextRuntime::NodeJs => {
+                    match (runtime, server_actions) {
+                        (NextRuntime::Edge, true) => {
+                            "next/dist/compiled/react-experimental/jsx-runtime"
+                        }
+                        (NextRuntime::Edge, false) => "next/dist/compiled/react/jsx-runtime",
+                        (NextRuntime::NodeJs, _) => {
                             "next/dist/server/future/route-modules/app-page/vendored/rsc/\
                              react-jsx-runtime"
                         }
@@ -589,9 +725,12 @@ async fn insert_next_server_special_aliases(
                 "react/jsx-dev-runtime",
                 request_to_import_mapping(
                     app_dir,
-                    match runtime {
-                        NextRuntime::Edge => "next/dist/compiled/react/jsx-dev-runtime",
-                        NextRuntime::NodeJs => {
+                    match (runtime, server_actions) {
+                        (NextRuntime::Edge, true) => {
+                            "next/dist/compiled/react-experimental/jsx-dev-runtime"
+                        }
+                        (NextRuntime::Edge, false) => "next/dist/compiled/react/jsx-dev-runtime",
+                        (NextRuntime::NodeJs, _) => {
                             "next/dist/server/future/route-modules/app-page/vendored/rsc/\
                              react-jsx-dev-runtime"
                         }
@@ -610,9 +749,10 @@ async fn insert_next_server_special_aliases(
                 "react",
                 request_to_import_mapping(
                     app_dir,
-                    match runtime {
-                        NextRuntime::Edge => "next/dist/compiled/react",
-                        NextRuntime::NodeJs => {
+                    match (runtime, server_actions) {
+                        (NextRuntime::Edge, true) => "next/dist/compiled/react-experimental",
+                        (NextRuntime::Edge, false) => "next/dist/compiled/react",
+                        (NextRuntime::NodeJs, _) => {
                             "next/dist/server/future/route-modules/app-page/vendored/rsc/react"
                         }
                     },
@@ -622,61 +762,101 @@ async fn insert_next_server_special_aliases(
                 "react-dom",
                 request_to_import_mapping(
                     app_dir,
-                    match runtime {
-                        NextRuntime::Edge => "next/dist/compiled/react-dom",
-                        NextRuntime::NodeJs => {
+                    match (runtime, server_actions) {
+                        (NextRuntime::Edge, true) => "next/dist/compiled/react-dom-experimental",
+                        (NextRuntime::Edge, false) => "next/dist/compiled/react-dom",
+                        (NextRuntime::NodeJs, _) => {
                             "next/dist/server/future/route-modules/app-page/vendored/rsc/react-dom"
                         }
                     },
                 ),
             );
-            import_map.insert_exact_alias(
-                "react-server-dom-webpack/server.edge",
-                request_to_import_mapping(
-                    app_dir,
-                    match runtime {
-                        NextRuntime::Edge => {
-                            "next/dist/compiled/react-server-dom-turbopack/server.edge"
-                        }
-                        // When we access the runtime we still use the webpack name. The runtime
-                        // itself will substitute in the turbopack variant
-                        NextRuntime::NodeJs => {
-                            "next/dist/server/future/route-modules/app-page/vendored/rsc/\
-                             react-server-dom-turbopack-server-edge"
-                        }
-                    },
-                ),
+
+            let mapping = request_to_import_mapping(
+                app_dir,
+                match (runtime, server_actions) {
+                    (NextRuntime::Edge, true) => {
+                        "next/dist/compiled/react-server-dom-turbopack-experimental/server.edge"
+                    }
+                    (NextRuntime::Edge, false) => {
+                        "next/dist/compiled/react-server-dom-turbopack/server.edge"
+                    }
+                    // When we access the runtime we still use the webpack name. The runtime
+                    // itself will substitute in the turbopack variant
+                    (NextRuntime::NodeJs, _) => {
+                        "next/dist/server/future/route-modules/app-page/vendored/rsc/\
+                         react-server-dom-turbopack-server-edge"
+                    }
+                },
             );
-            import_map.insert_exact_alias(
-                "react-server-dom-webpack/server.node",
-                request_to_import_mapping(
-                    app_dir,
-                    match runtime {
-                        NextRuntime::Edge => {
-                            "next/dist/compiled/react-server-dom-turbopack/server.node"
-                        }
-                        // When we access the runtime we still use the webpack name. The runtime
-                        // itself will substitute in the turbopack variant
-                        NextRuntime::NodeJs => {
-                            "next/dist/server/future/route-modules/app-page/vendored/rsc/\
-                             react-server-dom-turbopack-server-node"
-                        }
-                    },
-                ),
+            import_map.insert_exact_alias("react-server-dom-webpack/server.edge", mapping);
+            import_map.insert_exact_alias("react-server-dom-turbopack/server.edge", mapping);
+
+            let mapping = request_to_import_mapping(
+                app_dir,
+                match (runtime, server_actions) {
+                    (NextRuntime::Edge, true) => {
+                        "next/dist/compiled/react-server-dom-turbopack-experimental/server.node"
+                    }
+                    (NextRuntime::Edge, false) => {
+                        "next/dist/compiled/react-server-dom-turbopack/server.node"
+                    }
+                    // When we access the runtime we still use the webpack name. The runtime
+                    // itself will substitute in the turbopack variant
+                    (NextRuntime::NodeJs, _) => {
+                        "next/dist/server/future/route-modules/app-page/vendored/rsc/\
+                         react-server-dom-turbopack-server-node"
+                    }
+                },
             );
+            import_map.insert_exact_alias("react-server-dom-webpack/server.node", mapping);
+            import_map.insert_exact_alias("react-server-dom-turbopack/server.node", mapping);
+
             // not essential but we're providing this alias for people who might use it.
             // A note here is that this will point toward the ReactDOMServer on the SSR
             // layer TODO: add the rests
             import_map.insert_exact_alias(
                 "react-dom/server.edge",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react-dom/server.edge"),
-            );
-            import_map.insert_exact_alias(
-                "react-dom/server",
-                request_to_import_mapping(app_dir, "next/dist/compiled/react-dom/server"),
+                request_to_import_mapping(
+                    app_dir,
+                    match (runtime, server_actions) {
+                        (NextRuntime::Edge, true) => {
+                            "next/dist/compiled/react-dom-experimental/server.edge"
+                        }
+                        (NextRuntime::Edge, false) => "next/dist/compiled/react-dom/server.edge",
+                        (NextRuntime::NodeJs, _) => {
+                            "next/dist/server/future/route-modules/app-page/vendored/ssr/\
+                             react-dom-server-edge"
+                        }
+                    },
+                ),
             );
         }
         (_, ServerContextType::Middleware) => {}
+    }
+
+    // see https://github.com/vercel/next.js/blob/8013ef7372fc545d49dbd060461224ceb563b454/packages/next/src/build/webpack-config.ts#L1449-L1531
+    insert_exact_alias_map(
+        import_map,
+        project_path,
+        indexmap! {
+            "server-only" => "next/dist/compiled/server-only/empty".to_string(),
+            "client-only" => "next/dist/compiled/client-only/error".to_string(),
+            "next/dist/compiled/server-only" => "next/dist/compiled/server-only/empty".to_string(),
+            "next/dist/compiled/client-only" => "next/dist/compiled/client-only/error".to_string(),
+        },
+    );
+
+    if ty == ServerContextType::Middleware {
+        insert_exact_alias_map(
+            import_map,
+            project_path,
+            indexmap! {
+                "client-only" => "next/dist/compiled/client-only/index".to_string(),
+                "next/dist/compiled/client-only" => "next/dist/compiled/client-only/index".to_string(),
+                "next/dist/compiled/client-only/error" => "next/dist/compiled/client-only/index".to_string(),
+            },
+        );
     }
 
     import_map.insert_exact_alias(
@@ -869,6 +1049,16 @@ fn export_value_to_import_mapping(
             )
             .cell()
         })
+    }
+}
+
+fn insert_exact_alias_map(
+    import_map: &mut ImportMap,
+    project_path: Vc<FileSystemPath>,
+    map: IndexMap<&'static str, String>,
+) {
+    for (pattern, request) in map {
+        import_map.insert_exact_alias(pattern, request_to_import_mapping(project_path, &request));
     }
 }
 

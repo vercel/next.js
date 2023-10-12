@@ -3,7 +3,7 @@ import { bold, green } from '../picocolors'
 import os from 'os'
 import path from 'path'
 import * as CommentJson from 'next/dist/compiled/comment-json'
-import { ConfigAvailable } from './hasEslintConfiguration'
+import type { ConfigAvailable } from './hasEslintConfiguration'
 
 import * as Log from '../../build/output/log'
 

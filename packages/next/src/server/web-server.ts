@@ -6,15 +6,15 @@ import type { PayloadOptions } from './send-payload'
 import type { LoadComponentsReturnType } from './load-components'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PrerenderManifest } from '../build'
-
-import { byteLength } from './api-utils/web'
-import BaseServer, {
+import type {
   LoadedRenderOpts,
   MiddlewareRoutingItem,
-  NoFallbackError,
   NormalizedRouteManifest,
   Options,
 } from './base-server'
+
+import { byteLength } from './api-utils/web'
+import BaseServer, { NoFallbackError } from './base-server'
 import { generateETag } from './lib/etag'
 import { addRequestMeta } from './request-meta'
 import WebResponseCache from './response-cache/web'

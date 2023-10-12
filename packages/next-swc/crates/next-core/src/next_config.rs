@@ -443,6 +443,9 @@ pub struct ExperimentalConfig {
     pub optimize_css: Option<serde_json::Value>,
     pub next_script_workers: Option<bool>,
     pub web_vitals_attribution: Option<Vec<String>>,
+    /// Enables server actions. Using this feature will enable the
+    /// `react@experimental` for the `app` directory. @see https://nextjs.org/docs/app/api-reference/functions/server-actions
+    server_actions: Option<bool>,
 
     // ---
     // UNSUPPORTED
@@ -484,9 +487,6 @@ pub struct ExperimentalConfig {
     /// directory.
     ppr: Option<bool>,
     proxy_timeout: Option<f64>,
-    /// Enables server actions. Using this feature will enable the
-    /// `react@experimental` for the `app` directory. @see https://nextjs.org/docs/app/api-reference/functions/server-actions
-    server_actions: Option<bool>,
     /// Allows adjusting body parser size limit for server actions.
     server_actions_body_size_limit: Option<SizeLimit>,
     /// enables the minification of server code.
@@ -734,6 +734,13 @@ impl NextConfig {
             }
             .trim_end_matches('/')
         ))))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn enable_server_actions(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            self.await?.experimental.server_actions.unwrap_or(false),
+        ))
     }
 }
 

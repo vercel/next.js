@@ -1,4 +1,4 @@
-import { Telemetry } from '../../telemetry/storage'
+import type { Telemetry } from '../../telemetry/storage'
 import { traceGlobals } from '../shared'
 
 const TRACE_EVENT_ACCESSLIST = new Map(

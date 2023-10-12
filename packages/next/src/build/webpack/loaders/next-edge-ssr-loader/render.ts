@@ -13,18 +13,10 @@ import {
   WebNextResponse,
 } from '../../../../server/base-http/web'
 import { SERVER_RUNTIME } from '../../../../lib/constants'
-import { PrerenderManifest } from '../../..'
+import type { PrerenderManifest } from '../../..'
 import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
-import { SizeLimit } from '../../../../../types'
-
-const NEXT_PRIVATE_GLOBAL_WAIT_UNTIL = Symbol.for(
-  '__next_private_global_wait_until__'
-)
-
-// @ts-ignore
-globalThis[NEXT_PRIVATE_GLOBAL_WAIT_UNTIL] =
-  // @ts-ignore
-  globalThis[NEXT_PRIVATE_GLOBAL_WAIT_UNTIL] || []
+import type { SizeLimit } from '../../../../../types'
+import { internal_getCurrentFunctionWaitUntil } from '../../../../server/web/internal-edge-wait-until'
 
 export function getRender({
   dev,
@@ -161,10 +153,10 @@ export function getRender({
     const result = await extendedRes.toResponse()
 
     if (event && event.waitUntil) {
-      event.waitUntil(
-        // @ts-ignore
-        Promise.all([...globalThis[NEXT_PRIVATE_GLOBAL_WAIT_UNTIL]])
-      )
+      const waitUntilPromise = internal_getCurrentFunctionWaitUntil()
+      if (waitUntilPromise) {
+        event.waitUntil(waitUntilPromise)
+      }
     }
 
     // fetchMetrics is attached to the web request that going through the server,

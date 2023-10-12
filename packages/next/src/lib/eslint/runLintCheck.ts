@@ -6,7 +6,8 @@ import findUp from 'next/dist/compiled/find-up'
 import semver from 'next/dist/compiled/semver'
 import * as CommentJson from 'next/dist/compiled/comment-json'
 
-import { LintResult, formatResults } from './customFormatter'
+import { formatResults } from './customFormatter'
+import type { LintResult } from './customFormatter'
 import { writeDefaultConfig } from './writeDefaultConfig'
 import { hasEslintConfiguration } from './hasEslintConfiguration'
 import { writeOutputFile } from './writeOutputFile'
@@ -17,7 +18,7 @@ import { installDependencies } from '../install-dependencies'
 import { hasNecessaryDependencies } from '../has-necessary-dependencies'
 
 import * as Log from '../../build/output/log'
-import { EventLintCheckCompleted } from '../../telemetry/events/build'
+import type { EventLintCheckCompleted } from '../../telemetry/events/build'
 import isError, { getProperError } from '../is-error'
 import { getPkgManager } from '../helpers/get-pkg-manager'
 

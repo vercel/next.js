@@ -17,10 +17,10 @@ import {
   RSC_ACTION_CLIENT_WRAPPER_ALIAS,
   RSC_ACTION_VALIDATE_ALIAS,
   WEBPACK_RESOURCE_QUERIES,
-  WebpackLayerName,
 } from '../lib/constants'
+import type { WebpackLayerName } from '../lib/constants'
 import { isWebpackDefaultLayer, isWebpackServerLayer } from './utils'
-import { CustomRoutes } from '../lib/load-custom-routes.js'
+import type { CustomRoutes } from '../lib/load-custom-routes.js'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
@@ -32,10 +32,10 @@ import {
   REACT_LOADABLE_MANIFEST,
   SERVER_DIRECTORY,
   COMPILER_NAMES,
-  CompilerNameValues,
 } from '../shared/lib/constants'
+import type { CompilerNameValues } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
-import { NextConfigComplete } from '../server/config-shared'
+import type { NextConfigComplete } from '../server/config-shared'
 import { finalizeEntrypoint } from './entries'
 import * as Log from './output/log'
 import { buildConfiguration } from './webpack/config'
@@ -72,8 +72,12 @@ import { getBabelConfigFile } from './get-babel-config-file'
 import { defaultOverrides } from '../server/require-hook'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 import { getDefineEnvPlugin } from './webpack/plugins/define-env-plugin'
-import { SWCLoaderOptions } from './webpack/loaders/next-swc-loader'
+import type { SWCLoaderOptions } from './webpack/loaders/next-swc-loader'
 import { isResourceInPackages, makeExternalHandler } from './handle-externals'
+import {
+  getMainField,
+  edgeConditionNames,
+} from './webpack-config-rules/resolve'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -103,21 +107,6 @@ const babelIncludeRegexes: RegExp[] = [
 
 const asyncStoragesRegex =
   /next[\\/]dist[\\/](esm[\\/])?client[\\/]components[\\/](static-generation-async-storage|action-async-storage|request-async-storage)/
-
-// exports.<conditionName>
-const edgeConditionNames = [
-  'edge-light',
-  'worker',
-  // inherits the default conditions
-  '...',
-]
-
-// packageJson.<mainField>
-const mainFieldsPerCompiler: Record<CompilerNameValues, string[]> = {
-  [COMPILER_NAMES.server]: ['main', 'module'],
-  [COMPILER_NAMES.client]: ['browser', 'module', 'main'],
-  [COMPILER_NAMES.edgeServer]: edgeConditionNames,
-}
 
 // Support for NODE_PATH
 const nodePathList = (process.env.NODE_PATH || '')
@@ -822,28 +811,41 @@ export default async function getBaseWebpackConfig(
             'next/dist/server': 'next/dist/esm/server',
 
             // Alias the usage of next public APIs
-            [`${NEXT_PROJECT_ROOT}/server`]:
+            [path.join(NEXT_PROJECT_ROOT, 'server')]:
               'next/dist/esm/server/web/exports/index',
-            [`${NEXT_PROJECT_ROOT}/dist/client/link`]:
+            [path.join(NEXT_PROJECT_ROOT_DIST, 'client', 'link')]:
               'next/dist/esm/client/link',
-            [`${NEXT_PROJECT_ROOT}/dist/shared/lib/image-external`]:
-              'next/dist/esm/shared/lib/image-external',
-            [`${NEXT_PROJECT_ROOT}/dist/client/script`]:
+            [path.join(
+              NEXT_PROJECT_ROOT,
+              'dist',
+              'shared',
+              'lib',
+              'image-external'
+            )]: 'next/dist/esm/shared/lib/image-external',
+            [path.join(NEXT_PROJECT_ROOT_DIST, 'client', 'script')]:
               'next/dist/esm/client/script',
-            [`${NEXT_PROJECT_ROOT}/dist/client/router`]:
+            [path.join(NEXT_PROJECT_ROOT_DIST, 'client', 'router')]:
               'next/dist/esm/client/router',
-            [`${NEXT_PROJECT_ROOT}/dist/shared/lib/head`]:
+            [path.join(NEXT_PROJECT_ROOT_DIST, 'shared', 'lib', 'head')]:
               'next/dist/esm/shared/lib/head',
-            [`${NEXT_PROJECT_ROOT}/dist/shared/lib/dynamic`]:
+            [path.join(NEXT_PROJECT_ROOT_DIST, 'shared', 'lib', 'dynamic')]:
               'next/dist/esm/shared/lib/dynamic',
-            [`${NEXT_PROJECT_ROOT}/dist/pages/_document`]:
+            [path.join(NEXT_PROJECT_ROOT_DIST, 'pages', '_document')]:
               'next/dist/esm/pages/_document',
-            [`${NEXT_PROJECT_ROOT}/dist/pages/_app`]:
+            [path.join(NEXT_PROJECT_ROOT_DIST, 'pages', '_app')]:
               'next/dist/esm/pages/_app',
-            [`${NEXT_PROJECT_ROOT}/dist/client/components/navigation`]:
-              'next/dist/esm/client/components/navigation',
-            [`${NEXT_PROJECT_ROOT}/dist/client/components/headers`]:
-              'next/dist/esm/client/components/headers',
+            [path.join(
+              NEXT_PROJECT_ROOT_DIST,
+              'client',
+              'components',
+              'navigation'
+            )]: 'next/dist/esm/client/components/navigation',
+            [path.join(
+              NEXT_PROJECT_ROOT_DIST,
+              'client',
+              'components',
+              'headers'
+            )]: 'next/dist/esm/client/components/headers',
           }
         : undefined),
 
@@ -918,7 +920,8 @@ export default async function getBaseWebpackConfig(
           },
         }
       : undefined),
-    mainFields: mainFieldsPerCompiler[compilerType],
+    // default main fields use pages dir ones, and customize app router ones in loaders.
+    mainFields: getMainField('pages', compilerType),
     ...(isEdgeServer && {
       conditionNames: edgeConditionNames,
     }),
@@ -1026,7 +1029,6 @@ export default async function getBaseWebpackConfig(
     config,
     optOutBundlingPackageRegex,
     dir,
-    hasAppDir,
   })
 
   const shouldIncludeExternalDirs =
@@ -1413,27 +1415,6 @@ export default async function getBaseWebpackConfig(
     module: {
       rules: [
         {
-          // This loader rule passes the resource to the SWC loader with
-          // `optimizeBarrelExports` enabled. This option makes the SWC to
-          // transform the original code to be a JSON of its export map, so
-          // the barrel loader can analyze it and only keep the needed ones.
-          test: /__barrel_transform__/,
-          use: ({ resourceQuery }: { resourceQuery: string }) => {
-            const isFromWildcardExport = /[&?]wildcard/.test(resourceQuery)
-
-            return [
-              getSwcLoader({
-                isServerLayer: false,
-                bundleTarget: 'client',
-                hasServerComponents: false,
-                optimizeBarrelExports: {
-                  wildcard: isFromWildcardExport,
-                },
-              }),
-            ]
-          },
-        },
-        {
           // This loader rule works like a bridge between user's import and
           // the target module behind a package's barrel file. It reads SWC's
           // analysis result from the previous loader, and directly returns the
@@ -1443,14 +1424,18 @@ export default async function getBaseWebpackConfig(
             const names = (
               resourceQuery.match(/\?names=([^&]+)/)?.[1] || ''
             ).split(',')
-            const isFromWildcardExport = /[&?]wildcard/.test(resourceQuery)
 
             return [
               {
                 loader: 'next-barrel-loader',
                 options: {
                   names,
-                  wildcard: isFromWildcardExport,
+                  swcCacheDir: path.join(
+                    dir,
+                    config?.distDir ?? '.next',
+                    'cache',
+                    'swc'
+                  ),
                 },
                 // This is part of the request value to serve as the module key.
                 // The barrel loader are no-op re-exported modules keyed by
@@ -1614,6 +1599,7 @@ export default async function getBaseWebpackConfig(
                   ],
                 },
                 resolve: {
+                  mainFields: getMainField('app', compilerType),
                   conditionNames: reactServerCondition,
                   // If missing the alias override here, the default alias will be used which aliases
                   // react to the direct file path, not the package name. In that case the condition
@@ -1758,6 +1744,9 @@ export default async function getBaseWebpackConfig(
                     ],
                     exclude: [codeCondition.exclude],
                     use: swcLoaderForClientLayer,
+                    resolve: {
+                      mainFields: getMainField('app', compilerType),
+                    },
                   },
                 ]
               : []),

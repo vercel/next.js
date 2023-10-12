@@ -1,4 +1,4 @@
-import { ChildProcess } from 'child_process'
+import type { ChildProcess } from 'child_process'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
 import { getNodeOptionsWithoutInspect } from '../server/lib/utils'
 
@@ -17,28 +17,31 @@ const cleanupWorkers = (worker: JestWorker) => {
   }
 }
 
-type Options<T extends object = object> = FarmOptions & {
+type Options<
+  T extends object = object,
+  Args extends any[] = any[]
+> = FarmOptions & {
   timeout?: number
-  onRestart?: (method: string, args: any[], attempts: number) => void
+  onRestart?: (method: string, args: Args, attempts: number) => void
   exposedMethods: ReadonlyArray<keyof T>
   enableWorkerThreads?: boolean
 }
 
-export class Worker<T extends object = object> {
+export class Worker<T extends object = object, Args extends any[] = any[]> {
   private _worker?: JestWorker
 
   /**
    * Creates a new worker with the correct typings associated with the selected
    * methods.
    */
-  public static create<T extends object>(
+  public static create<T extends object, Args extends any[] = any[]>(
     workerPath: string,
-    options: Options<T>
-  ): Worker<T> & T {
-    return new Worker(workerPath, options) as Worker<T> & T
+    options: Options<T, Args>
+  ): Worker<T, Args> & T {
+    return new Worker(workerPath, options) as Worker<T, Args> & T
   }
 
-  constructor(workerPath: string, options: Options<T>) {
+  constructor(workerPath: string, options: Options<T, Args>) {
     let { timeout, onRestart, ...farmOptions } = options
 
     let restartPromise: Promise<typeof RESTARTED>
@@ -130,10 +133,8 @@ export class Worker<T extends object = object> {
     }
 
     const wrapMethodWithTimeout =
-      <M extends (...args: unknown[]) => Promise<unknown> | unknown>(
-        method: M
-      ) =>
-      async (...args: Parameters<M>) => {
+      (methodName: keyof T) =>
+      async (...args: Args) => {
         activeTasks++
 
         try {
@@ -146,7 +147,8 @@ export class Worker<T extends object = object> {
             const result = await Promise.race([
               // Either we'll get the result from the worker, or we'll get the
               // restart promise to fire.
-              method(...args),
+              // @ts-expect-error - we're grabbing a dynamic method on the worker
+              this._worker[methodName](...args),
               restartPromise,
             ])
 
@@ -157,7 +159,7 @@ export class Worker<T extends object = object> {
             }
 
             // Otherwise, we'll need to restart the worker, and try again.
-            if (onRestart) onRestart(method.name, args, ++attempts)
+            if (onRestart) onRestart(methodName.toString(), args, ++attempts)
           }
         } finally {
           activeTasks--
@@ -171,7 +173,7 @@ export class Worker<T extends object = object> {
       // @ts-expect-error - we're grabbing a dynamic method on the worker
       let method = this._worker[name].bind(this._worker)
       if (timeout) {
-        method = wrapMethodWithTimeout(method)
+        method = wrapMethodWithTimeout(name)
       }
 
       // @ts-expect-error - we're dynamically creating methods

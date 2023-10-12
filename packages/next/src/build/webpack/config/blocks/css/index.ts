@@ -1,7 +1,8 @@
 import curry from 'next/dist/compiled/lodash.curry'
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { loader, plugin } from '../../helpers'
-import { ConfigurationContext, ConfigurationFn, pipe } from '../../utils'
+import { pipe } from '../../utils'
+import type { ConfigurationContext, ConfigurationFn } from '../../utils'
 import { getCssModuleLoader, getGlobalCssLoader } from './loaders'
 import { getNextFontLoader } from './loaders/next-font'
 import {

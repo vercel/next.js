@@ -27,7 +27,10 @@ use turbopack_binding::{
     turbopack::{
         build::BuildChunkingContext,
         core::{
-            chunk::EvaluatableAssets, compile_time_info::CompileTimeInfo, file_source::FileSource,
+            chunk::{ChunkingContext, EvaluatableAssets},
+            compile_time_info::CompileTimeInfo,
+            file_source::FileSource,
+            ident::AssetIdent,
             output::OutputAsset,
         },
         ecmascript::chunk::EcmascriptChunkingContext,
@@ -256,8 +259,15 @@ pub async fn compute_app_entries_chunks(
 ) -> Result<()> {
     let client_relative_path_ref = client_relative_path.await?;
 
-    let app_client_shared_chunks =
-        get_app_client_shared_chunks(app_entries.client_runtime_entries, client_chunking_context);
+    let app_client_shared_chunks = get_app_client_shared_chunks(
+        AssetIdent::from_path(
+            client_chunking_context
+                .context_path()
+                .join("client shared chunk group".to_string()),
+        ),
+        app_entries.client_runtime_entries,
+        client_chunking_context,
+    );
 
     let mut app_shared_client_chunks_paths = vec![];
     for chunk in app_client_shared_chunks.await?.iter().copied() {

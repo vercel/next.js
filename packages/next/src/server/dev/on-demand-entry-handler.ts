@@ -28,17 +28,16 @@ import {
 } from '../../build/utils'
 import { PageNotFoundError, stringifyError } from '../../shared/lib/utils'
 import {
-  CompilerNameValues,
   COMPILER_INDEXES,
   COMPILER_NAMES,
   RSC_MODULE_TYPES,
 } from '../../shared/lib/constants'
-import { RouteMatch } from '../future/route-matches/route-match'
+import type { CompilerNameValues } from '../../shared/lib/constants'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
-import HotReloader from './hot-reloader-webpack'
+import type HotReloader from './hot-reloader-webpack'
 import { isAppPageRouteDefinition } from '../future/route-definitions/app-page-route-definition'
 import { scheduleOnNextTick } from '../lib/schedule-on-next-tick'
-import { RouteDefinition } from '../future/route-definitions/route-definition'
+import type { RouteDefinition } from '../future/route-definitions/route-definition'
 import { Batcher } from '../../lib/batcher'
 
 const debug = origDebug('next:on-demand-entry-handler')
@@ -677,13 +676,13 @@ export function onDemandEntryHandler({
     page,
     clientOnly,
     appPaths,
-    match,
+    definition,
     isApp,
   }: {
     page: string
     clientOnly: boolean
     appPaths: ReadonlyArray<string> | null
-    match: Pick<RouteMatch, 'definition'> | undefined
+    definition: RouteDefinition | undefined
     isApp: boolean | undefined
   }): Promise<void> {
     const stalledTime = 60
@@ -694,11 +693,11 @@ export function onDemandEntryHandler({
     }, stalledTime * 1000)
 
     try {
-      let definition: Pick<RouteDefinition, 'filename' | 'bundlePath' | 'page'>
-      if (match?.definition) {
-        definition = match.definition
+      let route: Pick<RouteDefinition, 'filename' | 'bundlePath' | 'page'>
+      if (definition) {
+        route = definition
       } else {
-        definition = await findPagePathData(
+        route = await findPagePathData(
           rootDir,
           page,
           nextConfig.pageExtensions,
@@ -707,18 +706,18 @@ export function onDemandEntryHandler({
         )
       }
 
-      const isInsideAppDir = !!appDir && definition.filename.startsWith(appDir)
+      const isInsideAppDir = !!appDir && route.filename.startsWith(appDir)
 
       if (typeof isApp === 'boolean' && isApp !== isInsideAppDir) {
         Error.stackTraceLimit = 15
         throw new Error(
           `Ensure bailed, found path "${
-            definition.page
+            route.page
           }" does not match ensure type (${isApp ? 'app' : 'pages'})`
         )
       }
 
-      const pageBundleType = getPageBundleType(definition.bundlePath)
+      const pageBundleType = getPageBundleType(route.bundlePath)
       const addEntry = (
         compilerType: CompilerNameValues
       ): {
@@ -726,11 +725,7 @@ export function onDemandEntryHandler({
         newEntry: boolean
         shouldInvalidate: boolean
       } => {
-        const entryKey = getEntryKey(
-          compilerType,
-          pageBundleType,
-          definition.page
-        )
+        const entryKey = getEntryKey(compilerType, pageBundleType, route.page)
         if (
           curEntries[entryKey] &&
           // there can be an overlap in the entryKey for the instrumentation hook file and a page named the same
@@ -758,9 +753,9 @@ export function onDemandEntryHandler({
         curEntries[entryKey] = {
           type: EntryTypes.ENTRY,
           appPaths,
-          absolutePagePath: definition.filename,
-          request: definition.filename,
-          bundlePath: definition.bundlePath,
+          absolutePagePath: route.filename,
+          request: route.filename,
+          bundlePath: route.bundlePath,
           dispose: false,
           lastActiveTime: Date.now(),
           status: ADDED,
@@ -774,7 +769,7 @@ export function onDemandEntryHandler({
 
       const staticInfo = await getStaticInfoIncludingLayouts({
         page,
-        pageFilePath: definition.filename,
+        pageFilePath: route.filename,
         isInsideAppDir,
         pageExtensions: nextConfig.pageExtensions,
         isDev: true,
@@ -787,7 +782,7 @@ export function onDemandEntryHandler({
         isInsideAppDir && staticInfo.rsc !== RSC_MODULE_TYPES.client
 
       runDependingOnPageType({
-        page: definition.page,
+        page: route.page,
         pageRuntime: staticInfo.runtime,
         pageType: pageBundleType,
         onClient: () => {
@@ -802,11 +797,11 @@ export function onDemandEntryHandler({
           const edgeServerEntry = getEntryKey(
             COMPILER_NAMES.edgeServer,
             pageBundleType,
-            definition.page
+            route.page
           )
           if (
             curEntries[edgeServerEntry] &&
-            !isInstrumentationHookFile(definition.page)
+            !isInstrumentationHookFile(route.page)
           ) {
             // Runtime switched from edge to server
             delete curEntries[edgeServerEntry]
@@ -820,11 +815,11 @@ export function onDemandEntryHandler({
           const serverEntry = getEntryKey(
             COMPILER_NAMES.server,
             pageBundleType,
-            definition.page
+            route.page
           )
           if (
             curEntries[serverEntry] &&
-            !isInstrumentationHookFile(definition.page)
+            !isInstrumentationHookFile(route.page)
           ) {
             // Runtime switched from server to edge
             delete curEntries[serverEntry]
@@ -839,9 +834,7 @@ export function onDemandEntryHandler({
       const hasNewEntry = addedValues.some((entry) => entry.newEntry)
 
       if (hasNewEntry) {
-        reportTrigger(
-          !clientOnly && hasNewEntry ? `${definition.page}` : definition.page
-        )
+        reportTrigger(!clientOnly && hasNewEntry ? `${route.page}` : route.page)
       }
 
       if (entriesThatShouldBeInvalidated.length > 0) {
@@ -883,18 +876,12 @@ export function onDemandEntryHandler({
     page: string
     clientOnly: boolean
     appPaths?: ReadonlyArray<string> | null
-    match?: RouteMatch
+    definition?: RouteDefinition
     isApp?: boolean
   }
 
   // Make sure that we won't have multiple invalidations ongoing concurrently.
-  const batcher = Batcher.create<
-    Omit<EnsurePageOptions, 'match'> & {
-      definition?: RouteDefinition
-    },
-    void,
-    string
-  >({
+  const batcher = Batcher.create<EnsurePageOptions, void, string>({
     // The cache key here is composed of the elements that affect the
     // compilation, namely, the page, whether it's client only, and whether
     // it's an app page. This ensures that we don't have multiple compilations
@@ -913,26 +900,28 @@ export function onDemandEntryHandler({
       page,
       clientOnly,
       appPaths = null,
-      match,
+      definition,
       isApp,
     }: EnsurePageOptions) {
       // If the route is actually an app page route, then we should have access
-      // to the app route match, and therefore, the appPaths from it.
-      if (
-        !appPaths &&
-        match?.definition &&
-        isAppPageRouteDefinition(match.definition)
-      ) {
-        appPaths = match.definition.appPaths
+      // to the app route definition, and therefore, the appPaths from it.
+      if (!appPaths && definition && isAppPageRouteDefinition(definition)) {
+        appPaths = definition.appPaths
       }
 
       // Wrap the invocation of the ensurePageImpl function in the pending
       // wrapper, which will ensure that we don't have multiple compilations
       // for the same page happening concurrently.
       return batcher.batch(
-        { page, clientOnly, appPaths, definition: match?.definition, isApp },
+        { page, clientOnly, appPaths, definition, isApp },
         async () => {
-          await ensurePageImpl({ page, clientOnly, appPaths, match, isApp })
+          await ensurePageImpl({
+            page,
+            clientOnly,
+            appPaths,
+            definition,
+            isApp,
+          })
         }
       )
     },

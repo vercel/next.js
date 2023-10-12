@@ -1,5 +1,6 @@
-import { StaticGenerationStore } from '../client/components/static-generation-async-storage.external'
-import { pipeReadable, PipeTarget } from './pipe-readable'
+import type { StaticGenerationStore } from '../client/components/static-generation-async-storage.external'
+import type { PipeTarget } from './pipe-readable'
+import { pipeReadable } from './pipe-readable'
 
 type ContentTypeOption = string | undefined
 
