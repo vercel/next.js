@@ -97,12 +97,14 @@ async function maybeLogSummary() {
 
     ${Array.from(errorsPerTests.entries())
       .map(([test, output]) => {
-        return `### <a name="${toIDHash(test)}">${test}</a>
-
-\`\`\`bash
+        return `
+<details>
+<summary><a name="${toIDHash(test)}">${test}</a></summary>
+\`\`\`
 ${output}
 
 \`\`\`
+</details>
 `
       })
       .join('\n')}`
@@ -122,7 +124,10 @@ ${output}
           },
         ],
         ...Array.from(errorsPerTests.entries()).map(([test]) => {
-          return [test, `[Link](#${toIDHash(test)})`]
+          return [
+            `<a href="https://github.com/vercel/next.js/blob/canary/${test}">${test}</a>`,
+            `<a href="#${toIDHash(test)}">Output</a>`,
+          ]
         }),
       ])
       .addRaw(outputTemplate)
