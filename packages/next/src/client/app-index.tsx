@@ -311,4 +311,3 @@ export function hydrate() {
     linkGc()
   }
 }
-throw new Error('lol')
