@@ -169,13 +169,18 @@ function getMiddlewareData<T extends FetchDataOutput>(
     trailingSlash: Boolean(process.env.__NEXT_TRAILING_SLASH),
   }
   const rewriteHeader = response.headers.get('x-nextjs-rewrite')
+  const nextjsMatchedPathHeader = response.headers.get('x-nextjs-matched-path')
+  const isRedirect = response.redirected
 
-  let rewriteTarget =
-    rewriteHeader || response.headers.get('x-nextjs-matched-path')
+  // We don't consider a redirected response as rewrite
+  let rewriteTarget = isRedirect
+    ? null
+    : rewriteHeader || nextjsMatchedPathHeader
 
   const matchedPath = response.headers.get('x-matched-path')
 
   if (
+    !isRedirect &&
     matchedPath &&
     !rewriteTarget &&
     !matchedPath.includes('__next_data_catchall') &&
@@ -284,7 +289,9 @@ function getMiddlewareData<T extends FetchDataOutput>(
     })
   }
 
-  const redirectTarget = response.headers.get('x-nextjs-redirect')
+  // Read redirect from headers or assume x-nextjs-matched-path is where we want to go.
+  let redirectHeader = response.headers.get('x-nextjs-redirect')
+  const redirectTarget = isRedirect ? nextjsMatchedPathHeader : redirectHeader
 
   if (redirectTarget) {
     if (redirectTarget.startsWith('/')) {
