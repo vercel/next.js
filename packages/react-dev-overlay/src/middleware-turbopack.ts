@@ -49,12 +49,7 @@ export function getOverlayMiddleware(rootDirectory: string) {
 
       let sourceMap
       try {
-        sourceMap = JSON.parse(
-          await fs.readFile(
-            path.resolve(path.dirname(file), sourceMapFile),
-            'utf8'
-          )
-        )
+        sourceMap = JSON.parse(await fs.readFile(sourceMapFile, 'utf8'))
       } catch (e) {
         res.statusCode = 500
         res.write('Unable to read sourcemap file')

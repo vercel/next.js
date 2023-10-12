@@ -2159,11 +2159,11 @@ async function startWatcher(opts: SetupOpts) {
           let source, moduleId, modulePath, isEdgeCompiler
           if (opts.turbo) {
             let map: any
-            let mapFile = extractSourceMapFilepath(file)
+            let mapFile = await extractSourceMapFilepath(file)
             if (mapFile) {
               try {
-                map = JSON.parse(await readFile(file + '.map', 'utf8'))
-              } catch (e) {}
+                map = JSON.parse(await readFile(mapFile, 'utf8'))
+              } catch {}
             }
 
             source = {
