@@ -72,9 +72,6 @@ const mockTrace = () => ({
   traceChild: () => mockTrace(),
 })
 
-function pathToHashSimple(fsPath) {
-  return fsPath.replace(/[^a-zA-Z0-9]/g, '_') + process.env.NEXT_TEST_MODE
-}
 // which types we have configured to run separate
 const configuredTestTypes = Object.values(testFilters)
 const errorsPerTests = new Map()
@@ -88,11 +85,10 @@ ${Array.from(errorsPerTests.entries())
 <details>
 <summary>${test}</summary>
 
-<div id="${pathToHashSimple(test)}">
 \`\`\`
 ${output}
 \`\`\`
-</div>
+
 </details>
 `
   })
@@ -106,15 +102,10 @@ ${output}
             data: 'Test suite',
             header: true,
           },
-          {
-            data: 'Link',
-            header: true,
-          },
         ],
         ...Array.from(errorsPerTests.entries()).map(([test]) => {
           return [
             `<a href="https://github.com/vercel/next.js/blob/canary/${test}">${test}</a>`,
-            `<a href="#${pathToHashSimple(test)}">Logs</a>`,
           ]
         }),
       ])
