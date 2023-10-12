@@ -478,12 +478,9 @@ ${ENDGROUP}`)
             // run out of log room in CI
             for (const { chunk } of outputChunks) {
               process.stdout.write(chunk)
-            }
-
-            if (process.env.CI) {
               errorsPerTests.set(
                 test.file,
-                outputChunks.map(({ chunk }) => chunk.toString()).join('')
+                errorsPerTests.get(test.file).concat(chunk.toString())
               )
             }
 
@@ -632,7 +629,7 @@ ${ENDGROUP}`)
     })
   )
 
-  if (process.env.CI) {
+  if (process.env.CI && errorsPerTests.size > 0) {
     const outputTemplate = `
     ## Output per test
 
