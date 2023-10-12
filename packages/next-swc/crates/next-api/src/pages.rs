@@ -557,7 +557,6 @@ impl PageEndpoint {
                     .client_runtime_entries()
                     .with_entry(Vc::upcast(client_main_module))
                     .with_entry(Vc::upcast(client_module)),
-                Some(Vc::upcast(client_module)),
             )
             .await?
             .clone_value();
@@ -611,11 +610,8 @@ impl PageEndpoint {
             };
             evaluatable_assets.push(evaluatable);
 
-            let edge_files = edge_chunking_context.evaluated_chunk_group(
-                ssr_module.ident(),
-                Vc::cell(evaluatable_assets),
-                Some(Vc::upcast(ssr_module)),
-            );
+            let edge_files = edge_chunking_context
+                .evaluated_chunk_group(ssr_module.ident(), Vc::cell(evaluatable_assets));
 
             Ok(SsrChunk::Edge { files: edge_files }.cell())
         } else {

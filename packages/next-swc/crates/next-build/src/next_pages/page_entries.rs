@@ -406,7 +406,6 @@ pub async fn compute_page_entries_chunks(
             page_entries
                 .client_runtime_entries
                 .with_entry(Vc::upcast(page_entry.client_module)),
-            Some(Vc::upcast(page_entry.client_module)),
         );
 
         let build_manifest_pages_entry = build_manifest

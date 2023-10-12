@@ -20,7 +20,7 @@ pub async fn get_app_client_shared_chunks(
     }
 
     let app_client_shared_chunks =
-        client_chunking_context.evaluated_chunk_group(ident, app_client_runtime_entries, None);
+        client_chunking_context.evaluated_chunk_group(ident, app_client_runtime_entries);
 
     Ok(app_client_shared_chunks)
 }

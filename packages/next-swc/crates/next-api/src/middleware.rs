@@ -88,11 +88,8 @@ impl MiddlewareEndpoint {
 
         let edge_chunking_context = self.project.edge_middleware_chunking_context();
 
-        let edge_files = edge_chunking_context.evaluated_chunk_group(
-            module.ident(),
-            Vc::cell(evaluatable_assets),
-            Some(Vc::upcast(module)),
-        );
+        let edge_files = edge_chunking_context
+            .evaluated_chunk_group(module.ident(), Vc::cell(evaluatable_assets));
 
         Ok(edge_files)
     }

@@ -7,7 +7,7 @@ use turbo_tasks_fs::File;
 use turbopack_binding::turbopack::{
     core::{
         asset::{Asset, AssetContent},
-        chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
+        chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
         code_builder::CodeBuilder,
         context::AssetContext,
         ident::AssetIdent,
@@ -256,10 +256,10 @@ impl EcmascriptChunkItem for ProxyModuleChunkItem {
     #[turbo_tasks::function]
     fn content_with_async_module_info(
         &self,
-        chunk_group_root: Option<Vc<Box<dyn Module>>>,
+        async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Vc<EcmascriptChunkItemContent> {
         self.inner_proxy_module_chunk_item
-            .content_with_async_module_info(chunk_group_root)
+            .content_with_async_module_info(async_module_info)
     }
 
     #[turbo_tasks::function]

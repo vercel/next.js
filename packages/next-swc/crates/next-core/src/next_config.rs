@@ -829,7 +829,6 @@ async fn load_next_config_and_custom_routes_internal(
         vec![],
         config_changed,
         should_debug("next_config"),
-        Some(Vc::upcast(load_next_config_asset)),
     )
     .await?;
 
