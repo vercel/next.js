@@ -44,7 +44,7 @@ export async function getServerSideProps({ req }) {
 
   try {
     // Authenticate the session JWT. If an error is thrown the session authentication has failed.
-    await stytchClient.sessions.authenticateJwt(sessionJWT);
+    await stytchClient.sessions.authenticateJwt({session_jwt: sessionJWT});
     return { props: {} };
   } catch (e) {
     return redirectRes;
