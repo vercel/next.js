@@ -701,7 +701,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     parsedUrl?: NextUrlWithParsedQuery
   ): Promise<void> {
     await this.prepare()
+
     const method = req.method.toUpperCase()
+
+    // Extract the w3c trace context headers and pass them to tracer
+    const traceParentHeader = req.headers.traceparent
+    const traceStateHeader = req.headers.tracestate
+    const traceParent =
+      typeof traceParentHeader === 'string' ? traceParentHeader : undefined
+    const traceState =
+      typeof traceStateHeader === 'string' ? traceStateHeader : undefined
+
+    console.log('DEBUG', { traceParent, traceState })
     return getTracer().trace(
       BaseServerSpan.handleRequest,
       {
@@ -711,6 +722,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           'http.method': method,
           'http.target': req.url,
         },
+        reqHeaderTraceContext: { traceParent, traceState },
       },
       async (span) =>
         this.handleRequestImpl(req, res, parsedUrl).finally(() => {

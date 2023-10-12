@@ -28,7 +28,7 @@ if (process.env.NEXT_RUNTIME === 'edge') {
   }
 }
 
-const { context, trace, SpanStatusCode, SpanKind } = api
+const { context, trace, SpanStatusCode, SpanKind, propagation } = api
 
 const isPromise = <T>(p: any): p is Promise<T> => {
   return p !== null && typeof p === 'object' && typeof p.then === 'function'
@@ -47,6 +47,10 @@ type TracerSpanOptions = Omit<SpanOptions, 'attributes'> & {
   spanName?: string
   attributes?: Partial<Record<AttributeNames, AttributeValue | undefined>>
   hideSpan?: boolean
+  reqHeaderTraceContext?: {
+    traceParent: string | undefined
+    traceState: string | undefined
+  }
 }
 
 interface NextTracer {
@@ -206,6 +210,8 @@ class NextTracerImpl implements NextTracer {
             options: { ...fnOrOptions },
           }
 
+    console.log('DEBUG - TRACING!!!', { options: options, fn: fn, args })
+
     if (
       (!NextVanillaSpanAllowlist.includes(type) &&
         process.env.NEXT_OTEL_VERBOSE !== '1') ||
@@ -220,8 +226,20 @@ class NextTracerImpl implements NextTracer {
     let spanContext = this.getSpanContext(
       options?.parentSpan ?? this.getActiveScopeSpan()
     )
-    let isRootSpan = false
 
+    // Use w3c trace context headers to create span context if they exist
+    if (
+      !spanContext &&
+      (options.reqHeaderTraceContext?.traceParent ||
+        options.reqHeaderTraceContext?.traceState)
+    ) {
+      spanContext = propagation.extract(context.active(), {
+        traceparent: options.reqHeaderTraceContext?.traceParent,
+        tracestate: options.reqHeaderTraceContext?.traceState,
+      })
+    }
+
+    let isRootSpan = false
     if (!spanContext) {
       spanContext = api.ROOT_CONTEXT
       isRootSpan = true
