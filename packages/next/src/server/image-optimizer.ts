@@ -294,7 +294,7 @@ export class ImageOptimizerCache {
       const now = Date.now()
 
       for (const file of files) {
-        const [maxAgeSt, expireAtSt, etag, extension] = file.split('.')
+        const [maxAgeSt, expireAtSt, etag, extension] = file.split('.', 4)
         const buffer = await promises.readFile(join(cacheDir, file))
         const expireAt = Number(expireAtSt)
         const maxAge = Number(maxAgeSt)
@@ -373,7 +373,7 @@ function parseCacheControl(str: string | null): Map<string, string> {
     return map
   }
   for (let directive of str.split(',')) {
-    let [key, value] = directive.trim().split('=')
+    let [key, value] = directive.trim().split('=', 2)
     key = key.toLowerCase()
     if (value) {
       value = value.toLowerCase()
@@ -686,13 +686,13 @@ function getFileNameWithExtension(
   url: string,
   contentType: string | null
 ): string {
-  const [urlWithoutQueryParams] = url.split('?')
+  const [urlWithoutQueryParams] = url.split('?', 1)
   const fileNameWithExtension = urlWithoutQueryParams.split('/').pop()
   if (!contentType || !fileNameWithExtension) {
     return 'image.bin'
   }
 
-  const [fileName] = fileNameWithExtension.split('.')
+  const [fileName] = fileNameWithExtension.split('.', 1)
   const extension = getExtension(contentType)
   return `${fileName}.${extension}`
 }

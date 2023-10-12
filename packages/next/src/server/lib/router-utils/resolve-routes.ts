@@ -115,7 +115,7 @@ export function getResolveRoutes(
     let parsedUrl = url.parse(req.url || '', true) as NextUrlWithParsedQuery
     let didRewrite = false
 
-    const urlParts = (req.url || '').split('?')
+    const urlParts = (req.url || '').split('?', 1)
     const urlNoQuery = urlParts[0]
 
     // this normalizes repeated slashes in the path e.g. hello//world ->

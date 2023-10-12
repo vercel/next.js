@@ -101,7 +101,7 @@ function getForwardedHeaders(
     Array.isArray(rawSetCookies) ? rawSetCookies : [rawSetCookies]
   ).map((setCookie) => {
     // remove the suffixes like 'HttpOnly' and 'SameSite'
-    const [cookie] = `${setCookie}`.split(';')
+    const [cookie] = `${setCookie}`.split(';', 1)
     return cookie
   })
 
