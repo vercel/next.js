@@ -3,7 +3,6 @@ import type {
   ExportAppOptions,
   ExportWorker,
   WorkerRenderOptsPartial,
-  ExportPageInput,
 } from './types'
 import type { PrerenderManifest } from '../build'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'

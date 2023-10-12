@@ -4,11 +4,7 @@ import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import type { ActionManifest } from './webpack/plugins/flight-client-entry-plugin'
-import type {
-  ExportAppOptions,
-  ExportAppWorker,
-  ExportPageInput,
-} from '../export/types'
+import type { ExportAppOptions, ExportAppWorker } from '../export/types'
 
 import '../lib/setup-exception-listeners'
 
