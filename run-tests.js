@@ -480,10 +480,14 @@ ${ENDGROUP}`)
             // run out of log room in CI
             for (const { chunk } of outputChunks) {
               process.stdout.write(chunk)
-              output += chunk
+              output += chunk.toString()
             }
 
             if (process.env.CI) {
+              console.log(
+                'DEBUG: writing output to',
+                test.file + '.log' + output.length
+              )
               errorsPerTests.set(test.file, output)
             }
 
