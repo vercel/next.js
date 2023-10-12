@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import type React from 'react'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from './no-ssr-error'
 
 export function suspense() {

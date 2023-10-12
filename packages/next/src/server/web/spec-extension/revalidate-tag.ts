@@ -1,4 +1,4 @@
-import {
+import type {
   StaticGenerationAsyncStorage,
   StaticGenerationStore,
 } from '../../../client/components/static-generation-async-storage.external'

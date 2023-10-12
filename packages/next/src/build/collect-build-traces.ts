@@ -1,4 +1,4 @@
-import type { Span } from '../trace'
+import { Span } from '../trace'
 import type { NextConfigComplete } from '../server/config-shared'
 
 import {
@@ -14,15 +14,18 @@ import {
 
 import path from 'path'
 import fs from 'fs/promises'
-import { PageInfo } from './utils'
+import type { PageInfo } from './utils'
 import { loadBindings } from './swc'
 import { nonNullable } from '../lib/non-nullable'
 import * as ciEnvironment from '../telemetry/ci-info'
+import debugOriginal from 'next/dist/compiled/debug'
 import { isMatch } from 'next/dist/compiled/micromatch'
 import { defaultOverrides } from '../server/require-hook'
 import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+
+const debug = debugOriginal('next:build:build-traces')
 
 export async function collectBuildTraces({
   dir,
@@ -31,7 +34,7 @@ export async function collectBuildTraces({
   pageKeys,
   pageInfos,
   staticPages,
-  nextBuildSpan,
+  nextBuildSpan = new Span({ name: 'build' }),
   hasSsrAmpPages,
   buildTraceContext,
   outputFileTracingRoot,
@@ -42,14 +45,16 @@ export async function collectBuildTraces({
     app?: string[]
     pages: string[]
   }
-  staticPages: Set<string>
+  staticPages: string[]
   hasSsrAmpPages: boolean
   outputFileTracingRoot: string
-  pageInfos: Map<string, PageInfo>
-  nextBuildSpan: Span
+  pageInfos: [string, PageInfo][]
+  nextBuildSpan?: Span
   config: NextConfigComplete
   buildTraceContext?: BuildTraceContext
 }) {
+  const startTime = Date.now()
+  debug('starting build traces')
   let turboTasksForTrace: unknown
   let bindings = await loadBindings()
 
@@ -99,7 +104,7 @@ export async function collectBuildTraces({
           // The turbo trace doesn't provide the traced file type and reason at present
           // let's write the traced files into the first [entry].nft.json
           const [[, entryName]] = Array.from<[string, string]>(
-            entryNameMap.entries()
+            Object.entries(entryNameMap)
           ).filter(([k]) => k.startsWith(buildTraceContextAppDir))
           const traceOutputPath = path.join(
             outputPath,
@@ -119,7 +124,7 @@ export async function collectBuildTraces({
           const outputPagesPath = path.join(outputPath, '..', 'pages')
           return (
             !f.startsWith(outputPagesPath) ||
-            !staticPages.has(
+            !staticPages.includes(
               // strip `outputPagesPath` and file ext from absolute
               f.substring(outputPagesPath.length, f.length - 3)
             )
@@ -228,7 +233,7 @@ export async function collectBuildTraces({
           })
         }
       }
-      const ignores = [
+      const serverIgnores = [
         '**/*.d.ts',
         '**/*.map',
         isStandalone ? null : '**/next/dist/compiled/jest-worker/**/*',
@@ -236,6 +241,8 @@ export async function collectBuildTraces({
         '**/node_modules/webpack5/**/*',
         '**/next/dist/server/lib/squoosh/**/*.wasm',
         '**/next/dist/server/lib/route-resolver*',
+        '**/next/dist/pages/**/*',
+
         ...(ciEnvironment.hasNextSupport
           ? [
               // only ignore image-optimizer code when
@@ -256,12 +263,12 @@ export async function collectBuildTraces({
         ...(config.experimental.outputFileTracingIgnores || []),
       ].filter(nonNullable)
 
-      const ignoreFn = (pathname: string) => {
+      const serverIgnoreFn = (pathname: string) => {
         if (path.isAbsolute(pathname) && !pathname.startsWith(root)) {
           return true
         }
 
-        return isMatch(pathname, ignores, {
+        return isMatch(pathname, serverIgnores, {
           contains: true,
           dot: true,
         })
@@ -316,7 +323,7 @@ export async function collectBuildTraces({
           [minimalServerTracedFiles, minimalFiles],
         ] as [Set<string>, string[]][]) {
           for (const file of files) {
-            if (!ignoreFn(path.join(traceContext, file))) {
+            if (!serverIgnoreFn(path.join(traceContext, file))) {
               addToTracedFiles(traceContext, file, set)
             }
           }
@@ -331,7 +338,6 @@ export async function collectBuildTraces({
         const result = await nodeFileTrace(chunksToTrace, {
           base: outputFileTracingRoot,
           processCwd: dir,
-          ignore: ignoreFn,
           mixedModules: true,
         })
         const reasons = result.reasons
@@ -355,12 +361,7 @@ export async function collectBuildTraces({
             for (const curFile of curFiles || []) {
               const filePath = path.join(outputFileTracingRoot, curFile)
 
-              if (
-                !isMatch(filePath, '**/next/dist/pages/**/*', {
-                  dot: true,
-                  contains: true,
-                })
-              ) {
+              if (!serverIgnoreFn(filePath)) {
                 tracedFiles.add(
                   path.relative(distDir, filePath).replace(/\\/g, '/')
                 )
@@ -369,10 +370,13 @@ export async function collectBuildTraces({
           }
         }
 
+        const { entryNameFilesMap } = buildTraceContext?.chunksTrace || {}
+
         await Promise.all(
           [
-            ...(buildTraceContext?.chunksTrace?.entryNameFilesMap.entries() ||
-              new Map()),
+            ...(entryNameFilesMap
+              ? Object.entries(entryNameFilesMap)
+              : new Map()),
           ].map(async ([entryName, entryNameFiles]) => {
             const isApp = entryName.startsWith('app/')
             const isPages = entryName.startsWith('pages/')
@@ -387,7 +391,7 @@ export async function collectBuildTraces({
 
             // we don't need to trace for automatically statically optimized
             // pages as they don't have server bundles
-            if (staticPages.has(route)) {
+            if (staticPages.includes(route)) {
               return
             }
             const entryOutputPath = path.join(
@@ -504,7 +508,7 @@ export async function collectBuildTraces({
 
     for (let page of pageKeys.pages) {
       // edge routes have no trace files
-      const pageInfo = pageInfos.get(page)
+      const [, pageInfo] = pageInfos.find((item) => item[0] === page) || []
       if (pageInfo?.runtime === 'edge') {
         continue
       }
@@ -584,4 +588,6 @@ export async function collectBuildTraces({
       )
     }
   })
+
+  debug(`finished build tracing ${Date.now() - startTime}ms`)
 }

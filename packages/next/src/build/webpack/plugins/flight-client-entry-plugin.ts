@@ -32,7 +32,7 @@ import {
 import { traverseModules, forEachEntryModule } from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { getProxiedPluginState } from '../../build-context'
-import { SizeLimit } from '../../../../types'
+import type { SizeLimit } from '../../../../types'
 
 interface Options {
   dev: boolean

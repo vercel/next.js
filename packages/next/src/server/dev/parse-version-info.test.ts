@@ -1,4 +1,5 @@
-import { parseVersionInfo, VersionInfo } from './parse-version-info'
+import { parseVersionInfo } from './parse-version-info'
+import type { VersionInfo } from './parse-version-info'
 
 describe('parse version info', () => {
   test.each<

@@ -1,4 +1,4 @@
-import { Normalizer } from './normalizer'
+import type { Normalizer } from './normalizer'
 
 /**
  * UnderscoreNormalizer replaces all instances of %5F with _.

@@ -15,6 +15,11 @@ declare module 'next/dist/compiled/react-server-dom-webpack/client.edge'
 declare module 'next/dist/compiled/react-server-dom-webpack/client.browser'
 declare module 'next/dist/compiled/react-server-dom-webpack/server.browser'
 declare module 'next/dist/compiled/react-server-dom-webpack/server.edge'
+declare module 'next/dist/compiled/react-server-dom-turbopack/client'
+declare module 'next/dist/compiled/react-server-dom-turbopack/client.edge'
+declare module 'next/dist/compiled/react-server-dom-turbopack/client.browser'
+declare module 'next/dist/compiled/react-server-dom-turbopack/server.browser'
+declare module 'next/dist/compiled/react-server-dom-turbopack/server.edge'
 declare module 'next/dist/client/app-call-server'
 declare module 'next/dist/compiled/react-dom/server'
 declare module 'next/dist/compiled/react-dom/server.edge'
@@ -29,6 +34,11 @@ declare module 'react-server-dom-webpack/client.edge'
 declare module 'react-dom/server-rendering-stub'
 declare module 'react-dom/server.browser'
 declare module 'react-dom/server.edge'
+
+declare module 'VAR_MODULE_GLOBAL_ERROR'
+declare module 'VAR_USERLAND'
+declare module 'VAR_MODULE_DOCUMENT'
+declare module 'VAR_MODULE_APP'
 
 declare module 'next/dist/compiled/@next/react-dev-overlay/dist/client' {
   export * from '@next/react-dev-overlay/dist/client'
@@ -378,11 +388,6 @@ declare module 'next/dist/compiled/@edge-runtime/primitives' {
   export = m
 }
 
-declare module 'next/dist/compiled/@segment/ajv-human-errors' {
-  import * as m from '@segment/ajv-human-errors'
-  export = m
-}
-
 declare module 'next/dist/compiled/react' {
   import * as m from 'react'
   export = m
@@ -468,5 +473,10 @@ declare module 'next/dist/compiled/is-animated' {
 
 declare module 'next/dist/compiled/@opentelemetry/api' {
   import * as m from '@opentelemetry/api'
+  export = m
+}
+
+declare module 'next/dist/compiled/zod' {
+  import * as m from 'zod'
   export = m
 }

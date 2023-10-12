@@ -1,4 +1,5 @@
-import { WebpackLayerName, WEBPACK_LAYERS } from '../lib/constants'
+import { WEBPACK_LAYERS } from '../lib/constants'
+import type { WebpackLayerName } from '../lib/constants'
 import { defaultOverrides } from '../server/require-hook'
 import { BARREL_OPTIMIZATION_PREFIX } from '../shared/lib/constants'
 import path from '../shared/lib/isomorphic/path'
@@ -9,7 +10,7 @@ import {
   NODE_RESOLVE_OPTIONS,
 } from './webpack-config'
 import { isWebpackAppLayer, isWebpackServerLayer } from './worker'
-import { NextConfigComplete } from '../server/config-shared'
+import type { NextConfigComplete } from '../server/config-shared'
 const reactPackagesRegex = /^(react|react-dom|react-server-dom-webpack)($|\/)/
 
 const pathSeparators = '[/\\\\]'
@@ -43,7 +44,6 @@ export async function resolveExternal(
   context: string,
   request: string,
   isEsmRequested: boolean,
-  hasAppDir: boolean,
   getResolve: (
     options: any
   ) => (
@@ -65,11 +65,7 @@ export async function resolveExternal(
 
   let preferEsmOptions =
     esmExternals && isEsmRequested ? [true, false] : [false]
-  // Disable esm resolving for app/ and pages/ so for esm package using under pages/
-  // won't load react through esm loader
-  if (hasAppDir) {
-    preferEsmOptions = [false]
-  }
+
   for (const preferEsm of preferEsmOptions) {
     const resolve = getResolve(
       preferEsm ? esmResolveOptions : nodeResolveOptions
@@ -134,12 +130,10 @@ export function makeExternalHandler({
   config,
   optOutBundlingPackageRegex,
   dir,
-  hasAppDir,
 }: {
   config: NextConfigComplete
   optOutBundlingPackageRegex: RegExp
   dir: string
-  hasAppDir: boolean
 }) {
   let resolvedExternalPackageDirs: Map<string, string>
   const looseEsmExternals = config.experimental?.esmExternals === 'loose'
@@ -292,7 +286,6 @@ export function makeExternalHandler({
       context,
       request,
       isEsmRequested,
-      hasAppDir,
       getResolve,
       isLocal ? resolveNextExternal : undefined
     )
@@ -352,7 +345,6 @@ export function makeExternalHandler({
           config.experimental.esmExternals,
           context,
           pkg + '/package.json',
-          hasAppDir,
           isEsmRequested,
           getResolve,
           isLocal ? resolveNextExternal : undefined
