@@ -9,7 +9,11 @@ if (
   !('withResolvers' in Promise) ||
   typeof Promise.withResolvers !== 'function'
 ) {
-  Promise.withResolvers = <T>() => {
+  Promise.withResolvers = <T>(): {
+    readonly promise: Promise<T>
+    readonly resolve: (value: T | PromiseLike<T>) => void
+    readonly reject: (reason: any) => void
+  } => {
     let resolvers: {
       resolve: (value: T | PromiseLike<T>) => void
       reject: (reason: any) => void

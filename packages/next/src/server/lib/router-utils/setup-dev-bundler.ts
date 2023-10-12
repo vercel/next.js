@@ -116,6 +116,7 @@ import {
 import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
 import { clearModuleContext } from '../render-server'
 import type { ActionManifest } from '../../../build/webpack/plugins/flight-client-entry-plugin'
+import { denormalizePagePath } from '../../../shared/lib/page-path/denormalize-page-path'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -1069,9 +1070,11 @@ async function startWatcher(opts: SetupOpts) {
               .map((param: string) => decodeURIComponent(param))
               .join('/')}`
 
+            const denormalizedPagePath = denormalizePagePath(decodedPagePath)
+
             await hotReloader
               .ensurePage({
-                page: decodedPagePath,
+                page: denormalizedPagePath,
                 clientOnly: false,
                 definition: undefined,
               })
