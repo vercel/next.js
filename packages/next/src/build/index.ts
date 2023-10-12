@@ -1208,16 +1208,7 @@ export default async function build(
       ) {
         let infoPrinted = false
 
-        return Worker.create<
-          Pick<
-            typeof import('./worker'),
-            | 'hasCustomGetInitialProps'
-            | 'isPageStatic'
-            | 'getDefinedNamedExports'
-            | 'exportPage'
-          >,
-          [ExportPageInput]
-        >(staticWorkerPath, {
+        return new Worker(staticWorkerPath, {
           timeout: timeout * 1000,
           onRestart: (method, [arg], attempts) => {
             if (method === 'exportPage') {
@@ -1264,7 +1255,14 @@ export default async function build(
             'getDefinedNamedExports',
             'exportPage',
           ],
-        })
+        }) as Worker &
+          Pick<
+            typeof import('./worker'),
+            | 'hasCustomGetInitialProps'
+            | 'isPageStatic'
+            | 'getDefinedNamedExports'
+            | 'exportPage'
+          >
       }
 
       let CacheHandler: any
