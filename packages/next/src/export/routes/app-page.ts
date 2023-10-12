@@ -107,7 +107,7 @@ export async function exportAppPage(
     const html = result.toUnchunkedString()
     const { metadata } = result
     const flightData = metadata.pageData
-    const revalidate = metadata.revalidate
+    const revalidate = metadata.revalidate ?? false
 
     if (revalidate === 0) {
       if (isDynamicError) {

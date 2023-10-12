@@ -5,6 +5,7 @@ import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import type { ActionManifest } from './webpack/plugins/flight-client-entry-plugin'
 import type { ExportAppOptions, ExportAppWorker } from '../export/types'
+import type { Revalidate } from '../server/lib/revalidate'
 
 import '../lib/setup-exception-listeners'
 
@@ -165,7 +166,7 @@ interface DataRouteRouteInfo {
 export interface SsgRoute
   extends ExperimentalBypassForInfo,
     DataRouteRouteInfo {
-  initialRevalidateSeconds: number | false
+  initialRevalidateSeconds: Revalidate
   srcRoute: string | null
   initialStatus?: number
   initialHeaders?: Record<string, string>
