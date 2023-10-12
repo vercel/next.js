@@ -636,6 +636,7 @@ ${ENDGROUP}`)
     })
   )
 
+  console.log('DEBUG - tests failed', errorsPerTests.size)
   if (process.env.CI && errorsPerTests.size > 0) {
     const toIDHash = (str) => {
       let hash = 0,
@@ -653,7 +654,7 @@ ${ENDGROUP}`)
     const outputTemplate = `
     ## Output per test
 
-    ${Object.entries(errorsPerTests)
+    ${Array.from(errorsPerTests.entries())
       .map(([test, output]) => {
         return `
      ### <a name="${toIDHash(test)}">${test}</a>
@@ -666,6 +667,7 @@ ${ENDGROUP}`)
       .join('\n')}
       `
 
+    console.log('DEBUG - outputTemplate', outputTemplate)
     await core.summary
       .addHeading('Test failures')
       .addTable([
@@ -679,7 +681,7 @@ ${ENDGROUP}`)
             header: true,
           },
         ],
-        ...Object.entries(errorsPerTests).map(([test]) => {
+        ...Array.from(errorsPerTests.entries()).map(([test]) => {
           return [test, `[Link](#${toIDHash(test)})`]
         }),
       ])
