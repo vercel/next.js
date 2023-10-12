@@ -133,9 +133,7 @@ export class Worker<T extends object = object, Args extends any[] = any[]> {
     }
 
     const wrapMethodWithTimeout =
-      <M extends (...args: unknown[]) => Promise<unknown> | unknown>(
-        method: M
-      ) =>
+      (methodName: keyof T) =>
       async (...args: Args) => {
         activeTasks++
 
@@ -149,7 +147,8 @@ export class Worker<T extends object = object, Args extends any[] = any[]> {
             const result = await Promise.race([
               // Either we'll get the result from the worker, or we'll get the
               // restart promise to fire.
-              method(...args),
+              // @ts-expect-error - we're grabbing a dynamic method on the worker
+              this._worker[methodName](...args),
               restartPromise,
             ])
 
@@ -160,7 +159,7 @@ export class Worker<T extends object = object, Args extends any[] = any[]> {
             }
 
             // Otherwise, we'll need to restart the worker, and try again.
-            if (onRestart) onRestart(method.name, args, ++attempts)
+            if (onRestart) onRestart(methodName.toString(), args, ++attempts)
           }
         } finally {
           activeTasks--
@@ -174,7 +173,7 @@ export class Worker<T extends object = object, Args extends any[] = any[]> {
       // @ts-expect-error - we're grabbing a dynamic method on the worker
       let method = this._worker[name].bind(this._worker)
       if (timeout) {
-        method = wrapMethodWithTimeout(method)
+        method = wrapMethodWithTimeout(name)
       }
 
       // @ts-expect-error - we're dynamically creating methods
