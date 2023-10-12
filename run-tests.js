@@ -101,9 +101,8 @@ async function maybeLogSummary() {
 <details>
 <summary><a name="${toIDHash(test)}">${test}</a></summary>
 \`\`\`
-${output}
+${output}\`\`\`
 
-\`\`\`
 </details>
 `
       })
