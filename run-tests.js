@@ -11,6 +11,7 @@ const { spawn, exec: execOrig } = require('child_process')
 const { createNextInstall } = require('./test/lib/create-next-install')
 const glob = promisify(_glob)
 const exec = promisify(execOrig)
+const core = require('@actions/core')
 
 function escapeRegexp(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -137,6 +138,7 @@ async function main() {
   const testPattern = testPatternIdx !== -1 && process.argv[testPatternIdx + 1]
   const testTypeIdx = process.argv.indexOf('--type')
   const testType = testTypeIdx > -1 ? process.argv[testTypeIdx + 1] : undefined
+  const errorsPerTests = new Map()
   let filterTestsBy
 
   switch (testType) {
@@ -477,6 +479,14 @@ ${ENDGROUP}`)
             for (const { chunk } of outputChunks) {
               process.stdout.write(chunk)
             }
+
+            if (process.env.CI) {
+              errorsPerTests.set(
+                test.file,
+                outputChunks.map(({ chunk }) => chunk.toString()).join('')
+              )
+            }
+
             if (isExpanded) {
               process.stdout.write(`end of ${test.file} output\n`)
             } else {
@@ -621,6 +631,44 @@ ${ENDGROUP}`)
       if (dirSema) dirSema.release()
     })
   )
+
+  if (process.env.CI) {
+    const outputTemplate = `
+    ## Output per test
+
+    ${Object.entries(errorsPerTests)
+      .map(([test, output], idx) => {
+        return `
+     ### <a name="${idx}">${test}</a>
+
+      \`\`\`bash
+      ${output}
+      \`\`\`
+      `
+      })
+      .join('\n')}
+      `
+
+    await core.summary
+      .addHeading('Test failures')
+      .addTable([
+        [
+          {
+            data: 'Test',
+            header: true,
+          },
+          {
+            data: 'Link',
+            header: true,
+          },
+        ],
+        ...Object.entries(errorsPerTests).map(([test], idx) => {
+          return [test, `[Link](#${idx})`]
+        }),
+      ])
+      .addRaw(outputTemplate)
+      .write()
+  }
 
   if (outputTimings) {
     const curTimings = {}
