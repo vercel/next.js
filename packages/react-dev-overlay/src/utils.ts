@@ -39,8 +39,9 @@ export async function extractSourceMapFilepath(
 ): Promise<string | undefined> {
   try {
     const sourceFileContents = await fs.readFile(sourceFilePath, 'utf8')
-    const relative = sourceFileContents.match(
-      /\/\/#\s*sourceMappingURL\s*=(.*)/
+    const lines = sourceFileContents.trimEnd().split('\n')
+    const relative = lines[lines.length - 1].match(
+      /\/\/#\s*sourceMappingURL\s*=(.*)\s*$/
     )?.[1]
 
     if (relative !== undefined) {

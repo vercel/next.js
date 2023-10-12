@@ -1524,6 +1524,9 @@ importers:
       '@babel/code-frame':
         specifier: 7.12.11
         version: 7.12.11
+      '@isaacs/ttlcache':
+        specifier: 1.4.1
+        version: 1.4.1
       '@types/babel__code-frame':
         specifier: 7.0.2
         version: 7.0.2
@@ -5571,6 +5574,11 @@ packages:
 
   /@humanwhocodes/object-schema@1.2.1:
     resolution: {integrity: sha512-ZnQMnLV4e7hDlUvw8H+U8ASL02SS2Gn6+9Ac3wGGLIe7+je2AeAOxPY+izIPJDfFDb7eDjev0Us8MO1iFRN8hA==}
+
+  /@isaacs/ttlcache@1.4.1:
+    resolution: {integrity: sha512-RQgQ4uQ+pLbqXfOmieB91ejmLwvSgv9nLx6sT6sD83s7umBypgg+OIBOBbEUiJXrfpnp9j0mRhYYdzp9uqq3lA==}
+    engines: {node: '>=12'}
+    dev: false
 
   /@istanbuljs/load-nyc-config@1.0.0:
     resolution: {integrity: sha512-ZR0rq/f/E4f4XcgnDvtMWXCUJpi8eO0rssVhmztsZqLIEFA9UUP9zmpE0VxlM+kv/E1ul2I876Fwil2ayptDVg==}

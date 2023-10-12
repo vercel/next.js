@@ -1083,7 +1083,7 @@ async function startWatcher(opts: SetupOpts) {
           })
         })
         // Request was not finished.
-        return { finished: _res.writableEnded ? true : undefined }
+        return { finished: undefined }
       },
 
       // TODO: Figure out if socket type can match the NextJsHotReloaderInterface
@@ -2158,7 +2158,7 @@ async function startWatcher(opts: SetupOpts) {
         if (frame && lineNumber != null && file != null) {
           let originalFrame, isEdgeCompiler
           if (opts.turbo) {
-            originalFrame = await createOriginalTurboStackFrame(frame)
+            originalFrame = await createOriginalTurboStackFrame(opts.dir, frame)
           } else {
             const moduleId = file!.replace(
               /^(webpack-internal:\/\/\/|file:\/\/)/,

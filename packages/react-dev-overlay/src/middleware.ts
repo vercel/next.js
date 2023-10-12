@@ -428,7 +428,7 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       const frameColumn = parseInt(frame.column?.toString() ?? '', 10) || 1
 
       try {
-        await launchEditor(filePath, frameLine, frameColumn)
+        launchEditor(filePath, frameLine, frameColumn)
       } catch (err) {
         console.log('Failed to launch editor:', err)
         res.statusCode = 500
