@@ -29,8 +29,6 @@ window.addEventListener('error', (ev: WindowEventMap['error']): void => {
   }
 })
 
-throw new Error('lol')
-
 /// <reference types="react-dom/experimental" />
 
 const appElement: HTMLElement | Document | null = document
@@ -313,3 +311,4 @@ export function hydrate() {
     linkGc()
   }
 }
+throw new Error('lol')

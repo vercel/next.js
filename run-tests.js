@@ -474,14 +474,17 @@ ${ENDGROUP}`)
             } else {
               process.stdout.write(`${GROUP}❌ ${test.file} output\n`)
             }
+
+            let output = ''
             // limit out to last 64kb so that we don't
             // run out of log room in CI
             for (const { chunk } of outputChunks) {
               process.stdout.write(chunk)
-              errorsPerTests.set(
-                test.file,
-                errorsPerTests.get(test.file).concat(chunk.toString())
-              )
+              output += chunk
+            }
+
+            if (process.env.CI) {
+              errorsPerTests.set(test.file, output)
             }
 
             if (isExpanded) {
