@@ -1,21 +1,21 @@
-import { useEffect } from "react";
-import { useRouter } from "next/router";
-import { useStytchUser } from "@stytch/nextjs";
-import Profile from "src/components/Profile";
-import loadStytch from "lib/loadStytch";
+import { useEffect } from 'react'
+import { useRouter } from 'next/router'
+import { useStytchUser } from '@stytch/nextjs'
+import Profile from 'src/components/Profile'
+import loadStytch from 'lib/loadStytch'
 
 export default function ProfilePage() {
-  const { user, isInitialized } = useStytchUser();
-  const router = useRouter();
+  const { user, isInitialized } = useStytchUser()
+  const router = useRouter()
 
   // If the Stytch SDK no longer has a User then redirect to login; for example after logging out.
   useEffect(() => {
     if (isInitialized && !user) {
-      router.replace("/");
+      router.replace('/')
     }
-  }, [user, isInitialized, router]);
+  }, [user, isInitialized, router])
 
-  return <Profile />;
+  return <Profile />
 }
 
 /*
@@ -29,24 +29,24 @@ In this example, we authenticate the session JWT as it is more performant. Learn
 export async function getServerSideProps({ req }) {
   const redirectRes = {
     redirect: {
-      destination: "/",
+      destination: '/',
       permanent: false,
     },
-  };
-  const sessionJWT = req.cookies["stytch_session_jwt"];
+  }
+  const sessionJWT = req.cookies['stytch_session_jwt']
 
   if (!sessionJWT) {
-    return redirectRes;
+    return redirectRes
   }
 
   // loadStytch() is a helper function for initalizing the Stytch Backend SDK. See the function definition for more details.
-  const stytchClient = loadStytch();
+  const stytchClient = loadStytch()
 
   try {
     // Authenticate the session JWT. If an error is thrown the session authentication has failed.
-    await stytchClient.sessions.authenticateJwt({session_jwt: sessionJWT});
-    return { props: {} };
+    await stytchClient.sessions.authenticateJwt({ session_jwt: sessionJWT })
+    return { props: {} }
   } catch (e) {
-    return redirectRes;
+    return redirectRes
   }
 }

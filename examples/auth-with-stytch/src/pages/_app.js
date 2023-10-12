@@ -1,12 +1,10 @@
-import "src/styles/stytch.css";
-import Head from "next/head";
-import { StytchProvider } from "@stytch/nextjs";
-import { createStytchUIClient } from "@stytch/nextjs/ui";
+import 'src/styles/stytch.css'
+import Head from 'next/head'
+import { StytchProvider } from '@stytch/nextjs'
+import { createStytchUIClient } from '@stytch/nextjs/ui'
 
 // We initialize the Stytch client using our project's public token which can be found in the Stytch dashboard
-const stytch = createStytchUIClient(
-  process.env.NEXT_PUBLIC_STYTCH_PUBLIC_TOKEN
-);
+const stytch = createStytchUIClient(process.env.NEXT_PUBLIC_STYTCH_PUBLIC_TOKEN)
 
 export default function App({ Component, pageProps }) {
   return (
@@ -29,5 +27,5 @@ export default function App({ Component, pageProps }) {
         </main>
       </StytchProvider>
     </>
-  );
+  )
 }

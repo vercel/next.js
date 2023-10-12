@@ -1,6 +1,6 @@
-import { Html, Head, Main, NextScript } from "next/document";
-import Image from "next/image";
-import Link from "next/link";
+import { Html, Head, Main, NextScript } from 'next/document'
+import Image from 'next/image'
+import Link from 'next/link'
 
 export default function Document() {
   return (
@@ -29,7 +29,7 @@ export default function Document() {
                 src="github.svg"
                 width={20}
                 height={20}
-                style={{ marginRight: "4px" }}
+                style={{ marginRight: '4px' }}
               />
               View on Github
             </Link>
@@ -39,5 +39,5 @@ export default function Document() {
         <NextScript />
       </body>
     </Html>
-  );
+  )
 }
