@@ -11,6 +11,7 @@ const { spawn, exec: execOrig } = require('child_process')
 const { createNextInstall } = require('./test/lib/create-next-install')
 const glob = promisify(_glob)
 const exec = promisify(execOrig)
+const core = require('@actions/core')
 
 function escapeRegexp(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -73,6 +74,45 @@ const mockTrace = () => ({
 
 // which types we have configured to run separate
 const configuredTestTypes = Object.values(testFilters)
+const errorsPerTests = new Map()
+
+async function maybeLogSummary() {
+  if (process.env.CI && errorsPerTests.size > 0) {
+    const outputTemplate = `
+${Array.from(errorsPerTests.entries())
+  .map(([test, output]) => {
+    return `
+<details>
+<summary>${test}</summary>
+
+\`\`\`
+${output}
+\`\`\`
+
+</details>
+`
+  })
+  .join('\n')}`
+
+    await core.summary
+      .addHeading('Tests failures')
+      .addTable([
+        [
+          {
+            data: 'Test suite',
+            header: true,
+          },
+        ],
+        ...Array.from(errorsPerTests.entries()).map(([test]) => {
+          return [
+            `<a href="https://github.com/vercel/next.js/blob/canary/${test}">${test}</a>`,
+          ]
+        }),
+      ])
+      .addRaw(outputTemplate)
+      .write()
+  }
+}
 
 const cleanUpAndExit = async (code) => {
   if (process.env.NEXT_TEST_STARTER) {
@@ -80,6 +120,9 @@ const cleanUpAndExit = async (code) => {
   }
   if (process.env.NEXT_TEST_TEMP_REPO) {
     await fs.remove(process.env.NEXT_TEST_TEMP_REPO)
+  }
+  if (process.env.CI) {
+    await maybeLogSummary()
   }
   console.log(`exiting with code ${code}`)
 
@@ -472,11 +515,19 @@ ${ENDGROUP}`)
             } else {
               process.stdout.write(`${GROUP}❌ ${test.file} output\n`)
             }
+
+            let output = ''
             // limit out to last 64kb so that we don't
             // run out of log room in CI
             for (const { chunk } of outputChunks) {
               process.stdout.write(chunk)
+              output += chunk.toString()
             }
+
+            if (process.env.CI && !killed) {
+              errorsPerTests.set(test.file, output)
+            }
+
             if (isExpanded) {
               process.stdout.write(`end of ${test.file} output\n`)
             } else {
