@@ -92,13 +92,13 @@ async function maybeLogSummary() {
     }
 
     const outputTemplate = `
-    ## Output per test
-
-    ${Array.from(errorsPerTests.entries())
-      .map(([test, output]) => {
-        return `
-<details>
-<summary><a name="${toIDHash(test)}">${test}</a></summary>
+${Array.from(errorsPerTests.entries())
+  .map(([test, output]) => {
+    return `
+<details id="${toIDHash(test)}">
+<summary>
+<a href="${toIDHash(test)}"}>${test}</a>
+</summary>
 
 \`\`\`
 ${output}
@@ -106,15 +106,15 @@ ${output}
 
 </details>
 `
-      })
-      .join('\n')}`
+  })
+  .join('\n')}`
 
     await core.summary
-      .addHeading('Test failures')
+      .addHeading('Tests failures')
       .addTable([
         [
           {
-            data: 'Test',
+            data: 'Test suite',
             header: true,
           },
           {
@@ -125,7 +125,7 @@ ${output}
         ...Array.from(errorsPerTests.entries()).map(([test]) => {
           return [
             `<a href="https://github.com/vercel/next.js/blob/canary/${test}">${test}</a>`,
-            `<a href="#${toIDHash(test)}">Output</a>`,
+            `<a href="#${toIDHash(test)}">Logs</a>`,
           ]
         }),
       ])
