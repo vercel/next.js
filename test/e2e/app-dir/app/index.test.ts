@@ -13,7 +13,17 @@ createNextDescribe(
       ? 'pnpm next experimental-compile'
       : undefined,
   },
-  ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
+  ({ next, isNextDev: isDev, isNextStart, isNextDeploy, isTurbopack }) => {
+    if (process.env.NEXT_EXPERIMENTAL_COMPILE) {
+      it('should provide query for getStaticProps page correctly', async () => {
+        const res = await next.fetch('/ssg?hello=world')
+        expect(res.status).toBe(200)
+
+        const $ = cheerio.load(await res.text())
+        expect(JSON.parse($('#query').text())).toEqual({ hello: 'world' })
+      })
+    }
+
     if (isNextStart && !process.env.NEXT_EXPERIMENTAL_COMPILE) {
       it('should not have loader generated function for edge runtime', async () => {
         expect(
@@ -182,10 +192,13 @@ createNextDescribe(
       await check(async () => {
         return requests.some(
           (req) =>
-            req.includes(encodeURI('/[category]/[id]')) && req.endsWith('.js')
+            req.includes(
+              encodeURI(isTurbopack ? '[category]_[id]' : '/[category]/[id]')
+            ) && req.endsWith('.js')
         )
           ? 'found'
-          : JSON.stringify(requests)
+          : // When it fails will log out the paths.
+            JSON.stringify(requests)
       }, 'found')
     })
 
