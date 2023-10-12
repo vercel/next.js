@@ -579,7 +579,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     if (this.i18nProvider) {
       // Remove the port from the hostname if present.
-      const hostname = req?.headers.host?.split(':')[0].toLowerCase()
+      const hostname = req?.headers.host?.split(':', 1)[0].toLowerCase()
 
       const domainLocale = this.i18nProvider.detectDomainLocale(hostname)
       const defaultLocale =

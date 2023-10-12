@@ -55,7 +55,7 @@ export class I18NProvider {
       const domain = domainLocale.domain.toLowerCase()
       return {
         defaultLocale: domainLocale.defaultLocale.toLowerCase(),
-        hostname: domain.split(':')[0],
+        hostname: domain.split(':', 1)[0],
         domain,
         locales: domainLocale.locales?.map((locale) => locale.toLowerCase()),
         http: domainLocale.http,
