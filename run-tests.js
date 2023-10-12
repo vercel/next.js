@@ -637,13 +637,26 @@ ${ENDGROUP}`)
   )
 
   if (process.env.CI && errorsPerTests.size > 0) {
+    const toIDHash = (str) => {
+      let hash = 0,
+        i,
+        chr
+      if (str.length === 0) return hash
+      for (i = 0; i < str.length; i++) {
+        chr = str.charCodeAt(i)
+        hash = (hash << 5) - hash + chr
+        hash |= 0 // Convert to 32bit integer
+      }
+      return hash
+    }
+
     const outputTemplate = `
     ## Output per test
 
     ${Object.entries(errorsPerTests)
-      .map(([test, output], idx) => {
+      .map(([test, output]) => {
         return `
-     ### <a name="${idx}">${test}</a>
+     ### <a name="${toIDHash(test)}">${test}</a>
 
       \`\`\`bash
       ${output}
@@ -666,8 +679,8 @@ ${ENDGROUP}`)
             header: true,
           },
         ],
-        ...Object.entries(errorsPerTests).map(([test], idx) => {
-          return [test, `[Link](#${idx})`]
+        ...Object.entries(errorsPerTests).map(([test]) => {
+          return [test, `[Link](#${toIDHash(test)})`]
         }),
       ])
       .addRaw(outputTemplate)
