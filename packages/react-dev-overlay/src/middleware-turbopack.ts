@@ -3,14 +3,81 @@ import type { StackFrame } from 'stacktrace-parser'
 
 import fs from 'fs/promises'
 import url from 'url'
-import path from 'path'
 import {
   extractSourceMapFilepath,
   findOriginalSourcePositionAndContent,
 } from './utils'
 import { codeFrameColumns } from '@babel/code-frame'
+import type { OriginalStackFrameResponse } from './middleware'
+import type { RawSourceMap } from 'source-map'
 
 export { extractSourceMapFilepath }
+
+export class InputError extends Error {}
+
+export async function createOriginalStackFrame(
+  frame: StackFrame
+): Promise<OriginalStackFrameResponse | null> {
+  const { file, lineNumber } = frame
+  if (file === null) {
+    throw new Error('Frame filename missing')
+  }
+
+  if (lineNumber === null) {
+    throw new Error('Frame lineNumber missing')
+  }
+
+  const sourceMapFile = await extractSourceMapFilepath(file)
+  if (!sourceMapFile) {
+    return null
+  }
+
+  const sourceMap = JSON.parse(
+    await fs.readFile(sourceMapFile, 'utf8')
+  ) as RawSourceMap
+
+  const original = await findOriginalSourcePositionAndContent(sourceMap, {
+    line: lineNumber,
+    column: frame.column,
+  })
+
+  if (original === null) {
+    return null
+  }
+
+  const { sourcePosition, sourceContent } = original
+
+  const originalFile = sourcePosition.source?.replace(
+    /^\/turbopack\/\[project\]\//,
+    ''
+  )
+  if (originalFile === undefined || sourceContent === null) {
+    return null
+  }
+
+  return {
+    originalStackFrame: {
+      file: originalFile,
+      lineNumber: sourcePosition.line,
+      column: sourcePosition.column,
+      methodName: sourcePosition.name ?? '<unknown>',
+      arguments: [],
+    },
+    originalCodeFrame:
+      sourcePosition.line == null
+        ? null
+        : codeFrameColumns(
+            sourceContent,
+            {
+              start: {
+                line: sourcePosition.line,
+                column: sourcePosition.column ?? 0,
+              },
+            },
+            { forceColor: true }
+          ),
+  }
+}
 
 export function getOverlayMiddleware(rootDirectory: string) {
   return async function (
@@ -25,10 +92,9 @@ export function getOverlayMiddleware(rootDirectory: string) {
         errorMessage: string | undefined
       }
 
-      const { file, lineNumber } = frame
+      const { file } = frame
 
       if (
-        lineNumber === null ||
         file === null ||
         file === '<anonymous>' ||
         file.match(/^node:/) ||
@@ -40,74 +106,18 @@ export function getOverlayMiddleware(rootDirectory: string) {
         return res.end()
       }
 
-      const sourceMapFile = await extractSourceMapFilepath(file)
-      if (sourceMapFile === undefined) {
-        res.statusCode = 404
-        res.write('Source map file not found')
-        return res.end()
-      }
-
-      let sourceMap
+      let originalStackFrame
       try {
-        sourceMap = JSON.parse(await fs.readFile(sourceMapFile, 'utf8'))
-      } catch (e) {
-        res.statusCode = 500
-        res.write('Unable to read sourcemap file')
+        originalStackFrame = await createOriginalStackFrame(frame)
+      } catch (e: any) {
+        res.statusCode = e instanceof InputError ? 400 : 500
+        res.write(e.message)
         return res.end()
       }
-
-      const original = await findOriginalSourcePositionAndContent(sourceMap, {
-        line: lineNumber,
-        column: frame.column,
-      })
-
-      if (original === null) {
-        res.statusCode = 404
-        res.write('Source map symbol not found')
-        return res.end()
-      }
-
-      const { sourcePosition, sourceContent } = original
-
-      if (sourceContent === null) {
-        res.statusCode = 404
-        res.write('Source map symbol not found')
-        return res.end()
-      }
-
-      const originalFile = sourcePosition.source?.replace(
-        /^\/turbopack\/\[project\]\//,
-        ''
-      )
 
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json')
-      res.write(
-        Buffer.from(
-          JSON.stringify({
-            originalStackFrame: {
-              file: originalFile,
-              lineNumber: sourcePosition.line,
-              column: sourcePosition.column,
-              methodName: sourcePosition.name,
-              arguments: [],
-            },
-            originalCodeFrame:
-              sourcePosition.line == null
-                ? null
-                : codeFrameColumns(
-                    sourceContent,
-                    {
-                      start: {
-                        line: sourcePosition.line,
-                        column: sourcePosition.column ?? 0,
-                      },
-                    },
-                    { forceColor: true }
-                  ),
-          })
-        )
-      )
+      res.write(Buffer.from(JSON.stringify(originalStackFrame)))
       return res.end()
     }
 

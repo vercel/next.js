@@ -98,7 +98,7 @@ import {
 } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
 import {
   getOverlayMiddleware,
-  extractSourceMapFilepath,
+  createOriginalStackFrame as createOriginalTurboStackFrame,
 } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware-turbopack'
 import { mkdir, readFile, writeFile, rename, unlink } from 'fs/promises'
 import { PageNotFoundError } from '../../../shared/lib/utils'
@@ -2155,25 +2155,16 @@ async function startWatcher(opts: SetupOpts) {
         )
 
         const { lineNumber, file } = frame || {}
-        if (frame && lineNumber && file) {
-          let source, moduleId, modulePath, isEdgeCompiler
+        if (frame && lineNumber != null && file != null) {
+          let originalFrame, isEdgeCompiler
           if (opts.turbo) {
-            let map: any
-            let mapFile = await extractSourceMapFilepath(file)
-            if (mapFile) {
-              try {
-                map = JSON.parse(await readFile(mapFile, 'utf8'))
-              } catch {}
-            }
-
-            source = {
-              map() {
-                return map
-              },
-            }
+            originalFrame = await createOriginalTurboStackFrame(frame)
           } else {
-            moduleId = file!.replace(/^(webpack-internal:\/\/\/|file:\/\/)/, '')
-            modulePath = file.replace(
+            const moduleId = file!.replace(
+              /^(webpack-internal:\/\/\/|file:\/\/)/,
+              ''
+            )
+            const modulePath = file.replace(
               /^(webpack-internal:\/\/\/|file:\/\/)(\(.*\)\/)?/,
               ''
             )
@@ -2186,28 +2177,29 @@ async function startWatcher(opts: SetupOpts) {
                 : hotReloader.serverStats?.compilation
             )!
 
-            source = await getSourceById(
+            const source = await getSourceById(
               !!file.startsWith(path.sep) || !!file.startsWith('file:'),
               moduleId,
               compilation
             )
+
+            originalFrame = await createOriginalStackFrame({
+              line: lineNumber,
+              column: frame.column,
+              source,
+              frame,
+              moduleId,
+              modulePath,
+              rootDirectory: opts.dir,
+              errorMessage: err.message,
+              serverCompilation: isEdgeCompiler
+                ? undefined
+                : hotReloader.serverStats?.compilation,
+              edgeCompilation: isEdgeCompiler
+                ? hotReloader.edgeServerStats?.compilation
+                : undefined,
+            }).catch(() => {})
           }
-          const originalFrame = await createOriginalStackFrame({
-            line: lineNumber,
-            column: frame.column,
-            source,
-            frame,
-            moduleId,
-            modulePath,
-            rootDirectory: opts.dir,
-            errorMessage: err.message,
-            serverCompilation: isEdgeCompiler
-              ? undefined
-              : hotReloader.serverStats?.compilation,
-            edgeCompilation: isEdgeCompiler
-              ? hotReloader.edgeServerStats?.compilation
-              : undefined,
-          }).catch(() => {})
 
           if (originalFrame) {
             const { originalCodeFrame, originalStackFrame } = originalFrame
