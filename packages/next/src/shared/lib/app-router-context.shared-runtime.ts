@@ -148,6 +148,7 @@ export type AppRouterActionQueue = {
   dispatch: (payload: ReducerActions, setState: DispatchStatePromise) => void
   action: (state: AppRouterState | null, action: ReducerActions) => StatePromise
   pending: ActionQueueNode | null
+  last: ActionQueueNode | null
 }
 
 export type ActionQueueNode = {

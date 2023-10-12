@@ -98,15 +98,15 @@ function dispatchAction(
     // The queue is empty, so add the action and start it immediately
     // We also immediately start navigations as those shouldn't be blocked
     actionQueue.pending = newAction
+    actionQueue.last = newAction
     runAction(actionQueue, newAction.payload, setState)
   } else {
     // The queue is not empty, so add the action to the end of the queue
     // It will be started by finishRunningAction after the previous action finishes
-    let last = actionQueue.pending
-    while (last.next !== null) {
-      last = last.next
+    if (actionQueue.last !== null) {
+      actionQueue.last.next = newAction
     }
-    last.next = newAction
+    actionQueue.last = newAction
   }
 }
 
@@ -309,6 +309,7 @@ export function hydrate() {
       return result
     },
     pending: null,
+    last: null,
   }
 
   const reactEl = (
