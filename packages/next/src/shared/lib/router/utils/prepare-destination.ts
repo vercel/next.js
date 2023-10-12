@@ -257,7 +257,7 @@ export function prepareDestination(args: {
   try {
     newUrl = destPathCompiler(args.params)
 
-    const [pathname, hash] = newUrl.split('#')
+    const [pathname, hash] = newUrl.split('#', 2)
     parsedDestination.hostname = destHostnameCompiler(args.params)
     parsedDestination.pathname = pathname
     parsedDestination.hash = `${hash ? '#' : ''}${hash || ''}`
