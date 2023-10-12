@@ -33,14 +33,14 @@ export function createMetadataComponents({
   pathname,
   searchParams,
   getDynamicParamFromSegment,
-  appUsingSizeAdjust,
+  appUsingSizeAdjustment,
   errorType,
 }: {
   tree: LoaderTree
   pathname: string
   searchParams: { [key: string]: any }
   getDynamicParamFromSegment: GetDynamicParamFromSegment
-  appUsingSizeAdjust: boolean
+  appUsingSizeAdjustment: boolean
   errorType?: 'not-found' | 'redirect'
 }): [React.ComponentType, React.ComponentType] {
   const metadataContext = {
@@ -110,7 +110,7 @@ export function createMetadataComponents({
       IconsMetadata({ icons: metadata.icons }),
     ])
 
-    if (appUsingSizeAdjust) elements.push(<meta name="next-size-adjust" />)
+    if (appUsingSizeAdjustment) elements.push(<meta name="next-size-adjust" />)
 
     return (
       <>

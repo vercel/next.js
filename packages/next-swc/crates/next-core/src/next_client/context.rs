@@ -212,9 +212,29 @@ pub async fn get_client_module_options_context(
         false,
         next_config,
     );
-    let webpack_rules =
-        *maybe_add_babel_loader(project_path, *next_config.webpack_rules().await?).await?;
-    let webpack_rules = maybe_add_sass_loader(next_config.sass_config(), webpack_rules).await?;
+
+    // A separate webpack rules will be applied to codes matching
+    // foreign_code_context_condition. This allows to import codes from
+    // node_modules that requires webpack loaders, which next-dev implicitly
+    // does by default.
+    let foreign_webpack_rules = maybe_add_sass_loader(
+        next_config.sass_config(),
+        *next_config.webpack_rules().await?,
+    )
+    .await?;
+    let foreign_webpack_loaders = foreign_webpack_rules.map(|rules| {
+        WebpackLoadersOptions {
+            rules,
+            loader_runner_package: Some(get_external_next_compiled_package_mapping(Vc::cell(
+                "loader-runner".to_owned(),
+            ))),
+        }
+        .cell()
+    });
+
+    // Now creates a webpack rules that applies to all codes.
+    let webpack_rules = *foreign_webpack_rules.clone();
+    let webpack_rules = *maybe_add_babel_loader(project_path, webpack_rules).await?;
     let enable_webpack_loaders = webpack_rules.map(|rules| {
         WebpackLoadersOptions {
             rules,
@@ -252,9 +272,14 @@ pub async fn get_client_module_options_context(
         preset_env_versions: Some(env),
         execution_context: Some(execution_context),
         custom_ecma_transform_plugins,
+        ..Default::default()
+    };
+
+    let foreign_codes_options_context = ModuleOptionsContext {
+        enable_webpack_loaders: foreign_webpack_loaders,
         // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
         enable_postcss_transform: postcss_transform_options.clone(),
-        ..Default::default()
+        ..module_options_context.clone()
     };
 
     let module_options_context = ModuleOptionsContext {
@@ -270,7 +295,7 @@ pub async fn get_client_module_options_context(
         rules: vec![
             (
                 foreign_code_context_condition(next_config, project_path).await?,
-                module_options_context.clone().cell(),
+                foreign_codes_options_context.cell(),
             ),
             // If the module is an internal asset (i.e overlay, fallback) coming from the embedded
             // FS, don't apply user defined transforms.

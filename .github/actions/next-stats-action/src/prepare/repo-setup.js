@@ -1,16 +1,14 @@
 const path = require('path')
-const fse = require('fs-extra')
-const fs = require('fs')
-const fsp = require('fs/promises')
+const fs = require('fs/promises')
+const { existsSync } = require('fs')
 const exec = require('../util/exec')
-const { remove } = require('fs-extra')
 const logger = require('../util/logger')
 const execa = require('execa')
 
 module.exports = (actionInfo) => {
   return {
     async cloneRepo(repoPath = '', dest = '', branch = '', depth = '20') {
-      await remove(dest)
+      await fs.rm(dest, { recursive: true, force: true })
       await exec(
         `git clone ${actionInfo.gitRoot}${repoPath} --single-branch --branch ${branch} --depth=${depth} ${dest}`
       )
@@ -72,7 +70,7 @@ module.exports = (actionInfo) => {
       let pkgs
 
       try {
-        pkgs = await fsp.readdir(path.join(repoDir, 'packages'))
+        pkgs = await fs.readdir(path.join(repoDir, 'packages'))
       } catch (err) {
         if (err.code === 'ENOENT') {
           require('console').log('no packages to link')
@@ -87,8 +85,8 @@ module.exports = (actionInfo) => {
           const packedPkgPath = path.join(pkgPath, `${pkg}-packed.tgz`)
 
           const pkgDataPath = path.join(pkgPath, 'package.json')
-          if (fs.existsSync(pkgDataPath)) {
-            const pkgData = JSON.parse(await fsp.readFile(pkgDataPath))
+          if (existsSync(pkgDataPath)) {
+            const pkgData = JSON.parse(await fs.readFile(pkgDataPath))
             const { name } = pkgData
 
             pkgDatas.set(name, {
@@ -122,7 +120,7 @@ module.exports = (actionInfo) => {
           pkgData.files.push('native')
 
           try {
-            const swcBinariesDirContents = await fsp.readdir(
+            const swcBinariesDirContents = await fs.readdir(
               path.join(pkgPath, 'native')
             )
             require('console').log(
@@ -155,7 +153,7 @@ module.exports = (actionInfo) => {
           }
         }
 
-        await fsp.writeFile(
+        await fs.writeFile(
           pkgDataPath,
           JSON.stringify(pkgData, null, 2),
           'utf8'
@@ -186,9 +184,9 @@ module.exports = (actionInfo) => {
                 'disabled-native-gitignore'
               )
 
-              await fsp.rename(nativeGitignorePath, renamedGitignorePath)
+              await fs.rename(nativeGitignorePath, renamedGitignorePath)
               cleanup = async () => {
-                await fsp.rename(renamedGitignorePath, nativeGitignorePath)
+                await fs.rename(renamedGitignorePath, nativeGitignorePath)
               }
             }
 
@@ -201,7 +199,7 @@ module.exports = (actionInfo) => {
             })
 
             return Promise.all([
-              fsp.rename(path.resolve(pkgPath, stdout.trim()), packedPkgPath),
+              fs.rename(path.resolve(pkgPath, stdout.trim()), packedPkgPath),
               cleanup?.(),
             ])
           }

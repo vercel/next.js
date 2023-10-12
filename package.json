@@ -58,6 +58,7 @@
     "update-google-fonts": "node ./scripts/update-google-fonts.js"
   },
   "devDependencies": {
+    "@actions/core": "1.10.1",
     "@babel/core": "7.18.0",
     "@babel/eslint-parser": "7.18.2",
     "@babel/generator": "7.18.0",
@@ -249,7 +250,7 @@
   },
   "engines": {
     "node": ">=16.14.0",
-    "pnpm": "8.7.1"
+    "pnpm": "8.9.0"
   },
-  "packageManager": "pnpm@8.7.1"
+  "packageManager": "pnpm@8.9.0"
 }
