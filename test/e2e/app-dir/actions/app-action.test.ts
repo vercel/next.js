@@ -45,7 +45,7 @@ createNextDescribe(
       await browser.elementByCss('#cookie').click()
       await check(async () => {
         const res = (await browser.elementByCss('h1').text()) || ''
-        const id = res.split(':')
+        const id = res.split(':', 2)
         return id[0] === id[1] && id[0] ? 'same' : 'different'
       }, 'same')
 
@@ -59,7 +59,7 @@ createNextDescribe(
       await browser.elementByCss('#setCookie').click()
       await check(async () => {
         const res = (await browser.elementByCss('h1').text()) || ''
-        const id = res.split(':')
+        const id = res.split(':', 2)
         return id[0] === id[1] && id[0] === id[2] && id[0]
           ? 'same'
           : 'different'
