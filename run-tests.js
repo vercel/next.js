@@ -656,16 +656,15 @@ ${ENDGROUP}`)
 
     ${Array.from(errorsPerTests.entries())
       .map(([test, output]) => {
-        return `
-     ### <a name="${toIDHash(test)}">${test}</a>
+        return `### <a name="${toIDHash(test)}">${test}</a>
 
-      \`\`\`bash
-      ${output}
-      \`\`\`
-      `
+\`\`\`bash
+${output}
+
+\`\`\`
+`
       })
-      .join('\n')}
-      `
+      .join('\n')}`
 
     console.log('DEBUG - outputTemplate', outputTemplate)
     await core.summary
