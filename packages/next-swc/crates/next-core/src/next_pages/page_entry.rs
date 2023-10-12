@@ -3,7 +3,7 @@ use std::io::Write;
 use anyhow::{bail, Result};
 use indexmap::indexmap;
 use turbo_tasks::Vc;
-use turbo_tasks_fs::{rope::Rope, FileSystemPath};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_binding::{
     turbo::{
         tasks::Value,
@@ -11,19 +11,19 @@ use turbopack_binding::{
     },
     turbopack::{
         core::{
-            asset::AssetContent,
+            asset::{Asset, AssetContent},
             context::AssetContext,
             reference_type::{EntryReferenceSubType, ReferenceType},
             source::Source,
             virtual_source::VirtualSource,
         },
-        ecmascript::{chunk::EcmascriptChunkPlaceable, utils::StringifyJs},
+        ecmascript::chunk::EcmascriptChunkPlaceable,
     },
 };
 
 use crate::{
     next_edge::entry::wrap_edge_entry,
-    util::{load_next_js_template, virtual_next_js_template_path, NextRuntime},
+    util::{file_content_rope, load_next_js_template, NextRuntime},
 };
 
 #[turbo_tasks::function]
@@ -36,8 +36,8 @@ pub async fn create_page_ssr_entry_module(
     next_original_name: Vc<String>,
     runtime: NextRuntime,
 ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
-    let definition_page = next_original_name.await?;
-    let definition_pathname = pathname.await?;
+    let definition_page = &*next_original_name.await?;
+    let definition_pathname = &*pathname.await?;
 
     let ssr_module = ssr_module_context.process(source, reference_type.clone());
 
@@ -59,65 +59,57 @@ pub async fn create_page_ssr_entry_module(
         _ => bail!("Invalid path type"),
     };
 
-    // Load the file from the next.js codebase.
-    let file = load_next_js_template(project_root, template_file.to_string()).await?;
+    const INNER: &str = "INNER_PAGE";
 
-    let mut file = file
-        .to_str()?
-        .replace(
-            "\"VAR_DEFINITION_PAGE\"",
-            &StringifyJs(&definition_page).to_string(),
-        )
-        .replace(
-            "\"VAR_DEFINITION_PATHNAME\"",
-            &StringifyJs(&definition_pathname).to_string(),
+    let mut replacements = indexmap! {
+        "VAR_DEFINITION_PAGE" => definition_page.clone(),
+        "VAR_DEFINITION_PATHNAME" => definition_pathname.clone(),
+        "VAR_USERLAND" => INNER.to_string(),
+    };
+
+    if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page) {
+        replacements.insert(
+            "VAR_MODULE_DOCUMENT",
+            "@vercel/turbopack-next/pages/_document".to_string(),
         );
-
-    if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page) {
-        file = file
-            .replace(
-                "\"VAR_MODULE_DOCUMENT\"",
-                &StringifyJs("@vercel/turbopack-next/pages/_document").to_string(),
-            )
-            .replace(
-                "\"VAR_MODULE_APP\"",
-                &StringifyJs("@vercel/turbopack-next/pages/_app").to_string(),
-            );
+        replacements.insert(
+            "VAR_MODULE_APP",
+            "@vercel/turbopack-next/pages/_app".to_string(),
+        );
     }
 
-    // Ensure that the last line is a newline.
-    if !file.ends_with('\n') {
-        file.push('\n');
+    // Load the file from the next.js codebase.
+    let mut source =
+        load_next_js_template(template_file, project_root, replacements, indexmap! {}).await?;
+
+    // When we're building the instrumentation page (only when the
+    // instrumentation file conflicts with a page also labeled
+    // /instrumentation) hoist the `register` method.
+    if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page)
+        && (*definition_page == "/instrumentation" || *definition_page == "/src/instrumentation")
+    {
+        let file = &*file_content_rope(source.content().file_content()).await?;
+
+        let mut result = RopeBuilder::default();
+        result += file;
+
+        writeln!(
+            result,
+            r#"export const register = hoist(userland, "register")"#
+        )?;
+
+        let file = File::from(result.build());
+
+        source = Vc::upcast(VirtualSource::new(
+            source.ident().path(),
+            AssetContent::file(file.into()),
+        ));
     }
-
-    let file = Rope::from(file);
-    let mut result = RopeBuilder::default();
-    result += &file;
-
-    if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page) {
-        // When we're building the instrumentation page (only when the
-        // instrumentation file conflicts with a page also labeled
-        // /instrumentation) hoist the `register` method.
-        if definition_page.to_string() == "/instrumentation"
-            || definition_page.to_string() == "/src/instrumentation"
-        {
-            writeln!(
-                result,
-                r#"export const register = hoist(userland, "register")"#
-            )?;
-        }
-    }
-
-    let file = File::from(result.build());
-
-    let template_path = virtual_next_js_template_path(project_root, template_file.to_string());
-
-    let source = VirtualSource::new(template_path, AssetContent::file(file.into()));
 
     let mut ssr_module = ssr_module_context.process(
-        Vc::upcast(source),
+        source,
         Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
-            "VAR_USERLAND".to_string() => ssr_module,
+            INNER.to_string() => ssr_module,
         }))),
     );
 

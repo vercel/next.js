@@ -12,7 +12,7 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   SYSTEM_ENTRYPOINTS,
 } from '../../../shared/lib/constants'
-import { BuildManifest } from '../../../server/get-page-files'
+import type { BuildManifest } from '../../../server/get-page-files'
 import getRouteFromEntrypoint from '../../../server/get-route-from-entrypoint'
 import { ampFirstEntryNamesMap } from './next-drop-client-page-plugin'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
@@ -20,12 +20,36 @@ import { spans } from './profiling-plugin'
 
 type DeepMutable<T> = { -readonly [P in keyof T]: DeepMutable<T[P]> }
 
-export type ClientBuildManifest = Record<string, string[]>
+export type ClientBuildManifest = {
+  [key: string]: string[]
+}
 
 // Add the runtime ssg manifest file as a lazy-loaded file dependency.
 // We also stub this file out for development mode (when it is not
 // generated).
 export const srcEmptySsgManifest = `self.__SSG_MANIFEST=new Set;self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
+
+function normalizeRewrite(item: {
+  source: string
+  destination: string
+  has?: any
+}): CustomRoutes['rewrites']['beforeFiles'][0] {
+  return {
+    has: item.has,
+    source: item.source,
+    destination: item.destination,
+  }
+}
+
+export function normalizeRewritesForBuildManifest(
+  rewrites: CustomRoutes['rewrites']
+): CustomRoutes['rewrites'] {
+  return {
+    afterFiles: rewrites.afterFiles?.map((item) => normalizeRewrite(item)),
+    beforeFiles: rewrites.beforeFiles?.map((item) => normalizeRewrite(item)),
+    fallback: rewrites.fallback?.map((item) => normalizeRewrite(item)),
+  }
+}
 
 // This function takes the asset map generated in BuildManifestPlugin and creates a
 // reduced version to send to the client.
@@ -40,27 +64,9 @@ function generateClientManifest(
     'NextJsBuildManifest-generateClientManifest'
   )
 
-  const normalizeRewrite = (item: {
-    source: string
-    destination: string
-    has?: any
-  }) => {
-    return {
-      has: item.has,
-      source: item.source,
-      destination: item.destination,
-    }
-  }
-
   return genClientManifestSpan?.traceFn(() => {
     const clientManifest: ClientBuildManifest = {
-      __rewrites: {
-        afterFiles: rewrites.afterFiles?.map((item) => normalizeRewrite(item)),
-        beforeFiles: rewrites.beforeFiles?.map((item) =>
-          normalizeRewrite(item)
-        ),
-        fallback: rewrites.fallback?.map((item) => normalizeRewrite(item)),
-      } as any,
+      __rewrites: normalizeRewritesForBuildManifest(rewrites) as any,
     }
     const appDependencies = new Set(assetMap.pages['/_app'])
     const sortedPageKeys = getSortedRoutes(Object.keys(assetMap.pages))

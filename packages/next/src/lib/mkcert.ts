@@ -36,7 +36,7 @@ function getBinaryName() {
 async function downloadBinary() {
   try {
     const binaryName = getBinaryName()
-    const cacheDirectory = await getCacheDirectory('mkcert')
+    const cacheDirectory = getCacheDirectory('mkcert')
     const binaryPath = path.join(cacheDirectory, binaryName)
 
     if (fs.existsSync(binaryPath)) {

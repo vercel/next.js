@@ -14,7 +14,7 @@ import {
 
 import path from 'path'
 import fs from 'fs/promises'
-import { PageInfo } from './utils'
+import type { PageInfo } from './utils'
 import { loadBindings } from './swc'
 import { nonNullable } from '../lib/non-nullable'
 import * as ciEnvironment from '../telemetry/ci-info'
@@ -233,7 +233,7 @@ export async function collectBuildTraces({
           })
         }
       }
-      const ignores = [
+      const serverIgnores = [
         '**/*.d.ts',
         '**/*.map',
         isStandalone ? null : '**/next/dist/compiled/jest-worker/**/*',
@@ -241,6 +241,8 @@ export async function collectBuildTraces({
         '**/node_modules/webpack5/**/*',
         '**/next/dist/server/lib/squoosh/**/*.wasm',
         '**/next/dist/server/lib/route-resolver*',
+        '**/next/dist/pages/**/*',
+
         ...(ciEnvironment.hasNextSupport
           ? [
               // only ignore image-optimizer code when
@@ -261,12 +263,12 @@ export async function collectBuildTraces({
         ...(config.experimental.outputFileTracingIgnores || []),
       ].filter(nonNullable)
 
-      const ignoreFn = (pathname: string) => {
+      const serverIgnoreFn = (pathname: string) => {
         if (path.isAbsolute(pathname) && !pathname.startsWith(root)) {
           return true
         }
 
-        return isMatch(pathname, ignores, {
+        return isMatch(pathname, serverIgnores, {
           contains: true,
           dot: true,
         })
@@ -321,7 +323,7 @@ export async function collectBuildTraces({
           [minimalServerTracedFiles, minimalFiles],
         ] as [Set<string>, string[]][]) {
           for (const file of files) {
-            if (!ignoreFn(path.join(traceContext, file))) {
+            if (!serverIgnoreFn(path.join(traceContext, file))) {
               addToTracedFiles(traceContext, file, set)
             }
           }
@@ -336,7 +338,6 @@ export async function collectBuildTraces({
         const result = await nodeFileTrace(chunksToTrace, {
           base: outputFileTracingRoot,
           processCwd: dir,
-          ignore: ignoreFn,
           mixedModules: true,
         })
         const reasons = result.reasons
@@ -360,12 +361,7 @@ export async function collectBuildTraces({
             for (const curFile of curFiles || []) {
               const filePath = path.join(outputFileTracingRoot, curFile)
 
-              if (
-                !isMatch(filePath, '**/next/dist/pages/**/*', {
-                  dot: true,
-                  contains: true,
-                })
-              ) {
+              if (!serverIgnoreFn(filePath)) {
                 tracedFiles.add(
                   path.relative(distDir, filePath).replace(/\\/g, '/')
                 )
