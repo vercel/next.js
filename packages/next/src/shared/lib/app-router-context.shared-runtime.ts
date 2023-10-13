@@ -5,6 +5,7 @@ import type {
   FocusAndScrollRef,
   PrefetchKind,
   ReducerActions,
+  ReducerState,
   ThenableRecord,
 } from '../../client/components/router-reducer/router-reducer-types'
 import type { FetchServerResponseResult } from '../../client/components/router-reducer/fetch-server-response'
@@ -139,14 +140,13 @@ if (process.env.NODE_ENV !== 'production') {
   TemplateContext.displayName = 'TemplateContext'
 }
 
-export type StatePromise = Promise<AppRouterState>
-export type DispatchStatePromise = React.Dispatch<StatePromise>
+export type DispatchStatePromise = React.Dispatch<ReducerState>
 
 export type AppRouterActionQueue = {
   state: AppRouterState | null
   devToolsInstance?: ReduxDevToolsInstance
   dispatch: (payload: ReducerActions, setState: DispatchStatePromise) => void
-  action: (state: AppRouterState | null, action: ReducerActions) => StatePromise
+  action: (state: AppRouterState, action: ReducerActions) => ReducerState
   pending: ActionQueueNode | null
   last: ActionQueueNode | null
 }
@@ -154,6 +154,8 @@ export type AppRouterActionQueue = {
 export type ActionQueueNode = {
   payload: ReducerActions
   next: ActionQueueNode | null
+  resolve: (value: PromiseLike<AppRouterState> | AppRouterState) => void
+  reject: (err: Error) => void
 }
 
 export const ActionQueueContext =

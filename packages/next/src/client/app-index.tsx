@@ -1,5 +1,6 @@
 /* global location */
 import '../build/polyfills/polyfill-module'
+import '../lib/polyfill-promise-with-resolvers'
 // @ts-ignore react-dom/client exists when using React 18
 import ReactDOMClient from 'react-dom/client'
 import React, { use, startTransition } from 'react'
@@ -52,36 +53,52 @@ function finishRunningAction(
     actionQueue.pending = actionQueue.pending.next
     if (actionQueue.pending !== null) {
       // eslint-disable-next-line @typescript-eslint/no-use-before-define
-      runAction(actionQueue, actionQueue.pending.payload, setState)
+      runAction({
+        actionQueue,
+        action: actionQueue.pending,
+        setState,
+      })
     }
   }
 }
-async function runAction(
-  actionQueue: AppRouterActionQueue,
-  payload: ReducerActions,
+async function runAction({
+  actionQueue,
+  action,
+  setState,
+}: {
+  actionQueue: AppRouterActionQueue
+  action: ActionQueueNode
   setState: DispatchStatePromise
-) {
+}) {
   const prevState = actionQueue.state
-  const promise = actionQueue.action(prevState, payload)
+  if (!prevState) {
+    // This shouldn't happen as the state is initialized in the dispatcher if it's not set
+    throw new Error('Invariant: Router state not initialized')
+  }
 
-  promise.then(
-    (nextState: AppRouterState | null) => {
-      actionQueue.state = nextState
+  const payload = action.payload
+  const actionResult = actionQueue.action(prevState, payload)
 
-      if (actionQueue.devToolsInstance) {
-        actionQueue.devToolsInstance.send(payload, nextState)
-      }
+  function handleResult(nextState: AppRouterState) {
+    actionQueue.state = nextState
 
-      finishRunningAction(actionQueue, setState)
-    },
-    () => {
-      finishRunningAction(actionQueue, setState)
+    if (actionQueue.devToolsInstance) {
+      actionQueue.devToolsInstance.send(payload, nextState)
     }
-  )
 
-  startTransition(() => {
-    setState(promise)
-  })
+    finishRunningAction(actionQueue, setState)
+    action.resolve(nextState)
+  }
+
+  // if the action is a promise, set up a callback to resolve it
+  if (actionResult instanceof Promise) {
+    actionResult.then(handleResult, (err) => {
+      finishRunningAction(actionQueue, setState)
+      action.reject(err)
+    })
+  } else {
+    handleResult(actionResult)
+  }
 }
 
 function dispatchAction(
@@ -89,17 +106,36 @@ function dispatchAction(
   payload: ReducerActions,
   setState: DispatchStatePromise
 ) {
+  const {
+    promise: deferredPromise,
+    resolve,
+    reject,
+  } = Promise.withResolvers<AppRouterState>()
+
   const newAction: ActionQueueNode = {
     payload,
     next: null,
+    resolve,
+    reject,
   }
+
+  startTransition(() => {
+    // we immediately notify React of the pending promise -- the resolver is attached to the action node
+    // and will be called when the associated action promise resolves
+    setState(deferredPromise)
+  })
+
   // Check if the queue is empty or if the action is a navigation action
   if (actionQueue.pending === null || payload.type === 'navigate') {
     // The queue is empty, so add the action and start it immediately
     // We also immediately start navigations as those shouldn't be blocked
     actionQueue.pending = newAction
     actionQueue.last = newAction
-    runAction(actionQueue, newAction.payload, setState)
+    runAction({
+      actionQueue,
+      action: newAction,
+      setState,
+    })
   } else {
     // The queue is not empty, so add the action to the end of the queue
     // It will be started by finishRunningAction after the previous action finishes
@@ -303,8 +339,10 @@ export function hydrate() {
     state: null,
     dispatch: (payload: ReducerActions, setState: DispatchStatePromise) =>
       dispatchAction(actionQueue, payload, setState),
-    action: async (state: AppRouterState | null, action: ReducerActions) => {
-      if (state === null) throw new Error('Missing state')
+    action: async (state: AppRouterState, action: ReducerActions) => {
+      if (state === null) {
+        throw new Error('Invariant: Router state not initialized')
+      }
       const result = reducer(state, action)
       return result
     },

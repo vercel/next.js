@@ -6,10 +6,7 @@ import type {
   ReducerActions,
   ReducerState,
 } from './router-reducer/router-reducer-types'
-import {
-  ActionQueueContext,
-  type StatePromise,
-} from '../../shared/lib/app-router-context.shared-runtime'
+import { ActionQueueContext } from '../../shared/lib/app-router-context.shared-runtime'
 
 function normalizeRouterState(val: any): any {
   if (val instanceof Map) {
@@ -76,16 +73,9 @@ export interface ReduxDevToolsInstance {
   init(initialState: any): void
 }
 
-function isThenable(value: any): value is Promise<any> {
-  return (
-    value &&
-    (typeof value === 'object' || typeof value === 'function') &&
-    typeof value.then === 'function'
-  )
-}
-
-export function useUnwrapState(state: AppRouterState | StatePromise) {
-  if (isThenable(state)) {
+export function useUnwrapState(state: ReducerState) {
+  // reducer actions can be async, so sometimes we need to suspend until the state is resolved
+  if (state instanceof Promise) {
     const result = use(state)
     return result
   }
@@ -105,6 +95,11 @@ function useReducerWithReduxDevtoolsImpl(
   const [state, setState] = React.useState<ReducerState>(initialState)
 
   const actionQueue = useContext(ActionQueueContext)
+
+  if (!actionQueue) {
+    throw new Error('Invariant: Missing ActionQueueContext')
+  }
+
   const devtoolsConnectionRef = useRef<ReduxDevToolsInstance>()
   const enabledRef = useRef<boolean>()
 
@@ -142,9 +137,9 @@ function useReducerWithReduxDevtoolsImpl(
 
   const dispatch = useCallback(
     (action: ReducerActions) => {
-      if (!actionQueue) return
-
       if (!actionQueue.state) {
+        // we lazy initialize the mutable action queue state since the data needed
+        // to generate the state is not available when the actionQueue context is created
         actionQueue.state = initialState
       }
 
