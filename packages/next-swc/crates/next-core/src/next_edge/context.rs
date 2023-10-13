@@ -24,7 +24,7 @@ use crate::{
     mode::NextMode,
     next_client::context::get_client_assets_path,
     next_config::NextConfig,
-    next_import_map::{get_next_edge_import_map, get_next_package},
+    next_import_map::get_next_edge_import_map,
     next_server::context::ServerContextType,
     next_shared::resolve::{
         ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin,
@@ -73,8 +73,8 @@ async fn next_edge_free_vars(
             export: Some("Buffer".to_string()),
         },
         process = FreeVarReference::EcmaScriptModule {
-            request: "./dist/build/polyfills/process".to_string(),
-            lookup_path: Some(get_next_package(project_path)),
+            request: "next/dist/build/polyfills/process".to_string(),
+            lookup_path: Some(project_path),
             export: Some("default".to_string()),
         },
     )
