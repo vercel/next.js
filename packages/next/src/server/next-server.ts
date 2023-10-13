@@ -1031,9 +1031,8 @@ export default class NextNodeServer extends BaseServer {
       const normalizedReq = this.normalizeReq(req)
       const normalizedRes = this.normalizeRes(res)
 
-      const enabledVerboseLogging =
-        this.nextConfig.experimental.logging?.level === 'verbose'
-      const shouldTruncateUrl = !this.nextConfig.experimental.logging?.fullUrl
+      const enabledVerboseLogging = this.nextConfig.logging?.level === 'verbose'
+      const shouldTruncateUrl = !this.nextConfig.logging?.fullUrl
 
       if (this.renderOpts.dev) {
         const { bold, green, yellow, red, gray, white } =
