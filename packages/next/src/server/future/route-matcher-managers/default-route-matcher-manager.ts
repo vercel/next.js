@@ -1,4 +1,6 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+// This takes advantage of `Promise.withResolvers` which is polyfilled in
+// this imported module.
+import '../../../lib/polyfill-promise-with-resolvers'
 
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
 import type { RouteKind } from '../route-kind'
@@ -44,10 +46,8 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
 
   private previousMatchers: ReadonlyArray<RouteMatcher> = []
   public async reload() {
-    let callbacks: { resolve: Function; reject: Function }
-    this.waitTillReadyPromise = new Promise((resolve, reject) => {
-      callbacks = { resolve, reject }
-    })
+    const { promise, resolve, reject } = Promise.withResolvers<void>()
+    this.waitTillReadyPromise = promise
 
     // Grab the compilation ID for this run, we'll verify it at the end to
     // ensure that if any routes were added before reloading is finished that
@@ -182,11 +182,11 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
         )
       }
     } catch (err) {
-      callbacks!.reject(err)
+      reject(err)
     } finally {
       // The compilation ID matched, so mark the complication as finished.
       this.lastCompilationID = compilationID
-      callbacks!.resolve()
+      resolve()
     }
   }
 
