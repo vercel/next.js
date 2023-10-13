@@ -516,7 +516,7 @@ impl AppEndpoint {
                 .ident()
                 .with_modifier(Vc::cell("client_shared_chunks".to_string())),
             this.app_project.client_runtime_entries(),
-            this.app_project.project().client_chunking_context(),
+            this.app_project.project().app_client_chunking_context(),
         );
 
         let mut client_shared_chunks_paths = vec![];
@@ -570,8 +570,8 @@ impl AppEndpoint {
         if ssr_and_client {
             let client_references_chunks = get_app_client_references_chunks(
                 client_reference_types,
-                this.app_project.project().client_chunking_context(),
-                this.app_project.project().ssr_chunking_context(),
+                this.app_project.project().app_client_chunking_context(),
+                this.app_project.project().app_ssr_chunking_context(),
             );
             let client_references_chunks_ref = client_references_chunks.await?;
 
@@ -642,8 +642,8 @@ impl AppEndpoint {
                 app_entry.original_name.clone(),
                 client_references,
                 client_references_chunks,
-                this.app_project.project().client_chunking_context(),
-                Vc::upcast(this.app_project.project().ssr_chunking_context()),
+                this.app_project.project().app_client_chunking_context(),
+                Vc::upcast(this.app_project.project().app_ssr_chunking_context()),
                 this.app_project
                     .project()
                     .next_config()
@@ -834,7 +834,7 @@ impl AppEndpoint {
                     .app_project
                     .project()
                     .rsc_chunking_context()
-                    .entry_chunk(
+                    .entry_chunk_group(
                         server_path.join(format!(
                             "app{original_name}.js",
                             original_name = app_entry.original_name
