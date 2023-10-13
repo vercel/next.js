@@ -163,10 +163,6 @@ export interface ExperimentalConfig {
   useDeploymentId?: boolean
   useDeploymentIdServerActions?: boolean
   deploymentId?: string
-  logging?: {
-    level?: 'verbose'
-    fullUrl?: boolean
-  }
   appDocumentPreloading?: boolean
   strictNextHead?: boolean
   clientRouterFilter?: boolean
@@ -661,6 +657,11 @@ export interface NextConfig extends Record<string, any> {
       skipDefaultConversion?: boolean
     }
   >
+
+  logging?: {
+    level?: 'verbose'
+    fullUrl?: boolean
+  }
 
   /**
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
