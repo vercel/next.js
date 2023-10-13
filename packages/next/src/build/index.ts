@@ -1847,24 +1847,6 @@ export default async function build(
         )
       }
 
-      if (!isGenerate && config.outputFileTracing && !buildTracesPromise) {
-        buildTracesPromise = collectBuildTraces({
-          dir,
-          config,
-          distDir,
-          pageKeys,
-          pageInfos: Object.entries(pageInfos),
-          staticPages: [...staticPages],
-          nextBuildSpan,
-          hasSsrAmpPages,
-          buildTraceContext,
-          outputFileTracingRoot,
-        }).catch((err) => {
-          console.error(err)
-          process.exit(1)
-        })
-      }
-
       if (serverPropsPages.size > 0 || ssgPages.size > 0) {
         // We update the routes manifest after the build with the
         // data routes since we can't determine these until after build
@@ -2846,7 +2828,25 @@ export default async function build(
         pagesWorker.close()
         appWorker.close()
       }
-      await buildTracesPromise
+      if (!isGenerate && config.outputFileTracing && !buildTracesPromise) {
+        buildTracesPromise = collectBuildTraces({
+          dir,
+          config,
+          distDir,
+          pageKeys,
+          pageInfos: Object.entries(pageInfos),
+          staticPages: [...staticPages],
+          nextBuildSpan,
+          hasSsrAmpPages,
+          buildTraceContext,
+          outputFileTracingRoot,
+        }).catch((err) => {
+          console.error(err)
+          process.exit(1)
+        })
+      } else if (buildTracesPromise) {
+        await buildTracesPromise
+      }
 
       if (config.output === 'standalone') {
         await nextBuildSpan
