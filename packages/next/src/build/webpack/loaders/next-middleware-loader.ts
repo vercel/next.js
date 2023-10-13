@@ -3,7 +3,6 @@ import type {
   MiddlewareMatcher,
 } from '../../analysis/get-page-static-info'
 import { getModuleBuildInfo } from './get-module-build-info'
-import { stringifyRequest } from '../stringify-request'
 import { MIDDLEWARE_LOCATION_REGEXP } from '../../../lib/constants'
 import { loadEntrypoint } from '../../load-entrypoint'
 
@@ -38,7 +37,11 @@ export default async function middlewareLoader(this: any) {
     middlewareConfig: middlewareConfigBase64,
   }: MiddlewareLoaderOptions = this.getOptions()
   const matchers = encodedMatchers ? decodeMatchers(encodedMatchers) : undefined
-  const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
+  const pagePath = this.utils.contextify(
+    this.context || this.rootContext,
+    absolutePagePath
+  )
+
   const middlewareConfig: MiddlewareConfig = JSON.parse(
     Buffer.from(middlewareConfigBase64, 'base64').toString()
   )
@@ -57,7 +60,7 @@ export default async function middlewareLoader(this: any) {
   }
 
   return await loadEntrypoint('middleware', {
-    VAR_USERLAND: stringifiedPagePath,
+    VAR_USERLAND: pagePath,
     VAR_DEFINITION_PAGE: page,
   })
 }
