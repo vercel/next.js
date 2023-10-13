@@ -944,9 +944,7 @@ impl AppEndpoint {
                 server_assets.push(app_paths_manifest_output);
 
                 // create react-loadable-manifest for next/dynamic
-                let availability_info = Value::new(AvailabilityInfo::Root {
-                    current_availability_root: Vc::upcast(app_entry.rsc_entry),
-                });
+                let availability_info = Value::new(AvailabilityInfo::Root);
                 let dynamic_import_modules =
                     collect_next_dynamic_imports(app_entry.rsc_entry).await?;
                 let dynamic_import_entries = collect_chunk_group(

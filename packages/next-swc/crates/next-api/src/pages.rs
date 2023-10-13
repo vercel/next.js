@@ -651,9 +651,7 @@ impl PageEndpoint {
                 runtime_entries,
             );
 
-            let availability_info = Value::new(AvailabilityInfo::Root {
-                current_availability_root: Vc::upcast(ssr_module),
-            });
+            let availability_info = Value::new(AvailabilityInfo::Root);
             let dynamic_import_modules = collect_next_dynamic_imports(ssr_module).await?;
             let dynamic_import_entries =
                 collect_chunk_group(chunking_context, dynamic_import_modules, availability_info)

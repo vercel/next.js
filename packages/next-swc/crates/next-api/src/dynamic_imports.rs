@@ -11,7 +11,6 @@ use turbopack_binding::{
         ast::{CallExpr, Callee, Expr, Ident, Lit},
         visit::{Visit, VisitWith},
     },
-    turbo::tasks_fs::FileSystemPath,
     turbopack::{
         build::BuildChunkingContext,
         core::{
@@ -19,8 +18,7 @@ use turbopack_binding::{
                 availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext,
                 EvaluatableAssets,
             },
-            ident::AssetIdent,
-            issue::{Issue, IssueExt, IssueSeverity, OptionIssueSource},
+            issue::{IssueSeverity, OptionIssueSource},
             module::Module,
             output::OutputAssets,
             reference::primary_referenced_modules,
@@ -36,11 +34,13 @@ use turbopack_binding::{
     },
 };
 
-pub(crate) async fn collect_chunk_group(
-    chunking_context: Vc<BuildChunkingContext>,
+async fn collect_chunk_group_inner<F>(
     dynamic_import_entries: IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>,
-    availability_info: Value<AvailabilityInfo>,
-) -> Result<Vc<DynamicImportedChunks>> {
+    build_chunk: F,
+) -> Result<Vc<DynamicImportedChunks>>
+where
+    F: Fn(Vc<Box<dyn ChunkableModule>>) -> Vc<OutputAssets>,
+{
     let mut chunks_hash: HashMap<String, Vc<OutputAssets>> = HashMap::new();
     let mut dynamic_import_chunks = IndexMap::new();
 
@@ -57,13 +57,13 @@ pub(crate) async fn collect_chunk_group(
                     bail!("module must be evaluatable");
                 };
 
-                // [Note]: this seems to create a duplicated chunk for the same module to the original import() call
+                // [Note]: this seems to create duplicated chunks for the same module to the original import() call
                 // and the explicit chunk we ask in here. So there'll be at least 2
                 // chunks for the same module, relying on
                 // naive hash to have additonal
                 // chunks in case if there are same modules being imported in differnt
                 // origins.
-                let chunk_group = chunking_context.chunk_group(chunk_item, availability_info);
+                let chunk_group = build_chunk(chunk_item);
                 chunks_hash.insert(imported_raw_str.to_string(), chunk_group);
                 chunk_group
             };
@@ -78,41 +78,26 @@ pub(crate) async fn collect_chunk_group(
     Ok(Vc::cell(dynamic_import_chunks))
 }
 
+pub(crate) async fn collect_chunk_group(
+    chunking_context: Vc<BuildChunkingContext>,
+    dynamic_import_entries: IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>,
+    availability_info: Value<AvailabilityInfo>,
+) -> Result<Vc<DynamicImportedChunks>> {
+    collect_chunk_group_inner(dynamic_import_entries, |chunk_item| {
+        chunking_context.chunk_group(chunk_item, availability_info)
+    })
+    .await
+}
+
 pub(crate) async fn collect_evaluated_chunk_group(
     chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
     dynamic_import_entries: IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>,
     evaluatable_assets: Vc<EvaluatableAssets>,
 ) -> Result<Vc<DynamicImportedChunks>> {
-    let mut chunks_hash: HashMap<String, Vc<OutputAssets>> = HashMap::new();
-    let mut dynamic_import_chunks = IndexMap::new();
-
-    // Iterate over the collected import mappings, and create a chunk for each
-    // dynamic import.
-    for (origin_module, dynamic_imports) in dynamic_import_entries {
-        for (imported_raw_str, imported_module) in dynamic_imports {
-            let chunk = if let Some(chunk) = chunks_hash.get(&imported_raw_str) {
-                *chunk
-            } else {
-                // [Note]: this seems to create a duplicated chunk for the same module to the original import() call
-                // and the explicit chunk we ask in here. So there'll be at least 2
-                // chunks for the same module, relying on
-                // naive hash to have additonal
-                // chunks in case if there are same modules being imported in differnt
-                // origins.
-                let chunk_group = chunking_context
-                    .evaluated_chunk_group(imported_module.ident(), evaluatable_assets);
-                chunks_hash.insert(imported_raw_str.to_string(), chunk_group);
-                chunk_group
-            };
-
-            dynamic_import_chunks
-                .entry(origin_module)
-                .or_insert_with(Vec::new)
-                .push((imported_raw_str.clone(), chunk));
-        }
-    }
-
-    Ok(Vc::cell(dynamic_import_chunks))
+    collect_chunk_group_inner(dynamic_import_entries, |chunk_item| {
+        chunking_context.evaluated_chunk_group(chunk_item.ident(), evaluatable_assets)
+    })
+    .await
 }
 
 /// Returns a mapping of the dynamic imports for each module, if the import is
@@ -332,48 +317,3 @@ impl OptionDynamicImportsMap {
 
 #[turbo_tasks::value(transparent)]
 pub struct DynamicImportedChunks(pub IndexMap<Vc<Box<dyn Module>>, DynamicImportedOutputAssets>);
-
-/// An issue that occurred while parsing given source file.
-#[turbo_tasks::value(shared)]
-pub struct NextDynamicParsingIssue {
-    ident: Vc<AssetIdent>,
-}
-
-#[turbo_tasks::value_impl]
-impl Issue for NextDynamicParsingIssue {
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        IssueSeverity::Warning.into()
-    }
-
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<String> {
-        Vc::cell("Unable to parse source file".to_string())
-    }
-
-    #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("parsing".to_string())
-    }
-
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.ident.path()
-    }
-
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<String> {
-        Vc::cell(
-            "Failed to parse source file. This is likely due to a syntax error in the source file."
-                .to_string(),
-        )
-    }
-
-    #[turbo_tasks::function]
-    fn detail(&self) -> Vc<String> {
-        Vc::cell(
-            "Failed to parse source file. This is likely due to a syntax error in the source file."
-                .to_string(),
-        )
-    }
-}
