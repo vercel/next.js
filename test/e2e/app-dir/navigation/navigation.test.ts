@@ -94,7 +94,7 @@ createNextDescribe(
           )
         }
 
-        it('should be equal in app', async () => {
+        it('should be stable in app', async () => {
           await runTests('/search-params/foo')
         })
 
