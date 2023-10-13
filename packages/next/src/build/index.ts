@@ -2844,7 +2844,8 @@ export default async function build(
           console.error(err)
           process.exit(1)
         })
-      } else if (buildTracesPromise) {
+      }
+      if (buildTracesPromise) {
         await buildTracesPromise
       }
 
