@@ -1,5 +1,6 @@
 import { defineRule } from '../utils/define-rule'
 import * as path from 'path'
+import { getRootDirs } from '../utils/get-root-dirs'
 
 const url =
   'https://nextjs.org/docs/messages/no-before-interactive-script-outside-document'
@@ -31,19 +32,21 @@ export = defineRule({
       },
       JSXOpeningElement(node) {
         let pathname = context.getFilename()
+        const rootDirs = getRootDirs(context)
+        const appDirs = rootDirs
+          .map((dir) => [path.join(dir, 'app'), path.join(dir, 'src', 'app')])
+          .flat()
+
+        const isAppDir = (filepath: string) =>
+          appDirs.some((appDir) => filepath.startsWith(appDir))
+
+        // This rule shouldn't fire in `app/`
+        if (isAppDir(pathname)) return
 
         if (startsWithUsingCorrectSeparators(pathname, 'src/')) {
           pathname = pathname.slice(4)
         } else if (startsWithUsingCorrectSeparators(pathname, '/src/')) {
           pathname = pathname.slice(5)
-        }
-
-        // This rule shouldn't fire in `app/`
-        if (
-          startsWithUsingCorrectSeparators(pathname, 'app/') ||
-          startsWithUsingCorrectSeparators(pathname, '/app/')
-        ) {
-          return
         }
 
         if (!scriptImportName) {
