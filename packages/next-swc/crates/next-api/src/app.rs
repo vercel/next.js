@@ -834,7 +834,7 @@ impl AppEndpoint {
                     .app_project
                     .project()
                     .rsc_chunking_context()
-                    .entry_chunk(
+                    .entry_chunk_group(
                         server_path.join(format!(
                             "app{original_name}.js",
                             original_name = app_entry.original_name

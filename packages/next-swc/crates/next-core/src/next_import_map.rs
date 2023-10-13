@@ -738,14 +738,6 @@ async fn insert_next_server_special_aliases(
                 ),
             );
             import_map.insert_exact_alias(
-                "server-only",
-                request_to_import_mapping(app_dir, "next/dist/compiled/server-only"),
-            );
-            import_map.insert_exact_alias(
-                "client-only",
-                request_to_import_mapping(app_dir, "next/dist/compiled/client-only"),
-            );
-            import_map.insert_exact_alias(
                 "react",
                 request_to_import_mapping(
                     app_dir,
@@ -841,9 +833,9 @@ async fn insert_next_server_special_aliases(
         project_path,
         indexmap! {
             "server-only" => "next/dist/compiled/server-only/empty".to_string(),
-            "client-only" => "next/dist/compiled/client-only/error".to_string(),
+            "client-only" => "next/dist/compiled/client-only/index".to_string(),
             "next/dist/compiled/server-only" => "next/dist/compiled/server-only/empty".to_string(),
-            "next/dist/compiled/client-only" => "next/dist/compiled/client-only/error".to_string(),
+            "next/dist/compiled/client-only" => "next/dist/compiled/client-only/index".to_string(),
         },
     );
 
