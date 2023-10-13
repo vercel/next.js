@@ -38,6 +38,12 @@ export const staticGenerationBailout: StaticGenerationBailout = (
 
   if (staticGenerationStore) {
     staticGenerationStore.revalidate = 0
+
+    if (!opts?.dynamic) {
+      // we can statically prefetch pages that opt into dynamic,
+      // but not things like headers/cookies
+      staticGenerationStore.staticPrefetchBailout = true
+    }
   }
 
   if (staticGenerationStore?.isStaticGeneration) {

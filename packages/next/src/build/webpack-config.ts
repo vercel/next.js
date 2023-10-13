@@ -17,10 +17,10 @@ import {
   RSC_ACTION_CLIENT_WRAPPER_ALIAS,
   RSC_ACTION_VALIDATE_ALIAS,
   WEBPACK_RESOURCE_QUERIES,
-  WebpackLayerName,
 } from '../lib/constants'
+import type { WebpackLayerName } from '../lib/constants'
 import { isWebpackDefaultLayer, isWebpackServerLayer } from './utils'
-import { CustomRoutes } from '../lib/load-custom-routes.js'
+import type { CustomRoutes } from '../lib/load-custom-routes.js'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
@@ -32,10 +32,10 @@ import {
   REACT_LOADABLE_MANIFEST,
   SERVER_DIRECTORY,
   COMPILER_NAMES,
-  CompilerNameValues,
 } from '../shared/lib/constants'
+import type { CompilerNameValues } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
-import { NextConfigComplete } from '../server/config-shared'
+import type { NextConfigComplete } from '../server/config-shared'
 import { finalizeEntrypoint } from './entries'
 import * as Log from './output/log'
 import { buildConfiguration } from './webpack/config'
@@ -72,7 +72,7 @@ import { getBabelConfigFile } from './get-babel-config-file'
 import { defaultOverrides } from '../server/require-hook'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 import { getDefineEnvPlugin } from './webpack/plugins/define-env-plugin'
-import { SWCLoaderOptions } from './webpack/loaders/next-swc-loader'
+import type { SWCLoaderOptions } from './webpack/loaders/next-swc-loader'
 import { isResourceInPackages, makeExternalHandler } from './handle-externals'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
@@ -142,17 +142,6 @@ function isModuleCSS(module: { type: string }) {
   )
 }
 
-export function errorIfEnvConflicted(config: NextConfigComplete, key: string) {
-  const isPrivateKey = /^(?:NODE_.+)|^(?:__.+)$/i.test(key)
-  const hasNextRuntimeKey = key === 'NEXT_RUNTIME'
-
-  if (isPrivateKey || hasNextRuntimeKey) {
-    throw new Error(
-      `The key "${key}" under "env" in ${config.configFileName} is not allowed. https://nextjs.org/docs/messages/env-key-not-allowed`
-    )
-  }
-}
-
 function getReactProfilingInProduction() {
   return {
     'react-dom$': 'react-dom/profiling',
@@ -187,16 +176,16 @@ function createRSCAliases(
   if (!opts.isEdgeServer) {
     if (opts.layer === WEBPACK_LAYERS.serverSideRendering) {
       alias = Object.assign(alias, {
-        'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-runtime`,
-        'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-dev-runtime`,
+        'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-jsx-runtime`,
+        'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-jsx-dev-runtime`,
         react$: `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react`,
         'react-dom$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom`,
         'react-server-dom-webpack/client.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-client-edge`,
       })
     } else if (opts.layer === WEBPACK_LAYERS.reactServerComponents) {
       alias = Object.assign(alias, {
-        'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-runtime`,
-        'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/shared/react-jsx-dev-runtime`,
+        'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-jsx-runtime`,
+        'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-jsx-dev-runtime`,
         react$: `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react`,
         'react-dom$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom`,
         'react-server-dom-webpack/server.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-server-edge`,
@@ -507,7 +496,7 @@ export default async function getBaseWebpackConfig(
     ? '-experimental'
     : ''
 
-  const babelConfigFile = await getBabelConfigFile(dir)
+  const babelConfigFile = getBabelConfigFile(dir)
   const distDir = path.join(dir, config.distDir)
 
   let useSWCLoader = !babelConfigFile || config.experimental.forceSwcTransforms
@@ -833,28 +822,41 @@ export default async function getBaseWebpackConfig(
             'next/dist/server': 'next/dist/esm/server',
 
             // Alias the usage of next public APIs
-            [`${NEXT_PROJECT_ROOT}/server`]:
+            [path.join(NEXT_PROJECT_ROOT, 'server')]:
               'next/dist/esm/server/web/exports/index',
-            [`${NEXT_PROJECT_ROOT}/dist/client/link`]:
+            [path.join(NEXT_PROJECT_ROOT_DIST, 'client', 'link')]:
               'next/dist/esm/client/link',
-            [`${NEXT_PROJECT_ROOT}/dist/shared/lib/image-external`]:
-              'next/dist/esm/shared/lib/image-external',
-            [`${NEXT_PROJECT_ROOT}/dist/client/script`]:
+            [path.join(
+              NEXT_PROJECT_ROOT,
+              'dist',
+              'shared',
+              'lib',
+              'image-external'
+            )]: 'next/dist/esm/shared/lib/image-external',
+            [path.join(NEXT_PROJECT_ROOT_DIST, 'client', 'script')]:
               'next/dist/esm/client/script',
-            [`${NEXT_PROJECT_ROOT}/dist/client/router`]:
+            [path.join(NEXT_PROJECT_ROOT_DIST, 'client', 'router')]:
               'next/dist/esm/client/router',
-            [`${NEXT_PROJECT_ROOT}/dist/shared/lib/head`]:
+            [path.join(NEXT_PROJECT_ROOT_DIST, 'shared', 'lib', 'head')]:
               'next/dist/esm/shared/lib/head',
-            [`${NEXT_PROJECT_ROOT}/dist/shared/lib/dynamic`]:
+            [path.join(NEXT_PROJECT_ROOT_DIST, 'shared', 'lib', 'dynamic')]:
               'next/dist/esm/shared/lib/dynamic',
-            [`${NEXT_PROJECT_ROOT}/dist/pages/_document`]:
+            [path.join(NEXT_PROJECT_ROOT_DIST, 'pages', '_document')]:
               'next/dist/esm/pages/_document',
-            [`${NEXT_PROJECT_ROOT}/dist/pages/_app`]:
+            [path.join(NEXT_PROJECT_ROOT_DIST, 'pages', '_app')]:
               'next/dist/esm/pages/_app',
-            [`${NEXT_PROJECT_ROOT}/dist/client/components/navigation`]:
-              'next/dist/esm/client/components/navigation',
-            [`${NEXT_PROJECT_ROOT}/dist/client/components/headers`]:
-              'next/dist/esm/client/components/headers',
+            [path.join(
+              NEXT_PROJECT_ROOT_DIST,
+              'client',
+              'components',
+              'navigation'
+            )]: 'next/dist/esm/client/components/navigation',
+            [path.join(
+              NEXT_PROJECT_ROOT_DIST,
+              'client',
+              'components',
+              'headers'
+            )]: 'next/dist/esm/client/components/headers',
           }
         : undefined),
 
@@ -1424,27 +1426,6 @@ export default async function getBaseWebpackConfig(
     module: {
       rules: [
         {
-          // This loader rule passes the resource to the SWC loader with
-          // `optimizeBarrelExports` enabled. This option makes the SWC to
-          // transform the original code to be a JSON of its export map, so
-          // the barrel loader can analyze it and only keep the needed ones.
-          test: /__barrel_transform__/,
-          use: ({ resourceQuery }: { resourceQuery: string }) => {
-            const isFromWildcardExport = /[&?]wildcard/.test(resourceQuery)
-
-            return [
-              getSwcLoader({
-                isServerLayer: false,
-                bundleTarget: 'client',
-                hasServerComponents: false,
-                optimizeBarrelExports: {
-                  wildcard: isFromWildcardExport,
-                },
-              }),
-            ]
-          },
-        },
-        {
           // This loader rule works like a bridge between user's import and
           // the target module behind a package's barrel file. It reads SWC's
           // analysis result from the previous loader, and directly returns the
@@ -1454,14 +1435,18 @@ export default async function getBaseWebpackConfig(
             const names = (
               resourceQuery.match(/\?names=([^&]+)/)?.[1] || ''
             ).split(',')
-            const isFromWildcardExport = /[&?]wildcard/.test(resourceQuery)
 
             return [
               {
                 loader: 'next-barrel-loader',
                 options: {
                   names,
-                  wildcard: isFromWildcardExport,
+                  swcCacheDir: path.join(
+                    dir,
+                    config?.distDir ?? '.next',
+                    'cache',
+                    'swc'
+                  ),
                 },
                 // This is part of the request value to serve as the module key.
                 // The barrel loader are no-op re-exported modules keyed by
@@ -2036,8 +2021,9 @@ export default async function getBaseWebpackConfig(
       isNodeOrEdgeCompilation &&
         new PagesManifestPlugin({
           dev,
-          isEdgeRuntime: isEdgeServer,
           appDirEnabled: hasAppDir,
+          isEdgeRuntime: isEdgeServer,
+          distDir: !dev ? distDir : undefined,
         }),
       // MiddlewarePlugin should be after DefinePlugin so  NEXT_PUBLIC_*
       // replacement is done before its process.env.* handling

@@ -4,10 +4,11 @@ import './node-polyfill-fetch'
 import './node-polyfill-form'
 import './node-polyfill-web-streams'
 import './node-polyfill-crypto'
+import '../lib/polyfill-promise-with-resolvers'
 
 import type { TLSSocket } from 'tls'
+import type { CacheFs } from '../shared/lib/utils'
 import {
-  CacheFs,
   DecodeError,
   PageNotFoundError,
   MiddlewareNotFoundError,
@@ -16,20 +17,18 @@ import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plu
 import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
 import type { PrerenderManifest } from '../build'
-import { BaseNextRequest, BaseNextResponse } from './base-http'
+import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { PayloadOptions } from './send-payload'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
-import {
-  getRouteMatcher,
-  Params,
-} from '../shared/lib/router/utils/route-matcher'
+import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
+import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { RouteMatch } from './future/route-matches/route-match'
 
 import fs from 'fs'
 import { join, resolve, isAbsolute } from 'path'
-import { IncomingMessage, ServerResponse } from 'http'
+import type { IncomingMessage, ServerResponse } from 'http'
 import type { PagesAPIRouteModule } from './future/route-modules/pages-api/module'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import {
@@ -46,27 +45,30 @@ import {
   INTERNAL_HEADERS,
 } from '../shared/lib/constants'
 import { findDir } from '../lib/find-pages-dir'
-import { UrlWithParsedQuery } from 'url'
+import type { UrlWithParsedQuery } from 'url'
 import { NodeNextRequest, NodeNextResponse } from './base-http/node'
 import { sendRenderResult } from './send-payload'
-import { ParsedUrlQuery } from 'querystring'
-import { ParsedUrl, parseUrl } from '../shared/lib/router/utils/parse-url'
+import type { ParsedUrlQuery } from 'querystring'
+import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
+import { parseUrl } from '../shared/lib/router/utils/parse-url'
 import * as Log from '../build/output/log'
 
-import BaseServer, {
+import type {
   Options,
   FindComponentsResult,
   MiddlewareRoutingItem,
-  NoFallbackError,
   RequestContext,
   NormalizedRouteManifest,
+  LoadedRenderOpts,
 } from './base-server'
+import BaseServer, { NoFallbackError } from './base-server'
 import { getMaybePagePath, getPagePath, requireFontManifest } from './require'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
-import { LoadComponentsReturnType, loadComponents } from './load-components'
+import { loadComponents } from './load-components'
+import type { LoadComponentsReturnType } from './load-components'
 import isError, { getProperError } from '../lib/is-error'
-import { FontManifest } from './font-utils'
+import type { FontManifest } from './font-utils'
 import { splitCookiesString, toNodeOutgoingHttpHeaders } from './web/utils'
 import { getMiddlewareRouteMatcher } from '../shared/lib/router/utils/middleware-route-matcher'
 import { loadEnvConfig } from '@next/env'
@@ -81,11 +83,9 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
 import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 
-import {
-  PagesAPIRouteMatch,
-  isPagesAPIRouteMatch,
-} from './future/route-matches/pages-api-route-match'
-import { MatchOptions } from './future/route-matcher-managers/route-matcher-manager'
+import { isPagesAPIRouteMatch } from './future/route-matches/pages-api-route-match'
+import type { PagesAPIRouteMatch } from './future/route-matches/pages-api-route-match'
+import type { MatchOptions } from './future/route-matcher-managers/route-matcher-manager'
 import { INSTRUMENTATION_HOOK_FILENAME } from '../lib/constants'
 import { getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
@@ -98,8 +98,16 @@ import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 import { signalFromNodeResponse } from './web/spec-extension/adapters/next-request'
 import { RouteModuleLoader } from './future/helpers/module-loader/route-module-loader'
 import { loadManifest } from './load-manifest'
+import { lazyRenderAppPage } from './future/route-modules/app-page/module.render'
+import { lazyRenderPagesPage } from './future/route-modules/pages/module.render'
 
 export * from './base-server'
+
+declare const __non_webpack_require__: NodeRequire
+
+const dynamicRequire = process.env.NEXT_MINIMAL
+  ? __non_webpack_require__
+  : require
 
 function writeStdoutLine(text: string) {
   process.stdout.write(' ' + text + '\n')
@@ -244,12 +252,15 @@ export default class NextNodeServer extends BaseServer {
       this.nextConfig.experimental.instrumentationHook
     ) {
       try {
-        const instrumentationHook = await require(resolve(
-          this.serverOptions.dir || '.',
-          this.serverOptions.conf.distDir!,
-          'server',
-          INSTRUMENTATION_HOOK_FILENAME
-        ))
+        const instrumentationHook = await dynamicRequire(
+          resolve(
+            this.serverOptions.dir || '.',
+            this.serverOptions.conf.distDir!,
+            'server',
+            INSTRUMENTATION_HOOK_FILENAME
+          )
+        )
+
         await instrumentationHook.register?.()
       } catch (err: any) {
         if (err.code !== 'MODULE_NOT_FOUND') {
@@ -289,9 +300,11 @@ export default class NextNodeServer extends BaseServer {
     const { incrementalCacheHandlerPath } = this.nextConfig.experimental
 
     if (incrementalCacheHandlerPath) {
-      CacheHandler = require(isAbsolute(incrementalCacheHandlerPath)
-        ? incrementalCacheHandlerPath
-        : join(this.distDir, incrementalCacheHandlerPath))
+      CacheHandler = dynamicRequire(
+        isAbsolute(incrementalCacheHandlerPath)
+          ? incrementalCacheHandlerPath
+          : join(this.distDir, incrementalCacheHandlerPath)
+      )
       CacheHandler = CacheHandler.default || CacheHandler
     }
 
@@ -353,8 +366,8 @@ export default class NextNodeServer extends BaseServer {
     const buildIdFile = join(this.distDir, BUILD_ID_FILE)
     try {
       return fs.readFileSync(buildIdFile, 'utf8').trim()
-    } catch (err) {
-      if (!fs.existsSync(buildIdFile)) {
+    } catch (err: any) {
+      if (err.code === 'ENOENT') {
         throw new Error(
           `Could not find a production build in the '${this.distDir}' directory. Try building your app with 'next build' before starting the production server. https://nextjs.org/docs/messages/production-start-no-build-id`
         )
@@ -448,7 +461,7 @@ export default class NextNodeServer extends BaseServer {
     res: NodeNextResponse,
     pathname: string,
     query: NextParsedUrlQuery,
-    renderOpts: import('./render').RenderOpts
+    renderOpts: LoadedRenderOpts
   ): Promise<RenderResult> {
     return getTracer().trace(NextNodeServerSpan.renderHTML, async () =>
       this.renderHTMLImpl(req, res, pathname, query, renderOpts)
@@ -460,11 +473,11 @@ export default class NextNodeServer extends BaseServer {
     res: NodeNextResponse,
     pathname: string,
     query: NextParsedUrlQuery,
-    renderOpts: import('./render').RenderOpts
+    renderOpts: LoadedRenderOpts
   ): Promise<RenderResult> {
     if (process.env.NEXT_MINIMAL) {
       throw new Error(
-        'invariant: renderHTML should not be called in minimal mode'
+        'Invariant: renderHTML should not be called in minimal mode'
       )
       // the `else` branch is needed for tree-shaking
     } else {
@@ -474,9 +487,7 @@ export default class NextNodeServer extends BaseServer {
       renderOpts.nextFontManifest = this.nextFontManifest
 
       if (this.hasAppDir && renderOpts.isAppPath) {
-        const { renderToHTMLOrFlight: appRenderToHTMLOrFlight } =
-          require('./future/route-modules/app-page/module.compiled') as typeof import('./app-render/app-render')
-        return appRenderToHTMLOrFlight(
+        return lazyRenderAppPage(
           req.originalRequest,
           res.originalResponse,
           pathname,
@@ -488,7 +499,7 @@ export default class NextNodeServer extends BaseServer {
       // TODO: re-enable this once we've refactored to use implicit matches
       // throw new Error('Invariant: render should have used routeModule')
 
-      return require('./future/route-modules/pages/module.compiled').renderToHTML(
+      return lazyRenderPagesPage(
         req.originalRequest,
         res.originalResponse,
         pathname,
@@ -677,7 +688,8 @@ export default class NextNodeServer extends BaseServer {
         return {
           components,
           query: {
-            ...(components.getStaticProps
+            ...(!this.renderOpts.isExperimentalCompile &&
+            components.getStaticProps
               ? ({
                   amp: query.amp,
                   __nextDataReq: query.__nextDataReq,
@@ -710,14 +722,13 @@ export default class NextNodeServer extends BaseServer {
     )
   }
 
-  protected async getFallback(page: string): Promise<string> {
+  protected getFallback(page: string): Promise<string> {
     page = normalizePagePath(page)
     const cacheFs = this.getCacheFilesystem()
-    const html = await cacheFs.readFile(
-      join(this.serverDistDir, 'pages', `${page}.html`)
+    return cacheFs.readFile(
+      join(this.serverDistDir, 'pages', `${page}.html`),
+      'utf8'
     )
-
-    return html.toString('utf8')
   }
 
   protected async handleNextImageRequest(
@@ -973,10 +984,11 @@ export default class NextNodeServer extends BaseServer {
     return this.runApi(req, res, query, match)
   }
 
-  protected async getPrefetchRsc(pathname: string) {
-    return this.getCacheFilesystem()
-      .readFile(join(this.serverDistDir, 'app', `${pathname}.prefetch.rsc`))
-      .then((res) => res.toString())
+  protected getPrefetchRsc(pathname: string): Promise<string> {
+    return this.getCacheFilesystem().readFile(
+      join(this.serverDistDir, 'app', `${pathname}.prefetch.rsc`),
+      'utf8'
+    )
   }
 
   protected getCacheFilesystem(): CacheFs {

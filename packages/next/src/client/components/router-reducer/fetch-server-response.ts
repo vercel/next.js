@@ -122,6 +122,11 @@ export async function fetchServerResponse(
     // If fetch returns something different than flight response handle it like a mpa navigation
     // If the fetch was not 200, we also handle it like a mpa navigation
     if (!isFlightResponse || !res.ok) {
+      // in case the original URL came with a hash, preserve it before redirecting to the new URL
+      if (url.hash) {
+        responseUrl.hash = url.hash
+      }
+
       return doMpaNavigation(responseUrl.toString())
     }
 
@@ -140,7 +145,7 @@ export async function fetchServerResponse(
     return [flightData, canonicalUrl]
   } catch (err) {
     console.error(
-      'Failed to fetch RSC payload. Falling back to browser navigation.',
+      `Failed to fetch RSC payload for ${url}. Falling back to browser navigation.`,
       err
     )
     // If fetch fails handle it like a mpa navigation

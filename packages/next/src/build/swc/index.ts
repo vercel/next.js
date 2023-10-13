@@ -8,8 +8,10 @@ import { getParserOptions } from './options'
 import { eventSwcLoadFailure } from '../../telemetry/events/swc-load-failure'
 import { patchIncorrectLockfile } from '../../lib/patch-incorrect-lockfile'
 import { downloadWasmSwc, downloadNativeNextSwc } from '../../lib/download-swc'
-import { NextConfigComplete, TurboRule } from '../../server/config-shared'
+import type { NextConfigComplete, TurboRule } from '../../server/config-shared'
 import { isDeepStrictEqual } from 'util'
+import { getDefineEnv } from '../webpack/plugins/define-env-plugin'
+import type { DefineEnvPluginOptions } from '../webpack/plugins/define-env-plugin'
 
 const nextVersion = process.env.__NEXT_VERSION as string
 
@@ -177,18 +179,16 @@ export async function loadBindings(): Promise<Binding> {
     return pendingBindings
   }
 
-  if (process.platform === 'darwin') {
-    // rust needs stdout to be blocking, otherwise it will throw an error (on macOS at least) when writing a lot of data (logs) to it
-    // see https://github.com/napi-rs/napi-rs/issues/1630
-    // and https://github.com/nodejs/node/blob/main/doc/api/process.md#a-note-on-process-io
-    if (process.stdout._handle != null) {
-      // @ts-ignore
-      process.stdout._handle.setBlocking(true)
-    }
-    if (process.stderr._handle != null) {
-      // @ts-ignore
-      process.stderr._handle.setBlocking(true)
-    }
+  // rust needs stdout to be blocking, otherwise it will throw an error (on macOS at least) when writing a lot of data (logs) to it
+  // see https://github.com/napi-rs/napi-rs/issues/1630
+  // and https://github.com/nodejs/node/blob/main/doc/api/process.md#a-note-on-process-io
+  if (process.stdout._handle != null) {
+    // @ts-ignore
+    process.stdout._handle.setBlocking(true)
+  }
+  if (process.stderr._handle != null) {
+    // @ts-ignore
+    process.stderr._handle.setBlocking(true)
   }
 
   pendingBindings = new Promise(async (resolve, _reject) => {
@@ -365,7 +365,7 @@ function logLoadFailure(attempts: any, triedWasm = false) {
     })
 }
 
-interface ProjectOptions {
+export interface ProjectOptions {
   /**
    * A root path from which all files must be nested under. Trying to access
    * a file outside this root will fail. Think of this as a chroot.
@@ -398,6 +398,8 @@ interface ProjectOptions {
    */
   env: Record<string, string>
 
+  defineEnv: DefineEnv
+
   /**
    * Whether to watch the filesystem for file changes.
    */
@@ -409,7 +411,58 @@ interface ProjectOptions {
   serverAddr: string
 }
 
-interface TurboEngineOptions {
+type RustifiedEnv = { name: string; value: string }[]
+
+export interface DefineEnv {
+  client: RustifiedEnv
+  edge: RustifiedEnv
+  nodejs: RustifiedEnv
+}
+
+export function createDefineEnv({
+  allowedRevalidateHeaderKeys,
+  clientRouterFilters,
+  config,
+  dev,
+  distDir,
+  fetchCacheKeyPrefix,
+  hasRewrites,
+  middlewareMatchers,
+  previewModeId,
+}: Omit<
+  DefineEnvPluginOptions,
+  'isClient' | 'isNodeOrEdgeCompilation' | 'isEdgeServer' | 'isNodeServer'
+>): DefineEnv {
+  let defineEnv: DefineEnv = {
+    client: [],
+    edge: [],
+    nodejs: [],
+  }
+
+  for (const variant of Object.keys(defineEnv) as (keyof typeof defineEnv)[]) {
+    defineEnv[variant] = rustifyEnv(
+      getDefineEnv({
+        allowedRevalidateHeaderKeys,
+        clientRouterFilters,
+        config,
+        dev,
+        distDir,
+        fetchCacheKeyPrefix,
+        hasRewrites,
+        isClient: variant === 'client',
+        isEdgeServer: variant === 'edge',
+        isNodeOrEdgeCompilation: variant === 'nodejs' || variant === 'edge',
+        isNodeServer: variant === 'nodejs',
+        middlewareMatchers,
+        previewModeId,
+      })
+    )
+  }
+
+  return defineEnv
+}
+
+export interface TurboEngineOptions {
   /**
    * An upper bound of memory that turbopack will attempt to stay under.
    */
@@ -481,7 +534,7 @@ export interface ServerClientChange {
 }
 
 export interface Project {
-  update(options: ProjectOptions): Promise<void>
+  update(options: Partial<ProjectOptions>): Promise<void>
   entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<Entrypoints>>
   hmrEvents(identifier: string): AsyncIterableIterator<TurbopackResult<Update>>
   hmrIdentifiersSubscribe(): AsyncIterableIterator<
@@ -540,23 +593,37 @@ interface EndpointConfig {
   preferredRegion?: string
 }
 
+export type ServerPath = {
+  path: string
+  contentHash: string
+}
+
 export type WrittenEndpoint =
   | {
       type: 'nodejs'
       /** The entry path for the endpoint. */
       entryPath: string
       /** All server paths that has been written for the endpoint. */
-      serverPaths: string[]
+      serverPaths: ServerPath[]
       config: EndpointConfig
     }
   | {
       type: 'edge'
       files: string[]
       /** All server paths that has been written for the endpoint. */
-      serverPaths: string[]
+      serverPaths: ServerPath[]
       globalVarName: string
       config: EndpointConfig
     }
+
+function rustifyEnv(env: Record<string, string>): RustifiedEnv {
+  return Object.entries(env)
+    .filter(([_, value]) => value != null)
+    .map(([name, value]) => ({
+      name,
+      value,
+    }))
+}
 
 // TODO(sokra) Support wasm option.
 function bindingToApi(binding: any, _wasm: boolean) {
@@ -682,15 +749,16 @@ function bindingToApi(binding: any, _wasm: boolean) {
     })
   }
 
-  async function rustifyProjectOptions(options: ProjectOptions): Promise<any> {
+  async function rustifyProjectOptions(
+    options: Partial<ProjectOptions>
+  ): Promise<any> {
     return {
       ...options,
-      nextConfig: await serializeNextConfig(options.nextConfig),
-      jsConfig: JSON.stringify(options.jsConfig ?? {}),
-      env: Object.entries(options.env).map(([name, value]) => ({
-        name,
-        value,
-      })),
+      nextConfig:
+        options.nextConfig && (await serializeNextConfig(options.nextConfig)),
+      jsConfig: options.jsConfig && JSON.stringify(options.jsConfig),
+      env: options.env && rustifyEnv(options.env),
+      defineEnv: options.defineEnv,
     }
   }
 

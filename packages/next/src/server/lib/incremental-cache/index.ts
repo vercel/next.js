@@ -1,16 +1,16 @@
 import type { CacheFs } from '../../../shared/lib/utils'
-
+import type { PrerenderManifest } from '../../../build'
+import type {
+  IncrementalCacheValue,
+  IncrementalCacheEntry,
+} from '../../response-cache'
 import FetchCache from './fetch-cache'
 import FileSystemCache from './file-system-cache'
-import { PrerenderManifest } from '../../../build'
 import path from '../../../shared/lib/isomorphic/path'
 import { encodeText } from '../../stream-utils/encode-decode'
 import { encode } from '../../../shared/lib/base64-arraybuffer'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
-import {
-  IncrementalCacheValue,
-  IncrementalCacheEntry,
-} from '../../response-cache'
+
 import {
   CACHE_ONE_YEAR,
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,

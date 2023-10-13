@@ -89,20 +89,22 @@ const runTests = (isDev = false) => {
 }
 
 describe('Build Error Tests for basePath', () => {
-  it('should throw build error when import statement is used with missing file', async () => {
-    await indexPage.replace(
-      '../public/foo/test-rect.jpg',
-      '../public/foo/test-rect-broken.jpg'
-    )
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    it('should throw build error when import statement is used with missing file', async () => {
+      await indexPage.replace(
+        '../public/foo/test-rect.jpg',
+        '../public/foo/test-rect-broken.jpg'
+      )
 
-    const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
-    await indexPage.restore()
+      const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
+      await indexPage.restore()
 
-    expect(stderr).toContain(
-      "Module not found: Can't resolve '../public/foo/test-rect-broken.jpg"
-    )
-    // should contain the importing module
-    expect(stderr).toContain('./pages/static-img.js')
+      expect(stderr).toContain(
+        "Module not found: Can't resolve '../public/foo/test-rect-broken.jpg"
+      )
+      // should contain the importing module
+      expect(stderr).toContain('./pages/static-img.js')
+    })
   })
 })
 describe('Static Image Component Tests for basePath', () => {

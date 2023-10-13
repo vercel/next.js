@@ -1,4 +1,4 @@
-import { ModuleLoader } from './module-loader'
+import type { ModuleLoader } from './module-loader'
 
 /**
  * Loads a module using `await require(id)`.

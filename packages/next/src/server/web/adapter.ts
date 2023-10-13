@@ -1,5 +1,6 @@
 import type { NextMiddleware, RequestData, FetchEventResult } from './types'
 import type { RequestInit } from './spec-extension/request'
+import type { PrerenderManifest } from '../../build'
 import { PageSignatureError } from './error'
 import { fromNodeOutgoingHttpHeaders } from './utils'
 import { NextFetchEvent } from './spec-extension/fetch-event'
@@ -19,7 +20,6 @@ import { NEXT_QUERY_PARAM_PREFIX } from '../../lib/constants'
 import { ensureInstrumentationRegistered } from './globals'
 import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
 import { requestAsyncStorage } from '../../client/components/request-async-storage.external'
-import { PrerenderManifest } from '../../build'
 
 class NextRequestHint extends NextRequest {
   sourcePage: string
