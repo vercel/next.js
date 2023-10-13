@@ -85,9 +85,6 @@ type AppRenderBaseContext = {
   renderOpts: RenderOpts
 }
 
-// TODO-APP: improve type
-type ServerContext = [string, any]
-
 export type GenerateFlight = typeof generateFlight
 
 export type AppRenderContext = AppRenderBaseContext & {
