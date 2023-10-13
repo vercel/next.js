@@ -506,6 +506,13 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    pub(super) fn app_client_chunking_context(
+        self: Vc<Self>,
+    ) -> Vc<Box<dyn EcmascriptChunkingContext>> {
+        self.client_chunking_context().with_layer("app".to_string())
+    }
+
+    #[turbo_tasks::function]
     fn server_chunking_context(self: Vc<Self>) -> Vc<BuildChunkingContext> {
         get_server_chunking_context(
             self.project_path(),
@@ -607,6 +614,12 @@ impl Project {
     #[turbo_tasks::function]
     pub(super) fn ssr_chunking_context(self: Vc<Self>) -> Vc<BuildChunkingContext> {
         self.server_chunking_context().with_layer("ssr".to_string())
+    }
+
+    #[turbo_tasks::function]
+    pub(super) fn app_ssr_chunking_context(self: Vc<Self>) -> Vc<BuildChunkingContext> {
+        self.server_chunking_context()
+            .with_layer("app ssr".to_string())
     }
 
     #[turbo_tasks::function]
