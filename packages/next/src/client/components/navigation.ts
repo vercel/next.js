@@ -172,13 +172,13 @@ export function useParams<T extends Params = Params>(): T {
 
   return useMemo(() => {
     // When it's under app router
-    if (globalLayoutRouter) {
+    if (globalLayoutRouter?.tree) {
       return getSelectedParams(globalLayoutRouter.tree) as T
     }
 
     // When it's under client side pages router
     return pathParams as T
-  }, [globalLayoutRouter, pathParams])
+  }, [globalLayoutRouter?.tree, pathParams])
 }
 
 // TODO-APP: handle parallel routes
