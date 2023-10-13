@@ -140,11 +140,11 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       return await loadEntrypoint(
         'edge-ssr-app',
         {
-          VAR_BUILD_ID: buildId,
           VAR_USERLAND: pageModPath,
+          VAR_PAGE: page,
+          VAR_BUILD_ID: buildId,
         },
         {
-          page,
           sriEnabled: JSON.stringify(sriEnabled),
           nextConfig: stringifiedConfig,
           isServerComponent: JSON.stringify(isServerComponent),
@@ -162,15 +162,15 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       return await loadEntrypoint(
         'edge-ssr',
         {
+          VAR_USERLAND: pageModPath,
+          VAR_PAGE: page,
           VAR_BUILD_ID: buildId,
           VAR_MODULE_DOCUMENT: documentPath,
           VAR_MODULE_APP: appPath,
           VAR_MODULE_GLOBAL_ERROR: errorPath,
-          VAR_USERLAND: pageModPath,
         },
         {
           pagesType: JSON.stringify(pagesType),
-          page,
           sriEnabled: JSON.stringify(sriEnabled),
           nextConfig: stringifiedConfig,
           dev: JSON.stringify(dev),

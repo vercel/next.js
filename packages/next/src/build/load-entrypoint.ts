@@ -186,14 +186,14 @@ export async function loadEntrypoint(
         `// OPTIONAL_IMPORT:(\\* as )?(${Object.keys(imports).join('|')})`,
         'g'
       ),
-      (_, asNamespace, key) => {
+      (_, asNamespace = '', key) => {
         if (!(key in imports)) {
           throw new Error(`Invariant: Unexpected optional import ${key}`)
         }
 
         importsAdded.add(key)
 
-        if (imports[key] != null) {
+        if (imports[key]) {
           return `import ${asNamespace}${key} from ${JSON.stringify(
             imports[key]
           )}`

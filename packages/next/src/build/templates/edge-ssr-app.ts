@@ -11,34 +11,32 @@ import type { BuildManifest } from '../../server/get-page-files'
 import type { RequestData } from '../../server/web/types'
 import type { NextConfigComplete } from '../../server/config-shared'
 
+declare const incrementalCacheHandler: any
+// OPTIONAL_IMPORT:incrementalCacheHandler
+
 const Document: DocumentType = null!
 const appMod = null
 const errorMod = null
 const error500Mod = null
 
 // injected by the loader afterwards.
-declare const page: string
 declare const sriEnabled: boolean
 declare const isServerComponent: boolean
 declare const dev: boolean
 declare const serverActionsBodySizeLimit: any
 declare const nextConfig: NextConfigComplete
-// INJECT:page
 // INJECT:sriEnabled
 // INJECT:isServerComponent
 // INJECT:dev
 // INJECT:serverActionsBodySizeLimit
-// INJECT:config
-
-declare const incrementalCacheHandler: any
-// OPTIONAL_IMPORT:incrementalCacheHandler
+// INJECT:nextConfig
 
 const maybeJSONParse = (str?: string) => (str ? JSON.parse(str) : undefined)
 
 const buildManifest: BuildManifest = self.__BUILD_MANIFEST as any
 const prerenderManifest = maybeJSONParse(self.__PRERENDER_MANIFEST)
 const reactLoadableManifest = maybeJSONParse(self.__REACT_LOADABLE_MANIFEST)
-const rscManifest = self.__RSC_MANIFEST?.[page]
+const rscManifest = self.__RSC_MANIFEST?.['VAR_PAGE']
 const rscServerManifest = maybeJSONParse(self.__RSC_SERVER_MANIFEST)
 const subresourceIntegrityManifest = sriEnabled
   ? maybeJSONParse(self.__SUBRESOURCE_INTEGRITY_MANIFEST)
@@ -48,7 +46,7 @@ const nextFontManifest = maybeJSONParse(self.__NEXT_FONT_MANIFEST)
 const render = getRender({
   pagesType: 'app',
   dev,
-  page,
+  page: 'VAR_PAGE',
   appMod,
   pageMod,
   errorMod,

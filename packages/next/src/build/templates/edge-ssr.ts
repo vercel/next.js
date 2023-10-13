@@ -9,7 +9,9 @@ import * as userlandPage from 'VAR_USERLAND'
 import * as userlandErrorPage from 'VAR_MODULE_GLOBAL_ERROR'
 
 declare const userland500Page: any
+declare const incrementalCacheHandler: any
 // OPTIONAL_IMPORT:* as userland500Page
+// OPTIONAL_IMPORT:incrementalCacheHandler
 
 // TODO: re-enable this once we've refactored to use implicit matches
 // const renderToHTML = undefined
@@ -23,7 +25,6 @@ import type { NextConfigComplete } from '../../server/config-shared'
 
 // injected by the loader afterwards.
 declare const pagesType: 'app' | 'pages' | 'root'
-declare const page: string
 declare const sriEnabled: boolean
 declare const dev: boolean
 declare const nextConfig: NextConfigComplete
@@ -31,10 +32,9 @@ declare const pageRouteModuleOptions: any
 declare const errorRouteModuleOptions: any
 declare const user500RouteModuleOptions: any
 // INJECT:pagesType
-// INJECT:page
 // INJECT:sriEnabled
 // INJECT:dev
-// INJECT:config
+// INJECT:nextConfig
 // INJECT:pageRouteModuleOptions
 // INJECT:errorRouteModuleOptions
 // INJECT:user500RouteModuleOptions
@@ -78,9 +78,6 @@ const error500Mod = userland500Page
     }
   : null
 
-declare const incrementalCacheHandler: any
-// OPTIONAL_IMPORT:incrementalCacheHandler
-
 const maybeJSONParse = (str?: string) => (str ? JSON.parse(str) : undefined)
 
 const buildManifest: BuildManifest = self.__BUILD_MANIFEST as any
@@ -94,7 +91,7 @@ const nextFontManifest = maybeJSONParse(self.__NEXT_FONT_MANIFEST)
 const render = getRender({
   pagesType,
   dev,
-  page,
+  page: 'VAR_PAGE',
   appMod,
   pageMod,
   errorMod,
