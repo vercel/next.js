@@ -11,7 +11,7 @@ use turbo_tasks_fs::{rope::Rope, File, FileSystem};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        AsyncModuleInfo, Chunk, ChunkItem, ChunkItemsWithAsyncModuleInfo, ChunkType,
+        AsyncModuleInfo, Chunk, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType,
         ChunkableModule, ChunkingContext, ModuleId, OutputChunk, OutputChunkRuntimeInfo,
     },
     code_builder::{Code, CodeBuilder},
@@ -411,13 +411,30 @@ impl ValueToString for CssChunkType {
 #[turbo_tasks::value_impl]
 impl ChunkType for CssChunkType {
     #[turbo_tasks::function]
-    fn chunk(
+    async fn chunk(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        chunk_items: Vc<ChunkItemsWithAsyncModuleInfo>,
+        chunk_items: Vec<ChunkItemWithAsyncModuleInfo>,
         referenced_output_assets: Vc<OutputAssets>,
-    ) -> Vc<Box<dyn Chunk>> {
-        css_chunk(chunking_context, chunk_items, referenced_output_assets)
+    ) -> Result<Vc<Box<dyn Chunk>>> {
+        let content = CssChunkContent {
+            chunk_items: chunk_items
+                .iter()
+                .map(|(chunk_item, _async_info)| async move {
+                    let Some(chunk_item) =
+                        Vc::try_resolve_downcast::<Box<dyn CssChunkItem>>(*chunk_item).await?
+                    else {
+                        bail!("Chunk item is not an css chunk item but reporting chunk type css");
+                    };
+                    // CSS doesn't need to care about async_info, so we can discard it
+                    Ok(chunk_item)
+                })
+                .try_join()
+                .await?,
+            referenced_output_assets,
+        }
+        .cell();
+        Ok(Vc::upcast(CssChunk::new(chunking_context, content)))
     }
 
     #[turbo_tasks::function]
@@ -439,33 +456,6 @@ impl ChunkType for CssChunkType {
                 .map_or(0, |content| content.inner_code.len()),
         ))
     }
-}
-
-#[turbo_tasks::function]
-async fn css_chunk(
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    chunk_items: Vc<ChunkItemsWithAsyncModuleInfo>,
-    referenced_output_assets: Vc<OutputAssets>,
-) -> Result<Vc<Box<dyn Chunk>>> {
-    let content = CssChunkContent {
-        chunk_items: chunk_items
-            .await?
-            .iter()
-            .map(|(chunk_item, _async_info)| async move {
-                let Some(chunk_item) =
-                    Vc::try_resolve_downcast::<Box<dyn CssChunkItem>>(*chunk_item).await?
-                else {
-                    bail!("Chunk item is not an css chunk item but reporting chunk type css");
-                };
-                // CSS doesn't need to care about async_info, so we can discard it
-                Ok(chunk_item)
-            })
-            .try_join()
-            .await?,
-        referenced_output_assets,
-    }
-    .cell();
-    Ok(Vc::upcast(CssChunk::new(chunking_context, content)))
 }
 
 #[turbo_tasks::value_impl]

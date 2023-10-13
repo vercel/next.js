@@ -4,6 +4,7 @@ use std::{
     fmt,
     fmt::{Debug, Display, Write},
     future::Future,
+    mem::take,
     pin::Pin,
     sync::Arc,
     time::{Duration, Instant},
@@ -351,7 +352,7 @@ pub trait Backend: Sync + Send {
 impl PersistentTaskType {
     pub async fn run_resolve_native<B: Backend + 'static>(
         fn_id: FunctionId,
-        inputs: Vec<ConcreteTaskInput>,
+        mut inputs: Vec<ConcreteTaskInput>,
         turbo_tasks: Arc<dyn TurboTasksBackendApi<B>>,
     ) -> Result<RawVc> {
         let span = tracing::trace_span!(
@@ -359,11 +360,14 @@ impl PersistentTaskType {
             name = &registry::get_function(fn_id).name.as_str()
         );
         async move {
-            let mut resolved_inputs = Vec::with_capacity(inputs.len());
-            for input in inputs.into_iter() {
-                resolved_inputs.push(input.resolve().await?)
+            for i in 0..inputs.len() {
+                let input = unsafe { take(inputs.get_unchecked_mut(i)) };
+                let input = input.resolve().await?;
+                unsafe {
+                    *inputs.get_unchecked_mut(i) = input;
+                }
             }
-            Ok(turbo_tasks.native_call(fn_id, resolved_inputs))
+            Ok(turbo_tasks.native_call(fn_id, inputs))
         }
         .instrument(span)
         .await

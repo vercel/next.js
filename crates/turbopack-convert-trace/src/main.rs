@@ -602,10 +602,10 @@ fn main() {
                     if graph && !items.is_empty() {
                         let parent_name = &*span.name;
                         let mut groups = IndexMap::new();
-                        let mut self_items = Vec::new();
+                        let mut self_items = 0;
                         fn add_items_to_groups<'a>(
-                            groups: &mut IndexMap<Cow<'a, str>, Vec<SpanItem>>,
-                            self_items: &mut Vec<SpanItem>,
+                            groups: &mut IndexMap<(Cow<'a, str>, usize), Vec<SpanItem>>,
+                            self_items: &mut usize,
                             spans: &mut Vec<Span<'a>>,
                             parent_count: &mut u32,
                             parent_name: &str,
@@ -615,7 +615,17 @@ fn main() {
                             for item in items {
                                 match item {
                                     SpanItem::SelfTime { .. } => {
-                                        self_items.push(item);
+                                        if let Some(((key, _), last)) = groups.last_mut() {
+                                            if key == &Cow::Borrowed("SELF_TIME") {
+                                                last.push(item);
+                                                continue;
+                                            }
+                                        }
+                                        groups.insert(
+                                            (Cow::Borrowed("SELF_TIME"), *self_items),
+                                            vec![item],
+                                        );
+                                        *self_items += 1;
                                     }
                                     SpanItem::Child(id) => {
                                         let key = spans[id].name.clone();
@@ -634,7 +644,7 @@ fn main() {
                                             );
                                             add_to_span_counter();
                                         } else {
-                                            let group = groups.entry(key).or_default();
+                                            let group = groups.entry((key, 0)).or_default();
                                             if !group.is_empty() {
                                                 add_to_span_counter();
                                             }
@@ -653,12 +663,6 @@ fn main() {
                             items,
                             &mut add_to_span_counter,
                         );
-                        if !self_items.is_empty() {
-                            groups
-                                .entry(Cow::Borrowed("SELF_TIME"))
-                                .or_default()
-                                .append(&mut self_items);
-                        }
                         let groups = groups.into_values().collect::<Vec<_>>();
                         let mut new_items = Vec::new();
                         for group in groups {

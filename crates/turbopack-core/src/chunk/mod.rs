@@ -578,7 +578,7 @@ pub trait ChunkType: ValueToString {
     fn chunk(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        chunk_items: Vc<ChunkItemsWithAsyncModuleInfo>,
+        chunk_items: Vec<ChunkItemWithAsyncModuleInfo>,
         referenced_output_assets: Vc<OutputAssets>,
     ) -> Vc<Box<dyn Chunk>>;
 
@@ -610,9 +610,6 @@ impl AsyncModuleInfo {
 }
 
 pub type ChunkItemWithAsyncModuleInfo = (Vc<Box<dyn ChunkItem>>, Option<Vc<AsyncModuleInfo>>);
-
-#[turbo_tasks::value(transparent)]
-pub struct ChunkItemsWithAsyncModuleInfo(Vec<ChunkItemWithAsyncModuleInfo>);
 
 pub trait ChunkItemExt: Send {
     /// Returns the module id of this chunk item.
