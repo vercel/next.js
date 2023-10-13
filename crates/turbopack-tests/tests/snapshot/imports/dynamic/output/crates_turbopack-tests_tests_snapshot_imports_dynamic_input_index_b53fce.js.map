@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sections": [
-    {"offset": {"line": 17, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/imports/dynamic/input/index.js"],"sourcesContent":["import(\"./vercel.mjs\").then(console.log);\n"],"names":[],"mappings":"AAAA,qKAAuB,IAAI,CAAC,QAAQ,GAAG"}},
-    {"offset": {"line": 18, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
-}

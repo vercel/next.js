@@ -6,10 +6,7 @@ use swc_core::{
 };
 use turbo_tasks::{debug::ValueDebug, Value, Vc};
 use turbopack_core::{
-    chunk::{
-        availability_info::AvailabilityInfo, ChunkItemExt, ChunkableModule, ChunkingContext,
-        FromChunkableModule, ModuleId,
-    },
+    chunk::{ChunkItemExt, ChunkableModule, ChunkingContext, ModuleId},
     issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity},
     resolve::{
         origin::ResolveOrigin, parse::Request, ModuleResolveResult, ModuleResolveResultItem,
@@ -17,7 +14,7 @@ use turbopack_core::{
 };
 
 use super::util::{request_to_string, throw_module_not_found_expr};
-use crate::{chunk::EcmascriptChunkItem, utils::module_id_to_lit};
+use crate::utils::module_id_to_lit;
 
 /// A mapping from a request pattern (e.g. "./module", `./images/${name}.png`)
 /// to corresponding module ids. The same pattern can map to multiple module ids
@@ -62,7 +59,7 @@ pub(crate) enum PatternMapping {
 #[derive(PartialOrd, Ord, Hash, Debug, Copy, Clone)]
 #[turbo_tasks::value(serialization = "auto_for_input")]
 pub(crate) enum ResolveType {
-    EsmAsync(AvailabilityInfo),
+    EsmAsync,
     Cjs,
 }
 
@@ -166,34 +163,19 @@ impl PatternMapping {
         if let Some(chunkable) =
             Vc::try_resolve_downcast::<Box<dyn ChunkableModule>>(module).await?
         {
-            if let ResolveType::EsmAsync(availability_info) = *resolve_type {
-                let available =
-                    if let Some(available_modules) = availability_info.available_modules() {
-                        *available_modules.includes(Vc::upcast(chunkable)).await?
-                    } else {
-                        false
-                    };
-                if !available {
-                    if let Some(loader) = <Box<dyn EcmascriptChunkItem>>::from_async_asset(
-                        chunking_context,
-                        chunkable,
-                        Value::new(availability_info),
-                    )
-                    .await?
-                    {
-                        return Ok(PatternMapping::cell(PatternMapping::SingleLoader(
-                            loader.id().await?.clone_value(),
-                        )));
-                    }
+            match *resolve_type {
+                ResolveType::EsmAsync => {
+                    let loader_id = chunking_context.async_loader_chunk_item_id(chunkable);
+                    return Ok(PatternMapping::cell(PatternMapping::SingleLoader(
+                        loader_id.await?.clone_value(),
+                    )));
                 }
-            }
-            if let Some(chunk_item) =
-                <Box<dyn EcmascriptChunkItem>>::from_asset(chunking_context, Vc::upcast(chunkable))
-                    .await?
-            {
-                return Ok(PatternMapping::cell(PatternMapping::Single(
-                    chunk_item.id().await?.clone_value(),
-                )));
+                ResolveType::Cjs => {
+                    let chunk_item = chunkable.as_chunk_item(chunking_context);
+                    return Ok(PatternMapping::cell(PatternMapping::Single(
+                        chunk_item.id().await?.clone_value(),
+                    )));
+                }
             }
         }
         CodeGenerationIssue {

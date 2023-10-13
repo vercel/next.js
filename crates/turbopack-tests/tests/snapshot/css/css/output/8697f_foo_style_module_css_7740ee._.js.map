@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sections": [
-    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/css/css/input/node_modules/foo/style.module.css (css module)"],"sourcesContent":["__turbopack_export_value__({\n  \"foo-module-style\": \"foo-module-style__style__abf9e738\",\n});\n"],"names":[],"mappings":"AAAA;AACA;AACA"}},
-    {"offset": {"line": 7, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
-}

@@ -49,7 +49,6 @@ use swc_core::{
 use turbo_tasks::{TryJoinIterExt, Upcast, Value, Vc};
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath};
 use turbopack_core::{
-    chunk::availability_info::AvailabilityInfoNeeds,
     compile_time_info::{CompileTimeInfo, FreeVarReference},
     error::PrettyPrintError,
     issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, IssueSource, OptionIssueSource},
@@ -113,9 +112,7 @@ use crate::{
         ConstantNumber, ConstantString, ModuleValue, RequireContextValue,
     },
     chunk::EcmascriptExports,
-    code_gen::{
-        CodeGen, CodeGenerateable, CodeGenerateableWithAvailabilityInfo, CodeGenerateables,
-    },
+    code_gen::{CodeGen, CodeGenerateable, CodeGenerateableWithAsyncModuleInfo, CodeGenerateables},
     magic_identifier,
     references::{
         async_module::{AsyncModule, OptionAsyncModule},
@@ -138,48 +135,6 @@ pub struct AnalyzeEcmascriptModuleResult {
     pub async_module: Vc<OptionAsyncModule>,
     /// `true` when the analysis was successful.
     pub successful: bool,
-}
-
-#[turbo_tasks::value_impl]
-impl AnalyzeEcmascriptModuleResult {
-    /// Returns the pieces of AvailabilityInfo that are required for code
-    /// generation.
-    #[turbo_tasks::function]
-    pub async fn get_availability_info_needs(
-        self: Vc<Self>,
-        is_async_module: bool,
-    ) -> Result<Vc<AvailabilityInfoNeeds>> {
-        let AnalyzeEcmascriptModuleResult {
-            references,
-            code_generation,
-            ..
-        } = &*self.await?;
-        let mut needs = AvailabilityInfoNeeds::none();
-        for c in code_generation.await?.iter() {
-            if let CodeGen::CodeGenerateableWithAvailabilityInfo(code_gen) = c {
-                needs |= *code_gen
-                    .get_availability_info_needs(is_async_module)
-                    .await?;
-                if needs.is_complete() {
-                    return Ok(needs.cell());
-                }
-            }
-        }
-        for r in references.await?.iter() {
-            if let Some(code_gen) =
-                Vc::try_resolve_sidecast::<Box<dyn CodeGenerateableWithAvailabilityInfo>>(*r)
-                    .await?
-            {
-                needs |= *code_gen
-                    .get_availability_info_needs(is_async_module)
-                    .await?;
-                if needs.is_complete() {
-                    return Ok(needs.cell());
-                }
-            }
-        }
-        Ok(needs.cell())
-    }
 }
 
 /// A temporary analysis result builder to pass around, to be turned into an
@@ -224,10 +179,10 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     #[allow(dead_code)]
     pub fn add_code_gen_with_availability_info<C>(&mut self, code_gen: Vc<C>)
     where
-        C: Upcast<Box<dyn CodeGenerateableWithAvailabilityInfo>>,
+        C: Upcast<Box<dyn CodeGenerateableWithAsyncModuleInfo>>,
     {
         self.code_gens
-            .push(CodeGen::CodeGenerateableWithAvailabilityInfo(Vc::upcast(
+            .push(CodeGen::CodeGenerateableWithAsyncModuleInfo(Vc::upcast(
                 code_gen,
             )));
     }
@@ -259,7 +214,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 CodeGen::CodeGenerateable(c) => {
                     *c = c.resolve().await?;
                 }
-                CodeGen::CodeGenerateableWithAvailabilityInfo(c) => {
+                CodeGen::CodeGenerateableWithAsyncModuleInfo(c) => {
                     *c = c.resolve().await?;
                 }
             }

@@ -8,7 +8,7 @@ use turbo_tasks::{Value, ValueDefault, Vc};
 use turbo_tasks_fs::{rope::Rope, File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
+    chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     context::AssetContext,
     ident::AssetIdent,
     module::Module,
@@ -249,8 +249,10 @@ impl ChunkItem for MdxChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn ty(&self) -> Vc<Box<dyn ChunkType>> {
-        Vc::upcast(Vc::<EcmascriptChunkType>::default())
+    async fn ty(&self) -> Result<Vc<Box<dyn ChunkType>>> {
+        Ok(Vc::upcast(
+            Vc::<EcmascriptChunkType>::default().resolve().await?,
+        ))
     }
 
     #[turbo_tasks::function]
@@ -266,17 +268,25 @@ impl EcmascriptChunkItem for MdxChunkItem {
         self.chunking_context
     }
 
+    #[turbo_tasks::function]
+    fn content(self: Vc<Self>) -> Vc<EcmascriptChunkItemContent> {
+        panic!("MdxChunkItem::content should never be called");
+    }
+
     /// Once we have mdx contents, we should treat it as j|tsx components and
     /// apply all of the ecma transforms
     #[turbo_tasks::function]
-    async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
+    async fn content_with_async_module_info(
+        &self,
+        async_module_info: Option<Vc<AsyncModuleInfo>>,
+    ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let item = into_ecmascript_module_asset(&self.module)
             .await?
             .as_chunk_item(Vc::upcast(self.chunking_context));
         let ecmascript_item = Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkItem>>(item)
             .await?
             .context("MdxChunkItem must generate an EcmascriptChunkItem")?;
-        Ok(ecmascript_item.content())
+        Ok(ecmascript_item.content_with_async_module_info(async_module_info))
     }
 }
 

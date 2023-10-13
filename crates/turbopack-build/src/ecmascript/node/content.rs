@@ -2,7 +2,7 @@ use std::io::Write;
 
 use anyhow::Result;
 use indoc::writedoc;
-use turbo_tasks::{TryJoinIterExt, Value, Vc};
+use turbo_tasks::{TryJoinIterExt, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::AssetContent,
@@ -62,14 +62,13 @@ impl EcmascriptBuildNodeChunkContent {
         )?;
 
         let content = this.content.await?;
-        let availability_info = Value::new(content.availability_info);
         for (id, item_code) in content
             .chunk_items
             .iter()
-            .map(|chunk_item| async move {
+            .map(|&(chunk_item, async_module_info)| async move {
                 Ok((
                     chunk_item.id().await?,
-                    chunk_item.code(availability_info).await?,
+                    chunk_item.code(async_module_info).await?,
                 ))
             })
             .try_join()

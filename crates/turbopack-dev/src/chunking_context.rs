@@ -1,32 +1,27 @@
 use anyhow::{bail, Context, Result};
-use indexmap::IndexSet;
-use turbo_tasks::{
-    graph::{AdjacencyMap, GraphTraversal},
-    TryJoinIterExt, Value, Vc,
-};
+use turbo_tasks::{Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{
-        availability_info::AvailabilityInfo, Chunk, ChunkItem, ChunkType, ChunkableModule,
-        ChunkingContext, Chunks, EvaluatableAssets,
+        availability_info::AvailabilityInfo,
+        chunk_group::{make_chunk_group, MakeChunkGroupResult},
+        Chunk, ChunkItem, ChunkableModule, ChunkingContext, EvaluatableAssets, ModuleId,
     },
     environment::Environment,
     ident::AssetIdent,
     module::Module,
     output::{OutputAsset, OutputAssets},
 };
-use turbopack_css::chunk::CssChunk;
-use turbopack_ecmascript::chunk::{EcmascriptChunk, EcmascriptChunkingContext};
+use turbopack_ecmascript::{
+    chunk::{EcmascriptChunk, EcmascriptChunkingContext},
+    manifest::{chunk_asset::ManifestAsyncModule, loader_item::ManifestLoaderChunkItem},
+};
 use turbopack_ecmascript_runtime::RuntimeType;
 
-use crate::{
-    css::optimize::optimize_css_chunks,
-    ecmascript::{
-        chunk::EcmascriptDevChunk,
-        evaluate::chunk::EcmascriptDevEvaluateChunk,
-        list::asset::{EcmascriptDevChunkList, EcmascriptDevChunkListSource},
-        optimize::optimize_ecmascript_chunks,
-    },
+use crate::ecmascript::{
+    chunk::EcmascriptDevChunk,
+    evaluate::chunk::EcmascriptDevEvaluateChunk,
+    list::asset::{EcmascriptDevChunkList, EcmascriptDevChunkListSource},
 };
 
 pub struct DevChunkingContextBuilder {
@@ -346,22 +341,20 @@ impl ChunkingContext for DevChunkingContext {
         module: Vc<Box<dyn ChunkableModule>>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<OutputAssets>> {
-        let entry_chunk_item = module.as_chunk_item(Vc::upcast(self));
-        let entry_chunk = entry_chunk_item
-            .ty()
-            .as_chunk(entry_chunk_item, availability_info);
-        let parallel_chunks = get_parallel_chunks([entry_chunk]).await?;
+        let MakeChunkGroupResult { chunks } = make_chunk_group(
+            Vc::upcast(self),
+            [Vc::upcast(module)],
+            availability_info.into_value(),
+        )
+        .await?;
 
-        let optimized_chunks = get_optimized_chunks(parallel_chunks).await?;
-
-        let mut assets: Vec<Vc<Box<dyn OutputAsset>>> = optimized_chunks
-            .await?
+        let mut assets: Vec<Vc<Box<dyn OutputAsset>>> = chunks
             .iter()
             .map(|chunk| self.generate_chunk(*chunk))
             .collect();
 
         assets.push(self.generate_chunk_list_register_chunk(
-            entry_chunk.ident(),
+            module.ident(),
             EvaluatableAssets::empty(),
             Vc::cell(assets.clone()),
             Value::new(EcmascriptDevChunkListSource::Dynamic),
@@ -376,36 +369,21 @@ impl ChunkingContext for DevChunkingContext {
         ident: Vc<AssetIdent>,
         evaluatable_assets: Vc<EvaluatableAssets>,
     ) -> Result<Vc<OutputAssets>> {
+        let availability_info = AvailabilityInfo::Root;
+
         let evaluatable_assets_ref = evaluatable_assets.await?;
 
-        let entry_assets: IndexSet<_> = evaluatable_assets_ref
+        // TODO this collect is unnecessary, but it hits a compiler bug when it's not
+        // used
+        let entries = evaluatable_assets_ref
             .iter()
-            .map({
-                move |evaluatable_asset| async move {
-                    let chunk_item = evaluatable_asset.as_chunk_item(Vc::upcast(self));
-                    chunk_item
-                        .ty()
-                        .as_chunk(
-                            chunk_item,
-                            Value::new(AvailabilityInfo::Root {
-                                current_availability_root: Vc::upcast(*evaluatable_asset),
-                            }),
-                        )
-                        .resolve()
-                        .await
-                }
-            })
-            .try_join()
-            .await?
-            .into_iter()
-            .collect();
+            .map(|&evaluatable| Vc::upcast(evaluatable))
+            .collect::<Vec<_>>();
 
-        let parallel_chunks = get_parallel_chunks(entry_assets).await?;
+        let MakeChunkGroupResult { chunks } =
+            make_chunk_group(Vc::upcast(self), entries, availability_info).await?;
 
-        let optimized_chunks = get_optimized_chunks(parallel_chunks).await?;
-
-        let mut assets: Vec<Vc<Box<dyn OutputAsset>>> = optimized_chunks
-            .await?
+        let mut assets: Vec<Vc<Box<dyn OutputAsset>>> = chunks
             .iter()
             .map(|chunk| self.generate_chunk(*chunk))
             .collect();
@@ -423,6 +401,27 @@ impl ChunkingContext for DevChunkingContext {
 
         Ok(Vc::cell(assets))
     }
+
+    #[turbo_tasks::function]
+    fn async_loader_chunk_item(
+        self: Vc<Self>,
+        module: Vc<Box<dyn ChunkableModule>>,
+        availability_info: Value<AvailabilityInfo>,
+    ) -> Vc<Box<dyn ChunkItem>> {
+        let manifest_asset = ManifestAsyncModule::new(module, Vc::upcast(self), availability_info);
+        Vc::upcast(ManifestLoaderChunkItem::new(
+            manifest_asset,
+            Vc::upcast(self),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    fn async_loader_chunk_item_id(
+        self: Vc<Self>,
+        module: Vc<Box<dyn ChunkableModule>>,
+    ) -> Vc<ModuleId> {
+        self.chunk_item_id_from_ident(ManifestLoaderChunkItem::asset_ident_for(module))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -431,59 +430,4 @@ impl EcmascriptChunkingContext for DevChunkingContext {
     fn has_react_refresh(&self) -> Vc<bool> {
         Vc::cell(true)
     }
-}
-
-async fn get_parallel_chunks<I>(entries: I) -> Result<impl Iterator<Item = Vc<Box<dyn Chunk>>>>
-where
-    I: IntoIterator<Item = Vc<Box<dyn Chunk>>>,
-{
-    Ok(AdjacencyMap::new()
-        .skip_duplicates()
-        .visit(entries, |chunk: Vc<Box<dyn Chunk>>| async move {
-            Ok(chunk
-                .parallel_chunks()
-                .await?
-                .iter()
-                .copied()
-                .collect::<Vec<_>>()
-                .into_iter())
-        })
-        .await
-        .completed()?
-        .into_inner()
-        .into_reverse_topological())
-}
-
-async fn get_optimized_chunks<I>(chunks: I) -> Result<Vc<Chunks>>
-where
-    I: IntoIterator<Item = Vc<Box<dyn Chunk>>>,
-{
-    let mut ecmascript_chunks = vec![];
-    let mut css_chunks = vec![];
-    let mut other_chunks = vec![];
-
-    for chunk in chunks.into_iter() {
-        if let Some(ecmascript_chunk) =
-            Vc::try_resolve_downcast_type::<EcmascriptChunk>(chunk).await?
-        {
-            ecmascript_chunks.push(ecmascript_chunk);
-        } else if let Some(css_chunk) = Vc::try_resolve_downcast_type::<CssChunk>(chunk).await? {
-            css_chunks.push(css_chunk);
-        } else {
-            other_chunks.push(chunk);
-        }
-    }
-
-    let ecmascript_chunks = optimize_ecmascript_chunks(Vc::cell(ecmascript_chunks)).await?;
-    let css_chunks = optimize_css_chunks(Vc::cell(css_chunks)).await?;
-
-    let chunks = ecmascript_chunks
-        .iter()
-        .copied()
-        .map(Vc::upcast)
-        .chain(css_chunks.iter().copied().map(Vc::upcast))
-        .chain(other_chunks)
-        .collect();
-
-    Ok(Vc::cell(chunks))
 }

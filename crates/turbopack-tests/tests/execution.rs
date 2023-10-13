@@ -251,18 +251,19 @@ async fn run_test(resource: String) -> Result<Vc<RunTestResult>> {
 
     let jest_entry_asset = process_path_to_asset(jest_entry_path, asset_context);
     let jest_runtime_asset = FileSource::new(jest_runtime_path);
-    let test_asset = FileSource::new(test_path);
+    let test_source = FileSource::new(test_path);
+    let test_evaluatable = test_source.to_evaluatable(asset_context);
 
     let res = evaluate(
         jest_entry_asset,
         path,
         Vc::upcast(CommandLineProcessEnv::new()),
-        test_asset.ident(),
+        test_source.ident(),
         asset_context,
         Vc::upcast(chunking_context),
         Some(EvaluatableAssets::many(vec![
             jest_runtime_asset.to_evaluatable(asset_context),
-            test_asset.to_evaluatable(asset_context),
+            test_evaluatable,
         ])),
         vec![],
         Completion::immutable(),

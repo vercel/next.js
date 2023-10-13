@@ -131,7 +131,6 @@ impl ModuleResolveResult {
         }
     }
 
-    // TODO We don't want output assets to be references from modules
     pub fn output_assets(output_assets: Vec<Vc<Box<dyn OutputAsset>>>) -> ModuleResolveResult {
         ModuleResolveResult {
             primary: output_assets

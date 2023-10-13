@@ -18,6 +18,7 @@ browserslist-rs = { workspace = true }
 futures = { workspace = true }
 indexmap = { workspace = true }
 lazy_static = { workspace = true }
+once_cell = { workspace = true }
 patricia_tree = "0.5.5"
 qstring = { workspace = true }
 regex = { workspace = true }

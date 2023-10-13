@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sections": [
-    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/node/spawn_node_eval/input/index.js"],"sourcesContent":["import { spawn } from \"child_process\";\n\nlet x = spawn(process.argv[0], [\"-e\", \"console.log('foo');\"]);\n"],"names":[],"mappings":";;;AAEA,IAAI,IAAI,qNAAM,QAAQ,IAAI,CAAC,EAAE,EAAE;IAAC;IAAM;CAAsB"}},
-    {"offset": {"line": 11, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
-}

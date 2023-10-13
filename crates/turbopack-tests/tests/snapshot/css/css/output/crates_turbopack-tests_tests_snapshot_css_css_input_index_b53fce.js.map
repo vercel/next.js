@@ -1,8 +1,0 @@
-{
-  "version": 3,
-  "sections": [
-    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/css/css/input/style.module.css (css module)"],"sourcesContent":["__turbopack_export_value__({\n  \"another-composed-module-style\": \"another-composed-module-style__style__9bcf751c\" + \" \" + __turbopack_import__(\"[project]/crates/turbopack-tests/tests/snapshot/css/css/input/node_modules/foo/style.module.css (css module)\")[\"foo-module-style\"],\n  \"composed-module-style\": \"composed-module-style__style__9bcf751c\" + \" \" + __turbopack_import__(\"[project]/crates/turbopack-tests/tests/snapshot/css/css/input/node_modules/foo/style.module.css (css module)\")[\"foo-module-style\"],\n  \"inner\": \"inner__style__9bcf751c\",\n  \"module-style\": \"module-style__style__9bcf751c\",\n});\n"],"names":[],"mappings":"AAAA;AACA;AACA;AACA;AACA;AACA"}},
-    {"offset": {"line": 10, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
-    {"offset": {"line": 14, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/css/css/input/index.js"],"sourcesContent":["import \"foo/style.css\";\nimport \"foo\";\nimport \"./style.css\";\nimport fooStyle from \"foo/style.module.css\";\nimport style from \"./style.module.css\";\n\nconsole.log(style, fooStyle);\n"],"names":[],"mappings":";;;;;;;;AAMA,QAAQ,GAAG"}},
-    {"offset": {"line": 23, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
-}

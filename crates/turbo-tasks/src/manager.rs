@@ -1159,7 +1159,7 @@ impl<B: Backend + 'static> TaskIdProvider for TurboTasks<B> {
     }
 }
 
-fn current_task(from: &str) -> TaskId {
+pub(crate) fn current_task(from: &str) -> TaskId {
     match CURRENT_TASK_ID.try_with(|id| *id) {
         Ok(id) => id,
         Err(_) => panic!(
@@ -1478,7 +1478,7 @@ pub(crate) async fn read_task_cell(
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CurrentCellRef {
     current_task: TaskId,
     index: CellId,

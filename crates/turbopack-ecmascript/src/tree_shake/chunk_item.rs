@@ -1,7 +1,7 @@
 use anyhow::Result;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::Vc;
 use turbopack_core::{
-    chunk::{availability_info::AvailabilityInfo, ChunkItem, ChunkType, ChunkingContext},
+    chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkingContext},
     ident::AssetIdent,
     module::Module,
     reference::ModuleReferences,
@@ -30,28 +30,20 @@ pub struct EcmascriptModulePartChunkItem {
 impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
     #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Vc<EcmascriptChunkItemContent> {
-        self.content_with_availability_info(Value::new(AvailabilityInfo::Untracked))
+        panic!("content() should never be called");
     }
 
     #[turbo_tasks::function]
-    async fn content_with_availability_info(
+    async fn content_with_async_module_info(
         self: Vc<Self>,
-        availability_info: Value<AvailabilityInfo>,
+        async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let this = self.await?;
         let module = this.module.await?;
         let async_module_options = module
             .full_module
             .get_async_module()
-            .module_options(availability_info.current_availability_root());
-        let is_async_module = async_module_options.await?.is_some();
-
-        let availability_info_needs = *this
-            .module
-            .analyze()
-            .get_availability_info_needs(is_async_module)
-            .await?;
-        let availability_info = availability_info.reduce_to_needs(availability_info_needs);
+            .module_options(async_module_info);
 
         let split_data = split_module(module.full_module);
         let parsed = part_of_module(split_data, module.part);
@@ -61,7 +53,7 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
             module.full_module.ident(),
             this.chunking_context,
             this.module.analyze(),
-            Value::new(availability_info),
+            async_module_info,
         );
 
         Ok(EcmascriptChunkItemContent::new(
@@ -95,8 +87,10 @@ impl ChunkItem for EcmascriptModulePartChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn ty(&self) -> Vc<Box<dyn ChunkType>> {
-        Vc::upcast(Vc::<EcmascriptChunkType>::default())
+    async fn ty(&self) -> Result<Vc<Box<dyn ChunkType>>> {
+        Ok(Vc::upcast(
+            Vc::<EcmascriptChunkType>::default().resolve().await?,
+        ))
     }
 
     #[turbo_tasks::function]
