@@ -563,11 +563,9 @@ impl PageEndpoint {
 
         client_chunks.push(Vc::upcast(PageLoaderAsset::new(
             this.pages_project.project().client_root(),
-            client_module_context,
-            Vc::upcast(client_chunking_context),
-            self.source(),
             this.pathname,
             self.client_relative_path(),
+            Vc::cell(client_chunks.clone()),
         )));
 
         Ok(Vc::cell(client_chunks))
