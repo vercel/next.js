@@ -345,6 +345,35 @@ export async function collectBuildTraces({
               return await fs.readFile(p, 'utf8')
             } catch (e) {
               if (isError(e) && (e.code === 'ENOENT' || e.code === 'EISDIR')) {
+                // handle temporary internal webpack files
+                if (p.match(/static[/\\]media/)) {
+                  return ''
+                }
+                return null
+              }
+              throw e
+            }
+          },
+          async readlink(p) {
+            try {
+              return await fs.readlink(p)
+            } catch (e) {
+              if (
+                isError(e) &&
+                (e.code === 'EINVAL' ||
+                  e.code === 'ENOENT' ||
+                  e.code === 'UNKNOWN')
+              ) {
+                return null
+              }
+              throw e
+            }
+          },
+          async stat(p) {
+            try {
+              return await fs.stat(p)
+            } catch (e) {
+              if (isError(e) && (e.code === 'ENOENT' || e.code === 'ENOTDIR')) {
                 return null
               }
               throw e
