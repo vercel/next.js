@@ -57,6 +57,13 @@ pub trait ChunkingContext {
 
     fn with_layer(self: Vc<Self>, layer: String) -> Vc<Self>;
 
+    fn async_loader_chunk_item(
+        &self,
+        module: Vc<Box<dyn ChunkableModule>>,
+        availability_info: Value<AvailabilityInfo>,
+    ) -> Vc<Box<dyn ChunkItem>>;
+    fn async_loader_chunk_item_id(&self, module: Vc<Box<dyn ChunkableModule>>) -> Vc<ModuleId>;
+
     fn chunk_group(
         self: Vc<Self>,
         module: Vc<Box<dyn ChunkableModule>>,
@@ -69,16 +76,21 @@ pub trait ChunkingContext {
         evaluatable_assets: Vc<EvaluatableAssets>,
     ) -> Vc<OutputAssets>;
 
-    async fn chunk_item_id(
+    async fn chunk_item_id_from_ident(
         self: Vc<Self>,
-        chunk_item: Vc<Box<dyn ChunkItem>>,
+        ident: Vc<AssetIdent>,
     ) -> Result<Vc<ModuleId>> {
         let layer = self.layer();
-        let mut ident = chunk_item.asset_ident();
-        if !layer.await?.is_empty() {
-            ident = ident.with_modifier(layer)
-        }
+        let ident = if !layer.await?.is_empty() {
+            ident.with_modifier(layer)
+        } else {
+            ident
+        };
         Ok(ModuleId::String(ident.to_string().await?.clone_value()).cell())
+    }
+
+    fn chunk_item_id(self: Vc<Self>, chunk_item: Vc<Box<dyn ChunkItem>>) -> Vc<ModuleId> {
+        self.chunk_item_id_from_ident(chunk_item.asset_ident())
     }
 }
 
@@ -90,11 +102,6 @@ pub trait ChunkingContextExt {
 
 impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingContextExt for T {
     fn root_chunk_group(self: Vc<Self>, module: Vc<Box<dyn ChunkableModule>>) -> Vc<OutputAssets> {
-        self.chunk_group(
-            module,
-            Value::new(AvailabilityInfo::Root {
-                current_availability_root: Vc::upcast(module),
-            }),
-        )
+        self.chunk_group(module, Value::new(AvailabilityInfo::Root))
     }
 }

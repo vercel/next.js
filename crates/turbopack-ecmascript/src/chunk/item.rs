@@ -2,22 +2,17 @@ use std::io::Write;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, Upcast, Value, ValueToString, Vc};
+use turbo_tasks::{trace::TraceRawVcs, Upcast, ValueToString, Vc};
 use turbo_tasks_fs::rope::Rope;
 use turbopack_core::{
-    chunk::{
-        availability_info::AvailabilityInfo, available_modules::AvailableAssets, ChunkItem,
-        ChunkItemExt, ChunkableModule, ChunkingContext, FromChunkableModule,
-    },
+    chunk::{AsyncModuleInfo, ChunkItem, ChunkItemExt, ChunkingContext},
     code_builder::{Code, CodeBuilder},
     error::PrettyPrintError,
     issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity},
-    module::Module,
 };
 
-use super::{EcmascriptChunkPlaceable, EcmascriptChunkingContext};
+use super::EcmascriptChunkingContext;
 use crate::{
-    manifest::{chunk_asset::ManifestChunkAsset, loader_item::ManifestLoaderItem},
     references::async_module::{AsyncModuleOptions, OptionAsyncModuleOptions},
     utils::FormatIter,
     EcmascriptModuleContent, ParseResultSourceMap,
@@ -170,18 +165,24 @@ pub struct EcmascriptChunkItemOptions {
 #[turbo_tasks::value_trait]
 pub trait EcmascriptChunkItem: ChunkItem {
     fn content(self: Vc<Self>) -> Vc<EcmascriptChunkItemContent>;
-    fn content_with_availability_info(
+    fn content_with_async_module_info(
         self: Vc<Self>,
-        _availability_info: Value<AvailabilityInfo>,
+        _async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Vc<EcmascriptChunkItemContent> {
         self.content()
     }
     fn chunking_context(self: Vc<Self>) -> Vc<Box<dyn EcmascriptChunkingContext>>;
+
+    /// Specifies which availablility information the chunk item needs for code
+    /// generation
+    fn need_async_module_info(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(false)
+    }
 }
 
 pub trait EcmascriptChunkItemExt: Send {
     /// Generates the module factory for this chunk item.
-    fn code(self: Vc<Self>, availability_info: Value<AvailabilityInfo>) -> Vc<Code>;
+    fn code(self: Vc<Self>, async_module_info: Option<Vc<AsyncModuleInfo>>) -> Vc<Code>;
 }
 
 impl<T> EcmascriptChunkItemExt for T
@@ -189,19 +190,19 @@ where
     T: Upcast<Box<dyn EcmascriptChunkItem>>,
 {
     /// Generates the module factory for this chunk item.
-    fn code(self: Vc<Self>, availability_info: Value<AvailabilityInfo>) -> Vc<Code> {
-        module_factory_with_code_generation_issue(Vc::upcast(self), availability_info)
+    fn code(self: Vc<Self>, async_module_info: Option<Vc<AsyncModuleInfo>>) -> Vc<Code> {
+        module_factory_with_code_generation_issue(Vc::upcast(self), async_module_info)
     }
 }
 
 #[turbo_tasks::function]
 async fn module_factory_with_code_generation_issue(
     chunk_item: Vc<Box<dyn EcmascriptChunkItem>>,
-    availability_info: Value<AvailabilityInfo>,
+    async_module_info: Option<Vc<AsyncModuleInfo>>,
 ) -> Result<Vc<Code>> {
     Ok(
         match chunk_item
-            .content_with_availability_info(availability_info)
+            .content_with_async_module_info(async_module_info)
             .module_factory()
             .resolve()
             .await
@@ -232,68 +233,6 @@ async fn module_factory_with_code_generation_issue(
             }
         },
     )
-}
-
-#[async_trait::async_trait]
-impl FromChunkableModule for Box<dyn EcmascriptChunkItem> {
-    async fn from_asset(
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-        module: Vc<Box<dyn Module>>,
-    ) -> Result<Option<Vc<Self>>> {
-        let Some(placeable) =
-            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module).await?
-        else {
-            return Ok(None);
-        };
-
-        let item = placeable.as_chunk_item(Vc::upcast(chunking_context));
-        let Some(ecmascript_item) =
-            Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkItem>>(item).await?
-        else {
-            return Ok(None);
-        };
-        Ok(Some(ecmascript_item))
-    }
-
-    async fn from_async_asset(
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-        module: Vc<Box<dyn ChunkableModule>>,
-        availability_info: Value<AvailabilityInfo>,
-    ) -> Result<Option<Vc<Self>>> {
-        let Some(context) =
-            Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkingContext>>(chunking_context)
-                .await?
-        else {
-            return Ok(None);
-        };
-
-        let next_availability_info = match availability_info.into_value() {
-            AvailabilityInfo::Untracked => AvailabilityInfo::Untracked,
-            AvailabilityInfo::Root {
-                current_availability_root,
-            } => AvailabilityInfo::Complete {
-                available_modules: AvailableAssets::new(vec![current_availability_root]),
-                current_availability_root: Vc::upcast(module),
-            },
-            AvailabilityInfo::Complete {
-                available_modules,
-                current_availability_root,
-            } => AvailabilityInfo::Complete {
-                available_modules: available_modules.with_roots(vec![current_availability_root]),
-                current_availability_root: Vc::upcast(module),
-            },
-            AvailabilityInfo::OnlyAvailableModules { .. } => {
-                panic!("OnlyAvailableModules should not appear here")
-            }
-        };
-
-        let manifest_asset =
-            ManifestChunkAsset::new(module, context, Value::new(next_availability_info));
-        Ok(Some(Vc::upcast(ManifestLoaderItem::new(
-            manifest_asset,
-            chunking_context,
-        ))))
-    }
 }
 
 #[turbo_tasks::value(transparent)]

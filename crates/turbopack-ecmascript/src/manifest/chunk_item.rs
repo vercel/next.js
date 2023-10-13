@@ -8,7 +8,7 @@ use turbopack_core::{
     reference::{ModuleReferences, SingleOutputAssetReference},
 };
 
-use super::chunk_asset::ManifestChunkAsset;
+use super::chunk_asset::ManifestAsyncModule;
 use crate::{
     chunk::{
         data::EcmascriptChunkData, EcmascriptChunkItem, EcmascriptChunkItemContent,
@@ -23,7 +23,7 @@ use crate::{
 #[turbo_tasks::value(shared)]
 pub(super) struct ManifestChunkItem {
     pub chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
-    pub manifest: Vc<ManifestChunkAsset>,
+    pub manifest: Vc<ManifestAsyncModule>,
 }
 
 #[turbo_tasks::value_impl]
@@ -77,6 +77,11 @@ impl ChunkItem for ManifestChunkItem {
     }
 
     #[turbo_tasks::function]
+    fn content_ident(&self) -> Vc<AssetIdent> {
+        self.manifest.content_ident()
+    }
+
+    #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         let this = self.await?;
         let mut references = this.manifest.references().await?.clone_value();
@@ -98,8 +103,10 @@ impl ChunkItem for ManifestChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn ty(&self) -> Vc<Box<dyn ChunkType>> {
-        Vc::upcast(Vc::<EcmascriptChunkType>::default())
+    async fn ty(&self) -> Result<Vc<Box<dyn ChunkType>>> {
+        Ok(Vc::upcast(
+            Vc::<EcmascriptChunkType>::default().resolve().await?,
+        ))
     }
 
     #[turbo_tasks::function]

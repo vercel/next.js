@@ -8,8 +8,8 @@ use anyhow::{anyhow, bail, Result};
 
 use super::concrete_task_input::TransientSharedValue;
 use crate::{
-    magic_any::MagicAny, ConcreteTaskInput, RawVc, SharedValue, TransientInstance, TransientValue,
-    TypedForInput, Value, Vc, VcValueType,
+    magic_any::MagicAny, ConcreteTaskInput, RawVc, SharedValue, TaskId, TransientInstance,
+    TransientValue, TypedForInput, Value, ValueTypeId, Vc, VcValueType,
 };
 
 /// Trait to implement in order for a type to be accepted as a
@@ -19,6 +19,16 @@ use crate::{
 pub trait TaskInput: Send + Sync + Clone {
     fn try_from_concrete(input: &ConcreteTaskInput) -> Result<Self>;
     fn into_concrete(self) -> ConcreteTaskInput;
+}
+
+impl TaskInput for ConcreteTaskInput {
+    fn try_from_concrete(input: &ConcreteTaskInput) -> Result<Self> {
+        Ok(input.clone())
+    }
+
+    fn into_concrete(self) -> ConcreteTaskInput {
+        self
+    }
 }
 
 impl TaskInput for String {
@@ -145,6 +155,32 @@ impl TaskInput for usize {
 
     fn into_concrete(self) -> ConcreteTaskInput {
         ConcreteTaskInput::Usize(self)
+    }
+}
+
+impl TaskInput for ValueTypeId {
+    fn try_from_concrete(value: &ConcreteTaskInput) -> Result<Self> {
+        match value {
+            ConcreteTaskInput::Usize(value) => Ok(ValueTypeId::from(*value)),
+            _ => bail!("invalid task input type, expected ValueTypeId"),
+        }
+    }
+
+    fn into_concrete(self) -> ConcreteTaskInput {
+        ConcreteTaskInput::Usize(*self)
+    }
+}
+
+impl TaskInput for TaskId {
+    fn try_from_concrete(value: &ConcreteTaskInput) -> Result<Self> {
+        match value {
+            ConcreteTaskInput::Usize(value) => Ok(TaskId::from(*value)),
+            _ => bail!("invalid task input type, expected TaskId"),
+        }
+    }
+
+    fn into_concrete(self) -> ConcreteTaskInput {
+        ConcreteTaskInput::Usize(*self)
     }
 }
 

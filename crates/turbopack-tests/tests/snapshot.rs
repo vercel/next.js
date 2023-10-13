@@ -338,7 +338,7 @@ async fn run_test(resource: String) -> Result<Vc<FileSystemPath>> {
                 )
                 .await?
                 .unwrap()
-                .entry_chunk(
+                .entry_chunk_group(
                     // `expected` expects a completely flat output directory.
                     chunk_root_path
                         .join(

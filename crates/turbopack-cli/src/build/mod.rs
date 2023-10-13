@@ -250,7 +250,7 @@ async fn build_internal(
                     )
                     .await?
                     .unwrap()
-                    .entry_chunk(
+                    .entry_chunk_group(
                         build_output_root
                             .join(
                                 ecmascript

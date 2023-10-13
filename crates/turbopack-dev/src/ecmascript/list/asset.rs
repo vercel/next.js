@@ -74,8 +74,18 @@ fn modifier() -> Vc<String> {
 }
 
 #[turbo_tasks::function]
+fn dynamic_modifier() -> Vc<String> {
+    Vc::cell("dynamic".to_string())
+}
+
+#[turbo_tasks::function]
 fn chunk_list_chunk_reference_description() -> Vc<String> {
     Vc::cell("chunk list chunk".to_string())
+}
+
+#[turbo_tasks::function]
+fn chunk_key() -> Vc<String> {
+    Vc::cell("chunk".to_string())
 }
 
 #[turbo_tasks::value_impl]
@@ -83,11 +93,22 @@ impl OutputAsset for EcmascriptDevChunkList {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         let mut ident = self.ident.await?.clone_value();
-        for evaluatable_asset in self.evaluatable_assets.await?.iter() {
+        for &evaluatable_asset in self.evaluatable_assets.await?.iter() {
             ident.add_asset(Vc::<String>::default(), evaluatable_asset.ident());
+        }
+        let chunk_key = chunk_key();
+        for &chunk in self.chunks.await?.iter() {
+            ident.add_asset(chunk_key, chunk.ident());
         }
 
         ident.add_modifier(modifier());
+
+        match self.source {
+            EcmascriptDevChunkListSource::Entry => {}
+            EcmascriptDevChunkListSource::Dynamic => {
+                ident.add_modifier(dynamic_modifier());
+            }
+        }
 
         // We must not include the actual chunks idents as part of the chunk list's
         // ident, because it must remain stable whenever a chunk is added or

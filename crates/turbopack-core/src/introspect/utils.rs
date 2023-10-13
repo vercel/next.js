@@ -19,23 +19,13 @@ fn reference_ty() -> Vc<String> {
 }
 
 #[turbo_tasks::function]
-fn placed_or_parallel_reference_ty() -> Vc<String> {
-    Vc::cell("placed/parallel reference".to_string())
-}
-
-#[turbo_tasks::function]
-fn placed_reference_ty() -> Vc<String> {
-    Vc::cell("placed reference".to_string())
-}
-
-#[turbo_tasks::function]
 fn parallel_reference_ty() -> Vc<String> {
     Vc::cell("parallel reference".to_string())
 }
 
 #[turbo_tasks::function]
-fn isolated_parallel_reference_ty() -> Vc<String> {
-    Vc::cell("isolated parallel reference".to_string())
+fn parallel_inherit_async_reference_ty() -> Vc<String> {
+    Vc::cell("parallel reference (inherit async module)".to_string())
 }
 
 #[turbo_tasks::function]
@@ -76,10 +66,10 @@ pub async fn children_from_module_references(
         {
             match &*chunkable.chunking_type().await? {
                 None => {}
-                Some(ChunkingType::Placed) => key = placed_reference_ty(),
                 Some(ChunkingType::Parallel) => key = parallel_reference_ty(),
-                Some(ChunkingType::IsolatedParallel) => key = isolated_parallel_reference_ty(),
-                Some(ChunkingType::PlacedOrParallel) => key = placed_or_parallel_reference_ty(),
+                Some(ChunkingType::ParallelInheritAsync) => {
+                    key = parallel_inherit_async_reference_ty()
+                }
                 Some(ChunkingType::Async) => key = async_reference_ty(),
             }
         }

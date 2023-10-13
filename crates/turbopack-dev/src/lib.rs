@@ -5,7 +5,6 @@
 #![feature(async_fn_in_trait)]
 
 pub(crate) mod chunking_context;
-pub(crate) mod css;
 pub(crate) mod ecmascript;
 pub mod react_refresh;
 
