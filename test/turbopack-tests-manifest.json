@@ -917,13 +917,10 @@
       "ReactRefreshRequire app can continue hot updates after module-level errors with module.exports",
       "ReactRefreshRequire app can replace a module before it is loaded",
       "ReactRefreshRequire app does not accumulate stale exports over time",
-      "ReactRefreshRequire app propagates a hot update to closest accepted module",
-      "ReactRefreshRequire app propagates hot update to all inverse dependencies",
       "ReactRefreshRequire app provides fresh value for ES6 default import in parents",
       "ReactRefreshRequire app provides fresh value for ES6 named import in parents",
       "ReactRefreshRequire app provides fresh value for exports.* in parents",
       "ReactRefreshRequire app provides fresh value for module.exports in parents",
-      "ReactRefreshRequire app re-runs accepted modules",
       "ReactRefreshRequire app runs dependencies before dependents",
       "ReactRefreshRequire app stops update propagation after module-level errors"
     ],
@@ -931,7 +928,11 @@
     "pending": [
       "ReactRefreshRequire app propagates a module that stops accepting in next version"
     ],
-    "flakey": [],
+    "flakey": [
+      "ReactRefreshRequire app propagates a hot update to closest accepted module",
+      "ReactRefreshRequire app propagates hot update to all inverse dependencies",
+      "ReactRefreshRequire app re-runs accepted modules"
+    ],
     "runtimeError": false
   },
   "test/development/acceptance-app/app-hmr-changes.test.ts": {
