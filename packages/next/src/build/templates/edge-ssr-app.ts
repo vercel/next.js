@@ -30,15 +30,8 @@ declare const nextConfig: NextConfigComplete
 // INJECT:serverActionsBodySizeLimit
 // INJECT:config
 
-// FIXME: this needs to be made compatible with the template
-// ${
-//   incrementalCacheHandlerPath
-//     ? `import incrementalCacheHandler from ${JSON.stringify(
-//         incrementalCacheHandlerPath
-//       )}`
-//         : 'const incrementalCacheHandler = null'
-//     }
-const incrementalCacheHandler = null
+declare const incrementalCacheHandler: any
+// OPTIONAL_IMPORT:incrementalCacheHandler
 
 const maybeJSONParse = (str?: string) => (str ? JSON.parse(str) : undefined)
 

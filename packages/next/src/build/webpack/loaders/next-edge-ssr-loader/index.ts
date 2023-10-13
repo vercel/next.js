@@ -153,11 +153,9 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
             typeof serverActionsBodySizeLimit === 'undefined'
               ? 'undefined'
               : JSON.stringify(serverActionsBodySizeLimit),
-
-          // TODO
-          // incrementalCacheHandlerPath: JSON.stringify(
-          //   incrementalCacheHandlerPath
-          // ),
+        },
+        {
+          incrementalCacheHandler: incrementalCacheHandlerPath ?? null,
         }
       )
     } else {
@@ -180,14 +178,13 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
           errorRouteModuleOptions: JSON.stringify(
             getRouteModuleOptions('/_error')
           ),
-          // user500RouteModuleOptions: JSON.stringify(
-          //   getRouteModuleOptions('/500')
-          // ),
-
-          // TODO
-          // incrementalCacheHandlerPath: JSON.stringify(
-          //   incrementalCacheHandlerPath
-          // ),
+          user500RouteModuleOptions: JSON.stringify(
+            getRouteModuleOptions('/500')
+          ),
+        },
+        {
+          userland500Page: userland500Path,
+          incrementalCacheHandler: incrementalCacheHandlerPath ?? null,
         }
       )
     }

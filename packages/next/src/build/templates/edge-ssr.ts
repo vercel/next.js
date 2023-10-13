@@ -8,12 +8,8 @@ import * as appMod from 'VAR_MODULE_APP'
 import * as userlandPage from 'VAR_USERLAND'
 import * as userlandErrorPage from 'VAR_MODULE_GLOBAL_ERROR'
 
-// FIXME: this needs to be made compatible with the template
-// ${
-//   stringified500Path
-//     ? `import * as userland500Page from ${stringified500Path}`
-//     : ''
-// }
+declare const userland500Page: any
+// OPTIONAL_IMPORT:* as userland500Page
 
 // TODO: re-enable this once we've refactored to use implicit matches
 // const renderToHTML = undefined
@@ -68,32 +64,22 @@ const errorMod = {
 }
 
 // FIXME: this needs to be made compatible with the template
-// const error500Mod = ${
-//   stringified500Path
-//     ? `{
-//   ...userland500Page,
-//   routeModule: new RouteModule({
-//     ...${JSON.stringify(getRouteModuleOptions('/500'))},
-//     components: {
-//       App: appMod.default,
-//       Document,
-//     },
-//     userland: userland500Page,
-//   }),
-// }`
-//     : 'null'
-// }`
-const error500Mod = null
+const error500Mod = userland500Page
+  ? {
+      ...userland500Page,
+      routeModule: new RouteModule({
+        ...user500RouteModuleOptions,
+        components: {
+          App: appMod.default,
+          Document,
+        },
+        userland: userland500Page,
+      }),
+    }
+  : null
 
-// FIXME: this needs to be made compatible with the template
-// ${
-//   incrementalCacheHandlerPath
-//     ? `import incrementalCacheHandler from ${JSON.stringify(
-//         incrementalCacheHandlerPath
-//       )}`
-//         : 'const incrementalCacheHandler = null'
-//     }
-const incrementalCacheHandler = null
+declare const incrementalCacheHandler: any
+// OPTIONAL_IMPORT:incrementalCacheHandler
 
 const maybeJSONParse = (str?: string) => (str ? JSON.parse(str) : undefined)
 
