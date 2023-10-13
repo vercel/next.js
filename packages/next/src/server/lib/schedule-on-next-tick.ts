@@ -1,10 +1,11 @@
-type ScheduledFn<T = void> = () => T | PromiseLike<T>
+export type ScheduledFn<T = void> = () => T | PromiseLike<T>
+export type SchedulerFn<T = void> = (cb: ScheduledFn<T>) => void
 
 /**
  * Schedules a function to be called on the next tick after the other promises
  * have been resolved.
  */
-export function scheduleOnNextTick<T = void>(cb: ScheduledFn<T>): void {
+export const scheduleOnNextTick = <T = void>(cb: ScheduledFn<T>): void => {
   // We use Promise.resolve().then() here so that the operation is scheduled at
   // the end of the promise job queue, we then add it to the next process tick
   // to ensure it's evaluated afterwards.

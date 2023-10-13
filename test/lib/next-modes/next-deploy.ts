@@ -88,6 +88,8 @@ export class NextDeployInstance extends NextInstance {
         'NEXT_PRIVATE_TEST_MODE=e2e',
         '--build-env',
         'NEXT_TELEMETRY_DISABLED=1',
+        '--build-env',
+        'VERCEL_NEXT_BUNDLED_SERVER=1',
         ...additionalEnv,
         '--force',
         ...vercelFlags,

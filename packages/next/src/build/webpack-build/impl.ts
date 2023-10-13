@@ -1,18 +1,18 @@
-import { type webpack } from 'next/dist/compiled/webpack/webpack'
-import chalk from 'next/dist/compiled/chalk'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import { red } from '../../lib/picocolors'
 import formatWebpackMessages from '../../client/dev/error-overlay/format-webpack-messages'
 import { nonNullable } from '../../lib/non-nullable'
+import type { COMPILER_INDEXES } from '../../shared/lib/constants'
 import {
   COMPILER_NAMES,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   APP_CLIENT_INTERNALS,
   PHASE_PRODUCTION_BUILD,
-  COMPILER_INDEXES,
 } from '../../shared/lib/constants'
 import { runCompiler } from '../compiler'
 import * as Log from '../output/log'
 import getBaseWebpackConfig, { loadProjectInfo } from '../webpack-config'
-import { NextError } from '../../lib/is-error'
+import type { NextError } from '../../lib/is-error'
 import { TelemetryPlugin } from '../webpack/plugins/telemetry-plugin'
 import {
   NextBuildContext,
@@ -23,12 +23,9 @@ import { createEntrypoints } from '../entries'
 import loadConfig from '../../server/config'
 import { trace } from '../../trace'
 import { WEBPACK_LAYERS } from '../../lib/constants'
-import {
-  TraceEntryPointsPlugin,
-  TurbotraceContext,
-} from '../webpack/plugins/next-trace-entrypoints-plugin'
-import { UnwrapPromise } from '../../lib/coalesced-function'
-import * as pagesPluginModule from '../webpack/plugins/pages-manifest-plugin'
+import { TraceEntryPointsPlugin } from '../webpack/plugins/next-trace-entrypoints-plugin'
+import type { BuildTraceContext } from '../webpack/plugins/next-trace-entrypoints-plugin'
+import type { UnwrapPromise } from '../../lib/coalesced-function'
 
 import origDebug from 'next/dist/compiled/debug'
 
@@ -61,8 +58,7 @@ export async function webpackBuildImpl(
 ): Promise<{
   duration: number
   pluginState: any
-  turbotraceContext?: TurbotraceContext
-  serializedPagesManifestEntries?: (typeof NextBuildContext)['serializedPagesManifestEntries']
+  buildTraceContext?: BuildTraceContext
 }> {
   let result: CompilerResult | null = {
     warnings: [],
@@ -183,18 +179,22 @@ export async function webpackBuildImpl(
     let inputFileSystem: any
 
     if (!compilerName || compilerName === 'server') {
+      debug('starting server compiler')
+      const start = Date.now()
       ;[serverResult, inputFileSystem] = await runCompiler(serverConfig, {
         runWebpackSpan,
         inputFileSystem,
       })
-      debug('server result', serverResult)
+      debug(`server compiler finished ${Date.now() - start}ms`)
     }
 
     if (!compilerName || compilerName === 'edge-server') {
+      debug('starting edge-server compiler')
+      const start = Date.now()
       ;[edgeServerResult, inputFileSystem] = edgeConfig
         ? await runCompiler(edgeConfig, { runWebpackSpan, inputFileSystem })
         : [null]
-      debug('edge server result', edgeServerResult)
+      debug(`edge-server compiler finished ${Date.now() - start}ms`)
     }
 
     // Only continue if there were no errors
@@ -223,11 +223,13 @@ export async function webpackBuildImpl(
       }
 
       if (!compilerName || compilerName === 'client') {
+        debug('starting client compiler')
+        const start = Date.now()
         ;[clientResult, inputFileSystem] = await runCompiler(clientConfig, {
           runWebpackSpan,
           inputFileSystem,
         })
-        debug('client result', clientResult)
+        debug(`client compiler finished ${Date.now() - start}ms`)
       }
     }
 
@@ -277,7 +279,7 @@ export async function webpackBuildImpl(
     }
     let error = result.errors.filter(Boolean).join('\n\n')
 
-    console.error(chalk.red('Failed to compile.\n'))
+    console.error(red('Failed to compile.\n'))
 
     if (
       error.indexOf('private-next-pages') > -1 &&
@@ -319,14 +321,8 @@ export async function webpackBuildImpl(
 
     return {
       duration: webpackBuildEnd[0],
-      turbotraceContext: traceEntryPointsPlugin?.turbotraceContext,
+      buildTraceContext: traceEntryPointsPlugin?.buildTraceContext,
       pluginState: getPluginState(),
-      serializedPagesManifestEntries: {
-        edgeServerPages: pagesPluginModule.edgeServerPages,
-        edgeServerAppPaths: pagesPluginModule.edgeServerAppPaths,
-        nodeServerPages: pagesPluginModule.nodeServerPages,
-        nodeServerAppPaths: pagesPluginModule.nodeServerAppPaths,
-      },
     }
   }
 }
@@ -342,16 +338,6 @@ export async function workerMain(workerData: {
   // Resume plugin state
   resumePluginState(NextBuildContext.pluginState)
 
-  // restore module scope maps for flight plugins
-  const { serializedPagesManifestEntries } = NextBuildContext
-
-  for (const key of Object.keys(serializedPagesManifestEntries || {})) {
-    Object.assign(
-      (pagesPluginModule as any)[key],
-      (serializedPagesManifestEntries as any)?.[key]
-    )
-  }
-
   /// load the config because it's not serializable
   NextBuildContext.config = await loadConfig(
     PHASE_PRODUCTION_BUILD,
@@ -360,17 +346,20 @@ export async function workerMain(workerData: {
   NextBuildContext.nextBuildSpan = trace('next-build')
 
   const result = await webpackBuildImpl(workerData.compilerName)
-  const { entriesTrace } = result.turbotraceContext ?? {}
+  const { entriesTrace, chunksTrace } = result.buildTraceContext ?? {}
   if (entriesTrace) {
     const { entryNameMap, depModArray } = entriesTrace
     if (depModArray) {
-      result.turbotraceContext!.entriesTrace!.depModArray = depModArray
+      result.buildTraceContext!.entriesTrace!.depModArray = depModArray
     }
     if (entryNameMap) {
-      const entryEntries = Array.from(entryNameMap?.entries() ?? [])
-      // @ts-expect-error
-      result.turbotraceContext.entriesTrace.entryNameMap = entryEntries
+      const entryEntries = entryNameMap
+      result.buildTraceContext!.entriesTrace!.entryNameMap = entryEntries
     }
+  }
+  if (chunksTrace?.entryNameFilesMap) {
+    const entryNameFilesMap = chunksTrace.entryNameFilesMap
+    result.buildTraceContext!.chunksTrace!.entryNameFilesMap = entryNameFilesMap
   }
   return result
 }

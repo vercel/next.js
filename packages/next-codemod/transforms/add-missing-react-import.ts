@@ -1,4 +1,10 @@
-import { API, Collection, FileInfo, JSCodeshift, Options } from 'jscodeshift'
+import type {
+  API,
+  Collection,
+  FileInfo,
+  JSCodeshift,
+  Options,
+} from 'jscodeshift'
 
 function addReactImport(j: JSCodeshift, root: Collection) {
   // We create an import specifier, this is the value of an import, eg:

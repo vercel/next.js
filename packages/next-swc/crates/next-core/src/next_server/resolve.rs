@@ -1,15 +1,14 @@
 use anyhow::Result;
-use once_cell::sync::Lazy;
-use regex::Regex;
-use turbo_tasks::Vc;
+use turbo_tasks::{Value, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{glob::Glob, FileJsonContent, FileSystemPath},
     turbopack::core::{
         resolve::{
             find_context_file,
-            node::node_cjs_resolve_options,
+            node::{node_cjs_resolve_options, node_esm_resolve_options},
             package_json,
             parse::Request,
+            pattern::Pattern,
             plugin::{ResolvePlugin, ResolvePluginCondition},
             resolve, FindContextFileResult, ResolveResult, ResolveResultItem, ResolveResultOption,
         },
@@ -33,6 +32,7 @@ pub enum ExternalPredicate {
 /// possible to resolve them at runtime.
 #[turbo_tasks::value]
 pub(crate) struct ExternalCjsModulesResolvePlugin {
+    project_path: Vc<FileSystemPath>,
     root: Vc<FileSystemPath>,
     predicate: Vc<ExternalPredicate>,
 }
@@ -40,8 +40,17 @@ pub(crate) struct ExternalCjsModulesResolvePlugin {
 #[turbo_tasks::value_impl]
 impl ExternalCjsModulesResolvePlugin {
     #[turbo_tasks::function]
-    pub fn new(root: Vc<FileSystemPath>, predicate: Vc<ExternalPredicate>) -> Vc<Self> {
-        ExternalCjsModulesResolvePlugin { root, predicate }.cell()
+    pub fn new(
+        project_path: Vc<FileSystemPath>,
+        root: Vc<FileSystemPath>,
+        predicate: Vc<ExternalPredicate>,
+    ) -> Vc<Self> {
+        ExternalCjsModulesResolvePlugin {
+            project_path,
+            root,
+            predicate,
+        }
+        .cell()
     }
 }
 
@@ -50,8 +59,17 @@ async fn is_node_resolveable(
     context: Vc<FileSystemPath>,
     request: Vc<Request>,
     expected: Vc<FileSystemPath>,
+    is_esm: bool,
 ) -> Result<Vc<bool>> {
-    let node_resolve_result = resolve(context, request, node_cjs_resolve_options(context.root()));
+    let node_resolve_result = resolve(
+        context,
+        request,
+        if is_esm {
+            node_cjs_resolve_options(context.root())
+        } else {
+            node_esm_resolve_options(context.root())
+        },
+    );
     let primary_node_assets = node_resolve_result.primary_sources().await?;
     let Some(&node_asset) = primary_node_assets.first() else {
         // can't resolve request with node.js options
@@ -66,11 +84,9 @@ async fn is_node_resolveable(
     Ok(Vc::cell(true))
 }
 
-static PNPM: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?:/|^)node_modules/(.pnpm/.+)").unwrap());
-
 #[turbo_tasks::function]
 fn condition(root: Vc<FileSystemPath>) -> Vc<ResolvePluginCondition> {
-    ResolvePluginCondition::new(root.root(), Glob::new("**/node_modules/**".to_string()))
+    ResolvePluginCondition::new(root, Glob::new("**/node_modules/**".to_string()))
 }
 
 #[turbo_tasks::value_impl]
@@ -101,14 +117,20 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
             ExternalPredicate::AllExcept(exceptions) => {
                 let exception_glob = packages_glob(*exceptions).await?;
 
-                if exception_glob.execute(&raw_fs_path.path) {
-                    return Ok(ResolveResultOption::none());
+                if let Some(exception_glob) = *exception_glob {
+                    if exception_glob.await?.execute(&raw_fs_path.path) {
+                        return Ok(ResolveResultOption::none());
+                    }
                 }
             }
             ExternalPredicate::Only(externals) => {
                 let external_glob = packages_glob(*externals).await?;
 
-                if !external_glob.execute(&raw_fs_path.path) {
+                if let Some(external_glob) = *external_glob {
+                    if !external_glob.await?.execute(&raw_fs_path.path) {
+                        return Ok(ResolveResultOption::none());
+                    }
+                } else {
                     return Ok(ResolveResultOption::none());
                 }
             }
@@ -141,42 +163,53 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
 
         // check if we can resolve the package from the project dir with node.js resolve
         // options (might be hidden by pnpm)
-        if *is_node_resolveable(self.root.root(), request, fs_path).await? {
-            // mark as external
-            return Ok(ResolveResultOption::some(
-                ResolveResult::primary(ResolveResultItem::OriginalReferenceExternal).cell(),
-            ));
-        }
-
-        // Special behavior for pnpm as we could reference all .pnpm modules by
-        // referencing the `.pnpm` folder as module, e. g.
-        // /node_modules/.pnpm/some-package@2.29.2/node_modules/some-package/dir/file.js
-        // becomes
-        // .pnpm/some-package@2.29.2/node_modules/some-package/dir/file.js
-        if let Some(captures) = PNPM.captures(&fs_path.await?.path) {
-            if let Some(import_path) = captures.get(1) {
-                // we could load it directly as external, but we want to make sure node.js would
-                // resolve it the same way e. g. that we didn't follow any special resolve
-                // options, to come here like the `module` field in package.json
-                if *is_node_resolveable(context, request, fs_path).await? {
-                    // mark as external
-                    return Ok(ResolveResultOption::some(
-                        ResolveResult::primary(ResolveResultItem::OriginalReferenceTypeExternal(
-                            import_path.as_str().to_string(),
-                        ))
-                        .cell(),
-                    ));
+        if *is_node_resolveable(self.project_path, request, fs_path, false).await? {
+            // We don't know if this is a ESM reference, so also check if it is resolveable
+            // as ESM.
+            if *is_node_resolveable(self.project_path, request, fs_path, true).await? {
+                // mark as external
+                return Ok(ResolveResultOption::some(
+                    ResolveResult::primary(ResolveResultItem::OriginalReferenceExternal).cell(),
+                ));
+            } else if let Some(mut request_str) = request.await?.request() {
+                // When it's not resolveable as ESM, there is maybe an extension missing, try
+                // .js
+                if !request_str.ends_with(".js") {
+                    request_str += ".js";
+                    let request =
+                        Request::parse(Value::new(Pattern::Constant(request_str.clone())));
+                    if *is_node_resolveable(self.project_path, request, fs_path, false).await?
+                        && *is_node_resolveable(self.project_path, request, fs_path, true).await?
+                    {
+                        // mark as external, but with .js extension
+                        return Ok(ResolveResultOption::some(
+                            ResolveResult::primary(
+                                ResolveResultItem::OriginalReferenceTypeExternal(request_str),
+                            )
+                            .cell(),
+                        ));
+                    }
                 }
             }
         }
+
         Ok(ResolveResultOption::none())
     }
 }
 
+// TODO move that to turbo
+#[turbo_tasks::value(transparent)]
+pub struct OptionGlob(Option<Vc<Glob>>);
+
 #[turbo_tasks::function]
-async fn packages_glob(packages: Vc<Vec<String>>) -> Result<Vc<Glob>> {
-    Ok(Glob::new(format!(
-        "**/node_modules/{{{}}}/**",
-        packages.await?.join(",")
+async fn packages_glob(packages: Vc<Vec<String>>) -> Result<Vc<OptionGlob>> {
+    let packages = packages.await?;
+    if packages.is_empty() {
+        return Ok(Vc::cell(None));
+    }
+    Ok(Vc::cell(Some(
+        Glob::new(format!("**/node_modules/{{{}}}/**", packages.join(",")))
+            .resolve()
+            .await?,
     )))
 }

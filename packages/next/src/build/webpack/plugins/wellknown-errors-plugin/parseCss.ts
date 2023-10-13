@@ -1,7 +1,6 @@
-import Chalk from 'next/dist/compiled/chalk'
+import { bold, cyan, red, yellow } from '../../../../lib/picocolors'
 import { SimpleWebpackError } from './simpleWebpackError'
 
-const chalk = new Chalk.constructor({ enabled: true })
 const regexCssError =
   /^(?:CssSyntaxError|SyntaxError)\n\n\((\d+):(\d*)\) (.*)$/s
 
@@ -28,10 +27,10 @@ export function getCssError(
     const column = Math.max(1, parseInt(_column, 10))
 
     return new SimpleWebpackError(
-      `${chalk.cyan(fileName)}:${chalk.yellow(
-        lineNumber.toString()
-      )}:${chalk.yellow(column.toString())}`,
-      chalk.red.bold('Syntax error').concat(`: ${reason}`)
+      `${cyan(fileName)}:${yellow(lineNumber.toString())}:${yellow(
+        column.toString()
+      )}`,
+      red(bold('Syntax error')).concat(`: ${reason}`)
     )
   }
 

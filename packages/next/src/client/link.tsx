@@ -6,15 +6,15 @@ import type {
 } from '../shared/lib/router/router'
 
 import React from 'react'
-import { UrlObject } from 'url'
+import type { UrlObject } from 'url'
 import { resolveHref } from './resolve-href'
 import { isLocalURL } from '../shared/lib/router/utils/is-local-url'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
 import { isAbsoluteUrl } from '../shared/lib/utils'
 import { addLocale } from './add-locale'
 import { RouterContext } from '../shared/lib/router-context.shared-runtime'
-import {
-  AppRouterContext,
+import { AppRouterContext } from '../shared/lib/app-router-context.shared-runtime'
+import type {
   AppRouterInstance,
   PrefetchOptions as AppRouterPrefetchOptions,
 } from '../shared/lib/app-router-context.shared-runtime'

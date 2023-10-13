@@ -23,7 +23,7 @@ use turbopack_binding::{
 use crate::{
     next_app::{AppEntry, AppPage, AppPath},
     parse_segment_config_from_source,
-    util::{load_next_js_template, virtual_next_js_template_path, NextRuntime},
+    util::{load_next_js_template, NextRuntime},
 };
 
 /// Computes the entry for a Next.js app route.
@@ -49,62 +49,32 @@ pub async fn get_app_route_entry(
         nodejs_context
     };
 
-    let mut result = RopeBuilder::default();
-
     let original_name = page.to_string();
     let pathname = AppPath::from(page.clone()).to_string();
 
     let path = source.ident().path();
 
-    let template_file = "app-route.js";
+    const INNER: &str = "INNER_APP_ROUTE";
 
     // Load the file from the next.js codebase.
-    let file = load_next_js_template(project_root, template_file.to_string()).await?;
-
-    let mut file = file
-        .to_str()?
-        .replace(
-            "\"VAR_DEFINITION_PAGE\"",
-            &StringifyJs(&original_name).to_string(),
-        )
-        .replace(
-            "\"VAR_DEFINITION_PATHNAME\"",
-            &StringifyJs(&pathname).to_string(),
-        )
-        .replace(
-            "\"VAR_DEFINITION_FILENAME\"",
-            &StringifyJs(&path.file_stem().await?.as_ref().unwrap().clone()).to_string(),
-        )
-        // TODO(alexkirsz) Is this necessary?
-        .replace(
-            "\"VAR_DEFINITION_BUNDLE_PATH\"",
-            &StringifyJs("").to_string(),
-        )
-        .replace(
-            "\"VAR_ORIGINAL_PATHNAME\"",
-            &StringifyJs(&original_name).to_string(),
-        )
-        .replace(
-            "\"VAR_RESOLVED_PAGE_PATH\"",
-            &StringifyJs(&path.to_string().await?).to_string(),
-        )
-        .replace(
-            "// INJECT:nextConfigOutput",
-            "const nextConfigOutput = \"\"",
-        );
-
-    // Ensure that the last line is a newline.
-    if !file.ends_with('\n') {
-        file.push('\n');
-    }
-
-    result.concat(&file.into());
-
-    let file = File::from(result.build());
-
-    let template_path = virtual_next_js_template_path(project_root, template_file.to_string());
-
-    let virtual_source = VirtualSource::new(template_path, AssetContent::file(file.into()));
+    let virtual_source = load_next_js_template(
+        "app-route.js",
+        project_root,
+        indexmap! {
+            "VAR_DEFINITION_PAGE" => page.to_string(),
+            "VAR_DEFINITION_PATHNAME" => pathname.clone(),
+            "VAR_DEFINITION_FILENAME" => path.file_stem().await?.as_ref().unwrap().clone(),
+            // TODO(alexkirsz) Is this necessary?
+            "VAR_DEFINITION_BUNDLE_PATH" => "".to_string(),
+            "VAR_ORIGINAL_PATHNAME" => original_name.clone(),
+            "VAR_RESOLVED_PAGE_PATH" => path.to_string().await?.clone_value(),
+            "VAR_USERLAND" => INNER.to_string(),
+        },
+        indexmap! {
+            "nextConfigOutput" => "\"\"".to_string(),
+        },
+    )
+    .await?;
 
     let userland_module = context.process(
         source,
@@ -112,7 +82,7 @@ pub async fn get_app_route_entry(
     );
 
     let inner_assets = indexmap! {
-        "VAR_USERLAND".to_string() => userland_module
+        INNER.to_string() => userland_module
     };
 
     let mut rsc_entry = context.process(

@@ -1,11 +1,12 @@
 import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'http'
+import type { FetchMetrics } from './index'
 import { toNodeOutgoingHttpHeaders } from '../web/utils'
-
 import { BaseNextRequest, BaseNextResponse } from './index'
 
 export class WebNextRequest extends BaseNextRequest<ReadableStream | null> {
   public request: Request
   public headers: IncomingHttpHeaders
+  public fetchMetrics?: FetchMetrics
 
   constructor(request: Request) {
     const url = new URL(request.url)

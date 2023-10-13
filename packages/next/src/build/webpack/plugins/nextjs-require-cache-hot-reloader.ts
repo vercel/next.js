@@ -50,6 +50,11 @@ export function deleteAppClientCache() {
   deleteFromRequireCache(
     require.resolve('next/dist/compiled/next-server/app-page.runtime.dev.js')
   )
+  deleteFromRequireCache(
+    require.resolve(
+      'next/dist/compiled/next-server/app-page-experimental.runtime.dev.js'
+    )
+  )
 }
 
 export function deleteCache(filePath: string) {

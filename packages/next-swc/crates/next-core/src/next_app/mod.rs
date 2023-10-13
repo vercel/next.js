@@ -285,6 +285,19 @@ impl Display for PathSegment {
 )]
 pub struct AppPath(pub Vec<PathSegment>);
 
+impl AppPath {
+    pub fn is_dynamic(&self) -> bool {
+        self.iter().any(|segment| {
+            matches!(
+                (segment,),
+                (PathSegment::Dynamic(_)
+                    | PathSegment::CatchAll(_)
+                    | PathSegment::OptionalCatchAll(_),)
+            )
+        })
+    }
+}
+
 impl Deref for AppPath {
     type Target = [PathSegment];
 

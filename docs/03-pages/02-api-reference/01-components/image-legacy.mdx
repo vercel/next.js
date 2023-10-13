@@ -519,7 +519,7 @@ The cache status of an image can be determined by reading the value of the `x-ne
 The expiration (or rather Max Age) is defined by either the [`minimumCacheTTL`](#minimum-cache-ttl) configuration or the upstream image `Cache-Control` header, whichever is larger. Specifically, the `max-age` value of the `Cache-Control` header is used. If both `s-maxage` and `max-age` are found, then `s-maxage` is preferred. The `max-age` is also passed-through to any downstream clients including CDNs and browsers.
 
 - You can configure [`minimumCacheTTL`](#minimum-cache-ttl) to increase the cache duration when the upstream image does not include `Cache-Control` header or the value is very low.
-- You can configure [`deviceSizes`](#device-sizes) and [`imageSizes`](#device-sizes) to reduce the total number of possible generated images.
+- You can configure [`deviceSizes`](#device-sizes) and [`imageSizes`](#image-sizes) to reduce the total number of possible generated images.
 - You can configure [formats](#acceptable-formats) to disable multiple formats in favor of a single image format.
 
 ### Minimum Cache TTL
@@ -542,7 +542,7 @@ There is no mechanism to invalidate the cache at this time, so its best to keep 
 
 ### Disable Static Imports
 
-The default behavior allows you to import static files such as `import icon from './icon.png` and then pass that to the `src` property.
+The default behavior allows you to import static files such as `import icon from './icon.png'` and then pass that to the `src` property.
 
 In some cases, you may wish to disable this feature if it conflicts with other plugins that expect the import to behave differently.
 
