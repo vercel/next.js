@@ -675,7 +675,7 @@ async function renderToHTMLOrFlightImpl(
             nonce,
             // Include hydration scripts in the HTML
             bootstrapScripts: [bootstrapScript],
-            experimental_formState: formState,
+            formState,
           },
         })
 
@@ -825,7 +825,7 @@ async function renderToHTMLOrFlightImpl(
               nonce,
               // Include hydration scripts in the HTML
               bootstrapScripts: [errorBootstrapScript],
-              experimental_formState: formState,
+              formState,
             },
           })
 
