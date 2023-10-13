@@ -1,107 +1,85 @@
+import type { ServerResponse } from 'node:http'
+
 export function isAbortError(e: any): e is Error & { name: 'AbortError' } {
   return e?.name === 'AbortError'
 }
 
-/**
- * This is a minimal implementation of a Writable with just enough
- * functionality to handle stream cancellation.
- */
-export interface PipeTarget<R = any> {
-  /**
-   * Called when new data is read from readable source.
-   */
-  write: (chunk: R) => unknown
+function createWriterFromResponse(
+  res: ServerResponse,
+  controller: AbortController
+): WritableStream<Uint8Array> {
+  let started = false
+  let finished = false
 
-  /**
-   * Always called once we read all data (if the writable isn't already
-   * destroyed by a client disconnect).
-   */
-  end: () => unknown
+  function onClose() {
+    // If we've already finished, we don't need to do anything.
+    if (finished) return
 
-  /**
-   * An optional method which is called after every write, to support
-   * immediately streaming in gzip responses.
-   */
-  flush?: () => unknown
+    // We haven't finished writing, so signal to abort.
+    controller.abort()
+  }
 
-  /**
-   * The close event listener is necessary for us to detect an early client
-   * disconnect while we're attempting to read data. This must be done
-   * out-of-band so that we can cancel the readable (else we'd have to wait for
-   * the readable to produce more data before we could tell it to cancel).
-   */
-  on: (event: 'close', cb: () => void) => void
+  // When the response is closed, we should abort the stream if it hasn't
+  // finished yet.
+  res.once('close', onClose)
 
-  /**
-   * Allows us to cleanup our onClose listener.
-   */
-  off: (event: 'close', cb: () => void) => void
+  // Create a writable stream that will write to the response.
+  return new WritableStream<Uint8Array>({
+    write: async (chunk) => {
+      // You'd think we'd want to use `start` instead of placing this in `write`
+      // but this ensures that we don't actually flush the headers until we've
+      // started writing chunks.
+      if (!started) {
+        started = true
+        res.flushHeaders()
+      }
 
-  closed?: boolean
+      const ok = res.write(chunk)
+      if (!ok) {
+        // If the write returns false, it means there's some backpressure, so
+        // wait until it's streamed before continuing.
+        await new Promise((resolve) => {
+          res.once('drain', resolve)
+        })
+      }
+    },
+    abort: (err) => {
+      finished = true
+      res.destroy(err)
+    },
+    close: () => {
+      finished = true
+
+      // Create a promise that will resolve once the response has finished.
+      //
+      // See: https://nodejs.org/api/http.html#event-finish_1
+      //
+      const promise = new Promise<void>((resolve) =>
+        res.once('finish', () => resolve())
+      )
+
+      res.end()
+      return promise
+    },
+  })
 }
 
-export async function pipeReadable(
+export async function pipeToNodeResponse(
   readable: ReadableStream<Uint8Array>,
-  writable: PipeTarget<Uint8Array>,
-  waitUntilForEnd?: Promise<void>
+  res: ServerResponse
 ) {
-  const reader = readable.getReader()
-  let readerDone = false
-  let writableClosed = false
-
-  // It's not enough just to check for `writable.destroyed`, because the client
-  // may disconnect while we're waiting for a read. We need to immediately
-  // cancel the readable, and that requires an out-of-band listener.
-  function onClose() {
-    writableClosed = true
-    writable.off('close', onClose)
-
-    // If the reader is not yet done, we need to cancel it so that the stream
-    // source's resources can be cleaned up. If a read is in-progress, this
-    // will also ensure the read promise rejects and frees our resources.
-    if (!readerDone) {
-      readerDone = true
-      reader.cancel().catch(() => {})
-    }
-  }
-  writable.on('close', onClose)
-
   try {
-    while (true) {
-      const { done, value } = await reader.read()
-      readerDone = done
+    // Create a new AbortController so that we can abort the readable if the
+    // client disconnects.
+    const controller = new AbortController()
 
-      if (done || writableClosed) {
-        break
-      }
+    const writer = createWriterFromResponse(res, controller)
 
-      if (value) {
-        writable.write(value)
-        writable.flush?.()
-      }
-    }
-  } catch (e) {
-    // If the client disconnects, we don't want to emit an unhandled error.
-    if (!isAbortError(e)) {
-      throw e
-    }
-  } finally {
-    writable.off('close', onClose)
-
-    // If we broke out of the loop because of a client disconnect, and the
-    // close event hasn't yet fired, we can early cancel.
-    if (!readerDone) {
-      reader.cancel().catch(() => {})
-    }
-
-    // If the client hasn't disconnected yet, end the writable so that the
-    // response sends the final bytes.
-    if (waitUntilForEnd) {
-      await waitUntilForEnd
-    }
-
-    if (!writableClosed) {
-      writable.end()
+    await readable.pipeTo(writer, { signal: controller.signal })
+  } catch (err: any) {
+    // If this isn't related to an abort error, re-throw it.
+    if (!isAbortError(err)) {
+      throw err
     }
   }
 }

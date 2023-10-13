@@ -91,8 +91,8 @@ import { NextNodeServerSpan } from './lib/trace/constants'
 import { nodeFs } from './lib/node-fs-methods'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { invokeRequest } from './lib/server-ipc/invoke-request'
-import { pipeReadable } from './pipe-readable'
 import { filterReqHeaders, ipcForbiddenHeaders } from './lib/server-ipc/utils'
+import { pipeToNodeResponse } from './pipe-readable'
 import { createRequestResponseMocks } from './lib/mock-request'
 import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 import { signalFromNodeResponse } from './web/spec-extension/adapters/next-request'
@@ -560,7 +560,7 @@ export default class NextNodeServer extends BaseServer {
           newRes.statusCode = invokeRes.status || 200
 
           if (invokeRes.body) {
-            await pipeReadable(invokeRes.body, newRes)
+            await pipeToNodeResponse(invokeRes.body, newRes)
           } else {
             res.send()
           }
@@ -1657,7 +1657,7 @@ export default class NextNodeServer extends BaseServer {
 
         const { originalResponse } = res as NodeNextResponse
         if (result.response.body) {
-          await pipeReadable(result.response.body, originalResponse)
+          await pipeToNodeResponse(result.response.body, originalResponse)
         } else {
           originalResponse.end()
         }
@@ -1886,7 +1886,7 @@ export default class NextNodeServer extends BaseServer {
 
     const nodeResStream = (params.res as NodeNextResponse).originalResponse
     if (result.response.body) {
-      await pipeReadable(result.response.body, nodeResStream)
+      await pipeToNodeResponse(result.response.body, nodeResStream)
     } else {
       nodeResStream.end()
     }

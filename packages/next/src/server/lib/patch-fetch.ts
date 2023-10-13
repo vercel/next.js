@@ -1,4 +1,7 @@
-import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
+import type {
+  StaticGenerationAsyncStorage,
+  StaticGenerationStore,
+} from '../../client/components/static-generation-async-storage.external'
 import type * as ServerHooks from '../../client/components/hooks-server-context'
 
 import { AppRenderSpan, NextNodeServerSpan } from './trace/constants'
@@ -195,7 +198,7 @@ export function patchFetch({
         },
       },
       async () => {
-        const staticGenerationStore =
+        const staticGenerationStore: StaticGenerationStore =
           staticGenerationAsyncStorage.getStore() ||
           (fetch as any).__nextGetStaticStore?.()
         const isRequestInput =
@@ -457,7 +460,7 @@ export function patchFetch({
               cacheKey &&
               isCacheableRevalidate
             ) {
-              const bodyBuffer = Buffer.from(await res.arrayBuffer())
+              const bodyBuffer = Buffer.from(await res.clone().arrayBuffer())
 
               try {
                 await staticGenerationStore.incrementalCache.set(
@@ -534,15 +537,6 @@ export function patchFetch({
                 )
               }
               const resData = entry.value.data
-              let decodedBody: ArrayBuffer
-
-              if (process.env.NEXT_RUNTIME === 'edge') {
-                const { decode } =
-                  require('../../shared/lib/base64-arraybuffer') as typeof import('../../shared/lib/base64-arraybuffer')
-                decodedBody = decode(resData.body)
-              } else {
-                decodedBody = Buffer.from(resData.body, 'base64').subarray()
-              }
 
               trackFetchMetric(staticGenerationStore, {
                 start: fetchStart,
@@ -553,10 +547,13 @@ export function patchFetch({
                 method: init?.method || 'GET',
               })
 
-              const response = new Response(decodedBody, {
-                headers: resData.headers,
-                status: resData.status,
-              })
+              const response = new Response(
+                Buffer.from(resData.body, 'base64'),
+                {
+                  headers: resData.headers,
+                  status: resData.status,
+                }
+              )
               Object.defineProperty(response, 'url', {
                 value: entry.value.data.url,
               })
