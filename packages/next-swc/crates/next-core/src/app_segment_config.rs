@@ -69,7 +69,7 @@ pub struct NextSegmentConfig {
     pub revalidate: Option<NextRevalidate>,
     pub fetch_cache: Option<NextSegmentFetchCache>,
     pub runtime: Option<NextRuntime>,
-    pub preferred_region: Option<String>,
+    pub preferred_region: Option<Vec<String>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -358,12 +358,37 @@ fn parse_config_value(
         }
         "preferredRegion" => {
             let value = eval_context.eval(init);
-            let Some(val) = value.as_str() else {
-                invalid_config("`preferredRegion` needs to be a static string", &value);
-                return;
+
+            let preferred_region = match value {
+                // Single value is turned into a single-element Vec.
+                JsValue::Constant(ConstantValue::Str(str)) => vec![str.to_string()],
+                // Array of strings is turned into a Vec. If one of the values in not a String it
+                // will error.
+                JsValue::Array { items, .. } => {
+                    let mut regions = Vec::new();
+                    for item in items {
+                        if let JsValue::Constant(ConstantValue::Str(str)) = item {
+                            regions.push(str.to_string());
+                        } else {
+                            invalid_config(
+                                "Values of the `preferredRegion` array need to static strings",
+                                &item,
+                            );
+                            return;
+                        }
+                    }
+                    regions
+                }
+                _ => {
+                    invalid_config(
+                        "`preferredRegion` needs to be a static string or array of static strings",
+                        &value,
+                    );
+                    return;
+                }
             };
 
-            config.preferred_region = Some(val.to_string());
+            config.preferred_region = Some(preferred_region);
         }
         _ => {}
     }
