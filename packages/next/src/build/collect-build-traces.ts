@@ -24,6 +24,7 @@ import { defaultOverrides } from '../server/require-hook'
 import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import isError from '../lib/is-error'
 
 const debug = debugOriginal('next:build:build-traces')
 
@@ -339,6 +340,16 @@ export async function collectBuildTraces({
           base: outputFileTracingRoot,
           processCwd: dir,
           mixedModules: true,
+          async readFile(p) {
+            try {
+              return await fs.readFile(p, 'utf8')
+            } catch (e) {
+              if (isError(e) && (e.code === 'ENOENT' || e.code === 'EISDIR')) {
+                return null
+              }
+              throw e
+            }
+          },
         })
         const reasons = result.reasons
         const fileList = result.fileList
