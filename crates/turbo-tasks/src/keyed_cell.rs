@@ -12,12 +12,20 @@ struct KeyedCell {
     cell_ref: CurrentCellRef,
 }
 
-impl KeyedCell {}
-
 #[turbo_tasks::value_impl]
 impl KeyedCell {
     #[turbo_tasks::function]
-    fn new(_task: TaskId, _key: ConcreteTaskInput, value_type_id: ValueTypeId) -> Vc<Self> {
+    fn new_local(_task: TaskId, _key: ConcreteTaskInput, value_type_id: ValueTypeId) -> Vc<Self> {
+        let cell_ref = find_cell_by_type(value_type_id);
+        KeyedCell {
+            cell: cell_ref.into(),
+            cell_ref,
+        }
+        .cell()
+    }
+
+    #[turbo_tasks::function]
+    fn new_global(_key: ConcreteTaskInput, value_type_id: ValueTypeId) -> Vc<Self> {
         let cell_ref = find_cell_by_type(value_type_id);
         KeyedCell {
             cell: cell_ref.into(),
@@ -44,12 +52,26 @@ pub async fn keyed_cell<T: PartialEq + Eq + VcValueType, K: TaskInput>(
     key: K,
     content: T,
 ) -> Result<Vc<T>> {
-    let cell = KeyedCell::new(
+    let cell = KeyedCell::new_local(
         current_task("keyed_cell"),
         key.into_concrete(),
         T::get_value_type_id(),
     )
     .await?;
+    cell.cell_ref.compare_and_update_shared(content);
+    Ok(cell.cell.into())
+}
+
+/// Cells a value in a cell with a given key. A key MUST only be used once for
+/// the whole application.
+///
+/// This allows to create singleton Vcs for values while avoiding to pass the
+/// whole value as argument and creating a large task key.
+pub async fn global_keyed_cell<T: PartialEq + Eq + VcValueType, K: TaskInput>(
+    key: K,
+    content: T,
+) -> Result<Vc<T>> {
+    let cell = KeyedCell::new_global(key.into_concrete(), T::get_value_type_id()).await?;
     cell.cell_ref.compare_and_update_shared(content);
     Ok(cell.cell.into())
 }

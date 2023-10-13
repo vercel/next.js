@@ -326,10 +326,15 @@ impl ChunkingContext for BuildChunkingContext {
         )
         .await?;
 
-        let assets: Vec<Vc<Box<dyn OutputAsset>>> = chunks
+        let mut assets: Vec<Vc<Box<dyn OutputAsset>>> = chunks
             .iter()
             .map(|chunk| self.generate_chunk(*chunk))
             .collect();
+
+        // Resolve assets
+        for asset in assets.iter_mut() {
+            *asset = asset.resolve().await?;
+        }
 
         Ok(Vc::cell(assets))
     }

@@ -322,7 +322,7 @@ impl<'de> Deserialize<'de> for SharedValue {
 /// converted back into the argument types. This is handled by the [`TaskInput`]
 /// trait.
 #[allow(clippy::derived_hash_with_manual_eq)]
-#[derive(Debug, Hash, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Hash, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Default)]
 pub enum ConcreteTaskInput {
     TaskOutput(TaskId),
     TaskCell(TaskId, CellId),
@@ -337,6 +337,7 @@ pub enum ConcreteTaskInput {
     I32(i32),
     U32(u32),
     U64(u64),
+    #[default]
     Nothing,
     SharedValue(SharedValue),
     TransientSharedValue(TransientSharedValue),

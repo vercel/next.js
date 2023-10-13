@@ -135,6 +135,8 @@ macro_rules! task_fn_impl {
                 )*
 
                 Ok(Box::new(move || {
+                    let span = macro_helpers::tracing::trace_span!("turbo_tasks::function", name);
+                    let _entered = span.enter();
                     let task_fn = task_fn.clone();
                     $(
                         let $arg = $arg.clone();
@@ -142,7 +144,7 @@ macro_rules! task_fn_impl {
 
                     Box::pin(macro_helpers::tracing::Instrument::instrument(async move {
                         Output::try_into_raw_vc((task_fn)($($arg),*))
-                    }, macro_helpers::tracing::trace_span!("turbo_tasks::function", name)))
+                    }, span.clone()))
                 }))
             }
         }
@@ -172,6 +174,8 @@ macro_rules! task_fn_impl {
                 )*
 
                 Ok(Box::new(move || {
+                    let span = macro_helpers::tracing::trace_span!("turbo_tasks::function", name);
+                    let _entered = span.enter();
                     let task_fn = task_fn.clone();
                     $(
                         let $arg = $arg.clone();
@@ -181,7 +185,7 @@ macro_rules! task_fn_impl {
                         let result = Output::try_into_raw_vc((task_fn)($($arg),*).await);
                         macro_helpers::notify_scheduled_tasks();
                         result
-                    }, macro_helpers::tracing::trace_span!("turbo_tasks::function", name)))
+                    }, span.clone()))
                 }))
             }
         }
@@ -213,6 +217,8 @@ macro_rules! task_fn_impl {
                 )*
 
                 Ok(Box::new(move || {
+                    let span = macro_helpers::tracing::trace_span!("turbo_tasks::function", name);
+                    let _entered = span.enter();
                     let task_fn = task_fn.clone();
                     let recv = recv.clone();
                     $(
@@ -225,7 +231,7 @@ macro_rules! task_fn_impl {
                         let result = Output::try_into_raw_vc((task_fn)(recv, $($arg),*));
                         macro_helpers::notify_scheduled_tasks();
                         result
-                    }, macro_helpers::tracing::trace_span!("turbo_tasks::function", name)))
+                    }, span.clone()))
                 }))
             }
         }
@@ -271,6 +277,8 @@ macro_rules! task_fn_impl {
                 )*
 
                 Ok(Box::new(move || {
+                    let span = macro_helpers::tracing::trace_span!("turbo_tasks::function", name);
+                    let _entered = span.enter();
                     let task_fn = task_fn.clone();
                     let recv = recv.clone();
                     $(
@@ -283,7 +291,7 @@ macro_rules! task_fn_impl {
                         let result = <F as $async_fn_trait<&Recv, $($arg,)*>>::Output::try_into_raw_vc((task_fn)(recv, $($arg),*).await);
                         macro_helpers::notify_scheduled_tasks();
                         result
-                    }, macro_helpers::tracing::trace_span!("turbo_tasks::function", name)))
+                    }, span.clone()))
                 }))
             }
         }

@@ -10,11 +10,9 @@ use indexmap::IndexMap;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use tracing::Level;
-use turbo_tasks::{keyed_cell, ReadRef, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{ReadRef, TryJoinIterExt, ValueToString, Vc};
 
-use super::{
-    AsyncModuleInfo, Chunk, ChunkItem, ChunkItemsWithAsyncModuleInfo, ChunkType, ChunkingContext,
-};
+use super::{AsyncModuleInfo, Chunk, ChunkItem, ChunkType, ChunkingContext};
 use crate::output::{OutputAsset, OutputAssets};
 
 /// Creates chunks based on heuristics for the passed `chunk_items`. Also
@@ -40,7 +38,6 @@ pub async fn make_chunks(
     }
 
     let mut referenced_output_assets = Vc::cell(referenced_output_assets);
-    let other_referenced_output_assets = Vc::cell(Vec::new());
 
     let mut chunks = Vec::new();
     for (ty, chunk_items) in map {
@@ -65,7 +62,7 @@ pub async fn make_chunks(
             chunking_context,
             chunks: &mut chunks,
             referenced_output_assets: &mut referenced_output_assets,
-            empty_referenced_output_assets: other_referenced_output_assets,
+            empty_referenced_output_assets: OutputAssets::empty().resolve().await?,
         };
 
         app_vendors_split(
@@ -128,16 +125,10 @@ async fn make_chunk(
     split_context.chunks.push(
         split_context.ty.chunk(
             split_context.chunking_context,
-            keyed_cell(
-                take(key),
-                ChunkItemsWithAsyncModuleInfo(
-                    chunk_items
-                        .into_iter()
-                        .map(|(chunk_item, async_info, ..)| (chunk_item, async_info))
-                        .collect(),
-                ),
-            )
-            .await?,
+            chunk_items
+                .into_iter()
+                .map(|(chunk_item, async_info, ..)| (chunk_item, async_info))
+                .collect(),
             replace(
                 split_context.referenced_output_assets,
                 split_context.empty_referenced_output_assets,

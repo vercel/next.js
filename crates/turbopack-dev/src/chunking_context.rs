@@ -360,6 +360,11 @@ impl ChunkingContext for DevChunkingContext {
             Value::new(EcmascriptDevChunkListSource::Dynamic),
         ));
 
+        // Resolve assets
+        for asset in assets.iter_mut() {
+            *asset = asset.resolve().await?;
+        }
+
         Ok(Vc::cell(assets))
     }
 
@@ -398,6 +403,11 @@ impl ChunkingContext for DevChunkingContext {
         ));
 
         assets.push(self.generate_evaluate_chunk(ident, other_assets, evaluatable_assets));
+
+        // Resolve assets
+        for asset in assets.iter_mut() {
+            *asset = asset.resolve().await?;
+        }
 
         Ok(Vc::cell(assets))
     }
