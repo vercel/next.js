@@ -5,6 +5,7 @@ import type {
 import { getModuleBuildInfo } from './get-module-build-info'
 import { stringifyRequest } from '../stringify-request'
 import { MIDDLEWARE_LOCATION_REGEXP } from '../../../lib/constants'
+import { loadEntrypoint } from '../../load-entrypoint'
 
 export type MiddlewareLoaderOptions = {
   absolutePagePath: string
@@ -27,7 +28,7 @@ export function decodeMatchers(encodedMatchers: string) {
   ) as MiddlewareMatcher[]
 }
 
-export default function middlewareLoader(this: any) {
+export default async function middlewareLoader(this: any) {
   const {
     absolutePagePath,
     page,
@@ -55,24 +56,8 @@ export default function middlewareLoader(this: any) {
     middlewareConfig,
   }
 
-  return `
-        import 'next/dist/esm/server/web/globals'
-        import { adapter } from 'next/dist/esm/server/web/adapter'
-        import * as _mod from ${stringifiedPagePath}
-
-        const mod = { ..._mod }
-        const handler = mod.middleware || mod.default
-
-        if (typeof handler !== 'function') {
-          throw new Error('The Middleware "pages${page}" must export a \`middleware\` or a \`default\` function');
-        }
-
-        export default function nHandler(opts) {
-          return adapter({
-            ...opts,
-            page: ${JSON.stringify(page)},
-            handler,
-          })
-        }
-    `
+  return await loadEntrypoint('middleware', {
+    VAR_USERLAND: stringifiedPagePath,
+    VAR_DEFINITION_PAGE: page,
+  })
 }
