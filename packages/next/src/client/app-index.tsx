@@ -45,7 +45,7 @@ window.addEventListener('error', (ev: WindowEventMap['error']): void => {
 
 const appElement: HTMLElement | Document | null = document
 
-function finishRunningAction(
+function runRemainingActions(
   actionQueue: AppRouterActionQueue,
   setState: DispatchStatePromise
 ) {
@@ -61,6 +61,7 @@ function finishRunningAction(
     }
   }
 }
+
 async function runAction({
   actionQueue,
   action,
@@ -86,14 +87,14 @@ async function runAction({
       actionQueue.devToolsInstance.send(payload, nextState)
     }
 
-    finishRunningAction(actionQueue, setState)
+    runRemainingActions(actionQueue, setState)
     action.resolve(nextState)
   }
 
   // if the action is a promise, set up a callback to resolve it
   if (actionResult instanceof Promise) {
     actionResult.then(handleResult, (err) => {
-      finishRunningAction(actionQueue, setState)
+      runRemainingActions(actionQueue, setState)
       action.reject(err)
     })
   } else {
