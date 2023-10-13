@@ -8,8 +8,7 @@ use turbopack_binding::{
             asset::{Asset, AssetContent},
             chunk::{
                 ChunkData, ChunkItem, ChunkItemExt, ChunkType, ChunkableModule,
-                ChunkableModuleReference, ChunkingContext, ChunkingContextExt, ChunkingType,
-                ChunkingTypeOption, ChunksData,
+                ChunkableModuleReference, ChunkingContext, ChunkingContextExt, ChunksData,
             },
             ident::AssetIdent,
             module::Module,
@@ -274,9 +273,4 @@ impl ModuleReference for WithClientChunksAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableModuleReference for WithClientChunksAssetReference {
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::IsolatedParallel))
-    }
-}
+impl ChunkableModuleReference for WithClientChunksAssetReference {}

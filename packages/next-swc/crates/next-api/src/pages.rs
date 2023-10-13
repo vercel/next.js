@@ -563,11 +563,9 @@ impl PageEndpoint {
 
         client_chunks.push(Vc::upcast(PageLoaderAsset::new(
             this.pages_project.project().client_root(),
-            client_module_context,
-            Vc::upcast(client_chunking_context),
-            self.source(),
             this.pathname,
             self.client_relative_path(),
+            Vc::cell(client_chunks.clone()),
         )));
 
         Ok(Vc::cell(client_chunks))
@@ -629,8 +627,11 @@ impl PageEndpoint {
 
             let ssr_entry_chunk_path_string = format!("pages{asset_path}");
             let ssr_entry_chunk_path = node_path.join(ssr_entry_chunk_path_string);
-            let ssr_entry_chunk =
-                chunking_context.entry_chunk(ssr_entry_chunk_path, ssr_module, runtime_entries);
+            let ssr_entry_chunk = chunking_context.entry_chunk_group(
+                ssr_entry_chunk_path,
+                ssr_module,
+                runtime_entries,
+            );
 
             Ok(SsrChunk::NodeJs {
                 entry: ssr_entry_chunk,

@@ -12,6 +12,14 @@ exports[`next.rs api should allow to write app Node.js route to disk: diagnostic
 
 exports[`next.rs api should allow to write app Node.js route to disk: issues 1`] = `Array []`;
 
+exports[`next.rs api should allow to write app edge page to disk: diagnostics 1`] = `Array []`;
+
+exports[`next.rs api should allow to write app edge page to disk: issues 1`] = `Array []`;
+
+exports[`next.rs api should allow to write app edge page to disk: rsc diagnostics 1`] = `Array []`;
+
+exports[`next.rs api should allow to write app edge page to disk: rsc issues 1`] = `Array []`;
+
 exports[`next.rs api should allow to write app edge route to disk: diagnostics 1`] = `Array []`;
 
 exports[`next.rs api should allow to write app edge route to disk: issues 1`] = `Array []`;

@@ -41,14 +41,11 @@ export default class WebResponseCache {
       return pendingResponse
     }
 
-    let resolver: (cacheEntry: ResponseCacheEntry | null) => void = () => {}
-    let rejecter: (error: Error) => void = () => {}
-    const promise: Promise<ResponseCacheEntry | null> = new Promise(
-      (resolve, reject) => {
-        resolver = resolve
-        rejecter = reject
-      }
-    )
+    const {
+      promise,
+      resolve: resolver,
+      reject: rejecter,
+    } = Promise.withResolvers<ResponseCacheEntry | null>()
     if (pendingResponseKey) {
       this.pendingResponses.set(pendingResponseKey, promise)
     }
