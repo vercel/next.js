@@ -1,5 +1,7 @@
 import type { FlightRouterState } from '../app-render/types'
 
+import { WritableStream } from 'next/dist/compiled/@edge-runtime/ponyfill'
+
 import { nonNullable } from '../../lib/non-nullable'
 import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'

@@ -5,9 +5,8 @@ import tar from 'next/dist/compiled/tar'
 const { fetch } = require('next/dist/compiled/undici') as {
   fetch: typeof global.fetch
 }
-const { WritableStream } = require('node:stream/web') as {
-  WritableStream: typeof global.WritableStream
-}
+import { WritableStream } from 'next/dist/compiled/@edge-runtime/ponyfill'
+
 import { getRegistry } from './helpers/get-registry'
 import { getCacheDirectory } from './helpers/get-cache-directory'
 
