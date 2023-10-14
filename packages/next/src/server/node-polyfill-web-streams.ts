@@ -10,6 +10,17 @@ if (!global.ReadableStream) {
     global.ReadableStream = ReadableStream
   }
 }
+if (!global.WritableStream) {
+  // In Node v16, WritableStream is available natively but under the `stream` namespace.
+  // In Node v18+, it's available under global.
+  if (require('stream/web').WritableStream) {
+    global.WritableStream = require('stream/web').WritableStream
+  } else {
+    const { WritableStream } =
+      require('next/dist/compiled/@edge-runtime/ponyfill') as typeof import('next/dist/compiled/@edge-runtime/ponyfill')
+    global.WritableStream = WritableStream
+  }
+}
 if (!global.TransformStream) {
   // Same as ReadableStream above.
   if (require('stream/web').TransformStream) {
