@@ -51,9 +51,16 @@ function createWriterFromResponse(
 
       try {
         const ok = res.write(chunk)
+
+        // Added by the `compression` middleware, this is a function that will
+        // flush the partially-compressed response to the client.
+        if ('flush' in res && typeof res.flush === 'function') {
+          res.flush()
+        }
+
+        // If the write returns false, it means there's some backpressure, so
+        // wait until it's streamed before continuing.
         if (!ok) {
-          // If the write returns false, it means there's some backpressure, so
-          // wait until it's streamed before continuing.
           await new Promise((resolve) => {
             res.once('drain', resolve)
           })
