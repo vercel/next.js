@@ -12,6 +12,9 @@ createNextDescribe(
     buildCommand: process.env.NEXT_EXPERIMENTAL_COMPILE
       ? 'pnpm next experimental-compile'
       : undefined,
+    dependencies: {
+      nanoid: '4.0.1',
+    },
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy, isTurbopack }) => {
     if (process.env.NEXT_EXPERIMENTAL_COMPILE) {
