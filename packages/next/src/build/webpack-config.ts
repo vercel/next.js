@@ -240,28 +240,29 @@ let loggedIgnoredCompilerOptions = false
 // Insert aliases for Next.js stubs of fetch, object-assign, and url
 // Keep in sync with insert_optimized_module_aliases in import_map.rs
 function getOptimizedModuleAliases(): { [pkg: string]: string } {
-  const stubWindowFetch = path.join(__dirname, 'polyfills', 'fetch', 'index.js')
-  const stubObjectAssign = path.join(__dirname, 'polyfills', 'object-assign.js')
-
-  const shimAssign = path.join(__dirname, 'polyfills', 'object.assign')
   return {
-    unfetch$: stubWindowFetch,
-    'isomorphic-unfetch$': stubWindowFetch,
-    'whatwg-fetch$': path.join(
-      __dirname,
-      'polyfills',
-      'fetch',
-      'whatwg-fetch.js'
+    unfetch: require.resolve('next/dist/build/polyfills/fetch/index.js'),
+    'isomorphic-unfetch': require.resolve(
+      'next/dist/build/polyfills/fetch/index.js'
     ),
-    'object-assign$': stubObjectAssign,
-    // Stub Package: object.assign
-    'object.assign/auto': path.join(shimAssign, 'auto.js'),
-    'object.assign/implementation': path.join(shimAssign, 'implementation.js'),
-    'object.assign$': path.join(shimAssign, 'index.js'),
-    'object.assign/polyfill': path.join(shimAssign, 'polyfill.js'),
-    'object.assign/shim': path.join(shimAssign, 'shim.js'),
-
-    // Replace: full URL polyfill with platform-based polyfill
+    'whatwg-fetch': require.resolve(
+      'next/dist/build/polyfills/fetch/whatwg-fetch.js'
+    ),
+    'object-assign': require.resolve(
+      'next/dist/build/polyfills/object-assign.js'
+    ),
+    'object.assign/auto': require.resolve(
+      'next/dist/build/polyfills/object.assign/auto.js'
+    ),
+    'object.assign/implementation': require.resolve(
+      'next/dist/build/polyfills/object.assign/implementation.js'
+    ),
+    'object.assign/polyfill': require.resolve(
+      'next/dist/build/polyfills/object.assign/polyfill.js'
+    ),
+    'object.assign/shim': require.resolve(
+      'next/dist/build/polyfills/object.assign/shim.js'
+    ),
     url: require.resolve('next/dist/compiled/native-url'),
   }
 }
