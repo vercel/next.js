@@ -46,18 +46,11 @@ function nodeToWebReadableStream(nodeReadable: import('stream').Readable) {
     }
 
     return new ReadableStream({
-      start(controller) {
-        nodeReadable.on('data', (chunk) => {
+      start: async (controller) => {
+        for await (const chunk of nodeReadable) {
           controller.enqueue(chunk)
-        })
-
-        nodeReadable.on('end', () => {
-          controller.close()
-        })
-
-        nodeReadable.on('error', (error) => {
-          controller.error(error)
-        })
+        }
+        controller.close()
       },
     })
   } else {
