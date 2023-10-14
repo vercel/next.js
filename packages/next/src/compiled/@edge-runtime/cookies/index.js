@@ -39,7 +39,8 @@ function stringifyCookie(c) {
     "domain" in c && c.domain && `Domain=${c.domain}`,
     "secure" in c && c.secure && "Secure",
     "httpOnly" in c && c.httpOnly && "HttpOnly",
-    "sameSite" in c && c.sameSite && `SameSite=${c.sameSite}`
+    "sameSite" in c && c.sameSite && `SameSite=${c.sameSite}`,
+    "priority" in c && c.priority && `Priority=${c.priority}`
   ].filter(Boolean);
   return `${c.name}=${encodeURIComponent((_a = c.value) != null ? _a : "")}; ${attrs.join("; ")}`;
 }
@@ -66,7 +67,7 @@ function parseSetCookie(setCookie) {
     return void 0;
   }
   const [[name, value], ...attributes] = parseCookie(setCookie);
-  const { domain, expires, httponly, maxage, path, samesite, secure } = Object.fromEntries(
+  const { domain, expires, httponly, maxage, path, samesite, secure, priority } = Object.fromEntries(
     attributes.map(([key, value2]) => [key.toLowerCase(), value2])
   );
   const cookie = {
@@ -78,7 +79,8 @@ function parseSetCookie(setCookie) {
     ...typeof maxage === "string" && { maxAge: Number(maxage) },
     path,
     ...samesite && { sameSite: parseSameSite(samesite) },
-    ...secure && { secure: true }
+    ...secure && { secure: true },
+    ...priority
   };
   return compact(cookie);
 }
