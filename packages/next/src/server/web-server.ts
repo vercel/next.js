@@ -256,8 +256,9 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       )
     }
 
+    let promise: Promise<void> | undefined
     if (options.result.isDynamic) {
-      await options.result.pipeTo(res.transformStream.writable)
+      promise = options.result.pipeTo(res.transformStream.writable)
     } else {
       const payload = options.result.toUnchunkedString()
       res.setHeader('Content-Length', String(byteLength(payload)))
@@ -268,6 +269,9 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     }
 
     res.send()
+
+    // If we have a promise, wait for it to resolve.
+    if (promise) await promise
   }
 
   protected async findPageComponents({
