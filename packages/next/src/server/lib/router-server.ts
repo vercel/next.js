@@ -3,7 +3,6 @@ import type { WorkerRequestHandler, WorkerUpgradeHandler } from './types'
 import type { DevBundler } from './router-utils/setup-dev-bundler'
 import type { NextUrlWithParsedQuery } from '../request-meta'
 // This is required before other imports to ensure the require hook is setup.
-import '../node-polyfill-fetch'
 import '../node-environment'
 import '../require-hook'
 import '../../lib/polyfill-promise-with-resolvers'

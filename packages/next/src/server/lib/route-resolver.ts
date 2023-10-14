@@ -3,7 +3,6 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { RenderServer } from './router-server'
 
 import '../require-hook'
-import '../node-polyfill-fetch'
 
 import url from 'url'
 import path from 'path'
