@@ -1,3 +1,5 @@
+// NOTE: any changes to this file should be mirrored in: test/__mocks__/node-polyfill-web-streams.js
+
 if (process.env.NEXT_RUNTIME !== 'edge') {
   // Polyfill Web Streams for the Node.js runtime.
   if (!global.ReadableStream) {
