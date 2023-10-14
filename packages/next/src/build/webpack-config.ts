@@ -237,7 +237,9 @@ const devtoolRevertWarning = execOnce(
 let loggedSwcDisabled = false
 let loggedIgnoredCompilerOptions = false
 
-function getOptimizedAliases(): { [pkg: string]: string } {
+// Insert aliases for Next.js stubs of fetch, object-assign, and url
+// Keep in sync with insert_optimized_module_aliases in import_map.rs
+function getOptimizedModuleAliases(): { [pkg: string]: string } {
   const stubWindowFetch = path.join(__dirname, 'polyfills', 'fetch', 'index.js')
   const stubObjectAssign = path.join(__dirname, 'polyfills', 'object-assign.js')
 
@@ -888,7 +890,7 @@ export default async function getBaseWebpackConfig(
       ...(appDir ? { [APP_DIR_ALIAS]: appDir } : {}),
       [ROOT_DIR_ALIAS]: dir,
       [DOT_NEXT_ALIAS]: distDir,
-      ...(isClient || isEdgeServer ? getOptimizedAliases() : {}),
+      ...(isClient || isEdgeServer ? getOptimizedModuleAliases() : {}),
       ...(reactProductionProfiling ? getReactProfilingInProduction() : {}),
 
       // For Node server, we need to re-alias the package imports to prefer to
