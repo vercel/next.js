@@ -1208,6 +1208,7 @@ export async function buildAppStaticPaths({
   fetchCacheKeyPrefix,
   staticGenerationAsyncStorage,
   serverHooks,
+  ppr,
 }: {
   page: string
   configFileName: string
@@ -1222,6 +1223,7 @@ export async function buildAppStaticPaths({
     typeof patchFetch
   >[0]['staticGenerationAsyncStorage']
   serverHooks: Parameters<typeof patchFetch>[0]['serverHooks']
+  ppr: boolean
 }) {
   patchFetch({
     staticGenerationAsyncStorage,
@@ -1265,6 +1267,7 @@ export async function buildAppStaticPaths({
         supportsDynamicHTML: true,
         isRevalidate: false,
         isBot: false,
+        ppr,
       },
     },
     async () => {
@@ -1372,6 +1375,7 @@ export async function isPageStatic({
   isrFlushToDisk,
   maxMemoryCacheSize,
   incrementalCacheHandlerPath,
+  ppr,
 }: {
   page: string
   distDir: string
@@ -1389,6 +1393,7 @@ export async function isPageStatic({
   maxMemoryCacheSize?: number
   incrementalCacheHandlerPath?: string
   nextConfigOutput: 'standalone' | 'export'
+  ppr: boolean
 }): Promise<{
   isStatic?: boolean
   isAmpOnly?: boolean
@@ -1550,6 +1555,7 @@ export async function isPageStatic({
             isrFlushToDisk,
             maxMemoryCacheSize,
             incrementalCacheHandlerPath,
+            ppr,
           }))
         }
       } else {

@@ -503,6 +503,7 @@ export async function exportAppImpl(
       : {}),
     strictNextHead: !!nextConfig.experimental.strictNextHead,
     deploymentId: nextConfig.experimental.deploymentId,
+    ppr: nextConfig.experimental.ppr === true,
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig

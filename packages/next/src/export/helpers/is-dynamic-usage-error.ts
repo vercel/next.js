@@ -7,4 +7,5 @@ export const isDynamicUsageError = (err: any) =>
   err.digest === DYNAMIC_ERROR_CODE ||
   isNotFoundError(err) ||
   err.digest === NEXT_DYNAMIC_NO_SSR_CODE ||
-  isRedirectError(err)
+  isRedirectError(err) ||
+  err.$$typeof === Symbol.for('react.postpone')

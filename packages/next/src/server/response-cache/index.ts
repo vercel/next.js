@@ -93,6 +93,7 @@ export default class ResponseCache {
                       kind: 'PAGE',
                       html: RenderResult.fromStatic(cachedResponse.value.html),
                       pageData: cachedResponse.value.pageData,
+                      postponed: cachedResponse.value.postponed,
                       headers: cachedResponse.value.headers,
                       status: cachedResponse.value.status,
                     }
@@ -137,6 +138,7 @@ export default class ResponseCache {
                   ? {
                       kind: 'PAGE',
                       html: cacheEntry.value.html.toUnchunkedString(),
+                      postponed: cacheEntry.value.postponed,
                       pageData: cacheEntry.value.pageData,
                       headers: cacheEntry.value.headers,
                       status: cacheEntry.value.status,

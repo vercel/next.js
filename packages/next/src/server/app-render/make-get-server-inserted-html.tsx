@@ -5,28 +5,28 @@ import {
   isRedirectError,
 } from '../../client/components/redirect'
 import { getRedirectStatusCodeFromError } from '../../client/components/get-redirect-status-code-from-error'
-import { renderToString } from './render-to-string'
+import { renderToReadableStream } from 'react-dom/server.edge'
+import { streamToString } from '../stream-utils/node-web-streams-helper'
 
 export function makeGetServerInsertedHTML({
   polyfills,
   renderServerInsertedHTML,
+  hasPostponed,
 }: {
   polyfills: JSX.IntrinsicElements['script'][]
   renderServerInsertedHTML: () => React.ReactNode
+  hasPostponed: boolean
 }) {
   let flushedErrorMetaTagsUntilIndex = 0
-  let polyfillsFlushed = false
+  let polyfillsFlushed = hasPostponed
 
-  return function getServerInsertedHTML(serverCapturedErrors: Error[]) {
+  return async function getServerInsertedHTML(serverCapturedErrors: Error[]) {
     // Loop through all the errors that have been captured but not yet
     // flushed.
     const errorMetaTags = []
-    for (
-      ;
-      flushedErrorMetaTagsUntilIndex < serverCapturedErrors.length;
-      flushedErrorMetaTagsUntilIndex++
-    ) {
+    while (flushedErrorMetaTagsUntilIndex < serverCapturedErrors.length) {
       const error = serverCapturedErrors[flushedErrorMetaTagsUntilIndex]
+      flushedErrorMetaTagsUntilIndex++
 
       if (isNotFoundError(error)) {
         errorMetaTags.push(
@@ -51,21 +51,24 @@ export function makeGetServerInsertedHTML({
       }
     }
 
-    const flushed = renderToString({
-      ReactDOMServer: require('react-dom/server.edge'),
-      element: (
-        <>
-          {polyfillsFlushed
-            ? null
-            : polyfills?.map((polyfill) => {
-                return <script key={polyfill.src} {...polyfill} />
-              })}
-          {renderServerInsertedHTML()}
-          {errorMetaTags}
-        </>
-      ),
-    })
-    polyfillsFlushed = true
-    return flushed
+    const stream = await renderToReadableStream(
+      <>
+        {/* Insert the polyfills if they haven't been flushed yet. */}
+        {!polyfillsFlushed &&
+          polyfills?.map((polyfill) => {
+            return <script key={polyfill.src} {...polyfill} />
+          })}
+        {renderServerInsertedHTML()}
+        {errorMetaTags}
+      </>
+    )
+
+    // Mark polyfills as flushed so they don't get flushed again.
+    if (!polyfillsFlushed) polyfillsFlushed = true
+
+    // Wait for the stream to be ready.
+    await stream.allReady
+
+    return streamToString(stream)
   }
 }
