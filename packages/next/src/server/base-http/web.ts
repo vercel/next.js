@@ -100,7 +100,7 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
 
   public async toResponse() {
     // If we haven't called `send` yet, wait for it to be called.
-    if (!this.sent) await this.sendPromise
+    if (!this.sent) await this.sendPromise.promise
 
     return new Response(this.textBody ?? this.transformStream.readable, {
       headers: this.headers,
