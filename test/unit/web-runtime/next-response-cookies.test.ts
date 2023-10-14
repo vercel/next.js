@@ -32,6 +32,27 @@ it('reflect .set into `set-cookie`', async () => {
   )
 })
 
+it('reflect .set all options attributes into `set-cookie`', async () => {
+  const response = new NextResponse()
+  const options = {
+    domain: 'custom-domain',
+    path: 'custom-path',
+    secure: true,
+    sameSite: 'strict' as 'strict' | 'lax' | 'none',
+    expires: new Date(2100, 0, 1, 12, 0, 0),
+    httpOnly: true,
+    maxAge: 0,
+    priority: 'high' as 'low' | 'medium' | 'high',
+  }
+  response.cookies.set('first-name', 'first-value', options)
+  const cookiesInHeaders = Object.fromEntries(response.headers.entries())[
+    'set-cookie'
+  ]
+  expect(cookiesInHeaders).toBe(
+    'first-name=first-value; Path=custom-path; Expires=Fri, 01 Jan 2100 12:00:00 GMT; Max-Age=0; Domain=custom-domain; Secure; HttpOnly; SameSite=strict; Priority=high'
+  )
+})
+
 it('reflect .delete into `set-cookie`', async () => {
   const { NextResponse } = await import(
     'next/dist/server/web/spec-extension/response'
