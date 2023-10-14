@@ -196,7 +196,7 @@ export default function StyledComponentsRegistry({ children }) {
 Wrap the `children` of the root layout with the style registry component:
 
 ```tsx filename="app/layout.tsx" switcher
-import StyledComponentsRegistry from './lib/registry'
+import StyledComponentsRegistry from '../lib/registry'
 
 export default function RootLayout({
   children,
@@ -214,7 +214,7 @@ export default function RootLayout({
 ```
 
 ```jsx filename="app/layout.js" switcher
-import StyledComponentsRegistry from './lib/registry'
+import StyledComponentsRegistry from '../lib/registry'
 
 export default function RootLayout({ children }) {
   return (
