@@ -1525,8 +1525,7 @@ describe('Image Component Default Tests', () => {
 
     runTests('dev')
   })
-
-  describe('server mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await nextBuild(appDir)
       appPort = await findPort()

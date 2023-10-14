@@ -22,8 +22,8 @@ import {
   SERVER_REFERENCE_MANIFEST,
   PRERENDER_MANIFEST,
 } from '../../../shared/lib/constants'
-import { MiddlewareConfig } from '../../analysis/get-page-static-info'
-import { Telemetry } from '../../../telemetry/storage'
+import type { MiddlewareConfig } from '../../analysis/get-page-static-info'
+import type { Telemetry } from '../../../telemetry/storage'
 import { traceGlobals } from '../../../trace/shared'
 import { EVENT_BUILD_FEATURE_USAGE } from '../../../telemetry/events'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'

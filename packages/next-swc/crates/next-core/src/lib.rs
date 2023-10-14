@@ -13,8 +13,6 @@ mod babel;
 mod bootstrap;
 mod embed_js;
 mod emit;
-mod env;
-mod fallback;
 mod loader_tree;
 pub mod middleware;
 pub mod mode;
@@ -38,7 +36,6 @@ mod next_shared;
 pub mod next_telemetry;
 mod page_loader;
 pub mod pages_structure;
-mod runtime;
 mod sass;
 pub mod tracing_presets;
 mod transform_options;
@@ -48,9 +45,7 @@ pub mod util;
 pub use app_segment_config::{
     parse_segment_config_from_loader_tree, parse_segment_config_from_source,
 };
-pub use emit::{
-    all_assets_from_entries, all_server_paths, emit_all_assets, emit_assets, emit_client_assets,
-};
+pub use emit::{all_assets_from_entries, emit_all_assets, emit_assets, emit_client_assets};
 pub use next_edge::context::{
     get_edge_chunking_context, get_edge_compile_time_info, get_edge_resolve_options_context,
 };

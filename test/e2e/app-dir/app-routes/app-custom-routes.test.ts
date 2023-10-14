@@ -447,6 +447,20 @@ createNextDescribe(
         })
       })
 
+      describe('permanentRedirect', () => {
+        it('can respond correctly', async () => {
+          const res = await next.fetch(basePath + '/hooks/permanent-redirect', {
+            // "Manually" perform the redirect, we want to inspect the
+            // redirection response, so don't actually follow it.
+            redirect: 'manual',
+          })
+
+          expect(res.status).toEqual(308)
+          expect(res.headers.get('location')).toEqual('https://nextjs.org/')
+          expect(await res.text()).toBeEmpty()
+        })
+      })
+
       describe('notFound', () => {
         it('can respond correctly', async () => {
           const res = await next.fetch(basePath + '/hooks/not-found')

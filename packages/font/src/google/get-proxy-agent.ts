@@ -2,7 +2,7 @@
 import HttpsProxyAgent from 'next/dist/compiled/https-proxy-agent'
 // @ts-ignore
 import HttpProxyAgent from 'next/dist/compiled/http-proxy-agent'
-import { Agent } from 'https'
+import type { Agent } from 'https'
 
 /**
  * If the http(s)_proxy environment variables is set, return a proxy agent.

@@ -178,16 +178,16 @@ function getBaseSWCOptions({
         development
       ),
     }),
-    serverComponents: hasServerComponents
-      ? { isServer: !!isServerLayer }
-      : undefined,
-    serverActions: hasServerComponents
-      ? {
-          // TODO-APP: When Server Actions is stable, we need to remove this flag.
-          enabled: !!isServerActionsEnabled,
-          isServer: !!isServerLayer,
-        }
-      : undefined,
+    serverComponents:
+      hasServerComponents && !jest ? { isServer: !!isServerLayer } : undefined,
+    serverActions:
+      hasServerComponents && !jest
+        ? {
+            // TODO-APP: When Server Actions is stable, we need to remove this flag.
+            enabled: !!isServerActionsEnabled,
+            isServer: !!isServerLayer,
+          }
+        : undefined,
     bundleTarget,
   }
 }
@@ -321,7 +321,6 @@ export function getLoaderSWCOptions({
   hasServerComponents,
   isServerLayer,
   isServerActionsEnabled,
-  optimizeBarrelExports,
   bundleTarget,
 }: // This is not passed yet as "paths" resolving is handled by webpack currently.
 // resolvedBaseUrl,
@@ -348,9 +347,6 @@ export function getLoaderSWCOptions({
   hasServerComponents?: boolean
   isServerLayer: boolean
   isServerActionsEnabled?: boolean
-  optimizeBarrelExports?: {
-    wildcard: boolean
-  }
 }) {
   let baseOptions: any = getBaseSWCOptions({
     filename,
@@ -404,9 +400,6 @@ export function getLoaderSWCOptions({
     baseOptions.autoModularizeImports = {
       packages: optimizePackageImports,
     }
-  }
-  if (optimizeBarrelExports) {
-    baseOptions.optimizeBarrelExports = optimizeBarrelExports
   }
 
   const isNextDist = nextDistPath.test(filename)

@@ -51,7 +51,7 @@ const runTests = (mode) => {
 }
 
 describe('Default 404 Page with custom _error', () => {
-  describe('server mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     afterAll(() => killApp(app))
 
     it('should build successfully', async () => {

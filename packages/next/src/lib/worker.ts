@@ -1,4 +1,4 @@
-import { ChildProcess } from 'child_process'
+import type { ChildProcess } from 'child_process'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
 import { getNodeOptionsWithoutInspect } from '../server/lib/utils'
 type FarmOptions = ConstructorParameters<typeof JestWorker>[1]
@@ -69,7 +69,7 @@ export class Worker {
         }[]) {
           worker._child?.on('exit', (code, signal) => {
             // log unexpected exit if .end() wasn't called
-            if ((code || signal) && this._worker) {
+            if ((code || (signal && signal !== 'SIGINT')) && this._worker) {
               console.error(
                 `Static worker unexpectedly exited with code: ${code} and signal: ${signal}`
               )

@@ -11,13 +11,14 @@ const { spawn, exec: execOrig } = require('child_process')
 const { createNextInstall } = require('./test/lib/create-next-install')
 const glob = promisify(_glob)
 const exec = promisify(execOrig)
+const core = require('@actions/core')
 
 function escapeRegexp(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 /**
- * @typedef {{ file: string, cases: 'all' | string[] }} TestFile
+ * @typedef {{ file: string, excludedCases: string[] }} TestFile
  */
 
 const GROUP = process.env.CI ? '##[group]' : ''
@@ -73,6 +74,45 @@ const mockTrace = () => ({
 
 // which types we have configured to run separate
 const configuredTestTypes = Object.values(testFilters)
+const errorsPerTests = new Map()
+
+async function maybeLogSummary() {
+  if (process.env.CI && errorsPerTests.size > 0) {
+    const outputTemplate = `
+${Array.from(errorsPerTests.entries())
+  .map(([test, output]) => {
+    return `
+<details>
+<summary>${test}</summary>
+
+\`\`\`
+${output}
+\`\`\`
+
+</details>
+`
+  })
+  .join('\n')}`
+
+    await core.summary
+      .addHeading('Tests failures')
+      .addTable([
+        [
+          {
+            data: 'Test suite',
+            header: true,
+          },
+        ],
+        ...Array.from(errorsPerTests.entries()).map(([test]) => {
+          return [
+            `<a href="https://github.com/vercel/next.js/blob/canary/${test}">${test}</a>`,
+          ]
+        }),
+      ])
+      .addRaw(outputTemplate)
+      .write()
+  }
+}
 
 const cleanUpAndExit = async (code) => {
   if (process.env.NEXT_TEST_STARTER) {
@@ -80,6 +120,9 @@ const cleanUpAndExit = async (code) => {
   }
   if (process.env.NEXT_TEST_TEMP_REPO) {
     await fs.remove(process.env.NEXT_TEST_TEMP_REPO)
+  }
+  if (process.env.CI) {
+    await maybeLogSummary()
   }
   console.log(`exiting with code ${code}`)
 
@@ -162,7 +205,7 @@ async function main() {
     .filter((arg) => arg.match(/\.test\.(js|ts|tsx)/))
     .map((file) => ({
       file,
-      cases: 'all',
+      excludedCases: [],
     }))
   let prevTimings
 
@@ -198,7 +241,7 @@ async function main() {
       })
       .map((file) => ({
         file,
-        cases: 'all',
+        excludedCases: [],
       }))
   }
 
@@ -238,10 +281,9 @@ async function main() {
       })
       .map((test) => {
         const info = externalTestsFilterLists[test.file]
-        // only run filtered mode when there are failing tests.
-        // When the whole test suite passes we can run all tests, including newly added ones.
+        // Exclude failing and flakey tests, newly added tests are automatically included
         if (info.failed.length > 0 || info.flakey.length > 0) {
-          test.cases = info.passed
+          test.excludedCases = info.failed.concat(info.flakey)
         }
         return test
       })
@@ -382,11 +424,11 @@ ${ENDGROUP}`)
           ? ['--json', `--outputFile=${test.file}${RESULTS_EXT}`]
           : []),
         test.file,
-        ...(test.cases === 'all'
+        ...(test.excludedCases.length === 0
           ? []
           : [
               '--testNamePattern',
-              `^(${test.cases.map(escapeRegexp).join('|')})$`,
+              `^(?!${test.excludedCases.map(escapeRegexp).join('|')})$`,
             ]),
       ]
       const env = {
@@ -473,11 +515,19 @@ ${ENDGROUP}`)
             } else {
               process.stdout.write(`${GROUP}❌ ${test.file} output\n`)
             }
+
+            let output = ''
             // limit out to last 64kb so that we don't
             // run out of log room in CI
             for (const { chunk } of outputChunks) {
               process.stdout.write(chunk)
+              output += chunk.toString()
             }
+
+            if (process.env.CI && !killed) {
+              errorsPerTests.set(test.file, output)
+            }
+
             if (isExpanded) {
               process.stdout.write(`end of ${test.file} output\n`)
             } else {

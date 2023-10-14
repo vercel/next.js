@@ -12,9 +12,10 @@ import type {
 import type { LoadedEnvFiles } from '@next/env'
 import type { AppLoaderOptions } from './webpack/loaders/next-app-loader'
 
-import chalk from 'next/dist/compiled/chalk'
+import { cyan } from '../lib/picocolors'
 import { posix, join, dirname, extname } from 'path'
 import { stringify } from 'querystring'
+import fs from 'fs'
 import {
   PAGES_DIR_ALIAS,
   ROOT_DIR_ALIAS,
@@ -31,11 +32,11 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
-  CompilerNameValues,
   COMPILER_NAMES,
   EDGE_RUNTIME_WEBPACK,
 } from '../shared/lib/constants'
-import { __ApiPreviewProps } from '../server/api-utils'
+import type { CompilerNameValues } from '../shared/lib/constants'
+import type { __ApiPreviewProps } from '../server/api-utils'
 import { warn } from './output/log'
 import {
   isMiddlewareFile,
@@ -45,13 +46,12 @@ import {
 import { getPageStaticInfo } from './analysis/get-page-static-info'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
-import { ServerRuntime } from '../../types'
+import type { ServerRuntime } from '../../types'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { encodeMatchers } from './webpack/loaders/next-middleware-loader'
-import { EdgeFunctionLoaderOptions } from './webpack/loaders/next-edge-function-loader'
+import type { EdgeFunctionLoaderOptions } from './webpack/loaders/next-edge-function-loader'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { normalizeMetadataRoute } from '../lib/metadata/get-metadata-route'
-import { fileExists } from '../lib/file-exists'
 import { getRouteLoaderEntry } from './webpack/loaders/next-route-loader'
 import {
   isInternalComponent,
@@ -123,7 +123,7 @@ export async function getStaticInfoIncludingLayouts({
     while (dir.startsWith(appDir)) {
       for (const potentialLayoutFile of potentialLayoutFiles) {
         const layoutFile = join(dir, potentialLayoutFile)
-        if (!(await fileExists(layoutFile))) {
+        if (!fs.existsSync(layoutFile)) {
           continue
         }
         layoutFiles.unshift(layoutFile)
@@ -238,11 +238,11 @@ export function createPagesMapping({
 
       if (pageKey in result) {
         warn(
-          `Duplicate page detected. ${chalk.cyan(
+          `Duplicate page detected. ${cyan(
             join('pages', previousPages[pageKey])
-          )} and ${chalk.cyan(
-            join('pages', pagePath)
-          )} both resolve to ${chalk.cyan(pageKey)}.`
+          )} and ${cyan(join('pages', pagePath))} both resolve to ${cyan(
+            pageKey
+          )}.`
         )
       } else {
         previousPages[pageKey] = pagePath
@@ -356,6 +356,7 @@ export function getEdgeServerEntry(opts: {
       layer: WEBPACK_LAYERS.reactServerComponents,
     }
   }
+
   if (isMiddlewareFile(opts.page)) {
     const loaderParams: MiddlewareLoaderOptions = {
       absolutePagePath: opts.absolutePagePath,

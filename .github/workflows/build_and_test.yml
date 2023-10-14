@@ -58,6 +58,7 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: 18
+      - run: corepack enable
       - name: 'Run link checker'
         run: node ./.github/actions/validate-docs-links/lib
         env:
@@ -151,21 +152,6 @@ jobs:
       afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-tests-manifest.json" TURBOPACK=1 node run-tests.js --timings -g ${{ matrix.group }}/5 -c ${TEST_CONCURRENCY} --type integration
     secrets: inherit
 
-  # --type production also runs tests/e2e
-  test-turbopack-prod:
-    name: test turbopack prod
-    needs: ['build-native', 'build-next']
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [1, 2, 3, 4, 5]
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      nodeVersion: 16
-      skipForDocsOnly: 'yes'
-      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-tests-manifest.json" TURBOPACK=1 NEXT_TEST_MODE=start node run-tests.js --timings -g ${{ matrix.group }}/5 -c ${TEST_CONCURRENCY} --type production
-    secrets: inherit
-
   test-next-swc-wasm:
     name: test next-swc wasm
     needs: ['build-native', 'build-next']
@@ -250,7 +236,6 @@ jobs:
         'test-integration',
         'test-turbopack-dev',
         'test-turbopack-integration',
-        'test-turbopack-prod',
       ]
     uses: ./.github/workflows/build_reusable.yml
     with:

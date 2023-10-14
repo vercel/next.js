@@ -1,6 +1,6 @@
 import path from 'path'
 import { promises as fs } from 'fs'
-import chalk from 'next/dist/compiled/chalk'
+import { bold, green } from './picocolors'
 import { APP_DIR_ALIAS } from './constants'
 
 const globOrig =
@@ -124,10 +124,10 @@ export async function verifyRootLayout({
       await fs.writeFile(rootLayoutPath, getRootLayout(hasTsConfig))
 
       console.log(
-        chalk.green(
-          `\nYour page ${chalk.bold(
+        green(
+          `\nYour page ${bold(
             `app/${normalizedPagePath}`
-          )} did not have a root layout. We created ${chalk.bold(
+          )} did not have a root layout. We created ${bold(
             `app${rootLayoutPath.replace(appDir, '')}`
           )} for you.`
         ) + '\n'

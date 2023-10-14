@@ -107,7 +107,7 @@ fetch('https://...', { next: { revalidate: 3600 } })
 
 Alternatively, to revalidate all `fetch` requests in a route segment, you can use the [Segment Config Options](/docs/app/api-reference/file-conventions/route-segment-config).
 
-```jsx filename="layout.js / page.js"
+```jsx filename="layout.js | page.js"
 export const revalidate = 3600 // revalidate at most every hour
 ```
 
@@ -149,7 +149,7 @@ https://<your-site.com>/api/revalidate?tag=collection&secret=<token>
 ```
 
 ```ts filename="app/api/revalidate/route.ts" switcher
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { revalidateTag } from 'next/cache'
 
 // e.g a webhook to `your-website.com/api/revalidate?tag=collection&secret=<token>`
@@ -158,21 +158,20 @@ export async function POST(request: NextRequest) {
   const tag = request.nextUrl.searchParams.get('tag')
 
   if (secret !== process.env.MY_SECRET_TOKEN) {
-    return NextResponse.json({ message: 'Invalid secret' }, { status: 401 })
+    return Response.json({ message: 'Invalid secret' }, { status: 401 })
   }
 
   if (!tag) {
-    return NextResponse.json({ message: 'Missing tag param' }, { status: 400 })
+    return Response.json({ message: 'Missing tag param' }, { status: 400 })
   }
 
   revalidateTag(tag)
 
-  return NextResponse.json({ revalidated: true, now: Date.now() })
+  return Response.json({ revalidated: true, now: Date.now() })
 }
 ```
 
 ```js filename="app/api/revalidate/route.js" switcher
-import { NextResponse } from 'next/server'
 import { revalidateTag } from 'next/cache'
 
 // e.g a webhook to `your-website.com/api/revalidate?tag=collection&secret=<token>`
@@ -181,52 +180,51 @@ export async function POST(request) {
   const tag = request.nextUrl.searchParams.get('tag')
 
   if (secret !== process.env.MY_SECRET_TOKEN) {
-    return NextResponse.json({ message: 'Invalid secret' }, { status: 401 })
+    return Response.json({ message: 'Invalid secret' }, { status: 401 })
   }
 
   if (!tag) {
-    return NextResponse.json({ message: 'Missing tag param' }, { status: 400 })
+    return Response.json({ message: 'Missing tag param' }, { status: 400 })
   }
 
   revalidateTag(tag)
 
-  return NextResponse.json({ revalidated: true, now: Date.now() })
+  return Response.json({ revalidated: true, now: Date.now() })
 }
 ```
 
 Alternatively, you can use [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) to revalidate all data associated with a path.
 
 ```ts filename="app/api/revalidate/route.ts" switcher
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { revalidatePath } from 'next/cache'
 
 export async function POST(request: NextRequest) {
   const path = request.nextUrl.searchParams.get('path')
 
   if (!path) {
-    return NextResponse.json({ message: 'Missing path param' }, { status: 400 })
+    return Response.json({ message: 'Missing path param' }, { status: 400 })
   }
 
   revalidatePath(path)
 
-  return NextResponse.json({ revalidated: true, now: Date.now() })
+  return Response.json({ revalidated: true, now: Date.now() })
 }
 ```
 
 ```js filename="app/api/revalidate/route.js" switcher
-import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 
 export async function POST(request) {
   const path = request.nextUrl.searchParams.get('path')
 
   if (!path) {
-    return NextResponse.json({ message: 'Missing path param' }, { status: 400 })
+    return Response.json({ message: 'Missing path param' }, { status: 400 })
   }
 
   revalidatePath(path)
 
-  return NextResponse.json({ revalidated: true, now: Date.now() })
+  return Response.json({ revalidated: true, now: Date.now() })
 }
 ```
 
@@ -252,7 +250,7 @@ If an error is thrown while attempting to revalidate data, the last successfully
 
 To opt out of caching for individual `fetch` requests, you can set the `cache` option in `fetch` to `'no-store'`. This will fetch data dynamically, on every request.
 
-```js filename="layout.js / page.js"
+```js filename="layout.js | page.js"
 fetch('https://...', { cache: 'no-store' })
 ```
 
@@ -264,7 +262,7 @@ If you have multiple `fetch` requests in a route segment (e.g. a Layout or Page)
 
 For example, using `const dynamic = 'force-dynamic'` will cause all data to be fetched at request time, and the segment to be rendered dynamically.
 
-```js filename="layout.js / page.js"
+```js filename="layout.js | page.js"
 // Add
 export const dynamic = 'force-dynamic'
 ```
@@ -312,7 +310,7 @@ export const getItem = cache(async (id) => {
 
 Although the `getItem` function is called twice, only one query will be made to the database.
 
-```tsx filename="app/item/layout.tsx" switcher
+```tsx filename="app/item/[id]/layout.tsx" switcher
 import { getItem } from '@/utils/get-item'
 
 export default async function Layout({
@@ -325,7 +323,7 @@ export default async function Layout({
 }
 ```
 
-```jsx filename="app/item/layout.js" switcher
+```jsx filename="app/item/[id]/layout.js" switcher
 import { getItem } from '@/utils/get-item'
 
 export default async function Layout({ params: { id } }) {

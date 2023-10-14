@@ -53,8 +53,7 @@ describe('Missing Import Image Tests', () => {
 
     runTests({ isDev: true })
   })
-
-  describe('server mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       stderr = ''
       const result = await nextBuild(appDir, [], { stderr: true })

@@ -50,7 +50,7 @@ export default async function Page({ searchParams }: { searchParams: any }) {
             </Suspense>
           </Boundary>
 
-          <ExternalLink href="https://beta.nextjs.org/docs/api-reference/use-search-params">
+          <ExternalLink href="https://nextjs.org/docs/app/api-reference/functions/use-search-params#updating-searchparams">
             Docs
           </ExternalLink>
         </div>
@@ -95,7 +95,7 @@ export default async function Page({ searchParams }: { searchParams: any }) {
             </div>
           </Boundary>
 
-          <ExternalLink href="https://beta.nextjs.org/docs/api-reference/file-conventions/page">
+          <ExternalLink href="https://nextjs.org/docs/app/api-reference/functions/use-search-params#updating-searchparams">
             Docs
           </ExternalLink>
         </div>
