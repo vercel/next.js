@@ -9,7 +9,8 @@ import FileSystemCache from './file-system-cache'
 import path from '../../../shared/lib/isomorphic/path'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
 
-import { WritableStream } from 'next/dist/compiled/@edge-runtime/ponyfill'
+import '../../node-polyfill-web-streams'
+
 import {
   CACHE_ONE_YEAR,
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,

@@ -1,6 +1,6 @@
 import type { ServerResponse } from 'node:http'
 
-import { WritableStream } from 'next/dist/compiled/@edge-runtime/ponyfill'
+import './node-polyfill-web-streams'
 
 export function isAbortError(e: any): e is Error & { name: 'AbortError' } {
   return e?.name === 'AbortError'
