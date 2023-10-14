@@ -1,6 +1,7 @@
+import type { BinaryLike } from 'crypto'
 import { bold, cyan, magenta } from '../lib/picocolors'
 import Conf from 'next/dist/compiled/conf'
-import { BinaryLike, createHash, randomBytes } from 'crypto'
+import { createHash, randomBytes } from 'crypto'
 import isDockerFunction from 'next/dist/compiled/is-docker'
 import path from 'path'
 

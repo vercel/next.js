@@ -27,13 +27,14 @@ declare module 'mini-css-extract-plugin'
 declare module 'next/dist/compiled/loader-utils3'
 
 declare module 'next/dist/compiled/webpack/webpack' {
-  import webpackSources from 'webpack-sources1'
+  import type webpackSources from 'webpack-sources1'
   export function init(): void
   export let BasicEvaluatedExpression: any
   export let GraphHelpers: any
   export let sources: typeof webpackSources
   export let StringXor: any
   export {
+    default as webpack,
     Compiler,
     Compilation,
     Module,
@@ -43,6 +44,8 @@ declare module 'next/dist/compiled/webpack/webpack' {
     RuntimeGlobals,
     NormalModule,
     ResolvePluginInstance,
+    ModuleFilenameHelpers,
+    LoaderDefinitionFunction,
+    LoaderContext,
   } from 'webpack'
-  export { default as webpack, ModuleFilenameHelpers } from 'webpack'
 }

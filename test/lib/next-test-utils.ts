@@ -1037,6 +1037,24 @@ export function getSnapshotTestDescribe(variant: TestVariants) {
   return shouldSkip ? describe.skip : describe
 }
 
+export async function getRedboxComponentStack(
+  browser: BrowserInterface
+): Promise<string> {
+  await browser.waitForElementByCss(
+    '[data-nextjs-component-stack-frame]',
+    30000
+  )
+  // TODO: the type for elementsByCss is incorrect
+  const componentStackFrameElements: any = await browser.elementsByCss(
+    '[data-nextjs-component-stack-frame]'
+  )
+  const componentStackFrameTexts = await Promise.all(
+    componentStackFrameElements.map((f) => f.innerText())
+  )
+
+  return componentStackFrameTexts.join('\n')
+}
+
 /**
  * For better editor support, pass in the variants this should run on (`default` and/or `turbo`) as cases.
  *

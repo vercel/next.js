@@ -255,7 +255,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
 
     export const ComponentMod = pageMod
 
-    export default function(opts) {
+    export default function nHandler (opts, event) {
       return adapter({
         ...opts,
         IncrementalCache,

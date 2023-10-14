@@ -5,6 +5,7 @@ import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import type { ActionManifest } from './webpack/plugins/flight-client-entry-plugin'
 import type { ExportAppOptions, ExportAppWorker } from '../export/types'
+import type { Revalidate } from '../server/lib/revalidate'
 
 import '../lib/setup-exception-listeners'
 
@@ -12,7 +13,7 @@ import { loadEnvConfig } from '@next/env'
 import { bold, yellow, green } from '../lib/picocolors'
 import crypto from 'crypto'
 import { isMatch, makeRe } from 'next/dist/compiled/micromatch'
-import fs from 'fs/promises'
+import { existsSync, promises as fs } from 'fs'
 import os from 'os'
 import { Worker } from '../lib/worker'
 import { defaultConfig } from '../server/config-shared'
@@ -31,9 +32,11 @@ import {
 import { FileType, fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
 import loadCustomRoutes, {
+  normalizeRouteRegex,
+} from '../lib/load-custom-routes'
+import type {
   CustomRoutes,
   Header,
-  normalizeRouteRegex,
   Redirect,
   Rewrite,
   RouteHas,
@@ -72,9 +75,9 @@ import {
   FUNCTIONS_CONFIG_MANIFEST,
 } from '../shared/lib/constants'
 import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
-import { __ApiPreviewProps } from '../server/api-utils'
+import type { __ApiPreviewProps } from '../server/api-utils'
 import loadConfig from '../server/config'
-import { BuildManifest } from '../server/get-page-files'
+import type { BuildManifest } from '../server/get-page-files'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getPagePath } from '../server/require'
 import * as ciEnvironment from '../telemetry/ci-info'
@@ -84,10 +87,10 @@ import {
   eventBuildFeatureUsage,
   eventNextPlugins,
   EVENT_BUILD_FEATURE_USAGE,
-  EventBuildFeatureUsage,
   eventPackageUsedInGetServerSideProps,
   eventBuildCompleted,
 } from '../telemetry/events'
+import type { EventBuildFeatureUsage } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import {
   isDynamicMetadataRoute,
@@ -103,17 +106,17 @@ import {
   detectConflictingPaths,
   computeFromManifest,
   getJsPageSizeInKb,
-  PageInfo,
   printCustomRoutes,
   printTreeView,
   copyTracedFiles,
   isReservedPage,
-  AppConfig,
   isAppBuiltinNotFoundPage,
 } from './utils'
+import type { PageInfo, AppConfig } from './utils'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
-import isError, { NextError } from '../lib/is-error'
+import isError from '../lib/is-error'
+import type { NextError } from '../lib/is-error'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveReadDir } from '../lib/recursive-readdir'
@@ -123,6 +126,7 @@ import {
   teardownCrashReporter,
   loadBindings,
   teardownHeapProfiler,
+  createDefineEnv,
 } from './swc'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { flatReaddir } from '../lib/flat-readdir'
@@ -148,7 +152,7 @@ import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
 import { initialize as initializeIncrementalCache } from '../server/lib/incremental-cache-server'
 import { nodeFs } from '../server/lib/node-fs-methods'
 import { collectBuildTraces } from './collect-build-traces'
-import { BuildTraceContext } from './webpack/plugins/next-trace-entrypoints-plugin'
+import type { BuildTraceContext } from './webpack/plugins/next-trace-entrypoints-plugin'
 import { formatManifest } from './manifests/formatter/format-manifest'
 
 interface ExperimentalBypassForInfo {
@@ -162,7 +166,7 @@ interface DataRouteRouteInfo {
 export interface SsgRoute
   extends ExperimentalBypassForInfo,
     DataRouteRouteInfo {
-  initialRevalidateSeconds: number | false
+  initialRevalidateSeconds: Revalidate
   srcRoute: string | null
   initialStatus?: number
   initialHeaders?: Record<string, string>
@@ -407,7 +411,7 @@ export default async function build(
 
       const cacheDir = path.join(distDir, 'cache')
       if (ciEnvironment.isCI && !ciEnvironment.hasNextSupport) {
-        const hasCache = await fileExists(cacheDir)
+        const hasCache = existsSync(cacheDir)
 
         if (!hasCache) {
           // Intentionally not piping to stderr in case people fail in CI when
@@ -432,7 +436,7 @@ export default async function build(
       const isSrcDir = path
         .relative(dir, pagesDir || appDir || '')
         .startsWith('src')
-      const hasPublicDir = await fileExists(publicDir)
+      const hasPublicDir = existsSync(publicDir)
 
       telemetry.record(
         eventCliSession(dir, config, {
@@ -718,7 +722,7 @@ export default async function build(
         mappedPages['/_error'].startsWith(PAGES_DIR_ALIAS)
 
       if (hasPublicDir) {
-        const hasPublicUnderScoreNextDir = await fileExists(
+        const hasPublicUnderScoreNextDir = existsSync(
           path.join(publicDir, '_next')
         )
         if (hasPublicUnderScoreNextDir) {
@@ -934,7 +938,7 @@ export default async function build(
                 ? path.relative(distDir, incrementalCacheHandlerPath)
                 : undefined,
 
-              isExperimentalCompile: true,
+              isExperimentalCompile: isCompile,
             },
           },
           appDir: dir,
@@ -1018,10 +1022,28 @@ export default async function build(
             : packagePath
             ? path.dirname(packagePath)
             : undefined)
+
+        const hasRewrites =
+          rewrites.beforeFiles.length > 0 ||
+          rewrites.afterFiles.length > 0 ||
+          rewrites.fallback.length > 0
+
         await binding.turbo.nextBuild({
           ...NextBuildContext,
           root,
           distDir: config.distDir,
+          defineEnv: createDefineEnv({
+            allowedRevalidateHeaderKeys:
+              config.experimental.allowedRevalidateHeaderKeys,
+            clientRouterFilters: NextBuildContext.clientRouterFilters,
+            config,
+            dev: false,
+            distDir,
+            fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
+            hasRewrites,
+            middlewareMatchers: undefined,
+            previewModeId: undefined,
+          }),
         })
 
         const [duration] = process.hrtime(turboNextBuildStart)
@@ -1183,19 +1205,11 @@ export default async function build(
       ) {
         let infoPrinted = false
 
-        return Worker.create<
-          Pick<
-            typeof import('./worker'),
-            | 'hasCustomGetInitialProps'
-            | 'isPageStatic'
-            | 'getDefinedNamedExports'
-            | 'exportPage'
-          >
-        >(staticWorkerPath, {
+        return new Worker(staticWorkerPath, {
           timeout: timeout * 1000,
           onRestart: (method, [arg], attempts) => {
             if (method === 'exportPage') {
-              const { path: pagePath } = arg
+              const pagePath = arg.path
               if (attempts >= 3) {
                 throw new Error(
                   `Static page generation for ${pagePath} is still timing out after 3 attempts. See more info here https://nextjs.org/docs/messages/static-page-generation-timeout`
@@ -1205,7 +1219,7 @@ export default async function build(
                 `Restarted static page generation for ${pagePath} because it took more than ${timeout} seconds`
               )
             } else {
-              const pagePath = arg
+              const pagePath = arg.path
               if (attempts >= 2) {
                 throw new Error(
                   `Collecting page data for ${pagePath} is still timing out after 2 attempts. See more info here https://nextjs.org/docs/messages/page-data-collection-timeout`
@@ -1238,7 +1252,14 @@ export default async function build(
             'getDefinedNamedExports',
             'exportPage',
           ],
-        })
+        }) as Worker &
+          Pick<
+            typeof import('./worker'),
+            | 'hasCustomGetInitialProps'
+            | 'isPageStatic'
+            | 'getDefinedNamedExports'
+            | 'exportPage'
+          >
       }
 
       let CacheHandler: any
@@ -2407,7 +2428,7 @@ export default async function build(
                   .join('pages', '404.html')
                   .replace(/\\/g, '/')
 
-                if (await fileExists(orig)) {
+                if (existsSync(orig)) {
                   await fs.copyFile(
                     orig,
                     path.join(distDir, 'server', updatedRelativeDest)
@@ -2882,7 +2903,7 @@ export default async function build(
                   SERVER_DIRECTORY,
                   'app'
                 )
-                if (await fileExists(originalServerApp)) {
+                if (existsSync(originalServerApp)) {
                   await recursiveCopy(
                     originalServerApp,
                     path.join(

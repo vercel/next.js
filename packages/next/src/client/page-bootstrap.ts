@@ -1,8 +1,7 @@
 import { hydrate, router } from './'
 import initOnDemandEntries from './dev/on-demand-entries-client'
-import initializeBuildWatcher, {
-  ShowHideHandler,
-} from './dev/dev-build-watcher'
+import initializeBuildWatcher from './dev/dev-build-watcher'
+import type { ShowHideHandler } from './dev/dev-build-watcher'
 import { displayContent } from './dev/fouc'
 import { connectHMR, addMessageListener } from './dev/error-overlay/websocket'
 import {

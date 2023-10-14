@@ -3,7 +3,10 @@ import type { RenderOpts } from '../../server/app-render/types'
 import type { OutgoingHttpHeaders } from 'http'
 import type { NextParsedUrlQuery } from '../../server/request-meta'
 
-import { MockedRequest, MockedResponse } from '../../server/lib/mock-request'
+import type {
+  MockedRequest,
+  MockedResponse,
+} from '../../server/lib/mock-request'
 import {
   RSC,
   NEXT_URL,
@@ -104,7 +107,7 @@ export async function exportAppPage(
     const html = result.toUnchunkedString()
     const { metadata } = result
     const flightData = metadata.pageData
-    const revalidate = metadata.revalidate
+    const revalidate = metadata.revalidate ?? false
 
     if (revalidate === 0) {
       if (isDynamicError) {

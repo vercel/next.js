@@ -6,7 +6,10 @@ import type { NextParsedUrlQuery } from '../../server/request-meta'
 
 import RenderResult from '../../server/render-result'
 import { join } from 'path'
-import { MockedRequest, MockedResponse } from '../../server/lib/mock-request'
+import type {
+  MockedRequest,
+  MockedResponse,
+} from '../../server/lib/mock-request'
 import { isInAmpMode } from '../../shared/lib/amp-mode'
 import { SERVER_PROPS_EXPORT_ERROR } from '../../lib/constants'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
@@ -211,7 +214,7 @@ export async function exportPages(
 
   return {
     ampValidations,
-    revalidate: metadata.revalidate,
+    revalidate: metadata.revalidate ?? false,
     ssgNotFound,
   }
 }
