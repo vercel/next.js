@@ -15,5 +15,6 @@ pub mod failed_to_analyse {
         pub const NODE_PROTOBUF_LOADER: &str = "TP1105";
         pub const AMD_DEFINE: &str = "TP1200";
         pub const NEW_URL_IMPORT_META: &str = "TP1201";
+        pub const FREE_VAR_REFERENCE: &str = "TP1202";
     }
 }
