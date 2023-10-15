@@ -9,6 +9,16 @@ const startsWithUsingCorrectSeparators = (str: string, start: string) =>
     str.startsWith(start.replace(/\//g, sep))
   )
 
+const trimBeforePath = (fullPath: string, paths: string[]): string => {
+  for (const pathItem of paths) {
+    const index = fullPath.indexOf(pathItem)
+    if (index !== -1) {
+      return fullPath.substring(index)
+    }
+  }
+  return fullPath
+}
+
 export = defineRule({
   meta: {
     docs: {
@@ -32,17 +42,15 @@ export = defineRule({
       JSXOpeningElement(node) {
         let pathname = context.getFilename()
 
-        if (startsWithUsingCorrectSeparators(pathname, 'src/')) {
-          pathname = pathname.slice(4)
-        } else if (startsWithUsingCorrectSeparators(pathname, '/src/')) {
-          pathname = pathname.slice(5)
-        }
+        pathname = trimBeforePath(pathname, [
+          'pages',
+          'src/pages',
+          'app',
+          'src/app',
+        ])
 
         // This rule shouldn't fire in `app/`
-        if (
-          startsWithUsingCorrectSeparators(pathname, 'app/') ||
-          startsWithUsingCorrectSeparators(pathname, '/app/')
-        ) {
+        if (startsWithUsingCorrectSeparators(pathname, 'app/')) {
           return
         }
 
