@@ -29,7 +29,7 @@
 - [Supabase Auth](https://supabase.com/auth) using cookies, making the user's session available throughout the entire Next.js app, for both client and server.
 - Styling with [Tailwind CSS](https://tailwindcss.com)
 - Optional deployment with [Supabase Vercel Integration and Vercel deploy](#deploy-your-own)
-  - Enviroment variables automatically assigned to Vercel project
+  - Environment variables automatically assigned to Vercel project
 
 ## Demo
 
