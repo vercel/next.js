@@ -1,5 +1,5 @@
 use anyhow::Result;
-use indexmap::IndexMap;
+use indexmap::{indexmap, IndexMap};
 use turbo_tasks::{Value, Vc};
 use turbopack_binding::{
     turbo::{tasks_env::EnvMap, tasks_fs::FileSystemPath},
@@ -65,36 +65,36 @@ async fn next_edge_free_vars(
     project_path: Vc<FileSystemPath>,
     define_env: Vc<EnvMap>,
 ) -> Result<Vc<FreeVarReferences>> {
-    let error_message = "A Node.js API is used which is not supported in the Edge Runtime. Learn more: https://nextjs.org/docs/api-reference/edge-runtime".to_string();
+    let node_api_error = FreeVarReference::Error("A Node.js API is used which is not supported in the Edge Runtime. Learn more: https://nextjs.org/docs/api-reference/edge-runtime".to_string());
 
     let unsupported_runtime_apis = match mode {
         NextMode::Build => {
-            (
+            Ok(indexmap! {
                 // Mirrors warnForUnsupportedApi in middleware-plugin.ts
-                clearImmediate = FreeVarReference::Error(error_message.clone()),
-                setImmediate = FreeVarReference::Error(error_message.clone()),
-                BroadcastChannel = FreeVarReference::Error(error_message.clone()),
-                ByteLengthQueuingStrategy = FreeVarReference::Error(error_message.clone()),
-                CompressionStream = FreeVarReference::Error(error_message.clone()),
-                CountQueuingStrategy = FreeVarReference::Error(error_message.clone()),
-                DecompressionStream = FreeVarReference::Error(error_message.clone()),
-                DomException = FreeVarReference::Error(error_message.clone()),
-                MessageChannel = FreeVarReference::Error(error_message.clone()),
-                MessageEvent = FreeVarReference::Error(error_message.clone()),
-                MessagePort = FreeVarReference::Error(error_message.clone()),
-                ReadableByteStreamController = FreeVarReference::Error(error_message.clone()),
-                ReadableStreamBYOBRequest = FreeVarReference::Error(error_message.clone()),
-                ReadableStreamDefaultController = FreeVarReference::Error(error_message.clone()),
-                TransformStreamDefaultController = FreeVarReference::Error(error_message.clone()),
-                WritableStreamDefaultController = FreeVarReference::Error(error_message.clone()),
+                "clearImmediate" => node_api_error.clone(),
+                "setImmediate" => node_api_error.clone(),
+                "BroadcastChannel" => node_api_error.clone(),
+                "ByteLengthQueuingStrategy" => node_api_error.clone(),
+                "CompressionStream" => node_api_error.clone(),
+                "CountQueuingStrategy" => node_api_error.clone(),
+                "DecompressionStream" => node_api_error.clone(),
+                "DomException" => node_api_error.clone(),
+                "MessageChannel" => node_api_error.clone(),
+                "MessageEvent" => node_api_error.clone(),
+                "MessagePort" => node_api_error.clone(),
+                "ReadableByteStreamController" => node_api_error.clone(),
+                "ReadableStreamBYOBRequest" => node_api_error.clone(),
+                "ReadableStreamDefaultController" => node_api_error.clone(),
+                "TransformStreamDefaultController" => node_api_error.clone(),
+                "WritableStreamDefaultController" => node_api_error.clone(),
                 // TODO: Implement warnForUnsupportedProcessApi from
                 // middleware-plugin.ts That function implements
                 // a check for `process.something` where `something` could be
                 // anything in the process object except for `process.env` as that is
                 // excluded.
-            )
+            })
         }
-        NextMode::Development => (),
+        NextMode::Development => Ok(()),
     };
     Ok(free_var_references!(
         ..defines(mode, &*define_env.await?).into_iter(),
