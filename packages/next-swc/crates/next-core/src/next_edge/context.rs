@@ -90,7 +90,7 @@ async fn next_edge_free_vars(
                 // TODO: Implement warnForUnsupportedProcessApi from
                 // middleware-plugin.ts That function implements
                 // a check for `process.something` where `something` could be
-                // anything in the process object except for `env` as that is
+                // anything in the process object except for `process.env` as that is
                 // excluded.
             )
         }
@@ -108,7 +108,7 @@ async fn next_edge_free_vars(
             lookup_path: Some(project_path),
             export: Some("default".to_string()),
         },
-        // ..unsupported_runtime_apis
+        ..unsupported_runtime_apis
     ))
     .cell()
 }
