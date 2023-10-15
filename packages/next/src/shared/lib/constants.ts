@@ -126,6 +126,7 @@ export const RSC_MODULE_TYPES = {
 // https://nextjs.org/docs/api-reference/edge-runtime
 // with
 // https://nodejs.org/docs/latest/api/globals.html
+// Keep in sync with packages/next-swc/crates/next-core/src/next_edge/context.rs
 export const EDGE_UNSUPPORTED_NODE_APIS = [
   'clearImmediate',
   'setImmediate',
