@@ -896,22 +896,22 @@ pub(crate) async fn analyze_ecmascript_module(
             Effect::FreeVar {
                 var,
                 ast_path,
-                span: _,
+                span,
                 in_try: _,
             } => {
-                handle_free_var(&ast_path, var, &analysis_state, &mut analysis).await?;
+                handle_free_var(&ast_path, var, span, &analysis_state, &mut analysis).await?;
             }
             Effect::Member {
                 obj,
                 prop,
                 ast_path,
-                span: _,
+                span,
                 in_try,
             } => {
                 let obj = analysis_state.link_value(obj, in_try).await?;
                 let prop = analysis_state.link_value(prop, in_try).await?;
 
-                handle_member(&ast_path, obj, prop, &analysis_state, &mut analysis).await?;
+                handle_member(&ast_path, obj, prop, span, &analysis_state, &mut analysis).await?;
             }
             Effect::ImportedBinding {
                 esm_reference_index,
@@ -1637,6 +1637,7 @@ async fn handle_member(
     ast_path: &[AstParentKind],
     obj: JsValue,
     prop: JsValue,
+    span: Span,
     state: &AnalysisState<'_>,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
 ) -> Result<()> {
@@ -1653,7 +1654,7 @@ async fn handle_member(
                     continue;
                 }
                 if obj.iter_defineable_name_rev().eq(it)
-                    && handle_free_var_reference(ast_path, value, state, analysis).await?
+                    && handle_free_var_reference(ast_path, value, span, state, analysis).await?
                 {
                     return Ok(());
                 }
@@ -1680,6 +1681,7 @@ async fn handle_member(
 async fn handle_free_var(
     ast_path: &[AstParentKind],
     var: JsValue,
+    span: Span,
     state: &AnalysisState<'_>,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
 ) -> Result<()> {
@@ -1690,10 +1692,11 @@ async fn handle_free_var(
             if name.len() != def_name_len {
                 continue;
             }
+
             if var
                 .iter_defineable_name_rev()
                 .eq(name.iter().map(Cow::Borrowed).rev())
-                && handle_free_var_reference(ast_path, value, state, analysis).await?
+                && handle_free_var_reference(ast_path, value, span, state, analysis).await?
             {
                 return Ok(());
             }
@@ -1706,6 +1709,7 @@ async fn handle_free_var(
 async fn handle_free_var_reference(
     ast_path: &[AstParentKind],
     value: &FreeVarReference,
+    span: Span,
     state: &AnalysisState<'_>,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
 ) -> Result<bool> {
@@ -1722,7 +1726,16 @@ async fn handle_free_var_reference(
     ) {
         return Ok(false);
     }
+
     match value {
+        FreeVarReference::Error(error_message) => state.handler.span_err_with_code(
+            span,
+            error_message,
+            DiagnosticId::Error(
+                errors::failed_to_analyse::ecmascript::FREE_VAR_REFERENCE.to_string(),
+            ),
+        ),
+
         FreeVarReference::Value(value) => {
             analysis.add_code_gen(ConstantValue::new(
                 Value::new(value.clone()),

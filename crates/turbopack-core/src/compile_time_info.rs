@@ -136,6 +136,7 @@ pub enum FreeVarReference {
         export: Option<String>,
     },
     Value(CompileTimeDefineValue),
+    Error(String),
 }
 
 impl From<bool> for FreeVarReference {
