@@ -23,14 +23,15 @@ use next_core::{
 };
 use turbo_tasks::Vc;
 use turbopack_binding::{
-    turbo::{tasks::Value, tasks_env::ProcessEnv, tasks_fs::FileSystemPath},
+    turbo::{tasks::Value, tasks_fs::FileSystemPath},
     turbopack::{
         build::BuildChunkingContext,
         core::{
-            chunk::{ChunkableModule, ChunkingContext, EvaluatableAssets},
+            chunk::{ChunkingContext, EvaluatableAssets},
             compile_time_info::CompileTimeInfo,
             context::AssetContext,
             file_source::FileSource,
+            module::Module,
             output::OutputAsset,
             reference_type::{EntryReferenceSubType, ReferenceType},
             source::Source,
@@ -57,7 +58,6 @@ pub async fn get_page_entries(
     next_router_root: Vc<FileSystemPath>,
     project_root: Vc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,
-    env: Vc<Box<dyn ProcessEnv>>,
     client_compile_time_info: Vc<CompileTimeInfo>,
     server_compile_time_info: Vc<CompileTimeInfo>,
     next_config: Vc<NextConfig>,
@@ -120,7 +120,6 @@ pub async fn get_page_entries(
 
     let client_runtime_entries = get_client_runtime_entries(
         project_root,
-        env,
         client_ty,
         mode,
         next_config,
@@ -150,8 +149,7 @@ pub async fn get_page_entries(
         ssr_resolve_options_context,
     ));
 
-    let ssr_runtime_entries =
-        get_server_runtime_entries(project_root, env, ssr_ty, mode, next_config);
+    let ssr_runtime_entries = get_server_runtime_entries(ssr_ty, mode);
     let ssr_runtime_entries = ssr_runtime_entries.resolve_entries(ssr_module_context);
 
     let entries = get_page_entries_for_root_directory(
@@ -389,7 +387,7 @@ pub async fn compute_page_entries_chunks(
         let pathname = page_entry.pathname.await?;
         let asset_path: String = get_asset_path_from_pathname(&pathname, ".js");
 
-        let ssr_entry_chunk = ssr_chunking_context.entry_chunk(
+        let ssr_entry_chunk = ssr_chunking_context.entry_chunk_group(
             node_root.join(format!("server/pages/{asset_path}")),
             Vc::upcast(page_entry.ssr_module),
             page_entries.ssr_runtime_entries,
@@ -403,12 +401,8 @@ pub async fn compute_page_entries_chunks(
                 .insert(pathname.clone_value(), asset_path.to_string());
         }
 
-        let client_entry_chunk = page_entry
-            .client_module
-            .as_root_chunk(Vc::upcast(client_chunking_context));
-
         let client_chunks = client_chunking_context.evaluated_chunk_group(
-            client_entry_chunk,
+            page_entry.client_module.ident(),
             page_entries
                 .client_runtime_entries
                 .with_entry(Vc::upcast(page_entry.client_module)),

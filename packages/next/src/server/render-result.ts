@@ -1,11 +1,14 @@
-import { StaticGenerationStore } from '../client/components/static-generation-async-storage.external'
-import { pipeReadable, PipeTarget } from './pipe-readable'
+import type { StaticGenerationStore } from '../client/components/static-generation-async-storage.external'
+import type { Revalidate } from './lib/revalidate'
+import type { PipeTarget } from './pipe-readable'
+
+import { pipeReadable } from './pipe-readable'
 
 type ContentTypeOption = string | undefined
 
 export type RenderResultMetadata = {
   pageData?: any
-  revalidate?: any
+  revalidate?: Revalidate
   staticBailoutInfo?: any
   assetQueryString?: string
   isNotFound?: boolean

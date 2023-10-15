@@ -1,6 +1,18 @@
 import React from 'react'
 import type { fetchServerResponse as fetchServerResponseType } from '../fetch-server-response'
 import type { FlightData } from '../../../../server/app-render/types'
+import type { FlightRouterState } from '../../../../server/app-render/types'
+import { CacheStates } from '../../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
+import { createInitialRouterState } from '../create-initial-router-state'
+import {
+  ACTION_NAVIGATE,
+  ACTION_PREFETCH,
+  PrefetchKind,
+} from '../router-reducer-types'
+import type { NavigateAction, PrefetchAction } from '../router-reducer-types'
+import { navigateReducer } from './navigate-reducer'
+import { prefetchReducer } from './prefetch-reducer'
 
 const buildId = 'development'
 
@@ -74,22 +86,6 @@ jest.mock('../fetch-server-response', () => {
     },
   }
 })
-
-import { FlightRouterState } from '../../../../server/app-render/types'
-import {
-  CacheNode,
-  CacheStates,
-} from '../../../../shared/lib/app-router-context.shared-runtime'
-import { createInitialRouterState } from '../create-initial-router-state'
-import {
-  NavigateAction,
-  ACTION_NAVIGATE,
-  ACTION_PREFETCH,
-  PrefetchAction,
-  PrefetchKind,
-} from '../router-reducer-types'
-import { navigateReducer } from './navigate-reducer'
-import { prefetchReducer } from './prefetch-reducer'
 
 const getInitialRouterStateTree = (): FlightRouterState => [
   '',

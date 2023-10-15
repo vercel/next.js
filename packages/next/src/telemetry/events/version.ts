@@ -1,5 +1,5 @@
+import type { NextConfigComplete } from '../../server/config-shared'
 import path from 'path'
-import { NextConfigComplete } from '../../server/config-shared'
 
 const EVENT_VERSION = 'NEXT_CLI_SESSION_STARTED'
 

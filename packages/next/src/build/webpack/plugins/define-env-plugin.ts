@@ -2,15 +2,28 @@ import type { NextConfigComplete } from '../../../server/config-shared'
 import type { MiddlewareMatcher } from '../../analysis/get-page-static-info'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { needsExperimentalReact } from '../../../lib/needs-experimental-react'
-import getBaseWebpackConfig, {
-  errorIfEnvConflicted,
-} from '../../webpack-config'
 
-interface DefineEnvPluginOptions {
+function errorIfEnvConflicted(config: NextConfigComplete, key: string) {
+  const isPrivateKey = /^(?:NODE_.+)|^(?:__.+)$/i.test(key)
+  const hasNextRuntimeKey = key === 'NEXT_RUNTIME'
+
+  if (isPrivateKey || hasNextRuntimeKey) {
+    throw new Error(
+      `The key "${key}" under "env" in ${config.configFileName} is not allowed. https://nextjs.org/docs/messages/env-key-not-allowed`
+    )
+  }
+}
+
+export interface DefineEnvPluginOptions {
   allowedRevalidateHeaderKeys: string[] | undefined
-  clientRouterFilters: Parameters<
-    typeof getBaseWebpackConfig
-  >[1]['clientRouterFilters']
+  clientRouterFilters?: {
+    staticFilter: ReturnType<
+      import('../../../shared/lib/bloom-filter').BloomFilter['export']
+    >
+    dynamicFilter: ReturnType<
+      import('../../../shared/lib/bloom-filter').BloomFilter['export']
+    >
+  }
   config: NextConfigComplete
   dev: boolean
   distDir: string

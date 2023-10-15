@@ -7,9 +7,9 @@
 import type { Agent as HttpAgent } from 'http'
 import type { Agent as HttpsAgent } from 'https'
 
-import React from 'react'
-import { ParsedUrlQuery } from 'querystring'
-import { IncomingMessage, ServerResponse } from 'http'
+import type React from 'react'
+import type { ParsedUrlQuery } from 'querystring'
+import type { IncomingMessage, ServerResponse } from 'http'
 
 import {
   NextPageContext,
@@ -20,7 +20,7 @@ import {
   // @ts-ignore This path is generated at build time and conflicts otherwise
 } from '../dist/shared/lib/utils'
 
-import {
+import type {
   NextApiRequestCookies,
   // @ts-ignore This path is generated at build time and conflicts otherwise
 } from '../dist/server/api-utils'

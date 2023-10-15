@@ -13,7 +13,7 @@ import {
 const appDir = path.join(__dirname, '..')
 
 describe('Handles Duplicate Pages', () => {
-  describe('production', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     it('Throws an error during build', async () => {
       const { stderr } = await nextBuild(appDir, [], { stderr: true })
       expect(stderr).toContain('Duplicate page detected')

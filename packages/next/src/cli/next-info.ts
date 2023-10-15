@@ -7,7 +7,7 @@ import { bold, cyan, yellow } from '../lib/picocolors'
 const { fetch } = require('next/dist/compiled/undici') as {
   fetch: typeof global.fetch
 }
-import { CliCommand } from '../lib/commands'
+import type { CliCommand } from '../lib/commands'
 import { PHASE_INFO } from '../shared/lib/constants'
 import loadConfig from '../server/config'
 
