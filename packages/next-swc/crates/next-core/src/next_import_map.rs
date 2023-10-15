@@ -54,6 +54,8 @@ pub async fn get_next_client_import_map(
     )
     .await?;
 
+    insert_optimized_module_aliases(&mut import_map, project_path).await?;
+
     insert_alias_option(
         &mut import_map,
         project_path,
@@ -419,6 +421,8 @@ pub async fn get_next_edge_import_map(
         mode,
     )
     .await?;
+
+    insert_optimized_module_aliases(&mut import_map, project_path).await?;
 
     insert_alias_option(
         &mut import_map,
@@ -936,8 +940,32 @@ pub fn mdx_import_source_file() -> String {
     format!("{VIRTUAL_PACKAGE_NAME}/mdx-import-source")
 }
 
+// Insert aliases for Next.js stubs of fetch, object-assign, and url
+// Keep in sync with getOptimizedModuleAliases in webpack-config.ts
+async fn insert_optimized_module_aliases(
+    import_map: &mut ImportMap,
+    project_path: Vc<FileSystemPath>,
+) -> Result<()> {
+    insert_exact_alias_map(
+        import_map,
+        project_path,
+        indexmap! {
+            "unfetch" => "next/dist/build/polyfills/fetch/index.js".to_string(),
+            "isomorphic-unfetch" => "next/dist/build/polyfills/fetch/index.js".to_string(),
+            "whatwg-fetch" => "next/dist/build/polyfills/fetch/whatwg-fetch.js".to_string(),
+            "object-assign" => "next/dist/build/polyfills/object-assign.js".to_string(),
+            "object.assign/auto" => "next/dist/build/polyfills/object.assign/auto.js".to_string(),
+            "object.assign/implementation" => "next/dist/build/polyfills/object.assign/implementation.js".to_string(),
+            "object.assign/polyfill" => "next/dist/build/polyfills/object.assign/polyfill.js".to_string(),
+            "object.assign/shim" => "next/dist/build/polyfills/object.assign/shim.js".to_string(),
+            "url" => "next/dist/compiled/native-url".to_string(),
+        },
+    );
+    Ok(())
+}
+
 // Make sure to not add any external requests here.
-pub async fn insert_next_shared_aliases(
+async fn insert_next_shared_aliases(
     import_map: &mut ImportMap,
     project_path: Vc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,
