@@ -4,9 +4,8 @@ use anyhow::{bail, Result};
 use next_core::emit_client_assets;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::{ValueDebug, ValueDebugFormat},
-    trace::TraceRawVcs,
-    State, TryFlatJoinIterExt, TryJoinIterExt, ValueDefault, ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, State, TryFlatJoinIterExt, TryJoinIterExt,
+    ValueDefault, ValueToString, Vc,
 };
 use turbopack_binding::{
     turbo::tasks_fs::FileSystemPath,
