@@ -288,7 +288,6 @@ export async function collectBuildTraces({
               // this is being handled outside of next-server
               '**/next/dist/server/image-optimizer.js',
               '**/node_modules/sharp/**/*',
-              '**/next/dist/compiled/edge-runtime/**/*',
             ]
           : []),
 
