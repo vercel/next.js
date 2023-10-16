@@ -26,11 +26,12 @@ const TEMPLATES_ESM_FOLDER = path.normalize(
 
 export async function loadEntrypoint(
   entrypoint:
-    | 'pages'
-    | 'pages-api'
     | 'app-page'
     | 'app-route'
-    | 'edge-app-route',
+    | 'edge-app-route'
+    | 'middleware'
+    | 'pages'
+    | 'pages-api',
   replacements: Record<`VAR_${string}`, string>,
   injections?: Record<string, string>
 ): Promise<string> {
