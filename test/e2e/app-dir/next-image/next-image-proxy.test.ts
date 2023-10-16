@@ -85,12 +85,8 @@ createNextDescribe(
         '/_next/image?url=https%3A%2F%2Fimage-optimization-test.vercel.app%2Ftest.jpg&w=640&q=75'
       )
 
-      await check(() => {
-        // we expect 3 images to load and for none of them to have errors
-        if (fulfilledCount === 3 && failCount === 0) {
-          return 'success'
-        }
-      }, 'success')
+      const expected = JSON.stringify({ fulfilledCount: 4, failCount: 0 })
+      await check(() => JSON.stringify({ fulfilledCount, failCount }), expected)
     })
 
     afterAll(() => {
