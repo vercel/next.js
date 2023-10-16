@@ -84,7 +84,11 @@ export function getOriginalStackFrame(
     }
   }
 
-  if (source.file === '<anonymous>' || source.file?.match(/^node:/)) {
+  if (
+    source.file === '<anonymous>' ||
+    source.file?.match(/^node:/) ||
+    source.file?.match(/https?:\/\//)
+  ) {
     return Promise.resolve({
       error: false,
       reason: null,

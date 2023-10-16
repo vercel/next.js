@@ -4,8 +4,9 @@ use anyhow::{bail, Result};
 use next_core::emit_client_assets;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, State, TryFlatJoinIterExt, TryJoinIterExt,
-    ValueDefault, ValueToString, Vc,
+    debug::{ValueDebug, ValueDebugFormat},
+    trace::TraceRawVcs,
+    State, TryFlatJoinIterExt, TryJoinIterExt, ValueDefault, ValueToString, Vc,
 };
 use turbopack_binding::{
     turbo::tasks_fs::FileSystemPath,
@@ -25,7 +26,7 @@ pub struct OutputAssetsOperation(Vc<OutputAssets>);
 #[derive(
     Clone, Copy, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Serialize, Deserialize, Debug,
 )]
-struct MapEntry {
+pub struct MapEntry {
     assets_operation: Vc<OutputAssets>,
 }
 

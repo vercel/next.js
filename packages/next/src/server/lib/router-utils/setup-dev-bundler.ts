@@ -6,6 +6,7 @@ import type {
   WrittenEndpoint,
   ServerClientChange,
   Issue,
+  Project,
 } from '../../../build/swc'
 import type { Socket } from 'net'
 import type { FilesystemDynamicRoute } from './filesystem'
@@ -197,6 +198,7 @@ async function startWatcher(opts: SetupOpts) {
   } = {}
 
   let hotReloader: NextJsHotReloaderInterface
+  let project: Project | undefined
 
   if (opts.turbo) {
     const { loadBindings } =
@@ -220,7 +222,7 @@ async function startWatcher(opts: SetupOpts) {
       opts.fsChecker.rewrites.beforeFiles.length > 0 ||
       opts.fsChecker.rewrites.fallback.length > 0
 
-    const project = await bindings.turbo.createProject({
+    project = await bindings.turbo.createProject({
       projectPath: dir,
       rootPath: opts.nextConfig.experimental.outputFileTracingRoot || dir,
       nextConfig: opts.nextConfig,
@@ -877,7 +879,7 @@ async function startWatcher(opts: SetupOpts) {
       }
       if (mapping.has(id)) return
 
-      const subscription = project.hmrEvents(id)
+      const subscription = project!.hmrEvents(id)
       mapping.set(id, subscription)
 
       // The subscription will always emit once, which is the initial
@@ -1049,7 +1051,7 @@ async function startWatcher(opts: SetupOpts) {
     await writeOtherManifests()
     await writeFontManifest()
 
-    const middleware = getOverlayMiddleware(opts.dir)
+    const middleware = getOverlayMiddleware(project)
 
     const turbopackHotReloader: NextJsHotReloaderInterface = {
       turbopackProject: project,
@@ -2158,7 +2160,7 @@ async function startWatcher(opts: SetupOpts) {
         if (frame && lineNumber != null && file != null) {
           let originalFrame, isEdgeCompiler
           if (opts.turbo) {
-            originalFrame = await createOriginalTurboStackFrame(opts.dir, frame)
+            originalFrame = await createOriginalTurboStackFrame(project!, frame)
           } else {
             const moduleId = file!.replace(
               /^(webpack-internal:\/\/\/|file:\/\/)/,

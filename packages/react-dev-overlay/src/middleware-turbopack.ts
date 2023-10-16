@@ -1,112 +1,63 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { StackFrame } from 'stacktrace-parser'
+import type { ParsedUrlQuery } from 'querystring'
+import type { OriginalStackFrameResponse } from './middleware'
 
 import fs, { constants as FS } from 'fs/promises'
 import url from 'url'
-import {
-  extractSourceMapFilepath,
-  findOriginalSourcePositionAndContent,
-} from './utils'
+import { extractSourceMapFilepath } from './utils'
 import { codeFrameColumns } from '@babel/code-frame'
-import TTLCache from '@isaacs/ttlcache'
-import type { OriginalStackFrameResponse } from './middleware'
-import type { RawSourceMap } from 'source-map'
 import { launchEditor } from './internal/helpers/launchEditor'
-import { ParsedUrlQuery } from 'querystring'
 
 export { extractSourceMapFilepath }
 
 export class InputError extends Error {}
 
-const mapCache: TTLCache<string, any> = new TTLCache({ ttl: 3000 })
+interface Project {
+  traceSource(stackFrame: RustStackFrame): Promise<{
+    frame: RustStackFrame
+    source: string
+  }>
+}
+
+interface RustStackFrame {
+  file: string
+  methodName: string | undefined
+  line: number
+  column: number | undefined
+}
 
 export async function createOriginalStackFrame(
-  rootDirectory: string,
+  project: Project,
   frame: StackFrame
 ): Promise<OriginalStackFrameResponse | null> {
-  const { lineNumber } = frame
-  const file = frame.file?.replace(/^(file:\/\/)/, '')
-  if (file === undefined || file === '<anonymous>' || file.match(/^node:/)) {
-    throw new InputError('Frame filename missing or invalid')
-  }
-
-  if (
-    // Don't read any files outside the root dir for security.
-    !file.startsWith(rootDirectory)
-  ) {
-    throw new InputError('Attempted to read outside rootDirectory')
-  }
-
-  if (lineNumber === null) {
-    throw new InputError('Frame lineNumber missing')
-  }
-
-  let sourceMap
-  const existing = mapCache.get(file)
-  if (existing) {
-    sourceMap = existing
-  } else {
-    const sourceMapFile = await extractSourceMapFilepath(file)
-    sourceMap =
-      sourceMapFile !== undefined
-        ? (JSON.parse(await fs.readFile(sourceMapFile, 'utf8')) as RawSourceMap)
-        : undefined
-    mapCache.set(file, sourceMap)
-  }
-
-  if (!sourceMap) {
-    return {
-      originalStackFrame: frame,
-      originalCodeFrame: null,
-    }
-  }
-
-  const original = await findOriginalSourcePositionAndContent(sourceMap, {
-    line: lineNumber,
-    column: frame.column,
+  const source = await project.traceSource({
+    file: frame.file ?? '<unknown>',
+    methodName: frame.methodName,
+    line: frame.lineNumber ?? 0,
+    column: frame.column ?? undefined,
   })
-
-  if (original === null) {
-    return {
-      originalStackFrame: frame,
-      originalCodeFrame: null,
-    }
-  }
-
-  const { sourcePosition, sourceContent } = original
-
-  const originalFile = sourcePosition.source?.replace(
-    /^\/turbopack\/\[project\]\//,
-    ''
-  )
-  if (originalFile === undefined || sourceContent === null) {
-    return {
-      originalStackFrame: frame,
-      originalCodeFrame: null,
-    }
-  }
 
   return {
     originalStackFrame: {
-      file: originalFile,
-      lineNumber: sourcePosition.line,
-      column: sourcePosition.column,
-      methodName: sourcePosition.name ?? '<unknown>',
+      file: source.frame.file,
+      lineNumber: source.frame.line,
+      column: source.frame.column ?? null,
+      methodName: source.frame.methodName ?? frame.methodName,
       arguments: [],
     },
-    originalCodeFrame:
-      sourcePosition.line == null
-        ? null
-        : codeFrameColumns(
-            sourceContent,
-            {
-              start: {
-                line: sourcePosition.line,
-                column: sourcePosition.column ?? 0,
-              },
+    originalCodeFrame: source.frame.file.includes('node_modules')
+      ? null
+      : codeFrameColumns(
+          source.source,
+          {
+            start: {
+              line: source.frame.line,
+              column: source.frame.column ?? 0,
             },
-            { forceColor: true }
-          ),
+          },
+          { forceColor: true }
+        ),
   }
 }
 
@@ -124,7 +75,7 @@ function stackFrameFromQuery(query: ParsedUrlQuery): StackFrame {
   }
 }
 
-export function getOverlayMiddleware(rootDirectory: string) {
+export function getOverlayMiddleware(project: Project) {
   return async function (
     req: IncomingMessage,
     res: ServerResponse,
@@ -135,10 +86,7 @@ export function getOverlayMiddleware(rootDirectory: string) {
       const frame = stackFrameFromQuery(query)
       let originalStackFrame
       try {
-        originalStackFrame = await createOriginalStackFrame(
-          rootDirectory,
-          frame
-        )
+        originalStackFrame = await createOriginalStackFrame(project, frame)
       } catch (e: any) {
         res.statusCode = e instanceof InputError ? 400 : 500
         res.write(e.message)

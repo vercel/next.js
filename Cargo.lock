@@ -3481,6 +3481,7 @@ dependencies = [
  "tracing-subscriber",
  "turbo-tasks",
  "turbopack-binding",
+ "url",
 ]
 
 [[package]]
