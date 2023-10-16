@@ -45,8 +45,8 @@ importers:
         specifier: 7.14.5
         version: 7.14.5(@babel/core@7.18.0)
       '@edge-runtime/jest-environment':
-        specifier: 2.3.0
-        version: 2.3.0
+        specifier: 2.3.4
+        version: 2.3.4
       '@emotion/cache':
         specifier: 11.11.0
         version: 11.11.0
@@ -735,7 +735,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 13.5.5-canary.16
+        specifier: 13.5.5-canary.17
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.3.3
@@ -796,7 +796,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 13.5.5-canary.16
+        specifier: 13.5.5-canary.17
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.2
@@ -893,14 +893,14 @@ importers:
         specifier: 1.1.0
         version: 1.1.0
       '@edge-runtime/cookies':
-        specifier: 3.4.1
-        version: 3.4.1
+        specifier: 4.0.1
+        version: 4.0.1
       '@edge-runtime/ponyfill':
-        specifier: 2.4.0
-        version: 2.4.0
+        specifier: 2.4.1
+        version: 2.4.1
       '@edge-runtime/primitives':
-        specifier: 3.1.1
-        version: 3.1.1
+        specifier: 4.0.2
+        version: 4.0.2
       '@hapi/accept':
         specifier: 5.0.2
         version: 5.0.2
@@ -920,19 +920,19 @@ importers:
         specifier: 1.1.0
         version: 1.1.0
       '@next/polyfill-module':
-        specifier: 13.5.5-canary.16
+        specifier: 13.5.5-canary.17
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 13.5.5-canary.16
+        specifier: 13.5.5-canary.17
         version: link:../next-polyfill-nomodule
       '@next/react-dev-overlay':
-        specifier: 13.5.5-canary.16
+        specifier: 13.5.5-canary.17
         version: link:../react-dev-overlay
       '@next/react-refresh-utils':
-        specifier: 13.5.5-canary.16
+        specifier: 13.5.5-canary.17
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 13.5.5-canary.16
+        specifier: 13.5.5-canary.17
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.4.1
@@ -1157,8 +1157,8 @@ importers:
         specifier: 4.19.0
         version: 4.19.0
       edge-runtime:
-        specifier: 2.5.1
-        version: 2.5.1
+        specifier: 2.5.4
+        version: 2.5.4
       events:
         specifier: 3.3.0
         version: 3.3.0
@@ -1586,7 +1586,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 13.5.5-canary.16
+        specifier: 13.5.5-canary.17
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -5045,8 +5045,8 @@ packages:
     resolution: {integrity: sha512-smLocSfrt3s53H/XSVP3/1kP42oqvrkjUPtyaFd1F79ux24oE31BKt+q0c6lsa6hOYrFzsIwyc5GXAI5JmfOew==}
     dev: true
 
-  /@edge-runtime/cookies@3.4.1:
-    resolution: {integrity: sha512-z27BvgPxI73CgSlxU/NAUf1Q/shnqi6cobHEowf6VuLdSjGR3NjI2Y5dZUIBbK2zOJVZbXcHsVzJjz8LklteFQ==}
+  /@edge-runtime/cookies@4.0.1:
+    resolution: {integrity: sha512-QIZ1lz6rAF8rTrFdGkljedUaZpXbGIWmRdbA+kwm15ddFfryyekYwI3luFKB33KDcXRHrBi6WdMuyQN19CS6pg==}
     engines: {node: '>=16'}
     dev: true
 
@@ -5055,44 +5055,32 @@ packages:
     engines: {node: '>=16'}
     dev: true
 
-  /@edge-runtime/jest-environment@2.3.0:
-    resolution: {integrity: sha512-ecjoJ6Ai/Cr/QOFpLC9nu5WC8LHnyFrnbkd8/L53q7sSmeWPKkzvjeFnaS1GLbYHPKZ1GidTsCquw6IPL1xlxA==}
+  /@edge-runtime/jest-environment@2.3.4:
+    resolution: {integrity: sha512-8oFsjP7BvxH5Xn1mCFyWEV/bwFtHqByfXIfdo3LuRZ0yLXgc96COrEnBi4PRhep621RkfvGdu1fhDqmopdVqkw==}
     engines: {node: '>=16'}
     dependencies:
-      '@edge-runtime/vm': 3.1.0
+      '@edge-runtime/vm': 3.1.4
       '@jest/environment': 29.5.0
       '@jest/fake-timers': 29.5.0
       jest-mock: 29.5.0
       jest-util: 29.5.0
     dev: true
 
-  /@edge-runtime/ponyfill@2.4.0:
-    resolution: {integrity: sha512-xMthmStGQiQE4zV/0Ee1qR3WThO1ZTShZO3z1ZbR7uRukw2+t1i1jHspQFmOcuLSL/xvWJZfki5arE3g9jl0WA==}
+  /@edge-runtime/ponyfill@2.4.1:
+    resolution: {integrity: sha512-ZbR/EViY3gg2rmEAQTKPa6mXl4aR1/+cFcQe4r1segCjEbTAxT6PWu40odbu/KlZKSysEb2O/BWIC2lJgSJOMQ==}
     engines: {node: '>=16'}
     dev: true
 
-  /@edge-runtime/primitives@3.1.0:
-    resolution: {integrity: sha512-yxr1QM/lC8nrU38zxePeDqVeIjwsJ83gKGTH8YJ4CoHTv3q+6xEeqRIT+/9IPX/FApWYtnxHauhNqr6CHRj5YA==}
+  /@edge-runtime/primitives@4.0.2:
+    resolution: {integrity: sha512-zIzzqvq62O0gxKv/PrfFBn2TEJtJYw6YlNyfLsWr16Lxz6bT8CB1IrfWa9vc5zsQPElP/orwZCu+x80+ihWQyQ==}
     engines: {node: '>=16'}
     dev: true
 
-  /@edge-runtime/primitives@3.1.1:
-    resolution: {integrity: sha512-ROO22py+KdAfzqWZu6CtVMC4qV6mS0W1jPI51jGXE+uenyBUN7cQTWB9ReQc8Bm4cnjqmhajvpqEx3j7Y9iSOg==}
-    engines: {node: '>=16'}
-    dev: true
-
-  /@edge-runtime/vm@3.1.0:
-    resolution: {integrity: sha512-Y2JZgJP+4byI17SiDeEZhvBUvJ+om7E5ll/jrS7aGRpet5qKnJSsGep6xxhMjqT/j8ulFvTMN/kdlMMy5pEKBQ==}
+  /@edge-runtime/vm@3.1.4:
+    resolution: {integrity: sha512-k3AdzA2Bfdr7NCezxER0Ch3MPwMbPqEFJqlgJ7xSIvsuuW+8c2rRQpPDMoy8ZSPbnwzg+SK3cyoLGDt4hFhexQ==}
     engines: {node: '>=16'}
     dependencies:
-      '@edge-runtime/primitives': 3.1.0
-    dev: true
-
-  /@edge-runtime/vm@3.1.1:
-    resolution: {integrity: sha512-6NJRRG04/91qnWLZj+wZm27q6fJkTbkZdIJdo/Ig++GTxkAv8Wh/45nIcz9Xg7AzIAMpAkflFdiCrCoZ3hp1Iw==}
-    engines: {node: '>=16'}
-    dependencies:
-      '@edge-runtime/primitives': 3.1.1
+      '@edge-runtime/primitives': 4.0.2
     dev: true
 
   /@emotion/babel-plugin@11.11.0:
@@ -12506,13 +12494,13 @@ packages:
       safe-buffer: 5.2.1
     dev: true
 
-  /edge-runtime@2.5.1:
-    resolution: {integrity: sha512-E0kY1Dqvwvk9yh7dvR56KnCjXf/dlbrrGjO5Sjnz9Ja3WqYT3csv2B8O4erxJiOWfWy9NTukBk4Kb3yrR66gBw==}
+  /edge-runtime@2.5.4:
+    resolution: {integrity: sha512-s+FSmEuH9iUvrfBeGDrRrj7rGtGAGl0JoztV0OuUpDbxTWb6ZeBawW/CQjvFmcZRmOSm1aryk8rOsm96PNNuFg==}
     engines: {node: '>=16'}
     hasBin: true
     dependencies:
       '@edge-runtime/format': 2.2.0
-      '@edge-runtime/vm': 3.1.1
+      '@edge-runtime/vm': 3.1.4
       async-listen: 3.0.1
       mri: 1.2.0
       picocolors: 1.0.0
