@@ -1,6 +1,7 @@
 import type { ServerResponse } from 'node:http'
 
 import './node-polyfill-web-streams'
+import { abortControllerFromNodeResponse } from './web/spec-extension/adapters/next-request'
 
 export function isAbortError(e: any): e is Error & { name: 'AbortError' } {
   return e?.name === 'AbortError'
@@ -11,32 +12,24 @@ function createWriterFromResponse(
   controller: AbortController
 ): WritableStream<Uint8Array> {
   let started = false
-  let finished = false
-  let aborted = false
 
-  controller.signal.addEventListener('abort', () => {
-    // If we've already finished, we don't need to do anything.
-    if (aborted) return
-
-    // We haven't finished writing, so signal to abort.
-    aborted = true
-    finished = true
-    res.end()
+  // Create a promise that will resolve once the response has drained. See
+  // https://nodejs.org/api/stream.html#stream_event_drain
+  let drained = Promise.withResolvers<void>()
+  res.on('drain', () => {
+    drained.resolve()
   })
 
-  function onClose() {
-    // If we've already finished, we don't need to do anything.
-    if (finished) return
+  // Create a promise that will resolve once the response has finished. See
+  // https://nodejs.org/api/http.html#event-finish_1
+  const finished = Promise.withResolvers<void>()
+  res.once('finish', () => {
+    finished.resolve()
 
-    // We haven't finished writing, so signal to abort.
-    aborted = true
-    finished = true
-    controller.abort()
-  }
-
-  // When the response is closed, we should abort the stream if it hasn't
-  // finished yet.
-  res.once('close', onClose)
+    // If the finish event fires, it means we shouldn't block and wait for the
+    // drain event.
+    drained.resolve()
+  })
 
   // Create a writable stream that will write to the response.
   return new WritableStream<Uint8Array>({
@@ -61,35 +54,21 @@ function createWriterFromResponse(
         // If the write returns false, it means there's some backpressure, so
         // wait until it's streamed before continuing.
         if (!ok) {
-          await new Promise((resolve) => {
-            res.once('drain', resolve)
-          })
+          // Reset the drained promise so that we can wait for the next drain event.
+          drained = Promise.withResolvers<void>()
+
+          await drained.promise
         }
       } catch (err: any) {
-        res.end()
-
+        controller.abort(err)
         throw err
       }
     },
-    abort: () => {
-      finished = true
-      res.end()
-    },
     close: () => {
-      finished = true
-
       if (res.writableFinished) return
 
-      // Create a promise that will resolve once the response has finished.
-      //
-      // See: https://nodejs.org/api/http.html#event-finish_1
-      //
-      const promise = new Promise<void>((resolve) =>
-        res.once('finish', () => resolve())
-      )
-
       res.end()
-      return promise
+      return finished.promise
     },
   })
 }
@@ -99,9 +78,13 @@ export async function pipeToNodeResponse(
   res: ServerResponse
 ) {
   try {
+    // If the response has already errored, then just return now.
+    const { errored, destroyed } = res
+    if (errored || destroyed) return
+
     // Create a new AbortController so that we can abort the readable if the
     // client disconnects.
-    const controller = new AbortController()
+    const controller = abortControllerFromNodeResponse(res)
 
     const writer = createWriterFromResponse(res, controller)
 

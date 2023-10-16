@@ -3,6 +3,9 @@ export function createDecodeTransformStream(decoder = new TextDecoder()) {
     transform(chunk, controller) {
       return controller.enqueue(decoder.decode(chunk, { stream: true }))
     },
+    flush(controller) {
+      return controller.enqueue(decoder.decode())
+    },
   })
 }
 

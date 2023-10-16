@@ -7,19 +7,11 @@ import { getRequestMeta } from '../../../request-meta'
 import { fromNodeOutgoingHttpHeaders } from '../../utils'
 import { NextRequest } from '../request'
 
-/**
- * Creates an AbortSignal tied to the closing of a ServerResponse (or other
- * appropriate Writable).
- *
- * This cannot be done with the request (IncomingMessage or Readable) because
- * the `abort` event will not fire if to data has been fully read (because that
- * will "close" the readable stream and nothing fires after that).
- */
-export function signalFromNodeResponse(response: Writable) {
-  const { errored, destroyed } = response
-  if (errored || destroyed) return AbortSignal.abort(errored)
-
+export function abortControllerFromNodeResponse(
+  response: Writable
+): AbortController {
   const controller = new AbortController()
+
   // If `finish` fires first, then `res.end()` has been called and the close is
   // just us finishing the stream on our side. If `close` fires first, then we
   // know the client disconnected before we finished.
@@ -31,8 +23,26 @@ export function signalFromNodeResponse(response: Writable) {
   function onFinish() {
     response.off('close', onClose)
   }
+
   response.once('close', onClose)
   response.once('finish', onFinish)
+
+  return controller
+}
+
+/**
+ * Creates an AbortSignal tied to the closing of a ServerResponse (or other
+ * appropriate Writable).
+ *
+ * This cannot be done with the request (IncomingMessage or Readable) because
+ * the `abort` event will not fire if to data has been fully read (because that
+ * will "close" the readable stream and nothing fires after that).
+ */
+export function signalFromNodeResponse(response: Writable): AbortSignal {
+  const { errored, destroyed } = response
+  if (errored || destroyed) return AbortSignal.abort(errored)
+
+  const controller = abortControllerFromNodeResponse(response)
 
   return controller.signal
 }

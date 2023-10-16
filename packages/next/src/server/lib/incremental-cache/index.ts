@@ -312,6 +312,9 @@ export class IncrementalCache {
             })
           )
 
+          // Flush the decoder.
+          bodyChunks.push(decoder.decode())
+
           // Create a new buffer with all the chunks.
           const length = chunks.reduce((total, arr) => total + arr.length, 0)
           const arrayBuffer = new Uint8Array(length)

@@ -173,7 +173,7 @@ function createHeadInsertionTransformStream(
         controller.enqueue(chunk)
         freezing = true
       } else {
-        const content = decoder.decode(chunk, { stream: true })
+        const content = decoder.decode(chunk)
         const index = content.indexOf('</head>')
         if (index !== -1) {
           const insertedHeadContent =
@@ -330,11 +330,12 @@ export function createRootLayoutValidatorStream(
   const encoder = new TextEncoder()
   const decoder = new TextDecoder()
 
+  let content = ''
   return new TransformStream({
     async transform(chunk, controller) {
       // Peek into the streamed chunk to see if the tags are present.
       if (!foundHtml || !foundBody) {
-        const content = decoder.decode(chunk, { stream: true })
+        content += decoder.decode(chunk, { stream: true })
         if (!foundHtml && content.includes('<html')) {
           foundHtml = true
         }
@@ -345,6 +346,17 @@ export function createRootLayoutValidatorStream(
       controller.enqueue(chunk)
     },
     flush(controller) {
+      // Flush the decoder.
+      if (!foundHtml || !foundBody) {
+        content += decoder.decode()
+        if (!foundHtml && content.includes('<html')) {
+          foundHtml = true
+        }
+        if (!foundBody && content.includes('<body')) {
+          foundBody = true
+        }
+      }
+
       // If html or body tag is missing, we need to inject a script to notify
       // the client.
       const missingTags: string[] = []

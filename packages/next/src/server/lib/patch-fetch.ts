@@ -460,7 +460,7 @@ export function patchFetch({
               cacheKey &&
               isCacheableRevalidate
             ) {
-              const bodyBuffer = Buffer.from(await res.clone().arrayBuffer())
+              const bodyBuffer = Buffer.from(await res.arrayBuffer())
 
               try {
                 await staticGenerationStore.incrementalCache.set(
