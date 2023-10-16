@@ -41,11 +41,11 @@ export function GoogleTagManager(props: GTMParams) {
         ${dataLayer ? `w[l].push(${JSON.stringify(dataLayer)})` : ''}
       })(window,'${dataLayerName}');`,
         }}
-      ></Script>
+      />
       <Script
         id="_next-gtm"
         src={`https://www.googletagmanager.com/gtm.js?id=${gtmId}${gtmLayer}${gtmAuth}${gtmPreview}`}
-      ></Script>
+      />
     </>
   )
 }
@@ -54,6 +54,8 @@ export const sendGTMEvent = (data: Object) => {
   if (window[currDataLayerName]) {
     window[currDataLayerName].push(data)
   } else {
-    console.warn(`dataLayer ${currDataLayerName} does not exist`)
+    console.warn(
+      `@next/third-parties: GTM dataLayer ${currDataLayerName} does not exist`
+    )
   }
 }
