@@ -17,6 +17,7 @@ import {
   RSC_ACTION_CLIENT_WRAPPER_ALIAS,
   RSC_ACTION_VALIDATE_ALIAS,
   WEBPACK_RESOURCE_QUERIES,
+  RSC_ACTION_ENCRYPTION_ALIAS,
 } from '../lib/constants'
 import type { WebpackLayerName } from '../lib/constants'
 import { isWebpackDefaultLayer, isWebpackServerLayer } from './utils'
@@ -910,6 +911,9 @@ export default async function getBaseWebpackConfig(
 
       [RSC_ACTION_PROXY_ALIAS]:
         'next/dist/build/webpack/loaders/next-flight-loader/action-proxy',
+
+      [RSC_ACTION_ENCRYPTION_ALIAS]:
+        'next/dist/server/app-render/action-encryption',
 
       ...(isClient || isEdgeServer
         ? {
