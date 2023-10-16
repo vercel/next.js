@@ -24,6 +24,7 @@ __export(src_exports, {
   ResponseCookies: () => ResponseCookies,
   parseCookie: () => parseCookie,
   parseSetCookie: () => parseSetCookie,
+  splitCookiesString: () => splitCookiesString,
   stringifyCookie: () => stringifyCookie
 });
 module.exports = __toCommonJS(src_exports);
@@ -38,8 +39,7 @@ function stringifyCookie(c) {
     "domain" in c && c.domain && `Domain=${c.domain}`,
     "secure" in c && c.secure && "Secure",
     "httpOnly" in c && c.httpOnly && "HttpOnly",
-    "sameSite" in c && c.sameSite && `SameSite=${c.sameSite}`,
-    "priority" in c && c.priority && `Priority=${c.priority}`
+    "sameSite" in c && c.sameSite && `SameSite=${c.sameSite}`
   ].filter(Boolean);
   return `${c.name}=${encodeURIComponent((_a = c.value) != null ? _a : "")}; ${attrs.join("; ")}`;
 }
@@ -66,16 +66,7 @@ function parseSetCookie(setCookie) {
     return void 0;
   }
   const [[name, value], ...attributes] = parseCookie(setCookie);
-  const {
-    domain,
-    expires,
-    httponly,
-    maxage,
-    path,
-    samesite,
-    secure,
-    priority
-  } = Object.fromEntries(
+  const { domain, expires, httponly, maxage, path, samesite, secure } = Object.fromEntries(
     attributes.map(([key, value2]) => [key.toLowerCase(), value2])
   );
   const cookie = {
@@ -87,8 +78,7 @@ function parseSetCookie(setCookie) {
     ...typeof maxage === "string" && { maxAge: Number(maxage) },
     path,
     ...samesite && { sameSite: parseSameSite(samesite) },
-    ...secure && { secure: true },
-    ...priority && { priority: parsePriority(priority) }
+    ...secure && { secure: true }
   };
   return compact(cookie);
 }
@@ -106,10 +96,56 @@ function parseSameSite(string) {
   string = string.toLowerCase();
   return SAME_SITE.includes(string) ? string : void 0;
 }
-var PRIORITY = ["low", "medium", "high"];
-function parsePriority(string) {
-  string = string.toLowerCase();
-  return PRIORITY.includes(string) ? string : void 0;
+function splitCookiesString(cookiesString) {
+  if (!cookiesString)
+    return [];
+  var cookiesStrings = [];
+  var pos = 0;
+  var start;
+  var ch;
+  var lastComma;
+  var nextStart;
+  var cookiesSeparatorFound;
+  function skipWhitespace() {
+    while (pos < cookiesString.length && /\s/.test(cookiesString.charAt(pos))) {
+      pos += 1;
+    }
+    return pos < cookiesString.length;
+  }
+  function notSpecialChar() {
+    ch = cookiesString.charAt(pos);
+    return ch !== "=" && ch !== ";" && ch !== ",";
+  }
+  while (pos < cookiesString.length) {
+    start = pos;
+    cookiesSeparatorFound = false;
+    while (skipWhitespace()) {
+      ch = cookiesString.charAt(pos);
+      if (ch === ",") {
+        lastComma = pos;
+        pos += 1;
+        skipWhitespace();
+        nextStart = pos;
+        while (pos < cookiesString.length && notSpecialChar()) {
+          pos += 1;
+        }
+        if (pos < cookiesString.length && cookiesString.charAt(pos) === "=") {
+          cookiesSeparatorFound = true;
+          pos = nextStart;
+          cookiesStrings.push(cookiesString.substring(start, lastComma));
+          start = pos;
+        } else {
+          pos = lastComma + 1;
+        }
+      } else {
+        pos += 1;
+      }
+    }
+    if (!cookiesSeparatorFound || pos >= cookiesString.length) {
+      cookiesStrings.push(cookiesString.substring(start, cookiesString.length));
+    }
+  }
+  return cookiesStrings;
 }
 
 // src/request-cookies.ts
@@ -196,8 +232,15 @@ var ResponseCookies = class {
   constructor(responseHeaders) {
     /** @internal */
     this._parsed = /* @__PURE__ */ new Map();
+    var _a, _b;
     this._headers = responseHeaders;
-    const cookieStrings = responseHeaders.getSetCookie();
+    const setCookie = (_a = responseHeaders.getSetCookie) == null ? void 0 : _a.call(responseHeaders);
+    (_b = responseHeaders.get("set-cookie")) != null ? _b : [];
+    const cookieStrings = Array.isArray(setCookie) ? setCookie : (
+      // TODO: remove splitCookiesString when `getSetCookie` adoption is high enough in Node.js
+      // https://developer.mozilla.org/en-US/docs/Web/API/Headers/getSetCookie#browser_compatibility
+      splitCookiesString(setCookie)
+    );
     for (const cookieString of cookieStrings) {
       const parsed = parseSetCookie(cookieString);
       if (parsed)
@@ -275,5 +318,6 @@ function normalizeCookie(cookie = { name: "", value: "" }) {
   ResponseCookies,
   parseCookie,
   parseSetCookie,
+  splitCookiesString,
   stringifyCookie
 });
