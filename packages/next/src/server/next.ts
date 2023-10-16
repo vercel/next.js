@@ -199,7 +199,7 @@ export class NextServer {
         )).config
 
         // @ts-expect-error internal field
-        config.experimental.isExperimentalConfig =
+        config.experimental.isExperimentalCompile =
           serializedConfig.experimental.isExperimentalCompile
       } catch (_) {
         // if distDir is customized we don't know until we

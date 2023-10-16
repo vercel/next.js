@@ -24,8 +24,44 @@ import { defaultOverrides } from '../server/require-hook'
 import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import isError from '../lib/is-error'
+import type { NodeFileTraceReasons } from '@vercel/nft'
 
 const debug = debugOriginal('next:build:build-traces')
+
+function shouldIgnore(
+  file: string,
+  serverIgnoreFn: (file: string) => boolean,
+  reasons: NodeFileTraceReasons,
+  cachedIgnoreFiles: Map<string, boolean>
+) {
+  if (cachedIgnoreFiles.has(file)) {
+    return cachedIgnoreFiles.get(file)
+  }
+
+  if (serverIgnoreFn(file)) {
+    cachedIgnoreFiles.set(file, true)
+    return true
+  }
+
+  const reason = reasons.get(file)
+  if (!reason || reason.parents.size === 0 || reason.type.includes('initial')) {
+    cachedIgnoreFiles.set(file, false)
+    return false
+  }
+
+  if (
+    [...reason.parents.values()].every((parent) =>
+      shouldIgnore(parent, serverIgnoreFn, reasons, cachedIgnoreFiles)
+    )
+  ) {
+    cachedIgnoreFiles.set(file, true)
+    return true
+  }
+
+  cachedIgnoreFiles.set(file, false)
+  return false
+}
 
 export async function collectBuildTraces({
   dir,
@@ -233,14 +269,18 @@ export async function collectBuildTraces({
           })
         }
       }
-      const ignores = [
+      const serverIgnores = [
         '**/*.d.ts',
         '**/*.map',
+        '**/next/dist/compiled/next-server/**/*.dev.js',
+        '**/node_modules/react{,-dom,-dom-server-turbopack}/**/*.development.js',
         isStandalone ? null : '**/next/dist/compiled/jest-worker/**/*',
         '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
         '**/node_modules/webpack5/**/*',
         '**/next/dist/server/lib/squoosh/**/*.wasm',
         '**/next/dist/server/lib/route-resolver*',
+        '**/next/dist/pages/**/*',
+
         ...(ciEnvironment.hasNextSupport
           ? [
               // only ignore image-optimizer code when
@@ -261,15 +301,25 @@ export async function collectBuildTraces({
         ...(config.experimental.outputFileTracingIgnores || []),
       ].filter(nonNullable)
 
-      const ignoreFn = (pathname: string) => {
+      const minimalServerIgnores = [
+        ...serverIgnores,
+        '**/next/dist/compiled/edge-runtime/**/*',
+        '**/next/dist/server/web/sandbox/**/*',
+      ]
+
+      const serverIgnoreFn = (minimal: boolean) => (pathname: string) => {
         if (path.isAbsolute(pathname) && !pathname.startsWith(root)) {
           return true
         }
 
-        return isMatch(pathname, ignores, {
-          contains: true,
-          dot: true,
-        })
+        return isMatch(
+          pathname,
+          minimal ? minimalServerIgnores : serverIgnores,
+          {
+            contains: true,
+            dot: true,
+          }
+        )
       }
       const traceContext = path.join(nextServerEntry, '..', '..')
       const serverTracedFiles = new Set<string>()
@@ -321,7 +371,11 @@ export async function collectBuildTraces({
           [minimalServerTracedFiles, minimalFiles],
         ] as [Set<string>, string[]][]) {
           for (const file of files) {
-            if (!ignoreFn(path.join(traceContext, file))) {
+            if (
+              !serverIgnoreFn(set === minimalServerTracedFiles)(
+                path.join(traceContext, file)
+              )
+            ) {
               addToTracedFiles(traceContext, file, set)
             }
           }
@@ -336,8 +390,46 @@ export async function collectBuildTraces({
         const result = await nodeFileTrace(chunksToTrace, {
           base: outputFileTracingRoot,
           processCwd: dir,
-          ignore: ignoreFn,
           mixedModules: true,
+          async readFile(p) {
+            try {
+              return await fs.readFile(p, 'utf8')
+            } catch (e) {
+              if (isError(e) && (e.code === 'ENOENT' || e.code === 'EISDIR')) {
+                // handle temporary internal webpack files
+                if (p.match(/static[/\\]media/)) {
+                  return ''
+                }
+                return null
+              }
+              throw e
+            }
+          },
+          async readlink(p) {
+            try {
+              return await fs.readlink(p)
+            } catch (e) {
+              if (
+                isError(e) &&
+                (e.code === 'EINVAL' ||
+                  e.code === 'ENOENT' ||
+                  e.code === 'UNKNOWN')
+              ) {
+                return null
+              }
+              throw e
+            }
+          },
+          async stat(p) {
+            try {
+              return await fs.stat(p)
+            } catch (e) {
+              if (isError(e) && (e.code === 'ENOENT' || e.code === 'ENOTDIR')) {
+                return null
+              }
+              throw e
+            }
+          },
         })
         const reasons = result.reasons
         const fileList = result.fileList
@@ -345,7 +437,10 @@ export async function collectBuildTraces({
         for (const file of result.esmFileList) {
           fileList.add(file)
         }
+
         const parentFilesMap = getFilesMapFromReasons(fileList, reasons)
+        const cachedIgnoreFiles = new Map<string, boolean>()
+        const cachedIgnoreFilesMinimal = new Map<string, boolean>()
 
         for (const [entries, tracedFiles] of [
           [serverEntries, serverTracedFiles],
@@ -361,10 +456,14 @@ export async function collectBuildTraces({
               const filePath = path.join(outputFileTracingRoot, curFile)
 
               if (
-                !isMatch(filePath, '**/next/dist/pages/**/*', {
-                  dot: true,
-                  contains: true,
-                })
+                !shouldIgnore(
+                  curFile,
+                  serverIgnoreFn(tracedFiles === minimalServerTracedFiles),
+                  reasons,
+                  tracedFiles === minimalServerTracedFiles
+                    ? cachedIgnoreFilesMinimal
+                    : cachedIgnoreFiles
+                )
               ) {
                 tracedFiles.add(
                   path.relative(distDir, filePath).replace(/\\/g, '/')
@@ -457,8 +556,10 @@ export async function collectBuildTraces({
 
         for (const item of await fs.readdir(contextDir)) {
           const itemPath = path.relative(root, path.join(contextDir, item))
-          addToTracedFiles(root, itemPath, serverTracedFiles)
-          addToTracedFiles(root, itemPath, minimalServerTracedFiles)
+          if (!serverIgnoreFn(false)(itemPath)) {
+            addToTracedFiles(root, itemPath, serverTracedFiles)
+            addToTracedFiles(root, itemPath, minimalServerTracedFiles)
+          }
         }
         addToTracedFiles(root, relativeModulePath, serverTracedFiles)
         addToTracedFiles(root, relativeModulePath, minimalServerTracedFiles)

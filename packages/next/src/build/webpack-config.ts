@@ -237,29 +237,32 @@ const devtoolRevertWarning = execOnce(
 let loggedSwcDisabled = false
 let loggedIgnoredCompilerOptions = false
 
-function getOptimizedAliases(): { [pkg: string]: string } {
-  const stubWindowFetch = path.join(__dirname, 'polyfills', 'fetch', 'index.js')
-  const stubObjectAssign = path.join(__dirname, 'polyfills', 'object-assign.js')
-
-  const shimAssign = path.join(__dirname, 'polyfills', 'object.assign')
+// Insert aliases for Next.js stubs of fetch, object-assign, and url
+// Keep in sync with insert_optimized_module_aliases in import_map.rs
+function getOptimizedModuleAliases(): { [pkg: string]: string } {
   return {
-    unfetch$: stubWindowFetch,
-    'isomorphic-unfetch$': stubWindowFetch,
-    'whatwg-fetch$': path.join(
-      __dirname,
-      'polyfills',
-      'fetch',
-      'whatwg-fetch.js'
+    unfetch: require.resolve('next/dist/build/polyfills/fetch/index.js'),
+    'isomorphic-unfetch': require.resolve(
+      'next/dist/build/polyfills/fetch/index.js'
     ),
-    'object-assign$': stubObjectAssign,
-    // Stub Package: object.assign
-    'object.assign/auto': path.join(shimAssign, 'auto.js'),
-    'object.assign/implementation': path.join(shimAssign, 'implementation.js'),
-    'object.assign$': path.join(shimAssign, 'index.js'),
-    'object.assign/polyfill': path.join(shimAssign, 'polyfill.js'),
-    'object.assign/shim': path.join(shimAssign, 'shim.js'),
-
-    // Replace: full URL polyfill with platform-based polyfill
+    'whatwg-fetch': require.resolve(
+      'next/dist/build/polyfills/fetch/whatwg-fetch.js'
+    ),
+    'object-assign': require.resolve(
+      'next/dist/build/polyfills/object-assign.js'
+    ),
+    'object.assign/auto': require.resolve(
+      'next/dist/build/polyfills/object.assign/auto.js'
+    ),
+    'object.assign/implementation': require.resolve(
+      'next/dist/build/polyfills/object.assign/implementation.js'
+    ),
+    'object.assign/polyfill': require.resolve(
+      'next/dist/build/polyfills/object.assign/polyfill.js'
+    ),
+    'object.assign/shim': require.resolve(
+      'next/dist/build/polyfills/object.assign/shim.js'
+    ),
     url: require.resolve('next/dist/compiled/native-url'),
   }
 }
@@ -822,28 +825,41 @@ export default async function getBaseWebpackConfig(
             'next/dist/server': 'next/dist/esm/server',
 
             // Alias the usage of next public APIs
-            [`${NEXT_PROJECT_ROOT}/server`]:
+            [path.join(NEXT_PROJECT_ROOT, 'server')]:
               'next/dist/esm/server/web/exports/index',
-            [`${NEXT_PROJECT_ROOT}/dist/client/link`]:
+            [path.join(NEXT_PROJECT_ROOT_DIST, 'client', 'link')]:
               'next/dist/esm/client/link',
-            [`${NEXT_PROJECT_ROOT}/dist/shared/lib/image-external`]:
-              'next/dist/esm/shared/lib/image-external',
-            [`${NEXT_PROJECT_ROOT}/dist/client/script`]:
+            [path.join(
+              NEXT_PROJECT_ROOT,
+              'dist',
+              'shared',
+              'lib',
+              'image-external'
+            )]: 'next/dist/esm/shared/lib/image-external',
+            [path.join(NEXT_PROJECT_ROOT_DIST, 'client', 'script')]:
               'next/dist/esm/client/script',
-            [`${NEXT_PROJECT_ROOT}/dist/client/router`]:
+            [path.join(NEXT_PROJECT_ROOT_DIST, 'client', 'router')]:
               'next/dist/esm/client/router',
-            [`${NEXT_PROJECT_ROOT}/dist/shared/lib/head`]:
+            [path.join(NEXT_PROJECT_ROOT_DIST, 'shared', 'lib', 'head')]:
               'next/dist/esm/shared/lib/head',
-            [`${NEXT_PROJECT_ROOT}/dist/shared/lib/dynamic`]:
+            [path.join(NEXT_PROJECT_ROOT_DIST, 'shared', 'lib', 'dynamic')]:
               'next/dist/esm/shared/lib/dynamic',
-            [`${NEXT_PROJECT_ROOT}/dist/pages/_document`]:
+            [path.join(NEXT_PROJECT_ROOT_DIST, 'pages', '_document')]:
               'next/dist/esm/pages/_document',
-            [`${NEXT_PROJECT_ROOT}/dist/pages/_app`]:
+            [path.join(NEXT_PROJECT_ROOT_DIST, 'pages', '_app')]:
               'next/dist/esm/pages/_app',
-            [`${NEXT_PROJECT_ROOT}/dist/client/components/navigation`]:
-              'next/dist/esm/client/components/navigation',
-            [`${NEXT_PROJECT_ROOT}/dist/client/components/headers`]:
-              'next/dist/esm/client/components/headers',
+            [path.join(
+              NEXT_PROJECT_ROOT_DIST,
+              'client',
+              'components',
+              'navigation'
+            )]: 'next/dist/esm/client/components/navigation',
+            [path.join(
+              NEXT_PROJECT_ROOT_DIST,
+              'client',
+              'components',
+              'headers'
+            )]: 'next/dist/esm/client/components/headers',
           }
         : undefined),
 
@@ -875,7 +891,7 @@ export default async function getBaseWebpackConfig(
       ...(appDir ? { [APP_DIR_ALIAS]: appDir } : {}),
       [ROOT_DIR_ALIAS]: dir,
       [DOT_NEXT_ALIAS]: distDir,
-      ...(isClient || isEdgeServer ? getOptimizedAliases() : {}),
+      ...(isClient || isEdgeServer ? getOptimizedModuleAliases() : {}),
       ...(reactProductionProfiling ? getReactProfilingInProduction() : {}),
 
       // For Node server, we need to re-alias the package imports to prefer to

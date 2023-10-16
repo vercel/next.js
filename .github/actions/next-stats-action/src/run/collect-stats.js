@@ -1,5 +1,5 @@
 const path = require('path')
-const fs = require('fs-extra')
+const fs = require('fs/promises')
 const getPort = require('get-port')
 const fetch = require('node-fetch')
 const glob = require('../util/glob')
@@ -84,7 +84,7 @@ module.exports = async function collectStats(
 
     if (hasPagesToFetch) {
       const fetchedPagesDir = path.join(curDir, 'fetched-pages')
-      await fs.mkdirp(fetchedPagesDir)
+      await fs.mkdir(fetchedPagesDir, { recursive: true })
 
       for (let url of runConfig.pagesToFetch) {
         url = url.replace('$PORT', port)
