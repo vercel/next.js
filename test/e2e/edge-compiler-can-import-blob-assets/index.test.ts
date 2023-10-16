@@ -29,16 +29,9 @@ describe('Edge Compiler can import asset assets', () => {
   })
 
   it('allows to fetch a remote URL with a path and basename', async () => {
-    const response = await fetchViaHTTP(
-      next.url,
-      '/api/edge',
-      {
-        handler: 'remote-with-base',
-      },
-      {
-        compress: true,
-      }
-    )
+    const response = await fetchViaHTTP(next.url, '/api/edge', {
+      handler: 'remote-with-base',
+    })
     expect(await response.text()).toContain('Example Domain')
   })
 
