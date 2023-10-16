@@ -95,6 +95,16 @@ function load(scopedContext = {}) {
     scopedContext
   });
   assign(context, { console: consoleImpl.console });
+  const timersImpl = requireWithFakeGlobalScope({
+    context,
+    id: "timers.js",
+    sourceCode: require("./timers.js.text.js"),
+    scopedContext
+  });
+  assign(context, {
+    setTimeout: timersImpl.setTimeout,
+    setInterval: timersImpl.setInterval
+  });
   const eventsImpl = requireWithFakeGlobalScope({
     context,
     id: "events.js",

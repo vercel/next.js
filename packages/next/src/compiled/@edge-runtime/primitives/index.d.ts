@@ -7,6 +7,7 @@ export { Event, EventTarget, FetchEvent, PromiseRejectionEvent } from './events.
 export { File, FormData, Headers, Request, RequestInfo, RequestInit, Response, WebSocket, fetch } from './fetch.d.js';
 export { structuredClone } from './structured-clone.d.js';
 export { URL, URLPattern, URLSearchParams } from './url.d.js';
+export { setInterval, setTimeout } from './timers.d.js';
 
 /**
  * The type of `ReadableStreamBYOBReader` is not included in Typescript so we
