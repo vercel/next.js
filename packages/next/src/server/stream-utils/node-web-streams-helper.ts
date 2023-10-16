@@ -125,9 +125,13 @@ function createInsertedHTMLStream(
 ): TransformStream<Uint8Array, Uint8Array> {
   const encoder = new TextEncoder()
   return new TransformStream({
-    start: async (controller) => {
+    transform: async (chunk, controller) => {
       const html = await getServerInsertedHTML()
-      controller.enqueue(encoder.encode(html))
+      if (html) {
+        controller.enqueue(encoder.encode(html))
+      }
+
+      controller.enqueue(chunk)
     },
   })
 }
