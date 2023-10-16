@@ -563,7 +563,7 @@ async function startWatcher(opts: SetupOpts) {
       )
     }
 
-    async function loadLodableManifest(
+    async function loadLoadableManifest(
       pageName: string,
       type: 'app' | 'pages' = 'pages'
     ): Promise<void> {
@@ -1351,7 +1351,7 @@ async function startWatcher(opts: SetupOpts) {
             } else {
               middlewareManifests.delete(page)
             }
-            await loadLodableManifest(page, 'pages')
+            await loadLoadableManifest(page, 'pages')
 
             await writeBuildManifest(opts.fsChecker.rewrites)
             await writeFallbackBuildManifest()
@@ -1381,7 +1381,7 @@ async function startWatcher(opts: SetupOpts) {
             } else {
               middlewareManifests.delete(page)
             }
-            await loadLodableManifest(page, 'pages')
+            await loadLoadableManifest(page, 'pages')
 
             await writePagesManifest()
             await writeMiddlewareManifest()
