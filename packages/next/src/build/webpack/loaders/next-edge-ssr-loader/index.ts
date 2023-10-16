@@ -94,8 +94,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
 
     const buildInfo = getModuleBuildInfo(this._module as any)
     buildInfo.nextEdgeSSR = {
-      // @ts-expect-error === 'true' is correct because loader options are serialized as searchParams. Type needs to be fixed somehow.
-      isServerComponent: isServerComponent === 'true',
+      isServerComponent,
       page: page,
       isAppDir,
     }
