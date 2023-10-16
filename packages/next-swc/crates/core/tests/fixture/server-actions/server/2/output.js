@@ -1,4 +1,4 @@
-/* __next_internal_action_entry_do_not_use__ $$ACTION_0,$$ACTION_2 */ import { createActionProxy } from "private-next-rsc-action-proxy";
+/* __next_internal_action_entry_do_not_use__ {"9878bfa39811ca7650992850a8751f9591b6a557":"$$ACTION_2","6d53ce510b2e36499b8f56038817b9bad86cabb4":"$$ACTION_0"} */ import { createActionProxy, encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-proxy";
 async function myAction(...args) {
     return $$ACTION_0.apply(null, (myAction.$$bound || []).concat(args));
 }

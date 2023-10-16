@@ -1,4 +1,4 @@
-/* __next_internal_action_entry_do_not_use__ default,bar */ import { createActionProxy } from "private-next-rsc-action-proxy";
+/* __next_internal_action_entry_do_not_use__ {"c18c215a6b7cdc64bf709f3a714ffdef1bf9651d":"default","ac840dcaf5e8197cb02b7f3a43c119b7a770b272":"bar"} */ import { createActionProxy, encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-proxy";
 const foo = async function() {};
 export default foo;
 const bar = async function() {};

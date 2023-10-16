@@ -2,6 +2,14 @@ import { encodeActionBoundArg } from '../action-utils'
 
 const SERVER_REFERENCE_TAG = Symbol.for('react.server.reference')
 
+export function encryptActionBoundArgs(args: any[]) {
+  return args
+}
+
+export function decryptActionBoundArgs(args: any[]) {
+  return args
+}
+
 export function createActionProxy(
   id: string,
   boundArgsFromClosure: null | any[],

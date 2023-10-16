@@ -283,12 +283,66 @@ impl<C: Comments> ServerActions<C> {
 
             // export const $ACTION_myAction = async () => {}
             let mut new_params: Vec<Pat> = vec![];
+            let mut new_body: BlockStmtOrExpr = *a.body.clone();
 
-            for i in 0..ids_from_closure.len() {
+            if !ids_from_closure.is_empty() {
+                // First argument is the encrypted closure variables
                 new_params.push(Pat::Ident(
-                    Ident::new(format!("$$ACTION_ARG_{}", i).into(), DUMMY_SP).into(),
+                    Ident::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into(),
                 ));
+
+                // Also prepend the decryption decl into the body.
+                // var [arg1, arg2, arg3] = await decryptActionBoundArgs($$ACTION_CLOSURE_BOUND)
+                let mut pats = vec![];
+                for i in 0..ids_from_closure.len() {
+                    pats.push(Some(Pat::Ident(
+                        Ident::new(format!("$$ACTION_ARG_{}", i).into(), DUMMY_SP).into(),
+                    )));
+                }
+                let decryption_decl = VarDecl {
+                    span: DUMMY_SP,
+                    kind: VarDeclKind::Var,
+                    declare: false,
+                    decls: vec![VarDeclarator {
+                        span: DUMMY_SP,
+                        name: Pat::Array(ArrayPat {
+                            span: DUMMY_SP,
+                            elems: pats,
+                            optional: false,
+                            type_ann: None,
+                        }),
+                        init: Some(Box::new(Expr::Await(AwaitExpr {
+                            span: DUMMY_SP,
+                            arg: Box::new(Expr::Call(CallExpr {
+                                span: DUMMY_SP,
+                                callee: quote_ident!("decryptActionBoundArgs").as_callee(),
+                                args: vec![quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg()],
+                                type_args: None,
+                            })),
+                        }))),
+                        definite: Default::default(),
+                    }],
+                };
+
+                match &mut new_body {
+                    BlockStmtOrExpr::BlockStmt(body) => {
+                        body.stmts.insert(0, decryption_decl.into());
+                    }
+                    BlockStmtOrExpr::Expr(body_expr) => {
+                        new_body = BlockStmtOrExpr::BlockStmt(BlockStmt {
+                            span: DUMMY_SP,
+                            stmts: vec![
+                                decryption_decl.into(),
+                                Stmt::Return(ReturnStmt {
+                                    span: DUMMY_SP,
+                                    arg: Some(body_expr.take()),
+                                }),
+                            ],
+                        });
+                    }
+                }
             }
+
             for p in a.params.iter() {
                 new_params.push(p.clone());
             }
@@ -306,6 +360,7 @@ impl<C: Comments> ServerActions<C> {
                             name: action_ident.clone().into(),
                             init: Some(Box::new(Expr::Arrow(ArrowExpr {
                                 params: new_params,
+                                body: Box::new(new_body),
                                 ..a.clone()
                             }))),
                             definite: Default::default(),
@@ -313,23 +368,19 @@ impl<C: Comments> ServerActions<C> {
                     })),
                 })));
             // Annotate the exported action with the number of clousure arguments.
-            self.extra_items
-                .push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+            self.extra_items.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+                span: DUMMY_SP,
+                expr: Box::new(Expr::Assign(AssignExpr {
                     span: DUMMY_SP,
-                    expr: Box::new(Expr::Assign(AssignExpr {
+                    left: PatOrExpr::Expr(Box::new(Expr::Member(MemberExpr {
                         span: DUMMY_SP,
-                        left: PatOrExpr::Expr(Box::new(Expr::Member(MemberExpr {
-                            span: DUMMY_SP,
-                            obj: Box::new(Expr::Ident(action_ident.clone())),
-                            prop: MemberProp::Ident(Ident::new(
-                                "$$closure_args".into(),
-                                DUMMY_SP,
-                            )),
-                        }))),
-                        op: op!("="),
-                        right: Box::new(Expr::Lit(Lit::from(ids_from_closure.len()))),
-                    })),
-                })));
+                        obj: Box::new(Expr::Ident(action_ident.clone())),
+                        prop: MemberProp::Ident(Ident::new("$$closure_args".into(), DUMMY_SP)),
+                    }))),
+                    op: op!("="),
+                    right: Box::new(Expr::Lit(Lit::from(ids_from_closure.len()))),
+                })),
+            })));
 
             // Create a paren expr to wrap all annotations:
             // ($ACTION = async () => {}, $ACTION.$$id = "..", ..,
@@ -412,17 +463,60 @@ impl<C: Comments> ServerActions<C> {
 
             // export async function $ACTION_myAction () {}
             let mut new_params: Vec<Param> = vec![];
+            let mut new_body: Option<BlockStmt> = f.body.clone();
 
             // add params from closure collected ids
-            for i in 0..ids_from_closure.len() {
+            if !ids_from_closure.is_empty() {
+                // First argument is the encrypted closure variables
                 new_params.push(Param {
                     span: DUMMY_SP,
                     decorators: vec![],
-                    pat: Pat::Ident(
-                        Ident::new(format!("$$ACTION_ARG_{}", i).into(), DUMMY_SP).into(),
-                    ),
+                    pat: Pat::Ident(Ident::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into()),
                 });
+
+                // Also prepend the decryption decl into the body.
+                // var [arg1, arg2, arg3] = await decryptActionBoundArgs($$ACTION_CLOSURE_BOUND)
+                let mut pats = vec![];
+                for i in 0..ids_from_closure.len() {
+                    pats.push(Some(Pat::Ident(
+                        Ident::new(format!("$$ACTION_ARG_{}", i).into(), DUMMY_SP).into(),
+                    )));
+                }
+                let decryption_decl = VarDecl {
+                    span: DUMMY_SP,
+                    kind: VarDeclKind::Var,
+                    declare: false,
+                    decls: vec![VarDeclarator {
+                        span: DUMMY_SP,
+                        name: Pat::Array(ArrayPat {
+                            span: DUMMY_SP,
+                            elems: pats,
+                            optional: false,
+                            type_ann: None,
+                        }),
+                        init: Some(Box::new(Expr::Await(AwaitExpr {
+                            span: DUMMY_SP,
+                            arg: Box::new(Expr::Call(CallExpr {
+                                span: DUMMY_SP,
+                                callee: quote_ident!("decryptActionBoundArgs").as_callee(),
+                                args: vec![quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg()],
+                                type_args: None,
+                            })),
+                        }))),
+                        definite: Default::default(),
+                    }],
+                };
+
+                if let Some(body) = &mut new_body {
+                    body.stmts.insert(0, decryption_decl.into());
+                } else {
+                    new_body = Some(BlockStmt {
+                        span: DUMMY_SP,
+                        stmts: vec![decryption_decl.into()],
+                    });
+                }
             }
+
             for p in f.params.iter() {
                 new_params.push(p.clone());
             }
@@ -434,30 +528,28 @@ impl<C: Comments> ServerActions<C> {
                         ident: action_ident.clone(),
                         function: Box::new(Function {
                             params: new_params,
+                            body: new_body,
                             ..*f.take()
                         }),
                         declare: Default::default(),
                     }
                     .into(),
                 })));
+
             // Annotate the exported action with the number of clousure arguments.
-            self.extra_items
-                .push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+            self.extra_items.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+                span: DUMMY_SP,
+                expr: Box::new(Expr::Assign(AssignExpr {
                     span: DUMMY_SP,
-                    expr: Box::new(Expr::Assign(AssignExpr {
+                    left: PatOrExpr::Expr(Box::new(Expr::Member(MemberExpr {
                         span: DUMMY_SP,
-                        left: PatOrExpr::Expr(Box::new(Expr::Member(MemberExpr {
-                            span: DUMMY_SP,
-                            obj: Box::new(Expr::Ident(action_ident)),
-                            prop: MemberProp::Ident(Ident::new(
-                                "$$closure_args".into(),
-                                DUMMY_SP,
-                            )),
-                        }))),
-                        op: op!("="),
-                        right: Box::new(Expr::Lit(Lit::from(ids_from_closure.len()))),
-                    })),
-                })));
+                        obj: Box::new(Expr::Ident(action_ident)),
+                        prop: MemberProp::Ident(Ident::new("$$closure_args".into(), DUMMY_SP)),
+                    }))),
+                    op: op!("="),
+                    right: Box::new(Expr::Lit(Lit::from(ids_from_closure.len()))),
+                })),
+            })));
 
             if return_paren {
                 // Create a paren expr to wrap all annotations:
@@ -1128,16 +1220,31 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 },
             );
 
-            // import { createActionProxy } from 'private-next-rsc-action-proxy'
-            // createActionProxy("action_id")
+            // import { createActionProxy, encryptActionBoundArgs, decryptActionBoundArgs }
+            // from 'private-next-rsc-action-proxy' createActionProxy("
+            // action_id")
             new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                 span: DUMMY_SP,
-                specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
-                    span: DUMMY_SP,
-                    local: quote_ident!("createActionProxy"),
-                    imported: None,
-                    is_type_only: false,
-                })],
+                specifiers: vec![
+                    ImportSpecifier::Named(ImportNamedSpecifier {
+                        span: DUMMY_SP,
+                        local: quote_ident!("createActionProxy"),
+                        imported: None,
+                        is_type_only: false,
+                    }),
+                    ImportSpecifier::Named(ImportNamedSpecifier {
+                        span: DUMMY_SP,
+                        local: quote_ident!("encryptActionBoundArgs"),
+                        imported: None,
+                        is_type_only: false,
+                    }),
+                    ImportSpecifier::Named(ImportNamedSpecifier {
+                        span: DUMMY_SP,
+                        local: quote_ident!("decryptActionBoundArgs"),
+                        imported: None,
+                        is_type_only: false,
+                    }),
+                ],
                 src: Box::new(Str {
                     span: DUMMY_SP,
                     value: "private-next-rsc-action-proxy".into(),
@@ -1258,7 +1365,7 @@ fn annotate_ident_as_action(
             spread: None,
             expr: Box::new(generate_action_id(file_name, &export_name).into()),
         },
-        // myAction.$$bound = [arg1, arg2, arg3];
+        // myAction.$$bound = [encryptActionBoundArgs([arg1, arg2, arg3])];
         // or myAction.$$bound = null; if there are no bound values.
         ExprOrSpread {
             spread: None,
@@ -1267,7 +1374,21 @@ fn annotate_ident_as_action(
             } else {
                 ArrayLit {
                     span: DUMMY_SP,
-                    elems: bound,
+                    elems: vec![Some(ExprOrSpread {
+                        spread: None,
+                        expr: Box::new(Expr::Call(CallExpr {
+                            span: DUMMY_SP,
+                            callee: quote_ident!("encryptActionBoundArgs").as_callee(),
+                            args: vec![ExprOrSpread {
+                                spread: None,
+                                expr: Box::new(Expr::Array(ArrayLit {
+                                    span: DUMMY_SP,
+                                    elems: bound,
+                                })),
+                            }],
+                            type_args: None,
+                        })),
+                    })],
                 }
                 .into()
             }),
