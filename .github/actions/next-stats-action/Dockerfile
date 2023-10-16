@@ -10,7 +10,7 @@ RUN apt install unzip wget curl nano htop screen build-essential pkg-config libs
 RUN ln $(which python3) /usr/bin/python
 
 RUN curl -fsSL https://fnm.vercel.app/install | bash
-RUN source /root/.bashrc && fnm use --install-if-missing 18
+RUN bash -c 'source /root/.bashrc && fnm use --install-if-missing 18'
 RUN corepack enable
 
 WORKDIR /next-stats
