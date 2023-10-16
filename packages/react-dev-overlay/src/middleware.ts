@@ -2,7 +2,8 @@ import { codeFrameColumns } from '@babel/code-frame'
 import { constants as FS, promises as fs } from 'fs'
 import type { IncomingMessage, ServerResponse } from 'http'
 import path from 'path'
-import type { RawSourceMap } from 'source-map'
+import type { NullableMappedPosition, RawSourceMap } from 'source-map'
+import { SourceMapConsumer } from 'source-map'
 import type { StackFrame } from 'stacktrace-parser'
 import url from 'url'
 // @ts-ignore
@@ -10,7 +11,6 @@ import url from 'url'
 import type webpack from 'webpack'
 import { getRawSourceMap } from './internal/helpers/getRawSourceMap'
 import { launchEditor } from './internal/helpers/launchEditor'
-import { findOriginalSourcePositionAndContent } from './utils'
 
 export { getErrorSource } from './internal/helpers/nodeStackFrames'
 export {
@@ -79,6 +79,38 @@ function getSourcePath(source: string) {
   }
 
   return source
+}
+
+async function findOriginalSourcePositionAndContent(
+  webpackSource: any,
+  position: { line: number; column: number | null }
+) {
+  const consumer = await new SourceMapConsumer(webpackSource.map())
+  try {
+    const sourcePosition: NullableMappedPosition = consumer.originalPositionFor(
+      {
+        line: position.line,
+        column: position.column ?? 0,
+      }
+    )
+
+    if (!sourcePosition.source) {
+      return null
+    }
+
+    const sourceContent: string | null =
+      consumer.sourceContentFor(
+        sourcePosition.source,
+        /* returnNullOnMissing */ true
+      ) ?? null
+
+    return {
+      sourcePosition,
+      sourceContent,
+    }
+  } finally {
+    consumer.destroy()
+  }
 }
 
 function findOriginalSourcePositionAndContentFromCompilation(
@@ -162,7 +194,7 @@ export async function createOriginalStackFrame({
 
       return moduleNotFoundResult
     }
-    return await findOriginalSourcePositionAndContent(source.map(), {
+    return await findOriginalSourcePositionAndContent(source, {
       line,
       column,
     })
@@ -428,7 +460,7 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       const frameColumn = parseInt(frame.column?.toString() ?? '', 10) || 1
 
       try {
-        launchEditor(filePath, frameLine, frameColumn)
+        await launchEditor(filePath, frameLine, frameColumn)
       } catch (err) {
         console.log('Failed to launch editor:', err)
         res.statusCode = 500
