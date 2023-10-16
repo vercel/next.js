@@ -25,6 +25,7 @@ import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import isError from '../lib/is-error'
+import type { NodeFileTraceReasons } from '@vercel/nft'
 
 const debug = debugOriginal('next:build:build-traces')
 
@@ -33,7 +34,7 @@ const cachedIgnoreFiles = new Map<string, boolean>()
 function shouldIgnore(
   file: string,
   serverIgnoreFn: (file: string) => boolean,
-  reasons: Map<string, { parents: Set<string> }>
+  reasons: NodeFileTraceReasons
 ) {
   if (cachedIgnoreFiles.has(file)) {
     return cachedIgnoreFiles.get(file)
@@ -45,7 +46,7 @@ function shouldIgnore(
   }
 
   const reason = reasons.get(file)
-  if (!reason || reason.parents.size === 0) {
+  if (!reason || reason.parents.size === 0 || reason.type.includes('initial')) {
     cachedIgnoreFiles.set(file, false)
     return false
   }
