@@ -70,11 +70,16 @@ createNextDescribe(
         },
       })
 
-      const image = browser.elementByCss('#app-page')
-      const src = await image.getAttribute('src')
-
-      expect(src).toContain(
+      const local = await browser.elementByCss('#app-page').getAttribute('src')
+      expect(local).toContain(
         '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=90'
+      )
+
+      const remote = await browser
+        .elementByCss('#remote-app-page')
+        .getAttribute('src')
+      expect(remote).toBe(
+        '/_next/image?url=https%3A%2F%2Fimage-optimization-test.vercel.app%2Ftest.jpg&w=640&q=75'
       )
 
       expect(failCount).toBe(0)
