@@ -710,7 +710,7 @@ async function startWatcher(opts: SetupOpts) {
       return manifest
     }
 
-    function mergeLodableManifests(manifests: Iterable<LodableManifest>) {
+    function mergeLoadableManifests(manifests: Iterable<LodableManifest>) {
       const manifest: LodableManifest = {}
       for (const m of manifests) {
         Object.assign(manifest, m)
@@ -888,7 +888,7 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     async function writeLoadableManifest(): Promise<void> {
-      const lodableManifest = mergeLodableManifests(loadbleManifests.values())
+      const lodableManifest = mergeLoadableManifests(loadbleManifests.values())
       const loadableManifestPath = path.join(distDir, REACT_LOADABLE_MANIFEST)
       deleteCache(loadableManifestPath)
       await writeFileAtomic(
