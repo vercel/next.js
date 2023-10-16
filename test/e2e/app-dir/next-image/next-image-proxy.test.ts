@@ -1,5 +1,5 @@
 import { join } from 'path'
-import { findPort } from 'next-test-utils'
+import { findPort, check } from 'next-test-utils'
 import https from 'https'
 import httpProxy from 'http-proxy'
 import fs from 'fs'
@@ -40,7 +40,7 @@ createNextDescribe(
       })
 
       proxy.on('error', (err) => {
-        console.warn('Failed to proxy', err)
+        throw new Error('Failed to proxy: ' + err.message)
       })
 
       await new Promise<void>((resolve) => {
@@ -50,6 +50,7 @@ createNextDescribe(
 
     it('loads images without any errors', async () => {
       let failCount = 0
+      let fulfilledCount = 0
 
       const browser = await webdriver(`https://localhost:${proxyPort}`, '/', {
         ignoreHTTPSErrors: true,
@@ -66,6 +67,8 @@ createNextDescribe(
               console.log(`Request failed: ${url}`)
               failCount++
             }
+
+            fulfilledCount++
           })
         },
       })
@@ -82,10 +85,15 @@ createNextDescribe(
         '/_next/image?url=https%3A%2F%2Fimage-optimization-test.vercel.app%2Ftest.jpg&w=640&q=75'
       )
 
-      expect(failCount).toBe(0)
+      await check(() => {
+        // we expect 3 images to load and for none of them to have errors
+        if (fulfilledCount === 3 && failCount === 0) {
+          return 'success'
+        }
+      }, 'success')
     })
 
-    afterAll(async () => {
+    afterAll(() => {
       proxyServer.close()
     })
   }
