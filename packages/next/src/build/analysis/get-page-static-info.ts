@@ -484,7 +484,7 @@ export async function getPageStaticInfo(params: {
 
   const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
   if (
-    /(?<!(jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const/.test(
+    /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const/.test(
       fileContent
     )
   ) {
