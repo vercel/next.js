@@ -612,8 +612,8 @@ pub fn server_components<C: Comments>(
             JsWord::from("findDOMNode"),
             JsWord::from("flushSync"),
             JsWord::from("unstable_batchedUpdates"),
-            JsWord::from("experimental_useFormStatus"),
-            JsWord::from("experimental_useFormState"),
+            JsWord::from("useFormStatus"),
+            JsWord::from("useFormState"),
         ],
         invalid_server_react_apis: vec![
             JsWord::from("Component"),

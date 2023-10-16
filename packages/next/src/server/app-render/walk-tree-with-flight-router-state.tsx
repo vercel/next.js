@@ -135,7 +135,6 @@ export async function walkTreeWithFlightRouterState({
           ? null
           : // Create component tree using the slice of the loaderTree
 
-            // @ts-expect-error TODO-APP: fix async component type
             React.createElement(async () => {
               const { Component } = await createComponentTree(
                 // This ensures flightRouterPath is valid and filters down the tree
