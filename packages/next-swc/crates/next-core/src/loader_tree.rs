@@ -116,7 +116,6 @@ impl LoaderTreeBuilder {
                     )?;
                     self.imports.push(formatdoc!(
                         r#"
-                            ("TURBOPACK {{ chunking-type: isolatedParallel }}");
                             import {}, {{ chunks as {} }} from "COMPONENT_{}";
                         "#,
                         identifier,
