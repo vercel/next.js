@@ -12,6 +12,7 @@ export default function Page() {
         src="https://image-optimization-test.vercel.app/test.jpg"
         width="200"
         height="200"
+        quality={90}
       />
       <Comp />
     </>
