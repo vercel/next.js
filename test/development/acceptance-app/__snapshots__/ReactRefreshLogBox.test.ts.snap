@@ -29,7 +29,7 @@ exports[`ReactRefreshLogBox app default Should not show __webpack_exports__ when
 > 3 |   throw new Error('test')
     |        ^
   4 | }
-  5 | 
+  5 |
   6 | return null"
 `;
 
