@@ -1827,7 +1827,10 @@ createNextDescribe(
         expect($('body').find('script[async]').length).toBe(1)
       })
 
-      if (!isDev) {
+      // Turbopack doesn't use eval by default, so we can check strict CSP.
+      if (!isDev || isTurbopack) {
+        // This test is here to ensure that we don't accidentally turn CSP off
+        // for the prod version.
         it('should successfully bootstrap even when using CSP', async () => {
           // This path has a nonce applied in middleware
           const browser = await next.browser('/bootstrap/with-nonce')
@@ -1844,19 +1847,18 @@ createNextDescribe(
         })
       } else {
         it('should fail to bootstrap when using CSP in Dev due to eval', async () => {
-          // This test is here to ensure that we don't accidentally turn CSP off
-          // for the prod version.
           const browser = await next.browser('/bootstrap/with-nonce')
-          const response = await next.fetch('/bootstrap/with-nonce')
-          // We expect this page to response with CSP headers requiring a nonce for scripts
-          expect(response.headers.get('content-security-policy')).toContain(
-            "script-src 'nonce"
-          )
           // We expect our app to fail to bootstrap due to invalid eval use in Dev.
           // We assert the html is in it's SSR'd state.
           expect(
             await browser.eval('document.getElementById("val").textContent')
           ).toBe('initial')
+
+          const response = await next.fetch('/bootstrap/with-nonce')
+          // We expect this page to response with CSP headers requiring a nonce for scripts
+          expect(response.headers.get('content-security-policy')).toContain(
+            "script-src 'nonce"
+          )
         })
       }
     })
