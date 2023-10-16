@@ -1,6 +1,6 @@
 {
   "name": "@next/codemod",
-  "version": "13.5.5-canary.17",
+  "version": "13.5.5",
   "license": "MIT",
   "repository": {
     "type": "git",
