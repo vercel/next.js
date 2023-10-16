@@ -1,11 +1,8 @@
 'use client'
 
 import type {
-  AppRouterState,
   FocusAndScrollRef,
   PrefetchKind,
-  ReducerActions,
-  ReducerState,
   ThenableRecord,
 } from '../../client/components/router-reducer/router-reducer-types'
 import type { FetchServerResponseResult } from '../../client/components/router-reducer/fetch-server-response'
@@ -14,7 +11,6 @@ import type {
   FlightData,
 } from '../../server/app-render/types'
 import React from 'react'
-import type { ReduxDevToolsInstance } from '../../client/components/use-reducer-with-devtools'
 
 export type ChildSegmentMap = Map<string, CacheNode>
 
@@ -139,24 +135,3 @@ if (process.env.NODE_ENV !== 'production') {
   GlobalLayoutRouterContext.displayName = 'GlobalLayoutRouterContext'
   TemplateContext.displayName = 'TemplateContext'
 }
-
-export type DispatchStatePromise = React.Dispatch<ReducerState>
-
-export type AppRouterActionQueue = {
-  state: AppRouterState | null
-  devToolsInstance?: ReduxDevToolsInstance
-  dispatch: (payload: ReducerActions, setState: DispatchStatePromise) => void
-  action: (state: AppRouterState, action: ReducerActions) => ReducerState
-  pending: ActionQueueNode | null
-  last: ActionQueueNode | null
-}
-
-export type ActionQueueNode = {
-  payload: ReducerActions
-  next: ActionQueueNode | null
-  resolve: (value: PromiseLike<AppRouterState> | AppRouterState) => void
-  reject: (err: Error) => void
-}
-
-export const ActionQueueContext =
-  React.createContext<AppRouterActionQueue | null>(null)

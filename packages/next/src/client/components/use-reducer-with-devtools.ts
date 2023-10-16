@@ -6,7 +6,7 @@ import type {
   ReducerActions,
   ReducerState,
 } from './router-reducer/router-reducer-types'
-import { ActionQueueContext } from '../../shared/lib/app-router-context.shared-runtime'
+import { ActionQueueContext } from '../../shared/lib/router/action-queue'
 
 function normalizeRouterState(val: any): any {
   if (val instanceof Map) {
