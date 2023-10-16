@@ -5,6 +5,12 @@ const createJestConfig = nextJest()
 // Any custom config you want to pass to Jest
 /** @type {import('jest').Config} */
 const customJestConfig = {
+  // Setting these for now to avoid updating all the snapshots
+  // See: https://jestjs.io/blog/2022/08/25/jest-29
+  snapshotFormat: {
+    escapeString: true,
+    printBasicPrototype: true,
+  },
   testMatch: ['**/*.test.js', '**/*.test.ts', '**/*.test.jsx', '**/*.test.tsx'],
   setupFilesAfterEnv: ['<rootDir>/jest-setup-after-env.ts'],
   verbose: true,
@@ -17,9 +23,6 @@ const customJestConfig = {
   modulePathIgnorePatterns: ['/\\.next/'],
   modulePaths: ['<rootDir>/lib'],
   transformIgnorePatterns: ['/next[/\\\\]dist/', '/\\.next/'],
-  globals: {
-    AbortSignal: global.AbortSignal,
-  },
   moduleNameMapper: {
     '@next/font/(.*)': '@next/font/$1',
   },
