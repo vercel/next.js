@@ -118,7 +118,7 @@ import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route
 import { clearModuleContext } from '../render-server'
 import type { ActionManifest } from '../../../build/webpack/plugins/flight-client-entry-plugin'
 import { denormalizePagePath } from '../../../shared/lib/page-path/denormalize-page-path'
-import type { LodableManifest } from '../../load-components'
+import type { LoadableManifest } from '../../load-components'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -505,7 +505,7 @@ async function startWatcher(opts: SetupOpts) {
       ws,
       Map<string, AsyncIterator<any>>
     >()
-    const loadbleManifests = new Map<string, LodableManifest>()
+    const loadbleManifests = new Map<string, LoadableManifest>()
     const clients = new Set<ws>()
 
     async function loadMiddlewareManifest(
@@ -710,8 +710,8 @@ async function startWatcher(opts: SetupOpts) {
       return manifest
     }
 
-    function mergeLoadableManifests(manifests: Iterable<LodableManifest>) {
-      const manifest: LodableManifest = {}
+    function mergeLoadableManifests(manifests: Iterable<LoadableManifest>) {
+      const manifest: LoadableManifest = {}
       for (const m of manifests) {
         Object.assign(manifest, m)
       }
@@ -888,12 +888,12 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     async function writeLoadableManifest(): Promise<void> {
-      const lodableManifest = mergeLoadableManifests(loadbleManifests.values())
+      const loadableManifest = mergeLoadableManifests(loadbleManifests.values())
       const loadableManifestPath = path.join(distDir, REACT_LOADABLE_MANIFEST)
       deleteCache(loadableManifestPath)
       await writeFileAtomic(
         loadableManifestPath,
-        JSON.stringify(lodableManifest, null, 2)
+        JSON.stringify(loadableManifest, null, 2)
       )
     }
 
