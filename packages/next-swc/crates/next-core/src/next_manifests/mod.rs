@@ -145,17 +145,6 @@ pub struct AppPathsManifest {
     pub node_server_app_paths: PagesManifest,
 }
 
-// A struct represent a single entry in react-loadable-manifest.json.
-// The manifest is in a format of:
-// { [`${origin} -> ${imported}`]: { id: `${origin} -> ${imported}`, files:
-// string[] } }
-#[derive(Serialize, Default, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct LoadableManifest {
-    pub id: String,
-    pub files: Vec<String>,
-}
-
 #[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ServerReferenceManifest {
