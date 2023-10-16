@@ -237,6 +237,8 @@ export async function collectBuildTraces({
       const serverIgnores = [
         '**/*.d.ts',
         '**/*.map',
+        '**/next/dist/compiled/next-server/**/*.dev.js',
+        '**/node_modules/react{,-dom,-dom-server-turbopack}/**/*.development.js',
         isStandalone ? null : '**/next/dist/compiled/jest-worker/**/*',
         '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
         '**/node_modules/webpack5/**/*',
@@ -250,6 +252,8 @@ export async function collectBuildTraces({
               // this is being handled outside of next-server
               '**/next/dist/server/image-optimizer.js',
               '**/node_modules/sharp/**/*',
+              '**/next/dist/compiled/edge-runtime/**/*',
+              '**/next/dist/server/web/sandbox/**/*',
             ]
           : []),
 
@@ -340,6 +344,7 @@ export async function collectBuildTraces({
           base: outputFileTracingRoot,
           processCwd: dir,
           mixedModules: true,
+          ignore: serverIgnoreFn,
           async readFile(p) {
             try {
               return await fs.readFile(p, 'utf8')
@@ -386,6 +391,8 @@ export async function collectBuildTraces({
         for (const file of result.esmFileList) {
           fileList.add(file)
         }
+
+        console.log('reasons', reasons)
         const parentFilesMap = getFilesMapFromReasons(fileList, reasons)
 
         for (const [entries, tracedFiles] of [
@@ -493,8 +500,10 @@ export async function collectBuildTraces({
 
         for (const item of await fs.readdir(contextDir)) {
           const itemPath = path.relative(root, path.join(contextDir, item))
-          addToTracedFiles(root, itemPath, serverTracedFiles)
-          addToTracedFiles(root, itemPath, minimalServerTracedFiles)
+          if (!serverIgnoreFn(itemPath)) {
+            addToTracedFiles(root, itemPath, serverTracedFiles)
+            addToTracedFiles(root, itemPath, minimalServerTracedFiles)
+          }
         }
         addToTracedFiles(root, relativeModulePath, serverTracedFiles)
         addToTracedFiles(root, relativeModulePath, minimalServerTracedFiles)
