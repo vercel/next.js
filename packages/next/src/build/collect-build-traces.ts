@@ -289,7 +289,6 @@ export async function collectBuildTraces({
               '**/next/dist/server/image-optimizer.js',
               '**/node_modules/sharp/**/*',
               '**/next/dist/compiled/edge-runtime/**/*',
-              '**/next/dist/server/web/sandbox/**/*',
             ]
           : []),
 
