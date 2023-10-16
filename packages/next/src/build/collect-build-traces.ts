@@ -392,7 +392,6 @@ export async function collectBuildTraces({
           fileList.add(file)
         }
 
-        console.log('reasons', reasons)
         const parentFilesMap = getFilesMapFromReasons(fileList, reasons)
 
         for (const [entries, tracedFiles] of [
