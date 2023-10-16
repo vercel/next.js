@@ -19,7 +19,6 @@
   },
   "dependencies": {
     "@babel/code-frame": "7.12.11",
-    "@isaacs/ttlcache": "1.4.1",
     "@types/babel__code-frame": "7.0.2",
     "anser": "1.4.9",
     "chalk": "4.0.0",
