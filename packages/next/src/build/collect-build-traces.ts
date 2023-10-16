@@ -28,6 +28,41 @@ import isError from '../lib/is-error'
 
 const debug = debugOriginal('next:build:build-traces')
 
+const cachedIgnoreFiles = new Map<string, boolean>()
+
+function shouldIgnore(
+  file: string,
+  serverIgnoreFn: (file: string) => boolean,
+  reasons: Map<string, { parents: Set<string> }>
+) {
+  if (cachedIgnoreFiles.has(file)) {
+    return cachedIgnoreFiles.get(file)
+  }
+
+  if (serverIgnoreFn(file)) {
+    cachedIgnoreFiles.set(file, true)
+    return true
+  }
+
+  const reason = reasons.get(file)
+  if (!reason || reason.parents.size === 0) {
+    cachedIgnoreFiles.set(file, false)
+    return false
+  }
+
+  if (
+    [...reason.parents.values()].every((parent) =>
+      shouldIgnore(parent, serverIgnoreFn, reasons)
+    )
+  ) {
+    cachedIgnoreFiles.set(file, true)
+    return true
+  }
+
+  cachedIgnoreFiles.set(file, false)
+  return false
+}
+
 export async function collectBuildTraces({
   dir,
   config,
@@ -344,7 +379,6 @@ export async function collectBuildTraces({
           base: outputFileTracingRoot,
           processCwd: dir,
           mixedModules: true,
-          ignore: serverIgnoreFn,
           async readFile(p) {
             try {
               return await fs.readFile(p, 'utf8')
@@ -407,7 +441,7 @@ export async function collectBuildTraces({
             for (const curFile of curFiles || []) {
               const filePath = path.join(outputFileTracingRoot, curFile)
 
-              if (!serverIgnoreFn(filePath)) {
+              if (!shouldIgnore(curFile, serverIgnoreFn, reasons)) {
                 tracedFiles.add(
                   path.relative(distDir, filePath).replace(/\\/g, '/')
                 )
