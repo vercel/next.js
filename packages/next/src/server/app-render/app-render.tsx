@@ -67,7 +67,7 @@ import { makeGetServerInsertedHTML } from './make-get-server-inserted-html'
 import { walkTreeWithFlightRouterState } from './walk-tree-with-flight-router-state'
 import { createComponentTree } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
-import { setClientReferenceManifestSingleton } from './action-encryption'
+import { setReferenceManifestsSingleton } from './action-encryption'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -433,7 +433,10 @@ async function renderToHTMLOrFlightImpl(
 
   // TODO: fix this typescript
   const clientReferenceManifest = renderOpts.clientReferenceManifest!
-  setClientReferenceManifestSingleton(clientReferenceManifest)
+  setReferenceManifestsSingleton({
+    clientReferenceManifest,
+    serverActionsManifest,
+  })
 
   const capturedErrors: Error[] = []
   const allCapturedErrors: Error[] = []

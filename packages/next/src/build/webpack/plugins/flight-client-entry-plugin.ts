@@ -33,6 +33,7 @@ import { traverseModules, forEachEntryModule } from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { getProxiedPluginState } from '../../build-context'
 import type { SizeLimit } from '../../../../types'
+import { generateRandomActionKeyRaw } from '../../../server/app-render/action-encryption-utils'
 
 interface Options {
   dev: boolean
@@ -54,6 +55,8 @@ export type ActionManifest = {
       layer: {
         [name: string]: string
       }
+      // Assign a unique encryption key for each action during production build.
+      key?: string
     }
   }
 }
@@ -236,7 +239,7 @@ export class FlightClientEntryPlugin {
     })
 
     compiler.hooks.make.tap(PLUGIN_NAME, (compilation) => {
-      compilation.hooks.processAssets.tap(
+      compilation.hooks.processAssets.tapPromise(
         {
           name: PLUGIN_NAME,
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
@@ -864,7 +867,7 @@ export class FlightClientEntryPlugin {
     })
   }
 
-  createActionAssets(
+  async createActionAssets(
     compilation: webpack.Compilation,
     assets: webpack.Compilation['assets']
   ) {
@@ -903,6 +906,8 @@ export class FlightClientEntryPlugin {
             ]
           action.workers[name] = modId!
         }
+        // Assign encryption key for each action during production build.
+        action.key = this.dev ? undefined : await generateRandomActionKeyRaw()
         serverActions[id] = action
       }
 
@@ -917,6 +922,8 @@ export class FlightClientEntryPlugin {
             ]
           action.workers[name] = modId!
         }
+        // Assign encryption key for each action during production build.
+        action.key = this.dev ? undefined : await generateRandomActionKeyRaw()
         edgeServerActions[id] = action
       }
     }

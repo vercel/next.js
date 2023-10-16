@@ -1,65 +1,31 @@
-// TODO: do not bundle this into client.
-
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 
 import { renderToReadableStream } from 'react-server-dom-webpack/server.edge'
 import { createFromReadableStream } from 'react-server-dom-webpack/client.edge'
 import { streamToString } from '../stream-utils/node-web-streams-helper'
-
-const key = crypto.subtle.generateKey(
-  {
-    name: 'AES-GCM',
-    length: 256,
-  },
-  true,
-  ['encrypt', 'decrypt']
-)
-
-async function encrypt(salt: string, data: ArrayBuffer) {
-  const iv = new TextEncoder().encode(salt)
-  return crypto.subtle.encrypt(
-    {
-      name: 'AES-GCM',
-      iv,
-    },
-    await key,
-    data
-  )
-}
-
-async function decrypt(salt: string, data: ArrayBuffer) {
-  const iv = new TextEncoder().encode(salt)
-  return crypto.subtle.decrypt(
-    {
-      name: 'AES-GCM',
-      iv,
-    },
-    await key,
-    data
-  )
-}
-
-function arrayBufferToString(buffer: ArrayBuffer) {
-  let binary = ''
-  let bytes = new Uint8Array(buffer)
-  let len = bytes.byteLength
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(bytes[i])
-  }
-  return binary
-}
-
-function stringToArrayBuffer(binary: string) {
-  let len = binary.length
-  let bytes = new Uint8Array(len)
-  for (let i = 0; i < len; i++) {
-    bytes[i] = binary.charCodeAt(i)
-  }
-  return bytes.buffer
-}
+import type { ActionManifest } from '../../build/webpack/plugins/flight-client-entry-plugin'
+import {
+  arrayBufferToString,
+  decrypt,
+  encrypt,
+  stringToArrayBuffer,
+} from './action-encryption-utils'
 
 async function decodeActionBoundArg(actionId: string, arg: string) {
+  const key = await getActionEncryptionKey(actionId)
+  if (typeof key === 'undefined') {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(
+        `Missing encryption key in production. This is a bug in Next.js`
+      )
+    }
+
+    // No encryption needed during development.
+    return arg
+  }
+
   const decoded = await decrypt(
+    key,
     '__next_action__' + actionId,
     stringToArrayBuffer(atob(arg))
   )
@@ -67,9 +33,22 @@ async function decodeActionBoundArg(actionId: string, arg: string) {
 }
 
 async function encodeActionBoundArg(actionId: string, arg: string) {
+  const key = await getActionEncryptionKey(actionId)
+  if (typeof key === 'undefined') {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(
+        `Missing encryption key in production. This is a bug in Next.js`
+      )
+    }
+
+    // No encryption needed during development.
+    return arg
+  }
+
   const encoded = await encrypt(
+    key,
     '__next_action__' + actionId,
-    stringToArrayBuffer(arg.toString())
+    stringToArrayBuffer(arg)
   )
   return btoa(arrayBufferToString(encoded))
 }
@@ -78,28 +57,74 @@ async function encodeActionBoundArg(actionId: string, arg: string) {
 // the closure. This can't be using a AsyncLocalStorage as it might happen on the module
 // level. Since the client reference manifest won't be mutated, let's use a global singleton
 // to keep it.
-const CLIENT_REFERENCE_MANIFEST_SINGLETON = Symbol.for(
-  'next.clientReferenceManifest'
+const SERVER_ACTION_MANIFESTS_SINGLETON = Symbol.for(
+  'next.server.action-manifests'
 )
-export function setClientReferenceManifestSingleton(
-  manifest: ClientReferenceManifest
-) {
+
+export function setReferenceManifestsSingleton({
+  clientReferenceManifest,
+  serverActionsManifest,
+}: {
+  clientReferenceManifest: ClientReferenceManifest
+  serverActionsManifest: ActionManifest
+}) {
   // @ts-ignore
-  globalThis[CLIENT_REFERENCE_MANIFEST_SINGLETON] = manifest
+  globalThis[SERVER_ACTION_MANIFESTS_SINGLETON] = {
+    clientReferenceManifest,
+    serverActionsManifest,
+  }
 }
 
 function getClientReferenceManifestSingleton() {
-  const clientReferenceManifestSingleton = (globalThis as any)[
-    CLIENT_REFERENCE_MANIFEST_SINGLETON
-  ] as ClientReferenceManifest | undefined
-  if (!clientReferenceManifestSingleton) {
+  const serverActionsManifestSingleton = (globalThis as any)[
+    SERVER_ACTION_MANIFESTS_SINGLETON
+  ] as {
+    clientReferenceManifest: ClientReferenceManifest
+    serverActionsManifest: ActionManifest
+  }
+
+  if (!serverActionsManifestSingleton) {
     throw new Error(
-      'Missing client reference manifest. This is a bug in Next.js'
+      'Missing manifest for Server Actions. This is a bug in Next.js'
     )
   }
-  return clientReferenceManifestSingleton
+
+  return serverActionsManifestSingleton.clientReferenceManifest
 }
 
+function getActionEncryptionKey(actionId: string) {
+  const serverActionsManifestSingleton = (globalThis as any)[
+    SERVER_ACTION_MANIFESTS_SINGLETON
+  ] as {
+    clientReferenceManifest: ClientReferenceManifest
+    serverActionsManifest: ActionManifest
+  }
+
+  if (!serverActionsManifestSingleton) {
+    throw new Error(
+      'Missing manifest for Server Actions. This is a bug in Next.js'
+    )
+  }
+
+  const key =
+    serverActionsManifestSingleton.serverActionsManifest[
+      process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
+    ][actionId].key
+
+  if (typeof key === 'undefined') {
+    return
+  }
+
+  return crypto.subtle.importKey(
+    'raw',
+    stringToArrayBuffer(atob(key)),
+    'AES-GCM',
+    true,
+    ['encrypt', 'decrypt']
+  )
+}
+
+// Encrypts the action's bound args into a string.
 export async function encryptActionBoundArgs(actionId: string, args: any[]) {
   const clientReferenceManifestSingleton = getClientReferenceManifestSingleton()
 
@@ -114,6 +139,7 @@ export async function encryptActionBoundArgs(actionId: string, args: any[]) {
   return encryped
 }
 
+// Decrypts the action's bound args from the encrypted string.
 export async function decryptActionBoundArgs(
   actionId: string,
   encryped: Promise<string>
