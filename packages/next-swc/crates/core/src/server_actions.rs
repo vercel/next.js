@@ -367,20 +367,6 @@ impl<C: Comments> ServerActions<C> {
                         }],
                     })),
                 })));
-            // Annotate the exported action with the number of clousure arguments.
-            self.extra_items.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                span: DUMMY_SP,
-                expr: Box::new(Expr::Assign(AssignExpr {
-                    span: DUMMY_SP,
-                    left: PatOrExpr::Expr(Box::new(Expr::Member(MemberExpr {
-                        span: DUMMY_SP,
-                        obj: Box::new(Expr::Ident(action_ident.clone())),
-                        prop: MemberProp::Ident(Ident::new("$$closure_args".into(), DUMMY_SP)),
-                    }))),
-                    op: op!("="),
-                    right: Box::new(Expr::Lit(Lit::from(ids_from_closure.len()))),
-                })),
-            })));
 
             // Create a paren expr to wrap all annotations:
             // ($ACTION = async () => {}, $ACTION.$$id = "..", ..,
@@ -535,21 +521,6 @@ impl<C: Comments> ServerActions<C> {
                     }
                     .into(),
                 })));
-
-            // Annotate the exported action with the number of clousure arguments.
-            self.extra_items.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                span: DUMMY_SP,
-                expr: Box::new(Expr::Assign(AssignExpr {
-                    span: DUMMY_SP,
-                    left: PatOrExpr::Expr(Box::new(Expr::Member(MemberExpr {
-                        span: DUMMY_SP,
-                        obj: Box::new(Expr::Ident(action_ident)),
-                        prop: MemberProp::Ident(Ident::new("$$closure_args".into(), DUMMY_SP)),
-                    }))),
-                    op: op!("="),
-                    right: Box::new(Expr::Lit(Lit::from(ids_from_closure.len()))),
-                })),
-            })));
 
             if return_paren {
                 // Create a paren expr to wrap all annotations:

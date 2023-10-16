@@ -30,21 +30,7 @@ ${individualActions
 
 async function endpoint(id, ...args) {
   const action = await actions[id]()
-
-  const numberOfClosureArgs = action.$$closure_args ?? 0
-  const decodedArgs = []
-  for (let i = 0; i < args.length; i++) {
-    if (i < numberOfClosureArgs) {
-      // Don't pay the cost if there's no closure-closed arg.
-      const { decodeActionBoundArg } = await import('next/dist/build/webpack/loaders/action-utils')
-      const decoded = await decodeActionBoundArg(id, args[i])
-      decodedArgs.push(decoded)
-    } else {
-      decodedArgs.push(args[i])
-    }
-  }
-
-  return action.apply(null, decodedArgs)
+  return action.apply(null, args)
 }
 
 // Using CJS to avoid this to be tree-shaken away due to unused exports.

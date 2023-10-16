@@ -50,18 +50,15 @@ function stringToArrayBuffer(binary: string) {
   return bytes.buffer
 }
 
-export async function decodeActionBoundArg(
-  actionId: string,
-  arg: Promise<string>
-) {
+export async function decodeActionBoundArg(actionId: string, arg: string) {
   const decoded = await decrypt(
     '__next_action__' + actionId,
-    stringToArrayBuffer(atob(await arg))
+    stringToArrayBuffer(atob(arg))
   )
   return arrayBufferToString(decoded)
 }
 
-export async function encodeActionBoundArg(actionId: string, arg: any) {
+export async function encodeActionBoundArg(actionId: string, arg: string) {
   const encoded = await encrypt(
     '__next_action__' + actionId,
     stringToArrayBuffer(arg.toString())
