@@ -25,7 +25,7 @@ pub struct OutputAssetsOperation(Vc<OutputAssets>);
 #[derive(
     Clone, Copy, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Serialize, Deserialize, Debug,
 )]
-pub struct MapEntry {
+struct MapEntry {
     assets_operation: Vc<OutputAssets>,
 }
 

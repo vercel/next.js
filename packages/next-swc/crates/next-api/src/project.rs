@@ -408,7 +408,7 @@ impl Project {
     /// [Note] in webpack-config, it is being injected when
     /// dev && (isClient || isEdgeServer)
     #[turbo_tasks::function]
-    pub async fn dist_root_string(self: Vc<Self>) -> Result<Vc<String>> {
+    async fn dist_root_string(self: Vc<Self>) -> Result<Vc<String>> {
         Ok(self.node_root().to_string())
     }
 
