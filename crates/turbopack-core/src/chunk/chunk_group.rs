@@ -182,9 +182,5 @@ async fn references_to_output_assets(
         .copied()
         .filter(|&asset| set.insert(asset))
         .collect::<Vec<_>>();
-    Ok(if output_assets.is_empty() {
-        OutputAssets::empty()
-    } else {
-        OutputAssets::new(output_assets)
-    })
+    Ok(OutputAssets::new(output_assets))
 }
