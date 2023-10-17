@@ -309,9 +309,9 @@ where
     pub async fn debug_identifier(vc: Self) -> Result<String> {
         let resolved = vc.resolve().await?;
         let raw_vc: RawVc = resolved.node;
-        if let RawVc::TaskCell(_, CellId { type_id, index }) = raw_vc {
+        if let RawVc::TaskCell(task_id, CellId { type_id, index }) = raw_vc {
             let value_ty = registry::get_value_type(type_id);
-            Ok(format!("{}#{}", value_ty.name, index))
+            Ok(format!("{}#{}: {}", value_ty.name, index, task_id))
         } else {
             unreachable!()
         }
