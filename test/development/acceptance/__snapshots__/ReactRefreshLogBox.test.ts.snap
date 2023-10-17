@@ -61,7 +61,7 @@ exports[`ReactRefreshLogBox default module init error not shown 1`] = `
 exports[`ReactRefreshLogBox default should strip whitespace correctly with newline 1`] = `
 "index.js (8:26) @ onClick
 
-   6 | 
+   6 |
    7 | <a onClick={() => {
 >  8 |   throw new Error('idk')
      |        ^
