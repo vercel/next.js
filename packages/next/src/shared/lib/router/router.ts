@@ -572,7 +572,7 @@ function fetchNextData({
         if (
           !persistCache ||
           process.env.NODE_ENV !== 'production' ||
-          data.response.headers.get('x-middleware-cache') === 'no-cache'
+          ['private', 'no-cache', 'no-store', 'max-age=0', 'must-revalidate'].includes(data.response.headers.get('x-middleware-cache'))
         ) {
           delete inflightCache[cacheKey]
         }
