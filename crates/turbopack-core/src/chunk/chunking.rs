@@ -13,7 +13,7 @@ use tracing::Level;
 use turbo_tasks::{ReadRef, TryJoinIterExt, ValueToString, Vc};
 
 use super::{AsyncModuleInfo, Chunk, ChunkItem, ChunkType, ChunkingContext};
-use crate::output::{OutputAsset, OutputAssets};
+use crate::output::OutputAssets;
 
 /// Creates chunks based on heuristics for the passed `chunk_items`. Also
 /// attaches `referenced_output_assets` to the first chunk.
@@ -22,7 +22,7 @@ pub async fn make_chunks(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     chunk_items: impl IntoIterator<Item = (Vc<Box<dyn ChunkItem>>, Option<Vc<AsyncModuleInfo>>)>,
     key_prefix: &str,
-    referenced_output_assets: Vec<Vc<Box<dyn OutputAsset>>>,
+    mut referenced_output_assets: Vc<OutputAssets>,
 ) -> Result<Vec<Vc<Box<dyn Chunk>>>> {
     let chunk_items = chunk_items
         .into_iter()
@@ -36,8 +36,6 @@ pub async fn make_chunks(
     for (ty, chunk_item, async_info) in chunk_items {
         map.entry(ty).or_default().push((chunk_item, async_info));
     }
-
-    let mut referenced_output_assets = Vc::cell(referenced_output_assets);
 
     let mut chunks = Vec::new();
     for (ty, chunk_items) in map {

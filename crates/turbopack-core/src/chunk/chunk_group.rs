@@ -11,7 +11,7 @@ use super::{
     chunk_content, chunking::make_chunks, AsyncModuleInfo, Chunk, ChunkContentResult, ChunkItem,
     ChunkingContext,
 };
-use crate::{module::Module, output::OutputAsset, reference::ModuleReference};
+use crate::{module::Module, output::OutputAssets, reference::ModuleReference};
 
 pub struct MakeChunkGroupResult {
     pub chunks: Vec<Vc<Box<dyn Chunk>>>,
@@ -169,7 +169,7 @@ pub async fn make_chunk_group(
 
 async fn references_to_output_assets(
     references: IndexSet<Vc<Box<dyn ModuleReference>>>,
-) -> Result<Vec<Vc<Box<dyn OutputAsset>>>> {
+) -> Result<Vc<OutputAssets>> {
     let output_assets = references
         .into_iter()
         .map(|reference| reference.resolve_reference().primary_output_assets())
@@ -182,5 +182,9 @@ async fn references_to_output_assets(
         .copied()
         .filter(|&asset| set.insert(asset))
         .collect::<Vec<_>>();
-    Ok(output_assets)
+    Ok(if output_assets.is_empty() {
+        OutputAssets::empty()
+    } else {
+        OutputAssets::new(output_assets)
+    })
 }
