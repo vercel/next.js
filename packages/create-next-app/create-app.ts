@@ -247,6 +247,13 @@ export async function createApp({
 
   console.log(`${green('Success!')} Created ${appName} at ${appPath}`)
 
+  const useBun = packageManager === 'bun'
+  console.log(
+    `To update the dependencies to their latest versions, run ${cyan(
+      `${packageManager} ${useBun ? 'update' : 'upgrade'}`
+    )}.`
+  )
+
   if (hasPackageJson) {
     console.log('Inside that directory, you can run several commands:')
     console.log()
