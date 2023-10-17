@@ -103,7 +103,7 @@ Object {
         expect(
           cssContent.replace(/\/\*.*?\*\//g, '').trim()
         ).toMatchInlineSnapshot(
-          `"@media (480px <= width < 768px){a:before{content:\\"\\"}::placeholder{color:green}}.video{max-width:6400px;max-height:4800px;max-width:400rem;max-height:300rem}"`
+          `"@media (480px <= width < 768px){a:before{content:""}::placeholder{color:green}}.video{max-width:6400px;max-height:4800px;max-width:400rem;max-height:300rem}"`
         )
 
         // Contains a source map
