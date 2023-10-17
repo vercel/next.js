@@ -32,11 +32,12 @@ export default class NodeAttributes {
 
       if (!!attribute.value) {
         // hasValue
-        const value = attribute.value.value
-          ? attribute.value.value
-          : typeof attribute.value.expression.value !== 'undefined'
-          ? attribute.value.expression.value
-          : attribute.value.expression.properties
+        const value =
+          typeof attribute.value.value === 'string'
+            ? attribute.value.value
+            : typeof attribute.value.expression.value !== 'undefined'
+            ? attribute.value.expression.value
+            : attribute.value.expression.properties
 
         this.attributes[attribute.name.name] = {
           hasValue: true,

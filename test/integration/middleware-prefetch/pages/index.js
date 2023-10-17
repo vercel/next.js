@@ -5,12 +5,12 @@ export default function Home() {
     <div>
       <p>Home Page</p>
       <div />
-      <Link href="/made-up">
-        <a id="made-up-link">Madeup Page</a>
+      <Link href="/made-up" id="made-up-link">
+        Madeup Page
       </Link>
       <div />
-      <Link href="/ssg-page-2">
-        <a id="ssg-page-2">SSG Page 2 (Redirect)</a>
+      <Link href="/ssg-page-2" id="ssg-page-2">
+        SSG Page 2 (Redirect)
       </Link>
       <div />
     </div>

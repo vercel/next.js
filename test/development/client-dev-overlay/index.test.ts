@@ -72,4 +72,12 @@ describe('client-dev-overlay', () => {
       return exists ? 'found' : 'success'
     }, 'success')
   })
+
+  it('should have a role of "dialog" if the page is focused', async () => {
+    await check(async () => {
+      return (await elementExistsInNextJSPortalShadowDOM('[role="dialog"]'))
+        ? 'exists'
+        : 'missing'
+    }, 'exists')
+  })
 })

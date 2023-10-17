@@ -12,28 +12,28 @@ export default function Page() {
       <br />
       <Time />
       <br />
-      <Link href="/node-rsc">
-        <a id="link-node-rsc">to /node-rsc</a>
+      <Link href="/node-rsc" id="link-node-rsc">
+        to /node-rsc
       </Link>
       <br />
-      <Link href="/node-rsc-ssg">
-        <a id="link-node-rsc-ssg">to /node-rsc-ssg</a>
+      <Link href="/node-rsc-ssg" id="link-node-rsc-ssg">
+        to /node-rsc-ssg
       </Link>
       <br />
-      <Link href="/node-rsc-ssr">
-        <a id="link-node-rsc-ssr">to /node-rsc-ssr</a>
+      <Link href="/node-rsc-ssr" id="link-node-rsc-ssr">
+        to /node-rsc-ssr
       </Link>
       <br />
-      <Link href="/node-rsc-isr">
-        <a id="link-node-rsc-isr">to /node-rsc-isr</a>
+      <Link href="/node-rsc-isr" id="link-node-rsc-isr">
+        to /node-rsc-isr
       </Link>
       <br />
-      <Link href="/node-ssg">
-        <a id="link-node-ssg">to /node-ssg</a>
+      <Link href="/node-ssg" id="link-node-ssg">
+        to /node-ssg
       </Link>
       <br />
-      <Link href="/node-ssr">
-        <a id="link-node-ssr">to /node-ssr</a>
+      <Link href="/node-ssr" id="link-node-ssr">
+        to /node-ssr
       </Link>
     </div>
   )

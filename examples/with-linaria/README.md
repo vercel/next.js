@@ -8,7 +8,7 @@ We are creating three `div` elements with custom styles being shared across the 
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-linaria)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-linaria&project-name=with-linaria&repository-name=with-linaria)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-linaria&project-name=with-linaria&repository-name=with-linaria)
 
 ## How to use
 

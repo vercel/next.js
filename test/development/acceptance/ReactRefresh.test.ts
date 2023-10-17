@@ -1,25 +1,21 @@
 /* eslint-env jest */
-import { sandbox } from './helpers'
-import { createNext } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { sandbox } from 'development-sandbox'
+import { FileRef, nextTestSetup } from 'e2e-utils'
+import path from 'path'
+import { outdent } from 'outdent'
 
 describe('ReactRefresh', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: {},
-      skipStart: true,
-    })
+  const { next } = nextTestSetup({
+    files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
+    skipStart: true,
   })
-  afterAll(() => next.destroy())
 
   test('can edit a component without losing state', async () => {
     const { session, cleanup } = await sandbox(next)
 
     await session.patch(
       'index.js',
-      `
+      outdent`
         import { useCallback, useState } from 'react'
 
         export default function Index() {
@@ -42,7 +38,7 @@ describe('ReactRefresh', () => {
 
     await session.patch(
       'index.js',
-      `
+      outdent`
         import { useCallback, useState } from 'react'
 
         export default function Index() {
@@ -74,7 +70,7 @@ describe('ReactRefresh', () => {
 
     await session.write(
       'NudgeOverview.js',
-      `
+      outdent`
         import * as React from 'react';
 
         import { foo } from './routes';
@@ -90,7 +86,7 @@ describe('ReactRefresh', () => {
 
     await session.write(
       'SurveyOverview.js',
-      `
+      outdent`
         const SurveyOverview = () => {
           return 100;
         };
@@ -101,7 +97,7 @@ describe('ReactRefresh', () => {
 
     await session.write(
       'Milestones.js',
-      `
+      outdent`
         import React from 'react';
 
         import { fragment } from './DashboardPage';
@@ -117,7 +113,7 @@ describe('ReactRefresh', () => {
 
     await session.write(
       'DashboardPage.js',
-      `
+      outdent`
         import React from 'react';
 
         import Milestones from './Milestones';
@@ -142,7 +138,7 @@ describe('ReactRefresh', () => {
 
     await session.write(
       'routes.js',
-      `
+      outdent`
         import DashboardPage from './DashboardPage';
 
         export const foo = {};
@@ -156,7 +152,7 @@ describe('ReactRefresh', () => {
 
     await session.patch(
       'index.js',
-      `
+      outdent`
         import * as React from 'react';
 
         import DashboardPage from './routes';
@@ -175,7 +171,7 @@ describe('ReactRefresh', () => {
 
     let didFullRefresh = !(await session.patch(
       'SurveyOverview.js',
-      `
+      outdent`
         const SurveyOverview = () => {
           return 200;
         };
@@ -191,7 +187,7 @@ describe('ReactRefresh', () => {
 
     didFullRefresh = !(await session.patch(
       'index.js',
-      `
+      outdent`
         import * as React from 'react';
 
         import DashboardPage from './routes';
@@ -211,7 +207,7 @@ describe('ReactRefresh', () => {
 
     didFullRefresh = !(await session.patch(
       'SurveyOverview.js',
-      `
+      outdent`
         const SurveyOverview = () => {
           return 300;
         };

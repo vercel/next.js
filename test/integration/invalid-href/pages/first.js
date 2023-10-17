@@ -20,8 +20,8 @@ export default function Page() {
   ) : (
     // this should throw an error on load since prefetch
     // receives the invalid href
-    <Link href={invalidLink}>
-      <a id="click-me">invalid link :o</a>
+    <Link href={invalidLink} id="click-me">
+      invalid link :o
     </Link>
   )
 }

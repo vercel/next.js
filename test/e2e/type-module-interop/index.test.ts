@@ -37,8 +37,8 @@ describe('Type module interop', () => {
                 <p>hello world</p>
                 <Dynamic />
                 <p id="isAmp">isAmp: {isAmp ? 'yes' : 'false'}</p>
-                <Link href="/modules">
-                  <a id="link-to-module">link to module</a>
+                <Link href="/modules" id="link-to-module">
+                  link to module
                 </Link>
               </>
             )
@@ -51,8 +51,8 @@ describe('Type module interop', () => {
           export default function Modules() {
             return (
               <>
-                <Link href="/">
-                  <a id="link-to-home">link to home</a>
+                <Link href="/" id="link-to-home">
+                  link to home
                 </Link>
                 <Image src="/static/image.png" width="100" height="100" />
               </>
@@ -95,7 +95,7 @@ describe('Type module interop', () => {
 
   it('should render client-side', async () => {
     const browser = await webdriver(next.url, '/')
-    expect(await hasRedbox(browser)).toBe(false)
+    expect(await hasRedbox(browser, false)).toBe(false)
     await browser.close()
   })
 
@@ -107,7 +107,7 @@ describe('Type module interop', () => {
 
   it('should render client-side with modules', async () => {
     const browser = await webdriver(next.url, '/modules')
-    expect(await hasRedbox(browser)).toBe(false)
+    expect(await hasRedbox(browser, false)).toBe(false)
     await browser.close()
   })
 })

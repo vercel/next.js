@@ -1,5 +1,4 @@
 module.exports = {
-  // replace me
   async rewrites() {
     return [
       {

@@ -6,18 +6,18 @@ export default function Header() {
 
   return (
     <header>
-      <Link href="/">
+      <Link href="/" legacyBehavior>
         <a className={pathname === '/' ? 'is-active' : ''}>Home</a>
       </Link>
-      <Link href="/about">
+      <Link href="/about" legacyBehavior>
         <a className={pathname === '/about' ? 'is-active' : ''}>About</a>
       </Link>
-      <Link href="/client-only">
+      <Link href="/client-only" legacyBehavior>
         <a className={pathname === '/client-only' ? 'is-active' : ''}>
           Client-Only
         </a>
       </Link>
-      <Link href="/ssr">
+      <Link href="/ssr" legacyBehavior>
         <a className={pathname === '/ssr' ? 'is-active' : ''}>SSR</a>
       </Link>
       <style jsx>{`

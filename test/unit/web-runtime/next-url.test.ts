@@ -39,6 +39,15 @@ it('does noop changing to an invalid hostname', () => {
   expect(url.toString()).toEqual('https://foo.com/example')
 })
 
+it('preserves the fragment', () => {
+  const url = new NextURL(
+    'https://example.com/path/to?param1=value1#this-is-fragment'
+  )
+  expect(url.toString()).toEqual(
+    'https://example.com/path/to?param1=value1#this-is-fragment'
+  )
+})
+
 it('allows to change the whole href', () => {
   const url = new NextURL('https://localhost.com/foo')
   expect(url.hostname).toEqual('localhost.com')
@@ -188,12 +197,12 @@ it('consider 127.0.0.1 and variations as localhost', () => {
   const httpUrl = new NextURL('http://localhost:3000/hello')
   expect(new NextURL('http://127.0.0.1:3000/hello')).toStrictEqual(httpUrl)
   expect(new NextURL('http://127.0.1.0:3000/hello')).toStrictEqual(httpUrl)
-  expect(new NextURL('http://::1:3000/hello')).toStrictEqual(httpUrl)
+  expect(new NextURL('http://[::1]:3000/hello')).toStrictEqual(httpUrl)
 
   const httpsUrl = new NextURL('https://localhost:3000/hello')
   expect(new NextURL('https://127.0.0.1:3000/hello')).toStrictEqual(httpsUrl)
   expect(new NextURL('https://127.0.1.0:3000/hello')).toStrictEqual(httpsUrl)
-  expect(new NextURL('https://::1:3000/hello')).toStrictEqual(httpsUrl)
+  expect(new NextURL('https://[::1]:3000/hello')).toStrictEqual(httpsUrl)
 })
 
 it('allows to change the port', () => {
@@ -260,6 +269,39 @@ it('correctly parses a prefetch url', async () => {
   expect(url.locale).toEqual('')
   expect(String(url)).toEqual(
     'http://localhost:3000/_next/data/1234/en/hello.json'
+  )
+})
+
+it('correctly handles trailing slash in _next/data', async () => {
+  const url = new NextURL('/abc/', 'http://127.0.0.1:3000')
+  url.buildId = '1234'
+
+  expect(url.pathname).toEqual('/abc/')
+  expect(url.locale).toEqual('')
+  expect(String(url)).toEqual('http://localhost:3000/_next/data/1234/abc.json')
+})
+
+it('correctly handles trailing slash in _next/data with config', async () => {
+  const url = new NextURL('/abc/', 'http://127.0.0.1:3000', {
+    nextConfig: { trailingSlash: true },
+  })
+  url.buildId = '1234'
+
+  expect(url.pathname).toEqual('/abc/')
+  expect(url.locale).toEqual('')
+  expect(String(url)).toEqual('http://localhost:3000/_next/data/1234/abc.json')
+})
+
+it('correctly handles trailing slash in _next/data with basePath', async () => {
+  const url = new NextURL('/docs/abc/', 'http://127.0.0.1:3000', {
+    nextConfig: { basePath: '/docs', trailingSlash: true },
+  })
+  url.buildId = '1234'
+
+  expect(url.pathname).toEqual('/abc/')
+  expect(url.locale).toEqual('')
+  expect(String(url)).toEqual(
+    'http://localhost:3000/docs/_next/data/1234/abc.json'
   )
 })
 

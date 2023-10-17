@@ -31,7 +31,7 @@ export default function IndexPage({
   return (
     <main>
       <header>
-        <Image src={xatafly} priority />
+        <Image src={xatafly} alt={'Xata'} priority />
         <h1>
           Next.js with<span aria-hidden>&#8209;</span>xata
         </h1>

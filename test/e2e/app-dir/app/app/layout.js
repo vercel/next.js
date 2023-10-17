@@ -1,11 +1,10 @@
-import { experimental_use as use } from 'react'
+import { use } from 'react'
 
 import '../styles/global.css'
 import './style.css'
 
-export const config = {
-  revalidate: 0,
-}
+export const revalidate = 0
+export const preferredRegion = 'sfo1'
 
 async function getData() {
   return {

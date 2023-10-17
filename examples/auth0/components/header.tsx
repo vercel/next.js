@@ -11,35 +11,34 @@ const Header = ({ user, loading }: HeaderProps) => {
       <nav>
         <ul>
           <li>
-            <Link href="/">
-              <a>Home</a>
-            </Link>
+            <Link href="/">Home</Link>
           </li>
           <li>
-            <Link href="/about">
-              <a>About</a>
+            <Link href="/about">About</Link>
+          </li>
+          <li>
+            <Link href="/advanced/api-profile">
+              API rendered profile (advanced)
             </Link>
           </li>
           {!loading &&
             (user ? (
               <>
                 <li>
-                  <Link href="/profile">
-                    <a>Client-rendered profile</a>
-                  </Link>
+                  <Link href="/profile">Client rendered profile</Link>
                 </li>
                 <li>
                   <Link href="/advanced/ssr-profile">
-                    <a>Server rendered profile (advanced)</a>
+                    Server rendered profile (advanced)
                   </Link>
                 </li>
                 <li>
-                  <a href="/api/logout">Logout</a>
+                  <a href="/api/auth/logout">Logout</a>
                 </li>
               </>
             ) : (
               <li>
-                <a href="/api/login">Login</a>
+                <a href="/api/auth/login">Login</a>
               </li>
             ))}
         </ul>
@@ -63,8 +62,9 @@ const Header = ({ user, loading }: HeaderProps) => {
         }
         li {
           margin-right: 1rem;
+          padding-right: 2rem;
         }
-        li:nth-child(2) {
+        li:nth-child(3) {
           margin-right: auto;
         }
         a {

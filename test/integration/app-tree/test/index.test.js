@@ -1,7 +1,6 @@
 /* eslint-env jest */
 
 import path from 'path'
-import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
 import {
   nextBuild,
@@ -14,7 +13,6 @@ import {
 } from 'next-test-utils'
 
 const appDir = path.join(__dirname, '..')
-const nextConfig = path.join(appDir, 'next.config.js')
 let appPort
 let app
 
@@ -58,31 +56,13 @@ describe('AppTree', () => {
     afterAll(() => killApp(app))
     runTests()
   })
-
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
     afterAll(() => killApp(app))
-    runTests()
-  })
-
-  describe('serverless mode', () => {
-    beforeAll(async () => {
-      await fs.writeFile(
-        nextConfig,
-        `module.exports = { target: 'serverless' }`
-      )
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-      await fs.remove(nextConfig)
-    })
     runTests()
   })
 })

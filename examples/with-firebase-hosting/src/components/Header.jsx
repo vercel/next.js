@@ -3,11 +3,11 @@ import Link from 'next/link'
 
 const Header = ({ pathname }) => (
   <header>
-    <Link href="/">
-      <a className={pathname === '/' ? 'is-active' : ''}>Home</a>
+    <Link href="/" className={pathname === '/' ? 'is-active' : ''}>
+      Home
     </Link>{' '}
-    <Link href="/about">
-      <a className={pathname === '/about' ? 'is-active' : ''}>About</a>
+    <Link href="/about" className={pathname === '/about' ? 'is-active' : ''}>
+      About
     </Link>
   </header>
 )

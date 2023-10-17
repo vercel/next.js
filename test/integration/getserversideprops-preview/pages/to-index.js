@@ -7,8 +7,8 @@ export function getServerSideProps() {
 export default function () {
   return (
     <main>
-      <Link href="/">
-        <a id="to-index">To Index</a>
+      <Link href="/" id="to-index">
+        To Index
       </Link>
     </main>
   )

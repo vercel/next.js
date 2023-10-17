@@ -2,13 +2,13 @@
 
 This example shows how to use [redirects in Next.js](https://nextjs.org/docs/api-reference/next.config.js/redirects) to redirect an incoming request path to a different destination path.
 
-The index page ([`pages/index.js`](pages/index.js)) has a list of links that match the redirects defined in [`next.config.js`](next.config.js). Run or deploy the app to see how it works!
+The index page ([`pages/index.tsx`](pages/index.tsx)) has a list of links that match the redirects defined in [`next.config.js`](next.config.js). Run or deploy the app to see how it works!
 
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/redirects)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/redirects&project-name=redirects&repository-name=redirects)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/redirects&project-name=redirects&repository-name=redirects)
 
 ## How to use
 

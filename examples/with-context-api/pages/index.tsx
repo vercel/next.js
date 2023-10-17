@@ -22,9 +22,7 @@ const IndexPage = () => {
       <button onClick={handleIncrease}>Increase</button>
       <button onClick={handleDecrease}>Decrease</button>
       <p>
-        <Link href="/about">
-          <a>About</a>
-        </Link>
+        <Link href="/about">About</Link>
       </p>
     </>
   )

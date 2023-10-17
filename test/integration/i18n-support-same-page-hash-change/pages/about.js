@@ -31,11 +31,12 @@ export default function Page(props) {
       <Link
         href={{ pathname: router.pathname, query: router.query, hash: '#hash' }}
         locale={router.locale === 'fr' ? 'en' : 'fr'}
+        id="change-locale"
       >
-        <a id="change-locale">Change Locale</a>
+        Change Locale
       </Link>
-      <Link href={{ hash: '#newhash' }}>
-        <a id="hash-change">Hash Change</a>
+      <Link href={{ hash: '#newhash' }} id="hash-change">
+        Hash Change
       </Link>
     </>
   )

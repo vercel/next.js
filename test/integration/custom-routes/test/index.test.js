@@ -20,7 +20,6 @@ import {
   getBrowserBodyText,
   waitFor,
   normalizeRegEx,
-  initNextServerScript,
   nextExport,
   hasRedbox,
   check,
@@ -40,6 +39,44 @@ let appPort
 let app
 
 const runTests = (isDev = false) => {
+  it.each([
+    {
+      path: '/to-ANOTHER',
+      content: /could not be found/,
+      status: 404,
+    },
+    {
+      path: '/HELLO-world',
+      content: /could not be found/,
+      status: 404,
+    },
+    {
+      path: '/docs/GITHUB',
+      content: /could not be found/,
+      status: 404,
+    },
+    {
+      path: '/add-HEADER',
+      content: /could not be found/,
+      status: 404,
+    },
+  ])(
+    'should honor caseSensitiveRoutes config for $path',
+    async ({ path, status, content }) => {
+      const res = await fetchViaHTTP(appPort, path, undefined, {
+        redirect: 'manual',
+      })
+
+      if (status) {
+        expect(res.status).toBe(status)
+      }
+
+      if (content) {
+        expect(await res.text()).toMatch(content)
+      }
+    }
+  )
+
   it('should successfully rewrite a WebSocket request', async () => {
     const messages = []
     const ws = await new Promise((resolve, reject) => {
@@ -61,6 +98,30 @@ const runTests = (isDev = false) => {
     )
     ws.close()
     expect([...externalServerHits]).toEqual(['/_next/webpack-hmr?page=/about'])
+  })
+
+  it('should successfully rewrite a WebSocket request to a page', async () => {
+    const messages = []
+    try {
+      const ws = await new Promise((resolve, reject) => {
+        let socket = new WebSocket(
+          `ws://localhost:${appPort}/websocket-to-page`
+        )
+        socket.on('message', (data) => {
+          messages.push(data.toString())
+        })
+        socket.on('open', () => resolve(socket))
+        socket.on('error', (err) => {
+          console.error(err)
+          socket.close()
+          reject()
+        })
+      })
+      ws.close()
+    } catch (err) {
+      messages.push(err)
+    }
+    expect(stderr).not.toContain('unhandledRejection')
   })
 
   it('should not rewrite for _next/data route when a match is found', async () => {
@@ -914,6 +975,147 @@ const runTests = (isDev = false) => {
     )
   })
 
+  it('should match missing header headers correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/missing-headers-1', undefined, {
+      headers: {
+        'x-my-header': 'hello world!!',
+      },
+    })
+
+    expect(res.status).toBe(404)
+
+    const res2 = await fetchViaHTTP(appPort, '/missing-headers-1', undefined, {
+      redirect: 'manual',
+    })
+    expect(res2.headers.get('x-new-header')).toBe('new-value')
+  })
+
+  it('should match missing query headers correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/missing-headers-2', {
+      'my-query': 'hellooo',
+    })
+
+    expect(res.status).toBe(404)
+
+    const res2 = await fetchViaHTTP(appPort, '/missing-headers-2', undefined, {
+      redirect: 'manual',
+    })
+    expect(res2.headers.get('x-new-header')).toBe('new-value')
+  })
+
+  it('should match missing cookie headers correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/missing-headers-3', undefined, {
+      headers: {
+        cookie: 'loggedIn=true',
+      },
+      redirect: 'manual',
+    })
+
+    expect(res.status).toBe(404)
+
+    const res2 = await fetchViaHTTP(appPort, '/missing-headers-3', undefined, {
+      redirect: 'manual',
+    })
+    expect(res2.headers.get('x-new-header')).toBe('new-value')
+  })
+
+  it('should match missing header redirect correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/missing-rewrite-1', undefined, {
+      headers: {
+        'x-my-header': 'hello world!!',
+      },
+    })
+
+    expect(res.status).toBe(404)
+
+    const res2 = await fetchViaHTTP(appPort, '/missing-redirect-1', undefined, {
+      redirect: 'manual',
+    })
+    expect(res2.status).toBe(307)
+    const url = new URL(res2.headers.get('location'), 'http://n')
+    expect(url.pathname).toBe('/with-params')
+  })
+
+  it('should match missing query redirect correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/missing-redirect-2', {
+      'my-query': 'hellooo',
+    })
+
+    expect(res.status).toBe(404)
+
+    const res2 = await fetchViaHTTP(appPort, '/missing-redirect-2', undefined, {
+      redirect: 'manual',
+    })
+    expect(res2.status).toBe(307)
+    const url = new URL(res2.headers.get('location'), 'http://n')
+    expect(url.pathname).toBe('/with-params')
+  })
+
+  it('should match missing cookie redirect correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/missing-redirect-3', undefined, {
+      headers: {
+        cookie: 'loggedIn=true',
+      },
+      redirect: 'manual',
+    })
+
+    expect(res.status).toBe(404)
+
+    const res2 = await fetchViaHTTP(appPort, '/missing-redirect-3', undefined, {
+      redirect: 'manual',
+    })
+    expect(res2.status).toBe(307)
+    const url = new URL(res2.headers.get('location'), 'http://n')
+    expect(url.pathname).toBe('/with-params')
+    expect(url.search).toBe('?authorized=1')
+  })
+
+  it('should match missing header rewrite correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/missing-rewrite-1', undefined, {
+      headers: {
+        'x-my-header': 'hello world!!',
+      },
+    })
+
+    expect(res.status).toBe(404)
+
+    const res2 = await fetchViaHTTP(appPort, '/missing-rewrite-1')
+    const $2 = cheerio.load(await res2.text())
+
+    expect(res2.status).toBe(200)
+    expect(JSON.parse($2('#query').text())).toEqual({})
+  })
+
+  it('should match missing query rewrite correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/missing-rewrite-2', {
+      'my-query': 'hellooo',
+    })
+
+    expect(res.status).toBe(404)
+
+    const res2 = await fetchViaHTTP(appPort, '/missing-rewrite-2')
+    const $2 = cheerio.load(await res2.text())
+    expect(res2.status).toBe(200)
+    expect(JSON.parse($2('#query').text())).toEqual({})
+  })
+
+  it('should match missing cookie rewrite correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/missing-rewrite-3', undefined, {
+      headers: {
+        cookie: 'loggedIn=true',
+      },
+    })
+
+    expect(res.status).toBe(404)
+
+    const res2 = await fetchViaHTTP(appPort, '/missing-rewrite-3')
+    const $2 = cheerio.load(await res2.text())
+    expect(JSON.parse($2('#query').text())).toEqual({
+      authorized: '1',
+    })
+    expect(res2.status).toBe(200)
+  })
+
   it('should match has header rewrite correctly', async () => {
     const res = await fetchViaHTTP(appPort, '/has-rewrite-1', undefined, {
       headers: {
@@ -1295,6 +1497,7 @@ const runTests = (isDev = false) => {
       expect(manifest).toEqual({
         version: 3,
         pages404: true,
+        caseSensitive: true,
         basePath: '',
         dataRoutes: [
           {
@@ -1305,10 +1508,10 @@ const runTests = (isDev = false) => {
             ),
             namedDataRouteRegex: `^/_next/data/${escapeRegex(
               buildId
-            )}/blog\\-catchall/(?<slug>.+?)\\.json$`,
+            )}/blog\\-catchall/(?<nxtPslug>.+?)\\.json$`,
             page: '/blog-catchall/[...slug]',
             routeKeys: {
-              slug: 'slug',
+              nxtPslug: 'nxtPslug',
             },
           },
           {
@@ -1317,10 +1520,10 @@ const runTests = (isDev = false) => {
             )}\\/overridden\\/([^\\/]+?)\\.json$`,
             namedDataRouteRegex: `^/_next/data/${escapeRegex(
               buildId
-            )}/overridden/(?<slug>[^/]+?)\\.json$`,
+            )}/overridden/(?<nxtPslug>[^/]+?)\\.json$`,
             page: '/overridden/[slug]',
             routeKeys: {
-              slug: 'slug',
+              nxtPslug: 'nxtPslug',
             },
           },
         ],
@@ -1333,6 +1536,50 @@ const runTests = (isDev = false) => {
             source: '/:path+/',
             statusCode: 308,
             internal: true,
+          },
+          {
+            destination: '/with-params',
+            missing: [
+              {
+                key: 'x-my-header',
+                type: 'header',
+                value: '(?<myHeader>.*)',
+              },
+            ],
+            regex: normalizeRegEx(
+              '^(?!\\/_next)\\/missing-redirect-1(?:\\/)?$'
+            ),
+            source: '/missing-redirect-1',
+            statusCode: 307,
+          },
+          {
+            destination: '/with-params',
+            missing: [
+              {
+                key: 'my-query',
+                type: 'query',
+              },
+            ],
+            regex: normalizeRegEx(
+              '^(?!\\/_next)\\/missing-redirect-2(?:\\/)?$'
+            ),
+            source: '/missing-redirect-2',
+            statusCode: 307,
+          },
+          {
+            destination: '/with-params?authorized=1',
+            missing: [
+              {
+                key: 'loggedIn',
+                type: 'cookie',
+                value: '(?<loggedIn>true)',
+              },
+            ],
+            regex: normalizeRegEx(
+              '^(?!\\/_next)\\/missing-redirect-3(?:\\/)?$'
+            ),
+            source: '/missing-redirect-3',
+            statusCode: 307,
           },
           {
             destination: '/:lang/about',
@@ -1575,6 +1822,56 @@ const runTests = (isDev = false) => {
           },
         ],
         headers: [
+          {
+            headers: [
+              {
+                key: 'x-new-header',
+                value: 'new-value',
+              },
+            ],
+            missing: [
+              {
+                key: 'x-my-header',
+                type: 'header',
+                value: '(?<myHeader>.*)',
+              },
+            ],
+            regex: normalizeRegEx('^\\/missing-headers-1(?:\\/)?$'),
+            source: '/missing-headers-1',
+          },
+          {
+            headers: [
+              {
+                key: 'x-new-header',
+                value: 'new-value',
+              },
+            ],
+            missing: [
+              {
+                key: 'my-query',
+                type: 'query',
+              },
+            ],
+            regex: normalizeRegEx('^\\/missing-headers-2(?:\\/)?$'),
+            source: '/missing-headers-2',
+          },
+          {
+            headers: [
+              {
+                key: 'x-new-header',
+                value: 'new-value',
+              },
+            ],
+            missing: [
+              {
+                key: 'loggedIn',
+                type: 'cookie',
+                value: '(?<loggedIn>true)',
+              },
+            ],
+            regex: normalizeRegEx('^\\/missing-headers-3(?:\\/)?$'),
+            source: '/missing-headers-3',
+          },
           {
             headers: [
               {
@@ -1839,6 +2136,11 @@ const runTests = (isDev = false) => {
               source: '/to-websocket',
             },
             {
+              destination: '/hello',
+              regex: normalizeRegEx('^\\/websocket-to-page(?:\\/)?$'),
+              source: '/websocket-to-page',
+            },
+            {
               destination: 'http://localhost:12233',
               regex: normalizeRegEx('^\\/to-nowhere(?:\\/)?$'),
               source: '/to-nowhere',
@@ -2081,6 +2383,41 @@ const runTests = (isDev = false) => {
               source: '/has-rewrite-8',
             },
             {
+              destination: '/with-params',
+              missing: [
+                {
+                  key: 'x-my-header',
+                  type: 'header',
+                  value: '(?<myHeader>.*)',
+                },
+              ],
+              regex: normalizeRegEx('^\\/missing-rewrite-1(?:\\/)?$'),
+              source: '/missing-rewrite-1',
+            },
+            {
+              destination: '/with-params',
+              missing: [
+                {
+                  key: 'my-query',
+                  type: 'query',
+                },
+              ],
+              regex: normalizeRegEx('^\\/missing-rewrite-2(?:\\/)?$'),
+              source: '/missing-rewrite-2',
+            },
+            {
+              destination: '/with-params?authorized=1',
+              missing: [
+                {
+                  key: 'loggedIn',
+                  type: 'cookie',
+                  value: '(?<loggedIn>true)',
+                },
+              ],
+              regex: normalizeRegEx('^\\/missing-rewrite-3(?:\\/)?$'),
+              source: '/missing-rewrite-3',
+            },
+            {
               destination: '/hello',
               regex: normalizeRegEx('^\\/blog\\/about(?:\\/)?$'),
               source: '/blog/about',
@@ -2096,67 +2433,67 @@ const runTests = (isDev = false) => {
         },
         dynamicRoutes: [
           {
-            namedRegex: '^/_sport/(?<slug>[^/]+?)(?:/)?$',
+            namedRegex: '^/_sport/(?<nxtPslug>[^/]+?)(?:/)?$',
             page: '/_sport/[slug]',
             regex: normalizeRegEx('^\\/_sport\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
-              slug: 'slug',
+              nxtPslug: 'nxtPslug',
             },
           },
           {
-            namedRegex: '^/_sport/(?<slug>[^/]+?)/test(?:/)?$',
+            namedRegex: '^/_sport/(?<nxtPslug>[^/]+?)/test(?:/)?$',
             page: '/_sport/[slug]/test',
             regex: normalizeRegEx('^\\/_sport\\/([^\\/]+?)\\/test(?:\\/)?$'),
             routeKeys: {
-              slug: 'slug',
+              nxtPslug: 'nxtPslug',
             },
           },
           {
-            namedRegex: '^/another/(?<id>[^/]+?)(?:/)?$',
+            namedRegex: '^/another/(?<nxtPid>[^/]+?)(?:/)?$',
             page: '/another/[id]',
             regex: normalizeRegEx('^\\/another\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
-              id: 'id',
+              nxtPid: 'nxtPid',
             },
           },
           {
-            namedRegex: '^/api/dynamic/(?<slug>[^/]+?)(?:/)?$',
+            namedRegex: '^/api/dynamic/(?<nxtPslug>[^/]+?)(?:/)?$',
             page: '/api/dynamic/[slug]',
             regex: normalizeRegEx('^\\/api\\/dynamic\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
-              slug: 'slug',
+              nxtPslug: 'nxtPslug',
             },
           },
           {
-            namedRegex: '^/auto\\-export/(?<slug>[^/]+?)(?:/)?$',
+            namedRegex: '^/auto\\-export/(?<nxtPslug>[^/]+?)(?:/)?$',
             page: '/auto-export/[slug]',
             regex: normalizeRegEx('^\\/auto\\-export\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
-              slug: 'slug',
+              nxtPslug: 'nxtPslug',
             },
           },
           {
-            namedRegex: '^/blog/(?<post>[^/]+?)(?:/)?$',
+            namedRegex: '^/blog/(?<nxtPpost>[^/]+?)(?:/)?$',
             page: '/blog/[post]',
             regex: normalizeRegEx('^\\/blog\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
-              post: 'post',
+              nxtPpost: 'nxtPpost',
             },
           },
           {
-            namedRegex: '^/blog\\-catchall/(?<slug>.+?)(?:/)?$',
+            namedRegex: '^/blog\\-catchall/(?<nxtPslug>.+?)(?:/)?$',
             page: '/blog-catchall/[...slug]',
             regex: normalizeRegEx('^\\/blog\\-catchall\\/(.+?)(?:\\/)?$'),
             routeKeys: {
-              slug: 'slug',
+              nxtPslug: 'nxtPslug',
             },
           },
           {
-            namedRegex: '^/overridden/(?<slug>[^/]+?)(?:/)?$',
+            namedRegex: '^/overridden/(?<nxtPslug>[^/]+?)(?:/)?$',
             page: '/overridden/[slug]',
             regex: '^\\/overridden\\/([^\\/]+?)(?:\\/)?$',
             routeKeys: {
-              slug: 'slug',
+              nxtPslug: 'nxtPslug',
             },
           },
         ],
@@ -2216,6 +2553,13 @@ const runTests = (isDev = false) => {
             routeKeys: {},
           },
         ],
+        rsc: {
+          header: 'RSC',
+          contentTypeHeader: 'text/x-component',
+          varyHeader:
+            'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url',
+          prefetchHeader: 'Next-Router-Prefetch',
+        },
       })
     })
 
@@ -2339,8 +2683,7 @@ describe('Custom routes', () => {
       )
     })
   })
-
-  describe('server mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       const { stdout: buildStdout, stderr: buildStderr } = await nextBuild(
         appDir,
@@ -2373,147 +2716,62 @@ describe('Custom routes', () => {
   })
 
   describe('export', () => {
-    let exportStderr = ''
-    let exportVercelStderr = ''
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'production mode',
+      () => {
+        let exportStderr = ''
+        let exportVercelStderr = ''
 
-    beforeAll(async () => {
-      const { stdout: buildStdout, stderr: buildStderr } = await nextBuild(
-        appDir,
-        ['-d'],
-        {
-          stdout: true,
-          stderr: true,
-        }
-      )
-      const exportResult = await nextExport(
-        appDir,
-        { outdir: join(appDir, 'out') },
-        { stderr: true }
-      )
-      const exportVercelResult = await nextExport(
-        appDir,
-        { outdir: join(appDir, 'out') },
-        {
-          stderr: true,
-          env: {
-            NOW_BUILDER: '1',
-          },
-        }
-      )
+        beforeAll(async () => {
+          const { stdout: buildStdout, stderr: buildStderr } = await nextBuild(
+            appDir,
+            ['-d'],
+            {
+              stdout: true,
+              stderr: true,
+            }
+          )
+          const exportResult = await nextExport(
+            appDir,
+            { outdir: join(appDir, 'out') },
+            { stderr: true }
+          )
+          const exportVercelResult = await nextExport(
+            appDir,
+            { outdir: join(appDir, 'out') },
+            {
+              stderr: true,
+              env: {
+                NOW_BUILDER: '1',
+              },
+            }
+          )
 
-      stdout = buildStdout
-      stderr = buildStderr
-      exportStderr = exportResult.stderr
-      exportVercelStderr = exportVercelResult.stderr
-    })
+          stdout = buildStdout
+          stderr = buildStderr
+          exportStderr = exportResult.stderr
+          exportVercelStderr = exportVercelResult.stderr
+        })
 
-    it('should not show warning for custom routes when not next export', async () => {
-      expect(stderr).not.toContain(
-        `rewrites, redirects, and headers are not applied when exporting your application detected`
-      )
-    })
+        it('should not show warning for custom routes when not next export', async () => {
+          expect(stderr).not.toContain(
+            `rewrites, redirects, and headers are not applied when exporting your application detected`
+          )
+        })
 
-    it('should not show warning for custom routes when next export on Vercel', async () => {
-      expect(exportVercelStderr).not.toContain(
-        `rewrites, redirects, and headers are not applied when exporting your application detected`
-      )
-    })
+        it('should not show warning for custom routes when next export on Vercel', async () => {
+          expect(exportVercelStderr).not.toContain(
+            `rewrites, redirects, and headers are not applied when exporting your application detected`
+          )
+        })
 
-    it('should show warning for custom routes with next export', async () => {
-      expect(exportStderr).toContain(
-        `rewrites, redirects, and headers are not applied when exporting your application, detected (rewrites, redirects, headers)`
-      )
-    })
-  })
-
-  describe('serverless mode', () => {
-    beforeAll(async () => {
-      nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
-      await fs.writeFile(
-        nextConfigPath,
-        nextConfigContent.replace(/\/\/ target/, 'target'),
-        'utf8'
-      )
-      const { stdout: buildStdout } = await nextBuild(appDir, ['-d'], {
-        stdout: true,
-      })
-      stdout = buildStdout
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort, {
-        onStdout: (msg) => {
-          stdout += msg
-        },
-      })
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-    })
-    afterAll(async () => {
-      await fs.writeFile(nextConfigPath, nextConfigContent, 'utf8')
-      await killApp(app)
-    })
-
-    runTests()
-  })
-
-  describe('raw serverless mode', () => {
-    beforeAll(async () => {
-      nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
-      await fs.writeFile(
-        nextConfigPath,
-        nextConfigContent.replace(/\/\/ target/, 'target'),
-        'utf8'
-      )
-      await nextBuild(appDir)
-
-      appPort = await findPort()
-      app = await initNextServerScript(join(appDir, 'server.js'), /ready on/, {
-        ...process.env,
-        PORT: appPort,
-      })
-    })
-    afterAll(async () => {
-      await fs.writeFile(nextConfigPath, nextConfigContent, 'utf8')
-      await killApp(app)
-    })
-
-    it('should apply rewrites in lambda correctly for page route', async () => {
-      const html = await renderViaHTTP(appPort, '/query-rewrite/first/second')
-      const data = JSON.parse(cheerio.load(html)('p').text())
-      expect(data).toEqual({
-        first: 'first',
-        second: 'second',
-        section: 'first',
-        name: 'second',
-      })
-    })
-
-    it('should apply rewrites in lambda correctly for dynamic route', async () => {
-      const html = await renderViaHTTP(appPort, '/blog/post-1')
-      expect(html).toContain('post-2')
-    })
-
-    it('should apply rewrites in lambda correctly for API route', async () => {
-      const data = JSON.parse(
-        await renderViaHTTP(appPort, '/api-hello-param/first')
-      )
-      expect(data).toEqual({
-        query: {
-          name: 'first',
-          hello: 'first',
-        },
-      })
-    })
-
-    it('should apply rewrites in lambda correctly for dynamic API route', async () => {
-      const data = JSON.parse(
-        await renderViaHTTP(appPort, '/api-dynamic-param/first')
-      )
-      expect(data).toEqual({
-        query: {
-          slug: 'first',
-          hello: 'first',
-        },
-      })
-    })
+        it('should show warning for custom routes with next export', async () => {
+          expect(exportStderr).toContain(
+            `rewrites, redirects, and headers are not applied when exporting your application, detected (rewrites, redirects, headers)`
+          )
+        })
+      }
+    )
   })
 
   describe('should load custom routes when only one type is used', () => {
@@ -2614,9 +2872,11 @@ describe('Custom routes', () => {
     describe('dev mode', () => {
       runSoloTests(true)
     })
-
-    describe('production mode', () => {
-      runSoloTests()
-    })
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'production mode',
+      () => {
+        runSoloTests()
+      }
+    )
   })
 })

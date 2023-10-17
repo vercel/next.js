@@ -8,3 +8,7 @@ export type Person = {
   eye_color: string
   gender: string
 }
+
+export type ResponseError = {
+  message: string
+}

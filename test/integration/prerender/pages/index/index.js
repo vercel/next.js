@@ -10,8 +10,8 @@ export default ({ world }) => {
   return (
     <>
       <p>hello {world}</p>
-      <Link href="/">
-        <a id="home">to home</a>
+      <Link href="/" id="home">
+        to home
       </Link>
     </>
   )

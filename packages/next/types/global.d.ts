@@ -2,6 +2,15 @@
 
 // Extend the NodeJS namespace with Next.js-defined properties
 declare namespace NodeJS {
+  // only for rust, see https://github.com/napi-rs/napi-rs/issues/1630
+  interface TTY {
+    setBlocking(blocking: boolean): void
+  }
+
+  interface WriteStream {
+    _handle?: TTY
+  }
+
   interface Process {
     /**
      * @deprecated Use `typeof window` instead
@@ -11,6 +20,10 @@ declare namespace NodeJS {
 
   interface ProcessEnv {
     readonly NODE_ENV: 'development' | 'production' | 'test'
+  }
+
+  interface RequestInit extends globalThis.RequestInit {
+    next?: NextFetchRequestConfig | undefined
   }
 }
 
@@ -31,4 +44,14 @@ declare module '*.module.scss' {
 
 interface Window {
   MSInputMethodContext?: unknown
+  __NEXT_HMR_CB?: null | ((message?: string) => void)
+}
+
+interface NextFetchRequestConfig {
+  revalidate?: number | false
+  tags?: string[]
+}
+
+interface RequestInit {
+  next?: NextFetchRequestConfig | undefined
 }

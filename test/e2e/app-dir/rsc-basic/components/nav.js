@@ -4,18 +4,18 @@ export default function Nav() {
   return (
     <>
       <div>
-        <Link href={'/next-api/link'}>
-          <a id="goto-next-link">next link</a>
+        <Link href={'/next-api/link'} id="goto-next-link">
+          next link
         </Link>
       </div>
       <div>
-        <Link href={'/streaming-rsc'}>
-          <a id="goto-streaming-rsc">streaming rsc</a>
+        <Link href={'/streaming-rsc'} id="goto-streaming-rsc">
+          streaming rsc
         </Link>
       </div>
       <div>
-        <Link href={'/root'}>
-          <a id="goto-home">home</a>
+        <Link href={'/root'} id="goto-home">
+          home
         </Link>
       </div>
     </>

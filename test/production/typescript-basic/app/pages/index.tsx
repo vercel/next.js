@@ -12,8 +12,22 @@ export default function Page() {
   return (
     <>
       <p>hello world</p>
-      <Link href="/another">
-        <a>to /another</a>
+      <Link
+        href="/another"
+        onClick={(e) => {
+          console.log(e.currentTarget)
+        }}
+      >
+        to /another
+      </Link>
+      <Link
+        href="/another"
+        onClick={(e) => {
+          /** @ts-expect-error - foo does not exist on React.MouseEvent */
+          console.log(e.foo)
+        }}
+      >
+        to /another
       </Link>
     </>
   )

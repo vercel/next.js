@@ -3,15 +3,14 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "export": "next export -o build"
+    "start": "next start"
   },
   "dependencies": {
     "@ionic/core": "^5.4.1",
     "ionicons": "^5.2.3",
     "next": "latest",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2"
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
     "@types/node": "^14.14.6",

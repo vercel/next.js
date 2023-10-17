@@ -15,9 +15,7 @@ function Page({ linkTo, NavigateTo, title }) {
       <Clock lastUpdate={lastUpdate} light={light} />
       <Counter />
       <nav>
-        <Link href={linkTo}>
-          <a>Navigate: {NavigateTo}</a>
-        </Link>
+        <Link href={linkTo}>Navigate:{NavigateTo}</Link>
       </nav>
       {placeholderData && (
         <pre>

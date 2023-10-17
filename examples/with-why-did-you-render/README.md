@@ -3,7 +3,7 @@
 This is a simple example of how to use [why-did-you-render](https://github.com/welldone-software/why-did-you-render) within a Next.js app.
 
 We are essentially extending webpack config to allow the monkey patched `React` version of WDYR in development mode and adding to our application
-by importing `wdyr.js` at the top of Next.js `_app.js`.
+by importing `wdyr.ts` at the top of Next.js `_app.tsx`.
 
 By default, all pure components will be tracked, but you can add
 `Component.whyDidYouRender = true` to regular function components in case you need.
@@ -22,7 +22,7 @@ When using Typescript, call the file `wdyr.ts` instead and add the following lin
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-why-did-you-render)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-why-did-you-render&project-name=with-why-did-you-render&repository-name=with-why-did-you-render)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-why-did-you-render&project-name=with-why-did-you-render&repository-name=with-why-did-you-render)
 
 ## How to use
 

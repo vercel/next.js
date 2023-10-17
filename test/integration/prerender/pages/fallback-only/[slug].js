@@ -35,8 +35,8 @@ export default ({ post, time, params }) => {
       <span>time: {time}</span>
       <div id="params">{JSON.stringify(params)}</div>
       <div id="query">{JSON.stringify(useRouter().query)}</div>
-      <Link href="/">
-        <a id="home">to home</a>
+      <Link href="/" id="home">
+        to home
       </Link>
     </>
   )

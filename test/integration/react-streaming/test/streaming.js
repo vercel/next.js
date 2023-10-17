@@ -22,32 +22,38 @@ async function resolveStreamResponse(response, onData) {
   return result
 }
 
-export default function (context, { env, runtime }) {
+export default function (context, { env }) {
   it('should support streaming for fizz response', async () => {
-    await fetchViaHTTP(context.appPort, '/streaming', null, {}).then(
-      async (response) => {
-        let gotFallback = false
-        let gotData = false
+    async function testStreamingResponse(pathname) {
+      await fetchViaHTTP(context.appPort, pathname, null, {}).then(
+        async (response) => {
+          let gotFallback = false
+          let gotData = false
 
-        await resolveStreamResponse(response, (_, result) => {
-          gotData = result.includes('next_streaming_data')
-          if (!gotFallback) {
-            gotFallback = result.includes('next_streaming_fallback')
-            if (gotFallback) {
-              expect(gotData).toBe(false)
+          await resolveStreamResponse(response, (_, result) => {
+            gotData = result.includes('next_streaming_data')
+            if (!gotFallback) {
+              gotFallback = result.includes('next_streaming_fallback')
+              if (gotFallback) {
+                expect(gotData).toBe(false)
+              }
             }
-          }
-        })
+          })
 
-        expect(gotFallback).toBe(true)
-        expect(gotData).toBe(true)
-      }
-    )
+          // Streaming is disabled for pages, no fallback should be rendered.
+          expect(gotFallback).toBe(false)
+          expect(gotData).toBe(true)
+        }
+      )
 
-    // Should end up with "next_streaming_data".
-    const browser = await webdriver(context.appPort, '/streaming')
-    const content = await browser.eval(`window.document.body.innerText`)
-    expect(content).toMatchInlineSnapshot('"next_streaming_data"')
+      // Should end up with "next_streaming_data".
+      const browser = await webdriver(context.appPort, pathname)
+      const content = await browser.eval(`window.document.body.innerText`)
+      expect(content).toMatchInlineSnapshot('"next_streaming_data"')
+    }
+
+    await testStreamingResponse('/streaming')
+    await testStreamingResponse('/streaming-single-export')
   })
 
   it('should not stream to crawlers or google pagerender bot', async () => {
@@ -83,10 +89,8 @@ export default function (context, { env, runtime }) {
     // Resolve data instead of fallback
     expect(body.text()).toBe('next_streaming_data')
 
-    if (runtime === 'nodejs') {
-      expect(res1.headers.get('etag')).toBeDefined()
-      expect(res2.headers.get('etag')).toBeDefined()
-    }
+    expect(res1.headers.get('etag')).toBeDefined()
+    expect(res2.headers.get('etag')).toBeDefined()
   })
 
   it('should render 500 error correctly', async () => {

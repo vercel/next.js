@@ -48,8 +48,7 @@ describe('Dynamic Optional Routing', () => {
 
     runTests()
   })
-
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       const curConfig = await fs.readFile(nextConfig, 'utf8')
 
@@ -62,29 +61,6 @@ describe('Dynamic Optional Routing', () => {
       app = await nextStart(appDir, appPort)
     })
     afterAll(() => killApp(app))
-
-    runTests()
-  })
-
-  describe('serverless mode', () => {
-    let origNextConfig
-
-    beforeAll(async () => {
-      origNextConfig = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(
-        nextConfig,
-        `module.exports = { target: 'serverless' }`
-      )
-
-      await nextBuild(appDir)
-
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await fs.writeFile(nextConfig, origNextConfig)
-      await killApp(app)
-    })
 
     runTests()
   })

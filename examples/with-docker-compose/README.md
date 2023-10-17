@@ -5,10 +5,9 @@ This example contains everything needed to get a Next.js development and product
 ## Benefits of Docker Compose
 
 - Develop locally without Node.js or TypeScript installed ✨
-- Easy to run, consistent development environment across Mac, Windows, and Linux teams
+- Easy to run, consistent development environment across macOS, Windows, and Linux teams
 - Run multiple Next.js apps, databases, and other microservices in a single deployment
-- Multistage builds combined with [Output Standalone](https://nextjs.org/docs/advanced-features/output-file-tracing#automatically-copying-traced-files-experimental) outputs up to 85% smaller apps (Approximately 110 MB compared to 1 GB with create-next-app)
-- BuildKit engine builds multiple Docker images in parallel
+- Multistage builds combined with [Output Standalone](https://nextjs.org/docs/advanced-features/output-file-tracing#automatically-copying-traced-files) outputs up to 85% smaller apps (Approximately 110 MB compared to 1 GB with create-next-app)
 - Easy configuration with YAML files
 
 ## How to use
@@ -27,6 +26,12 @@ yarn create next-app --example with-docker-compose with-docker-compose-app
 pnpm create next-app --example with-docker-compose with-docker-compose-app
 ```
 
+Optionally, after the installation is complete:
+
+- Run `cd next-app`, then run `npm install` or `yarn install` or `pnpm install` to generate a lockfile.
+
+It is recommended to commit a lockfile to version control. Although the example will work without one, build errors are more likely to occur when using the latest version of all dependencies. This way, we're always using a known good configuration to develop and run in production.
+
 ## Prerequisites
 
 Install [Docker Desktop](https://docs.docker.com/get-docker) for Mac, Windows, or Linux. Docker Desktop includes Docker Compose as part of the installation.
@@ -40,7 +45,7 @@ First, run the development server:
 # with each other, by using their container name as a hostname
 docker network create my_network
 
-# Build dev using new BuildKit engine
+# Build dev
 docker compose -f docker-compose.dev.yml build
 
 # Up dev
@@ -53,7 +58,7 @@ You can start editing the page by modifying `pages/index.tsx`. The page auto-upd
 
 ## Production
 
-Multistage builds are highly recommended in production. Combined with the Next 12 [Output Standalone](https://nextjs.org/docs/advanced-features/output-file-tracing#automatically-copying-traced-files-experimental) feature, only `node_modules` files required for production are copied into the final Docker image.
+Multistage builds are highly recommended in production. Combined with the Next [Output Standalone](https://nextjs.org/docs/advanced-features/output-file-tracing#automatically-copying-traced-files) feature, only `node_modules` files required for production are copied into the final Docker image.
 
 First, run the production server (Final image approximately 110 MB).
 
@@ -62,7 +67,7 @@ First, run the production server (Final image approximately 110 MB).
 # with each other, by using their container name as a hostname
 docker network create my_network
 
-# Build prod using new BuildKit engine
+# Build prod
 docker compose -f docker-compose.prod.yml build
 
 # Up prod in detached mode
@@ -76,7 +81,7 @@ Alternatively, run the production server without without multistage builds (Fina
 # with each other, by using their container name as a hostname
 docker network create my_network
 
-# Build prod without multistage using new BuildKit engine
+# Build prod without multistage
 docker compose -f docker-compose.prod-without-multistage.yml build
 
 # Up prod without multistage in detached mode
@@ -89,7 +94,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ```bash
 # Stop all running containers
-docker kill $(docker ps -q) && docker rm $(docker ps -a -q)
+docker kill $(docker ps -aq) && docker rm $(docker ps -aq)
 
 # Free space
 docker system prune -af --volumes

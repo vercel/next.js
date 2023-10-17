@@ -12,9 +12,7 @@ const Index: NextPage<IndexProps> = ({ name }) => {
       <h1>Home Page</h1>
       <p>Welcome, {name}</p>
       <div>
-        <Link href="/about">
-          <a>About Page</a>
-        </Link>
+        <Link href="/about">About Page</Link>
       </div>
     </div>
   )

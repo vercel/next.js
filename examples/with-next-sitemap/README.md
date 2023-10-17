@@ -8,7 +8,7 @@ This example uses [`next-sitemap`](https://github.com/iamvishnusankar/next-sitem
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-next-sitemap)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-next-sitemap&project-name=with-next-sitemap&repository-name=with-next-sitemap)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-next-sitemap&project-name=with-next-sitemap&repository-name=with-next-sitemap)
 
 ## How to use
 

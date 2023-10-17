@@ -11,11 +11,9 @@ import {
   nextStart,
   renderViaHTTP,
   launchApp,
-  File,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
-const nextConfig = new File(join(appDir, 'next.config.js'))
 let appPort
 let app
 
@@ -52,8 +50,7 @@ describe('Fallback Dynamic Route Params', () => {
 
     runTests()
   })
-
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await fs.remove(join(appDir, '.next'))
       await nextBuild(appDir, [])
@@ -61,26 +58,6 @@ describe('Fallback Dynamic Route Params', () => {
       app = await nextStart(appDir, appPort)
     })
     afterAll(() => killApp(app))
-
-    runTests()
-  })
-
-  describe('serverless mode', () => {
-    beforeAll(async () => {
-      nextConfig.write(`
-        module.exports = {
-          target: 'experimental-serverless-trace'
-        }
-      `)
-      await fs.remove(join(appDir, '.next'))
-      await nextBuild(appDir, [], { stdout: true })
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-      nextConfig.delete()
-    })
 
     runTests()
   })

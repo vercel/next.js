@@ -1,0 +1,25 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "migrate:up": "ley up",
+    "migrate:down": "ley down"
+  },
+  "dependencies": {
+    "@types/node": "^18.11.9",
+    "@types/react": "^18.0.25",
+    "@types/react-dom": "^18.0.9",
+    "next": "latest",
+    "postgres": "^3.3.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "typescript": "^4.8.4"
+  },
+  "devDependencies": {
+    "dotenv": "^16.0.3",
+    "ley": "^0.8.1",
+    "pg-connection-string": "^2.5.0"
+  }
+}

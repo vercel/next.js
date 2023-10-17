@@ -56,6 +56,11 @@ export function printBenchmarkResults({ origin, head }, metricSelector) {
     (results) => results.map(metricSelector).filter(Boolean)
   )
 
+  if (processedHeadData.length === 0 || processedOriginData.length === 0) {
+    console.log('No data to compare, skipping')
+    return
+  }
+
   const [originMetrics, headMetrics] = [
     processedOriginData,
     processedHeadData,

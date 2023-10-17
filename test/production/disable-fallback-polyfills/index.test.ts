@@ -5,7 +5,8 @@ describe('Disable fallback polyfills', () => {
   let next: NextInstance
 
   function getFirstLoadSize(output: string) {
-    const firstLoadRe = /○ \/\s*(\d*) k?B\s*(?<firstLoad>.*) kB/
+    const firstLoadRe =
+      /○ \/.*? (?<size>\d.*?) [^\d]{2} (?<firstLoad>\d.*?) [^\d]{2}/
     return Number(output.match(firstLoadRe).groups.firstLoad)
   }
 

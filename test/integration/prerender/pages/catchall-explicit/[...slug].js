@@ -33,8 +33,8 @@ export default function Page({ slug }) {
   return (
     <>
       <p id="catchall">Hi {slug.join(' ')}</p>{' '}
-      <Link href="/">
-        <a id="home">to home</a>
+      <Link href="/" id="home">
+        to home
       </Link>
     </>
   )

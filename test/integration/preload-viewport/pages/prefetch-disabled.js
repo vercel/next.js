@@ -4,8 +4,8 @@ export default () => {
   return (
     <div>
       <br />
-      <Link href="/another" prefetch={false}>
-        <a id="link-another">to /another</a>
+      <Link href="/another" prefetch={false} id="link-another">
+        to /another
       </Link>
     </div>
   )

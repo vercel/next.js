@@ -52,18 +52,20 @@ describe('normalizePagePath', () => {
 
 describe('getPagePath', () => {
   it('Should not append /index to the / page', () => {
-    expect(() => getPagePath('/', distDir, false)).toThrow(
+    expect(() => getPagePath('/', distDir, undefined, false)).toThrow(
       'Cannot find module for page: /'
     )
   })
 
   it('Should prepend / when a page does not have it', () => {
-    const pagePath = getPagePath('_error', distDir, false)
+    const pagePath = getPagePath('_error', distDir, undefined, false)
     expect(pagePath).toBe(join(pathToBundles, `${sep}_error.js`))
   })
 
   it('Should throw with paths containing ../', () => {
-    expect(() => getPagePath('/../../package.json', distDir, false)).toThrow()
+    expect(() =>
+      getPagePath('/../../package.json', distDir, undefined, false)
+    ).toThrow()
   })
 })
 

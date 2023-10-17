@@ -75,4 +75,9 @@ export async function middleware(request) {
     url.searchParams.delete('pathname')
     return Response.redirect(url)
   }
+
+  if (url.pathname === '/with-fragment') {
+    console.log(String(new URL('/new-home#fragment', url)))
+    return Response.redirect(new URL('/new-home#fragment', url))
+  }
 }

@@ -1,0 +1,7 @@
+
+  x It's not possible to have both `use client` and `use server` directives in the same file.
+   ,-[input.js:5:1]
+ 5 | 
+ 6 | 'use server'
+   : ^^^^^^^^^^^^
+   `----

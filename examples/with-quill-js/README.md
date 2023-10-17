@@ -2,13 +2,13 @@
 
 [Quill](https://quilljs.com/) is powerful rich text editor. This example uses [react-quill](https://github.com/zenoamaro/react-quill) to integrate Quill with Next.js.
 
-Quill does not suppport SSR, so it's only loaded and rendered in the browser.
+Quill does not support SSR, so it's only loaded and rendered in the browser.
 
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-quill-js)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-quill-js&project-name=with-quill-js&repository-name=with-quill-js)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-quill-js&project-name=with-quill-js&repository-name=with-quill-js)
 
 ## How to use
 

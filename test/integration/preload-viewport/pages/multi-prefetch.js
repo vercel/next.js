@@ -16,7 +16,7 @@ export default () => {
   return (
     <div>
       <Link prefetch={true} href="/dynamic/[hello]" as={'/dynamic/test'}>
-        <a>I should only be prefetched once</a>
+        I should only be prefetched once
       </Link>
     </div>
   )

@@ -1,4 +1,4 @@
-import { experimental_use as use } from 'react'
+import { use } from 'react'
 
 async function getData() {
   await new Promise((resolve) => setTimeout(resolve, 5000))
@@ -13,6 +13,4 @@ export default function SlowPage(props) {
   return <h1 id="slow-page-message">{data.message}</h1>
 }
 
-export const config = {
-  runtime: 'experimental-edge',
-}
+export const runtime = 'experimental-edge'

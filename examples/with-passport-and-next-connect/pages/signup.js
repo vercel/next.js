@@ -65,9 +65,7 @@ export default function SignupPage() {
           </label>
           <div className="submit">
             <button type="submit">Sign up</button>
-            <Link href="/login">
-              <a>I already have an account</a>
-            </Link>
+            <Link href="/login">I already have an account</Link>
           </div>
         </form>
       </div>

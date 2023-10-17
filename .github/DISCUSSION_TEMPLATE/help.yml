@@ -1,0 +1,20 @@
+body:
+  - type: textarea
+    attributes:
+      label: Summary
+      description: What do you need help with?
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Additional information
+      description: Any code snippets, error messages, or dependency details that may be related? (`next info`)
+      render: js
+    validations:
+      required: false
+  - type: input
+    attributes:
+      label: Example
+      description: A link to a minimal reproduction is helpful for collaborative debugging!
+    validations:
+      required: false

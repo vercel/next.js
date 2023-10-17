@@ -21,17 +21,16 @@ const Page = ({ id }) => {
         }}
       />
       <p>{ready ? 'routeChangeComplete' : 'loading'}</p>
-      <Link href={`/${id + 1}`}>
-        <a
-          id="link"
-          style={{
-            marginLeft: 5000,
-            width: 95000,
-            display: 'block',
-          }}
-        >
-          next page
-        </a>
+      <Link
+        href={`/${id + 1}`}
+        id="link"
+        style={{
+          marginLeft: 5000,
+          width: 95000,
+          display: 'block',
+        }}
+      >
+        next page
       </Link>
       <div id="end-el">hello, world</div>
     </>

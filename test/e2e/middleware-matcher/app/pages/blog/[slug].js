@@ -5,12 +5,12 @@ export default function Page(props) {
     <div>
       <p id="blog">This should not run the middleware</p>
       <p id="props">{JSON.stringify(props)}</p>
-      <Link href="/another-middleware">
-        <a id="to-another-middleware">to /another-middleware</a>
+      <Link href="/another-middleware" id="to-another-middleware">
+        to /another-middleware
       </Link>
       <br />
-      <Link href="/blog/slug-2">
-        <a id="to-blog-slug-2">to /blog/slug-2</a>
+      <Link href="/blog/slug-2" id="to-blog-slug-2">
+        to /blog/slug-2
       </Link>
       <br />
     </div>

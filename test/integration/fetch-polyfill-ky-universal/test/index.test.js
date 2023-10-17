@@ -1,6 +1,5 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
 import { join } from 'path'
 import {
   killApp,
@@ -13,7 +12,6 @@ import {
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
-const nextConfig = join(appDir, 'next.config.js')
 let appPort
 let app
 let apiServerPort
@@ -29,20 +27,6 @@ const startApiServer = async (optEnv = {}, opts) => {
   )
 
   apiServer = await initNextServerScript(
-    scriptPath,
-    /ready on/i,
-    env,
-    /ReferenceError: options is not defined/,
-    opts
-  )
-}
-
-const startServerlessServer = async (optEnv = {}, opts) => {
-  const scriptPath = join(appDir, 'serverless-server.js')
-  appPort = await findPort()
-  const env = Object.assign({ ...process.env }, { PORT: `${appPort}` }, optEnv)
-
-  return await initNextServerScript(
     scriptPath,
     /ready on/i,
     env,
@@ -67,7 +51,7 @@ function runTests() {
 }
 
 describe('Fetch polyfill with ky-universal', () => {
-  describe('dev support', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       await startApiServer()
@@ -84,8 +68,7 @@ describe('Fetch polyfill with ky-universal', () => {
 
     runTests()
   })
-
-  describe('Server support', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await startApiServer()
       await nextBuild(appDir, [], {
@@ -98,30 +81,6 @@ describe('Fetch polyfill with ky-universal', () => {
     })
     afterAll(async () => {
       await killApp(app)
-      await killApp(apiServer)
-    })
-
-    runTests()
-  })
-
-  describe('Serverless support', () => {
-    beforeAll(async () => {
-      await fs.writeFile(
-        nextConfig,
-        `module.exports = { target: 'serverless' }`
-      )
-      await startApiServer()
-      await nextBuild(appDir, [], {
-        env: {
-          NEXT_PUBLIC_API_PORT: apiServerPort,
-        },
-      })
-      appPort = await findPort()
-      app = await startServerlessServer()
-    })
-    afterAll(async () => {
-      await killApp(app)
-      await fs.remove(nextConfig)
       await killApp(apiServer)
     })
 

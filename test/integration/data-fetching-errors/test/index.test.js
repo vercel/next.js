@@ -15,7 +15,7 @@ import {
   GSP_NO_RETURNED_VALUE,
   GSSP_NO_RETURNED_VALUE,
 } from '../../../../packages/next/dist/lib/constants'
-import { PHASE_PRODUCTION_BUILD } from '../../../../packages/next/shared/lib/constants'
+import { PHASE_PRODUCTION_BUILD } from '../../../../packages/next/dist/shared/lib/constants'
 
 const appDir = join(__dirname, '..')
 const indexPage = join(appDir, 'pages/index.js')
@@ -132,12 +132,9 @@ describe('GS(S)P Page Errors', () => {
   describe('dev mode', () => {
     runTests(true)
   })
-
-  describe('build mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     runTests()
-  })
 
-  describe('start mode', () => {
     it('Error stack printed to stderr', async () => {
       try {
         await fs.writeFile(
@@ -172,7 +169,6 @@ describe('GS(S)P Page Errors', () => {
         }, /error: oops/i)
 
         expect(stderr).toContain('Error: Oops')
-        expect(stderr).toContain(`\n    at getStaticProps`)
       } finally {
         await killApp(app)
       }

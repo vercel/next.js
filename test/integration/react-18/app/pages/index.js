@@ -12,8 +12,7 @@ export default function Index() {
       <Image
         id="priority-image"
         priority
-        host="secondary"
-        src="withpriority2.png"
+        src="/noop.png"
         width={300}
         height={400}
       />

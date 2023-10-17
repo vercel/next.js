@@ -1,7 +1,5 @@
 export default function page() {
-  return 'edge-ssr'
+  return 'app-edge-ssr'
 }
 
-export const config = {
-  runtime: 'experimental-edge',
-}
+export const runtime = 'experimental-edge'

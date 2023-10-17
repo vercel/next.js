@@ -7,9 +7,5 @@ export default () => {
     as: '/as-page',
   }
 
-  return (
-    <Link {...props}>
-      <a>Test</a>
-    </Link>
-  )
+  return <Link {...props}>Test</Link>
 }

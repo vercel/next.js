@@ -4,5 +4,5 @@ export default () => {
 }
 
 export const config = {
-  runtime: 'experimental-edge',
+  runtime: 'edge',
 }

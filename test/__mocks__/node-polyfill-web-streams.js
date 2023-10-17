@@ -2,7 +2,7 @@ const {
   ReadableStream,
   TransformStream,
   WritableStreamDefaultWriter,
-} = require('next/dist/compiled/@edge-runtime/primitives/streams')
+} = require('next/dist/compiled/@edge-runtime/ponyfill')
 
 const OriginWritableStreamWrite = WritableStreamDefaultWriter.prototype.write
 

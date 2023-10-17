@@ -37,10 +37,6 @@ export function invokeNodeAPI(useCase) {
     new ReadableStreamBYOBRequest()
   } else if (useCase === 'ReadableStreamDefaultController') {
     new ReadableStreamDefaultController()
-  } else if (useCase === 'TextDecoderStream') {
-    new TextDecoderStream()
-  } else if (useCase === 'TextEncoderStream') {
-    new TextEncoderStream()
   } else if (useCase === 'TransformStreamDefaultController') {
     new TransformStreamDefaultController()
   } else if (useCase === 'WritableStreamDefaultController') {

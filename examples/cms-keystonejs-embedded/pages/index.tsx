@@ -27,27 +27,26 @@ export default function Home({ posts }) {
             posts.map((post) => (
               <li key={post.id} className={styles.card}>
                 <Link href={`/post/${post.slug}`}>
-                  <a>
-                    <h2>{post.title}</h2>
-                    <p>Read now &rarr;</p>
-                  </a>
+                  <h2>{post.title}</h2>
+                  <p>Read now &rarr;</p>
                 </Link>
               </li>
             ))
           ) : (
             <li className={`${styles.noposts} ${styles.card}`}>
               <Link href="http://localhost:8000">
-                <a>
-                  <h2>No Posts</h2>
-                  <p>Add one via the Admin UI &rarr;</p>
-                </a>
+                <h2>No Posts</h2>
+                <p>Add one via the Admin UI &rarr;</p>
               </Link>
             </li>
           )}
         </ul>
         {process.env.NODE_ENV !== 'production' && (
-          <Link href="/api/graphql?query=%7BallPosts%7Btitle%2Cslug%2Ccontent%7D%7D">
-            <a className={styles.playground}>Visit the graphql playground</a>
+          <Link
+            href="/api/graphql?query=%7BallPosts%7Btitle%2Cslug%2Ccontent%7D%7D"
+            className={styles.playground}
+          >
+            Visit the graphql playground
           </Link>
         )}
       </main>

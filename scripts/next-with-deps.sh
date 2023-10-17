@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 START_DIR=$PWD
 # gets last argument which should be the project dir
@@ -29,7 +29,7 @@ done
 
 if [ ! -z $HAS_CONFLICTING_DEP ] || [ ! -d "$PROJECT_DIR/node_modules" ];then
   cd $PROJECT_DIR
-  pnpm install
+  pnpm i --ignore-workspace
   for dep in ${CONFLICTING_DEPS[@]};do 
     rm -rf node_modules/$dep
   done

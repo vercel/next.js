@@ -1,3 +1,3 @@
-'client'
+'use client'
 
 export * from './one'

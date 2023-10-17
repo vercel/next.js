@@ -12,14 +12,10 @@ export default function PostPage() {
       <h1>Post: {id}</h1>
       <ul>
         <li>
-          <Link href={`/post/${id}/first-comment`}>
-            <a>First comment</a>
-          </Link>
+          <Link href={`/post/${id}/first-comment`}>First comment</Link>
         </li>
         <li>
-          <Link href={`/post/${id}/second-comment`}>
-            <a>Second comment</a>
-          </Link>
+          <Link href={`/post/${id}/second-comment`}>Second comment</Link>
         </li>
       </ul>
     </>

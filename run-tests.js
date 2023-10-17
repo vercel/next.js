@@ -11,30 +11,118 @@ const { spawn, exec: execOrig } = require('child_process')
 const { createNextInstall } = require('./test/lib/create-next-install')
 const glob = promisify(_glob)
 const exec = promisify(execOrig)
+const core = require('@actions/core')
 
+function escapeRegexp(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/**
+ * @typedef {{ file: string, excludedCases: string[] }} TestFile
+ */
+
+const GROUP = process.env.CI ? '##[group]' : ''
+const ENDGROUP = process.env.CI ? '##[endgroup]' : ''
+
+// Try to read an external array-based json to filter tests to be allowed / or disallowed.
+// If process.argv contains a test to be executed, this'll append it to the list.
+const externalTestsFilterLists = process.env.NEXT_EXTERNAL_TESTS_FILTERS
+  ? require(process.env.NEXT_EXTERNAL_TESTS_FILTERS)
+  : null
 const timings = []
 const DEFAULT_NUM_RETRIES = os.platform() === 'win32' ? 2 : 1
 const DEFAULT_CONCURRENCY = 2
 const RESULTS_EXT = `.results.json`
 const isTestJob = !!process.env.NEXT_TEST_JOB
+// Check env to see if test should continue even if some of test fails
+const shouldContinueTestsOnError = !!process.env.NEXT_TEST_CONTINUE_ON_ERROR
+// Check env to load a list of test paths to skip retry. This is to be used in conjuction with NEXT_TEST_CONTINUE_ON_ERROR,
+// When try to run all of the tests regardless of pass / fail and want to skip retrying `known` failed tests.
+// manifest should be a json file with an array of test paths.
+const skipRetryTestManifest = process.env.NEXT_TEST_SKIP_RETRY_MANIFEST
+  ? require(process.env.NEXT_TEST_SKIP_RETRY_MANIFEST)
+  : []
 const TIMINGS_API = `https://api.github.com/gists/4500dd89ae2f5d70d9aaceb191f528d1`
 const TIMINGS_API_HEADERS = {
   Accept: 'application/vnd.github.v3+json',
+  ...(process.env.TEST_TIMINGS_TOKEN
+    ? {
+        Authorization: `Bearer ${process.env.TEST_TIMINGS_TOKEN}`,
+      }
+    : {}),
 }
 
 const testFilters = {
-  unit: 'unit/',
-  e2e: 'e2e/',
-  production: 'production/',
-  development: 'development/',
+  development: new RegExp(
+    '^(test/(development|e2e)|packages/.*/src/.*)/.*\\.test\\.(js|jsx|ts|tsx)$'
+  ),
+  production: new RegExp(
+    '^(test/(production|e2e))/.*\\.test\\.(js|jsx|ts|tsx)$'
+  ),
+  unit: new RegExp(
+    '^test/unit|packages/.*/src/.*/.*\\.test\\.(js|jsx|ts|tsx)$'
+  ),
+  examples: 'examples/',
+  integration: 'test/integration/',
+  e2e: 'test/e2e/',
 }
+
+const mockTrace = () => ({
+  traceAsyncFn: (fn) => fn(mockTrace()),
+  traceChild: () => mockTrace(),
+})
 
 // which types we have configured to run separate
 const configuredTestTypes = Object.values(testFilters)
+const errorsPerTests = new Map()
+
+async function maybeLogSummary() {
+  if (process.env.CI && errorsPerTests.size > 0) {
+    const outputTemplate = `
+${Array.from(errorsPerTests.entries())
+  .map(([test, output]) => {
+    return `
+<details>
+<summary>${test}</summary>
+
+\`\`\`
+${output}
+\`\`\`
+
+</details>
+`
+  })
+  .join('\n')}`
+
+    await core.summary
+      .addHeading('Tests failures')
+      .addTable([
+        [
+          {
+            data: 'Test suite',
+            header: true,
+          },
+        ],
+        ...Array.from(errorsPerTests.entries()).map(([test]) => {
+          return [
+            `<a href="https://github.com/vercel/next.js/blob/canary/${test}">${test}</a>`,
+          ]
+        }),
+      ])
+      .addRaw(outputTemplate)
+      .write()
+  }
+}
 
 const cleanUpAndExit = async (code) => {
   if (process.env.NEXT_TEST_STARTER) {
     await fs.remove(process.env.NEXT_TEST_STARTER)
+  }
+  if (process.env.NEXT_TEST_TEMP_REPO) {
+    await fs.remove(process.env.NEXT_TEST_TEMP_REPO)
+  }
+  if (process.env.CI) {
+    await maybeLogSummary()
   }
   console.log(`exiting with code ${code}`)
 
@@ -43,12 +131,31 @@ const cleanUpAndExit = async (code) => {
   }, 1)
 }
 
+const isMatchingPattern = (pattern, file) => {
+  if (pattern instanceof RegExp) {
+    return pattern.test(file)
+  } else {
+    return file.startsWith(pattern)
+  }
+}
+
 async function getTestTimings() {
-  const timingsRes = await fetch(TIMINGS_API, {
-    headers: {
-      ...TIMINGS_API_HEADERS,
-    },
-  })
+  let timingsRes
+
+  const doFetch = () =>
+    fetch(TIMINGS_API, {
+      headers: {
+        ...TIMINGS_API_HEADERS,
+      },
+    })
+  timingsRes = await doFetch()
+
+  if (timingsRes.status === 403) {
+    const delay = 15
+    console.log(`Got 403 response waiting ${delay} seconds before retry`)
+    await new Promise((resolve) => setTimeout(resolve, delay * 1000))
+    timingsRes = await doFetch()
+  }
 
   if (!timingsRes.ok) {
     throw new Error(`request status: ${timingsRes.status}`)
@@ -69,7 +176,8 @@ async function main() {
   const writeTimings = process.argv.includes('--write-timings')
   const groupIdx = process.argv.indexOf('-g')
   const groupArg = groupIdx !== -1 && process.argv[groupIdx + 1]
-
+  const testPatternIdx = process.argv.indexOf('--test-pattern')
+  const testPattern = testPatternIdx !== -1 && process.argv[testPatternIdx + 1]
   const testTypeIdx = process.argv.indexOf('--type')
   const testType = testTypeIdx > -1 ? process.argv[testTypeIdx + 1] : undefined
   let filterTestsBy
@@ -80,81 +188,118 @@ async function main() {
       filterTestsBy = testFilters.unit
       break
     }
-    case 'development': {
-      filterTestsBy = testFilters.development
-      break
-    }
-    case 'production': {
-      filterTestsBy = testFilters.production
-      break
-    }
-    case 'e2e': {
-      filterTestsBy = testFilters.e2e
-      break
-    }
-    case 'all':
+    case 'all': {
       filterTestsBy = 'none'
       break
-    default:
+    }
+    default: {
+      filterTestsBy = testFilters[testType]
       break
+    }
   }
 
   console.log('Running tests with concurrency:', concurrency)
 
-  let tests = process.argv.filter((arg) => arg.match(/\.test\.(js|ts|tsx)/))
+  /** @type TestFile[] */
+  let tests = process.argv
+    .filter((arg) => arg.match(/\.test\.(js|ts|tsx)/))
+    .map((file) => ({
+      file,
+      excludedCases: [],
+    }))
   let prevTimings
 
   if (tests.length === 0) {
+    let testPatternRegex
+
+    if (testPattern) {
+      testPatternRegex = new RegExp(testPattern)
+    }
+
     tests = (
       await glob('**/*.test.{js,ts,tsx}', {
         nodir: true,
-        cwd: path.join(__dirname, 'test'),
+        cwd: __dirname,
+        ignore: '**/node_modules/**',
       })
-    ).filter((test) => {
-      if (filterTestsBy) {
-        // only include the specified type
-        return filterTestsBy === 'none' ? true : test.startsWith(filterTestsBy)
-      } else {
-        // include all except the separately configured types
-        return !configuredTestTypes.some((type) => test.startsWith(type))
-      }
-    })
-
-    if (outputTimings && groupArg) {
-      console.log('Fetching previous timings data')
-      try {
-        const timingsFile = path.join(__dirname, 'test-timings.json')
-        try {
-          prevTimings = JSON.parse(await fs.readFile(timingsFile, 'utf8'))
-          console.log('Loaded test timings from disk successfully')
-        } catch (_) {}
-
-        if (!prevTimings) {
-          prevTimings = await getTestTimings()
-          console.log('Fetched previous timings data successfully')
-
-          if (writeTimings) {
-            await fs.writeFile(timingsFile, JSON.stringify(prevTimings))
-            console.log('Wrote previous timings data to', timingsFile)
-            await cleanUpAndExit(0)
-          }
+    )
+      .filter((file) => {
+        if (testPatternRegex) {
+          return testPatternRegex.test(file)
         }
-      } catch (err) {
-        console.log(`Failed to fetch timings data`, err)
-        await cleanUpAndExit(1)
+        if (filterTestsBy) {
+          // only include the specified type
+          if (filterTestsBy === 'none') {
+            return true
+          }
+          return isMatchingPattern(filterTestsBy, file)
+        }
+        // include all except the separately configured types
+        return !configuredTestTypes.some((type) =>
+          isMatchingPattern(type, file)
+        )
+      })
+      .map((file) => ({
+        file,
+        excludedCases: [],
+      }))
+  }
+
+  if (outputTimings && groupArg) {
+    console.log('Fetching previous timings data')
+    try {
+      const timingsFile = path.join(process.cwd(), 'test-timings.json')
+      try {
+        prevTimings = JSON.parse(await fs.readFile(timingsFile, 'utf8'))
+        console.log('Loaded test timings from disk successfully')
+      } catch (_) {
+        console.error('failed to load from disk', _)
       }
+
+      if (!prevTimings) {
+        prevTimings = await getTestTimings()
+        console.log('Fetched previous timings data successfully')
+
+        if (writeTimings) {
+          await fs.writeFile(timingsFile, JSON.stringify(prevTimings))
+          console.log('Wrote previous timings data to', timingsFile)
+          await cleanUpAndExit(0)
+        }
+      }
+    } catch (err) {
+      console.log(`Failed to fetch timings data`, err)
+      await cleanUpAndExit(1)
     }
   }
 
-  let testNames = [
-    ...new Set(
-      tests.map((f) => {
-        let name = `${f.replace(/\\/g, '/').replace(/\/test$/, '')}`
-        if (!name.startsWith('test/')) name = `test/${name}`
-        return name
+  // If there are external manifest contains list of tests, apply it to the test lists.
+  if (externalTestsFilterLists) {
+    tests = tests
+      .filter((test) => {
+        const info = externalTestsFilterLists[test.file]
+        return info && info.passed.length > 0 && !info.runtimeError
       })
-    ),
-  ]
+      .map((test) => {
+        const info = externalTestsFilterLists[test.file]
+        // Exclude failing and flakey tests, newly added tests are automatically included
+        if (info.failed.length > 0 || info.flakey.length > 0) {
+          test.excludedCases = info.failed.concat(info.flakey)
+        }
+        return test
+      })
+  }
+
+  let testSet = new Set()
+  tests = tests
+    .map((test) => {
+      test.file = test.file.replace(/\\/g, '/').replace(/\/test$/, '')
+      return test
+    })
+    .filter((test) => {
+      if (testSet.has(test.file)) return false
+      testSet.add(test.file)
+      return true
+    })
 
   if (groupArg) {
     const groupParts = groupArg.split('/')
@@ -165,7 +310,7 @@ async function main() {
       const groups = [[]]
       const groupTimes = [0]
 
-      for (const testName of testNames) {
+      for (const test of tests) {
         let smallestGroup = groupTimes[0]
         let smallestGroupIdx = 0
 
@@ -182,54 +327,74 @@ async function main() {
             smallestGroupIdx = i
           }
         }
-        groups[smallestGroupIdx].push(testName)
-        groupTimes[smallestGroupIdx] += prevTimings[testName] || 1
+        groups[smallestGroupIdx].push(test)
+        groupTimes[smallestGroupIdx] += prevTimings[test.file] || 1
       }
 
       const curGroupIdx = groupPos - 1
-      testNames = groups[curGroupIdx]
+      tests = groups[curGroupIdx]
 
       console.log(
         'Current group previous accumulated times:',
         Math.round(groupTimes[curGroupIdx]) + 's'
       )
     } else {
-      const numPerGroup = Math.ceil(testNames.length / groupTotal)
+      const numPerGroup = Math.ceil(tests.length / groupTotal)
       let offset = (groupPos - 1) * numPerGroup
-      testNames = testNames.slice(offset, offset + numPerGroup)
+      tests = tests.slice(offset, offset + numPerGroup)
+      console.log('Splitting without timings')
     }
   }
 
-  if (testNames.length === 0) {
+  if (tests.length === 0) {
     console.log('No tests found for', testType, 'exiting..')
-    return cleanUpAndExit(0)
+    return cleanUpAndExit(1)
   }
 
-  console.log('Running tests:', '\n', ...testNames.map((name) => `${name}\n`))
+  console.log(`${GROUP}Running tests:
+${tests.map((t) => t.file).join('\n')}
+${ENDGROUP}`)
+  console.log(`total: ${tests.length}`)
 
-  const hasIsolatedTests = testNames.some((test) => {
+  const hasIsolatedTests = tests.some((test) => {
     return configuredTestTypes.some(
-      (type) => type !== testFilters.unit && test.startsWith(`test/${type}`)
+      (type) =>
+        type !== testFilters.unit && test.file.startsWith(`test/${type}`)
     )
   })
 
   if (
+    process.platform !== 'win32' &&
     process.env.NEXT_TEST_MODE !== 'deploy' &&
     ((testType && testType !== 'unit') || hasIsolatedTests)
   ) {
     // for isolated next tests: e2e, dev, prod we create
     // a starter Next.js install to re-use to speed up tests
     // to avoid having to run yarn each time
-    console.log('Creating Next.js install for isolated tests')
+    console.log(`${GROUP}Creating Next.js install for isolated tests`)
     const reactVersion = process.env.NEXT_TEST_REACT_VERSION || 'latest'
-    const testStarter = await createNextInstall({
-      react: reactVersion,
-      'react-dom': reactVersion,
+    const { installDir, pkgPaths, tmpRepoDir } = await createNextInstall({
+      parentSpan: mockTrace(),
+      dependencies: {
+        react: reactVersion,
+        'react-dom': reactVersion,
+      },
+      keepRepoDir: true,
     })
-    process.env.NEXT_TEST_STARTER = testStarter
+
+    const serializedPkgPaths = []
+
+    for (const key of pkgPaths.keys()) {
+      serializedPkgPaths.push([key, pkgPaths.get(key)])
+    }
+    process.env.NEXT_TEST_PKG_PATHS = JSON.stringify(serializedPkgPaths)
+    process.env.NEXT_TEST_TEMP_REPO = tmpRepoDir
+    process.env.NEXT_TEST_STARTER = installDir
+    console.log(`${ENDGROUP}`)
   }
 
-  const sema = new Sema(concurrency, { capacity: testNames.length })
+  const sema = new Sema(concurrency, { capacity: tests.length })
+  const outputSema = new Sema(1, { capacity: tests.length })
   const children = new Set()
   const jestPath = path.join(
     __dirname,
@@ -237,56 +402,100 @@ async function main() {
     '.bin',
     `jest${process.platform === 'win32' ? '.CMD' : ''}`
   )
+  let firstError = true
+  let killed = false
 
-  const runTest = (test = '', isFinalRun, isRetry) =>
+  const runTest = (/** @type {TestFile} */ test, isFinalRun, isRetry) =>
     new Promise((resolve, reject) => {
       const start = new Date().getTime()
       let outputChunks = []
 
       const shouldRecordTestWithReplay = process.env.RECORD_REPLAY && isRetry
 
-      const child = spawn(
-        jestPath,
-        [
-          ...(shouldRecordTestWithReplay
-            ? [`--config=jest.replay.config.js`]
-            : []),
-          '--runInBand',
-          '--forceExit',
-          '--verbose',
-          ...(isTestJob
-            ? ['--json', `--outputFile=${test}${RESULTS_EXT}`]
-            : []),
-          test,
-        ],
-        {
-          stdio: ['ignore', 'pipe', 'pipe'],
-          env: {
-            ...process.env,
-            RECORD_REPLAY: shouldRecordTestWithReplay,
-            // run tests in headless mode by default
-            HEADLESS: 'true',
-            TRACE_PLAYWRIGHT: 'true',
-            ...(isFinalRun
-              ? {
-                  // Events can be finicky in CI. This switches to a more
-                  // reliable polling method.
-                  // CHOKIDAR_USEPOLLING: 'true',
-                  // CHOKIDAR_INTERVAL: 500,
-                  // WATCHPACK_POLLING: 500,
-                }
-              : {}),
-          },
-        }
-      )
+      const args = [
+        ...(shouldRecordTestWithReplay
+          ? [`--config=jest.replay.config.js`]
+          : []),
+        '--runInBand',
+        '--forceExit',
+        '--verbose',
+        '--silent',
+        ...(isTestJob
+          ? ['--json', `--outputFile=${test.file}${RESULTS_EXT}`]
+          : []),
+        test.file,
+        ...(test.excludedCases.length === 0
+          ? []
+          : [
+              '--testNamePattern',
+              `^(?!${test.excludedCases.map(escapeRegexp).join('|')})$`,
+            ]),
+      ]
+      const env = {
+        IS_RETRY: isRetry ? 'true' : undefined,
+        RECORD_REPLAY: shouldRecordTestWithReplay,
+        // run tests in headless mode by default
+        HEADLESS: 'true',
+        TRACE_PLAYWRIGHT: 'true',
+        NEXT_TELEMETRY_DISABLED: '1',
+        // unset CI env so CI behavior is only explicitly
+        // tested when enabled
+        CI: '',
+        CIRCLECI: '',
+        GITHUB_ACTIONS: '',
+        CONTINUOUS_INTEGRATION: '',
+        RUN_ID: '',
+        BUILD_NUMBER: '',
+        // Format the output of junit report to include the test name
+        // For the debugging purpose to compare actual run list to the generated reports
+        // [NOTE]: This won't affect if junit reporter is not enabled
+        JEST_JUNIT_OUTPUT_NAME: test.file.replaceAll('/', '_'),
+        // Specify suite name for the test to avoid unexpected merging across different env / grouped tests
+        // This is not individual suites name (corresponding 'describe'), top level suite name which have redundant names by default
+        // [NOTE]: This won't affect if junit reporter is not enabled
+        JEST_SUITE_NAME: [
+          `${process.env.NEXT_TEST_MODE ?? 'default'}`,
+          groupArg,
+          testType,
+          test.file,
+        ]
+          .filter(Boolean)
+          .join(':'),
+        ...(isFinalRun
+          ? {
+              // Events can be finicky in CI. This switches to a more
+              // reliable polling method.
+              // CHOKIDAR_USEPOLLING: 'true',
+              // CHOKIDAR_INTERVAL: 500,
+              // WATCHPACK_POLLING: 500,
+            }
+          : {}),
+      }
+
       const handleOutput = (type) => (chunk) => {
-        if (hideOutput && !isFinalRun) {
+        if (hideOutput) {
           outputChunks.push({ type, chunk })
         } else {
-          process.stderr.write(chunk)
+          process.stdout.write(chunk)
         }
       }
-      child.stdout.on('data', handleOutput('stdout'))
+      const stdout = handleOutput('stdout')
+      stdout(
+        [
+          ...Object.entries(env).map((e) => `${e[0]}=${e[1]}`),
+          jestPath,
+          ...args.map((a) => `'${a}'`),
+        ].join(' ') + '\n'
+      )
+
+      const child = spawn(jestPath, args, {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: {
+          ...process.env,
+          ...env,
+        },
+      })
+      child.stdout.on('data', stdout)
       child.stderr.on('data', handleOutput('stderr'))
 
       children.add(child)
@@ -295,23 +504,45 @@ async function main() {
         children.delete(child)
         if (code !== 0 || signal !== null) {
           if (hideOutput) {
+            await outputSema.acquire()
+            const isExpanded =
+              firstError && !killed && !shouldContinueTestsOnError
+            if (isExpanded) {
+              firstError = false
+              process.stdout.write(`❌ ${test.file} output:\n`)
+            } else if (killed) {
+              process.stdout.write(`${GROUP}${test.file} output (killed)\n`)
+            } else {
+              process.stdout.write(`${GROUP}❌ ${test.file} output\n`)
+            }
+
+            let output = ''
             // limit out to last 64kb so that we don't
             // run out of log room in CI
-            outputChunks.forEach(({ type, chunk }) => {
-              if (type === 'stdout') {
-                process.stdout.write(chunk)
-              } else {
-                process.stderr.write(chunk)
-              }
-            })
+            for (const { chunk } of outputChunks) {
+              process.stdout.write(chunk)
+              output += chunk.toString()
+            }
+
+            if (process.env.CI && !killed) {
+              errorsPerTests.set(test.file, output)
+            }
+
+            if (isExpanded) {
+              process.stdout.write(`end of ${test.file} output\n`)
+            } else {
+              process.stdout.write(`end of ${test.file} output\n${ENDGROUP}\n`)
+            }
+            outputSema.release()
           }
-          return reject(
-            new Error(
-              code
-                ? `failed with code: ${code}`
-                : `failed with signal: ${signal}`
-            )
+          const err = new Error(
+            code ? `failed with code: ${code}` : `failed with signal: ${signal}`
           )
+          err.output = outputChunks
+            .map(({ chunk }) => chunk.toString())
+            .join('')
+
+          return reject(err)
         }
         await fs
           .remove(
@@ -319,7 +550,7 @@ async function main() {
               __dirname,
               'test/traces',
               path
-                .relative(path.join(__dirname, 'test'), test)
+                .relative(path.join(__dirname, 'test'), test.file)
                 .replace(/\//g, '-')
             )
           )
@@ -330,65 +561,115 @@ async function main() {
 
   const directorySemas = new Map()
 
+  const originalRetries = numRetries
   await Promise.all(
-    testNames.map(async (test) => {
-      const dirName = path.dirname(test)
+    tests.map(async (test) => {
+      const dirName = path.dirname(test.file)
       let dirSema = directorySemas.get(dirName)
-      if (dirSema === undefined)
+
+      // we only restrict 1 test per directory for
+      // legacy integration tests
+      if (test.file.startsWith('test/integration') && dirSema === undefined) {
         directorySemas.set(dirName, (dirSema = new Sema(1)))
-      await dirSema.acquire()
+      }
+      if (dirSema) await dirSema.acquire()
+
       await sema.acquire()
       let passed = false
 
+      const shouldSkipRetries = skipRetryTestManifest.find((t) =>
+        t.includes(test.file)
+      )
+      const numRetries = shouldSkipRetries ? 0 : originalRetries
+      if (shouldSkipRetries) {
+        console.log(
+          `Skipping retry for ${test.file} due to skipRetryTestManifest`
+        )
+      }
+
       for (let i = 0; i < numRetries + 1; i++) {
         try {
-          console.log(`Starting ${test} retry ${i}/${numRetries}`)
-          const time = await runTest(test, i === numRetries, i > 0)
+          console.log(`Starting ${test.file} retry ${i}/${numRetries}`)
+          const time = await runTest(
+            test,
+            shouldSkipRetries || i === numRetries,
+            shouldSkipRetries || i > 0
+          )
           timings.push({
-            file: test,
+            file: test.file,
             time,
           })
           passed = true
           console.log(
-            `Finished ${test} on retry ${i}/${numRetries} in ${time / 1000}s`
+            `Finished ${test.file} on retry ${i}/${numRetries} in ${
+              time / 1000
+            }s`
           )
           break
         } catch (err) {
           if (i < numRetries) {
             try {
-              const testDir = path.dirname(path.join(__dirname, test))
+              let testDir = path.dirname(path.join(__dirname, test.file))
+
+              // if test is nested in a test folder traverse up a dir to ensure
+              // we clean up relevant test files
+              if (testDir.endsWith('/test') || testDir.endsWith('\\test')) {
+                testDir = path.join(testDir, '../')
+              }
               console.log('Cleaning test files at', testDir)
               await exec(`git clean -fdx "${testDir}"`)
               await exec(`git checkout "${testDir}"`)
             } catch (err) {}
           } else {
-            console.error(`${test} failed due to ${err}`)
+            console.error(`${test.file} failed due to ${err}`)
           }
         }
       }
-      if (!passed) {
-        console.error(`${test} failed to pass within ${numRetries} retries`)
-        children.forEach((child) => child.kill())
 
-        if (isTestJob) {
-          try {
-            const testsOutput = await fs.readFile(
-              `${test}${RESULTS_EXT}`,
-              'utf8'
-            )
-            console.log(
-              `--test output start--`,
-              testsOutput,
-              `--test output end--`
-            )
-          } catch (err) {
-            console.log(`Failed to load test output`, err)
-          }
+      if (!passed) {
+        console.error(
+          `${test.file} failed to pass within ${numRetries} retries`
+        )
+
+        if (!shouldContinueTestsOnError) {
+          killed = true
+          children.forEach((child) => child.kill())
+          cleanUpAndExit(1)
+        } else {
+          console.log(
+            `CONTINUE_ON_ERROR enabled, continuing tests after ${test.file} failed`
+          )
         }
-        cleanUpAndExit(1)
       }
+
+      // Emit test output if test failed or if we're continuing tests on error
+      if ((!passed || shouldContinueTestsOnError) && isTestJob) {
+        try {
+          const testsOutput = await fs.readFile(
+            `${test.file}${RESULTS_EXT}`,
+            'utf8'
+          )
+          const obj = JSON.parse(testsOutput)
+          obj.processEnv = {
+            NEXT_TEST_MODE: process.env.NEXT_TEST_MODE,
+            HEADLESS: process.env.HEADLESS,
+          }
+          await outputSema.acquire()
+          if (GROUP) console.log(`${GROUP}Result as JSON for tooling`)
+          console.log(
+            `--test output start--`,
+            JSON.stringify(obj),
+            `--test output end--`
+          )
+          if (ENDGROUP) console.log(ENDGROUP)
+          outputSema.release()
+        } catch (err) {
+          console.log(`Failed to load test output`, err)
+        }
+      }
+
       sema.release()
-      dirSema.release()
+      if (dirSema) dirSema.release()
     })
   )
 
@@ -437,7 +718,6 @@ async function main() {
           method: 'PATCH',
           headers: {
             ...TIMINGS_API_HEADERS,
-            Authorization: `Bearer ${process.env.TEST_TIMINGS_TOKEN}`,
           },
           body: JSON.stringify({
             files: {
@@ -451,19 +731,20 @@ async function main() {
         if (!timingsRes.ok) {
           throw new Error(`request status: ${timingsRes.status}`)
         }
+        const result = await timingsRes.json()
         console.log(
-          'Sent updated timings successfully',
-          await timingsRes.json()
+          `Sent updated timings successfully. API URL: "${result?.url}" HTML URL: "${result?.html_url}"`
         )
       } catch (err) {
         console.log('Failed to update timings data', err)
       }
     }
   }
-  await cleanUpAndExit(0)
 }
 
-main().catch((err) => {
-  console.error(err)
-  process.exit(1)
-})
+main()
+  .then(() => cleanUpAndExit(0))
+  .catch((err) => {
+    console.error(err)
+    cleanUpAndExit(1)
+  })

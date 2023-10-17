@@ -35,8 +35,8 @@ export default function Page({ slug, time }) {
     <>
       <p id="catchall">Hi {slug.join(' ')}</p>
       <p id="time">time: {time}</p>
-      <Link href="/">
-        <a id="home">to home</a>
+      <Link href="/" id="home">
+        to home
       </Link>
     </>
   )

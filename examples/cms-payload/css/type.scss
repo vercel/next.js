@@ -1,0 +1,167 @@
+@use 'queries' as *;
+
+/////////////////////////////
+// HEADINGS
+/////////////////////////////
+
+%h1,
+%h2,
+%h3,
+%h4,
+%h5,
+%h6 {
+  font-weight: 700;
+}
+
+%h1 {
+  margin: 50px 0;
+  font-size: 84px;
+  line-height: 1;
+
+  @include mid-break {
+    font-size: 70px;
+  }
+
+  @include small-break {
+    margin: 24px 0;
+    font-size: 36px;
+    line-height: 42px;
+  }
+}
+
+%h2 {
+  margin: 32px 0;
+  font-size: 56px;
+  line-height: 1;
+
+  @include mid-break {
+    margin: 36px 0;
+    font-size: 48px;
+  }
+
+  @include small-break {
+    margin: 24px 0;
+    font-size: 28px;
+    line-height: 32px;
+  }
+}
+
+%h3 {
+  margin: 28px 0;
+  font-size: 48px;
+  line-height: 56px;
+
+  @include mid-break {
+    font-size: 40px;
+    line-height: 48px;
+  }
+
+  @include small-break {
+    margin: 24px 0;
+    font-size: 24px;
+    line-height: 30px;
+  }
+}
+
+%h4 {
+  margin: 24px 0;
+  font-size: 40px;
+  line-height: 48px;
+
+  @include mid-break {
+    font-size: 33px;
+    line-height: 36px;
+  }
+
+  @include small-break {
+    margin: 20px 0;
+    font-size: 20px;
+    line-height: 24px;
+  }
+}
+
+%h5 {
+  margin: 20px 0;
+  font-size: 32px;
+  line-height: 42px;
+
+  @include mid-break {
+    font-size: 26px;
+    line-height: 32px;
+  }
+
+  @include small-break {
+    margin: 16px 0;
+    font-size: 18px;
+    line-height: 24px;
+  }
+}
+
+%h6 {
+  margin: 20px 0;
+  font-size: 24px;
+  line-height: 28px;
+
+  @include mid-break {
+    font-size: 20px;
+    line-height: 30px;
+  }
+
+  @include small-break {
+    margin: 16px 0;
+    font-size: 16px;
+    line-height: 22px;
+  }
+}
+
+/////////////////////////////
+// TYPE STYLES
+/////////////////////////////
+
+%body {
+  font-size: 18px;
+  line-height: 32px;
+
+  @include mid-break {
+    font-size: 15px;
+    line-height: 24px;
+  }
+
+  @include small-break {
+    font-size: 13px;
+    line-height: 24px;
+  }
+}
+
+%large-body {
+  font-size: 25px;
+  line-height: 32px;
+
+  @include mid-break {
+    font-size: 22px;
+    line-height: 30px;
+  }
+
+  @include small-break {
+    font-size: 17px;
+    line-height: 24px;
+  }
+}
+
+%label {
+  font-size: 16px;
+  line-height: 24px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+
+  @include mid-break {
+    font-size: 13px;
+    letter-spacing: 2.75px;
+  }
+
+  @include small-break {
+    font-size: 12px;
+    line-height: 18px;
+    letter-spacing: 2.625px;
+  }
+}

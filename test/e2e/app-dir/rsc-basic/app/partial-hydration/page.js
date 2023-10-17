@@ -1,27 +1,10 @@
 import { Suspense } from 'react'
-
 import Counter from '../../components/partial-hydration-counter'
+import { createDataFetcher } from '../../lib/data'
 
-let result
-let promise
-function Data() {
-  if (result) {
-    try {
-      return result
-    } finally {
-      promise = null
-      result = null
-    }
-  }
-  if (!promise)
-    promise = new Promise((res) => {
-      setTimeout(() => {
-        result = 'next_streaming_data'
-        res()
-      }, 1000)
-    })
-  throw promise
-}
+const Data = createDataFetcher('next_streaming_data', {
+  timeout: 1000,
+})
 
 export default function () {
   return (
@@ -40,3 +23,5 @@ export default function () {
     </>
   )
 }
+
+export const dynamic = 'force-dynamic'

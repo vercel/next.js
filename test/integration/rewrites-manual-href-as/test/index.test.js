@@ -144,6 +144,18 @@ const runTests = () => {
     expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
       slug: '321',
     })
+
+    await browser.back().waitForElementByCss('#preview')
+
+    await browser
+      .elementByCss('#to-news-as-blog')
+      .click()
+      .waitForElementByCss('#news')
+
+    expect(await browser.elementByCss('#news').text()).toBe('news page')
+    expect(await browser.elementByCss('#asPath').text()).toBe('/blog')
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({})
   })
 }
 
@@ -157,8 +169,7 @@ describe('rewrites manual href/as', () => {
 
     runTests()
   })
-
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await nextBuild(appDir)
       appPort = await findPort()

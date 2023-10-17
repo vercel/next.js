@@ -1,0 +1,4 @@
+module.exports = {
+  skipMiddlewareUrlNormalize: true,
+  skipTrailingSlashRedirect: true,
+}

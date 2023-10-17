@@ -11,7 +11,7 @@ If you want to learn more about Elasticsearch, visit the following pages:
 
 Once you have access to the environment variables you'll need, deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-elasticsearch&project-name=with-elasticsearch&repository-name=with-elasticsearch&env=ESS_CLOUD_ID,ESS_CLOUD_USERNAME,ESS_CLOUD_PASSWORD&envDescription=Required%20to%20connect%20the%20app%20with%Elasticsearch)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-elasticsearch&project-name=with-elasticsearch&repository-name=with-elasticsearch&env=ESS_CLOUD_ID,ESS_CLOUD_USERNAME,ESS_CLOUD_PASSWORD&envDescription=Required%20to%20connect%20the%20app%20with%Elasticsearch)
 
 ## How to use
 
@@ -81,4 +81,4 @@ To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [
 
 Alternatively, you can deploy using our template by clicking on the Deploy button below.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-elasticsearch&project-name=with-elasticsearch&repository-name=with-elasticsearch&env=ESS_CLOUD_ID,ESS_CLOUD_USERNAME,ESS_CLOUD_PASSWORD&envDescription=Required%20to%20connect%20the%20app%20with%20Elasticsearch)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-elasticsearch&project-name=with-elasticsearch&repository-name=with-elasticsearch&env=ESS_CLOUD_ID,ESS_CLOUD_USERNAME,ESS_CLOUD_PASSWORD&envDescription=Required%20to%20connect%20the%20app%20with%20Elasticsearch)

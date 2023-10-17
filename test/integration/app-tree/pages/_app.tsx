@@ -5,7 +5,7 @@ import { render } from 'react-dom'
 import App, { AppContext } from 'next/app'
 import { renderToString } from 'react-dom/server'
 
-export const DummyContext = createContext(null)
+export const DummyContext = createContext(null) as React.Context<string | null>
 
 export default class MyApp extends App<{ html: string }> {
   static async getInitialProps({ Component, AppTree, ctx }: AppContext) {
@@ -20,7 +20,7 @@ export default class MyApp extends App<{ html: string }> {
 
     if (typeof window !== 'undefined') {
       const el = document.createElement('div')
-      document.querySelector('body').appendChild(el)
+      document.querySelector('body')?.appendChild(el)
       render(toRender, el)
       html = el.innerHTML
       el.remove()
@@ -38,8 +38,8 @@ export default class MyApp extends App<{ html: string }> {
       html && router.pathname !== '/hello' ? (
         <>
           <div dangerouslySetInnerHTML={{ __html: html }} />
-          <Link href={href}>
-            <a id={href === '/' ? 'home' : 'another'}>to {href}</a>
+          <Link href={href} id={href === '/' ? 'home' : 'another'}>
+            to{href}
           </Link>
         </>
       ) : (

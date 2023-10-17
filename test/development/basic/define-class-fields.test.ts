@@ -17,9 +17,9 @@ describe('useDefineForClassFields SWC option', () => {
       },
       dependencies: {
         mobx: '6.3.7',
-        typescript: '*',
-        '@types/react': '*',
-        '@types/node': '*',
+        typescript: 'latest',
+        '@types/react': 'latest',
+        '@types/node': 'latest',
         'mobx-react': '7.2.1',
       },
     })
@@ -30,7 +30,7 @@ describe('useDefineForClassFields SWC option', () => {
   it('tsx should compile with useDefineForClassFields enabled', async () => {
     let browser
     try {
-      browser = await webdriver(next.appPort, '/')
+      browser = await webdriver(next.url, '/')
       await browser.elementByCss('#action').click()
       await check(
         () => browser.elementByCss('#name').text(),
@@ -46,7 +46,7 @@ describe('useDefineForClassFields SWC option', () => {
   it("Initializes resident to undefined after the call to 'super()' when with useDefineForClassFields enabled", async () => {
     let browser
     try {
-      browser = await webdriver(next.appPort, '/animal')
+      browser = await webdriver(next.url, '/animal')
       expect(await browser.elementByCss('#dog').text()).toBe('')
       expect(await browser.elementByCss('#dogDecl').text()).toBe('dog')
     } finally {
@@ -76,7 +76,7 @@ describe('useDefineForClassFields SWC option', () => {
   it('set accessors from base classes won’t get triggered with useDefineForClassFields enabled', async () => {
     let browser
     try {
-      browser = await webdriver(next.appPort, '/derived')
+      browser = await webdriver(next.url, '/derived')
       await matchLogs$(browser).then(([data_foundLog, name_foundLog]) => {
         expect(data_foundLog).toBe(true)
         expect(name_foundLog).toBe(false)

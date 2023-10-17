@@ -19,9 +19,7 @@ export default function PostsPreview({
       <div className="blog-roll-card">
         <div className="blog-roll-card-meta">
           <h2 className="blog-roll-card-header">
-            <Link href={`/blog/${slug}`}>
-              <a>{title}</a>
-            </Link>
+            <Link href={`/blog/${slug}`}>{title}</Link>
           </h2>
           <ul className="blog-roll-card-meta-info">
             <li>
@@ -34,9 +32,7 @@ export default function PostsPreview({
             {tags.map((tag) => (
               <li key={tag.slug}>
                 <Link href={`/blog/tag/${tag.slug}`}>
-                  <a>
-                    <i className="lni lni-tag"></i> {tag.name}
-                  </a>
+                  <i className="lni lni-tag"></i> {tag.name}
                 </Link>
               </li>
             ))}
@@ -57,8 +53,8 @@ export default function PostsPreview({
           dangerouslySetInnerHTML={{ __html: excerpt }}
         ></div>
         <div className="blog-roll-card-footer text-center">
-          <Link href={`/blog/${slug}`}>
-            <a className="main-btn btn-hover">Read More</a>
+          <Link href={`/blog/${slug}`} className="main-btn btn-hover">
+            Read More
           </Link>
         </div>
       </div>

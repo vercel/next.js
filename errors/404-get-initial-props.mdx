@@ -1,0 +1,21 @@
+---
+title: 404.js Cannot Have getInitialProps
+description: This document provides an understanding of the "404.js Cannot Have getInitialProps" error in Next.js and offers solutions to fix it.
+---
+
+## Why This Error Occurred
+
+The "404.js Cannot Have `getInitialProps`" error usually occurs when either `getInitialProps` or `getServerSideProps` is used in your `404.js` page. The `404.js` page in Next.js is designed to be static to ensure consistent performance.
+
+## Possible Ways to Fix It
+
+Adding `getInitialProps` or `getServerSideProps` to your `404.js` page will cause it to be rendered on the server-side.
+
+To fix this error, you should remove `getInitialProps` from your `404.js` page. Additionally, ensure that no Higher-Order Components (HOCs) used in the `404.js` page are attaching `getInitialProps`.
+
+If your `404.js` page requires data fetching, we recommend incrementally adopting the App Router and the [`not-found`](/docs/app/api-reference/file-conventions/not-found) file, which does support fetching data before displaying the 404 page.
+
+## Useful Links
+
+- [Automatic Static Optimization](/docs/pages/building-your-application/rendering/automatic-static-optimization) - Learn more about how Next.js automatically optimizes your pages for better performance.
+- [`not-found`](/docs/app/api-reference/file-conventions/not-found)

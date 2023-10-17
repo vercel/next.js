@@ -1,16 +1,17 @@
 import { config } from 'dotenv'
 
 import fetch from 'node-fetch'
-import chalk from 'chalk'
 import execa from 'execa'
 import path from 'path'
 import url from 'url'
 import { generatePackageJson } from './generate-package-json.js'
 import { Listr } from 'listr2'
+import { forceCrash } from './bench.js'
+import { red } from '../../packages/next/dist/lib/picocolors.js'
 
 config()
 
-const TEST_PROJECT_NAME = process.env.VERCEL_TEST_PROJECT_NAME
+export const TEST_PROJECT_NAME = process.env.VERCEL_TEST_PROJECT_NAME
 const ORIGIN_PROJECT_NAME = TEST_PROJECT_NAME + '-origin'
 const HEAD_PROJECT_NAME = TEST_PROJECT_NAME + '-head'
 
@@ -197,6 +198,7 @@ export async function deployProject(projectName, appFolder) {
           : []),
         '--force',
         ...vercelFlags,
+        ...(forceCrash ? ['--env', 'CRASH_FUNCTION=1'] : []),
       ],
       {
         cwd: appFolder,
@@ -212,7 +214,7 @@ export async function deployProject(projectName, appFolder) {
 
     return deployRes.stdout
   } catch (err) {
-    console.log(chalk.red('Deployment failed: ', err))
+    console.log(red('Deployment failed: ', err))
     throw err
   }
 }

@@ -8,7 +8,6 @@ import {
   nextStart,
   findPort,
   killApp,
-  getPageFileFromPagesManifest,
   fetchViaHTTP,
   File,
   launchApp,
@@ -34,6 +33,13 @@ describe('i18n Support basePath', () => {
       )
     })
   })
+  afterAll(async () => {
+    await new Promise((resolve, reject) =>
+      ctx.externalApp.close((err) => {
+        err ? reject(err) : resolve()
+      })
+    )
+  })
 
   describe('dev mode', () => {
     const curCtx = {
@@ -53,8 +59,7 @@ describe('i18n Support basePath', () => {
 
     runTests(curCtx)
   })
-
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       nextConfig.replace(/__EXTERNAL_PORT__/g, ctx.externalPort)
       await fs.remove(join(appDir, '.next'))
@@ -72,217 +77,106 @@ describe('i18n Support basePath', () => {
     runTests(ctx)
   })
 
-  describe('serverless mode', () => {
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      nextConfig.replace('// target', 'target')
-      nextConfig.replace(/__EXTERNAL_PORT__/g, ctx.externalPort)
-
-      await nextBuild(appDir)
-      ctx.appPort = await findPort()
-      ctx.app = await nextStart(appDir, ctx.appPort)
-      ctx.buildPagesDir = join(appDir, '.next/serverless/pages')
-      ctx.buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-    })
-    afterAll(async () => {
-      nextConfig.restore()
-      await killApp(ctx.app)
-    })
-
-    it('should have correct props for blocking notFound', async () => {
-      const serverFile = getPageFileFromPagesManifest(
-        appDir,
-        '/not-found/blocking-fallback/[slug]'
-      )
-      const appPort = await findPort()
-      const mod = require(join(appDir, '.next/serverless', serverFile))
-
-      const server = http.createServer(async (req, res) => {
-        try {
-          await mod.render(req, res)
-        } catch (err) {
-          res.statusCode = 500
-          res.end('internal err')
-        }
-      })
-
-      await new Promise((resolve, reject) => {
-        server.listen(appPort, (err) => (err ? reject(err) : resolve()))
-      })
-      console.log('listening on', appPort)
-
-      const res = await fetchViaHTTP(
-        appPort,
-        `${ctx.basePath}/nl/not-found/blocking-fallback/first`
-      )
-      server.close()
-
-      expect(res.status).toBe(404)
-
-      const $ = cheerio.load(await res.text())
-      const props = JSON.parse($('#props').text())
-
-      expect($('#not-found').text().length > 0).toBe(true)
-      expect(props).toEqual({
-        is404: true,
-        locale: 'nl',
-        locales,
-        defaultLocale: 'en-US',
-      })
-    })
-
-    it('should resolve rewrites correctly', async () => {
-      const serverFile = getPageFileFromPagesManifest(appDir, '/another')
-      const appPort = await findPort()
-      const mod = require(join(appDir, '.next/serverless', serverFile))
-
-      const server = http.createServer(async (req, res) => {
-        try {
-          await mod.render(req, res)
-        } catch (err) {
-          res.statusCode = 500
-          res.end('internal err')
-        }
-      })
-
-      await new Promise((resolve, reject) => {
-        server.listen(appPort, (err) => (err ? reject(err) : resolve()))
-      })
-      console.log('listening on', appPort)
-
-      const requests = await Promise.all(
-        [
-          '/en-US/rewrite-1',
-          '/nl/rewrite-2',
-          '/fr/rewrite-3',
-          '/en-US/rewrite-4',
-          '/fr/rewrite-4',
-        ].map((path) =>
-          fetchViaHTTP(appPort, `${ctx.basePath}${path}`, undefined, {
-            redirect: 'manual',
-          })
-        )
-      )
-
-      server.close()
-
-      const checks = [
-        ['en-US', '/rewrite-1'],
-        ['nl', '/rewrite-2'],
-        ['nl', '/rewrite-3'],
-        ['en-US', '/rewrite-4'],
-        ['fr', '/rewrite-4'],
-      ]
-
-      for (let i = 0; i < requests.length; i++) {
-        const res = requests[i]
-        const [locale, asPath] = checks[i]
-        const $ = cheerio.load(await res.text())
-        expect($('html').attr('lang')).toBe(locale)
-        expect($('#router-locale').text()).toBe(locale)
-        expect($('#router-pathname').text()).toBe('/another')
-        expect($('#router-as-path').text()).toBe(asPath)
-      }
-    })
-
-    runTests(ctx)
-  })
-
   describe('with localeDetection disabled', () => {
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      nextConfig.replace('// localeDetection', 'localeDetection')
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'production mode',
+      () => {
+        beforeAll(async () => {
+          await fs.remove(join(appDir, '.next'))
+          nextConfig.replace('// localeDetection', 'localeDetection')
 
-      await nextBuild(appDir)
-      ctx.appPort = await findPort()
-      ctx.app = await nextStart(appDir, ctx.appPort)
-    })
-    afterAll(async () => {
-      nextConfig.restore()
-      await killApp(ctx.app)
-    })
+          await nextBuild(appDir)
+          ctx.appPort = await findPort()
+          ctx.app = await nextStart(appDir, ctx.appPort)
+        })
+        afterAll(async () => {
+          nextConfig.restore()
+          await killApp(ctx.app)
+        })
 
-    it('should have localeDetection in routes-manifest', async () => {
-      const routesManifest = await fs.readJSON(
-        join(appDir, '.next/routes-manifest.json')
-      )
+        it('should have localeDetection in routes-manifest', async () => {
+          const routesManifest = await fs.readJSON(
+            join(appDir, '.next/routes-manifest.json')
+          )
 
-      expect(routesManifest.i18n).toEqual({
-        localeDetection: false,
-        locales: [
-          'en-US',
-          'nl-NL',
-          'nl-BE',
-          'nl',
-          'fr-BE',
-          'fr',
-          'en',
-          'go',
-          'go-BE',
-          'do',
-          'do-BE',
-        ],
-        defaultLocale: 'en-US',
-        domains: [
-          {
-            http: true,
-            domain: 'example.do',
-            defaultLocale: 'do',
-            locales: ['do-BE'],
-          },
-          {
-            domain: 'example.com',
-            defaultLocale: 'go',
-            locales: ['go-BE'],
-          },
-        ],
-      })
-    })
+          expect(routesManifest.i18n).toEqual({
+            localeDetection: false,
+            locales: [
+              'en-US',
+              'nl-NL',
+              'nl-BE',
+              'nl',
+              'fr-BE',
+              'fr',
+              'en',
+              'go',
+              'go-BE',
+              'do',
+              'do-BE',
+            ],
+            defaultLocale: 'en-US',
+            domains: [
+              {
+                http: true,
+                domain: 'example.do',
+                defaultLocale: 'do',
+                locales: ['do-BE'],
+              },
+              {
+                domain: 'example.com',
+                defaultLocale: 'go',
+                locales: ['go-BE'],
+              },
+            ],
+          })
+        })
 
-    it('should not detect locale from accept-language', async () => {
-      const res = await fetchViaHTTP(
-        ctx.appPort,
-        `${ctx.basePath || '/'}`,
-        {},
-        {
-          redirect: 'manual',
-          headers: {
-            'accept-language': 'fr',
-          },
-        }
-      )
+        it('should not detect locale from accept-language', async () => {
+          const res = await fetchViaHTTP(
+            ctx.appPort,
+            `${ctx.basePath || '/'}`,
+            {},
+            {
+              redirect: 'manual',
+              headers: {
+                'accept-language': 'fr',
+              },
+            }
+          )
 
-      expect(res.status).toBe(200)
-      const $ = cheerio.load(await res.text())
-      expect($('html').attr('lang')).toBe('en-US')
-      expect($('#router-locale').text()).toBe('en-US')
-      expect(JSON.parse($('#router-locales').text())).toEqual(locales)
-      expect($('#router-pathname').text()).toBe('/')
-      expect($('#router-as-path').text()).toBe('/')
-    })
+          expect(res.status).toBe(200)
+          const $ = cheerio.load(await res.text())
+          expect($('html').attr('lang')).toBe('en-US')
+          expect($('#router-locale').text()).toBe('en-US')
+          expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+          expect($('#router-pathname').text()).toBe('/')
+          expect($('#router-as-path').text()).toBe('/')
+        })
 
-    it('should set locale from detected path', async () => {
-      for (const locale of locales) {
-        const res = await fetchViaHTTP(
-          ctx.appPort,
-          `${ctx.basePath}/${locale}`,
-          {},
-          {
-            redirect: 'manual',
-            headers: {
-              'accept-language': 'en-US,en;q=0.9',
-            },
+        it('should set locale from detected path', async () => {
+          for (const locale of locales) {
+            const res = await fetchViaHTTP(
+              ctx.appPort,
+              `${ctx.basePath}/${locale}`,
+              {},
+              {
+                redirect: 'manual',
+                headers: {
+                  'accept-language': 'en-US,en;q=0.9',
+                },
+              }
+            )
+
+            expect(res.status).toBe(200)
+            const $ = cheerio.load(await res.text())
+            expect($('html').attr('lang')).toBe(locale)
+            expect($('#router-locale').text()).toBe(locale)
+            expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+            expect($('#router-pathname').text()).toBe('/')
+            expect($('#router-as-path').text()).toBe('/')
           }
-        )
-
-        expect(res.status).toBe(200)
-        const $ = cheerio.load(await res.text())
-        expect($('html').attr('lang')).toBe(locale)
-        expect($('#router-locale').text()).toBe(locale)
-        expect(JSON.parse($('#router-locales').text())).toEqual(locales)
-        expect($('#router-pathname').text()).toBe('/')
-        expect($('#router-as-path').text()).toBe('/')
+        })
       }
-    })
+    )
   })
 })

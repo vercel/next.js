@@ -5,9 +5,7 @@ const Index = () => (
   <div>
     <Trans>Hello World.</Trans>
     <Link href="/two">
-      <a>
-        <Trans>Go to page 2</Trans>
-      </a>
+      <Trans>Go to page 2</Trans>
     </Link>
     <br />
   </div>

@@ -20,7 +20,7 @@ const HomePage = () => {
       <h3>{i18n.t('intro.description')}</h3>
       <div>Current locale: {i18n.activeLocale}</div>
       <Link href="/[lng]" as="/de">
-        <a>Use client-side routing to change language to 'de'</a>
+        Use client-side routing to change language to 'de'
       </Link>
     </div>
   )

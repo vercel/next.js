@@ -1,6 +1,4 @@
 module.exports = {
-  // ensure incorrect target is overridden by env
-  target: 'serverless',
   rewrites() {
     return [
       {
@@ -9,4 +7,5 @@ module.exports = {
       },
     ]
   },
+  output: 'standalone',
 }

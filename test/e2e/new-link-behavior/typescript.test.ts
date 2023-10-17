@@ -17,11 +17,6 @@ describe('New Link Behavior', () => {
         'tsconfig.json': new FileRef(path.join(appDir, 'tsconfig.json')),
         'next.config.js': new FileRef(path.join(appDir, 'next.config.js')),
       },
-      dependencies: {
-        typescript: '*',
-        '@types/react': '*',
-        '@types/node': '*',
-      },
     })
   })
   afterAll(() => next.destroy())

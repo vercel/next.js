@@ -15,7 +15,6 @@ import {
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
-const nextConfig = join(appDir, 'next.config.js')
 let builtServerPagesDir
 let appPort
 let app
@@ -99,28 +98,7 @@ const runTests = (isDev = false) => {
 }
 
 describe('AMP SSG Support', () => {
-  describe('serverless mode', () => {
-    beforeAll(async () => {
-      await fs.writeFile(
-        nextConfig,
-        `
-        module.exports = {
-          target: 'experimental-serverless-trace'
-        }
-      `
-      )
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-      builtServerPagesDir = join(appDir, '.next/serverless/pages')
-    })
-    afterAll(async () => {
-      await fs.remove(nextConfig)
-      await killApp(app)
-    })
-    runTests()
-  })
-  describe('server mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await nextBuild(appDir)
       appPort = await findPort()
@@ -140,32 +118,37 @@ describe('AMP SSG Support', () => {
     runTests(true)
   })
   describe('export mode', () => {
-    let buildId
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'production mode',
+      () => {
+        let buildId
 
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      await nextExport(appDir, { outdir: join(appDir, 'out') })
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-    })
+        beforeAll(async () => {
+          await nextBuild(appDir)
+          await nextExport(appDir, { outdir: join(appDir, 'out') })
+          buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+        })
 
-    it('should have copied SSG files correctly', async () => {
-      const outFile = (file) => join(appDir, 'out', file)
+        it('should have copied SSG files correctly', async () => {
+          const outFile = (file) => join(appDir, 'out', file)
 
-      expect(await fsExists(outFile('amp.html'))).toBe(true)
-      expect(await fsExists(outFile('index.html'))).toBe(true)
-      expect(await fsExists(outFile('hybrid.html'))).toBe(true)
-      expect(await fsExists(outFile('amp.amp.html'))).toBe(false)
-      expect(await fsExists(outFile('hybrid.amp.html'))).toBe(true)
-      expect(await fsExists(outFile('blog/post-1.html'))).toBe(true)
-      expect(await fsExists(outFile('blog/post-1.amp.html'))).toBe(true)
+          expect(await fsExists(outFile('amp.html'))).toBe(true)
+          expect(await fsExists(outFile('index.html'))).toBe(true)
+          expect(await fsExists(outFile('hybrid.html'))).toBe(true)
+          expect(await fsExists(outFile('amp.amp.html'))).toBe(false)
+          expect(await fsExists(outFile('hybrid.amp.html'))).toBe(true)
+          expect(await fsExists(outFile('blog/post-1.html'))).toBe(true)
+          expect(await fsExists(outFile('blog/post-1.amp.html'))).toBe(true)
 
-      expect(
-        await fsExists(outFile(join('_next/data', buildId, 'amp.json')))
-      ).toBe(true)
+          expect(
+            await fsExists(outFile(join('_next/data', buildId, 'amp.json')))
+          ).toBe(true)
 
-      expect(
-        await fsExists(outFile(join('_next/data', buildId, 'hybrid.json')))
-      ).toBe(true)
-    })
+          expect(
+            await fsExists(outFile(join('_next/data', buildId, 'hybrid.json')))
+          ).toBe(true)
+        })
+      }
+    )
   })
 })

@@ -23,9 +23,7 @@ const Page = observer(function Page(props) {
       <h1>{props.title}</h1>
       <Clock />
       <nav>
-        <Link href={props.linkTo}>
-          <a>Navigate</a>
-        </Link>
+        <Link href={props.linkTo}>Navigate</Link>
       </nav>
     </div>
   )

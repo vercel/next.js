@@ -1,7 +1,4 @@
-import { GetServerSideProps } from 'next'
-
-// This import is only included in the server build, because it's only used by getServerSideProps
-import auth0 from '../../lib/auth0'
+import { withPageAuthRequired } from '@auth0/nextjs-auth0'
 import Layout from '../../components/layout'
 import { User } from '../../interfaces'
 
@@ -9,7 +6,7 @@ type ProfileProps = {
   user: User
 }
 
-const Profile = ({ user }: ProfileProps) => {
+export default function Profile({ user }: ProfileProps) {
   return (
     <Layout user={user}>
       <h1>Profile</h1>
@@ -24,17 +21,6 @@ const Profile = ({ user }: ProfileProps) => {
   )
 }
 
-export const getServerSideProps: GetServerSideProps = async ({ req, res }) => {
-  // Here you can check authentication status directly before rendering the page,
-  // however the page would be a serverless function, which is more expensive and
-  // slower than a static page with client side authentication
-  const session = await auth0.getSession(req, res)
-
-  if (!session || !session.user) {
-    return { redirect: { destination: '/api/login', permanent: false } }
-  }
-
-  return { props: { user: session.user } }
-}
-
-export default Profile
+// Protected route, checking authentication status before rendering the page.(SSR)
+// It's slower than a static page with client side authentication
+export const getServerSideProps = withPageAuthRequired()

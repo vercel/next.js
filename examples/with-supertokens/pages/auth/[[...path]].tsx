@@ -2,18 +2,34 @@ import Head from 'next/head'
 import React, { useEffect } from 'react'
 import styles from '../../styles/Home.module.css'
 import dynamic from 'next/dynamic'
-import SuperTokens from 'supertokens-auth-react'
-import { redirectToAuth } from 'supertokens-auth-react/recipe/thirdpartyemailpassword'
+import { canHandleRoute, getRoutingComponent } from 'supertokens-auth-react/ui'
+import { redirectToAuth } from 'supertokens-auth-react'
+import { ThirdPartyEmailPasswordPreBuiltUI } from 'supertokens-auth-react/recipe/thirdpartyemailpassword/prebuiltui'
+import { EmailVerificationPreBuiltUI } from 'supertokens-auth-react/recipe/emailverification/prebuiltui'
 
-const SuperTokensComponentNoSSR = dynamic(
-  new Promise((res) => res(SuperTokens.getRoutingComponent)),
+const SuperTokensComponentNoSSR = dynamic<{}>(
+  new Promise((res) =>
+    res(() =>
+      getRoutingComponent([
+        ThirdPartyEmailPasswordPreBuiltUI,
+        EmailVerificationPreBuiltUI,
+      ])
+    )
+  ),
   { ssr: false }
 )
 
 export default function Auth(): JSX.Element {
   useEffect(() => {
-    if (SuperTokens.canHandleRoute() === false) {
-      redirectToAuth()
+    if (
+      canHandleRoute([
+        ThirdPartyEmailPasswordPreBuiltUI,
+        EmailVerificationPreBuiltUI,
+      ]) === false
+    ) {
+      redirectToAuth({
+        redirectBack: false,
+      })
     }
   }, [])
 

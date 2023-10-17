@@ -13,8 +13,8 @@ export default function Home() {
         Black
       </h1>
       <p>{state}</p>
-      <Link href="/client">
-        <a id="link-client">To /client</a>
+      <Link href="/client" id="link-client">
+        To /client
       </Link>
     </main>
   )

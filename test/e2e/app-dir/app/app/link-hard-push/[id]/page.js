@@ -6,8 +6,8 @@ export default function Page({ params }) {
   return (
     <>
       <h1 id={`render-id-${params.id}`}>{nanoid()}</h1>{' '}
-      <Link href={`/link-hard-push/${other}`}>
-        <a id="link">To {other}</a>
+      <Link href={`/link-hard-push/${other}`} id="link">
+        To{other}
       </Link>
     </>
   )

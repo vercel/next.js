@@ -32,4 +32,6 @@ To compile `src/add.rs` to `add.wasm` run:
 npm run build-rust
 # or
 yarn build-rust
+# or
+pnpm build-rust
 ```

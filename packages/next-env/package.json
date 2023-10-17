@@ -1,6 +1,6 @@
 {
   "name": "@next/env",
-  "version": "12.3.2-canary.17",
+  "version": "13.5.6-canary.1",
   "keywords": [
     "react",
     "next",
@@ -16,23 +16,21 @@
   "author": "Next.js Team <support@vercel.com>",
   "license": "MIT",
   "main": "dist/index.js",
-  "types": "types/index.d.ts",
+  "types": "dist/index.d.ts",
   "files": [
-    "dist",
-    "types"
+    "dist"
   ],
   "scripts": {
     "dev": "ncc build ./index.ts -w -o dist/",
-    "prerelease": "rimraf ./dist/",
-    "types": "tsc index.ts --declaration --emitDeclarationOnly --declarationDir types --esModuleInterop",
+    "prerelease": "node ../../scripts/rm.mjs dist",
+    "types": "tsc index.ts --declaration --emitDeclarationOnly --declarationDir dist --esModuleInterop",
     "release": "ncc build ./index.ts -o ./dist/ --minify --no-cache --no-source-map-register",
     "build": "pnpm release && pnpm types",
     "prepublishOnly": "cd ../../ && turbo run build"
   },
   "devDependencies": {
     "@vercel/ncc": "0.34.0",
-    "dotenv": "16.0.3",
-    "dotenv-expand": "9.0.0",
-    "rimraf": "3.0.2"
+    "dotenv": "16.3.1",
+    "dotenv-expand": "10.0.0"
   }
 }

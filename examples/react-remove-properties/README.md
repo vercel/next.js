@@ -1,12 +1,12 @@
 # React Remove Properties Example
 
-This example shows how to use the `reactRemoveProperties` config option to remove React properties.
+This example shows how to use the Next.js [reactRemoveProperties](https://nextjs.org/docs/advanced-features/compiler#remove-react-properties) config option to remove React properties.
 
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/react-remove-properties)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/react-remove-properties&project-name=react-remove-properties&repository-name=react-remove-properties)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/react-remove-properties&project-name=react-remove-properties&repository-name=react-remove-properties)
 
 ## How to use
 
