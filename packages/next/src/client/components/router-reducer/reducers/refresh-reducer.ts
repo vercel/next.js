@@ -42,7 +42,7 @@ export function refreshReducer(
     )
   }
 
-  return cache.data!.then(
+  return cache.data.then(
     ([flightData, canonicalUrlOverride]) => {
       // Handle case when navigating to page in `pages` from `app`
       if (typeof flightData === 'string') {
