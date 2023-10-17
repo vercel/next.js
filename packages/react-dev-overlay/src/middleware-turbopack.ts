@@ -8,8 +8,6 @@ import url from 'url'
 import { codeFrameColumns } from '@babel/code-frame'
 import { launchEditor } from './internal/helpers/launchEditor'
 
-export class InputError extends Error {}
-
 interface Project {
   traceSource(stackFrame: RustStackFrame): Promise<
     | {
@@ -92,7 +90,7 @@ export function getOverlayMiddleware(project: Project) {
       try {
         originalStackFrame = await createOriginalStackFrame(project, frame)
       } catch (e: any) {
-        res.statusCode = e instanceof InputError ? 400 : 500
+        res.statusCode = 500
         res.write(e.message)
         return res.end()
       }
