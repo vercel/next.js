@@ -537,7 +537,6 @@ export async function collectBuildTraces({
                     cachedLookupIgnoreRoutes
                   )
                 ) {
-                  // console.log(`tracing ${curFile} for route ${route}`)
                   const filePath = path.join(outputFileTracingRoot, curFile)
                   const outputFile = path
                     .relative(traceOutputDir, filePath)
