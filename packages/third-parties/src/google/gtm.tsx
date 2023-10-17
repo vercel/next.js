@@ -18,7 +18,7 @@ type GTMParams = {
   preview: string
 }
 
-let currDataLayerName
+let currDataLayerName: string | undefined = undefined
 
 export function GoogleTagManager(props: GTMParams) {
   const { gtmId, dataLayerName = 'dataLayer', auth, preview, dataLayer } = props
@@ -53,6 +53,11 @@ export function GoogleTagManager(props: GTMParams) {
 }
 
 export const sendGTMEvent = (data: Object) => {
+  if (currDataLayerName === undefined) {
+    console.warn(`@next/third-parties: GTM has not been initialized`)
+    return
+  }
+
   if (window[currDataLayerName]) {
     window[currDataLayerName].push(data)
   } else {
