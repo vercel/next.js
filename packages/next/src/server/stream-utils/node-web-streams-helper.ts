@@ -298,35 +298,46 @@ function createMoveSuffixStream(
   const encoder = new TextEncoder()
   const decoder = new TextDecoder()
 
-  // Remove suffix from the stream, and enqueue it back in flush
-  let buf = ''
   return new TransformStream({
     transform(chunk, controller) {
       if (foundSuffix) {
         return controller.enqueue(chunk)
       }
 
-      buf += decoder.decode(chunk, { stream: true })
-
+      const buf = decoder.decode(chunk)
       const index = buf.indexOf(suffix)
       if (index > -1) {
         foundSuffix = true
-        const before = buf.slice(0, index)
-        controller.enqueue(encoder.encode(before))
 
-        // Flush the remaining part of the buffer.
-        controller.enqueue(encoder.encode(decoder.decode()))
-      } else {
+        // If the whole chunk is the suffix, then don't write anything, it will
+        // be written in the flush.
+        if (buf.length === suffix.length) {
+          return
+        }
+
+        // Write out the part before the suffix.
+        const before = buf.slice(0, index)
+        chunk = encoder.encode(before)
         controller.enqueue(chunk)
 
-        // We only need suffix.length * 2 in the buffer, so we can remove the
-        // beginning part to reduce memory usage.
-        if (buf.length > suffix.length * 2) {
-          buf = buf.slice(buf.length - suffix.length * 2)
+        // In the case where the suffix is in the middle of the chunk, we need
+        // to split the chunk into two parts.
+        if (buf.length > suffix.length + index) {
+          // Write out the part after the suffix.
+          const after = buf.slice(index + suffix.length)
+          chunk = encoder.encode(after)
+          controller.enqueue(chunk)
         }
+      } else {
+        controller.enqueue(chunk)
       }
     },
     flush(controller) {
+      // If we didn't find the suffix, we didn't move it, so don't write it.
+      if (!foundSuffix) {
+        return
+      }
+
       controller.enqueue(encoder.encode(suffix))
     },
   })
