@@ -292,21 +292,6 @@ describe('Error overlay - RSC build errors', () => {
       next.normalizeTestDirContent(await session.getRedboxSource())
     ).toMatchInlineSnapshot(
       next.normalizeSnapshot(`
-        "./app/server-with-errors/error-file/error.js
-        ReactServerComponentsError:
-
-        ./app/server-with-errors/error-file/error.js must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.
-        Learn more: https://nextjs.org/docs/getting-started/react-essentials#client-components
-
-           ,-[TEST_DIR/app/server-with-errors/error-file/error.js:1:1]
-         1 | export default function Error() {}
-           : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-           \`----
-
-        Import path:
-        ./app/server-with-errors/error-file/error.js"
-      `),
-      `
       "./app/server-with-errors/error-file/error.js
       ReactServerComponentsError:
 
@@ -320,7 +305,7 @@ describe('Error overlay - RSC build errors', () => {
 
       Import path:
       ./app/server-with-errors/error-file/error.js"
-    `
+    `)
     )
 
     await cleanup()
