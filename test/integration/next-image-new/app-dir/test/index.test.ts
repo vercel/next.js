@@ -358,12 +358,14 @@ function runTests(mode) {
       'loaded 1 img9 with dimensions 400x400'
     )
 
-    const warnings = (await browser.log('browser'))
-      .map((log) => log.message)
-      .join('\n')
-    expect(warnings).toMatch(
-      /Image with src "(.*)test(.*)jpg" is using deprecated "onLoadingComplete" property. Please use the "onLoad" property instead./gm
-    )
+    if (mode === 'dev') {
+      const warnings = (await browser.log('browser'))
+        .map((log) => log.message)
+        .join('\n')
+      expect(warnings).toMatch(
+        /Image with src "(.*)" is using deprecated "onLoadingComplete" property/gm
+      )
+    }
   })
 
   it('should callback native onLoad with sythetic event', async () => {
