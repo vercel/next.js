@@ -3,8 +3,7 @@
 import cn from 'classnames'
 import { createEntryAction } from '@/actions/entry'
 // @ts-ignore
-import { experimental_useFormState as useFormState } from 'react-dom'
-import { experimental_useFormStatus as useFormStatus } from 'react-dom'
+import { useFormState, useFormStatus } from 'react-dom'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import SuccessMessage from '@/components/SuccessMessage'
 import ErrorMessage from '@/components/ErrorMessage'
@@ -26,7 +25,7 @@ export default function EntryForm() {
 
   return (
     <>
-      <form className="flex relative my-4" action={formAction}>
+      <form className="relative flex my-4" action={formAction}>
         <input
           required
           className={cn(inputClasses, 'w-1/3 mr-2 px-4')}
