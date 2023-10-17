@@ -54,6 +54,7 @@ export function unstable_cache<T extends Callback>(
         fetchCache: 'only-no-store',
         urlPathname: store?.urlPathname || '/',
         isStaticGeneration: !!store?.isStaticGeneration,
+        isUnstableCacheCallback: true,
       },
       async () => {
         const tags = validateTags(
