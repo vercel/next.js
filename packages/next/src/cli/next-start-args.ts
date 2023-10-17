@@ -6,6 +6,7 @@ export const validArgs: arg.Spec = {
   '--port': Number,
   '--hostname': String,
   '--keepAliveTimeout': Number,
+  '--readDotEnv': Boolean,
   '--experimental-test-proxy': Boolean,
 
   // Aliases
