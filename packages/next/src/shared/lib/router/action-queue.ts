@@ -24,6 +24,7 @@ export type ActionQueueNode = {
   next: ActionQueueNode | null
   resolve: (value: PromiseLike<AppRouterState> | AppRouterState) => void
   reject: (err: Error) => void
+  discarded?: boolean
 }
 
 export const ActionQueueContext =
@@ -61,10 +62,16 @@ async function runAction({
     throw new Error('Invariant: Router state not initialized')
   }
 
+  actionQueue.pending = action
+  actionQueue.last = action
+
   const payload = action.payload
   const actionResult = actionQueue.action(prevState, payload)
 
   function handleResult(nextState: AppRouterState) {
+    // if we discarded this action, the state should also be discarded
+    if (action.discarded) return
+
     actionQueue.state = nextState
 
     if (actionQueue.devToolsInstance) {
@@ -114,12 +121,22 @@ function dispatchAction(
     setState(deferredPromise)
   })
 
-  // Check if the queue is empty or if the action is a navigation action
-  if (actionQueue.pending === null || payload.type === 'navigate') {
+  if (payload.type === 'navigate' && actionQueue.pending !== null) {
+    // Navigations take priority over any pending actions.
+    // Mark the pending action as discarded (so the state is never applied) and start the navigation action immediately.
+    actionQueue.pending.discarded = true
+
+    runAction({
+      actionQueue,
+      action: newAction,
+      setState,
+    })
+    return
+  }
+
+  // Check if the queue is empty
+  if (actionQueue.pending === null) {
     // The queue is empty, so add the action and start it immediately
-    // We also immediately start navigations as those shouldn't be blocked
-    actionQueue.pending = newAction
-    actionQueue.last = newAction
     runAction({
       actionQueue,
       action: newAction,
