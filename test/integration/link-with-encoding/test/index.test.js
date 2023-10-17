@@ -184,7 +184,7 @@ describe('Link Component with Encoding', () => {
       try {
         const text = await browser.elementByCss('#query-content').text()
         expect(JSON.parse(text)).toMatchInlineSnapshot(`
-          Object {
+          {
             "slug": "hello"world",
           }
         `)
@@ -210,7 +210,7 @@ describe('Link Component with Encoding', () => {
         })
         const text = await browser.elementByCss('#query-content').text()
         expect(JSON.parse(text)).toMatchInlineSnapshot(`
-          Object {
+          {
             "slug": "hello"world",
           }
         `)
@@ -231,7 +231,7 @@ describe('Link Component with Encoding', () => {
         })
         const text = await browser.elementByCss('#query-content').text()
         expect(JSON.parse(text)).toMatchInlineSnapshot(`
-          Object {
+          {
             "slug": "hello"world",
           }
         `)

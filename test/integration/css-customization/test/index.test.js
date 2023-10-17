@@ -55,7 +55,7 @@ describe('CSS Customization', () => {
 
         const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
         expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
-Object {
+{
   "mappings": "AACA,gCACE,cACE,WACF,CACF,CAGA,OACE,eAA0B,CAA1B,gBACF",
   "sourcesContent": [
     "/* this should pass through untransformed */
@@ -123,7 +123,7 @@ Object {
 
         const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
         expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
-Object {
+{
   "mappings": "AACA,gCACE,SACE,UACF,CACA,cACE,WACF,CACF,CAGA,OACE,gBAA4B,CAA5B,iBAA4B,CAA5B,gBAA4B,CAA5B,iBACF",
   "sourcesContent": [
     "/* this should pass through untransformed */
