@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 env:
-  NODE_LTS_VERSION: 18
+  NODE_LTS_VERSION: 20
 
 jobs:
   create-pull-request:

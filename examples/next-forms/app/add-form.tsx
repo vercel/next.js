@@ -1,7 +1,7 @@
 'use client'
 
 import { experimental_useFormState as useFormState } from 'react-dom'
-import { experimental_useFormStatus as useFormStatus } from 'react-dom'
+import { useFormStatus } from 'react-dom'
 import { createTodo } from '@/app/actions'
 
 const initialState = {
