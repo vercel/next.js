@@ -203,6 +203,7 @@ async function startWatcher(opts: SetupOpts) {
   } = {}
 
   let hotReloader: NextJsHotReloaderInterface
+  let project: Project | undefined
 
   if (opts.turbo) {
     const { loadBindings } =
@@ -226,7 +227,7 @@ async function startWatcher(opts: SetupOpts) {
       opts.fsChecker.rewrites.beforeFiles.length > 0 ||
       opts.fsChecker.rewrites.fallback.length > 0
 
-    const project = await bindings.turbo.createProject({
+    project = await bindings.turbo.createProject({
       projectPath: dir,
       rootPath: opts.nextConfig.experimental.outputFileTracingRoot || dir,
       nextConfig: opts.nextConfig,
