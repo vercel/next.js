@@ -52,15 +52,13 @@ export default function Page() {
         loadUserInfo={async (username) => {
           'use server'
 
-          console.log(counter.props)
-
           if (username === 'Shu') {
-            // return (
-            //   <div>
-            //     <h3>This is a counter</h3>
-            //     {counter}
-            //   </div>
-            // )
+            return (
+              <div>
+                <h3>This is a counter</h3>
+                {counter}
+              </div>
+            )
           }
 
           return <div>Wrong username</div>

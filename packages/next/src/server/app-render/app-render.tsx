@@ -67,7 +67,7 @@ import { makeGetServerInsertedHTML } from './make-get-server-inserted-html'
 import { walkTreeWithFlightRouterState } from './walk-tree-with-flight-router-state'
 import { createComponentTree } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
-import { setReferenceManifestsSingleton } from './action-encryption'
+import { setReferenceManifestsSingleton } from './action-encryption-utils'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
