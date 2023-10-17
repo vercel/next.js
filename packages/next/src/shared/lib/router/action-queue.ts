@@ -90,17 +90,21 @@ function dispatchAction(
   payload: ReducerActions,
   setState: DispatchStatePromise
 ) {
-  const {
-    promise: deferredPromise,
-    resolve,
-    reject,
-  } = Promise.withResolvers<AppRouterState>()
+  let resolvers: {
+    resolve: (value: AppRouterState | PromiseLike<AppRouterState>) => void
+    reject: (reason: any) => void
+  }
+
+  // Create the promise and assign the resolvers to the object.
+  const deferredPromise = new Promise<AppRouterState>((resolve, reject) => {
+    resolvers = { resolve, reject }
+  })
 
   const newAction: ActionQueueNode = {
     payload,
     next: null,
-    resolve,
-    reject,
+    resolve: resolvers!.resolve,
+    reject: resolvers!.reject,
   }
 
   startTransition(() => {

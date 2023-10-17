@@ -1,6 +1,5 @@
 /* global location */
 import '../build/polyfills/polyfill-module'
-import '../lib/polyfill-promise-with-resolvers'
 // @ts-ignore react-dom/client exists when using React 18
 import ReactDOMClient from 'react-dom/client'
 import React, { use } from 'react'
