@@ -728,6 +728,9 @@ async function renderToHTMLOrFlightImpl(
         }
 
         const is404 = res.statusCode === 404
+        if (!is404 && !hasRedirectError) {
+          res.statusCode = 500
+        }
 
         // Preserve the existing RSC inline chunks from the page rendering.
         // To avoid the same stream being operated twice, clone the origin stream for error rendering.
