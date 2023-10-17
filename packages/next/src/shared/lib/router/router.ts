@@ -569,10 +569,13 @@ function fetchNextData({
         })
       })
       .then((data) => {
+        const xMiddlewareCacheValues = data.response.headers.get('x-middleware-cache')
+        const isExistxMiddlewareCacheValue = xMiddlewareCacheValues.split(',')
+          .some(value => ['private', 'no-cache', 'no-store', 'max-age=0', 'must-revalidate'].includes(value))
         if (
           !persistCache ||
           process.env.NODE_ENV !== 'production' ||
-          ['private', 'no-cache', 'no-store', 'max-age=0', 'must-revalidate'].includes(data.response.headers.get('x-middleware-cache'))
+          isExistxMiddlewareCacheValue
         ) {
           delete inflightCache[cacheKey]
         }
