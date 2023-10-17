@@ -16,14 +16,10 @@ export function createServerComponentRenderer<Props>(
   {
     inlinedDataTransformStream,
     clientReferenceManifest,
-    serverContexts,
     formState,
   }: {
     inlinedDataTransformStream: TransformStream<Uint8Array, Uint8Array>
     clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
-    serverContexts: Array<
-      [ServerContextName: string, JSONValue: Object | number | string]
-    >
     formState: null | any
   },
   serverComponentsErrorHandler: ReturnType<typeof createErrorHandler>,
@@ -36,7 +32,6 @@ export function createServerComponentRenderer<Props>(
         <ComponentToRender {...(props as any)} />,
         clientReferenceManifest.clientModules,
         {
-          context: serverContexts,
           onError: serverComponentsErrorHandler,
         }
       )

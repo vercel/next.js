@@ -1,7 +1,8 @@
 const os = require('os')
 const path = require('path')
 const _glob = require('glob')
-const fs = require('fs-extra')
+const { existsSync } = require('fs')
+const fsp = require('fs/promises')
 const nodeFetch = require('node-fetch')
 const vercelFetch = require('@vercel/fetch')
 const fetch = vercelFetch(nodeFetch)
@@ -11,6 +12,7 @@ const { spawn, exec: execOrig } = require('child_process')
 const { createNextInstall } = require('./test/lib/create-next-install')
 const glob = promisify(_glob)
 const exec = promisify(execOrig)
+const core = require('@actions/core')
 
 function escapeRegexp(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -73,13 +75,61 @@ const mockTrace = () => ({
 
 // which types we have configured to run separate
 const configuredTestTypes = Object.values(testFilters)
+const errorsPerTests = new Map()
+
+async function maybeLogSummary() {
+  if (process.env.CI && errorsPerTests.size > 0) {
+    const outputTemplate = `
+${Array.from(errorsPerTests.entries())
+  .map(([test, output]) => {
+    return `
+<details>
+<summary>${test}</summary>
+
+\`\`\`
+${output}
+\`\`\`
+
+</details>
+`
+  })
+  .join('\n')}`
+
+    await core.summary
+      .addHeading('Tests failures')
+      .addTable([
+        [
+          {
+            data: 'Test suite',
+            header: true,
+          },
+        ],
+        ...Array.from(errorsPerTests.entries()).map(([test]) => {
+          return [
+            `<a href="https://github.com/vercel/next.js/blob/canary/${test}">${test}</a>`,
+          ]
+        }),
+      ])
+      .addRaw(outputTemplate)
+      .write()
+  }
+}
 
 const cleanUpAndExit = async (code) => {
   if (process.env.NEXT_TEST_STARTER) {
-    await fs.remove(process.env.NEXT_TEST_STARTER)
+    await fsp.rm(process.env.NEXT_TEST_STARTER, {
+      recursive: true,
+      force: true,
+    })
   }
   if (process.env.NEXT_TEST_TEMP_REPO) {
-    await fs.remove(process.env.NEXT_TEST_TEMP_REPO)
+    await fsp.rm(process.env.NEXT_TEST_TEMP_REPO, {
+      recursive: true,
+      force: true,
+    })
+  }
+  if (process.env.CI) {
+    await maybeLogSummary()
   }
   console.log(`exiting with code ${code}`)
 
@@ -207,7 +257,7 @@ async function main() {
     try {
       const timingsFile = path.join(process.cwd(), 'test-timings.json')
       try {
-        prevTimings = JSON.parse(await fs.readFile(timingsFile, 'utf8'))
+        prevTimings = JSON.parse(await fsp.readFile(timingsFile, 'utf8'))
         console.log('Loaded test timings from disk successfully')
       } catch (_) {
         console.error('failed to load from disk', _)
@@ -218,7 +268,7 @@ async function main() {
         console.log('Fetched previous timings data successfully')
 
         if (writeTimings) {
-          await fs.writeFile(timingsFile, JSON.stringify(prevTimings))
+          await fsp.writeFile(timingsFile, JSON.stringify(prevTimings))
           console.log('Wrote previous timings data to', timingsFile)
           await cleanUpAndExit(0)
         }
@@ -472,11 +522,19 @@ ${ENDGROUP}`)
             } else {
               process.stdout.write(`${GROUP}❌ ${test.file} output\n`)
             }
+
+            let output = ''
             // limit out to last 64kb so that we don't
             // run out of log room in CI
             for (const { chunk } of outputChunks) {
               process.stdout.write(chunk)
+              output += chunk.toString()
             }
+
+            if (process.env.CI && !killed) {
+              errorsPerTests.set(test.file, output)
+            }
+
             if (isExpanded) {
               process.stdout.write(`end of ${test.file} output\n`)
             } else {
@@ -493,15 +551,16 @@ ${ENDGROUP}`)
 
           return reject(err)
         }
-        await fs
-          .remove(
+        await fsp
+          .rm(
             path.join(
               __dirname,
               'test/traces',
               path
                 .relative(path.join(__dirname, 'test'), test.file)
                 .replace(/\//g, '-')
-            )
+            ),
+            { recursive: true, force: true }
           )
           .catch(() => {})
         resolve(new Date().getTime() - start)
@@ -594,7 +653,7 @@ ${ENDGROUP}`)
       // Emit test output if test failed or if we're continuing tests on error
       if ((!passed || shouldContinueTestsOnError) && isTestJob) {
         try {
-          const testsOutput = await fs.readFile(
+          const testsOutput = await fsp.readFile(
             `${test.file}${RESULTS_EXT}`,
             'utf8'
           )
@@ -657,7 +716,7 @@ ${ENDGROUP}`)
         }
 
         for (const test of Object.keys(newTimings)) {
-          if (!(await fs.pathExists(path.join(__dirname, test)))) {
+          if (!existsSync(path.join(__dirname, test))) {
             console.log('removing stale timing', test)
             delete newTimings[test]
           }

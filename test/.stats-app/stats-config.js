@@ -36,6 +36,10 @@ const clientGlobs = [
       '.next/server/edge-runtime-webpack.js',
     ],
   },
+  {
+    name: 'Next Runtimes',
+    globs: ['../../node_modules/next/dist/compiled/next-server/**/*.js'],
+  },
 ]
 
 const renames = [
