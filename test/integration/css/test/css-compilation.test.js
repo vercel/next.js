@@ -63,7 +63,7 @@ describe('CSS Support', () => {
         expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
         Object {
           "mappings": "AAAA,+CACE,cACE,WACF,CACF,CAEA,cACE,2CACF,CAEA,mBACE,0BACF,CAEA,oBACE,kBACF,CAEA,mDACE,WACF",
-          "sourcesContent": Array [
+          "sourcesContent": [
             "@media (480px <= width < 768px) {
           ::placeholder {
             color: green;

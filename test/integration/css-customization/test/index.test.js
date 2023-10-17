@@ -57,7 +57,7 @@ describe('CSS Customization', () => {
         expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
 Object {
   "mappings": "AACA,gCACE,cACE,WACF,CACF,CAGA,OACE,eAA0B,CAA1B,gBACF",
-  "sourcesContent": Array [
+  "sourcesContent": [
     "/* this should pass through untransformed */
 @media (480px <= width < 768px) {
   ::placeholder {
@@ -125,7 +125,7 @@ Object {
         expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
 Object {
   "mappings": "AACA,gCACE,SACE,UACF,CACA,cACE,WACF,CACF,CAGA,OACE,gBAA4B,CAA5B,iBAA4B,CAA5B,gBAA4B,CAA5B,iBACF",
-  "sourcesContent": Array [
+  "sourcesContent": [
     "/* this should pass through untransformed */
 @media (480px <= width < 768px) {
   a::before {
