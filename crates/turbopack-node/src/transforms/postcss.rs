@@ -12,7 +12,7 @@ use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
     ident::AssetIdent,
-    issue::IssueDescriptionExt,
+    issue::{Issue, IssueDescriptionExt, IssueExt, IssueSeverity},
     module::Module,
     reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
     resolve::{find_context_file, FindContextFileResult},
@@ -191,21 +191,50 @@ impl PostCssTransformedAsset {
     #[turbo_tasks::function]
     async fn process(self: Vc<Self>) -> Result<Vc<ProcessPostCssResult>> {
         let this = self.await?;
-        let find_config_result =
-            find_context_file(this.source.ident().path().parent(), postcss_configs());
-        let FindContextFileResult::Found(config_path, _) = *find_config_result.await? else {
-            return Ok(ProcessPostCssResult {
-                content: this.source.content(),
-                assets: Vec::new(),
-            }
-            .cell());
-        };
-
         let ExecutionContext {
             project_path,
             chunking_context,
             env,
         } = *this.execution_context.await?;
+
+        // For this postcss transform, there is no gaurantee that looking up for the
+        // source path will arrives specific project config for the postcss.
+        // i.e, this is possible
+        // - root
+        //  - node_modules
+        //     - somepkg/(some.module.css, postcss.config.js) // this could be symlinked
+        //       local, or actual remote pkg or anything
+        //  - packages // root of workspace pkgs
+        //     - pkg1/(postcss.config.js) // The actual config we're looking for
+        //
+        // We look for the config in the project path first, then the source path
+        let config_path = match *find_context_file(project_path, postcss_configs()).await? {
+            FindContextFileResult::Found(config_path, _) => config_path,
+            _ => {
+                let FindContextFileResult::Found(config_path, _) =
+                    *find_context_file(this.source.ident().path().parent(), postcss_configs())
+                        .await?
+                else {
+                    PostCssTransformIssue {
+                        source: this.source.ident().path(),
+                        title: "PostCSS transform skipped".to_string(),
+                        description: "Unable to find PostCSS config".to_string(),
+                        severity: IssueSeverity::Warning.cell(),
+                    }
+                    .cell()
+                    .emit();
+
+                    return Ok(ProcessPostCssResult {
+                        content: this.source.content(),
+                        assets: Vec::new(),
+                    }
+                    .cell());
+                };
+
+                config_path
+            }
+        };
+
         let source_content = this.source.content();
         let AssetContent::File(file) = *source_content.await? else {
             bail!("PostCSS transform only support transforming files");
@@ -257,5 +286,41 @@ impl PostCssTransformedAsset {
         let assets = emitted_assets_to_virtual_sources(processed_css.assets);
         let content = AssetContent::File(FileContent::Content(file).cell()).cell();
         Ok(ProcessPostCssResult { content, assets }.cell())
+    }
+}
+
+#[turbo_tasks::value]
+struct PostCssTransformIssue {
+    source: Vc<FileSystemPath>,
+    description: String,
+    severity: Vc<IssueSeverity>,
+    title: String,
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for PostCssTransformIssue {
+    #[turbo_tasks::function]
+    fn file_path(&self) -> Vc<FileSystemPath> {
+        self.source
+    }
+
+    #[turbo_tasks::function]
+    fn title(&self) -> Vc<String> {
+        Vc::cell(self.title.to_string())
+    }
+
+    #[turbo_tasks::function]
+    fn description(&self) -> Vc<String> {
+        Vc::cell(self.description.to_string())
+    }
+
+    #[turbo_tasks::function]
+    fn severity(&self) -> Vc<IssueSeverity> {
+        self.severity
+    }
+
+    #[turbo_tasks::function]
+    fn category(&self) -> Vc<String> {
+        Vc::cell("transform".to_string())
     }
 }
