@@ -91,7 +91,7 @@ const cwd = process.cwd()
       const pkgJson = JSON.parse(
         await fs.promises.readFile(
           path.join(packagesDir, packageDir, 'package.json'),
-          { encoding: 'utf-8' }
+          'utf-8'
         )
       )
 
