@@ -318,21 +318,6 @@ declare global {
     randomUUID(): string
   }
 
-  // TODO: remove this polyfill when it is adopted into the spec.
-  interface PromiseConstructor {
-    /**
-     * Creates a new promise with exposed resolvers to resolve/reject. This will
-     * be adopted into the spec as `Promise.withResolvers`.
-     *
-     * @see https://tc39.es/proposal-promise-with-resolvers/
-     */
-    withResolvers<T>(): {
-      promise: Promise<T>
-      resolve: (value: T | PromiseLike<T>) => void
-      reject: (reason?: unknown) => void
-    }
-  }
-
   var __NEXT_HTTP_AGENT_OPTIONS: { keepAlive?: boolean } | undefined
   var __NEXT_UNDICI_AGENT_SET: boolean
   var __NEXT_HTTP_AGENT: HttpAgent
