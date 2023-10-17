@@ -78,7 +78,7 @@ describe('styled-components SWC transform', () => {
     await webdriver(next.url, '/')
 
     const chunk = await next.readFile('.next/static/chunks/pages/index.js')
-    expect(chunk).toContain('displayName: \\"pages__Button\\"')
+    expect(chunk).toContain('displayName: "pages__Button"')
   })
 
   it('should contain styles in initial HTML', async () => {

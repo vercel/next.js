@@ -295,7 +295,7 @@ describe('Error overlay - RSC build errors', () => {
         "./app/server-with-errors/error-file/error.js
         ReactServerComponentsError:
 
-        ./app/server-with-errors/error-file/error.js must be a Client Component. Add the \\"use client\\" directive the top of the file to resolve this issue.
+        ./app/server-with-errors/error-file/error.js must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.
         Learn more: https://nextjs.org/docs/getting-started/react-essentials#client-components
 
            ,-[TEST_DIR/app/server-with-errors/error-file/error.js:1:1]
@@ -345,7 +345,7 @@ describe('Error overlay - RSC build errors', () => {
     //   "./app/server-with-errors/error-file/error.js
     //   ReactServerComponentsError:
 
-    //   ./app/server-with-errors/error-file/error.js must be a Client Component. Add the \\"use client\\" directive the top of the file to resolve this issue.
+    //   ./app/server-with-errors/error-file/error.js must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.
 
     //      ,-[TEST_DIR/app/server-with-errors/error-file/error.js:1:1]
     //    1 |
