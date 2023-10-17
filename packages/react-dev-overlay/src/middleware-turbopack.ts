@@ -11,10 +11,13 @@ import { launchEditor } from './internal/helpers/launchEditor'
 export class InputError extends Error {}
 
 interface Project {
-  traceSource(stackFrame: RustStackFrame): Promise<{
-    frame: RustStackFrame
-    source: string
-  }>
+  traceSource(stackFrame: RustStackFrame): Promise<
+    | {
+        frame: RustStackFrame
+        source: string
+      }
+    | undefined
+  >
 }
 
 interface RustStackFrame {
@@ -34,6 +37,10 @@ export async function createOriginalStackFrame(
     line: frame.lineNumber ?? 0,
     column: frame.column ?? undefined,
   })
+
+  if (!source) {
+    return null
+  }
 
   return {
     originalStackFrame: {

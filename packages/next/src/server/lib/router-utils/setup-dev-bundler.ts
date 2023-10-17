@@ -1096,6 +1096,7 @@ async function startWatcher(opts: SetupOpts) {
             resolve()
           })
         })
+
         // Request was not finished.
         return { finished: undefined }
       },
@@ -2168,51 +2169,59 @@ async function startWatcher(opts: SetupOpts) {
             !file?.includes('<anonymous>')
         )
 
-        if (opts.turbo && frame) {
-          return createOriginalTurboStackFrame(project!, frame)
-        }
-
+        let originalFrame, isEdgeCompiler
         if (frame?.lineNumber && frame?.file) {
-          const moduleId = frame.file!.replace(
-            /^(webpack-internal:\/\/\/|file:\/\/)/,
-            ''
-          )
-          const modulePath = frame.file.replace(
-            /^(webpack-internal:\/\/\/|file:\/\/)(\(.*\)\/)?/,
-            ''
-          )
+          if (opts.turbo) {
+            try {
+              originalFrame = await createOriginalTurboStackFrame(
+                project!,
+                frame
+              )
+            } catch {}
+          } else {
+            const moduleId = frame.file!.replace(
+              /^(webpack-internal:\/\/\/|file:\/\/)/,
+              ''
+            )
+            const modulePath = frame.file.replace(
+              /^(webpack-internal:\/\/\/|file:\/\/)(\(.*\)\/)?/,
+              ''
+            )
 
-          const src = getErrorSource(err as Error)
-          const isEdgeCompiler = src === COMPILER_NAMES.edgeServer
-          const compilation = (
-            isEdgeCompiler
-              ? hotReloader.edgeServerStats?.compilation
-              : hotReloader.serverStats?.compilation
-          )!
+            const src = getErrorSource(err as Error)
+            isEdgeCompiler = src === COMPILER_NAMES.edgeServer
+            const compilation = (
+              isEdgeCompiler
+                ? hotReloader.edgeServerStats?.compilation
+                : hotReloader.serverStats?.compilation
+            )!
 
-          const source = await getSourceById(
-            !!frame.file?.startsWith(path.sep) ||
-              !!frame.file?.startsWith('file:'),
-            moduleId,
-            compilation
-          )
+            const source = await getSourceById(
+              !!frame.file?.startsWith(path.sep) ||
+                !!frame.file?.startsWith('file:'),
+              moduleId,
+              compilation
+            )
 
-          const originalFrame = await createOriginalStackFrame({
-            line: frame.lineNumber,
-            column: frame.column,
-            source,
-            frame,
-            moduleId,
-            modulePath,
-            rootDirectory: opts.dir,
-            errorMessage: err.message,
-            serverCompilation: isEdgeCompiler
-              ? undefined
-              : hotReloader.serverStats?.compilation,
-            edgeCompilation: isEdgeCompiler
-              ? hotReloader.edgeServerStats?.compilation
-              : undefined,
-          }).catch(() => {})
+            try {
+              originalFrame = await createOriginalStackFrame({
+                line: frame.lineNumber,
+                column: frame.column,
+                source,
+                frame,
+                moduleId,
+                modulePath,
+                rootDirectory: opts.dir,
+                errorMessage: err.message,
+                serverCompilation: isEdgeCompiler
+                  ? undefined
+                  : hotReloader.serverStats?.compilation,
+                edgeCompilation: isEdgeCompiler
+                  ? hotReloader.edgeServerStats?.compilation
+                  : undefined,
+              })
+            } catch {}
+          }
 
           if (originalFrame) {
             const { originalCodeFrame, originalStackFrame } = originalFrame

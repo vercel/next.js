@@ -635,7 +635,7 @@ pub struct StackFrame {
 pub async fn project_trace_source(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     frame: StackFrame,
-) -> napi::Result<TracedSource> {
+) -> napi::Result<Option<TracedSource>> {
     let turbo_tasks = project.turbo_tasks.clone();
     let traced_frame = turbo_tasks
         .run_once(async move {
@@ -647,6 +647,17 @@ pub async fn project_trace_source(
                 Err(_) => frame.file.to_string(),
             };
 
+            let Some(chunk_base) = file.strip_prefix(
+                &(format!(
+                    "{}/{}",
+                    project.container.project().await?.root_path,
+                    project.container.project().dist_dir().await?
+                )),
+            ) else {
+                // File doesn't exist within the dist dir
+                return Ok(None);
+            };
+
             let chunk_path = format!(
                 "{}{}",
                 project
@@ -655,14 +666,7 @@ pub async fn project_trace_source(
                     .client_relative_path()
                     .await?
                     .path,
-                file.strip_prefix(
-                    &(format!(
-                        "{}/{}",
-                        project.container.project().await?.root_path,
-                        project.container.project().dist_dir().await?
-                    ))
-                )
-                .context("Requested chunk file does not exist")?
+                chunk_base
             );
 
             let path = project
@@ -713,7 +717,7 @@ pub async fn project_trace_source(
             let mut source = "".to_string();
             Read::read_to_string(&mut source_content.read(), &mut source)?;
 
-            Ok(TracedSource {
+            Ok(Some(TracedSource {
                 frame: StackFrame {
                     file: source_file.to_string(),
                     method_name: token.name,
@@ -721,7 +725,7 @@ pub async fn project_trace_source(
                     column: Some(token.original_column as u32),
                 },
                 source,
-            })
+            }))
         })
         .await
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;

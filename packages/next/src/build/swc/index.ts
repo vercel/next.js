@@ -547,10 +547,13 @@ export interface Project {
   hmrIdentifiersSubscribe(): AsyncIterableIterator<
     TurbopackResult<HmrIdentifiers>
   >
-  traceSource(stackFrame: StackFrame): Promise<{
-    frame: StackFrame
-    source: string
-  }>
+  traceSource(stackFrame: StackFrame): Promise<
+    | {
+        frame: StackFrame
+        source: string
+      }
+    | undefined
+  >
   updateInfoSubscribe(): AsyncIterableIterator<TurbopackResult<UpdateInfo>>
 }
 
@@ -927,10 +930,13 @@ function bindingToApi(binding: any, _wasm: boolean) {
       return subscription
     }
 
-    traceSource(stackFrame: StackFrame): Promise<{
-      frame: StackFrame
-      source: string
-    }> {
+    traceSource(stackFrame: StackFrame): Promise<
+      | {
+          frame: StackFrame
+          source: string
+        }
+      | undefined
+    > {
       return binding.projectTraceSource(this._nativeProject, stackFrame)
     }
 
