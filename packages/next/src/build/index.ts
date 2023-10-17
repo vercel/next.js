@@ -349,6 +349,8 @@ export default async function build(
   let hasAppDir = false
   try {
     const nextBuildSpan = trace('next-build', undefined, {
+      buildMode: buildMode,
+      isTurboBuild: String(turboNextBuild),
       version: process.env.__NEXT_VERSION as string,
     })
 
