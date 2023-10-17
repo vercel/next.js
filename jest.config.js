@@ -5,12 +5,6 @@ const createJestConfig = nextJest()
 // Any custom config you want to pass to Jest
 /** @type {import('jest').Config} */
 const customJestConfig = {
-  // TODO: Remove `snapshotFormat` and update all snapshots to use the new format.
-  // See: https://jestjs.io/blog/2022/08/25/jest-29
-  snapshotFormat: {
-    escapeString: true,
-    printBasicPrototype: true,
-  },
   testMatch: ['**/*.test.js', '**/*.test.ts', '**/*.test.jsx', '**/*.test.tsx'],
   setupFilesAfterEnv: ['<rootDir>/jest-setup-after-env.ts'],
   verbose: true,
