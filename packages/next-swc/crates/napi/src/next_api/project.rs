@@ -1,4 +1,4 @@
-use std::{io::Read, path::PathBuf, sync::Arc, time::Duration};
+use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use anyhow::{anyhow, bail, Context, Result};
 use napi::{
@@ -677,10 +677,11 @@ pub async fn project_trace_source(
                 .root()
                 .join(chunk_path);
 
-            let generatable: Vc<Box<dyn GenerateSourceMap>> =
-                Vc::try_resolve_sidecast(project.container.get_versioned_content(path))
-                    .await?
-                    .context("Chunk cannot produce a sourcemap")?;
+            let Some(generatable): Option<Vc<Box<dyn GenerateSourceMap>>> =
+                Vc::try_resolve_sidecast(project.container.get_versioned_content(path)).await?
+            else {
+                return Ok(None);
+            };
 
             let map = generatable
                 .generate_source_map()
@@ -694,7 +695,7 @@ pub async fn project_trace_source(
                 .context("Unable to trace token from sourcemap")?;
 
             let Token::Original(token) = token else {
-                bail!("Expected token to be an OriginalToken")
+                return Ok(None);
             };
 
             let Some(source_file) = token.original_file.strip_prefix("/turbopack/[project]/")
@@ -714,9 +715,6 @@ pub async fn project_trace_source(
                 bail!("No content for source file")
             };
 
-            let mut source = "".to_string();
-            Read::read_to_string(&mut source_content.read(), &mut source)?;
-
             Ok(Some(TracedSource {
                 frame: StackFrame {
                     file: source_file.to_string(),
@@ -724,7 +722,7 @@ pub async fn project_trace_source(
                     line: token.original_line as u32,
                     column: Some(token.original_column as u32),
                 },
-                source,
+                source: source_content.content().to_str()?.to_string(),
             }))
         })
         .await
