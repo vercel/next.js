@@ -18,6 +18,7 @@ import { projectFilesShouldExist, shouldBeJavascriptProject } from './lib/utils'
 const cli = require.resolve('create-next-app/dist/index.js')
 const exampleRepo = 'https://github.com/vercel/next.js/tree/canary'
 const examplePath = 'examples/basic-css'
+const env = { ...process.env, COREPACK_ENABLE_STRICT: '0' }
 
 const run = (args: string[], options: execa.Options) => {
   const conf = new Conf({ projectName: 'create-next-app' })
@@ -41,6 +42,7 @@ it('should use npm as the package manager on supplying --use-npm', async () => {
       ],
       {
         cwd,
+        env,
       }
     )
 
@@ -62,7 +64,7 @@ it('should use npm as the package manager on supplying --use-npm with example', 
         '--example',
         `${exampleRepo}/${examplePath}`,
       ],
-      { cwd }
+      { cwd, env }
     )
 
     expect(res.exitCode).toBe(0)
@@ -96,6 +98,7 @@ it('should use Yarn as the package manager on supplying --use-yarn', async () =>
       ],
       {
         cwd,
+        env,
       }
     )
 
@@ -139,7 +142,7 @@ it('should use Yarn as the package manager on supplying --use-yarn with example'
         '--example',
         `${exampleRepo}/${examplePath}`,
       ],
-      { cwd }
+      { cwd, env }
     )
 
     expect(res.exitCode).toBe(0)
@@ -173,6 +176,7 @@ it('should use pnpm as the package manager on supplying --use-pnpm', async () =>
       ],
       {
         cwd,
+        env,
       }
     )
 
@@ -216,7 +220,7 @@ it('should use pnpm as the package manager on supplying --use-pnpm with example'
         '--example',
         `${exampleRepo}/${examplePath}`,
       ],
-      { cwd }
+      { cwd, env }
     )
 
     expect(res.exitCode).toBe(0)
@@ -250,6 +254,7 @@ it('should use Bun as the package manager on supplying --use-bun', async () => {
       ],
       {
         cwd,
+        env,
       }
     )
 
@@ -289,7 +294,7 @@ it('should use Bun as the package manager on supplying --use-bun with example', 
         '--example',
         `${exampleRepo}/${examplePath}`,
       ],
-      { cwd }
+      { cwd, env }
     )
 
     expect(res.exitCode).toBe(0)
@@ -322,7 +327,7 @@ it('should infer npm as the package manager', async () => {
       ],
       {
         cwd,
-        env: { ...process.env, npm_config_user_agent: 'npm' },
+        env: { ...env, npm_config_user_agent: 'npm' },
       }
     )
 
@@ -352,7 +357,7 @@ it('should infer npm as the package manager with example', async () => {
         '--example',
         `${exampleRepo}/${examplePath}`,
       ],
-      { cwd, env: { ...process.env, npm_config_user_agent: 'npm' } }
+      { cwd, env: { ...env, npm_config_user_agent: 'npm' } }
     )
 
     const files = [
@@ -394,7 +399,7 @@ it('should infer yarn as the package manager', async () => {
       ],
       {
         cwd,
-        env: { ...process.env, npm_config_user_agent: 'yarn' },
+        env: { ...env, npm_config_user_agent: 'yarn' },
       }
     )
 
@@ -435,7 +440,7 @@ it('should infer yarn as the package manager with example', async () => {
         '--example',
         `${exampleRepo}/${examplePath}`,
       ],
-      { cwd, env: { ...process.env, npm_config_user_agent: 'yarn' } }
+      { cwd, env: { ...env, npm_config_user_agent: 'yarn' } }
     )
 
     const files = [
@@ -477,7 +482,7 @@ it('should infer pnpm as the package manager', async () => {
       ],
       {
         cwd,
-        env: { ...process.env, npm_config_user_agent: 'pnpm' },
+        env: { ...env, npm_config_user_agent: 'pnpm' },
       }
     )
 
@@ -518,7 +523,7 @@ it('should infer pnpm as the package manager with example', async () => {
         '--example',
         `${exampleRepo}/${examplePath}`,
       ],
-      { cwd, env: { ...process.env, npm_config_user_agent: 'pnpm' } }
+      { cwd, env: { ...env, npm_config_user_agent: 'pnpm' } }
     )
 
     const files = [
@@ -556,7 +561,7 @@ it('should infer Bun as the package manager', async () => {
       ],
       {
         cwd,
-        env: { ...process.env, npm_config_user_agent: 'bun' },
+        env: { ...env, npm_config_user_agent: 'bun' },
       }
     )
 
@@ -593,7 +598,7 @@ it('should infer Bun as the package manager with example', async () => {
         '--example',
         `${exampleRepo}/${examplePath}`,
       ],
-      { cwd, env: { ...process.env, npm_config_user_agent: 'bun' } }
+      { cwd, env: { ...env, npm_config_user_agent: 'bun' } }
     )
 
     const files = [
