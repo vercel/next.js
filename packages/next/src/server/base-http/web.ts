@@ -1,12 +1,9 @@
 import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'http'
 import type { FetchMetrics } from './index'
 
-// This takes advantage of `Promise.withResolvers` which is polyfilled in
-// this imported module.
-import '../../lib/polyfill-promise-with-resolvers'
-
 import { toNodeOutgoingHttpHeaders } from '../web/utils'
 import { BaseNextRequest, BaseNextResponse } from './index'
+import { DetachedPromise } from '../../lib/detached-promise'
 
 export class WebNextRequest extends BaseNextRequest<ReadableStream | null> {
   public request: Request
@@ -87,7 +84,7 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
     return this
   }
 
-  private readonly sendPromise = Promise.withResolvers<void>()
+  private readonly sendPromise = new DetachedPromise<void>()
   private _sent = false
   public send() {
     this.sendPromise.resolve()
