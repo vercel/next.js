@@ -23,12 +23,15 @@ function createWriterFromResponse(
   // Create a promise that will resolve once the response has finished. See
   // https://nodejs.org/api/http.html#event-finish_1
   const finished = Promise.withResolvers<void>()
-  res.once('finish', () => {
-    finished.resolve()
-
+  res.once('close', () => {
     // If the finish event fires, it means we shouldn't block and wait for the
     // drain event.
     drained.resolve()
+  })
+
+  // Once the response finishes, resolve the promise.
+  res.once('finish', () => {
+    finished.resolve()
   })
 
   // Create a writable stream that will write to the response.

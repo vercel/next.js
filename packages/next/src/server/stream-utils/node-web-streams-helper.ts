@@ -299,19 +299,31 @@ function createMoveSuffixStream(
   const decoder = new TextDecoder()
 
   // Remove suffix from the stream, and enqueue it back in flush
+  let buf = ''
   return new TransformStream({
     transform(chunk, controller) {
       if (foundSuffix) {
         return controller.enqueue(chunk)
       }
 
-      const content = decoder.decode(chunk, { stream: true })
-      if (content.endsWith(suffix)) {
+      buf += decoder.decode(chunk, { stream: true })
+
+      const index = buf.indexOf(suffix)
+      if (index > -1) {
         foundSuffix = true
-        const contentWithoutSuffix = content.slice(0, -suffix.length)
-        controller.enqueue(encoder.encode(contentWithoutSuffix))
+        const before = buf.slice(0, index)
+        controller.enqueue(encoder.encode(before))
+
+        // Flush the remaining part of the buffer.
+        controller.enqueue(encoder.encode(decoder.decode()))
       } else {
         controller.enqueue(chunk)
+
+        // We only need suffix.length * 2 in the buffer, so we can remove the
+        // beginning part to reduce memory usage.
+        if (buf.length > suffix.length * 2) {
+          buf = buf.slice(buf.length - suffix.length * 2)
+        }
       }
     },
     flush(controller) {

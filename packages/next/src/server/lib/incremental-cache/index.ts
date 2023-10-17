@@ -354,7 +354,7 @@ export class IncrementalCache {
       } else if (typeof (init.body as any).arrayBuffer === 'function') {
         const blob = init.body as Blob
         const arrayBuffer = await blob.arrayBuffer()
-        bodyChunks.push(decoder.decode(await (init.body as Blob).arrayBuffer()))
+        bodyChunks.push(await blob.text())
         ;(init as any)._ogBody = new Blob([arrayBuffer], { type: blob.type })
       } else if (typeof init.body === 'string') {
         bodyChunks.push(init.body)
