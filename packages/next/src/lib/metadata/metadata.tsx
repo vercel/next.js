@@ -18,7 +18,7 @@ import {
 import { IconsMetadata } from './generate/icons'
 import { resolveMetadata } from './resolve-metadata'
 import { MetaFilter } from './generate/meta'
-import { ResolvedMetadata } from './types/metadata-interface'
+import type { ResolvedMetadata } from './types/metadata-interface'
 import { createDefaultMetadata } from './default-metadata'
 import { isNotFoundError } from '../../client/components/not-found'
 
@@ -33,14 +33,14 @@ export function createMetadataComponents({
   pathname,
   searchParams,
   getDynamicParamFromSegment,
-  appUsingSizeAdjust,
+  appUsingSizeAdjustment,
   errorType,
 }: {
   tree: LoaderTree
   pathname: string
   searchParams: { [key: string]: any }
   getDynamicParamFromSegment: GetDynamicParamFromSegment
-  appUsingSizeAdjust: boolean
+  appUsingSizeAdjustment: boolean
   errorType?: 'not-found' | 'redirect'
 }): [React.ComponentType, React.ComponentType] {
   const metadataContext = {
@@ -110,7 +110,7 @@ export function createMetadataComponents({
       IconsMetadata({ icons: metadata.icons }),
     ])
 
-    if (appUsingSizeAdjust) elements.push(<meta name="next-size-adjust" />)
+    if (appUsingSizeAdjustment) elements.push(<meta name="next-size-adjust" />)
 
     return (
       <>
@@ -129,6 +129,5 @@ export function createMetadataComponents({
     return null
   }
 
-  // @ts-expect-error async server components
   return [MetadataTree, MetadataOutlet]
 }

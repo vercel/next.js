@@ -1,15 +1,14 @@
 use anyhow::{Context, Result};
 use indoc::formatdoc;
-use turbo_tasks::{TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{TryJoinIterExt, ValueToString, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::FileSystemPath,
     turbopack::{
         core::{
             asset::{Asset, AssetContent},
             chunk::{
-                availability_info::AvailabilityInfo, Chunk, ChunkData, ChunkItem, ChunkableModule,
-                ChunkableModuleReference, ChunkingContext, ChunkingType, ChunkingTypeOption,
-                ChunksData,
+                ChunkData, ChunkItem, ChunkItemExt, ChunkType, ChunkableModule,
+                ChunkableModuleReference, ChunkingContext, ChunkingContextExt, ChunksData,
             },
             ident::AssetIdent,
             module::Module,
@@ -18,11 +17,11 @@ use turbopack_binding::{
             reference::{ModuleReference, ModuleReferences, SingleOutputAssetReference},
             resolve::ModuleResolveResult,
         },
-        ecmascript::chunk::{EcmascriptChunkData, EcmascriptChunkItemExt},
+        ecmascript::chunk::{EcmascriptChunkData, EcmascriptChunkType},
         turbopack::ecmascript::{
             chunk::{
-                EcmascriptChunk, EcmascriptChunkItem, EcmascriptChunkItemContent,
-                EcmascriptChunkPlaceable, EcmascriptChunkingContext, EcmascriptExports,
+                EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
+                EcmascriptChunkingContext, EcmascriptExports,
             },
             utils::StringifyJs,
         },
@@ -69,42 +68,29 @@ impl Asset for WithClientChunksAsset {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for WithClientChunksAsset {
     #[turbo_tasks::function]
-    fn as_chunk(
+    async fn as_chunk_item(
         self: Vc<Self>,
-        context: Vc<Box<dyn ChunkingContext>>,
-        availability_info: Value<AvailabilityInfo>,
-    ) -> Vc<Box<dyn Chunk>> {
-        Vc::upcast(EcmascriptChunk::new(
-            context.with_layer("rsc".to_string()),
-            Vc::upcast(self),
-            availability_info,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<Vc<Box<dyn turbopack_binding::turbopack::core::chunk::ChunkItem>>> {
+        let context = Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkingContext>>(
+            chunking_context.with_layer("rsc".to_string()),
+        )
+        .await?
+        .context(
+            "ChunkingContext::with_layer should not return a different kind of chunking context",
+        )?;
+        Ok(Vc::upcast(
+            WithClientChunksChunkItem {
+                context,
+                inner: self,
+            }
+            .cell(),
         ))
     }
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for WithClientChunksAsset {
-    #[turbo_tasks::function]
-    async fn as_chunk_item(
-        self: Vc<Self>,
-        context: Vc<Box<dyn EcmascriptChunkingContext>>,
-    ) -> Result<Vc<Box<dyn EcmascriptChunkItem>>> {
-        Ok(Vc::upcast(
-            WithClientChunksChunkItem {
-                context: Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkingContext>>(
-                    context.with_layer("rsc".to_string()),
-                )
-                .await?
-                .context(
-                    "ChunkingContext::with_layer should not return a different kind of chunking \
-                     context",
-                )?,
-                inner: self,
-            }
-            .cell(),
-        ))
-    }
-
     #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         // TODO This should be EsmExports
@@ -124,9 +110,7 @@ impl WithClientChunksChunkItem {
     async fn chunks(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
         let inner = this.inner.await?;
-        Ok(this
-            .context
-            .chunk_group(inner.asset.as_root_chunk(Vc::upcast(this.context))))
+        Ok(this.context.root_chunk_group(Vc::upcast(inner.asset)))
     }
 
     #[turbo_tasks::function]
@@ -183,7 +167,11 @@ impl EcmascriptChunkItem for WithClientChunksChunkItem {
             .map(|chunk_data| EcmascriptChunkData::new(chunk_data))
             .collect();
 
-        let module_id = inner.asset.as_chunk_item(this.context).id().await?;
+        let module_id = inner
+            .asset
+            .as_chunk_item(Vc::upcast(this.context))
+            .id()
+            .await?;
         Ok(EcmascriptChunkItemContent {
             inner_code: formatdoc!(
                 // We store the chunks in a binding, otherwise a new array would be created every
@@ -243,6 +231,21 @@ impl ChunkItem for WithClientChunksChunkItem {
         }
         Ok(Vc::cell(references))
     }
+
+    #[turbo_tasks::function]
+    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+        Vc::upcast(self.context)
+    }
+
+    #[turbo_tasks::function]
+    fn ty(&self) -> Vc<Box<dyn ChunkType>> {
+        Vc::upcast(Vc::<EcmascriptChunkType>::default())
+    }
+
+    #[turbo_tasks::function]
+    fn module(&self) -> Vc<Box<dyn Module>> {
+        Vc::upcast(self.inner)
+    }
 }
 
 #[turbo_tasks::value]
@@ -270,9 +273,4 @@ impl ModuleReference for WithClientChunksAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableModuleReference for WithClientChunksAssetReference {
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::IsolatedParallel))
-    }
-}
+impl ChunkableModuleReference for WithClientChunksAssetReference {}

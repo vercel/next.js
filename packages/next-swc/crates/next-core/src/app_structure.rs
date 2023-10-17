@@ -473,7 +473,7 @@ pub enum Entrypoint {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct Entrypoints(IndexMap<String, Entrypoint>);
+pub struct Entrypoints(IndexMap<AppPath, Entrypoint>);
 
 fn is_parallel_route(name: &str) -> bool {
     name.starts_with('@')
@@ -505,7 +505,7 @@ async fn add_parallel_route(
 
 fn conflict_issue(
     app_dir: Vc<FileSystemPath>,
-    e: &OccupiedEntry<String, Entrypoint>,
+    e: &OccupiedEntry<AppPath, Entrypoint>,
     a: &str,
     b: &str,
     value_a: &AppPage,
@@ -532,13 +532,11 @@ fn conflict_issue(
 
 async fn add_app_page(
     app_dir: Vc<FileSystemPath>,
-    result: &mut IndexMap<String, Entrypoint>,
+    result: &mut IndexMap<AppPath, Entrypoint>,
     page: AppPage,
     loader_tree: Vc<LoaderTree>,
 ) -> Result<()> {
-    let pathname = AppPath::from(page.clone());
-
-    let mut e = match result.entry(format!("{pathname}")) {
+    let mut e = match result.entry(page.clone().into()) {
         Entry::Occupied(e) => e,
         Entry::Vacant(e) => {
             e.insert(Entrypoint::AppPage { page, loader_tree });
@@ -589,13 +587,11 @@ async fn add_app_page(
 
 fn add_app_route(
     app_dir: Vc<FileSystemPath>,
-    result: &mut IndexMap<String, Entrypoint>,
+    result: &mut IndexMap<AppPath, Entrypoint>,
     page: AppPage,
     path: Vc<FileSystemPath>,
 ) {
-    let pathname = AppPath::from(page.clone());
-
-    let e = match result.entry(format!("{pathname}")) {
+    let e = match result.entry(page.clone().into()) {
         Entry::Occupied(e) => e,
         Entry::Vacant(e) => {
             e.insert(Entrypoint::AppRoute { page, path });
@@ -632,13 +628,11 @@ fn add_app_route(
 
 fn add_app_metadata_route(
     app_dir: Vc<FileSystemPath>,
-    result: &mut IndexMap<String, Entrypoint>,
+    result: &mut IndexMap<AppPath, Entrypoint>,
     page: AppPage,
     metadata: MetadataItem,
 ) {
-    let pathname = AppPath::from(page.clone());
-
-    let e = match result.entry(format!("{pathname}")) {
+    let e = match result.entry(page.clone().into()) {
         Entry::Occupied(e) => e,
         Entry::Vacant(e) => {
             e.insert(Entrypoint::AppMetadata { page, metadata });

@@ -11,7 +11,8 @@ import type {
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
-import mitt, { MittEmitter } from '../shared/lib/mitt'
+import mitt from '../shared/lib/mitt'
+import type { MittEmitter } from '../shared/lib/mitt'
 import { RouterContext } from '../shared/lib/router-context.shared-runtime'
 import { handleSmoothScroll } from '../shared/lib/router/utils/handle-smooth-scroll'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
@@ -20,22 +21,18 @@ import {
   assign,
 } from '../shared/lib/router/utils/querystring'
 import { setConfig } from '../shared/lib/runtime-config.external'
-import {
-  getURL,
-  loadGetInitialProps,
-  NextWebVitalsMetric,
-  NEXT_DATA,
-  ST,
-} from '../shared/lib/utils'
+import { getURL, loadGetInitialProps, ST } from '../shared/lib/utils'
+import type { NextWebVitalsMetric, NEXT_DATA } from '../shared/lib/utils'
 import { Portal } from './portal'
 import initHeadManager from './head-manager'
-import PageLoader, { StyleSheetTuple } from './page-loader'
+import PageLoader from './page-loader'
+import type { StyleSheetTuple } from './page-loader'
 import measureWebVitals from './performance-relayer'
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 import { getProperError } from '../lib/is-error'
 import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
-import { ImageConfigComplete } from '../shared/lib/image-config'
+import type { ImageConfigComplete } from '../shared/lib/image-config'
 import { removeBasePath } from './remove-base-path'
 import { hasBasePath } from './has-base-path'
 import { AppRouterContext } from '../shared/lib/app-router-context.shared-runtime'

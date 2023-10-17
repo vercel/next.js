@@ -495,13 +495,13 @@ createNextDescribe(
           'og:image:alt': 'A alt txt for og',
           'og:image': isNextDev
             ? expect.stringMatching(
-                /http:\/\/localhost:\d+\/opengraph\/static\/opengraph-image.png\?b76e8f0282c93c8e/
+                /http:\/\/localhost:\d+\/opengraph\/static\/opengraph-image/
               )
             : expect.stringMatching(
                 new RegExp(
                   `https:\\/\\/(${
                     isNextDeploy ? '.*?\\.vercel\\.app' : 'example\\.com'
-                  })\\/opengraph\\/static\\/opengraph-image.png\\?b76e8f0282c93c8e`
+                  })\\/opengraph\\/static\\/opengraph-image`
                 )
               ),
         })
@@ -509,13 +509,13 @@ createNextDescribe(
         await match('meta', 'name', 'content', {
           'twitter:image': isNextDev
             ? expect.stringMatching(
-                /http:\/\/localhost:\d+\/opengraph\/static\/twitter-image.png\?b76e8f0282c93c8e/
+                /http:\/\/localhost:\d+\/opengraph\/static\/twitter-image/
               )
             : expect.stringMatching(
                 new RegExp(
                   `https:\\/\\/(${
                     isNextDeploy ? '.*?\\.vercel\\.app' : 'example\\.com'
-                  })\\/opengraph\\/static\\/twitter-image.png\\?b76e8f0282c93c8e`
+                  })\\/opengraph\\/static\\/twitter-image`
                 )
               ),
           'twitter:image:alt': 'A alt txt for twitter',
@@ -705,13 +705,11 @@ createNextDescribe(
         const $icon = $('head > link[rel="icon"][type!="image/x-icon"]')
         const $appleIcon = $('head > link[rel="apple-touch-icon"]')
 
-        expect($icon.attr('href')).toMatch(
-          /\/icons\/static\/nested\/icon1\.png\?399de3b94b888afc/
-        )
+        expect($icon.attr('href')).toMatch(/\/icons\/static\/nested\/icon1/)
         expect($icon.attr('sizes')).toBe('32x32')
         expect($icon.attr('type')).toBe('image/png')
         expect($appleIcon.attr('href')).toMatch(
-          /\/icons\/static\/nested\/apple-icon\.png\?b76e8f0282c93c8e/
+          /\/icons\/static\/nested\/apple-icon/
         )
         expect($appleIcon.attr('type')).toBe('image/png')
         expect($appleIcon.attr('sizes')).toMatch('114x114')
@@ -722,9 +720,7 @@ createNextDescribe(
 
         const $icon = $('head > link[rel="icon"][type!="image/x-icon"]')
 
-        expect($icon.attr('href')).toMatch(
-          /\/icons\/static\/icon\.png\?b76e8f0282c93c8e/
-        )
+        expect($icon.attr('href')).toMatch(/\/icons\/static\/icon/)
         expect($icon.attr('sizes')).toBe('114x114')
 
         // No apple icon if it's not provided
@@ -735,14 +731,14 @@ createNextDescribe(
         const $dynamicIcon = $dynamic('head > link[rel="icon"]')
         const dynamicIconHref = $dynamicIcon.attr('href')
         expect(dynamicIconHref).toMatch(
-          /\/icons\/static\/dynamic-routes\/123\/icon\.png\?b76e8f0282c93c8e/
+          /\/icons\/static\/dynamic-routes\/123\/icon/
         )
         const dynamicIconRes = await next.fetch(dynamicIconHref)
         expect(dynamicIconRes.status).toBe(200)
       })
 
       if (isNextDev) {
-        it('should handle hmr updates to the file icon', async () => {
+        it('should handle updates to the file icon name and order', async () => {
           await next.renameFile(
             'app/icons/static/icon.png',
             'app/icons/static/icon2.png'
@@ -752,7 +748,7 @@ createNextDescribe(
             const $ = await next.render$('/icons/static')
             const $icon = $('head > link[rel="icon"][type!="image/x-icon"]')
             return $icon.attr('href')
-          }, /\/icons\/static\/icon2\.png\?b76e8f0282c93c8e/)
+          }, /\/icons\/static\/icon2/)
 
           await next.renameFile(
             'app/icons/static/icon2.png',

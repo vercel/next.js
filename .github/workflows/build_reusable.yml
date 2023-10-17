@@ -57,8 +57,7 @@ on:
 env:
   NAPI_CLI_VERSION: 2.14.7
   TURBO_VERSION: 1.10.9
-  NODE_MAINTENANCE_VERSION: 16
-  NODE_LTS_VERSION: 18
+  NODE_LTS_VERSION: 20
   TEST_CONCURRENCY: 8
   # disable backtrace for test snapshots
   RUST_BACKTRACE: 0
@@ -77,7 +76,7 @@ env:
 
 jobs:
   build:
-    timeout-minutes: 25
+    timeout-minutes: 15
     runs-on:
       - 'self-hosted'
       - 'linux'

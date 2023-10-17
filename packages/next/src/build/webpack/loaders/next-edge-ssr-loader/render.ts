@@ -5,6 +5,7 @@ import type { BuildManifest } from '../../../../server/get-page-files'
 import type { ReactLoadableManifest } from '../../../../server/load-components'
 import type { ClientReferenceManifest } from '../../plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../../plugins/next-font-manifest-plugin'
+import type { NextFetchEvent } from '../../../../server/web/spec-extension/fetch-event'
 
 import WebServer from '../../../../server/web-server'
 import {
@@ -12,9 +13,10 @@ import {
   WebNextResponse,
 } from '../../../../server/base-http/web'
 import { SERVER_RUNTIME } from '../../../../lib/constants'
-import { PrerenderManifest } from '../../..'
+import type { PrerenderManifest } from '../../..'
 import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
-import { SizeLimit } from '../../../../../types'
+import type { SizeLimit } from '../../../../../types'
+import { internal_getCurrentFunctionWaitUntil } from '../../../../server/web/internal-edge-wait-until'
 
 export function getRender({
   dev,
@@ -143,12 +145,23 @@ export function getRender({
 
   const handler = server.getRequestHandler()
 
-  return async function render(request: Request) {
+  return async function render(request: Request, event: NextFetchEvent) {
     const extendedReq = new WebNextRequest(request)
     const extendedRes = new WebNextResponse()
 
     handler(extendedReq, extendedRes)
+    const result = await extendedRes.toResponse()
 
-    return await extendedRes.toResponse()
+    if (event && event.waitUntil) {
+      const waitUntilPromise = internal_getCurrentFunctionWaitUntil()
+      if (waitUntilPromise) {
+        event.waitUntil(waitUntilPromise)
+      }
+    }
+
+    // fetchMetrics is attached to the web request that going through the server,
+    // wait for the handler result is ready and attach it back to the original request.
+    ;(request as any).fetchMetrics = extendedReq.fetchMetrics
+    return result
   }
 }

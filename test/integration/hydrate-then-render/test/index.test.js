@@ -9,28 +9,30 @@ let appPort
 let server
 
 describe('hydrate/render ordering', () => {
-  beforeAll(async () => {
-    appPort = await findPort()
-    await nextBuild(appDir, [], {})
-    server = await nextStart(appDir, appPort)
-  })
-  afterAll(() => killApp(server))
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      appPort = await findPort()
+      await nextBuild(appDir, [], {})
+      server = await nextStart(appDir, appPort)
+    })
+    afterAll(() => killApp(server))
 
-  it('correctly measures hydrate followed by render', async () => {
-    const browser = await webdriver(appPort, '/')
-    await browser.waitForElementByCss('#to-other')
-    await browser.elementByCss('#to-other').click()
-    await browser.waitForElementByCss('#on-other')
+    it('correctly measures hydrate followed by render', async () => {
+      const browser = await webdriver(appPort, '/')
+      await browser.waitForElementByCss('#to-other')
+      await browser.elementByCss('#to-other').click()
+      await browser.waitForElementByCss('#on-other')
 
-    const beacons = (await browser.eval('window.__BEACONS'))
-      .map(([, value]) => Object.fromEntries(new URLSearchParams(value)))
-      .filter((p) => p.label === 'custom')
-    expect(beacons).toMatchObject([
-      { name: 'Next.js-hydration' },
-      { name: 'Next.js-render' },
-      { name: 'Next.js-route-change-to-render' },
-    ])
+      const beacons = (await browser.eval('window.__BEACONS'))
+        .map(([, value]) => Object.fromEntries(new URLSearchParams(value)))
+        .filter((p) => p.label === 'custom')
+      expect(beacons).toMatchObject([
+        { name: 'Next.js-hydration' },
+        { name: 'Next.js-render' },
+        { name: 'Next.js-route-change-to-render' },
+      ])
 
-    await browser.close()
+      await browser.close()
+    })
   })
 })

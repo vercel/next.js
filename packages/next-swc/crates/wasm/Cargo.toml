@@ -16,7 +16,7 @@ plugin = ["getrandom/js", "turbopack-binding/__swc_core_binding_wasm_plugin"]
 [dependencies]
 anyhow = "1.0.66"
 console_error_panic_hook = "0.1.6"
-next-swc = { version = "0.0.0", path = "../core" }
+next-swc = { workspace = true }
 once_cell = { workspace = true }
 parking_lot_core = "=0.8.0"
 path-clean = "0.1"

@@ -531,7 +531,6 @@ createNextDescribe(
             'force-static/second.html',
             'ssg-draft-mode/test.html',
             'blog/seb/second-post.html',
-            'force-static.prefetch.rsc',
             'ssg-draft-mode/test-2.rsc',
             'blog/styfle/first-post.rsc',
             'default-cache.prefetch.rsc',

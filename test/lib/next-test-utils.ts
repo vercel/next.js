@@ -996,7 +996,9 @@ export function runProdSuite(
     env?: NodeJS.ProcessEnv
   }
 ) {
-  return runSuite(suiteName, { appDir, env: 'prod' }, options)
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    runSuite(suiteName, { appDir, env: 'prod' }, options)
+  })
 }
 
 /**
@@ -1033,6 +1035,24 @@ export function getSnapshotTestDescribe(variant: TestVariants) {
     (runningEnv === 'default' && shouldRunTurboDev)
 
   return shouldSkip ? describe.skip : describe
+}
+
+export async function getRedboxComponentStack(
+  browser: BrowserInterface
+): Promise<string> {
+  await browser.waitForElementByCss(
+    '[data-nextjs-component-stack-frame]',
+    30000
+  )
+  // TODO: the type for elementsByCss is incorrect
+  const componentStackFrameElements: any = await browser.elementsByCss(
+    '[data-nextjs-component-stack-frame]'
+  )
+  const componentStackFrameTexts = await Promise.all(
+    componentStackFrameElements.map((f) => f.innerText())
+  )
+
+  return componentStackFrameTexts.join('\n')
 }
 
 /**
