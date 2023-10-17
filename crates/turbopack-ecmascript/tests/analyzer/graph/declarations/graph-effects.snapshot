@@ -1,7 +1,7 @@
 [
     FreeVar {
         var: FreeVar(
-            Atom('f' type=inline),
+            "f",
         ),
         ast_path: [
             Program(

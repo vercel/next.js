@@ -2,7 +2,7 @@
     Member {
         obj: Variable(
             (
-                Atom('array' type=inline),
+                "array",
                 #2,
             ),
         ),
@@ -54,14 +54,14 @@
     Member {
         obj: Variable(
             (
-                Atom('array' type=inline),
+                "array",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('concat' type=static),
+                Atom(
+                    "concat",
                 ),
             ),
         ),
@@ -115,14 +115,14 @@
     MemberCall {
         obj: Variable(
             (
-                Atom('array' type=inline),
+                "array",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('concat' type=static),
+                Atom(
+                    "concat",
                 ),
             ),
         ),
@@ -196,7 +196,7 @@
                         ),
                         Variable(
                             (
-                                Atom('item' type=inline),
+                                "item",
                                 #2,
                             ),
                         ),
@@ -288,8 +288,8 @@
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('concat' type=static),
+                Atom(
+                    "concat",
                 ),
             ),
         ),
@@ -436,7 +436,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('unknown' type=static),
+            "unknown",
         ),
         ast_path: [
             Program(
@@ -544,8 +544,8 @@
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('concat' type=static),
+                Atom(
+                    "concat",
                 ),
             ),
         ),
@@ -576,7 +576,7 @@
                             ),
                         ),
                         FreeVar(
-                            Atom('unknown' type=static),
+                            "unknown",
                         ),
                     ],
                     mutable: true,
@@ -667,8 +667,8 @@
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('concat' type=static),
+                Atom(
+                    "concat",
                 ),
             ),
         ),
@@ -815,7 +815,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('unknown' type=static),
+            "unknown",
         ),
         ast_path: [
             Program(
@@ -912,8 +912,8 @@
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('concat' type=static),
+                Atom(
+                    "concat",
                 ),
             ),
         ),
@@ -947,7 +947,7 @@
             ),
             Value(
                 FreeVar(
-                    Atom('unknown' type=static),
+                    "unknown",
                 ),
             ),
         ],
@@ -992,7 +992,7 @@
     Member {
         obj: Variable(
             (
-                Atom('arrays' type=inline),
+                "arrays",
                 #2,
             ),
         ),
@@ -1044,14 +1044,14 @@
     Member {
         obj: Variable(
             (
-                Atom('array' type=inline),
+                "array",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('concat' type=static),
+                Atom(
+                    "concat",
                 ),
             ),
         ),
@@ -1105,14 +1105,14 @@
     MemberCall {
         obj: Variable(
             (
-                Atom('array' type=inline),
+                "array",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('concat' type=static),
+                Atom(
+                    "concat",
                 ),
             ),
         ),

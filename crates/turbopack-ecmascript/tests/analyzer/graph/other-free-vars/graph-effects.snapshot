@@ -1,7 +1,7 @@
 [
     FreeVar {
         var: FreeVar(
-            Atom('Object' type=static),
+            "Object",
         ),
         ast_path: [
             Program(
@@ -43,12 +43,12 @@
     },
     Member {
         obj: FreeVar(
-            Atom('Object' type=static),
+            "Object",
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('keys' type=inline),
+                Atom(
+                    "keys",
                 ),
             ),
         ),
@@ -101,7 +101,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('Object' type=static),
+            "Object",
         ),
         ast_path: [
             Program(
@@ -158,12 +158,12 @@
     },
     MemberCall {
         obj: FreeVar(
-            Atom('Object' type=static),
+            "Object",
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('keys' type=inline),
+                Atom(
+                    "keys",
                 ),
             ),
         ),
@@ -171,7 +171,7 @@
             Value(
                 Variable(
                     (
-                        Atom('O' type=inline),
+                        "O",
                         #2,
                     ),
                 ),
@@ -218,14 +218,14 @@
     Member {
         obj: Variable(
             (
-                Atom('O' type=inline),
+                "O",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('keys' type=inline),
+                Atom(
+                    "keys",
                 ),
             ),
         ),
@@ -278,7 +278,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('Object' type=static),
+            "Object",
         ),
         ast_path: [
             Program(
@@ -332,21 +332,21 @@
     MemberCall {
         obj: Variable(
             (
-                Atom('O' type=inline),
+                "O",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('keys' type=inline),
+                Atom(
+                    "keys",
                 ),
             ),
         ),
         args: [
             Value(
                 FreeVar(
-                    Atom('Object' type=static),
+                    "Object",
                 ),
             ),
         ],

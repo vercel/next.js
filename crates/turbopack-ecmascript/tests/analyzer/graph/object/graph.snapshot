@@ -5,14 +5,14 @@
             3,
             Variable(
                 (
-                    Atom('object' type=static),
+                    "object",
                     #2,
                 ),
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('a' type=static),
+                    Atom(
+                        "a",
                     ),
                 ),
             ),
@@ -24,14 +24,14 @@
             3,
             Variable(
                 (
-                    Atom('object' type=static),
+                    "object",
                     #2,
                 ),
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('a' type=static),
+                    Atom(
+                        "a",
                     ),
                 ),
             ),
@@ -43,14 +43,14 @@
             3,
             Variable(
                 (
-                    Atom('object' type=static),
+                    "object",
                     #2,
                 ),
             ),
             Constant(
                 Str(
                     Word(
-                        Atom('a' type=static),
+                        "a",
                     ),
                 ),
             ),
@@ -62,14 +62,14 @@
             3,
             Variable(
                 (
-                    Atom('object_spread' type=dynamic),
+                    "object_spread",
                     #2,
                 ),
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('a' type=static),
+                    Atom(
+                        "a",
                     ),
                 ),
             ),
@@ -81,14 +81,14 @@
             3,
             Variable(
                 (
-                    Atom('object' type=static),
+                    "object",
                     #2,
                 ),
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('a' type=static),
+                    Atom(
+                        "a",
                     ),
                 ),
             ),
@@ -100,14 +100,14 @@
             3,
             Variable(
                 (
-                    Atom('unknown_spread' type=dynamic),
+                    "unknown_spread",
                     #2,
                 ),
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('a' type=static),
+                    Atom(
+                        "a",
                     ),
                 ),
             ),
@@ -119,14 +119,14 @@
             3,
             Variable(
                 (
-                    Atom('object2' type=inline),
+                    "object2",
                     #2,
                 ),
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('a' type=static),
+                    Atom(
+                        "a",
                     ),
                 ),
             ),
@@ -138,14 +138,14 @@
             3,
             Variable(
                 (
-                    Atom('object' type=static),
+                    "object",
                     #2,
                 ),
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('b' type=static),
+                    Atom(
+                        "b",
                     ),
                 ),
             ),
@@ -157,14 +157,14 @@
             3,
             Variable(
                 (
-                    Atom('object' type=static),
+                    "object",
                     #2,
                 ),
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('b' type=static),
+                    Atom(
+                        "b",
                     ),
                 ),
             ),
@@ -176,14 +176,14 @@
             3,
             Variable(
                 (
-                    Atom('object' type=static),
+                    "object",
                     #2,
                 ),
             ),
             Constant(
                 Str(
                     Word(
-                        Atom('b' type=static),
+                        "b",
                     ),
                 ),
             ),
@@ -195,14 +195,14 @@
             3,
             Variable(
                 (
-                    Atom('object_spread' type=dynamic),
+                    "object_spread",
                     #2,
                 ),
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('b' type=static),
+                    Atom(
+                        "b",
                     ),
                 ),
             ),
@@ -214,14 +214,14 @@
             3,
             Variable(
                 (
-                    Atom('object' type=static),
+                    "object",
                     #2,
                 ),
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('b' type=static),
+                    Atom(
+                        "b",
                     ),
                 ),
             ),
@@ -233,14 +233,14 @@
             3,
             Variable(
                 (
-                    Atom('unknown_spread' type=dynamic),
+                    "unknown_spread",
                     #2,
                 ),
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('b' type=static),
+                    Atom(
+                        "b",
                     ),
                 ),
             ),
@@ -252,14 +252,14 @@
             3,
             Variable(
                 (
-                    Atom('object2' type=inline),
+                    "object2",
                     #2,
                 ),
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('b' type=static),
+                    Atom(
+                        "b",
                     ),
                 ),
             ),
@@ -271,14 +271,14 @@
             3,
             Variable(
                 (
-                    Atom('object' type=static),
+                    "object",
                     #2,
                 ),
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('c' type=inline),
+                    Atom(
+                        "c",
                     ),
                 ),
             ),
@@ -290,14 +290,14 @@
             3,
             Variable(
                 (
-                    Atom('object' type=static),
+                    "object",
                     #2,
                 ),
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('c' type=inline),
+                    Atom(
+                        "c",
                     ),
                 ),
             ),
@@ -309,14 +309,14 @@
             3,
             Variable(
                 (
-                    Atom('object' type=static),
+                    "object",
                     #2,
                 ),
             ),
             Constant(
                 Str(
                     Word(
-                        Atom('c' type=inline),
+                        "c",
                     ),
                 ),
             ),
@@ -328,14 +328,14 @@
             3,
             Variable(
                 (
-                    Atom('object_spread' type=dynamic),
+                    "object_spread",
                     #2,
                 ),
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('c' type=inline),
+                    Atom(
+                        "c",
                     ),
                 ),
             ),
@@ -347,14 +347,14 @@
             3,
             Variable(
                 (
-                    Atom('object' type=static),
+                    "object",
                     #2,
                 ),
             ),
             Constant(
                 Str(
                     Word(
-                        Atom('c' type=inline),
+                        "c",
                     ),
                 ),
             ),
@@ -366,14 +366,14 @@
             3,
             Variable(
                 (
-                    Atom('unknown_spread' type=dynamic),
+                    "unknown_spread",
                     #2,
                 ),
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('c' type=inline),
+                    Atom(
+                        "c",
                     ),
                 ),
             ),
@@ -385,14 +385,14 @@
             3,
             Variable(
                 (
-                    Atom('object2' type=inline),
+                    "object2",
                     #2,
                 ),
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('c' type=inline),
+                    Atom(
+                        "c",
                     ),
                 ),
             ),
@@ -404,14 +404,14 @@
             3,
             Variable(
                 (
-                    Atom('object' type=static),
+                    "object",
                     #2,
                 ),
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('d' type=static),
+                    Atom(
+                        "d",
                     ),
                 ),
             ),
@@ -423,14 +423,14 @@
             3,
             Variable(
                 (
-                    Atom('object' type=static),
+                    "object",
                     #2,
                 ),
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('d' type=static),
+                    Atom(
+                        "d",
                     ),
                 ),
             ),
@@ -442,14 +442,14 @@
             3,
             Variable(
                 (
-                    Atom('object' type=static),
+                    "object",
                     #2,
                 ),
             ),
             Constant(
                 Str(
                     Word(
-                        Atom('d' type=static),
+                        "d",
                     ),
                 ),
             ),
@@ -461,14 +461,14 @@
             3,
             Variable(
                 (
-                    Atom('object_spread' type=dynamic),
+                    "object_spread",
                     #2,
                 ),
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('d' type=static),
+                    Atom(
+                        "d",
                     ),
                 ),
             ),
@@ -480,14 +480,14 @@
             3,
             Variable(
                 (
-                    Atom('object' type=static),
+                    "object",
                     #2,
                 ),
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('d' type=static),
+                    Atom(
+                        "d",
                     ),
                 ),
             ),
@@ -499,14 +499,14 @@
             3,
             Variable(
                 (
-                    Atom('object2' type=inline),
+                    "object2",
                     #2,
                 ),
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('d' type=static),
+                    Atom(
+                        "d",
                     ),
                 ),
             ),
@@ -518,14 +518,14 @@
             3,
             Variable(
                 (
-                    Atom('object2' type=inline),
+                    "object2",
                     #2,
                 ),
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('e' type=static),
+                    Atom(
+                        "e",
                     ),
                 ),
             ),
@@ -539,8 +539,8 @@
                 KeyValue(
                     Constant(
                         Str(
-                            Word(
-                                Atom('a' type=static),
+                            Atom(
+                                "a",
                             ),
                         ),
                     ),
@@ -555,8 +555,8 @@
                 KeyValue(
                     Constant(
                         Str(
-                            Word(
-                                Atom('b' type=static),
+                            Atom(
+                                "b",
                             ),
                         ),
                     ),
@@ -572,7 +572,7 @@
                     Constant(
                         Str(
                             Word(
-                                Atom('c' type=inline),
+                                "c",
                             ),
                         ),
                     ),
@@ -596,8 +596,8 @@
                 KeyValue(
                     Constant(
                         Str(
-                            Word(
-                                Atom('a' type=static),
+                            Atom(
+                                "a",
                             ),
                         ),
                     ),
@@ -611,7 +611,7 @@
                 ),
                 KeyValue(
                     FreeVar(
-                        Atom('global' type=static),
+                        "global",
                     ),
                     Constant(
                         Num(
@@ -624,8 +624,8 @@
                 KeyValue(
                     Constant(
                         Str(
-                            Word(
-                                Atom('c' type=inline),
+                            Atom(
+                                "c",
                             ),
                         ),
                     ),
@@ -639,7 +639,7 @@
                 ),
                 KeyValue(
                     FreeVar(
-                        Atom('global' type=static),
+                        "global",
                     ),
                     Constant(
                         Num(
@@ -652,8 +652,8 @@
                 KeyValue(
                     Constant(
                         Str(
-                            Word(
-                                Atom('e' type=static),
+                            Atom(
+                                "e",
                             ),
                         ),
                     ),
@@ -677,8 +677,8 @@
                 KeyValue(
                     Constant(
                         Str(
-                            Word(
-                                Atom('a' type=static),
+                            Atom(
+                                "a",
                             ),
                         ),
                     ),
@@ -693,7 +693,7 @@
                 Spread(
                     Variable(
                         (
-                            Atom('object' type=static),
+                            "object",
                             #2,
                         ),
                     ),
@@ -701,8 +701,8 @@
                 KeyValue(
                     Constant(
                         Str(
-                            Word(
-                                Atom('b' type=static),
+                            Atom(
+                                "b",
                             ),
                         ),
                     ),
@@ -726,8 +726,8 @@
                 KeyValue(
                     Constant(
                         Str(
-                            Word(
-                                Atom('a' type=static),
+                            Atom(
+                                "a",
                             ),
                         ),
                     ),
@@ -741,14 +741,14 @@
                 ),
                 Spread(
                     FreeVar(
-                        Atom('global' type=static),
+                        "global",
                     ),
                 ),
                 KeyValue(
                     Constant(
                         Str(
-                            Word(
-                                Atom('b' type=static),
+                            Atom(
+                                "b",
                             ),
                         ),
                     ),

@@ -2,7 +2,7 @@
     Member {
         obj: Variable(
             (
-                Atom('x' type=static),
+                "x",
                 #3,
             ),
         ),
@@ -69,7 +69,7 @@
     Member {
         obj: Variable(
             (
-                Atom('x' type=static),
+                "x",
                 #3,
             ),
         ),
@@ -151,14 +151,14 @@
     Member {
         obj: Variable(
             (
-                Atom('x' type=static),
+                "x",
                 #3,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('length' type=static),
+                Atom(
+                    "length",
                 ),
             ),
         ),
@@ -218,13 +218,13 @@
     Member {
         obj: Variable(
             (
-                Atom('x' type=static),
+                "x",
                 #3,
             ),
         ),
         prop: Variable(
             (
-                Atom('i' type=static),
+                "i",
                 #3,
             ),
         ),
@@ -309,7 +309,7 @@
     Call {
         func: Variable(
             (
-                Atom('md5ff' type=inline),
+                "md5ff",
                 #2,
             ),
         ),
@@ -317,7 +317,7 @@
             Value(
                 Variable(
                     (
-                        Atom('a' type=static),
+                        "a",
                         #3,
                     ),
                 ),
@@ -325,7 +325,7 @@
             Value(
                 Variable(
                     (
-                        Atom('b' type=static),
+                        "b",
                         #3,
                     ),
                 ),
@@ -333,7 +333,7 @@
             Value(
                 Variable(
                     (
-                        Atom('c' type=inline),
+                        "c",
                         #3,
                     ),
                 ),
@@ -341,7 +341,7 @@
             Value(
                 Variable(
                     (
-                        Atom('d' type=static),
+                        "d",
                         #3,
                     ),
                 ),
@@ -351,13 +351,13 @@
                     3,
                     Variable(
                         (
-                            Atom('x' type=static),
+                            "x",
                             #3,
                         ),
                     ),
                     Variable(
                         (
-                            Atom('i' type=static),
+                            "i",
                             #3,
                         ),
                     ),
@@ -449,7 +449,7 @@
     Member {
         obj: Variable(
             (
-                Atom('x' type=static),
+                "x",
                 #3,
             ),
         ),
@@ -458,7 +458,7 @@
             [
                 Variable(
                     (
-                        Atom('i' type=static),
+                        "i",
                         #3,
                     ),
                 ),
@@ -552,7 +552,7 @@
     Call {
         func: Variable(
             (
-                Atom('md5ff' type=inline),
+                "md5ff",
                 #2,
             ),
         ),
@@ -560,7 +560,7 @@
             Value(
                 Variable(
                     (
-                        Atom('d' type=static),
+                        "d",
                         #3,
                     ),
                 ),
@@ -568,7 +568,7 @@
             Value(
                 Variable(
                     (
-                        Atom('a' type=static),
+                        "a",
                         #3,
                     ),
                 ),
@@ -576,7 +576,7 @@
             Value(
                 Variable(
                     (
-                        Atom('b' type=static),
+                        "b",
                         #3,
                     ),
                 ),
@@ -584,7 +584,7 @@
             Value(
                 Variable(
                     (
-                        Atom('c' type=inline),
+                        "c",
                         #3,
                     ),
                 ),
@@ -594,7 +594,7 @@
                     5,
                     Variable(
                         (
-                            Atom('x' type=static),
+                            "x",
                             #3,
                         ),
                     ),
@@ -603,7 +603,7 @@
                         [
                             Variable(
                                 (
-                                    Atom('i' type=static),
+                                    "i",
                                     #3,
                                 ),
                             ),
@@ -704,7 +704,7 @@
     Member {
         obj: Variable(
             (
-                Atom('x' type=static),
+                "x",
                 #3,
             ),
         ),
@@ -713,7 +713,7 @@
             [
                 Variable(
                     (
-                        Atom('i' type=static),
+                        "i",
                         #3,
                     ),
                 ),
@@ -807,7 +807,7 @@
     Call {
         func: Variable(
             (
-                Atom('md5ff' type=inline),
+                "md5ff",
                 #2,
             ),
         ),
@@ -815,7 +815,7 @@
             Value(
                 Variable(
                     (
-                        Atom('c' type=inline),
+                        "c",
                         #3,
                     ),
                 ),
@@ -823,7 +823,7 @@
             Value(
                 Variable(
                     (
-                        Atom('d' type=static),
+                        "d",
                         #3,
                     ),
                 ),
@@ -831,7 +831,7 @@
             Value(
                 Variable(
                     (
-                        Atom('a' type=static),
+                        "a",
                         #3,
                     ),
                 ),
@@ -839,7 +839,7 @@
             Value(
                 Variable(
                     (
-                        Atom('b' type=static),
+                        "b",
                         #3,
                     ),
                 ),
@@ -849,7 +849,7 @@
                     5,
                     Variable(
                         (
-                            Atom('x' type=static),
+                            "x",
                             #3,
                         ),
                     ),
@@ -858,7 +858,7 @@
                         [
                             Variable(
                                 (
-                                    Atom('i' type=static),
+                                    "i",
                                     #3,
                                 ),
                             ),
@@ -962,7 +962,7 @@
     Member {
         obj: Variable(
             (
-                Atom('x' type=static),
+                "x",
                 #3,
             ),
         ),
@@ -971,7 +971,7 @@
             [
                 Variable(
                     (
-                        Atom('i' type=static),
+                        "i",
                         #3,
                     ),
                 ),
@@ -1065,7 +1065,7 @@
     Call {
         func: Variable(
             (
-                Atom('md5ff' type=inline),
+                "md5ff",
                 #2,
             ),
         ),
@@ -1073,7 +1073,7 @@
             Value(
                 Variable(
                     (
-                        Atom('b' type=static),
+                        "b",
                         #3,
                     ),
                 ),
@@ -1081,7 +1081,7 @@
             Value(
                 Variable(
                     (
-                        Atom('c' type=inline),
+                        "c",
                         #3,
                     ),
                 ),
@@ -1089,7 +1089,7 @@
             Value(
                 Variable(
                     (
-                        Atom('d' type=static),
+                        "d",
                         #3,
                     ),
                 ),
@@ -1097,7 +1097,7 @@
             Value(
                 Variable(
                     (
-                        Atom('a' type=static),
+                        "a",
                         #3,
                     ),
                 ),
@@ -1107,7 +1107,7 @@
                     5,
                     Variable(
                         (
-                            Atom('x' type=static),
+                            "x",
                             #3,
                         ),
                     ),
@@ -1116,7 +1116,7 @@
                         [
                             Variable(
                                 (
-                                    Atom('i' type=static),
+                                    "i",
                                     #3,
                                 ),
                             ),
@@ -1217,7 +1217,7 @@
     Member {
         obj: Variable(
             (
-                Atom('x' type=static),
+                "x",
                 #3,
             ),
         ),
@@ -1226,7 +1226,7 @@
             [
                 Variable(
                     (
-                        Atom('i' type=static),
+                        "i",
                         #3,
                     ),
                 ),
@@ -1320,7 +1320,7 @@
     Call {
         func: Variable(
             (
-                Atom('md5ff' type=inline),
+                "md5ff",
                 #2,
             ),
         ),
@@ -1328,7 +1328,7 @@
             Value(
                 Variable(
                     (
-                        Atom('a' type=static),
+                        "a",
                         #3,
                     ),
                 ),
@@ -1336,7 +1336,7 @@
             Value(
                 Variable(
                     (
-                        Atom('b' type=static),
+                        "b",
                         #3,
                     ),
                 ),
@@ -1344,7 +1344,7 @@
             Value(
                 Variable(
                     (
-                        Atom('c' type=inline),
+                        "c",
                         #3,
                     ),
                 ),
@@ -1352,7 +1352,7 @@
             Value(
                 Variable(
                     (
-                        Atom('d' type=static),
+                        "d",
                         #3,
                     ),
                 ),
@@ -1362,7 +1362,7 @@
                     5,
                     Variable(
                         (
-                            Atom('x' type=static),
+                            "x",
                             #3,
                         ),
                     ),
@@ -1371,7 +1371,7 @@
                         [
                             Variable(
                                 (
-                                    Atom('i' type=static),
+                                    "i",
                                     #3,
                                 ),
                             ),
@@ -1472,7 +1472,7 @@
     Member {
         obj: Variable(
             (
-                Atom('x' type=static),
+                "x",
                 #3,
             ),
         ),
@@ -1481,7 +1481,7 @@
             [
                 Variable(
                     (
-                        Atom('i' type=static),
+                        "i",
                         #3,
                     ),
                 ),
@@ -1575,7 +1575,7 @@
     Call {
         func: Variable(
             (
-                Atom('md5ff' type=inline),
+                "md5ff",
                 #2,
             ),
         ),
@@ -1583,7 +1583,7 @@
             Value(
                 Variable(
                     (
-                        Atom('d' type=static),
+                        "d",
                         #3,
                     ),
                 ),
@@ -1591,7 +1591,7 @@
             Value(
                 Variable(
                     (
-                        Atom('a' type=static),
+                        "a",
                         #3,
                     ),
                 ),
@@ -1599,7 +1599,7 @@
             Value(
                 Variable(
                     (
-                        Atom('b' type=static),
+                        "b",
                         #3,
                     ),
                 ),
@@ -1607,7 +1607,7 @@
             Value(
                 Variable(
                     (
-                        Atom('c' type=inline),
+                        "c",
                         #3,
                     ),
                 ),
@@ -1617,7 +1617,7 @@
                     5,
                     Variable(
                         (
-                            Atom('x' type=static),
+                            "x",
                             #3,
                         ),
                     ),
@@ -1626,7 +1626,7 @@
                         [
                             Variable(
                                 (
-                                    Atom('i' type=static),
+                                    "i",
                                     #3,
                                 ),
                             ),
@@ -1730,7 +1730,7 @@
     Member {
         obj: Variable(
             (
-                Atom('x' type=static),
+                "x",
                 #3,
             ),
         ),
@@ -1739,7 +1739,7 @@
             [
                 Variable(
                     (
-                        Atom('i' type=static),
+                        "i",
                         #3,
                     ),
                 ),
@@ -1833,7 +1833,7 @@
     Call {
         func: Variable(
             (
-                Atom('md5ff' type=inline),
+                "md5ff",
                 #2,
             ),
         ),
@@ -1841,7 +1841,7 @@
             Value(
                 Variable(
                     (
-                        Atom('c' type=inline),
+                        "c",
                         #3,
                     ),
                 ),
@@ -1849,7 +1849,7 @@
             Value(
                 Variable(
                     (
-                        Atom('d' type=static),
+                        "d",
                         #3,
                     ),
                 ),
@@ -1857,7 +1857,7 @@
             Value(
                 Variable(
                     (
-                        Atom('a' type=static),
+                        "a",
                         #3,
                     ),
                 ),
@@ -1865,7 +1865,7 @@
             Value(
                 Variable(
                     (
-                        Atom('b' type=static),
+                        "b",
                         #3,
                     ),
                 ),
@@ -1875,7 +1875,7 @@
                     5,
                     Variable(
                         (
-                            Atom('x' type=static),
+                            "x",
                             #3,
                         ),
                     ),
@@ -1884,7 +1884,7 @@
                         [
                             Variable(
                                 (
-                                    Atom('i' type=static),
+                                    "i",
                                     #3,
                                 ),
                             ),
@@ -1985,7 +1985,7 @@
     Member {
         obj: Variable(
             (
-                Atom('x' type=static),
+                "x",
                 #3,
             ),
         ),
@@ -1994,7 +1994,7 @@
             [
                 Variable(
                     (
-                        Atom('i' type=static),
+                        "i",
                         #3,
                     ),
                 ),
@@ -2088,7 +2088,7 @@
     Call {
         func: Variable(
             (
-                Atom('md5ff' type=inline),
+                "md5ff",
                 #2,
             ),
         ),
@@ -2096,7 +2096,7 @@
             Value(
                 Variable(
                     (
-                        Atom('b' type=static),
+                        "b",
                         #3,
                     ),
                 ),
@@ -2104,7 +2104,7 @@
             Value(
                 Variable(
                     (
-                        Atom('c' type=inline),
+                        "c",
                         #3,
                     ),
                 ),
@@ -2112,7 +2112,7 @@
             Value(
                 Variable(
                     (
-                        Atom('d' type=static),
+                        "d",
                         #3,
                     ),
                 ),
@@ -2120,7 +2120,7 @@
             Value(
                 Variable(
                     (
-                        Atom('a' type=static),
+                        "a",
                         #3,
                     ),
                 ),
@@ -2130,7 +2130,7 @@
                     5,
                     Variable(
                         (
-                            Atom('x' type=static),
+                            "x",
                             #3,
                         ),
                     ),
@@ -2139,7 +2139,7 @@
                         [
                             Variable(
                                 (
-                                    Atom('i' type=static),
+                                    "i",
                                     #3,
                                 ),
                             ),
@@ -2240,7 +2240,7 @@
     Member {
         obj: Variable(
             (
-                Atom('x' type=static),
+                "x",
                 #3,
             ),
         ),
@@ -2249,7 +2249,7 @@
             [
                 Variable(
                     (
-                        Atom('i' type=static),
+                        "i",
                         #3,
                     ),
                 ),
@@ -2343,7 +2343,7 @@
     Call {
         func: Variable(
             (
-                Atom('md5ff' type=inline),
+                "md5ff",
                 #2,
             ),
         ),
@@ -2351,7 +2351,7 @@
             Value(
                 Variable(
                     (
-                        Atom('a' type=static),
+                        "a",
                         #3,
                     ),
                 ),
@@ -2359,7 +2359,7 @@
             Value(
                 Variable(
                     (
-                        Atom('b' type=static),
+                        "b",
                         #3,
                     ),
                 ),
@@ -2367,7 +2367,7 @@
             Value(
                 Variable(
                     (
-                        Atom('c' type=inline),
+                        "c",
                         #3,
                     ),
                 ),
@@ -2375,7 +2375,7 @@
             Value(
                 Variable(
                     (
-                        Atom('d' type=static),
+                        "d",
                         #3,
                     ),
                 ),
@@ -2385,7 +2385,7 @@
                     5,
                     Variable(
                         (
-                            Atom('x' type=static),
+                            "x",
                             #3,
                         ),
                     ),
@@ -2394,7 +2394,7 @@
                         [
                             Variable(
                                 (
-                                    Atom('i' type=static),
+                                    "i",
                                     #3,
                                 ),
                             ),
@@ -2498,7 +2498,7 @@
     Member {
         obj: Variable(
             (
-                Atom('x' type=static),
+                "x",
                 #3,
             ),
         ),
@@ -2507,7 +2507,7 @@
             [
                 Variable(
                     (
-                        Atom('i' type=static),
+                        "i",
                         #3,
                     ),
                 ),
@@ -2601,7 +2601,7 @@
     Call {
         func: Variable(
             (
-                Atom('md5ff' type=inline),
+                "md5ff",
                 #2,
             ),
         ),
@@ -2609,7 +2609,7 @@
             Value(
                 Variable(
                     (
-                        Atom('d' type=static),
+                        "d",
                         #3,
                     ),
                 ),
@@ -2617,7 +2617,7 @@
             Value(
                 Variable(
                     (
-                        Atom('a' type=static),
+                        "a",
                         #3,
                     ),
                 ),
@@ -2625,7 +2625,7 @@
             Value(
                 Variable(
                     (
-                        Atom('b' type=static),
+                        "b",
                         #3,
                     ),
                 ),
@@ -2633,7 +2633,7 @@
             Value(
                 Variable(
                     (
-                        Atom('c' type=inline),
+                        "c",
                         #3,
                     ),
                 ),
@@ -2643,7 +2643,7 @@
                     5,
                     Variable(
                         (
-                            Atom('x' type=static),
+                            "x",
                             #3,
                         ),
                     ),
@@ -2652,7 +2652,7 @@
                         [
                             Variable(
                                 (
-                                    Atom('i' type=static),
+                                    "i",
                                     #3,
                                 ),
                             ),
@@ -2753,7 +2753,7 @@
     Member {
         obj: Variable(
             (
-                Atom('x' type=static),
+                "x",
                 #3,
             ),
         ),
@@ -2762,7 +2762,7 @@
             [
                 Variable(
                     (
-                        Atom('i' type=static),
+                        "i",
                         #3,
                     ),
                 ),
@@ -2856,7 +2856,7 @@
     Call {
         func: Variable(
             (
-                Atom('md5ff' type=inline),
+                "md5ff",
                 #2,
             ),
         ),
@@ -2864,7 +2864,7 @@
             Value(
                 Variable(
                     (
-                        Atom('c' type=inline),
+                        "c",
                         #3,
                     ),
                 ),
@@ -2872,7 +2872,7 @@
             Value(
                 Variable(
                     (
-                        Atom('d' type=static),
+                        "d",
                         #3,
                     ),
                 ),
@@ -2880,7 +2880,7 @@
             Value(
                 Variable(
                     (
-                        Atom('a' type=static),
+                        "a",
                         #3,
                     ),
                 ),
@@ -2888,7 +2888,7 @@
             Value(
                 Variable(
                     (
-                        Atom('b' type=static),
+                        "b",
                         #3,
                     ),
                 ),
@@ -2898,7 +2898,7 @@
                     5,
                     Variable(
                         (
-                            Atom('x' type=static),
+                            "x",
                             #3,
                         ),
                     ),
@@ -2907,7 +2907,7 @@
                         [
                             Variable(
                                 (
-                                    Atom('i' type=static),
+                                    "i",
                                     #3,
                                 ),
                             ),
@@ -3008,7 +3008,7 @@
     Member {
         obj: Variable(
             (
-                Atom('x' type=static),
+                "x",
                 #3,
             ),
         ),
@@ -3017,7 +3017,7 @@
             [
                 Variable(
                     (
-                        Atom('i' type=static),
+                        "i",
                         #3,
                     ),
                 ),
@@ -3111,7 +3111,7 @@
     Call {
         func: Variable(
             (
-                Atom('md5ff' type=inline),
+                "md5ff",
                 #2,
             ),
         ),
@@ -3119,7 +3119,7 @@
             Value(
                 Variable(
                     (
-                        Atom('b' type=static),
+                        "b",
                         #3,
                     ),
                 ),
@@ -3127,7 +3127,7 @@
             Value(
                 Variable(
                     (
-                        Atom('c' type=inline),
+                        "c",
                         #3,
                     ),
                 ),
@@ -3135,7 +3135,7 @@
             Value(
                 Variable(
                     (
-                        Atom('d' type=static),
+                        "d",
                         #3,
                     ),
                 ),
@@ -3143,7 +3143,7 @@
             Value(
                 Variable(
                     (
-                        Atom('a' type=static),
+                        "a",
                         #3,
                     ),
                 ),
@@ -3153,7 +3153,7 @@
                     5,
                     Variable(
                         (
-                            Atom('x' type=static),
+                            "x",
                             #3,
                         ),
                     ),
@@ -3162,7 +3162,7 @@
                         [
                             Variable(
                                 (
-                                    Atom('i' type=static),
+                                    "i",
                                     #3,
                                 ),
                             ),
@@ -3263,7 +3263,7 @@
     Member {
         obj: Variable(
             (
-                Atom('x' type=static),
+                "x",
                 #3,
             ),
         ),
@@ -3272,7 +3272,7 @@
             [
                 Variable(
                     (
-                        Atom('i' type=static),
+                        "i",
                         #3,
                     ),
                 ),
@@ -3366,7 +3366,7 @@
     Call {
         func: Variable(
             (
-                Atom('md5ff' type=inline),
+                "md5ff",
                 #2,
             ),
         ),
@@ -3374,7 +3374,7 @@
             Value(
                 Variable(
                     (
-                        Atom('a' type=static),
+                        "a",
                         #3,
                     ),
                 ),
@@ -3382,7 +3382,7 @@
             Value(
                 Variable(
                     (
-                        Atom('b' type=static),
+                        "b",
                         #3,
                     ),
                 ),
@@ -3390,7 +3390,7 @@
             Value(
                 Variable(
                     (
-                        Atom('c' type=inline),
+                        "c",
                         #3,
                     ),
                 ),
@@ -3398,7 +3398,7 @@
             Value(
                 Variable(
                     (
-                        Atom('d' type=static),
+                        "d",
                         #3,
                     ),
                 ),
@@ -3408,7 +3408,7 @@
                     5,
                     Variable(
                         (
-                            Atom('x' type=static),
+                            "x",
                             #3,
                         ),
                     ),
@@ -3417,7 +3417,7 @@
                         [
                             Variable(
                                 (
-                                    Atom('i' type=static),
+                                    "i",
                                     #3,
                                 ),
                             ),
@@ -3521,7 +3521,7 @@
     Member {
         obj: Variable(
             (
-                Atom('x' type=static),
+                "x",
                 #3,
             ),
         ),
@@ -3530,7 +3530,7 @@
             [
                 Variable(
                     (
-                        Atom('i' type=static),
+                        "i",
                         #3,
                     ),
                 ),
@@ -3624,7 +3624,7 @@
     Call {
         func: Variable(
             (
-                Atom('md5ff' type=inline),
+                "md5ff",
                 #2,
             ),
         ),
@@ -3632,7 +3632,7 @@
             Value(
                 Variable(
                     (
-                        Atom('d' type=static),
+                        "d",
                         #3,
                     ),
                 ),
@@ -3640,7 +3640,7 @@
             Value(
                 Variable(
                     (
-                        Atom('a' type=static),
+                        "a",
                         #3,
                     ),
                 ),
@@ -3648,7 +3648,7 @@
             Value(
                 Variable(
                     (
-                        Atom('b' type=static),
+                        "b",
                         #3,
                     ),
                 ),
@@ -3656,7 +3656,7 @@
             Value(
                 Variable(
                     (
-                        Atom('c' type=inline),
+                        "c",
                         #3,
                     ),
                 ),
@@ -3666,7 +3666,7 @@
                     5,
                     Variable(
                         (
-                            Atom('x' type=static),
+                            "x",
                             #3,
                         ),
                     ),
@@ -3675,7 +3675,7 @@
                         [
                             Variable(
                                 (
-                                    Atom('i' type=static),
+                                    "i",
                                     #3,
                                 ),
                             ),
@@ -3776,7 +3776,7 @@
     Member {
         obj: Variable(
             (
-                Atom('x' type=static),
+                "x",
                 #3,
             ),
         ),
@@ -3785,7 +3785,7 @@
             [
                 Variable(
                     (
-                        Atom('i' type=static),
+                        "i",
                         #3,
                     ),
                 ),
@@ -3879,7 +3879,7 @@
     Call {
         func: Variable(
             (
-                Atom('md5ff' type=inline),
+                "md5ff",
                 #2,
             ),
         ),
@@ -3887,7 +3887,7 @@
             Value(
                 Variable(
                     (
-                        Atom('c' type=inline),
+                        "c",
                         #3,
                     ),
                 ),
@@ -3895,7 +3895,7 @@
             Value(
                 Variable(
                     (
-                        Atom('d' type=static),
+                        "d",
                         #3,
                     ),
                 ),
@@ -3903,7 +3903,7 @@
             Value(
                 Variable(
                     (
-                        Atom('a' type=static),
+                        "a",
                         #3,
                     ),
                 ),
@@ -3911,7 +3911,7 @@
             Value(
                 Variable(
                     (
-                        Atom('b' type=static),
+                        "b",
                         #3,
                     ),
                 ),
@@ -3921,7 +3921,7 @@
                     5,
                     Variable(
                         (
-                            Atom('x' type=static),
+                            "x",
                             #3,
                         ),
                     ),
@@ -3930,7 +3930,7 @@
                         [
                             Variable(
                                 (
-                                    Atom('i' type=static),
+                                    "i",
                                     #3,
                                 ),
                             ),
@@ -4031,7 +4031,7 @@
     Member {
         obj: Variable(
             (
-                Atom('x' type=static),
+                "x",
                 #3,
             ),
         ),
@@ -4040,7 +4040,7 @@
             [
                 Variable(
                     (
-                        Atom('i' type=static),
+                        "i",
                         #3,
                     ),
                 ),
@@ -4134,7 +4134,7 @@
     Call {
         func: Variable(
             (
-                Atom('md5ff' type=inline),
+                "md5ff",
                 #2,
             ),
         ),
@@ -4142,7 +4142,7 @@
             Value(
                 Variable(
                     (
-                        Atom('b' type=static),
+                        "b",
                         #3,
                     ),
                 ),
@@ -4150,7 +4150,7 @@
             Value(
                 Variable(
                     (
-                        Atom('c' type=inline),
+                        "c",
                         #3,
                     ),
                 ),
@@ -4158,7 +4158,7 @@
             Value(
                 Variable(
                     (
-                        Atom('d' type=static),
+                        "d",
                         #3,
                     ),
                 ),
@@ -4166,7 +4166,7 @@
             Value(
                 Variable(
                     (
-                        Atom('a' type=static),
+                        "a",
                         #3,
                     ),
                 ),
@@ -4176,7 +4176,7 @@
                     5,
                     Variable(
                         (
-                            Atom('x' type=static),
+                            "x",
                             #3,
                         ),
                     ),
@@ -4185,7 +4185,7 @@
                         [
                             Variable(
                                 (
-                                    Atom('i' type=static),
+                                    "i",
                                     #3,
                                 ),
                             ),
@@ -4288,7 +4288,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('safeAdd' type=inline),
+            "safeAdd",
         ),
         ast_path: [
             Program(
@@ -4348,7 +4348,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('bitRotateLeft' type=dynamic),
+            "bitRotateLeft",
         ),
         ast_path: [
             Program(
@@ -4419,7 +4419,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('safeAdd' type=inline),
+            "safeAdd",
         ),
         ast_path: [
             Program(
@@ -4501,7 +4501,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('safeAdd' type=inline),
+            "safeAdd",
         ),
         ast_path: [
             Program(
@@ -4594,13 +4594,13 @@
     },
     Call {
         func: FreeVar(
-            Atom('safeAdd' type=inline),
+            "safeAdd",
         ),
         args: [
             Value(
                 Variable(
                     (
-                        Atom('a' type=static),
+                        "a",
                         #5,
                     ),
                 ),
@@ -4608,7 +4608,7 @@
             Value(
                 Variable(
                     (
-                        Atom('q' type=static),
+                        "q",
                         #5,
                     ),
                 ),
@@ -4696,7 +4696,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('safeAdd' type=inline),
+            "safeAdd",
         ),
         ast_path: [
             Program(
@@ -4789,13 +4789,13 @@
     },
     Call {
         func: FreeVar(
-            Atom('safeAdd' type=inline),
+            "safeAdd",
         ),
         args: [
             Value(
                 Variable(
                     (
-                        Atom('x' type=static),
+                        "x",
                         #5,
                     ),
                 ),
@@ -4803,7 +4803,7 @@
             Value(
                 Variable(
                     (
-                        Atom('t' type=inline),
+                        "t",
                         #5,
                     ),
                 ),
@@ -4891,25 +4891,25 @@
     },
     Call {
         func: FreeVar(
-            Atom('safeAdd' type=inline),
+            "safeAdd",
         ),
         args: [
             Value(
                 Call(
                     4,
                     FreeVar(
-                        Atom('safeAdd' type=inline),
+                        "safeAdd",
                     ),
                     [
                         Variable(
                             (
-                                Atom('a' type=static),
+                                "a",
                                 #5,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('q' type=static),
+                                "q",
                                 #5,
                             ),
                         ),
@@ -4920,18 +4920,18 @@
                 Call(
                     4,
                     FreeVar(
-                        Atom('safeAdd' type=inline),
+                        "safeAdd",
                     ),
                     [
                         Variable(
                             (
-                                Atom('x' type=static),
+                                "x",
                                 #5,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('t' type=inline),
+                                "t",
                                 #5,
                             ),
                         ),
@@ -5010,31 +5010,31 @@
     },
     Call {
         func: FreeVar(
-            Atom('bitRotateLeft' type=dynamic),
+            "bitRotateLeft",
         ),
         args: [
             Value(
                 Call(
                     10,
                     FreeVar(
-                        Atom('safeAdd' type=inline),
+                        "safeAdd",
                     ),
                     [
                         Call(
                             4,
                             FreeVar(
-                                Atom('safeAdd' type=inline),
+                                "safeAdd",
                             ),
                             [
                                 Variable(
                                     (
-                                        Atom('a' type=static),
+                                        "a",
                                         #5,
                                     ),
                                 ),
                                 Variable(
                                     (
-                                        Atom('q' type=static),
+                                        "q",
                                         #5,
                                     ),
                                 ),
@@ -5043,18 +5043,18 @@
                         Call(
                             4,
                             FreeVar(
-                                Atom('safeAdd' type=inline),
+                                "safeAdd",
                             ),
                             [
                                 Variable(
                                     (
-                                        Atom('x' type=static),
+                                        "x",
                                         #5,
                                     ),
                                 ),
                                 Variable(
                                     (
-                                        Atom('t' type=inline),
+                                        "t",
                                         #5,
                                     ),
                                 ),
@@ -5066,7 +5066,7 @@
             Value(
                 Variable(
                     (
-                        Atom('s' type=static),
+                        "s",
                         #5,
                     ),
                 ),
@@ -5132,37 +5132,37 @@
     },
     Call {
         func: FreeVar(
-            Atom('safeAdd' type=inline),
+            "safeAdd",
         ),
         args: [
             Value(
                 Call(
                     13,
                     FreeVar(
-                        Atom('bitRotateLeft' type=dynamic),
+                        "bitRotateLeft",
                     ),
                     [
                         Call(
                             10,
                             FreeVar(
-                                Atom('safeAdd' type=inline),
+                                "safeAdd",
                             ),
                             [
                                 Call(
                                     4,
                                     FreeVar(
-                                        Atom('safeAdd' type=inline),
+                                        "safeAdd",
                                     ),
                                     [
                                         Variable(
                                             (
-                                                Atom('a' type=static),
+                                                "a",
                                                 #5,
                                             ),
                                         ),
                                         Variable(
                                             (
-                                                Atom('q' type=static),
+                                                "q",
                                                 #5,
                                             ),
                                         ),
@@ -5171,18 +5171,18 @@
                                 Call(
                                     4,
                                     FreeVar(
-                                        Atom('safeAdd' type=inline),
+                                        "safeAdd",
                                     ),
                                     [
                                         Variable(
                                             (
-                                                Atom('x' type=static),
+                                                "x",
                                                 #5,
                                             ),
                                         ),
                                         Variable(
                                             (
-                                                Atom('t' type=inline),
+                                                "t",
                                                 #5,
                                             ),
                                         ),
@@ -5192,7 +5192,7 @@
                         ),
                         Variable(
                             (
-                                Atom('s' type=static),
+                                "s",
                                 #5,
                             ),
                         ),
@@ -5202,7 +5202,7 @@
             Value(
                 Variable(
                     (
-                        Atom('b' type=static),
+                        "b",
                         #5,
                     ),
                 ),
@@ -5258,7 +5258,7 @@
     Call {
         func: Variable(
             (
-                Atom('md5cmn' type=inline),
+                "md5cmn",
                 #2,
             ),
         ),
@@ -5272,7 +5272,7 @@
             Value(
                 Variable(
                     (
-                        Atom('a' type=static),
+                        "a",
                         #6,
                     ),
                 ),
@@ -5280,7 +5280,7 @@
             Value(
                 Variable(
                     (
-                        Atom('b' type=static),
+                        "b",
                         #6,
                     ),
                 ),
@@ -5288,7 +5288,7 @@
             Value(
                 Variable(
                     (
-                        Atom('x' type=static),
+                        "x",
                         #6,
                     ),
                 ),
@@ -5296,7 +5296,7 @@
             Value(
                 Variable(
                     (
-                        Atom('s' type=static),
+                        "s",
                         #6,
                     ),
                 ),
@@ -5304,7 +5304,7 @@
             Value(
                 Variable(
                     (
-                        Atom('t' type=inline),
+                        "t",
                         #6,
                     ),
                 ),
@@ -5359,12 +5359,12 @@
     },
     Member {
         obj: FreeVar(
-            Atom('module' type=static),
+            "module",
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('exports' type=inline),
+                Atom(
+                    "exports",
                 ),
             ),
         ),
@@ -5412,7 +5412,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('module' type=static),
+            "module",
         ),
         ast_path: [
             Program(
@@ -5464,7 +5464,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('md5' type=inline),
+            "md5",
         ),
         ast_path: [
             Program(

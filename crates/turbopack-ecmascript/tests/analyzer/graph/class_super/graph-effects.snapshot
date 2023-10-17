@@ -5,7 +5,7 @@
             [
                 Variable(
                     (
-                        Atom('*arrow function 138*' type=dynamic),
+                        "*arrow function 138*",
                         #0,
                     ),
                 ),
@@ -15,7 +15,7 @@
             Closure(
                 Variable(
                     (
-                        Atom('*arrow function 138*' type=dynamic),
+                        "*arrow function 138*",
                         #0,
                     ),
                 ),
@@ -129,7 +129,7 @@
                                 3,
                                 Module(
                                     ModuleValue {
-                                        module: Atom('./module.js' type=dynamic),
+                                        module: "./module.js",
                                         annotations: ImportAnnotations {
                                             map: {},
                                         },
@@ -137,8 +137,8 @@
                                 ),
                                 Constant(
                                     Str(
-                                        Word(
-                                            Atom('named' type=inline),
+                                        Atom(
+                                            "named",
                                         ),
                                     ),
                                 ),

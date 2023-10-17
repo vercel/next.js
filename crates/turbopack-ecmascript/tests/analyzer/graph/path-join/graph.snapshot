@@ -4,13 +4,13 @@
         Call(
             3,
             FreeVar(
-                Atom('require' type=static),
+                "require",
             ),
             [
                 Constant(
                     Str(
                         Word(
-                            Atom('foo' type=inline),
+                            "foo",
                         ),
                     ),
                 ),
@@ -22,13 +22,13 @@
         Call(
             3,
             FreeVar(
-                Atom('require' type=static),
+                "require",
             ),
             [
                 Constant(
                     Str(
                         Word(
-                            Atom('path' type=static),
+                            "path",
                         ),
                     ),
                 ),
@@ -41,14 +41,14 @@
             5,
             Variable(
                 (
-                    Atom('path' type=static),
+                    "path",
                     #2,
                 ),
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('join' type=inline),
+                    Atom(
+                        "join",
                     ),
                 ),
             ),
@@ -56,14 +56,14 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('foo' type=inline),
+                            "foo",
                         ),
                     ),
                 ),
                 Constant(
                     Str(
                         Word(
-                            Atom('bar' type=inline),
+                            "bar",
                         ),
                     ),
                 ),
@@ -76,14 +76,14 @@
             5,
             Variable(
                 (
-                    Atom('path' type=static),
+                    "path",
                     #2,
                 ),
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('join' type=inline),
+                    Atom(
+                        "join",
                     ),
                 ),
             ),
@@ -91,14 +91,14 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('foo/' type=inline),
+                            "foo/",
                         ),
                     ),
                 ),
                 Constant(
                     Str(
                         Word(
-                            Atom('bar' type=inline),
+                            "bar",
                         ),
                     ),
                 ),
@@ -111,14 +111,14 @@
             5,
             Variable(
                 (
-                    Atom('path' type=static),
+                    "path",
                     #2,
                 ),
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('join' type=inline),
+                    Atom(
+                        "join",
                     ),
                 ),
             ),
@@ -126,14 +126,14 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('foo' type=inline),
+                            "foo",
                         ),
                     ),
                 ),
                 Constant(
                     Str(
                         Word(
-                            Atom('/bar' type=inline),
+                            "/bar",
                         ),
                     ),
                 ),
@@ -146,14 +146,14 @@
             5,
             Variable(
                 (
-                    Atom('path' type=static),
+                    "path",
                     #2,
                 ),
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('join' type=inline),
+                    Atom(
+                        "join",
                     ),
                 ),
             ),
@@ -161,14 +161,14 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('foo/' type=inline),
+                            "foo/",
                         ),
                     ),
                 ),
                 Constant(
                     Str(
                         Word(
-                            Atom('/bar' type=inline),
+                            "/bar",
                         ),
                     ),
                 ),
@@ -181,14 +181,14 @@
             10,
             Variable(
                 (
-                    Atom('path' type=static),
+                    "path",
                     #2,
                 ),
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('join' type=inline),
+                    Atom(
+                        "join",
                     ),
                 ),
             ),
@@ -196,45 +196,45 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('foo' type=inline),
+                            "foo",
                         ),
                     ),
                 ),
                 Constant(
                     Str(
                         Word(
-                            Atom('bar' type=inline),
+                            "bar",
                         ),
                     ),
                 ),
                 Constant(
                     Str(
                         Word(
-                            Atom('..' type=inline),
+                            "..",
                         ),
                     ),
                 ),
                 Constant(
                     Str(
                         Word(
-                            Atom('baz' type=inline),
+                            "baz",
                         ),
                     ),
                 ),
                 FreeVar(
-                    Atom('global' type=static),
+                    "global",
                 ),
                 Constant(
                     Str(
                         Word(
-                            Atom('..' type=inline),
+                            "..",
                         ),
                     ),
                 ),
                 Constant(
                     Str(
                         Word(
-                            Atom('foo' type=inline),
+                            "foo",
                         ),
                     ),
                 ),

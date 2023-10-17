@@ -2,14 +2,14 @@
     Member {
         obj: Variable(
             (
-                Atom('object' type=static),
+                "object",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('a' type=static),
+                Atom(
+                    "a",
                 ),
             ),
         ),
@@ -54,14 +54,14 @@
     Member {
         obj: Variable(
             (
-                Atom('object' type=static),
+                "object",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
                 Word(
-                    Atom('a' type=static),
+                    "a",
                 ),
             ),
         ),
@@ -106,14 +106,14 @@
     Member {
         obj: Variable(
             (
-                Atom('object' type=static),
+                "object",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('b' type=static),
+                Atom(
+                    "b",
                 ),
             ),
         ),
@@ -158,14 +158,14 @@
     Member {
         obj: Variable(
             (
-                Atom('object' type=static),
+                "object",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
                 Word(
-                    Atom('b' type=static),
+                    "b",
                 ),
             ),
         ),
@@ -210,14 +210,14 @@
     Member {
         obj: Variable(
             (
-                Atom('object' type=static),
+                "object",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('c' type=inline),
+                Atom(
+                    "c",
                 ),
             ),
         ),
@@ -262,14 +262,14 @@
     Member {
         obj: Variable(
             (
-                Atom('object' type=static),
+                "object",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
                 Word(
-                    Atom('c' type=inline),
+                    "c",
                 ),
             ),
         ),
@@ -314,14 +314,14 @@
     Member {
         obj: Variable(
             (
-                Atom('object' type=static),
+                "object",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('d' type=static),
+                Atom(
+                    "d",
                 ),
             ),
         ),
@@ -366,14 +366,14 @@
     Member {
         obj: Variable(
             (
-                Atom('object' type=static),
+                "object",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
                 Word(
-                    Atom('d' type=static),
+                    "d",
                 ),
             ),
         ),
@@ -418,14 +418,14 @@
     Member {
         obj: Variable(
             (
-                Atom('object_spread' type=dynamic),
+                "object_spread",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('a' type=static),
+                Atom(
+                    "a",
                 ),
             ),
         ),
@@ -470,14 +470,14 @@
     Member {
         obj: Variable(
             (
-                Atom('object_spread' type=dynamic),
+                "object_spread",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('b' type=static),
+                Atom(
+                    "b",
                 ),
             ),
         ),
@@ -522,14 +522,14 @@
     Member {
         obj: Variable(
             (
-                Atom('object_spread' type=dynamic),
+                "object_spread",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('c' type=inline),
+                Atom(
+                    "c",
                 ),
             ),
         ),
@@ -574,14 +574,14 @@
     Member {
         obj: Variable(
             (
-                Atom('object_spread' type=dynamic),
+                "object_spread",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('d' type=static),
+                Atom(
+                    "d",
                 ),
             ),
         ),
@@ -625,7 +625,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('global' type=static),
+            "global",
         ),
         ast_path: [
             Program(
@@ -682,14 +682,14 @@
     Member {
         obj: Variable(
             (
-                Atom('unknown_spread' type=dynamic),
+                "unknown_spread",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('a' type=static),
+                Atom(
+                    "a",
                 ),
             ),
         ),
@@ -734,14 +734,14 @@
     Member {
         obj: Variable(
             (
-                Atom('unknown_spread' type=dynamic),
+                "unknown_spread",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('b' type=static),
+                Atom(
+                    "b",
                 ),
             ),
         ),
@@ -786,14 +786,14 @@
     Member {
         obj: Variable(
             (
-                Atom('unknown_spread' type=dynamic),
+                "unknown_spread",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('c' type=inline),
+                Atom(
+                    "c",
                 ),
             ),
         ),
@@ -837,7 +837,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('global' type=static),
+            "global",
         ),
         ast_path: [
             Program(
@@ -902,7 +902,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('global' type=static),
+            "global",
         ),
         ast_path: [
             Program(
@@ -968,14 +968,14 @@
     Member {
         obj: Variable(
             (
-                Atom('object2' type=inline),
+                "object2",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('a' type=static),
+                Atom(
+                    "a",
                 ),
             ),
         ),
@@ -1020,14 +1020,14 @@
     Member {
         obj: Variable(
             (
-                Atom('object2' type=inline),
+                "object2",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('b' type=static),
+                Atom(
+                    "b",
                 ),
             ),
         ),
@@ -1072,14 +1072,14 @@
     Member {
         obj: Variable(
             (
-                Atom('object2' type=inline),
+                "object2",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('c' type=inline),
+                Atom(
+                    "c",
                 ),
             ),
         ),
@@ -1124,14 +1124,14 @@
     Member {
         obj: Variable(
             (
-                Atom('object2' type=inline),
+                "object2",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('d' type=static),
+                Atom(
+                    "d",
                 ),
             ),
         ),
@@ -1176,14 +1176,14 @@
     Member {
         obj: Variable(
             (
-                Atom('object2' type=inline),
+                "object2",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('e' type=static),
+                Atom(
+                    "e",
                 ),
             ),
         ),

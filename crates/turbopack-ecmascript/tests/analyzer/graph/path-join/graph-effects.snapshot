@@ -1,7 +1,7 @@
 [
     FreeVar {
         var: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         ast_path: [
             Program(
@@ -52,14 +52,14 @@
     },
     Call {
         func: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         args: [
             Value(
                 Constant(
                     Str(
                         Word(
-                            Atom('foo' type=inline),
+                            "foo",
                         ),
                     ),
                 ),
@@ -105,7 +105,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         ast_path: [
             Program(
@@ -156,14 +156,14 @@
     },
     Call {
         func: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         args: [
             Value(
                 Constant(
                     Str(
                         Word(
-                            Atom('path' type=static),
+                            "path",
                         ),
                     ),
                 ),
@@ -210,14 +210,14 @@
     Member {
         obj: Variable(
             (
-                Atom('path' type=static),
+                "path",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('join' type=inline),
+                Atom(
+                    "join",
                 ),
             ),
         ),
@@ -271,14 +271,14 @@
     MemberCall {
         obj: Variable(
             (
-                Atom('path' type=static),
+                "path",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('join' type=inline),
+                Atom(
+                    "join",
                 ),
             ),
         ),
@@ -287,7 +287,7 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('foo' type=inline),
+                            "foo",
                         ),
                     ),
                 ),
@@ -296,7 +296,7 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('bar' type=inline),
+                            "bar",
                         ),
                     ),
                 ),
@@ -343,14 +343,14 @@
     Member {
         obj: Variable(
             (
-                Atom('path' type=static),
+                "path",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('join' type=inline),
+                Atom(
+                    "join",
                 ),
             ),
         ),
@@ -404,14 +404,14 @@
     MemberCall {
         obj: Variable(
             (
-                Atom('path' type=static),
+                "path",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('join' type=inline),
+                Atom(
+                    "join",
                 ),
             ),
         ),
@@ -420,7 +420,7 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('foo/' type=inline),
+                            "foo/",
                         ),
                     ),
                 ),
@@ -429,7 +429,7 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('bar' type=inline),
+                            "bar",
                         ),
                     ),
                 ),
@@ -476,14 +476,14 @@
     Member {
         obj: Variable(
             (
-                Atom('path' type=static),
+                "path",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('join' type=inline),
+                Atom(
+                    "join",
                 ),
             ),
         ),
@@ -537,14 +537,14 @@
     MemberCall {
         obj: Variable(
             (
-                Atom('path' type=static),
+                "path",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('join' type=inline),
+                Atom(
+                    "join",
                 ),
             ),
         ),
@@ -553,7 +553,7 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('foo' type=inline),
+                            "foo",
                         ),
                     ),
                 ),
@@ -562,7 +562,7 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('/bar' type=inline),
+                            "/bar",
                         ),
                     ),
                 ),
@@ -609,14 +609,14 @@
     Member {
         obj: Variable(
             (
-                Atom('path' type=static),
+                "path",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('join' type=inline),
+                Atom(
+                    "join",
                 ),
             ),
         ),
@@ -670,14 +670,14 @@
     MemberCall {
         obj: Variable(
             (
-                Atom('path' type=static),
+                "path",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('join' type=inline),
+                Atom(
+                    "join",
                 ),
             ),
         ),
@@ -686,7 +686,7 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('foo/' type=inline),
+                            "foo/",
                         ),
                     ),
                 ),
@@ -695,7 +695,7 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('/bar' type=inline),
+                            "/bar",
                         ),
                     ),
                 ),
@@ -742,14 +742,14 @@
     Member {
         obj: Variable(
             (
-                Atom('path' type=static),
+                "path",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('join' type=inline),
+                Atom(
+                    "join",
                 ),
             ),
         ),
@@ -802,7 +802,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('global' type=static),
+            "global",
         ),
         ast_path: [
             Program(
@@ -856,14 +856,14 @@
     MemberCall {
         obj: Variable(
             (
-                Atom('path' type=static),
+                "path",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('join' type=inline),
+                Atom(
+                    "join",
                 ),
             ),
         ),
@@ -872,7 +872,7 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('foo' type=inline),
+                            "foo",
                         ),
                     ),
                 ),
@@ -881,7 +881,7 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('bar' type=inline),
+                            "bar",
                         ),
                     ),
                 ),
@@ -890,7 +890,7 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('..' type=inline),
+                            "..",
                         ),
                     ),
                 ),
@@ -899,21 +899,21 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('baz' type=inline),
+                            "baz",
                         ),
                     ),
                 ),
             ),
             Value(
                 FreeVar(
-                    Atom('global' type=static),
+                    "global",
                 ),
             ),
             Value(
                 Constant(
                     Str(
                         Word(
-                            Atom('..' type=inline),
+                            "..",
                         ),
                     ),
                 ),
@@ -922,7 +922,7 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('foo' type=inline),
+                            "foo",
                         ),
                     ),
                 ),

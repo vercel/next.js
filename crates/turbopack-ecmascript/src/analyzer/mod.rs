@@ -133,12 +133,6 @@ impl Display for ConstantString {
     }
 }
 
-impl From<JsWord> for ConstantString {
-    fn from(v: JsWord) -> Self {
-        ConstantString::Word(v)
-    }
-}
-
 impl From<Atom> for ConstantString {
     fn from(v: Atom) -> Self {
         ConstantString::Atom(v)
@@ -452,12 +446,6 @@ pub enum JsValue {
 impl From<&'_ str> for JsValue {
     fn from(v: &str) -> Self {
         ConstantValue::Str(ConstantString::Word(v.into())).into()
-    }
-}
-
-impl From<JsWord> for JsValue {
-    fn from(v: JsWord) -> Self {
-        ConstantValue::Str(ConstantString::Word(v)).into()
     }
 }
 

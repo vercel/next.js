@@ -4,14 +4,14 @@
             3,
             Variable(
                 (
-                    Atom('r' type=inline),
+                    "r",
                     #3,
                 ),
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('keys' type=inline),
+                    Atom(
+                        "keys",
                     ),
                 ),
             ),
@@ -19,8 +19,8 @@
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('map' type=static),
+                Atom(
+                    "map",
                 ),
             ),
         ),
@@ -83,14 +83,14 @@
     Member {
         obj: Variable(
             (
-                Atom('r' type=inline),
+                "r",
                 #3,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('keys' type=inline),
+                Atom(
+                    "keys",
                 ),
             ),
         ),
@@ -168,14 +168,14 @@
     MemberCall {
         obj: Variable(
             (
-                Atom('r' type=inline),
+                "r",
                 #3,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('keys' type=inline),
+                Atom(
+                    "keys",
                 ),
             ),
         ),
@@ -247,14 +247,14 @@
             3,
             Variable(
                 (
-                    Atom('r' type=inline),
+                    "r",
                     #3,
                 ),
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('keys' type=inline),
+                    Atom(
+                        "keys",
                     ),
                 ),
             ),
@@ -262,8 +262,8 @@
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('map' type=static),
+                Atom(
+                    "map",
                 ),
             ),
         ),
@@ -271,7 +271,7 @@
             Value(
                 Variable(
                     (
-                        Atom('r' type=inline),
+                        "r",
                         #3,
                     ),
                 ),
@@ -326,12 +326,12 @@
     },
     Member {
         obj: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('context' type=inline),
+                Atom(
+                    "context",
                 ),
             ),
         ),
@@ -384,7 +384,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         ast_path: [
             Program(
@@ -441,12 +441,12 @@
     },
     MemberCall {
         obj: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('context' type=inline),
+                Atom(
+                    "context",
                 ),
             ),
         ),
@@ -455,7 +455,7 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('./test' type=inline),
+                            "./test",
                         ),
                     ),
                 ),
@@ -515,7 +515,7 @@
     Call {
         func: Variable(
             (
-                Atom('importAll' type=dynamic),
+                "importAll",
                 #2,
             ),
         ),
@@ -523,7 +523,7 @@
             Value(
                 Variable(
                     (
-                        Atom('context' type=inline),
+                        "context",
                         #2,
                     ),
                 ),
@@ -570,14 +570,14 @@
     Member {
         obj: Variable(
             (
-                Atom('context' type=inline),
+                "context",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('resolve' type=inline),
+                Atom(
+                    "resolve",
                 ),
             ),
         ),
@@ -631,14 +631,14 @@
     MemberCall {
         obj: Variable(
             (
-                Atom('context' type=inline),
+                "context",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('resolve' type=inline),
+                Atom(
+                    "resolve",
                 ),
             ),
         ),
@@ -647,7 +647,7 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('./a' type=inline),
+                            "./a",
                         ),
                     ),
                 ),

@@ -147,14 +147,14 @@
     },
     Call {
         func: FreeVar(
-            Atom('import' type=static),
+            "import",
         ),
         args: [
             Value(
                 Constant(
                     Str(
                         Word(
-                            Atom('a' type=static),
+                            "a",
                         ),
                     ),
                 ),
@@ -207,14 +207,14 @@
                 effects: [
                     Call {
                         func: FreeVar(
-                            Atom('import' type=static),
+                            "import",
                         ),
                         args: [
                             Value(
                                 Constant(
                                     Str(
                                         Word(
-                                            Atom('a' type=static),
+                                            "a",
                                         ),
                                     ),
                                 ),
@@ -292,14 +292,14 @@
                 effects: [
                     Call {
                         func: FreeVar(
-                            Atom('import' type=static),
+                            "import",
                         ),
                         args: [
                             Value(
                                 Constant(
                                     Str(
                                         Word(
-                                            Atom('b' type=static),
+                                            "b",
                                         ),
                                     ),
                                 ),

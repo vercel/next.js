@@ -13,7 +13,7 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('foo' type=inline),
+                            "foo",
                         ),
                     ),
                 ),
@@ -23,12 +23,12 @@
         prop: Member(
             3,
             FreeVar(
-                Atom('global' type=static),
+                "global",
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('index' type=inline),
+                    Atom(
+                        "index",
                     ),
                 ),
             ),
@@ -73,12 +73,12 @@
     },
     Member {
         obj: FreeVar(
-            Atom('global' type=static),
+            "global",
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('index' type=inline),
+                Atom(
+                    "index",
                 ),
             ),
         ),
@@ -134,7 +134,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('global' type=static),
+            "global",
         ),
         ast_path: [
             Program(
@@ -195,19 +195,19 @@
     Member {
         obj: Variable(
             (
-                Atom('d1' type=inline),
+                "d1",
                 #2,
             ),
         ),
         prop: Member(
             3,
             FreeVar(
-                Atom('global' type=static),
+                "global",
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('index' type=inline),
+                    Atom(
+                        "index",
                     ),
                 ),
             ),
@@ -252,12 +252,12 @@
     },
     Member {
         obj: FreeVar(
-            Atom('global' type=static),
+            "global",
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('index' type=inline),
+                Atom(
+                    "index",
                 ),
             ),
         ),
@@ -313,7 +313,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('global' type=static),
+            "global",
         ),
         ast_path: [
             Program(
@@ -374,7 +374,7 @@
     Member {
         obj: Variable(
             (
-                Atom('d1' type=inline),
+                "d1",
                 #2,
             ),
         ),
@@ -426,7 +426,7 @@
     Member {
         obj: Variable(
             (
-                Atom('d1' type=inline),
+                "d1",
                 #2,
             ),
         ),

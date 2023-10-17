@@ -1,7 +1,7 @@
 [
     FreeVar {
         var: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         ast_path: [
             Program(
@@ -52,14 +52,14 @@
     },
     Call {
         func: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         args: [
             Value(
                 Constant(
                     Str(
                         Word(
-                            Atom('path' type=static),
+                            "path",
                         ),
                     ),
                 ),
@@ -105,7 +105,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         ast_path: [
             Program(
@@ -156,14 +156,14 @@
     },
     Call {
         func: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         args: [
             Value(
                 Constant(
                     Str(
                         Word(
-                            Atom('path' type=static),
+                            "path",
                         ),
                     ),
                 ),
@@ -210,12 +210,12 @@
     Member {
         obj: Variable(
             (
-                Atom('knownWindowsPackages' type=dynamic),
+                "knownWindowsPackages",
                 #2,
             ),
         ),
         prop: FreeVar(
-            Atom('platformKey' type=dynamic),
+            "platformKey",
         ),
         ast_path: [
             Program(
@@ -272,7 +272,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('platformKey' type=dynamic),
+            "platformKey",
         ),
         ast_path: [
             Program(
@@ -342,7 +342,7 @@
     Call {
         func: Variable(
             (
-                Atom('pkgAndSubpathForCurrentPlatform' type=dynamic),
+                "pkgAndSubpathForCurrentPlatform",
                 #2,
             ),
         ),
@@ -404,12 +404,12 @@
     },
     Member {
         obj: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('resolve' type=inline),
+                Atom(
+                    "resolve",
                 ),
             ),
         ),
@@ -488,7 +488,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         ast_path: [
             Program(
@@ -571,12 +571,12 @@
     },
     MemberCall {
         obj: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('resolve' type=inline),
+                Atom(
+                    "resolve",
                 ),
             ),
         ),
@@ -587,7 +587,7 @@
                     [
                         Variable(
                             (
-                                Atom('pkg' type=inline),
+                                "pkg",
                                 #4,
                             ),
                         ),
@@ -600,7 +600,7 @@
                         ),
                         Variable(
                             (
-                                Atom('subpath' type=inline),
+                                "subpath",
                                 #4,
                             ),
                         ),
@@ -675,7 +675,7 @@
     Call {
         func: Variable(
             (
-                Atom('generateBinPath' type=dynamic),
+                "generateBinPath",
                 #2,
             ),
         ),

@@ -2,14 +2,14 @@
     Member {
         obj: Variable(
             (
-                Atom('exports' type=inline),
+                "exports",
                 #3,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('id' type=static),
+                Atom(
+                    "id",
                 ),
             ),
         ),
@@ -93,14 +93,14 @@
     Member {
         obj: Variable(
             (
-                Atom('exports' type=inline),
+                "exports",
                 #3,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('ids' type=inline),
+                Atom(
+                    "ids",
                 ),
             ),
         ),
@@ -184,14 +184,14 @@
     Member {
         obj: Variable(
             (
-                Atom('exports' type=inline),
+                "exports",
                 #3,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('modules' type=inline),
+                Atom(
+                    "modules",
                 ),
             ),
         ),
@@ -275,14 +275,14 @@
     Member {
         obj: Variable(
             (
-                Atom('__webpack_require__' type=dynamic),
+                "__webpack_require__",
                 #4,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('r' type=inline),
+                Atom(
+                    "r",
                 ),
             ),
         ),
@@ -406,14 +406,14 @@
     MemberCall {
         obj: Variable(
             (
-                Atom('__webpack_require__' type=dynamic),
+                "__webpack_require__",
                 #4,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('r' type=inline),
+                Atom(
+                    "r",
                 ),
             ),
         ),
@@ -421,7 +421,7 @@
             Value(
                 Variable(
                     (
-                        Atom('__webpack_exports__' type=dynamic),
+                        "__webpack_exports__",
                         #4,
                     ),
                 ),
@@ -538,14 +538,14 @@
     Member {
         obj: Variable(
             (
-                Atom('__webpack_require__' type=dynamic),
+                "__webpack_require__",
                 #4,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('d' type=static),
+                Atom(
+                    "d",
                 ),
             ),
         ),
@@ -669,14 +669,14 @@
     MemberCall {
         obj: Variable(
             (
-                Atom('__webpack_require__' type=dynamic),
+                "__webpack_require__",
                 #4,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('d' type=static),
+                Atom(
+                    "d",
                 ),
             ),
         ),
@@ -684,7 +684,7 @@
             Value(
                 Variable(
                     (
-                        Atom('__webpack_exports__' type=dynamic),
+                        "__webpack_exports__",
                         #4,
                     ),
                 ),
@@ -696,14 +696,14 @@
                         KeyValue(
                             Constant(
                                 Str(
-                                    Word(
-                                        Atom('default' type=static),
+                                    Atom(
+                                        "default",
                                     ),
                                 ),
                             ),
                             Variable(
                                 (
-                                    Atom('*arrow function 389*' type=dynamic),
+                                    "*arrow function 389*",
                                     #0,
                                 ),
                             ),
@@ -823,7 +823,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         ast_path: [
             Program(
@@ -952,14 +952,14 @@
     },
     Call {
         func: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         args: [
             Value(
                 Constant(
                     Str(
                         Word(
-                            Atom('fs/promises' type=dynamic),
+                            "fs/promises",
                         ),
                     ),
                 ),
@@ -1084,14 +1084,14 @@
     Member {
         obj: Variable(
             (
-                Atom('promises_namespaceObject' type=dynamic),
+                "promises_namespaceObject",
                 #4,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('readFile' type=dynamic),
+                Atom(
+                    "readFile",
                 ),
             ),
         ),
@@ -1260,14 +1260,14 @@
     MemberCall {
         obj: Variable(
             (
-                Atom('promises_namespaceObject' type=dynamic),
+                "promises_namespaceObject",
                 #4,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('readFile' type=dynamic),
+                Atom(
+                    "readFile",
                 ),
             ),
         ),
@@ -1276,7 +1276,7 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('./hello.txt' type=dynamic),
+                            "./hello.txt",
                         ),
                     ),
                 ),
@@ -1285,7 +1285,7 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('utf-8' type=inline),
+                            "utf-8",
                         ),
                     ),
                 ),
@@ -1435,14 +1435,14 @@
             4,
             Variable(
                 (
-                    Atom('res' type=inline),
+                    "res",
                     #5,
                 ),
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('status' type=inline),
+                    Atom(
+                        "status",
                     ),
                 ),
             ),
@@ -1458,8 +1458,8 @@
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('json' type=inline),
+                Atom(
+                    "json",
                 ),
             ),
         ),
@@ -1600,14 +1600,14 @@
     Member {
         obj: Variable(
             (
-                Atom('res' type=inline),
+                "res",
                 #5,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('status' type=inline),
+                Atom(
+                    "status",
                 ),
             ),
         ),
@@ -1763,14 +1763,14 @@
     MemberCall {
         obj: Variable(
             (
-                Atom('res' type=inline),
+                "res",
                 #5,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('status' type=inline),
+                Atom(
+                    "status",
                 ),
             ),
         ),
@@ -1930,14 +1930,14 @@
             4,
             Variable(
                 (
-                    Atom('res' type=inline),
+                    "res",
                     #5,
                 ),
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('status' type=inline),
+                    Atom(
+                        "status",
                     ),
                 ),
             ),
@@ -1953,8 +1953,8 @@
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('json' type=inline),
+                Atom(
+                    "json",
                 ),
             ),
         ),
@@ -1966,14 +1966,14 @@
                         KeyValue(
                             Constant(
                                 Str(
-                                    Word(
-                                        Atom('users' type=inline),
+                                    Atom(
+                                        "users",
                                     ),
                                 ),
                             ),
                             Variable(
                                 (
-                                    Atom('users' type=inline),
+                                    "users",
                                     #4,
                                 ),
                             ),
@@ -1981,14 +1981,14 @@
                         KeyValue(
                             Constant(
                                 Str(
-                                    Word(
-                                        Atom('hello' type=inline),
+                                    Atom(
+                                        "hello",
                                     ),
                                 ),
                             ),
                             Variable(
                                 (
-                                    Atom('hello' type=inline),
+                                    "hello",
                                     #5,
                                 ),
                             ),
@@ -2125,7 +2125,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         ast_path: [
             Program(
@@ -2211,14 +2211,14 @@
     },
     Call {
         func: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         args: [
             Value(
                 Constant(
                     Str(
                         Word(
-                            Atom('../../webpack-api-runtime.js' type=dynamic),
+                            "../../webpack-api-runtime.js",
                         ),
                     ),
                 ),
@@ -2300,14 +2300,14 @@
     Member {
         obj: Variable(
             (
-                Atom('__webpack_require__' type=dynamic),
+                "__webpack_require__",
                 #3,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('C' type=inline),
+                Atom(
+                    "C",
                 ),
             ),
         ),
@@ -2388,14 +2388,14 @@
     MemberCall {
         obj: Variable(
             (
-                Atom('__webpack_require__' type=dynamic),
+                "__webpack_require__",
                 #3,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('C' type=inline),
+                Atom(
+                    "C",
                 ),
             ),
         ),
@@ -2403,7 +2403,7 @@
             Value(
                 Variable(
                     (
-                        Atom('exports' type=inline),
+                        "exports",
                         #3,
                     ),
                 ),
@@ -2477,14 +2477,14 @@
     Member {
         obj: Variable(
             (
-                Atom('__webpack_require__' type=dynamic),
+                "__webpack_require__",
                 #3,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('s' type=static),
+                Atom(
+                    "s",
                 ),
             ),
         ),
@@ -2602,7 +2602,7 @@
     Call {
         func: Variable(
             (
-                Atom('__webpack_require__' type=dynamic),
+                "__webpack_require__",
                 #3,
             ),
         ),
@@ -2699,7 +2699,7 @@
     Call {
         func: Variable(
             (
-                Atom('__webpack_exec__' type=dynamic),
+                "__webpack_exec__",
                 #3,
             ),
         ),
@@ -2789,12 +2789,12 @@
     },
     Member {
         obj: FreeVar(
-            Atom('module' type=static),
+            "module",
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('exports' type=inline),
+                Atom(
+                    "exports",
                 ),
             ),
         ),
@@ -2877,7 +2877,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('module' type=static),
+            "module",
         ),
         ast_path: [
             Program(

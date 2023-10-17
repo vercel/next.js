@@ -4,12 +4,12 @@
         MemberCall(
             4,
             FreeVar(
-                Atom('Buffer' type=inline),
+                "Buffer",
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('from' type=static),
+                    Atom(
+                        "from",
                     ),
                 ),
             ),
@@ -17,7 +17,7 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('Hello World' type=dynamic),
+                            "Hello World",
                         ),
                     ),
                 ),

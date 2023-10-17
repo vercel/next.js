@@ -1,12 +1,12 @@
 [
     Member {
         obj: FreeVar(
-            Atom('global' type=static),
+            "global",
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('MONGOOSE_DRIVER_PATH' type=dynamic),
+                Atom(
+                    "MONGOOSE_DRIVER_PATH",
                 ),
             ),
         ),
@@ -56,7 +56,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('global' type=static),
+            "global",
         ),
         ast_path: [
             Program(
@@ -110,7 +110,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         ast_path: [
             Program(
@@ -161,7 +161,7 @@
     },
     Call {
         func: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         args: [
             Value(
@@ -170,14 +170,14 @@
                     [
                         Variable(
                             (
-                                Atom('driver' type=inline),
+                                "driver",
                                 #2,
                             ),
                         ),
                         Constant(
                             Str(
                                 Word(
-                                    Atom('/connection' type=dynamic),
+                                    "/connection",
                                 ),
                             ),
                         ),
@@ -225,7 +225,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         ast_path: [
             Program(
@@ -276,7 +276,7 @@
     },
     Call {
         func: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         args: [
             Value(
@@ -285,14 +285,14 @@
                     [
                         Variable(
                             (
-                                Atom('driver' type=inline),
+                                "driver",
                                 #2,
                             ),
                         ),
                         Constant(
                             Str(
                                 Word(
-                                    Atom('/collection' type=dynamic),
+                                    "/collection",
                                 ),
                             ),
                         ),

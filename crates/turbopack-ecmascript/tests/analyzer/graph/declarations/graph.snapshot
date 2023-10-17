@@ -23,7 +23,7 @@
         "aa",
         Variable(
             (
-                Atom('a' type=static),
+                "a",
                 #2,
             ),
         ),
@@ -32,7 +32,7 @@
         "b",
         Variable(
             (
-                Atom('*anonymous function 25*' type=dynamic),
+                "*anonymous function 25*",
                 #0,
             ),
         ),
@@ -41,7 +41,7 @@
         "bb",
         Variable(
             (
-                Atom('b' type=static),
+                "b",
                 #2,
             ),
         ),
@@ -60,7 +60,7 @@
         "cc",
         Variable(
             (
-                Atom('c' type=inline),
+                "c",
                 #2,
             ),
         ),
@@ -70,7 +70,7 @@
         Constant(
             Str(
                 Word(
-                    Atom('hello' type=inline),
+                    "hello",
                 ),
             ),
         ),
@@ -79,7 +79,7 @@
         "dd",
         Variable(
             (
-                Atom('d' type=static),
+                "d",
                 #2,
             ),
         ),
@@ -95,7 +95,7 @@
         "ee",
         Variable(
             (
-                Atom('e' type=static),
+                "e",
                 #2,
             ),
         ),
@@ -103,7 +103,7 @@
     (
         "ff",
         FreeVar(
-            Atom('f' type=inline),
+            "f",
         ),
     ),
 ]

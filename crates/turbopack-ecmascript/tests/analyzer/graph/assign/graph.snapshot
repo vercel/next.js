@@ -7,7 +7,7 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('' type=static),
+                            "",
                         ),
                     ),
                 ),
@@ -16,14 +16,14 @@
                     [
                         Variable(
                             (
-                                Atom('a' type=static),
+                                "a",
                                 #2,
                             ),
                         ),
                         Constant(
                             Str(
                                 Word(
-                                    Atom('x' type=static),
+                                    "x",
                                 ),
                             ),
                         ),

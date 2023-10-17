@@ -14,7 +14,7 @@
         Constant(
             Str(
                 Word(
-                    Atom('foo' type=inline),
+                    "foo",
                 ),
             ),
         ),
@@ -36,7 +36,7 @@
                     Constant(
                         Str(
                             Word(
-                                Atom('foo' type=inline),
+                                "foo",
                             ),
                         ),
                     ),
@@ -46,12 +46,12 @@
             Member(
                 3,
                 FreeVar(
-                    Atom('global' type=static),
+                    "global",
                 ),
                 Constant(
                     Str(
-                        Word(
-                            Atom('index' type=inline),
+                        Atom(
+                            "index",
                         ),
                     ),
                 ),
@@ -73,7 +73,7 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('foo' type=inline),
+                            "foo",
                         ),
                     ),
                 ),
@@ -87,19 +87,19 @@
             5,
             Variable(
                 (
-                    Atom('d1' type=inline),
+                    "d1",
                     #2,
                 ),
             ),
             Member(
                 3,
                 FreeVar(
-                    Atom('global' type=static),
+                    "global",
                 ),
                 Constant(
                     Str(
-                        Word(
-                            Atom('index' type=inline),
+                        Atom(
+                            "index",
                         ),
                     ),
                 ),
@@ -112,7 +112,7 @@
             3,
             Variable(
                 (
-                    Atom('d1' type=inline),
+                    "d1",
                     #2,
                 ),
             ),
@@ -131,7 +131,7 @@
             3,
             Variable(
                 (
-                    Atom('d1' type=inline),
+                    "d1",
                     #2,
                 ),
             ),

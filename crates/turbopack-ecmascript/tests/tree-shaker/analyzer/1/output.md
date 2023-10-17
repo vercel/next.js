@@ -329,10 +329,10 @@ graph TD
 ```mermaid
 graph TD
     N0["Items: [ItemId(ModuleEvaluation), ItemId(0, ImportOfModule), ItemId(0, ImportBinding(0)), ItemId(7, Normal)]"];
-    N1["Items: [ItemId(Export((Atom('foobar' type=inline), #0)))]"];
-    N2["Items: [ItemId(Export((Atom('foo' type=inline), #0)))]"];
-    N3["Items: [ItemId(Export((Atom('external1' type=dynamic), #0))), ItemId(10, Normal)]"];
-    N4["Items: [ItemId(Export((Atom('external2' type=dynamic), #0))), ItemId(11, Normal)]"];
+    N1["Items: [ItemId(Export((\"foobar\", #0)))]"];
+    N2["Items: [ItemId(Export((\"foo\", #0)))]"];
+    N3["Items: [ItemId(Export((\"external1\", #0))), ItemId(10, Normal)]"];
+    N4["Items: [ItemId(Export((\"external2\", #0))), ItemId(11, Normal)]"];
     N5["Items: [ItemId(1, VarDeclarator(0))]"];
     N6["Items: [ItemId(2, VarDeclarator(0))]"];
     N7["Items: [ItemId(3, VarDeclarator(0))]"];

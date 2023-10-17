@@ -1,7 +1,7 @@
 [
     FreeVar {
         var: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         ast_path: [
             Program(
@@ -61,14 +61,14 @@
     },
     Call {
         func: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         args: [
             Value(
                 Constant(
                     Str(
                         Word(
-                            Atom('packages/not-found' type=dynamic),
+                            "packages/not-found",
                         ),
                     ),
                 ),
@@ -123,7 +123,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         ast_path: [
             Program(
@@ -186,14 +186,14 @@
     },
     Call {
         func: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         args: [
             Value(
                 Constant(
                     Str(
                         Word(
-                            Atom('packages/found' type=dynamic),
+                            "packages/found",
                         ),
                     ),
                 ),
@@ -252,14 +252,14 @@
     Member {
         obj: Variable(
             (
-                Atom('pkg' type=inline),
+                "pkg",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('fn' type=inline),
+                Atom(
+                    "fn",
                 ),
             ),
         ),
@@ -305,14 +305,14 @@
     MemberCall {
         obj: Variable(
             (
-                Atom('pkg' type=inline),
+                "pkg",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('fn' type=inline),
+                Atom(
+                    "fn",
                 ),
             ),
         ),

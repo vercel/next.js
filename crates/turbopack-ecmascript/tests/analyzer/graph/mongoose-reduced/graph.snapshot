@@ -4,7 +4,7 @@
         Call(
             5,
             FreeVar(
-                Atom('require' type=static),
+                "require",
             ),
             [
                 Concat(
@@ -12,14 +12,14 @@
                     [
                         Variable(
                             (
-                                Atom('driver' type=inline),
+                                "driver",
                                 #2,
                             ),
                         ),
                         Constant(
                             Str(
                                 Word(
-                                    Atom('/collection' type=dynamic),
+                                    "/collection",
                                 ),
                             ),
                         ),
@@ -33,7 +33,7 @@
         Call(
             5,
             FreeVar(
-                Atom('require' type=static),
+                "require",
             ),
             [
                 Concat(
@@ -41,14 +41,14 @@
                     [
                         Variable(
                             (
-                                Atom('driver' type=inline),
+                                "driver",
                                 #2,
                             ),
                         ),
                         Constant(
                             Str(
                                 Word(
-                                    Atom('/connection' type=dynamic),
+                                    "/connection",
                                 ),
                             ),
                         ),
@@ -66,12 +66,12 @@
                 Member(
                     3,
                     FreeVar(
-                        Atom('global' type=static),
+                        "global",
                     ),
                     Constant(
                         Str(
-                            Word(
-                                Atom('MONGOOSE_DRIVER_PATH' type=dynamic),
+                            Atom(
+                                "MONGOOSE_DRIVER_PATH",
                             ),
                         ),
                     ),
@@ -79,7 +79,7 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('./drivers/node-mongodb-native' type=dynamic),
+                            "./drivers/node-mongodb-native",
                         ),
                     ),
                 ),

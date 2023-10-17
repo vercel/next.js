@@ -5,7 +5,7 @@
             Some(
                 Variable(
                     (
-                        Atom('e' type=static),
+                        "e",
                         #4,
                     ),
                 ),
@@ -22,7 +22,7 @@
                     Some(
                         Variable(
                             (
-                                Atom('pkg' type=inline),
+                                "pkg",
                                 #2,
                             ),
                         ),
@@ -32,13 +32,13 @@
                 Call(
                     3,
                     FreeVar(
-                        Atom('require' type=static),
+                        "require",
                     ),
                     [
                         Constant(
                             Str(
                                 Word(
-                                    Atom('packages/not-found' type=dynamic),
+                                    "packages/not-found",
                                 ),
                             ),
                         ),
@@ -47,13 +47,13 @@
                 Call(
                     3,
                     FreeVar(
-                        Atom('require' type=static),
+                        "require",
                     ),
                     [
                         Constant(
                             Str(
                                 Word(
-                                    Atom('packages/found' type=dynamic),
+                                    "packages/found",
                                 ),
                             ),
                         ),
