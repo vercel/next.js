@@ -97,14 +97,14 @@
             13,
             Variable(
                 (
-                    Atom('array' type=inline),
+                    "array",
                     #2,
                 ),
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('concat' type=static),
+                    Atom(
+                        "concat",
                     ),
                 ),
             ),
@@ -169,7 +169,7 @@
                         ),
                         Variable(
                             (
-                                Atom('item' type=inline),
+                                "item",
                                 #2,
                             ),
                         ),
@@ -184,14 +184,14 @@
             7,
             Variable(
                 (
-                    Atom('array' type=inline),
+                    "array",
                     #2,
                 ),
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('concat' type=static),
+                    Atom(
+                        "concat",
                     ),
                 ),
             ),
@@ -232,7 +232,7 @@
             3,
             Variable(
                 (
-                    Atom('array' type=inline),
+                    "array",
                     #2,
                 ),
             ),
@@ -251,7 +251,7 @@
             3,
             Variable(
                 (
-                    Atom('arrays' type=inline),
+                    "arrays",
                     #2,
                 ),
             ),
@@ -313,8 +313,8 @@
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('concat' type=static),
+                    Atom(
+                        "concat",
                     ),
                 ),
             ),
@@ -344,7 +344,7 @@
                             ),
                         ),
                         FreeVar(
-                            Atom('unknown' type=static),
+                            "unknown",
                         ),
                     ],
                     mutable: true,
@@ -401,8 +401,8 @@
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('concat' type=static),
+                    Atom(
+                        "concat",
                     ),
                 ),
             ),
@@ -429,7 +429,7 @@
                     ),
                 ),
                 FreeVar(
-                    Atom('unknown' type=static),
+                    "unknown",
                 ),
             ],
         ),

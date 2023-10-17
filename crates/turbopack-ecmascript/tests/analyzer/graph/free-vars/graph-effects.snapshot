@@ -1,12 +1,12 @@
 [
     Member {
         obj: FreeVar(
-            Atom('Buffer' type=inline),
+            "Buffer",
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('from' type=static),
+                Atom(
+                    "from",
                 ),
             ),
         ),
@@ -59,7 +59,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('Buffer' type=inline),
+            "Buffer",
         ),
         ast_path: [
             Program(
@@ -116,12 +116,12 @@
     },
     MemberCall {
         obj: FreeVar(
-            Atom('Buffer' type=inline),
+            "Buffer",
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('from' type=static),
+                Atom(
+                    "from",
                 ),
             ),
         ),
@@ -130,7 +130,7 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('Hello World' type=dynamic),
+                            "Hello World",
                         ),
                     ),
                 ),

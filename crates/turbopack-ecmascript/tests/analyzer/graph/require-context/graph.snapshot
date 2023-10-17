@@ -5,14 +5,14 @@
             4,
             Variable(
                 (
-                    Atom('context' type=inline),
+                    "context",
                     #2,
                 ),
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('resolve' type=inline),
+                    Atom(
+                        "resolve",
                     ),
                 ),
             ),
@@ -20,7 +20,7 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('./a' type=inline),
+                            "./a",
                         ),
                     ),
                 ),
@@ -32,12 +32,12 @@
         MemberCall(
             6,
             FreeVar(
-                Atom('require' type=static),
+                "require",
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('context' type=inline),
+                    Atom(
+                        "context",
                     ),
                 ),
             ),
@@ -45,7 +45,7 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('./test' type=inline),
+                            "./test",
                         ),
                     ),
                 ),
@@ -72,14 +72,14 @@
                     3,
                     Variable(
                         (
-                            Atom('r' type=inline),
+                            "r",
                             #3,
                         ),
                     ),
                     Constant(
                         Str(
-                            Word(
-                                Atom('keys' type=inline),
+                            Atom(
+                                "keys",
                             ),
                         ),
                     ),
@@ -87,15 +87,15 @@
                 ),
                 Constant(
                     Str(
-                        Word(
-                            Atom('map' type=static),
+                        Atom(
+                            "map",
                         ),
                     ),
                 ),
                 [
                     Variable(
                         (
-                            Atom('r' type=inline),
+                            "r",
                             #3,
                         ),
                     ),
@@ -109,14 +109,14 @@
             3,
             Variable(
                 (
-                    Atom('importAll' type=dynamic),
+                    "importAll",
                     #2,
                 ),
             ),
             [
                 Variable(
                     (
-                        Atom('context' type=inline),
+                        "context",
                         #2,
                     ),
                 ),

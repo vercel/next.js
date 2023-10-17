@@ -6,7 +6,7 @@
             105,
             Variable(
                 (
-                    Atom('value2' type=inline),
+                    "value2",
                     #4,
                 ),
             ),
@@ -19,7 +19,7 @@
             39,
             Variable(
                 (
-                    Atom('value' type=inline),
+                    "value",
                     #3,
                 ),
             ),
@@ -29,7 +29,7 @@
         "Fun2",
         Variable(
             (
-                Atom('*arrow function 105*' type=dynamic),
+                "*arrow function 105*",
                 #0,
             ),
         ),
@@ -47,8 +47,8 @@
                     ),
                     Constant(
                         Str(
-                            Word(
-                                Atom('value' type=inline),
+                            Atom(
+                                "value",
                             ),
                         ),
                     ),
@@ -57,7 +57,7 @@
                     3,
                     Module(
                         ModuleValue {
-                            module: Atom('./module.js' type=dynamic),
+                            module: "./module.js",
                             annotations: ImportAnnotations {
                                 map: {},
                             },
@@ -65,8 +65,8 @@
                     ),
                     Constant(
                         Str(
-                            Word(
-                                Atom('named' type=inline),
+                            Atom(
+                                "named",
                             ),
                         ),
                     ),

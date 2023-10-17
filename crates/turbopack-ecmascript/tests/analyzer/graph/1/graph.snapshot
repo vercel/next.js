@@ -46,14 +46,14 @@
                     [
                         Variable(
                             (
-                                Atom('y' type=inline),
+                                "y",
                                 #2,
                             ),
                         ),
                         Constant(
                             Str(
                                 Word(
-                                    Atom('.js' type=inline),
+                                    ".js",
                                 ),
                             ),
                         ),
@@ -70,14 +70,14 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('hello' type=inline),
+                            "hello",
                         ),
                     ),
                 ),
                 Constant(
                     Str(
                         Word(
-                            Atom('world' type=inline),
+                            "world",
                         ),
                     ),
                 ),

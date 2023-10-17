@@ -1,7 +1,7 @@
 [
     FreeVar {
         var: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         ast_path: [
             Program(
@@ -51,7 +51,7 @@
                     Call {
                         func: Variable(
                             (
-                                Atom('f' type=inline),
+                                "f",
                                 #5,
                             ),
                         ),
@@ -60,7 +60,7 @@
                                 Constant(
                                     Str(
                                         Word(
-                                            Atom('test' type=inline),
+                                            "test",
                                         ),
                                     ),
                                 ),

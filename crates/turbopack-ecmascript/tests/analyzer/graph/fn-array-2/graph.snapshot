@@ -26,13 +26,13 @@
                         [
                             Variable(
                                 (
-                                    Atom('a' type=static),
+                                    "a",
                                     #3,
                                 ),
                             ),
                             Variable(
                                 (
-                                    Atom('x' type=static),
+                                    "x",
                                     #3,
                                 ),
                             ),
@@ -40,7 +40,7 @@
                     ),
                     Variable(
                         (
-                            Atom('a' type=static),
+                            "a",
                             #3,
                         ),
                     ),
@@ -55,7 +55,7 @@
             4,
             Variable(
                 (
-                    Atom('c' type=inline),
+                    "c",
                     #2,
                 ),
             ),
@@ -63,14 +63,14 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('1' type=inline),
+                            "1",
                         ),
                     ),
                 ),
                 Constant(
                     Str(
                         Word(
-                            Atom('2' type=inline),
+                            "2",
                         ),
                     ),
                 ),
@@ -83,7 +83,7 @@
             3,
             Variable(
                 (
-                    Atom('d' type=static),
+                    "d",
                     #2,
                 ),
             ),
@@ -102,7 +102,7 @@
             3,
             Variable(
                 (
-                    Atom('d' type=static),
+                    "d",
                     #2,
                 ),
             ),
@@ -119,7 +119,7 @@
         "x",
         Variable(
             (
-                Atom('b' type=static),
+                "b",
                 #3,
             ),
         ),

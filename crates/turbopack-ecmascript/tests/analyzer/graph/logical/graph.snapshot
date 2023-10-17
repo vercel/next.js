@@ -7,13 +7,13 @@
             [
                 Variable(
                     (
-                        Atom('x' type=static),
+                        "x",
                         #2,
                     ),
                 ),
                 Variable(
                     (
-                        Atom('y' type=inline),
+                        "y",
                         #2,
                     ),
                 ),
@@ -28,13 +28,13 @@
             [
                 Variable(
                     (
-                        Atom('x' type=static),
+                        "x",
                         #2,
                     ),
                 ),
                 Variable(
                     (
-                        Atom('y' type=inline),
+                        "y",
                         #2,
                     ),
                 ),
@@ -49,13 +49,13 @@
             [
                 Variable(
                     (
-                        Atom('x' type=static),
+                        "x",
                         #2,
                     ),
                 ),
                 Variable(
                     (
-                        Atom('y' type=inline),
+                        "y",
                         #2,
                     ),
                 ),
@@ -90,7 +90,7 @@
                     ),
                 ),
                 FreeVar(
-                    Atom('global' type=static),
+                    "global",
                 ),
             ],
         ),
@@ -120,7 +120,7 @@
                             ),
                         ),
                         FreeVar(
-                            Atom('global' type=static),
+                            "global",
                         ),
                     ],
                 ),
@@ -147,7 +147,7 @@
             2,
             Variable(
                 (
-                    Atom('x' type=static),
+                    "x",
                     #2,
                 ),
             ),
@@ -161,7 +161,7 @@
                 2,
                 Variable(
                     (
-                        Atom('x' type=static),
+                        "x",
                         #2,
                     ),
                 ),
@@ -189,7 +189,7 @@
                     ),
                 ),
                 FreeVar(
-                    Atom('global' type=static),
+                    "global",
                 ),
                 Constant(
                     Num(
@@ -236,7 +236,7 @@
                     ),
                 ),
                 FreeVar(
-                    Atom('global' type=static),
+                    "global",
                 ),
                 Constant(
                     Num(
@@ -255,7 +255,7 @@
             Or,
             [
                 FreeVar(
-                    Atom('global' type=static),
+                    "global",
                 ),
                 Constant(
                     True,
@@ -273,7 +273,7 @@
                     True,
                 ),
                 FreeVar(
-                    Atom('global' type=static),
+                    "global",
                 ),
             ],
         ),

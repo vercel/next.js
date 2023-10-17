@@ -143,7 +143,7 @@
         "a",
         Variable(
             (
-                Atom('*arrow function 11*' type=dynamic),
+                "*arrow function 11*",
                 #0,
             ),
         ),
@@ -152,7 +152,7 @@
         "b",
         Variable(
             (
-                Atom('*arrow function 30*' type=dynamic),
+                "*arrow function 30*",
                 #0,
             ),
         ),
@@ -161,7 +161,7 @@
         "c",
         Variable(
             (
-                Atom('*arrow function 50*' type=dynamic),
+                "*arrow function 50*",
                 #0,
             ),
         ),
@@ -170,7 +170,7 @@
         "d",
         Variable(
             (
-                Atom('*arrow function 83*' type=dynamic),
+                "*arrow function 83*",
                 #0,
             ),
         ),
@@ -179,7 +179,7 @@
         "e#2",
         Variable(
             (
-                Atom('*anonymous function 116*' type=dynamic),
+                "*anonymous function 116*",
                 #0,
             ),
         ),
@@ -202,7 +202,7 @@
         "f",
         Variable(
             (
-                Atom('e' type=static),
+                "e",
                 #6,
             ),
         ),
@@ -221,7 +221,7 @@
         "xa",
         Variable(
             (
-                Atom('*arrow function 214*' type=dynamic),
+                "*arrow function 214*",
                 #0,
             ),
         ),
@@ -230,7 +230,7 @@
         "xb",
         Variable(
             (
-                Atom('*arrow function 236*' type=dynamic),
+                "*arrow function 236*",
                 #0,
             ),
         ),
@@ -239,7 +239,7 @@
         "xc",
         Variable(
             (
-                Atom('*arrow function 259*' type=dynamic),
+                "*arrow function 259*",
                 #0,
             ),
         ),
@@ -248,7 +248,7 @@
         "xd",
         Variable(
             (
-                Atom('*arrow function 299*' type=dynamic),
+                "*arrow function 299*",
                 #0,
             ),
         ),
@@ -271,7 +271,7 @@
         "xe#8",
         Variable(
             (
-                Atom('*anonymous function 339*' type=dynamic),
+                "*anonymous function 339*",
                 #0,
             ),
         ),
@@ -280,7 +280,7 @@
         "xf",
         Variable(
             (
-                Atom('xe' type=inline),
+                "xe",
                 #12,
             ),
         ),

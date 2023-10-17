@@ -178,7 +178,7 @@ async fn parse_content(
     };
 
     let mut errors = Vec::new();
-    let mut parsed_stylesheet = match parse_file::<Stylesheet>(&fm, config, &mut errors) {
+    let mut parsed_stylesheet = match parse_file::<Stylesheet>(&fm, None, config, &mut errors) {
         Ok(stylesheet) => stylesheet,
         Err(e) => {
             // TODO report in in a stream

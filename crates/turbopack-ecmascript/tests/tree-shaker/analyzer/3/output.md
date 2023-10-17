@@ -306,9 +306,9 @@ graph TD
 ```mermaid
 graph TD
     N0["Items: [ItemId(ModuleEvaluation), ItemId(9, Normal), ItemId(10, Normal)]"];
-    N1["Items: [ItemId(Export((Atom('c1_1' type=inline), #0)))]"];
-    N2["Items: [ItemId(Export((Atom('c1_3' type=inline), #0)))]"];
-    N3["Items: [ItemId(Export((Atom('c2_2' type=inline), #0)))]"];
+    N1["Items: [ItemId(Export((\"c1_1\", #0)))]"];
+    N2["Items: [ItemId(Export((\"c1_3\", #0)))]"];
+    N3["Items: [ItemId(Export((\"c2_2\", #0)))]"];
     N4["Items: [ItemId(3, Normal), ItemId(4, Normal), ItemId(5, Normal)]"];
     N5["Items: [ItemId(6, Normal), ItemId(7, Normal), ItemId(8, Normal)]"];
     N6["Items: [ItemId(0, Normal)]"];

@@ -1,12 +1,12 @@
 [
     Member {
         obj: FreeVar(
-            Atom('A' type=inline),
+            "A",
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('B' type=inline),
+                Atom(
+                    "B",
                 ),
             ),
         ),
@@ -42,7 +42,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('A' type=inline),
+            "A",
         ),
         ast_path: [
             Program(

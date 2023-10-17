@@ -8,7 +8,7 @@
                 3,
                 Variable(
                     (
-                        Atom('__webpack_require__' type=dynamic),
+                        "__webpack_require__",
                         #3,
                     ),
                 ),
@@ -38,7 +38,7 @@
             389,
             Variable(
                 (
-                    Atom('handler' type=inline),
+                    "handler",
                     #4,
                 ),
             ),
@@ -50,7 +50,7 @@
             Some(
                 Variable(
                     (
-                        Atom('__unused_webpack_module' type=dynamic),
+                        "__unused_webpack_module",
                         #4,
                     ),
                 ),
@@ -62,7 +62,7 @@
         "__webpack_exec__",
         Variable(
             (
-                Atom('*arrow function 1213*' type=dynamic),
+                "*arrow function 1213*",
                 #0,
             ),
         ),
@@ -73,7 +73,7 @@
             3,
             Variable(
                 (
-                    Atom('__webpack_exec__' type=dynamic),
+                    "__webpack_exec__",
                     #3,
                 ),
             ),
@@ -94,7 +94,7 @@
             Some(
                 Variable(
                     (
-                        Atom('__webpack_exports__' type=dynamic),
+                        "__webpack_exports__",
                         #4,
                     ),
                 ),
@@ -107,13 +107,13 @@
         Call(
             3,
             FreeVar(
-                Atom('require' type=static),
+                "require",
             ),
             [
                 Constant(
                     Str(
                         Word(
-                            Atom('../../webpack-api-runtime.js' type=dynamic),
+                            "../../webpack-api-runtime.js",
                         ),
                     ),
                 ),
@@ -126,7 +126,7 @@
             Some(
                 Variable(
                     (
-                        Atom('__webpack_require__' type=dynamic),
+                        "__webpack_require__",
                         #4,
                     ),
                 ),
@@ -165,14 +165,14 @@
             5,
             Variable(
                 (
-                    Atom('promises_namespaceObject' type=dynamic),
+                    "promises_namespaceObject",
                     #4,
                 ),
             ),
             Constant(
                 Str(
-                    Word(
-                        Atom('readFile' type=dynamic),
+                    Atom(
+                        "readFile",
                     ),
                 ),
             ),
@@ -180,14 +180,14 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('./hello.txt' type=dynamic),
+                            "./hello.txt",
                         ),
                     ),
                 ),
                 Constant(
                     Str(
                         Word(
-                            Atom('utf-8' type=inline),
+                            "utf-8",
                         ),
                     ),
                 ),
@@ -200,7 +200,7 @@
             Some(
                 Variable(
                     (
-                        Atom('moduleId' type=dynamic),
+                        "moduleId",
                         #6,
                     ),
                 ),
@@ -213,13 +213,13 @@
         Call(
             3,
             FreeVar(
-                Atom('require' type=static),
+                "require",
             ),
             [
                 Constant(
                     Str(
                         Word(
-                            Atom('fs/promises' type=dynamic),
+                            "fs/promises",
                         ),
                     ),
                 ),
@@ -244,8 +244,8 @@
                         KeyValue(
                             Constant(
                                 Str(
-                                    Word(
-                                        Atom('id' type=static),
+                                    Atom(
+                                        "id",
                                     ),
                                 ),
                             ),
@@ -266,8 +266,8 @@
                         KeyValue(
                             Constant(
                                 Str(
-                                    Word(
-                                        Atom('id' type=static),
+                                    Atom(
+                                        "id",
                                     ),
                                 ),
                             ),
@@ -288,8 +288,8 @@
                         KeyValue(
                             Constant(
                                 Str(
-                                    Word(
-                                        Atom('id' type=static),
+                                    Atom(
+                                        "id",
                                     ),
                                 ),
                             ),

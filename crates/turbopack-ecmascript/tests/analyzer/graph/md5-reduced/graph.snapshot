@@ -15,32 +15,32 @@
                     11,
                     Variable(
                         (
-                            Atom('md5ff' type=inline),
+                            "md5ff",
                             #2,
                         ),
                     ),
                     [
                         Variable(
                             (
-                                Atom('a' type=static),
+                                "a",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('b' type=static),
+                                "b",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('c' type=inline),
+                                "c",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('d' type=static),
+                                "d",
                                 #3,
                             ),
                         ),
@@ -48,13 +48,13 @@
                             3,
                             Variable(
                                 (
-                                    Atom('x' type=static),
+                                    "x",
                                     #3,
                                 ),
                             ),
                             Variable(
                                 (
-                                    Atom('i' type=static),
+                                    "i",
                                     #3,
                                 ),
                             ),
@@ -76,32 +76,32 @@
                     13,
                     Variable(
                         (
-                            Atom('md5ff' type=inline),
+                            "md5ff",
                             #2,
                         ),
                     ),
                     [
                         Variable(
                             (
-                                Atom('a' type=static),
+                                "a",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('b' type=static),
+                                "b",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('c' type=inline),
+                                "c",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('d' type=static),
+                                "d",
                                 #3,
                             ),
                         ),
@@ -109,7 +109,7 @@
                             5,
                             Variable(
                                 (
-                                    Atom('x' type=static),
+                                    "x",
                                     #3,
                                 ),
                             ),
@@ -118,7 +118,7 @@
                                 [
                                     Variable(
                                         (
-                                            Atom('i' type=static),
+                                            "i",
                                             #3,
                                         ),
                                     ),
@@ -149,32 +149,32 @@
                     13,
                     Variable(
                         (
-                            Atom('md5ff' type=inline),
+                            "md5ff",
                             #2,
                         ),
                     ),
                     [
                         Variable(
                             (
-                                Atom('a' type=static),
+                                "a",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('b' type=static),
+                                "b",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('c' type=inline),
+                                "c",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('d' type=static),
+                                "d",
                                 #3,
                             ),
                         ),
@@ -182,7 +182,7 @@
                             5,
                             Variable(
                                 (
-                                    Atom('x' type=static),
+                                    "x",
                                     #3,
                                 ),
                             ),
@@ -191,7 +191,7 @@
                                 [
                                     Variable(
                                         (
-                                            Atom('i' type=static),
+                                            "i",
                                             #3,
                                         ),
                                     ),
@@ -225,32 +225,32 @@
                     13,
                     Variable(
                         (
-                            Atom('md5ff' type=inline),
+                            "md5ff",
                             #2,
                         ),
                     ),
                     [
                         Variable(
                             (
-                                Atom('a' type=static),
+                                "a",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('b' type=static),
+                                "b",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('c' type=inline),
+                                "c",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('d' type=static),
+                                "d",
                                 #3,
                             ),
                         ),
@@ -258,7 +258,7 @@
                             5,
                             Variable(
                                 (
-                                    Atom('x' type=static),
+                                    "x",
                                     #3,
                                 ),
                             ),
@@ -267,7 +267,7 @@
                                 [
                                     Variable(
                                         (
-                                            Atom('i' type=static),
+                                            "i",
                                             #3,
                                         ),
                                     ),
@@ -327,32 +327,32 @@
                     13,
                     Variable(
                         (
-                            Atom('md5ff' type=inline),
+                            "md5ff",
                             #2,
                         ),
                     ),
                     [
                         Variable(
                             (
-                                Atom('b' type=static),
+                                "b",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('c' type=inline),
+                                "c",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('d' type=static),
+                                "d",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('a' type=static),
+                                "a",
                                 #3,
                             ),
                         ),
@@ -360,7 +360,7 @@
                             5,
                             Variable(
                                 (
-                                    Atom('x' type=static),
+                                    "x",
                                     #3,
                                 ),
                             ),
@@ -369,7 +369,7 @@
                                 [
                                     Variable(
                                         (
-                                            Atom('i' type=static),
+                                            "i",
                                             #3,
                                         ),
                                     ),
@@ -400,32 +400,32 @@
                     13,
                     Variable(
                         (
-                            Atom('md5ff' type=inline),
+                            "md5ff",
                             #2,
                         ),
                     ),
                     [
                         Variable(
                             (
-                                Atom('b' type=static),
+                                "b",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('c' type=inline),
+                                "c",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('d' type=static),
+                                "d",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('a' type=static),
+                                "a",
                                 #3,
                             ),
                         ),
@@ -433,7 +433,7 @@
                             5,
                             Variable(
                                 (
-                                    Atom('x' type=static),
+                                    "x",
                                     #3,
                                 ),
                             ),
@@ -442,7 +442,7 @@
                                 [
                                     Variable(
                                         (
-                                            Atom('i' type=static),
+                                            "i",
                                             #3,
                                         ),
                                     ),
@@ -473,32 +473,32 @@
                     13,
                     Variable(
                         (
-                            Atom('md5ff' type=inline),
+                            "md5ff",
                             #2,
                         ),
                     ),
                     [
                         Variable(
                             (
-                                Atom('b' type=static),
+                                "b",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('c' type=inline),
+                                "c",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('d' type=static),
+                                "d",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('a' type=static),
+                                "a",
                                 #3,
                             ),
                         ),
@@ -506,7 +506,7 @@
                             5,
                             Variable(
                                 (
-                                    Atom('x' type=static),
+                                    "x",
                                     #3,
                                 ),
                             ),
@@ -515,7 +515,7 @@
                                 [
                                     Variable(
                                         (
-                                            Atom('i' type=static),
+                                            "i",
                                             #3,
                                         ),
                                     ),
@@ -546,32 +546,32 @@
                     13,
                     Variable(
                         (
-                            Atom('md5ff' type=inline),
+                            "md5ff",
                             #2,
                         ),
                     ),
                     [
                         Variable(
                             (
-                                Atom('b' type=static),
+                                "b",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('c' type=inline),
+                                "c",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('d' type=static),
+                                "d",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('a' type=static),
+                                "a",
                                 #3,
                             ),
                         ),
@@ -579,7 +579,7 @@
                             5,
                             Variable(
                                 (
-                                    Atom('x' type=static),
+                                    "x",
                                     #3,
                                 ),
                             ),
@@ -588,7 +588,7 @@
                                 [
                                     Variable(
                                         (
-                                            Atom('i' type=static),
+                                            "i",
                                             #3,
                                         ),
                                     ),
@@ -648,32 +648,32 @@
                     13,
                     Variable(
                         (
-                            Atom('md5ff' type=inline),
+                            "md5ff",
                             #2,
                         ),
                     ),
                     [
                         Variable(
                             (
-                                Atom('c' type=inline),
+                                "c",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('d' type=static),
+                                "d",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('a' type=static),
+                                "a",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('b' type=static),
+                                "b",
                                 #3,
                             ),
                         ),
@@ -681,7 +681,7 @@
                             5,
                             Variable(
                                 (
-                                    Atom('x' type=static),
+                                    "x",
                                     #3,
                                 ),
                             ),
@@ -690,7 +690,7 @@
                                 [
                                     Variable(
                                         (
-                                            Atom('i' type=static),
+                                            "i",
                                             #3,
                                         ),
                                     ),
@@ -724,32 +724,32 @@
                     13,
                     Variable(
                         (
-                            Atom('md5ff' type=inline),
+                            "md5ff",
                             #2,
                         ),
                     ),
                     [
                         Variable(
                             (
-                                Atom('c' type=inline),
+                                "c",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('d' type=static),
+                                "d",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('a' type=static),
+                                "a",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('b' type=static),
+                                "b",
                                 #3,
                             ),
                         ),
@@ -757,7 +757,7 @@
                             5,
                             Variable(
                                 (
-                                    Atom('x' type=static),
+                                    "x",
                                     #3,
                                 ),
                             ),
@@ -766,7 +766,7 @@
                                 [
                                     Variable(
                                         (
-                                            Atom('i' type=static),
+                                            "i",
                                             #3,
                                         ),
                                     ),
@@ -797,32 +797,32 @@
                     13,
                     Variable(
                         (
-                            Atom('md5ff' type=inline),
+                            "md5ff",
                             #2,
                         ),
                     ),
                     [
                         Variable(
                             (
-                                Atom('c' type=inline),
+                                "c",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('d' type=static),
+                                "d",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('a' type=static),
+                                "a",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('b' type=static),
+                                "b",
                                 #3,
                             ),
                         ),
@@ -830,7 +830,7 @@
                             5,
                             Variable(
                                 (
-                                    Atom('x' type=static),
+                                    "x",
                                     #3,
                                 ),
                             ),
@@ -839,7 +839,7 @@
                                 [
                                     Variable(
                                         (
-                                            Atom('i' type=static),
+                                            "i",
                                             #3,
                                         ),
                                     ),
@@ -870,32 +870,32 @@
                     13,
                     Variable(
                         (
-                            Atom('md5ff' type=inline),
+                            "md5ff",
                             #2,
                         ),
                     ),
                     [
                         Variable(
                             (
-                                Atom('c' type=inline),
+                                "c",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('d' type=static),
+                                "d",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('a' type=static),
+                                "a",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('b' type=static),
+                                "b",
                                 #3,
                             ),
                         ),
@@ -903,7 +903,7 @@
                             5,
                             Variable(
                                 (
-                                    Atom('x' type=static),
+                                    "x",
                                     #3,
                                 ),
                             ),
@@ -912,7 +912,7 @@
                                 [
                                     Variable(
                                         (
-                                            Atom('i' type=static),
+                                            "i",
                                             #3,
                                         ),
                                     ),
@@ -965,32 +965,32 @@
                     13,
                     Variable(
                         (
-                            Atom('md5ff' type=inline),
+                            "md5ff",
                             #2,
                         ),
                     ),
                     [
                         Variable(
                             (
-                                Atom('d' type=static),
+                                "d",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('a' type=static),
+                                "a",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('b' type=static),
+                                "b",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('c' type=inline),
+                                "c",
                                 #3,
                             ),
                         ),
@@ -998,7 +998,7 @@
                             5,
                             Variable(
                                 (
-                                    Atom('x' type=static),
+                                    "x",
                                     #3,
                                 ),
                             ),
@@ -1007,7 +1007,7 @@
                                 [
                                     Variable(
                                         (
-                                            Atom('i' type=static),
+                                            "i",
                                             #3,
                                         ),
                                     ),
@@ -1038,32 +1038,32 @@
                     13,
                     Variable(
                         (
-                            Atom('md5ff' type=inline),
+                            "md5ff",
                             #2,
                         ),
                     ),
                     [
                         Variable(
                             (
-                                Atom('d' type=static),
+                                "d",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('a' type=static),
+                                "a",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('b' type=static),
+                                "b",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('c' type=inline),
+                                "c",
                                 #3,
                             ),
                         ),
@@ -1071,7 +1071,7 @@
                             5,
                             Variable(
                                 (
-                                    Atom('x' type=static),
+                                    "x",
                                     #3,
                                 ),
                             ),
@@ -1080,7 +1080,7 @@
                                 [
                                     Variable(
                                         (
-                                            Atom('i' type=static),
+                                            "i",
                                             #3,
                                         ),
                                     ),
@@ -1114,32 +1114,32 @@
                     13,
                     Variable(
                         (
-                            Atom('md5ff' type=inline),
+                            "md5ff",
                             #2,
                         ),
                     ),
                     [
                         Variable(
                             (
-                                Atom('d' type=static),
+                                "d",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('a' type=static),
+                                "a",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('b' type=static),
+                                "b",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('c' type=inline),
+                                "c",
                                 #3,
                             ),
                         ),
@@ -1147,7 +1147,7 @@
                             5,
                             Variable(
                                 (
-                                    Atom('x' type=static),
+                                    "x",
                                     #3,
                                 ),
                             ),
@@ -1156,7 +1156,7 @@
                                 [
                                     Variable(
                                         (
-                                            Atom('i' type=static),
+                                            "i",
                                             #3,
                                         ),
                                     ),
@@ -1187,32 +1187,32 @@
                     13,
                     Variable(
                         (
-                            Atom('md5ff' type=inline),
+                            "md5ff",
                             #2,
                         ),
                     ),
                     [
                         Variable(
                             (
-                                Atom('d' type=static),
+                                "d",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('a' type=static),
+                                "a",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('b' type=static),
+                                "b",
                                 #3,
                             ),
                         ),
                         Variable(
                             (
-                                Atom('c' type=inline),
+                                "c",
                                 #3,
                             ),
                         ),
@@ -1220,7 +1220,7 @@
                             5,
                             Variable(
                                 (
-                                    Atom('x' type=static),
+                                    "x",
                                     #3,
                                 ),
                             ),
@@ -1229,7 +1229,7 @@
                                 [
                                     Variable(
                                         (
-                                            Atom('i' type=static),
+                                            "i",
                                             #3,
                                         ),
                                     ),
@@ -1275,7 +1275,7 @@
                     Some(
                         Variable(
                             (
-                                Atom('i' type=static),
+                                "i",
                                 #3,
                             ),
                         ),
@@ -1294,7 +1294,7 @@
                     [
                         Variable(
                             (
-                                Atom('i' type=static),
+                                "i",
                                 #3,
                             ),
                         ),
@@ -1325,36 +1325,36 @@
             Call(
                 16,
                 FreeVar(
-                    Atom('safeAdd' type=inline),
+                    "safeAdd",
                 ),
                 [
                     Call(
                         13,
                         FreeVar(
-                            Atom('bitRotateLeft' type=dynamic),
+                            "bitRotateLeft",
                         ),
                         [
                             Call(
                                 10,
                                 FreeVar(
-                                    Atom('safeAdd' type=inline),
+                                    "safeAdd",
                                 ),
                                 [
                                     Call(
                                         4,
                                         FreeVar(
-                                            Atom('safeAdd' type=inline),
+                                            "safeAdd",
                                         ),
                                         [
                                             Variable(
                                                 (
-                                                    Atom('a' type=static),
+                                                    "a",
                                                     #5,
                                                 ),
                                             ),
                                             Variable(
                                                 (
-                                                    Atom('q' type=static),
+                                                    "q",
                                                     #5,
                                                 ),
                                             ),
@@ -1363,18 +1363,18 @@
                                     Call(
                                         4,
                                         FreeVar(
-                                            Atom('safeAdd' type=inline),
+                                            "safeAdd",
                                         ),
                                         [
                                             Variable(
                                                 (
-                                                    Atom('x' type=static),
+                                                    "x",
                                                     #5,
                                                 ),
                                             ),
                                             Variable(
                                                 (
-                                                    Atom('t' type=inline),
+                                                    "t",
                                                     #5,
                                                 ),
                                             ),
@@ -1384,7 +1384,7 @@
                             ),
                             Variable(
                                 (
-                                    Atom('s' type=static),
+                                    "s",
                                     #5,
                                 ),
                             ),
@@ -1392,7 +1392,7 @@
                     ),
                     Variable(
                         (
-                            Atom('b' type=static),
+                            "b",
                             #5,
                         ),
                     ),
@@ -1409,7 +1409,7 @@
                 8,
                 Variable(
                     (
-                        Atom('md5cmn' type=inline),
+                        "md5cmn",
                         #2,
                     ),
                 ),
@@ -1420,31 +1420,31 @@
                     ),
                     Variable(
                         (
-                            Atom('a' type=static),
+                            "a",
                             #6,
                         ),
                     ),
                     Variable(
                         (
-                            Atom('b' type=static),
+                            "b",
                             #6,
                         ),
                     ),
                     Variable(
                         (
-                            Atom('x' type=static),
+                            "x",
                             #6,
                         ),
                     ),
                     Variable(
                         (
-                            Atom('s' type=static),
+                            "s",
                             #6,
                         ),
                     ),
                     Variable(
                         (
-                            Atom('t' type=inline),
+                            "t",
                             #6,
                         ),
                     ),
@@ -1461,7 +1461,7 @@
                     Some(
                         Variable(
                             (
-                                Atom('olda' type=inline),
+                                "olda",
                                 #3,
                             ),
                         ),
@@ -1470,7 +1470,7 @@
                 ),
                 Variable(
                     (
-                        Atom('a' type=static),
+                        "a",
                         #3,
                     ),
                 ),
@@ -1486,7 +1486,7 @@
                     Some(
                         Variable(
                             (
-                                Atom('oldb' type=inline),
+                                "oldb",
                                 #3,
                             ),
                         ),
@@ -1495,7 +1495,7 @@
                 ),
                 Variable(
                     (
-                        Atom('b' type=static),
+                        "b",
                         #3,
                     ),
                 ),
@@ -1511,7 +1511,7 @@
                     Some(
                         Variable(
                             (
-                                Atom('oldc' type=inline),
+                                "oldc",
                                 #3,
                             ),
                         ),
@@ -1520,7 +1520,7 @@
                 ),
                 Variable(
                     (
-                        Atom('c' type=inline),
+                        "c",
                         #3,
                     ),
                 ),
@@ -1536,7 +1536,7 @@
                     Some(
                         Variable(
                             (
-                                Atom('oldd' type=inline),
+                                "oldd",
                                 #3,
                             ),
                         ),
@@ -1545,7 +1545,7 @@
                 ),
                 Variable(
                     (
-                        Atom('d' type=static),
+                        "d",
                         #3,
                     ),
                 ),
@@ -1597,25 +1597,25 @@
                 items: [
                     Variable(
                         (
-                            Atom('a' type=static),
+                            "a",
                             #3,
                         ),
                     ),
                     Variable(
                         (
-                            Atom('b' type=static),
+                            "b",
                             #3,
                         ),
                     ),
                     Variable(
                         (
-                            Atom('c' type=inline),
+                            "c",
                             #3,
                         ),
                     ),
                     Variable(
                         (
-                            Atom('d' type=static),
+                            "d",
                             #3,
                         ),
                     ),

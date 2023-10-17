@@ -4,13 +4,13 @@
         Call(
             3,
             FreeVar(
-                Atom('import' type=static),
+                "import",
             ),
             [
                 Constant(
                     Str(
                         Word(
-                            Atom('a' type=static),
+                            "a",
                         ),
                     ),
                 ),
@@ -26,7 +26,7 @@
                     Some(
                         Variable(
                             (
-                                Atom('b' type=static),
+                                "b",
                                 #2,
                             ),
                         ),
@@ -36,13 +36,13 @@
                 Call(
                     3,
                     FreeVar(
-                        Atom('import' type=static),
+                        "import",
                     ),
                     [
                         Constant(
                             Str(
                                 Word(
-                                    Atom('a' type=static),
+                                    "a",
                                 ),
                             ),
                         ),
@@ -51,13 +51,13 @@
                 Call(
                     3,
                     FreeVar(
-                        Atom('import' type=static),
+                        "import",
                     ),
                     [
                         Constant(
                             Str(
                                 Word(
-                                    Atom('b' type=static),
+                                    "b",
                                 ),
                             ),
                         ),

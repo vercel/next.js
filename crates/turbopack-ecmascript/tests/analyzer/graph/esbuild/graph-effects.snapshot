@@ -1,7 +1,7 @@
 [
     FreeVar {
         var: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         ast_path: [
             Program(
@@ -52,14 +52,14 @@
     },
     Call {
         func: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         args: [
             Value(
                 Constant(
                     Str(
                         Word(
-                            Atom('path' type=static),
+                            "path",
                         ),
                     ),
                 ),
@@ -105,7 +105,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         ast_path: [
             Program(
@@ -156,14 +156,14 @@
     },
     Call {
         func: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         args: [
             Value(
                 Constant(
                     Str(
                         Word(
-                            Atom('path' type=static),
+                            "path",
                         ),
                     ),
                 ),
@@ -209,7 +209,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         ast_path: [
             Program(
@@ -260,14 +260,14 @@
     },
     Call {
         func: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         args: [
             Value(
                 Constant(
                     Str(
                         Word(
-                            Atom('os' type=inline),
+                            "os",
                         ),
                     ),
                 ),
@@ -313,12 +313,12 @@
     },
     Member {
         obj: FreeVar(
-            Atom('process' type=static),
+            "process",
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('platform' type=dynamic),
+                Atom(
+                    "platform",
                 ),
             ),
         ),
@@ -387,7 +387,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('process' type=static),
+            "process",
         ),
         ast_path: [
             Program(
@@ -461,14 +461,14 @@
     Member {
         obj: Variable(
             (
-                Atom('os' type=inline),
+                "os",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('arch' type=inline),
+                Atom(
+                    "arch",
                 ),
             ),
         ),
@@ -547,14 +547,14 @@
     MemberCall {
         obj: Variable(
             (
-                Atom('os' type=inline),
+                "os",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('arch' type=inline),
+                Atom(
+                    "arch",
                 ),
             ),
         ),
@@ -625,14 +625,14 @@
     Member {
         obj: Variable(
             (
-                Atom('os' type=inline),
+                "os",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('endianness' type=dynamic),
+                Atom(
+                    "endianness",
                 ),
             ),
         ),
@@ -711,14 +711,14 @@
     MemberCall {
         obj: Variable(
             (
-                Atom('os' type=inline),
+                "os",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('endianness' type=dynamic),
+                Atom(
+                    "endianness",
                 ),
             ),
         ),
@@ -789,13 +789,13 @@
     Member {
         obj: Variable(
             (
-                Atom('knownWindowsPackages' type=dynamic),
+                "knownWindowsPackages",
                 #2,
             ),
         ),
         prop: Variable(
             (
-                Atom('platformKey' type=dynamic),
+                "platformKey",
                 #3,
             ),
         ),
@@ -869,13 +869,13 @@
     Member {
         obj: Variable(
             (
-                Atom('knownUnixlikePackages' type=dynamic),
+                "knownUnixlikePackages",
                 #2,
             ),
         ),
         prop: Variable(
             (
-                Atom('platformKey' type=dynamic),
+                "platformKey",
                 #3,
             ),
         ),
@@ -954,7 +954,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('Error' type=static),
+            "Error",
         ),
         ast_path: [
             Program(
@@ -1031,7 +1031,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('ESBUILD_BINARY_PATH' type=dynamic),
+            "ESBUILD_BINARY_PATH",
         ),
         ast_path: [
             Program(
@@ -1082,14 +1082,14 @@
     },
     Conditional {
         condition: FreeVar(
-            Atom('ESBUILD_BINARY_PATH' type=dynamic),
+            "ESBUILD_BINARY_PATH",
         ),
         kind: If {
             then: EffectsBlock {
                 effects: [
                     FreeVar {
                         var: FreeVar(
-                            Atom('ESBUILD_BINARY_PATH' type=dynamic),
+                            "ESBUILD_BINARY_PATH",
                         ),
                         ast_path: [
                             Program(
@@ -1235,7 +1235,7 @@
     Call {
         func: Variable(
             (
-                Atom('pkgAndSubpathForCurrentPlatform' type=dynamic),
+                "pkgAndSubpathForCurrentPlatform",
                 #2,
             ),
         ),
@@ -1297,12 +1297,12 @@
     },
     Member {
         obj: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('resolve' type=inline),
+                Atom(
+                    "resolve",
                 ),
             ),
         ),
@@ -1381,7 +1381,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         ast_path: [
             Program(
@@ -1464,12 +1464,12 @@
     },
     MemberCall {
         obj: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('resolve' type=inline),
+                Atom(
+                    "resolve",
                 ),
             ),
         ),
@@ -1480,7 +1480,7 @@
                     [
                         Variable(
                             (
-                                Atom('pkg' type=inline),
+                                "pkg",
                                 #7,
                             ),
                         ),
@@ -1493,7 +1493,7 @@
                         ),
                         Variable(
                             (
-                                Atom('subpath' type=inline),
+                                "subpath",
                                 #7,
                             ),
                         ),
@@ -1567,7 +1567,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('downloadedBinPath' type=dynamic),
+            "downloadedBinPath",
         ),
         ast_path: [
             Program(
@@ -1647,13 +1647,13 @@
     },
     Call {
         func: FreeVar(
-            Atom('downloadedBinPath' type=dynamic),
+            "downloadedBinPath",
         ),
         args: [
             Value(
                 Variable(
                     (
-                        Atom('pkg' type=inline),
+                        "pkg",
                         #7,
                     ),
                 ),
@@ -1661,7 +1661,7 @@
             Value(
                 Variable(
                     (
-                        Atom('subpath' type=inline),
+                        "subpath",
                         #7,
                     ),
                 ),
@@ -1736,12 +1736,12 @@
     },
     Member {
         obj: FreeVar(
-            Atom('fs' type=inline),
+            "fs",
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('existsSync' type=dynamic),
+                Atom(
+                    "existsSync",
                 ),
             ),
         ),
@@ -1823,7 +1823,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('fs' type=inline),
+            "fs",
         ),
         ast_path: [
             Program(
@@ -1909,12 +1909,12 @@
     },
     MemberCall {
         obj: FreeVar(
-            Atom('fs' type=inline),
+            "fs",
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('existsSync' type=dynamic),
+                Atom(
+                    "existsSync",
                 ),
             ),
         ),
@@ -1922,7 +1922,7 @@
             Value(
                 Variable(
                     (
-                        Atom('binPath' type=inline),
+                        "binPath",
                         #7,
                     ),
                 ),
@@ -2001,19 +2001,19 @@
             MemberCall(
                 4,
                 FreeVar(
-                    Atom('fs' type=inline),
+                    "fs",
                 ),
                 Constant(
                     Str(
-                        Word(
-                            Atom('existsSync' type=dynamic),
+                        Atom(
+                            "existsSync",
                         ),
                     ),
                 ),
                 [
                     Variable(
                         (
-                            Atom('binPath' type=inline),
+                            "binPath",
                             #7,
                         ),
                     ),
@@ -2025,12 +2025,12 @@
                 effects: [
                     Member {
                         obj: FreeVar(
-                            Atom('require' type=static),
+                            "require",
                         ),
                         prop: Constant(
                             Str(
-                                Word(
-                                    Atom('resolve' type=inline),
+                                Atom(
+                                    "resolve",
                                 ),
                             ),
                         ),
@@ -2131,7 +2131,7 @@
                     },
                     FreeVar {
                         var: FreeVar(
-                            Atom('require' type=static),
+                            "require",
                         ),
                         ast_path: [
                             Program(
@@ -2236,12 +2236,12 @@
                     },
                     MemberCall {
                         obj: FreeVar(
-                            Atom('require' type=static),
+                            "require",
                         ),
                         prop: Constant(
                             Str(
-                                Word(
-                                    Atom('resolve' type=inline),
+                                Atom(
+                                    "resolve",
                                 ),
                             ),
                         ),
@@ -2249,7 +2249,7 @@
                             Value(
                                 Variable(
                                     (
-                                        Atom('pkg' type=inline),
+                                        "pkg",
                                         #7,
                                     ),
                                 ),
@@ -2343,7 +2343,7 @@
                     },
                     FreeVar {
                         var: FreeVar(
-                            Atom('Error' type=static),
+                            "Error",
                         ),
                         ast_path: [
                             Program(
@@ -2550,7 +2550,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         ast_path: [
             Program(
@@ -2621,14 +2621,14 @@
     },
     Call {
         func: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         args: [
             Value(
                 Constant(
                     Str(
                         Word(
-                            Atom('pnpapi' type=inline),
+                            "pnpapi",
                         ),
                     ),
                 ),
@@ -2695,7 +2695,7 @@
     Conditional {
         condition: Variable(
             (
-                Atom('isYarnPnP' type=dynamic),
+                "isYarnPnP",
                 #7,
             ),
         ),
@@ -2705,14 +2705,14 @@
                     Member {
                         obj: Variable(
                             (
-                                Atom('path' type=static),
+                                "path",
                                 #2,
                             ),
                         ),
                         prop: Constant(
                             Str(
-                                Word(
-                                    Atom('dirname' type=inline),
+                                Atom(
+                                    "dirname",
                                 ),
                             ),
                         ),
@@ -2796,12 +2796,12 @@
                     },
                     Member {
                         obj: FreeVar(
-                            Atom('require' type=static),
+                            "require",
                         ),
                         prop: Constant(
                             Str(
-                                Word(
-                                    Atom('resolve' type=inline),
+                                Atom(
+                                    "resolve",
                                 ),
                             ),
                         ),
@@ -2896,7 +2896,7 @@
                     },
                     FreeVar {
                         var: FreeVar(
-                            Atom('require' type=static),
+                            "require",
                         ),
                         ast_path: [
                             Program(
@@ -2995,12 +2995,12 @@
                     },
                     MemberCall {
                         obj: FreeVar(
-                            Atom('require' type=static),
+                            "require",
                         ),
                         prop: Constant(
                             Str(
-                                Word(
-                                    Atom('resolve' type=inline),
+                                Atom(
+                                    "resolve",
                                 ),
                             ),
                         ),
@@ -3009,7 +3009,7 @@
                                 Constant(
                                     Str(
                                         Word(
-                                            Atom('esbuild' type=inline),
+                                            "esbuild",
                                         ),
                                     ),
                                 ),
@@ -3098,14 +3098,14 @@
                     MemberCall {
                         obj: Variable(
                             (
-                                Atom('path' type=static),
+                                "path",
                                 #2,
                             ),
                         ),
                         prop: Constant(
                             Str(
-                                Word(
-                                    Atom('dirname' type=inline),
+                                Atom(
+                                    "dirname",
                                 ),
                             ),
                         ),
@@ -3114,12 +3114,12 @@
                                 MemberCall(
                                     4,
                                     FreeVar(
-                                        Atom('require' type=static),
+                                        "require",
                                     ),
                                     Constant(
                                         Str(
-                                            Word(
-                                                Atom('resolve' type=inline),
+                                            Atom(
+                                                "resolve",
                                             ),
                                         ),
                                     ),
@@ -3127,7 +3127,7 @@
                                         Constant(
                                             Str(
                                                 Word(
-                                                    Atom('esbuild' type=inline),
+                                                    "esbuild",
                                                 ),
                                             ),
                                         ),
@@ -3207,14 +3207,14 @@
                     Member {
                         obj: Variable(
                             (
-                                Atom('path' type=static),
+                                "path",
                                 #2,
                             ),
                         ),
                         prop: Constant(
                             Str(
-                                Word(
-                                    Atom('join' type=inline),
+                                Atom(
+                                    "join",
                                 ),
                             ),
                         ),
@@ -3299,14 +3299,14 @@
                     Member {
                         obj: Variable(
                             (
-                                Atom('path' type=static),
+                                "path",
                                 #2,
                             ),
                         ),
                         prop: Constant(
                             Str(
-                                Word(
-                                    Atom('basename' type=dynamic),
+                                Atom(
+                                    "basename",
                                 ),
                             ),
                         ),
@@ -3410,14 +3410,14 @@
                     MemberCall {
                         obj: Variable(
                             (
-                                Atom('path' type=static),
+                                "path",
                                 #2,
                             ),
                         ),
                         prop: Constant(
                             Str(
-                                Word(
-                                    Atom('basename' type=dynamic),
+                                Atom(
+                                    "basename",
                                 ),
                             ),
                         ),
@@ -3425,7 +3425,7 @@
                             Value(
                                 Variable(
                                     (
-                                        Atom('subpath' type=inline),
+                                        "subpath",
                                         #7,
                                     ),
                                 ),
@@ -3522,14 +3522,14 @@
                     MemberCall {
                         obj: Variable(
                             (
-                                Atom('path' type=static),
+                                "path",
                                 #2,
                             ),
                         ),
                         prop: Constant(
                             Str(
-                                Word(
-                                    Atom('join' type=inline),
+                                Atom(
+                                    "join",
                                 ),
                             ),
                         ),
@@ -3537,7 +3537,7 @@
                             Value(
                                 Variable(
                                     (
-                                        Atom('esbuildLibDir' type=dynamic),
+                                        "esbuildLibDir",
                                         #16,
                                     ),
                                 ),
@@ -3555,7 +3555,7 @@
                                         ),
                                         Variable(
                                             (
-                                                Atom('pkg' type=inline),
+                                                "pkg",
                                                 #7,
                                             ),
                                         ),
@@ -3570,21 +3570,21 @@
                                             4,
                                             Variable(
                                                 (
-                                                    Atom('path' type=static),
+                                                    "path",
                                                     #2,
                                                 ),
                                             ),
                                             Constant(
                                                 Str(
-                                                    Word(
-                                                        Atom('basename' type=dynamic),
+                                                    Atom(
+                                                        "basename",
                                                     ),
                                                 ),
                                             ),
                                             [
                                                 Variable(
                                                     (
-                                                        Atom('subpath' type=inline),
+                                                        "subpath",
                                                         #7,
                                                     ),
                                                 ),
@@ -3665,12 +3665,12 @@
                     },
                     Member {
                         obj: FreeVar(
-                            Atom('fs' type=inline),
+                            "fs",
                         ),
                         prop: Constant(
                             Str(
-                                Word(
-                                    Atom('existsSync' type=dynamic),
+                                Atom(
+                                    "existsSync",
                                 ),
                             ),
                         ),
@@ -3752,7 +3752,7 @@
                     },
                     FreeVar {
                         var: FreeVar(
-                            Atom('fs' type=inline),
+                            "fs",
                         ),
                         ast_path: [
                             Program(
@@ -3838,12 +3838,12 @@
                     },
                     MemberCall {
                         obj: FreeVar(
-                            Atom('fs' type=inline),
+                            "fs",
                         ),
                         prop: Constant(
                             Str(
-                                Word(
-                                    Atom('existsSync' type=dynamic),
+                                Atom(
+                                    "existsSync",
                                 ),
                             ),
                         ),
@@ -3851,7 +3851,7 @@
                             Value(
                                 Variable(
                                     (
-                                        Atom('binTargetPath' type=dynamic),
+                                        "binTargetPath",
                                         #16,
                                     ),
                                 ),
@@ -3930,19 +3930,19 @@
                             MemberCall(
                                 4,
                                 FreeVar(
-                                    Atom('fs' type=inline),
+                                    "fs",
                                 ),
                                 Constant(
                                     Str(
-                                        Word(
-                                            Atom('existsSync' type=dynamic),
+                                        Atom(
+                                            "existsSync",
                                         ),
                                     ),
                                 ),
                                 [
                                     Variable(
                                         (
-                                            Atom('binTargetPath' type=dynamic),
+                                            "binTargetPath",
                                             #16,
                                         ),
                                     ),
@@ -3954,12 +3954,12 @@
                                 effects: [
                                     Member {
                                         obj: FreeVar(
-                                            Atom('fs' type=inline),
+                                            "fs",
                                         ),
                                         prop: Constant(
                                             Str(
-                                                Word(
-                                                    Atom('copyFileSync' type=dynamic),
+                                                Atom(
+                                                    "copyFileSync",
                                                 ),
                                             ),
                                         ),
@@ -4049,7 +4049,7 @@
                                     },
                                     FreeVar {
                                         var: FreeVar(
-                                            Atom('fs' type=inline),
+                                            "fs",
                                         ),
                                         ast_path: [
                                             Program(
@@ -4143,12 +4143,12 @@
                                     },
                                     MemberCall {
                                         obj: FreeVar(
-                                            Atom('fs' type=inline),
+                                            "fs",
                                         ),
                                         prop: Constant(
                                             Str(
-                                                Word(
-                                                    Atom('copyFileSync' type=dynamic),
+                                                Atom(
+                                                    "copyFileSync",
                                                 ),
                                             ),
                                         ),
@@ -4156,7 +4156,7 @@
                                             Value(
                                                 Variable(
                                                     (
-                                                        Atom('binPath' type=inline),
+                                                        "binPath",
                                                         #7,
                                                     ),
                                                 ),
@@ -4164,7 +4164,7 @@
                                             Value(
                                                 Variable(
                                                     (
-                                                        Atom('binTargetPath' type=dynamic),
+                                                        "binTargetPath",
                                                         #16,
                                                     ),
                                                 ),
@@ -4247,12 +4247,12 @@
                                     },
                                     Member {
                                         obj: FreeVar(
-                                            Atom('fs' type=inline),
+                                            "fs",
                                         ),
                                         prop: Constant(
                                             Str(
-                                                Word(
-                                                    Atom('chmodSync' type=dynamic),
+                                                Atom(
+                                                    "chmodSync",
                                                 ),
                                             ),
                                         ),
@@ -4342,7 +4342,7 @@
                                     },
                                     FreeVar {
                                         var: FreeVar(
-                                            Atom('fs' type=inline),
+                                            "fs",
                                         ),
                                         ast_path: [
                                             Program(
@@ -4436,12 +4436,12 @@
                                     },
                                     MemberCall {
                                         obj: FreeVar(
-                                            Atom('fs' type=inline),
+                                            "fs",
                                         ),
                                         prop: Constant(
                                             Str(
-                                                Word(
-                                                    Atom('chmodSync' type=dynamic),
+                                                Atom(
+                                                    "chmodSync",
                                                 ),
                                             ),
                                         ),
@@ -4449,7 +4449,7 @@
                                             Value(
                                                 Variable(
                                                     (
-                                                        Atom('binTargetPath' type=dynamic),
+                                                        "binTargetPath",
                                                         #16,
                                                     ),
                                                 ),
@@ -4729,7 +4729,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('ESBUILD_BINARY_PATH' type=dynamic),
+            "ESBUILD_BINARY_PATH",
         ),
         ast_path: [
             Program(
@@ -4816,14 +4816,14 @@
     Member {
         obj: Variable(
             (
-                Atom('path2' type=inline),
+                "path2",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('basename' type=dynamic),
+                Atom(
+                    "basename",
                 ),
             ),
         ),
@@ -4920,7 +4920,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('__filename' type=dynamic),
+            "__filename",
         ),
         ast_path: [
             Program(
@@ -5018,21 +5018,21 @@
     MemberCall {
         obj: Variable(
             (
-                Atom('path2' type=inline),
+                "path2",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('basename' type=dynamic),
+                Atom(
+                    "basename",
                 ),
             ),
         ),
         args: [
             Value(
                 FreeVar(
-                    Atom('__filename' type=dynamic),
+                    "__filename",
                 ),
             ),
         ],
@@ -5121,14 +5121,14 @@
     Member {
         obj: Variable(
             (
-                Atom('path2' type=inline),
+                "path2",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('basename' type=dynamic),
+                Atom(
+                    "basename",
                 ),
             ),
         ),
@@ -5225,7 +5225,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('__dirname' type=dynamic),
+            "__dirname",
         ),
         ast_path: [
             Program(
@@ -5323,21 +5323,21 @@
     MemberCall {
         obj: Variable(
             (
-                Atom('path2' type=inline),
+                "path2",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('basename' type=dynamic),
+                Atom(
+                    "basename",
                 ),
             ),
         ),
         args: [
             Value(
                 FreeVar(
-                    Atom('__dirname' type=dynamic),
+                    "__dirname",
                 ),
             ),
         ],
@@ -5435,7 +5435,7 @@
                         Not(
                             2,
                             FreeVar(
-                                Atom('ESBUILD_BINARY_PATH' type=dynamic),
+                                "ESBUILD_BINARY_PATH",
                             ),
                         ),
                         Constant(
@@ -5453,20 +5453,20 @@
                                 4,
                                 Variable(
                                     (
-                                        Atom('path2' type=inline),
+                                        "path2",
                                         #2,
                                     ),
                                 ),
                                 Constant(
                                     Str(
-                                        Word(
-                                            Atom('basename' type=dynamic),
+                                        Atom(
+                                            "basename",
                                         ),
                                     ),
                                 ),
                                 [
                                     FreeVar(
-                                        Atom('__filename' type=dynamic),
+                                        "__filename",
                                     ),
                                 ],
                             ),
@@ -5474,7 +5474,7 @@
                             Constant(
                                 Str(
                                     Word(
-                                        Atom('main.js' type=inline),
+                                        "main.js",
                                     ),
                                 ),
                             ),
@@ -5485,20 +5485,20 @@
                                 4,
                                 Variable(
                                     (
-                                        Atom('path2' type=inline),
+                                        "path2",
                                         #2,
                                     ),
                                 ),
                                 Constant(
                                     Str(
-                                        Word(
-                                            Atom('basename' type=dynamic),
+                                        Atom(
+                                            "basename",
                                         ),
                                     ),
                                 ),
                                 [
                                     FreeVar(
-                                        Atom('__dirname' type=dynamic),
+                                        "__dirname",
                                     ),
                                 ],
                             ),
@@ -5506,7 +5506,7 @@
                             Constant(
                                 Str(
                                     Word(
-                                        Atom('lib' type=inline),
+                                        "lib",
                                     ),
                                 ),
                             ),
@@ -5520,7 +5520,7 @@
                 effects: [
                     FreeVar {
                         var: FreeVar(
-                            Atom('Error' type=static),
+                            "Error",
                         ),
                         ast_path: [
                             Program(
@@ -5602,7 +5602,7 @@
                     },
                     FreeVar {
                         var: FreeVar(
-                            Atom('__filename' type=dynamic),
+                            "__filename",
                         ),
                         ast_path: [
                             Program(
@@ -5807,14 +5807,14 @@
                     Member {
                         obj: Variable(
                             (
-                                Atom('path2' type=inline),
+                                "path2",
                                 #2,
                             ),
                         ),
                         prop: Constant(
                             Str(
-                                Word(
-                                    Atom('join' type=inline),
+                                Atom(
+                                    "join",
                                 ),
                             ),
                         ),
@@ -5923,7 +5923,7 @@
                     },
                     FreeVar {
                         var: FreeVar(
-                            Atom('__dirname' type=dynamic),
+                            "__dirname",
                         ),
                         ast_path: [
                             Program(
@@ -6033,28 +6033,28 @@
                     MemberCall {
                         obj: Variable(
                             (
-                                Atom('path2' type=inline),
+                                "path2",
                                 #2,
                             ),
                         ),
                         prop: Constant(
                             Str(
-                                Word(
-                                    Atom('join' type=inline),
+                                Atom(
+                                    "join",
                                 ),
                             ),
                         ),
                         args: [
                             Value(
                                 FreeVar(
-                                    Atom('__dirname' type=dynamic),
+                                    "__dirname",
                                 ),
                             ),
                             Value(
                                 Constant(
                                     Str(
                                         Word(
-                                            Atom('..' type=inline),
+                                            "..",
                                         ),
                                     ),
                                 ),
@@ -6063,7 +6063,7 @@
                                 Constant(
                                     Str(
                                         Word(
-                                            Atom('bin' type=inline),
+                                            "bin",
                                         ),
                                     ),
                                 ),
@@ -6072,7 +6072,7 @@
                                 Constant(
                                     Str(
                                         Word(
-                                            Atom('esbuild' type=inline),
+                                            "esbuild",
                                         ),
                                     ),
                                 ),
@@ -6277,7 +6277,7 @@
     Call {
         func: Variable(
             (
-                Atom('generateBinPath' type=dynamic),
+                "generateBinPath",
                 #2,
             ),
         ),
@@ -6354,7 +6354,7 @@
     Call {
         func: Variable(
             (
-                Atom('esbuildCommandAndArgs' type=dynamic),
+                "esbuildCommandAndArgs",
                 #2,
             ),
         ),
@@ -6400,14 +6400,14 @@
     Member {
         obj: Variable(
             (
-                Atom('args' type=inline),
+                "args",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('concat' type=static),
+                Atom(
+                    "concat",
                 ),
             ),
         ),
@@ -6461,14 +6461,14 @@
     MemberCall {
         obj: Variable(
             (
-                Atom('args' type=inline),
+                "args",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('concat' type=static),
+                Atom(
+                    "concat",
                 ),
             ),
         ),
@@ -6486,7 +6486,7 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('--ping' type=inline),
+                            "--ping",
                         ),
                     ),
                 ),

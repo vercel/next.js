@@ -2,7 +2,7 @@
     Call {
         func: Variable(
             (
-                Atom('c' type=inline),
+                "c",
                 #2,
             ),
         ),
@@ -11,7 +11,7 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('1' type=inline),
+                            "1",
                         ),
                     ),
                 ),
@@ -20,7 +20,7 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('2' type=inline),
+                            "2",
                         ),
                     ),
                 ),

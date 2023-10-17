@@ -1,7 +1,7 @@
 [
     FreeVar {
         var: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         ast_path: [
             Program(
@@ -52,14 +52,14 @@
     },
     Call {
         func: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         args: [
             Value(
                 Constant(
                     Str(
                         Word(
-                            Atom('os' type=inline),
+                            "os",
                         ),
                     ),
                 ),
@@ -105,7 +105,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         ast_path: [
             Program(
@@ -156,14 +156,14 @@
     },
     Call {
         func: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         args: [
             Value(
                 Constant(
                     Str(
                         Word(
-                            Atom('process' type=static),
+                            "process",
                         ),
                     ),
                 ),
@@ -209,7 +209,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('process' type=static),
+            "process",
         ),
         ast_path: [
             Program(
@@ -251,7 +251,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         ast_path: [
             Program(
@@ -302,12 +302,12 @@
     },
     Member {
         obj: FreeVar(
-            Atom('process' type=static),
+            "process",
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('arch' type=inline),
+                Atom(
+                    "arch",
                 ),
             ),
         ),
@@ -370,7 +370,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('process' type=static),
+            "process",
         ),
         ast_path: [
             Program(
@@ -438,7 +438,7 @@
     Call {
         func: Variable(
             (
-                Atom('platform' type=dynamic),
+                "platform",
                 #2,
             ),
         ),
@@ -503,7 +503,7 @@
     Call {
         func: Variable(
             (
-                Atom('endianness' type=dynamic),
+                "endianness",
                 #2,
             ),
         ),
@@ -567,7 +567,7 @@
     },
     Call {
         func: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         args: [
             Value(
@@ -584,12 +584,12 @@
                         Member(
                             3,
                             FreeVar(
-                                Atom('process' type=static),
+                                "process",
                             ),
                             Constant(
                                 Str(
-                                    Word(
-                                        Atom('arch' type=inline),
+                                    Atom(
+                                        "arch",
                                     ),
                                 ),
                             ),
@@ -605,7 +605,7 @@
                             2,
                             Variable(
                                 (
-                                    Atom('platform' type=dynamic),
+                                    "platform",
                                     #2,
                                 ),
                             ),
@@ -622,7 +622,7 @@
                             2,
                             Variable(
                                 (
-                                    Atom('endianness' type=dynamic),
+                                    "endianness",
                                     #2,
                                 ),
                             ),
@@ -672,7 +672,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         ast_path: [
             Program(
@@ -724,7 +724,7 @@
     Call {
         func: Variable(
             (
-                Atom('arch' type=inline),
+                "arch",
                 #2,
             ),
         ),
@@ -789,7 +789,7 @@
     Call {
         func: Variable(
             (
-                Atom('platform' type=dynamic),
+                "platform",
                 #2,
             ),
         ),
@@ -854,7 +854,7 @@
     Call {
         func: Variable(
             (
-                Atom('endianness' type=dynamic),
+                "endianness",
                 #2,
             ),
         ),
@@ -918,7 +918,7 @@
     },
     Call {
         func: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         args: [
             Value(
@@ -936,7 +936,7 @@
                             2,
                             Variable(
                                 (
-                                    Atom('arch' type=inline),
+                                    "arch",
                                     #2,
                                 ),
                             ),
@@ -953,7 +953,7 @@
                             2,
                             Variable(
                                 (
-                                    Atom('platform' type=dynamic),
+                                    "platform",
                                     #2,
                                 ),
                             ),
@@ -970,7 +970,7 @@
                             2,
                             Variable(
                                 (
-                                    Atom('endianness' type=dynamic),
+                                    "endianness",
                                     #2,
                                 ),
                             ),
@@ -1020,7 +1020,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         ast_path: [
             Program(
@@ -1072,7 +1072,7 @@
     Call {
         func: Variable(
             (
-                Atom('arch' type=inline),
+                "arch",
                 #2,
             ),
         ),
@@ -1136,12 +1136,12 @@
     },
     Member {
         obj: FreeVar(
-            Atom('process' type=static),
+            "process",
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('platform' type=dynamic),
+                Atom(
+                    "platform",
                 ),
             ),
         ),
@@ -1204,7 +1204,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('process' type=static),
+            "process",
         ),
         ast_path: [
             Program(
@@ -1272,7 +1272,7 @@
     Call {
         func: Variable(
             (
-                Atom('endianness' type=dynamic),
+                "endianness",
                 #2,
             ),
         ),
@@ -1336,7 +1336,7 @@
     },
     Call {
         func: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         args: [
             Value(
@@ -1354,7 +1354,7 @@
                             2,
                             Variable(
                                 (
-                                    Atom('arch' type=inline),
+                                    "arch",
                                     #2,
                                 ),
                             ),
@@ -1370,12 +1370,12 @@
                         Member(
                             3,
                             FreeVar(
-                                Atom('process' type=static),
+                                "process",
                             ),
                             Constant(
                                 Str(
-                                    Word(
-                                        Atom('platform' type=dynamic),
+                                    Atom(
+                                        "platform",
                                     ),
                                 ),
                             ),
@@ -1391,7 +1391,7 @@
                             2,
                             Variable(
                                 (
-                                    Atom('endianness' type=dynamic),
+                                    "endianness",
                                     #2,
                                 ),
                             ),
@@ -1441,7 +1441,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         ast_path: [
             Program(
@@ -1492,12 +1492,12 @@
     },
     Member {
         obj: FreeVar(
-            Atom('process' type=static),
+            "process",
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('arch' type=inline),
+                Atom(
+                    "arch",
                 ),
             ),
         ),
@@ -1560,7 +1560,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('process' type=static),
+            "process",
         ),
         ast_path: [
             Program(
@@ -1627,12 +1627,12 @@
     },
     Member {
         obj: FreeVar(
-            Atom('process' type=static),
+            "process",
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('platform' type=dynamic),
+                Atom(
+                    "platform",
                 ),
             ),
         ),
@@ -1695,7 +1695,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('process' type=static),
+            "process",
         ),
         ast_path: [
             Program(
@@ -1763,7 +1763,7 @@
     Call {
         func: Variable(
             (
-                Atom('endianness' type=dynamic),
+                "endianness",
                 #2,
             ),
         ),
@@ -1827,7 +1827,7 @@
     },
     Call {
         func: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         args: [
             Value(
@@ -1844,12 +1844,12 @@
                         Member(
                             3,
                             FreeVar(
-                                Atom('process' type=static),
+                                "process",
                             ),
                             Constant(
                                 Str(
-                                    Word(
-                                        Atom('arch' type=inline),
+                                    Atom(
+                                        "arch",
                                     ),
                                 ),
                             ),
@@ -1864,12 +1864,12 @@
                         Member(
                             3,
                             FreeVar(
-                                Atom('process' type=static),
+                                "process",
                             ),
                             Constant(
                                 Str(
-                                    Word(
-                                        Atom('platform' type=dynamic),
+                                    Atom(
+                                        "platform",
                                     ),
                                 ),
                             ),
@@ -1885,7 +1885,7 @@
                             2,
                             Variable(
                                 (
-                                    Atom('endianness' type=dynamic),
+                                    "endianness",
                                     #2,
                                 ),
                             ),
@@ -1935,7 +1935,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         ast_path: [
             Program(
@@ -1987,14 +1987,14 @@
     Member {
         obj: Variable(
             (
-                Atom('p' type=static),
+                "p",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('arch' type=inline),
+                Atom(
+                    "arch",
                 ),
             ),
         ),
@@ -2058,14 +2058,14 @@
     Member {
         obj: Variable(
             (
-                Atom('p' type=static),
+                "p",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('platform' type=dynamic),
+                Atom(
+                    "platform",
                 ),
             ),
         ),
@@ -2129,7 +2129,7 @@
     Call {
         func: Variable(
             (
-                Atom('endianness' type=dynamic),
+                "endianness",
                 #2,
             ),
         ),
@@ -2193,7 +2193,7 @@
     },
     Call {
         func: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         args: [
             Value(
@@ -2211,14 +2211,14 @@
                             3,
                             Variable(
                                 (
-                                    Atom('p' type=static),
+                                    "p",
                                     #2,
                                 ),
                             ),
                             Constant(
                                 Str(
-                                    Word(
-                                        Atom('arch' type=inline),
+                                    Atom(
+                                        "arch",
                                     ),
                                 ),
                             ),
@@ -2234,14 +2234,14 @@
                             3,
                             Variable(
                                 (
-                                    Atom('p' type=static),
+                                    "p",
                                     #2,
                                 ),
                             ),
                             Constant(
                                 Str(
-                                    Word(
-                                        Atom('platform' type=dynamic),
+                                    Atom(
+                                        "platform",
                                     ),
                                 ),
                             ),
@@ -2257,7 +2257,7 @@
                             2,
                             Variable(
                                 (
-                                    Atom('endianness' type=dynamic),
+                                    "endianness",
                                     #2,
                                 ),
                             ),
@@ -2307,7 +2307,7 @@
     },
     FreeVar {
         var: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         ast_path: [
             Program(
@@ -2359,14 +2359,14 @@
     Member {
         obj: Variable(
             (
-                Atom('p' type=static),
+                "p",
                 #2,
             ),
         ),
         prop: Constant(
             Str(
-                Word(
-                    Atom('arch' type=inline),
+                Atom(
+                    "arch",
                 ),
             ),
         ),
@@ -2430,7 +2430,7 @@
     Call {
         func: Variable(
             (
-                Atom('endianness' type=dynamic),
+                "endianness",
                 #2,
             ),
         ),
@@ -2494,7 +2494,7 @@
     },
     Call {
         func: FreeVar(
-            Atom('require' type=static),
+            "require",
         ),
         args: [
             Value(
@@ -2512,14 +2512,14 @@
                             3,
                             Variable(
                                 (
-                                    Atom('p' type=static),
+                                    "p",
                                     #2,
                                 ),
                             ),
                             Constant(
                                 Str(
-                                    Word(
-                                        Atom('arch' type=inline),
+                                    Atom(
+                                        "arch",
                                     ),
                                 ),
                             ),
@@ -2533,7 +2533,7 @@
                         ),
                         Variable(
                             (
-                                Atom('processPlatform' type=dynamic),
+                                "processPlatform",
                                 #2,
                             ),
                         ),
@@ -2548,7 +2548,7 @@
                             2,
                             Variable(
                                 (
-                                    Atom('endianness' type=dynamic),
+                                    "endianness",
                                     #2,
                                 ),
                             ),

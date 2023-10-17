@@ -44,13 +44,13 @@
                 [
                     Variable(
                         (
-                            Atom('a' type=static),
+                            "a",
                             #9,
                         ),
                     ),
                     Variable(
                         (
-                            Atom('b' type=static),
+                            "b",
                             #10,
                         ),
                     ),
@@ -67,7 +67,7 @@
                 3,
                 Variable(
                     (
-                        Atom('inner' type=inline),
+                        "inner",
                         #9,
                     ),
                 ),
@@ -75,7 +75,7 @@
                     Constant(
                         Str(
                             Word(
-                                Atom('b' type=static),
+                                "b",
                             ),
                         ),
                     ),
@@ -96,7 +96,7 @@
                     ),
                     Variable(
                         (
-                            Atom('a' type=static),
+                            "a",
                             #6,
                         ),
                     ),
@@ -107,7 +107,7 @@
                                 5,
                                 Variable(
                                     (
-                                        Atom('r' type=inline),
+                                        "r",
                                         #2,
                                     ),
                                 ),
@@ -117,7 +117,7 @@
                                         [
                                             Variable(
                                                 (
-                                                    Atom('a' type=static),
+                                                    "a",
                                                     #6,
                                                 ),
                                             ),
@@ -153,7 +153,7 @@
                 3,
                 Variable(
                     (
-                        Atom('x' type=static),
+                        "x",
                         #2,
                     ),
                 ),
@@ -184,7 +184,7 @@
             3,
             Variable(
                 (
-                    Atom('r' type=inline),
+                    "r",
                     #2,
                 ),
             ),
@@ -205,7 +205,7 @@
             3,
             Variable(
                 (
-                    Atom('outer' type=inline),
+                    "outer",
                     #2,
                 ),
             ),
@@ -213,7 +213,7 @@
                 Constant(
                     Str(
                         Word(
-                            Atom('a' type=static),
+                            "a",
                         ),
                     ),
                 ),
@@ -227,7 +227,7 @@
             1,
             Variable(
                 (
-                    Atom('y' type=inline),
+                    "y",
                     #4,
                 ),
             ),
@@ -243,13 +243,13 @@
                 [
                     Variable(
                         (
-                            Atom('a' type=static),
+                            "a",
                             #3,
                         ),
                     ),
                     Variable(
                         (
-                            Atom('b' type=static),
+                            "b",
                             #5,
                         ),
                     ),
