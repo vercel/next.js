@@ -1,8 +1,7 @@
 const os = require('os')
 const path = require('path')
 const execa = require('execa')
-const fsp = require('fs/promises')
-const { copy } = require('fs-extra')
+const fs = require('fs-extra')
 const prettyBytes = require('pretty-bytes')
 const gzipSize = require('next/dist/compiled/gzip-size')
 const { nodeFileTrace } = require('next/dist/compiled/@vercel/nft')
@@ -25,7 +24,7 @@ async function main() {
   const origTestDir = path.join(origRepoDir, 'test')
   const dotDir = path.join(origRepoDir, './') + '.'
 
-  await copy(origRepoDir, repoDir, {
+  await fs.copy(origRepoDir, repoDir, {
     filter: (item) => {
       return (
         !item.startsWith(origTestDir) &&
@@ -37,11 +36,11 @@ async function main() {
 
   console.log('using workdir', workDir)
   console.log('using repodir', repoDir)
-  await fsp.mkdir(workDir, { recursive: true })
+  await fs.ensureDir(workDir)
 
   const pkgPaths = await linkPackages({ repoDir: origRepoDir })
 
-  await fsp.writeFile(
+  await fs.writeFile(
     path.join(workDir, 'package.json'),
     JSON.stringify(
       {
@@ -96,7 +95,7 @@ async function main() {
       continue
     }
     tracedDeps.add(file.replace(/\\/g, '/'))
-    const stat = await fsp.stat(path.join(workDir, file))
+    const stat = await fs.stat(path.join(workDir, file))
 
     if (stat.isFile()) {
       const compressedSize = await gzipSize(path.join(workDir, file))
@@ -113,7 +112,7 @@ async function main() {
     totalUncompressedSize: prettyBytes(totalUncompressedSize),
   })
 
-  await fsp.writeFile(
+  await fs.writeFile(
     path.join(
       __dirname,
       '../packages/next/dist/server/next-server.js.nft.json'
@@ -123,8 +122,8 @@ async function main() {
       version: 1,
     })
   )
-  await fsp.rm(workDir, { recursive: true, force: true })
-  await fsp.rm(repoDir, { recursive: true, force: true })
+  await fs.remove(workDir)
+  await fs.remove(repoDir)
 
   console.timeEnd(traceLabel)
 

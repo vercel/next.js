@@ -1,7 +1,7 @@
 // @ts-check
 
 const path = require('path')
-const fsp = require('fs/promises')
+const { readJson, writeJson } = require('fs-extra')
 const execa = require('execa')
 
 /** @type {any} */
@@ -52,9 +52,7 @@ Or, run this command with no arguments to use the most recently published versio
   }
 
   const cwd = process.cwd()
-  const pkgJson = JSON.parse(
-    await fsp.readFile(path.join(cwd, 'package.json'), 'utf-8')
-  )
+  const pkgJson = await readJson(path.join(cwd, 'package.json'))
   const devDependencies = pkgJson.devDependencies
   const baseVersionStr = devDependencies[
     useExperimental ? 'react-experimental-builtin' : 'react-builtin'
@@ -92,10 +90,7 @@ Or, run this command with no arguments to use the most recently published versio
       )
     }
   }
-  await fsp.writeFile(
-    path.join(cwd, 'package.json'),
-    JSON.stringify(pkgJson, null, 2)
-  )
+  await writeJson(path.join(cwd, 'package.json'), pkgJson, { spaces: 2 })
   console.log('Successfully updated React dependencies in package.json.\n')
 
   // Install the updated dependencies and build the vendored React files.

@@ -5,7 +5,7 @@ const path = require('path')
 const execa = require('execa')
 const { Sema } = require('async-sema')
 const { execSync } = require('child_process')
-const fs = require('fs')
+const { readJson, readdir } = require('fs-extra')
 
 const cwd = process.cwd()
 
@@ -38,7 +38,7 @@ const cwd = process.cwd()
   }
 
   const packagesDir = path.join(cwd, 'packages')
-  const packageDirs = fs.readdirSync(packagesDir)
+  const packageDirs = await readdir(packagesDir)
   const publishSema = new Sema(2)
 
   const publish = async (pkg, retry = 0) => {
@@ -88,11 +88,8 @@ const cwd = process.cwd()
 
   await Promise.allSettled(
     packageDirs.map(async (packageDir) => {
-      const pkgJson = JSON.parse(
-        await fs.promises.readFile(
-          path.join(packagesDir, packageDir, 'package.json'),
-          'utf-8'
-        )
+      const pkgJson = await readJson(
+        path.join(packagesDir, packageDir, 'package.json')
       )
 
       if (pkgJson.private) {
