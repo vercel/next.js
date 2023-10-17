@@ -2,7 +2,7 @@ import os from 'os'
 import path from 'path'
 import execa from 'execa'
 import fs from 'fs'
-import { move } from 'fs-extra'
+import fsp from 'fs/promises'
 ;(async function () {
   if (process.env.NEXT_SKIP_NATIVE_POSTINSTALL) {
     console.log(
@@ -67,13 +67,13 @@ import { move } from 'fs-extra'
     fs.mkdirSync(path.join(cwd, 'node_modules/@next'), { recursive: true })
 
     await Promise.all(
-      pkgs.map((pkg) =>
-        move(
-          path.join(tmpdir, 'node_modules/@next', pkg),
-          path.join(cwd, 'node_modules/@next', pkg),
-          { overwrite: true }
-        )
-      )
+      pkgs.map(async (pkg) => {
+        const from = path.join(tmpdir, 'node_modules/@next', pkg)
+        const to = path.join(cwd, 'node_modules/@next', pkg)
+        // overwriting by removing the target first
+        await fsp.rm(to, { recursive: true, force: true })
+        return fsp.rename(from, to)
+      })
     )
     fs.rmSync(tmpdir, { recursive: true, force: true })
     console.log('Installed the following binary packages:', pkgs)
