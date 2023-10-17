@@ -22,9 +22,18 @@ Forms enable you to create and update data in web applications. Next.js provides
 
 Forms enable you to create and update data in web applications. Next.js provides a powerful way to handle form submissions and data mutations using **Server Actions**.
 
+<details>
+  <summary>Examples</summary>
+
+- [Form with Loading & Error States](https://github.com/vercel/next.js/tree/canary/examples/next-forms)
+
+</details>
+
 ## How Server Actions Work
 
 With Server Actions, you don't need to manually create API endpoints. Instead, you define asynchronous server functions that can be called directly from your components.
+
+> **🎥 Watch:** Learn more about forms and mutations with the App Router → [YouTube (10 minutes)](https://youtu.be/dDpZfOQBMaU?si=cJZHlUu_jFhCzHUg).
 
 Server Actions can be defined in Server Components or called from Client Components. Defining the action in a Server Component allows the form to function without JavaScript, providing progressive enhancement.
 
@@ -368,13 +377,15 @@ For example, the following submit button:
 ```tsx filename="app/submit-button.tsx" switcher
 'use client'
 
-import { experimental_useFormStatus as useFormStatus } from 'react-dom'
+import { useFormStatus } from 'react-dom'
 
 export function SubmitButton() {
   const { pending } = useFormStatus()
 
   return (
-    <button disabled={pending}>{pending ? 'Submitting...' : 'Submit'}</button>
+    <button type="submit" aria-disabled={pending}>
+      Add
+    </button>
   )
 }
 ```
@@ -382,13 +393,15 @@ export function SubmitButton() {
 ```jsx filename="app/submit-button.jsx" switcher
 'use client'
 
-import { experimental_useFormStatus as useFormStatus } from 'react-dom'
+import { useFormStatus } from 'react-dom'
 
 export function SubmitButton() {
   const { pending } = useFormStatus()
 
   return (
-    <button disabled={pending}>{pending ? 'Submitting...' : 'Submit'}</button>
+    <button type="submit" aria-disabled={pending}>
+      Add
+    </button>
   )
 }
 ```
@@ -420,13 +433,6 @@ export default async function Home() {
   )
 }
 ```
-
-<details>
-  <summary>Examples</summary>
-
-- [Form with Loading & Error States](https://github.com/vercel/next.js/tree/canary/examples/next-forms)
-
-</details>
 
 </AppOnly>
 
@@ -523,7 +529,7 @@ Server Actions can also return [serializable objects](https://developer.mozilla.
 ```ts filename="app/actions.ts" switcher
 'use server'
 
-export async function create(prevState: any, formData: FormData) {
+export async function createTodo(prevState: any, formData: FormData) {
   try {
     await createItem(formData.get('todo'))
     return revalidatePath('/')
@@ -551,8 +557,7 @@ Then, from a Client Component, you can read this value and display an error mess
 ```tsx filename="app/add-form.tsx" switcher
 'use client'
 
-import { experimental_useFormState as useFormState } from 'react-dom'
-import { experimental_useFormStatus as useFormStatus } from 'react-dom'
+import { useFormState, useFormStatus } from 'react-dom'
 import { createTodo } from '@/app/actions'
 
 const initialState = {
@@ -588,8 +593,7 @@ export function AddForm() {
 ```jsx filename="app/add-form.jsx" switcher
 'use client'
 
-import { experimental_useFormState as useFormState } from 'react-dom'
-import { experimental_useFormStatus as useFormStatus } from 'react-dom'
+import { useFormState, useFormStatus } from 'react-dom'
 import { createTodo } from '@/app/actions'
 
 const initialState = {
@@ -621,13 +625,6 @@ export function AddForm() {
   )
 }
 ```
-
-<details>
-  <summary>Examples</summary>
-
-- [Form with Loading & Error States](https://github.com/vercel/next.js/tree/canary/examples/next-forms)
-
-</details>
 
 </AppOnly>
 

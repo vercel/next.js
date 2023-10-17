@@ -22,8 +22,8 @@ use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal},
     trace::TraceRawVcs,
-    Completion, Completions, IntoTraitRef, State, TaskInput, TransientInstance, TryFlatJoinIterExt,
-    Value, ValueToString, Vc,
+    Completion, Completions, IntoTraitRef, State, TaskInput, TraitRef, TransientInstance,
+    TryFlatJoinIterExt, Value, ValueToString, Vc,
 };
 use turbopack_binding::{
     turbo::{
@@ -83,11 +83,53 @@ pub struct ProjectOptions {
     /// A map of environment variables to use when compiling code.
     pub env: Vec<(String, String)>,
 
+    /// A map of environment variables which should get injected at compile
+    /// time.
+    pub define_env: DefineEnv,
+
     /// Whether to watch the filesystem for file changes.
     pub watch: bool,
 
     /// The address of the dev server.
     pub server_addr: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, TraceRawVcs)]
+#[serde(rename_all = "camelCase")]
+pub struct PartialProjectOptions {
+    /// A root path from which all files must be nested under. Trying to access
+    /// a file outside this root will fail. Think of this as a chroot.
+    pub root_path: Option<String>,
+
+    /// A path inside the root_path which contains the app/pages directories.
+    pub project_path: Option<String>,
+
+    /// The contents of next.config.js, serialized to JSON.
+    pub next_config: Option<String>,
+
+    /// The contents of ts/config read by load-jsconfig, serialized to JSON.
+    pub js_config: Option<String>,
+
+    /// A map of environment variables to use when compiling code.
+    pub env: Option<Vec<(String, String)>>,
+
+    /// A map of environment variables which should get injected at compile
+    /// time.
+    pub define_env: Option<DefineEnv>,
+
+    /// Whether to watch the filesystem for file changes.
+    pub watch: Option<bool>,
+
+    /// The address of the dev server.
+    pub server_addr: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, TraceRawVcs)]
+#[serde(rename_all = "camelCase")]
+pub struct DefineEnv {
+    pub client: Vec<(String, String)>,
+    pub edge: Vec<(String, String)>,
+    pub nodejs: Vec<(String, String)>,
 }
 
 #[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat)]
@@ -113,18 +155,52 @@ impl ProjectContainer {
     }
 
     #[turbo_tasks::function]
-    pub async fn update(self: Vc<Self>, options: ProjectOptions) -> Result<Vc<()>> {
-        self.await?.options_state.set(options);
-        Ok(Default::default())
+    pub fn update(&self, options: PartialProjectOptions) -> Vc<()> {
+        let mut new_options = self.options_state.get().clone();
+
+        if let Some(root_path) = options.root_path {
+            new_options.root_path = root_path;
+        }
+        if let Some(project_path) = options.project_path {
+            new_options.project_path = project_path;
+        }
+        if let Some(next_config) = options.next_config {
+            new_options.next_config = next_config;
+        }
+        if let Some(js_config) = options.js_config {
+            new_options.js_config = js_config;
+        }
+        if let Some(env) = options.env {
+            new_options.env = env;
+        }
+        if let Some(define_env) = options.define_env {
+            new_options.define_env = define_env;
+        }
+        if let Some(watch) = options.watch {
+            new_options.watch = watch;
+        }
+        if let Some(server_addr) = options.server_addr {
+            new_options.server_addr = server_addr;
+        }
+
+        self.options_state.set(new_options);
+
+        Default::default()
     }
 
     #[turbo_tasks::function]
     pub async fn project(self: Vc<Self>) -> Result<Vc<Project>> {
         let this = self.await?;
 
-        let (env, next_config, js_config, root_path, project_path, watch, server_addr) = {
+        let (env, define_env, next_config, js_config, root_path, project_path, watch, server_addr) = {
             let options = this.options_state.get();
             let env: Vc<EnvMap> = Vc::cell(options.env.iter().cloned().collect());
+            let define_env: Vc<ProjectDefineEnv> = ProjectDefineEnv {
+                client: Vc::cell(options.define_env.client.iter().cloned().collect()),
+                edge: Vc::cell(options.define_env.edge.iter().cloned().collect()),
+                nodejs: Vc::cell(options.define_env.nodejs.iter().cloned().collect()),
+            }
+            .cell();
             let next_config = NextConfig::from_string(Vc::cell(options.next_config.clone()));
             let js_config = JsConfig::from_string(Vc::cell(options.js_config.clone()));
             let root_path = options.root_path.clone();
@@ -133,6 +209,7 @@ impl ProjectContainer {
             let server_addr = options.server_addr.parse()?;
             (
                 env,
+                define_env,
                 next_config,
                 js_config,
                 root_path,
@@ -157,6 +234,7 @@ impl ProjectContainer {
             js_config,
             dist_dir,
             env: Vc::upcast(env),
+            define_env,
             browserslist_query: "last 1 Chrome versions, last 1 Firefox versions, last 1 Safari \
                                  versions, last 1 Edge versions"
                 .to_string(),
@@ -207,11 +285,40 @@ pub struct Project {
     /// A map of environment variables to use when compiling code.
     env: Vc<Box<dyn ProcessEnv>>,
 
+    /// A map of environment variables which should get injected at compile
+    /// time.
+    define_env: Vc<ProjectDefineEnv>,
+
     browserslist_query: String,
 
     mode: NextMode,
 
     versioned_content_map: Vc<VersionedContentMap>,
+}
+
+#[turbo_tasks::value]
+pub struct ProjectDefineEnv {
+    client: Vc<EnvMap>,
+    edge: Vc<EnvMap>,
+    nodejs: Vc<EnvMap>,
+}
+
+#[turbo_tasks::value_impl]
+impl ProjectDefineEnv {
+    #[turbo_tasks::function]
+    pub fn client(&self) -> Vc<EnvMap> {
+        self.client
+    }
+
+    #[turbo_tasks::function]
+    pub fn edge(&self) -> Vc<EnvMap> {
+        self.edge
+    }
+
+    #[turbo_tasks::function]
+    pub fn nodejs(&self) -> Vc<EnvMap> {
+        self.nodejs
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -292,8 +399,15 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) fn client_relative_path(self: Vc<Self>) -> Vc<FileSystemPath> {
-        self.client_root().join("_next".to_string())
+    pub(super) async fn client_relative_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        let next_config = self.next_config().await?;
+        Ok(self.client_root().join(format!(
+            "{}/_next",
+            next_config
+                .base_path
+                .clone()
+                .unwrap_or_else(|| "".to_string()),
+        )))
     }
 
     #[turbo_tasks::function]
@@ -346,12 +460,11 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn client_compile_time_info(self: Vc<Self>) -> Result<Vc<CompileTimeInfo>> {
-        let this = self.await?;
+    pub(super) async fn client_compile_time_info(&self) -> Result<Vc<CompileTimeInfo>> {
         Ok(get_client_compile_time_info(
-            this.mode,
-            this.browserslist_query.clone(),
-            self.dist_root_string(),
+            self.mode,
+            self.browserslist_query.clone(),
+            self.define_env.client(),
         ))
     }
 
@@ -362,16 +475,20 @@ impl Project {
             this.mode,
             self.env(),
             self.server_addr(),
+            this.define_env.nodejs(),
+            self.next_config(),
         ))
     }
 
     #[turbo_tasks::function]
-    pub(super) fn edge_compile_time_info(self: Vc<Self>) -> Vc<CompileTimeInfo> {
-        get_edge_compile_time_info(
+    pub(super) async fn edge_compile_time_info(self: Vc<Self>) -> Result<Vc<CompileTimeInfo>> {
+        let this = self.await?;
+        Ok(get_edge_compile_time_info(
+            this.mode,
             self.project_path(),
             self.server_addr(),
-            self.dist_root_string(),
-        )
+            this.define_env.nodejs(),
+        ))
     }
 
     #[turbo_tasks::function]
@@ -381,10 +498,18 @@ impl Project {
         let this = self.await?;
         Ok(get_client_chunking_context(
             self.project_path(),
-            self.client_root(),
+            self.client_relative_path(),
+            self.next_config().computed_asset_prefix(),
             self.client_compile_time_info().environment(),
             this.mode,
         ))
+    }
+
+    #[turbo_tasks::function]
+    pub(super) fn app_client_chunking_context(
+        self: Vc<Self>,
+    ) -> Vc<Box<dyn EcmascriptChunkingContext>> {
+        self.client_chunking_context().with_layer("app".to_string())
     }
 
     #[turbo_tasks::function]
@@ -392,7 +517,8 @@ impl Project {
         get_server_chunking_context(
             self.project_path(),
             self.node_root(),
-            self.client_root(),
+            self.client_relative_path(),
+            self.next_config().computed_asset_prefix(),
             self.server_compile_time_info().environment(),
         )
     }
@@ -402,7 +528,7 @@ impl Project {
         get_edge_chunking_context(
             self.project_path(),
             self.node_root(),
-            self.client_root(),
+            self.client_relative_path(),
             self.edge_compile_time_info().environment(),
         )
     }
@@ -491,6 +617,12 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    pub(super) fn app_ssr_chunking_context(self: Vc<Self>) -> Vc<BuildChunkingContext> {
+        self.server_chunking_context()
+            .with_layer("app ssr".to_string())
+    }
+
+    #[turbo_tasks::function]
     pub(super) fn edge_ssr_chunking_context(
         self: Vc<Self>,
     ) -> Vc<Box<dyn EcmascriptChunkingContext>> {
@@ -559,6 +691,21 @@ impl Project {
             }
         }
 
+        let pages_document_endpoint = TraitRef::cell(
+            self.pages_project()
+                .document_endpoint()
+                .into_trait_ref()
+                .await?,
+        );
+        let pages_app_endpoint =
+            TraitRef::cell(self.pages_project().app_endpoint().into_trait_ref().await?);
+        let pages_error_endpoint = TraitRef::cell(
+            self.pages_project()
+                .error_endpoint()
+                .into_trait_ref()
+                .await?,
+        );
+
         let middleware = find_context_file(
             self.project_path(),
             middleware_files(self.next_config().page_extensions()),
@@ -566,7 +713,11 @@ impl Project {
         let middleware = if let FindContextFileResult::Found(fs_path, _) = *middleware.await? {
             let source = Vc::upcast(FileSource::new(fs_path));
             Some(Middleware {
-                endpoint: Vc::upcast(self.middleware_endpoint(source)),
+                endpoint: TraitRef::cell(
+                    Vc::upcast::<Box<dyn Endpoint>>(self.middleware_endpoint(source))
+                        .into_trait_ref()
+                        .await?,
+                ),
             })
         } else {
             None
@@ -575,9 +726,9 @@ impl Project {
         Ok(Entrypoints {
             routes,
             middleware,
-            pages_document_endpoint: self.pages_project().document_endpoint(),
-            pages_app_endpoint: self.pages_project().app_endpoint(),
-            pages_error_endpoint: self.pages_project().error_endpoint(),
+            pages_document_endpoint,
+            pages_app_endpoint,
+            pages_error_endpoint,
         }
         .cell())
     }

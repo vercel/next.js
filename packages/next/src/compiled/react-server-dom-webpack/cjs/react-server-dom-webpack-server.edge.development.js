@@ -410,12 +410,11 @@ function resolveClientReferenceMetadata(config, clientReference) {
     }
   }
 
-  return {
-    id: resolvedModuleData.id,
-    chunks: resolvedModuleData.chunks,
-    name: name,
-    async: !!clientReference.$$async
-  };
+  if (clientReference.$$async === true) {
+    return [resolvedModuleData.id, resolvedModuleData.chunks, name, 1];
+  } else {
+    return [resolvedModuleData.id, resolvedModuleData.chunks, name];
+  }
 }
 function getServerReferenceId(config, serverReference) {
   return serverReference.$$id;
@@ -1183,6 +1182,8 @@ function isArray(a) {
   return isArrayImpl(a);
 }
 
+var getPrototypeOf = Object.getPrototypeOf;
+
 // in case they error.
 
 var jsxPropsParents = new WeakMap();
@@ -1201,7 +1202,7 @@ function isObjectPrototype(object) {
   // still just a plain simple object.
 
 
-  if (Object.getPrototypeOf(object)) {
+  if (getPrototypeOf(object)) {
     return false;
   }
 
@@ -1217,7 +1218,7 @@ function isObjectPrototype(object) {
 }
 
 function isSimpleObject(object) {
-  if (!isObjectPrototype(Object.getPrototypeOf(object))) {
+  if (!isObjectPrototype(getPrototypeOf(object))) {
     return false;
   }
 
@@ -1496,13 +1497,62 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
 var ContextRegistry = ReactSharedInternals.ContextRegistry;
 function getOrCreateServerContext(globalName) {
   if (!ContextRegistry[globalName]) {
-    ContextRegistry[globalName] = React.createServerContext(globalName, // $FlowFixMe[incompatible-call] function signature doesn't reflect the symbol value
-    REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED);
+    var context = {
+      $$typeof: REACT_SERVER_CONTEXT_TYPE,
+      // As a workaround to support multiple concurrent renderers, we categorize
+      // some renderers as primary and others as secondary. We only expect
+      // there to be two concurrent renderers at most: React Native (primary) and
+      // Fabric (secondary); React DOM (primary) and React ART (secondary).
+      // Secondary renderers store their context values on separate fields.
+      _currentValue: REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED,
+      _currentValue2: REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED,
+      _defaultValue: REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED,
+      // Used to track how many concurrent renderers this context currently
+      // supports within in a single renderer. Such as parallel server rendering.
+      _threadCount: 0,
+      // These are circular
+      Provider: null,
+      Consumer: null,
+      _globalName: globalName
+    };
+    context.Provider = {
+      $$typeof: REACT_PROVIDER_TYPE,
+      _context: context
+    };
+
+    {
+      var hasWarnedAboutUsingConsumer;
+      context._currentRenderer = null;
+      context._currentRenderer2 = null;
+      Object.defineProperties(context, {
+        Consumer: {
+          get: function () {
+            if (!hasWarnedAboutUsingConsumer) {
+              error('Consumer pattern is not supported by ReactServerContext');
+
+              hasWarnedAboutUsingConsumer = true;
+            }
+
+            return null;
+          }
+        }
+      });
+    }
+
+    ContextRegistry[globalName] = context;
   }
 
   return ContextRegistry[globalName];
 }
 
+var ReactSharedServerInternals = // $FlowFixMe: It's defined in the one we resolve to.
+React.__SECRET_SERVER_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
+
+if (!ReactSharedServerInternals) {
+  throw new Error('The "react" package in this environment is not configured correctly. ' + 'The "react-server" condition must be enabled in any environment that ' + 'runs React Server Components.');
+}
+
+var ObjectPrototype = Object.prototype;
 var stringify = JSON.stringify; // Serializable values
 // Thenable<ReactClientValue>
 
@@ -1510,8 +1560,8 @@ var PENDING$1 = 0;
 var COMPLETED = 1;
 var ABORTED = 3;
 var ERRORED$1 = 4;
+var ReactCurrentCache = ReactSharedServerInternals.ReactCurrentCache;
 var ReactCurrentDispatcher = ReactSharedInternals.ReactCurrentDispatcher;
-var ReactCurrentCache = ReactSharedInternals.ReactCurrentCache;
 
 function defaultErrorHandler(error) {
   console['error'](error); // Don't transform to our wrapper
@@ -1532,6 +1582,8 @@ function createRequest(model, bundlerConfig, onError, context, identifierPrefix,
   ReactCurrentCache.current = DefaultCacheDispatcher;
   var abortSet = new Set();
   var pingedTasks = [];
+  var cleanupQueue = [];
+
   var hints = createHints();
   var request = {
     status: OPEN,
@@ -1555,6 +1607,7 @@ function createRequest(model, bundlerConfig, onError, context, identifierPrefix,
     writtenProviders: new Map(),
     identifierPrefix: identifierPrefix || '',
     identifierCount: 1,
+    taintCleanupQueue: cleanupQueue,
     onError: onError === undefined ? defaultErrorHandler : onError,
     onPostpone: onPostpone === undefined ? defaultPostponeHandler : onPostpone,
     // $FlowFixMe[missing-this-annot]
@@ -1643,7 +1696,8 @@ function serializeThenable(request, thenable) {
     newTask.model = value;
     pingTask(request, newTask);
   }, function (reason) {
-    newTask.status = ERRORED$1; // TODO: We should ideally do this inside performWork so it's scheduled
+    newTask.status = ERRORED$1;
+    request.abortableTasks.delete(newTask); // TODO: We should ideally do this inside performWork so it's scheduled
 
     var digest = logRecoverableError(request, reason);
     emitErrorChunk(request, newTask.id, digest, reason);
@@ -2135,6 +2189,7 @@ function resolveModelToJSON(request, parent, key, value) {
   }
 
   if (typeof value === 'object') {
+
     if (isClientReference(value)) {
       return serializeClientReference(request, parent, key, value); // $FlowFixMe[method-unbinding]
     } else if (typeof value.then === 'function') {
@@ -2166,6 +2221,11 @@ function resolveModelToJSON(request, parent, key, value) {
       return undefined;
     }
 
+    if (isArray(value)) {
+      // $FlowFixMe[incompatible-return]
+      return value;
+    }
+
     if (value instanceof Map) {
       return serializeMap(request, value);
     }
@@ -2174,27 +2234,29 @@ function resolveModelToJSON(request, parent, key, value) {
       return serializeSet(request, value);
     }
 
-    if (!isArray(value)) {
-      var iteratorFn = getIteratorFn(value);
+    var iteratorFn = getIteratorFn(value);
 
-      if (iteratorFn) {
-        return Array.from(value);
-      }
+    if (iteratorFn) {
+      return Array.from(value);
+    } // Verify that this is a simple plain object.
+
+
+    var proto = getPrototypeOf(value);
+
+    if (proto !== ObjectPrototype && (proto === null || getPrototypeOf(proto) !== null)) {
+      throw new Error('Only plain objects, and a few built-ins, can be passed to Client Components ' + 'from Server Components. Classes or null prototypes are not supported.');
     }
 
     {
-      if (value !== null && !isArray(value)) {
-        // Verify that this is a simple plain object.
-        if (objectName(value) !== 'Object') {
-          error('Only plain objects can be passed to Client Components from Server Components. ' + '%s objects are not supported.%s', objectName(value), describeObjectForErrorMessage(parent, key));
-        } else if (!isSimpleObject(value)) {
-          error('Only plain objects can be passed to Client Components from Server Components. ' + 'Classes or other objects with methods are not supported.%s', describeObjectForErrorMessage(parent, key));
-        } else if (Object.getOwnPropertySymbols) {
-          var symbols = Object.getOwnPropertySymbols(value);
+      if (objectName(value) !== 'Object') {
+        error('Only plain objects can be passed to Client Components from Server Components. ' + '%s objects are not supported.%s', objectName(value), describeObjectForErrorMessage(parent, key));
+      } else if (!isSimpleObject(value)) {
+        error('Only plain objects can be passed to Client Components from Server Components. ' + 'Classes or other objects with methods are not supported.%s', describeObjectForErrorMessage(parent, key));
+      } else if (Object.getOwnPropertySymbols) {
+        var symbols = Object.getOwnPropertySymbols(value);
 
-          if (symbols.length > 0) {
-            error('Only plain objects can be passed to Client Components from Server Components. ' + 'Objects with symbol properties like %s are not supported.%s', symbols[0].description, describeObjectForErrorMessage(parent, key));
-          }
+        if (symbols.length > 0) {
+          error('Only plain objects can be passed to Client Components from Server Components. ' + 'Objects with symbol properties like %s are not supported.%s', symbols[0].description, describeObjectForErrorMessage(parent, key));
         }
       }
     } // $FlowFixMe[incompatible-return]
@@ -2204,7 +2266,8 @@ function resolveModelToJSON(request, parent, key, value) {
   }
 
   if (typeof value === 'string') {
-    // TODO: Maybe too clever. If we support URL there's no similar trick.
+
+
     if (value[value.length - 1] === 'Z') {
       // Possibly a Date, whose toJSON automatically calls toISOString
       // $FlowFixMe[incompatible-use]
@@ -2238,6 +2301,7 @@ function resolveModelToJSON(request, parent, key, value) {
   }
 
   if (typeof value === 'function') {
+
     if (isClientReference(value)) {
       return serializeClientReference(request, parent, key, value);
     }
@@ -2277,6 +2341,7 @@ function resolveModelToJSON(request, parent, key, value) {
   }
 
   if (typeof value === 'bigint') {
+
     return serializeBigInt(value);
   }
 
@@ -2296,7 +2361,8 @@ function logRecoverableError(request, error) {
 }
 
 function fatalError(request, error) {
-  // This is called outside error handling code such as if an error happens in React internals.
+
+
   if (request.destination !== null) {
     request.status = CLOSED;
     closeWithError(request.destination, error);
@@ -2560,7 +2626,7 @@ function flushCompletedChunks(request, destination) {
   }
 
   if (request.pendingChunks === 0) {
-    // We're done.
+
     close$1(destination);
   }
 }
@@ -2616,6 +2682,9 @@ function startFlowing(request, destination) {
     logRecoverableError(request, error);
     fatalError(request, error);
   }
+}
+function stopFlowing(request) {
+  request.destination = null;
 } // This is called to early terminate a request. It creates an error at all pending tasks.
 
 function abort(request, reason) {
@@ -2666,7 +2735,20 @@ function importServerContexts(contexts) {
   return rootContextSnapshot;
 }
 
-// eslint-disable-next-line no-unused-vars
+// This is the parsed shape of the wire format which is why it is
+// condensed to only the essentialy information
+var ID = 0;
+var CHUNKS = 1;
+var NAME = 2; // export const ASYNC = 3;
+// This logic is correct because currently only include the 4th tuple member
+// when the module is async. If that changes we will need to actually assert
+// the value is true. We don't index into the 4th slot because flow does not
+// like the potential out of bounds access
+
+function isAsyncImport(metadata) {
+  return metadata.length === 4;
+}
+
 function resolveServerReference(bundlerConfig, id) {
   var name = '';
   var resolvedModuleData = bundlerConfig[id];
@@ -2692,12 +2774,7 @@ function resolveServerReference(bundlerConfig, id) {
   } // TODO: This needs to return async: true if it's an async module.
 
 
-  return {
-    id: resolvedModuleData.id,
-    chunks: resolvedModuleData.chunks,
-    name: name,
-    async: false
-  };
+  return [resolvedModuleData.id, resolvedModuleData.chunks, name];
 } // The chunk cache contains all the chunks we've preloaded so far.
 // If they're still pending they're a thenable. This map also exists
 // in Webpack but unfortunately it's not exposed so we have to
@@ -2736,16 +2813,17 @@ function ignoreReject() {// We rely on rejected promises to be handled by anothe
 
 
 function preloadModule(metadata) {
-  var chunks = metadata.chunks;
+  var chunks = metadata[CHUNKS];
   var promises = [];
+  var i = 0;
 
-  for (var i = 0; i < chunks.length; i++) {
-    var chunkId = chunks[i];
+  while (i < chunks.length) {
+    var chunkId = chunks[i++];
+    chunks[i++];
     var entry = chunkCache.get(chunkId);
 
     if (entry === undefined) {
-      var thenable = globalThis.__next_chunk_load__(chunkId);
-
+      var thenable = loadChunk(chunkId);
       promises.push(thenable); // $FlowFixMe[method-unbinding]
 
       var resolve = chunkCache.set.bind(chunkCache, chunkId, null);
@@ -2756,12 +2834,12 @@ function preloadModule(metadata) {
     }
   }
 
-  if (metadata.async) {
+  if (isAsyncImport(metadata)) {
     if (promises.length === 0) {
-      return requireAsyncModule(metadata.id);
+      return requireAsyncModule(metadata[ID]);
     } else {
       return Promise.all(promises).then(function () {
-        return requireAsyncModule(metadata.id);
+        return requireAsyncModule(metadata[ID]);
       });
     }
   } else if (promises.length > 0) {
@@ -2773,9 +2851,9 @@ function preloadModule(metadata) {
 // Increase priority if necessary.
 
 function requireModule(metadata) {
-  var moduleExports = globalThis.__next_require__(metadata.id);
+  var moduleExports = globalThis.__next_require__(metadata[ID]);
 
-  if (metadata.async) {
+  if (isAsyncImport(metadata)) {
     if (typeof moduleExports.then !== 'function') ; else if (moduleExports.status === 'fulfilled') {
       // This Promise should've been instrumented by preloadModule.
       moduleExports = moduleExports.value;
@@ -2784,19 +2862,23 @@ function requireModule(metadata) {
     }
   }
 
-  if (metadata.name === '*') {
+  if (metadata[NAME] === '*') {
     // This is a placeholder value that represents that the caller imported this
     // as a CommonJS module as is.
     return moduleExports;
   }
 
-  if (metadata.name === '') {
+  if (metadata[NAME] === '') {
     // This is a placeholder value that represents that the caller accessed the
     // default property of this if it was an ESM interop module.
     return moduleExports.__esModule ? moduleExports.default : moduleExports;
   }
 
-  return moduleExports[metadata.name];
+  return moduleExports[metadata[NAME]];
+}
+
+function loadChunk(chunkId, filename) {
+  return __webpack_chunk_load__(chunkId);
 }
 
 // The server acts as a Client of itself when resolving Server References.
@@ -3381,7 +3463,10 @@ function renderToReadableStream(model, webpackMap, options) {
     pull: function (controller) {
       startFlowing(request, controller);
     },
-    cancel: function (reason) {}
+    cancel: function (reason) {
+      stopFlowing(request);
+      abort(request, reason);
+    }
   }, // $FlowFixMe[prop-missing] size() methods are not allowed on byte streams.
   {
     highWaterMark: 0

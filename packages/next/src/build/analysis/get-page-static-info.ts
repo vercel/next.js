@@ -4,7 +4,7 @@ import type { Middleware, RouteHas } from '../../lib/load-custom-routes'
 import { promises as fs } from 'fs'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import { matcher } from 'next/dist/compiled/micromatch'
-import { ServerRuntime } from 'next/types'
+import type { ServerRuntime } from 'next/types'
 import {
   extractExportedConstValue,
   UnsupportedValueError,
@@ -53,7 +53,7 @@ const CLIENT_MODULE_LABEL =
   /\/\* __next_internal_client_entry_do_not_use__ ([^ ]*) (cjs|auto) \*\//
 
 const ACTION_MODULE_LABEL =
-  /\/\* __next_internal_action_entry_do_not_use__ ([^ ]+) \*\//
+  /\/\* __next_internal_action_entry_do_not_use__ (\{[^}]+\}) \*\//
 
 const CLIENT_DIRECTIVE = 'use client'
 const SERVER_ACTION_DIRECTIVE = 'use server'
@@ -63,7 +63,10 @@ export function getRSCModuleInformation(
   source: string,
   isServerLayer: boolean
 ): RSCMeta {
-  const actions = source.match(ACTION_MODULE_LABEL)?.[1]?.split(',')
+  const actionsJson = source.match(ACTION_MODULE_LABEL)
+  const actions = actionsJson
+    ? (Object.values(JSON.parse(actionsJson[1])) as string[])
+    : undefined
   const clientInfoMatch = source.match(CLIENT_MODULE_LABEL)
   const isClientRef = !!clientInfoMatch
 

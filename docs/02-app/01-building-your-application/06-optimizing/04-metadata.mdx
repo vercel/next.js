@@ -21,7 +21,7 @@ With both these options, Next.js will automatically generate the relevant `<head
 
 To define static metadata, export a [`Metadata` object](/docs/app/api-reference/functions/generate-metadata#metadata-object) from a `layout.js` or static `page.js` file.
 
-```tsx filename="layout.tsx / page.tsx" switcher
+```tsx filename="layout.tsx | page.tsx" switcher
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
 export default function Page() {}
 ```
 
-```jsx filename="layout.js / page.js" switcher
+```jsx filename="layout.js | page.js" switcher
 export const metadata = {
   title: '...',
   description: '...',

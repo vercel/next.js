@@ -1,24 +1,27 @@
 import type { Options as DevServerOptions } from './dev/next-dev-server'
-import type { NodeRequestHandler } from './next-server'
+import type {
+  NodeRequestHandler,
+  Options as ServerOptions,
+} from './next-server'
 import type { UrlWithParsedQuery } from 'url'
 import type { NextConfigComplete } from './config-shared'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextUrlWithParsedQuery } from './request-meta'
-import {
-  WorkerRequestHandler,
-  WorkerUpgradeHandler,
-} from './lib/setup-server-worker'
+import type { WorkerRequestHandler, WorkerUpgradeHandler } from './lib/types'
 
 import './require-hook'
 import './node-polyfill-fetch'
 import './node-polyfill-crypto'
 
-import { default as Server } from './next-server'
+import type { default as Server } from './next-server'
 import * as log from '../build/output/log'
 import loadConfig from './config'
-import { resolve } from 'path'
+import path, { resolve } from 'path'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
-import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
+import {
+  PHASE_DEVELOPMENT_SERVER,
+  SERVER_FILES_MANIFEST,
+} from '../shared/lib/constants'
 import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
@@ -34,10 +37,15 @@ const getServerImpl = async () => {
   return ServerImpl
 }
 
-export type NextServerOptions = Partial<DevServerOptions> & {
-  preloadedConfig?: NextConfigComplete
-  internal_setStandaloneConfig?: boolean
-}
+export type NextServerOptions = Omit<
+  ServerOptions | DevServerOptions,
+  // This is assigned in this server abstraction.
+  'conf'
+> &
+  Partial<Pick<ServerOptions | DevServerOptions, 'conf'>> & {
+    preloadedConfig?: NextConfigComplete
+    internal_setStandaloneConfig?: boolean
+  }
 
 export interface RequestHandler {
   (
@@ -153,7 +161,9 @@ export class NextServer {
     return (server as any).close()
   }
 
-  private async createServer(options: DevServerOptions): Promise<Server> {
+  private async createServer(
+    options: ServerOptions | DevServerOptions
+  ): Promise<Server> {
     let ServerImplementation: typeof Server
     if (options.dev) {
       ServerImplementation = require('./dev/next-dev-server').default
@@ -166,17 +176,39 @@ export class NextServer {
   }
 
   private async [SYMBOL_LOAD_CONFIG]() {
-    return (
+    const dir = resolve(this.options.dir || '.')
+
+    const config =
       this.options.preloadedConfig ||
-      loadConfig(
+      (await loadConfig(
         this.options.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
-        resolve(this.options.dir || '.'),
+        dir,
         {
           customConfig: this.options.conf,
-          silent: !!this.options._renderWorker,
+          silent: true,
         }
-      )
-    )
+      ))
+
+    // check serialized build config when available
+    if (process.env.NODE_ENV === 'production') {
+      try {
+        const serializedConfig = require(path.join(
+          dir,
+          '.next',
+          SERVER_FILES_MANIFEST
+        )).config
+
+        // @ts-expect-error internal field
+        config.experimental.isExperimentalCompile =
+          serializedConfig.experimental.isExperimentalCompile
+      } catch (_) {
+        // if distDir is customized we don't know until we
+        // load the config so fallback to loading the config
+        // from next.config.js
+      }
+    }
+
+    return config
   }
 
   private async getServer() {

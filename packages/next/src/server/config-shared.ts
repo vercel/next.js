@@ -1,15 +1,15 @@
 import os from 'os'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
-import {
+import { imageConfigDefault } from '../shared/lib/image-config'
+import type {
   ImageConfig,
   ImageConfigComplete,
-  imageConfigDefault,
 } from '../shared/lib/image-config'
-import { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/subresource-integrity-plugin'
-import { WEB_VITALS } from '../shared/lib/utils'
+import type { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/subresource-integrity-plugin'
+import type { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
-import { SizeLimit } from '../../types'
+import type { SizeLimit } from '../../types'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -165,7 +165,7 @@ export interface ExperimentalConfig {
   deploymentId?: string
   logging?: {
     level?: 'verbose'
-    fullUrl?: false
+    fullUrl?: boolean
   }
   appDocumentPreloading?: boolean
   strictNextHead?: boolean
@@ -188,7 +188,6 @@ export interface ExperimentalConfig {
   swcMinify?: boolean
   cpus?: number
   memoryBasedWorkersCount?: boolean
-  sharedPool?: boolean
   proxyTimeout?: number
   isrFlushToDisk?: boolean
   workerThreads?: boolean
@@ -223,10 +222,6 @@ export interface ExperimentalConfig {
   swcTraceProfiling?: boolean
   forceSwcTransforms?: boolean
 
-  /**
-   * This option is removed
-   */
-  swcMinifyDebugOptions?: never
   swcPlugins?: Array<[string, Record<string, unknown>]>
   largePageDataBytes?: number
   /**
@@ -331,6 +326,10 @@ export interface ExperimentalConfig {
    * @internal Used by the Next.js internals only.
    */
   trustHostHeader?: boolean
+  /**
+   * Enables the bundling of node_modules packages (externals) for pages server-side bundles.
+   */
+  bundlePagesExternals?: boolean
 }
 
 export type ExportPathMap = {
@@ -741,7 +740,6 @@ export const defaultConfig: NextConfig = {
         (os.cpus() || { length: 1 }).length) - 1
     ),
     memoryBasedWorkersCount: false,
-    sharedPool: true,
     isrFlushToDisk: true,
     workerThreads: false,
     proxyTimeout: undefined,
@@ -771,6 +769,7 @@ export const defaultConfig: NextConfig = {
     turbotrace: undefined,
     typedRoutes: false,
     instrumentationHook: false,
+    bundlePagesExternals: false,
   },
 }
 
@@ -780,20 +779,4 @@ export async function normalizeConfig(phase: string, config: any) {
   }
   // Support `new Promise` and `async () =>` as return values of the config export
   return await config
-}
-
-export function validateConfig(userConfig: NextConfig): {
-  errors?: Array<any> | null
-} {
-  if (process.env.NEXT_MINIMAL) {
-    return {
-      errors: [],
-    }
-  } else {
-    const configValidator = require('next/dist/next-config-validate.js')
-    configValidator(userConfig)
-    return {
-      errors: configValidator.errors,
-    }
-  }
 }

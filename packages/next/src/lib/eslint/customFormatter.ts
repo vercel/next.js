@@ -1,4 +1,4 @@
-import chalk from 'next/dist/compiled/chalk'
+import { bold, cyan, gray, red, yellow } from '../picocolors'
 import path from 'path'
 
 // eslint-disable-next-line no-shadow
@@ -62,7 +62,7 @@ function formatMessage(
     fileName = './' + fileName
   }
 
-  let output = '\n' + chalk.cyan(fileName)
+  let output = '\n' + cyan(fileName)
 
   for (let i = 0; i < messages.length; i++) {
     const { message, severity, line, column, ruleId } = messages[i]
@@ -72,22 +72,22 @@ function formatMessage(
     if (line && column) {
       output =
         output +
-        chalk.yellow(line.toString()) +
+        yellow(line.toString()) +
         ':' +
-        chalk.yellow(column.toString()) +
+        yellow(column.toString()) +
         '  '
     }
 
     if (severity === MessageSeverity.Warning) {
-      output += chalk.yellow.bold('Warning') + ': '
+      output += yellow(bold('Warning')) + ': '
     } else {
-      output += chalk.red.bold('Error') + ': '
+      output += red(bold('Error')) + ': '
     }
 
     output += message
 
     if (ruleId) {
-      output += '  ' + chalk.gray.bold(ruleId)
+      output += '  ' + gray(bold(ruleId))
     }
   }
 
@@ -129,7 +129,7 @@ export function formatResults(
     outputWithMessages:
       resultsWithMessages.length > 0
         ? output +
-          `\n\n${chalk.cyan(
+          `\n\n${cyan(
             'info'
           )}  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/basic-features/eslint#disabling-rules`
         : '',

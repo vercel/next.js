@@ -1,4 +1,4 @@
-import { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
+import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 
 /**
  * Get hrefs for fonts to preload

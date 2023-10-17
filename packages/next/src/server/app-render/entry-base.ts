@@ -1,9 +1,10 @@
-const {
+export {
   renderToReadableStream,
   decodeReply,
   decodeAction,
+  decodeFormState,
   // eslint-disable-next-line import/no-extraneous-dependencies
-} = require('react-server-dom-webpack/server.edge')
+} from 'react-server-dom-webpack/server.edge'
 
 import AppRouter from '../../client/components/app-router'
 import LayoutRouter from '../../client/components/layout-router'
@@ -35,9 +36,6 @@ export {
   staticGenerationBailout,
   createSearchParamsBailoutProxy,
   serverHooks,
-  renderToReadableStream,
-  decodeReply,
-  decodeAction,
   preloadStyle,
   preloadFont,
   preconnect,

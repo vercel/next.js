@@ -5,31 +5,47 @@ import { htmlEscapeJsonString } from '../htmlescape'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
+const INLINE_FLIGHT_PAYLOAD_BOOTSTRAP = 0
+const INLINE_FLIGHT_PAYLOAD_DATA = 1
+const INLINE_FLIGHT_PAYLOAD_FORM_STATE = 2
+
 /**
  * Render Flight stream.
  * This is only used for renderToHTML, the Flight response does not need additional wrappers.
  */
 export function useFlightResponse(
   writable: WritableStream<Uint8Array>,
-  req: ReadableStream<Uint8Array>,
+  flightStream: ReadableStream<Uint8Array>,
   clientReferenceManifest: ClientReferenceManifest,
-  rscChunks: Uint8Array[],
   flightResponseRef: FlightResponseRef,
+  formState: null | any,
   nonce?: string
 ): Promise<JSX.Element> {
   if (flightResponseRef.current !== null) {
     return flightResponseRef.current
   }
   // react-server-dom-webpack/client.edge must not be hoisted for require cache clearing to work correctly
-  const {
-    createFromReadableStream,
-  } = require(`react-server-dom-webpack/client.edge`)
+  let createFromReadableStream
+  // @TODO: investigate why the aliasing for turbopack doesn't pick this up, requiring this runtime check
+  if (process.env.TURBOPACK) {
+    createFromReadableStream =
+      // eslint-disable-next-line import/no-extraneous-dependencies
+      require('react-server-dom-turbopack/client.edge').createFromReadableStream
+  } else {
+    createFromReadableStream =
+      // eslint-disable-next-line import/no-extraneous-dependencies
+      require('react-server-dom-webpack/client.edge').createFromReadableStream
+  }
 
-  const [renderStream, forwardStream] = req.tee()
+  const [renderStream, forwardStream] = flightStream.tee()
   const res = createFromReadableStream(renderStream, {
-    moduleMap: isEdgeRuntime
-      ? clientReferenceManifest.edgeSSRModuleMapping
-      : clientReferenceManifest.ssrModuleMapping,
+    ssrManifest: {
+      moduleLoading: clientReferenceManifest.moduleLoading,
+      moduleMap: isEdgeRuntime
+        ? clientReferenceManifest.edgeSSRModuleMapping
+        : clientReferenceManifest.ssrModuleMapping,
+    },
+    nonce,
   })
   flightResponseRef.current = res
 
@@ -44,16 +60,14 @@ export function useFlightResponse(
 
   function read() {
     forwardReader.read().then(({ done, value }) => {
-      if (value) {
-        rscChunks.push(value)
-      }
-
       if (!bootstrapped) {
         bootstrapped = true
         writer.write(
           encodeText(
             `${startScriptTag}(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
-              JSON.stringify([0])
+              JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
+            )});self.__next_f.push(${htmlEscapeJsonString(
+              JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
             )})</script>`
           )
         )
@@ -70,7 +84,7 @@ export function useFlightResponse(
       } else {
         const responsePartial = decodeText(value, textDecoder)
         const scripts = `${startScriptTag}self.__next_f.push(${htmlEscapeJsonString(
-          JSON.stringify([1, responsePartial])
+          JSON.stringify([INLINE_FLIGHT_PAYLOAD_DATA, responsePartial])
         )})</script>`
 
         writer.write(encodeText(scripts))
