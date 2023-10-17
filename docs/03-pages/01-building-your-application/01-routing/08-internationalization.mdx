@@ -100,8 +100,8 @@ module.exports = {
 
     domains: [
       {
-        // Note: subdomains must be included in the domain value to be matched
-        // e.g. www.example.com should be used if that is the expected hostname
+        // Domain is checked if it is included in the hostname.
+        // For instance, if the domain is "example.com," it will also match "www.example.com."
         domain: 'example.com',
         defaultLocale: 'en-US',
       },

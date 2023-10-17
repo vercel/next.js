@@ -65,6 +65,10 @@ describe('I18NProvider', () => {
       domain: 'example.fr',
       defaultLocale: 'fr',
     })
+    expect(provider.detectDomainLocale('www.example.fr')).toEqual({
+      domain: 'example.fr',
+      defaultLocale: 'fr',
+    })
     expect(provider.detectDomainLocale('example.de')).toBeUndefined()
   })
 
