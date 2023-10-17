@@ -18,12 +18,14 @@ type GTMParams = {
   preview: string
 }
 
-let currDataLayerName = 'dataLayer'
+let currDataLayerName
 
 export function GoogleTagManager(props: GTMParams) {
   const { gtmId, dataLayerName = 'dataLayer', auth, preview, dataLayer } = props
 
-  currDataLayerName = dataLayerName
+  if (currDataLayerName === undefined) {
+    currDataLayerName = dataLayerName
+  }
 
   const gtmLayer = dataLayerName !== 'dataLayer' ? `$l=${dataLayerName}` : ''
   const gtmAuth = auth ? `&gtm_auth=${auth}` : ''
