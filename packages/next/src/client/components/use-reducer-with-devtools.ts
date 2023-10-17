@@ -1,10 +1,11 @@
 import type { Dispatch } from 'react'
 import React, { use, useContext } from 'react'
 import { useRef, useEffect, useCallback } from 'react'
-import type {
-  AppRouterState,
-  ReducerActions,
-  ReducerState,
+import {
+  isThenable,
+  type AppRouterState,
+  type ReducerActions,
+  type ReducerState,
 } from './router-reducer/router-reducer-types'
 import { ActionQueueContext } from '../../shared/lib/router/action-queue'
 
@@ -75,7 +76,7 @@ export interface ReduxDevToolsInstance {
 
 export function useUnwrapState(state: ReducerState) {
   // reducer actions can be async, so sometimes we need to suspend until the state is resolved
-  if (state instanceof Promise) {
+  if (isThenable(state)) {
     const result = use(state)
     return result
   }

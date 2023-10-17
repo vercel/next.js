@@ -1,7 +1,8 @@
-import type {
-  AppRouterState,
-  ReducerActions,
-  ReducerState,
+import {
+  isThenable,
+  type AppRouterState,
+  type ReducerActions,
+  type ReducerState,
 } from '../../../client/components/router-reducer/router-reducer-types'
 import type { ReduxDevToolsInstance } from '../../../client/components/use-reducer-with-devtools'
 import { reducer } from '../../../client/components/router-reducer/router-reducer'
@@ -75,7 +76,7 @@ async function runAction({
   }
 
   // if the action is a promise, set up a callback to resolve it
-  if (actionResult instanceof Promise) {
+  if (isThenable(actionResult)) {
     actionResult.then(handleResult, (err) => {
       runRemainingActions(actionQueue, setState)
       action.reject(err)

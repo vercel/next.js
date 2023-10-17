@@ -299,3 +299,11 @@ export type ThenableRecord<T> =
   | PendingThenable<T>
   | RejectedThenable<T>
   | FulfilledThenable<T>
+
+export function isThenable(value: any): value is Promise<AppRouterState> {
+  return (
+    value &&
+    (typeof value === 'object' || typeof value === 'function') &&
+    typeof value.then === 'function'
+  )
+}
