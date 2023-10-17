@@ -1,15 +1,15 @@
 import os from 'os'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
-import {
+import { imageConfigDefault } from '../shared/lib/image-config'
+import type {
   ImageConfig,
   ImageConfigComplete,
-  imageConfigDefault,
 } from '../shared/lib/image-config'
-import { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/subresource-integrity-plugin'
-import { WEB_VITALS } from '../shared/lib/utils'
+import type { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/subresource-integrity-plugin'
+import type { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
-import { SizeLimit } from '../../types'
+import type { SizeLimit } from '../../types'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -779,20 +779,4 @@ export async function normalizeConfig(phase: string, config: any) {
   }
   // Support `new Promise` and `async () =>` as return values of the config export
   return await config
-}
-
-export function validateConfig(userConfig: NextConfig): {
-  errors?: Array<any> | null
-} {
-  if (process.env.NEXT_MINIMAL) {
-    return {
-      errors: [],
-    }
-  } else {
-    const configValidator = require('next/dist/next-config-validate.js')
-    configValidator(userConfig)
-    return {
-      errors: configValidator.errors,
-    }
-  }
 }

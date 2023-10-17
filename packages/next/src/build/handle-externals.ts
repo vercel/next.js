@@ -1,4 +1,5 @@
-import { WebpackLayerName, WEBPACK_LAYERS } from '../lib/constants'
+import { WEBPACK_LAYERS } from '../lib/constants'
+import type { WebpackLayerName } from '../lib/constants'
 import { defaultOverrides } from '../server/require-hook'
 import { BARREL_OPTIMIZATION_PREFIX } from '../shared/lib/constants'
 import path from '../shared/lib/isomorphic/path'
@@ -9,7 +10,7 @@ import {
   NODE_RESOLVE_OPTIONS,
 } from './webpack-config'
 import { isWebpackAppLayer, isWebpackServerLayer } from './worker'
-import { NextConfigComplete } from '../server/config-shared'
+import type { NextConfigComplete } from '../server/config-shared'
 const reactPackagesRegex = /^(react|react-dom|react-server-dom-webpack)($|\/)/
 
 const pathSeparators = '[/\\\\]'
@@ -301,8 +302,10 @@ export function makeExternalHandler({
       return resolveResult.localRes
     }
 
-    if (request === 'styled-jsx/style' && !isAppLayer) {
-      return `commonjs ${defaultOverrides['styled-jsx/style']}`
+    // Forcedly resolve the styled-jsx installed by next.js,
+    // since `resolveExternal` cannot find the styled-jsx dep with pnpm
+    if (request === 'styled-jsx/style') {
+      resolveResult.res = defaultOverrides['styled-jsx/style']
     }
 
     const { res, isEsm } = resolveResult

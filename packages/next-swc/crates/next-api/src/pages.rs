@@ -37,10 +37,11 @@ use turbopack_binding::{
         build::BuildChunkingContext,
         core::{
             asset::AssetContent,
-            chunk::{ChunkableModule, ChunkingContext, EvaluatableAssets},
+            chunk::{ChunkingContext, EvaluatableAssets},
             context::AssetContext,
             file_source::FileSource,
             issue::{IssueSeverity, OptionIssueSource},
+            module::Module,
             output::{OutputAsset, OutputAssets},
             reference_type::{
                 EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType,
@@ -406,7 +407,6 @@ impl PagesProject {
         let this = self.await?;
         let client_runtime_entries = get_client_runtime_entries(
             self.project().project_path(),
-            self.project().env(),
             Value::new(ClientContextType::Pages {
                 pages_dir: self.pages_dir(),
             }),
@@ -421,13 +421,10 @@ impl PagesProject {
     async fn runtime_entries(self: Vc<Self>) -> Result<Vc<RuntimeEntries>> {
         let this = self.await?;
         Ok(get_server_runtime_entries(
-            self.project().project_path(),
-            self.project().env(),
             Value::new(ServerContextType::Pages {
                 pages_dir: self.pages_dir(),
             }),
             this.mode,
-            self.project().next_config(),
         ))
     }
 
@@ -435,13 +432,10 @@ impl PagesProject {
     async fn data_runtime_entries(self: Vc<Self>) -> Result<Vc<RuntimeEntries>> {
         let this = self.await?;
         Ok(get_server_runtime_entries(
-            self.project().project_path(),
-            self.project().env(),
             Value::new(ServerContextType::PagesData {
                 pages_dir: self.pages_dir(),
             }),
             this.mode,
-            self.project().next_config(),
         ))
     }
 
@@ -556,11 +550,9 @@ impl PageEndpoint {
 
         let client_chunking_context = this.pages_project.project().client_chunking_context();
 
-        let client_entry_chunk = client_module.as_root_chunk(Vc::upcast(client_chunking_context));
-
         let mut client_chunks = client_chunking_context
             .evaluated_chunk_group(
-                client_entry_chunk,
+                client_module.ident(),
                 this.pages_project
                     .client_runtime_entries()
                     .with_entry(Vc::upcast(client_main_module))
@@ -571,11 +563,9 @@ impl PageEndpoint {
 
         client_chunks.push(Vc::upcast(PageLoaderAsset::new(
             this.pages_project.project().client_root(),
-            client_module_context,
-            Vc::upcast(client_chunking_context),
-            self.source(),
             this.pathname,
             self.client_relative_path(),
+            Vc::cell(client_chunks.clone()),
         )));
 
         Ok(Vc::cell(client_chunks))
@@ -618,10 +608,8 @@ impl PageEndpoint {
             };
             evaluatable_assets.push(evaluatable);
 
-            let edge_files = edge_chunking_context.evaluated_chunk_group(
-                ssr_module.as_root_chunk(Vc::upcast(edge_chunking_context)),
-                Vc::cell(evaluatable_assets),
-            );
+            let edge_files = edge_chunking_context
+                .evaluated_chunk_group(ssr_module.ident(), Vc::cell(evaluatable_assets));
 
             Ok(SsrChunk::Edge { files: edge_files }.cell())
         } else {
@@ -639,8 +627,11 @@ impl PageEndpoint {
 
             let ssr_entry_chunk_path_string = format!("pages{asset_path}");
             let ssr_entry_chunk_path = node_path.join(ssr_entry_chunk_path_string);
-            let ssr_entry_chunk =
-                chunking_context.entry_chunk(ssr_entry_chunk_path, ssr_module, runtime_entries);
+            let ssr_entry_chunk = chunking_context.entry_chunk_group(
+                ssr_entry_chunk_path,
+                ssr_module,
+                runtime_entries,
+            );
 
             Ok(SsrChunk::NodeJs {
                 entry: ssr_entry_chunk,

@@ -1,4 +1,8 @@
 on:
+  schedule:
+    # run every day at 23:15
+    - cron: '15 23 * * *'
+
   workflow_dispatch:
     inputs:
       releaseType:
@@ -26,8 +30,7 @@ name: Trigger Release
 env:
   NAPI_CLI_VERSION: 2.14.7
   TURBO_VERSION: 1.10.9
-  NODE_MAINTENANCE_VERSION: 16
-  NODE_LTS_VERSION: 18
+  NODE_LTS_VERSION: 20
 
 jobs:
   start:
@@ -38,7 +41,7 @@ jobs:
       # canary next-swc binaries in the monorepo
       NEXT_SKIP_NATIVE_POSTINSTALL: 1
 
-    environment: release-${{ github.event.inputs.releaseType }}
+    environment: release-${{ github.event.inputs.releaseType || 'canary' }}
     steps:
       - name: Setup node
         uses: actions/setup-node@v3
@@ -73,6 +76,6 @@ jobs:
 
       - run: pnpm run build
 
-      - run: node ./scripts/start-release.js --release-type ${{ github.event.inputs.releaseType }} --semver-type ${{ github.event.inputs.semverType }}
+      - run: node ./scripts/start-release.js --release-type ${{ github.event.inputs.releaseType || 'canary' }} --semver-type ${{ github.event.inputs.semverType }}
         env:
           RELEASE_BOT_GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}

@@ -1,5 +1,5 @@
 import type { RequestCookies } from '../cookies'
-import { StaticGenerationStore } from '../../../../client/components/static-generation-async-storage.external'
+import type { StaticGenerationStore } from '../../../../client/components/static-generation-async-storage.external'
 
 import { ResponseCookies } from '../cookies'
 import { ReflectAdapter } from './reflect'

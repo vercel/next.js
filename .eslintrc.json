@@ -213,6 +213,18 @@
         ],
         "eslint-plugin/require-meta-docs-url": "error"
       }
+    },
+    {
+      "files": ["packages/**/*.tsx", "packages/**/*.ts"],
+      "rules": {
+        "@typescript-eslint/consistent-type-imports": [
+          "error",
+          {
+            "disallowTypeAnnotations": false
+          }
+        ],
+        "@typescript-eslint/no-import-type-side-effects": "error"
+      }
     }
   ],
   "rules": {

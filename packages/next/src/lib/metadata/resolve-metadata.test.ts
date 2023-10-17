@@ -1,8 +1,6 @@
-import {
-  accumulateMetadata as originAccumulateMetadata,
-  MetadataItems,
-} from './resolve-metadata'
-import { Metadata } from './types/metadata-interface'
+import { accumulateMetadata as originAccumulateMetadata } from './resolve-metadata'
+import type { MetadataItems } from './resolve-metadata'
+import type { Metadata } from './types/metadata-interface'
 
 function accumulateMetadata(metadataItems: MetadataItems) {
   return originAccumulateMetadata(metadataItems, {

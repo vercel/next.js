@@ -1,6 +1,6 @@
 import path from 'path'
 import loadConfig from '../server/config'
-import { NextConfig } from '../server/config-shared'
+import type { NextConfig } from '../server/config-shared'
 import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 
 const supportedTurbopackNextConfigOptions = [
@@ -62,6 +62,7 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.useDeploymentId',
   'experimental.useDeploymentIdServerActions',
   'experimental.deploymentId',
+  'experimental.serverActions',
 
   // Experimental options that don't affect compilation
   'serverRuntimeConfig',
@@ -88,7 +89,6 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.trustHostHeader',
 
   // Left to be implemented (priority)
-  // 'experimental.serverActions',
   // 'experimental.ppr', // Checked in `needs-experimental-react.ts`
   // clientRouterFilter is `true` by default currently in config-shared.ts,
   // might be removed as an option altogether.

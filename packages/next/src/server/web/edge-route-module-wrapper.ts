@@ -12,7 +12,8 @@ import { IncrementalCache } from '../lib/incremental-cache'
 import { RouteMatcher } from '../future/route-matchers/route-matcher'
 import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
-import { NextFetchEvent } from './spec-extension/fetch-event'
+import type { NextFetchEvent } from './spec-extension/fetch-event'
+import { internal_getCurrentFunctionWaitUntil } from './internal-edge-wait-until'
 
 type WrapOptions = Partial<Pick<AdapterOptions, 'page'>>
 
@@ -106,7 +107,7 @@ export class EdgeRouteModuleWrapper {
         },
         notFoundRoutes: [],
       },
-      staticGenerationContext: {
+      renderOpts: {
         supportsDynamicHTML: true,
       },
     }
@@ -114,9 +115,12 @@ export class EdgeRouteModuleWrapper {
     // Get the response from the handler.
     const res = await this.routeModule.handle(request, context)
 
-    if (context.staticGenerationContext.waitUntil) {
-      evt.waitUntil(context.staticGenerationContext.waitUntil)
+    const waitUntilPromises = [internal_getCurrentFunctionWaitUntil()]
+    if (context.renderOpts.waitUntil) {
+      waitUntilPromises.push(context.renderOpts.waitUntil)
     }
+    evt.waitUntil(Promise.all(waitUntilPromises))
+
     return res
   }
 }

@@ -3,9 +3,11 @@ import stripAnsi from 'next/dist/compiled/strip-ansi'
 import textTable from 'next/dist/compiled/text-table'
 import createStore from 'next/dist/compiled/unistore'
 import formatWebpackMessages from '../../client/dev/error-overlay/format-webpack-messages'
-import { OutputState, store as consoleStore } from './store'
+import { store as consoleStore } from './store'
+import type { OutputState } from './store'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
-import { CompilerNameValues, COMPILER_NAMES } from '../../shared/lib/constants'
+import { COMPILER_NAMES } from '../../shared/lib/constants'
+import type { CompilerNameValues } from '../../shared/lib/constants'
 
 export function startedDevelopmentServer(appUrl: string, bindAddr: string) {
   consoleStore.setState({ appUrl, bindAddr })

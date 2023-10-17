@@ -6,15 +6,37 @@ import { BrowserInterface } from 'test/lib/browsers/base'
 import { Request } from 'playwright-core'
 
 createNextDescribe(
-  'app dir',
+  'app dir - basic',
   {
     files: __dirname,
     buildCommand: process.env.NEXT_EXPERIMENTAL_COMPILE
       ? 'pnpm next experimental-compile'
       : undefined,
+    dependencies: {
+      nanoid: '4.0.1',
+    },
   },
-  ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
+  ({ next, isNextDev: isDev, isNextStart, isNextDeploy, isTurbopack }) => {
+    if (process.env.NEXT_EXPERIMENTAL_COMPILE) {
+      it('should provide query for getStaticProps page correctly', async () => {
+        const res = await next.fetch('/ssg?hello=world')
+        expect(res.status).toBe(200)
+
+        const $ = cheerio.load(await res.text())
+        expect(JSON.parse($('#query').text())).toEqual({ hello: 'world' })
+      })
+    }
+
     if (isNextStart && !process.env.NEXT_EXPERIMENTAL_COMPILE) {
+      it('should not have loader generated function for edge runtime', async () => {
+        expect(
+          await next.readFile('.next/server/app/dashboard/page.js')
+        ).not.toContain('_stringifiedConfig')
+        expect(await next.readFile('.next/server/middleware.js')).not.toContain(
+          '_middlewareConfig'
+        )
+      })
+
       it('should use RSC prefetch data from build', async () => {
         expect(
           await next.readFile('.next/server/app/linking.prefetch.rsc')
@@ -173,10 +195,13 @@ createNextDescribe(
       await check(async () => {
         return requests.some(
           (req) =>
-            req.includes(encodeURI('/[category]/[id]')) && req.endsWith('.js')
+            req.includes(
+              encodeURI(isTurbopack ? '[category]_[id]' : '/[category]/[id]')
+            ) && req.endsWith('.js')
         )
           ? 'found'
-          : JSON.stringify(requests)
+          : // When it fails will log out the paths.
+            JSON.stringify(requests)
       }, 'found')
     })
 
@@ -1753,20 +1778,23 @@ createNextDescribe(
 
       it('should insert preload tags for beforeInteractive and afterInteractive scripts', async () => {
         const html = await next.render('/script')
-        expect(html).toContain(
-          '<link rel="preload" href="/test1.js" as="script"/>'
+        const $ = cheerio.load(html)
+
+        const scriptPreloads = $(
+          'link[rel="preload"][as="script"][href^="/test"]'
         )
-        expect(html).toContain(
-          '<link rel="preload" href="/test2.js" as="script"/>'
-        )
-        expect(html).toContain(
-          '<link rel="preload" href="/test3.js" as="script"/>'
-        )
+        const expectedHrefs = new Set(['/test1.js', '/test2.js', '/test3.js'])
+        expect(scriptPreloads.length).toBe(3)
+        scriptPreloads.each((i, el) => {
+          expect(expectedHrefs.has(el.attribs.href)).toBe(true)
+          expectedHrefs.delete(el.attribs.href)
+        })
 
         // test4.js has lazyOnload which doesn't need to be preloaded
-        expect(html).not.toContain(
-          '<script rel="preload" as="script" src="/test4.js"/>'
+        const lazyPreloads = $(
+          'link[rel="preload"][as="script"][href="/test4.js"]'
         )
+        expect(lazyPreloads.length).toBe(0)
       })
 
       it('should load stylesheets for next/scripts', async () => {
@@ -1799,7 +1827,10 @@ createNextDescribe(
         expect($('body').find('script[async]').length).toBe(1)
       })
 
-      if (!isDev) {
+      // Turbopack doesn't use eval by default, so we can check strict CSP.
+      if (!isDev || isTurbopack) {
+        // This test is here to ensure that we don't accidentally turn CSP off
+        // for the prod version.
         it('should successfully bootstrap even when using CSP', async () => {
           // This path has a nonce applied in middleware
           const browser = await next.browser('/bootstrap/with-nonce')
@@ -1816,19 +1847,18 @@ createNextDescribe(
         })
       } else {
         it('should fail to bootstrap when using CSP in Dev due to eval', async () => {
-          // This test is here to ensure that we don't accidentally turn CSP off
-          // for the prod version.
           const browser = await next.browser('/bootstrap/with-nonce')
-          const response = await next.fetch('/bootstrap/with-nonce')
-          // We expect this page to response with CSP headers requiring a nonce for scripts
-          expect(response.headers.get('content-security-policy')).toContain(
-            "script-src 'nonce"
-          )
           // We expect our app to fail to bootstrap due to invalid eval use in Dev.
           // We assert the html is in it's SSR'd state.
           expect(
             await browser.eval('document.getElementById("val").textContent')
           ).toBe('initial')
+
+          const response = await next.fetch('/bootstrap/with-nonce')
+          // We expect this page to response with CSP headers requiring a nonce for scripts
+          expect(response.headers.get('content-security-policy')).toContain(
+            "script-src 'nonce"
+          )
         })
       }
     })

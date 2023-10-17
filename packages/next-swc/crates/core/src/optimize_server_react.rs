@@ -68,7 +68,7 @@ impl Fold for OptimizeServerReact {
             new_items.push(item.clone().fold_with(self));
 
             if let ModuleItem::ModuleDecl(ModuleDecl::Import(import_decl)) = &item {
-                if import_decl.src.value.to_string() != "react" {
+                if import_decl.src.value != "react" {
                     continue;
                 }
                 for specifier in &import_decl.specifiers {
@@ -119,9 +119,7 @@ impl Fold for OptimizeServerReact {
                         if &f.to_id() == react_ident {
                             if let MemberProp::Ident(i) = &member.prop {
                                 // Remove `React.useEffect` and `React.useLayoutEffect` calls
-                                if i.sym.to_string() == "useEffect"
-                                    || i.sym.to_string() == "useLayoutEffect"
-                                {
+                                if i.sym == "useEffect" || i.sym == "useLayoutEffect" {
                                     return Expr::Lit(Lit::Null(Null { span: DUMMY_SP }));
                                 }
                             }

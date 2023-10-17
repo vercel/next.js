@@ -5,7 +5,7 @@ description: API Reference for the redirect function.
 
 The `redirect` function allows you to redirect the user to another URL. `redirect` can be used in Server Components, Client Components, [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and [Server Actions](/docs/app/building-your-application/data-fetching/forms-and-mutations).
 
-When used in a streaming context, this will insert a meta tag to emit the redirect on the client side. Otherwise, it will serve a 307 HTTP redirect response to the caller.
+When used in a [streaming context](/docs/app/building-your-application/routing/loading-ui-and-streaming#what-is-streaming), this will insert a meta tag to emit the redirect on the client side. Otherwise, it will serve a 307 HTTP redirect response to the caller.
 
 If a resource doesn't exist, you can use the [`notFound` function](/docs/app/api-reference/functions/not-found) instead.
 
