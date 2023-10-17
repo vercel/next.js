@@ -15,7 +15,7 @@ The Route Segment options allows you configure the behavior of a [Page](/docs/ap
 | [`preferredRegion`](#preferredregion) | `'auto' \| 'global' \| 'home' \| string \| string[]`                                                                      | `'auto'`                   |
 | [`maxDuration`](#maxduration)         | `number`                                                                                                                  | Set by deployment platform |
 
-```tsx filename="layout.tsx / page.tsx / route.ts" switcher
+```tsx filename="layout.tsx | page.tsx | route.ts" switcher
 export const dynamic = 'auto'
 export const dynamicParams = true
 export const revalidate = false
@@ -27,7 +27,7 @@ export const maxDuration = 5
 export default function MyComponent() {}
 ```
 
-```jsx filename="layout.js / page.js / route.js" switcher
+```jsx filename="layout.js | page.js | route.js" switcher
 export const dynamic = 'auto'
 export const dynamicParams = true
 export const revalidate = false
@@ -49,12 +49,12 @@ export default function MyComponent() {}
 
 Change the dynamic behavior of a layout or page to fully static or fully dynamic.
 
-```tsx filename="layout.tsx / page.tsx / route.ts" switcher
+```tsx filename="layout.tsx | page.tsx | route.ts" switcher
 export const dynamic = 'auto'
 // 'auto' | 'force-dynamic' | 'error' | 'force-static'
 ```
 
-```js filename="layout.js / page.js / route.js" switcher
+```js filename="layout.js | page.js | route.js" switcher
 export const dynamic = 'auto'
 // 'auto' | 'force-dynamic' | 'error' | 'force-static'
 ```
@@ -83,11 +83,11 @@ export const dynamic = 'auto'
 
 Control what happens when a dynamic segment is visited that was not generated with [generateStaticParams](/docs/app/api-reference/functions/generate-static-params).
 
-```tsx filename="layout.tsx / page.tsx" switcher
+```tsx filename="layout.tsx | page.tsx" switcher
 export const dynamicParams = true // true | false,
 ```
 
-```js filename="layout.js / page.js / route.js" switcher
+```js filename="layout.js | page.js | route.js" switcher
 export const dynamicParams = true // true | false,
 ```
 
@@ -104,12 +104,12 @@ export const dynamicParams = true // true | false,
 
 Set the default revalidation time for a layout or page. This option does not override the `revalidate` value set by individual `fetch` requests.
 
-```tsx filename="layout.tsx / page.tsx / route.ts" switcher
+```tsx filename="layout.tsx | page.tsx | route.ts" switcher
 export const revalidate = false
 // false | 'force-cache' | 0 | number
 ```
 
-```js filename="layout.js / page.js / route.js" switcher
+```js filename="layout.js | page.js | route.js" switcher
 export const revalidate = false
 // false | 'force-cache' | 0 | number
 ```
@@ -134,13 +134,13 @@ By default, Next.js **will cache** any `fetch()` requests that are reachable **b
 
 `fetchCache` allows you to override the default `cache` option of all `fetch` requests in a layout or page.
 
-```tsx filename="layout.tsx / page.tsx / route.ts" switcher
+```tsx filename="layout.tsx | page.tsx | route.ts" switcher
 export const fetchCache = 'auto'
 // 'auto' | 'default-cache' | 'only-cache'
 // 'force-cache' | 'force-no-store' | 'default-no-store' | 'only-no-store'
 ```
 
-```js filename="layout.js / page.js / route.js" switcher
+```js filename="layout.js | page.js | route.js" switcher
 export const fetchCache = 'auto'
 // 'auto' | 'default-cache' | 'only-cache'
 // 'force-cache' | 'force-no-store' | 'default-no-store' | 'only-no-store'
@@ -168,12 +168,12 @@ export const fetchCache = 'auto'
 
 ### `runtime`
 
-```tsx filename="layout.tsx / page.tsx / route.ts" switcher
+```tsx filename="layout.tsx | page.tsx | route.ts" switcher
 export const runtime = 'nodejs'
 // 'edge' | 'nodejs'
 ```
 
-```js filename="layout.js / page.js / route.js" switcher
+```js filename="layout.js | page.js | route.js" switcher
 export const runtime = 'nodejs'
 // 'edge' | 'nodejs'
 ```
@@ -185,12 +185,12 @@ Learn more about the [Edge and Node.js runtimes](/docs/app/building-your-applica
 
 ### `preferredRegion`
 
-```tsx filename="layout.tsx / page.tsx / route.ts" switcher
+```tsx filename="layout.tsx | page.tsx | route.ts" switcher
 export const preferredRegion = 'auto'
 // 'auto' | 'global' | 'home' | ['iad1', 'sfo1']
 ```
 
-```js filename="layout.js / page.js / route.js" switcher
+```js filename="layout.js | page.js | route.js" switcher
 export const preferredRegion = 'auto'
 // 'auto' | 'global' | 'home' | ['iad1', 'sfo1']
 ```
@@ -208,11 +208,11 @@ Based on your deployment platform, you may be able to use a higher default execu
 This setting allows you to opt into a higher execution time within your plans limit.
 **Note**: This settings requires Next.js `13.4.10` or higher.
 
-```tsx filename="layout.tsx / page.tsx / route.ts" switcher
+```tsx filename="layout.tsx | page.tsx | route.ts" switcher
 export const maxDuration = 5
 ```
 
-```js filename="layout.js / page.js / route.js" switcher
+```js filename="layout.js | page.js | route.js" switcher
 export const maxDuration = 5
 ```
 

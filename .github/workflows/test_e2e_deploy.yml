@@ -16,16 +16,12 @@ jobs:
       DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
       NAPI_CLI_VERSION: 2.16.2
       TURBO_VERSION: 1.10.9
-      NODE_MAINTENANCE_VERSION: 16
-      NODE_LTS_VERSION: 18
+      NODE_LTS_VERSION: 20
       CARGO_PROFILE_RELEASE_LTO: 'true'
       TURBO_TEAM: 'vercel'
       TURBO_REMOTE_ONLY: 'true'
       TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
       NEXT_TELEMETRY_DISABLED: 1
-      # we build a dev binary for use in CI so skip downloading
-      # canary next-swc binaries in the monorepo
-      NEXT_SKIP_NATIVE_POSTINSTALL: 1
 
     strategy:
       fail-fast: false
@@ -49,11 +45,6 @@ jobs:
       - run: pnpm run build
 
       - run: npm i -g vercel@latest
-
-      - uses: actions/download-artifact@v3
-        with:
-          name: next-swc-binaries
-          path: packages/next-swc/native
 
       - run: RESET_VC_PROJECT=true node scripts/reset-vercel-project.mjs
         name: Reset test project

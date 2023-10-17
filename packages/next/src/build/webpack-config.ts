@@ -74,10 +74,6 @@ import { needsExperimentalReact } from '../lib/needs-experimental-react'
 import { getDefineEnvPlugin } from './webpack/plugins/define-env-plugin'
 import type { SWCLoaderOptions } from './webpack/loaders/next-swc-loader'
 import { isResourceInPackages, makeExternalHandler } from './handle-externals'
-import {
-  getMainField,
-  edgeConditionNames,
-} from './webpack-config-rules/resolve'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -107,6 +103,21 @@ const babelIncludeRegexes: RegExp[] = [
 
 const asyncStoragesRegex =
   /next[\\/]dist[\\/](esm[\\/])?client[\\/]components[\\/](static-generation-async-storage|action-async-storage|request-async-storage)/
+
+// exports.<conditionName>
+const edgeConditionNames = [
+  'edge-light',
+  'worker',
+  // inherits the default conditions
+  '...',
+]
+
+// packageJson.<mainField>
+const mainFieldsPerCompiler: Record<CompilerNameValues, string[]> = {
+  [COMPILER_NAMES.server]: ['main', 'module'],
+  [COMPILER_NAMES.client]: ['browser', 'module', 'main'],
+  [COMPILER_NAMES.edgeServer]: edgeConditionNames,
+}
 
 // Support for NODE_PATH
 const nodePathList = (process.env.NODE_PATH || '')
@@ -226,29 +237,32 @@ const devtoolRevertWarning = execOnce(
 let loggedSwcDisabled = false
 let loggedIgnoredCompilerOptions = false
 
-function getOptimizedAliases(): { [pkg: string]: string } {
-  const stubWindowFetch = path.join(__dirname, 'polyfills', 'fetch', 'index.js')
-  const stubObjectAssign = path.join(__dirname, 'polyfills', 'object-assign.js')
-
-  const shimAssign = path.join(__dirname, 'polyfills', 'object.assign')
+// Insert aliases for Next.js stubs of fetch, object-assign, and url
+// Keep in sync with insert_optimized_module_aliases in import_map.rs
+function getOptimizedModuleAliases(): { [pkg: string]: string } {
   return {
-    unfetch$: stubWindowFetch,
-    'isomorphic-unfetch$': stubWindowFetch,
-    'whatwg-fetch$': path.join(
-      __dirname,
-      'polyfills',
-      'fetch',
-      'whatwg-fetch.js'
+    unfetch: require.resolve('next/dist/build/polyfills/fetch/index.js'),
+    'isomorphic-unfetch': require.resolve(
+      'next/dist/build/polyfills/fetch/index.js'
     ),
-    'object-assign$': stubObjectAssign,
-    // Stub Package: object.assign
-    'object.assign/auto': path.join(shimAssign, 'auto.js'),
-    'object.assign/implementation': path.join(shimAssign, 'implementation.js'),
-    'object.assign$': path.join(shimAssign, 'index.js'),
-    'object.assign/polyfill': path.join(shimAssign, 'polyfill.js'),
-    'object.assign/shim': path.join(shimAssign, 'shim.js'),
-
-    // Replace: full URL polyfill with platform-based polyfill
+    'whatwg-fetch': require.resolve(
+      'next/dist/build/polyfills/fetch/whatwg-fetch.js'
+    ),
+    'object-assign': require.resolve(
+      'next/dist/build/polyfills/object-assign.js'
+    ),
+    'object.assign/auto': require.resolve(
+      'next/dist/build/polyfills/object.assign/auto.js'
+    ),
+    'object.assign/implementation': require.resolve(
+      'next/dist/build/polyfills/object.assign/implementation.js'
+    ),
+    'object.assign/polyfill': require.resolve(
+      'next/dist/build/polyfills/object.assign/polyfill.js'
+    ),
+    'object.assign/shim': require.resolve(
+      'next/dist/build/polyfills/object.assign/shim.js'
+    ),
     url: require.resolve('next/dist/compiled/native-url'),
   }
 }
@@ -877,7 +891,7 @@ export default async function getBaseWebpackConfig(
       ...(appDir ? { [APP_DIR_ALIAS]: appDir } : {}),
       [ROOT_DIR_ALIAS]: dir,
       [DOT_NEXT_ALIAS]: distDir,
-      ...(isClient || isEdgeServer ? getOptimizedAliases() : {}),
+      ...(isClient || isEdgeServer ? getOptimizedModuleAliases() : {}),
       ...(reactProductionProfiling ? getReactProfilingInProduction() : {}),
 
       // For Node server, we need to re-alias the package imports to prefer to
@@ -920,8 +934,7 @@ export default async function getBaseWebpackConfig(
           },
         }
       : undefined),
-    // default main fields use pages dir ones, and customize app router ones in loaders.
-    mainFields: getMainField('pages', compilerType),
+    mainFields: mainFieldsPerCompiler[compilerType],
     ...(isEdgeServer && {
       conditionNames: edgeConditionNames,
     }),
@@ -1029,6 +1042,7 @@ export default async function getBaseWebpackConfig(
     config,
     optOutBundlingPackageRegex,
     dir,
+    hasAppDir,
   })
 
   const shouldIncludeExternalDirs =
@@ -1599,7 +1613,6 @@ export default async function getBaseWebpackConfig(
                   ],
                 },
                 resolve: {
-                  mainFields: getMainField('app', compilerType),
                   conditionNames: reactServerCondition,
                   // If missing the alias override here, the default alias will be used which aliases
                   // react to the direct file path, not the package name. In that case the condition
@@ -1744,9 +1757,6 @@ export default async function getBaseWebpackConfig(
                     ],
                     exclude: [codeCondition.exclude],
                     use: swcLoaderForClientLayer,
-                    resolve: {
-                      mainFields: getMainField('app', compilerType),
-                    },
                   },
                 ]
               : []),

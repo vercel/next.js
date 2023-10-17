@@ -1,5 +1,6 @@
 import type { IncomingMessage } from 'http'
 import type { Readable } from 'stream'
+import { filterReqHeaders, ipcForbiddenHeaders } from './utils'
 
 export const invokeRequest = async (
   targetUrl: string,
@@ -10,10 +11,13 @@ export const invokeRequest = async (
   },
   readableBody?: Readable | ReadableStream
 ) => {
-  const invokeHeaders = {
-    'cache-control': '',
-    ...requestInit.headers,
-  }
+  const invokeHeaders = filterReqHeaders(
+    {
+      'cache-control': '',
+      ...requestInit.headers,
+    },
+    ipcForbiddenHeaders
+  ) as IncomingMessage['headers']
 
   return await fetch(targetUrl, {
     headers: invokeHeaders as any as Headers,

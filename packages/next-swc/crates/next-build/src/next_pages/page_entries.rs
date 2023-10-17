@@ -387,7 +387,7 @@ pub async fn compute_page_entries_chunks(
         let pathname = page_entry.pathname.await?;
         let asset_path: String = get_asset_path_from_pathname(&pathname, ".js");
 
-        let ssr_entry_chunk = ssr_chunking_context.entry_chunk(
+        let ssr_entry_chunk = ssr_chunking_context.entry_chunk_group(
             node_root.join(format!("server/pages/{asset_path}")),
             Vc::upcast(page_entry.ssr_module),
             page_entries.ssr_runtime_entries,
