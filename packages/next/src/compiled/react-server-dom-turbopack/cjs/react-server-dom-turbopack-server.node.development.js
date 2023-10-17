@@ -1228,6 +1228,8 @@ function isArray(a) {
   return isArrayImpl(a);
 }
 
+var getPrototypeOf = Object.getPrototypeOf;
+
 // in case they error.
 
 var jsxPropsParents = new WeakMap();
@@ -1246,7 +1248,7 @@ function isObjectPrototype(object) {
   // still just a plain simple object.
 
 
-  if (Object.getPrototypeOf(object)) {
+  if (getPrototypeOf(object)) {
     return false;
   }
 
@@ -1262,7 +1264,7 @@ function isObjectPrototype(object) {
 }
 
 function isSimpleObject(object) {
-  if (!isObjectPrototype(Object.getPrototypeOf(object))) {
+  if (!isObjectPrototype(getPrototypeOf(object))) {
     return false;
   }
 
@@ -1589,6 +1591,14 @@ function getOrCreateServerContext(globalName) {
   return ContextRegistry[globalName];
 }
 
+var ReactSharedServerInternals = // $FlowFixMe: It's defined in the one we resolve to.
+React.__SECRET_SERVER_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
+
+if (!ReactSharedServerInternals) {
+  throw new Error('The "react" package in this environment is not configured correctly. ' + 'The "react-server" condition must be enabled in any environment that ' + 'runs React Server Components.');
+}
+
+var ObjectPrototype = Object.prototype;
 var stringify = JSON.stringify; // Serializable values
 // Thenable<ReactClientValue>
 
@@ -1596,8 +1606,8 @@ var PENDING$1 = 0;
 var COMPLETED = 1;
 var ABORTED = 3;
 var ERRORED$1 = 4;
+var ReactCurrentCache = ReactSharedServerInternals.ReactCurrentCache;
 var ReactCurrentDispatcher = ReactSharedInternals.ReactCurrentDispatcher;
-var ReactCurrentCache = ReactSharedInternals.ReactCurrentCache;
 
 function defaultErrorHandler(error) {
   console['error'](error); // Don't transform to our wrapper
@@ -1618,6 +1628,8 @@ function createRequest(model, bundlerConfig, onError, context, identifierPrefix,
   ReactCurrentCache.current = DefaultCacheDispatcher;
   var abortSet = new Set();
   var pingedTasks = [];
+  var cleanupQueue = [];
+
   var hints = createHints();
   var request = {
     status: OPEN,
@@ -1641,6 +1653,7 @@ function createRequest(model, bundlerConfig, onError, context, identifierPrefix,
     writtenProviders: new Map(),
     identifierPrefix: identifierPrefix || '',
     identifierCount: 1,
+    taintCleanupQueue: cleanupQueue,
     onError: onError === undefined ? defaultErrorHandler : onError,
     onPostpone: onPostpone === undefined ? defaultPostponeHandler : onPostpone,
     // $FlowFixMe[missing-this-annot]
@@ -2222,6 +2235,7 @@ function resolveModelToJSON(request, parent, key, value) {
   }
 
   if (typeof value === 'object') {
+
     if (isClientReference(value)) {
       return serializeClientReference(request, parent, key, value); // $FlowFixMe[method-unbinding]
     } else if (typeof value.then === 'function') {
@@ -2253,6 +2267,11 @@ function resolveModelToJSON(request, parent, key, value) {
       return undefined;
     }
 
+    if (isArray(value)) {
+      // $FlowFixMe[incompatible-return]
+      return value;
+    }
+
     if (value instanceof Map) {
       return serializeMap(request, value);
     }
@@ -2261,27 +2280,29 @@ function resolveModelToJSON(request, parent, key, value) {
       return serializeSet(request, value);
     }
 
-    if (!isArray(value)) {
-      var iteratorFn = getIteratorFn(value);
+    var iteratorFn = getIteratorFn(value);
 
-      if (iteratorFn) {
-        return Array.from(value);
-      }
+    if (iteratorFn) {
+      return Array.from(value);
+    } // Verify that this is a simple plain object.
+
+
+    var proto = getPrototypeOf(value);
+
+    if (proto !== ObjectPrototype && (proto === null || getPrototypeOf(proto) !== null)) {
+      throw new Error('Only plain objects, and a few built-ins, can be passed to Client Components ' + 'from Server Components. Classes or null prototypes are not supported.');
     }
 
     {
-      if (value !== null && !isArray(value)) {
-        // Verify that this is a simple plain object.
-        if (objectName(value) !== 'Object') {
-          error('Only plain objects can be passed to Client Components from Server Components. ' + '%s objects are not supported.%s', objectName(value), describeObjectForErrorMessage(parent, key));
-        } else if (!isSimpleObject(value)) {
-          error('Only plain objects can be passed to Client Components from Server Components. ' + 'Classes or other objects with methods are not supported.%s', describeObjectForErrorMessage(parent, key));
-        } else if (Object.getOwnPropertySymbols) {
-          var symbols = Object.getOwnPropertySymbols(value);
+      if (objectName(value) !== 'Object') {
+        error('Only plain objects can be passed to Client Components from Server Components. ' + '%s objects are not supported.%s', objectName(value), describeObjectForErrorMessage(parent, key));
+      } else if (!isSimpleObject(value)) {
+        error('Only plain objects can be passed to Client Components from Server Components. ' + 'Classes or other objects with methods are not supported.%s', describeObjectForErrorMessage(parent, key));
+      } else if (Object.getOwnPropertySymbols) {
+        var symbols = Object.getOwnPropertySymbols(value);
 
-          if (symbols.length > 0) {
-            error('Only plain objects can be passed to Client Components from Server Components. ' + 'Objects with symbol properties like %s are not supported.%s', symbols[0].description, describeObjectForErrorMessage(parent, key));
-          }
+        if (symbols.length > 0) {
+          error('Only plain objects can be passed to Client Components from Server Components. ' + 'Objects with symbol properties like %s are not supported.%s', symbols[0].description, describeObjectForErrorMessage(parent, key));
         }
       }
     } // $FlowFixMe[incompatible-return]
@@ -2291,7 +2312,8 @@ function resolveModelToJSON(request, parent, key, value) {
   }
 
   if (typeof value === 'string') {
-    // TODO: Maybe too clever. If we support URL there's no similar trick.
+
+
     if (value[value.length - 1] === 'Z') {
       // Possibly a Date, whose toJSON automatically calls toISOString
       // $FlowFixMe[incompatible-use]
@@ -2325,6 +2347,7 @@ function resolveModelToJSON(request, parent, key, value) {
   }
 
   if (typeof value === 'function') {
+
     if (isClientReference(value)) {
       return serializeClientReference(request, parent, key, value);
     }
@@ -2364,6 +2387,7 @@ function resolveModelToJSON(request, parent, key, value) {
   }
 
   if (typeof value === 'bigint') {
+
     return serializeBigInt(value);
   }
 
@@ -2383,7 +2407,8 @@ function logRecoverableError(request, error) {
 }
 
 function fatalError(request, error) {
-  // This is called outside error handling code such as if an error happens in React internals.
+
+
   if (request.destination !== null) {
     request.status = CLOSED;
     closeWithError(request.destination, error);
@@ -2649,7 +2674,7 @@ function flushCompletedChunks(request, destination) {
   flushBuffered(destination);
 
   if (request.pendingChunks === 0) {
-    // We're done.
+
     close$1(destination);
   }
 }
