@@ -2958,10 +2958,10 @@ createNextDescribe(
       it('should not opt-out of static optimization when used in next/cache', async () => {
         const res = await next.fetch('/no-store/static')
         const html = await res.text()
-        const data = JSON.parse(cheerio.load(html)('#uncached-data').text())
+        const data = JSON.parse(cheerio.load(html)('#data').text())
         const res2 = await next.fetch('/no-store/static')
         const html2 = await res2.text()
-        const data2 = JSON.parse(cheerio.load(html2)('#uncached-data').text())
+        const data2 = JSON.parse(cheerio.load(html2)('#data').text())
 
         expect(data).toEqual(data2)
       })

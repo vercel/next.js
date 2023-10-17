@@ -21,7 +21,7 @@ export default async function Page() {
   return (
     <div>
       <p>random: {Math.random()}</p>
-      <p>cachedData: {cachedData.random}</p>
+      <p id="data">cachedData: {cachedData.random}</p>
       <RevalidateButton onClick={revalidate} />
     </div>
   )
