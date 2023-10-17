@@ -168,6 +168,15 @@ pub struct Metadata {
     pub open_graph: Vec<MetadataWithAltItem>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sitemap: Option<MetadataItem>,
+    // The page indicates where the metadata is defined and captured.
+    // The steps for capturing metadata (get_directory_tree) and constructing
+    // LoaderTree (directory_tree_to_entrypoints) is separated,
+    // and child loader tree can trickle down metadata when clone / merge components calculates
+    // the actual path incorrectly with fillMetadataSegment.
+    //
+    // This is only being used for the static metadata files.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub base_page: Option<AppPage>,
 }
 
 impl Metadata {
@@ -178,12 +187,14 @@ impl Metadata {
             twitter,
             open_graph,
             sitemap,
+            base_page,
         } = self;
         icon.is_empty()
             && apple.is_empty()
             && twitter.is_empty()
             && open_graph.is_empty()
             && sitemap.is_none()
+            && base_page.is_none()
     }
 
     fn merge(a: &Self, b: &Self) -> Self {
@@ -198,6 +209,7 @@ impl Metadata {
                 .copied()
                 .collect(),
             sitemap: a.sitemap.or(b.sitemap),
+            base_page: a.base_page.as_ref().or(b.base_page.as_ref()).cloned(),
         }
     }
 }
@@ -709,6 +721,22 @@ async fn directory_tree_to_entrypoints_internal(
     let subdirectories = &directory_tree.subdirectories;
     let components = directory_tree.components.await?;
 
+    // Capture the current page for the metadata to calculate segment relative to
+    // the corresponding page for the static metadata files.
+    let components = if components.metadata.base_page.is_some() {
+        components
+    } else {
+        (Components {
+            metadata: Metadata {
+                base_page: Some(app_page.clone()),
+                ..components.metadata.clone()
+            },
+            ..*components
+        })
+        .cell()
+        .await?
+    };
+
     let current_level_is_parallel_route = is_parallel_route(&directory_name);
 
     if let Some(page) = components.page {
@@ -723,6 +751,7 @@ async fn directory_tree_to_entrypoints_internal(
                     parallel_routes: IndexMap::new(),
                     components: Components {
                         page: Some(page),
+                        metadata: components.metadata.clone(),
                         ..Default::default()
                     }
                     .cell(),
@@ -740,6 +769,7 @@ async fn directory_tree_to_entrypoints_internal(
                             parallel_routes: IndexMap::new(),
                             components: Components {
                                 page: Some(page),
+                                metadata: components.metadata.clone(),
                                 ..Default::default()
                             }
                             .cell(),
@@ -816,6 +846,7 @@ async fn directory_tree_to_entrypoints_internal(
         twitter,
         open_graph,
         sitemap,
+        base_page: _,
     } = &components.metadata;
 
     for meta in sitemap
