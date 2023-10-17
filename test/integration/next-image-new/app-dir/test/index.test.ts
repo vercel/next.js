@@ -362,7 +362,7 @@ function runTests(mode) {
       .map((log) => log.message)
       .join('\n')
     expect(warnings).toMatch(
-      /Image with src "\/test\.jpg" is using deprecated "onLoadingComplete" property. Please use the "onLoad" property instead./gm
+      /Image with src "(.*)test(.*)jpg" is using deprecated "onLoadingComplete" property. Please use the "onLoad" property instead./gm
     )
   })
 
