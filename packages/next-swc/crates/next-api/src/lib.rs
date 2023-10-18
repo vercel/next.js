@@ -3,6 +3,7 @@
 #![feature(async_fn_in_trait)]
 
 mod app;
+mod dynamic_imports;
 mod entrypoints;
 mod middleware;
 mod pages;
