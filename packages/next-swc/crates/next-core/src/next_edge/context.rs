@@ -22,7 +22,6 @@ use turbopack_binding::{
 
 use crate::{
     mode::NextMode,
-    next_client::context::get_client_assets_path,
     next_config::NextConfig,
     next_import_map::get_next_edge_import_map,
     next_server::context::ServerContextType,
@@ -155,15 +154,15 @@ pub async fn get_edge_resolve_options_context(
 pub fn get_edge_chunking_context(
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
-    client_root: Vc<FileSystemPath>,
     environment: Vc<Environment>,
 ) -> Vc<Box<dyn EcmascriptChunkingContext>> {
+    let output_root = node_root.join("server/edge".to_string());
     Vc::upcast(
         DevChunkingContext::builder(
             project_path,
-            node_root.join("server/edge".to_string()),
-            node_root.join("server/edge/chunks".to_string()),
-            get_client_assets_path(client_root),
+            output_root,
+            output_root.join("chunks".to_string()),
+            output_root.join("assets".to_string()),
             environment,
         )
         .reference_chunk_source_maps(should_debug("edge"))

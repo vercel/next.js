@@ -542,7 +542,6 @@ impl Project {
         get_edge_chunking_context(
             self.project_path(),
             self.node_root(),
-            self.client_relative_path(),
             self.edge_compile_time_info().environment(),
         )
     }
