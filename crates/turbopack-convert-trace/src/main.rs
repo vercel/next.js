@@ -236,34 +236,73 @@ fn main() {
                     span.end = ts;
                 }
             }
-            TraceRow::Enter {
-                ts,
-                id,
-                thread_id: _,
-            } => {
+            TraceRow::Enter { ts, id, thread_id } => {
                 let internal_id = ensure_span(&mut active_ids, &mut spans, id);
+                let mut parent_id = spans[internal_id].parent;
+                let mut in_parent = 0;
+                loop {
+                    let parent = &mut spans[parent_id];
+                    if let Some(SelfTimeStarted {
+                        ts: ref mut parent_ts,
+                        thread_id: parent_thread_id,
+                        ..
+                    }) = parent.self_start
+                    {
+                        if parent_thread_id == thread_id {
+                            let ts_start = *parent_ts;
+                            *parent_ts = ts;
+                            add_self_time(
+                                ts_start,
+                                ts,
+                                internal_id,
+                                parent,
+                                &mut all_self_times,
+                                &mut name_self_times,
+                            );
+                            in_parent = parent_id;
+                            break;
+                        }
+                    }
+                    if parent_id == 0 {
+                        break;
+                    }
+                    parent_id = parent.parent;
+                }
                 let span = &mut spans[internal_id];
-                span.self_start = Some(SelfTimeStarted { ts });
+                span.self_start = Some(SelfTimeStarted {
+                    ts,
+                    thread_id,
+                    in_parent,
+                });
             }
             TraceRow::Exit { ts, id } => {
                 let internal_id = ensure_span(&mut active_ids, &mut spans, id);
                 let span = &mut spans[internal_id];
-                if let Some(SelfTimeStarted { ts: ts_start }) = span.self_start {
-                    let (start, end) = if ts_start > ts {
-                        (ts, ts_start)
-                    } else {
-                        (ts_start, ts)
-                    };
-                    let duration = end.saturating_sub(start);
-                    span.items.push(SpanItem::SelfTime { start, duration });
-                    if duration > 0 {
-                        all_self_times.push(Element {
-                            range: start..end,
-                            value: internal_id,
-                        });
+                if let Some(SelfTimeStarted {
+                    ts: ts_start,
+                    in_parent,
+                    ..
+                }) = span.self_start.take()
+                {
+                    add_self_time(
+                        ts_start,
+                        ts,
+                        internal_id,
+                        span,
+                        &mut all_self_times,
+                        &mut name_self_times,
+                    );
+                    if in_parent > 0 {
+                        let parent_id = span.parent;
+                        let span = &mut spans[parent_id];
+                        if let Some(SelfTimeStarted {
+                            ts: ref mut parent_ts,
+                            ..
+                        }) = span.self_start
+                        {
+                            *parent_ts = max(ts, ts_start);
+                        }
                     }
-                    span.self_time += duration;
-                    *name_self_times.entry(span.name.clone()).or_default() += duration;
                 }
             }
             TraceRow::Event { ts, parent, values } => {
@@ -862,9 +901,36 @@ fn main() {
     println!("]");
 }
 
+fn add_self_time<'a>(
+    ts_start: u64,
+    ts: u64,
+    internal_id: usize,
+    span: &mut Span<'a>,
+    all_self_times: &mut Vec<Element<u64, usize>>,
+    name_self_times: &mut HashMap<Cow<'a, str>, u64>,
+) {
+    let (start, end) = if ts_start > ts {
+        (ts, ts_start)
+    } else {
+        (ts_start, ts)
+    };
+    let duration = end.saturating_sub(start);
+    span.items.push(SpanItem::SelfTime { start, duration });
+    if duration > 0 {
+        all_self_times.push(Element {
+            range: start..end,
+            value: internal_id,
+        });
+    }
+    span.self_time += duration;
+    *name_self_times.entry(span.name.clone()).or_default() += duration;
+}
+
 #[derive(Debug)]
 struct SelfTimeStarted {
     ts: u64,
+    thread_id: u64,
+    in_parent: usize,
 }
 
 #[derive(Debug, Default)]
