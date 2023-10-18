@@ -62,10 +62,13 @@ let testVersion
 
 describe('create-next-app templates', () => {
   beforeAll(async () => {
-    const span = new Span({ name: 'parent' })
-    testVersion = (
-      await createNextInstall({ onlyPackages: true, parentSpan: span })
-    ).get('next')
+    // TODO: investigate moving this post publish or create deployed
+    // tarballs to avoid these failing while a publish is in progress
+    testVersion = 'canary'
+    // const span = new Span({ name: 'parent' })
+    // testVersion = (
+    //   await createNextInstall({ onlyPackages: true, parentSpan: span })
+    // ).get('next')
   })
 
   it('should prompt user to choose if --ts or --js is not provided', async () => {

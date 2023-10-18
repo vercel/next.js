@@ -54,10 +54,13 @@ let testVersion
 describe('create-next-app --app', () => {
   beforeAll(async () => {
     if (testVersion) return
-    const span = new Span({ name: 'parent' })
-    testVersion = (
-      await createNextInstall({ onlyPackages: true, parentSpan: span })
-    ).get('next')
+    // TODO: investigate moving this post publish or create deployed
+    // tarballs to avoid these failing while a publish is in progress
+    testVersion = 'canary'
+    // const span = new Span({ name: 'parent' })
+    // testVersion = (
+    //   await createNextInstall({ onlyPackages: true, parentSpan: span })
+    // ).get('next')
   })
 
   it('should create TS appDir projects with --ts', async () => {
