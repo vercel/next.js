@@ -7,6 +7,11 @@ import { getRequestMeta } from '../../../request-meta'
 import { fromNodeOutgoingHttpHeaders } from '../../utils'
 import { NextRequest } from '../request'
 
+export const ResponseAbortedName = 'ResponseAborted'
+export class ResponseAborted extends Error {
+  public readonly name = ResponseAbortedName
+}
+
 /**
  * Creates an AbortController tied to the closing of a ServerResponse (or other
  * appropriate Writable).
@@ -23,7 +28,7 @@ export function createAbortController(response: Writable): AbortController {
   response.once('close', () => {
     if (response.writableFinished) return
 
-    controller.abort()
+    controller.abort(new ResponseAborted())
   })
 
   return controller
@@ -39,7 +44,9 @@ export function createAbortController(response: Writable): AbortController {
  */
 export function signalFromNodeResponse(response: Writable): AbortSignal {
   const { errored, destroyed } = response
-  if (errored || destroyed) return AbortSignal.abort(errored)
+  if (errored || destroyed) {
+    return AbortSignal.abort(errored ?? new ResponseAborted())
+  }
 
   const { signal } = createAbortController(response)
   return signal

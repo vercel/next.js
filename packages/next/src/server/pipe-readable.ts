@@ -2,11 +2,14 @@ import type { ServerResponse } from 'node:http'
 
 import './node-polyfill-web-streams'
 
-import { createAbortController } from './web/spec-extension/adapters/next-request'
+import {
+  ResponseAbortedName,
+  createAbortController,
+} from './web/spec-extension/adapters/next-request'
 import { DetachedPromise } from '../lib/detached-promise'
 
 export function isAbortError(e: any): e is Error & { name: 'AbortError' } {
-  return e?.name === 'AbortError'
+  return e?.name === 'AbortError' || e?.name === ResponseAbortedName
 }
 
 function createWriterFromResponse(
@@ -66,7 +69,7 @@ function createWriterFromResponse(
         }
       } catch (err) {
         res.end()
-        throw err
+        throw new Error('failed to write chunk to response', { cause: err })
       }
     },
     abort: (err) => {
@@ -101,8 +104,8 @@ export async function pipeToNodeResponse(
     await readable.pipeTo(writer, { signal: controller.signal })
   } catch (err: any) {
     // If this isn't related to an abort error, re-throw it.
-    if (!isAbortError(err)) {
-      throw err
-    }
+    if (isAbortError(err)) return
+
+    throw new Error('failed to pipe response', { cause: err })
   }
 }

@@ -6,6 +6,7 @@ import { nonNullable } from '../../lib/non-nullable'
 import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
 import { createDecodeTransformStream } from './encode-decode'
+import { DetachedPromise } from '../../lib/detached-promise'
 
 const queueTask =
   process.env.NEXT_RUNTIME === 'edge' ? globalThis.setTimeout : setImmediate
@@ -242,7 +243,8 @@ function createDeferredSuffixStream(
 function createMergedTransformStream(
   dataStream: ReadableStream<Uint8Array>
 ): TransformStream<Uint8Array, Uint8Array> {
-  let dataStreamFinished: Promise<void> | null = null
+  let dataStreamFinished: DetachedPromise<void> | null = null
+
   return new TransformStream({
     transform(chunk, controller) {
       controller.enqueue(chunk)
@@ -256,30 +258,33 @@ function createMergedTransformStream(
         // implementation, e.g. with a specific high-water mark. To ensure it's
         // the safe timing to pipe the data stream, this extra tick is
         // necessary.
-        dataStreamFinished = new Promise((res) =>
-          // We use `setTimeout` here to ensure that it's inserted after flushing
-          // the shell. Note that this implementation might get stale if impl
-          // details of Fizz change in the future.
-          queueTask(async () => {
-            try {
-              while (true) {
-                const { done, value } = await dataStreamReader.read()
-                if (done) {
-                  return res()
-                }
-                controller.enqueue(value)
-              }
-            } catch (err) {
-              controller.error(err)
+        const promise = new DetachedPromise<void>()
+        dataStreamFinished = promise
+
+        // We use `setTimeout` here to ensure that it's inserted after flushing
+        // the shell. Note that this implementation might get stale if impl
+        // details of Fizz change in the future.
+        queueTask(async () => {
+          try {
+            while (true) {
+              const { done, value } = await dataStreamReader.read()
+              if (done) return promise.resolve()
+
+              controller.enqueue(value)
             }
-            res()
-          })
-        )
+          } catch (err) {
+            controller.error(err)
+          }
+
+          promise.resolve()
+        })
       }
     },
     flush() {
+      // If the data stream promise is defined, then return it as its completion
+      // will be the completion of the stream.
       if (dataStreamFinished) {
-        return dataStreamFinished
+        return dataStreamFinished.promise
       }
     },
   })
