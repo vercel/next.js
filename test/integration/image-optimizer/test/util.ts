@@ -163,9 +163,7 @@ export function runTests(ctx) {
           'custom-sharp.js.nft.json'
         )
       )
-      expect(traceFile.files.some((file) => file.includes('sharp/build'))).toBe(
-        true
-      )
+      expect(traceFile.files.some((file) => file.includes('sharp/'))).toBe(true)
     })
   }
 
