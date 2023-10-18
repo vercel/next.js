@@ -9,57 +9,88 @@ import { codeFrameColumns } from '@babel/code-frame'
 import { launchEditor } from './internal/helpers/launchEditor'
 
 interface Project {
-  traceSource(stackFrame: RustStackFrame): Promise<
-    | {
-        frame: RustStackFrame
-        source: string
-      }
-    | undefined
-  >
+  getSourceForAsset(filePath: string): Promise<string | null>
+  traceSource(stackFrame: RustStackFrame): Promise<RustStackFrame | null>
 }
 
 interface RustStackFrame {
   file: string
-  methodName: string | undefined
+  methodName: string | null
   line: number
-  column: number | undefined
+  column: number | null
+}
+
+const currentSourcesByFile: Map<string, Promise<string | null>> = new Map()
+async function batchedTraceSource(project: Project, frame: StackFrame) {
+  const file = frame.file
+  if (!file) {
+    return
+  }
+
+  const rustStackFrame = {
+    file,
+    methodName: frame.methodName,
+    line: frame.lineNumber ?? 0,
+    column: frame.column,
+  }
+
+  const sourceFrame = await project.traceSource(rustStackFrame)
+  if (!sourceFrame) {
+    return
+  }
+
+  let source
+  // Don't show code frames for node_modules. These can also often be large bundled files.
+  if (!sourceFrame.file.includes('node_modules')) {
+    let sourcePromise = currentSourcesByFile.get(sourceFrame.file)
+    if (!sourcePromise) {
+      sourcePromise = new Promise((resolve) =>
+        // Batch reading sources content as this can be quite large, and stacks often reference the same files
+        setTimeout(resolve, 100)
+      ).then(() => project.getSourceForAsset(sourceFrame.file))
+      currentSourcesByFile.set(sourceFrame.file, sourcePromise)
+    }
+
+    source = await sourcePromise
+    currentSourcesByFile.delete(sourceFrame.file)
+  }
+
+  return {
+    frame: {
+      file,
+      lineNumber: sourceFrame.line,
+      column: sourceFrame.column,
+      methodName: sourceFrame.methodName ?? frame.methodName,
+      arguments: [],
+    },
+    source: source ?? null,
+  }
 }
 
 export async function createOriginalStackFrame(
   project: Project,
   frame: StackFrame
 ): Promise<OriginalStackFrameResponse | null> {
-  const source = await project.traceSource({
-    file: frame.file ?? '<unknown>',
-    methodName: frame.methodName,
-    line: frame.lineNumber ?? 0,
-    column: frame.column ?? undefined,
-  })
-
-  if (!source) {
+  const traced = await batchedTraceSource(project, frame)
+  if (!traced) {
     return null
   }
 
   return {
-    originalStackFrame: {
-      file: source.frame.file,
-      lineNumber: source.frame.line,
-      column: source.frame.column ?? null,
-      methodName: source.frame.methodName ?? frame.methodName,
-      arguments: [],
-    },
-    originalCodeFrame: source.frame.file.includes('node_modules')
-      ? null
-      : codeFrameColumns(
-          source.source,
-          {
-            start: {
-              line: source.frame.line,
-              column: source.frame.column ?? 0,
+    originalStackFrame: traced.frame,
+    originalCodeFrame:
+      traced.source === null || traced.frame.file.includes('node_modules')
+        ? null
+        : codeFrameColumns(
+            traced.source,
+            {
+              start: {
+                line: traced.frame.lineNumber,
+                column: traced.frame.column ?? 0,
+              },
             },
-          },
-          { forceColor: true }
-        ),
+            { forceColor: true }
+          ),
   }
 }
 

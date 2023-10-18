@@ -616,14 +616,6 @@ pub fn project_update_info_subscribe(
 #[turbo_tasks::value]
 #[derive(Debug)]
 #[napi(object)]
-pub struct TracedSource {
-    pub frame: StackFrame,
-    pub source: String,
-}
-
-#[turbo_tasks::value]
-#[derive(Debug)]
-#[napi(object)]
 pub struct StackFrame {
     pub file: String,
     pub method_name: Option<String>,
@@ -635,7 +627,7 @@ pub struct StackFrame {
 pub async fn project_trace_source(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     frame: StackFrame,
-) -> napi::Result<Option<TracedSource>> {
+) -> napi::Result<Option<StackFrame>> {
     let turbo_tasks = project.turbo_tasks.clone();
     let traced_frame = turbo_tasks
         .run_once(async move {
@@ -703,29 +695,42 @@ pub async fn project_trace_source(
                 bail!("Original file outside project")
             };
 
-            let source_content = &*project
-                .container
-                .project()
-                .project_path()
-                .join(source_file.to_string())
-                .read()
-                .await?;
-
-            let FileContent::Content(source_content) = source_content else {
-                bail!("No content for source file")
-            };
-
-            Ok(Some(TracedSource {
-                frame: StackFrame {
-                    file: source_file.to_string(),
-                    method_name: token.name,
-                    line: token.original_line as u32,
-                    column: Some(token.original_column as u32),
-                },
-                source: source_content.content().to_str()?.to_string(),
+            Ok(Some(StackFrame {
+                file: source_file.to_string(),
+                method_name: token.name,
+                line: token.original_line as u32,
+                column: Some(token.original_column as u32),
             }))
         })
         .await
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
     Ok(traced_frame)
+}
+
+#[napi]
+pub async fn project_get_source_for_asset(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    file_path: String,
+) -> napi::Result<Option<String>> {
+    let turbo_tasks = project.turbo_tasks.clone();
+    let source = turbo_tasks
+        .run_once(async move {
+            let source_content = &*project
+                .container
+                .project()
+                .project_path()
+                .join(file_path.to_string())
+                .read()
+                .await?;
+
+            let FileContent::Content(source_content) = source_content else {
+                return Ok(None);
+            };
+
+            Ok(Some(source_content.content().to_str()?.to_string()))
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+
+    Ok(source)
 }
