@@ -338,11 +338,8 @@ function createMoveSuffixStream(
       }
     },
     flush(controller) {
-      // If we didn't find the suffix, we didn't move it, so don't write it.
-      if (!foundSuffix) {
-        return
-      }
-
+      // Even if we didn't find the suffix, the HTML is not valid if we don't
+      // add it, so insert it at the end.
       controller.enqueue(encoder.encode(suffix))
     },
   })
