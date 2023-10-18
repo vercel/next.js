@@ -500,7 +500,7 @@ export function getImgProps(
     }
     if ('ref' in rest) {
       warnOnce(
-        `Image with src "${src}" is using unsupported "ref" property. Consider using the "onLoadingComplete" property instead.`
+        `Image with src "${src}" is using unsupported "ref" property. Consider using the "onLoad" property instead.`
       )
     }
 
