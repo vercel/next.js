@@ -20,7 +20,6 @@ import {
   renderToInitialFizzStream,
   createBufferedTransformStream,
   continueFizzStream,
-  streamToBufferedResult,
   cloneTransformStream,
 } from '../stream-utils/node-web-streams-helper'
 import { canSegmentBeOverridden } from '../../client/components/match-segments'
@@ -908,7 +907,7 @@ async function renderToHTMLOrFlightImpl(
   })
 
   if (staticGenerationStore.isStaticGeneration) {
-    const htmlResult = await streamToBufferedResult(renderResult)
+    const htmlResult = await renderResult.toUnchunkedString(true)
 
     // if we encountered any unexpected errors during build
     // we fail the prerendering phase and the build
@@ -918,9 +917,9 @@ async function renderToHTMLOrFlightImpl(
 
     // TODO-APP: derive this from same pass to prevent additional
     // render during static generation
-    const stringifiedFlightPayload = await streamToBufferedResult(
+    const stringifiedFlightPayload = await (
       await generateFlight(ctx)
-    )
+    ).toUnchunkedString(true)
 
     if (staticGenerationStore.forceStatic === false) {
       staticGenerationStore.revalidate = 0
