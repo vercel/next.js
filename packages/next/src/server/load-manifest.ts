@@ -29,7 +29,8 @@ export function evalManifest(path: string, shouldCache: boolean = true) {
   if (content.length === 0)
     throw new Error('Manifest file is empty')
 
-    // eslint-disable-next-line no-eval
+  // eslint-disable-next-line no-eval
+  //@ts-ignore
   ;(0, eval)(content)
 
   if (shouldCache) {
