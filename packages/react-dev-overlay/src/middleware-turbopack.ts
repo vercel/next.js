@@ -78,11 +78,7 @@ function stackFrameFromQuery(query: ParsedUrlQuery): StackFrame {
 }
 
 export function getOverlayMiddleware(project: Project) {
-  return async function (
-    req: IncomingMessage,
-    res: ServerResponse,
-    next: (error?: Error) => unknown
-  ) {
+  return async function (req: IncomingMessage, res: ServerResponse) {
     const { pathname, query } = url.parse(req.url!, true)
     if (pathname === '/__nextjs_original-stack-frame') {
       const frame = stackFrameFromQuery(query)
@@ -92,19 +88,22 @@ export function getOverlayMiddleware(project: Project) {
       } catch (e: any) {
         res.statusCode = 500
         res.write(e.message)
-        return res.end()
+        res.end()
+        return
       }
 
       if (originalStackFrame === null) {
         res.statusCode = 404
         res.write('Unable to resolve sourcemap')
-        return res.end()
+        res.end()
+        return
       }
 
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json')
       res.write(Buffer.from(JSON.stringify(originalStackFrame)))
-      return res.end()
+      res.end()
+      return
     } else if (pathname === '/__nextjs_launch-editor') {
       const frame = stackFrameFromQuery(query)
 
@@ -112,7 +111,8 @@ export function getOverlayMiddleware(project: Project) {
       if (filePath === undefined) {
         res.statusCode = 400
         res.write('Bad Request')
-        return res.end()
+        res.end()
+        return
       }
 
       const fileExists = await fs.access(filePath, FS.F_OK).then(
@@ -122,7 +122,8 @@ export function getOverlayMiddleware(project: Project) {
       if (!fileExists) {
         res.statusCode = 204
         res.write('No Content')
-        return res.end()
+        res.end()
+        return
       }
 
       try {
@@ -131,13 +132,12 @@ export function getOverlayMiddleware(project: Project) {
         console.log('Failed to launch editor:', err)
         res.statusCode = 500
         res.write('Internal Server Error')
-        return res.end()
+        res.end()
+        return
       }
 
       res.statusCode = 204
-      return res.end()
+      res.end()
     }
-
-    return next()
   }
 }

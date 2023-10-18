@@ -1061,14 +1061,13 @@ async function startWatcher(opts: SetupOpts) {
     await writeOtherManifests()
     await writeFontManifest()
 
-    const middleware = getOverlayMiddleware(project)
-
+    const overlayMiddleware = getOverlayMiddleware(project)
     const turbopackHotReloader: NextJsHotReloaderInterface = {
       turbopackProject: project,
       activeWebpackConfigs: undefined,
       serverStats: null,
       edgeServerStats: null,
-      async run(req, _res, _parsedUrl) {
+      async run(req, res, _parsedUrl) {
         // intercept page chunks request and ensure them with turbopack
         if (req.url?.startsWith('/_next/static/chunks/pages/')) {
           const params = matchNextPageBundleRequest(req.url)
@@ -1090,12 +1089,7 @@ async function startWatcher(opts: SetupOpts) {
           }
         }
 
-        await new Promise<void>((resolve, reject) => {
-          middleware(req, _res, (err?: Error) => {
-            if (err) return reject(err)
-            resolve()
-          })
-        })
+        await overlayMiddleware(req, res)
 
         // Request was not finished.
         return { finished: undefined }
