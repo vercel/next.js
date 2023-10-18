@@ -3,7 +3,6 @@ import type {
   ExportAppOptions,
   ExportWorker,
   WorkerRenderOptsPartial,
-  ExportPageInput,
 } from './types'
 import type { PrerenderManifest } from '../build'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
@@ -174,32 +173,29 @@ function setupWorkers(
 
   let infoPrinted = false
 
-  const worker = Worker.create<typeof import('./worker'), [ExportPageInput]>(
-    require.resolve('./worker'),
-    {
-      timeout: timeout * 1000,
-      onRestart: (_method, [{ path }], attempts) => {
-        if (attempts >= 3) {
-          throw new ExportError(
-            `Static page generation for ${path} is still timing out after 3 attempts. See more info here https://nextjs.org/docs/messages/static-page-generation-timeout`
-          )
-        }
-        Log.warn(
-          `Restarted static page generation for ${path} because it took more than ${timeout} seconds`
+  const worker = new Worker(require.resolve('./worker'), {
+    timeout: timeout * 1000,
+    onRestart: (_method, [{ path }], attempts) => {
+      if (attempts >= 3) {
+        throw new ExportError(
+          `Static page generation for ${path} is still timing out after 3 attempts. See more info here https://nextjs.org/docs/messages/static-page-generation-timeout`
         )
-        if (!infoPrinted) {
-          Log.warn(
-            'See more info here https://nextjs.org/docs/messages/static-page-generation-timeout'
-          )
-          infoPrinted = true
-        }
-      },
-      maxRetries: 0,
-      numWorkers: threads,
-      enableWorkerThreads: nextConfig.experimental.workerThreads,
-      exposedMethods: ['default'],
-    }
-  )
+      }
+      Log.warn(
+        `Restarted static page generation for ${path} because it took more than ${timeout} seconds`
+      )
+      if (!infoPrinted) {
+        Log.warn(
+          'See more info here https://nextjs.org/docs/messages/static-page-generation-timeout'
+        )
+        infoPrinted = true
+      }
+    },
+    maxRetries: 0,
+    numWorkers: threads,
+    enableWorkerThreads: nextConfig.experimental.workerThreads,
+    exposedMethods: ['default'],
+  }) as Worker & typeof import('./worker')
 
   return {
     pages: worker.default,

@@ -1,7 +1,3 @@
-// This takes advantage of `Promise.withResolvers` which is polyfilled in
-// this imported module.
-import '../../../lib/polyfill-promise-with-resolvers'
-
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
 import type { RouteKind } from '../route-kind'
 import type { RouteMatch } from '../route-matches/route-match'
@@ -12,6 +8,7 @@ import type { MatchOptions, RouteMatcherManager } from './route-matcher-manager'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { LocaleRouteMatcher } from '../route-matchers/locale-route-matcher'
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
+import { DetachedPromise } from '../../../lib/detached-promise'
 
 interface RouteMatchers {
   static: ReadonlyArray<RouteMatcher>
@@ -46,7 +43,7 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
 
   private previousMatchers: ReadonlyArray<RouteMatcher> = []
   public async reload() {
-    const { promise, resolve, reject } = Promise.withResolvers<void>()
+    const { promise, resolve, reject } = new DetachedPromise<void>()
     this.waitTillReadyPromise = promise
 
     // Grab the compilation ID for this run, we'll verify it at the end to

@@ -170,13 +170,15 @@ export function useParams<T extends Params = Params>(): T {
   const globalLayoutRouter = useContext(GlobalLayoutRouterContext)
   const pathParams = useContext(PathParamsContext)
 
-  // When it's under app router
-  if (globalLayoutRouter) {
-    return getSelectedParams(globalLayoutRouter.tree) as T
-  }
+  return useMemo(() => {
+    // When it's under app router
+    if (globalLayoutRouter?.tree) {
+      return getSelectedParams(globalLayoutRouter.tree) as T
+    }
 
-  // When it's under client side pages router
-  return pathParams as T
+    // When it's under client side pages router
+    return pathParams as T
+  }, [globalLayoutRouter?.tree, pathParams])
 }
 
 // TODO-APP: handle parallel routes
