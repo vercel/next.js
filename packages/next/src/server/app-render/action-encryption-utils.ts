@@ -1,6 +1,8 @@
 import type { ActionManifest } from '../../build/webpack/plugins/flight-client-entry-plugin'
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 
+let __next_internal_development_raw_action_key: string
+
 export function arrayBufferToString(buffer: ArrayBuffer) {
   const bytes = new Uint8Array(buffer)
   const len = bytes.byteLength
@@ -54,7 +56,15 @@ export async function decrypt(key: CryptoKey, salt: string, data: ArrayBuffer) {
   )
 }
 
-export async function generateRandomActionKeyRaw() {
+export async function generateRandomActionKeyRaw(dev?: boolean) {
+  // For development, we just keep one key in memory for all actions.
+  // This makes things faster.
+  if (dev) {
+    if (typeof __next_internal_development_raw_action_key !== 'undefined') {
+      return __next_internal_development_raw_action_key
+    }
+  }
+
   const key = await crypto.subtle.generateKey(
     {
       name: 'AES-GCM',
@@ -64,7 +74,13 @@ export async function generateRandomActionKeyRaw() {
     ['encrypt', 'decrypt']
   )
   const exported = await crypto.subtle.exportKey('raw', key)
-  return btoa(arrayBufferToString(exported))
+  const b64 = btoa(arrayBufferToString(exported))
+
+  if (dev) {
+    __next_internal_development_raw_action_key = b64
+  }
+
+  return b64
 }
 
 // This is a global singleton that is used to encode/decode the action bound args from

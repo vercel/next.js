@@ -906,8 +906,8 @@ export class FlightClientEntryPlugin {
             ]
           action.workers[name] = modId!
         }
-        // Assign encryption key for each action during production build.
-        action.key = this.dev ? undefined : await generateRandomActionKeyRaw()
+        // Assign encryption key for each action
+        action.key = await generateRandomActionKeyRaw(this.dev)
         serverActions[id] = action
       }
 
@@ -922,8 +922,8 @@ export class FlightClientEntryPlugin {
             ]
           action.workers[name] = modId!
         }
-        // Assign encryption key for each action during production build.
-        action.key = this.dev ? undefined : await generateRandomActionKeyRaw()
+        // Assign encryption key for each action
+        action.key = await generateRandomActionKeyRaw(this.dev)
         edgeServerActions[id] = action
       }
     }
