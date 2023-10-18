@@ -4,7 +4,6 @@ use next_swc::{
     amp_attributes::amp_attributes,
     cjs_optimizer::cjs_optimizer,
     named_import_transform::named_import_transform,
-    next_dynamic::next_dynamic,
     next_ssg::next_ssg,
     optimize_barrel::optimize_barrel,
     optimize_server_react::optimize_server_react,
@@ -15,6 +14,7 @@ use next_swc::{
     },
     shake_exports::{shake_exports, Config as ShakeExportsConfig},
 };
+use next_transform_dynamic::{next_dynamic, NextDynamicMode};
 use next_transform_font::{next_font_loaders, Config as FontLoaderConfig};
 use serde::de::DeserializeOwned;
 use turbopack_binding::swc::{
@@ -64,6 +64,7 @@ fn next_dynamic_fixture(input: PathBuf) {
                 true,
                 false,
                 false,
+                NextDynamicMode::Webpack,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
             )
@@ -79,6 +80,7 @@ fn next_dynamic_fixture(input: PathBuf) {
                 false,
                 false,
                 false,
+                NextDynamicMode::Webpack,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
             )
@@ -94,6 +96,7 @@ fn next_dynamic_fixture(input: PathBuf) {
                 false,
                 true,
                 false,
+                NextDynamicMode::Webpack,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
             )
@@ -116,6 +119,7 @@ fn app_dir_next_dynamic_fixture(input: PathBuf) {
                 true,
                 false,
                 true,
+                NextDynamicMode::Webpack,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
             )
@@ -131,6 +135,7 @@ fn app_dir_next_dynamic_fixture(input: PathBuf) {
                 false,
                 false,
                 true,
+                NextDynamicMode::Webpack,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
             )
@@ -146,6 +151,7 @@ fn app_dir_next_dynamic_fixture(input: PathBuf) {
                 false,
                 true,
                 true,
+                NextDynamicMode::Webpack,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
             )
