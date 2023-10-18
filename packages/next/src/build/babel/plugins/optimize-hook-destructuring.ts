@@ -57,14 +57,7 @@ export default function ({
             }
 
             return patterns.concat(
-              t.objectProperty(
-                t.numericLiteral(i),
-                // TODO: fix this
-                element as Exclude<
-                  typeof element,
-                  BabelTypes.MemberExpression | BabelTypes.TSParameterProperty
-                >
-              )
+              t.objectProperty(t.numericLiteral(i), element)
             )
           },
           []

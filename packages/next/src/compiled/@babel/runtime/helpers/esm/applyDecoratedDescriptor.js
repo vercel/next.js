@@ -5,19 +5,24 @@ export default function _applyDecoratedDescriptor(target, property, decorators, 
   });
   desc.enumerable = !!desc.enumerable;
   desc.configurable = !!desc.configurable;
+
   if ('value' in desc || desc.initializer) {
     desc.writable = true;
   }
+
   desc = decorators.slice().reverse().reduce(function (desc, decorator) {
     return decorator(target, property, desc) || desc;
   }, desc);
+
   if (context && desc.initializer !== void 0) {
     desc.value = desc.initializer ? desc.initializer.call(context) : void 0;
     desc.initializer = undefined;
   }
+
   if (desc.initializer === void 0) {
     Object.defineProperty(target, property, desc);
     desc = null;
   }
+
   return desc;
 }

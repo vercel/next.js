@@ -329,8 +329,8 @@ export default function nextTransformSsg({
               ++count
 
               if (
-                t.isAssignmentExpression(sweepPath.parentPath.node) ||
-                t.isVariableDeclarator(sweepPath.parentPath.node)
+                t.isAssignmentExpression(sweepPath.parentPath) ||
+                t.isVariableDeclarator(sweepPath.parentPath)
               ) {
                 sweepPath.parentPath.remove()
               } else {

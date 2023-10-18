@@ -1,4 +1,4 @@
-import _typeof from "./typeof.js";
+import _typeof from "next/dist/compiled/@babel/runtime/helpers/typeof";
 import toPrimitive from "./toPrimitive.js";
 export default function _toPropertyKey(arg) {
   var key = toPrimitive(arg, "string");

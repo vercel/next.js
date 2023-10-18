@@ -15,5 +15,5 @@ npm install --save @babel/runtime
 or using yarn:
 
 ```sh
-yarn add @babel/runtime
+yarn add @babel/runtime 
 ```

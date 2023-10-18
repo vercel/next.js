@@ -5,8 +5,10 @@ function _defineEnumerableProperties(obj, descs) {
     if ("value" in desc) desc.writable = true;
     Object.defineProperty(obj, key, desc);
   }
+
   if (Object.getOwnPropertySymbols) {
     var objectSymbols = Object.getOwnPropertySymbols(descs);
+
     for (var i = 0; i < objectSymbols.length; i++) {
       var sym = objectSymbols[i];
       var desc = descs[sym];
@@ -15,6 +17,9 @@ function _defineEnumerableProperties(obj, descs) {
       Object.defineProperty(obj, sym, desc);
     }
   }
+
   return obj;
 }
-module.exports = _defineEnumerableProperties, module.exports.__esModule = true, module.exports["default"] = module.exports;
+
+module.exports = _defineEnumerableProperties;
+module.exports["default"] = module.exports, module.exports.__esModule = true;

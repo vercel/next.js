@@ -5,4 +5,6 @@ function _instanceof(left, right) {
     return left instanceof right;
   }
 }
-module.exports = _instanceof, module.exports.__esModule = true, module.exports["default"] = module.exports;
+
+module.exports = _instanceof;
+module.exports["default"] = module.exports, module.exports.__esModule = true;

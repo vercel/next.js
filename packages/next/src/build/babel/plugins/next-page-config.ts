@@ -51,8 +51,10 @@ export default function nextPageConfig({
             {
               ExportDeclaration(exportPath, exportState) {
                 if (
-                  BabelTypes.isExportNamedDeclaration(exportPath.node) &&
-                  exportPath.node.specifiers?.some((specifier) => {
+                  BabelTypes.isExportNamedDeclaration(exportPath) &&
+                  (
+                    exportPath.node as BabelTypes.ExportNamedDeclaration
+                  ).specifiers?.some((specifier) => {
                     return (
                       (t.isIdentifier(specifier.exported)
                         ? specifier.exported.name

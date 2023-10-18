@@ -1,4 +1,4 @@
-import _typeof from "./typeof.js";
+import _typeof from "next/dist/compiled/@babel/runtime/helpers/typeof";
 import assertThisInitialized from "./assertThisInitialized.js";
 export default function _possibleConstructorReturn(self, call) {
   if (call && (_typeof(call) === "object" || typeof call === "function")) {
@@ -6,5 +6,6 @@ export default function _possibleConstructorReturn(self, call) {
   } else if (call !== void 0) {
     throw new TypeError("Derived constructors may only return object or undefined");
   }
+
   return assertThisInitialized(self);
 }

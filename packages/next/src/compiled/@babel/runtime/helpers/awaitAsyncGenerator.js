@@ -1,5 +1,8 @@
-var OverloadYield = require("./OverloadYield.js");
+var AwaitValue = require("./AwaitValue.js");
+
 function _awaitAsyncGenerator(value) {
-  return new OverloadYield(value, 0);
+  return new AwaitValue(value);
 }
-module.exports = _awaitAsyncGenerator, module.exports.__esModule = true, module.exports["default"] = module.exports;
+
+module.exports = _awaitAsyncGenerator;
+module.exports["default"] = module.exports, module.exports.__esModule = true;

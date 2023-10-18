@@ -1,12 +1,16 @@
 var toArray = require("./toArray.js");
+
 var toPropertyKey = require("./toPropertyKey.js");
+
 function _decorate(decorators, factory, superClass, mixins) {
   var api = _getDecoratorsApi();
+
   if (mixins) {
     for (var i = 0; i < mixins.length; i++) {
       api = mixins[i](api);
     }
   }
+
   var r = factory(function initialize(O) {
     api.initializeInstanceElements(O, decorated.elements);
   }, superClass);
@@ -14,10 +18,12 @@ function _decorate(decorators, factory, superClass, mixins) {
   api.initializeClassElements(r.F, decorated.elements);
   return api.runClassFinishers(r.F, decorated.finishers);
 }
+
 function _getDecoratorsApi() {
   _getDecoratorsApi = function _getDecoratorsApi() {
     return api;
   };
+
   var api = {
     elementsDefinitionOrder: [["method"], ["field"]],
     initializeInstanceElements: function initializeInstanceElements(O, elements) {
@@ -34,6 +40,7 @@ function _getDecoratorsApi() {
       ["method", "field"].forEach(function (kind) {
         elements.forEach(function (element) {
           var placement = element.placement;
+
           if (element.kind === kind && (placement === "static" || placement === "prototype")) {
             var receiver = placement === "static" ? F : proto;
             this.defineClassElement(receiver, element);
@@ -43,6 +50,7 @@ function _getDecoratorsApi() {
     },
     defineClassElement: function defineClassElement(receiver, element) {
       var descriptor = element.descriptor;
+
       if (element.kind === "field") {
         var initializer = element.initializer;
         descriptor = {
@@ -52,6 +60,7 @@ function _getDecoratorsApi() {
           value: initializer === void 0 ? void 0 : initializer.call(receiver)
         };
       }
+
       Object.defineProperty(receiver, element.key, descriptor);
     },
     decorateClass: function decorateClass(elements, decorators) {
@@ -72,12 +81,14 @@ function _getDecoratorsApi() {
         newElements.push.apply(newElements, elementFinishersExtras.extras);
         finishers.push.apply(finishers, elementFinishersExtras.finishers);
       }, this);
+
       if (!decorators) {
         return {
           elements: newElements,
           finishers: finishers
         };
       }
+
       var result = this.decorateConstructor(newElements, decorators);
       finishers.push.apply(finishers, result.finishers);
       result.finishers = finishers;
@@ -85,14 +96,17 @@ function _getDecoratorsApi() {
     },
     addElementPlacement: function addElementPlacement(element, placements, silent) {
       var keys = placements[element.placement];
+
       if (!silent && keys.indexOf(element.key) !== -1) {
         throw new TypeError("Duplicated element (" + element.key + ")");
       }
+
       keys.push(element.key);
     },
     decorateElement: function decorateElement(element, placements) {
       var extras = [];
       var finishers = [];
+
       for (var decorators = element.decorators, i = decorators.length - 1; i >= 0; i--) {
         var keys = placements[element.placement];
         keys.splice(keys.indexOf(element.key), 1);
@@ -100,17 +114,22 @@ function _getDecoratorsApi() {
         var elementFinisherExtras = this.toElementFinisherExtras((0, decorators[i])(elementObject) || elementObject);
         element = elementFinisherExtras.element;
         this.addElementPlacement(element, placements);
+
         if (elementFinisherExtras.finisher) {
           finishers.push(elementFinisherExtras.finisher);
         }
+
         var newExtras = elementFinisherExtras.extras;
+
         if (newExtras) {
           for (var j = 0; j < newExtras.length; j++) {
             this.addElementPlacement(newExtras[j], placements);
           }
+
           extras.push.apply(extras, newExtras);
         }
       }
+
       return {
         element: element,
         finishers: finishers,
@@ -119,14 +138,18 @@ function _getDecoratorsApi() {
     },
     decorateConstructor: function decorateConstructor(elements, decorators) {
       var finishers = [];
+
       for (var i = decorators.length - 1; i >= 0; i--) {
         var obj = this.fromClassDescriptor(elements);
         var elementsAndFinisher = this.toClassDescriptor((0, decorators[i])(obj) || obj);
+
         if (elementsAndFinisher.finisher !== undefined) {
           finishers.push(elementsAndFinisher.finisher);
         }
+
         if (elementsAndFinisher.elements !== undefined) {
           elements = elementsAndFinisher.elements;
+
           for (var j = 0; j < elements.length - 1; j++) {
             for (var k = j + 1; k < elements.length; k++) {
               if (elements[j].key === elements[k].key && elements[j].placement === elements[k].placement) {
@@ -136,6 +159,7 @@ function _getDecoratorsApi() {
           }
         }
       }
+
       return {
         elements: elements,
         finishers: finishers
@@ -167,14 +191,18 @@ function _getDecoratorsApi() {
     },
     toElementDescriptor: function toElementDescriptor(elementObject) {
       var kind = String(elementObject.kind);
+
       if (kind !== "method" && kind !== "field") {
         throw new TypeError('An element descriptor\'s .kind property must be either "method" or' + ' "field", but a decorator created an element descriptor with' + ' .kind "' + kind + '"');
       }
+
       var key = toPropertyKey(elementObject.key);
       var placement = String(elementObject.placement);
+
       if (placement !== "static" && placement !== "prototype" && placement !== "own") {
         throw new TypeError('An element descriptor\'s .placement property must be one of "static",' + ' "prototype" or "own", but a decorator created an element descriptor' + ' with .placement "' + placement + '"');
       }
+
       var descriptor = elementObject.descriptor;
       this.disallowProperty(elementObject, "elements", "An element descriptor");
       var element = {
@@ -183,6 +211,7 @@ function _getDecoratorsApi() {
         placement: placement,
         descriptor: Object.assign({}, descriptor)
       };
+
       if (kind !== "field") {
         this.disallowProperty(elementObject, "initializer", "A method descriptor");
       } else {
@@ -191,11 +220,14 @@ function _getDecoratorsApi() {
         this.disallowProperty(descriptor, "value", "The property descriptor of a field descriptor");
         element.initializer = elementObject.initializer;
       }
+
       return element;
     },
     toElementFinisherExtras: function toElementFinisherExtras(elementObject) {
       var element = this.toElementDescriptor(elementObject);
+
       var finisher = _optionalCallableProperty(elementObject, "finisher");
+
       var extras = this.toElementDescriptors(elementObject.extras);
       return {
         element: element,
@@ -217,15 +249,19 @@ function _getDecoratorsApi() {
     },
     toClassDescriptor: function toClassDescriptor(obj) {
       var kind = String(obj.kind);
+
       if (kind !== "class") {
         throw new TypeError('A class descriptor\'s .kind property must be "class", but a decorator' + ' created a class descriptor with .kind "' + kind + '"');
       }
+
       this.disallowProperty(obj, "key", "A class descriptor");
       this.disallowProperty(obj, "placement", "A class descriptor");
       this.disallowProperty(obj, "descriptor", "A class descriptor");
       this.disallowProperty(obj, "initializer", "A class descriptor");
       this.disallowProperty(obj, "extras", "A class descriptor");
+
       var finisher = _optionalCallableProperty(obj, "finisher");
+
       var elements = this.toElementDescriptors(obj.elements);
       return {
         elements: elements,
@@ -235,13 +271,16 @@ function _getDecoratorsApi() {
     runClassFinishers: function runClassFinishers(constructor, finishers) {
       for (var i = 0; i < finishers.length; i++) {
         var newConstructor = (0, finishers[i])(constructor);
+
         if (newConstructor !== undefined) {
           if (typeof newConstructor !== "function") {
             throw new TypeError("Finishers must return a constructor.");
           }
+
           constructor = newConstructor;
         }
       }
+
       return constructor;
     },
     disallowProperty: function disallowProperty(obj, name, objectType) {
@@ -252,9 +291,11 @@ function _getDecoratorsApi() {
   };
   return api;
 }
+
 function _createElementDescriptor(def) {
   var key = toPropertyKey(def.key);
   var descriptor;
+
   if (def.kind === "method") {
     descriptor = {
       value: def.value,
@@ -281,6 +322,7 @@ function _createElementDescriptor(def) {
       enumerable: true
     };
   }
+
   var element = {
     kind: def.kind === "field" ? "field" : "method",
     key: key,
@@ -291,6 +333,7 @@ function _createElementDescriptor(def) {
   if (def.kind === "field") element.initializer = def.value;
   return element;
 }
+
 function _coalesceGetterSetter(element, other) {
   if (element.descriptor.get !== undefined) {
     other.descriptor.get = element.descriptor.get;
@@ -298,46 +341,61 @@ function _coalesceGetterSetter(element, other) {
     other.descriptor.set = element.descriptor.set;
   }
 }
+
 function _coalesceClassElements(elements) {
   var newElements = [];
+
   var isSameElement = function isSameElement(other) {
     return other.kind === "method" && other.key === element.key && other.placement === element.placement;
   };
+
   for (var i = 0; i < elements.length; i++) {
     var element = elements[i];
     var other;
+
     if (element.kind === "method" && (other = newElements.find(isSameElement))) {
       if (_isDataDescriptor(element.descriptor) || _isDataDescriptor(other.descriptor)) {
         if (_hasDecorators(element) || _hasDecorators(other)) {
           throw new ReferenceError("Duplicated methods (" + element.key + ") can't be decorated.");
         }
+
         other.descriptor = element.descriptor;
       } else {
         if (_hasDecorators(element)) {
           if (_hasDecorators(other)) {
             throw new ReferenceError("Decorators can't be placed on different accessors with for " + "the same property (" + element.key + ").");
           }
+
           other.decorators = element.decorators;
         }
+
         _coalesceGetterSetter(element, other);
       }
     } else {
       newElements.push(element);
     }
   }
+
   return newElements;
 }
+
 function _hasDecorators(element) {
   return element.decorators && element.decorators.length;
 }
+
 function _isDataDescriptor(desc) {
   return desc !== undefined && !(desc.value === undefined && desc.writable === undefined);
 }
+
 function _optionalCallableProperty(obj, name) {
   var value = obj[name];
+
   if (value !== undefined && typeof value !== "function") {
     throw new TypeError("Expected '" + name + "' to be a function");
   }
+
   return value;
 }
-module.exports = _decorate, module.exports.__esModule = true, module.exports["default"] = module.exports;
+
+module.exports = _decorate;
+module.exports["default"] = module.exports, module.exports.__esModule = true;
