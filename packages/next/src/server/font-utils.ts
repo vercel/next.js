@@ -34,11 +34,12 @@ function getFontForUA(url: string, UA: string): Promise<String> {
           },
         },
         (res: any) => {
+          res.setEncoding('utf8')
           res.on('data', (chunk: any) => {
             rawData += chunk
           })
           res.on('end', () => {
-            resolve(rawData.toString('utf8'))
+            resolve(rawData)
           })
         }
       )
