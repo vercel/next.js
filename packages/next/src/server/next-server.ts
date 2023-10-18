@@ -1024,9 +1024,14 @@ export default class NextNodeServer extends BaseServer {
   }
 
   private makeRequestHandler(): NodeRequestHandler {
-    // This is just optimization to fire prepare as soon as possible
-    // It will be properly awaited later
-    void this.prepare()
+    // This is just optimization to fire prepare as soon as possible. It will be
+    // properly awaited later. We add the catch here to ensure that it does not
+    // cause a unhandled promise rejection. The promise rejection wil be
+    // handled later on via the `await` when the request handler is called.
+    this.prepare().catch((err) => {
+      console.error('Failed to prepare server', err)
+    })
+
     const handler = super.getRequestHandler()
     return (req, res, parsedUrl) => {
       const normalizedReq = this.normalizeReq(req)
