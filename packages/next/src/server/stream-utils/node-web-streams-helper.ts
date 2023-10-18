@@ -64,6 +64,10 @@ export function chainStreams<T>(
     )
   }
 
+  // Catch any errors from the streams and ignore them, they will be handled
+  // by whatever is consuming the readable stream.
+  promise.catch(() => {})
+
   return readable
 }
 
