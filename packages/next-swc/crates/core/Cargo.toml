@@ -15,7 +15,6 @@ either = "1"
 fxhash = "0.2.1"
 hex = "0.4.3"
 once_cell = { workspace = true }
-next-transform-font = {workspace = true}
 pathdiff = "0.2.0"
 regex = "1.5"
 rustc-hash = "1"
@@ -23,6 +22,9 @@ serde = "1"
 serde_json = "1"
 sha1 = "0.10.1"
 tracing = { version = "0.1.37" }
+
+next-transform-dynamic = { workspace = true }
+next-transform-font = { workspace = true }
 
 turbopack-binding = { workspace = true, features = [
   "__swc_core",
