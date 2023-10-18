@@ -272,9 +272,28 @@ pub async fn get_server_module_options_context(
         ..Default::default()
     });
 
-    let webpack_rules =
-        *maybe_add_babel_loader(project_path, *next_config.webpack_rules().await?).await?;
-    let webpack_rules = maybe_add_sass_loader(next_config.sass_config(), webpack_rules).await?;
+    // A separate webpack rules will be applied to codes matching
+    // foreign_code_context_condition. This allows to import codes from
+    // node_modules that requires webpack loaders, which next-dev implicitly
+    // does by default.
+    let foreign_webpack_rules = maybe_add_sass_loader(
+        next_config.sass_config(),
+        *next_config.webpack_rules().await?,
+    )
+    .await?;
+    let foreign_webpack_loaders = foreign_webpack_rules.map(|rules| {
+        WebpackLoadersOptions {
+            rules,
+            loader_runner_package: Some(get_external_next_compiled_package_mapping(Vc::cell(
+                "loader-runner".to_owned(),
+            ))),
+        }
+        .cell()
+    });
+
+    // Now creates a webpack rules that applies to all codes.
+    let webpack_rules = *foreign_webpack_rules.clone();
+    let webpack_rules = *maybe_add_babel_loader(project_path, webpack_rules).await?;
     let enable_webpack_loaders = webpack_rules.map(|rules| {
         WebpackLoadersOptions {
             rules,
@@ -348,6 +367,12 @@ pub async fn get_server_module_options_context(
                 ..Default::default()
             };
 
+            let foreign_code_module_options_context = ModuleOptionsContext {
+                custom_rules: internal_custom_rules.clone(),
+                enable_webpack_loaders: foreign_webpack_loaders,
+                ..module_options_context.clone()
+            };
+
             let internal_module_options_context = ModuleOptionsContext {
                 enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
                 enable_jsx: Some(JsxTransformOptions::default().cell()),
@@ -365,7 +390,7 @@ pub async fn get_server_module_options_context(
                 rules: vec![
                     (
                         foreign_code_context_condition,
-                        module_options_context.clone().cell(),
+                        foreign_code_module_options_context.cell(),
                     ),
                     (
                         ContextCondition::InPath(next_js_fs().root()),
@@ -407,6 +432,11 @@ pub async fn get_server_module_options_context(
                 execution_context: Some(execution_context),
                 ..Default::default()
             };
+            let foreign_code_module_options_context = ModuleOptionsContext {
+                custom_rules: internal_custom_rules.clone(),
+                enable_webpack_loaders: foreign_webpack_loaders,
+                ..module_options_context.clone()
+            };
             let internal_module_options_context = ModuleOptionsContext {
                 enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
                 custom_rules: internal_custom_rules,
@@ -423,7 +453,7 @@ pub async fn get_server_module_options_context(
                 rules: vec![
                     (
                         foreign_code_context_condition,
-                        module_options_context.clone().cell(),
+                        foreign_code_module_options_context.cell(),
                     ),
                     (
                         ContextCondition::InPath(next_js_fs().root()),
@@ -474,6 +504,11 @@ pub async fn get_server_module_options_context(
                 execution_context: Some(execution_context),
                 ..Default::default()
             };
+            let foreign_code_module_options_context = ModuleOptionsContext {
+                custom_rules: internal_custom_rules.clone(),
+                enable_webpack_loaders: foreign_webpack_loaders,
+                ..module_options_context.clone()
+            };
             let internal_module_options_context = ModuleOptionsContext {
                 enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
                 custom_rules: internal_custom_rules,
@@ -489,7 +524,7 @@ pub async fn get_server_module_options_context(
                 rules: vec![
                     (
                         foreign_code_context_condition,
-                        module_options_context.clone().cell(),
+                        foreign_code_module_options_context.cell(),
                     ),
                     (
                         ContextCondition::InPath(next_js_fs().root()),

@@ -15,6 +15,11 @@ import type {
   NextUrlWithParsedQuery,
 } from '../request-meta'
 import type { DevBundlerService } from '../lib/dev-bundler-service'
+import type { IncrementalCache } from '../lib/incremental-cache'
+import type { UnwrapPromise } from '../../lib/coalesced-function'
+import type { NodeNextResponse, NodeNextRequest } from '../base-http/node'
+import type { RouteEnsurer } from '../future/route-matcher-managers/dev-route-matcher-manager'
+import type { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
 
 import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
@@ -39,28 +44,24 @@ import { setGlobal } from '../../trace'
 import { findPageFile } from '../lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from '../lib/utils'
 import { withCoalescedInvoke } from '../../lib/coalesced-function'
-import type { UnwrapPromise } from '../../lib/coalesced-function'
 import { loadDefaultErrorComponents } from '../load-default-error-components'
 import { DecodeError, MiddlewareNotFoundError } from '../../shared/lib/utils'
 import * as Log from '../../build/output/log'
 import isError, { getProperError } from '../../lib/is-error'
-import type { NodeNextResponse, NodeNextRequest } from '../base-http/node'
 import { isMiddlewareFile } from '../../build/utils'
 import { formatServerError } from '../../lib/format-server-error'
 import { DevRouteMatcherManager } from '../future/route-matcher-managers/dev-route-matcher-manager'
-import type { RouteEnsurer } from '../future/route-matcher-managers/dev-route-matcher-manager'
 import { DevPagesRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-pages-route-matcher-provider'
 import { DevPagesAPIRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-pages-api-route-matcher-provider'
 import { DevAppPageRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-app-page-route-matcher-provider'
 import { DevAppRouteRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-app-route-route-matcher-provider'
-import type { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
 import { NodeManifestLoader } from '../future/route-matcher-providers/helpers/manifest-loaders/node-manifest-loader'
 import { BatchedFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/batched-file-reader'
 import { DefaultFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/default-file-reader'
 import { NextBuildContext } from '../../build/build-context'
-import type { IncrementalCache } from '../lib/incremental-cache'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
+import { DetachedPromise } from '../../lib/detached-promise'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -85,8 +86,11 @@ export interface Options extends ServerOptions {
 }
 
 export default class DevServer extends Server {
-  private devReady: Promise<void>
-  private setDevReady?: Function
+  /**
+   * The promise that resolves when the server is ready. When this is unset
+   * the server is ready.
+   */
+  private ready? = new DetachedPromise<void>()
   protected sortedRoutes?: string[]
   private pagesDir?: string
   private appDir?: string
@@ -145,9 +149,6 @@ export default class DevServer extends Server {
     this.renderOpts.appDirDevErrorLogger = (err: any) =>
       this.logErrorWithOriginalStack(err, 'app-dir')
     ;(this.renderOpts as any).ErrorDebug = ReactDevOverlay
-    this.devReady = new Promise((resolve) => {
-      this.setDevReady = resolve
-    })
     this.staticPathsCache = new LRUCache({
       // 5MB
       max: 5 * 1024 * 1024,
@@ -268,7 +269,9 @@ export default class DevServer extends Server {
     await super.prepareImpl()
     await this.runInstrumentationHookIfAvailable()
     await this.matchers.reload()
-    this.setDevReady!()
+
+    this.ready?.resolve()
+    this.ready = undefined
 
     // This is required by the tracing subsystem.
     setGlobal('appDir', this.appDir)
@@ -428,7 +431,7 @@ export default class DevServer extends Server {
     res: BaseNextResponse,
     parsedUrl?: NextUrlWithParsedQuery
   ): Promise<void> {
-    await this.devReady
+    await this.ready?.promise
     return await super.handleRequest(req, res, parsedUrl)
   }
 
@@ -437,7 +440,7 @@ export default class DevServer extends Server {
     res: NodeNextResponse,
     parsedUrl: UrlWithParsedQuery
   ): Promise<void> {
-    await this.devReady
+    await this.ready?.promise
 
     const { basePath } = this.nextConfig
     let originalPathname: string | null = null
@@ -748,7 +751,8 @@ export default class DevServer extends Server {
     appPaths?: ReadonlyArray<string> | null
     shouldEnsure: boolean
   }): Promise<FindComponentsResult | null> {
-    await this.devReady
+    await this.ready?.promise
+
     const compilationErr = await this.getCompilationError(page)
     if (compilationErr) {
       // Wrap build errors so that they don't get logged again

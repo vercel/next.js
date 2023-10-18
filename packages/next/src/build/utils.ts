@@ -21,7 +21,6 @@ import '../server/require-hook'
 import '../server/node-polyfill-fetch'
 import '../server/node-polyfill-crypto'
 import '../server/node-environment'
-import '../lib/polyfill-promise-with-resolvers'
 
 import { green, yellow, red, cyan, bold, underline } from '../lib/picocolors'
 import getGzipSize from 'next/dist/compiled/gzip-size'

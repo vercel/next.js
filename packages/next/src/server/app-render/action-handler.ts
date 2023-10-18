@@ -21,7 +21,6 @@ import {
 import RenderResult from '../render-result'
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import { FlightRenderResult } from './flight-render-result'
-import type { ActionResult } from './types'
 import type { ActionAsyncStorage } from '../../client/components/action-async-storage.external'
 import {
   filterReqHeaders,
@@ -37,6 +36,7 @@ import {
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
 } from '../../lib/constants'
+import type { AppRenderContext, GenerateFlight } from './app-render'
 
 function nodeToWebReadableStream(nodeReadable: import('stream').Readable) {
   if (process.env.NEXT_RUNTIME !== 'edge') {
@@ -246,21 +246,18 @@ export async function handleAction({
   staticGenerationStore,
   requestStore,
   serverActionsBodySizeLimit,
+  ctx,
 }: {
   req: IncomingMessage
   res: ServerResponse
   ComponentMod: any
   page: string
   serverActionsManifest: any
-  generateFlight: (options: {
-    actionResult: ActionResult
-    formState?: any
-    skipFlight: boolean
-    asNotFound?: boolean
-  }) => Promise<RenderResult>
+  generateFlight: GenerateFlight
   staticGenerationStore: StaticGenerationStore
   requestStore: RequestStore
   serverActionsBodySizeLimit?: SizeLimit
+  ctx: AppRenderContext
 }): Promise<
   | undefined
   | {
@@ -287,6 +284,49 @@ export async function handleAction({
   // If it's not a Server Action, skip handling.
   if (!(isFetchAction || isURLEncodedAction || isMultipartAction)) {
     return
+  }
+
+  const originHostname =
+    typeof req.headers['origin'] === 'string'
+      ? new URL(req.headers['origin']).host
+      : undefined
+  const host = req.headers['x-forwarded-host'] || req.headers['host']
+
+  // This is to prevent CSRF attacks. If `x-forwarded-host` is set, we need to
+  // ensure that the request is coming from the same host.
+  if (!originHostname) {
+    // This might be an old browser that doesn't send `host` header. We ignore
+    // this case.
+    console.warn(
+      'Missing `origin` header from a forwarded Server Actions request.'
+    )
+  } else if (!host || originHostname !== host) {
+    // This is an attack. We should not proceed the action.
+    console.error(
+      '`x-forwarded-host` and `host` headers do not match `origin` header from a forwarded Server Actions request. Aborting the action.'
+    )
+
+    const error = new Error('Invalid Server Actions request.')
+
+    if (isFetchAction) {
+      res.statusCode = 500
+      await Promise.all(staticGenerationStore.pendingRevalidates || [])
+      const promise = Promise.reject(error)
+      try {
+        await promise
+      } catch {}
+
+      return {
+        type: 'done',
+        result: await generateFlight(ctx, {
+          actionResult: promise,
+          // if the page was not revalidated, we can skip the rendering the flight tree
+          skipFlight: !staticGenerationStore.pathWasRevalidated,
+        }),
+      }
+    }
+
+    throw error
   }
 
   // ensure we avoid caching server actions unexpectedly
@@ -466,7 +506,7 @@ export async function handleAction({
           requestStore,
         })
 
-        actionResult = await generateFlight({
+        actionResult = await generateFlight(ctx, {
           actionResult: Promise.resolve(returnVal),
           // if the page was not revalidated, we can skip the rendering the flight tree
           skipFlight: !staticGenerationStore.pathWasRevalidated,
@@ -533,7 +573,7 @@ export async function handleAction({
         } catch {}
         return {
           type: 'done',
-          result: await generateFlight({
+          result: await generateFlight(ctx, {
             skipFlight: false,
             actionResult: promise,
             asNotFound: true,
@@ -555,7 +595,7 @@ export async function handleAction({
 
       return {
         type: 'done',
-        result: await generateFlight({
+        result: await generateFlight(ctx, {
           actionResult: promise,
           // if the page was not revalidated, we can skip the rendering the flight tree
           skipFlight: !staticGenerationStore.pathWasRevalidated,
