@@ -19,7 +19,7 @@ import { PERMANENT_REDIRECT_STATUS } from '../../shared/lib/constants'
 import { formatHostname } from './format-hostname'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
-import { pipeReadable } from '../pipe-readable'
+import { pipeToNodeResponse } from '../pipe-readable'
 
 type RouteResult =
   | {
@@ -227,7 +227,7 @@ export async function makeResolver(
     // handle middleware body response
     if (bodyStream) {
       res.statusCode = statusCode || 200
-      return await pipeReadable(bodyStream, res)
+      return await pipeToNodeResponse(bodyStream, res)
     }
 
     if (finished && parsedUrl.protocol) {

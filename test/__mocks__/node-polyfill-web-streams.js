@@ -1,5 +1,6 @@
 const {
   ReadableStream,
+  WritableStream,
   TransformStream,
   WritableStreamDefaultWriter,
 } = require('next/dist/compiled/@edge-runtime/ponyfill')
@@ -16,4 +17,5 @@ WritableStreamDefaultWriter.prototype.write = function (chunk) {
 }
 
 global.ReadableStream = ReadableStream
+global.WritableStream = WritableStream
 global.TransformStream = TransformStream
