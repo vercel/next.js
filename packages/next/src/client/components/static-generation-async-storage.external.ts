@@ -12,6 +12,7 @@ export interface StaticGenerationStore {
   readonly isOnDemandRevalidate?: boolean
   readonly isPrerendering?: boolean
   readonly isRevalidate?: boolean
+  readonly isUnstableCacheCallback?: boolean
 
   forceDynamic?: boolean
   fetchCache?:

@@ -1,11 +1,11 @@
 'use client'
 
-import { experimental_useFormState } from 'react-dom'
+import { useFormState } from 'react-dom'
 import { appendName } from './actions'
 import { useEffect, useState } from 'react'
 
 export default function Page() {
-  const [state, appendNameFormAction] = experimental_useFormState(
+  const [state, appendNameFormAction] = useFormState(
     appendName,
     'initial-state',
     '/client/form-state'

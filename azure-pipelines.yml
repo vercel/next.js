@@ -34,7 +34,7 @@ pr:
 variables:
   PNPM_CACHE_FOLDER: $(Pipeline.Workspace)/.pnpm-store
   NEXT_TELEMETRY_DISABLED: '1'
-  node_16_version: ^16.14.0
+  node_version: ^18.17.0
 
 stages:
   - stage: Test
@@ -45,7 +45,7 @@ stages:
         steps:
           - task: NodeTool@0
             inputs:
-              versionSpec: $(node_16_version)
+              versionSpec: $(node_version)
             displayName: 'Install Node.js'
 
           - bash: |
@@ -84,7 +84,7 @@ stages:
 
           - task: NodeTool@0
             inputs:
-              versionSpec: $(node_16_version)
+              versionSpec: $(node_version)
             displayName: 'Install Node.js'
 
           - bash: |
@@ -117,7 +117,7 @@ stages:
         steps:
           - task: NodeTool@0
             inputs:
-              versionSpec: $(node_16_version)
+              versionSpec: $(node_version)
             displayName: 'Install Node.js'
 
           - bash: |
@@ -154,7 +154,7 @@ stages:
         steps:
           - task: NodeTool@0
             inputs:
-              versionSpec: $(node_16_version)
+              versionSpec: $(node_version)
             displayName: 'Install Node.js'
 
           - bash: |

@@ -185,7 +185,7 @@ export async function getStaticProps() {
   const res = await fetch('https:...')
   const mdxText = await res.text()
   const mdxSource = await serialize(mdxText)
-  return { props: { source: mdxSource } }
+  return { props: { mdxSource } }
 }
 ```
 
@@ -202,7 +202,7 @@ export async function getStaticProps() {
   const res = await fetch('https:...')
   const mdxText = await res.text()
   const mdxSource = await serialize(mdxText)
-  return { props: { source: mdxSource } }
+  return { props: { mdxSource } }
 }
 ```
 
