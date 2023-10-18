@@ -893,8 +893,8 @@ importers:
         specifier: 1.1.0
         version: 1.1.0
       '@edge-runtime/cookies':
-        specifier: 4.0.1
-        version: 4.0.1
+        specifier: 4.0.2
+        version: 4.0.2
       '@edge-runtime/ponyfill':
         specifier: 2.4.1
         version: 2.4.1
@@ -5045,8 +5045,8 @@ packages:
     resolution: {integrity: sha512-smLocSfrt3s53H/XSVP3/1kP42oqvrkjUPtyaFd1F79ux24oE31BKt+q0c6lsa6hOYrFzsIwyc5GXAI5JmfOew==}
     dev: true
 
-  /@edge-runtime/cookies@4.0.1:
-    resolution: {integrity: sha512-QIZ1lz6rAF8rTrFdGkljedUaZpXbGIWmRdbA+kwm15ddFfryyekYwI3luFKB33KDcXRHrBi6WdMuyQN19CS6pg==}
+  /@edge-runtime/cookies@4.0.2:
+    resolution: {integrity: sha512-BphVamVz/yt9FN1b60ZXp+iTJVRLUHI0POxKYZG3gn+RsP+M0phqS87Z9JnDn2YOsPx9SRhhrN9AB7yhpexNEw==}
     engines: {node: '>=16'}
     dev: true
 
@@ -6723,8 +6723,8 @@ packages:
     resolution: {integrity: sha512-XQr74QaLeMiqhStEhLn1im9EOMnkypp7MZOwQhGzqp2Weu5eQJbpPxWxixxlYRKWPOmJjsk6qYfYH9kq43yc2w==}
     dev: true
 
-  /@next/react-refresh-utils@13.5.4(react-refresh@0.12.0)(webpack@5.86.0):
-    resolution: {integrity: sha512-Y2bFd17Gn5Wh1gT/P/xTlApmipdrD0JdTdMwhi8G2wD2qj8p7SZbci1kp7zp+utWVp8PFQD6kHAIBrJS9/iEQQ==}
+  /@next/react-refresh-utils@13.5.5(react-refresh@0.12.0)(webpack@5.86.0):
+    resolution: {integrity: sha512-8lvKW22vbWnloufUverqDOsmesoqBPxnX2rUAZuZ+e7240BqvXvhuWd9XWbwFXZ7bgR1FWU/5NYpGK/b2rT5vw==}
     peerDependencies:
       react-refresh: 0.12.0
       webpack: 5.86.0
@@ -26794,7 +26794,7 @@ packages:
     name: '@vercel/turbopack-ecmascript-runtime'
     version: 0.0.0
     dependencies:
-      '@next/react-refresh-utils': 13.5.4(react-refresh@0.12.0)(webpack@5.86.0)
+      '@next/react-refresh-utils': 13.5.5(react-refresh@0.12.0)(webpack@5.86.0)
       '@types/node': 20.2.5
     transitivePeerDependencies:
       - react-refresh
