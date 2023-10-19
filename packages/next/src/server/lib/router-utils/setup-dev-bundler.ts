@@ -696,9 +696,14 @@ async function startWatcher(opts: SetupOpts) {
         other: ActionEntries
       ): void {
         for (const key in other) {
-          const action = (actionEntries[key] ??= { workers: {}, layer: {} })
+          const action = (actionEntries[key] ??= {
+            workers: {},
+            layer: {},
+            key: '',
+          })
           Object.assign(action.workers, other[key].workers)
           Object.assign(action.layer, other[key].layer)
+          action.key = other[key].key
         }
       }
 
