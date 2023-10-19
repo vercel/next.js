@@ -1396,9 +1396,6 @@ importers:
       ua-parser-js:
         specifier: 1.0.35
         version: 1.0.35
-      undici:
-        specifier: 5.26.3
-        version: 5.26.3
       unistore:
         specifier: 3.4.1
         version: 3.4.1(react@18.2.0)

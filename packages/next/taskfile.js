@@ -76,8 +76,6 @@ const externals = {
     'next/dist/build/webpack/plugins/terser-webpack-plugin',
 
   // TODO: Add @swc/helpers to externals once @vercel/ncc switch to swc-loader
-
-  undici: 'undici',
 }
 // eslint-disable-next-line camelcase
 externals['node-html-parser'] = 'next/dist/compiled/node-html-parser'
@@ -318,22 +316,6 @@ export async function ncc_node_platform(task, opts) {
       ),
       ''
     )
-  )
-}
-
-externals['undici'] = 'next/dist/compiled/undici'
-export async function ncc_undici(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('undici')))
-    .ncc({ packageName: 'undici', externals })
-    .target('src/compiled/undici')
-
-  const outputFile = join('src/compiled/undici/index.js')
-  await fs.writeFile(
-    outputFile,
-    (
-      await fs.readFile(outputFile, 'utf8')
-    ).replace(/process\.emitWarning/g, 'void')
   )
 }
 
@@ -2239,7 +2221,6 @@ export async function ncc(task, opts) {
         'ncc_node_cssescape',
         'ncc_node_platform',
         'ncc_node_shell_quote',
-        'ncc_undici',
         'ncc_acorn',
         'ncc_amphtml_validator',
         'ncc_arg',

@@ -1,7 +1,4 @@
 import retry from 'next/dist/compiled/async-retry'
-const { fetch } = require('next/dist/compiled/undici') as {
-  fetch: typeof global.fetch
-}
 
 export function _postPayload(endpoint: string, body: object, signal?: any) {
   if (!signal && 'timeout' in AbortSignal) {
