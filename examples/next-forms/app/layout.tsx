@@ -1,6 +1,7 @@
 import './global.css'
+import type { Metadata } from 'next'
 
-export const metadata = {
+export const metadata: Metadata = {
   title: 'Next.js Forms Example',
   description: 'Example application with forms and Postgres.',
 }
