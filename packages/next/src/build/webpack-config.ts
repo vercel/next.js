@@ -1802,37 +1802,6 @@ export default async function getBaseWebpackConfig(
                 },
               },
             ]
-          : isClient
-          ? [
-              {
-                resolve: {
-                  fallback: {
-                    assert: false,
-                    buffer: false,
-                    constants: false,
-                    crypto: false,
-                    domain: false,
-                    http: false,
-                    https: false,
-                    os: false,
-                    path: false,
-                    punycode: false,
-                    process: false,
-                    querystring: false,
-                    stream: false,
-                    string_decoder: false,
-                    sys: false,
-                    timers: false,
-                    tty: false,
-                    util: false,
-                    vm: false,
-                    zlib: false,
-                    events: false,
-                    setImmediate: false,
-                  },
-                },
-              },
-            ]
           : []),
         {
           // Mark `image-response.js` as side-effects free to make sure we can
