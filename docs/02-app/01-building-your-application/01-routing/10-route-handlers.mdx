@@ -225,11 +225,9 @@ export const revalidate = 60
 
 Route Handlers can be used with dynamic functions from Next.js, like [`cookies`](/docs/app/api-reference/functions/cookies) and [`headers`](/docs/app/api-reference/functions/headers).
 
-#### Cookies
+#### Reading Cookies
 
-You can read cookies with [`cookies`](/docs/app/api-reference/functions/cookies) from `next/headers`. This server function can be called directly in a Route Handler, or nested inside of another function.
-
-This `cookies` instance is read-only. To set cookies, you need to return a new `Response` using the [`Set-Cookie`](https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie) header.
+You can read cookies with [`cookies`](/docs/app/api-reference/functions/cookies) from `next/headers`. This server function can be called directly in a Route Handler, or nested inside of another function:
 
 ```ts filename="app/api/route.ts" switcher
 import { cookies } from 'next/headers'
@@ -238,10 +236,7 @@ export async function GET(request: Request) {
   const cookieStore = cookies()
   const token = cookieStore.get('token')
 
-  return new Response('Hello, Next.js!', {
-    status: 200,
-    headers: { 'Set-Cookie': `token=${token.value}` },
-  })
+  return new Response('Hello, Next.js!')
 }
 ```
 
@@ -252,10 +247,7 @@ export async function GET(request) {
   const cookieStore = cookies()
   const token = cookieStore.get('token')
 
-  return new Response('Hello, Next.js!', {
-    status: 200,
-    headers: { 'Set-Cookie': `token=${token}` },
-  })
+  return new Response('Hello, Next.js!')
 }
 ```
 
@@ -272,6 +264,34 @@ export async function GET(request: NextRequest) {
 ```js filename="app/api/route.js" switcher
 export async function GET(request) {
   const token = request.cookies.get('token')
+}
+```
+
+#### Setting/Deleting Cookies
+
+You can set and delete cookies with [`cookies`](/docs/app/api-reference/functions/cookies) from `next/headers`. This server function can be called directly in a Route Handler, or nested inside of another function:
+
+```ts filename="app/api/route.ts" switcher
+import { cookies } from 'next/headers'
+
+export async function GET(request: Request) {
+  const cookieStore = cookies()
+  cookieStore.set('token', 'abcdef') // Set 'token' to 'abcdef'
+  cookieStore.delete('token') // Delete the cookie 'token'
+
+  return new Response('Hello, Next.js!')
+}
+```
+
+```js filename="app/api/route.js" switcher
+import { cookies } from 'next/headers'
+
+export async function GET(request) {
+  const cookieStore = cookies()
+  cookieStore.set('token', 'abcdef') // Set 'token' to 'abcdef'
+  cookieStore.delete('token') // Delete the cookie 'token'
+
+  return new Response('Hello, Next.js!')
 }
 ```
 
