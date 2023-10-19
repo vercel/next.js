@@ -33,8 +33,10 @@ import {
   ACTION_RESTORE,
   ACTION_SERVER_ACTION,
   ACTION_SERVER_PATCH,
-  Mutable,
   PrefetchKind,
+} from './router-reducer/router-reducer-types'
+import type {
+  Mutable,
   ReducerActions,
   RouterChangeByServerResponse,
   RouterNavigate,
@@ -47,10 +49,8 @@ import {
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { useReducerWithReduxDevtools } from './use-reducer-with-devtools'
 import { ErrorBoundary } from './error-boundary'
-import {
-  createInitialRouterState,
-  InitialRouterStateParameters,
-} from './router-reducer/create-initial-router-state'
+import { createInitialRouterState } from './router-reducer/create-initial-router-state'
+import type { InitialRouterStateParameters } from './router-reducer/create-initial-router-state'
 import { isBot } from '../../shared/lib/router/utils/is-bot'
 import { addBasePath } from '../add-base-path'
 import { AppRouterAnnouncer } from './app-router-announcer'

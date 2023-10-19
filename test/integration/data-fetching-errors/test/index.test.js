@@ -132,12 +132,9 @@ describe('GS(S)P Page Errors', () => {
   describe('dev mode', () => {
     runTests(true)
   })
-
-  describe('build mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     runTests()
-  })
 
-  describe('start mode', () => {
     it('Error stack printed to stderr', async () => {
       try {
         await fs.writeFile(

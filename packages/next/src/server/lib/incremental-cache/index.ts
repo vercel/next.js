@@ -1,16 +1,16 @@
 import type { CacheFs } from '../../../shared/lib/utils'
-
-import FetchCache from './fetch-cache'
-import FileSystemCache from './file-system-cache'
-import { PrerenderManifest } from '../../../build'
-import path from '../../../shared/lib/isomorphic/path'
-import { encodeText } from '../../stream-utils/encode-decode'
-import { encode } from '../../../shared/lib/base64-arraybuffer'
-import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
-import {
+import type { PrerenderManifest } from '../../../build'
+import type {
   IncrementalCacheValue,
   IncrementalCacheEntry,
 } from '../../response-cache'
+import FetchCache from './fetch-cache'
+import FileSystemCache from './file-system-cache'
+import path from '../../../shared/lib/isomorphic/path'
+import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
+
+import '../../node-polyfill-web-streams'
+
 import {
   CACHE_ONE_YEAR,
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
@@ -287,45 +287,49 @@ export class IncrementalCache {
     let cacheKey: string
     const bodyChunks: string[] = []
 
+    const encoder = new TextEncoder()
+    const decoder = new TextDecoder()
+
     if (init.body) {
       // handle ReadableStream body
       if (typeof (init.body as any).getReader === 'function') {
-        const readableBody = init.body as ReadableStream
-        const reader = readableBody.getReader()
-        let arrayBuffer = new Uint8Array()
+        const readableBody = init.body as ReadableStream<Uint8Array | string>
 
-        function processValue({
-          done,
-          value,
-        }: {
-          done?: boolean
-          value?: ArrayBuffer | string
-        }): any {
-          if (done) {
-            return
-          }
-          if (value) {
-            try {
-              bodyChunks.push(typeof value === 'string' ? value : encode(value))
-              const curBuffer: Uint8Array =
-                typeof value === 'string'
-                  ? encodeText(value)
-                  : new Uint8Array(value)
+        const chunks: Uint8Array[] = []
 
-              const prevBuffer = arrayBuffer
-              arrayBuffer = new Uint8Array(
-                prevBuffer.byteLength + curBuffer.byteLength
-              )
-              arrayBuffer.set(prevBuffer)
-              arrayBuffer.set(curBuffer, prevBuffer.byteLength)
-            } catch (err) {
-              console.error(err)
-            }
+        try {
+          await readableBody.pipeTo(
+            new WritableStream({
+              write(chunk) {
+                if (typeof chunk === 'string') {
+                  chunks.push(encoder.encode(chunk))
+                  bodyChunks.push(chunk)
+                } else {
+                  chunks.push(chunk)
+                  bodyChunks.push(decoder.decode(chunk, { stream: true }))
+                }
+              },
+            })
+          )
+
+          // Flush the decoder.
+          bodyChunks.push(decoder.decode())
+
+          // Create a new buffer with all the chunks.
+          const length = chunks.reduce((total, arr) => total + arr.length, 0)
+          const arrayBuffer = new Uint8Array(length)
+
+          // Push each of the chunks into the new array buffer.
+          let offset = 0
+          for (const chunk of chunks) {
+            arrayBuffer.set(chunk, offset)
+            offset += chunk.length
           }
-          reader.read().then(processValue)
+
+          ;(init as any)._ogBody = arrayBuffer
+        } catch (err) {
+          console.error('Problem reading body', err)
         }
-        await reader.read().then(processValue)
-        ;(init as any)._ogBody = arrayBuffer
       } // handle FormData or URLSearchParams bodies
       else if (typeof (init.body as any).keys === 'function') {
         const formData = init.body as FormData
@@ -350,7 +354,7 @@ export class IncrementalCache {
       } else if (typeof (init.body as any).arrayBuffer === 'function') {
         const blob = init.body as Blob
         const arrayBuffer = await blob.arrayBuffer()
-        bodyChunks.push(encode(await (init.body as Blob).arrayBuffer()))
+        bodyChunks.push(await blob.text())
         ;(init as any)._ogBody = new Blob([arrayBuffer], { type: blob.type })
       } else if (typeof init.body === 'string') {
         bodyChunks.push(init.body)
@@ -382,7 +386,7 @@ export class IncrementalCache {
           .call(new Uint8Array(buffer), (b) => b.toString(16).padStart(2, '0'))
           .join('')
       }
-      const buffer = encodeText(cacheString)
+      const buffer = encoder.encode(cacheString)
       cacheKey = bufferToHex(await crypto.subtle.digest('SHA-256', buffer))
     } else {
       const crypto = require('crypto') as typeof import('crypto')

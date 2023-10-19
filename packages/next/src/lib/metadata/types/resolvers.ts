@@ -1,4 +1,4 @@
-import { Metadata, ResolvedMetadata } from './metadata-interface'
+import type { Metadata, ResolvedMetadata } from './metadata-interface'
 
 export type FieldResolver<Key extends keyof Metadata> = (
   T: Metadata[Key]

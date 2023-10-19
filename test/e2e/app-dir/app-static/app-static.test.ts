@@ -505,9 +505,11 @@ createNextDescribe(
             'stale-cache-serving-edge/app-page/page.js',
             'stale-cache-serving-edge/app-page/page_client-reference-manifest.js',
             'stale-cache-serving-edge/route-handler/route.js',
+            'stale-cache-serving/app-page.prefetch.rsc',
             'stale-cache-serving/app-page/page.js',
             'stale-cache-serving/app-page/page_client-reference-manifest.js',
             'stale-cache-serving/route-handler/route.js',
+            'custom.prefetch.rsc',
             'force-cache/page.js',
             'ssg-draft-mode.html',
             '(new)/custom/page.js',
@@ -523,6 +525,7 @@ createNextDescribe(
             'force-static/first.html',
             'force-static/second.rsc',
             'ssg-draft-mode/test.rsc',
+            'ssr-forced.prefetch.rsc',
             'blog/seb/second-post.rsc',
             'blog/tim/first-post.html',
             'force-static/second.html',
@@ -530,10 +533,14 @@ createNextDescribe(
             'blog/seb/second-post.html',
             'ssg-draft-mode/test-2.rsc',
             'blog/styfle/first-post.rsc',
+            'default-cache.prefetch.rsc',
             'dynamic-error/[id]/page.js',
+            'response-url.prefetch.rsc',
             'ssg-draft-mode/test-2.html',
             'blog/styfle/first-post.html',
             'blog/styfle/second-post.rsc',
+            'fetch-no-cache.prefetch.rsc',
+            'force-no-store.prefetch.rsc',
             'force-static/[slug]/page.js',
             'hooks/use-pathname/slug.rsc',
             'hooks/use-search-params.rsc',
@@ -559,9 +566,11 @@ createNextDescribe(
             'react-fetch-deduping-node/page.js',
             'variable-revalidate/encoding.html',
             'variable-revalidate/cookie/page.js',
+            'gen-params-dynamic/one.prefetch.rsc',
             'ssg-draft-mode/[[...route]]/page.js',
             'variable-revalidate/post-method.rsc',
             'dynamic-no-gen-params/[slug]/page.js',
+            'ssr-auto/cache-no-store.prefetch.rsc',
             'static-to-dynamic-error/[id]/page.js',
             'variable-revalidate/encoding/page.js',
             'variable-revalidate/no-store/page.js',
@@ -575,6 +584,7 @@ createNextDescribe(
             'variable-revalidate/revalidate-3.html',
             'force-dynamic-prerender/[slug]/page.js',
             'gen-params-dynamic-revalidate/one.html',
+            'react-fetch-deduping-node.prefetch.rsc',
             'ssr-auto/fetch-revalidate-zero/page.js',
             'variable-revalidate/authorization.html',
             'force-dynamic-no-prerender/[id]/page.js',
@@ -585,6 +595,7 @@ createNextDescribe(
             'partial-gen-params/[lang]/[slug]/page.js',
             'variable-revalidate/headers-instance.rsc',
             'variable-revalidate/revalidate-3/page.js',
+            'force-dynamic-catch-all/slug.prefetch.rsc',
             'hooks/use-search-params/force-static.html',
             'hooks/use-search-params/with-suspense.rsc',
             'route-handler/revalidate-360-isr/route.js',
@@ -594,8 +605,10 @@ createNextDescribe(
             'variable-revalidate/headers-instance.html',
             'hooks/use-search-params/with-suspense.html',
             'route-handler-edge/revalidate-360/route.js',
+            'variable-revalidate/no-store.prefetch.rsc',
             'variable-revalidate/revalidate-360-isr.rsc',
             'variable-revalidate/revalidate-360/page.js',
+            'ssr-auto/fetch-revalidate-zero.prefetch.rsc',
             'static-to-dynamic-error-forced/[id]/page.js',
             'variable-config-revalidate/revalidate-3.rsc',
             'variable-revalidate/revalidate-360-isr.html',
@@ -605,6 +618,7 @@ createNextDescribe(
             'variable-config-revalidate/revalidate-3.html',
             'variable-revalidate-edge/post-method/page.js',
             'variable-revalidate/headers-instance/page.js',
+            'variable-revalidate/status-code.prefetch.rsc',
             'force-cache/page_client-reference-manifest.js',
             'hooks/use-search-params/with-suspense/page.js',
             'variable-revalidate-edge/revalidate-3/page.js',
@@ -614,8 +628,10 @@ createNextDescribe(
             'variable-revalidate/revalidate-360-isr/page.js',
             'blog/[author]/page_client-reference-manifest.js',
             'default-cache/page_client-reference-manifest.js',
+            'force-dynamic-prerender/frameworks.prefetch.rsc',
             'variable-config-revalidate/revalidate-3/page.js',
             'variable-revalidate/post-method-request/page.js',
+            'variable-revalidate/revalidate-360.prefetch.rsc',
             'fetch-no-cache/page_client-reference-manifest.js',
             'force-dynamic-catch-all/[slug]/[[...id]]/page.js',
             'force-no-store/page_client-reference-manifest.js',
@@ -644,6 +660,7 @@ createNextDescribe(
             'partial-gen-params-no-additional-lang/fr/second.html',
             'partial-gen-params-no-additional-slug/en/second.html',
             'partial-gen-params-no-additional-slug/fr/second.html',
+            'variable-revalidate/post-method-request.prefetch.rsc',
             'variable-revalidate-edge/post-method-request/page.js',
             'force-static/[slug]/page_client-reference-manifest.js',
             'blog/[author]/[slug]/page_client-reference-manifest.js',
@@ -693,6 +710,12 @@ createNextDescribe(
             'articles/[slug]/page_client-reference-manifest.js',
             'articles/works.html',
             'articles/works.rsc',
+            'no-store/dynamic/page.js',
+            'no-store/dynamic/page_client-reference-manifest.js',
+            'no-store/static.html',
+            'no-store/static.rsc',
+            'no-store/static/page.js',
+            'no-store/static/page_client-reference-manifest.js',
           ].sort()
         )
       })
@@ -1000,6 +1023,22 @@ createNextDescribe(
               ],
               "initialRevalidateSeconds": false,
               "srcRoute": "/hooks/use-search-params/with-suspense",
+            },
+            "/no-store/static": Object {
+              "dataRoute": "/no-store/static.rsc",
+              "experimentalBypassFor": Array [
+                Object {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                Object {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/no-store/static",
             },
             "/partial-gen-params-no-additional-lang/en/RAND": Object {
               "dataRoute": "/partial-gen-params-no-additional-lang/en/RAND.rsc",
@@ -1867,7 +1906,7 @@ createNextDescribe(
     it('should skip cache in draft mode', async () => {
       const draftRes = await next.fetch('/api/draft-mode?status=enable')
       const setCookie = draftRes.headers.get('set-cookie')
-      const cookieHeader = { Cookie: setCookie?.split(';')[0] }
+      const cookieHeader = { Cookie: setCookie?.split(';', 1)[0] }
 
       expect(cookieHeader.Cookie).toBeTruthy()
 
@@ -2901,6 +2940,30 @@ createNextDescribe(
         expect(await browser.elementByCss('#pathname').text()).toBe(
           '/rewritten-use-pathname'
         )
+      })
+    })
+
+    describe('unstable_noStore', () => {
+      it('should opt-out of static optimization', async () => {
+        const res = await next.fetch('/no-store/dynamic')
+        const html = await res.text()
+        const data = cheerio.load(html)('#uncached-data').text()
+        const res2 = await next.fetch('/no-store/dynamic')
+        const html2 = await res2.text()
+        const data2 = cheerio.load(html2)('#uncached-data').text()
+
+        expect(data).not.toEqual(data2)
+      })
+
+      it('should not opt-out of static optimization when used in next/cache', async () => {
+        const res = await next.fetch('/no-store/static')
+        const html = await res.text()
+        const data = cheerio.load(html)('#data').text()
+        const res2 = await next.fetch('/no-store/static')
+        const html2 = await res2.text()
+        const data2 = cheerio.load(html2)('#data').text()
+
+        expect(data).toEqual(data2)
       })
     })
 

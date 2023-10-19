@@ -118,7 +118,7 @@ describe('404-page-router', () => {
 
       describe.each(urls)('for $url', ({ url, pathname, asPath }) => {
         it('should have the correct router parameters after it is ready', async () => {
-          const query = url.split('?')[1] ?? ''
+          const query = url.split('?', 2)[1] ?? ''
           const browser = await webdriver(next.url, url)
 
           try {

@@ -111,30 +111,51 @@ createNextDescribe(
 
     it('includes an integrity attribute on scripts', async () => {
       const $ = await next.render$('/dashboard')
-
-      // Find all the script tags with src attributes.
-      const elements = $('script[src]')
-
-      // Expect there to be at least 1 script tag with a src attribute.
-      expect(elements.length).toBeGreaterThan(0)
+      // Currently webpack chunks loaded via flight runtime do not get integrity
+      // hashes. This was previously unobservable in this test because these scripts
+      // are inserted by the webpack runtime and immediately removed from the document.
+      // However with the advent of preinitialization of chunks used during SSR there are
+      // some script tags for flight loaded chunks that will be part of the initial HTML
+      // but do not have integrity hashes. Flight does not currently support a way to
+      // provide integrity hashes for these chunks. When this is addressed in React upstream
+      // we can revisit this tests assertions and start to ensure it actually applies to
+      // all SSR'd scripts. For now we will look for known entrypoint scripts and assume
+      // everything else in the <head> is part of flight loaded chunks
 
       // Collect all the scripts with integrity hashes so we can verify them.
-      const files: [string, string][] = []
+      const files: Map<string, string> = new Map()
 
-      // For each of these attributes, ensure that there's an integrity
-      // attribute and starts with the correct integrity hash prefix.
-      elements.each((i, el) => {
+      function assertHasIntegrity(el: CheerioElement) {
         const integrity = el.attribs['integrity']
-        if (!integrity) {
-          console.log({ el })
-        }
         expect(integrity).toBeDefined()
         expect(integrity).toStartWith('sha256-')
 
         const src = el.attribs['src']
         expect(src).toBeDefined()
 
-        files.push([src, integrity])
+        files.set(src, integrity)
+      }
+
+      // <head> scripts are most entrypoint scripts, polyfills, and flight loaded scripts.
+      // Since we currently cannot assert integrity on flight loaded scripts (they do not have it)
+      // We have to target specific expected entrypoint/polyfill scripts and assert them directly
+      const mainScript = $('head script[src^="/_next/static/chunks/main-app"]')
+      expect(mainScript.length).toBe(1)
+      assertHasIntegrity(mainScript.get(0))
+
+      const polyfillsScript = $(
+        'head script[src^="/_next/static/chunks/polyfills"]'
+      )
+      expect(polyfillsScript.length).toBe(1)
+      assertHasIntegrity(polyfillsScript.get(0))
+
+      // body scripts should include just the bootstrap script. We assert that all body
+      // scripts have integrity because we don't expect any flight loaded scripts to appear
+      // here
+      const bodyScripts = $('body script[src]')
+      expect(bodyScripts.length).toBeGreaterThan(0)
+      bodyScripts.each((i, el) => {
+        assertHasIntegrity(el)
       })
 
       // For each script tag, ensure that the integrity attribute is the

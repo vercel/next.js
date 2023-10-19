@@ -1,6 +1,5 @@
 /* eslint-env jest */
 
-import 'flat-map-polyfill'
 import { remove } from 'fs-extra'
 import { File, findPort, killApp, launchApp, waitFor } from 'next-test-utils'
 import webdriver from 'next-webdriver'

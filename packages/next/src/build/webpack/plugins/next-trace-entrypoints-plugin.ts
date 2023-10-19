@@ -1,11 +1,9 @@
 import nodePath from 'path'
-import { Span } from '../../../trace'
+import type { Span } from '../../../trace'
 import { spans } from './profiling-plugin'
 import isError from '../../../lib/is-error'
-import {
-  nodeFileTrace,
-  NodeFileTraceReasons,
-} from 'next/dist/compiled/@vercel/nft'
+import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
+import type { NodeFileTraceReasons } from 'next/dist/compiled/@vercel/nft'
 import {
   CLIENT_REFERENCE_MANIFEST,
   TRACE_OUTPUT_VERSION,
@@ -14,13 +12,13 @@ import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
   NODE_ESM_RESOLVE_OPTIONS,
   NODE_RESOLVE_OPTIONS,
-  resolveExternal,
 } from '../../webpack-config'
-import { NextConfigComplete } from '../../../server/config-shared'
+import type { NextConfigComplete } from '../../../server/config-shared'
 import { loadBindings } from '../../swc'
 import { isMatch } from 'next/dist/compiled/micromatch'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getPageFilePath } from '../../entries'
+import { resolveExternal } from '../../handle-externals'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'
 export const TRACE_IGNORES = [
@@ -120,12 +118,12 @@ export interface BuildTraceContext {
     appDir: string
     outputPath: string
     depModArray: string[]
-    entryNameMap: Map<string, string>
+    entryNameMap: Record<string, string>
   }
   chunksTrace?: {
     action: TurbotraceAction
     outputPath: string
-    entryNameFilesMap: Map<string, Array<string>>
+    entryNameFilesMap: Record<string, Array<string>>
   }
 }
 
@@ -224,7 +222,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
           logLevel: this.turbotrace?.logLevel,
         },
         outputPath,
-        entryNameFilesMap,
+        entryNameFilesMap: Object.fromEntries(entryNameFilesMap),
       }
 
       for (const [entrypoint, entryFiles] of entryFilesMap) {
@@ -436,7 +434,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
               },
               appDir: this.rootDir,
               depModArray: Array.from(depModMap.keys()),
-              entryNameMap,
+              entryNameMap: Object.fromEntries(entryNameMap),
               outputPath: compilation.outputOptions.path!,
             }
 
