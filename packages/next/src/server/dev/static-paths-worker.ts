@@ -1,7 +1,6 @@
 import type { NextConfigComplete } from '../config-shared'
 
 import '../require-hook'
-import '../node-polyfill-fetch'
 import '../node-environment'
 
 import {

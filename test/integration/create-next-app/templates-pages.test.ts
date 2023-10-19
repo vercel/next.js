@@ -285,8 +285,8 @@ describe('create-next-app templates', () => {
        */
       const tsConfig = require(path.join(cwd, projectName, 'tsconfig.json'))
       expect(tsConfig.compilerOptions.paths).toMatchInlineSnapshot(`
-        Object {
-          "@/something/*": Array [
+        {
+          "@/something/*": [
             "./*",
           ],
         }
