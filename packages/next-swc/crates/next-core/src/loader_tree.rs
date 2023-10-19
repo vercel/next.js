@@ -173,7 +173,7 @@ impl LoaderTreeBuilder {
             base_page,
         } = metadata;
         let GlobalMetadata {
-            favicon,
+            favicon: _,
             manifest,
             robots: _,
         } = global_metadata;
@@ -181,7 +181,7 @@ impl LoaderTreeBuilder {
         let app_page = base_page.as_ref().unwrap_or(app_page);
         self.loader_tree_code += "  metadata: {";
 
-        self.write_metadata_icons(app_page, icon.iter(), *favicon)
+        self.write_metadata_items(app_page, "icon", icon.iter())
             .await?;
         self.write_metadata_items(app_page, "apple", apple.iter())
             .await?;
@@ -205,89 +205,6 @@ impl LoaderTreeBuilder {
             "    manifest: {},",
             StringifyJs(manifest_route)
         )?;
-
-        Ok(())
-    }
-
-    async fn write_metadata_favicon(
-        &mut self,
-        name: &str,
-        favicon: Option<MetadataItem>,
-    ) -> Result<()> {
-        let Some(favicon) = favicon else {
-            return Ok(());
-        };
-
-        // Currently we expect favicon to be a static file only
-        // https://nextjs.org/docs/app/api-reference/file-conventions/metadata/app-icons#favicon
-        if let MetadataItem::Static { path } = favicon {
-            let i = self.unique_number();
-            let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
-            let inner_module_id = format!("METADATA_{i}");
-            let helper_import = "import { fillMetadataSegment } from \
-                                 \"next/dist/lib/metadata/get-metadata-route\""
-                .to_string();
-
-            if !self.imports.contains(&helper_import) {
-                self.imports.push(helper_import);
-            }
-
-            self.imports
-                .push(format!("import {identifier} from \"{inner_module_id}\";"));
-            self.inner_assets.insert(
-                inner_module_id,
-                Vc::upcast(StructuredImageModuleType::create_module(
-                    Vc::upcast(FileSource::new(path)),
-                    BlurPlaceholderMode::None,
-                    self.context,
-                )),
-            );
-
-            let s = "      ";
-            writeln!(self.loader_tree_code, "{s}(async (props) => [{{")?;
-
-            let metadata_route = &*get_metadata_route_name(favicon).await?;
-            writeln!(
-                self.loader_tree_code,
-                "{s}  url: fillMetadataSegment({}, props.params, {}) + \
-                 `?${{{identifier}.src.split(\"/\").splice(-1)[0]}}`,",
-                // this is global, always point to the root base page
-                StringifyJs("."),
-                StringifyJs(metadata_route),
-            )?;
-
-            writeln!(
-                self.loader_tree_code,
-                "{s}  sizes: `${{{identifier}.width}}x${{{identifier}.height}}`,"
-            )?;
-
-            let content_type = get_content_type(path).await?;
-            writeln!(self.loader_tree_code, "{s}  type: `{content_type}`,")?;
-            writeln!(self.loader_tree_code, "{s}}}]),")?;
-        }
-
-        Ok(())
-    }
-
-    // Wrapped fn to write metadata icons along with global favicon.
-    async fn write_metadata_icons<'a>(
-        &mut self,
-        app_page: &AppPage,
-        it: impl Iterator<Item = &'a MetadataWithAltItem>,
-        favicon: Option<MetadataItem>,
-    ) -> Result<()> {
-        let name = "icon";
-        let mut it = it.peekable();
-        if it.peek().is_none() || favicon.is_none() {
-            return Ok(());
-        }
-
-        writeln!(self.loader_tree_code, "    {name}: [")?;
-        self.write_metadata_favicon(name, favicon).await?;
-        for item in it {
-            self.write_metadata_item(app_page, name, item).await?;
-        }
-        writeln!(self.loader_tree_code, "    ],")?;
 
         Ok(())
     }
