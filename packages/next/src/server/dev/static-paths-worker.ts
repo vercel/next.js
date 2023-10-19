@@ -2,7 +2,6 @@ import type { NextConfigComplete } from '../config-shared'
 
 import '../require-hook'
 import '../node-environment'
-import '../../lib/polyfill-promise-with-resolvers'
 
 import {
   buildAppStaticPaths,

@@ -9,7 +9,6 @@ import type {
 
 import '../server/node-polyfill-web-streams'
 import '../server/node-environment'
-import '../lib/polyfill-promise-with-resolvers'
 
 process.env.NEXT_IS_EXPORT_WORKER = 'true'
 

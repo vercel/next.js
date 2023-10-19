@@ -8,12 +8,11 @@ export function requestToBodyStream(
   stream: Readable
 ) {
   return new context.ReadableStream({
-    start(controller) {
-      stream.on('data', (chunk) =>
+    start: async (controller) => {
+      for await (const chunk of stream) {
         controller.enqueue(new KUint8Array([...new Uint8Array(chunk)]))
-      )
-      stream.on('end', () => controller.close())
-      stream.on('error', (err) => controller.error(err))
+      }
+      controller.close()
     },
   })
 }

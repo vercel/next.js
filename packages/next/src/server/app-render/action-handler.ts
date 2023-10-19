@@ -45,19 +45,20 @@ function nodeToWebReadableStream(nodeReadable: import('stream').Readable) {
       return Readable.toWeb(nodeReadable)
     }
 
+    const iterator = nodeReadable[Symbol.asyncIterator]()
+
     return new ReadableStream({
-      start(controller) {
-        nodeReadable.on('data', (chunk) => {
-          controller.enqueue(chunk)
-        })
+      pull: async (controller) => {
+        const { value, done } = await iterator.next()
 
-        nodeReadable.on('end', () => {
+        if (done) {
           controller.close()
-        })
-
-        nodeReadable.on('error', (error) => {
-          controller.error(error)
-        })
+        } else {
+          controller.enqueue(value)
+        }
+      },
+      cancel: () => {
+        iterator.return?.()
       },
     })
   } else {
@@ -101,7 +102,7 @@ function getForwardedHeaders(
     Array.isArray(rawSetCookies) ? rawSetCookies : [rawSetCookies]
   ).map((setCookie) => {
     // remove the suffixes like 'HttpOnly' and 'SameSite'
-    const [cookie] = `${setCookie}`.split(';')
+    const [cookie] = `${setCookie}`.split(';', 1)
     return cookie
   })
 

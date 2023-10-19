@@ -226,6 +226,7 @@ export async function copy_vercel_og(task, opts) {
     join(__dirname, 'src/compiled/@vercel/og/package.json'),
     {
       name: '@vercel/og',
+      version: require('@vercel/og/package.json').version,
       LICENSE: 'MLP-2.0',
       type: 'module',
       main: './index.node.js',
@@ -236,6 +237,7 @@ export async function copy_vercel_og(task, opts) {
           node: './index.node.js',
           default: './index.node.js',
         },
+        './package.json': './package.json',
       },
     },
     { spaces: 2 }
