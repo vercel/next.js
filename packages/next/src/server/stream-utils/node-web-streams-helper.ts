@@ -426,7 +426,7 @@ export async function continueFizzStream(
   const closeTag = '</body></html>'
 
   // Suffix itself might contain close tags at the end, so we need to split it.
-  const suffixUnclosed = suffix ? suffix.split(closeTag)[0] : null
+  const suffixUnclosed = suffix ? suffix.split(closeTag, 1)[0] : null
 
   if (generateStaticHTML) {
     await renderStream.allReady
