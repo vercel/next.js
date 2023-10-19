@@ -7,8 +7,8 @@ import type { NextRequest } from '../web/spec-extension/request'
 import {
   COOKIE_NAME_PRERENDER_BYPASS,
   checkIsOnDemandRevalidate,
-  __ApiPreviewProps,
 } from '../api-utils'
+import type { __ApiPreviewProps } from '../api-utils'
 
 export class DraftModeProvider {
   public readonly isEnabled: boolean

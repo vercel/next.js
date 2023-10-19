@@ -1,5 +1,6 @@
-import { DomainLocale } from '../../config'
-import { I18NProvider, LocaleAnalysisResult } from './i18n-provider'
+import type { DomainLocale } from '../../config'
+import { I18NProvider } from './i18n-provider'
+import type { LocaleAnalysisResult } from './i18n-provider'
 
 describe('I18NProvider', () => {
   const config = {

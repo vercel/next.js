@@ -1,4 +1,5 @@
-import { parse, StackFrame } from 'next/dist/compiled/stacktrace-parser'
+import { parse } from 'next/dist/compiled/stacktrace-parser'
+import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 
 export function getFilesystemFrame(frame: StackFrame): StackFrame {
   const f: StackFrame = { ...frame }

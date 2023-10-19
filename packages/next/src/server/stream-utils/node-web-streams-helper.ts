@@ -1,36 +1,18 @@
 import type { FlightRouterState } from '../app-render/types'
-import type RenderResult from '../render-result'
+
+import '../node-polyfill-web-streams'
 
 import { nonNullable } from '../../lib/non-nullable'
 import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
-import { decodeText, encodeText } from './encode-decode'
+import { createDecodeTransformStream } from './encode-decode'
+import { DetachedPromise } from '../../lib/detached-promise'
 
 const queueTask =
   process.env.NEXT_RUNTIME === 'edge' ? globalThis.setTimeout : setImmediate
 
 export type ReactReadableStream = ReadableStream<Uint8Array> & {
   allReady?: Promise<void> | undefined
-}
-
-export const streamToBufferedResult = async (
-  renderResult: RenderResult
-): Promise<string> => {
-  const renderChunks: string[] = []
-  const textDecoder = new TextDecoder()
-
-  const writable = {
-    write(chunk: any) {
-      renderChunks.push(decodeText(chunk, textDecoder))
-    },
-    end() {},
-
-    // We do not support stream cancellation
-    on() {},
-    off() {},
-  }
-  await renderResult.pipe(writable)
-  return renderChunks.join('')
 }
 
 export function cloneTransformStream(source: TransformStream) {
@@ -64,13 +46,18 @@ export function chainStreams<T>(
     )
   }
 
+  // Catch any errors from the streams and ignore them, they will be handled
+  // by whatever is consuming the readable stream.
+  promise.catch(() => {})
+
   return readable
 }
 
 export function streamFromString(str: string): ReadableStream<Uint8Array> {
+  const encoder = new TextEncoder()
   return new ReadableStream({
     start(controller) {
-      controller.enqueue(encodeText(str))
+      controller.enqueue(encoder.encode(str))
       controller.close()
     },
   })
@@ -79,20 +66,20 @@ export function streamFromString(str: string): ReadableStream<Uint8Array> {
 export async function streamToString(
   stream: ReadableStream<Uint8Array>
 ): Promise<string> {
-  const reader = stream.getReader()
-  const textDecoder = new TextDecoder()
+  let buffer = ''
 
-  let bufferedString = ''
+  await stream
+    // Decode the streamed chunks to turn them into strings.
+    .pipeThrough(createDecodeTransformStream())
+    .pipeTo(
+      new WritableStream<string>({
+        write(chunk) {
+          buffer += chunk
+        },
+      })
+    )
 
-  while (true) {
-    const { done, value } = await reader.read()
-
-    if (done) {
-      return bufferedString
-    }
-
-    bufferedString += decodeText(value, textDecoder)
-  }
+  return buffer
 }
 
 export function createBufferedTransformStream(): TransformStream<
@@ -134,19 +121,23 @@ export function createBufferedTransformStream(): TransformStream<
   })
 }
 
-export function createInsertedHTMLStream(
+function createInsertedHTMLStream(
   getServerInsertedHTML: () => Promise<string>
 ): TransformStream<Uint8Array, Uint8Array> {
+  const encoder = new TextEncoder()
   return new TransformStream({
-    async transform(chunk, controller) {
-      const insertedHTMLChunk = encodeText(await getServerInsertedHTML())
-      controller.enqueue(insertedHTMLChunk)
+    transform: async (chunk, controller) => {
+      const html = await getServerInsertedHTML()
+      if (html) {
+        controller.enqueue(encoder.encode(html))
+      }
+
       controller.enqueue(chunk)
     },
   })
 }
 
-export function renderToInitialStream({
+export function renderToInitialFizzStream({
   ReactDOMServer,
   element,
   streamOptions,
@@ -165,7 +156,9 @@ function createHeadInsertionTransformStream(
 ): TransformStream<Uint8Array, Uint8Array> {
   let inserted = false
   let freezing = false
-  const textDecoder = new TextDecoder()
+
+  const encoder = new TextEncoder()
+  const decoder = new TextDecoder()
 
   return new TransformStream({
     async transform(chunk, controller) {
@@ -177,16 +170,16 @@ function createHeadInsertionTransformStream(
 
       const insertion = await insert()
       if (inserted) {
-        controller.enqueue(encodeText(insertion))
+        controller.enqueue(encoder.encode(insertion))
         controller.enqueue(chunk)
         freezing = true
       } else {
-        const content = decodeText(chunk, textDecoder)
+        const content = decoder.decode(chunk)
         const index = content.indexOf('</head>')
         if (index !== -1) {
           const insertedHeadContent =
             content.slice(0, index) + insertion + content.slice(index)
-          controller.enqueue(encodeText(insertedHeadContent))
+          controller.enqueue(encoder.encode(insertedHeadContent))
           freezing = true
           inserted = true
         }
@@ -204,7 +197,7 @@ function createHeadInsertionTransformStream(
       // Check before closing if there's anything remaining to insert.
       const insertion = await insert()
       if (insertion) {
-        controller.enqueue(encodeText(insertion))
+        controller.enqueue(encoder.encode(insertion))
       }
     },
   })
@@ -217,18 +210,19 @@ function createDeferredSuffixStream(
 ): TransformStream<Uint8Array, Uint8Array> {
   let suffixFlushed = false
   let suffixFlushTask: Promise<void> | null = null
+  const encoder = new TextEncoder()
 
   return new TransformStream({
     transform(chunk, controller) {
       controller.enqueue(chunk)
-      if (!suffixFlushed && suffix.length) {
+      if (!suffixFlushed) {
         suffixFlushed = true
         suffixFlushTask = new Promise((res) => {
           // NOTE: streaming flush
           // Enqueue suffix part before the major chunks are enqueued so that
           // suffix won't be flushed too early to interrupt the data stream
           queueTask(() => {
-            controller.enqueue(encodeText(suffix))
+            controller.enqueue(encoder.encode(suffix))
             res()
           })
         })
@@ -236,18 +230,21 @@ function createDeferredSuffixStream(
     },
     flush(controller) {
       if (suffixFlushTask) return suffixFlushTask
-      if (!suffixFlushed && suffix.length) {
+      if (!suffixFlushed) {
         suffixFlushed = true
-        controller.enqueue(encodeText(suffix))
+        controller.enqueue(encoder.encode(suffix))
       }
     },
   })
 }
 
-export function createInlineDataStream(
+// Merge two streams into one. Ensure the final transform stream is closed
+// when both are finished.
+function createMergedTransformStream(
   dataStream: ReadableStream<Uint8Array>
 ): TransformStream<Uint8Array, Uint8Array> {
-  let dataStreamFinished: Promise<void> | null = null
+  let dataStreamFinished: DetachedPromise<void> | null = null
+
   return new TransformStream({
     transform(chunk, controller) {
       controller.enqueue(chunk)
@@ -261,33 +258,33 @@ export function createInlineDataStream(
         // implementation, e.g. with a specific high-water mark. To ensure it's
         // the safe timing to pipe the data stream, this extra tick is
         // necessary.
-        dataStreamFinished = new Promise((res) =>
-          // We use `setTimeout` here to ensure that it's inserted after flushing
-          // the shell. Note that this implementation might get stale if impl
-          // details of Fizz change in the future.
-          // Also we are not using `setImmediate` here because it's not available
-          // broadly in all runtimes, for example some edge workers might not
-          // have it.
-          setTimeout(async () => {
-            try {
-              while (true) {
-                const { done, value } = await dataStreamReader.read()
-                if (done) {
-                  return res()
-                }
-                controller.enqueue(value)
-              }
-            } catch (err) {
-              controller.error(err)
+        const promise = new DetachedPromise<void>()
+        dataStreamFinished = promise
+
+        // We use `setTimeout` here to ensure that it's inserted after flushing
+        // the shell. Note that this implementation might get stale if impl
+        // details of Fizz change in the future.
+        queueTask(async () => {
+          try {
+            while (true) {
+              const { done, value } = await dataStreamReader.read()
+              if (done) return promise.resolve()
+
+              controller.enqueue(value)
             }
-            res()
-          }, 0)
-        )
+          } catch (err) {
+            controller.error(err)
+          }
+
+          promise.resolve()
+        })
       }
     },
     flush() {
+      // If the data stream promise is defined, then return it as its completion
+      // will be the completion of the stream.
       if (dataStreamFinished) {
-        return dataStreamFinished
+        return dataStreamFinished.promise
       }
     },
   })
@@ -302,28 +299,48 @@ function createMoveSuffixStream(
   suffix: string
 ): TransformStream<Uint8Array, Uint8Array> {
   let foundSuffix = false
-  const textDecoder = new TextDecoder()
 
-  // Remove suffix from the stream, and enqueue it back in flush
+  const encoder = new TextEncoder()
+  const decoder = new TextDecoder()
+
   return new TransformStream({
     transform(chunk, controller) {
-      if (!suffix || foundSuffix) {
+      if (foundSuffix) {
         return controller.enqueue(chunk)
       }
 
-      const content = decodeText(chunk, textDecoder)
-      if (content.endsWith(suffix)) {
+      const buf = decoder.decode(chunk)
+      const index = buf.indexOf(suffix)
+      if (index > -1) {
         foundSuffix = true
-        const contentWithoutSuffix = content.slice(0, -suffix.length)
-        controller.enqueue(encodeText(contentWithoutSuffix))
+
+        // If the whole chunk is the suffix, then don't write anything, it will
+        // be written in the flush.
+        if (buf.length === suffix.length) {
+          return
+        }
+
+        // Write out the part before the suffix.
+        const before = buf.slice(0, index)
+        chunk = encoder.encode(before)
+        controller.enqueue(chunk)
+
+        // In the case where the suffix is in the middle of the chunk, we need
+        // to split the chunk into two parts.
+        if (buf.length > suffix.length + index) {
+          // Write out the part after the suffix.
+          const after = buf.slice(index + suffix.length)
+          chunk = encoder.encode(after)
+          controller.enqueue(chunk)
+        }
       } else {
         controller.enqueue(chunk)
       }
     },
     flush(controller) {
-      if (suffix) {
-        controller.enqueue(encodeText(suffix))
-      }
+      // Even if we didn't find the suffix, the HTML is not valid if we don't
+      // add it, so insert it at the end.
+      controller.enqueue(encoder.encode(suffix))
     },
   })
 }
@@ -334,12 +351,16 @@ export function createRootLayoutValidatorStream(
 ): TransformStream<Uint8Array, Uint8Array> {
   let foundHtml = false
   let foundBody = false
-  const textDecoder = new TextDecoder()
 
+  const encoder = new TextEncoder()
+  const decoder = new TextDecoder()
+
+  let content = ''
   return new TransformStream({
     async transform(chunk, controller) {
+      // Peek into the streamed chunk to see if the tags are present.
       if (!foundHtml || !foundBody) {
-        const content = decodeText(chunk, textDecoder)
+        content += decoder.decode(chunk, { stream: true })
         if (!foundHtml && content.includes('<html')) {
           foundHtml = true
         }
@@ -350,16 +371,26 @@ export function createRootLayoutValidatorStream(
       controller.enqueue(chunk)
     },
     flush(controller) {
+      // Flush the decoder.
+      if (!foundHtml || !foundBody) {
+        content += decoder.decode()
+        if (!foundHtml && content.includes('<html')) {
+          foundHtml = true
+        }
+        if (!foundBody && content.includes('<body')) {
+          foundBody = true
+        }
+      }
+
       // If html or body tag is missing, we need to inject a script to notify
       // the client.
-      if (!foundHtml || !foundBody) {
-        const missingTags = [
-          foundHtml ? null : 'html',
-          foundBody ? null : 'body',
-        ].filter(nonNullable)
+      const missingTags: string[] = []
+      if (!foundHtml) missingTags.push('html')
+      if (!foundBody) missingTags.push('body')
 
+      if (missingTags.length > 0) {
         controller.enqueue(
-          encodeText(
+          encoder.encode(
             `<script>self.__next_root_layout_missing_tags_error=${JSON.stringify(
               { missingTags, assetPrefix: assetPrefix ?? '', tree: getTree() }
             )}</script>`
@@ -370,17 +401,17 @@ export function createRootLayoutValidatorStream(
   })
 }
 
-export async function continueFromInitialStream(
+export async function continueFizzStream(
   renderStream: ReactReadableStream,
   {
     suffix,
-    dataStream,
+    inlinedDataStream,
     generateStaticHTML,
     getServerInsertedHTML,
     serverInsertedHTMLToHead,
     validateRootLayout,
   }: {
-    dataStream?: ReadableStream<Uint8Array>
+    inlinedDataStream?: ReadableStream<Uint8Array>
     generateStaticHTML: boolean
     getServerInsertedHTML?: () => Promise<string>
     serverInsertedHTMLToHead: boolean
@@ -395,7 +426,7 @@ export async function continueFromInitialStream(
   const closeTag = '</body></html>'
 
   // Suffix itself might contain close tags at the end, so we need to split it.
-  const suffixUnclosed = suffix ? suffix.split(closeTag)[0] : null
+  const suffixUnclosed = suffix ? suffix.split(closeTag, 1)[0] : null
 
   if (generateStaticHTML) {
     await renderStream.allReady
@@ -411,13 +442,15 @@ export async function continueFromInitialStream(
       : null,
 
     // Insert suffix content
-    suffixUnclosed != null ? createDeferredSuffixStream(suffixUnclosed) : null,
+    suffixUnclosed != null && suffixUnclosed.length > 0
+      ? createDeferredSuffixStream(suffixUnclosed)
+      : null,
 
-    // Insert the flight data stream
-    dataStream ? createInlineDataStream(dataStream) : null,
+    // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
+    inlinedDataStream ? createMergedTransformStream(inlinedDataStream) : null,
 
     // Close tags should always be deferred to the end
-    createMoveSuffixStream(closeTag),
+    closeTag && createMoveSuffixStream(closeTag),
 
     // Special head insertions
     // TODO-APP: Insert server side html to end of head in app layout rendering, to avoid

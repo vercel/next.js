@@ -48,7 +48,24 @@ export async function getStaticProps() {
 
 <AppOnly>
 
-This loads `process.env.DB_HOST`, `process.env.DB_USER`, and `process.env.DB_PASS` into the Node.js environment automatically allowing you to use them in [Route Handlers](/docs/app/building-your-application/routing/route-handlers).
+> **Note**: Next.js also supports multiline variables inside of your `.env*` files:
+>
+> ```bash
+> # .env.local
+>
+> # you can write with line breaks
+> PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----
+> ...
+> Kh9NV...
+> ...
+> -----END DSA PRIVATE KEY-----"
+>
+> # or with `\n` inside double quotes
+> PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\nKh9NV...\n-----END DSA PRIVATE KEY-----\n"
+> ```
+
+> **Note**: If you are using a `/src` folder, please note that Next.js will load the .env files **only** from the parent folder and **not** from the `/src` folder.
+> This loads `process.env.DB_HOST`, `process.env.DB_USER`, and `process.env.DB_PASS` into the Node.js environment automatically allowing you to use them in [Route Handlers](/docs/app/building-your-application/routing/route-handlers).
 
 For example:
 
@@ -180,3 +197,9 @@ For example, if `NODE_ENV` is `development` and you define a variable in both `.
 
 - If you are using a [`/src` directory](/docs/app/building-your-application/configuring/src-directory), `.env.*` files should remain in the root of your project.
 - If the environment variable `NODE_ENV` is unassigned, Next.js automatically assigns `development` when running the `next dev` command, or `production` for all other commands.
+
+## Version History
+
+| Version  | Changes                                       |
+| -------- | --------------------------------------------- |
+| `v9.4.0` | Support `.env` and `NEXT_PUBLIC_` introduced. |

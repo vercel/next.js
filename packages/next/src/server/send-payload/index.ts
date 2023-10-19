@@ -1,9 +1,9 @@
 import type { IncomingMessage, ServerResponse } from 'http'
+import type RenderResult from '../render-result'
 
 import { isResSent } from '../../shared/lib/utils'
 import { generateETag } from '../lib/etag'
 import fresh from 'next/dist/compiled/fresh'
-import RenderResult from '../render-result'
 import { setRevalidateHeaders } from './revalidate-headers'
 import { RSC_CONTENT_TYPE_HEADER } from '../../client/components/app-router-headers'
 
@@ -67,7 +67,7 @@ export async function sendRenderResult({
     setRevalidateHeaders(res, options)
   }
 
-  const payload = result.isDynamic ? null : await result.toUnchunkedString()
+  const payload = result.isDynamic ? null : result.toUnchunkedString()
 
   if (payload !== null) {
     const etag = generateEtags ? generateETag(payload) : undefined
@@ -95,9 +95,14 @@ export async function sendRenderResult({
 
   if (req.method === 'HEAD') {
     res.end(null)
-  } else if (payload !== null) {
-    res.end(payload)
-  } else {
-    await result.pipe(res)
+    return
   }
+
+  if (payload !== null) {
+    res.end(payload)
+    return
+  }
+
+  // Pipe the render result to the response after we get a writer for it.
+  await result.pipeToNodeResponse(res)
 }

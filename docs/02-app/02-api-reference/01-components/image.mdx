@@ -40,24 +40,24 @@ export default function Page() {
 Here's a summary of the props available for the Image Component:
 
 <div style={{ overflowX: 'auto', width: '100%' }}>
-| Prop                                      | Example                              | Type            | Required |
-| ----------------------------------------- | ------------------------------------ | --------------- | -------- |
-| [`src`](#src)                             | `src="/profile.png"`                 | String          | Yes      |
-| [`width`](#width)                         | `width={500}`                        | Integer (px)    | Yes      |
-| [`height`](#height)                       | `height={500}`                       | Integer (px)    | Yes      |
-| [`alt`](#alt)                             | `alt="Picture of the author"`        | String          | Yes      |
-| [`loader`](#loader)                       | `loader={imageLoader}`               | Function        | -        |
-| [`fill`](#fill)                           | `fill={true}`                        | Boolean         | -        |
-| [`sizes`](#sizes)                         | `sizes="(max-width: 768px) 100vw"`   | String          | -        |
-| [`quality`](#quality)                     | `quality={80}`                       | Integer (1-100) | -        |
-| [`priority`](#priority)                   | `priority={true}`                    | Boolean         | -        |
-| [`placeholder`](#placeholder)             | `placeholder="blur"`                 | String          | -        |
-| [`style`](#style)                         | `style={{objectFit: "contain"}}`     | Object          | -        |
-| [`onLoadingComplete`](#onloadingcomplete) | `onLoadingComplete={img => done())}` | Function        | -        |
-| [`onLoad`](#onload)                       | `onLoad={event => done())}`          | Function        | -        |
-| [`onError`](#onerror)                     | `onError(event => fail()}`           | Function        | -        |
-| [`loading`](#loading)                     | `loading="lazy"`                     | String          | -        |
-| [`blurDataURL`](#blurdataurl)             | `blurDataURL="data:image/jpeg..."`   | String          | -        |
+| Prop                                      | Example                                  | Type            | Status     |
+| ----------------------------------------- | ---------------------------------------- | --------------- | ---------- |
+| [`src`](#src)                             | `src="/profile.png"`                     | String          | Required   |
+| [`width`](#width)                         | `width={500}`                            | Integer (px)    | Required   |
+| [`height`](#height)                       | `height={500}`                           | Integer (px)    | Required   |
+| [`alt`](#alt)                             | `alt="Picture of the author"`            | String          | Required   |
+| [`loader`](#loader)                       | `loader={imageLoader}`                   | Function        | -          |
+| [`fill`](#fill)                           | `fill={true}`                            | Boolean         | -          |
+| [`sizes`](#sizes)                         | `sizes="(max-width: 768px) 100vw, 33vw"` | String          | -          |
+| [`quality`](#quality)                     | `quality={80}`                           | Integer (1-100) | -          |
+| [`priority`](#priority)                   | `priority={true}`                        | Boolean         | -          |
+| [`placeholder`](#placeholder)             | `placeholder="blur"`                     | String          | -          |
+| [`style`](#style)                         | `style={{objectFit: "contain"}}`         | Object          | -          |
+| [`onLoadingComplete`](#onloadingcomplete) | `onLoadingComplete={img => done())}`     | Function        | Deprecated |
+| [`onLoad`](#onload)                       | `onLoad={event => done())}`              | Function        | -          |
+| [`onError`](#onerror)                     | `onError(event => fail()}`               | Function        | -          |
+| [`loading`](#loading)                     | `loading="lazy"`                         | String          | -          |
+| [`blurDataURL`](#blurdataurl)             | `blurDataURL="data:image/jpeg..."`       | String          | -          |
 </div>
 
 ## Required Props
@@ -286,6 +286,8 @@ Remember that the required width and height props can interact with your styling
 <Image onLoadingComplete={(img) => console.log(img.naturalWidth)} />
 ```
 
+> **Warning**: Deprecated since Next.js 14 in favor of [`onLoad`](#onload).
+
 A callback function that is invoked once the image is completely loaded and the [placeholder](#placeholder) has been removed.
 
 The callback function will be called with one argument, a reference to the underlying `<img>` element.
@@ -302,9 +304,9 @@ The callback function will be called with one argument, a reference to the under
 <Image onLoad={(e) => console.log(e.target.naturalWidth)} />
 ```
 
-A callback function that is invoked when the image is loaded.
+A callback function that is invoked once the image is completely loaded and the [placeholder](#placeholder) has been removed.
 
-The load event might occur before the image placeholder is removed and the image is fully decoded. If you want to wait until the image has fully loaded, use [`onLoadingComplete`](#onloadingcomplete) instead.
+The callback function will be called with one argument, the Event which has a `target` that references the underlying `<img>` element.
 
 <AppOnly>
 
@@ -445,7 +447,7 @@ The `**` syntax does not work in the middle of the pattern.
 
 ### `domains`
 
-> **Warning**: We recommend configuring strict [`remotePatterns`](#remotepatterns) instead of `domains` in order to protect your application from malicious users. Only use `domains` if you own all the content served from the domain.
+> **Warning**: Deprecated since Next.js 14. We recommend configuring strict [`remotePatterns`](#remotepatterns) instead of `domains` in order to protect your application from malicious users. Only use `domains` if you own all the content served from the domain.
 
 Similar to [`remotePatterns`](#remotepatterns), the `domains` configuration can be used to provide a list of allowed hostnames for external images.
 
@@ -576,7 +578,7 @@ The cache status of an image can be determined by reading the value of the `x-ne
 The expiration (or rather Max Age) is defined by either the [`minimumCacheTTL`](#minimumcachettl) configuration or the upstream image `Cache-Control` header, whichever is larger. Specifically, the `max-age` value of the `Cache-Control` header is used. If both `s-maxage` and `max-age` are found, then `s-maxage` is preferred. The `max-age` is also passed-through to any downstream clients including CDNs and browsers.
 
 - You can configure [`minimumCacheTTL`](#minimumcachettl) to increase the cache duration when the upstream image does not include `Cache-Control` header or the value is very low.
-- You can configure [`deviceSizes`](#devicesizes) and [`imageSizes`](#devicesizes) to reduce the total number of possible generated images.
+- You can configure [`deviceSizes`](#devicesizes) and [`imageSizes`](#imagesizes) to reduce the total number of possible generated images.
 - You can configure [formats](#formats) to disable multiple formats in favor of a single image format.
 
 ### `minimumCacheTTL`
@@ -599,7 +601,7 @@ There is no mechanism to invalidate the cache at this time, so its best to keep 
 
 ### `disableStaticImages`
 
-The default behavior allows you to import static files such as `import icon from './icon.png` and then pass that to the `src` property.
+The default behavior allows you to import static files such as `import icon from './icon.png'` and then pass that to the `src` property.
 
 In some cases, you may wish to disable this feature if it conflicts with other plugins that expect the import to behave differently.
 

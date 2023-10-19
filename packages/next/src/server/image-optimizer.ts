@@ -3,7 +3,7 @@ import { promises } from 'fs'
 import { cpus } from 'os'
 import type { IncomingMessage, ServerResponse } from 'http'
 import { mediaType } from 'next/dist/compiled/@hapi/accept'
-import chalk from 'next/dist/compiled/chalk'
+import { bold, yellow } from '../lib/picocolors'
 import contentDisposition from 'next/dist/compiled/content-disposition'
 import { getOrientation, Orientation } from 'next/dist/compiled/get-orientation'
 import imageSizeOf from 'next/dist/compiled/image-size'
@@ -294,7 +294,7 @@ export class ImageOptimizerCache {
       const now = Date.now()
 
       for (const file of files) {
-        const [maxAgeSt, expireAtSt, etag, extension] = file.split('.')
+        const [maxAgeSt, expireAtSt, etag, extension] = file.split('.', 4)
         const buffer = await promises.readFile(join(cacheDir, file))
         const expireAt = Number(expireAtSt)
         const maxAge = Number(maxAgeSt)
@@ -373,7 +373,7 @@ function parseCacheControl(str: string | null): Map<string, string> {
     return map
   }
   for (let directive of str.split(',')) {
-    let [key, value] = directive.trim().split('=')
+    let [key, value] = directive.trim().split('=', 2)
     key = key.toLowerCase()
     if (value) {
       value = value.toLowerCase()
@@ -439,7 +439,7 @@ export async function optimizeImage({
         })
       } else {
         console.warn(
-          chalk.yellow.bold('Warning: ') +
+          yellow(bold('Warning: ')) +
             `Your installed version of the 'sharp' package does not support AVIF images. Run 'npm i sharp@latest' to upgrade to the latest version.\n` +
             'Read more: https://nextjs.org/docs/messages/sharp-version-avif'
         )
@@ -465,7 +465,7 @@ export async function optimizeImage({
     // Show sharp warning in production once
     if (showSharpMissingWarning) {
       console.warn(
-        chalk.yellow.bold('Warning: ') +
+        yellow(bold('Warning: ')) +
           `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended. Run 'npm i sharp', and Next.js will use it automatically for Image Optimization.\n` +
           'Read more: https://nextjs.org/docs/messages/sharp-missing-in-production'
       )
@@ -686,13 +686,13 @@ function getFileNameWithExtension(
   url: string,
   contentType: string | null
 ): string {
-  const [urlWithoutQueryParams] = url.split('?')
+  const [urlWithoutQueryParams] = url.split('?', 1)
   const fileNameWithExtension = urlWithoutQueryParams.split('/').pop()
   if (!contentType || !fileNameWithExtension) {
     return 'image.bin'
   }
 
-  const [fileName] = fileNameWithExtension.split('.')
+  const [fileName] = fileNameWithExtension.split('.', 1)
   const extension = getExtension(contentType)
   return `${fileName}.${extension}`
 }
@@ -793,17 +793,4 @@ export async function getImageSize(
 
   const { width, height } = imageSizeOf(buffer)
   return { width, height }
-}
-
-export class Deferred<T> {
-  promise: Promise<T>
-  resolve!: (value: T) => void
-  reject!: (error?: Error) => void
-
-  constructor() {
-    this.promise = new Promise((resolve, reject) => {
-      this.resolve = resolve
-      this.reject = reject
-    })
-  }
 }

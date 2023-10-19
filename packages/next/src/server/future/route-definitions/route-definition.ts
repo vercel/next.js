@@ -1,4 +1,4 @@
-import { RouteKind } from '../route-kind'
+import type { RouteKind } from '../route-kind'
 
 export interface RouteDefinition<K extends RouteKind = RouteKind> {
   readonly kind: K

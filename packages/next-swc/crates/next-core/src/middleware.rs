@@ -1,13 +1,12 @@
 use anyhow::Result;
 use indexmap::indexmap;
 use turbo_tasks::{Value, Vc};
-use turbo_tasks_fs::{File, FileSystemPath};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_binding::turbopack::core::{
-    asset::AssetContent, context::AssetContext, module::Module, reference_type::ReferenceType,
-    virtual_source::VirtualSource,
+    context::AssetContext, module::Module, reference_type::ReferenceType,
 };
 
-use crate::util::{load_next_js_template, virtual_next_js_template_path};
+use crate::util::load_next_js_template;
 
 #[turbo_tasks::function]
 pub async fn middleware_files(page_extensions: Vc<Vec<String>>) -> Result<Vc<Vec<String>>> {
@@ -29,23 +28,26 @@ pub async fn get_middleware_module(
     project_root: Vc<FileSystemPath>,
     userland_module: Vc<Box<dyn Module>>,
 ) -> Result<Vc<Box<dyn Module>>> {
-    let template_file = "middleware.js";
+    const INNER: &str = "INNER_MIDDLEWARE_MODULE";
 
     // Load the file from the next.js codebase.
-    let file = load_next_js_template(project_root, template_file.to_string()).await?;
-
-    let file = File::from(file.clone_value());
-
-    let template_path = virtual_next_js_template_path(project_root, template_file.to_string());
-
-    let virtual_source = VirtualSource::new(template_path, AssetContent::file(file.into()));
+    let source = load_next_js_template(
+        "middleware.js",
+        project_root,
+        indexmap! {
+            "VAR_USERLAND" => INNER.to_string(),
+            "VAR_DEFINITION_PAGE" => "/middleware".to_string(),
+        },
+        indexmap! {},
+    )
+    .await?;
 
     let inner_assets = indexmap! {
-        "VAR_USERLAND".to_string() => userland_module
+        INNER.to_string() => userland_module
     };
 
     let module = context.process(
-        Vc::upcast(virtual_source),
+        source,
         Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
     );
 

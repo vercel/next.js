@@ -1,5 +1,5 @@
 import { createHrefFromUrl } from '../create-href-from-url'
-import {
+import type {
   ReadonlyReducerState,
   ReducerState,
   RestoreAction,

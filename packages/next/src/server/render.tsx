@@ -34,6 +34,10 @@ import type { UnwrapPromise } from '../lib/coalesced-function'
 import type { ReactReadableStream } from './stream-utils/node-web-streams-helper'
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
+import type { PagesModule } from './future/route-modules/pages/module'
+import type { ComponentsEnhancer } from '../shared/lib/utils'
+import type { NextParsedUrlQuery } from './request-meta'
+import type { Revalidate } from './lib/revalidate'
 
 import React from 'react'
 import ReactDOMServer from 'react-dom/server.browser'
@@ -47,9 +51,10 @@ import {
   SERVER_PROPS_SSG_CONFLICT,
   SSG_GET_INITIAL_PROPS_CONFLICT,
   UNSTABLE_REVALIDATE_RENAME_ERROR,
+  CACHE_ONE_YEAR,
 } from '../lib/constants'
+import type { COMPILER_NAMES } from '../shared/lib/constants'
 import {
-  COMPILER_NAMES,
   NEXT_BUILTIN_DOCUMENT,
   SERVER_PROPS_ID,
   STATIC_PROPS_ID,
@@ -65,7 +70,6 @@ import { LoadableContext } from '../shared/lib/loadable-context.shared-runtime'
 import { RouterContext } from '../shared/lib/router-context.shared-runtime'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import {
-  ComponentsEnhancer,
   getDisplayName,
   isResSent,
   loadGetInitialProps,
@@ -73,7 +77,7 @@ import {
 import { HtmlContext } from '../shared/lib/html-context.shared-runtime'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
-import { getRequestMeta, NextParsedUrlQuery } from './request-meta'
+import { getRequestMeta } from './request-meta'
 import { allowedStatusCodes, getRedirectStatus } from '../lib/redirect-status'
 import RenderResult, { type RenderResultMetadata } from './render-result'
 import isError from '../lib/is-error'
@@ -81,8 +85,8 @@ import {
   streamFromString,
   streamToString,
   chainStreams,
-  renderToInitialStream,
-  continueFromInitialStream,
+  renderToInitialFizzStream,
+  continueFizzStream,
 } from './stream-utils/node-web-streams-helper'
 import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
@@ -101,16 +105,19 @@ import {
 import { getTracer } from './lib/trace/tracer'
 import { RenderSpan } from './lib/trace/constants'
 import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
+import { setRevalidateHeaders } from './send-payload'
 
-let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
+let tryGetPreviewData: typeof import('./api-utils/node/try-get-preview-data').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
 let postProcessHTML: typeof import('./post-process').postProcessHTML
 
 const DOCTYPE = '<!DOCTYPE html>'
 
+import './node-polyfill-web-streams'
+
 if (process.env.NEXT_RUNTIME !== 'edge') {
-  require('./node-polyfill-web-streams')
-  tryGetPreviewData = require('./api-utils/node').tryGetPreviewData
+  tryGetPreviewData =
+    require('./api-utils/node/try-get-preview-data').tryGetPreviewData
   warn = require('../build/output/log').warn
   postProcessHTML = require('./post-process').postProcessHTML
 } else {
@@ -279,9 +286,12 @@ export type RenderOptsPartial = {
   isDraftMode?: boolean
   deploymentId?: string
   isServerAction?: boolean
+  isExperimentalCompile?: boolean
+  isPrefetch?: boolean
 }
 
-export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
+export type RenderOpts = LoadComponentsReturnType<PagesModule> &
+  RenderOptsPartial
 
 /**
  * RenderOptsExtra is being used to split away functionality that's within the
@@ -440,6 +450,7 @@ export async function renderToHTMLImpl(
     basePath,
     images,
     runtime: globalRuntime,
+    isExperimentalCompile,
   } = renderOpts
   const { App } = extra
 
@@ -490,11 +501,24 @@ export async function renderToHTMLImpl(
     )
   }
 
-  const isAutoExport =
+  let isAutoExport =
     !hasPageGetInitialProps &&
     defaultAppGetInitialProps &&
     !isSSG &&
     !getServerSideProps
+
+  // if we are running from experimental compile and the page
+  // would normally be automatically statically optimized
+  // ensure we set cache header so it's not rendered on-demand
+  // every request
+  if (isAutoExport && !dev && isExperimentalCompile) {
+    setRevalidateHeaders(res, {
+      revalidate: CACHE_ONE_YEAR,
+      private: false,
+      stateful: false,
+    })
+    isAutoExport = false
+  }
 
   if (hasPageGetInitialProps && isSSG) {
     throw new Error(SSG_GET_INITIAL_PROPS_CONFLICT + ` ${pathname}`)
@@ -621,7 +645,8 @@ export async function renderToHTMLImpl(
   const routerIsReady = !!(
     getServerSideProps ||
     hasPageGetInitialProps ||
-    (!defaultAppGetInitialProps && !isSSG)
+    (!defaultAppGetInitialProps && !isSSG) ||
+    isExperimentalCompile
   )
   const router = new ServerRouter(
     pathname,
@@ -798,7 +823,7 @@ export async function renderToHTMLImpl(
   }
 
   if (isSSG && !isFallback) {
-    let data: UnwrapPromise<ReturnType<GetStaticProps>>
+    let data: Readonly<UnwrapPromise<ReturnType<GetStaticProps>>>
 
     try {
       data = await getTracer().trace(
@@ -909,6 +934,7 @@ export async function renderToHTMLImpl(
       )
     }
 
+    let revalidate: Revalidate
     if ('revalidate' in data) {
       if (data.revalidate && renderOpts.nextConfigOutput === 'export') {
         throw new Error(
@@ -929,24 +955,28 @@ export async function renderToHTMLImpl(
               `\n\nTo never revalidate, you can set revalidate to \`false\` (only ran once at build-time).` +
               `\nTo revalidate as soon as possible, you can set the value to \`1\`.`
           )
-        } else if (data.revalidate > 31536000) {
-          // if it's greater than a year for some reason error
-          console.warn(
-            `Warning: A page's revalidate option was set to more than a year for ${req.url}. This may have been done in error.` +
-              `\nTo only run getStaticProps at build-time and not revalidate at runtime, you can set \`revalidate\` to \`false\`!`
-          )
+        } else {
+          if (data.revalidate > 31536000) {
+            // if it's greater than a year for some reason error
+            console.warn(
+              `Warning: A page's revalidate option was set to more than a year for ${req.url}. This may have been done in error.` +
+                `\nTo only run getStaticProps at build-time and not revalidate at runtime, you can set \`revalidate\` to \`false\`!`
+            )
+          }
+
+          revalidate = data.revalidate
         }
       } else if (data.revalidate === true) {
         // When enabled, revalidate after 1 second. This value is optimal for
         // the most up-to-date page possible, but without a 1-to-1
         // request-refresh ratio.
-        data.revalidate = 1
+        revalidate = 1
       } else if (
         data.revalidate === false ||
         typeof data.revalidate === 'undefined'
       ) {
         // By default, we never revalidate.
-        data.revalidate = false
+        revalidate = false
       } else {
         throw new Error(
           `A page's revalidate option must be seconds expressed as a natural number. Mixed numbers and strings cannot be used. Received '${JSON.stringify(
@@ -956,7 +986,7 @@ export async function renderToHTMLImpl(
       }
     } else {
       // By default, we never revalidate.
-      ;(data as any).revalidate = false
+      revalidate = false
     }
 
     props.pageProps = Object.assign(
@@ -966,8 +996,7 @@ export async function renderToHTMLImpl(
     )
 
     // pass up revalidate and props for export
-    renderResultMeta.revalidate =
-      'revalidate' in data ? data.revalidate : undefined
+    renderResultMeta.revalidate = revalidate
     renderResultMeta.pageData = props
 
     // this must come after revalidate is added to renderResultMeta
@@ -1296,7 +1325,7 @@ export async function renderToHTMLImpl(
       EnhancedComponent: NextComponentType
     ) => {
       const content = renderContent(EnhancedApp, EnhancedComponent)
-      return await renderToInitialStream({
+      return await renderToInitialFizzStream({
         ReactDOMServer,
         element: content,
       })
@@ -1311,9 +1340,9 @@ export async function renderToHTMLImpl(
           return renderToString(styledJsxInsertedHTML())
         }
 
-        return continueFromInitialStream(initialStream, {
+        return continueFizzStream(initialStream, {
           suffix,
-          dataStream: serverComponentsInlinedTransformStream?.readable,
+          inlinedDataStream: serverComponentsInlinedTransformStream?.readable,
           generateStaticHTML: true,
           getServerInsertedHTML,
           serverInsertedHTMLToHead: false,
@@ -1426,6 +1455,7 @@ export async function renderToHTMLImpl(
       nextExport: nextExport === true ? true : undefined, // If this is a page exported by `next export`
       autoExport: isAutoExport === true ? true : undefined, // If this is an auto exported page
       isFallback,
+      isExperimentalCompile,
       dynamicIds:
         dynamicImportsIds.size === 0
           ? undefined
@@ -1517,7 +1547,8 @@ export async function renderToHTMLImpl(
   }
 
   const [renderTargetPrefix, renderTargetSuffix] = documentHTML.split(
-    '<next-js-internal-body-render-target></next-js-internal-body-render-target>'
+    '<next-js-internal-body-render-target></next-js-internal-body-render-target>',
+    2
   )
 
   let prefix = ''

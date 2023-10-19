@@ -38,6 +38,10 @@ export type ImageProps = Omit<
   placeholder?: PlaceholderValue
   blurDataURL?: string
   unoptimized?: boolean
+  /**
+   * @deprecated Use `onLoad` instead.
+   * @see https://nextjs.org/docs/app/api-reference/components/image#onload
+   */
   onLoadingComplete?: OnLoadingComplete
   /**
    * @deprecated Use `fill` prop instead of `layout="fill"` or change import to `next/legacy/image`.
@@ -500,7 +504,7 @@ export function getImgProps(
     }
     if ('ref' in rest) {
       warnOnce(
-        `Image with src "${src}" is using unsupported "ref" property. Consider using the "onLoadingComplete" property instead.`
+        `Image with src "${src}" is using unsupported "ref" property. Consider using the "onLoad" property instead.`
       )
     }
 
@@ -521,6 +525,12 @@ export function getImgProps(
             `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader-width`
         )
       }
+    }
+
+    if (onLoadingComplete) {
+      warnOnce(
+        `Image with src "${src}" is using deprecated "onLoadingComplete" property. Please use the "onLoad" property instead.`
+      )
     }
 
     for (const [legacyKey, legacyValue] of Object.entries({

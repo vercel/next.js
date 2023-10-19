@@ -1,6 +1,7 @@
+use std::collections::HashMap;
+
 use anyhow::{bail, Context, Result};
 use next_core::{
-    all_server_paths,
     app_structure::{
         get_entrypoints, Entrypoint as AppEntrypoint, Entrypoints as AppEntrypoints, LoaderTree,
         MetadataItem,
@@ -22,7 +23,8 @@ use next_core::{
     next_edge::route_regex::get_named_middleware_regex,
     next_manifests::{
         AppBuildManifest, AppPathsManifest, BuildManifest, ClientReferenceManifest,
-        EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2, PagesManifest, Regions,
+        EdgeFunctionDefinition, LoadableManifest, MiddlewareMatcher, MiddlewaresManifestV2,
+        PagesManifest, Regions,
     },
     next_server::{
         get_server_module_options_context, get_server_resolve_options_context,
@@ -40,8 +42,9 @@ use turbopack_binding::{
     turbopack::{
         core::{
             asset::{Asset, AssetContent},
-            chunk::{ChunkableModule, ChunkingContext, EvaluatableAssets},
+            chunk::{availability_info::AvailabilityInfo, ChunkingContext, EvaluatableAssets},
             file_source::FileSource,
+            module::Module,
             output::{OutputAsset, OutputAssets},
             virtual_output::VirtualOutputAsset,
         },
@@ -53,8 +56,14 @@ use turbopack_binding::{
 };
 
 use crate::{
+    dynamic_imports::{
+        collect_chunk_group, collect_evaluated_chunk_group, collect_next_dynamic_imports,
+        DynamicImportedChunks,
+    },
     project::Project,
     route::{Endpoint, Route, Routes, WrittenEndpoint},
+    server_actions::create_server_actions_manifest,
+    server_paths::all_server_paths,
 };
 
 #[turbo_tasks::value]
@@ -212,6 +221,7 @@ impl AppProject {
                 "next-dynamic".to_string(),
                 Vc::upcast(NextDynamicTransition::new(self.client_transition())),
             ),
+            ("next-ssr".to_string(), Vc::upcast(self.ssr_transition())),
         ]
         .into_iter()
         .collect();
@@ -295,13 +305,8 @@ impl AppProject {
     async fn runtime_entries(self: Vc<Self>) -> Result<Vc<RuntimeEntries>> {
         let this = self.await?;
         Ok(get_server_runtime_entries(
-            self.project().project_path(),
-            // TODO(alexkirsz) Should we pass env here or EnvMap::empty, as is done in
-            // app_source?
-            self.project().env(),
             Value::new(self.rsc_ty()),
             this.mode,
-            self.project().next_config(),
         ))
     }
 
@@ -330,7 +335,6 @@ impl AppProject {
         let this = self.await?;
         Ok(get_client_runtime_entries(
             self.project().project_path(),
-            self.client_env(),
             Value::new(self.client_ty()),
             this.mode,
             self.project().next_config(),
@@ -348,7 +352,7 @@ impl AppProject {
                 .iter()
                 .map(|(pathname, app_entrypoint)| async {
                     Ok((
-                        pathname.clone(),
+                        pathname.to_string(),
                         *app_entry_point_to_route(self, app_entrypoint.clone()).await?,
                     ))
                 })
@@ -511,9 +515,15 @@ impl AppEndpoint {
         let mut server_assets = vec![];
         let mut client_assets = vec![];
 
+        let app_entry = app_entry.await?;
+
         let client_shared_chunks = get_app_client_shared_chunks(
+            app_entry
+                .rsc_entry
+                .ident()
+                .with_modifier(Vc::cell("client_shared_chunks".to_string())),
             this.app_project.client_runtime_entries(),
-            this.app_project.project().client_chunking_context(),
+            this.app_project.project().app_client_chunking_context(),
         );
 
         let mut client_shared_chunks_paths = vec![];
@@ -528,7 +538,6 @@ impl AppEndpoint {
             }
         }
 
-        let app_entry = app_entry.await?;
         let rsc_entry = app_entry.rsc_entry;
 
         let rsc_entry_asset = Vc::upcast(rsc_entry);
@@ -568,8 +577,8 @@ impl AppEndpoint {
         if ssr_and_client {
             let client_references_chunks = get_app_client_references_chunks(
                 client_reference_types,
-                this.app_project.project().client_chunking_context(),
-                this.app_project.project().ssr_chunking_context(),
+                this.app_project.project().app_client_chunking_context(),
+                this.app_project.project().app_ssr_chunking_context(),
             );
             let client_references_chunks_ref = client_references_chunks.await?;
 
@@ -640,8 +649,12 @@ impl AppEndpoint {
                 app_entry.original_name.clone(),
                 client_references,
                 client_references_chunks,
-                this.app_project.project().client_chunking_context(),
-                Vc::upcast(this.app_project.project().ssr_chunking_context()),
+                this.app_project.project().app_client_chunking_context(),
+                Vc::upcast(this.app_project.project().app_ssr_chunking_context()),
+                this.app_project
+                    .project()
+                    .next_config()
+                    .computed_asset_prefix(),
             );
             server_assets.push(entry_manifest);
         }
@@ -673,6 +686,67 @@ impl AppEndpoint {
             )))
         }
 
+        async fn create_react_loadable_manifest(
+            dynamic_import_entries: Vc<DynamicImportedChunks>,
+            ty: &'static str,
+            node_root: Vc<FileSystemPath>,
+            pathname: &str,
+        ) -> Result<Vc<OutputAssets>> {
+            let dynamic_import_entries = &*dynamic_import_entries.await?;
+
+            let mut output = vec![];
+            let mut loadable_manifest: HashMap<String, LoadableManifest> = Default::default();
+
+            for (origin, dynamic_imports) in dynamic_import_entries.into_iter() {
+                let origin_path = &*origin.ident().path().await?;
+
+                for (import, chunk_output) in dynamic_imports {
+                    let chunk_output = chunk_output.await?;
+                    output.extend(chunk_output.iter().copied());
+
+                    let id = format!("{} -> {}", origin_path, import);
+
+                    let server_path = node_root.join("server".to_string());
+                    let server_path_value = server_path.await?;
+                    let files = chunk_output
+                        .iter()
+                        .map(move |&file| {
+                            let server_path_value = server_path_value.clone();
+                            async move {
+                                Ok(server_path_value
+                                    .get_path_to(&*file.ident().path().await?)
+                                    .map(|path| path.to_string()))
+                            }
+                        })
+                        .try_flat_join()
+                        .await?;
+
+                    let manifest_item = LoadableManifest {
+                        id: id.clone(),
+                        files,
+                    };
+
+                    loadable_manifest.insert(id, manifest_item);
+                }
+            }
+
+            let loadable_path_prefix = get_asset_prefix_from_pathname(pathname);
+            let loadable_manifest = Vc::upcast(VirtualOutputAsset::new(
+                node_root.join(format!(
+                    "server/app{loadable_path_prefix}/{ty}/react-loadable-manifest.json",
+                )),
+                AssetContent::file(
+                    FileContent::Content(File::from(serde_json::to_string_pretty(
+                        &loadable_manifest,
+                    )?))
+                    .cell(),
+                ),
+            ));
+
+            output.push(loadable_manifest);
+            Ok(Vc::cell(output))
+        }
+
         let endpoint_output = match app_entry.config.await?.runtime.unwrap_or_default() {
             NextRuntime::Edge => {
                 // create edge chunks
@@ -686,11 +760,29 @@ impl AppEndpoint {
                     bail!("Entry module must be evaluatable");
                 };
                 evaluatable_assets.push(evaluatable);
+
+                let (loader, manifest) = create_server_actions_manifest(
+                    app_entry.rsc_entry,
+                    node_root,
+                    &app_entry.pathname,
+                    &app_entry.original_name,
+                    NextRuntime::Edge,
+                    Vc::upcast(this.app_project.edge_rsc_module_context()),
+                    Vc::upcast(chunking_context),
+                    this.app_project
+                        .project()
+                        .next_config()
+                        .enable_server_actions(),
+                )
+                .await?;
+                server_assets.push(manifest);
+                if let Some(loader) = loader {
+                    evaluatable_assets.push(loader);
+                }
+
                 let files = chunking_context.evaluated_chunk_group(
-                    app_entry
-                        .rsc_entry
-                        .as_root_chunk(Vc::upcast(chunking_context)),
-                    Vc::cell(evaluatable_assets),
+                    app_entry.rsc_entry.ident(),
+                    Vc::cell(evaluatable_assets.clone()),
                 );
                 server_assets.extend(files.await?.iter().copied());
 
@@ -742,7 +834,7 @@ impl AppEndpoint {
                         .await?
                         .preferred_region
                         .clone()
-                        .map(Regions::Single),
+                        .map(Regions::Multiple),
                     matchers: vec![matchers],
                     ..Default::default()
                 };
@@ -777,6 +869,24 @@ impl AppEndpoint {
                 )?;
                 server_assets.push(app_paths_manifest_output);
 
+                // create react-loadable-manifest for next/dynamic
+                let dynamic_import_modules =
+                    collect_next_dynamic_imports(app_entry.rsc_entry).await?;
+                let dynamic_import_entries = collect_evaluated_chunk_group(
+                    chunking_context,
+                    dynamic_import_modules,
+                    Vc::cell(evaluatable_assets),
+                )
+                .await?;
+                let loadable_manifest_output = create_react_loadable_manifest(
+                    dynamic_import_entries,
+                    ty,
+                    node_root,
+                    &app_entry.pathname,
+                )
+                .await?;
+                server_assets.extend(loadable_manifest_output.await?.iter().copied());
+
                 AppEndpointOutput::Edge {
                     files,
                     server_assets: Vc::cell(server_assets),
@@ -784,17 +894,39 @@ impl AppEndpoint {
                 }
             }
             NextRuntime::NodeJs => {
+                let mut evaluatable_assets =
+                    this.app_project.rsc_runtime_entries().await?.clone_value();
+
+                let (loader, manifest) = create_server_actions_manifest(
+                    app_entry.rsc_entry,
+                    node_root,
+                    &app_entry.pathname,
+                    &app_entry.original_name,
+                    NextRuntime::NodeJs,
+                    Vc::upcast(this.app_project.rsc_module_context()),
+                    Vc::upcast(this.app_project.project().rsc_chunking_context()),
+                    this.app_project
+                        .project()
+                        .next_config()
+                        .enable_server_actions(),
+                )
+                .await?;
+                server_assets.push(manifest);
+                if let Some(loader) = loader {
+                    evaluatable_assets.push(loader);
+                }
+
                 let rsc_chunk = this
                     .app_project
                     .project()
                     .rsc_chunking_context()
-                    .entry_chunk(
+                    .entry_chunk_group(
                         server_path.join(format!(
                             "app{original_name}.js",
                             original_name = app_entry.original_name
                         )),
                         app_entry.rsc_entry,
-                        this.app_project.rsc_runtime_entries(),
+                        Vc::cell(evaluatable_assets),
                     );
                 server_assets.push(rsc_chunk);
 
@@ -811,14 +943,35 @@ impl AppEndpoint {
                 )?;
                 server_assets.push(app_paths_manifest_output);
 
+                // create react-loadable-manifest for next/dynamic
+                let availability_info = Value::new(AvailabilityInfo::Root);
+                let dynamic_import_modules =
+                    collect_next_dynamic_imports(app_entry.rsc_entry).await?;
+                let dynamic_import_entries = collect_chunk_group(
+                    this.app_project.project().rsc_chunking_context(),
+                    dynamic_import_modules,
+                    availability_info,
+                )
+                .await?;
+                let loadable_manifest_output = create_react_loadable_manifest(
+                    dynamic_import_entries,
+                    ty,
+                    node_root,
+                    &app_entry.pathname,
+                )
+                .await?;
+                server_assets.extend(loadable_manifest_output.await?.iter().copied());
+
                 AppEndpointOutput::NodeJs {
                     rsc_chunk,
                     server_assets: Vc::cell(server_assets),
                     client_assets: Vc::cell(client_assets),
                 }
             }
-        };
-        Ok(endpoint_output.cell())
+        }
+        .cell();
+
+        Ok(endpoint_output)
     }
 }
 

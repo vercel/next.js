@@ -531,7 +531,6 @@ createNextDescribe(
             'force-static/second.html',
             'ssg-draft-mode/test.html',
             'blog/seb/second-post.html',
-            'force-static.prefetch.rsc',
             'ssg-draft-mode/test-2.rsc',
             'blog/styfle/first-post.rsc',
             'default-cache.prefetch.rsc',
@@ -711,6 +710,12 @@ createNextDescribe(
             'articles/[slug]/page_client-reference-manifest.js',
             'articles/works.html',
             'articles/works.rsc',
+            'no-store/dynamic/page.js',
+            'no-store/dynamic/page_client-reference-manifest.js',
+            'no-store/static.html',
+            'no-store/static.rsc',
+            'no-store/static/page.js',
+            'no-store/static/page_client-reference-manifest.js',
           ].sort()
         )
       })
@@ -1018,6 +1023,22 @@ createNextDescribe(
               ],
               "initialRevalidateSeconds": false,
               "srcRoute": "/hooks/use-search-params/with-suspense",
+            },
+            "/no-store/static": Object {
+              "dataRoute": "/no-store/static.rsc",
+              "experimentalBypassFor": Array [
+                Object {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                Object {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/no-store/static",
             },
             "/partial-gen-params-no-additional-lang/en/RAND": Object {
               "dataRoute": "/partial-gen-params-no-additional-lang/en/RAND.rsc",
@@ -1885,7 +1906,7 @@ createNextDescribe(
     it('should skip cache in draft mode', async () => {
       const draftRes = await next.fetch('/api/draft-mode?status=enable')
       const setCookie = draftRes.headers.get('set-cookie')
-      const cookieHeader = { Cookie: setCookie?.split(';')[0] }
+      const cookieHeader = { Cookie: setCookie?.split(';', 1)[0] }
 
       expect(cookieHeader.Cookie).toBeTruthy()
 
@@ -2919,6 +2940,30 @@ createNextDescribe(
         expect(await browser.elementByCss('#pathname').text()).toBe(
           '/rewritten-use-pathname'
         )
+      })
+    })
+
+    describe('unstable_noStore', () => {
+      it('should opt-out of static optimization', async () => {
+        const res = await next.fetch('/no-store/dynamic')
+        const html = await res.text()
+        const data = cheerio.load(html)('#uncached-data').text()
+        const res2 = await next.fetch('/no-store/dynamic')
+        const html2 = await res2.text()
+        const data2 = cheerio.load(html2)('#uncached-data').text()
+
+        expect(data).not.toEqual(data2)
+      })
+
+      it('should not opt-out of static optimization when used in next/cache', async () => {
+        const res = await next.fetch('/no-store/static')
+        const html = await res.text()
+        const data = cheerio.load(html)('#data').text()
+        const res2 = await next.fetch('/no-store/static')
+        const html2 = await res2.text()
+        const data2 = cheerio.load(html2)('#data').text()
+
+        expect(data).toEqual(data2)
       })
     })
 

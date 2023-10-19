@@ -240,18 +240,14 @@ export default function Page() {
 Route Handlers will render a static response when running `next build`. Only the `GET` HTTP verb is supported. This can be used to generate static HTML, JSON, TXT, or other files from cached or uncached data. For example:
 
 ```ts filename="app/data.json/route.ts" switcher
-import { NextResponse } from 'next/server'
-
 export async function GET() {
-  return NextResponse.json({ name: 'Lee' })
+  return Response.json({ name: 'Lee' })
 }
 ```
 
 ```js filename="app/data.json/route.js" switcher
-import { NextResponse } from 'next/server'
-
 export async function GET() {
-  return NextResponse.json({ name: 'Lee' })
+  return Response.json({ name: 'Lee' })
 }
 ```
 

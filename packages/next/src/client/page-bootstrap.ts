@@ -1,8 +1,7 @@
 import { hydrate, router } from './'
 import initOnDemandEntries from './dev/on-demand-entries-client'
-import initializeBuildWatcher, {
-  ShowHideHandler,
-} from './dev/dev-build-watcher'
+import initializeBuildWatcher from './dev/dev-build-watcher'
+import type { ShowHideHandler } from './dev/dev-build-watcher'
 import { displayContent } from './dev/fouc'
 import { connectHMR, addMessageListener } from './dev/error-overlay/websocket'
 import {
@@ -25,7 +24,10 @@ export function pageBootrap(assetPrefix: string) {
       }, process.env.__NEXT_BUILD_INDICATOR_POSITION)
     }
 
+    let reloading = false
+
     addMessageListener((payload) => {
+      if (reloading) return
       if ('action' in payload) {
         if (payload.action === HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR) {
           const { stack, message } = JSON.parse(payload.errorJSON)
@@ -33,6 +35,7 @@ export function pageBootrap(assetPrefix: string) {
           error.stack = stack
           throw error
         } else if (payload.action === HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE) {
+          reloading = true
           window.location.reload()
         } else if (
           payload.action ===

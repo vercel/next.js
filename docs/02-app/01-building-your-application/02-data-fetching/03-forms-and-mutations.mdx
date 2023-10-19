@@ -377,7 +377,7 @@ For example, the following submit button:
 ```tsx filename="app/submit-button.tsx" switcher
 'use client'
 
-import { experimental_useFormStatus as useFormStatus } from 'react-dom'
+import { useFormStatus } from 'react-dom'
 
 export function SubmitButton() {
   const { pending } = useFormStatus()
@@ -393,7 +393,7 @@ export function SubmitButton() {
 ```jsx filename="app/submit-button.jsx" switcher
 'use client'
 
-import { experimental_useFormStatus as useFormStatus } from 'react-dom'
+import { useFormStatus } from 'react-dom'
 
 export function SubmitButton() {
   const { pending } = useFormStatus()
@@ -529,7 +529,7 @@ Server Actions can also return [serializable objects](https://developer.mozilla.
 ```ts filename="app/actions.ts" switcher
 'use server'
 
-export async function create(prevState: any, formData: FormData) {
+export async function createTodo(prevState: any, formData: FormData) {
   try {
     await createItem(formData.get('todo'))
     return revalidatePath('/')
@@ -557,8 +557,7 @@ Then, from a Client Component, you can read this value and display an error mess
 ```tsx filename="app/add-form.tsx" switcher
 'use client'
 
-import { experimental_useFormState as useFormState } from 'react-dom'
-import { experimental_useFormStatus as useFormStatus } from 'react-dom'
+import { useFormState, useFormStatus } from 'react-dom'
 import { createTodo } from '@/app/actions'
 
 const initialState = {
@@ -594,8 +593,7 @@ export function AddForm() {
 ```jsx filename="app/add-form.jsx" switcher
 'use client'
 
-import { experimental_useFormState as useFormState } from 'react-dom'
-import { experimental_useFormStatus as useFormStatus } from 'react-dom'
+import { useFormState, useFormStatus } from 'react-dom'
 import { createTodo } from '@/app/actions'
 
 const initialState = {
