@@ -1,4 +1,8 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {}
+const nextConfig = {
+  future: {
+    fallbackNodePolyfills: false,
+  },
+}
 
 module.exports = nextConfig

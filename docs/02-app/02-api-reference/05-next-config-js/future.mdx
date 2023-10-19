@@ -1,0 +1,12 @@
+---
+title: future
+description: Future flags that can be enabled in your Next.js app to opt-in to new features earlier.
+---
+
+## `fallbackNodePolyfills`
+
+For historical reasons, Next.js falls back to polyfill some popular Node.js modules in the browser. This is for compatibility reasons with libraries that are meant to run on Node.js but are used in browser context. This is can however cause an increases of the client bundle size. By setting `future.fallbackNodePolyfills` to `false`, Next.js will no longer polyfill Node.js modules in the browser and will instead throw an error during development/build.
+
+The full list of polyfills is accessible here: [webpack/webpack#ModuleNotoundError.js#L13-L42](https://github.com/webpack/webpack/blob/2a0536cf510768111a3a6dceeb14cb79b9f59273/lib/ModuleNotFoundError.js#L13-L42)
+
+In new projects, we recommend setting `future.fallbackNodePolyfills` to `false` to avoid the extra bundle size.

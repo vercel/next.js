@@ -114,7 +114,7 @@ const supportedTurbopackNextConfigOptions = [
   // 'experimental.allowedRevalidateHeaderKeys',
   // 'experimental.bundlePagesExternals',
   // 'experimental.extensionAlias',
-  // 'experimental.fallbackNodePolyfills',
+  // 'future.fallbackNodePolyfills',
 
   // 'experimental.sri.algorithm',
   // 'experimental.swcTraceProfiling',

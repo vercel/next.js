@@ -1807,7 +1807,7 @@ export default async function getBaseWebpackConfig(
               {
                 resolve: {
                   fallback:
-                    config.experimental.fallbackNodePolyfills === false
+                    config.future.fallbackNodePolyfills === false
                       ? {
                           assert: false,
                           buffer: false,
