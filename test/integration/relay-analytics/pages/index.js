@@ -1,4 +1,4 @@
-if (typeof navigator !== 'undefined') {
+if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
   window.__BEACONS = window.__BEACONS || []
   window.__BEACONS_COUNT = new Map()
 
