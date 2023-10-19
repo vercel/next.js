@@ -73,15 +73,15 @@ describe('fillCacheWithDataProperty', () => {
     )
 
     expect(cache).toMatchInlineSnapshot(`
-      Object {
+      {
         "data": null,
         "parallelRoutes": Map {
           "children" => Map {
-            "linking" => Object {
+            "linking" => {
               "data": null,
               "parallelRoutes": Map {
                 "children" => Map {
-                  "" => Object {
+                  "" => {
                     "data": null,
                     "parallelRoutes": Map {},
                     "status": "READY",
@@ -96,7 +96,7 @@ describe('fillCacheWithDataProperty', () => {
                 Linking
               </React.Fragment>,
             },
-            "dashboard" => Object {
+            "dashboard" => {
               "data": Promise {
                 "status": "pending",
               },
