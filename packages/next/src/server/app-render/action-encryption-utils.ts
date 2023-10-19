@@ -23,13 +23,14 @@ export function arrayBufferToString(buffer: ArrayBuffer) {
 
 export function stringToArrayBuffer(binary: string) {
   const len = binary.length
+  const buffer = new ArrayBuffer(len)
+  const view = new Uint8Array(buffer)
 
-  let bytes = new Uint8Array(len)
   for (let i = 0; i < len; i++) {
-    bytes[i] = binary.charCodeAt(i)
+    view[i] = binary.charCodeAt(i)
   }
 
-  return bytes.buffer
+  return buffer
 }
 
 export async function encrypt(key: CryptoKey, salt: string, data: ArrayBuffer) {
