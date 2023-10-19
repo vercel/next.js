@@ -27,14 +27,13 @@ async function batchedTraceSource(project: Project, frame: StackFrame) {
     return
   }
 
-  const rustStackFrame = {
+  const sourceFrame = await project.traceSource({
     file,
     methodName: frame.methodName,
     line: frame.lineNumber ?? 0,
     column: frame.column,
-  }
+  })
 
-  const sourceFrame = await project.traceSource(rustStackFrame)
   if (!sourceFrame) {
     return
   }
@@ -44,20 +43,21 @@ async function batchedTraceSource(project: Project, frame: StackFrame) {
   if (!sourceFrame.file.includes('node_modules')) {
     let sourcePromise = currentSourcesByFile.get(sourceFrame.file)
     if (!sourcePromise) {
-      sourcePromise = new Promise((resolve) =>
-        // Batch reading sources content as this can be quite large, and stacks often reference the same files
-        setTimeout(resolve, 100)
-      ).then(() => project.getSourceForAsset(sourceFrame.file))
+      sourcePromise = project.getSourceForAsset(sourceFrame.file)
       currentSourcesByFile.set(sourceFrame.file, sourcePromise)
+      setTimeout(() => {
+        // Cache file reads for 100ms, as frames will often reference the same
+        // files and can be large.
+        currentSourcesByFile.delete(sourceFrame.file)
+      }, 100)
     }
 
     source = await sourcePromise
-    currentSourcesByFile.delete(sourceFrame.file)
   }
 
   return {
     frame: {
-      file,
+      file: sourceFrame.file,
       lineNumber: sourceFrame.line,
       column: sourceFrame.column,
       methodName: sourceFrame.methodName ?? frame.methodName,
