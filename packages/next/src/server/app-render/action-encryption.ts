@@ -13,7 +13,7 @@ import {
   encrypt,
   getActionEncryptionKey,
   getClientReferenceManifestSingleton,
-  stringToArrayBuffer,
+  stringToUint8Array,
 } from './action-encryption-utils'
 
 async function decodeActionBoundArg(actionId: string, arg: string) {
@@ -32,7 +32,7 @@ async function decodeActionBoundArg(actionId: string, arg: string) {
   const decoded = await decrypt(
     key,
     '__next_action__' + actionId,
-    stringToArrayBuffer(atob(arg))
+    stringToUint8Array(atob(arg))
   )
   return arrayBufferToString(decoded)
 }
@@ -53,7 +53,7 @@ async function encodeActionBoundArg(actionId: string, arg: string) {
   const encoded = await encrypt(
     key,
     '__next_action__' + actionId,
-    stringToArrayBuffer(arg)
+    stringToUint8Array(arg)
   )
   return btoa(arrayBufferToString(encoded))
 }

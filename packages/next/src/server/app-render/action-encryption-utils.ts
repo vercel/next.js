@@ -21,19 +21,7 @@ export function arrayBufferToString(buffer: ArrayBuffer) {
   return binary
 }
 
-export function stringToArrayBuffer(binary: string) {
-  const len = binary.length
-  const buffer = new ArrayBuffer(len)
-  const view = new Uint8Array(buffer)
-
-  for (let i = 0; i < len; i++) {
-    view[i] = binary.charCodeAt(i)
-  }
-
-  return buffer
-}
-
-function stringToUint8Array(binary: string) {
+export function stringToUint8Array(binary: string) {
   const len = binary.length
   const arr = new Uint8Array(len)
 
@@ -44,7 +32,7 @@ function stringToUint8Array(binary: string) {
   return arr
 }
 
-export async function encrypt(key: CryptoKey, salt: string, data: ArrayBuffer) {
+export async function encrypt(key: CryptoKey, salt: string, data: Uint8Array) {
   const iv = new TextEncoder().encode(salt)
   return crypto.subtle.encrypt(
     {
@@ -56,7 +44,7 @@ export async function encrypt(key: CryptoKey, salt: string, data: ArrayBuffer) {
   )
 }
 
-export async function decrypt(key: CryptoKey, salt: string, data: ArrayBuffer) {
+export async function decrypt(key: CryptoKey, salt: string, data: Uint8Array) {
   const iv = new TextEncoder().encode(salt)
   return crypto.subtle.decrypt(
     {
