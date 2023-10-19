@@ -247,15 +247,6 @@ export async function exportAppImpl(
     )
   }
 
-  // Running 'next export' or output is set to 'export'
-  if (options.isInvokedFromCli || isExportOutput) {
-    if (nextConfig.experimental.serverActions) {
-      throw new ExportError(
-        `Server Actions are not supported with static export.`
-      )
-    }
-  }
-
   const telemetry = options.buildExport ? null : new Telemetry({ distDir })
 
   if (telemetry) {
