@@ -1,11 +1,7 @@
 const mod = require('module')
 
-const hookPropertyMap = new Map([
-  [
-    /node-polyfill-web-streams/,
-    require.resolve('../__mocks__/node-polyfill-web-streams.js'),
-  ],
-])
+// REVIEW: is this necessary still?
+const hookPropertyMap = new Map([[]])
 
 function matchModule(request) {
   for (const [key, value] of hookPropertyMap) {
