@@ -2,9 +2,6 @@ import fs from 'fs'
 import path from 'path'
 import * as Log from '../build/output/log'
 import tar from 'next/dist/compiled/tar'
-const { fetch } = require('next/dist/compiled/undici') as {
-  fetch: typeof global.fetch
-}
 const { WritableStream } = require('node:stream/web') as {
   WritableStream: typeof global.WritableStream
 }

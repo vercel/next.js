@@ -17,9 +17,6 @@ const customJestConfig = {
   modulePathIgnorePatterns: ['/\\.next/'],
   modulePaths: ['<rootDir>/lib'],
   transformIgnorePatterns: ['/next[/\\\\]dist/', '/\\.next/'],
-  globals: {
-    AbortSignal: global.AbortSignal,
-  },
   moduleNameMapper: {
     '@next/font/(.*)': '@next/font/$1',
   },

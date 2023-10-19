@@ -65,12 +65,7 @@ impl CustomTransformer for NextJsDynamic {
             },
             self.is_server,
             self.is_server_components,
-            NextDynamicMode::Turbopack {
-                dynamic_transition_name: match self.mode {
-                    NextMode::Development => "next-client-chunks".to_string(),
-                    NextMode::Build => "next-dynamic".to_string(),
-                },
-            },
+            NextDynamicMode::Webpack,
             FileName::Real(ctx.file_path_str.into()),
             self.pages_dir.clone(),
         ));
