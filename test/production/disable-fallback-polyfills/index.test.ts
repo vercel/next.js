@@ -41,7 +41,7 @@ describe('Disable fallback polyfills', () => {
     await next.patchFile(
       'next.config.js',
       `module.exports = {
-        experimental: {
+        future: {
           fallbackNodePolyfills: false
         }
       }`
