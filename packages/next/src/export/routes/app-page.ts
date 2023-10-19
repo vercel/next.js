@@ -49,10 +49,7 @@ export async function generatePrefetchRsc(
     renderOpts
   )
 
-  prefetchRenderResult.pipe(res)
-  await res.hasStreamed
-
-  const prefetchRscData = Buffer.concat(res.buffers)
+  const prefetchRscData = await prefetchRenderResult.toUnchunkedString(true)
 
   if ((renderOpts as any).store.staticPrefetchBailout) return
 

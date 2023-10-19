@@ -1,6 +1,7 @@
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { NodeNextResponse } from './base-http/node'
-import { pipeReadable } from './pipe-readable'
+
+import { pipeToNodeResponse } from './pipe-readable'
 import { splitCookiesString } from './web/utils'
 
 /**
@@ -46,7 +47,13 @@ export async function sendResponse(
 
     // A response body must not be sent for HEAD requests. See https://httpwg.org/specs/rfc9110.html#HEAD
     if (response.body && req.method !== 'HEAD') {
-      await pipeReadable(response.body, originalResponse, waitUntil)
+      try {
+        await pipeToNodeResponse(response.body, originalResponse)
+      } finally {
+        if (waitUntil) {
+          await waitUntil
+        }
+      }
     } else {
       originalResponse.end()
     }

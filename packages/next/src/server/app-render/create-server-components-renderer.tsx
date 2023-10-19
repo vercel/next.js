@@ -1,9 +1,9 @@
 import type { RenderOpts } from './types'
 import type { FlightResponseRef } from './flight-response-ref'
 import type { AppPageModule } from '../future/route-modules/app-page/module'
+import type { createErrorHandler } from './create-error-handler'
 
 import React, { use } from 'react'
-import type { createErrorHandler } from './create-error-handler'
 import { useFlightResponse } from './use-flight-response'
 
 /**

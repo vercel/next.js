@@ -23,7 +23,11 @@ export interface AmpValidation {
 export type FileWriter = (
   type: string,
   path: string,
-  content: any,
+  content:
+    | string
+    | NodeJS.ArrayBufferView
+    | Iterable<string | NodeJS.ArrayBufferView>
+    | AsyncIterable<string | NodeJS.ArrayBufferView>,
   encodingOptions?: WriteFileOptions
 ) => Promise<void>
 
