@@ -31,14 +31,14 @@ jobs:
       skip_post_to_slack: ${{ github.event_name != 'schedule' && inputs.post_to_slack != true }}
 
   # Upload test results to branch.
-  upload_test_results:
-    name: Upload test results
-    needs: [next_js_integration]
-    if: ${{ github.event_name == 'schedule' }} && always()
-    uses: ./.github/workflows/upload-nextjs-integration-test-results.yml
-    secrets: inherit
-    with:
-      is_main_branch: true
+  # upload_test_results:
+  #   name: Upload test results
+  #   needs: [next_js_integration]
+  #   if: ${{ github.event_name == 'schedule' }} && always()
+  #   uses: ./.github/workflows/upload-nextjs-integration-test-results.yml
+  #   secrets: inherit
+  #   with:
+  #     is_main_branch: true
 
   post_to_slack:
     needs: [next_js_integration]
