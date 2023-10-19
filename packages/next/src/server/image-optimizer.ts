@@ -450,7 +450,7 @@ export async function optimizeImage({
     } else if (contentType === PNG) {
       transformer.png({ quality })
     } else if (contentType === JPEG) {
-      transformer.jpeg({ quality })
+      transformer.jpeg({ quality, progressive: true })
     }
 
     optimizedBuffer = await transformer.toBuffer()
