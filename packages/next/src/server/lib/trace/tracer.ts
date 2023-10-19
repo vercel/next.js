@@ -1,3 +1,4 @@
+import type { BaseNextRequest } from '../../base-http'
 import type { SpanTypes } from './constants'
 import { NextVanillaSpanAllowlist } from './constants'
 
@@ -28,7 +29,8 @@ if (process.env.NEXT_RUNTIME === 'edge') {
   }
 }
 
-const { context, trace, SpanStatusCode, SpanKind } = api
+const { context, propagation, trace, SpanStatusCode, SpanKind, ROOT_CONTEXT } =
+  api
 
 const isPromise = <T>(p: any): p is Promise<T> => {
   return p !== null && typeof p === 'object' && typeof p.then === 'function'
@@ -169,6 +171,11 @@ class NextTracerImpl implements NextTracer {
 
   public getActiveScopeSpan(): Span | undefined {
     return trace.getSpan(context?.active())
+  }
+
+  public withPropagatedContext<T>(req: BaseNextRequest, fn: () => T): T {
+    const remoteContext = propagation.extract(ROOT_CONTEXT, req.headers)
+    return context.with(remoteContext, fn)
   }
 
   // Trace, wrap implementation is inspired by datadog trace implementation

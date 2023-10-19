@@ -757,50 +757,54 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   ): Promise<void> {
     await this.prepare()
     const method = req.method.toUpperCase()
-    return getTracer().trace(
-      BaseServerSpan.handleRequest,
-      {
-        spanName: `${method} ${req.url}`,
-        kind: SpanKind.SERVER,
-        attributes: {
-          'http.method': method,
-          'http.target': req.url,
+
+    const tracer = getTracer()
+    return tracer.withPropagatedContext(req, () => {
+      return tracer.trace(
+        BaseServerSpan.handleRequest,
+        {
+          spanName: `${method} ${req.url}`,
+          kind: SpanKind.SERVER,
+          attributes: {
+            'http.method': method,
+            'http.target': req.url,
+          },
         },
-      },
-      async (span) =>
-        this.handleRequestImpl(req, res, parsedUrl).finally(() => {
-          if (!span) return
-          span.setAttributes({
-            'http.status_code': res.statusCode,
-          })
-          const rootSpanAttributes = getTracer().getRootSpanAttributes()
-          // We were unable to get attributes, probably OTEL is not enabled
-          if (!rootSpanAttributes) return
-
-          if (
-            rootSpanAttributes.get('next.span_type') !==
-            BaseServerSpan.handleRequest
-          ) {
-            console.warn(
-              `Unexpected root span type '${rootSpanAttributes.get(
-                'next.span_type'
-              )}'. Please report this Next.js issue https://github.com/vercel/next.js`
-            )
-            return
-          }
-
-          const route = rootSpanAttributes.get('next.route')
-          if (route) {
-            const newName = `${method} ${route}`
+        async (span) =>
+          this.handleRequestImpl(req, res, parsedUrl).finally(() => {
+            if (!span) return
             span.setAttributes({
-              'next.route': route,
-              'http.route': route,
-              'next.span_name': newName,
+              'http.status_code': res.statusCode,
             })
-            span.updateName(newName)
-          }
-        })
-    )
+            const rootSpanAttributes = tracer.getRootSpanAttributes()
+            // We were unable to get attributes, probably OTEL is not enabled
+            if (!rootSpanAttributes) return
+
+            if (
+              rootSpanAttributes.get('next.span_type') !==
+              BaseServerSpan.handleRequest
+            ) {
+              console.warn(
+                `Unexpected root span type '${rootSpanAttributes.get(
+                  'next.span_type'
+                )}'. Please report this Next.js issue https://github.com/vercel/next.js`
+              )
+              return
+            }
+
+            const route = rootSpanAttributes.get('next.route')
+            if (route) {
+              const newName = `${method} ${route}`
+              span.setAttributes({
+                'next.route': route,
+                'http.route': route,
+                'next.span_name': newName,
+              })
+              span.updateName(newName)
+            }
+          })
+      )
+    })
   }
 
   private async handleRequestImpl(
