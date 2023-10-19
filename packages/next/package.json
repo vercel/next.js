@@ -47,6 +47,8 @@
     "jest.d.ts",
     "amp.js",
     "amp.d.ts",
+    "og.js",
+    "og.d.ts",
     "index.d.ts",
     "types/index.d.ts",
     "types/global.d.ts",
