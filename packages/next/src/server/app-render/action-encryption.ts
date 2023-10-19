@@ -2,9 +2,15 @@
 import 'server-only'
 
 /* eslint-disable import/no-extraneous-dependencies */
-import { renderToReadableStream } from 'react-server-dom-webpack/server.edge'
+import {
+  renderToReadableStream,
+  decodeReply,
+} from 'react-server-dom-webpack/server.edge'
 /* eslint-disable import/no-extraneous-dependencies */
-import { createFromReadableStream } from 'react-server-dom-webpack/client.edge'
+import {
+  createFromReadableStream,
+  encodeReply,
+} from 'react-server-dom-webpack/client.browser'
 
 import { streamToString } from '../stream-utils/node-web-streams-helper'
 import {
@@ -13,6 +19,7 @@ import {
   encrypt,
   getActionEncryptionKey,
   getClientReferenceManifestSingleton,
+  getServerModuleMap,
   stringToUint8Array,
 } from './action-encryption-utils'
 
@@ -101,5 +108,12 @@ export async function decryptActionBoundArgs(
     }
   )
 
-  return deserialized
+  // This extra step ensures that the server references are recovered.
+  const serverModuleMap = getServerModuleMap()
+  const transformed = await decodeReply(
+    await encodeReply(deserialized),
+    serverModuleMap
+  )
+
+  return transformed
 }

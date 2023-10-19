@@ -7,6 +7,7 @@ export function validator(action) {
     if (auth?.value !== '1') {
       throw new Error('Unauthorized request')
     }
+    console.log('calling action')
     return action(arg)
   }
 }

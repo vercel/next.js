@@ -241,8 +241,7 @@ export async function handleAction({
   req,
   res,
   ComponentMod,
-  page,
-  serverActionsManifest,
+  serverModuleMap,
   generateFlight,
   staticGenerationStore,
   requestStore,
@@ -252,8 +251,13 @@ export async function handleAction({
   req: IncomingMessage
   res: ServerResponse
   ComponentMod: any
-  page: string
-  serverActionsManifest: any
+  serverModuleMap: {
+    [id: string]: {
+      id: string
+      chunks: string[]
+      name: string
+    }
+  }
   generateFlight: GenerateFlight
   staticGenerationStore: StaticGenerationStore
   requestStore: RequestStore
@@ -336,22 +340,6 @@ export async function handleAction({
     'no-cache, no-store, max-age=0, must-revalidate'
   )
   let bound = []
-
-  const workerName = 'app' + page
-  const serverModuleMap = new Proxy(
-    {},
-    {
-      get: (_, id: string) => {
-        return {
-          id: serverActionsManifest[
-            process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
-          ][id].workers[workerName],
-          name: id,
-          chunks: [],
-        }
-      },
-    }
-  )
 
   const { actionAsyncStorage } = ComponentMod as {
     actionAsyncStorage: ActionAsyncStorage
@@ -477,13 +465,10 @@ export async function handleAction({
       // / -> fire action -> POST / -> appRender1 -> modId for the action file
       // /foo -> fire action -> POST /foo -> appRender2 -> modId for the action file
 
-      // Get all workers that include this action
-      const actionWorkers =
-        serverActionsManifest[
-          process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
-        ][actionId]
-
-      if (!actionWorkers) {
+      let actionModId: string
+      try {
+        actionModId = serverModuleMap[actionId].id
+      } catch (err) {
         // When this happens, it could be a deployment skew where the action came
         // from a different deployment. We'll just return a 404 with a message logged.
         console.error(
@@ -494,7 +479,6 @@ export async function handleAction({
         }
       }
 
-      const actionModId = actionWorkers.workers[workerName]
       const actionHandler =
         ComponentMod.__next_app__.require(actionModId)[actionId]
 

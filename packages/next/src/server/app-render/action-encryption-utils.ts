@@ -94,15 +94,46 @@ const SERVER_ACTION_MANIFESTS_SINGLETON = Symbol.for(
 export function setReferenceManifestsSingleton({
   clientReferenceManifest,
   serverActionsManifest,
+  serverModuleMap,
 }: {
   clientReferenceManifest: ClientReferenceManifest
   serverActionsManifest: ActionManifest
+  serverModuleMap: {
+    [id: string]: {
+      id: string
+      chunks: string[]
+      name: string
+    }
+  }
 }) {
   // @ts-ignore
   globalThis[SERVER_ACTION_MANIFESTS_SINGLETON] = {
     clientReferenceManifest,
     serverActionsManifest,
+    serverModuleMap,
   }
+}
+
+export function getServerModuleMap() {
+  const serverActionsManifestSingleton = (globalThis as any)[
+    SERVER_ACTION_MANIFESTS_SINGLETON
+  ] as {
+    serverModuleMap: {
+      [id: string]: {
+        id: string
+        chunks: string[]
+        name: string
+      }
+    }
+  }
+
+  if (!serverActionsManifestSingleton) {
+    throw new Error(
+      'Missing manifest for Server Actions. This is a bug in Next.js'
+    )
+  }
+
+  return serverActionsManifestSingleton.serverModuleMap
 }
 
 export function getClientReferenceManifestSingleton() {
