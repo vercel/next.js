@@ -773,6 +773,9 @@ export const defaultConfig: NextConfig = {
     instrumentationHook: false,
     bundlePagesExternals: false,
   },
+  future: {
+    fallbackNodePolyfills: false,
+  },
 }
 
 export async function normalizeConfig(phase: string, config: any) {
