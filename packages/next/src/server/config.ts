@@ -420,6 +420,14 @@ function assignDefaults(
     'You are using `experimental.runtime` which was removed. Check https://nextjs.org/docs/api-routes/edge-api-routes on how to use edge runtime.',
     silent
   )
+  // TODO: Remove this warning in Next.js 15
+  warnOptionHasBeenDeprecated(
+    result,
+    'experimental.serverActions',
+    'Server Actions are available by default now, `experimental.serverActions` option can be safely removed.',
+    silent
+  )
+
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'relay',

@@ -591,7 +591,7 @@ createNextDescribe(
     }
 
     describe('react@experimental', () => {
-      it.each([{ flag: 'ppr' }, { flag: 'serverActions' }])(
+      it.each([{ flag: 'ppr' }])(
         'should opt into the react@experimental when enabling $flag',
         async ({ flag }) => {
           await next.stop()

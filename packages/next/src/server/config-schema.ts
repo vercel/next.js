@@ -251,7 +251,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         disableOptimizedLoading: z.boolean().optional(),
         disablePostcssPresetEnv: z.boolean().optional(),
         esmExternals: z.union([z.boolean(), z.literal('loose')]).optional(),
-        serverActions: z.boolean().optional(),
         serverActionsBodySizeLimit: zSizeLimit.optional(),
         // The original type was Record<string, any>
         extensionAlias: z.record(z.string(), z.any()).optional(),
