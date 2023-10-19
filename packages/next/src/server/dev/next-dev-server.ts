@@ -61,6 +61,7 @@ import { DefaultFileReader } from '../future/route-matcher-providers/dev/helpers
 import { NextBuildContext } from '../../build/build-context'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
+import { DetachedPromise } from '../../lib/detached-promise'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -89,7 +90,7 @@ export default class DevServer extends Server {
    * The promise that resolves when the server is ready. When this is unset
    * the server is ready.
    */
-  private ready? = Promise.withResolvers<void>()
+  private ready? = new DetachedPromise<void>()
   protected sortedRoutes?: string[]
   private pagesDir?: string
   private appDir?: string

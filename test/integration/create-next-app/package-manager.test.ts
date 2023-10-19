@@ -18,11 +18,18 @@ import { projectFilesShouldExist, shouldBeJavascriptProject } from './lib/utils'
 const cli = require.resolve('create-next-app/dist/index.js')
 const exampleRepo = 'https://github.com/vercel/next.js/tree/canary'
 const examplePath = 'examples/basic-css'
+const env = { ...process.env, COREPACK_ENABLE_STRICT: '0' }
 
 const run = (args: string[], options: execa.Options) => {
   const conf = new Conf({ projectName: 'create-next-app' })
   conf.clear()
-  return execa('node', [cli].concat(args), options)
+  console.log(`Running "create-next-app ${args.join(' ')}"`)
+  return execa('node', [cli].concat(args), { ...options, stdio: 'inherit' })
+}
+
+const command = (cmd: string, args: string[]) => {
+  console.log(`Running command "${cmd} ${args.join(' ')}"`)
+  return execa(cmd, args, { stdio: 'inherit' })
 }
 
 it('should use npm as the package manager on supplying --use-npm', async () => {
@@ -41,6 +48,7 @@ it('should use npm as the package manager on supplying --use-npm', async () => {
       ],
       {
         cwd,
+        env,
       }
     )
 
@@ -62,7 +70,7 @@ it('should use npm as the package manager on supplying --use-npm with example', 
         '--example',
         `${exampleRepo}/${examplePath}`,
       ],
-      { cwd }
+      { cwd, env }
     )
 
     expect(res.exitCode).toBe(0)
@@ -96,6 +104,7 @@ it('should use Yarn as the package manager on supplying --use-yarn', async () =>
       ],
       {
         cwd,
+        env,
       }
     )
 
@@ -117,13 +126,13 @@ it('should use Yarn as the package manager on supplying --use-yarn', async () =>
 
 it('should use Yarn as the package manager on supplying --use-yarn with example', async () => {
   try {
-    await execa('yarn', ['--version'])
+    await command('yarn', ['--version'])
   } catch (_) {
     // install yarn if not available
     try {
-      await execa('corepack', ['prepare', '--activate', 'yarn@1.22.19'])
+      await command('corepack', ['prepare', '--activate', 'yarn@1.22.19'])
     } catch (_) {
-      await execa('npm', ['i', '-g', 'yarn'])
+      await command('npm', ['i', '-g', 'yarn'])
     }
   }
 
@@ -139,7 +148,7 @@ it('should use Yarn as the package manager on supplying --use-yarn with example'
         '--example',
         `${exampleRepo}/${examplePath}`,
       ],
-      { cwd }
+      { cwd, env }
     )
 
     expect(res.exitCode).toBe(0)
@@ -173,6 +182,7 @@ it('should use pnpm as the package manager on supplying --use-pnpm', async () =>
       ],
       {
         cwd,
+        env,
       }
     )
 
@@ -194,13 +204,13 @@ it('should use pnpm as the package manager on supplying --use-pnpm', async () =>
 
 it('should use pnpm as the package manager on supplying --use-pnpm with example', async () => {
   try {
-    await execa('pnpm', ['--version'])
+    await command('pnpm', ['--version'])
   } catch (_) {
     // install pnpm if not available
     try {
-      await execa('corepack', ['prepare', '--activate', 'pnpm@latest'])
+      await command('corepack', ['prepare', '--activate', 'pnpm@latest'])
     } catch (_) {
-      await execa('npm', ['i', '-g', 'pnpm'])
+      await command('npm', ['i', '-g', 'pnpm'])
     }
   }
 
@@ -216,7 +226,7 @@ it('should use pnpm as the package manager on supplying --use-pnpm with example'
         '--example',
         `${exampleRepo}/${examplePath}`,
       ],
-      { cwd }
+      { cwd, env }
     )
 
     expect(res.exitCode).toBe(0)
@@ -250,6 +260,7 @@ it('should use Bun as the package manager on supplying --use-bun', async () => {
       ],
       {
         cwd,
+        env,
       }
     )
 
@@ -271,10 +282,10 @@ it('should use Bun as the package manager on supplying --use-bun', async () => {
 
 it('should use Bun as the package manager on supplying --use-bun with example', async () => {
   try {
-    await execa('bun', ['--version'])
+    await command('bun', ['--version'])
   } catch (_) {
     // install Bun if not available
-    await execa('npm', ['i', '-g', 'bun'])
+    await command('npm', ['i', '-g', 'bun'])
   }
 
   await useTempDir(async (cwd) => {
@@ -289,7 +300,7 @@ it('should use Bun as the package manager on supplying --use-bun with example', 
         '--example',
         `${exampleRepo}/${examplePath}`,
       ],
-      { cwd }
+      { cwd, env }
     )
 
     expect(res.exitCode).toBe(0)
@@ -322,7 +333,7 @@ it('should infer npm as the package manager', async () => {
       ],
       {
         cwd,
-        env: { ...process.env, npm_config_user_agent: 'npm' },
+        env: { ...env, npm_config_user_agent: 'npm' },
       }
     )
 
@@ -352,7 +363,7 @@ it('should infer npm as the package manager with example', async () => {
         '--example',
         `${exampleRepo}/${examplePath}`,
       ],
-      { cwd, env: { ...process.env, npm_config_user_agent: 'npm' } }
+      { cwd, env: { ...env, npm_config_user_agent: 'npm' } }
     )
 
     const files = [
@@ -370,13 +381,13 @@ it('should infer npm as the package manager with example', async () => {
 
 it('should infer yarn as the package manager', async () => {
   try {
-    await execa('yarn', ['--version'])
+    await command('yarn', ['--version'])
   } catch (_) {
     // install yarn if not available
     try {
-      await execa('corepack', ['prepare', '--activate', 'yarn@1.22.19'])
+      await command('corepack', ['prepare', '--activate', 'yarn@1.22.19'])
     } catch (_) {
-      await execa('npm', ['i', '-g', 'yarn'])
+      await command('npm', ['i', '-g', 'yarn'])
     }
   }
 
@@ -394,7 +405,7 @@ it('should infer yarn as the package manager', async () => {
       ],
       {
         cwd,
-        env: { ...process.env, npm_config_user_agent: 'yarn' },
+        env: { ...env, npm_config_user_agent: 'yarn' },
       }
     )
 
@@ -414,13 +425,13 @@ it('should infer yarn as the package manager', async () => {
 
 it('should infer yarn as the package manager with example', async () => {
   try {
-    await execa('yarn', ['--version'])
+    await command('yarn', ['--version'])
   } catch (_) {
     // install yarn if not available
     try {
-      await execa('corepack', ['prepare', '--activate', 'yarn@1.22.19'])
+      await command('corepack', ['prepare', '--activate', 'yarn@1.22.19'])
     } catch (_) {
-      await execa('npm', ['i', '-g', 'yarn'])
+      await command('npm', ['i', '-g', 'yarn'])
     }
   }
 
@@ -435,7 +446,7 @@ it('should infer yarn as the package manager with example', async () => {
         '--example',
         `${exampleRepo}/${examplePath}`,
       ],
-      { cwd, env: { ...process.env, npm_config_user_agent: 'yarn' } }
+      { cwd, env: { ...env, npm_config_user_agent: 'yarn' } }
     )
 
     const files = [
@@ -453,13 +464,13 @@ it('should infer yarn as the package manager with example', async () => {
 
 it('should infer pnpm as the package manager', async () => {
   try {
-    await execa('pnpm', ['--version'])
+    await command('pnpm', ['--version'])
   } catch (_) {
     // install pnpm if not available
     try {
-      await execa('corepack', ['prepare', '--activate', 'pnpm@latest'])
+      await command('corepack', ['prepare', '--activate', 'pnpm@latest'])
     } catch (_) {
-      await execa('npm', ['i', '-g', 'pnpm'])
+      await command('npm', ['i', '-g', 'pnpm'])
     }
   }
 
@@ -477,7 +488,7 @@ it('should infer pnpm as the package manager', async () => {
       ],
       {
         cwd,
-        env: { ...process.env, npm_config_user_agent: 'pnpm' },
+        env: { ...env, npm_config_user_agent: 'pnpm' },
       }
     )
 
@@ -497,13 +508,13 @@ it('should infer pnpm as the package manager', async () => {
 
 it('should infer pnpm as the package manager with example', async () => {
   try {
-    await execa('pnpm', ['--version'])
+    await command('pnpm', ['--version'])
   } catch (_) {
     // install pnpm if not available
     try {
-      await execa('corepack', ['prepare', '--activate', 'pnpm@latest'])
+      await command('corepack', ['prepare', '--activate', 'pnpm@latest'])
     } catch (_) {
-      await execa('npm', ['i', '-g', 'pnpm'])
+      await command('npm', ['i', '-g', 'pnpm'])
     }
   }
 
@@ -518,7 +529,7 @@ it('should infer pnpm as the package manager with example', async () => {
         '--example',
         `${exampleRepo}/${examplePath}`,
       ],
-      { cwd, env: { ...process.env, npm_config_user_agent: 'pnpm' } }
+      { cwd, env: { ...env, npm_config_user_agent: 'pnpm' } }
     )
 
     const files = [
@@ -536,10 +547,10 @@ it('should infer pnpm as the package manager with example', async () => {
 
 it('should infer Bun as the package manager', async () => {
   try {
-    await execa('bun', ['--version'])
+    await command('bun', ['--version'])
   } catch (_) {
     // install Bun if not available
-    await execa('npm', ['i', '-g', 'bun'])
+    await command('npm', ['i', '-g', 'bun'])
   }
 
   await useTempDir(async (cwd) => {
@@ -556,7 +567,7 @@ it('should infer Bun as the package manager', async () => {
       ],
       {
         cwd,
-        env: { ...process.env, npm_config_user_agent: 'bun' },
+        env: { ...env, npm_config_user_agent: 'bun' },
       }
     )
 
@@ -576,10 +587,10 @@ it('should infer Bun as the package manager', async () => {
 
 it('should infer Bun as the package manager with example', async () => {
   try {
-    await execa('bun', ['--version'])
+    await command('bun', ['--version'])
   } catch (_) {
     // install Bun if not available
-    await execa('npm', ['i', '-g', 'bun'])
+    await command('npm', ['i', '-g', 'bun'])
   }
 
   await useTempDir(async (cwd) => {
@@ -593,7 +604,7 @@ it('should infer Bun as the package manager with example', async () => {
         '--example',
         `${exampleRepo}/${examplePath}`,
       ],
-      { cwd, env: { ...process.env, npm_config_user_agent: 'bun' } }
+      { cwd, env: { ...env, npm_config_user_agent: 'bun' } }
     )
 
     const files = [
