@@ -1,10 +1,6 @@
 import * as React from 'react'
-import {
-  TYPE_UNHANDLED_ERROR,
-  TYPE_UNHANDLED_REJECTION,
-  UnhandledError,
-  UnhandledRejection,
-} from '../bus'
+import type { UnhandledError, UnhandledRejection } from '../bus'
+import { TYPE_UNHANDLED_ERROR, TYPE_UNHANDLED_REJECTION } from '../bus'
 import {
   Dialog,
   DialogBody,
@@ -14,7 +10,8 @@ import {
 import { LeftRightDialogHeader } from '../components/LeftRightDialogHeader'
 import { Overlay } from '../components/Overlay'
 import { Toast } from '../components/Toast'
-import { getErrorByType, ReadyRuntimeError } from '../helpers/getErrorByType'
+import type { ReadyRuntimeError } from '../helpers/getErrorByType'
+import { getErrorByType } from '../helpers/getErrorByType'
 import { getErrorSource } from '../helpers/nodeStackFrames'
 import { noop as css } from '../helpers/noop-template'
 import { CloseIcon } from '../icons/CloseIcon'

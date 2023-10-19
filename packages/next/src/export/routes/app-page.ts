@@ -1,11 +1,12 @@
-import type { ExportPageResult } from '../types'
-import type { AppPageRender } from '../../server/app-render/app-render'
+import type { ExportRouteResult, FileWriter } from '../types'
 import type { RenderOpts } from '../../server/app-render/types'
 import type { OutgoingHttpHeaders } from 'http'
 import type { NextParsedUrlQuery } from '../../server/request-meta'
 
-import fs from 'fs/promises'
-import { MockedRequest, MockedResponse } from '../../server/lib/mock-request'
+import type {
+  MockedRequest,
+  MockedResponse,
+} from '../../server/lib/mock-request'
 import {
   RSC,
   NEXT_URL,
@@ -14,14 +15,13 @@ import {
 import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
 import { NEXT_CACHE_TAGS_HEADER } from '../../lib/constants'
 import { hasNextSupport } from '../../telemetry/ci-info'
+import { lazyRenderAppPage } from '../../server/future/route-modules/app-page/module.render'
 
-/**
- * Lazily loads and runs the app page render function.
- */
-const render: AppPageRender = (...args) => {
-  return require('../../server/future/route-modules/app-page/module.compiled').renderToHTMLOrFlight(
-    ...args
-  )
+export const enum ExportedAppPageFiles {
+  HTML = 'HTML',
+  FLIGHT = 'FLIGHT',
+  META = 'META',
+  POSTPONED = 'POSTPONED',
 }
 
 export async function generatePrefetchRsc(
@@ -29,31 +29,32 @@ export async function generatePrefetchRsc(
   path: string,
   res: MockedResponse,
   pathname: string,
-  query: NextParsedUrlQuery,
   htmlFilepath: string,
-  renderOpts: RenderOpts
+  renderOpts: RenderOpts,
+  fileWriter: FileWriter
 ) {
   req.headers[RSC.toLowerCase()] = '1'
   req.headers[NEXT_URL.toLowerCase()] = path
   req.headers[NEXT_ROUTER_PREFETCH.toLowerCase()] = '1'
 
   renderOpts.supportsDynamicHTML = true
+  renderOpts.isPrefetch = true
   delete renderOpts.isRevalidate
 
-  const prefetchRenderResult = await render(
+  const prefetchRenderResult = await lazyRenderAppPage(
     req,
     res,
     pathname,
-    query,
+    {},
     renderOpts
   )
 
-  prefetchRenderResult.pipe(res)
-  await res.hasStreamed
+  const prefetchRscData = await prefetchRenderResult.toUnchunkedString(true)
 
-  const prefetchRscData = Buffer.concat(res.buffers)
+  if ((renderOpts as any).store.staticPrefetchBailout) return
 
-  await fs.writeFile(
+  await fileWriter(
+    ExportedAppPageFiles.FLIGHT,
     htmlFilepath.replace(/\.html$/, '.prefetch.rsc'),
     prefetchRscData
   )
@@ -70,8 +71,9 @@ export async function exportAppPage(
   htmlFilepath: string,
   debugOutput: boolean,
   isDynamicError: boolean,
-  isAppPrefetch: boolean
-): Promise<ExportPageResult> {
+  isAppPrefetch: boolean,
+  fileWriter: FileWriter
+): Promise<ExportRouteResult> {
   // If the page is `/_not-found`, then we should update the page to be `/404`.
   if (page === '/_not-found') {
     pathname = '/404'
@@ -84,19 +86,25 @@ export async function exportAppPage(
         path,
         res,
         pathname,
-        query,
         htmlFilepath,
-        renderOpts
+        renderOpts,
+        fileWriter
       )
 
-      return { fromBuildExportRevalidate: 0 }
+      return { revalidate: 0 }
     }
 
-    const result = await render(req, res, pathname, query, renderOpts)
+    const result = await lazyRenderAppPage(
+      req,
+      res,
+      pathname,
+      query,
+      renderOpts
+    )
     const html = result.toUnchunkedString()
     const { metadata } = result
     const flightData = metadata.pageData
-    const revalidate = metadata.revalidate
+    const revalidate = metadata.revalidate ?? false
 
     if (revalidate === 0) {
       if (isDynamicError) {
@@ -105,15 +113,17 @@ export async function exportAppPage(
         )
       }
 
-      await generatePrefetchRsc(
-        req,
-        path,
-        res,
-        pathname,
-        query,
-        htmlFilepath,
-        renderOpts
-      )
+      if (!(renderOpts as any).store.staticPrefetchBailout) {
+        await generatePrefetchRsc(
+          req,
+          path,
+          res,
+          pathname,
+          htmlFilepath,
+          renderOpts,
+          fileWriter
+        )
+      }
 
       const { staticBailoutInfo = {} } = metadata
 
@@ -131,7 +141,7 @@ export async function exportAppPage(
         console.warn(err)
       }
 
-      return { fromBuildExportRevalidate: 0 }
+      return { revalidate: 0 }
     }
 
     let headers: OutgoingHttpHeaders | undefined
@@ -140,28 +150,38 @@ export async function exportAppPage(
     }
 
     // Writing static HTML to a file.
-    await fs.writeFile(htmlFilepath, html ?? '', 'utf8')
+    await fileWriter(
+      ExportedAppPageFiles.HTML,
+      htmlFilepath,
+      html ?? '',
+      'utf8'
+    )
 
     // Writing the request metadata to a file.
     const meta = { headers }
-    await fs.writeFile(
+    await fileWriter(
+      ExportedAppPageFiles.META,
       htmlFilepath.replace(/\.html$/, '.meta'),
       JSON.stringify(meta)
     )
 
     // Writing the RSC payload to a file.
-    await fs.writeFile(htmlFilepath.replace(/\.html$/, '.rsc'), flightData)
+    await fileWriter(
+      ExportedAppPageFiles.FLIGHT,
+      htmlFilepath.replace(/\.html$/, '.rsc'),
+      flightData
+    )
 
     return {
-      fromBuildExportRevalidate: revalidate,
       // Only include the metadata if the environment has next support.
-      fromBuildExportMeta: hasNextSupport ? meta : undefined,
+      metadata: hasNextSupport ? meta : undefined,
+      revalidate,
     }
   } catch (err: any) {
     if (!isDynamicUsageError(err)) {
       throw err
     }
 
-    return { fromBuildExportRevalidate: 0 }
+    return { revalidate: 0 }
   }
 }

@@ -1,10 +1,10 @@
-import type webpack from 'webpack'
+import type webpack from 'next/dist/compiled/webpack/webpack'
 import type { ValueOf } from '../../../shared/lib/constants'
 import type { ModuleReference, CollectedMetadata } from './metadata/types'
 
 import path from 'path'
 import { stringify } from 'querystring'
-import chalk from 'next/dist/compiled/chalk'
+import { bold } from '../../../lib/picocolors'
 import { getModuleBuildInfo } from './get-module-build-info'
 import { verifyRootLayout } from '../../../lib/verifyRootLayout'
 import * as Log from '../../output/log'
@@ -16,10 +16,10 @@ import {
 import { promises as fs } from 'fs'
 import { isAppRouteRoute } from '../../../lib/is-app-route-route'
 import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
-import { NextConfig } from '../../../server/config-shared'
+import type { NextConfig } from '../../../server/config-shared'
 import { AppPathnameNormalizer } from '../../../server/future/normalizers/built/app/app-pathname-normalizer'
 import { AppBundlePathNormalizer } from '../../../server/future/normalizers/built/app/app-bundle-path-normalizer'
-import { MiddlewareConfig } from '../../analysis/get-page-static-info'
+import type { MiddlewareConfig } from '../../analysis/get-page-static-info'
 import { getFilenameAndExtension } from './next-metadata-route-loader'
 import { isAppBuiltinNotFoundPage } from '../../utils'
 import { loadEntrypoint } from '../../load-entrypoint'
@@ -178,7 +178,7 @@ async function createTreeCodeFromPath(
   rootLayout: string | undefined
   globalError: string | undefined
 }> {
-  const splittedPath = pagePath.split(/[\\/]/)
+  const splittedPath = pagePath.split(/[\\/]/, 1)
   const isNotFoundRoute = page === '/_not-found'
   const isDefaultNotFound = isAppBuiltinNotFoundPage(pagePath)
   const appDirPrefix = isDefaultNotFound ? APP_DIR_ALIAS : splittedPath[0]
@@ -643,7 +643,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     if (!isDev) {
       // If we're building and missing a root layout, exit the build
       Log.error(
-        `${chalk.bold(
+        `${bold(
           pagePath.replace(`${APP_DIR_ALIAS}/`, '')
         )} doesn't have a root layout. To fix this error, make sure every page has a root layout.`
       )
@@ -658,12 +658,12 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         pageExtensions,
       })
       if (!createdRootLayout) {
-        let message = `${chalk.bold(
+        let message = `${bold(
           pagePath.replace(`${APP_DIR_ALIAS}/`, '')
         )} doesn't have a root layout. `
 
         if (rootLayoutPath) {
-          message += `We tried to create ${chalk.bold(
+          message += `We tried to create ${bold(
             path.relative(this._compiler?.context ?? '', rootLayoutPath)
           )} for you but something went wrong.`
         } else {

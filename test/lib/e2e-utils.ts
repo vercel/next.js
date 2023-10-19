@@ -14,7 +14,10 @@ export type { NextInstance }
 // if either test runs for the --turbo or have a custom timeout, set reduced timeout instead.
 // this is due to current --turbo test have a lot of tests fails with timeouts, ends up the whole
 // test job exceeds the 6 hours limit.
-let testTimeout = shouldRunTurboDevTest() ? (240 * 1000) / 4 : 240 * 1000
+let testTimeout = shouldRunTurboDevTest()
+  ? (240 * 1000) / 4
+  : (process.platform === 'win32' ? 240 : 120) * 1000
+
 if (process.env.NEXT_E2E_TEST_TIMEOUT) {
   try {
     testTimeout = parseInt(process.env.NEXT_E2E_TEST_TIMEOUT, 10)

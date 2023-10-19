@@ -145,26 +145,34 @@ pub struct AppPathsManifest {
     pub node_server_app_paths: PagesManifest,
 }
 
+// A struct represent a single entry in react-loadable-manifest.json.
+// The manifest is in a format of:
+// { [`${origin} -> ${imported}`]: { id: `${origin} -> ${imported}`, files:
+// string[] } }
 #[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct ServerReferenceManifest {
-    #[serde(flatten)]
-    pub server_actions: ActionManifest,
-    #[serde(flatten)]
-    pub edge_server_actions: ActionManifest,
+pub struct LoadableManifest {
+    pub id: String,
+    pub files: Vec<String>,
 }
 
 #[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct ActionManifest {
-    #[serde(flatten)]
-    pub actions: HashMap<String, ActionManifestEntry>,
+pub struct ServerReferenceManifest {
+    /// A map from hashed action name to the runtime module we that exports it.
+    pub node: HashMap<String, ActionManifestEntry>,
+    /// A map from hashed action name to the runtime module we that exports it.
+    pub edge: HashMap<String, ActionManifestEntry>,
 }
 
 #[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ActionManifestEntry {
+    /// A mapping from the page that uses the server action to the runtime
+    /// module that exports it.
     pub workers: HashMap<String, ActionManifestWorkerEntry>,
+
+    pub layer: HashMap<String, ActionLayer>,
 }
 
 #[derive(Serialize, Debug)]
@@ -175,9 +183,17 @@ pub enum ActionManifestWorkerEntry {
     Number(f64),
 }
 
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub enum ActionLayer {
+    Rsc,
+    ActionBrowser,
+}
+
 #[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientReferenceManifest {
+    pub module_loading: ModuleLoading,
     /// Mapping of module path and export name to client module ID and required
     /// client chunks.
     pub client_modules: ManifestNode,
@@ -190,6 +206,13 @@ pub struct ClientReferenceManifest {
     /// Mapping of server component path to required CSS client chunks.
     #[serde(rename = "entryCSSFiles")]
     pub entry_css_files: HashMap<String, Vec<String>>,
+}
+
+#[derive(Serialize, Default, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ModuleLoading {
+    pub prefix: String,
+    pub cross_origin: Option<String>,
 }
 
 #[derive(Serialize, Default, Debug)]

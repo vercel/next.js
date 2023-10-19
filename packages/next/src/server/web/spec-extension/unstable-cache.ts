@@ -1,8 +1,8 @@
-import {
+import type {
   StaticGenerationStore,
-  staticGenerationAsyncStorage as _staticGenerationAsyncStorage,
   StaticGenerationAsyncStorage,
 } from '../../../client/components/static-generation-async-storage.external'
+import { staticGenerationAsyncStorage as _staticGenerationAsyncStorage } from '../../../client/components/static-generation-async-storage.external'
 import { CACHE_ONE_YEAR } from '../../../lib/constants'
 import { addImplicitTags, validateTags } from '../../lib/patch-fetch'
 
@@ -54,6 +54,7 @@ export function unstable_cache<T extends Callback>(
         fetchCache: 'only-no-store',
         urlPathname: store?.urlPathname || '/',
         isStaticGeneration: !!store?.isStaticGeneration,
+        isUnstableCacheCallback: true,
       },
       async () => {
         const tags = validateTags(

@@ -344,6 +344,10 @@ impl<C: Comments> ReactServerComponents<C> {
     }
 
     fn assert_server_graph(&self, imports: &[ModuleImports], module: &Module) {
+        // If the
+        if self.is_from_node_modules(&self.filepath) {
+            return;
+        }
         for import in imports {
             let source = import.source.0.clone();
             if self.invalid_server_imports.contains(&source) {
@@ -391,6 +395,9 @@ impl<C: Comments> ReactServerComponents<C> {
     }
 
     fn assert_server_filename(&self, module: &Module) {
+        if self.is_from_node_modules(&self.filepath) {
+            return;
+        }
         let is_error_file = Regex::new(r"[\\/]error\.(ts|js)x?$")
             .unwrap()
             .is_match(&self.filepath);
@@ -416,6 +423,9 @@ impl<C: Comments> ReactServerComponents<C> {
     }
 
     fn assert_client_graph(&self, imports: &[ModuleImports]) {
+        if self.is_from_node_modules(&self.filepath) {
+            return;
+        }
         for import in imports {
             let source = import.source.0.clone();
             if self.invalid_client_imports.contains(&source) {
@@ -432,6 +442,9 @@ impl<C: Comments> ReactServerComponents<C> {
     }
 
     fn assert_invalid_api(&self, module: &Module, is_client_entry: bool) {
+        if self.is_from_node_modules(&self.filepath) {
+            return;
+        }
         let is_layout_or_page = Regex::new(r"[\\/](page|layout)\.(ts|js)x?$")
             .unwrap()
             .is_match(&self.filepath);
@@ -562,6 +575,12 @@ impl<C: Comments> ReactServerComponents<C> {
             },
         );
     }
+
+    fn is_from_node_modules(&self, filepath: &str) -> bool {
+        Regex::new(r"[\\/]node_modules[\\/]")
+            .unwrap()
+            .is_match(filepath)
+    }
 }
 
 pub fn server_components<C: Comments>(
@@ -593,8 +612,8 @@ pub fn server_components<C: Comments>(
             JsWord::from("findDOMNode"),
             JsWord::from("flushSync"),
             JsWord::from("unstable_batchedUpdates"),
-            JsWord::from("experimental_useFormStatus"),
-            JsWord::from("experimental_useFormState"),
+            JsWord::from("useFormStatus"),
+            JsWord::from("useFormState"),
         ],
         invalid_server_react_apis: vec![
             JsWord::from("Component"),

@@ -6,8 +6,8 @@ import {
 import {
   getFontDefinitionFromNetwork,
   getFontOverrideCss,
-  FontManifest,
 } from '../../../server/font-utils'
+import type { FontManifest } from '../../../server/font-utils'
 import postcss from 'postcss'
 import minifier from 'next/dist/compiled/cssnano-simple'
 import {

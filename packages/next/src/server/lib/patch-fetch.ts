@@ -1,4 +1,7 @@
-import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
+import type {
+  StaticGenerationAsyncStorage,
+  StaticGenerationStore,
+} from '../../client/components/static-generation-async-storage.external'
 import type * as ServerHooks from '../../client/components/hooks-server-context'
 
 import { AppRenderSpan, NextNodeServerSpan } from './trace/constants'
@@ -141,15 +144,17 @@ function trackFetchMetric(
   })
 }
 
+interface PatchableModule {
+  serverHooks: typeof ServerHooks
+  staticGenerationAsyncStorage: StaticGenerationAsyncStorage
+}
+
 // we patch fetch to collect cache information used for
 // determining if a page is static or not
 export function patchFetch({
   serverHooks,
   staticGenerationAsyncStorage,
-}: {
-  serverHooks: typeof ServerHooks
-  staticGenerationAsyncStorage: StaticGenerationAsyncStorage
-}) {
+}: PatchableModule) {
   if (!(globalThis as any)._nextOriginalFetch) {
     ;(globalThis as any)._nextOriginalFetch = globalThis.fetch
   }
@@ -193,7 +198,7 @@ export function patchFetch({
         },
       },
       async () => {
-        const staticGenerationStore =
+        const staticGenerationStore: StaticGenerationStore =
           staticGenerationAsyncStorage.getStore() ||
           (fetch as any).__nextGetStaticStore?.()
         const isRequestInput =
@@ -532,15 +537,6 @@ export function patchFetch({
                 )
               }
               const resData = entry.value.data
-              let decodedBody: ArrayBuffer
-
-              if (process.env.NEXT_RUNTIME === 'edge') {
-                const { decode } =
-                  require('../../shared/lib/base64-arraybuffer') as typeof import('../../shared/lib/base64-arraybuffer')
-                decodedBody = decode(resData.body)
-              } else {
-                decodedBody = Buffer.from(resData.body, 'base64').subarray()
-              }
 
               trackFetchMetric(staticGenerationStore, {
                 start: fetchStart,
@@ -551,10 +547,13 @@ export function patchFetch({
                 method: init?.method || 'GET',
               })
 
-              const response = new Response(decodedBody, {
-                headers: resData.headers,
-                status: resData.status,
-              })
+              const response = new Response(
+                Buffer.from(resData.body, 'base64'),
+                {
+                  headers: resData.headers,
+                  status: resData.status,
+                }
+              )
               Object.defineProperty(response, 'url', {
                 value: entry.value.data.url,
               })

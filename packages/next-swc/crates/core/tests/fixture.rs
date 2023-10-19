@@ -4,19 +4,17 @@ use next_swc::{
     amp_attributes::amp_attributes,
     cjs_optimizer::cjs_optimizer,
     named_import_transform::named_import_transform,
-    next_dynamic::next_dynamic,
     next_ssg::next_ssg,
     optimize_barrel::optimize_barrel,
     optimize_server_react::optimize_server_react,
     page_config::page_config_test,
-    react_remove_properties::remove_properties,
     react_server_components::server_components,
-    remove_console::remove_console,
     server_actions::{
         server_actions, {self},
     },
     shake_exports::{shake_exports, Config as ShakeExportsConfig},
 };
+use next_transform_dynamic::{next_dynamic, NextDynamicMode};
 use next_transform_font::{next_font_loaders, Config as FontLoaderConfig};
 use serde::de::DeserializeOwned;
 use turbopack_binding::swc::{
@@ -66,6 +64,7 @@ fn next_dynamic_fixture(input: PathBuf) {
                 true,
                 false,
                 false,
+                NextDynamicMode::Webpack,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
             )
@@ -81,6 +80,7 @@ fn next_dynamic_fixture(input: PathBuf) {
                 false,
                 false,
                 false,
+                NextDynamicMode::Webpack,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
             )
@@ -96,6 +96,7 @@ fn next_dynamic_fixture(input: PathBuf) {
                 false,
                 true,
                 false,
+                NextDynamicMode::Webpack,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
             )
@@ -118,6 +119,7 @@ fn app_dir_next_dynamic_fixture(input: PathBuf) {
                 true,
                 false,
                 true,
+                NextDynamicMode::Webpack,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
             )
@@ -133,6 +135,7 @@ fn app_dir_next_dynamic_fixture(input: PathBuf) {
                 false,
                 false,
                 true,
+                NextDynamicMode::Webpack,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
             )
@@ -148,6 +151,7 @@ fn app_dir_next_dynamic_fixture(input: PathBuf) {
                 false,
                 true,
                 true,
+                NextDynamicMode::Webpack,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
             )
@@ -225,48 +229,6 @@ fn relay_no_artifact_dir_fixture(input: PathBuf) {
                 Some(PathBuf::from("src/pages")),
                 None,
             )
-        },
-        &input,
-        &output,
-        Default::default(),
-    );
-}
-
-#[fixture("tests/fixture/remove-console/**/input.js")]
-fn remove_console_fixture(input: PathBuf) {
-    let output = input.parent().unwrap().join("output.js");
-    test_fixture(
-        syntax(),
-        &|_tr| remove_console(next_swc::remove_console::Config::All(true)),
-        &input,
-        &output,
-        Default::default(),
-    );
-}
-
-#[fixture("tests/fixture/react-remove-properties/default/**/input.js")]
-fn react_remove_properties_default_fixture(input: PathBuf) {
-    let output = input.parent().unwrap().join("output.js");
-    test_fixture(
-        syntax(),
-        &|_tr| remove_properties(next_swc::react_remove_properties::Config::All(true)),
-        &input,
-        &output,
-        Default::default(),
-    );
-}
-
-#[fixture("tests/fixture/react-remove-properties/custom/**/input.js")]
-fn react_remove_properties_custom_fixture(input: PathBuf) {
-    let output = input.parent().unwrap().join("output.js");
-    test_fixture(
-        syntax(),
-        &|_tr| {
-            remove_properties(next_swc::react_remove_properties::Config::WithOptions(
-                next_swc::react_remove_properties::Options {
-                    properties: vec!["^data-custom$".into()],
-                },
-            ))
         },
         &input,
         &output,

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+performance.mark('next-start')
 import '../server/require-hook'
 import * as log from '../build/output/log'
 import arg from 'next/dist/compiled/arg/index.js'
@@ -92,22 +93,6 @@ if (process.env.NODE_ENV) {
 
 ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
 ;(process.env as any).NEXT_RUNTIME = 'nodejs'
-
-// x-ref: https://github.com/vercel/next.js/pull/34688#issuecomment-1047994505
-if (process.versions.pnp === '3') {
-  const nodeVersionParts = process.versions.node
-    .split('.')
-    .map((v) => Number(v))
-
-  if (
-    nodeVersionParts[0] < 16 ||
-    (nodeVersionParts[0] === 16 && nodeVersionParts[1] < 14)
-  ) {
-    log.warn(
-      'Node.js 16.14+ is required for Yarn PnP 3.20+. More info: https://github.com/vercel/next.js/pull/34688#issuecomment-1047994505'
-    )
-  }
-}
 
 // Make sure commands gracefully respect termination signals (e.g. from Docker)
 // Allow the graceful termination to be manually configurable

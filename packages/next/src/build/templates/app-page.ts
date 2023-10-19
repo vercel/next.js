@@ -1,13 +1,14 @@
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 
-// @ts-ignore this need to be imported from next/dist to be external
-import * as module from 'next/dist/server/future/route-modules/app-page/module.compiled'
+import { AppPageRouteModule } from '../../server/future/route-modules/app-page/module.compiled'
 import { RouteKind } from '../../server/future/route-kind'
 
-const AppPageRouteModule =
-  module.AppPageRouteModule as unknown as typeof import('../../server/future/route-modules/app-page/module').AppPageRouteModule
-
 // These are injected by the loader afterwards.
+
+/**
+ * The tree created in next-app-loader that holds component segments and modules
+ * and I've updated it.
+ */
 declare const tree: LoaderTree
 declare const pages: any
 
@@ -18,7 +19,6 @@ declare const pages: any
 
 export { tree, pages }
 
-// @ts-expect-error - replaced by webpack/turbopack loader
 export { default as GlobalError } from 'VAR_MODULE_GLOBAL_ERROR'
 
 // These are injected by the loader afterwards.

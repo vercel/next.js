@@ -7,9 +7,11 @@ jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
 
 describe('JSON Serialization', () => {
-  test('should fail with original error', async () => {
-    const { code, stderr } = await nextBuild(appDir, [], { stderr: true })
-    expect(code).toBe(1)
-    expect(stderr).toContain('Do not know how to serialize a BigInt')
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    test('should fail with original error', async () => {
+      const { code, stderr } = await nextBuild(appDir, [], { stderr: true })
+      expect(code).toBe(1)
+      expect(stderr).toContain('Do not know how to serialize a BigInt')
+    })
   })
 })

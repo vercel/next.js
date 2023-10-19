@@ -2,6 +2,7 @@ import { NextInstance, createNext } from 'e2e-utils'
 import { trace } from 'next/src/trace'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 import {
+  createDefineEnv,
   Diagnostics,
   Entrypoints,
   Issue,
@@ -140,7 +141,8 @@ describe('next.rs api', () => {
           'app/app/page.ts': appPageCode('hello world'),
           'app/app/client.ts':
             '"use client";\nexport default () => <div>hello world</div>',
-          // 'app/app-edge/page.ts': 'export default () => <div>hello world</div>\nexport const runtime = "edge"',
+          'app/app-edge/page.ts':
+            'export default () => <div>hello world</div>\nexport const runtime = "edge"',
           'app/app-nodejs/page.ts':
             'export default () => <div>hello world</div>',
           'app/route-nodejs/route.ts':
@@ -173,6 +175,22 @@ describe('next.rs api', () => {
         : next.testDir,
       watch: true,
       serverAddr: `127.0.0.1:3000`,
+      defineEnv: createDefineEnv({
+        allowedRevalidateHeaderKeys: undefined,
+        clientRouterFilters: undefined,
+        config: nextConfig,
+        dev: true,
+        distDir: path.join(
+          process.env.NEXT_SKIP_ISOLATE
+            ? path.resolve(__dirname, '../../..')
+            : next.testDir,
+          '.next'
+        ),
+        fetchCacheKeyPrefix: undefined,
+        hasRewrites: false,
+        middlewareMatchers: undefined,
+        previewModeId: undefined,
+      }),
     })
     projectUpdateSubscription = project.updateInfoSubscribe()
   })
@@ -187,8 +205,7 @@ describe('next.rs api', () => {
       '/api/edge',
       '/api/nodejs',
       '/app',
-      // TODO app edge pages are not supported yet
-      // '/app-edge',
+      '/app-edge',
       '/app-nodejs',
       '/page-edge',
       '/page-nodejs',
@@ -224,14 +241,13 @@ describe('next.rs api', () => {
       runtime: 'nodejs',
       config: {},
     },
-    // TODO app edge pages are not supported yet
-    // {
-    //   name: 'app edge page',
-    //   path: '/app-edge',
-    //   type: 'app-page',
-    //   runtime: 'edge',
-    //   config: {},
-    // },
+    {
+      name: 'app edge page',
+      path: '/app-edge',
+      type: 'app-page',
+      runtime: 'edge',
+      config: {},
+    },
     {
       name: 'app Node.js page',
       path: '/app-nodejs',

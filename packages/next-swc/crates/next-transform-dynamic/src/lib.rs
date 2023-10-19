@@ -19,6 +19,11 @@ use swc_core::{
     quote,
 };
 
+/// Creates a SWC visitor to transform `next/dynamic` calls to have the
+/// corresponding `loadableGenerated` property.
+///
+/// [NOTE] We do not use `NextDynamicMode::Turbopack` yet. It isn't compatible
+/// with current loadable manifest, which causes hydration errors.
 pub fn next_dynamic(
     is_development: bool,
     is_server: bool,
@@ -89,6 +94,7 @@ enum NextDynamicPatcherState {
     Webpack,
     /// In Turbo mode, contains a list of modules that need to be imported with
     /// the given transition under a particular ident.
+    #[allow(unused)]
     Turbopack {
         dynamic_transition_name: String,
         imports: Vec<TurbopackImport>,

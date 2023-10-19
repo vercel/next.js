@@ -1,6 +1,7 @@
 import type { AsyncLocalStorage } from 'async_hooks'
 import type { IncrementalCache } from '../../server/lib/incremental-cache'
 import type { DynamicServerError } from './hooks-server-context'
+import type { FetchMetrics } from '../../server/base-http'
 import { createAsyncLocalStorage } from './async-local-storage'
 
 export interface StaticGenerationStore {
@@ -11,6 +12,7 @@ export interface StaticGenerationStore {
   readonly isOnDemandRevalidate?: boolean
   readonly isPrerendering?: boolean
   readonly isRevalidate?: boolean
+  readonly isUnstableCacheCallback?: boolean
 
   forceDynamic?: boolean
   fetchCache?:
@@ -29,6 +31,7 @@ export interface StaticGenerationStore {
   dynamicUsageDescription?: string
   dynamicUsageStack?: string
   dynamicUsageErr?: DynamicServerError
+  staticPrefetchBailout?: boolean
 
   nextFetchId?: number
   pathWasRevalidated?: boolean
@@ -36,16 +39,7 @@ export interface StaticGenerationStore {
   tags?: string[]
 
   revalidatedTags?: string[]
-  fetchMetrics?: Array<{
-    url: string
-    idx: number
-    end: number
-    start: number
-    method: string
-    status: number
-    cacheReason: string
-    cacheStatus: 'hit' | 'miss' | 'skip'
-  }>
+  fetchMetrics?: FetchMetrics
 
   isDraftMode?: boolean
 }
