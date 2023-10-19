@@ -152,7 +152,7 @@ createNextDescribe(
           .toArray()
           .map((el) => {
             return {
-              href: $(el).attr('href').split('?')[0],
+              href: $(el).attr('href').split('?', 1)[0],
               sizes: $(el).attr('sizes'),
               type: $(el).attr('type'),
             }
@@ -175,7 +175,7 @@ createNextDescribe(
           .toArray()
           .map((el) => {
             return {
-              href: $(el).attr('href').split('?')[0],
+              href: $(el).attr('href').split('?', 1)[0],
               sizes: $(el).attr('sizes'),
               type: $(el).attr('type'),
             }

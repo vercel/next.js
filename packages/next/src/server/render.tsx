@@ -1547,7 +1547,8 @@ export async function renderToHTMLImpl(
   }
 
   const [renderTargetPrefix, renderTargetSuffix] = documentHTML.split(
-    '<next-js-internal-body-render-target></next-js-internal-body-render-target>'
+    '<next-js-internal-body-render-target></next-js-internal-body-render-target>',
+    2
   )
 
   let prefix = ''
