@@ -95,7 +95,7 @@ export async function withSession(
     });
 
     if (didAddCookies || didAddHeaders) {
-        if (userResponse.headers.has("Cache-Control")) {
+        if (!userResponse.headers.has("Cache-Control")) {
             // This is needed for production deployments with Vercel
             userResponse.headers.set("Cache-Control", "no-cache, no-store, max-age=0, must-revalidate");
         }

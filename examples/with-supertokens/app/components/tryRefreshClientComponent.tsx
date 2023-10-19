@@ -15,7 +15,7 @@ export const TryRefreshComponent = () => {
                 if (hasSession) {
                     router.refresh();
                 } else {
-                    redirect("/auth");
+                    SuperTokens.redirectToAuth();
                 }
             })
             .catch(() => {
