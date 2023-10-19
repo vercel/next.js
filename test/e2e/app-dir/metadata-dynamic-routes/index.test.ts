@@ -415,7 +415,7 @@ createNextDescribe(
       it('should error when id is missing in generateImageMetadata', async () => {
         const iconFilePath = 'app/metadata-base/unset/icon.tsx'
         const contentMissingIdProperty = `
-        import { ImageResponse } from 'next/server'
+        import { ImageResponse } from 'next/og'
         export async function generateImageMetadata() {
           return [
             {
