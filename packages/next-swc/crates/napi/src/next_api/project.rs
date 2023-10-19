@@ -1,6 +1,6 @@
 use std::{path::PathBuf, sync::Arc, time::Duration};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use napi::{
     bindgen_prelude::External,
     threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode},
@@ -18,7 +18,10 @@ use tracing_subscriber::{
 };
 use turbo_tasks::{TransientInstance, TurboTasks, UpdateInfo, Vc};
 use turbopack_binding::{
-    turbo::tasks_memory::MemoryBackend,
+    turbo::{
+        tasks_fs::{FileContent, FileSystem},
+        tasks_memory::MemoryBackend,
+    },
     turbopack::{
         cli_utils::{
             exit::ExitGuard,
@@ -28,11 +31,13 @@ use turbopack_binding::{
         },
         core::{
             error::PrettyPrintError,
+            source_map::{GenerateSourceMap, Token},
             version::{PartialUpdate, TotalUpdate, Update},
         },
         ecmascript_hmr_protocol::{ClientUpdateInstruction, ResourceIdentifier},
     },
 };
+use url::Url;
 
 use super::{
     endpoint::ExternalEndpoint,
@@ -606,4 +611,126 @@ pub fn project_update_info_subscribe(
         }
     });
     Ok(())
+}
+
+#[turbo_tasks::value]
+#[derive(Debug)]
+#[napi(object)]
+pub struct StackFrame {
+    pub file: String,
+    pub method_name: Option<String>,
+    pub line: u32,
+    pub column: Option<u32>,
+}
+
+#[napi]
+pub async fn project_trace_source(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    frame: StackFrame,
+) -> napi::Result<Option<StackFrame>> {
+    let turbo_tasks = project.turbo_tasks.clone();
+    let traced_frame = turbo_tasks
+        .run_once(async move {
+            let file = match Url::parse(&frame.file) {
+                Ok(url) => match url.scheme() {
+                    "file" => url.path().to_string(),
+                    _ => bail!("Unknown url scheme"),
+                },
+                Err(_) => frame.file.to_string(),
+            };
+
+            let Some(chunk_base) = file.strip_prefix(
+                &(format!(
+                    "{}/{}",
+                    project.container.project().await?.root_path,
+                    project.container.project().dist_dir().await?
+                )),
+            ) else {
+                // File doesn't exist within the dist dir
+                return Ok(None);
+            };
+
+            let chunk_path = format!(
+                "{}{}",
+                project
+                    .container
+                    .project()
+                    .client_relative_path()
+                    .await?
+                    .path,
+                chunk_base
+            );
+
+            let path = project
+                .container
+                .project()
+                .client_root()
+                .fs()
+                .root()
+                .join(chunk_path);
+
+            let Some(generatable): Option<Vc<Box<dyn GenerateSourceMap>>> =
+                Vc::try_resolve_sidecast(project.container.get_versioned_content(path)).await?
+            else {
+                return Ok(None);
+            };
+
+            let map = generatable
+                .generate_source_map()
+                .await?
+                .context("Chunk is missing a sourcemap")?;
+
+            let token = map
+                .lookup_token(frame.line as usize, frame.column.unwrap_or(0) as usize)
+                .await?
+                .clone_value()
+                .context("Unable to trace token from sourcemap")?;
+
+            let Token::Original(token) = token else {
+                return Ok(None);
+            };
+
+            let Some(source_file) = token.original_file.strip_prefix("/turbopack/[project]/")
+            else {
+                bail!("Original file outside project")
+            };
+
+            Ok(Some(StackFrame {
+                file: source_file.to_string(),
+                method_name: token.name,
+                line: token.original_line as u32,
+                column: Some(token.original_column as u32),
+            }))
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+    Ok(traced_frame)
+}
+
+#[napi]
+pub async fn project_get_source_for_asset(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    file_path: String,
+) -> napi::Result<Option<String>> {
+    let turbo_tasks = project.turbo_tasks.clone();
+    let source = turbo_tasks
+        .run_once(async move {
+            let source_content = &*project
+                .container
+                .project()
+                .project_path()
+                .join(file_path.to_string())
+                .read()
+                .await?;
+
+            let FileContent::Content(source_content) = source_content else {
+                return Ok(None);
+            };
+
+            Ok(Some(source_content.content().to_str()?.to_string()))
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+
+    Ok(source)
 }
