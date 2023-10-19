@@ -146,6 +146,7 @@ pub async fn get_next_client_import_map(
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
         }
+        ClientContextType::Fallback => {}
         ClientContextType::Other => {}
     }
 
