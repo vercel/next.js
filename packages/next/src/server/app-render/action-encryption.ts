@@ -1,7 +1,11 @@
+/* eslint-disable import/no-extraneous-dependencies */
 import 'server-only'
 
+/* eslint-disable import/no-extraneous-dependencies */
 import { renderToReadableStream } from 'react-server-dom-webpack/server.edge'
+/* eslint-disable import/no-extraneous-dependencies */
 import { createFromReadableStream } from 'react-server-dom-webpack/client.edge'
+
 import { streamToString } from '../stream-utils/node-web-streams-helper'
 import {
   arrayBufferToString,
