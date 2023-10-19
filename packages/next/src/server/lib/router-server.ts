@@ -6,7 +6,6 @@ import type { NextUrlWithParsedQuery } from '../request-meta'
 import '../node-polyfill-fetch'
 import '../node-environment'
 import '../require-hook'
-import '../../lib/polyfill-promise-with-resolvers'
 
 import url from 'url'
 import path from 'path'
@@ -18,7 +17,7 @@ import { DecodeError } from '../../shared/lib/utils'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import { setupFsCheck } from './router-utils/filesystem'
 import { proxyRequest } from './router-utils/proxy-request'
-import { isAbortError, pipeReadable } from '../pipe-readable'
+import { isAbortError, pipeToNodeResponse } from '../pipe-readable'
 import { getResolveRoutes } from './router-utils/resolve-routes'
 import { getRequestMeta } from '../request-meta'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
@@ -364,7 +363,7 @@ export async function initialize(opts: {
       // handle middleware body response
       if (bodyStream) {
         res.statusCode = statusCode || 200
-        return await pipeReadable(bodyStream, res)
+        return await pipeToNodeResponse(bodyStream, res)
       }
 
       if (finished && parsedUrl.protocol) {

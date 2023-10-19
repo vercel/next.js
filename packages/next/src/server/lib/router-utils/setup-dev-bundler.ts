@@ -79,6 +79,7 @@ import {
   PAGES_MANIFEST,
   PHASE_DEVELOPMENT_SERVER,
   SERVER_REFERENCE_MANIFEST,
+  REACT_LOADABLE_MANIFEST,
 } from '../../../shared/lib/constants'
 
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
@@ -122,6 +123,7 @@ import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route
 import { clearModuleContext } from '../render-server'
 import type { ActionManifest } from '../../../build/webpack/plugins/flight-client-entry-plugin'
 import { denormalizePagePath } from '../../../shared/lib/page-path/denormalize-page-path'
+import type { LoadableManifest } from '../../load-components'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -509,6 +511,7 @@ async function startWatcher(opts: SetupOpts) {
       ws,
       Map<string, AsyncIterator<any>>
     >()
+    const loadbleManifests = new Map<string, LoadableManifest>()
     const clients = new Set<ws>()
 
     async function loadMiddlewareManifest(
@@ -563,6 +566,16 @@ async function startWatcher(opts: SetupOpts) {
           pageName,
           'app'
         )
+      )
+    }
+
+    async function loadLoadableManifest(
+      pageName: string,
+      type: 'app' | 'pages' = 'pages'
+    ): Promise<void> {
+      loadbleManifests.set(
+        pageName,
+        await loadPartialManifest(REACT_LOADABLE_MANIFEST, pageName, type)
       )
     }
 
@@ -700,6 +713,14 @@ async function startWatcher(opts: SetupOpts) {
         mergeActionIds(manifest.edge, m.edge)
       }
 
+      return manifest
+    }
+
+    function mergeLoadableManifests(manifests: Iterable<LoadableManifest>) {
+      const manifest: LoadableManifest = {}
+      for (const m of manifests) {
+        Object.assign(manifest, m)
+      }
       return manifest
     }
 
@@ -872,13 +893,14 @@ async function startWatcher(opts: SetupOpts) {
       )
     }
 
-    async function writeOtherManifests(): Promise<void> {
-      const loadableManifestPath = path.join(
-        distDir,
-        'react-loadable-manifest.json'
-      )
+    async function writeLoadableManifest(): Promise<void> {
+      const loadableManifest = mergeLoadableManifests(loadbleManifests.values())
+      const loadableManifestPath = path.join(distDir, REACT_LOADABLE_MANIFEST)
       deleteCache(loadableManifestPath)
-      await writeFileAtomic(loadableManifestPath, JSON.stringify({}, null, 2))
+      await writeFileAtomic(
+        loadableManifestPath,
+        JSON.stringify(loadableManifest, null, 2)
+      )
     }
 
     async function subscribeToHmrEvents(id: string, client: ws) {
@@ -1058,8 +1080,8 @@ async function startWatcher(opts: SetupOpts) {
     await writeAppPathsManifest()
     await writeMiddlewareManifest()
     await writeActionManifest()
-    await writeOtherManifests()
     await writeFontManifest()
+    await writeLoadableManifest()
 
     const overlayMiddleware = getOverlayMiddleware(project)
     const turbopackHotReloader: NextJsHotReloaderInterface = {
@@ -1230,7 +1252,7 @@ async function startWatcher(opts: SetupOpts) {
           await writeFallbackBuildManifest()
           await writePagesManifest()
           await writeMiddlewareManifest()
-          await writeOtherManifests()
+          await writeLoadableManifest()
 
           return
         }
@@ -1339,12 +1361,13 @@ async function startWatcher(opts: SetupOpts) {
             } else {
               middlewareManifests.delete(page)
             }
+            await loadLoadableManifest(page, 'pages')
 
             await writeBuildManifest(opts.fsChecker.rewrites)
             await writeFallbackBuildManifest()
             await writePagesManifest()
             await writeMiddlewareManifest()
-            await writeOtherManifests()
+            await writeLoadableManifest()
 
             processIssues(page, page, writtenEndpoint)
 
@@ -1368,10 +1391,11 @@ async function startWatcher(opts: SetupOpts) {
             } else {
               middlewareManifests.delete(page)
             }
+            await loadLoadableManifest(page, 'pages')
 
             await writePagesManifest()
             await writeMiddlewareManifest()
-            await writeOtherManifests()
+            await writeLoadableManifest()
 
             processIssues(page, page, writtenEndpoint)
 
@@ -1405,7 +1429,7 @@ async function startWatcher(opts: SetupOpts) {
             await writeAppPathsManifest()
             await writeMiddlewareManifest()
             await writeActionManifest()
-            await writeOtherManifests()
+            await writeLoadableManifest()
 
             processIssues(page, page, writtenEndpoint, true)
 
@@ -1430,7 +1454,7 @@ async function startWatcher(opts: SetupOpts) {
             await writeAppPathsManifest()
             await writeMiddlewareManifest()
             await writeMiddlewareManifest()
-            await writeOtherManifests()
+            await writeLoadableManifest()
 
             processIssues(page, page, writtenEndpoint, true)
 
