@@ -55,8 +55,10 @@ fn main() {
     let threads = args.remove("--threads");
     let idle = args.remove("--idle");
     let graph = args.remove("--graph");
+    let show_count = args.remove("--count");
     let collapse_names = args.remove("--collapse-names");
-    if !single && !merged && !threads {
+    let collapse_min_count = 1;
+    if !single && !merged && !threads && !show_count {
         merged = true;
     }
     let arg = args
@@ -558,7 +560,7 @@ fn main() {
         eprintln!(" done ({:.3}s)", start.elapsed().as_secs_f32());
     }
 
-    if single || merged {
+    if single || merged || show_count {
         let number_of_spans = spans.len();
         eprint!("Emitting span tree... 0 / {} (0%)", number_of_spans);
         let mut span_counter = 0;
@@ -618,6 +620,7 @@ fn main() {
         let mut tts = 0;
         let mut merged_ts = 0;
         let mut merged_tts = 0;
+        let mut count_ts = 0;
         let mut stack = spans
             .iter()
             .enumerate()
@@ -705,30 +708,34 @@ fn main() {
                         let groups = groups.into_values().collect::<Vec<_>>();
                         let mut new_items = Vec::new();
                         for group in groups {
-                            let mut group = group.into_iter();
-                            let new_item = group.next().unwrap();
-                            match new_item {
-                                SpanItem::SelfTime { .. } => {
-                                    new_items.push(new_item);
-                                    new_items.extend(group);
-                                }
-                                SpanItem::Child(new_item_id) => {
-                                    new_items.push(new_item);
-                                    let mut count = 1;
-                                    for item in group {
-                                        let SpanItem::Child(id) = item else {
-                                            unreachable!();
-                                        };
-                                        assert!(spans[id].name == spans[new_item_id].name);
-                                        let old_items = take(&mut spans[id].items);
-                                        spans[new_item_id].items.extend(old_items);
-                                        count += 1;
+                            if group.len() >= collapse_min_count {
+                                let mut group = group.into_iter();
+                                let new_item = group.next().unwrap();
+                                match new_item {
+                                    SpanItem::SelfTime { .. } => {
+                                        new_items.push(new_item);
+                                        new_items.extend(group);
                                     }
-                                    if count != 1 {
-                                        let span = &mut spans[new_item_id];
-                                        span.count = count;
+                                    SpanItem::Child(new_item_id) => {
+                                        new_items.push(new_item);
+                                        let mut count = 1;
+                                        for item in group {
+                                            let SpanItem::Child(id) = item else {
+                                                unreachable!();
+                                            };
+                                            assert!(spans[id].name == spans[new_item_id].name);
+                                            let old_items = take(&mut spans[id].items);
+                                            spans[new_item_id].items.extend(old_items);
+                                            count += 1;
+                                        }
+                                        if count != 1 {
+                                            let span = &mut spans[new_item_id];
+                                            span.count = count;
+                                        }
                                     }
                                 }
+                            } else {
+                                new_items.extend(group);
                             }
                         }
                         items = new_items;
@@ -763,6 +770,12 @@ fn main() {
                         pjson!(
                             r#"{{"ph":"B","pid":2,"ts":{merged_ts},"tts":{merged_tts},"name":{name_json},"cat":{target_json},"tid":0,"args":{args_json}}}"#,
                         );
+                    }
+                    if show_count {
+                        pjson!(
+                            r#"{{"ph":"B","pid":3,"ts":{count_ts},"name":{name_json},"cat":{target_json},"tid":0,"args":{args_json}}}"#,
+                        );
+                        count_ts += count;
                     }
                     stack.push(Task::Exit {
                         name_json,
@@ -842,6 +855,11 @@ fn main() {
                                 r#"{{"ph":"E","pid":2,"ts":{merged_ts},"tts":{merged_tts},"name":{name_json},"cat":{target_json},"tid":0}}"#,
                             );
                         }
+                    }
+                    if show_count {
+                        pjson!(
+                            r#"{{"ph":"E","pid":3,"ts":{count_ts},"name":{name_json},"cat":{target_json},"tid":0}}"#,
+                        );
                     }
                 }
                 Task::SelfTime {
