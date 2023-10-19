@@ -11,13 +11,13 @@ function parseLogsFromCli(cliOutput: string) {
   return logs.reduce((parsedLogs, log) => {
     if (log.includes('Cache missed reason')) {
       // cache miss reason
-      const reasonSegment = log.split('Cache missed reason: ')[1].trim()
+      const reasonSegment = log.split('Cache missed reason: ', 2)[1].trim()
       const reason = reasonSegment.slice(1, -1)
       parsedLogs[parsedLogs.length - 1].cache = reason
     } else {
       // request info
       const trimmedLog = log.replace(/^[^a-zA-Z]+/, '')
-      const parts = trimmedLog.split(' ')
+      const parts = trimmedLog.split(' ', 5)
       const method = parts[0]
       const url = parts[1]
       const statusCode = parseInt(parts[2])

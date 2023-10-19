@@ -104,5 +104,5 @@ export function getRedirectTypeFromError<U extends string>(
     throw new Error('Not a redirect error')
   }
 
-  return error.digest.split(';', 3)[1] as RedirectType
+  return error.digest.split(';', 2)[1] as RedirectType
 }
