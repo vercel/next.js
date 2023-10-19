@@ -13,12 +13,12 @@ import {
   shouldBeTemplateProject,
   spawnExitPromise,
 } from './lib/utils'
-import { Span } from 'next/dist/trace'
+//import { Span } from 'next/dist/trace'
 
 import { useTempDir } from '../../lib/use-temp-dir'
 import { fetchViaHTTP, findPort, killApp, launchApp } from 'next-test-utils'
 import resolveFrom from 'resolve-from'
-import { createNextInstall } from '../../lib/create-next-install'
+//import { createNextInstall } from '../../lib/create-next-install'
 
 const startsWithoutError = async (
   appDir: string,
