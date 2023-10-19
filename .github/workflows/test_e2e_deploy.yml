@@ -16,7 +16,7 @@ jobs:
       DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
       NAPI_CLI_VERSION: 2.16.2
       TURBO_VERSION: 1.10.9
-      NODE_LTS_VERSION: 21.0.0
+      NODE_LTS_VERSION: 21
       CARGO_PROFILE_RELEASE_LTO: 'true'
       TURBO_TEAM: 'vercel'
       TURBO_REMOTE_ONLY: 'true'

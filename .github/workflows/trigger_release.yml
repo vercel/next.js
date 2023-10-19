@@ -30,7 +30,7 @@ name: Trigger Release
 env:
   NAPI_CLI_VERSION: 2.14.7
   TURBO_VERSION: 1.10.9
-  NODE_LTS_VERSION: 21.0.0
+  NODE_LTS_VERSION: 21
 
 jobs:
   start:
