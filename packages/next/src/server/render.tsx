@@ -113,8 +113,9 @@ let postProcessHTML: typeof import('./post-process').postProcessHTML
 
 const DOCTYPE = '<!DOCTYPE html>'
 
+import './node-polyfill-web-streams'
+
 if (process.env.NEXT_RUNTIME !== 'edge') {
-  require('./node-polyfill-web-streams')
   tryGetPreviewData =
     require('./api-utils/node/try-get-preview-data').tryGetPreviewData
   warn = require('../build/output/log').warn
@@ -1546,7 +1547,8 @@ export async function renderToHTMLImpl(
   }
 
   const [renderTargetPrefix, renderTargetSuffix] = documentHTML.split(
-    '<next-js-internal-body-render-target></next-js-internal-body-render-target>'
+    '<next-js-internal-body-render-target></next-js-internal-body-render-target>',
+    2
   )
 
   let prefix = ''

@@ -399,6 +399,7 @@ pub async fn get_next_edge_import_map(
             "next/router" => "next/dist/esm/client/router".to_string(),
             "next/script" => "next/dist/esm/client/script".to_string(),
             "next/server" => "next/dist/esm/server/web/exports/index".to_string(),
+            "next/og" => "next/dist/esm/server/og/image-response".to_string(),
 
             "next/dist/client/components/headers" => "next/dist/esm/client/components/headers".to_string(),
             "next/dist/client/components/navigation" => "next/dist/esm/client/components/navigation".to_string(),
@@ -410,6 +411,7 @@ pub async fn get_next_edge_import_map(
             "next/dist/shared/lib/dynamic" => "next/dist/esm/shared/lib/dynamic".to_string(),
             "next/dist/shared/lib/head" => "next/dist/esm/shared/lib/head".to_string(),
             "next/dist/shared/lib/image-external" => "next/dist/esm/shared/lib/image-external".to_string(),
+            "dist/server/og/image-response" => "next/dist/esm/server/og/image-response".to_string(),
         },
     );
 
