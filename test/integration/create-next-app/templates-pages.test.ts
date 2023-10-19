@@ -15,7 +15,7 @@ import {
   shouldBeTypescriptProject,
   spawnExitPromise,
 } from './lib/utils'
-import { Span } from 'next/dist/trace'
+//import { Span } from 'next/dist/trace'
 
 import { useTempDir } from '../../lib/use-temp-dir'
 import {
@@ -26,7 +26,7 @@ import {
   launchApp,
 } from 'next-test-utils'
 import resolveFrom from 'resolve-from'
-import { createNextInstall } from '../../lib/create-next-install'
+//import { createNextInstall } from '../../lib/create-next-install'
 import ansiEscapes from 'ansi-escapes'
 
 const startsWithoutError = async (
