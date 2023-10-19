@@ -33,6 +33,17 @@ export function stringToArrayBuffer(binary: string) {
   return buffer
 }
 
+function stringToUint8Array(binary: string) {
+  const len = binary.length
+  const arr = new Uint8Array(len)
+
+  for (let i = 0; i < len; i++) {
+    arr[i] = binary.charCodeAt(i)
+  }
+
+  return arr
+}
+
 export async function encrypt(key: CryptoKey, salt: string, data: ArrayBuffer) {
   const iv = new TextEncoder().encode(salt)
   return crypto.subtle.encrypt(
@@ -143,12 +154,12 @@ export function getActionEncryptionKey(actionId: string) {
     ][actionId].key
 
   if (typeof key === 'undefined') {
-    return
+    throw new Error('Missing encryption key for action: ' + actionId)
   }
 
   return crypto.subtle.importKey(
     'raw',
-    stringToArrayBuffer(atob(key)),
+    stringToUint8Array(atob(key)),
     'AES-GCM',
     true,
     ['encrypt', 'decrypt']

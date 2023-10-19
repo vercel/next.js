@@ -78,8 +78,6 @@ export async function decryptActionBoundArgs(
   actionId: string,
   encryped: Promise<string>
 ) {
-  const clientReferenceManifestSingleton = getClientReferenceManifestSingleton()
-
   // Decrypt the serialized string with the action id as the salt.
   const decryped = await decodeActionBoundArg(actionId, await encryped)
 
@@ -93,11 +91,12 @@ export async function decryptActionBoundArgs(
     }),
     {
       ssrManifest: {
-        moduleLoading: clientReferenceManifestSingleton.moduleLoading,
-        moduleMap:
-          process.env.NEXT_RUNTIME === 'edge'
-            ? clientReferenceManifestSingleton.edgeSSRModuleMapping
-            : clientReferenceManifestSingleton.ssrModuleMapping,
+        // TODO: We can't use the client reference manifest to resolve the modules
+        // on the server side - instead they need to be recovered as the module
+        // references (proxies) again.
+        // For now, we'll just use an empty module map.
+        moduleLoading: {},
+        moduleMap: {},
       },
     }
   )

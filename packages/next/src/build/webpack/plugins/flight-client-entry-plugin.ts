@@ -56,7 +56,7 @@ export type ActionManifest = {
         [name: string]: string
       }
       // Assign a unique encryption key for each action during production build.
-      key?: string
+      key: string
     }
   }
 }
@@ -810,6 +810,7 @@ export class FlightClientEntryPlugin {
           currentCompilerServerActions[id] = {
             workers: {},
             layer: {},
+            key: '',
           }
         }
         currentCompilerServerActions[id].workers[bundlePath] = ''
