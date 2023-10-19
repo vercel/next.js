@@ -146,7 +146,6 @@ pub async fn get_next_client_import_map(
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
         }
-        ClientContextType::Fallback => {}
         ClientContextType::Other => {}
     }
 
@@ -161,20 +160,6 @@ pub async fn get_next_client_import_map(
             "next/dist/compiled/client-only" => "next/dist/compiled/client-only/index".to_string(),
         },
     );
-
-    match ty.into_value() {
-        ClientContextType::Pages { .. }
-        | ClientContextType::App { .. }
-        | ClientContextType::Fallback => {
-            for (original, alias) in NEXT_ALIASES {
-                import_map.insert_exact_alias(
-                    format!("node:{original}"),
-                    request_to_import_mapping(project_path, alias),
-                );
-            }
-        }
-        ClientContextType::Other => {}
-    }
 
     insert_turbopack_dev_alias(&mut import_map);
 
@@ -207,22 +192,6 @@ pub fn get_next_build_import_map() -> Vc<ImportMap> {
 #[turbo_tasks::function]
 pub fn get_next_client_fallback_import_map(ty: Value<ClientContextType>) -> Vc<ImportMap> {
     let mut import_map = ImportMap::empty();
-
-    match ty.into_value() {
-        ClientContextType::Pages {
-            pages_dir: context_dir,
-        }
-        | ClientContextType::App {
-            app_dir: context_dir,
-        } => {
-            for (original, alias) in NEXT_ALIASES {
-                import_map
-                    .insert_exact_alias(original, request_to_import_mapping(context_dir, alias));
-            }
-        }
-        ClientContextType::Fallback => {}
-        ClientContextType::Other => {}
-    }
 
     insert_turbopack_dev_alias(&mut import_map);
 
@@ -529,32 +498,6 @@ pub fn get_next_client_resolved_map(
     }
     .cell()
 }
-
-static NEXT_ALIASES: [(&str, &str); 23] = [
-    ("assert", "next/dist/compiled/assert"),
-    ("buffer", "next/dist/compiled/buffer"),
-    ("constants", "next/dist/compiled/constants-browserify"),
-    ("crypto", "next/dist/compiled/crypto-browserify"),
-    ("domain", "next/dist/compiled/domain-browser"),
-    ("http", "next/dist/compiled/stream-http"),
-    ("https", "next/dist/compiled/https-browserify"),
-    ("os", "next/dist/compiled/os-browserify"),
-    ("path", "next/dist/compiled/path-browserify"),
-    ("punycode", "next/dist/compiled/punycode"),
-    ("process", "next/dist/build/polyfills/process"),
-    ("querystring", "next/dist/compiled/querystring-es3"),
-    ("stream", "next/dist/compiled/stream-browserify"),
-    ("string_decoder", "next/dist/compiled/string_decoder"),
-    ("sys", "next/dist/compiled/util"),
-    ("timers", "next/dist/compiled/timers-browserify"),
-    ("tty", "next/dist/compiled/tty-browserify"),
-    ("url", "next/dist/compiled/native-url"),
-    ("util", "next/dist/compiled/util"),
-    ("vm", "next/dist/compiled/vm-browserify"),
-    ("zlib", "next/dist/compiled/browserify-zlib"),
-    ("events", "next/dist/compiled/events"),
-    ("setImmediate", "next/dist/compiled/setimmediate"),
-];
 
 async fn insert_next_server_special_aliases(
     import_map: &mut ImportMap,

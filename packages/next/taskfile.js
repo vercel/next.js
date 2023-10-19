@@ -751,20 +751,6 @@ export async function copy_react_is(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-export async function copy_constants_browserify(task, opts) {
-  await fs.mkdir(join(__dirname, 'src/compiled/constants-browserify'), {
-    recursive: true,
-  })
-  await writeJson(
-    join(__dirname, 'src/compiled/constants-browserify/package.json'),
-    { name: 'constants-browserify', main: './constants.json' }
-  )
-  await task
-    .source(require.resolve('constants-browserify'))
-    .target('src/compiled/constants-browserify')
-}
-
-// eslint-disable-next-line camelcase
 externals['@ampproject/toolbox-optimizer'] =
   'next/dist/compiled/@ampproject/toolbox-optimizer'
 export async function ncc_amp_optimizer(task, opts) {
