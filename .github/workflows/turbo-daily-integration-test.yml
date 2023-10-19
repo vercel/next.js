@@ -40,28 +40,28 @@ jobs:
   #   with:
   #     is_main_branch: true
 
-  post_to_slack:
-    needs: [next_js_integration]
-    name: Post results to Slack
-    runs-on: ubuntu-latest
-    if: always()
-    steps:
-      - name: Download summary.md artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: test-results
-      - name: Check if summary file was generated
-        id: summary_check
-        run: |
-          if stat slack-payload.json; then
-            echo "should_continue=true" >> $GITHUB_OUTPUT
-          else
-            echo "should_continue=false" >> $GITHUB_OUTPUT
-          fi
-      - name: Send test data to Slack workflow
-        if: steps.summary_check.outputs.should_continue == 'true'
-        uses: slackapi/slack-github-action@v1.23.0
-        with:
-          payload-file-path: './slack-payload.json'
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.NEXT_TURBO_INTEGRATION_SLACK_WEBHOOK_URL }}
+  # post_to_slack:
+  #   needs: [next_js_integration]
+  #   name: Post results to Slack
+  #   runs-on: ubuntu-latest
+  #   if: always()
+  #   steps:
+  #     - name: Download summary.md artifact
+  #       uses: actions/download-artifact@v3
+  #       with:
+  #         name: test-results
+  #     - name: Check if summary file was generated
+  #       id: summary_check
+  #       run: |
+  #         if stat slack-payload.json; then
+  #           echo "should_continue=true" >> $GITHUB_OUTPUT
+  #         else
+  #           echo "should_continue=false" >> $GITHUB_OUTPUT
+  #         fi
+  #     - name: Send test data to Slack workflow
+  #       if: steps.summary_check.outputs.should_continue == 'true'
+  #       uses: slackapi/slack-github-action@v1.23.0
+  #       with:
+  #         payload-file-path: './slack-payload.json'
+  #       env:
+  #         SLACK_WEBHOOK_URL: ${{ secrets.NEXT_TURBO_INTEGRATION_SLACK_WEBHOOK_URL }}
