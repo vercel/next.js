@@ -892,9 +892,10 @@
     "runtimeError": false
   },
   "test/development/acceptance-app/ReactRefreshRegression.test.ts": {
-    "passed": [],
+    "passed": [
+      "ReactRefreshRegression app can fast refresh a page with static generation"
+    ],
     "failed": [
-      "ReactRefreshRegression app can fast refresh a page with static generation",
       "ReactRefreshRegression app custom loader mdx should have Fast Refresh enabled",
       "ReactRefreshRegression app shows an overlay for anonymous function server-side error",
       "ReactRefreshRegression app shows an overlay for server-side error in client component",
@@ -2214,12 +2215,12 @@
   "test/e2e/app-dir/app-basepath/index.test.ts": {
     "passed": [
       "app dir - basepath should prefix redirect() with basePath",
+      "app dir - basepath should render usePathname without the basePath",
       "app dir - basepath should support Link with basePath prefixed",
       "app dir - basepath should support `basePath`"
     ],
     "failed": [
-      "app dir - basepath should prefix metadata og image with basePath",
-      "app dir - basepath should render usePathname without the basePath"
+      "app dir - basepath should prefix metadata og image with basePath"
     ],
     "pending": [],
     "flakey": [],
@@ -2373,13 +2374,9 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/app-middleware/app-middleware.test.ts": {
-    "passed": ["app dir - middleware without pages dir Updates headers"],
-    "failed": [
-      "app dir - middleware with middleware in src dir works without crashing when using requestAsyncStorage",
-      "app-dir with middleware Mutate request headers for Edge Functions Adds new headers",
-      "app-dir with middleware Mutate request headers for Edge Functions Deletes headers",
+    "passed": [
+      "app dir - middleware without pages dir Updates headers",
       "app-dir with middleware Mutate request headers for Edge Functions Supports draft mode",
-      "app-dir with middleware Mutate request headers for Edge Functions Updates headers",
       "app-dir with middleware Mutate request headers for Serverless Functions Adds new headers",
       "app-dir with middleware Mutate request headers for Serverless Functions Deletes headers",
       "app-dir with middleware Mutate request headers for Serverless Functions Supports draft mode",
@@ -2389,6 +2386,12 @@
       "app-dir with middleware Mutate request headers for next/headers Supports draft mode",
       "app-dir with middleware Mutate request headers for next/headers Updates headers",
       "app-dir with middleware should filter correctly after middleware rewrite"
+    ],
+    "failed": [
+      "app dir - middleware with middleware in src dir works without crashing when using requestAsyncStorage",
+      "app-dir with middleware Mutate request headers for Edge Functions Adds new headers",
+      "app-dir with middleware Mutate request headers for Edge Functions Deletes headers",
+      "app-dir with middleware Mutate request headers for Edge Functions Updates headers"
     ],
     "pending": [],
     "flakey": [],
@@ -2764,10 +2767,18 @@
   "test/e2e/app-dir/app/index.test.ts": {
     "passed": [
       "app dir - basic <Link /> should allow linking from app page to pages page",
+      "app dir - basic <Link /> should be soft for back navigation",
+      "app dir - basic <Link /> should be soft for forward navigation",
+      "app dir - basic <Link /> should hard push",
+      "app dir - basic <Link /> should hard replace",
       "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page",
       "app dir - basic <Link /> should push to external url",
       "app dir - basic <Link /> should replace to external url",
+      "app dir - basic <Link /> should soft push",
+      "app dir - basic HMR should HMR correctly for client component",
+      "app dir - basic HMR should HMR correctly for server component",
       "app dir - basic bootstrap scripts should only bootstrap with one script, prinitializing the rest",
+      "app dir - basic bootstrap scripts should successfully bootstrap even when using CSP",
       "app dir - basic data fetch with response over 16KB with chunked encoding should load page when fetching a large amount of data",
       "app dir - basic error component should display error digest for error in server component with default error boundary",
       "app dir - basic error component should trigger error component when an error happens during rendering",
@@ -2839,14 +2850,6 @@
       "app dir - basic template component should render the template that holds state in a client component and reset on navigation"
     ],
     "failed": [
-      "app dir - basic <Link /> should be soft for back navigation",
-      "app dir - basic <Link /> should be soft for forward navigation",
-      "app dir - basic <Link /> should hard push",
-      "app dir - basic <Link /> should hard replace",
-      "app dir - basic <Link /> should soft push",
-      "app dir - basic HMR should HMR correctly for client component",
-      "app dir - basic HMR should HMR correctly for server component",
-      "app dir - basic bootstrap scripts should fail to bootstrap when using CSP in Dev due to eval",
       "app dir - basic rewrites should support rewrites on client-side navigation",
       "app dir - basic rewrites should support rewrites on client-side navigation from pages to app with existing pages path",
       "app dir - basic rewrites should support rewrites on initial load",
@@ -3331,6 +3334,9 @@
       "app dir - metadata basic should support title template",
       "app dir - metadata basic should support verification tags",
       "app dir - metadata basic should use parent layout title when no title is defined in page",
+      "app dir - metadata file based icons should handle updates to the file icon name and order",
+      "app dir - metadata file based icons should not render if image file is not specified",
+      "app dir - metadata file based icons should render icon and apple touch icon meta if their images are specified",
       "app dir - metadata icons should merge icons from layout if no static icons files are specified",
       "app dir - metadata icons should not hoist meta[itemProp] to head",
       "app dir - metadata icons should support basic complex descriptor icons field",
@@ -3345,6 +3351,7 @@
       "app dir - metadata react cache should have same title and page value when navigating",
       "app dir - metadata should not effect metadata images convention like files under pages directory",
       "app dir - metadata static routes should have /favicon.ico as route",
+      "app dir - metadata static routes should have icons as route",
       "app dir - metadata static routes should support sitemap.xml under every routes",
       "app dir - metadata static routes should support static manifest.webmanifest",
       "app dir - metadata twitter should render twitter card summary when image is not present",
@@ -3354,13 +3361,9 @@
     ],
     "failed": [
       "app dir - metadata basic should support other basic tags (edge)",
-      "app dir - metadata file based icons should handle hmr updates to the file icon",
-      "app dir - metadata file based icons should not render if image file is not specified",
-      "app dir - metadata file based icons should render icon and apple touch icon meta if their images are specified",
       "app dir - metadata icons should support root level of favicon.ico",
       "app dir - metadata navigation should render root not-found with default metadata",
       "app dir - metadata opengraph should pick up opengraph-image and twitter-image as static metadata files",
-      "app dir - metadata static routes should have icons as route",
       "app dir - metadata static routes should support root dir robots.txt"
     ],
     "pending": [],
@@ -3391,6 +3394,7 @@
       "app dir - navigation not-found should trigger not-found while streaming",
       "app dir - navigation query string should handle unicode search params",
       "app dir - navigation query string should set query correctly",
+      "app dir - navigation query string useParams identity between renders should be stable in app",
       "app dir - navigation redirect components should redirect client-side",
       "app dir - navigation redirect components should redirect in a client component",
       "app dir - navigation redirect components should redirect in a server component",
@@ -3408,7 +3412,9 @@
       "app dir - navigation relative hashes and queries should work with a query-only href",
       "app dir - navigation relative hashes and queries should work with both relative hashes and queries"
     ],
-    "failed": [],
+    "failed": [
+      "app dir - navigation query string useParams identity between renders should be stable in pages"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3893,6 +3899,13 @@
     "passed": [
       "with-exported-function-config should have correct values in function config manifest"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/x-forwarded-headers/x-forwarded-headers.test.ts": {
+    "passed": ["x-forwarded-headers should include x-forwarded-* headers"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -4716,6 +4729,7 @@
   },
   "test/e2e/middleware-general/test/index.test.ts": {
     "passed": [
+      "Middleware Runtime with i18n allows shallow linking with middleware",
       "Middleware Runtime with i18n allows to access env variables",
       "Middleware Runtime with i18n hard-navigates when the data request failed",
       "Middleware Runtime with i18n should accept a URL instance for fetch",
@@ -4727,6 +4741,9 @@
       "Middleware Runtime with i18n should have correct dynamic route params for middleware rewrite to dynamic route",
       "Middleware Runtime with i18n should have correct dynamic route params on client-transition to dynamic route",
       "Middleware Runtime with i18n should have correct query values for rewrite to ssg page",
+      "Middleware Runtime with i18n should have correct route params for chained rewrite from middleware to config rewrite",
+      "Middleware Runtime with i18n should have correct route params for rewrite from config dynamic route",
+      "Middleware Runtime with i18n should have correct route params for rewrite from config non-dynamic route",
       "Middleware Runtime with i18n should have init header for NextResponse.redirect",
       "Middleware Runtime with i18n should keep non data requests in their original shape",
       "Middleware Runtime with i18n should normalize data requests into page requests",
@@ -4748,6 +4765,7 @@
       "Middleware Runtime with i18n should warn when using NextResponse.redirect with a relative URL",
       "Middleware Runtime with i18n should warn when using Response.redirect with a relative URL",
       "Middleware Runtime with i18n should work with notFound: true correctly",
+      "Middleware Runtime without i18n allows shallow linking with middleware",
       "Middleware Runtime without i18n allows to access env variables",
       "Middleware Runtime without i18n hard-navigates when the data request failed",
       "Middleware Runtime without i18n should accept a URL instance for fetch",
@@ -4759,6 +4777,9 @@
       "Middleware Runtime without i18n should have correct dynamic route params for middleware rewrite to dynamic route",
       "Middleware Runtime without i18n should have correct dynamic route params on client-transition to dynamic route",
       "Middleware Runtime without i18n should have correct query values for rewrite to ssg page",
+      "Middleware Runtime without i18n should have correct route params for chained rewrite from middleware to config rewrite",
+      "Middleware Runtime without i18n should have correct route params for rewrite from config dynamic route",
+      "Middleware Runtime without i18n should have correct route params for rewrite from config non-dynamic route",
       "Middleware Runtime without i18n should keep non data requests in their original shape",
       "Middleware Runtime without i18n should normalize data requests into page requests",
       "Middleware Runtime without i18n should only contain middleware route in dev middleware manifest",
@@ -4779,18 +4800,10 @@
       "Middleware Runtime without i18n should work with notFound: true correctly"
     ],
     "failed": [
-      "Middleware Runtime with i18n allows shallow linking with middleware",
       "Middleware Runtime with i18n passes search params with rewrites",
       "Middleware Runtime with i18n refreshes the page when middleware changes ",
-      "Middleware Runtime with i18n should have correct route params for chained rewrite from middleware to config rewrite",
-      "Middleware Runtime with i18n should have correct route params for rewrite from config dynamic route",
-      "Middleware Runtime with i18n should have correct route params for rewrite from config non-dynamic route",
-      "Middleware Runtime without i18n allows shallow linking with middleware",
       "Middleware Runtime without i18n passes search params with rewrites",
       "Middleware Runtime without i18n refreshes the page when middleware changes ",
-      "Middleware Runtime without i18n should have correct route params for chained rewrite from middleware to config rewrite",
-      "Middleware Runtime without i18n should have correct route params for rewrite from config dynamic route",
-      "Middleware Runtime without i18n should have correct route params for rewrite from config non-dynamic route",
       "Middleware Runtime without i18n should have init header for NextResponse.redirect"
     ],
     "pending": [],
@@ -4927,6 +4940,8 @@
       "Middleware Rewrite should add a cookie and rewrite to a/b test",
       "Middleware Rewrite should allow to opt-out prefetch caching",
       "Middleware Rewrite should allow to rewrite keeping the locale in pathname",
+      "Middleware Rewrite should allow to rewrite to a `afterFiles` rewrite config",
+      "Middleware Rewrite should allow to rewrite to a `beforeFiles` rewrite config",
       "Middleware Rewrite should allow to rewrite to a different locale",
       "Middleware Rewrite should allow to switch locales",
       "Middleware Rewrite should behave consistently on recursive rewrites",
@@ -4937,6 +4952,7 @@
       "Middleware Rewrite should handle shallow navigation correctly (dynamic page)",
       "Middleware Rewrite should handle shallow navigation correctly (non-dynamic page)",
       "Middleware Rewrite should handle static dynamic rewrite from middleware correctly",
+      "Middleware Rewrite should handle static rewrite from next.config.js correctly",
       "Middleware Rewrite should hard navigate on 404 for data request",
       "Middleware Rewrite should have correct query info for dynamic route after query hydration",
       "Middleware Rewrite should not call middleware with shallow push",
@@ -4958,11 +4974,7 @@
       "Middleware Rewrite should rewrite without hard navigation",
       "Middleware Rewrite support colons in path"
     ],
-    "failed": [
-      "Middleware Rewrite should allow to rewrite to a `afterFiles` rewrite config",
-      "Middleware Rewrite should allow to rewrite to a `beforeFiles` rewrite config",
-      "Middleware Rewrite should handle static rewrite from next.config.js correctly"
-    ],
+    "failed": [],
     "pending": [
       "Middleware Rewrite includes the locale in rewrites by default"
     ],
@@ -4980,9 +4992,14 @@
   },
   "test/e2e/middleware-trailing-slash/test/index.test.ts": {
     "passed": [
+      "Middleware Runtime trailing slash allows shallow linking with middleware",
       "Middleware Runtime trailing slash should add a rewrite header on data requests for rewrites",
       "Middleware Runtime trailing slash should have correct dynamic route params for middleware rewrite to dynamic route",
       "Middleware Runtime trailing slash should have correct dynamic route params on client-transition to dynamic route",
+      "Middleware Runtime trailing slash should have correct route params for chained rewrite from middleware to config rewrite",
+      "Middleware Runtime trailing slash should have correct route params for rewrite from config dynamic route",
+      "Middleware Runtime trailing slash should have correct route params for rewrite from config non-dynamic route",
+      "Middleware Runtime trailing slash should have init header for NextResponse.redirect",
       "Middleware Runtime trailing slash should keep non data requests in their original shape",
       "Middleware Runtime trailing slash should normalize data requests into page requests",
       "Middleware Runtime trailing slash should redirect the same for direct visit and client-transition",
@@ -4999,13 +5016,8 @@
       "Middleware Runtime trailing slash without .html extension should work when requesting the page directly"
     ],
     "failed": [
-      "Middleware Runtime trailing slash allows shallow linking with middleware",
       "Middleware Runtime trailing slash refreshes the page when middleware changes ",
-      "Middleware Runtime trailing slash should have correct query values for rewrite to ssg page",
-      "Middleware Runtime trailing slash should have correct route params for chained rewrite from middleware to config rewrite",
-      "Middleware Runtime trailing slash should have correct route params for rewrite from config dynamic route",
-      "Middleware Runtime trailing slash should have correct route params for rewrite from config non-dynamic route",
-      "Middleware Runtime trailing slash should have init header for NextResponse.redirect"
+      "Middleware Runtime trailing slash should have correct query values for rewrite to ssg page"
     ],
     "pending": [],
     "flakey": [],
@@ -5350,6 +5362,7 @@
       "Prerender should navigate to dynamic page with brackets in param as string",
       "Prerender should never show fallback for page not in getStaticPaths when blocking",
       "Prerender should not contain headers already sent error",
+      "Prerender should not error when rewriting to fallback dynamic SSG page",
       "Prerender should not fail to update incremental cache",
       "Prerender should not fallback before invalid JSON is returned from getStaticProps when blocking fallback",
       "Prerender should not have attempted sending invalid payload",
@@ -5384,9 +5397,7 @@
       "Prerender should support prerendered catchall-explicit route (nested)",
       "Prerender should support prerendered catchall-explicit route (single)"
     ],
-    "failed": [
-      "Prerender should not error when rewriting to fallback dynamic SSG page"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7167,13 +7178,12 @@
   },
   "test/integration/custom-routes-i18n/test/index.test.js": {
     "passed": [
+      "Custom routes i18n dev mode should navigate on the client with rewrites correctly",
       "Custom routes i18n dev mode should respond to default locale redirects correctly",
       "Custom routes i18n dev mode should rewrite correctly",
       "Custom routes i18n dev mode should rewrite index routes correctly"
     ],
-    "failed": [
-      "Custom routes i18n dev mode should navigate on the client with rewrites correctly"
-    ],
+    "failed": [],
     "pending": [
       "Custom routes i18n production mode should navigate on the client with rewrites correctly",
       "Custom routes i18n production mode should respond to default locale redirects correctly",
@@ -7199,6 +7209,8 @@
       "Custom routes dev mode should handle api rewrite with param successfully",
       "Custom routes dev mode should handle api rewrite with un-named param successfully",
       "Custom routes dev mode should handle basic api rewrite successfully",
+      "Custom routes dev mode should handle beforeFiles rewrite to dynamic route correctly",
+      "Custom routes dev mode should handle beforeFiles rewrite to partly dynamic route correctly",
       "Custom routes dev mode should handle chained redirects successfully",
       "Custom routes dev mode should handle chained rewrites successfully",
       "Custom routes dev mode should handle encoded value in the pathname correctly",
@@ -7235,6 +7247,7 @@
       "Custom routes dev mode should match has query redirect correctly",
       "Custom routes dev mode should match has query redirect with duplicate query key",
       "Custom routes dev mode should match has query rewrite correctly",
+      "Custom routes dev mode should match has rewrite correctly before files",
       "Custom routes dev mode should match missing cookie headers correctly",
       "Custom routes dev mode should match missing cookie redirect correctly",
       "Custom routes dev mode should match missing cookie rewrite correctly",
@@ -7253,8 +7266,10 @@
       "Custom routes dev mode should not pass non captured has value for rewrite correctly",
       "Custom routes dev mode should not rewrite for _next/data route when a match is found",
       "Custom routes dev mode should overwrite param values correctly",
+      "Custom routes dev mode should parse params correctly for rewrite to auto-export dynamic page",
       "Custom routes dev mode should pass captured has value for rewrite correctly",
       "Custom routes dev mode should pass has segment for rewrite correctly",
+      "Custom routes dev mode should provide params correctly for rewrite to auto-export non-dynamic page",
       "Custom routes dev mode should redirect successfully with catchall",
       "Custom routes dev mode should redirect successfully with permanent: false",
       "Custom routes dev mode should redirect successfully with provided statusCode",
@@ -7262,6 +7277,7 @@
       "Custom routes dev mode should redirect with URL in query correctly non-encoded",
       "Custom routes dev mode should redirect with hash successfully",
       "Custom routes dev mode should redirect with params successfully",
+      "Custom routes dev mode should resolveHref correctly navigating through history",
       "Custom routes dev mode should rewrite with params successfully",
       "Custom routes dev mode should server static files through a rewrite",
       "Custom routes dev mode should successfully rewrite a WebSocket request",
@@ -7274,6 +7290,8 @@
       "Custom routes dev mode should support unnamed parameters correctly",
       "Custom routes dev mode should work successfully on the client",
       "Custom routes dev mode should work with rewrite when manually specifying href/as",
+      "Custom routes dev mode should work with rewrite when only specifying href",
+      "Custom routes dev mode should work with rewrite when only specifying href and ends in dynamic route",
       "Custom routes dev mode show allow redirect to override the page",
       "Custom routes no-op rewrite should not error for no-op rewrite and auto export dynamic route",
       "Custom routes should load custom routes when only one type is used dev mode should work with just headers",
@@ -7281,15 +7299,7 @@
       "Custom routes should load custom routes when only one type is used dev mode should work with just rewrites"
     ],
     "failed": [
-      "Custom routes dev mode should handle beforeFiles rewrite to dynamic route correctly",
-      "Custom routes dev mode should handle beforeFiles rewrite to partly dynamic route correctly",
-      "Custom routes dev mode should handle external beforeFiles rewrite correctly",
-      "Custom routes dev mode should match has rewrite correctly before files",
-      "Custom routes dev mode should parse params correctly for rewrite to auto-export dynamic page",
-      "Custom routes dev mode should provide params correctly for rewrite to auto-export non-dynamic page",
-      "Custom routes dev mode should resolveHref correctly navigating through history",
-      "Custom routes dev mode should work with rewrite when only specifying href",
-      "Custom routes dev mode should work with rewrite when only specifying href and ends in dynamic route"
+      "Custom routes dev mode should handle external beforeFiles rewrite correctly"
     ],
     "pending": [
       "Custom routes export production mode should not show warning for custom routes when next export on Vercel",
@@ -10243,11 +10253,10 @@
   },
   "test/integration/gssp-redirect-with-rewrites/test/index.test.js": {
     "passed": [
-      "getServerSideProps redirects should fallback to browser navigation for an unknown URL"
-    ],
-    "failed": [
+      "getServerSideProps redirects should fallback to browser navigation for an unknown URL",
       "getServerSideProps redirects should use a client-side navigation for a rewritten URL"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10263,6 +10272,7 @@
       "GS(S)P Redirect Support dev mode should apply redirect when fallback GSP page is visited directly (external domain)",
       "GS(S)P Redirect Support dev mode should apply redirect when fallback GSP page is visited directly (external)",
       "GS(S)P Redirect Support dev mode should apply redirect when fallback GSP page is visited directly (internal dynamic)",
+      "GS(S)P Redirect Support dev mode should apply redirect when fallback GSP page is visited directly (internal normal)",
       "GS(S)P Redirect Support dev mode should apply redirect when fallback GSSP page is visited directly (external domain)",
       "GS(S)P Redirect Support dev mode should apply redirect when fallback blocking GSP page is visited directly (internal dynamic)",
       "GS(S)P Redirect Support dev mode should apply redirect when fallback blocking GSP page is visited directly (internal dynamic) second visit",
@@ -10276,9 +10286,7 @@
       "GS(S)P Redirect Support dev mode should not replace history of the origin page when GSSP page is navigated to client-side (external)",
       "GS(S)P Redirect Support dev mode should not replace history of the origin page when GSSP page is navigated to client-side (internal normal)"
     ],
-    "failed": [
-      "GS(S)P Redirect Support dev mode should apply redirect when fallback GSP page is visited directly (internal normal)"
-    ],
+    "failed": [],
     "pending": [
       "GS(S)P Redirect Support production mode should apply permanent redirect when visited directly for GSSP page",
       "GS(S)P Redirect Support production mode should apply redirect when GSP page is navigated to client-side (external)",
@@ -10609,11 +10617,10 @@
   },
   "test/integration/i18n-support-index-rewrite/test/index.test.js": {
     "passed": [
+      "Custom routes i18n support index rewrite dev mode should handle index rewrite on client correctly",
       "Custom routes i18n support index rewrite dev mode should rewrite index route correctly"
     ],
-    "failed": [
-      "Custom routes i18n support index rewrite dev mode should handle index rewrite on client correctly"
-    ],
+    "failed": [],
     "pending": [
       "Custom routes i18n support index rewrite production mode should handle index rewrite on client correctly",
       "Custom routes i18n support index rewrite production mode should rewrite index route correctly"
@@ -13669,10 +13676,10 @@
     "runtimeError": false
   },
   "test/integration/rewrite-with-browser-history/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "rewrites persist with browser history actions dev mode back-button should go back to rewritten path successfully"
     ],
+    "failed": [],
     "pending": [
       "rewrites persist with browser history actions production mode back-button should go back to rewritten path successfully"
     ],
@@ -13710,11 +13717,11 @@
     "runtimeError": false
   },
   "test/integration/rewrites-has-condition/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "rewrites has condition dev mode should navigate to a has rewrite without error",
       "rewrites has condition dev mode should navigate to a simple rewrite without error"
     ],
+    "failed": [],
     "pending": [
       "rewrites has condition production mode should navigate to a has rewrite without error",
       "rewrites has condition production mode should navigate to a simple rewrite without error"
@@ -13723,11 +13730,11 @@
     "runtimeError": false
   },
   "test/integration/rewrites-manual-href-as/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "rewrites manual href/as dev mode should allow manual href/as on dynamic page",
       "rewrites manual href/as dev mode should allow manual href/as on index page"
     ],
+    "failed": [],
     "pending": [
       "rewrites manual href/as production mode should allow manual href/as on dynamic page",
       "rewrites manual href/as production mode should allow manual href/as on index page"
@@ -13945,22 +13952,22 @@
   },
   "test/integration/scroll-back-restoration/test/index.test.js": {
     "passed": [
-      "Scroll Restoration Support dev mode should restore the scroll position on navigating back"
+      "Scroll Back Restoration Support dev mode should restore the scroll position on navigating back"
     ],
     "failed": [],
     "pending": [
-      "Scroll Restoration Support production mode should restore the scroll position on navigating back"
+      "Scroll Back Restoration Support production mode should restore the scroll position on navigating back"
     ],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/scroll-forward-restoration/test/index.test.js": {
-    "passed": [],
-    "failed": [
-      "Scroll Restoration Support dev mode should restore the scroll position on navigating forward"
+    "passed": [
+      "Scroll Forward Restoration Support dev mode should restore the scroll position on navigating forward"
     ],
+    "failed": [],
     "pending": [
-      "Scroll Restoration Support production mode should restore the scroll position on navigating forward"
+      "Scroll Forward Restoration Support production mode should restore the scroll position on navigating forward"
     ],
     "flakey": [],
     "runtimeError": false

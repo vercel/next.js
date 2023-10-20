@@ -408,6 +408,7 @@ async function renderToHTMLOrFlightImpl(
     buildId,
     appDirDevErrorLogger,
     assetPrefix = '',
+    enableTainting,
   } = renderOpts
 
   // We need to expose the bundled `require` API globally for
@@ -476,7 +477,15 @@ async function renderToHTMLOrFlightImpl(
     AppRouter,
     GlobalError,
     tree: loaderTree,
+    taintObjectReference,
   } = ComponentMod
+
+  if (enableTainting) {
+    taintObjectReference(
+      'Do not pass process.env to client components since it will leak sensitive data',
+      process.env
+    )
+  }
 
   const { staticGenerationStore, requestStore } = baseCtx
   const { urlPathname } = staticGenerationStore

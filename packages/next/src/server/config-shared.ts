@@ -308,6 +308,12 @@ export interface ExperimentalConfig {
   ppr?: boolean
 
   /**
+   * Enables experimental taint APIs in React.
+   * Using this feature will enable the `react@experimental` for the `app` directory.
+   */
+  taint?: boolean
+
+  /**
    * Allows adjusting body parser size limit for server actions.
    */
   serverActionsBodySizeLimit?: SizeLimit
