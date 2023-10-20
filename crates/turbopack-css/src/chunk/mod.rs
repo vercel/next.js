@@ -241,6 +241,7 @@ impl OutputAsset for CssChunk {
             assets,
             modifiers: Vec::new(),
             part: None,
+            layer: None,
         };
 
         Ok(AssetIdent::from_path(this.chunking_context.chunk_path(
@@ -304,12 +305,7 @@ impl CssChunkContext {
         self: Vc<Self>,
         chunk_item: Vc<Box<dyn CssChunkItem>>,
     ) -> Result<Vc<ModuleId>> {
-        let layer = self.await?.chunking_context.layer();
-        let mut ident = chunk_item.asset_ident();
-        if !layer.await?.is_empty() {
-            ident = ident.with_modifier(layer)
-        }
-        Ok(ModuleId::String(ident.to_string().await?.clone_value()).cell())
+        Ok(ModuleId::String(chunk_item.asset_ident().to_string().await?.clone_value()).cell())
     }
 }
 

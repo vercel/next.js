@@ -21,6 +21,7 @@ pub fn get_runtime_asset_context(environment: Vc<Environment>) -> Vc<Box<dyn Ass
         compile_time_info,
         module_options_context,
         Vc::default(),
+        Vc::cell("runtime".to_string()),
     ));
 
     asset_context

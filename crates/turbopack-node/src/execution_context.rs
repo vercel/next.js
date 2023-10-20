@@ -28,17 +28,6 @@ impl ExecutionContext {
     }
 
     #[turbo_tasks::function]
-    pub async fn with_layer(self: Vc<Self>, layer: String) -> Result<Vc<Self>> {
-        let this = self.await?;
-        Ok(ExecutionContext {
-            project_path: this.project_path,
-            chunking_context: this.chunking_context.with_layer(layer),
-            env: this.env,
-        }
-        .cell())
-    }
-
-    #[turbo_tasks::function]
     pub async fn project_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         Ok(self.await?.project_path)
     }

@@ -280,6 +280,7 @@ async fn run_test(resource: String) -> Result<Vc<FileSystemPath>> {
             ..Default::default()
         }
         .cell(),
+        Vc::cell("test".to_string()),
     ));
 
     let runtime_entries = maybe_load_env(asset_context, project_path)

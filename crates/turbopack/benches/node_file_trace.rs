@@ -96,6 +96,7 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                         ..Default::default()
                     }
                     .cell(),
+                    Vc::cell("node_file_trace".to_string()),
                 );
                 let module = module_asset_context
                     .process(Vc::upcast(source), Value::new(ReferenceType::Undefined));

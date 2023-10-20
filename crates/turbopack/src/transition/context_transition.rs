@@ -13,6 +13,7 @@ pub struct ContextTransition {
     compile_time_info: Vc<CompileTimeInfo>,
     module_options_context: Vc<ModuleOptionsContext>,
     resolve_options_context: Vc<ResolveOptionsContext>,
+    layer: Vc<String>,
 }
 
 #[turbo_tasks::value_impl]
@@ -22,11 +23,13 @@ impl ContextTransition {
         compile_time_info: Vc<CompileTimeInfo>,
         module_options_context: Vc<ModuleOptionsContext>,
         resolve_options_context: Vc<ResolveOptionsContext>,
+        layer: Vc<String>,
     ) -> Result<Vc<ContextTransition>> {
         Ok(ContextTransition {
             module_options_context,
             resolve_options_context,
             compile_time_info,
+            layer,
         }
         .cell())
     }
@@ -40,6 +43,11 @@ impl Transition for ContextTransition {
         _compile_time_info: Vc<CompileTimeInfo>,
     ) -> Vc<CompileTimeInfo> {
         self.compile_time_info
+    }
+
+    #[turbo_tasks::function]
+    fn process_layer(&self, _layer: Vc<String>) -> Vc<String> {
+        self.layer
     }
 
     #[turbo_tasks::function]

@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sections": [
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/css/css/input/style.module.css"],"sourcesContent":[".module-style {\n  color: magenta;\n  > h1,\n  + .inner {\n    background: purple;\n  }\n}\n\n.composed-module-style {\n  composes: foo-module-style from \"foo/style.module.css\";\n  color: green;\n}\n\n.another-composed-module-style {\n  composes: foo-module-style from \"foo/style.module.css\";\n  color: yellow;\n}"],"names":[],"mappings":"AAAA,CAAC,6BAAY,CAAC,CAAC;EACb,KAAK,EAAE,OAAO;AAKhB,CAAC;AAND,CAAC,6BAAY,CAEX,CAAC,CAAC,EAAE;AAFN,CAAC,6BAAY,CAGX,CAAC,CAAC,CAAC,sBAAK,CAAC,CAAC;EACR,UAAU,EAAE,MAAM;AACpB,CAAC;AAGH,CAAC,sCAAqB,CAAC,CAAC;EAEtB,KAAK,EAAE,KAAK;AACd,CAAC;AAED,CAAC,8CAA6B,CAAC,CAAC;EAE9B,KAAK,EAAE,MAAM;AACf,CAAC"}},
+    {"offset": {"line": 13, "column": 1}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}
