@@ -10,7 +10,7 @@ import type { Revalidate } from '../server/lib/revalidate'
 import '../lib/setup-exception-listeners'
 
 import { loadEnvConfig } from '@next/env'
-import { bold, yellow, green, purple } from '../lib/picocolors'
+import { bold, yellow, green } from '../lib/picocolors'
 import crypto from 'crypto'
 import { isMatch, makeRe } from 'next/dist/compiled/micromatch'
 import { existsSync, promises as fs } from 'fs'
