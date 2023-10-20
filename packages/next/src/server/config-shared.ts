@@ -776,7 +776,7 @@ export const defaultConfig: NextConfig = {
     bundlePagesExternals: false,
   },
   future: {
-    fallbackNodePolyfills: false,
+    fallbackNodePolyfills: undefined,
   },
 }
 
