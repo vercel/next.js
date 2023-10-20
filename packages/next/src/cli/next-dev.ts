@@ -11,14 +11,14 @@ import path from 'path'
 import type { NextConfigComplete } from '../server/config-shared'
 import { setGlobal, traceGlobals } from '../trace/shared'
 import { Telemetry } from '../telemetry/storage'
-import loadConfig, { getEnabledExperimentalFeatures } from '../server/config'
+import loadConfig from '../server/config'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { fileExists, FileType } from '../lib/file-exists'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
 import { createSelfSignedCertificate } from '../lib/mkcert'
 import type { SelfSignedCertificate } from '../lib/mkcert'
 import uploadTrace from '../trace/upload-trace'
-import { initialEnv, loadEnvConfig } from '@next/env'
+import { initialEnv } from '@next/env'
 import { trace } from '../trace'
 import { validateTurboNextConfig } from '../lib/turbopack-warning'
 import { fork } from 'child_process'
@@ -184,27 +184,7 @@ const nextDev: CliCommand = async (args) => {
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
 
-  const { loadedEnvFiles } = loadEnvConfig(dir, true, console, false)
-
-  let expFeatureInfo: string[] = []
-  config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
-    onLoadUserConfig(userConfig) {
-      const userNextConfigExperimental = getEnabledExperimentalFeatures(
-        userConfig.experimental
-      )
-      expFeatureInfo = userNextConfigExperimental.sort(
-        (a, b) => a.length - b.length
-      )
-    },
-  })
-
-  // we need to reset env if we are going to create
-  // the worker process with the esm loader so that the
-  // initial env state is correct
-  let envInfo: string[] = []
-  if (loadedEnvFiles.length > 0) {
-    envInfo = loadedEnvFiles.map((f) => f.path)
-  }
+  config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
 
   const isExperimentalTestProxy = args['--experimental-test-proxy']
 
@@ -219,8 +199,6 @@ const nextDev: CliCommand = async (args) => {
     isDev: true,
     hostname: host,
     isExperimentalTestProxy,
-    envInfo,
-    expFeatureInfo,
   }
 
   if (args['--turbo']) {
