@@ -213,7 +213,7 @@ export function getDefineEnv({
         }
       : undefined),
     'process.env.TURBOPACK': JSON.stringify(false),
-    ...(isNodeServer
+    ...(isNodeOrEdgeCompilation
       ? {
           'process.env.__NEXT_EXPERIMENTAL_REACT': JSON.stringify(
             needsExperimentalReact(config)
