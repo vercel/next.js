@@ -80,9 +80,9 @@ export default function dynamic<P = {}>(
 
   Object.assign(loadableOptions, options)
 
-  const loaderFn = loadableOptions.loader as (() => LoaderComponent<P>) | false
+  const loaderFn = loadableOptions.loader as () => LoaderComponent<P>
   const loader = () =>
-    loaderFn != null && loaderFn !== false
+    loaderFn != null
       ? loaderFn().then(convertModule)
       : Promise.resolve(convertModule(() => null))
 

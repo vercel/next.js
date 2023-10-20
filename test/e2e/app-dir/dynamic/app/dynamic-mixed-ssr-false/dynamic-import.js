@@ -8,9 +8,7 @@ export default function page() {
   return (
     <div>
       <DynamicSSRFalse />
-      <p id="content">dynamic-edge</p>
+      <p id="content">dynamic-mixed-ssr-false</p>
     </div>
   )
 }
-
-// export const runtime = 'edge'
