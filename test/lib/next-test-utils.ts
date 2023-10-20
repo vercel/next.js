@@ -1062,7 +1062,7 @@ export async function getRedboxComponentStack(
  */
 export const describeVariants = {
   each(variants: TestVariants[]) {
-    return (name: string, fn: (...args: TestVariants[]) => any) => {
+    return (name: string, fn: (variants: TestVariants) => any) => {
       if (
         !Array.isArray(variants) ||
         !variants.every((val) => typeof val === 'string')
