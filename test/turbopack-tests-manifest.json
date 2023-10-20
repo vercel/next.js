@@ -3748,7 +3748,6 @@
     ],
     "failed": [
       "app dir - rsc basics react@experimental should opt into the react@experimental when enabling ppr",
-      "app dir - rsc basics react@experimental should opt into the react@experimental when enabling serverActions",
       "app dir - rsc basics should create client reference successfully for all file conventions",
       "app dir - rsc basics should support next/link in server components",
       "app dir - rsc basics should support webpack loader rules"
