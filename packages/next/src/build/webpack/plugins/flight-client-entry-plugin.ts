@@ -625,8 +625,10 @@ export class FlightClientEntryPlugin {
         clientComponentImports[modRequest] =
           clientComponentImports[modRequest] || []
 
-        // Add the imported id to the list of ids for the given module.
-        clientComponentImports[modRequest].push(ids[0] || '*')
+        if (ids[0]) {
+          // Add the imported id to the list of ids for the given module.
+          clientComponentImports[modRequest].push(ids[0])
+        }
 
         return
       }
@@ -661,7 +663,7 @@ export class FlightClientEntryPlugin {
         .forEach((connection: any) => {
           filterClientComponents(
             connection.resolvedModule,
-            connection.dependency?.ids || ['*']
+            connection.dependency?.ids || []
           )
         })
     }
@@ -702,34 +704,32 @@ export class FlightClientEntryPlugin {
     let shouldInvalidate = false
 
     let clientImportEntries = Object.entries(clientImports)
-    if (this.isEdgeServer) {
-      clientImportEntries = clientImportEntries.map(([key, value]) => [
-        key.replace(
-          /[\\/]next[\\/]dist[\\/]esm[\\/]/,
-          '/next/dist/'.replace(/\//g, path.sep)
-        ),
-        value,
-      ])
-    }
     clientImportEntries.sort((a, b) =>
       regexCSS.test(b[0]) ? 1 : a[0].localeCompare(b[0])
     )
 
-    const loaderOptions: NextFlightClientEntryLoaderOptions = {
-      modules: JSON.stringify(clientImportEntries),
-      server: false,
-    }
+    const modules = clientImportEntries
 
     // For the client entry, we always use the CJS build of Next.js. If the
     // server is using the ESM build (when using the Edge runtime), we need to
     // replace them.
     const clientLoader = `next-flight-client-entry-loader?${stringify({
-      modules: loaderOptions.modules,
+      modules: this.isEdgeServer
+        ? JSON.stringify(
+            modules.map(([key, value]) => [
+              key.replace(
+                /[\\/]next[\\/]dist[\\/]esm[\\/]/,
+                '/next/dist/'.replace(/\//g, path.sep)
+              ),
+              value,
+            ])
+          )
+        : JSON.stringify(modules),
       server: false,
     })}!`
 
     const clientSSRLoader = `next-flight-client-entry-loader?${stringify({
-      modules: loaderOptions.modules,
+      modules: JSON.stringify(modules),
       server: true,
     })}!`
 

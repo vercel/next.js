@@ -23,7 +23,7 @@ export default function transformSource(this: any) {
     .map(([request, imports]) => {
       const uniqueImports = new Set(imports)
 
-      if (uniqueImports.has('*')) {
+      if (uniqueImports.has('*') || uniqueImports.size === 0) {
         return `import(/* webpackMode: "eager" */ ${JSON.stringify(request)})`
       }
 
