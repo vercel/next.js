@@ -27,7 +27,7 @@ async function decodeActionBoundArg(actionId: string, arg: string) {
   const key = await getActionEncryptionKey()
   if (typeof key === 'undefined') {
     throw new Error(
-      `Missing encryption key in production. This is likely a bug in Next.js`
+      `Missing encryption key for Server Action. This is a bug in Next.js`
     )
   }
 
@@ -41,9 +41,9 @@ async function decodeActionBoundArg(actionId: string, arg: string) {
 
 async function encodeActionBoundArg(actionId: string, arg: string) {
   const key = await getActionEncryptionKey()
-  if (typeof key === 'undefined') {
+  if (key === undefined) {
     throw new Error(
-      `Missing encryption key in production. This is likely a bug in Next.js`
+      `Missing encryption key for Server Action. This is a bug in Next.js`
     )
   }
 

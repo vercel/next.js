@@ -179,7 +179,7 @@ export async function getActionEncryptionKey() {
     process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY ||
     serverActionsManifestSingleton.serverActionsManifest.encryptionKey
 
-  if (typeof rawKey === 'undefined') {
+  if (rawKey === undefined) {
     throw new Error('Missing encryption key for Server Actions')
   }
 
