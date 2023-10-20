@@ -1,10 +1,7 @@
 import { loadEnvConfig } from '@next/env'
 import * as Log from '../../build/output/log'
 import { bold, purple } from '../../lib/picocolors'
-import {
-  PHASE_DEVELOPMENT_SERVER,
-  PHASE_PRODUCTION_SERVER,
-} from '../../shared/lib/constants'
+import { PHASE_DEVELOPMENT_SERVER } from '../../shared/lib/constants'
 import loadConfig, { getEnabledExperimentalFeatures } from '../config'
 
 export function logStartInfo({
@@ -17,10 +14,10 @@ export function logStartInfo({
 }: {
   networkUrl: string | null
   appUrl: string | null
-  envInfo: string[] | undefined
-  expFeatureInfo: string[] | undefined
   formatDurationText: string | null
   maxExperimentalFeatures?: number
+  envInfo?: string[]
+  expFeatureInfo?: string[]
 }) {
   Log.bootstrap(
     bold(purple(`${Log.prefixes.ready} Next.js ${process.env.__NEXT_VERSION}`))
@@ -52,28 +49,21 @@ export function logStartInfo({
   }
 }
 
-export async function getStartServerInfo(
-  dir: string,
-  isDev: boolean
-): Promise<{
+export async function getStartServerInfo(dir: string): Promise<{
   envInfo?: string[]
   expFeatureInfo?: string[]
 }> {
   let expFeatureInfo: string[] = []
-  await loadConfig(
-    isDev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
-    dir,
-    {
-      onLoadUserConfig(userConfig) {
-        const userNextConfigExperimental = getEnabledExperimentalFeatures(
-          userConfig.experimental
-        )
-        expFeatureInfo = userNextConfigExperimental.sort(
-          (a, b) => a.length - b.length
-        )
-      },
-    }
-  )
+  await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
+    onLoadUserConfig(userConfig) {
+      const userNextConfigExperimental = getEnabledExperimentalFeatures(
+        userConfig.experimental
+      )
+      expFeatureInfo = userNextConfigExperimental.sort(
+        (a, b) => a.length - b.length
+      )
+    },
+  })
 
   // we need to reset env if we are going to create
   // the worker process with the esm loader so that the

@@ -139,8 +139,6 @@ export async function startServer({
     }
   }
 
-  const { envInfo, expFeatureInfo } = await getStartServerInfo(dir, isDev)
-
   const server = selfSignedCertificate
     ? https.createServer(
         {
@@ -267,6 +265,13 @@ export async function startServer({
             : `${Math.round(startServerProcessDuration)}ms`
 
         handlersReady()
+        let envInfo: string[] | undefined
+        let expFeatureInfo: string[] | undefined
+        if (isDev) {
+          const startServerInfo = await getStartServerInfo(dir)
+          envInfo = startServerInfo.envInfo
+          expFeatureInfo = startServerInfo.expFeatureInfo
+        }
         logStartInfo({
           networkUrl,
           appUrl,
