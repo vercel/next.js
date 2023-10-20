@@ -422,7 +422,7 @@ export function getEdgeServerEntry(opts: {
   }
 
   return {
-    import: `next-edge-ssr-loader?${stringify(loaderParams)}!`,
+    import: `next-edge-ssr-loader?${JSON.stringify(loaderParams)}!`,
     // The Edge bundle includes the server in its entrypoint, so it has to
     // be in the SSR layer — we later convert the page request to the RSC layer
     // via a webpack rule.
