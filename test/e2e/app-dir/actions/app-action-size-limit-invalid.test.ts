@@ -27,7 +27,6 @@ createNextDescribe(
         `
       module.exports = {
         experimental: {
-          serverActions: true,
           serverActionsBodySizeLimit: -3000,
         },
       }
@@ -46,7 +45,6 @@ createNextDescribe(
         `
       module.exports = {
         experimental: {
-          serverActions: true,
           serverActionsBodySizeLimit: 'testmb',
         },
       }
@@ -65,7 +63,6 @@ createNextDescribe(
         `
       module.exports = {
         experimental: {
-          serverActions: true,
           serverActionsBodySizeLimit: '-3000mb',
         },
       }
@@ -85,7 +82,6 @@ createNextDescribe(
           `
       module.exports = {
         experimental: {
-          serverActions: true,
           serverActionsBodySizeLimit: '1.5mb',
         },
       }

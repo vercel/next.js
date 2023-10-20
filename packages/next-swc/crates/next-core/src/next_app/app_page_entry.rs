@@ -92,6 +92,7 @@ pub async fn get_app_page_entry(
             "__next_app_require__" => "__turbopack_require__".to_string(),
             "__next_app_load_chunk__" => " __turbopack_load__".to_string(),
         },
+        indexmap! {},
     )
     .await?;
 
@@ -139,6 +140,7 @@ async fn wrap_edge_entry(
         indexmap! {
             "VAR_USERLAND" => INNER.to_string(),
         },
+        indexmap! {},
         indexmap! {},
     )
     .await?;
