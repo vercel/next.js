@@ -22,6 +22,8 @@ pub struct AssetIdent {
     pub modifiers: Vec<Vc<String>>,
     /// The part of the asset that is a (ECMAScript) module
     pub part: Option<Vc<ModulePart>>,
+    /// The asset layer the asset was created from.
+    pub layer: Option<Vc<String>>,
 }
 
 impl AssetIdent {
@@ -63,6 +65,10 @@ impl ValueToString for AssetIdent {
             write!(s, "/({})/{}", key.await?, asset.to_string().await?)?;
         }
 
+        if let Some(layer) = &self.layer {
+            write!(s, " [{}]", layer.await?)?;
+        }
+
         if !self.modifiers.is_empty() {
             s.push_str(" (");
 
@@ -98,6 +104,7 @@ impl AssetIdent {
             assets: Vec::new(),
             modifiers: Vec::new(),
             part: None,
+            layer: None,
         }))
     }
 
@@ -126,6 +133,13 @@ impl AssetIdent {
     pub fn with_path(&self, path: Vc<FileSystemPath>) -> Vc<Self> {
         let mut this = self.clone();
         this.path = path;
+        Self::new(Value::new(this))
+    }
+
+    #[turbo_tasks::function]
+    pub fn with_layer(&self, layer: Vc<String>) -> Vc<Self> {
+        let mut this = self.clone();
+        this.layer = Some(layer);
         Self::new(Value::new(this))
     }
 
@@ -187,6 +201,7 @@ impl AssetIdent {
             assets,
             modifiers,
             part,
+            layer,
         } = self;
         let query = query.await?;
         if !query.is_empty() {
@@ -232,6 +247,11 @@ impl AssetIdent {
                 }
             }
 
+            has_hash = true;
+        }
+        if let Some(layer) = layer {
+            1_u8.deterministic_hash(&mut hasher);
+            layer.await?.deterministic_hash(&mut hasher);
             has_hash = true;
         }
 

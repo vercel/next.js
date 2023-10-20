@@ -435,6 +435,7 @@ fn node_file_trace<B: Backend + 'static>(
                         ..Default::default()
                     }
                     .cell(),
+                    Vc::cell("test".to_string()),
                 );
                 let module = module_asset_context
                     .process(Vc::upcast(source), Value::new(ReferenceType::Undefined));

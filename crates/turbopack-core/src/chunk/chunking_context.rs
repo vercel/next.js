@@ -51,12 +51,6 @@ pub trait ChunkingContext {
         Vc::cell(false)
     }
 
-    fn layer(self: Vc<Self>) -> Vc<String> {
-        Vc::cell("".to_string())
-    }
-
-    fn with_layer(self: Vc<Self>, layer: String) -> Vc<Self>;
-
     fn async_loader_chunk_item(
         &self,
         module: Vc<Box<dyn ChunkableModule>>,
@@ -80,12 +74,6 @@ pub trait ChunkingContext {
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
     ) -> Result<Vc<ModuleId>> {
-        let layer = self.layer();
-        let ident = if !layer.await?.is_empty() {
-            ident.with_modifier(layer)
-        } else {
-            ident
-        };
         Ok(ModuleId::String(ident.to_string().await?.clone_value()).cell())
     }
 

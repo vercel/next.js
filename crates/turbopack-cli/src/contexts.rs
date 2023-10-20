@@ -169,6 +169,7 @@ pub fn get_client_asset_context(
         compile_time_info,
         module_options_context,
         resolve_options_context,
+        Vc::cell("client".to_string()),
     ));
 
     asset_context

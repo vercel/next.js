@@ -238,6 +238,7 @@ async fn run_test(resource: String) -> Result<Vc<RunTestResult>> {
             ..Default::default()
         }
         .cell(),
+        Vc::cell("test".to_string()),
     ));
 
     let chunking_context = DevChunkingContext::builder(

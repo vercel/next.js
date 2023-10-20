@@ -205,6 +205,7 @@ pub struct ModuleAssetContext {
     pub compile_time_info: Vc<CompileTimeInfo>,
     pub module_options_context: Vc<ModuleOptionsContext>,
     pub resolve_options_context: Vc<ResolveOptionsContext>,
+    pub layer: Vc<String>,
     transition: Option<Vc<Box<dyn Transition>>>,
 }
 
@@ -216,6 +217,7 @@ impl ModuleAssetContext {
         compile_time_info: Vc<CompileTimeInfo>,
         module_options_context: Vc<ModuleOptionsContext>,
         resolve_options_context: Vc<ResolveOptionsContext>,
+        layer: Vc<String>,
     ) -> Vc<Self> {
         Self::cell(ModuleAssetContext {
             transitions,
@@ -223,6 +225,7 @@ impl ModuleAssetContext {
             module_options_context,
             resolve_options_context,
             transition: None,
+            layer,
         })
     }
 
@@ -232,6 +235,7 @@ impl ModuleAssetContext {
         compile_time_info: Vc<CompileTimeInfo>,
         module_options_context: Vc<ModuleOptionsContext>,
         resolve_options_context: Vc<ResolveOptionsContext>,
+        layer: Vc<String>,
         transition: Vc<Box<dyn Transition>>,
     ) -> Vc<Self> {
         Self::cell(ModuleAssetContext {
@@ -239,6 +243,7 @@ impl ModuleAssetContext {
             compile_time_info,
             module_options_context,
             resolve_options_context,
+            layer,
             transition: Some(transition),
         })
     }
@@ -267,11 +272,13 @@ impl ModuleAssetContext {
             .with_types_enabled()
             .resolve()
             .await?;
+
         Ok(ModuleAssetContext::new(
             this.transitions,
             this.compile_time_info,
             this.module_options_context,
             resolve_options_context,
+            this.layer,
         ))
     }
 
@@ -415,6 +422,11 @@ impl AssetContext for ModuleAssetContext {
     }
 
     #[turbo_tasks::function]
+    fn layer(&self) -> Vc<String> {
+        self.layer
+    }
+
+    #[turbo_tasks::function]
     async fn resolve_options(
         self: Vc<Self>,
         origin_path: Vc<FileSystemPath>,
@@ -517,6 +529,7 @@ impl AssetContext for ModuleAssetContext {
                     self.compile_time_info,
                     self.module_options_context,
                     self.resolve_options_context,
+                    self.layer,
                     *transition,
                 ))
             } else {
@@ -526,6 +539,7 @@ impl AssetContext for ModuleAssetContext {
                     self.compile_time_info,
                     self.module_options_context,
                     self.resolve_options_context,
+                    self.layer,
                 ))
             },
         )

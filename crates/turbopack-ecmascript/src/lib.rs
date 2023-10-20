@@ -362,7 +362,11 @@ impl Module for EcmascriptModuleAsset {
             ident.add_modifier(modifier());
             Ok(AssetIdent::new(Value::new(ident)))
         } else {
-            Ok(self.source.ident().with_modifier(modifier()))
+            Ok(self
+                .source
+                .ident()
+                .with_modifier(modifier())
+                .with_layer(self.asset_context.layer()))
         }
     }
 

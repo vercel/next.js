@@ -1,8 +1,0 @@
-{
-  "version": 3,
-  "sections": [
-    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/import.js"],"sourcesContent":["import { foo } from \"foo\";\nimport { bar } from \"bar\";\nimport \"./shared\";\n\nfoo(true);\nbar(true);\n"],"names":[],"mappings":";;;;;;;AAIA,sMAAI;AACJ,sMAAI"}},
-    {"offset": {"line": 13, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
-    {"offset": {"line": 17, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/node_modules/foo/index.js"],"sourcesContent":["export function foo(value) {\n  console.assert(value);\n}\n"],"names":[],"mappings":";;;AAAO,SAAS,IAAI,KAAK;IACvB,QAAQ,MAAM,CAAC;AACjB"}},
-    {"offset": {"line": 23, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
-}

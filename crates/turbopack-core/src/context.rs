@@ -15,6 +15,7 @@ use crate::{
 #[turbo_tasks::value_trait]
 pub trait AssetContext {
     fn compile_time_info(self: Vc<Self>) -> Vc<CompileTimeInfo>;
+    fn layer(self: Vc<Self>) -> Vc<String>;
     fn resolve_options(
         self: Vc<Self>,
         origin_path: Vc<FileSystemPath>,

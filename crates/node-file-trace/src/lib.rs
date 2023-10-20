@@ -680,6 +680,7 @@ async fn create_module_asset(
         compile_time_info,
         ModuleOptionsContext::clone(&*module_options).cell(),
         resolve_options.cell(),
+        Vc::cell("node_file_trace".to_string()),
     ))
 }
 

@@ -62,6 +62,7 @@ async fn main() -> Result<()> {
                     ..Default::default()
                 }
                 .cell(),
+                Vc::cell("default".to_string()),
             );
             let module = module_asset_context.process(
                 Vc::upcast(source),

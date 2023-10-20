@@ -29,6 +29,7 @@ pub async fn node_evaluate_asset_context(
     execution_context: Vc<ExecutionContext>,
     import_map: Option<Vc<ImportMap>>,
     transitions: Option<Vc<TransitionsByName>>,
+    layer: String,
 ) -> Result<Vc<Box<dyn AssetContext>>> {
     let mut import_map = if let Some(import_map) = import_map {
         import_map.await?.clone_value()
@@ -90,5 +91,6 @@ pub async fn node_evaluate_asset_context(
         }
         .cell(),
         resolve_options_context,
+        Vc::cell(layer),
     )))
 }

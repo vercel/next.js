@@ -125,6 +125,7 @@ impl Chunk for EcmascriptChunk {
             assets,
             modifiers: Vec::new(),
             part: None,
+            layer: None,
         };
 
         Ok(AssetIdent::new(Value::new(ident)))

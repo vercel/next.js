@@ -44,11 +44,6 @@ impl DevChunkingContextBuilder {
         self
     }
 
-    pub fn layer(mut self, layer: &str) -> Self {
-        self.chunking_context.layer = (!layer.is_empty()).then(|| layer.to_string());
-        self
-    }
-
     pub fn reference_chunk_source_maps(mut self, source_maps: bool) -> Self {
         self.chunking_context.reference_chunk_source_maps = source_maps;
         self
@@ -96,8 +91,6 @@ pub struct DevChunkingContext {
     /// URL prefix that will be prepended to all static asset URLs when loading
     /// them.
     asset_base_path: Vc<Option<String>>,
-    /// Layer name within this context
-    layer: Option<String>,
     /// Enable HMR for this chunking
     enable_hot_module_replacement: bool,
     /// The environment chunks will be evaluated in.
@@ -124,7 +117,6 @@ impl DevChunkingContext {
                 asset_root_path,
                 chunk_base_path: Default::default(),
                 asset_base_path: Default::default(),
-                layer: None,
                 enable_hot_module_replacement: false,
                 environment,
                 runtime_type: Default::default(),
@@ -232,11 +224,6 @@ impl ChunkingContext for DevChunkingContext {
         extension: String,
     ) -> Result<Vc<FileSystemPath>> {
         let root_path = self.chunk_root_path;
-        let root_path = if let Some(layer) = self.layer.as_deref() {
-            root_path.join(layer.to_string())
-        } else {
-            root_path
-        };
         let name = ident.output_name(self.context_path, extension).await?;
         Ok(root_path.join(name.clone_value()))
     }
@@ -321,18 +308,6 @@ impl ChunkingContext for DevChunkingContext {
     #[turbo_tasks::function]
     fn is_hot_module_replacement_enabled(&self) -> Vc<bool> {
         Vc::cell(self.enable_hot_module_replacement)
-    }
-
-    #[turbo_tasks::function]
-    fn layer(&self) -> Vc<String> {
-        Vc::cell(self.layer.clone().unwrap_or_default())
-    }
-
-    #[turbo_tasks::function]
-    async fn with_layer(self: Vc<Self>, layer: String) -> Result<Vc<Self>> {
-        let mut chunking_context = self.await?.clone_value();
-        chunking_context.layer = (!layer.is_empty()).then(|| layer.to_string());
-        Ok(DevChunkingContext::new(Value::new(chunking_context)))
     }
 
     #[turbo_tasks::function]
