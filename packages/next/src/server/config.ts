@@ -406,6 +406,14 @@ function assignDefaults(
     }
   }
 
+  // TODO: Remove this warning in Next.js 15
+  warnOptionHasBeenDeprecated(
+    result,
+    'experimental.serverActions',
+    'Server Actions are available by default now, `experimental.serverActions` option can be safely removed.',
+    silent
+  )
+
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'relay',
