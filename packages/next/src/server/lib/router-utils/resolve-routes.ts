@@ -148,12 +148,12 @@ export function getResolveRoutes(
         }${req.url}`
       : req.url || ''
 
-    addRequestMeta(req, '__NEXT_INIT_URL', initUrl)
-    addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
-    addRequestMeta(req, '_protocol', protocol)
+    addRequestMeta(req, 'initURL', initUrl)
+    addRequestMeta(req, 'initQuery', { ...parsedUrl.query })
+    addRequestMeta(req, 'initProtocol', protocol)
 
     if (!isUpgradeReq) {
-      addRequestMeta(req, '__NEXT_CLONABLE_BODY', getCloneableBody(req))
+      addRequestMeta(req, 'clonableBody', getCloneableBody(req))
     }
 
     const maybeAddTrailingSlash = (pathname: string) => {

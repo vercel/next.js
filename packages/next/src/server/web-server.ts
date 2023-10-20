@@ -110,7 +110,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     req: WebNextRequest,
     parsedUrl: NextUrlWithParsedQuery
   ) {
-    addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
+    addRequestMeta(req, 'initQuery', { ...parsedUrl.query })
   }
 
   protected getPrerenderManifest() {

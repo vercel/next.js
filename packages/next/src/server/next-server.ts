@@ -874,7 +874,7 @@ export default class NextNodeServer extends BaseServer {
 
       // Add the match to the request so we don't have to re-run the matcher
       // for the same request.
-      addRequestMeta(req, '_nextMatch', match)
+      addRequestMeta(req, 'match', match)
 
       // TODO-APP: move this to a route handler
       const edgeFunctionsPages = this.getEdgeFunctionsPages()
@@ -1478,13 +1478,13 @@ export default class NextNodeServer extends BaseServer {
     let url: string
 
     if (this.nextConfig.skipMiddlewareUrlNormalize) {
-      url = getRequestMeta(params.request, '__NEXT_INIT_URL')!
+      url = getRequestMeta(params.request, 'initURL')!
     } else {
       // For middleware to "fetch" we must always provide an absolute URL
       const query = urlQueryToSearchParams(params.parsed.query).toString()
       const locale = params.parsed.query.__nextLocale
 
-      url = `${getRequestMeta(params.request, '_protocol')}://${
+      url = `${getRequestMeta(params.request, 'initProtocol')}://${
         this.fetchHostname || 'localhost'
       }:${this.port}${locale ? `/${locale}` : ''}${params.parsed.pathname}${
         query ? `?${query}` : ''
@@ -1538,7 +1538,7 @@ export default class NextNodeServer extends BaseServer {
         },
         url: url,
         page,
-        body: getRequestMeta(params.request, '__NEXT_CLONABLE_BODY'),
+        body: getRequestMeta(params.request, 'clonableBody'),
         signal: signalFromNodeResponse(
           (params.response as NodeNextResponse).originalResponse
         ),
@@ -1571,7 +1571,7 @@ export default class NextNodeServer extends BaseServer {
       }
 
       // Add cookies to request meta.
-      addRequestMeta(params.request, '_nextMiddlewareCookie', cookies)
+      addRequestMeta(params.request, 'middlewareCookie', cookies)
     }
 
     return result
@@ -1602,7 +1602,7 @@ export default class NextNodeServer extends BaseServer {
       return handleFinished()
     }
 
-    const initUrl = getRequestMeta(req, '__NEXT_INIT_URL')!
+    const initUrl = getRequestMeta(req, 'initURL')!
     const parsedUrl = parseUrl(initUrl)
     const pathnameInfo = getNextPathnameInfo(parsedUrl.pathname, {
       nextConfig: this.nextConfig,
@@ -1767,12 +1767,12 @@ export default class NextNodeServer extends BaseServer {
         ? `https://${req.headers.host || 'localhost'}${req.url}`
         : req.url
 
-    addRequestMeta(req, '__NEXT_INIT_URL', initUrl)
-    addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
-    addRequestMeta(req, '_protocol', protocol)
+    addRequestMeta(req, 'initURL', initUrl)
+    addRequestMeta(req, 'initQuery', { ...parsedUrl.query })
+    addRequestMeta(req, 'initProtocol', protocol)
 
     if (!isUpgradeReq) {
-      addRequestMeta(req, '__NEXT_CLONABLE_BODY', getCloneableBody(req.body))
+      addRequestMeta(req, 'clonableBody', getCloneableBody(req.body))
     }
   }
 
@@ -1809,7 +1809,7 @@ export default class NextNodeServer extends BaseServer {
     // For edge to "fetch" we must always provide an absolute URL
     const isDataReq = !!query.__nextDataReq
     const initialUrl = new URL(
-      getRequestMeta(params.req, '__NEXT_INIT_URL') || '/',
+      getRequestMeta(params.req, 'initURL') || '/',
       'http://n'
     )
     const queryString = urlQueryToSearchParams({
@@ -1849,7 +1849,7 @@ export default class NextNodeServer extends BaseServer {
           name: params.page,
           ...(params.params && { params: params.params }),
         },
-        body: getRequestMeta(params.req, '__NEXT_CLONABLE_BODY'),
+        body: getRequestMeta(params.req, 'clonableBody'),
         signal: signalFromNodeResponse(
           (params.res as NodeNextResponse).originalResponse
         ),
@@ -1858,7 +1858,7 @@ export default class NextNodeServer extends BaseServer {
       onWarning: params.onWarning,
       incrementalCache:
         (globalThis as any).__incrementalCache ||
-        getRequestMeta(params.req, '_nextIncrementalCache'),
+        getRequestMeta(params.req, 'incrementalCache'),
     })
 
     if (result.fetchMetrics) {
