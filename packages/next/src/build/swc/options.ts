@@ -46,7 +46,6 @@ function getBaseSWCOptions({
   isServerLayer,
   bundleTarget,
   hasServerComponents,
-  isServerActionsEnabled,
 }: {
   filename: string
   jest?: boolean
@@ -56,7 +55,6 @@ function getBaseSWCOptions({
   modularizeImports?: NextConfig['modularizeImports']
   compilerOptions: NextConfig['compiler']
   swcPlugins: ExperimentalConfig['swcPlugins']
-  isServerActionsEnabled?: ExperimentalConfig['serverActions']
   resolvedBaseUrl?: string
   jsConfig: any
   bundleTarget: BundleType
@@ -183,8 +181,7 @@ function getBaseSWCOptions({
     serverActions:
       hasServerComponents && !jest
         ? {
-            // TODO-APP: When Server Actions is stable, we need to remove this flag.
-            enabled: !!isServerActionsEnabled,
+            enabled: true,
             isServer: !!isServerLayer,
           }
         : undefined,
@@ -320,7 +317,6 @@ export function getLoaderSWCOptions({
   relativeFilePathFromRoot,
   hasServerComponents,
   isServerLayer,
-  isServerActionsEnabled,
   bundleTarget,
 }: // This is not passed yet as "paths" resolving is handled by webpack currently.
 // resolvedBaseUrl,
@@ -346,7 +342,6 @@ export function getLoaderSWCOptions({
   bundleTarget: BundleType
   hasServerComponents?: boolean
   isServerLayer: boolean
-  isServerActionsEnabled?: boolean
 }) {
   let baseOptions: any = getBaseSWCOptions({
     filename,
@@ -361,7 +356,6 @@ export function getLoaderSWCOptions({
     swcCacheDir,
     hasServerComponents,
     isServerLayer,
-    isServerActionsEnabled,
     bundleTarget,
   })
   baseOptions.fontLoaders = {
