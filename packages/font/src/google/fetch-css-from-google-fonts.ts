@@ -58,7 +58,7 @@ export async function fetchCSSFromGoogleFonts(
         : undefined
 
       const res = await fetch(url, {
-        // @ts-ignore
+        // @ts-expect-error `undici`/Node.js type mismatch with the Web API
         dispatcher: getProxyAgent(),
         // Add a timeout in dev
         signal,
