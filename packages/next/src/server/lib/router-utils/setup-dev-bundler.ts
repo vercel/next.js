@@ -374,7 +374,7 @@ async function startWatcher(opts: SetupOpts) {
         if (p.endsWith('.map')) continue
         let key = `${id}:${p}`
         const previousHash = serverPathState.get(key)
-        if (previousHash !== contentHash) {
+        if (previousHash && previousHash !== contentHash) {
           hasChange = true
           serverPathState.set(key, contentHash)
         }
