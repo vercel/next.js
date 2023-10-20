@@ -132,7 +132,7 @@ function HistoryUpdater({ tree, pushRef, canonicalUrl, sync }: any) {
   return null
 }
 
-const createEmptyCacheNode = () => ({
+export const createEmptyCacheNode = () => ({
   status: CacheStates.LAZY_INITIALIZED,
   data: null,
   subTreeData: null,

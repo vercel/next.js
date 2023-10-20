@@ -3,10 +3,14 @@ import {
   type AppRouterState,
   type ReducerActions,
   type ReducerState,
+  ACTION_REFRESH,
+  ACTION_SERVER_ACTION,
+  ACTION_NAVIGATE,
 } from '../../../client/components/router-reducer/router-reducer-types'
 import type { ReduxDevToolsInstance } from '../../../client/components/use-reducer-with-devtools'
 import { reducer } from '../../../client/components/router-reducer/router-reducer'
 import React, { startTransition } from 'react'
+import { createEmptyCacheNode } from '../../../client/components/app-router'
 
 export type DispatchStatePromise = React.Dispatch<ReducerState>
 
@@ -16,6 +20,7 @@ export type AppRouterActionQueue = {
   dispatch: (payload: ReducerActions, setState: DispatchStatePromise) => void
   action: (state: AppRouterState, action: ReducerActions) => ReducerState
   pending: ActionQueueNode | null
+  needsRefresh?: boolean
   last: ActionQueueNode | null
 }
 
@@ -70,7 +75,21 @@ async function runAction({
 
   function handleResult(nextState: AppRouterState) {
     // if we discarded this action, the state should also be discarded
-    if (action.discarded) return
+    if (action.discarded) {
+      if (actionQueue.needsRefresh) {
+        actionQueue.needsRefresh = false
+        actionQueue.dispatch(
+          {
+            type: ACTION_REFRESH,
+            cache: createEmptyCacheNode(),
+            mutable: {},
+            origin: window.location.origin,
+          },
+          setState
+        )
+      }
+      return
+    }
 
     actionQueue.state = nextState
 
@@ -121,10 +140,14 @@ function dispatchAction(
     setState(deferredPromise)
   })
 
-  if (payload.type === 'navigate' && actionQueue.pending !== null) {
+  if (payload.type === ACTION_NAVIGATE && actionQueue.pending !== null) {
     // Navigations take priority over any pending actions.
     // Mark the pending action as discarded (so the state is never applied) and start the navigation action immediately.
     actionQueue.pending.discarded = true
+
+    // if the pending action was a server action, mark the queue as needing a refresh once events are processed
+    actionQueue.needsRefresh =
+      actionQueue.pending.payload.type === ACTION_SERVER_ACTION
 
     runAction({
       actionQueue,
