@@ -78,7 +78,7 @@ export default function SignUpUserSteps() {
           data. If you're stuck for creativity, you can copy and paste the
           following into the{' '}
           <a
-            href="https://supabase.com/dashboard/project/_/editor"
+            href="https://supabase.com/dashboard/project/_/sql/new"
             className="font-bold hover:underline text-foreground/80"
             target="_blank"
           >
