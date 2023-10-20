@@ -11,7 +11,6 @@ import {
   launchApp,
   killApp,
   nextStart,
-  nextExport,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -125,7 +124,6 @@ describe('AMP SSG Support', () => {
 
         beforeAll(async () => {
           await nextBuild(appDir)
-          await nextExport(appDir, { outdir: join(appDir, 'out') })
           buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
         })
 
