@@ -12,10 +12,10 @@ declare global {
 
 type GTMParams = {
   gtmId: string
-  dataLayer: string[]
-  dataLayerName: string
-  auth: string
-  preview: string
+  dataLayer?: string[]
+  dataLayerName?: string
+  auth?: string
+  preview?: string
 }
 
 let currDataLayerName: string | undefined = undefined

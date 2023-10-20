@@ -37,16 +37,6 @@ With Server Actions, you don't need to manually create API endpoints. Instead, y
 
 Server Actions can be defined in Server Components or called from Client Components. Defining the action in a Server Component allows the form to function without JavaScript, providing progressive enhancement.
 
-Enable Server Actions in your `next.config.js` file:
-
-```js filename="next.config.js"
-module.exports = {
-  experimental: {
-    serverActions: true,
-  },
-}
-```
-
 > **Good to know:**
 >
 > - Forms calling Server Actions from Server Components can function without JavaScript.
