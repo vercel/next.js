@@ -965,6 +965,9 @@ impl AppEndpoint {
                 )?;
                 server_assets.push(app_paths_manifest_output);
 
+                // TODO figure out how to set this correctly
+                let availability_info = AvailabilityInfo::Root;
+
                 // create react-loadable-manifest for next/dynamic
                 let dynamic_import_modules =
                     collect_next_dynamic_imports(app_entry.rsc_entry).await?;
@@ -972,6 +975,7 @@ impl AppEndpoint {
                     chunking_context,
                     dynamic_import_modules,
                     Vc::cell(evaluatable_assets),
+                    Value::new(availability_info),
                 )
                 .await?;
                 let loadable_manifest_output = create_react_loadable_manifest(

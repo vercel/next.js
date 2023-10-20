@@ -42,7 +42,7 @@ use turbopack_binding::{
             asset::AssetContent,
             chunk::{
                 availability_info::AvailabilityInfo, ChunkGroupResult, ChunkingContext,
-                ChunkingContextExt, EvaluatableAssets,
+                EvaluatableAssets,
             },
             context::AssetContext,
             file_source::FileSource,
@@ -209,15 +209,14 @@ impl PagesProject {
         let pathname_vc = Vc::cell(pathname.clone());
         let original_name = Vc::cell(format!("/{}", original_path.await?.path));
         let path = project_path;
-        let endpoint = Vc::upcast(PageEndpoint::new(
+        Ok(PageEndpoint::new(
             ty,
             self,
             pathname_vc,
             original_name,
             path,
             self.pages_structure(),
-        ));
-        Ok(endpoint)
+        ))
     }
 
     #[turbo_tasks::function]
@@ -681,7 +680,7 @@ impl PageEndpoint {
                 )
                 .await?;
 
-            let new_assets = assets.await?.clone_value();
+            let mut new_assets = assets.await?.clone_value();
 
             new_assets.push(Vc::upcast(PageLoaderAsset::new(
                 this.pages_project.project().client_root(),
@@ -701,8 +700,8 @@ impl PageEndpoint {
     }
 
     #[turbo_tasks::function]
-    fn client_chunks(self: Vc<Self>) -> Vc<OutputAssets> {
-        self.client_chunks_chunk_group().await?.assets
+    async fn client_chunks(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
+        Ok(self.client_chunks_chunk_group().await?.assets)
     }
 
     #[turbo_tasks::function]
@@ -729,6 +728,17 @@ impl PageEndpoint {
             let is_edge = matches!(config.runtime, NextRuntime::Edge);
 
             if is_edge {
+                let availablility_info = if let Some(depend_on) = this.depend_on {
+                    match *depend_on.ssr_chunk().await? {
+                        SsrChunk::Edge {
+                            availability_info, ..
+                        } => availability_info,
+                        _ => AvailabilityInfo::Root,
+                    }
+                } else {
+                    AvailabilityInfo::Root
+                };
+
                 let ssr_module = create_page_ssr_entry_module(
                     this.pathname,
                     reference_type,
@@ -747,27 +757,45 @@ impl PageEndpoint {
                     .context("could not process page loader entry module")?;
                 evaluatable_assets.push(evaluatable);
 
-                let edge_files = edge_chunking_context.evaluated_chunk_group_assets(
-                    ssr_module.ident(),
-                    Vc::cell(evaluatable_assets.clone()),
-                    Value::new(AvailabilityInfo::Root),
-                );
+                let chunk_group = edge_chunking_context
+                    .evaluated_chunk_group(
+                        ssr_module.ident(),
+                        Vc::cell(evaluatable_assets.clone()),
+                        Value::new(availablility_info),
+                    )
+                    .await?;
 
+                let edge_files = chunk_group.assets;
+
+                let availability_info = chunk_group.availability_info;
                 let dynamic_import_modules = collect_next_dynamic_imports(ssr_module).await?;
                 let dynamic_import_entries = collect_evaluated_chunk_group(
                     edge_chunking_context,
                     dynamic_import_modules,
                     Vc::cell(evaluatable_assets.clone()),
+                    Value::new(availability_info),
                 )
                 .await?;
 
                 Ok(SsrChunk::Edge {
                     files: edge_files,
                     dynamic_import_entries,
+                    availability_info,
                 }
                 .cell())
             } else {
                 let pathname = &**this.pathname.await?;
+
+                let availablility_info = if let Some(depend_on) = this.depend_on {
+                    match *depend_on.ssr_chunk().await? {
+                        SsrChunk::NodeJs {
+                            availability_info, ..
+                        } => availability_info,
+                        _ => AvailabilityInfo::Root,
+                    }
+                } else {
+                    AvailabilityInfo::Root
+                };
 
                 // `/_app` and `/_document` never get rendered directly so they don't need to be
                 // wrapped in the route module.
@@ -799,29 +827,29 @@ impl PageEndpoint {
                 let ssr_entry_chunk_path_string = format!("pages{asset_path}");
                 let ssr_entry_chunk_path = node_path.join(ssr_entry_chunk_path_string);
                 let EntryChunkGroupResult {
-                    asset: ssr_entry_chunk,
-                    ..
+                    asset: ssr_entry_chunks,
+                    availability_info,
                 } = *chunking_context
                     .entry_chunk_group(
                         ssr_entry_chunk_path,
                         ssr_module,
                         runtime_entries,
-                        Value::new(AvailabilityInfo::Root),
+                        Value::new(availablility_info),
                     )
                     .await?;
 
-                let availability_info = Value::new(AvailabilityInfo::Root);
                 let dynamic_import_modules = collect_next_dynamic_imports(ssr_module).await?;
                 let dynamic_import_entries = collect_chunk_group(
                     chunking_context,
                     dynamic_import_modules,
-                    availability_info,
+                    Value::new(availability_info),
                 )
                 .await?;
 
                 Ok(SsrChunk::NodeJs {
-                    entry: ssr_entry_chunk,
+                    entry: ssr_entry_chunks,
                     dynamic_import_entries,
+                    availability_info,
                 }
                 .cell())
             }
@@ -1077,6 +1105,7 @@ impl PageEndpoint {
             SsrChunk::NodeJs {
                 entry,
                 dynamic_import_entries,
+                ..
             } => {
                 let pages_manifest = self.pages_manifest(entry);
                 server_assets.push(pages_manifest);
@@ -1094,6 +1123,7 @@ impl PageEndpoint {
             SsrChunk::Edge {
                 files,
                 dynamic_import_entries,
+                ..
             } => {
                 let node_root = this.pages_project.project().node_root();
                 let files_value = files.await?;
@@ -1308,9 +1338,11 @@ pub enum SsrChunk {
     NodeJs {
         entry: Vc<Box<dyn OutputAsset>>,
         dynamic_import_entries: Vc<DynamicImportedChunks>,
+        availability_info: AvailabilityInfo,
     },
     Edge {
         files: Vc<OutputAssets>,
         dynamic_import_entries: Vc<DynamicImportedChunks>,
+        availability_info: AvailabilityInfo,
     },
 }

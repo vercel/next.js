@@ -93,12 +93,13 @@ pub(crate) async fn collect_evaluated_chunk_group(
     chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
     dynamic_import_entries: IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>,
     evaluatable_assets: Vc<EvaluatableAssets>,
+    availability_info: Value<AvailabilityInfo>,
 ) -> Result<Vc<DynamicImportedChunks>> {
     collect_chunk_group_inner(dynamic_import_entries, |chunk_item| {
         chunking_context.evaluated_chunk_group_assets(
             chunk_item.ident(),
             evaluatable_assets,
-            Value::new(AvailabilityInfo::Root),
+            availability_info,
         )
     })
     .await
