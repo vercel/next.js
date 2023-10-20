@@ -25,7 +25,8 @@ export default function transformSource(this: any) {
         return `import(/* webpackMode: "eager" */ ${JSON.stringify(request)})`
       }
 
-      return `import(/* webpackMode: "eager" *//* webpackExports: [${imports
+      const uniqueImports = [...new Set(imports)]
+      return `import(/* webpackMode: "eager" *//* webpackExports: [${uniqueImports
         .map((i) => JSON.stringify(i))
         .join(', ')}] */ ${JSON.stringify(request)})`
     })
