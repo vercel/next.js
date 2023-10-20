@@ -281,7 +281,7 @@ var ReactServerSharedInternals = {
   ReactCurrentCache: ReactCurrentCache
 };
 
-var ReactVersion = '18.3.0-canary-a41957507-20231017';
+var ReactVersion = '18.3.0-canary-d803f519e-20231020';
 
 // ATTENTION
 // When adding new symbols to this file,

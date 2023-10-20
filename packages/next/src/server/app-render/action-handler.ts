@@ -40,27 +40,8 @@ import type { AppRenderContext, GenerateFlight } from './app-render'
 
 function nodeToWebReadableStream(nodeReadable: import('stream').Readable) {
   if (process.env.NEXT_RUNTIME !== 'edge') {
-    const { Readable } = require('stream')
-    if ('toWeb' in Readable && typeof Readable.toWeb === 'function') {
-      return Readable.toWeb(nodeReadable)
-    }
-
-    const iterator = nodeReadable[Symbol.asyncIterator]()
-
-    return new ReadableStream({
-      pull: async (controller) => {
-        const { value, done } = await iterator.next()
-
-        if (done) {
-          controller.close()
-        } else {
-          controller.enqueue(value)
-        }
-      },
-      cancel: () => {
-        iterator.return?.()
-      },
-    })
+    const { Readable } = require('stream') as typeof import('stream')
+    return Readable.toWeb(nodeReadable) as ReadableStream
   } else {
     throw new Error('Invalid runtime')
   }

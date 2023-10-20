@@ -247,15 +247,6 @@ export async function exportAppImpl(
     )
   }
 
-  // Running 'next export' or output is set to 'export'
-  if (options.isInvokedFromCli || isExportOutput) {
-    if (nextConfig.experimental.serverActions) {
-      throw new ExportError(
-        `Server Actions are not supported with static export.`
-      )
-    }
-  }
-
   const telemetry = options.buildExport ? null : new Telemetry({ distDir })
 
   if (telemetry) {
@@ -477,6 +468,25 @@ export async function exportAppImpl(
     }
   }
 
+  let serverActionsManifest
+  if (options.hasAppDir) {
+    serverActionsManifest = require(join(
+      distDir,
+      SERVER_DIRECTORY,
+      SERVER_REFERENCE_MANIFEST + '.json'
+    ))
+    if (options.isInvokedFromCli || isExportOutput) {
+      if (
+        Object.keys(serverActionsManifest.node).length > 0 ||
+        Object.keys(serverActionsManifest.edge).length > 0
+      ) {
+        throw new ExportError(
+          `Server Actions are not supported with static export.`
+        )
+      }
+    }
+  }
+
   // Start the rendering process
   const renderOpts: WorkerRenderOptsPartial = {
     previewProps: prerenderManifest?.preview,
@@ -513,11 +523,7 @@ export async function exportAppImpl(
     images: nextConfig.images,
     ...(options.hasAppDir
       ? {
-          serverActionsManifest: require(join(
-            distDir,
-            SERVER_DIRECTORY,
-            SERVER_REFERENCE_MANIFEST + '.json'
-          )),
+          serverActionsManifest,
         }
       : {}),
     strictNextHead: !!nextConfig.experimental.strictNextHead,

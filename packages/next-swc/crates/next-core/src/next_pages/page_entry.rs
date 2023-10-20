@@ -79,8 +79,14 @@ pub async fn create_page_ssr_entry_module(
     }
 
     // Load the file from the next.js codebase.
-    let mut source =
-        load_next_js_template(template_file, project_root, replacements, indexmap! {}).await?;
+    let mut source = load_next_js_template(
+        template_file,
+        project_root,
+        replacements,
+        indexmap! {},
+        indexmap! {},
+    )
+    .await?;
 
     // When we're building the instrumentation page (only when the
     // instrumentation file conflicts with a page also labeled
