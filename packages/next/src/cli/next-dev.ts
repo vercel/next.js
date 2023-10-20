@@ -2,7 +2,14 @@
 
 import '../server/lib/cpu-profile'
 import type { StartServerOptions } from '../server/lib/start-server'
-import { RESTART_EXIT_CODE, getPort, printAndExit } from '../server/lib/utils'
+import {
+  RESTART_EXIT_CODE,
+  checkNodeDebugType,
+  getDebugPort,
+  getNodeOptionsWithoutInspect,
+  getPort,
+  printAndExit,
+} from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import type { CliCommand } from '../lib/commands'
 import { getProjectDir } from '../lib/get-project-dir'
@@ -223,6 +230,15 @@ const nextDev: CliCommand = async (args) => {
       let resolved = false
       const defaultEnv = (initialEnv || process.env) as typeof process.env
 
+      let NODE_OPTIONS = getNodeOptionsWithoutInspect()
+      let nodeDebugType = checkNodeDebugType()
+
+      if (nodeDebugType) {
+        NODE_OPTIONS = `${NODE_OPTIONS} --${nodeDebugType}=${
+          getDebugPort() + 1
+        }`
+      }
+
       child = fork(startServerPath, {
         stdio: 'inherit',
         env: {
@@ -232,6 +248,7 @@ const nextDev: CliCommand = async (args) => {
           NODE_EXTRA_CA_CERTS: options.selfSignedCertificate
             ? options.selfSignedCertificate.rootCA
             : defaultEnv.NODE_EXTRA_CA_CERTS,
+          NODE_OPTIONS,
         },
       })
 

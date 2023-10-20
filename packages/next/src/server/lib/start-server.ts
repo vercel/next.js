@@ -15,10 +15,9 @@ import https from 'https'
 import Watchpack from 'watchpack'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
-import { RESTART_EXIT_CODE, getDebugPort } from './utils'
+import { RESTART_EXIT_CODE, checkNodeDebugType, getDebugPort } from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
-import { checkIsNodeDebugging } from './is-node-debugging'
 import { CONFIG_FILES } from '../../shared/lib/constants'
 import { getStartServerInfo, logStartInfo } from './app-info-log'
 
@@ -183,7 +182,7 @@ export async function startServer({
     }
   })
 
-  const isNodeDebugging = checkIsNodeDebugging()
+  const nodeDebugType = checkNodeDebugType()
 
   await new Promise<void>((resolve) => {
     server.on('listening', async () => {
@@ -207,12 +206,10 @@ export async function startServer({
         selfSignedCertificate ? 'https' : 'http'
       }://${formattedHostname}:${port}`
 
-      if (isNodeDebugging) {
+      if (nodeDebugType) {
         const debugPort = getDebugPort()
         Log.info(
-          `the --inspect${
-            isNodeDebugging === 'brk' ? '-brk' : ''
-          } option was detected, the Next.js router server should be inspected at port ${debugPort}.`
+          `the --${nodeDebugType} option was detected, the Next.js router server should be inspected at port ${debugPort}.`
         )
       }
 
@@ -243,7 +240,7 @@ export async function startServer({
           server,
           hostname,
           minimalMode,
-          isNodeDebugging: Boolean(isNodeDebugging),
+          isNodeDebugging: Boolean(nodeDebugType),
           keepAliveTimeout,
           experimentalTestProxy: !!isExperimentalTestProxy,
           experimentalHttpsServer: !!selfSignedCertificate,
