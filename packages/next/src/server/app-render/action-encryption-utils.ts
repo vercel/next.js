@@ -1,6 +1,9 @@
 import type { ActionManifest } from '../../build/webpack/plugins/flight-client-entry-plugin'
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 
+// Keep the key in memory as it should never change during the lifetime of the server in
+// both development and production.
+let __next_loaded_action_key: CryptoKey
 let __next_internal_development_raw_action_key: string
 
 export function arrayBufferToString(buffer: ArrayBuffer) {
@@ -76,6 +79,7 @@ export async function generateRandomActionKeyRaw(dev?: boolean) {
   const exported = await crypto.subtle.exportKey('raw', key)
   const b64 = btoa(arrayBufferToString(exported))
 
+  __next_loaded_action_key = key
   if (dev) {
     __next_internal_development_raw_action_key = b64
   }
@@ -153,7 +157,11 @@ export function getClientReferenceManifestSingleton() {
   return serverActionsManifestSingleton.clientReferenceManifest
 }
 
-export function getActionEncryptionKey(actionId: string) {
+export async function getActionEncryptionKey() {
+  if (__next_loaded_action_key) {
+    return __next_loaded_action_key
+  }
+
   const serverActionsManifestSingleton = (globalThis as any)[
     SERVER_ACTION_MANIFESTS_SINGLETON
   ] as {
@@ -167,20 +175,21 @@ export function getActionEncryptionKey(actionId: string) {
     )
   }
 
-  const key =
-    serverActionsManifestSingleton.serverActionsManifest[
-      process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
-    ][actionId].key
+  const rawKey =
+    process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY ||
+    serverActionsManifestSingleton.serverActionsManifest.encryptionKey
 
-  if (typeof key === 'undefined') {
-    throw new Error('Missing encryption key for action: ' + actionId)
+  if (typeof rawKey === 'undefined') {
+    throw new Error('Missing encryption key for Server Actions')
   }
 
-  return crypto.subtle.importKey(
+  __next_loaded_action_key = await crypto.subtle.importKey(
     'raw',
-    stringToUint8Array(atob(key)),
+    stringToUint8Array(atob(rawKey)),
     'AES-GCM',
     true,
     ['encrypt', 'decrypt']
   )
+
+  return __next_loaded_action_key
 }

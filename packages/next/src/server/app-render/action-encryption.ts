@@ -24,16 +24,11 @@ import {
 } from './action-encryption-utils'
 
 async function decodeActionBoundArg(actionId: string, arg: string) {
-  const key = await getActionEncryptionKey(actionId)
+  const key = await getActionEncryptionKey()
   if (typeof key === 'undefined') {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error(
-        `Missing encryption key in production. This is a bug in Next.js`
-      )
-    }
-
-    // No encryption needed during development.
-    return arg
+    throw new Error(
+      `Missing encryption key in production. This is likely a bug in Next.js`
+    )
   }
 
   const decoded = await decrypt(
@@ -45,16 +40,11 @@ async function decodeActionBoundArg(actionId: string, arg: string) {
 }
 
 async function encodeActionBoundArg(actionId: string, arg: string) {
-  const key = await getActionEncryptionKey(actionId)
+  const key = await getActionEncryptionKey()
   if (typeof key === 'undefined') {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error(
-        `Missing encryption key in production. This is a bug in Next.js`
-      )
-    }
-
-    // No encryption needed during development.
-    return arg
+    throw new Error(
+      `Missing encryption key in production. This is likely a bug in Next.js`
+    )
   }
 
   const encoded = await encrypt(

@@ -45,20 +45,23 @@ interface Options {
 
 const PLUGIN_NAME = 'FlightClientEntryPlugin'
 
-export type ActionManifest = {
-  [key in 'node' | 'edge']: {
-    [actionId: string]: {
-      workers: {
-        [name: string]: string | number
-      }
-      // Record which layer the action is in (rsc or sc_action), in the specific entry.
-      layer: {
-        [name: string]: string
-      }
-      // Assign a unique encryption key for each action during production build.
-      key: string
+type Actions = {
+  [actionId: string]: {
+    workers: {
+      [name: string]: string | number
+    }
+    // Record which layer the action is in (rsc or sc_action), in the specific entry.
+    layer: {
+      [name: string]: string
     }
   }
+}
+
+export type ActionManifest = {
+  // Assign a unique encryption key during production build.
+  encryptionKey: string
+  node: Actions
+  edge: Actions
 }
 
 const pluginState = getProxiedPluginState({
@@ -810,7 +813,6 @@ export class FlightClientEntryPlugin {
           currentCompilerServerActions[id] = {
             workers: {},
             layer: {},
-            key: '',
           }
         }
         currentCompilerServerActions[id].workers[bundlePath] = ''
@@ -907,8 +909,6 @@ export class FlightClientEntryPlugin {
             ]
           action.workers[name] = modId!
         }
-        // Assign encryption key for each action
-        action.key = await generateRandomActionKeyRaw(this.dev)
         serverActions[id] = action
       }
 
@@ -923,8 +923,6 @@ export class FlightClientEntryPlugin {
             ]
           action.workers[name] = modId!
         }
-        // Assign encryption key for each action
-        action.key = await generateRandomActionKeyRaw(this.dev)
         edgeServerActions[id] = action
       }
     }
@@ -933,6 +931,9 @@ export class FlightClientEntryPlugin {
       {
         node: serverActions,
         edge: edgeServerActions,
+
+        // Assign encryption
+        encryptionKey: await generateRandomActionKeyRaw(this.dev),
       },
       null,
       this.dev ? 2 : undefined
