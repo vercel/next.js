@@ -48,7 +48,7 @@ describe('SCSS Support loader handling', () => {
           )
           .sort()
       ).toMatchInlineSnapshot(`
-        Array [
+        [
           "dark.svg",
           "dark2.svg",
           "light.svg",
@@ -100,7 +100,7 @@ describe('SCSS Support loader handling', () => {
           )
           .sort()
       ).toMatchInlineSnapshot(`
-        Array [
+        [
           "darka.svg",
           "darkb.svg",
           "light.svg",
@@ -150,7 +150,7 @@ describe('SCSS Support loader handling', () => {
           )
           .sort()
       ).toMatchInlineSnapshot(`
-        Array [
+        [
           "dark.svg",
           "dark2.svg",
           "light.svg",
@@ -200,7 +200,7 @@ describe('SCSS Support loader handling', () => {
           )
           .sort()
       ).toMatchInlineSnapshot(`
-        Array [
+        [
           "dark.svg",
           "dark2.svg",
           "light.svg",
