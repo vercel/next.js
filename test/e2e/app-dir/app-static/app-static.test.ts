@@ -1669,20 +1669,17 @@ createNextDescribe(
         const start = Date.now()
         let streamStart = 0
         const res = await next.fetch(path)
-        const chunks: any[] = []
+        const chunks: Uint8Array[] = []
 
-        await new Promise<void>((bodyResolve) => {
-          res.body.on('data', (chunk) => {
-            if (!streamStart) {
-              streamStart = Date.now()
-            }
-            chunks.push(chunk)
-          })
+        const reader = res.body.getReader()
 
-          res.body.on('end', () => {
-            bodyResolve()
-          })
-        })
+        while (true) {
+          const { done, value } = await reader.read()
+          if (!streamStart) streamStart = Date.now()
+          if (done) break
+          chunks.push(value)
+        }
+
         require('console').log({
           start,
           duration: Date.now() - start,

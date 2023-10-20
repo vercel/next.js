@@ -104,9 +104,10 @@ describe('Edge can read request body', () => {
       })
       const formData = await fakeRequest.formData()
 
-      // @ts-expect-error use `fetchViaHTTP` when we drop `node-fetch`
-      const response: Response = await fetch(
-        new URL(next.url + '/api/nothing?middleware-handler=formData'),
+      const response: Response = await fetchViaHTTP(
+        next.url,
+        '/api/nothing?middleware-handler=formData',
+        null,
         { method: 'POST', body: formData }
       )
 

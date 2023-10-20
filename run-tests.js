@@ -4,7 +4,7 @@ const _glob = require('glob')
 const { existsSync } = require('fs')
 const fsp = require('fs/promises')
 const vercelFetch = require('@vercel/fetch')
-const fetch = vercelFetch({ default: globalThis.fetch, Headers })
+const _fetch = vercelFetch({ default: fetch, Headers })
 const { promisify } = require('util')
 const { Sema } = require('async-sema')
 const { spawn, exec: execOrig } = require('child_process')
@@ -721,7 +721,7 @@ ${ENDGROUP}`)
           }
         }
 
-        const timingsRes = await fetch(TIMINGS_API, {
+        const timingsRes = await _fetch(TIMINGS_API, {
           method: 'PATCH',
           headers: {
             ...TIMINGS_API_HEADERS,

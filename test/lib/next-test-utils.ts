@@ -20,7 +20,6 @@ import treeKill from 'tree-kill'
 import server from 'next/dist/server/next'
 import _pkg from 'next/package.json'
 
-import type { RequestInit, Response } from 'next/src/compiled/undici'
 import type { SpawnOptions, ChildProcess } from 'child_process'
 import type { NextServer } from 'next/dist/server/next'
 import type { BrowserInterface } from './browsers/base'
@@ -149,7 +148,8 @@ export function fetchViaHTTP(
   appPort: string | number,
   pathname: string,
   query?: Record<string, any> | string | null | undefined,
-  opts?: RequestInit
+  // `undici`/Node.js type mismatch with the Web API
+  opts?: RequestInit & { dispatcher?: any }
 ): Promise<Response> {
   const url = query ? withQuery(pathname, query) : pathname
   return fetch(getFullUrl(appPort, url), opts)
