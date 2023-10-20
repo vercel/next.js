@@ -1,3 +1,3 @@
-const Hello = () => <p>COOL page</p>
+const Hello = () => <p>Hello World</p>
 
 export default Hello
