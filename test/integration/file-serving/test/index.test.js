@@ -1,7 +1,6 @@
 /* eslint-env jest */
 
 /* eslint-disable jest/no-identical-title */
-import url from 'url'
 import fs from 'fs-extra'
 import { join } from 'path'
 import {
