@@ -6,7 +6,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@supabase/ssr": "^0.0.2",
+    "@supabase/ssr": "latest",
     "@supabase/supabase-js": "latest",
     "autoprefixer": "10.4.15",
     "next": "latest",
