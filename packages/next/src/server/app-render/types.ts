@@ -111,6 +111,7 @@ export interface RenderOptsPartial {
   supportsDynamicHTML: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
+  enableTainting?: boolean
   assetPrefix?: string
   crossOrigin?: '' | 'anonymous' | 'use-credentials' | undefined
   nextFontManifest?: NextFontManifest

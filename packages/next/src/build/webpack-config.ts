@@ -75,6 +75,11 @@ import { needsExperimentalReact } from '../lib/needs-experimental-react'
 import { getDefineEnvPlugin } from './webpack/plugins/define-env-plugin'
 import type { SWCLoaderOptions } from './webpack/loaders/next-swc-loader'
 import { isResourceInPackages, makeExternalHandler } from './handle-externals'
+import {
+  getMainField,
+  edgeConditionNames,
+} from './webpack-config-rules/resolve'
+import { OptionalPeerDependencyResolverPlugin } from './webpack/plugins/optional-peer-dependency-resolve-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -104,21 +109,6 @@ const babelIncludeRegexes: RegExp[] = [
 
 const asyncStoragesRegex =
   /next[\\/]dist[\\/](esm[\\/])?client[\\/]components[\\/](static-generation-async-storage|action-async-storage|request-async-storage)/
-
-// exports.<conditionName>
-const edgeConditionNames = [
-  'edge-light',
-  'worker',
-  // inherits the default conditions
-  '...',
-]
-
-// packageJson.<mainField>
-const mainFieldsPerCompiler: Record<CompilerNameValues, string[]> = {
-  [COMPILER_NAMES.server]: ['main', 'module'],
-  [COMPILER_NAMES.client]: ['browser', 'module', 'main'],
-  [COMPILER_NAMES.edgeServer]: edgeConditionNames,
-}
 
 // Support for NODE_PATH
 const nodePathList = (process.env.NODE_PATH || '')
@@ -940,11 +930,14 @@ export default async function getBaseWebpackConfig(
           },
         }
       : undefined),
-    mainFields: mainFieldsPerCompiler[compilerType],
+    // default main fields use pages dir ones, and customize app router ones in loaders.
+    mainFields: getMainField('pages', compilerType),
     ...(isEdgeServer && {
       conditionNames: edgeConditionNames,
     }),
-    plugins: [],
+    plugins: [
+      isNodeServer ? new OptionalPeerDependencyResolverPlugin() : undefined,
+    ].filter(Boolean) as webpack.ResolvePluginInstance[],
   }
 
   const terserOptions: any = {
@@ -1048,7 +1041,6 @@ export default async function getBaseWebpackConfig(
     config,
     optOutBundlingPackageRegex,
     dir,
-    hasAppDir,
   })
 
   const shouldIncludeExternalDirs =
@@ -1619,6 +1611,7 @@ export default async function getBaseWebpackConfig(
                   ],
                 },
                 resolve: {
+                  mainFields: getMainField('app', compilerType),
                   conditionNames: reactServerCondition,
                   // If missing the alias override here, the default alias will be used which aliases
                   // react to the direct file path, not the package name. In that case the condition
@@ -1763,6 +1756,9 @@ export default async function getBaseWebpackConfig(
                     ],
                     exclude: [codeCondition.exclude],
                     use: swcLoaderForClientLayer,
+                    resolve: {
+                      mainFields: getMainField('app', compilerType),
+                    },
                   },
                 ]
               : []),

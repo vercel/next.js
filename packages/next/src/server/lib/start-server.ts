@@ -2,7 +2,6 @@ if (performance.getEntriesByName('next-start').length === 0) {
   performance.mark('next-start')
 }
 import '../next'
-import '../node-polyfill-fetch'
 import '../require-hook'
 
 import type { IncomingMessage, ServerResponse } from 'http'

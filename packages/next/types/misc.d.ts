@@ -49,6 +49,10 @@ declare module 'next/dist/compiled/@next/react-dev-overlay/dist/middleware' {
   export * from '@next/react-dev-overlay/dist/middleware'
 }
 
+declare module 'next/dist/compiled/@next/react-dev-overlay/dist/middleware-turbopack' {
+  export * from '@next/react-dev-overlay/dist/middleware-turbopack'
+}
+
 declare module 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWebpackPlugin' {
   import m from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
   export = m
@@ -67,8 +71,6 @@ declare module 'next/dist/compiled/node-html-parser' {
 declare module 'next/dist/compiled/@mswjs/interceptors/ClientRequest' {
   export * from '@mswjs/interceptors/ClientRequest'
 }
-
-declare module 'next/dist/compiled/undici' {}
 
 declare module 'next/dist/compiled/jest-worker' {
   export * from 'jest-worker'
