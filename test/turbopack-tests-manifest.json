@@ -3792,6 +3792,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/taint/process-taint.test.ts": {
+    "passed": [],
+    "failed": [
+      "app dir - taint should error when passing process env to client component"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": true
+  },
   "test/e2e/app-dir/test-template/{{ toFileName name }}/{{ toFileName name }}.test.ts": {
     "passed": [
       "{{name}} should work using browser",
@@ -5561,7 +5570,9 @@
       "transpile packages css should handle css modules imports inside transpiled modules",
       "transpile packages css should handle global css imports inside transpiled modules",
       "transpile packages css should handle global scss imports inside transpiled modules",
-      "transpile packages css should handle scss modules imports inside transpiled modules"
+      "transpile packages css should handle scss modules imports inside transpiled modules",
+      "transpile packages optional deps should hide dynammic module dependency errors from node_modules",
+      "transpile packages optional deps should not throw an error when optional deps are not installed"
     ],
     "failed": [],
     "pending": [],
