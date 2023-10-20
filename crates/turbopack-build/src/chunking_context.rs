@@ -1,3 +1,5 @@
+use std::iter::once;
+
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{trace::TraceRawVcs, TaskInput, Value, Vc};
@@ -164,8 +166,17 @@ impl BuildChunkingContext {
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
         let availability_info = AvailabilityInfo::Root;
 
-        let MakeChunkGroupResult { chunks } =
-            make_chunk_group(Vc::upcast(self), [Vc::upcast(module)], availability_info).await?;
+        let MakeChunkGroupResult { chunks } = make_chunk_group(
+            Vc::upcast(self),
+            once(Vc::upcast(module)).chain(
+                evaluatable_assets
+                    .await?
+                    .iter()
+                    .map(|&asset| Vc::upcast(asset)),
+            ),
+            availability_info,
+        )
+        .await?;
 
         let other_chunks: Vec<_> = chunks
             .iter()
