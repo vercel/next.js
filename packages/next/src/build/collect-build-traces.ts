@@ -406,11 +406,10 @@ export async function collectBuildTraces({
               return await fs.readFile(p, 'utf8')
             } catch (e) {
               if (isError(e) && (e.code === 'ENOENT' || e.code === 'EISDIR')) {
-                // handle temporary internal webpack files
-                if (p.match(/static[/\\]media/)) {
-                  return ''
-                }
-                return null
+                // since tracing runs in parallel with static generation server
+                // files might be removed from that step so tolerate ENOENT
+                // errors gracefully
+                return ''
               }
               throw e
             }

@@ -136,6 +136,12 @@ export interface MiddlewareRoutingItem {
   matchers?: MiddlewareMatcher[]
 }
 
+export type RouteHandler = (
+  req: BaseNextRequest,
+  res: BaseNextResponse,
+  parsedUrl: NextUrlWithParsedQuery
+) => PromiseLike<boolean> | boolean
+
 /**
  * The normalized route manifest is the same as the route manifest, but with
  * the rewrites normalized to the object shape that the router expects.
@@ -230,6 +236,7 @@ type BaseRenderOpts = {
   distDir: string
   runtime?: ServerRuntime
   serverComponents?: boolean
+  enableTainting?: boolean
   crossOrigin?: 'anonymous' | 'use-credentials' | '' | undefined
   supportsDynamicHTML?: boolean
   isBot?: boolean
@@ -478,6 +485,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       domainLocales: this.nextConfig.i18n?.domains,
       distDir: this.distDir,
       serverComponents,
+      enableTainting: this.nextConfig.experimental.taint,
       crossOrigin: this.nextConfig.crossOrigin
         ? this.nextConfig.crossOrigin
         : undefined,
@@ -519,17 +527,17 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     return this.matchers.reload()
   }
 
-  protected async handleNextDataRequest(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
-    parsedUrl: NextUrlWithParsedQuery
-  ): Promise<{ finished: boolean }> {
+  protected handleNextDataRequest: RouteHandler = async (
+    req,
+    res,
+    parsedUrl
+  ) => {
     const middleware = this.getMiddleware()
     const params = matchNextDataPathname(parsedUrl.pathname)
 
     // ignore for non-next data URLs
     if (!params || !params.path) {
-      return { finished: false }
+      return false
     }
 
     if (params.path[0] !== this.buildId) {
@@ -538,12 +546,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         process.env.NEXT_RUNTIME !== 'edge' &&
         req.headers['x-middleware-invoke']
       ) {
-        return { finished: false }
+        return false
       }
 
       // Make sure to 404 if the buildId isn't correct
       await this.render404(req, res, parsedUrl)
-      return { finished: true }
+      return true
     }
 
     // remove buildId from URL
@@ -554,9 +562,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // show 404 if it doesn't end with .json
     if (typeof lastParam !== 'string' || !lastParam.endsWith('.json')) {
       await this.render404(req, res, parsedUrl)
-      return {
-        finished: true,
-      }
+      return true
     }
 
     // re-create page's pathname
@@ -608,38 +614,26 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       if (!localePathResult.detectedLocale && !middleware) {
         parsedUrl.query.__nextLocale = defaultLocale
         await this.render404(req, res, parsedUrl)
-        return { finished: true }
+        return true
       }
     }
 
     parsedUrl.pathname = pathname
     parsedUrl.query.__nextDataReq = '1'
 
-    return { finished: false }
+    return false
   }
 
-  protected async handleNextImageRequest(
-    _req: BaseNextRequest,
-    _res: BaseNextResponse,
-    _parsedUrl: NextUrlWithParsedQuery
-  ): Promise<{ finished: boolean }> {
-    return { finished: false }
+  protected handleNextImageRequest: RouteHandler = () => {
+    return false
   }
 
-  protected async handleCatchallRenderRequest(
-    _req: BaseNextRequest,
-    _res: BaseNextResponse,
-    _parsedUrl: NextUrlWithParsedQuery
-  ): Promise<{ finished: boolean }> {
-    return { finished: false }
+  protected handleCatchallRenderRequest: RouteHandler = () => {
+    return false
   }
 
-  protected async handleCatchallMiddlewareRequest(
-    _req: BaseNextRequest,
-    _res: BaseNextResponse,
-    _parsedUrl: NextUrlWithParsedQuery
-  ): Promise<{ finished: boolean }> {
-    return { finished: false }
+  protected handleCatchallMiddlewareRequest: RouteHandler = () => {
+    return false
   }
 
   protected getRouteMatchers(): RouteMatcherManager {
@@ -1070,15 +1064,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           parsedUrl.pathname = matchedPath
           url.pathname = parsedUrl.pathname
 
-          const normalizeResult = await this.handleNextDataRequest(
-            req,
-            res,
-            parsedUrl
-          )
-
-          if (normalizeResult.finished) {
-            return
-          }
+          const finished = await this.handleNextDataRequest(req, res, parsedUrl)
+          if (finished) return
         } catch (err) {
           if (err instanceof DecodeError || err instanceof NormalizeError) {
             res.statusCode = 400
@@ -1242,26 +1229,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           )
         }
 
-        if (parsedUrl.pathname.startsWith('/_next/image')) {
-          const imageResult = await this.handleNextImageRequest(
-            req,
-            res,
-            parsedUrl
-          )
+        // Try to handle this as a `/_next/image` request.
+        let finished = await this.handleNextImageRequest(req, res, parsedUrl)
+        if (finished) return
 
-          if (imageResult.finished) {
-            return
-          }
-        }
-        const nextDataResult = await this.handleNextDataRequest(
-          req,
-          res,
-          parsedUrl
-        )
+        // Try to handle the request as a `/_next/data` request.
+        finished = await this.handleNextDataRequest(req, res, parsedUrl)
+        if (finished) return
 
-        if (nextDataResult.finished) {
-          return
-        }
         await this.handleCatchallRenderRequest(req, res, parsedUrl)
         return
       }
@@ -1270,35 +1245,26 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         process.env.NEXT_RUNTIME !== 'edge' &&
         req.headers['x-middleware-invoke']
       ) {
-        const nextDataResult = await this.handleNextDataRequest(
+        let finished = await this.handleNextDataRequest(req, res, parsedUrl)
+        if (finished) return
+
+        finished = await this.handleCatchallMiddlewareRequest(
           req,
           res,
           parsedUrl
         )
+        if (finished) return
 
-        if (nextDataResult.finished) {
-          return
+        const err = new Error()
+        ;(err as any).result = {
+          response: new Response(null, {
+            headers: {
+              'x-middleware-next': '1',
+            },
+          }),
         }
-        const result = await this.handleCatchallMiddlewareRequest(
-          req,
-          res,
-          parsedUrl
-        )
-
-        if (result.finished) {
-          return
-        } else {
-          const err = new Error()
-          ;(err as any).result = {
-            response: new Response(null, {
-              headers: {
-                'x-middleware-next': '1',
-              },
-            }),
-          }
-          ;(err as any).bubble = true
-          throw err
-        }
+        ;(err as any).bubble = true
+        throw err
       }
 
       // ensure we strip the basePath when not using an invoke header

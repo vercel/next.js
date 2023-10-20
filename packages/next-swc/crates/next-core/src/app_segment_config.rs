@@ -204,7 +204,7 @@ impl Issue for NextSegmentConfigParsingIssue {
 
     #[turbo_tasks::function]
     fn source(&self) -> Vc<OptionIssueSource> {
-        OptionIssueSource::some(self.source)
+        Vc::cell(Some(self.source))
     }
 }
 
