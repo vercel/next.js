@@ -202,7 +202,7 @@ export async function startServer({
 
       port = typeof addr === 'object' ? addr?.port || port : port
 
-      const networkUrl = `http://${actualHostname}:${port}`
+      const networkUrl = hostname ? `http://${actualHostname}:${port}` : null
       const appUrl = `${
         selfSignedCertificate ? 'https' : 'http'
       }://${formattedHostname}:${port}`
