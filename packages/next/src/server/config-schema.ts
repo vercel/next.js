@@ -257,7 +257,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         extensionAlias: z.record(z.string(), z.any()).optional(),
         externalDir: z.boolean().optional(),
         externalMiddlewareRewritesResolve: z.boolean().optional(),
-        fallbackNodePolyfills: z.literal(false).optional(),
         fetchCacheKeyPrefix: z.string().optional(),
         forceSwcTransforms: z.boolean().optional(),
         fullySpecified: z.boolean().optional(),
@@ -381,6 +380,11 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         })
       )
       .returns(z.union([zExportMap, z.promise(zExportMap)]))
+      .optional(),
+    future: z
+      .strictObject({
+        fallbackNodePolyfills: z.literal(false).optional(),
+      })
       .optional(),
     generateBuildId: z
       .function()
