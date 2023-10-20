@@ -10,7 +10,7 @@ import {
 import {
   createFromReadableStream,
   encodeReply,
-} from 'react-server-dom-webpack/client.browser'
+} from 'react-server-dom-webpack/client.edge'
 
 import { streamToString } from '../stream-utils/node-web-streams-helper'
 import {
