@@ -5,7 +5,6 @@ import { type NextInstance } from 'e2e-utils'
 import { getRedboxHeader, hasRedbox } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next/constants'
-import url from 'url'
 
 export default function (next: NextInstance, render, fetch, ctx) {
   async function get$(path: any, query?: any) {
@@ -23,7 +22,7 @@ export default function (next: NextInstance, render, fetch, ctx) {
     it('should should not contain scripts that are not js', async () => {
       const $ = await get$('/')
       $('script[src]').each((_index, element) => {
-        const parsedUrl = url.parse($(element).attr('src'))
+        const parsedUrl = new URL($(element).attr('src'))
         if (!parsedUrl.pathname.endsWith('.js')) {
           throw new Error(
             `Page includes script that is not a javascript file ${parsedUrl.pathname}`

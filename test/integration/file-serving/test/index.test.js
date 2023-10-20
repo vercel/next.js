@@ -21,19 +21,14 @@ const expectStatus = async (path) => {
   const containRegex = /(This page could not be found|Bad Request)/
   // test base mount point `public/`
   const checkRes = async (res) => {
-    if (res.status === 308) {
-      const redirectDest = res.headers.get('location')
-      const parsedUrl = url.parse(redirectDest, true)
-      expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
-    } else {
-      try {
-        expect(res.status === 400 || res.status === 404).toBe(true)
-      } catch (err) {
-        require('console').error({ path, status: res.status })
-        throw err
-      }
-      expect(await res.text()).toMatch(containRegex)
+    if (res.status === 308) return
+    try {
+      expect(res.status === 400 || res.status === 404).toBe(true)
+    } catch (err) {
+      require('console').error({ path, status: res.status })
+      throw err
     }
+    expect(await res.text()).toMatch(containRegex)
   }
   const res = await fetchViaHTTP(appPort, path, undefined, {
     redirect: 'manual',

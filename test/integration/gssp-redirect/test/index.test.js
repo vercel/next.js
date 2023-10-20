@@ -1,5 +1,4 @@
 /* eslint-env jest */
-import url from 'url'
 import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -104,7 +103,7 @@ const runTests = (isDev) => {
       },
     })
     const initialHref = await browser.eval(() => window.initialHref)
-    const { pathname } = url.parse(initialHref)
+    const { pathname } = new URL(initialHref)
     expect(pathname).toBe('/gsp-blog/redirect-dest-_gsp-blog_first')
   })
 
@@ -126,7 +125,7 @@ const runTests = (isDev) => {
       },
     })
     const initialHref = await browser.eval(() => window.initialHref)
-    const { pathname } = url.parse(initialHref)
+    const { pathname } = new URL(initialHref)
     expect(pathname).toBe('/gsp-blog/first')
   })
 
@@ -148,7 +147,7 @@ const runTests = (isDev) => {
       },
     })
     const initialHref = await browser.eval(() => window.initialHref)
-    const { pathname } = url.parse(initialHref)
+    const { pathname } = new URL(initialHref)
     expect(pathname).toBe('/gsp-blog/first')
   })
 
@@ -170,7 +169,7 @@ const runTests = (isDev) => {
       },
     })
     const initialHref = await browser.eval(() => window.initialHref)
-    const { pathname } = url.parse(initialHref)
+    const { pathname } = new URL(initialHref)
     expect(pathname).toBe('/gsp-blog/first')
   })
 
@@ -192,7 +191,7 @@ const runTests = (isDev) => {
       },
     })
     const initialHref = await browser.eval(() => window.initialHref)
-    const { pathname } = url.parse(initialHref)
+    const { pathname } = new URL(initialHref)
     expect(pathname).toBe('/gsp-blog/first')
   })
 
@@ -215,7 +214,7 @@ const runTests = (isDev) => {
         },
       })
       const initialHref = await browser.eval(() => window.initialHref)
-      const { pathname } = url.parse(initialHref)
+      const { pathname } = new URL(initialHref)
       // since it was cached the initial value is now the redirect
       // result
       expect(pathname).toBe('/gsp-blog/first')
@@ -230,7 +229,7 @@ const runTests = (isDev) => {
     await browser.waitForElementByCss('#index')
 
     const initialHref = await browser.eval(() => window.initialHref)
-    const { pathname } = url.parse(initialHref)
+    const { pathname } = new URL(initialHref)
     expect(pathname).toBe('/gsp-blog/redirect-dest-_')
   })
 
@@ -243,7 +242,7 @@ const runTests = (isDev) => {
       await browser.waitForElementByCss('#index')
 
       const initialHref = await browser.eval(() => window.initialHref)
-      const { pathname } = url.parse(initialHref)
+      const { pathname } = new URL(initialHref)
       expect(pathname).toBe('/')
     })
   }
@@ -266,7 +265,7 @@ const runTests = (isDev) => {
     expect(initialHref).toBeFalsy()
 
     const curUrl = await browser.url()
-    const { pathname } = url.parse(curUrl)
+    const { pathname } = new URL(curUrl)
     expect(pathname).toBe('/missing')
   })
 
@@ -426,8 +425,8 @@ const runTests = (isDev) => {
     })()`)
 
     const curUrl = await browser.url()
-    const { path } = url.parse(curUrl)
-    expect(path).toEqual('/')
+    const { pathname } = new URL(curUrl)
+    expect(pathname).toEqual('/')
   })
 
   it('should not replace history of the origin page when GSSP page is navigated to client-side (external)', async () => {
@@ -450,8 +449,8 @@ const runTests = (isDev) => {
     })()`)
 
     const curUrl = await browser.url()
-    const { path } = url.parse(curUrl)
-    expect(path).toEqual('/')
+    const { pathname } = new URL(curUrl)
+    expect(pathname).toEqual('/')
   })
 
   it('should not replace history of the origin page when GSP page is navigated to client-side (internal)', async () => {
@@ -474,8 +473,8 @@ const runTests = (isDev) => {
     })()`)
 
     const curUrl = await browser.url()
-    const { path } = url.parse(curUrl)
-    expect(path).toEqual('/')
+    const { pathname } = new URL(curUrl)
+    expect(pathname).toEqual('/')
   })
 
   it('should not replace history of the origin page when GSP page is navigated to client-side (external)', async () => {
@@ -498,8 +497,8 @@ const runTests = (isDev) => {
     })()`)
 
     const curUrl = await browser.url()
-    const { path } = url.parse(curUrl)
-    expect(path).toEqual('/')
+    const { pathname } = new URL(curUrl)
+    expect(pathname).toEqual('/')
   })
 }
 

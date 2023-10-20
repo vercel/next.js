@@ -3,7 +3,6 @@
 import webdriver from 'next-webdriver'
 import { join, dirname } from 'path'
 import fs from 'fs-extra'
-import url from 'url'
 import {
   renderViaHTTP,
   fetchViaHTTP,
@@ -234,12 +233,11 @@ function runTests({ dev }) {
     ]) {
       const { id, pathname, query, hash, navQuery } = expectedValues
 
-      const parsedHref = url.parse(
-        await browser.elementByCss(`#${id}`).getAttribute('href'),
-        true
+      const parsedHref = new URL(
+        await browser.elementByCss(`#${id}`).getAttribute('href')
       )
       expect(parsedHref.pathname).toBe(pathname)
-      expect(parsedHref.query || {}).toEqual(query)
+      expect(Object.fromEntries(parsedHref.searchParams)).toEqual(query)
       expect(parsedHref.hash || '').toBe(hash)
 
       await browser.eval('window.beforeNav = 1')
@@ -262,25 +260,23 @@ function runTests({ dev }) {
 
   it('should handle only hash on dynamic route', async () => {
     const browser = await webdriver(appPort, '/post-1')
-    const parsedHref = url.parse(
+    const parsedHref = new URL(
       await browser
         .elementByCss('#dynamic-route-only-hash')
-        .getAttribute('href'),
-      true
+        .getAttribute('href')
     )
     expect(parsedHref.pathname).toBe('/post-1')
     expect(parsedHref.hash).toBe('#only-hash')
-    expect(parsedHref.query || {}).toEqual({})
+    expect(Object.fromEntries(parsedHref.searchParams)).toEqual({})
 
-    const parsedHref2 = url.parse(
+    const parsedHref2 = new URL(
       await browser
         .elementByCss('#dynamic-route-only-hash-obj')
-        .getAttribute('href'),
-      true
+        .getAttribute('href')
     )
     expect(parsedHref2.pathname).toBe('/post-1')
     expect(parsedHref2.hash).toBe('#only-hash-obj')
-    expect(parsedHref2.query || {}).toEqual({})
+    expect(Object.fromEntries(parsedHref2.searchParams)).toEqual({})
 
     expect(await browser.eval('window.location.hash')).toBe('')
 
@@ -543,9 +539,9 @@ function runTests({ dev }) {
         .elementByCss('#view-post-1-interpolated')
         .getAttribute('href')
 
-      const parsedHref = url.parse(href, true)
+      const parsedHref = new URL(href)
       expect(parsedHref.pathname).toBe('/post-1')
-      expect(parsedHref.query).toEqual({})
+      expect(Object.fromEntries(parsedHref.searchParams)).toEqual({})
 
       await browser.elementByCss('#view-post-1-interpolated').click()
       await browser.waitForElementByCss('#asdf')
@@ -569,9 +565,11 @@ function runTests({ dev }) {
         .elementByCss('#view-post-1-interpolated-more-query')
         .getAttribute('href')
 
-      const parsedHref = url.parse(href, true)
+      const parsedHref = new URL(href)
       expect(parsedHref.pathname).toBe('/post-1')
-      expect(parsedHref.query).toEqual({ another: 'value' })
+      expect(Object.fromEntries(parsedHref.searchParams)).toEqual({
+        another: 'value',
+      })
 
       await browser.elementByCss('#view-post-1-interpolated-more-query').click()
       await browser.waitForElementByCss('#asdf')
@@ -672,7 +670,7 @@ function runTests({ dev }) {
         .elementByCss('#view-post-1-comment-1-interpolated')
         .getAttribute('href')
 
-      expect(url.parse(href).pathname).toBe('/post-1/comment-1')
+      expect(new URL(href).pathname).toBe('/post-1/comment-1')
 
       await browser.elementByCss('#view-post-1-comment-1-interpolated').click()
       await browser.waitForElementByCss('#asdf')
@@ -902,7 +900,7 @@ function runTests({ dev }) {
         .elementByCss('#ssg-catch-all-single-interpolated')
         .getAttribute('href')
 
-      expect(url.parse(href).pathname).toBe('/p1/p2/all-ssg/hello')
+      expect(new URL(href).pathname).toBe('/p1/p2/all-ssg/hello')
 
       await browser.elementByCss('#ssg-catch-all-single-interpolated').click()
       await browser.waitForElementByCss('#all-ssg-content')
@@ -960,7 +958,7 @@ function runTests({ dev }) {
         .elementByCss('#ssg-catch-all-multi-interpolated')
         .getAttribute('href')
 
-      expect(url.parse(href).pathname).toBe('/p1/p2/all-ssg/hello1/hello2')
+      expect(new URL(href).pathname).toBe('/p1/p2/all-ssg/hello1/hello2')
 
       await browser.elementByCss('#ssg-catch-all-multi-interpolated').click()
       await browser.waitForElementByCss('#all-ssg-content')
