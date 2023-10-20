@@ -42,7 +42,7 @@ use turbopack_binding::{
             chunk::{availability_info::AvailabilityInfo, ChunkingContext, EvaluatableAssets},
             context::AssetContext,
             file_source::FileSource,
-            issue::{IssueSeverity, OptionIssueSource},
+            issue::IssueSeverity,
             module::Module,
             output::{OutputAsset, OutputAssets},
             reference_type::{
@@ -539,7 +539,7 @@ impl PageEndpoint {
                 "next/dist/client/next-dev-turbopack.js".to_string(),
             ))),
             Value::new(EcmaScriptModulesReferenceSubType::Undefined),
-            OptionIssueSource::none(),
+            None,
             IssueSeverity::Error.cell(),
         )
         .first_module()

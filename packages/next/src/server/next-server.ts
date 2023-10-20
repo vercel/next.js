@@ -1,7 +1,5 @@
 import './node-environment'
 import './require-hook'
-import './node-polyfill-form'
-import './node-polyfill-web-streams'
 import './node-polyfill-crypto'
 
 import type { TLSSocket } from 'tls'
@@ -58,6 +56,7 @@ import type {
   RequestContext,
   NormalizedRouteManifest,
   LoadedRenderOpts,
+  RouteHandler,
 } from './base-server'
 import BaseServer, { NoFallbackError } from './base-server'
 import { getMaybePagePath, getPagePath, requireFontManifest } from './require'
@@ -731,11 +730,15 @@ export default class NextNodeServer extends BaseServer {
     )
   }
 
-  protected async handleNextImageRequest(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
-    parsedUrl: NextUrlWithParsedQuery
-  ) {
+  protected handleNextImageRequest: RouteHandler = async (
+    req,
+    res,
+    parsedUrl
+  ) => {
+    if (!parsedUrl.pathname || !parsedUrl.pathname.startsWith('/_next/image')) {
+      return false
+    }
+
     if (
       this.minimalMode ||
       this.nextConfig.output === 'export' ||
@@ -743,9 +746,7 @@ export default class NextNodeServer extends BaseServer {
     ) {
       res.statusCode = 400
       res.body('Bad Request').send()
-      return {
-        finished: true,
-      }
+      return true
       // the `else` branch is needed for tree-shaking
     } else {
       const { ImageOptimizerCache } =
@@ -766,7 +767,7 @@ export default class NextNodeServer extends BaseServer {
 
       if (imagesConfig.loader !== 'default' || imagesConfig.unoptimized) {
         await this.render404(req, res)
-        return { finished: true }
+        return true
       }
       const paramsResult = ImageOptimizerCache.validateParams(
         (req as NodeNextRequest).originalRequest,
@@ -778,7 +779,7 @@ export default class NextNodeServer extends BaseServer {
       if ('errorMessage' in paramsResult) {
         res.statusCode = 400
         res.body(paramsResult.errorMessage).send()
-        return { finished: true }
+        return true
       }
       const cacheKey = ImageOptimizerCache.getCacheKey(paramsResult)
 
@@ -831,21 +832,19 @@ export default class NextNodeServer extends BaseServer {
         if (err instanceof ImageError) {
           res.statusCode = err.statusCode
           res.body(err.message).send()
-          return {
-            finished: true,
-          }
+          return true
         }
         throw err
       }
-      return { finished: true }
+      return true
     }
   }
 
-  protected async handleCatchallRenderRequest(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
-    parsedUrl: NextUrlWithParsedQuery
-  ) {
+  protected handleCatchallRenderRequest: RouteHandler = async (
+    req,
+    res,
+    parsedUrl
+  ) => {
     let { pathname, query } = parsedUrl
     if (!pathname) {
       throw new Error('Invariant: pathname is undefined')
@@ -868,7 +867,7 @@ export default class NextNodeServer extends BaseServer {
       if (!match) {
         await this.render(req, res, pathname, query, parsedUrl, true)
 
-        return { finished: true }
+        return true
       }
 
       // Add the match to the request so we don't have to re-run the matcher
@@ -883,7 +882,7 @@ export default class NextNodeServer extends BaseServer {
 
         if (this.nextConfig.output === 'export') {
           await this.render404(req, res, parsedUrl)
-          return { finished: true }
+          return true
         }
         delete query._nextBubbleNoFallback
         delete query[NEXT_RSC_UNION_QUERY]
@@ -899,7 +898,7 @@ export default class NextNodeServer extends BaseServer {
         })
 
         // If we handled the request, we can return early.
-        if (handled) return { finished: true }
+        if (handled) return true
       }
 
       // If the route was detected as being a Pages API route, then handle
@@ -908,20 +907,18 @@ export default class NextNodeServer extends BaseServer {
       if (isPagesAPIRouteMatch(match)) {
         if (this.nextConfig.output === 'export') {
           await this.render404(req, res, parsedUrl)
-          return { finished: true }
+          return true
         }
 
         delete query._nextBubbleNoFallback
 
         const handled = await this.handleApiRequest(req, res, query, match)
-        if (handled) return { finished: true }
+        if (handled) return true
       }
 
       await this.render(req, res, pathname, query, parsedUrl, true)
 
-      return {
-        finished: true,
-      }
+      return true
     } catch (err: any) {
       if (err instanceof NoFallbackError) {
         throw err
@@ -938,9 +935,7 @@ export default class NextNodeServer extends BaseServer {
         }
         res.statusCode = 500
         await this.renderError(err, req, res, pathname, query)
-        return {
-          finished: true,
-        }
+        return true
       } catch {}
 
       throw err
@@ -1576,24 +1571,24 @@ export default class NextNodeServer extends BaseServer {
     return result
   }
 
-  protected async handleCatchallMiddlewareRequest(
+  protected handleCatchallMiddlewareRequest: RouteHandler = async (
     req: BaseNextRequest,
     res: BaseNextResponse,
     parsed: NextUrlWithParsedQuery
-  ) {
+  ) => {
     const isMiddlewareInvoke = req.headers['x-middleware-invoke']
 
     const handleFinished = (finished: boolean = false) => {
       if (isMiddlewareInvoke && !finished) {
         res.setHeader('x-middleware-invoke', '1')
         res.body('').send()
-        return { finished: true }
+        return true
       }
-      return { finished }
+      return finished
     }
 
     if (!isMiddlewareInvoke) {
-      return { finished: false }
+      return false
     }
 
     const middleware = this.getMiddleware()
@@ -1660,7 +1655,7 @@ export default class NextNodeServer extends BaseServer {
         } else {
           originalResponse.end()
         }
-        return { finished: true }
+        return true
       }
     } catch (err: any) {
       if (bubblingResult) {
@@ -1669,26 +1664,23 @@ export default class NextNodeServer extends BaseServer {
 
       if (isError(err) && err.code === 'ENOENT') {
         await this.render404(req, res, parsed)
-        return { finished: true }
+        return true
       }
 
       if (err instanceof DecodeError) {
         res.statusCode = 400
         await this.renderError(err, req, res, parsed.pathname || '')
-        return { finished: true }
+        return true
       }
 
       const error = getProperError(err)
       console.error(error)
       res.statusCode = 500
       await this.renderError(error, req, res, parsed.pathname || '')
-      return { finished: true }
+      return true
     }
 
-    if ('finished' in result) {
-      return result
-    }
-    return { finished: false }
+    return result.finished
   }
 
   private _cachedPreviewManifest: PrerenderManifest | undefined
