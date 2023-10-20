@@ -9,8 +9,6 @@ import FileSystemCache from './file-system-cache'
 import path from '../../../shared/lib/isomorphic/path'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
 
-import '../../node-polyfill-web-streams'
-
 import {
   CACHE_ONE_YEAR,
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,

@@ -7,9 +7,6 @@ import type {
   WorkerRenderOpts,
 } from './types'
 
-// Polyfill fetch for the export worker.
-import '../server/node-polyfill-fetch'
-import '../server/node-polyfill-web-streams'
 import '../server/node-environment'
 
 process.env.NEXT_IS_EXPORT_WORKER = 'true'
