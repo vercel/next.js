@@ -1,7 +1,6 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
-import FormData from 'form-data'
 import path from 'path'
 import type { Response } from 'node-fetch'
 
@@ -108,6 +107,7 @@ describe('Edge can read request body', () => {
         null,
         {
           method: 'POST',
+          // @ts-expect-error FormData is not matched with node-fetch. Remove this comment when we dropped `node-fetch`
           body: formData,
         }
       )
