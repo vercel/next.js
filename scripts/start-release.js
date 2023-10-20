@@ -2,7 +2,6 @@ const path = require('path')
 const execa = require('execa')
 const resolveFrom = require('resolve-from')
 const ansiEscapes = require('ansi-escapes')
-require('next/src/server/node-polyfill-fetch')
 
 function getPromptErrorDetails(rawAssertion, mostRecentChunk) {
   const assertion = rawAssertion.toString().trim()

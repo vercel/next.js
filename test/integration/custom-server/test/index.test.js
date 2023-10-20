@@ -272,21 +272,6 @@ describe.skip.each([
     )
   })
 
-  describe('with a custom fetch polyfill', () => {
-    beforeAll(() => startServer({ POLYFILL_FETCH: 'true' }))
-    afterAll(() => killApp(server))
-
-    it('should serve internal file from render', async () => {
-      const data = await renderViaHTTP(
-        nextUrl,
-        '/static/hello.txt',
-        undefined,
-        { agent }
-      )
-      expect(data).toMatch(/hello world/)
-    })
-  })
-
   describe('unhandled rejection', () => {
     afterEach(() => killApp(server))
 

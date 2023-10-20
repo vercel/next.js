@@ -1,7 +1,6 @@
 import { execSync, spawn } from 'child_process'
 import { join } from 'path'
 import { fileURLToPath } from 'url'
-import 'next/src/server/node-polyfill-fetch'
 import {
   existsSync,
   readFileSync,

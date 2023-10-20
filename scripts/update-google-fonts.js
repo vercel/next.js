@@ -2,7 +2,6 @@
 
 const fs = require('fs/promises')
 const path = require('path')
-require('next/src/server/node-polyfill-fetch')
 ;(async () => {
   const { familyMetadataList } = await fetch(
     'https://fonts.google.com/metadata/fonts'

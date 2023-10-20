@@ -1,5 +1,3 @@
-import 'next/src/server/node-polyfill-fetch'
-
 async function main() {
   const releasesArray = await fetch(
     'https://api.github.com/repos/vercel/next.js/releases?per_page=100'

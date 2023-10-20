@@ -4,9 +4,6 @@ const path = require('path')
 const fsp = require('fs/promises')
 const execa = require('execa')
 
-// @ts-ignore
-require('next/src/server/node-polyfill-fetch')
-
 // Use this script to update Next's vendored copy of React and related packages:
 //
 // Basic usage (defaults to most recent React canary version):

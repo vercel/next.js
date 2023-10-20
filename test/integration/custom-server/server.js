@@ -1,7 +1,3 @@
-if (process.env.POLYFILL_FETCH) {
-  require('next/src/server/node-polyfill-fetch')
-}
-
 const { readFileSync } = require('fs')
 const next = require('next')
 const { join } = require('path')
