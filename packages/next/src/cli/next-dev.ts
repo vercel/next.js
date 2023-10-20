@@ -184,27 +184,7 @@ const nextDev: CliCommand = async (args) => {
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
 
-  const { loadedEnvFiles } = loadEnvConfig(dir, true, console, false)
-
-  let expFeatureInfo: string[] = []
-  config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
-    onLoadUserConfig(userConfig) {
-      const userNextConfigExperimental = getEnabledExperimentalFeatures(
-        userConfig.experimental
-      )
-      expFeatureInfo = userNextConfigExperimental.sort(
-        (a, b) => a.length - b.length
-      )
-    },
-  })
-
-  // we need to reset env if we are going to create
-  // the worker process with the esm loader so that the
-  // initial env state is correct
-  let envInfo: string[] = []
-  if (loadedEnvFiles.length > 0) {
-    envInfo = loadedEnvFiles.map((f) => f.path)
-  }
+  config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
 
   const isExperimentalTestProxy = args['--experimental-test-proxy']
 
@@ -219,8 +199,6 @@ const nextDev: CliCommand = async (args) => {
     isDev: true,
     hostname: host,
     isExperimentalTestProxy,
-    envInfo,
-    expFeatureInfo,
   }
 
   if (args['--turbo']) {

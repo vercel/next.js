@@ -20,7 +20,7 @@ import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
 import { checkIsNodeDebugging } from './is-node-debugging'
 import { CONFIG_FILES } from '../../shared/lib/constants'
-import { bold, purple } from '../../lib/picocolors'
+import { getStartServerInfo, logStartInfo } from './app-info-log'
 
 const debug = setupDebug('next:start-server')
 
@@ -33,9 +33,6 @@ export interface StartServerOptions {
   customServer?: boolean
   minimalMode?: boolean
   keepAliveTimeout?: number
-  // logging info
-  envInfo?: string[]
-  expFeatureInfo?: string[]
   // this is dev-server only
   selfSignedCertificate?: SelfSignedCertificate
   isExperimentalTestProxy?: boolean
@@ -78,47 +75,6 @@ export async function getRequestHandlers({
   })
 }
 
-function logStartInfo({
-  networkUrl,
-  appUrl,
-  hostname,
-  envInfo,
-  expFeatureInfo,
-  formatDurationText,
-}: {
-  networkUrl: string
-  appUrl: string
-  hostname: string
-  envInfo: string[] | undefined
-  expFeatureInfo: string[] | undefined
-  formatDurationText: string
-}) {
-  Log.bootstrap(
-    bold(purple(`${Log.prefixes.ready} Next.js ${process.env.__NEXT_VERSION}`))
-  )
-  Log.bootstrap(`- Local:        ${appUrl}`)
-  if (hostname) {
-    Log.bootstrap(`- Network:      ${networkUrl}`)
-  }
-  if (envInfo?.length) Log.bootstrap(`- Environments: ${envInfo.join(', ')}`)
-
-  if (expFeatureInfo?.length) {
-    Log.bootstrap(`- Experiments (use at your own risk):`)
-    // only show maximum 3 flags
-    for (const exp of expFeatureInfo.slice(0, 3)) {
-      Log.bootstrap(`   · ${exp}`)
-    }
-    /* ${expFeatureInfo.length - 3} more */
-    if (expFeatureInfo.length > 3) {
-      Log.bootstrap(`   · ...`)
-    }
-  }
-
-  // New line after the bootstrap info
-  Log.info('')
-  Log.event(`Ready in ${formatDurationText}`)
-}
-
 export async function startServer({
   dir,
   port,
@@ -129,8 +85,6 @@ export async function startServer({
   keepAliveTimeout,
   isExperimentalTestProxy,
   selfSignedCertificate,
-  envInfo,
-  expFeatureInfo,
 }: StartServerOptions): Promise<void> {
   let handlersReady = () => {}
   let handlersError = () => {}
@@ -184,6 +138,8 @@ export async function startServer({
       console.error(err)
     }
   }
+
+  const { envInfo, expFeatureInfo } = await getStartServerInfo(dir, isDev)
 
   const server = selfSignedCertificate
     ? https.createServer(
@@ -314,10 +270,10 @@ export async function startServer({
         logStartInfo({
           networkUrl,
           appUrl,
-          hostname,
           envInfo,
           expFeatureInfo,
           formatDurationText,
+          maxExperimentalFeatures: 3,
         })
       } catch (err) {
         // fatal error if we can't setup
