@@ -21,14 +21,15 @@ export default function transformSource(this: any) {
     // Filter out CSS files in the SSR compilation
     .filter(([request]) => (isServer ? !regexCSS.test(request) : true))
     .map(([request, imports]) => {
-      if (imports[0] === '*') {
+      const uniqueImports = new Set(imports)
+
+      if (uniqueImports.has('*')) {
         return `import(/* webpackMode: "eager" */ ${JSON.stringify(request)})`
       }
 
-      const uniqueImports = [...new Set(imports)]
-      return `import(/* webpackMode: "eager" *//* webpackExports: [${uniqueImports
-        .map((i) => JSON.stringify(i))
-        .join(', ')}] */ ${JSON.stringify(request)})`
+      return `import(/* webpackMode: "eager", webpackExports: ${JSON.stringify([
+        ...uniqueImports,
+      ])} */ ${JSON.stringify(request)})`
     })
     .join(';\n')
 

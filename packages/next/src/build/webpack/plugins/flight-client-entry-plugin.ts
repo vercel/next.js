@@ -624,10 +624,10 @@ export class FlightClientEntryPlugin {
       if (isClientComponentEntryModule(mod)) {
         clientComponentImports[modRequest] =
           clientComponentImports[modRequest] || []
-        // Add all imported ids to the client component entry.
-        for (const id of ids) {
-          clientComponentImports[modRequest].push(id)
-        }
+
+        // Add the imported id to the list of ids for the given module.
+        clientComponentImports[modRequest].push(ids[0] || '*')
+
         return
       }
 
@@ -661,7 +661,7 @@ export class FlightClientEntryPlugin {
         .forEach((connection: any) => {
           filterClientComponents(
             connection.resolvedModule,
-            connection.dependency?.ids || []
+            connection.dependency?.ids || ['*']
           )
         })
     }
