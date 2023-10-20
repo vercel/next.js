@@ -1,6 +1,6 @@
 /* eslint-disable jest/no-standalone-expect */
 import { createNextDescribe } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { check, waitFor } from 'next-test-utils'
 import { Request } from 'playwright-chromium'
 import fs from 'fs-extra'
 import { join } from 'path'
@@ -20,14 +20,6 @@ createNextDescribe(
     },
   },
   ({ next, isNextDev, isNextStart, isNextDeploy }) => {
-    if (isNextStart) {
-      it('should warn for server actions + ISR incompat', async () => {
-        expect(next.cliOutput).toContain(
-          'Using server actions on a page currently disables static generation for that page'
-        )
-      })
-    }
-
     it('should handle basic actions correctly', async () => {
       const browser = await next.browser('/server')
 
@@ -53,7 +45,7 @@ createNextDescribe(
       await browser.elementByCss('#cookie').click()
       await check(async () => {
         const res = (await browser.elementByCss('h1').text()) || ''
-        const id = res.split(':')
+        const id = res.split(':', 2)
         return id[0] === id[1] && id[0] ? 'same' : 'different'
       }, 'same')
 
@@ -67,7 +59,7 @@ createNextDescribe(
       await browser.elementByCss('#setCookie').click()
       await check(async () => {
         const res = (await browser.elementByCss('h1').text()) || ''
-        const id = res.split(':')
+        const id = res.split(':', 3)
         return id[0] === id[1] && id[0] === id[2] && id[0]
           ? 'same'
           : 'different'
@@ -142,7 +134,7 @@ createNextDescribe(
 
       await check(() => {
         return browser.eval('window.location.pathname + window.location.search')
-      }, '/header?name=test&constructor=FormData&hidden-info=hi')
+      }, '/header?name=test&constructor=_FormData&hidden-info=hi')
     })
 
     it('should support .bind', async () => {
@@ -444,9 +436,7 @@ createNextDescribe(
       it('should handle redirect to a relative URL in a single pass', async () => {
         const browser = await next.browser('/client/edge')
 
-        await new Promise((resolve) => {
-          setTimeout(resolve, 3000)
-        })
+        await waitFor(3000)
 
         let requests = []
 
@@ -499,12 +489,21 @@ createNextDescribe(
     })
 
     describe('fetch actions', () => {
+      it('should handle a fetch action initiated from a static page', async () => {
+        const browser = await next.browser('/client-static')
+        await check(() => browser.elementByCss('#count').text(), '0')
+
+        await browser.elementByCss('#increment').click()
+        await check(() => browser.elementByCss('#count').text(), '1')
+
+        await browser.elementByCss('#increment').click()
+        await check(() => browser.elementByCss('#count').text(), '2')
+      })
+
       it('should handle redirect to a relative URL in a single pass', async () => {
         const browser = await next.browser('/client')
 
-        await new Promise((resolve) => {
-          setTimeout(resolve, 3000)
-        })
+        await waitFor(3000)
 
         let requests = []
 

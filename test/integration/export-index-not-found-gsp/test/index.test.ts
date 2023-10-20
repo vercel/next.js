@@ -8,14 +8,16 @@ const appDir = join(__dirname, '../')
 const outdir = join(appDir, 'out')
 
 describe('Export index page with `notFound: true` in `getStaticProps`', () => {
-  it('should build successfully', async () => {
-    await fs.remove(join(appDir, '.next'))
-    const { code } = await nextBuild(appDir)
-    if (code !== 0) throw new Error(`build failed with status ${code}`)
-  })
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    it('should build successfully', async () => {
+      await fs.remove(join(appDir, '.next'))
+      const { code } = await nextBuild(appDir)
+      if (code !== 0) throw new Error(`build failed with status ${code}`)
+    })
 
-  it('should export successfully', async () => {
-    const { code } = await nextExport(appDir, { outdir })
-    if (code !== 0) throw new Error(`export failed with status ${code}`)
+    it('should export successfully', async () => {
+      const { code } = await nextExport(appDir, { outdir })
+      if (code !== 0) throw new Error(`export failed with status ${code}`)
+    })
   })
 })

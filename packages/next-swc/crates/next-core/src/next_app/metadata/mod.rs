@@ -2,6 +2,8 @@ use std::{collections::HashMap, ops::Deref};
 
 use anyhow::Result;
 use once_cell::sync::Lazy;
+use turbo_tasks::Vc;
+use turbo_tasks_fs::FileSystemPath;
 
 use crate::next_app::{AppPage, PageSegment, PageType};
 
@@ -77,6 +79,38 @@ fn match_metadata_file<'a>(
         number,
         dynamic: false,
     })
+}
+
+pub(crate) async fn get_content_type(path: Vc<FileSystemPath>) -> Result<String> {
+    let stem = &*path.file_stem().await?;
+    let ext = &*path.extension().await?;
+
+    let name = stem.as_deref().unwrap_or_default();
+    let mut ext = ext.as_str();
+    if ext == "jpg" {
+        ext = "jpeg"
+    }
+
+    if name == "favicon" && ext == "ico" {
+        return Ok("image/x-icon".to_string());
+    }
+    if name == "sitemap" {
+        return Ok("application/xml".to_string());
+    }
+    if name == "robots" {
+        return Ok("text/plain".to_string());
+    }
+    if name == "manifest" {
+        return Ok("application/manifest+json".to_string());
+    }
+
+    if ext == "png" || ext == "jpeg" || ext == "ico" || ext == "svg" {
+        return Ok(mime_guess::from_ext(ext)
+            .first_or_octet_stream()
+            .to_string());
+    }
+
+    Ok("text/plain".to_string())
 }
 
 pub fn match_local_metadata_file<'a>(

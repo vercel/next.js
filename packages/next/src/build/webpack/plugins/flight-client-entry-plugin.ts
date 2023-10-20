@@ -17,6 +17,7 @@ import {
 import { WEBPACK_LAYERS } from '../../../lib/constants'
 import {
   APP_CLIENT_INTERNALS,
+  BARREL_OPTIMIZATION_PREFIX,
   COMPILER_NAMES,
   EDGE_RUNTIME_WEBPACK,
   SERVER_REFERENCE_MANIFEST,
@@ -26,17 +27,17 @@ import {
   getActions,
   isClientComponentEntryModule,
   isCSSMod,
+  regexCSS,
 } from '../loaders/utils'
 import { traverseModules, forEachEntryModule } from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { getProxiedPluginState } from '../../build-context'
-import { SizeLimit } from '../../../../types'
+import type { SizeLimit } from '../../../../types'
 
 interface Options {
   dev: boolean
   appDir: string
   isEdgeServer: boolean
-  useServerActions: boolean
   serverActionsBodySizeLimit?: SizeLimit
 }
 
@@ -152,7 +153,6 @@ export class FlightClientEntryPlugin {
   dev: boolean
   appDir: string
   isEdgeServer: boolean
-  useServerActions: boolean
   serverActionsBodySizeLimit?: SizeLimit
   assetPrefix: string
 
@@ -160,7 +160,6 @@ export class FlightClientEntryPlugin {
     this.dev = options.dev
     this.appDir = options.appDir
     this.isEdgeServer = options.isEdgeServer
-    this.useServerActions = options.useServerActions
     this.serverActionsBodySizeLimit = options.serverActionsBodySizeLimit
     this.assetPrefix = !this.dev && !this.isEdgeServer ? '../' : ''
   }
@@ -385,78 +384,73 @@ export class FlightClientEntryPlugin {
       )
     }
 
-    if (this.useServerActions) {
-      compilation.hooks.finishModules.tapPromise(PLUGIN_NAME, () => {
-        const addedClientActionEntryList: Promise<any>[] = []
-        const actionMapsPerClientEntry: Record<
-          string,
-          Map<string, string[]>
-        > = {}
+    compilation.hooks.finishModules.tapPromise(PLUGIN_NAME, () => {
+      const addedClientActionEntryList: Promise<any>[] = []
+      const actionMapsPerClientEntry: Record<string, Map<string, string[]>> = {}
 
-        // We need to create extra action entries that are created from the
-        // client layer.
-        // Start from each entry's created SSR dependency from our previous step.
-        for (const [name, ssrEntryDepdendencies] of Object.entries(
-          createdSSRDependenciesForEntry
-        )) {
-          // Collect from all entries, e.g. layout.js, page.js, loading.js, ...
-          // add agregate them.
-          const actionEntryImports = this.collectClientActionsFromDependencies({
-            compilation,
-            dependencies: ssrEntryDepdendencies,
-          })
+      // We need to create extra action entries that are created from the
+      // client layer.
+      // Start from each entry's created SSR dependency from our previous step.
+      for (const [name, ssrEntryDepdendencies] of Object.entries(
+        createdSSRDependenciesForEntry
+      )) {
+        // Collect from all entries, e.g. layout.js, page.js, loading.js, ...
+        // add agregate them.
+        const actionEntryImports = this.collectClientActionsFromDependencies({
+          compilation,
+          dependencies: ssrEntryDepdendencies,
+        })
 
-          if (actionEntryImports.size > 0) {
-            if (!actionMapsPerClientEntry[name]) {
-              actionMapsPerClientEntry[name] = new Map()
+        if (actionEntryImports.size > 0) {
+          if (!actionMapsPerClientEntry[name]) {
+            actionMapsPerClientEntry[name] = new Map()
+          }
+          actionMapsPerClientEntry[name] = new Map([
+            ...actionMapsPerClientEntry[name],
+            ...actionEntryImports,
+          ])
+        }
+      }
+
+      for (const [name, actionEntryImports] of Object.entries(
+        actionMapsPerClientEntry
+      )) {
+        // If an action method is already created in the server layer, we don't
+        // need to create it again in the action layer.
+        // This is to avoid duplicate action instances and make sure the module
+        // state is shared.
+        let remainingClientImportedActions = false
+        const remainingActionEntryImports = new Map<string, string[]>()
+        for (const [dep, actionNames] of actionEntryImports) {
+          const remainingActionNames = []
+          for (const actionName of actionNames) {
+            const id = name + '@' + dep + '@' + actionName
+            if (!createdActions.has(id)) {
+              remainingActionNames.push(actionName)
             }
-            actionMapsPerClientEntry[name] = new Map([
-              ...actionMapsPerClientEntry[name],
-              ...actionEntryImports,
-            ])
+          }
+          if (remainingActionNames.length > 0) {
+            remainingActionEntryImports.set(dep, remainingActionNames)
+            remainingClientImportedActions = true
           }
         }
 
-        for (const [name, actionEntryImports] of Object.entries(
-          actionMapsPerClientEntry
-        )) {
-          // If an action method is already created in the server layer, we don't
-          // need to create it again in the action layer.
-          // This is to avoid duplicate action instances and make sure the module
-          // state is shared.
-          let remainingClientImportedActions = false
-          const remainingActionEntryImports = new Map<string, string[]>()
-          for (const [dep, actionNames] of actionEntryImports) {
-            const remainingActionNames = []
-            for (const actionName of actionNames) {
-              const id = name + '@' + dep + '@' + actionName
-              if (!createdActions.has(id)) {
-                remainingActionNames.push(actionName)
-              }
-            }
-            if (remainingActionNames.length > 0) {
-              remainingActionEntryImports.set(dep, remainingActionNames)
-              remainingClientImportedActions = true
-            }
-          }
-
-          if (remainingClientImportedActions) {
-            addedClientActionEntryList.push(
-              this.injectActionEntry({
-                compiler,
-                compilation,
-                actions: remainingActionEntryImports,
-                entryName: name,
-                bundlePath: name,
-                fromClient: true,
-              })
-            )
-          }
+        if (remainingClientImportedActions) {
+          addedClientActionEntryList.push(
+            this.injectActionEntry({
+              compiler,
+              compilation,
+              actions: remainingActionEntryImports,
+              entryName: name,
+              bundlePath: name,
+              fromClient: true,
+            })
+          )
         }
+      }
 
-        return Promise.all(addedClientActionEntryList)
-      })
-    }
+      return Promise.all(addedClientActionEntryList)
+    })
 
     // Invalidate in development to trigger recompilation
     const invalidator = getInvalidator(compiler.outputPath)
@@ -509,8 +503,16 @@ export class FlightClientEntryPlugin {
         // We have to always use the resolved request here to make sure the
         // server and client are using the same module path (required by RSC), as
         // the server compiler and client compiler have different resolve configs.
-        const modRequest: string | undefined =
+        let modRequest: string | undefined =
           mod.resourceResolveData?.path + mod.resourceResolveData?.query
+
+        // For the barrel optimization, we need to use the match resource instead
+        // because there will be 2 modules for the same file (same resource path)
+        // but they're different modules and can't be deduped via `visitedModule`.
+        // The first module is a virtual re-export module created by the loader.
+        if (mod.matchResource?.startsWith(BARREL_OPTIMIZATION_PREFIX)) {
+          modRequest = mod.matchResource + ':' + modRequest
+        }
 
         if (!modRequest || visitedModule.has(modRequest)) return
         visitedModule.add(modRequest)
@@ -595,6 +597,14 @@ export class FlightClientEntryPlugin {
         modRequest = (mod as any)._identifier
       }
 
+      // For the barrel optimization, we need to use the match resource instead
+      // because there will be 2 modules for the same file (same resource path)
+      // but they're different modules and can't be deduped via `visitedModule`.
+      // The first module is a virtual re-export module created by the loader.
+      if (mod.matchResource?.startsWith(BARREL_OPTIMIZATION_PREFIX)) {
+        modRequest = mod.matchResource + ':' + modRequest
+      }
+
       if (!modRequest || visited.has(modRequest)) return
       visited.add(modRequest)
 
@@ -668,7 +678,9 @@ export class FlightClientEntryPlugin {
     let shouldInvalidate = false
 
     const loaderOptions: NextFlightClientEntryLoaderOptions = {
-      modules: clientImports,
+      modules: clientImports.sort((a, b) =>
+        regexCSS.test(b) ? 1 : a.localeCompare(b)
+      ),
       server: false,
     }
 
@@ -851,54 +863,52 @@ export class FlightClientEntryPlugin {
     const serverActions: ActionManifest['node'] = {}
     const edgeServerActions: ActionManifest['edge'] = {}
 
-    if (this.useServerActions) {
-      traverseModules(compilation, (mod, _chunk, chunkGroup, modId) => {
-        // Go through all action entries and record the module ID for each entry.
-        if (
-          chunkGroup.name &&
-          mod.request &&
-          /next-flight-action-entry-loader/.test(mod.request)
-        ) {
-          const fromClient = /&__client_imported__=true/.test(mod.request)
+    traverseModules(compilation, (mod, _chunk, chunkGroup, modId) => {
+      // Go through all action entries and record the module ID for each entry.
+      if (
+        chunkGroup.name &&
+        mod.request &&
+        /next-flight-action-entry-loader/.test(mod.request)
+      ) {
+        const fromClient = /&__client_imported__=true/.test(mod.request)
 
-          const mapping = this.isEdgeServer
-            ? pluginState.actionModEdgeServerId
-            : pluginState.actionModServerId
+        const mapping = this.isEdgeServer
+          ? pluginState.actionModEdgeServerId
+          : pluginState.actionModServerId
 
-          if (!mapping[chunkGroup.name]) {
-            mapping[chunkGroup.name] = {}
-          }
-          mapping[chunkGroup.name][fromClient ? 'client' : 'server'] = modId
+        if (!mapping[chunkGroup.name]) {
+          mapping[chunkGroup.name] = {}
         }
-      })
-
-      for (let id in pluginState.serverActions) {
-        const action = pluginState.serverActions[id]
-        for (let name in action.workers) {
-          const modId =
-            pluginState.actionModServerId[name][
-              action.layer[name] === WEBPACK_LAYERS.actionBrowser
-                ? 'client'
-                : 'server'
-            ]
-          action.workers[name] = modId!
-        }
-        serverActions[id] = action
+        mapping[chunkGroup.name][fromClient ? 'client' : 'server'] = modId
       }
+    })
 
-      for (let id in pluginState.edgeServerActions) {
-        const action = pluginState.edgeServerActions[id]
-        for (let name in action.workers) {
-          const modId =
-            pluginState.actionModEdgeServerId[name][
-              action.layer[name] === WEBPACK_LAYERS.actionBrowser
-                ? 'client'
-                : 'server'
-            ]
-          action.workers[name] = modId!
-        }
-        edgeServerActions[id] = action
+    for (let id in pluginState.serverActions) {
+      const action = pluginState.serverActions[id]
+      for (let name in action.workers) {
+        const modId =
+          pluginState.actionModServerId[name][
+            action.layer[name] === WEBPACK_LAYERS.actionBrowser
+              ? 'client'
+              : 'server'
+          ]
+        action.workers[name] = modId!
       }
+      serverActions[id] = action
+    }
+
+    for (let id in pluginState.edgeServerActions) {
+      const action = pluginState.edgeServerActions[id]
+      for (let name in action.workers) {
+        const modId =
+          pluginState.actionModEdgeServerId[name][
+            action.layer[name] === WEBPACK_LAYERS.actionBrowser
+              ? 'client'
+              : 'server'
+          ]
+        action.workers[name] = modId!
+      }
+      edgeServerActions[id] = action
     }
 
     const json = JSON.stringify(

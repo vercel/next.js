@@ -1,11 +1,11 @@
-import type { IncomingMessage } from 'http'
 import type { Rewrite } from '../lib/load-custom-routes'
 import type { RouteMatchFn } from '../shared/lib/router/utils/route-matcher'
 import type { NextConfig } from './config'
 import type { BaseNextRequest } from './base-http'
 import type { ParsedUrlQuery } from 'querystring'
+import type { UrlWithParsedQuery } from 'url'
 
-import { format as formatUrl, UrlWithParsedQuery, parse as parseUrl } from 'url'
+import { format as formatUrl, parse as parseUrl } from 'url'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
@@ -19,7 +19,7 @@ import { normalizeRscPath } from '../shared/lib/router/utils/app-paths'
 import { NEXT_QUERY_PARAM_PREFIX } from '../lib/constants'
 
 export function normalizeVercelUrl(
-  req: BaseNextRequest | IncomingMessage,
+  req: BaseNextRequest,
   trustQuery: boolean,
   paramKeys?: string[],
   pageIsDynamic?: boolean,
@@ -114,10 +114,7 @@ export function getUtils({
     defaultRouteMatches = dynamicRouteMatcher(page) as ParsedUrlQuery
   }
 
-  function handleRewrites(
-    req: BaseNextRequest | IncomingMessage,
-    parsedUrl: UrlWithParsedQuery
-  ) {
+  function handleRewrites(req: BaseNextRequest, parsedUrl: UrlWithParsedQuery) {
     const rewriteParams = {}
     let fsPathname = parsedUrl.pathname
 
@@ -231,18 +228,8 @@ export function getUtils({
     return rewriteParams
   }
 
-  function handleBasePath(
-    req: BaseNextRequest | IncomingMessage,
-    parsedUrl: UrlWithParsedQuery
-  ) {
-    // always strip the basePath if configured since it is required
-    req.url = req.url!.replace(new RegExp(`^${basePath}`), '') || '/'
-    parsedUrl.pathname =
-      parsedUrl.pathname!.replace(new RegExp(`^${basePath}`), '') || '/'
-  }
-
   function getParamsFromRouteMatches(
-    req: BaseNextRequest | IncomingMessage,
+    req: BaseNextRequest,
     renderOpts?: any,
     detectedLocale?: string
   ) {
@@ -421,14 +408,13 @@ export function getUtils({
 
   return {
     handleRewrites,
-    handleBasePath,
     defaultRouteRegex,
     dynamicRouteMatcher,
     defaultRouteMatches,
     getParamsFromRouteMatches,
     normalizeDynamicRouteParams,
     normalizeVercelUrl: (
-      req: BaseNextRequest | IncomingMessage,
+      req: BaseNextRequest,
       trustQuery: boolean,
       paramKeys?: string[]
     ) =>

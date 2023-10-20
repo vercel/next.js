@@ -16,8 +16,8 @@ const { linkPackages } =
  * @param {string} cwd - The project directory where pnpm configuration is set.
  * @returns {Promise<void>}
  */
-async function setPnpmResolutionMode(cwd) {
-  await execa(
+function setPnpmResolutionMode(cwd) {
+  return execa(
     'pnpm',
     ['config', 'set', '--location=project', 'resolution-mode', 'highest'],
     {
@@ -31,6 +31,7 @@ async function setPnpmResolutionMode(cwd) {
 async function createNextInstall({
   parentSpan = null,
   dependencies = null,
+  resolutions = null,
   installCommand = null,
   packageJson = {},
   dirSuffix = '',
@@ -98,8 +99,8 @@ async function createNextInstall({
         for (const item of ['package.json', 'packages']) {
           await rootSpan
             .traceChild(`copy ${item} to temp dir`)
-            .traceAsyncFn(async () => {
-              await fs.copy(
+            .traceAsyncFn(() =>
+              fs.copy(
                 path.join(origRepoDir, item),
                 path.join(tmpRepoDir, item),
                 {
@@ -115,7 +116,7 @@ async function createNextInstall({
                   },
                 }
               )
-            })
+            )
         }
 
         pkgPaths = await rootSpan.traceChild('linkPackages').traceAsyncFn(() =>
@@ -148,6 +149,8 @@ async function createNextInstall({
             ...packageJson,
             dependencies: combinedDependencies,
             private: true,
+            // Add resolutions if provided.
+            ...(resolutions ? { resolutions } : {}),
           },
           null,
           2
@@ -158,7 +161,10 @@ async function createNextInstall({
       if (installCommand) {
         const installString =
           typeof installCommand === 'function'
-            ? installCommand({ dependencies: combinedDependencies })
+            ? installCommand({
+                dependencies: combinedDependencies,
+                resolutions,
+              })
             : installCommand
 
         console.log('running install command', installString)
@@ -171,7 +177,7 @@ async function createNextInstall({
       } else {
         await rootSpan
           .traceChild('run generic install command')
-          .traceAsyncFn(async () => {
+          .traceAsyncFn(() => {
             const args = [
               'install',
               '--strict-peer-dependencies=false',
@@ -182,7 +188,7 @@ async function createNextInstall({
               args.push('--prefer-offline')
             }
 
-            await execa('pnpm', args, {
+            return execa('pnpm', args, {
               cwd: installDir,
               stdio: ['ignore', 'inherit', 'inherit'],
               env: process.env,

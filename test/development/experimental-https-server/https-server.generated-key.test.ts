@@ -1,12 +1,14 @@
 import { createNextDescribe } from 'e2e-utils'
-import { Agent } from 'next/src/compiled/undici'
-import { renderViaHTTP } from 'next-test-utils'
+import { Agent } from 'https'
+import { renderViaHTTP, shouldRunTurboDevTest } from 'next-test-utils'
 
 createNextDescribe(
   'experimental-https-server (generated certificate)',
   {
     files: __dirname,
-    startCommand: 'yarn next dev --experimental-https',
+    startCommand: `yarn next ${
+      shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
+    } --experimental-https`,
     skipStart: !process.env.CI,
   },
   ({ next }) => {
@@ -15,7 +17,7 @@ createNextDescribe(
       it('only runs on CI as it requires administrator privileges', () => {})
       return
     }
-    const dispatcher = new Agent({ connect: { rejectUnauthorized: false } })
+    const dispatcher = new Agent({ rejectUnauthorized: false })
 
     it('should successfully load the app in app dir', async () => {
       expect(next.url).toInclude('https://')

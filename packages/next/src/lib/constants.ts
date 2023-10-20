@@ -107,13 +107,13 @@ const WEBPACK_LAYERS_NAMES = {
    */
   reactServerComponents: 'rsc',
   /**
-   * Server Side Rendering layer (ssr).
+   * Server Side Rendering layer for app (ssr).
    */
   serverSideRendering: 'ssr',
   /**
    * The browser client bundle layer for actions.
    */
-  actionBrowser: 'actionBrowser',
+  actionBrowser: 'action-browser',
   /**
    * The layer for the API routes.
    */
@@ -138,9 +138,12 @@ const WEBPACK_LAYERS_NAMES = {
    * The layer for the server bundle for App Route handlers.
    */
   appRouteHandler: 'app-route-handler',
-}
+} as const
 
-export const WEBPACK_LAYERS = {
+export type WebpackLayerName =
+  (typeof WEBPACK_LAYERS_NAMES)[keyof typeof WEBPACK_LAYERS_NAMES]
+
+const WEBPACK_LAYERS = {
   ...WEBPACK_LAYERS_NAMES,
   GROUP: {
     server: [
@@ -149,12 +152,27 @@ export const WEBPACK_LAYERS = {
       WEBPACK_LAYERS_NAMES.appMetadataRoute,
       WEBPACK_LAYERS_NAMES.appRouteHandler,
     ],
+    nonClientServerTarget: [
+      // plus middleware and pages api
+      WEBPACK_LAYERS_NAMES.middleware,
+      WEBPACK_LAYERS_NAMES.api,
+    ],
+    app: [
+      WEBPACK_LAYERS_NAMES.reactServerComponents,
+      WEBPACK_LAYERS_NAMES.actionBrowser,
+      WEBPACK_LAYERS_NAMES.appMetadataRoute,
+      WEBPACK_LAYERS_NAMES.appRouteHandler,
+      WEBPACK_LAYERS_NAMES.serverSideRendering,
+      WEBPACK_LAYERS_NAMES.appPagesBrowser,
+    ],
   },
 }
 
-export const WEBPACK_RESOURCE_QUERIES = {
+const WEBPACK_RESOURCE_QUERIES = {
   edgeSSREntry: '__next_edge_ssr_entry__',
   metadata: '__next_metadata__',
   metadataRoute: '__next_metadata_route__',
   metadataImageMeta: '__next_metadata_image_meta__',
 }
+
+export { WEBPACK_LAYERS, WEBPACK_RESOURCE_QUERIES }

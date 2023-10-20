@@ -16,7 +16,7 @@ Router.onAppUpdated = function (nextRoute) {
 
 In this hook, you can't wait for a network request or a promise to get resolved. And you can't block the page navigation. So, the things you can do is limited.
 
-One real use of this hook is to persist your application state to local-storage before the page navigation. For that, you can use the [`window.onbeforeunload`](https://developer.mozilla.org/en-US/docs/Web/API/WindowEventHandlers/onbeforeunload) hook instead.
+One real use of this hook is to persist your application state to local-storage before the page navigation. For that, you can use the [`window.onbeforeunload`](https://developer.mozilla.org/docs/Web/API/WindowEventHandlers/onbeforeunload) hook instead.
 
 This is code for that:
 

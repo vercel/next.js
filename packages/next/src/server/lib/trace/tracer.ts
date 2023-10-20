@@ -1,4 +1,5 @@
-import { NextVanillaSpanAllowlist, SpanTypes } from './constants'
+import type { SpanTypes } from './constants'
+import { NextVanillaSpanAllowlist } from './constants'
 
 import type {
   ContextAPI,
@@ -33,11 +34,17 @@ const isPromise = <T>(p: any): p is Promise<T> => {
   return p !== null && typeof p === 'object' && typeof p.then === 'function'
 }
 
+type BubbledError = Error & { bubble?: boolean }
+
 const closeSpanWithError = (span: Span, error?: Error) => {
-  if (error) {
-    span.recordException(error)
+  if ((error as BubbledError | undefined)?.bubble === true) {
+    span.setAttribute('next.bubble', true)
+  } else {
+    if (error) {
+      span.recordException(error)
+    }
+    span.setStatus({ code: SpanStatusCode.ERROR, message: error?.message })
   }
-  span.setStatus({ code: SpanStatusCode.ERROR, message: error?.message })
   span.end()
 }
 
@@ -362,13 +369,5 @@ const getTracer = (() => {
   return () => tracer
 })()
 
-export {
-  NextTracer,
-  getTracer,
-  Span,
-  SpanOptions,
-  ContextAPI,
-  SpanStatusCode,
-  TracerSpanOptions,
-  SpanKind,
-}
+export { getTracer, SpanStatusCode, SpanKind }
+export type { NextTracer, Span, SpanOptions, ContextAPI, TracerSpanOptions }

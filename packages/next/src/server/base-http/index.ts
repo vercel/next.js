@@ -2,13 +2,25 @@ import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'http'
 import type { I18NConfig } from '../config-shared'
 
 import { PERMANENT_REDIRECT_STATUS } from '../../shared/lib/constants'
-import { getCookieParser, NextApiRequestCookies } from '../api-utils'
+import type { NextApiRequestCookies } from '../api-utils'
+import { getCookieParser } from '../api-utils/get-cookie-parser'
 
 export interface BaseNextRequestConfig {
   basePath: string | undefined
   i18n?: I18NConfig
   trailingSlash?: boolean | undefined
 }
+
+export type FetchMetrics = Array<{
+  url: string
+  idx: number
+  end: number
+  start: number
+  method: string
+  status: number
+  cacheReason: string
+  cacheStatus: 'hit' | 'miss' | 'skip'
+}>
 
 export abstract class BaseNextRequest<Body = any> {
   protected _cookies: NextApiRequestCookies | undefined

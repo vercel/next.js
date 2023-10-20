@@ -11,6 +11,7 @@ import type {
   GetStaticProps,
 } from 'next/types'
 import type { RouteModule } from './future/route-modules/route-module'
+import type { BuildManifest } from './get-page-files'
 
 import {
   BUILD_MANIFEST,
@@ -20,7 +21,6 @@ import {
 } from '../shared/lib/constants'
 import { join } from 'path'
 import { requirePage } from './require'
-import { BuildManifest } from './get-page-files'
 import { interopDefault } from '../lib/interop-default'
 import { getTracer } from './lib/trace/tracer'
 import { LoadComponentsSpan } from './lib/trace/constants'
@@ -33,7 +33,18 @@ export type ManifestItem = {
 
 export type ReactLoadableManifest = { [moduleId: string]: ManifestItem }
 
-export type LoadComponentsReturnType = {
+/**
+ * A manifest entry type for the react-loadable-manifest.json.
+ *
+ * The whole manifest.json is a type of `Record<pathName, LoadableManifest>`
+ * where pathName is a string-based key points to the path of the page contains
+ * each dynamic imports.
+ */
+export interface LoadableManifest {
+  [k: string]: { id: string | number; files: string[] }
+}
+
+export type LoadComponentsReturnType<NextModule = any> = {
   Component: NextComponentType
   pageConfig: PageConfig
   buildManifest: BuildManifest
@@ -46,7 +57,7 @@ export type LoadComponentsReturnType = {
   getStaticProps?: GetStaticProps
   getStaticPaths?: GetStaticPaths
   getServerSideProps?: GetServerSideProps
-  ComponentMod: any
+  ComponentMod: NextModule
   routeModule?: RouteModule
   isAppPath?: boolean
   page: string
@@ -71,23 +82,24 @@ export async function loadManifestWithRetries<T>(
   }
 }
 
-async function loadJSManifest<T>(
+async function loadClientReferenceManifest(
   manifestPath: string,
-  name: string,
   entryName: string
-): Promise<T | undefined> {
+): Promise<ClientReferenceManifest | undefined> {
   process.env.NEXT_MINIMAL
     ? // @ts-ignore
       __non_webpack_require__(manifestPath)
     : require(manifestPath)
   try {
-    return JSON.parse((globalThis as any)[name][entryName]) as T
+    return (globalThis as any).__RSC_MANIFEST[
+      entryName
+    ] as ClientReferenceManifest
   } catch (err) {
     return undefined
   }
 }
 
-async function loadComponentsImpl({
+async function loadComponentsImpl<N = any>({
   distDir,
   page,
   isAppPath,
@@ -95,7 +107,7 @@ async function loadComponentsImpl({
   distDir: string
   page: string
   isAppPath: boolean
-}): Promise<LoadComponentsReturnType> {
+}): Promise<LoadComponentsReturnType<N>> {
   let DocumentMod = {}
   let AppMod = {}
   if (!isAppPath) {
@@ -124,14 +136,13 @@ async function loadComponentsImpl({
       join(distDir, REACT_LOADABLE_MANIFEST)
     ),
     hasClientManifest
-      ? loadJSManifest<ClientReferenceManifest>(
+      ? loadClientReferenceManifest(
           join(
             distDir,
             'server',
             'app',
             page.replace(/%5F/g, '_') + '_' + CLIENT_REFERENCE_MANIFEST + '.js'
           ),
-          '__RSC_MANIFEST',
           page.replace(/%5F/g, '_')
         )
       : undefined,

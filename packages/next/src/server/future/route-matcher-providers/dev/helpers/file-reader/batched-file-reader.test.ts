@@ -1,5 +1,5 @@
 import { BatchedFileReader } from './batched-file-reader'
-import { FileReader } from './file-reader'
+import type { FileReader } from './file-reader'
 
 describe('CachedFileReader', () => {
   it('will only scan the filesystem a minimal amount of times', async () => {

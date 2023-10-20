@@ -627,8 +627,8 @@ describe('Middleware Rewrite', () => {
     function getCookieFromResponse(res: Response, cookieName) {
       const cookieArray = res.headers.getSetCookie()
       for (const cookie of cookieArray) {
-        let individualCookieParams = cookie.split(';')
-        let individualCookie = individualCookieParams[0].split('=')
+        let individualCookieParams = cookie.split(';', 1)
+        let individualCookie = individualCookieParams[0].split('=', 2)
         if (individualCookie[0] === cookieName) {
           return individualCookie[1]
         }

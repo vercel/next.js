@@ -1,7 +1,9 @@
 #!/usr/bin/env node
+
+import '../server/lib/cpu-profile'
 import { existsSync } from 'fs'
 import * as Log from '../build/output/log'
-import { CliCommand } from '../lib/commands'
+import type { CliCommand } from '../lib/commands'
 import build from '../build'
 import { printAndExit } from '../server/lib/utils'
 import isError from '../lib/is-error'

@@ -37,6 +37,7 @@ use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::Arc};
 use auto_cjs::contains_cjs;
 use either::Either;
 use fxhash::FxHashSet;
+use next_transform_dynamic::{next_dynamic, NextDynamicMode};
 use next_transform_font::next_font_loaders;
 use serde::Deserialize;
 use turbopack_binding::swc::{
@@ -46,7 +47,8 @@ use turbopack_binding::swc::{
             SyntaxContext,
         },
         ecma::{
-            ast::EsVersion, parser::parse_file_as_module, transforms::base::pass::noop, visit::Fold,
+            ast::EsVersion, atoms::JsWord, parser::parse_file_as_module,
+            transforms::base::pass::noop, visit::Fold,
         },
     },
     custom_transform::modularize_imports,
@@ -57,17 +59,13 @@ mod auto_cjs;
 pub mod cjs_optimizer;
 pub mod disallow_re_export_all_in_page;
 pub mod named_import_transform;
-pub mod next_dynamic;
 pub mod next_ssg;
 pub mod optimize_barrel;
 pub mod optimize_server_react;
 pub mod page_config;
-pub mod react_remove_properties;
 pub mod react_server_components;
-pub mod remove_console;
 pub mod server_actions;
 pub mod shake_exports;
-mod top_level_binding_collector;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -97,13 +95,13 @@ pub struct TransformOptions {
     pub is_server: bool,
 
     #[serde(default)]
-    pub disable_checks: bool,
+    pub bundle_target: JsWord,
 
     #[serde(default)]
     pub server_components: Option<react_server_components::Config>,
 
     #[serde(default)]
-    pub styled_jsx: bool,
+    pub styled_jsx: Option<turbopack_binding::swc::custom_transform::styled_jsx::visitor::Config>,
 
     #[serde(default)]
     pub styled_components:
@@ -198,15 +196,16 @@ where
                     config.clone(),
                     comments.clone(),
                     opts.app_dir.clone(),
-                    opts.disable_checks
+                    opts.bundle_target.clone()
                 )),
             _ => Either::Right(noop()),
         },
-        if opts.styled_jsx {
+        if let Some(config) = opts.styled_jsx {
             Either::Left(
                 turbopack_binding::swc::custom_transform::styled_jsx::visitor::styled_jsx(
                     cm.clone(),
                     file.name.clone(),
+                    config,
                 ),
             )
         } else {
@@ -227,7 +226,7 @@ where
             !opts.disable_next_ssg
         ),
         amp_attributes::amp_attributes(),
-        next_dynamic::next_dynamic(
+        next_dynamic(
             opts.is_development,
             opts.is_server,
             match &opts.server_components {
@@ -239,6 +238,7 @@ where
                 },
                 _ => false,
             },
+            NextDynamicMode::Webpack,
             file.name.clone(),
             opts.pages_dir.clone()
         ),
@@ -249,12 +249,15 @@ where
         relay_plugin,
         match &opts.remove_console {
             Some(config) if config.truthy() =>
-                Either::Left(remove_console::remove_console(config.clone())),
+                Either::Left(remove_console::remove_console(
+                    config.clone(),
+                    SyntaxContext::empty().apply_mark(unresolved_mark)
+                )),
             _ => Either::Right(noop()),
         },
         match &opts.react_remove_properties {
             Some(config) if config.truthy() =>
-                Either::Left(react_remove_properties::remove_properties(config.clone())),
+                Either::Left(react_remove_properties::react_remove_properties(config.clone())),
             _ => Either::Right(noop()),
         },
         match &opts.shake_exports {

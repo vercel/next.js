@@ -1,4 +1,4 @@
-import chalk from 'next/dist/compiled/chalk'
+import { bold, red, underline, yellow } from '../../../../../lib/picocolors'
 import { findConfig } from '../../../../../lib/find-config'
 
 type CssPluginCollection_Array = (string | [string, boolean | object])[]
@@ -14,13 +14,13 @@ type CssPluginShape = [string, object | boolean | string]
 const genericErrorText = 'Malformed PostCSS Configuration'
 
 function getError_NullConfig(pluginName: string) {
-  return `${chalk.red.bold(
-    'Error'
-  )}: Your PostCSS configuration for '${pluginName}' cannot have ${chalk.bold(
+  return `${red(
+    bold('Error')
+  )}: Your PostCSS configuration for '${pluginName}' cannot have ${bold(
     'null'
-  )} configuration.\nTo disable '${pluginName}', pass ${chalk.bold(
+  )} configuration.\nTo disable '${pluginName}', pass ${bold(
     'false'
-  )}, otherwise, pass ${chalk.bold('true')} or a configuration object.`
+  )}, otherwise, pass ${bold('true')} or a configuration object.`
 }
 
 function isIgnoredPlugin(pluginPath: string): boolean {
@@ -33,7 +33,7 @@ function isIgnoredPlugin(pluginPath: string): boolean {
 
   const plugin = match.pop()!
   console.warn(
-    `${chalk.yellow.bold('Warning')}: Please remove the ${chalk.underline(
+    `${yellow(bold('Warning'))}: Please remove the ${underline(
       plugin
     )} plugin from your PostCSS configuration. ` +
       `This plugin is automatically configured by Next.js.\n` +
@@ -140,8 +140,8 @@ export async function getPostCssPlugins(
   const invalidKey = Object.keys(config).find((key) => key !== 'plugins')
   if (invalidKey) {
     console.warn(
-      `${chalk.yellow.bold(
-        'Warning'
+      `${yellow(
+        bold('Warning')
       )}: Your PostCSS configuration defines a field which is not supported (\`${invalidKey}\`). ` +
         `Please remove this configuration value.`
     )
@@ -175,7 +175,7 @@ export async function getPostCssPlugins(
   plugins.forEach((plugin) => {
     if (plugin == null) {
       console.warn(
-        `${chalk.yellow.bold('Warning')}: A ${chalk.bold(
+        `${yellow(bold('Warning'))}: A ${bold(
           'null'
         )} PostCSS plugin was provided. This entry will be ignored.`
       )
@@ -194,17 +194,17 @@ export async function getPostCssPlugins(
       } else {
         if (typeof pluginName !== 'string') {
           console.error(
-            `${chalk.red.bold(
-              'Error'
-            )}: A PostCSS Plugin must be provided as a ${chalk.bold(
+            `${red(
+              bold('Error')
+            )}: A PostCSS Plugin must be provided as a ${bold(
               'string'
             )}. Instead, we got: '${pluginName}'.\n` +
               'Read more: https://nextjs.org/docs/messages/postcss-shape'
           )
         } else {
           console.error(
-            `${chalk.red.bold(
-              'Error'
+            `${red(
+              bold('Error')
             )}: A PostCSS Plugin was passed as an array but did not provide its configuration ('${pluginName}').\n` +
               'Read more: https://nextjs.org/docs/messages/postcss-shape'
           )
@@ -213,17 +213,17 @@ export async function getPostCssPlugins(
       }
     } else if (typeof plugin === 'function') {
       console.error(
-        `${chalk.red.bold(
-          'Error'
-        )}: A PostCSS Plugin was passed as a function using require(), but it must be provided as a ${chalk.bold(
+        `${red(
+          bold('Error')
+        )}: A PostCSS Plugin was passed as a function using require(), but it must be provided as a ${bold(
           'string'
         )}.\nRead more: https://nextjs.org/docs/messages/postcss-shape`
       )
       throw new Error(genericErrorText)
     } else {
       console.error(
-        `${chalk.red.bold(
-          'Error'
+        `${red(
+          bold('Error')
         )}: An unknown PostCSS plugin was provided (${plugin}).\n` +
           'Read more: https://nextjs.org/docs/messages/postcss-shape'
       )

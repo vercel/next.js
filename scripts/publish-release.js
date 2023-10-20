@@ -5,7 +5,7 @@ const path = require('path')
 const execa = require('execa')
 const { Sema } = require('async-sema')
 const { execSync } = require('child_process')
-const { readJson, readdir } = require('fs-extra')
+const fs = require('fs')
 
 const cwd = process.cwd()
 
@@ -38,7 +38,7 @@ const cwd = process.cwd()
   }
 
   const packagesDir = path.join(cwd, 'packages')
-  const packageDirs = await readdir(packagesDir)
+  const packageDirs = fs.readdirSync(packagesDir)
   const publishSema = new Sema(2)
 
   const publish = async (pkg, retry = 0) => {
@@ -56,6 +56,8 @@ const cwd = process.cwd()
         ],
         { stdio: 'inherit' }
       )
+      // Return here to avoid retry logic
+      return
     } catch (err) {
       console.error(`Failed to publish ${pkg}`, err)
 
@@ -69,24 +71,28 @@ const cwd = process.cwd()
         return
       }
 
-      if (retry < 3) {
-        const retryDelaySeconds = 15
-        console.log(`retrying in ${retryDelaySeconds}s`)
-        await new Promise((resolve) =>
-          setTimeout(resolve, retryDelaySeconds * 1000)
-        )
-        await publish(pkg, retry + 1)
+      if (retry >= 3) {
+        throw err
       }
-      throw err
     } finally {
       publishSema.release()
     }
+    // Recursive call need to be outside of the publishSema
+    const retryDelaySeconds = 15
+    console.log(`retrying in ${retryDelaySeconds}s`)
+    await new Promise((resolve) =>
+      setTimeout(resolve, retryDelaySeconds * 1000)
+    )
+    await publish(pkg, retry + 1)
   }
 
-  await Promise.all(
+  await Promise.allSettled(
     packageDirs.map(async (packageDir) => {
-      const pkgJson = await readJson(
-        path.join(packagesDir, packageDir, 'package.json')
+      const pkgJson = JSON.parse(
+        await fs.promises.readFile(
+          path.join(packagesDir, packageDir, 'package.json'),
+          'utf-8'
+        )
       )
 
       if (pkgJson.private) {

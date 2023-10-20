@@ -1,13 +1,11 @@
-// @ts-ignore
-import { ProxyAgent } from 'next/dist/compiled/undici'
+import { Agent as HttpAgent } from 'node:http'
+import { Agent as HttpsAgent } from 'node:https'
 
 /* If the http(s)_proxy environment variables are set, return a proxy agent. */
 export function getProxyAgent() {
-  const proxy =
-    process.env['https_proxy'] ??
-    process.env['HTTPS_PROXY'] ??
-    process.env['http_proxy'] ??
-    process.env['HTTP_PROXY']
+  const httpProxy = process.env['http_proxy'] ?? process.env['HTTP_PROXY']
+  const httpsProxy = process.env['https_proxy'] ?? process.env['HTTPS_PROXY']
 
-  if (proxy) return new ProxyAgent(proxy)
+  if (httpsProxy) return new HttpsAgent({ host: httpsProxy })
+  return new HttpAgent({ host: httpProxy })
 }

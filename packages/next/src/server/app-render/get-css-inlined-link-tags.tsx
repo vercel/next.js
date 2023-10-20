@@ -1,4 +1,4 @@
-import { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
+import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 
 /**
  * Get external stylesheet link hrefs based on server CSS manifest.

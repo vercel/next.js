@@ -7,7 +7,8 @@ import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { NextConfig, NextConfigComplete } from './config-shared'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { ParsedUrlQuery } from 'querystring'
-import type { RenderOpts, RenderOptsPartial } from './render'
+import type { RenderOptsPartial as PagesRenderOptsPartial } from './render'
+import type { RenderOptsPartial as AppRenderOptsPartial } from './app-render/types'
 import type { ResponseCacheBase, ResponseCacheEntry } from './response-cache'
 import type { UrlWithParsedQuery } from 'url'
 import {
@@ -37,6 +38,7 @@ import type {
   AppRouteRouteHandlerContext,
   AppRouteRouteModule,
 } from './future/route-modules/app-route/module'
+import type { Server as HTTPServer } from 'http'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { formatHostname } from './lib/format-hostname'
@@ -50,12 +52,8 @@ import {
   TEMPORARY_REDIRECT_STATUS,
 } from '../shared/lib/constants'
 import { isDynamicRoute } from '../shared/lib/router/utils'
-import {
-  setLazyProp,
-  getCookieParser,
-  checkIsOnDemandRevalidate,
-} from './api-utils'
-import { setConfig } from '../shared/lib/runtime-config.shared-runtime'
+import { checkIsOnDemandRevalidate } from './api-utils'
+import { setConfig } from '../shared/lib/runtime-config.external'
 
 import { setRevalidateHeaders } from './send-payload/revalidate-headers'
 import { execOnce } from '../shared/lib/utils'
@@ -74,7 +72,7 @@ import {
   removeRequestMeta,
 } from './request-meta'
 
-import { ImageConfigComplete } from '../shared/lib/image-config'
+import type { ImageConfigComplete } from '../shared/lib/image-config'
 import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
 import {
   normalizeAppPath,
@@ -83,16 +81,17 @@ import {
 import { getHostname } from '../shared/lib/get-hostname'
 import { parseUrl as parseUrlUtil } from '../shared/lib/router/utils/parse-url'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
-import { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
+import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
 import {
   RSC,
   RSC_VARY_HEADER,
   FLIGHT_PARAMETERS,
   NEXT_RSC_UNION_QUERY,
+  ACTION,
   NEXT_ROUTER_PREFETCH,
   RSC_CONTENT_TYPE_HEADER,
 } from '../client/components/app-router-headers'
-import {
+import type {
   MatchOptions,
   RouteMatcherManager,
 } from './future/route-matcher-managers/route-matcher-manager'
@@ -137,6 +136,12 @@ export interface MiddlewareRoutingItem {
   matchers?: MiddlewareMatcher[]
 }
 
+export type RouteHandler = (
+  req: BaseNextRequest,
+  res: BaseNextResponse,
+  parsedUrl: NextUrlWithParsedQuery
+) => PromiseLike<boolean> | boolean
+
 /**
  * The normalized route manifest is the same as the route manifest, but with
  * the rewrites normalized to the object shape that the router expects.
@@ -167,6 +172,11 @@ export interface Options {
    * Enables the experimental testing mode.
    */
   experimentalTestProxy?: boolean
+
+  /**
+   * Whether or not the dev server is running in experimental HTTPS mode
+   */
+  experimentalHttpsServer?: boolean
   /**
    * Where the Next project is located
    */
@@ -190,12 +200,56 @@ export interface Options {
   /**
    * The HTTP Server that Next.js is running behind
    */
-  httpServer?: import('http').Server
-
-  _routerWorker?: boolean
-  _renderWorker?: boolean
+  httpServer?: HTTPServer
 
   isNodeDebugging?: 'brk' | boolean
+}
+
+export type RenderOpts = PagesRenderOptsPartial & AppRenderOptsPartial
+
+export type LoadedRenderOpts = RenderOpts & LoadComponentsReturnType
+
+type BaseRenderOpts = {
+  deploymentId?: string
+  poweredByHeader: boolean
+  buildId: string
+  generateEtags: boolean
+  runtimeConfig?: { [key: string]: any }
+  assetPrefix?: string
+  canonicalBase: string
+  dev?: boolean
+  previewProps: __ApiPreviewProps
+  customServer?: boolean
+  ampOptimizerConfig?: { [key: string]: any }
+  basePath: string
+  optimizeFonts: FontConfig
+  images: ImageConfigComplete
+  fontManifest?: FontManifest
+  disableOptimizedLoading?: boolean
+  optimizeCss: any
+  nextConfigOutput: 'standalone' | 'export'
+  nextScriptWorkers: any
+  locale?: string
+  locales?: string[]
+  defaultLocale?: string
+  domainLocales?: DomainLocale[]
+  distDir: string
+  runtime?: ServerRuntime
+  serverComponents?: boolean
+  enableTainting?: boolean
+  crossOrigin?: 'anonymous' | 'use-credentials' | '' | undefined
+  supportsDynamicHTML?: boolean
+  isBot?: boolean
+  clientReferenceManifest?: ClientReferenceManifest
+  serverActionsBodySizeLimit?: SizeLimit
+  serverActionsManifest?: any
+  nextFontManifest?: NextFontManifest
+  renderServerComponentData?: boolean
+  serverComponentProps?: any
+  largePageDataBytes?: number
+  appDirDevErrorLogger?: (err: any) => Promise<void>
+  strictNextHead: boolean
+  isExperimentalCompile?: boolean
 }
 
 export interface BaseRequestHandler {
@@ -211,7 +265,7 @@ export type RequestContext = {
   res: BaseNextResponse
   pathname: string
   query: NextParsedUrlQuery
-  renderOpts: RenderOptsPartial
+  renderOpts: RenderOpts
 }
 
 export type FallbackMode = false | undefined | 'blocking' | 'static'
@@ -250,46 +304,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected readonly appPathsManifest?: PagesManifest
   protected readonly buildId: string
   protected readonly minimalMode: boolean
-  protected readonly renderOpts: {
-    deploymentId?: string
-    poweredByHeader: boolean
-    buildId: string
-    generateEtags: boolean
-    runtimeConfig?: { [key: string]: any }
-    assetPrefix?: string
-    canonicalBase: string
-    dev?: boolean
-    previewProps: __ApiPreviewProps
-    customServer?: boolean
-    ampOptimizerConfig?: { [key: string]: any }
-    basePath: string
-    optimizeFonts: FontConfig
-    images: ImageConfigComplete
-    fontManifest?: FontManifest
-    disableOptimizedLoading?: boolean
-    optimizeCss: any
-    nextConfigOutput: 'standalone' | 'export'
-    nextScriptWorkers: any
-    locale?: string
-    locales?: string[]
-    defaultLocale?: string
-    domainLocales?: DomainLocale[]
-    distDir: string
-    runtime?: ServerRuntime
-    serverComponents?: boolean
-    crossOrigin?: 'anonymous' | 'use-credentials' | '' | undefined
-    supportsDynamicHTML?: boolean
-    isBot?: boolean
-    clientReferenceManifest?: ClientReferenceManifest
-    serverActionsBodySizeLimit?: SizeLimit
-    serverActionsManifest?: any
-    nextFontManifest?: NextFontManifest
-    renderServerComponentData?: boolean
-    serverComponentProps?: any
-    largePageDataBytes?: number
-    appDirDevErrorLogger?: (err: any) => Promise<void>
-    strictNextHead: boolean
-  }
+  protected readonly renderOpts: BaseRenderOpts
   protected readonly serverOptions: Readonly<ServerOptions>
   protected readonly appPathRoutes?: Record<string, string[]>
   protected readonly clientReferenceManifest?: ClientReferenceManifest
@@ -348,7 +363,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     res: BaseNextResponse,
     pathname: string,
     query: NextParsedUrlQuery,
-    renderOpts: RenderOpts
+    renderOpts: LoadedRenderOpts
   ): Promise<RenderResult>
 
   protected abstract getPrefetchRsc(pathname: string): Promise<string | null>
@@ -371,7 +386,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   public readonly matchers: RouteMatcherManager
   protected readonly i18nProvider?: I18NProvider
   protected readonly localeNormalizer?: LocaleRouteNormalizer
-  protected readonly isRenderWorker?: boolean
 
   public constructor(options: ServerOptions) {
     const {
@@ -386,7 +400,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     } = options
 
     this.serverOptions = options
-    this.isRenderWorker = options._renderWorker
 
     this.dir =
       process.env.NEXT_RUNTIME === 'edge' ? dir : require('path').resolve(dir)
@@ -472,6 +485,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       domainLocales: this.nextConfig.i18n?.domains,
       distDir: this.distDir,
       serverComponents,
+      enableTainting: this.nextConfig.experimental.taint,
       crossOrigin: this.nextConfig.crossOrigin
         ? this.nextConfig.crossOrigin
         : undefined,
@@ -482,6 +496,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         Object.keys(publicRuntimeConfig).length > 0
           ? publicRuntimeConfig
           : undefined,
+
+      // @ts-expect-error internal field not publicly exposed
+      isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
     }
 
     // Initialize next/config with the environment configuration
@@ -510,17 +527,17 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     return this.matchers.reload()
   }
 
-  protected async handleNextDataRequest(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
-    parsedUrl: NextUrlWithParsedQuery
-  ): Promise<{ finished: boolean }> {
+  protected handleNextDataRequest: RouteHandler = async (
+    req,
+    res,
+    parsedUrl
+  ) => {
     const middleware = this.getMiddleware()
     const params = matchNextDataPathname(parsedUrl.pathname)
 
     // ignore for non-next data URLs
     if (!params || !params.path) {
-      return { finished: false }
+      return false
     }
 
     if (params.path[0] !== this.buildId) {
@@ -529,12 +546,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         process.env.NEXT_RUNTIME !== 'edge' &&
         req.headers['x-middleware-invoke']
       ) {
-        return { finished: false }
+        return false
       }
 
       // Make sure to 404 if the buildId isn't correct
       await this.render404(req, res, parsedUrl)
-      return { finished: true }
+      return true
     }
 
     // remove buildId from URL
@@ -545,9 +562,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // show 404 if it doesn't end with .json
     if (typeof lastParam !== 'string' || !lastParam.endsWith('.json')) {
       await this.render404(req, res, parsedUrl)
-      return {
-        finished: true,
-      }
+      return true
     }
 
     // re-create page's pathname
@@ -570,7 +585,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     if (this.i18nProvider) {
       // Remove the port from the hostname if present.
-      const hostname = req?.headers.host?.split(':')[0].toLowerCase()
+      const hostname = req?.headers.host?.split(':', 1)[0].toLowerCase()
 
       const domainLocale = this.i18nProvider.detectDomainLocale(hostname)
       const defaultLocale =
@@ -599,38 +614,26 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       if (!localePathResult.detectedLocale && !middleware) {
         parsedUrl.query.__nextLocale = defaultLocale
         await this.render404(req, res, parsedUrl)
-        return { finished: true }
+        return true
       }
     }
 
     parsedUrl.pathname = pathname
     parsedUrl.query.__nextDataReq = '1'
 
-    return { finished: false }
+    return false
   }
 
-  protected async handleNextImageRequest(
-    _req: BaseNextRequest,
-    _res: BaseNextResponse,
-    _parsedUrl: NextUrlWithParsedQuery
-  ): Promise<{ finished: boolean }> {
-    return { finished: false }
+  protected handleNextImageRequest: RouteHandler = () => {
+    return false
   }
 
-  protected async handleCatchallRenderRequest(
-    _req: BaseNextRequest,
-    _res: BaseNextResponse,
-    _parsedUrl: NextUrlWithParsedQuery
-  ): Promise<{ finished: boolean }> {
-    return { finished: false }
+  protected handleCatchallRenderRequest: RouteHandler = () => {
+    return false
   }
 
-  protected async handleCatchallMiddlewareRequest(
-    _req: BaseNextRequest,
-    _res: BaseNextResponse,
-    _parsedUrl: NextUrlWithParsedQuery
-  ): Promise<{ finished: boolean }> {
-    return { finished: false }
+  protected handleCatchallMiddlewareRequest: RouteHandler = () => {
+    return false
   }
 
   protected getRouteMatchers(): RouteMatcherManager {
@@ -754,6 +757,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const origSetHeader = _res.setHeader.bind(_res)
 
       _res.setHeader = (name: string, val: string | string[]) => {
+        // When renders /_error after page is failed,
+        // it could attempt to set headers after headers
+        if (_res.headersSent) {
+          return
+        }
         if (name.toLowerCase() === 'set-cookie') {
           const middlewareValue = getRequestMeta(req, '_nextMiddlewareCookie')
 
@@ -778,7 +786,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         return origSetHeader(name, val)
       }
 
-      const urlParts = (req.url || '').split('?')
+      const urlParts = (req.url || '').split('?', 1)
       const urlNoQuery = urlParts[0]
 
       // this normalizes repeated slashes in the path e.g. hello//world ->
@@ -790,8 +798,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         res.redirect(cleanUrl, 308).body(cleanUrl).send()
         return
       }
-
-      setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
 
       // Parse url if parsedUrl not provided
       if (!parsedUrl || typeof parsedUrl !== 'object') {
@@ -1058,15 +1064,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           parsedUrl.pathname = matchedPath
           url.pathname = parsedUrl.pathname
 
-          const normalizeResult = await this.handleNextDataRequest(
-            req,
-            res,
-            parsedUrl
-          )
-
-          if (normalizeResult.finished) {
-            return
-          }
+          const finished = await this.handleNextDataRequest(req, res, parsedUrl)
+          if (finished) return
         } catch (err) {
           if (err instanceof DecodeError || err instanceof NormalizeError) {
             res.statusCode = 400
@@ -1230,26 +1229,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           )
         }
 
-        if (parsedUrl.pathname.startsWith('/_next/image')) {
-          const imageResult = await this.handleNextImageRequest(
-            req,
-            res,
-            parsedUrl
-          )
+        // Try to handle this as a `/_next/image` request.
+        let finished = await this.handleNextImageRequest(req, res, parsedUrl)
+        if (finished) return
 
-          if (imageResult.finished) {
-            return
-          }
-        }
-        const nextDataResult = await this.handleNextDataRequest(
-          req,
-          res,
-          parsedUrl
-        )
+        // Try to handle the request as a `/_next/data` request.
+        finished = await this.handleNextDataRequest(req, res, parsedUrl)
+        if (finished) return
 
-        if (nextDataResult.finished) {
-          return
-        }
         await this.handleCatchallRenderRequest(req, res, parsedUrl)
         return
       }
@@ -1258,35 +1245,26 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         process.env.NEXT_RUNTIME !== 'edge' &&
         req.headers['x-middleware-invoke']
       ) {
-        const nextDataResult = await this.handleNextDataRequest(
+        let finished = await this.handleNextDataRequest(req, res, parsedUrl)
+        if (finished) return
+
+        finished = await this.handleCatchallMiddlewareRequest(
           req,
           res,
           parsedUrl
         )
+        if (finished) return
 
-        if (nextDataResult.finished) {
-          return
+        const err = new Error()
+        ;(err as any).result = {
+          response: new Response(null, {
+            headers: {
+              'x-middleware-next': '1',
+            },
+          }),
         }
-        const result = await this.handleCatchallMiddlewareRequest(
-          req,
-          res,
-          parsedUrl
-        )
-
-        if (result.finished) {
-          return
-        } else {
-          const err = new Error()
-          ;(err as any).result = {
-            response: new Response(null, {
-              headers: {
-                'x-middleware-next': '1',
-              },
-            }),
-          }
-          ;(err as any).bubble = true
-          throw err
-        }
+        ;(err as any).bubble = true
+        throw err
       }
 
       // ensure we strip the basePath when not using an invoke header
@@ -1594,7 +1572,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const isAppPath = components.isAppPath === true
     const hasServerProps = !!components.getServerSideProps
     let hasStaticPaths = !!components.getStaticPaths
-
+    const actionId = req.headers[ACTION.toLowerCase()] as string
+    const contentType = req.headers['content-type']
+    const isMultipartAction =
+      req.method === 'POST' && contentType?.startsWith('multipart/form-data')
+    const isFetchAction =
+      actionId !== undefined &&
+      typeof actionId === 'string' &&
+      req.method === 'POST'
+    const isServerAction = isFetchAction || isMultipartAction
     const hasGetInitialProps = !!components.Component?.getInitialProps
     let isSSG = !!components.getStaticProps
 
@@ -1611,6 +1597,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     let fallbackMode: FallbackMode
     let hasFallback = false
     const isDynamic = isDynamicRoute(components.page)
+
+    const prerenderManifest = this.getPrerenderManifest()
 
     if (isAppPath && isDynamic) {
       const pathsResult = await this.getStaticPaths({
@@ -1654,8 +1642,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     ) {
       isSSG = true
     } else if (!this.renderOpts.dev) {
-      const manifest = this.getPrerenderManifest()
-      isSSG = isSSG || !!manifest.routes[pathname === '/index' ? '/' : pathname]
+      isSSG ||=
+        !!prerenderManifest.routes[pathname === '/index' ? '/' : pathname]
     }
 
     // Toggle whether or not this is a Data request
@@ -1731,6 +1719,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // requests so ensure we respond with 405 for
     // invalid requests
     if (
+      !isServerAction &&
       !is404Page &&
       !is500Page &&
       pathname !== '/_error' &&
@@ -1798,7 +1787,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // For the edge runtime, we don't support preview mode in SSG.
       if (process.env.NEXT_RUNTIME !== 'edge') {
         const { tryGetPreviewData } =
-          require('./api-utils/node') as typeof import('./api-utils/node')
+          require('./api-utils/node/try-get-preview-data') as typeof import('./api-utils/node/try-get-preview-data')
         previewData = tryGetPreviewData(req, res, this.renderOpts.previewProps)
         isPreviewMode = previewData !== false
       }
@@ -1885,8 +1874,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     let ssgCacheKey =
-      isPreviewMode || !isSSG || opts.supportsDynamicHTML
-        ? null // Preview mode, on-demand revalidate, flight request can bypass the cache
+      isPreviewMode || !isSSG || opts.supportsDynamicHTML || isServerAction
+        ? null // Preview mode, on-demand revalidate, server actions, flight request can bypass the cache
         : `${locale ? `/${locale}` : ''}${
             (pathname === '/' || resolvedUrlPathname === '/') && locale
               ? ''
@@ -1969,7 +1958,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         query: origQuery,
       })
 
-      const renderOpts: RenderOpts = {
+      const renderOpts: LoadedRenderOpts = {
         ...components,
         ...opts,
         ...(isAppPath
@@ -2002,6 +1991,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         supportsDynamicHTML,
         isOnDemandRevalidate,
         isDraftMode: isPreviewMode,
+        isServerAction,
       }
 
       // Legacy render methods will return a render result that needs to be
@@ -2013,8 +2003,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
         const context: AppRouteRouteHandlerContext = {
           params: opts.params,
-          prerenderManifest: this.getPrerenderManifest(),
-          staticGenerationContext: {
+          prerenderManifest,
+          renderOpts: {
             originalPathname: components.ComponentMod.originalPathname,
             supportsDynamicHTML,
             incrementalCache,
@@ -2030,11 +2020,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
           const response = await routeModule.handle(request, context)
 
-          ;(req as any).fetchMetrics = (
-            context.staticGenerationContext as any
-          ).fetchMetrics
+          ;(req as any).fetchMetrics = (context.renderOpts as any).fetchMetrics
 
-          const cacheTags = (context.staticGenerationContext as any).fetchTags
+          const cacheTags = (context.renderOpts as any).fetchTags
 
           // If the request is for a static response, we can cache it so long
           // as it's not edge.
@@ -2052,8 +2040,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               headers['content-type'] = blob.type
             }
 
-            const revalidate =
-              context.staticGenerationContext.store?.revalidate ?? false
+            const revalidate = context.renderOpts.store?.revalidate ?? false
 
             // Create the cache entry for the response.
             const cacheEntry: ResponseCacheEntry = {
@@ -2070,8 +2057,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           }
 
           // Send the response now that we have copied it into the cache.
-          await sendResponse(req, res, response)
-
+          await sendResponse(req, res, response, context.renderOpts.waitUntil)
           return null
         } catch (err) {
           // If this is during static generation, throw the error again.
@@ -2110,13 +2096,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       ) {
         const isAppPrefetch = req.headers[NEXT_ROUTER_PREFETCH.toLowerCase()]
 
-        if (
-          isAppPrefetch &&
-          ssgCacheKey &&
-          process.env.NODE_ENV === 'production'
-        ) {
+        if (isAppPrefetch && process.env.NODE_ENV === 'production') {
           try {
-            const prefetchRsc = await this.getPrefetchRsc(ssgCacheKey)
+            const prefetchRsc = await this.getPrefetchRsc(resolvedUrlPathname)
 
             if (prefetchRsc) {
               res.setHeader(
@@ -2233,6 +2215,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           html: result,
           pageData: metadata.pageData,
           headers,
+          status: isAppPath ? res.statusCode : undefined,
         },
         revalidate: metadata.revalidate,
       }
@@ -2297,6 +2280,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
         const isPageIncludedInStaticPaths =
           staticPathKey && staticPaths?.includes(staticPathKey)
+
+        if ((this.nextConfig.experimental as any).isExperimentalCompile) {
+          fallbackMode = 'blocking'
+        }
 
         // When we did not respond from cache, we need to choose to block on
         // rendering or return a skeleton.
@@ -2488,6 +2475,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           )
         }
 
+        if (cachedData.status) {
+          res.statusCode = cachedData.status
+        }
+
         return {
           type: isDataReq ? 'rsc' : 'html',
           body: isDataReq
@@ -2616,7 +2607,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         const invokeOutput = ctx.req.headers['x-invoke-output']
         if (
           !this.minimalMode &&
-          this.isRenderWorker &&
           typeof invokeOutput === 'string' &&
           isDynamicRoute(invokeOutput || '') &&
           invokeOutput !== match.definition.pathname

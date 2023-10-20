@@ -13,7 +13,7 @@ Forms enable you to create and update data in web applications. Next.js provides
 > **Good to know:**
 >
 > - We will soon recommend [incrementally adopting](/docs/app/building-your-application/upgrading/app-router-migration) the App Router and using [Server Actions](/docs/app/building-your-application/data-fetching/forms-and-mutations#how-server-actions-work) for handling form submissions and data mutations. Server Actions allow you to define asynchronous server functions that can be called directly from your components, without needing to manually create an API Route.
-> - API Routes [do not specify CORS headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS), meaning they are same-origin only by default.
+> - API Routes [do not specify CORS headers](https://developer.mozilla.org/docs/Web/HTTP/CORS), meaning they are same-origin only by default.
 > - Since API Routes run on the server, we're able to use sensitive values (like API keys) through [Environment Variables](/docs/pages/building-your-application/configuring/environment-variables) without exposing them to the client. This is critical for the security of your application.
 
 </PagesOnly>
@@ -22,28 +22,27 @@ Forms enable you to create and update data in web applications. Next.js provides
 
 Forms enable you to create and update data in web applications. Next.js provides a powerful way to handle form submissions and data mutations using **Server Actions**.
 
+<details>
+  <summary>Examples</summary>
+
+- [Form with Loading & Error States](https://github.com/vercel/next.js/tree/canary/examples/next-forms)
+
+</details>
+
 ## How Server Actions Work
 
 With Server Actions, you don't need to manually create API endpoints. Instead, you define asynchronous server functions that can be called directly from your components.
 
+> **🎥 Watch:** Learn more about forms and mutations with the App Router → [YouTube (10 minutes)](https://youtu.be/dDpZfOQBMaU?si=cJZHlUu_jFhCzHUg).
+
 Server Actions can be defined in Server Components or called from Client Components. Defining the action in a Server Component allows the form to function without JavaScript, providing progressive enhancement.
-
-Enable Server Actions in your `next.config.js` file:
-
-```js filename="next.config.js"
-module.exports = {
-  experimental: {
-    serverActions: true,
-  },
-}
-```
 
 > **Good to know:**
 >
 > - Forms calling Server Actions from Server Components can function without JavaScript.
 > - Forms calling Server Actions from Client Components will queue submissions if JavaScript isn't loaded yet, prioritizing client hydration.
 > - Server Actions inherit the [runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes) from the page or layout they are used on.
-> - Currently, if a route uses a Server Action, it is required to [render dynamically](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies).
+> - Server Actions work with fully static routes (including revalidating data with ISR).
 
 ## Revalidating Cached Data
 
@@ -170,7 +169,7 @@ export default function Page() {
 }
 ```
 
-> **Good to know**: `<form action={create}>` takes the [FormData](https://developer.mozilla.org/en-US/docs/Web/API/FormData/FormData) data type. In the example above, the FormData submitted via the HTML [`form`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/form) is accessible in the server action `create`.
+> **Good to know**: `<form action={create}>` takes the [FormData](https://developer.mozilla.org/docs/Web/API/FormData/FormData) data type. In the example above, the FormData submitted via the HTML [`form`](https://developer.mozilla.org/docs/Web/HTML/Element/form) is accessible in the server action `create`.
 
 ### Revalidating Data
 
@@ -361,39 +360,69 @@ export default async function submit(formData) {
 
 <AppOnly>
 
-Use the `useFormStatus` hook to show a loading state when a form is submitting on the server:
+Use the `useFormStatus` hook to show a loading state when a form is submitting on the server. The `useFormStatus` hook can only be used as a child of a `form` element using a Server Action.
 
-```tsx filename="app/page.tsx" switcher
+For example, the following submit button:
+
+```tsx filename="app/submit-button.tsx" switcher
 'use client'
 
-import { experimental_useFormStatus as useFormStatus } from 'react-dom'
+import { useFormStatus } from 'react-dom'
 
-function SubmitButton() {
+export function SubmitButton() {
   const { pending } = useFormStatus()
 
   return (
-    <button disabled={pending}>{pending ? 'Submitting...' : 'Submit'}</button>
+    <button type="submit" aria-disabled={pending}>
+      Add
+    </button>
+  )
+}
+```
+
+```jsx filename="app/submit-button.jsx" switcher
+'use client'
+
+import { useFormStatus } from 'react-dom'
+
+export function SubmitButton() {
+  const { pending } = useFormStatus()
+
+  return (
+    <button type="submit" aria-disabled={pending}>
+      Add
+    </button>
+  )
+}
+```
+
+`<SubmitButton />` can then be used in a form with a Server Action:
+
+```tsx filename="app/page.tsx" switcher
+import { SubmitButton } from '@/app/submit-button'
+
+export default async function Home() {
+  return (
+    <form action={...}>
+      <input type="text" name="field-name" />
+      <SubmitButton />
+    </form>
   )
 }
 ```
 
 ```jsx filename="app/page.jsx" switcher
-'use client'
+import { SubmitButton } from '@/app/submit-button'
 
-import { experimental_useFormStatus as useFormStatus } from 'react-dom'
-
-function SubmitButton() {
-  const { pending } = useFormStatus()
-
+export default async function Home() {
   return (
-    <button disabled={pending}>{pending ? 'Submitting...' : 'Submit'}</button>
+    <form action={...}>
+      <input type="text" name="field-name" />
+      <SubmitButton />
+    </form>
   )
 }
 ```
-
-> **Good to know:**
->
-> - Displaying loading or error states currently requires using Client Components. We are exploring options for server-side functions to retrieve these values as we move forward in stability for Server Actions.
 
 </AppOnly>
 
@@ -485,18 +514,17 @@ export default function Page() {
 
 <AppOnly>
 
-Server Actions can also return [serializable objects](https://developer.mozilla.org/en-US/docs/Glossary/Serialization). For example, your Server Action might handle errors from creating a new item, returning either a success or error message:
+Server Actions can also return [serializable objects](https://developer.mozilla.org/docs/Glossary/Serialization). For example, your Server Action might handle errors from creating a new item:
 
 ```ts filename="app/actions.ts" switcher
 'use server'
 
-export async function create(formData: FormData) {
+export async function createTodo(prevState: any, formData: FormData) {
   try {
-    await createItem(formData.get('item'))
-    revalidatePath('/')
-    return { message: 'Success!' }
+    await createItem(formData.get('todo'))
+    return revalidatePath('/')
   } catch (e) {
-    return { message: 'There was an error.' }
+    return { message: 'Failed to create' }
   }
 }
 ```
@@ -504,70 +532,89 @@ export async function create(formData: FormData) {
 ```js filename="app/actions.js" switcher
 'use server'
 
-export async function create(formData) {
+export async function createTodo(prevState, formData) {
   try {
-    await createItem(formData.get('item'))
-    revalidatePath('/')
-    return { message: 'Success!' }
+    await createItem(formData.get('todo'))
+    return revalidatePath('/')
   } catch (e) {
-    return { message: 'There was an error.' }
+    return { message: 'Failed to create' }
   }
 }
 ```
 
-Then, from a Client Component, you can read this value and save it to state, allowing the component to display the result of the Server Action to the viewer.
+Then, from a Client Component, you can read this value and display an error message.
 
-```tsx filename="app/page.tsx" switcher
+```tsx filename="app/add-form.tsx" switcher
 'use client'
 
-import { create } from './actions'
-import { useState } from 'react'
+import { useFormState, useFormStatus } from 'react-dom'
+import { createTodo } from '@/app/actions'
 
-export default function Page() {
-  const [message, setMessage] = useState<string>('')
+const initialState = {
+  message: null,
+}
 
-  async function onCreate(formData: FormData) {
-    const res = await create(formData)
-    setMessage(res.message)
-  }
+function SubmitButton() {
+  const { pending } = useFormStatus()
 
   return (
-    <form action={onCreate}>
-      <input type="text" name="item" />
-      <button type="submit">Add</button>
-      <p>{message}</p>
+    <button type="submit" aria-disabled={pending}>
+      Add
+    </button>
+  )
+}
+
+export function AddForm() {
+  const [state, formAction] = useFormState(createTodo, initialState)
+
+  return (
+    <form action={formAction}>
+      <label htmlFor="todo">Enter Task</label>
+      <input type="text" id="todo" name="todo" required />
+      <SubmitButton />
+      <p aria-live="polite" className="sr-only">
+        {state?.message}
+      </p>
     </form>
   )
 }
 ```
 
-```jsx filename="app/page.jsx" switcher
+```jsx filename="app/add-form.jsx" switcher
 'use client'
 
-import { create } from './actions'
-import { useState } from 'react'
+import { useFormState, useFormStatus } from 'react-dom'
+import { createTodo } from '@/app/actions'
 
-export default function Page() {
-  const [message, setMessage] = useState('')
+const initialState = {
+  message: null,
+}
 
-  async function onCreate(formData) {
-    const res = await create(formData)
-    setMessage(res.message)
-  }
+function SubmitButton() {
+  const { pending } = useFormStatus()
 
   return (
-    <form action={onCreate}>
-      <input type="text" name="item" />
-      <button type="submit">Add</button>
-      <p>{message}</p>
+    <button type="submit" aria-disabled={pending}>
+      Add
+    </button>
+  )
+}
+
+export function AddForm() {
+  const [state, formAction] = useFormState(createTodo, initialState)
+
+  return (
+    <form action={formAction}>
+      <label htmlFor="todo">Enter Task</label>
+      <input type="text" id="todo" name="todo" required />
+      <SubmitButton />
+      <p aria-live="polite" className="sr-only">
+        {state?.message}
+      </p>
     </form>
   )
 }
 ```
-
-> **Good to know:**
->
-> - Displaying loading or error states currently requires using Client Components. We are exploring options for server-side functions to retrieve these values as we move forward in stability for Server Actions.
 
 </AppOnly>
 
@@ -702,8 +749,8 @@ export function Thread({ messages }: { messages: Message[] }) {
 
   return (
     <div>
-      {optimisticMessages.map((m) => (
-        <div>{m.message}</div>
+      {optimisticMessages.map((m, k) => (
+        <div key={k}>{m.message}</div>
       ))}
       <form
         action={async (formData: FormData) => {

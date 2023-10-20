@@ -12,35 +12,15 @@ const originModules = [
   require.resolve('../../../server/require'),
   require.resolve('../../../server/load-components'),
   require.resolve('../../../server/next-server'),
-  require.resolve('../../../compiled/react-server-dom-webpack/client.edge'),
-  require.resolve(
-    '../../../compiled/react-server-dom-webpack-experimental/client.edge'
-  ),
+  require.resolve('next/dist/compiled/next-server/app-page.runtime.dev.js'),
+  require.resolve('next/dist/compiled/next-server/app-route.runtime.dev.js'),
+  require.resolve('next/dist/compiled/next-server/pages.runtime.dev.js'),
+  require.resolve('next/dist/compiled/next-server/pages-api.runtime.dev.js'),
 ]
 
 const RUNTIME_NAMES = ['webpack-runtime', 'webpack-api-runtime']
 
-export function deleteAppClientCache() {
-  // ensure we reset the cache for rsc components
-  // loaded via react-server-dom-webpack
-  const reactServerDomModId = require.resolve(
-    'react-server-dom-webpack/client.edge'
-  )
-  const reactServerDomMod = require.cache[reactServerDomModId]
-
-  if (reactServerDomMod) {
-    for (const child of reactServerDomMod.children) {
-      child.parent = null
-      delete require.cache[child.id]
-    }
-  }
-  delete require.cache[reactServerDomModId]
-}
-
-export function deleteCache(filePath: string) {
-  // try to clear it from the fs cache
-  clearManifestCache(filePath)
-
+function deleteFromRequireCache(filePath: string) {
   try {
     filePath = realpathSync(filePath)
   } catch (e) {
@@ -64,6 +44,24 @@ export function deleteCache(filePath: string) {
     return true
   }
   return false
+}
+
+export function deleteAppClientCache() {
+  deleteFromRequireCache(
+    require.resolve('next/dist/compiled/next-server/app-page.runtime.dev.js')
+  )
+  deleteFromRequireCache(
+    require.resolve(
+      'next/dist/compiled/next-server/app-page-experimental.runtime.dev.js'
+    )
+  )
+}
+
+export function deleteCache(filePath: string) {
+  // try to clear it from the fs cache
+  clearManifestCache(filePath)
+
+  deleteFromRequireCache(filePath)
 }
 
 const PLUGIN_NAME = 'NextJsRequireCacheHotReloader'

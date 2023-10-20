@@ -1,5 +1,10 @@
-import { AsyncLocalStorage } from 'async_hooks'
 import type { AssetBinding } from '../../../build/webpack/loaders/get-module-build-info'
+import type {
+  EdgeFunctionDefinition,
+  SUPPORTED_NATIVE_MODULES,
+} from '../../../build/webpack/plugins/middleware-plugin'
+import type { UnwrapPromise } from '../../../lib/coalesced-function'
+import { AsyncLocalStorage } from 'async_hooks'
 import {
   decorateServerError,
   getServerError,
@@ -13,11 +18,6 @@ import { readFileSync, promises as fs } from 'fs'
 import { validateURL } from '../utils'
 import { pick } from '../../../lib/pick'
 import { fetchInlineAsset } from './fetch-inline-assets'
-import type {
-  EdgeFunctionDefinition,
-  SUPPORTED_NATIVE_MODULES,
-} from '../../../build/webpack/plugins/middleware-plugin'
-import { UnwrapPromise } from '../../../lib/coalesced-function'
 import { runInContext } from 'vm'
 import BufferImplementation from 'node:buffer'
 import EventsImplementation from 'node:events'
@@ -278,7 +278,7 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
           // instance if a WASM module is given. Utilize the fact to determine
           // if the WASM code generation happens.
           //
-          // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/instantiate#primary_overload_%E2%80%94_taking_wasm_binary_code
+          // https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/instantiate#primary_overload_%E2%80%94_taking_wasm_binary_code
           const instantiatedFromBuffer = result.hasOwnProperty('module')
 
           const key = fn.toString()

@@ -1,18 +1,17 @@
 import type { NextConfigComplete } from '../config-shared'
 
 import '../require-hook'
-import '../node-polyfill-fetch'
 import '../node-environment'
 
 import {
   buildAppStaticPaths,
   buildStaticPaths,
   collectGenerateParams,
-  GenerateParams,
 } from '../../build/utils'
+import type { GenerateParams } from '../../build/utils'
 import { loadComponents } from '../load-components'
 import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
-import { IncrementalCache } from '../lib/incremental-cache'
+import type { IncrementalCache } from '../lib/incremental-cache'
 import * as serverHooks from '../../client/components/hooks-server-context'
 import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
 
@@ -58,7 +57,7 @@ export async function loadStaticPaths({
   fallback?: boolean | 'blocking'
 }> {
   // update work memory runtime-config
-  require('../../shared/lib/runtime-config.shared-runtime').setConfig(config)
+  require('../../shared/lib/runtime-config.external').setConfig(config)
   setHttpClientAndAgentOptions({
     httpAgentOptions,
   })

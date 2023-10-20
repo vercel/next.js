@@ -1,18 +1,12 @@
 #!/usr/bin/env node
+performance.mark('next-start')
 import '../server/require-hook'
 import * as log from '../build/output/log'
 import arg from 'next/dist/compiled/arg/index.js'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 import { commands } from '../lib/commands'
 import { commandArgs } from '../lib/command-args'
-import loadConfig from '../server/config'
-import {
-  PHASE_PRODUCTION_SERVER,
-  PHASE_DEVELOPMENT_SERVER,
-} from '../shared/lib/constants'
-import { getProjectDir } from '../lib/get-project-dir'
 import { getValidatedArgs } from '../lib/get-validated-args'
-import { findPagesDir } from '../lib/find-pages-dir'
 
 const defaultCommand = 'dev'
 const args = arg(
@@ -100,22 +94,6 @@ if (process.env.NODE_ENV) {
 ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
 ;(process.env as any).NEXT_RUNTIME = 'nodejs'
 
-// x-ref: https://github.com/vercel/next.js/pull/34688#issuecomment-1047994505
-if (process.versions.pnp === '3') {
-  const nodeVersionParts = process.versions.node
-    .split('.')
-    .map((v) => Number(v))
-
-  if (
-    nodeVersionParts[0] < 16 ||
-    (nodeVersionParts[0] === 16 && nodeVersionParts[1] < 14)
-  ) {
-    log.warn(
-      'Node.js 16.14+ is required for Yarn PnP 3.20+. More info: https://github.com/vercel/next.js/pull/34688#issuecomment-1047994505'
-    )
-  }
-}
-
 // Make sure commands gracefully respect termination signals (e.g. from Docker)
 // Allow the graceful termination to be manually configurable
 if (!process.env.NEXT_MANUAL_SIG_HANDLE && command !== 'dev') {
@@ -125,45 +103,6 @@ if (!process.env.NEXT_MANUAL_SIG_HANDLE && command !== 'dev') {
 async function main() {
   const currentArgsSpec = commandArgs[command]()
   const validatedArgs = getValidatedArgs(currentArgsSpec, forwardedArgs)
-
-  if (
-    (command === 'start' || command === 'dev') &&
-    !process.env.NEXT_PRIVATE_WORKER
-  ) {
-    const dir = getProjectDir(
-      process.env.NEXT_PRIVATE_DEV_DIR || validatedArgs._[0]
-    )
-    process.env.NEXT_PRIVATE_DIR = dir
-    const origEnv = Object.assign({}, process.env)
-
-    // TODO: set config to env variable to be re-used so we don't reload
-    // un-necessarily
-    const config = await loadConfig(
-      command === 'dev' ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
-      dir
-    )
-    let dirsResult: ReturnType<typeof findPagesDir> | undefined = undefined
-
-    try {
-      dirsResult = findPagesDir(dir)
-    } catch (_) {
-      // handle this error further down
-    }
-
-    if (dirsResult?.appDir || process.env.NODE_ENV === 'development') {
-      process.env = origEnv
-    }
-
-    if (dirsResult?.appDir) {
-      // we need to reset env if we are going to create
-      // the worker process with the esm loader so that the
-      // initial env state is correct
-      process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = config.experimental
-        .serverActions
-        ? 'experimental'
-        : 'next'
-    }
-  }
 
   for (const dependency of ['react', 'react-dom']) {
     try {

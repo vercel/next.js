@@ -18,7 +18,13 @@ import {
   type RouteModuleOptions,
 } from '../route-module'
 import { renderToHTMLImpl, renderToHTML } from '../../../render'
-import * as sharedModules from './shared-modules'
+import * as vendoredContexts from './vendored/contexts/entrypoints'
+
+/**
+ * The PagesModule is the type of the module exported by the bundled pages
+ * module.
+ */
+export type PagesModule = typeof import('../../../../build/templates/pages')
 
 /**
  * The userland module for a page. This is the module that is exported from the
@@ -105,8 +111,6 @@ export class PagesRouteModule extends RouteModule<
 > {
   private readonly components: PagesComponents
 
-  static readonly sharedModules = sharedModules
-
   constructor(options: PagesRouteModuleOptions) {
     super(options)
 
@@ -132,7 +136,11 @@ export class PagesRouteModule extends RouteModule<
   }
 }
 
+const vendored = {
+  contexts: vendoredContexts,
+}
+
 // needed for the static build
-export { renderToHTML }
+export { renderToHTML, vendored }
 
 export default PagesRouteModule

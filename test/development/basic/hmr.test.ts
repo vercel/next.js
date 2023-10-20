@@ -10,7 +10,7 @@ import {
   renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { outdent } from 'outdent'
 
@@ -21,10 +21,7 @@ describe.each([[''], ['/docs']])(
 
     beforeAll(async () => {
       next = await createNext({
-        files: {
-          pages: new FileRef(join(__dirname, 'hmr/pages')),
-          components: new FileRef(join(__dirname, 'hmr/components')),
-        },
+        files: join(__dirname, 'hmr'),
         nextConfig: {
           basePath,
         },
@@ -117,7 +114,7 @@ describe.each([[''], ['/docs']])(
               /This is the contact page/
             )
 
-            expect(next.cliOutput).toContain('compiled /_error')
+            expect(next.cliOutput).toContain('Compiled /_error')
           } finally {
             if (browser) {
               await browser.close()
@@ -387,7 +384,7 @@ describe.each([[''], ['/docs']])(
             /This page could not be found/
           )
 
-          expect(next.cliOutput).toContain('compiled /_error')
+          expect(next.cliOutput).toContain('Compiled /_error')
         } catch (err) {
           await next.deleteFile(newPage)
           throw err
@@ -424,7 +421,7 @@ describe.each([[''], ['/docs']])(
             /This page could not be found/
           )
 
-          expect(next.cliOutput).toContain('compiled /_error')
+          expect(next.cliOutput).toContain('Compiled /_error')
         } catch (err) {
           await next.deleteFile(newPage)
           throw err
@@ -505,7 +502,7 @@ describe.each([[''], ['/docs']])(
             /This is the about page/
           )
 
-          expect(next.cliOutput).toContain('compiled /_error')
+          expect(next.cliOutput).toContain('Compiled /_error')
         } catch (err) {
           await next.patchFile(aboutPage, aboutContent)
           if (browser) {
@@ -665,7 +662,7 @@ describe.each([[''], ['/docs']])(
                       " 1 of 1 unhandled error
                       Server Error
 
-                      Error: The default export is not a React Component in page: \\"/hmr/about5\\"
+                      Error: The default export is not a React Component in page: "/hmr/about5"
 
                       This error happened while generating the page. Any console logs will be displayed in the terminal window."
                   `)
@@ -768,7 +765,7 @@ describe.each([[''], ['/docs']])(
                       " 1 of 1 unhandled error
                       Server Error
 
-                      Error: The default export is not a React Component in page: \\"/hmr/about7\\"
+                      Error: The default export is not a React Component in page: "/hmr/about7"
 
                       This error happened while generating the page. Any console logs will be displayed in the terminal window."
                   `)
@@ -1146,15 +1143,14 @@ describe.each([[''], ['/docs']])(
         await next.patchFile(pageName, originalContent)
         await check(
           () => next.cliOutput.substring(outputLength),
-          /compiled.*?/i
+          /Compiled.*?/i
         )
         const compileTimeStr = next.cliOutput.substring(outputLength)
 
         const matches = [
-          ...compileTimeStr.match(/compiled.*? in ([\d.]{1,})\s?(?:s|ms)/i),
+          ...compileTimeStr.match(/Compiled.*? in ([\d.]{1,})\s?(?:s|ms)/i),
         ]
         const [, compileTime, timeUnit] = matches
-        console.log('compileTime, timeUnit', compileTime, timeUnit)
 
         let compileTimeMs = parseFloat(compileTime[1])
         if (timeUnit === 's') {

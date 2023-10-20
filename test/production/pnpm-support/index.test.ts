@@ -9,6 +9,7 @@ import {
   initNextServerScript,
   killApp,
   renderViaHTTP,
+  shouldRunTurboDevTest,
 } from 'next-test-utils'
 
 describe('pnpm support', () => {
@@ -72,7 +73,7 @@ describe('pnpm support', () => {
       },
       packageJson: {
         scripts: {
-          dev: 'next dev',
+          dev: `next ${shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'}`,
           build: 'next build',
           start: 'next start',
         },

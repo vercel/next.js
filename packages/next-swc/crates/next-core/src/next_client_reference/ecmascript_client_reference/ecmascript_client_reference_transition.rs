@@ -2,6 +2,7 @@ use anyhow::{bail, Result};
 use turbo_tasks::{Value, Vc};
 use turbopack_binding::turbopack::{
     core::{
+        file_source::FileSource,
         module::Module,
         reference_type::{EntryReferenceSubType, ReferenceType},
         source::Source,
@@ -45,8 +46,19 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         context: Vc<ModuleAssetContext>,
         _reference_type: Value<ReferenceType>,
     ) -> Result<Vc<Box<dyn Module>>> {
+        let ident = source.ident().await?;
+        let ident_path = ident.path.await?;
+        let client_source = if ident_path.path.contains("next/dist/esm/") {
+            let path = ident
+                .path
+                .root()
+                .join(ident_path.path.replace("next/dist/esm/", "next/dist/"));
+            Vc::upcast(FileSource::new_with_query(path, ident.query))
+        } else {
+            source
+        };
         let client_module = self.client_transition.process(
-            source,
+            client_source,
             context,
             Value::new(ReferenceType::Entry(
                 EntryReferenceSubType::AppClientComponent,

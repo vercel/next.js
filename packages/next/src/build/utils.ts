@@ -1,4 +1,4 @@
-import type { NextConfigComplete } from '../server/config-shared'
+import type { NextConfig, NextConfigComplete } from '../server/config-shared'
 import type { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
 import type { AssetBinding } from './webpack/loaders/get-module-build-info'
 import type { GetStaticPaths, PageConfig, ServerRuntime } from 'next/types'
@@ -14,14 +14,14 @@ import type {
   EdgeFunctionDefinition,
   MiddlewareManifest,
 } from './webpack/plugins/middleware-plugin'
-import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage.external'
+import type { WebpackLayerName } from '../lib/constants'
+import type { AppPageModule } from '../server/future/route-modules/app-page/module'
 
 import '../server/require-hook'
-import '../server/node-polyfill-fetch'
 import '../server/node-polyfill-crypto'
 import '../server/node-environment'
 
-import chalk from 'next/dist/compiled/chalk'
+import { green, yellow, red, cyan, bold, underline } from '../lib/picocolors'
 import getGzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
@@ -35,6 +35,7 @@ import {
   SERVER_PROPS_SSG_CONFLICT,
   MIDDLEWARE_FILENAME,
   INSTRUMENTATION_HOOK_FILENAME,
+  WEBPACK_LAYERS,
 } from '../lib/constants'
 import { MODERN_BROWSERSLIST_TARGET } from '../shared/lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
@@ -47,10 +48,8 @@ import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import * as Log from './output/log'
-import {
-  loadComponents,
-  LoadComponentsReturnType,
-} from '../server/load-components'
+import { loadComponents } from '../server/load-components'
+import type { LoadComponentsReturnType } from '../server/load-components'
 import { trace } from '../trace'
 import { setHttpClientAndAgentOptions } from '../server/setup-http-agent-env'
 import { Sema } from 'next/dist/compiled/async-sema'
@@ -65,9 +64,7 @@ import { nodeFs } from '../server/lib/node-fs-methods'
 import * as ciEnvironment from '../telemetry/ci-info'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { denormalizeAppPagePath } from '../shared/lib/page-path/denormalize-app-path'
-// import { AppRouteRouteModule } from '../server/future/route-modules/app-route/module'
-const { AppRouteRouteModule } =
-  require('../server/future/route-modules/app-route/module.compiled') as typeof import('../server/future/route-modules/app-route/module')
+import { AppRouteRouteModule } from '../server/future/route-modules/app-route/module.compiled'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -366,22 +363,22 @@ export async function printTreeView(
   const getPrettySize = (_size: number): string => {
     const size = prettyBytes(_size)
     // green for 0-130kb
-    if (_size < 130 * 1000) return chalk.green(size)
+    if (_size < 130 * 1000) return green(size)
     // yellow for 130-170kb
-    if (_size < 170 * 1000) return chalk.yellow(size)
+    if (_size < 170 * 1000) return yellow(size)
     // red for >= 170kb
-    return chalk.red.bold(size)
+    return red(bold(size))
   }
 
   const MIN_DURATION = 300
   const getPrettyDuration = (_duration: number): string => {
     const duration = `${_duration} ms`
     // green for 300-1000ms
-    if (_duration < 1000) return chalk.green(duration)
+    if (_duration < 1000) return green(duration)
     // yellow for 1000-2000ms
-    if (_duration < 2000) return chalk.yellow(duration)
+    if (_duration < 2000) return yellow(duration)
     // red for >= 2000ms
-    return chalk.red.bold(duration)
+    return red(bold(duration))
   }
 
   const getCleanName = (fileName: string) =>
@@ -427,7 +424,7 @@ export async function printTreeView(
         routerType === 'app' ? 'Route (app)' : 'Route (pages)',
         'Size',
         'First Load JS',
-      ].map((entry) => chalk.underline(entry)) as [string, string, string]
+      ].map((entry) => underline(entry)) as [string, string, string]
     )
 
     filteredPages.forEach((item, i, arr) => {
@@ -473,14 +470,14 @@ export async function printTreeView(
         }`,
         pageInfo
           ? ampFirst
-            ? chalk.cyan('AMP')
+            ? cyan('AMP')
             : pageInfo.size >= 0
             ? prettyBytes(pageInfo.size)
             : ''
           : '',
         pageInfo
           ? ampFirst
-            ? chalk.cyan('AMP')
+            ? cyan('AMP')
             : pageInfo.size >= 0
             ? getPrettySize(pageInfo.totalSize)
             : ''
@@ -669,9 +666,9 @@ export async function printTreeView(
         usedSymbols.has('λ') && [
           'λ',
           '(Server)',
-          `server-side renders at runtime (uses ${chalk.cyan(
+          `server-side renders at runtime (uses ${cyan(
             'getInitialProps'
-          )} or ${chalk.cyan('getServerSideProps')})`,
+          )} or ${cyan('getServerSideProps')})`,
         ],
         usedSymbols.has('○') && [
           '○',
@@ -681,14 +678,14 @@ export async function printTreeView(
         usedSymbols.has('●') && [
           '●',
           '(SSG)',
-          `automatically generated as static HTML + JSON (uses ${chalk.cyan(
+          `automatically generated as static HTML + JSON (uses ${cyan(
             'getStaticProps'
           )})`,
         ],
         usedSymbols.has('ISR') && [
           '',
           '(ISR)',
-          `incremental static regeneration (uses revalidate in ${chalk.cyan(
+          `incremental static regeneration (uses revalidate in ${cyan(
             'getStaticProps'
           )})`,
         ],
@@ -714,7 +711,7 @@ export function printCustomRoutes({
   ) => {
     const isRedirects = type === 'Redirects'
     const isHeaders = type === 'Headers'
-    print(chalk.underline(type))
+    print(underline(type))
     print()
 
     /*
@@ -1409,7 +1406,7 @@ export async function isPageStatic({
   const isPageStaticSpan = trace('is-page-static-utils', parentId)
   return isPageStaticSpan
     .traceAsyncFn(async () => {
-      require('../shared/lib/runtime-config.shared-runtime').setConfig(
+      require('../shared/lib/runtime-config.external').setConfig(
         runtimeEnvConfig
       )
       setHttpClientAndAgentOptions({
@@ -1466,25 +1463,12 @@ export async function isPageStatic({
         | undefined
 
       if (pageType === 'app') {
+        const ComponentMod: AppPageModule = componentsResult.ComponentMod
+
         isClientComponent = isClientReference(componentsResult.ComponentMod)
-        const tree = componentsResult.ComponentMod.tree
 
-        const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
-          componentsResult.ComponentMod.staticGenerationAsyncStorage
-        if (!staticGenerationAsyncStorage) {
-          throw new Error(
-            'Invariant: staticGenerationAsyncStorage should be defined on the module'
-          )
-        }
-
-        const serverHooks = componentsResult.ComponentMod.serverHooks
-        if (!serverHooks) {
-          throw new Error(
-            'Invariant: serverHooks should be defined on the module'
-          )
-        }
-
-        const { routeModule } = componentsResult
+        const { tree, staticGenerationAsyncStorage, serverHooks, routeModule } =
+          ComponentMod
 
         const generateParams: GenerateParams =
           routeModule && AppRouteRouteModule.is(routeModule)
@@ -1578,38 +1562,6 @@ export async function isPageStatic({
       const hasStaticProps = !!componentsResult.getStaticProps
       const hasStaticPaths = !!componentsResult.getStaticPaths
       const hasServerProps = !!componentsResult.getServerSideProps
-      const hasLegacyServerProps = !!(await componentsResult.ComponentMod
-        .unstable_getServerProps)
-      const hasLegacyStaticProps = !!(await componentsResult.ComponentMod
-        .unstable_getStaticProps)
-      const hasLegacyStaticPaths = !!(await componentsResult.ComponentMod
-        .unstable_getStaticPaths)
-      const hasLegacyStaticParams = !!(await componentsResult.ComponentMod
-        .unstable_getStaticParams)
-
-      if (hasLegacyStaticParams) {
-        throw new Error(
-          `unstable_getStaticParams was replaced with getStaticPaths. Please update your code.`
-        )
-      }
-
-      if (hasLegacyStaticPaths) {
-        throw new Error(
-          `unstable_getStaticPaths was replaced with getStaticPaths. Please update your code.`
-        )
-      }
-
-      if (hasLegacyStaticProps) {
-        throw new Error(
-          `unstable_getStaticProps was replaced with getStaticProps. Please update your code.`
-        )
-      }
-
-      if (hasLegacyServerProps) {
-        throw new Error(
-          `unstable_getServerProps was replaced with getServerSideProps. Please update your code.`
-        )
-      }
 
       // A page cannot be prerendered _and_ define a data requirement. That's
       // contradictory!
@@ -1695,9 +1647,7 @@ export async function hasCustomGetInitialProps(
   runtimeEnvConfig: any,
   checkingApp: boolean
 ): Promise<boolean> {
-  require('../shared/lib/runtime-config.shared-runtime').setConfig(
-    runtimeEnvConfig
-  )
+  require('../shared/lib/runtime-config.external').setConfig(runtimeEnvConfig)
 
   const components = await loadComponents({
     distDir,
@@ -1720,9 +1670,7 @@ export async function getDefinedNamedExports(
   distDir: string,
   runtimeEnvConfig: any
 ): Promise<ReadonlyArray<string>> {
-  require('../shared/lib/runtime-config.shared-runtime').setConfig(
-    runtimeEnvConfig
-  )
+  require('../shared/lib/runtime-config.external').setConfig(runtimeEnvConfig)
   const components = await loadComponents({
     distDir,
     page: page,
@@ -1828,13 +1776,17 @@ export async function copyTracedFiles(
   pageKeys: readonly string[],
   appPageKeys: readonly string[] | undefined,
   tracingRoot: string,
-  serverConfig: { [key: string]: any },
+  serverConfig: NextConfig,
   middlewareManifest: MiddlewareManifest,
   hasInstrumentationHook: boolean,
-  hasAppDir: boolean
+  staticPages: Set<string>
 ) {
   const outputPath = path.join(distDir, 'standalone')
   let moduleType = false
+  const nextConfig = {
+    ...serverConfig,
+    distDir: `./${path.relative(dir, distDir)}`,
+  }
   try {
     const packageJsonPath = path.join(distDir, '../package.json')
     const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf8'))
@@ -1920,6 +1872,12 @@ export async function copyTracedFiles(
     if (middlewareManifest.functions.hasOwnProperty(page)) {
       continue
     }
+    const route = normalizePagePath(page)
+
+    if (staticPages.has(route)) {
+      continue
+    }
+
     const pageFile = path.join(
       distDir,
       'server',
@@ -1928,7 +1886,9 @@ export async function copyTracedFiles(
     )
     const pageTraceFile = `${pageFile}.nft.json`
     await handleTraceFiles(pageTraceFile).catch((err) => {
-      Log.warn(`Failed to copy traced files for ${pageFile}`, err)
+      if (err.code !== 'ENOENT' || (page !== '/404' && page !== '/500')) {
+        Log.warn(`Failed to copy traced files for ${pageFile}`, err)
+      }
     })
   }
 
@@ -1958,11 +1918,13 @@ export async function copyTracedFiles(
     'server.js'
   )
   await fs.mkdir(path.dirname(serverOutputPath), { recursive: true })
+
   await fs.writeFile(
     serverOutputPath,
     `${
       moduleType
-        ? `import path from 'path'
+        ? `performance.mark('next-start');
+import path from 'path'
 import { fileURLToPath } from 'url'
 import module from 'module'
 const require = module.createRequire(import.meta.url)
@@ -1984,20 +1946,12 @@ if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
 }
 
 const currentPort = parseInt(process.env.PORT, 10) || 3000
-const hostname = process.env.HOSTNAME || 'localhost'
+const hostname = process.env.HOSTNAME || '0.0.0.0'
 
 let keepAliveTimeout = parseInt(process.env.KEEP_ALIVE_TIMEOUT, 10)
-const nextConfig = ${JSON.stringify({
-      ...serverConfig,
-      distDir: `./${path.relative(dir, distDir)}`,
-    })}
+const nextConfig = ${JSON.stringify(nextConfig)}
 
 process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(nextConfig)
-process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = ${hasAppDir}
-  ? nextConfig.experimental && nextConfig.experimental.serverActions
-    ? 'experimental'
-    : 'next'
-  : '';
 
 require('next')
 const { startServer } = require('next/dist/server/lib/start-server')
@@ -2119,4 +2073,22 @@ export function getSupportedBrowsers(
 
   // Uses modern browsers as the default.
   return MODERN_BROWSERSLIST_TARGET
+}
+
+export function isWebpackServerLayer(
+  layer: WebpackLayerName | null | undefined
+): boolean {
+  return Boolean(layer && WEBPACK_LAYERS.GROUP.server.includes(layer as any))
+}
+
+export function isWebpackDefaultLayer(
+  layer: WebpackLayerName | null | undefined
+): boolean {
+  return layer === null || layer === undefined
+}
+
+export function isWebpackAppLayer(
+  layer: WebpackLayerName | null | undefined
+): boolean {
+  return Boolean(layer && WEBPACK_LAYERS.GROUP.app.includes(layer as any))
 }

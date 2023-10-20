@@ -363,8 +363,7 @@ describe('Env Config', () => {
 
     runTests('test')
   })
-
-  describe('server mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       const { code } = await nextBuild(appDir, [], {
         env: {

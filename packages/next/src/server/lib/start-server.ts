@@ -1,8 +1,12 @@
+if (performance.getEntriesByName('next-start').length === 0) {
+  performance.mark('next-start')
+}
 import '../next'
-import '../node-polyfill-fetch'
 import '../require-hook'
 
 import type { IncomingMessage, ServerResponse } from 'http'
+import type { SelfSignedCertificate } from '../../lib/mkcert'
+import type { WorkerRequestHandler, WorkerUpgradeHandler } from './types'
 
 import fs from 'fs'
 import path from 'path'
@@ -11,24 +15,14 @@ import https from 'https'
 import Watchpack from 'watchpack'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
-import { getDebugPort } from './utils'
+import { RESTART_EXIT_CODE, getDebugPort } from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
-import {
-  RESTART_EXIT_CODE,
-  WorkerRequestHandler,
-  WorkerUpgradeHandler,
-} from './setup-server-worker'
 import { checkIsNodeDebugging } from './is-node-debugging'
 import { CONFIG_FILES } from '../../shared/lib/constants'
-import chalk from '../../lib/chalk'
+import { bold, purple } from '../../lib/picocolors'
 
 const debug = setupDebug('next:start-server')
-
-if (process.env.NEXT_CPU_PROF) {
-  process.env.__NEXT_PRIVATE_CPU_PROFILE = `CPU.router`
-  require('./cpu-profile')
-}
 
 export interface StartServerOptions {
   dir: string
@@ -43,10 +37,7 @@ export interface StartServerOptions {
   envInfo?: string[]
   expFeatureInfo?: string[]
   // this is dev-server only
-  selfSignedCertificate?: {
-    key: string
-    cert: string
-  }
+  selfSignedCertificate?: SelfSignedCertificate
   isExperimentalTestProxy?: boolean
 }
 
@@ -60,6 +51,7 @@ export async function getRequestHandlers({
   isNodeDebugging,
   keepAliveTimeout,
   experimentalTestProxy,
+  experimentalHttpsServer,
 }: {
   dir: string
   port: number
@@ -70,6 +62,7 @@ export async function getRequestHandlers({
   isNodeDebugging?: boolean
   keepAliveTimeout?: number
   experimentalTestProxy?: boolean
+  experimentalHttpsServer?: boolean
 }): ReturnType<typeof initialize> {
   return initialize({
     dir,
@@ -78,59 +71,52 @@ export async function getRequestHandlers({
     dev: isDev,
     minimalMode,
     server,
-    workerType: 'router',
     isNodeDebugging: isNodeDebugging || false,
     keepAliveTimeout,
     experimentalTestProxy,
+    experimentalHttpsServer,
   })
 }
 
 function logStartInfo({
-  port,
-  actualHostname,
+  networkUrl,
   appUrl,
   hostname,
   envInfo,
   expFeatureInfo,
+  formatDurationText,
 }: {
-  port: number
-  actualHostname: string
+  networkUrl: string
   appUrl: string
   hostname: string
   envInfo: string[] | undefined
   expFeatureInfo: string[] | undefined
+  formatDurationText: string
 }) {
   Log.bootstrap(
-    chalk.bold(
-      chalk.hex('#ad7fa8')(
-        ` ${`${Log.prefixes.ready} Next.js`} ${process.env.__NEXT_VERSION}`
-      )
-    )
+    bold(purple(`${Log.prefixes.ready} Next.js ${process.env.__NEXT_VERSION}`))
   )
-  Log.bootstrap(` - Local:        ${appUrl}`)
+  Log.bootstrap(`- Local:        ${appUrl}`)
   if (hostname) {
-    Log.bootstrap(
-      ` - Network:      ${actualHostname}${
-        (port + '').startsWith(':') ? '' : ':'
-      }${port}`
-    )
+    Log.bootstrap(`- Network:      ${networkUrl}`)
   }
-  if (envInfo?.length) Log.bootstrap(` - Environments: ${envInfo.join(', ')}`)
+  if (envInfo?.length) Log.bootstrap(`- Environments: ${envInfo.join(', ')}`)
 
   if (expFeatureInfo?.length) {
-    Log.bootstrap(` - Experiments (use at your own risk):`)
+    Log.bootstrap(`- Experiments (use at your own risk):`)
     // only show maximum 3 flags
     for (const exp of expFeatureInfo.slice(0, 3)) {
-      Log.bootstrap(`    · ${exp}`)
+      Log.bootstrap(`   · ${exp}`)
     }
     /* ${expFeatureInfo.length - 3} more */
     if (expFeatureInfo.length > 3) {
-      Log.bootstrap(`    · ...`)
+      Log.bootstrap(`   · ...`)
     }
   }
 
   // New line after the bootstrap info
   Log.info('')
+  Log.event(`Ready in ${formatDurationText}`)
 }
 
 export async function startServer({
@@ -253,15 +239,16 @@ export async function startServer({
           ? addr?.address || hostname || 'localhost'
           : addr
       )
-
       const formattedHostname =
-        !hostname || hostname === '0.0.0.0'
+        !hostname || actualHostname === '0.0.0.0'
           ? 'localhost'
           : actualHostname === '[::]'
           ? '[::1]'
-          : actualHostname
+          : formatHostname(hostname)
 
       port = typeof addr === 'object' ? addr?.port || port : port
+
+      const networkUrl = `http://${actualHostname}:${port}`
       const appUrl = `${
         selfSignedCertificate ? 'https' : 'http'
       }://${formattedHostname}:${port}`
@@ -274,15 +261,6 @@ export async function startServer({
           } option was detected, the Next.js router server should be inspected at port ${debugPort}.`
         )
       }
-
-      logStartInfo({
-        port,
-        actualHostname,
-        appUrl,
-        hostname,
-        envInfo,
-        expFeatureInfo,
-      })
 
       // expose the main port to render workers
       process.env.PORT = port + ''
@@ -297,9 +275,10 @@ export async function startServer({
           // This is the render worker, we keep the process alive
           console.error(err)
         }
-        process.on('exit', cleanup)
-        process.on('SIGINT', cleanup)
-        process.on('SIGTERM', cleanup)
+        process.on('exit', (code) => cleanup(code))
+        // callback value is signal string, exit with 0
+        process.on('SIGINT', () => cleanup(0))
+        process.on('SIGTERM', () => cleanup(0))
         process.on('uncaughtException', exception)
         process.on('unhandledRejection', exception)
 
@@ -313,18 +292,39 @@ export async function startServer({
           isNodeDebugging: Boolean(isNodeDebugging),
           keepAliveTimeout,
           experimentalTestProxy: !!isExperimentalTestProxy,
+          experimentalHttpsServer: !!selfSignedCertificate,
         })
         requestHandler = initResult[0]
         upgradeHandler = initResult[1]
+
+        const startServerProcessDuration =
+          performance.mark('next-start-end') &&
+          performance.measure(
+            'next-start-duration',
+            'next-start',
+            'next-start-end'
+          ).duration
+
+        const formatDurationText =
+          startServerProcessDuration > 2000
+            ? `${Math.round(startServerProcessDuration / 100) / 10}s`
+            : `${Math.round(startServerProcessDuration)}ms`
+
         handlersReady()
+        logStartInfo({
+          networkUrl,
+          appUrl,
+          hostname,
+          envInfo,
+          expFeatureInfo,
+          formatDurationText,
+        })
       } catch (err) {
         // fatal error if we can't setup
         handlersError()
         console.error(err)
         process.exit(1)
       }
-
-      Log.event('ready')
 
       resolve()
     })
@@ -350,8 +350,6 @@ export async function startServer({
         return
       }
 
-      // Adding a new line to avoid the logs going directly after the spinner in `next build`
-      Log.warn('')
       Log.warn(
         `Found a change in ${path.basename(
           filename
@@ -360,4 +358,14 @@ export async function startServer({
       process.exit(RESTART_EXIT_CODE)
     })
   }
+}
+
+if (process.env.NEXT_PRIVATE_WORKER && process.send) {
+  process.addListener('message', async (msg: any) => {
+    if (msg && typeof msg && msg.nextWorkerOptions && process.send) {
+      await startServer(msg.nextWorkerOptions)
+      process.send({ nextServerReady: true })
+    }
+  })
+  process.send({ nextWorkerReady: true })
 }

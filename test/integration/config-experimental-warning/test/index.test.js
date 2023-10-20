@@ -1,13 +1,7 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import {
-  killApp,
-  launchApp,
-  findPort,
-  File,
-  fetchViaHTTP,
-} from 'next-test-utils'
+import { killApp, launchApp, findPort, File } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
 const configFile = new File(join(appDir, '/next.config.js'))
@@ -22,7 +16,6 @@ async function collectStdout(appDir) {
       stdout += msg
     },
   })
-  await fetchViaHTTP(port, '/')
   return stdout
 }
 
@@ -47,10 +40,6 @@ describe('Config Experimental Warning', () => {
       }
     `)
 
-    // await nextBuild(appDir, [])
-    // const { stdout } = await nextStart(appDir, await findPort(), {
-    //   stdout: true,
-    // })
     const stdout = await collectStdout(appDir)
     expect(stdout).not.toMatch(' - Experiments (use at your own risk):')
   })
@@ -61,10 +50,7 @@ describe('Config Experimental Warning', () => {
         images: {},
       }
     `)
-    // await nextBuild(appDir, [])
-    // const { stdout } = await nextStart(appDir, await findPort(), {
-    //   stdout: true,
-    // })
+
     const stdout = await collectStdout(appDir)
     expect(stdout).not.toMatch(' - Experiments (use at your own risk):')
   })
@@ -77,10 +63,7 @@ describe('Config Experimental Warning', () => {
         }
       }
     `)
-    // await nextBuild(appDir, [])
-    // const { stdout } = await nextStart(appDir, await findPort(), {
-    //   stdout: true,
-    // })
+
     const stdout = await collectStdout(appDir)
     expect(stdout).toMatch(' - Experiments (use at your own risk):')
     expect(stdout).toMatch(' · workerThreads')
@@ -94,10 +77,7 @@ describe('Config Experimental Warning', () => {
         }
       })
     `)
-    // await nextBuild(appDir, [])
-    // const { stdout } = await nextStart(appDir, await findPort(), {
-    //   stdout: true,
-    // })
+
     const stdout = await collectStdout(appDir)
     expect(stdout).toMatch(' - Experiments (use at your own risk):')
     expect(stdout).toMatch(' · workerThreads')
@@ -111,10 +91,7 @@ describe('Config Experimental Warning', () => {
         }
       })
     `)
-    // await nextBuild(appDir, [])
-    // const { stdout } = await nextStart(appDir, await findPort(), {
-    //   stdout: true,
-    // })
+
     const stdout = await collectStdout(appDir)
     expect(stdout).not.toMatch(' - Experiments (use at your own risk):')
     expect(stdout).not.toMatch(' · workerThreads')
@@ -129,7 +106,7 @@ describe('Config Experimental Warning', () => {
         }
       }
     `)
-    // const { stdout } = await nextBuild(appDir, [], { stdout: true })
+
     const stdout = await collectStdout(appDir)
     expect(stdout).toMatch(' - Experiments (use at your own risk):')
     expect(stdout).toMatch(' · workerThreads')

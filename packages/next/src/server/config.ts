@@ -2,33 +2,138 @@ import { existsSync } from 'fs'
 import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import findUp from 'next/dist/compiled/find-up'
-import chalk from '../lib/chalk'
 import * as Log from '../build/output/log'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
-import {
-  defaultConfig,
-  normalizeConfig,
+import { defaultConfig, normalizeConfig } from './config-shared'
+import type {
   ExperimentalConfig,
   NextConfigComplete,
-  validateConfig,
   NextConfig,
+  TurboLoaderItem,
 } from './config-shared'
+
 import { loadWebpackHook } from './config-utils'
-import { ImageConfig, imageConfigDefault } from '../shared/lib/image-config'
+import { imageConfigDefault } from '../shared/lib/image-config'
+import type { ImageConfig } from '../shared/lib/image-config'
 import { loadEnvConfig, updateInitialEnv } from '@next/env'
 import { flushAndExit } from '../telemetry/flush-and-exit'
 import { findRootDir } from '../lib/find-root'
 import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
 
-export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
+import { ZodParsedType, util as ZodUtil } from 'next/dist/compiled/zod'
+import type { ZodError, ZodIssue } from 'next/dist/compiled/zod'
+
+export { normalizeConfig } from './config-shared'
+export type { DomainLocale, NextConfig } from './config-shared'
+
+function processZodErrorMessage(issue: ZodIssue) {
+  let message = issue.message
+
+  let path = ''
+
+  if (issue.path.length > 0) {
+    if (issue.path.length === 1) {
+      const identifier = issue.path[0]
+      if (typeof identifier === 'number') {
+        // The first identifier inside path is a number
+        path = `index ${identifier}`
+      } else {
+        path = `"${identifier}"`
+      }
+    } else {
+      // joined path to be shown in the error message
+      path = `"${issue.path.reduce<string>((acc, cur) => {
+        if (typeof cur === 'number') {
+          // array index
+          return `${acc}[${cur}]`
+        }
+        if (cur.includes('"')) {
+          // escape quotes
+          return `${acc}["${cur.replaceAll('"', '\\"')}"]`
+        }
+        // dot notation
+        const separator = acc.length === 0 ? '' : '.'
+        return acc + separator + cur
+      }, '')}"`
+    }
+  }
+
+  if (
+    issue.code === 'invalid_type' &&
+    issue.received === ZodParsedType.undefined
+  ) {
+    // missing key in object
+    return `${path} is missing, expected ${issue.expected}`
+  }
+  if (issue.code === 'invalid_enum_value') {
+    // Remove "Invalid enum value" prefix from zod default error message
+    return `Expected ${ZodUtil.joinValues(issue.options)}, received '${
+      issue.received
+    }' at ${path}`
+  }
+
+  return message + (path ? ` at ${path}` : '')
+}
+
+function normalizeZodErrors(
+  error: ZodError<NextConfig>
+): [errorMessages: string[], shouldExit: boolean] {
+  let shouldExit = false
+  return [
+    error.issues.flatMap((issue) => {
+      const messages = [processZodErrorMessage(issue)]
+      if (issue.path[0] === 'images') {
+        // We exit the build when encountering an error in the images config
+        shouldExit = true
+      }
+
+      if ('unionErrors' in issue) {
+        issue.unionErrors
+          .map(normalizeZodErrors)
+          .forEach(([unionMessages, unionShouldExit]) => {
+            messages.push(...unionMessages)
+            // If any of the union results shows exit the build, we exit the build
+            shouldExit = shouldExit || unionShouldExit
+          })
+      }
+
+      return messages
+    }),
+    shouldExit,
+  ]
+}
+
+export function warnOptionHasBeenDeprecated(
+  config: NextConfig,
+  nestedPropertyKey: string,
+  reason: string,
+  silent: boolean
+) {
+  if (!silent) {
+    let current = config
+    let found = true
+    const nestedPropertyKeys = nestedPropertyKey.split('.')
+    for (const key of nestedPropertyKeys) {
+      if (current[key] !== undefined) {
+        current = current[key]
+      } else {
+        found = false
+        break
+      }
+    }
+    if (found) {
+      Log.warn(reason)
+    }
+  }
+}
 
 export function warnOptionHasBeenMovedOutOfExperimental(
   config: NextConfig,
   oldKey: string,
   newKey: string,
   configFileName: string,
-  silent = false
+  silent: boolean
 ) {
   if (config.experimental && oldKey in config.experimental) {
     if (!silent) {
@@ -55,14 +160,15 @@ export function warnOptionHasBeenMovedOutOfExperimental(
 function assignDefaults(
   dir: string,
   userConfig: { [key: string]: any },
-  silent = false
+  silent: boolean
 ) {
   const configFileName = userConfig.configFileName
-  if (!silent && typeof userConfig.exportTrailingSlash !== 'undefined') {
-    console.warn(
-      chalk.yellow.bold('Warning: ') +
+  if (typeof userConfig.exportTrailingSlash !== 'undefined') {
+    if (!silent) {
+      Log.warn(
         `The "exportTrailingSlash" option has been renamed to "trailingSlash". Please update your ${configFileName}.`
-    )
+      )
+    }
     if (typeof userConfig.trailingSlash === 'undefined') {
       userConfig.trailingSlash = userConfig.exportTrailingSlash
     }
@@ -300,6 +406,14 @@ function assignDefaults(
     }
   }
 
+  // TODO: Remove this warning in Next.js 15
+  warnOptionHasBeenDeprecated(
+    result,
+    'experimental.serverActions',
+    'Server Actions are available by default now, `experimental.serverActions` option can be safely removed.',
+    silent
+  )
+
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'relay',
@@ -335,14 +449,6 @@ function assignDefaults(
     configFileName,
     silent
   )
-
-  if (typeof result.experimental?.swcMinifyDebugOptions !== 'undefined') {
-    if (!silent) {
-      Log.warn(
-        'SWC minify debug option is not supported anymore, please remove it from your config.'
-      )
-    }
-  }
 
   if ((result.experimental as any).outputStandalone) {
     if (!silent) {
@@ -687,11 +793,49 @@ function assignDefaults(
       '@tremor/react',
       'rxjs',
       '@mui/material',
+      '@mui/icons-material',
       'recharts',
-      '@material-ui/core',
       'react-use',
+      '@material-ui/core',
       '@material-ui/icons',
       '@tabler/icons-react',
+      'mui-core',
+      // We don't support wildcard imports for these configs, e.g. `react-icons/*`
+      // so we need to add them manually.
+      // In the future, we should consider automatically detecting packages that
+      // need to be optimized.
+      'react-icons/ai',
+      'react-icons/bi',
+      'react-icons/bs',
+      'react-icons/cg',
+      'react-icons/ci',
+      'react-icons/di',
+      'react-icons/fa',
+      'react-icons/fa6',
+      'react-icons/fc',
+      'react-icons/fi',
+      'react-icons/gi',
+      'react-icons/go',
+      'react-icons/gr',
+      'react-icons/hi',
+      'react-icons/hi2',
+      'react-icons/im',
+      'react-icons/io',
+      'react-icons/io5',
+      'react-icons/lia',
+      'react-icons/lib',
+      'react-icons/lu',
+      'react-icons/md',
+      'react-icons/pi',
+      'react-icons/ri',
+      'react-icons/rx',
+      'react-icons/si',
+      'react-icons/sl',
+      'react-icons/tb',
+      'react-icons/tfi',
+      'react-icons/ti',
+      'react-icons/vsc',
+      'react-icons/wi',
     ]),
   ]
 
@@ -701,10 +845,17 @@ function assignDefaults(
 export default async function loadConfig(
   phase: string,
   dir: string,
-  customConfig?: object | null,
-  rawConfig?: boolean,
-  silent?: boolean,
-  onLoadUserConfig?: (conf: NextConfig) => void
+  {
+    customConfig,
+    rawConfig,
+    silent = true,
+    onLoadUserConfig,
+  }: {
+    customConfig?: object | null
+    rawConfig?: boolean
+    silent?: boolean
+    onLoadUserConfig?: (conf: NextConfig) => void
+  } = {}
 ): Promise<NextConfigComplete> {
   if (!process.env.__NEXT_PRIVATE_RENDER_WORKER) {
     try {
@@ -800,38 +951,36 @@ export default async function loadConfig(
       userConfigModule.default || userConfigModule
     )
 
-    const validateResult = validateConfig(userConfig)
+    if (!process.env.NEXT_MINIMAL) {
+      // We only validate the config against schema in non minimal mode
+      const { configSchema } =
+        require('./config-schema') as typeof import('./config-schema')
+      const state = configSchema.safeParse(userConfig)
 
-    if (!silent && validateResult.errors) {
-      // Only load @segment/ajv-human-errors when invalid config is detected
-      const { AggregateAjvError } =
-        require('next/dist/compiled/@segment/ajv-human-errors') as typeof import('next/dist/compiled/@segment/ajv-human-errors')
-      const aggregatedAjvErrors = new AggregateAjvError(validateResult.errors, {
-        fieldLabels: 'js',
-      })
+      if (!state.success) {
+        // error message header
+        const messages = [`Invalid ${configFileName} options detected: `]
 
-      let shouldExit = false
-      let messages = [`Invalid ${configFileName} options detected: `]
-
-      for (const error of aggregatedAjvErrors) {
-        messages.push(`    ${error.message}`)
-        if (error.message.startsWith('The value at .images.')) {
-          shouldExit = true
+        const [errorMessages, shouldExit] = normalizeZodErrors(state.error)
+        // ident list item
+        for (const error of errorMessages) {
+          messages.push(`    ${error}`)
         }
-      }
 
-      messages.push(
-        'See more info here: https://nextjs.org/docs/messages/invalid-next-config'
-      )
+        // error message footer
+        messages.push(
+          'See more info here: https://nextjs.org/docs/messages/invalid-next-config'
+        )
 
-      if (shouldExit) {
-        for (const message of messages) {
-          curLog.error(message)
-        }
-        await flushAndExit(1)
-      } else {
-        for (const message of messages) {
-          curLog.warn(message)
+        if (shouldExit) {
+          for (const message of messages) {
+            console.error(message)
+          }
+          await flushAndExit(1)
+        } else {
+          for (const message of messages) {
+            curLog.warn(message)
+          }
         }
       }
     }
@@ -850,6 +999,27 @@ export default async function loadConfig(
         (canonicalBase.endsWith('/')
           ? canonicalBase.slice(0, -1)
           : canonicalBase) || ''
+    }
+
+    if (
+      userConfig.experimental?.turbo?.loaders &&
+      !userConfig.experimental?.turbo?.rules
+    ) {
+      curLog.warn(
+        'experimental.turbo.loaders is now deprecated. Please update next.config.js to use experimental.turbo.rules as soon as possible.\n' +
+          'The new option is similar, but the key should be a glob instead of an extension.\n' +
+          'Example: loaders: { ".mdx": ["mdx-loader"] } -> rules: { "*.mdx": ["mdx-loader"] }" }\n' +
+          'See more info here https://nextjs.org/docs/app/api-reference/next-config-js/turbo'
+      )
+
+      const rules: Record<string, TurboLoaderItem[]> = {}
+      for (const [ext, loaders] of Object.entries(
+        userConfig.experimental.turbo.loaders
+      )) {
+        rules['*' + ext] = loaders as TurboLoaderItem[]
+      }
+
+      userConfig.experimental.turbo.rules = rules
     }
 
     onLoadUserConfig?.(userConfig)

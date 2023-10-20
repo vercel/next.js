@@ -1,5 +1,4 @@
 import retry from 'next/dist/compiled/async-retry'
-import '../server/node-polyfill-fetch'
 
 export function _postPayload(endpoint: string, body: object, signal?: any) {
   if (!signal && 'timeout' in AbortSignal) {

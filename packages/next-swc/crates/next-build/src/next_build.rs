@@ -90,12 +90,17 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
         log_level: options.log_level.unwrap_or(IssueSeverity::Warning),
     };
 
+    let dist_dir = options
+        .dist_dir
+        .as_ref()
+        .map_or_else(|| ".next".to_string(), |d| d.to_string());
+
     let issue_reporter: Vc<Box<dyn IssueReporter>> =
         Vc::upcast(ConsoleUi::new(TransientInstance::new(log_options)));
     let node_fs = node_fs(project_root.clone(), issue_reporter);
-    let node_root = node_fs.root().join(".next".to_string());
+    let node_root = node_fs.root().join(dist_dir.clone());
     let client_fs = client_fs(project_root.clone(), issue_reporter);
-    let client_root = client_fs.root().join(".next".to_string());
+    let client_root = client_fs.root().join(dist_dir);
     // TODO(alexkirsz) This should accept a URL for assetPrefix.
     // let client_public_fs = VirtualFileSystem::new();
     // let client_public_root = client_public_fs.root();
@@ -127,8 +132,19 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
     let next_config = load_next_config(execution_context.with_layer("next_config".to_string()));
 
     let mode = NextMode::Build;
-    let client_compile_time_info = get_client_compile_time_info(mode, browserslist_query);
-    let server_compile_time_info = get_server_compile_time_info(mode, env, ServerAddr::empty());
+
+    let client_define_env = Vc::cell(options.define_env.client.iter().cloned().collect());
+    let client_compile_time_info =
+        get_client_compile_time_info(mode, browserslist_query, client_define_env);
+
+    let server_define_env = Vc::cell(options.define_env.nodejs.iter().cloned().collect());
+    let server_compile_time_info = get_server_compile_time_info(
+        mode,
+        env,
+        ServerAddr::empty(),
+        server_define_env,
+        next_config,
+    );
 
     // TODO(alexkirsz) Pages should build their own routes, outside of a FS.
     let next_router_fs = Vc::upcast::<Box<dyn FileSystem>>(VirtualFileSystem::new());
@@ -137,7 +153,6 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
         next_router_root,
         project_root,
         execution_context,
-        env,
         client_compile_time_info,
         server_compile_time_info,
         next_config,
@@ -146,7 +161,6 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
     let app_entries = get_app_entries(
         project_root,
         execution_context,
-        env,
         client_compile_time_info,
         server_compile_time_info,
         next_config,
@@ -236,9 +250,23 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
 
     // CHUNKING
 
+    // This ensures that the _next prefix is properly stripped from all client paths
+    // in manifests. It will be added back on the client through the chunk_base_path
+    // mechanism.
+    let next_config_ref = next_config.await?;
+    let client_relative_path = client_root.join(format!(
+        "{}/_next",
+        next_config_ref
+            .base_path
+            .clone()
+            .unwrap_or_else(|| "".to_string()),
+    ));
+    let client_relative_path_ref = client_relative_path.await?;
+
     let client_chunking_context = get_client_chunking_context(
         project_root,
-        client_root,
+        client_relative_path,
+        next_config.computed_asset_prefix(),
         client_compile_time_info.environment(),
         mode,
     );
@@ -246,7 +274,8 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
     let server_chunking_context = get_server_chunking_context(
         project_root,
         node_root,
-        client_root,
+        client_relative_path,
+        next_config.computed_asset_prefix(),
         server_compile_time_info.environment(),
     );
     // TODO(alexkirsz) This should be the same chunking context. The layer should
@@ -258,12 +287,6 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
 
     let mut build_manifest: BuildManifest = Default::default();
     let build_manifest_path = client_root.join("build-manifest.json".to_string());
-
-    // This ensures that the _next prefix is properly stripped from all client paths
-    // in manifests. It will be added back on the client through the chunk_base_path
-    // mechanism.
-    let client_relative_path = client_root.join("_next".to_string());
-    let client_relative_path_ref = client_relative_path.await?;
 
     // PAGE CHUNKING
 
@@ -313,6 +336,7 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
     // TODO(alexkirsz) Do some of that in parallel with the above.
 
     compute_app_entries_chunks(
+        next_config,
         &app_entries,
         app_client_references,
         app_client_references_chunks,

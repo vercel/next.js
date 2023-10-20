@@ -30,15 +30,14 @@ import {
 } from './internal/helpers/use-error-handler'
 import {
   useSendMessage,
+  useTurbopack,
   useWebsocket,
   useWebsocketPing,
 } from './internal/helpers/use-websocket'
 import { parseComponentStack } from './internal/helpers/parse-component-stack'
 import type { VersionInfo } from '../../../server/dev/parse-version-info'
-import {
-  HMR_ACTIONS_SENT_TO_BROWSER,
-  HMR_ACTION_TYPES,
-} from '../../../server/dev/hot-reloader-types'
+import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../server/dev/hot-reloader-types'
+import type { HMR_ACTION_TYPES } from '../../../server/dev/hot-reloader-types'
 
 interface Dispatcher {
   onBuildOk(): void
@@ -50,6 +49,7 @@ interface Dispatcher {
 
 let mostRecentCompilationHash: any = null
 let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
+let reloading = false
 
 function onBeforeFastRefresh(dispatcher: Dispatcher, hasUpdates: boolean) {
   if (hasUpdates) {
@@ -114,6 +114,8 @@ function performFullReload(err: any, sendMessage: any) {
     })
   )
 
+  if (reloading) return
+  reloading = true
   window.location.reload()
 }
 
@@ -204,17 +206,12 @@ function tryApplyUpdates(
 }
 
 function processMessage(
-  e: any,
+  obj: HMR_ACTION_TYPES,
   sendMessage: any,
   router: ReturnType<typeof useRouter>,
   dispatcher: Dispatcher
 ) {
-  let obj: HMR_ACTION_TYPES | undefined
-  try {
-    obj = JSON.parse(e.data)
-  } catch {}
-
-  if (!obj || !('action' in obj)) {
+  if (!('action' in obj)) {
     return
   }
 
@@ -361,6 +358,8 @@ function processMessage(
         })
       )
       if (RuntimeErrorHandler.hadRuntimeError) {
+        if (reloading) return
+        reloading = true
         return window.location.reload()
       }
       startTransition(() => {
@@ -385,6 +384,8 @@ function processMessage(
           clientId: __nextDevClientId,
         })
       )
+      if (reloading) return
+      reloading = true
       return window.location.reload()
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.REMOVED_PAGE: {
@@ -475,13 +476,18 @@ export default function HotReload({
   const webSocketRef = useWebsocket(assetPrefix)
   useWebsocketPing(webSocketRef)
   const sendMessage = useSendMessage(webSocketRef)
+  const processTurbopackMessage = useTurbopack(sendMessage)
 
   const router = useRouter()
 
   useEffect(() => {
     const handler = (event: MessageEvent<any>) => {
       try {
-        processMessage(event, sendMessage, router, dispatcher)
+        const obj = JSON.parse(event.data)
+        const handledByTurbopack = processTurbopackMessage?.(obj)
+        if (!handledByTurbopack) {
+          processMessage(obj, sendMessage, router, dispatcher)
+        }
       } catch (err: any) {
         console.warn(
           '[HMR] Invalid message: ' + event.data + '\n' + (err?.stack ?? '')
@@ -495,7 +501,7 @@ export default function HotReload({
     }
 
     return () => websocket && websocket.removeEventListener('message', handler)
-  }, [sendMessage, router, webSocketRef, dispatcher])
+  }, [sendMessage, router, webSocketRef, dispatcher, processTurbopackMessage])
 
   return (
     <ReactDevOverlay onReactError={handleOnReactError} state={state}>

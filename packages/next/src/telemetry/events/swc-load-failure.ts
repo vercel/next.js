@@ -1,5 +1,5 @@
 import { traceGlobals } from '../../trace/shared'
-import { Telemetry } from '../storage'
+import type { Telemetry } from '../storage'
 // @ts-ignore JSON
 import { version as nextVersion, optionalDependencies } from 'next/package.json'
 

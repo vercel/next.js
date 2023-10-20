@@ -139,7 +139,7 @@ export interface MockedResponseOptions {
   statusCode?: number
   socket?: Socket | null
   headers?: OutgoingHttpHeaders
-  resWriter?: (chunk: Buffer | string) => boolean
+  resWriter?: (chunk: Uint8Array | Buffer | string) => boolean
 }
 
 export class MockedResponse extends Stream.Writable implements ServerResponse {
@@ -232,7 +232,7 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
     return this.socket
   }
 
-  public write(chunk: Buffer | string) {
+  public write(chunk: Uint8Array | Buffer | string) {
     if (this.resWriter) {
       return this.resWriter(chunk)
     }
@@ -367,6 +367,11 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
     this.headers.delete(name)
   }
 
+  public flushHeaders(): void {
+    // This is a no-op because we don't actually have a socket to flush the
+    // headers to.
+  }
+
   // The following methods are not implemented as they are not used in the
   // Next.js codebase.
 
@@ -425,10 +430,6 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
   public addTrailers(): void {
     throw new Error('Method not implemented.')
   }
-
-  public flushHeaders(): void {
-    throw new Error('Method not implemented.')
-  }
 }
 
 interface RequestResponseMockerOptions {
@@ -436,7 +437,7 @@ interface RequestResponseMockerOptions {
   headers?: IncomingHttpHeaders
   method?: string
   bodyReadable?: Stream.Readable
-  resWriter?: (chunk: Buffer | string) => boolean
+  resWriter?: (chunk: Uint8Array | Buffer | string) => boolean
   socket?: Socket | null
 }
 
