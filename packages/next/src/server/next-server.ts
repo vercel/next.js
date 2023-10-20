@@ -1,6 +1,5 @@
 import './node-environment'
 import './require-hook'
-import './node-polyfill-form'
 import './node-polyfill-crypto'
 
 import type { TLSSocket } from 'tls'
