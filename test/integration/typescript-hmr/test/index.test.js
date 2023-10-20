@@ -98,6 +98,10 @@ describe('TypeScript HMR', () => {
         '() => <p>Hello world</p>',
         '(): boolean => <p>hello with error</p>'
       )
+      if (process.env.TURBOPACK) {
+        // TODO Turbopack needs a bit to start watching
+        await new Promise((resolve) => setTimeout(resolve, 500))
+      }
       await fs.writeFile(pagePath, errContent)
       const res = await check(
         async () => {
