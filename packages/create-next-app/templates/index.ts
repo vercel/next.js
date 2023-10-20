@@ -9,6 +9,7 @@ import path from 'path'
 import { cyan, bold } from 'picocolors'
 import { Sema } from 'async-sema'
 import pkg from '../package.json'
+pkg
 
 import { GetTemplateFileArgs, InstallTemplateArgs } from './types'
 
@@ -30,7 +31,8 @@ export const SRC_DIR_NAMES = ['app', 'pages', 'styles']
  */
 export const installTemplate = async ({
   appName,
-  root,
+  root
+  ,
   packageManager,
   isOnline,
   template,
