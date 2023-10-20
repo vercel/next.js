@@ -101,15 +101,10 @@ describe('Edge can read request body', () => {
       const formData = new FormData()
       formData.append('hello', 'world')
 
-      const response = await fetchViaHTTP(
-        next.url,
-        '/api/nothing?middleware-handler=formData',
-        null,
-        {
-          method: 'POST',
-          // @ts-expect-error FormData is not matched with node-fetch. Remove this comment when we dropped `node-fetch`
-          body: formData,
-        }
+      // @ts-expect-error use `fetchViaHTTP` when we drop `node-fetch`
+      const response: Response = await fetch(
+        new URL(next.url + '/api/nothing?middleware-handler=formData'),
+        { method: 'POST', body: formData }
       )
 
       expect(await serialize(response)).toMatchObject({
