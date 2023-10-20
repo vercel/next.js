@@ -265,6 +265,8 @@ export async function startServer({
             : `${Math.round(startServerProcessDuration)}ms`
 
         handlersReady()
+
+        // Only load env and config in dev to for logging purposes
         let envInfo: string[] | undefined
         let expFeatureInfo: string[] | undefined
         if (isDev) {

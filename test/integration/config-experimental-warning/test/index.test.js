@@ -127,7 +127,7 @@ describe('Config Experimental Warning', () => {
     expect(stdout).toMatch(' · scrollRestoration')
   })
 
-  it('should show next app info in next start', async () => {
+  it('should not show next app info in next start', async () => {
     configFile.write(`
       module.exports = {
         experimental: {
@@ -147,11 +147,7 @@ describe('Config Experimental Warning', () => {
         stdout += msg
       },
     })
-    expect(stdout).toMatch(' - Experiments (use at your own risk):')
-    expect(stdout).toMatch(' · cpus')
-    expect(stdout).toMatch(' · workerThreads')
-    expect(stdout).toMatch(' · scrollRestoration')
-    expect(stdout).toMatch(' · ...')
+    expect(stdout).not.toMatch(' - Experiments (use at your own risk):')
   })
 
   it('should show next app info with all experimental features in next build', async () => {
