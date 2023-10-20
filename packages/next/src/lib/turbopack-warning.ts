@@ -62,7 +62,6 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.useDeploymentId',
   'experimental.useDeploymentIdServerActions',
   'experimental.deploymentId',
-  'experimental.serverActions',
 
   // Experimental options that don't affect compilation
   'serverRuntimeConfig',
