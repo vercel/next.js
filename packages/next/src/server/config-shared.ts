@@ -659,8 +659,9 @@ export interface NextConfig extends Record<string, any> {
   >
 
   logging?: {
-    level?: 'verbose'
-    fullUrl?: boolean
+    fetches?: {
+      fullUrl?: boolean
+    }
   }
 
   /**
