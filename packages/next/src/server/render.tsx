@@ -113,8 +113,6 @@ let postProcessHTML: typeof import('./post-process').postProcessHTML
 
 const DOCTYPE = '<!DOCTYPE html>'
 
-import './node-polyfill-web-streams'
-
 if (process.env.NEXT_RUNTIME !== 'edge') {
   tryGetPreviewData =
     require('./api-utils/node/try-get-preview-data').tryGetPreviewData
