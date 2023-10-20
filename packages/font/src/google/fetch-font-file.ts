@@ -1,5 +1,4 @@
 import { getProxyAgent } from './get-proxy-agent'
-import { retry } from './retry'
 
 /**
  * Fetch the url and return a buffer with the font file.
@@ -15,19 +14,17 @@ export async function fetchFontFile(url: string, isDev: boolean) {
     return Buffer.from(url)
   }
 
-  return await retry(async () => {
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 3000)
-    const arrayBuffer = await fetch(url, {
-      // @ts-expect-error `undici`/Node.js type mismatch with the Web API
-      dispatcher: getProxyAgent(),
-      // Add a timeout in dev
-      signal: isDev ? controller.signal : undefined,
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 3000)
+  const arrayBuffer = await fetch(url, {
+    // @ts-expect-error `undici`/Node.js type mismatch with the Web API
+    dispatcher: getProxyAgent(),
+    // Add a timeout in dev
+    signal: isDev ? controller.signal : undefined,
+  })
+    .then((r: any) => r.arrayBuffer())
+    .finally(() => {
+      clearTimeout(timeoutId)
     })
-      .then((r: any) => r.arrayBuffer())
-      .finally(() => {
-        clearTimeout(timeoutId)
-      })
-    return Buffer.from(arrayBuffer)
-  }, 3)
+  return Buffer.from(arrayBuffer)
 }
