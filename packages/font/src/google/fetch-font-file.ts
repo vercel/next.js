@@ -19,7 +19,8 @@ export async function fetchFontFile(url: string, isDev: boolean) {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 3000)
     const arrayBuffer = await fetch(url, {
-      agent: getProxyAgent(),
+      // @ts-expect-error `undici`/Node.js type mismatch with the Web API
+      dispatcher: getProxyAgent(),
       // Add a timeout in dev
       signal: isDev ? controller.signal : undefined,
     })
