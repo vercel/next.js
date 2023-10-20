@@ -12,6 +12,9 @@ createNextDescribe(
       { pathname: '/suspense/node/nested/1' },
       { pathname: '/suspense/node/nested/2' },
       { pathname: '/suspense/node/nested/3' },
+      { pathname: '/loading/nested/1' },
+      { pathname: '/loading/nested/2' },
+      { pathname: '/loading/nested/3' },
     ])('for $pathname', ({ pathname }) => {
       // When we're partially pre-rendering, we should get the static parts
       // immediately, and the dynamic parts after the page loads. So we should
@@ -47,6 +50,21 @@ createNextDescribe(
         it('should not have the dynamic part', async () => {
           const $ = await next.render$(pathname)
           expect($('#container > #dynamic > #state').length).toBe(0)
+        })
+      }
+
+      if (!isNextDev) {
+        it('should cache the static part', async () => {
+          // First, render the page to populate the cache.
+          let res = await next.fetch(pathname)
+          expect(res.status).toBe(200)
+          expect(res.headers.get('x-nextjs-postponed')).toBe('1')
+
+          // Then, render the page again.
+          res = await next.fetch(pathname)
+          expect(res.status).toBe(200)
+          expect(res.headers.get('x-nextjs-cache')).toBe('HIT')
+          expect(res.headers.get('x-nextjs-postponed')).toBe('1')
         })
       }
     })

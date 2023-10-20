@@ -2540,6 +2540,16 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           res.statusCode = cachedData.status
         }
 
+        // Mark that the request did postpone if this is a data request or we're
+        // testing. It's used to verify that we're actually serving a postponed
+        // request so we can trust the cache headers.
+        if (
+          cachedData.postponed &&
+          (isDataReq || process.env.__NEXT_TEST_MODE)
+        ) {
+          res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
+        }
+
         if (isDataReq) {
           if (cachedData.postponed && !isAppPrefetch) {
             const result = await doRender(cachedData.postponed)
@@ -2551,16 +2561,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               throw new Error('Invariant: Expected a page response')
             }
 
+            if (!result.value.pageData) {
+              throw new Error('Invariant: Expected pageData to be defined')
+            }
+
             return {
               type: 'rsc',
               body: RenderResult.fromStatic(result.value.pageData as string),
               revalidate: cacheEntry.revalidate,
             }
-          }
-
-          // Mark that the request did postpone.
-          if (cachedData.postponed) {
-            res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
           }
 
           return {

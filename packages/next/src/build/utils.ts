@@ -1,7 +1,12 @@
 import type { NextConfig, NextConfigComplete } from '../server/config-shared'
 import type { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
 import type { AssetBinding } from './webpack/loaders/get-module-build-info'
-import type { GetStaticPaths, PageConfig, ServerRuntime } from 'next/types'
+import type {
+  GetStaticPaths,
+  GetStaticPathsResult,
+  PageConfig,
+  ServerRuntime,
+} from 'next/types'
 import type { BuildManifest } from '../server/get-page-files'
 import type {
   Redirect,
@@ -9,13 +14,13 @@ import type {
   Header,
   CustomRoutes,
 } from '../lib/load-custom-routes'
-import type { UnwrapPromise } from '../lib/coalesced-function'
 import type {
   EdgeFunctionDefinition,
   MiddlewareManifest,
 } from './webpack/plugins/middleware-plugin'
 import type { WebpackLayerName } from '../lib/constants'
 import type { AppPageModule } from '../server/future/route-modules/app-page/module'
+import type { RouteModule } from '../server/future/route-modules/route-module'
 
 import '../server/require-hook'
 import '../server/node-polyfill-crypto'
@@ -65,6 +70,7 @@ import * as ciEnvironment from '../telemetry/ci-info'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { denormalizeAppPagePath } from '../shared/lib/page-path/denormalize-app-path'
 import { AppRouteRouteModule } from '../server/future/route-modules/app-route/module.compiled'
+import { RouteKind } from '../server/future/route-kind'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -323,8 +329,9 @@ export interface PageInfo {
   isHybridAmp?: boolean
   size: number
   totalSize: number
-  static: boolean
-  isSsg: boolean
+  isStatic: boolean
+  isSSG: boolean
+  isPPR: boolean
   ssgPageRoutes: string[] | null
   initialRevalidateSeconds: number | false
   pageDuration: number | undefined
@@ -335,7 +342,7 @@ export interface PageInfo {
 export async function printTreeView(
   lists: {
     pages: ReadonlyArray<string>
-    app?: ReadonlyArray<string>
+    app: ReadonlyArray<string> | undefined
   },
   pageInfos: Map<string, PageInfo>,
   {
@@ -446,12 +453,14 @@ export async function printTreeView(
       const symbol =
         item === '/_app' || item === '/_app.server'
           ? ' '
-          : pageInfo?.static
-          ? '○'
-          : pageInfo?.isSsg
-          ? '●'
           : isEdgeRuntime(pageInfo?.runtime)
           ? 'ℇ'
+          : pageInfo?.isPPR
+          ? '◐'
+          : pageInfo?.isStatic
+          ? '○'
+          : pageInfo?.isSSG
+          ? '●'
           : 'λ'
 
       usedSymbols.add(symbol)
@@ -658,6 +667,11 @@ export async function printTreeView(
   print(
     textTable(
       [
+        usedSymbols.has('◐') && [
+          '◐',
+          '(Partially Pre-Rendered)',
+          'static parts of the page were pre-rendered and the dynamic parts will be streamed',
+        ],
         usedSymbols.has('ℇ') && [
           'ℇ',
           '(Streaming)',
@@ -876,13 +890,13 @@ export async function buildStaticPaths({
 }: {
   page: string
   getStaticPaths?: GetStaticPaths
-  staticPathsResult?: UnwrapPromise<ReturnType<GetStaticPaths>>
+  staticPathsResult?: GetStaticPathsResult
   configFileName: string
   locales?: string[]
   defaultLocale?: string
   appDir?: boolean
 }): Promise<
-  Omit<UnwrapPromise<ReturnType<GetStaticPaths>>, 'paths'> & {
+  Omit<GetStaticPathsResult, 'paths'> & {
     paths: string[]
     encodedPaths: string[]
   }
@@ -1395,6 +1409,7 @@ export async function isPageStatic({
   nextConfigOutput: 'standalone' | 'export'
   ppr: boolean
 }): Promise<{
+  isPPR?: boolean
   isStatic?: boolean
   isAmpOnly?: boolean
   isHybridAmp?: boolean
@@ -1463,17 +1478,17 @@ export async function isPageStatic({
         })
       }
       const Comp = componentsResult.Component || {}
-      let staticPathsResult:
-        | UnwrapPromise<ReturnType<GetStaticPaths>>
-        | undefined
+      let staticPathsResult: GetStaticPathsResult | undefined
+
+      const routeModule: RouteModule =
+        componentsResult.ComponentMod?.routeModule
 
       if (pageType === 'app') {
         const ComponentMod: AppPageModule = componentsResult.ComponentMod
 
         isClientComponent = isClientReference(componentsResult.ComponentMod)
 
-        const { tree, staticGenerationAsyncStorage, serverHooks, routeModule } =
-          ComponentMod
+        const { tree, staticGenerationAsyncStorage, serverHooks } = ComponentMod
 
         const generateParams: GenerateParams =
           routeModule && AppRouteRouteModule.is(routeModule)
@@ -1625,8 +1640,22 @@ export async function isPageStatic({
         )
       }
 
+      let isStatic = false
+      if (!hasStaticProps && !hasGetInitialProps && !hasServerProps) {
+        isStatic = true
+      }
+
+      // When PPR is enabled, any route may contain or be completely static, so
+      // mark this route as static.
+      let isPPR = false
+      if (ppr && routeModule.definition.kind === RouteKind.APP_PAGE) {
+        isPPR = true
+        isStatic = true
+      }
+
       return {
-        isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
+        isStatic,
+        isPPR,
         isHybridAmp: config.amp === 'hybrid',
         isAmpOnly: config.amp === true,
         prerenderRoutes,

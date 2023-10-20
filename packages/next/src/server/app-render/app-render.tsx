@@ -589,9 +589,18 @@ async function renderToHTMLOrFlightImpl(
     res,
   }
 
-  if (isFlight && !staticGenerationStore.isStaticGeneration) {
+  if (isFlight && !isStaticGeneration) {
     return generateFlight(ctx)
   }
+
+  const hasPostponed = typeof renderOpts.postponed === 'string'
+
+  let stringifiedFlightPayloadPromise =
+    (hasPostponed && !isStaticGeneration) || isStaticGeneration
+      ? generateFlight(ctx)
+          .then((renderResult) => renderResult.toUnchunkedString(true))
+          .catch(() => null)
+      : Promise.resolve(null)
 
   // Get the nonce from the incoming request if it has one.
   const csp = req.headers['content-security-policy']
@@ -708,7 +717,7 @@ async function renderToHTMLOrFlightImpl(
       const getServerInsertedHTML = makeGetServerInsertedHTML({
         polyfills,
         renderServerInsertedHTML,
-        hasPostponed: typeof renderOpts.postponed === 'string',
+        hasPostponed,
       })
 
       try {
@@ -966,6 +975,7 @@ async function renderToHTMLOrFlightImpl(
     }),
     {
       ...extraRenderResultMeta,
+      pageData: await stringifiedFlightPayloadPromise,
       waitUntil: Promise.all(staticGenerationStore.pendingRevalidates || []),
     }
   )
@@ -985,17 +995,13 @@ async function renderToHTMLOrFlightImpl(
       throw capturedErrors[0]
     }
 
-    // TODO-APP: derive this from same pass to prevent additional
-    // render during static generation
-    const stringifiedFlightPayload = await (
-      await generateFlight(ctx)
-    ).toUnchunkedString(true)
-
     if (staticGenerationStore.forceStatic === false) {
       staticGenerationStore.revalidate = 0
     }
 
-    extraRenderResultMeta.pageData = stringifiedFlightPayload
+    // TODO-APP: derive this from same pass to prevent additional
+    // render during static generation
+    extraRenderResultMeta.pageData = await stringifiedFlightPayloadPromise
     extraRenderResultMeta.revalidate =
       staticGenerationStore.revalidate ?? ctx.defaultRevalidate
 

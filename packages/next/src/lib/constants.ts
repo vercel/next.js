@@ -6,7 +6,7 @@ export const PRERENDER_REVALIDATE_HEADER = 'x-prerender-revalidate'
 export const PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER =
   'x-prerender-revalidate-if-generated'
 
-export const NEXT_DID_POSTPONE_HEADER = 'x-next-postponed'
+export const NEXT_DID_POSTPONE_HEADER = 'x-nextjs-postponed'
 
 export const NEXT_CACHE_TAGS_HEADER = 'x-next-cache-tags'
 export const NEXT_CACHE_SOFT_TAGS_HEADER = 'x-next-cache-soft-tags'
