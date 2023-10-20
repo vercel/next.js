@@ -723,6 +723,12 @@ async fn directory_tree_to_entrypoints_internal(
 
     // Capture the current page for the metadata to calculate segment relative to
     // the corresponding page for the static metadata files.
+    /*
+    let metadata = Metadata {
+        base_page: Some(app_page.clone()),
+        ..components.metadata.clone()
+    }; */
+
     let components = if components.metadata.base_page.is_some() {
         components
     } else {
@@ -740,6 +746,17 @@ async fn directory_tree_to_entrypoints_internal(
     let current_level_is_parallel_route = is_parallel_route(&directory_name);
 
     if let Some(page) = components.page {
+        // When resolving metadata with corresponding module
+        // (https://github.com/vercel/next.js/blob/aa1ee5995cdd92cc9a2236ce4b6aa2b67c9d32b2/packages/next/src/lib/metadata/resolve-metadata.ts#L340)
+        // layout takes precedence over page (https://github.com/vercel/next.js/blob/aa1ee5995cdd92cc9a2236ce4b6aa2b67c9d32b2/packages/next/src/server/lib/app-dir-module.ts#L22)
+        // If the component have layout and page both, do not attach same metadata to
+        // the page.
+        let metadata = if components.layout.is_some() {
+            Default::default()
+        } else {
+            components.metadata.clone()
+        };
+
         add_app_page(
             app_dir,
             &mut result,
@@ -751,7 +768,7 @@ async fn directory_tree_to_entrypoints_internal(
                     parallel_routes: IndexMap::new(),
                     components: Components {
                         page: Some(page),
-                        metadata: components.metadata.clone(),
+                        metadata,
                         ..Default::default()
                     }
                     .cell(),
@@ -769,7 +786,7 @@ async fn directory_tree_to_entrypoints_internal(
                             parallel_routes: IndexMap::new(),
                             components: Components {
                                 page: Some(page),
-                                metadata: components.metadata.clone(),
+                                metadata,
                                 ..Default::default()
                             }
                             .cell(),
