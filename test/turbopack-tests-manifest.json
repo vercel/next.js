@@ -405,31 +405,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/lib/metadata/resolve-metadata.test.ts": {
-    "passed": [
-      "accumulateMetadata alternate should support alternate descriptors",
-      "accumulateMetadata alternate should support string alternate",
-      "accumulateMetadata icon should resolve icons.apple",
-      "accumulateMetadata icon should resolve icons.icon correctly",
-      "accumulateMetadata itunes should resolve relative url starting with ./ with pathname for itunes.appArgument",
-      "accumulateMetadata openGraph and twitter should convert string or URL images field to array, not only for basic og type",
-      "accumulateMetadata openGraph and twitter should fill only the existing props from openGraph to twitter",
-      "accumulateMetadata openGraph and twitter should fill twitter with partial existing openGraph metadata",
-      "accumulateMetadata openGraph and twitter should override openGraph or twitter images when current layer specifies social images properties",
-      "accumulateMetadata openGraph and twitter should resolve relative url starting with ./ with pathname for openGraph.url",
-      "accumulateMetadata themeColor should support string theme color",
-      "accumulateMetadata themeColor should support theme color descriptors",
-      "accumulateMetadata title should merge title with page title",
-      "accumulateMetadata title should merge title with parent layout ",
-      "accumulateMetadata typing should support both sync and async metadata",
-      "accumulateMetadata viewport should support string viewport",
-      "accumulateMetadata viewport should support viewport descriptors"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "packages/next/src/lib/metadata/resolvers/resolve-opengraph.test.ts": {
     "passed": [
       "resolveImages should filter out invalid images",
@@ -829,6 +804,7 @@
   },
   "test/development/acceptance-app/ReactRefreshLogBox.test.ts": {
     "passed": [
+      "ReactRefreshLogBox app turbo Call stack count is correct for client error",
       "ReactRefreshLogBox app turbo Can't resolve @import in CSS file",
       "ReactRefreshLogBox app turbo Import trace when module not found in layout",
       "ReactRefreshLogBox app turbo Server component errors should open up in fullscreen",
@@ -841,7 +817,6 @@
       "ReactRefreshLogBox app turbo should strip whitespace correctly with newline"
     ],
     "failed": [
-      "ReactRefreshLogBox app turbo Call stack count is correct for client error",
       "ReactRefreshLogBox app turbo Call stack count is correct for server error",
       "ReactRefreshLogBox app turbo conversion to class component (1)",
       "ReactRefreshLogBox app turbo css syntax errors",
@@ -986,7 +961,7 @@
     "runtimeError": false
   },
   "test/development/acceptance-app/error-recovery.test.ts": {
-    "passed": [],
+    "passed": ["Error recovery app turbo stuck error"],
     "failed": [
       "Error recovery app turbo can recover from a event handler error",
       "Error recovery app turbo can recover from a syntax error without losing state",
@@ -996,7 +971,6 @@
       "Error recovery app turbo render error not shown right after syntax error",
       "Error recovery app turbo server component can recover from a component error",
       "Error recovery app turbo server component can recover from syntax error",
-      "Error recovery app turbo stuck error",
       "Error recovery app turbo syntax > runtime error"
     ],
     "pending": [
@@ -1527,60 +1501,44 @@
   },
   "test/development/basic/next-dynamic.test.ts": {
     "passed": [
-      "basic next/dynamic usage, basePath: \"\" with \"document.getInitialProps\" compiler document.getInitialProps Dynamic import custom chunkfilename should render the component on client side",
       "basic next/dynamic usage, basePath: \"\" with \"document.getInitialProps\" compiler document.getInitialProps Dynamic import custom loading should render custom loading on the server side when `ssr:false` and `loading` is provided",
       "basic next/dynamic usage, basePath: \"\" with \"document.getInitialProps\" compiler document.getInitialProps Dynamic import custom loading should render the component on client side",
       "basic next/dynamic usage, basePath: \"\" with \"document.getInitialProps\" compiler document.getInitialProps Dynamic import default behavior should SSR nested dynamic components and skip nonSSR ones",
       "basic next/dynamic usage, basePath: \"\" with \"document.getInitialProps\" compiler document.getInitialProps Dynamic import default behavior should hydrate nested chunks",
+      "basic next/dynamic usage, basePath: \"\" with \"document.getInitialProps\" compiler document.getInitialProps Dynamic import default behavior should render dynamic import components",
+      "basic next/dynamic usage, basePath: \"\" with \"document.getInitialProps\" compiler document.getInitialProps Dynamic import default behavior should render dynamic import components using a function as first parameter",
       "basic next/dynamic usage, basePath: \"\" with \"document.getInitialProps\" compiler document.getInitialProps Dynamic import default behavior should render even there are no physical chunk exists",
       "basic next/dynamic usage, basePath: \"\" with \"document.getInitialProps\" compiler document.getInitialProps Dynamic import default behavior should render the component Head content",
       "basic next/dynamic usage, basePath: \"\" with \"document.getInitialProps\" compiler document.getInitialProps Dynamic import ssr:false option should not render loading on the server side",
+      "basic next/dynamic usage, basePath: \"\" with \"document.getInitialProps\" compiler document.getInitialProps Dynamic import ssr:false option should render the component on client side",
+      "basic next/dynamic usage, basePath: \"\" with \"document.getInitialProps\" compiler document.getInitialProps Dynamic import ssr:true option Should render the component on the server side",
       "basic next/dynamic usage, basePath: \"\" with \"document.getInitialProps\" compiler document.getInitialProps Dynamic import ssr:true option should render the component on client side",
-      "basic next/dynamic usage, basePath: \"\" with \"swc\" compiler swc Dynamic import custom chunkfilename should render the component on client side",
       "basic next/dynamic usage, basePath: \"\" with \"swc\" compiler swc Dynamic import custom loading should render custom loading on the server side when `ssr:false` and `loading` is provided",
       "basic next/dynamic usage, basePath: \"\" with \"swc\" compiler swc Dynamic import custom loading should render the component on client side",
       "basic next/dynamic usage, basePath: \"\" with \"swc\" compiler swc Dynamic import default behavior should SSR nested dynamic components and skip nonSSR ones",
       "basic next/dynamic usage, basePath: \"\" with \"swc\" compiler swc Dynamic import default behavior should hydrate nested chunks",
+      "basic next/dynamic usage, basePath: \"\" with \"swc\" compiler swc Dynamic import default behavior should render dynamic import components",
+      "basic next/dynamic usage, basePath: \"\" with \"swc\" compiler swc Dynamic import default behavior should render dynamic import components using a function as first parameter",
       "basic next/dynamic usage, basePath: \"\" with \"swc\" compiler swc Dynamic import default behavior should render even there are no physical chunk exists",
       "basic next/dynamic usage, basePath: \"\" with \"swc\" compiler swc Dynamic import default behavior should render the component Head content",
       "basic next/dynamic usage, basePath: \"\" with \"swc\" compiler swc Dynamic import ssr:false option should not render loading on the server side",
+      "basic next/dynamic usage, basePath: \"\" with \"swc\" compiler swc Dynamic import ssr:false option should render the component on client side",
+      "basic next/dynamic usage, basePath: \"\" with \"swc\" compiler swc Dynamic import ssr:true option Should render the component on the server side",
       "basic next/dynamic usage, basePath: \"\" with \"swc\" compiler swc Dynamic import ssr:true option should render the component on client side",
-      "basic next/dynamic usage, basePath: \"/docs\" with \"swc\" compiler swc Dynamic import custom chunkfilename should render the component on client side",
       "basic next/dynamic usage, basePath: \"/docs\" with \"swc\" compiler swc Dynamic import custom loading should render custom loading on the server side when `ssr:false` and `loading` is provided",
       "basic next/dynamic usage, basePath: \"/docs\" with \"swc\" compiler swc Dynamic import custom loading should render the component on client side",
       "basic next/dynamic usage, basePath: \"/docs\" with \"swc\" compiler swc Dynamic import default behavior should SSR nested dynamic components and skip nonSSR ones",
       "basic next/dynamic usage, basePath: \"/docs\" with \"swc\" compiler swc Dynamic import default behavior should hydrate nested chunks",
+      "basic next/dynamic usage, basePath: \"/docs\" with \"swc\" compiler swc Dynamic import default behavior should render dynamic import components",
+      "basic next/dynamic usage, basePath: \"/docs\" with \"swc\" compiler swc Dynamic import default behavior should render dynamic import components using a function as first parameter",
       "basic next/dynamic usage, basePath: \"/docs\" with \"swc\" compiler swc Dynamic import default behavior should render even there are no physical chunk exists",
       "basic next/dynamic usage, basePath: \"/docs\" with \"swc\" compiler swc Dynamic import default behavior should render the component Head content",
       "basic next/dynamic usage, basePath: \"/docs\" with \"swc\" compiler swc Dynamic import ssr:false option should not render loading on the server side",
+      "basic next/dynamic usage, basePath: \"/docs\" with \"swc\" compiler swc Dynamic import ssr:false option should render the component on client side",
+      "basic next/dynamic usage, basePath: \"/docs\" with \"swc\" compiler swc Dynamic import ssr:true option Should render the component on the server side",
       "basic next/dynamic usage, basePath: \"/docs\" with \"swc\" compiler swc Dynamic import ssr:true option should render the component on client side"
     ],
-    "failed": [
-      "basic next/dynamic usage, basePath: \"\" with \"document.getInitialProps\" compiler document.getInitialProps Dynamic import Multiple modules should only include the rendered module script tag",
-      "basic next/dynamic usage, basePath: \"\" with \"document.getInitialProps\" compiler document.getInitialProps Dynamic import Multiple modules should only load the rendered module in the browser",
-      "basic next/dynamic usage, basePath: \"\" with \"document.getInitialProps\" compiler document.getInitialProps Dynamic import Multiple modules should only render one bundle if component is used multiple times",
-      "basic next/dynamic usage, basePath: \"\" with \"document.getInitialProps\" compiler document.getInitialProps Dynamic import custom chunkfilename should render the correct filename",
-      "basic next/dynamic usage, basePath: \"\" with \"document.getInitialProps\" compiler document.getInitialProps Dynamic import default behavior should render dynamic import components",
-      "basic next/dynamic usage, basePath: \"\" with \"document.getInitialProps\" compiler document.getInitialProps Dynamic import default behavior should render dynamic import components using a function as first parameter",
-      "basic next/dynamic usage, basePath: \"\" with \"document.getInitialProps\" compiler document.getInitialProps Dynamic import ssr:false option should render the component on client side",
-      "basic next/dynamic usage, basePath: \"\" with \"document.getInitialProps\" compiler document.getInitialProps Dynamic import ssr:true option Should render the component on the server side",
-      "basic next/dynamic usage, basePath: \"\" with \"swc\" compiler swc Dynamic import Multiple modules should only include the rendered module script tag",
-      "basic next/dynamic usage, basePath: \"\" with \"swc\" compiler swc Dynamic import Multiple modules should only load the rendered module in the browser",
-      "basic next/dynamic usage, basePath: \"\" with \"swc\" compiler swc Dynamic import Multiple modules should only render one bundle if component is used multiple times",
-      "basic next/dynamic usage, basePath: \"\" with \"swc\" compiler swc Dynamic import custom chunkfilename should render the correct filename",
-      "basic next/dynamic usage, basePath: \"\" with \"swc\" compiler swc Dynamic import default behavior should render dynamic import components",
-      "basic next/dynamic usage, basePath: \"\" with \"swc\" compiler swc Dynamic import default behavior should render dynamic import components using a function as first parameter",
-      "basic next/dynamic usage, basePath: \"\" with \"swc\" compiler swc Dynamic import ssr:false option should render the component on client side",
-      "basic next/dynamic usage, basePath: \"\" with \"swc\" compiler swc Dynamic import ssr:true option Should render the component on the server side",
-      "basic next/dynamic usage, basePath: \"/docs\" with \"swc\" compiler swc Dynamic import Multiple modules should only include the rendered module script tag",
-      "basic next/dynamic usage, basePath: \"/docs\" with \"swc\" compiler swc Dynamic import Multiple modules should only load the rendered module in the browser",
-      "basic next/dynamic usage, basePath: \"/docs\" with \"swc\" compiler swc Dynamic import Multiple modules should only render one bundle if component is used multiple times",
-      "basic next/dynamic usage, basePath: \"/docs\" with \"swc\" compiler swc Dynamic import custom chunkfilename should render the correct filename",
-      "basic next/dynamic usage, basePath: \"/docs\" with \"swc\" compiler swc Dynamic import default behavior should render dynamic import components",
-      "basic next/dynamic usage, basePath: \"/docs\" with \"swc\" compiler swc Dynamic import default behavior should render dynamic import components using a function as first parameter",
-      "basic next/dynamic usage, basePath: \"/docs\" with \"swc\" compiler swc Dynamic import ssr:false option should render the component on client side",
-      "basic next/dynamic usage, basePath: \"/docs\" with \"swc\" compiler swc Dynamic import ssr:true option Should render the component on the server side"
-    ],
+    "failed": [],
     "pending": [
       "basic next/dynamic usage, basePath: \"\" with \"babel\" compiler babel Dynamic import Multiple modules should only include the rendered module script tag",
       "basic next/dynamic usage, basePath: \"\" with \"babel\" compiler babel Dynamic import Multiple modules should only load the rendered module in the browser",
@@ -1598,7 +1556,22 @@
       "basic next/dynamic usage, basePath: \"\" with \"babel\" compiler babel Dynamic import ssr:false option should not render loading on the server side",
       "basic next/dynamic usage, basePath: \"\" with \"babel\" compiler babel Dynamic import ssr:false option should render the component on client side",
       "basic next/dynamic usage, basePath: \"\" with \"babel\" compiler babel Dynamic import ssr:true option Should render the component on the server side",
-      "basic next/dynamic usage, basePath: \"\" with \"babel\" compiler babel Dynamic import ssr:true option should render the component on client side"
+      "basic next/dynamic usage, basePath: \"\" with \"babel\" compiler babel Dynamic import ssr:true option should render the component on client side",
+      "basic next/dynamic usage, basePath: \"\" with \"document.getInitialProps\" compiler document.getInitialProps Dynamic import Multiple modules should only include the rendered module script tag",
+      "basic next/dynamic usage, basePath: \"\" with \"document.getInitialProps\" compiler document.getInitialProps Dynamic import Multiple modules should only load the rendered module in the browser",
+      "basic next/dynamic usage, basePath: \"\" with \"document.getInitialProps\" compiler document.getInitialProps Dynamic import Multiple modules should only render one bundle if component is used multiple times",
+      "basic next/dynamic usage, basePath: \"\" with \"document.getInitialProps\" compiler document.getInitialProps Dynamic import custom chunkfilename should render the component on client side",
+      "basic next/dynamic usage, basePath: \"\" with \"document.getInitialProps\" compiler document.getInitialProps Dynamic import custom chunkfilename should render the correct filename",
+      "basic next/dynamic usage, basePath: \"\" with \"swc\" compiler swc Dynamic import Multiple modules should only include the rendered module script tag",
+      "basic next/dynamic usage, basePath: \"\" with \"swc\" compiler swc Dynamic import Multiple modules should only load the rendered module in the browser",
+      "basic next/dynamic usage, basePath: \"\" with \"swc\" compiler swc Dynamic import Multiple modules should only render one bundle if component is used multiple times",
+      "basic next/dynamic usage, basePath: \"\" with \"swc\" compiler swc Dynamic import custom chunkfilename should render the component on client side",
+      "basic next/dynamic usage, basePath: \"\" with \"swc\" compiler swc Dynamic import custom chunkfilename should render the correct filename",
+      "basic next/dynamic usage, basePath: \"/docs\" with \"swc\" compiler swc Dynamic import Multiple modules should only include the rendered module script tag",
+      "basic next/dynamic usage, basePath: \"/docs\" with \"swc\" compiler swc Dynamic import Multiple modules should only load the rendered module in the browser",
+      "basic next/dynamic usage, basePath: \"/docs\" with \"swc\" compiler swc Dynamic import Multiple modules should only render one bundle if component is used multiple times",
+      "basic next/dynamic usage, basePath: \"/docs\" with \"swc\" compiler swc Dynamic import custom chunkfilename should render the component on client side",
+      "basic next/dynamic usage, basePath: \"/docs\" with \"swc\" compiler swc Dynamic import custom chunkfilename should render the correct filename"
     ],
     "flakey": [],
     "runtimeError": false
@@ -1876,6 +1849,7 @@
       "Client Navigation Rendering via HTTP should render the page with custom extension",
       "Client Navigation Rendering via HTTP should render the page without `err` property",
       "Client Navigation Rendering via HTTP should render the page without `nextExport` property",
+      "Client Navigation Rendering via HTTP should set Cache-Control header",
       "Client Navigation Rendering via HTTP should should not contain scripts that are not js",
       "Client Navigation Rendering via HTTP should show a valid error when undefined is thrown",
       "Client Navigation Rendering via HTTP with the HOC based router should include asPath",
@@ -1975,7 +1949,6 @@
     ],
     "failed": [
       "Client Navigation Rendering via HTTP error-in-the-global-scope",
-      "Client Navigation Rendering via HTTP should set Cache-Control header",
       "Client Navigation runtime errors should show redbox when a client side error is thrown inside a component",
       "Client Navigation runtime errors should show redbox when a client side error is thrown outside a component"
     ],
@@ -2648,6 +2621,7 @@
       "app-dir static/dynamic handling unstable-cache should work in pages/api/unstable-cache-edge",
       "app-dir static/dynamic handling unstable-cache should work in pages/api/unstable-cache-node",
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-node",
+      "app-dir static/dynamic handling unstable_noStore should not opt-out of static optimization when used in next/cache",
       "app-dir static/dynamic handling usePathname should have the correct values",
       "app-dir static/dynamic handling usePathname should have values from canonical url on rewrite",
       "app-dir static/dynamic handling useSearchParams client should bailout to client rendering - with suspense boundary",
@@ -2662,7 +2636,8 @@
       "app-dir static/dynamic handling should honor fetch cache correctly (edge)",
       "app-dir static/dynamic handling should not cache correctly with POST method request init",
       "app-dir static/dynamic handling should render not found pages correctly and fallback to the default one",
-      "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-edge"
+      "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-edge",
+      "app-dir static/dynamic handling unstable_noStore should opt-out of static optimization"
     ],
     "pending": [
       "app-dir static/dynamic handling should correctly de-dupe fetch without next cache /react-fetch-deduping-edge",
@@ -2723,6 +2698,7 @@
       "app-dir static/dynamic handling unstable-cache should work in pages/api/unstable-cache-edge",
       "app-dir static/dynamic handling unstable-cache should work in pages/api/unstable-cache-node",
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-node",
+      "app-dir static/dynamic handling unstable_noStore should not opt-out of static optimization when used in next/cache",
       "app-dir static/dynamic handling usePathname should have the correct values",
       "app-dir static/dynamic handling usePathname should have values from canonical url on rewrite",
       "app-dir static/dynamic handling useSearchParams client should bailout to client rendering - with suspense boundary",
@@ -2737,7 +2713,8 @@
       "app-dir static/dynamic handling should honor fetch cache correctly (edge)",
       "app-dir static/dynamic handling should not cache correctly with POST method request init",
       "app-dir static/dynamic handling should render not found pages correctly and fallback to the default one",
-      "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-edge"
+      "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-edge",
+      "app-dir static/dynamic handling unstable_noStore should opt-out of static optimization"
     ],
     "pending": [
       "app-dir static/dynamic handling should correctly de-dupe fetch without next cache /react-fetch-deduping-edge",
@@ -3016,12 +2993,11 @@
   "test/e2e/app-dir/dynamic/dynamic.test.ts": {
     "passed": [
       "app dir - next/dynamic should generate correct client manifest for dynamic chunks",
-      "app dir - next/dynamic should handle next/dynamic in hydration correctly"
-    ],
-    "failed": [
       "app dir - next/dynamic should handle next/dynamic in SSR correctly",
+      "app dir - next/dynamic should handle next/dynamic in hydration correctly",
       "app dir - next/dynamic should handle ssr: false in pages when appDir is enabled"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3342,6 +3318,7 @@
       "app dir - metadata icons should support basic complex descriptor icons field",
       "app dir - metadata icons should support basic object icons field",
       "app dir - metadata icons should support basic string icons field",
+      "app dir - metadata navigation should render root not-found with default metadata",
       "app dir - metadata navigation should support notFound in generateMetadata",
       "app dir - metadata navigation should support redirect in generateMetadata",
       "app dir - metadata opengraph should override file based images when opengraph-image and twitter-image specify images property",
@@ -3352,6 +3329,7 @@
       "app dir - metadata should not effect metadata images convention like files under pages directory",
       "app dir - metadata static routes should have /favicon.ico as route",
       "app dir - metadata static routes should have icons as route",
+      "app dir - metadata static routes should support root dir robots.txt",
       "app dir - metadata static routes should support sitemap.xml under every routes",
       "app dir - metadata static routes should support static manifest.webmanifest",
       "app dir - metadata twitter should render twitter card summary when image is not present",
@@ -3362,9 +3340,7 @@
     "failed": [
       "app dir - metadata basic should support other basic tags (edge)",
       "app dir - metadata icons should support root level of favicon.ico",
-      "app dir - metadata navigation should render root not-found with default metadata",
-      "app dir - metadata opengraph should pick up opengraph-image and twitter-image as static metadata files",
-      "app dir - metadata static routes should support root dir robots.txt"
+      "app dir - metadata opengraph should pick up opengraph-image and twitter-image as static metadata files"
     ],
     "pending": [],
     "flakey": [],
@@ -3395,6 +3371,7 @@
       "app dir - navigation query string should handle unicode search params",
       "app dir - navigation query string should set query correctly",
       "app dir - navigation query string useParams identity between renders should be stable in app",
+      "app dir - navigation query string useParams identity between renders should be stable in pages",
       "app dir - navigation redirect components should redirect client-side",
       "app dir - navigation redirect components should redirect in a client component",
       "app dir - navigation redirect components should redirect in a server component",
@@ -3412,9 +3389,7 @@
       "app dir - navigation relative hashes and queries should work with a query-only href",
       "app dir - navigation relative hashes and queries should work with both relative hashes and queries"
     ],
-    "failed": [
-      "app dir - navigation query string useParams identity between renders should be stable in pages"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3459,7 +3434,10 @@
   },
   "test/e2e/app-dir/next-image/next-image-proxy.test.ts": {
     "passed": [],
-    "failed": ["next-image-proxy loads images without any errors"],
+    "failed": [
+      "next-image-proxy loads images without any errors",
+      "next-image-proxy should work with connection upgrade by removing it via filterReqHeaders()"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3828,6 +3806,7 @@
   },
   "test/e2e/app-dir/third-parties/basic.test.ts": {
     "passed": [
+      "@next/third-parties basic usage renders GTM",
       "@next/third-parties basic usage renders GoogleMapsEmbed",
       "@next/third-parties basic usage renders YoutubeEmbed"
     ],
@@ -4164,17 +4143,16 @@
     "runtimeError": false
   },
   "test/e2e/edge-compiler-can-import-blob-assets/index.test.ts": {
-    "passed": [
-      "Edge Compiler can import asset assets allows to fetch a remote URL",
-      "Edge Compiler can import asset assets allows to fetch a remote URL with a path and basename"
-    ],
-    "failed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "Edge Compiler can import asset assets allows to assets from node_modules",
+      "Edge Compiler can import asset assets allows to fetch a remote URL",
+      "Edge Compiler can import asset assets allows to fetch a remote URL with a path and basename",
       "Edge Compiler can import asset assets allows to fetch image assets",
       "Edge Compiler can import asset assets allows to fetch text assets",
       "Edge Compiler can import asset assets extracts all the assets from the bundle"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -5560,6 +5538,7 @@
   },
   "test/e2e/third-parties/index.test.ts": {
     "passed": [
+      "@next/third-parties basic usage renders GTM",
       "@next/third-parties basic usage renders GoogleMapsEmbed",
       "@next/third-parties basic usage renders YoutubeEmbed"
     ],
@@ -6389,10 +6368,10 @@
   },
   "test/integration/broken-webpack-plugin/test/index.test.js": {
     "passed": [],
-    "failed": [
+    "failed": [],
+    "pending": [
       "Handles a broken webpack plugin (precompile) should render error correctly"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -6401,11 +6380,10 @@
       "Build Activity Indicator Disabled with next.config.js Does not add the build indicator container",
       "Build Activity Indicator Enabled Adds the build indicator container",
       "Build Activity Indicator Enabled Shows build indicator when page is built from modifying",
+      "Build Activity Indicator Enabled Shows the build indicator when a page is built during navigation",
       "Build Activity Indicator should validate buildActivityPosition config"
     ],
-    "failed": [
-      "Build Activity Indicator Enabled Shows the build indicator when a page is built during navigation"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6619,10 +6597,10 @@
   },
   "test/integration/config-devtool-dev/test/index.test.js": {
     "passed": [],
-    "failed": [
+    "failed": [],
+    "pending": [
       "devtool set in development mode in next config should warn and revert when a devtool is set in development mode"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -12044,24 +12022,24 @@
   },
   "test/integration/next-dynamic-lazy-compilation/test/index.test.js": {
     "passed": [],
-    "failed": [
-      "next/dynamic dev mode should render dynamic server rendered values before hydration",
-      "next/dynamic dev mode should render dynamic server rendered values on client mount",
-      "next/dynamic dev mode should render server value"
-    ],
+    "failed": [],
     "pending": [
-      "next/dynamic production mode should render dynamic server rendered values before hydration",
-      "next/dynamic production mode should render dynamic server rendered values on client mount",
-      "next/dynamic production mode should render server value"
+      "next/dynamic lazy compilation dev mode should render dynamic server rendered values before hydration",
+      "next/dynamic lazy compilation dev mode should render dynamic server rendered values on client mount",
+      "next/dynamic lazy compilation dev mode should render server value",
+      "next/dynamic lazy compilation production mode should render dynamic server rendered values before hydration",
+      "next/dynamic lazy compilation production mode should render dynamic server rendered values on client mount",
+      "next/dynamic lazy compilation production mode should render server value"
     ],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/next-dynamic/test/index.test.js": {
-    "passed": ["next/dynamic dev mode should render server value"],
-    "failed": [
-      "next/dynamic dev mode should render dynamic server rendered values on client mount"
+    "passed": [
+      "next/dynamic dev mode should render dynamic server rendered values on client mount",
+      "next/dynamic dev mode should render server value"
     ],
+    "failed": [],
     "pending": [
       "next/dynamic production mode should render dynamic server rendered values on client mount",
       "next/dynamic production mode should render server value"
@@ -12349,10 +12327,9 @@
   },
   "test/integration/next-image-legacy/svgo-webpack/test/index.test.ts": {
     "passed": [],
-    "failed": [
-      "svgo-webpack with Image Component development mode should print error when invalid Image usage"
-    ],
+    "failed": [],
     "pending": [
+      "svgo-webpack with Image Component development mode should print error when invalid Image usage",
       "svgo-webpack with Image Component production mode should not fail to build invalid usage of the Image component"
     ],
     "flakey": [],
@@ -12869,10 +12846,9 @@
   },
   "test/integration/next-image-new/svgo-webpack/test/index.test.ts": {
     "passed": [],
-    "failed": [
-      "svgo-webpack with Image Component development mode should print error when invalid Image usage"
-    ],
+    "failed": [],
     "pending": [
+      "svgo-webpack with Image Component development mode should print error when invalid Image usage",
       "svgo-webpack with Image Component production mode should not fail to build invalid usage of the Image component"
     ],
     "flakey": [],
@@ -13419,6 +13395,7 @@
     "passed": [
       "Basics default setting with react 18 dev hydrates correctly for normal page",
       "Basics default setting with react 18 dev no warnings for image related link props",
+      "Basics default setting with react 18 dev should contain dynamicIds in next data for dynamic imports",
       "Basics default setting with react 18 dev should only render once in SSR",
       "Basics default setting with react 18 dev useId() values should match on hydration",
       "Concurrent mode in the experimental-edge runtime dev <RouteAnnouncer /> should not have the initial route announced",
@@ -13428,9 +13405,7 @@
       "Concurrent mode in the nodejs runtime dev flushes styled-jsx styles as the page renders",
       "Concurrent mode in the nodejs runtime dev should not have invalid config warning"
     ],
-    "failed": [
-      "Basics default setting with react 18 dev should contain dynamicIds in next data for dynamic imports"
-    ],
+    "failed": [],
     "pending": [
       "Basics production mode default setting with react 18 prod hydrates correctly for normal page",
       "Basics production mode default setting with react 18 prod no warnings for image related link props",
