@@ -3,7 +3,6 @@ import type { WorkerRequestHandler, WorkerUpgradeHandler } from './types'
 import type { DevBundler } from './router-utils/setup-dev-bundler'
 import type { NextUrlWithParsedQuery } from '../request-meta'
 // This is required before other imports to ensure the require hook is setup.
-import '../node-polyfill-fetch'
 import '../node-environment'
 import '../require-hook'
 
@@ -17,7 +16,7 @@ import { DecodeError } from '../../shared/lib/utils'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import { setupFsCheck } from './router-utils/filesystem'
 import { proxyRequest } from './router-utils/proxy-request'
-import { isAbortError, pipeReadable } from '../pipe-readable'
+import { isAbortError, pipeToNodeResponse } from '../pipe-readable'
 import { getResolveRoutes } from './router-utils/resolve-routes'
 import { getRequestMeta } from '../request-meta'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
@@ -363,7 +362,7 @@ export async function initialize(opts: {
       // handle middleware body response
       if (bodyStream) {
         res.statusCode = statusCode || 200
-        return await pipeReadable(bodyStream, res)
+        return await pipeToNodeResponse(bodyStream, res)
       }
 
       if (finished && parsedUrl.protocol) {

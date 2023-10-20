@@ -57,7 +57,7 @@ describe('app-dir create root layout', () => {
 
             export default function RootLayout({ children }) {
              return (
-                <html lang=\\"en\\">
+                <html lang="en">
                   <body>{children}</body>
                 </html>
               )
@@ -109,7 +109,7 @@ describe('app-dir create root layout', () => {
 
             export default function RootLayout({ children }) {
              return (
-                <html lang=\\"en\\">
+                <html lang="en">
                   <body>{children}</body>
                 </html>
               )
@@ -161,7 +161,7 @@ describe('app-dir create root layout', () => {
 
             export default function RootLayout({ children }) {
              return (
-                <html lang=\\"en\\">
+                <html lang="en">
                   <body>{children}</body>
                 </html>
               )
@@ -215,7 +215,7 @@ describe('app-dir create root layout', () => {
             children: React.ReactNode
           }) {
             return (
-              <html lang=\\"en\\">
+              <html lang="en">
                 <body>{children}</body>
               </html>
             )

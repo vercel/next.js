@@ -1207,6 +1207,7 @@ export default async function build(
 
         return new Worker(staticWorkerPath, {
           timeout: timeout * 1000,
+          logger: Log,
           onRestart: (method, [arg], attempts) => {
             if (method === 'exportPage') {
               const pagePath = arg.path

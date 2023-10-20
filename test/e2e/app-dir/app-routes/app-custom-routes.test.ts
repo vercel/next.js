@@ -62,7 +62,7 @@ createNextDescribe(
         '/static/three/data.json',
       ])('responds correctly on %s', async (path) => {
         expect(JSON.parse(await next.render(basePath + path))).toEqual({
-          params: { slug: path.split('/')[2] },
+          params: { slug: path.split('/', 3)[2] },
           now: expect.any(Number),
         })
         if (isNextStart) {
@@ -85,7 +85,7 @@ createNextDescribe(
       ])('revalidates correctly on %s', async (path) => {
         const data = JSON.parse(await next.render(basePath + path))
         expect(data).toEqual({
-          params: { slug: path.split('/')[2] },
+          params: { slug: path.split('/', 3)[2] },
           now: expect.any(Number),
         })
 
