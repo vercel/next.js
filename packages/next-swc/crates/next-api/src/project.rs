@@ -255,13 +255,22 @@ impl ProjectContainer {
     pub fn hmr_identifiers(self: Vc<Self>) -> Vc<Vec<String>> {
         self.project().hmr_identifiers()
     }
+
+    #[turbo_tasks::function]
+    pub async fn get_versioned_content(
+        self: Vc<Self>,
+        file_path: Vc<FileSystemPath>,
+    ) -> Result<Vc<Box<dyn VersionedContent>>> {
+        let this = self.await?;
+        Ok(this.versioned_content_map.get(file_path))
+    }
 }
 
 #[turbo_tasks::value]
 pub struct Project {
     /// A root path from which all files must be nested under. Trying to access
     /// a file outside this root will fail. Think of this as a chroot.
-    root_path: String,
+    pub root_path: String,
 
     /// A path where to emit the build outputs. next.config.js's distDir.
     dist_dir: String,
@@ -374,13 +383,18 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn node_root(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+    pub async fn dist_dir(self: Vc<Self>) -> Result<Vc<String>> {
+        Ok(Vc::cell(self.await?.dist_dir.to_string()))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn node_root(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
         Ok(self.node_fs().root().join(this.dist_dir.to_string()))
     }
 
     #[turbo_tasks::function]
-    pub(super) fn client_root(self: Vc<Self>) -> Vc<FileSystemPath> {
+    pub fn client_root(self: Vc<Self>) -> Vc<FileSystemPath> {
         self.client_fs().root()
     }
 
@@ -399,7 +413,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn client_relative_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+    pub async fn client_relative_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let next_config = self.next_config().await?;
         Ok(self.client_root().join(format!(
             "{}/_next",
@@ -411,7 +425,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn project_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+    pub async fn project_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
         let root = self.project_root_path();
         let project_relative = this.project_path.strip_prefix(&this.root_path).unwrap();
@@ -503,6 +517,13 @@ impl Project {
             self.client_compile_time_info().environment(),
             this.mode,
         ))
+    }
+
+    #[turbo_tasks::function]
+    pub(super) fn app_client_chunking_context(
+        self: Vc<Self>,
+    ) -> Vc<Box<dyn EcmascriptChunkingContext>> {
+        self.client_chunking_context().with_layer("app".to_string())
     }
 
     #[turbo_tasks::function]
@@ -607,6 +628,12 @@ impl Project {
     #[turbo_tasks::function]
     pub(super) fn ssr_chunking_context(self: Vc<Self>) -> Vc<BuildChunkingContext> {
         self.server_chunking_context().with_layer("ssr".to_string())
+    }
+
+    #[turbo_tasks::function]
+    pub(super) fn app_ssr_chunking_context(self: Vc<Self>) -> Vc<BuildChunkingContext> {
+        self.server_chunking_context()
+            .with_layer("app ssr".to_string())
     }
 
     #[turbo_tasks::function]

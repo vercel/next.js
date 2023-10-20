@@ -28,6 +28,11 @@ const SKIPPED_TEST_SUITES = {
     'ReactRefreshRegression app can fast refresh a page with dynamic rendering',
     'ReactRefreshRegression app can fast refresh a page with config',
   ],
+  'test/development/acceptance-app/ReactRefreshRequire.test.ts': [
+    'ReactRefreshRequire app re-runs accepted modules',
+    'ReactRefreshRequire app propagates a hot update to closest accepted module',
+    'ReactRefreshRequire app propagates hot update to all inverse dependencies',
+  ],
   'test/development/acceptance/ReactRefreshRequire.test.ts': [
     'ReactRefreshRequire re-runs accepted modules',
     'ReactRefreshRequire propagates a hot update to closest accepted module',

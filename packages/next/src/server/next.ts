@@ -10,7 +10,6 @@ import type { NextUrlWithParsedQuery } from './request-meta'
 import type { WorkerRequestHandler, WorkerUpgradeHandler } from './lib/types'
 
 import './require-hook'
-import './node-polyfill-fetch'
 import './node-polyfill-crypto'
 
 import type { default as Server } from './next-server'
@@ -199,7 +198,7 @@ export class NextServer {
         )).config
 
         // @ts-expect-error internal field
-        config.experimental.isExperimentalConfig =
+        config.experimental.isExperimentalCompile =
           serializedConfig.experimental.isExperimentalCompile
       } catch (_) {
         // if distDir is customized we don't know until we

@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 
 use anyhow::{Context, Result};
+use indexmap::{indexmap, IndexMap};
 use turbo_tasks::{Value, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{glob::Glob, FileSystem, FileSystemPath},
@@ -53,6 +54,8 @@ pub async fn get_next_client_import_map(
     )
     .await?;
 
+    insert_optimized_module_aliases(&mut import_map, project_path).await?;
+
     insert_alias_option(
         &mut import_map,
         project_path,
@@ -94,14 +97,7 @@ pub async fn get_next_client_import_map(
             } else {
                 ""
             };
-            import_map.insert_exact_alias(
-                "server-only",
-                request_to_import_mapping(app_dir, "next/dist/compiled/server-only"),
-            );
-            import_map.insert_exact_alias(
-                "client-only",
-                request_to_import_mapping(app_dir, "next/dist/compiled/client-only"),
-            );
+
             import_map.insert_exact_alias(
                 "react",
                 request_to_import_mapping(
@@ -153,6 +149,18 @@ pub async fn get_next_client_import_map(
         ClientContextType::Fallback => {}
         ClientContextType::Other => {}
     }
+
+    // see https://github.com/vercel/next.js/blob/8013ef7372fc545d49dbd060461224ceb563b454/packages/next/src/build/webpack-config.ts#L1449-L1531
+    insert_exact_alias_map(
+        &mut import_map,
+        project_path,
+        indexmap! {
+            "server-only" => "next/dist/compiled/server-only/index".to_string(),
+            "client-only" => "next/dist/compiled/client-only/index".to_string(),
+            "next/dist/compiled/server-only" => "next/dist/compiled/server-only/index".to_string(),
+            "next/dist/compiled/client-only" => "next/dist/compiled/client-only/index".to_string(),
+        },
+    );
 
     match ty.into_value() {
         ClientContextType::Pages { .. }
@@ -359,6 +367,54 @@ pub async fn get_next_edge_import_map(
 ) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
 
+    // https://github.com/vercel/next.js/blob/786ef25e529e1fb2dda398aebd02ccbc8d0fb673/packages/next/src/build/webpack-config.ts#L815-L861
+
+    // Alias next/dist imports to next/dist/esm assets
+    insert_wildcard_alias_map(
+        &mut import_map,
+        project_path,
+        indexmap! {
+            "next/dist/build/" => "next/dist/esm/build/*".to_string(),
+            "next/dist/client/" => "next/dist/esm/client/*".to_string(),
+            "next/dist/shared/" => "next/dist/esm/shared/*".to_string(),
+            "next/dist/pages/" => "next/dist/esm/pages/*".to_string(),
+            "next/dist/lib/" => "next/dist/esm/lib/*".to_string(),
+            "next/dist/server/" => "next/dist/esm/server/*".to_string(),
+        },
+    );
+
+    // Alias the usage of next public APIs
+    insert_exact_alias_map(
+        &mut import_map,
+        project_path,
+        indexmap! {
+            "next/app" => "next/dist/esm/pages/_app".to_string(),
+            "next/document" => "next/dist/esm/pages/_document".to_string(),
+            "next/dynamic" => "next/dist/esm/shared/lib/dynamic".to_string(),
+            "next/head" => "next/dist/esm/shared/lib/head".to_string(),
+            "next/headers" => "next/dist/esm/client/components/headers".to_string(),
+            "next/image" => "next/dist/esm/shared/lib/image-external".to_string(),
+            "next/link" => "next/dist/esm/client/link".to_string(),
+            "next/navigation" => "next/dist/esm/client/components/navigation".to_string(),
+            "next/router" => "next/dist/esm/client/router".to_string(),
+            "next/script" => "next/dist/esm/client/script".to_string(),
+            "next/server" => "next/dist/esm/server/web/exports/index".to_string(),
+            "next/og" => "next/dist/esm/server/og/image-response".to_string(),
+
+            "next/dist/client/components/headers" => "next/dist/esm/client/components/headers".to_string(),
+            "next/dist/client/components/navigation" => "next/dist/esm/client/components/navigation".to_string(),
+            "next/dist/client/link" => "next/dist/esm/client/link".to_string(),
+            "next/dist/client/router" => "next/dist/esm/client/router".to_string(),
+            "next/dist/client/script" => "next/dist/esm/client/script".to_string(),
+            "next/dist/pages/_app" => "next/dist/esm/pages/_app".to_string(),
+            "next/dist/pages/_document" => "next/dist/esm/pages/_document".to_string(),
+            "next/dist/shared/lib/dynamic" => "next/dist/esm/shared/lib/dynamic".to_string(),
+            "next/dist/shared/lib/head" => "next/dist/esm/shared/lib/head".to_string(),
+            "next/dist/shared/lib/image-external" => "next/dist/esm/shared/lib/image-external".to_string(),
+            "dist/server/og/image-response" => "next/dist/esm/server/og/image-response".to_string(),
+        },
+    );
+
     insert_next_shared_aliases(
         &mut import_map,
         project_path,
@@ -367,6 +423,8 @@ pub async fn get_next_edge_import_map(
         mode,
     )
     .await?;
+
+    insert_optimized_module_aliases(&mut import_map, project_path).await?;
 
     insert_alias_option(
         &mut import_map,
@@ -732,14 +790,6 @@ async fn insert_next_server_special_aliases(
                 ),
             );
             import_map.insert_exact_alias(
-                "server-only",
-                request_to_import_mapping(app_dir, "next/dist/compiled/server-only"),
-            );
-            import_map.insert_exact_alias(
-                "client-only",
-                request_to_import_mapping(app_dir, "next/dist/compiled/client-only"),
-            );
-            import_map.insert_exact_alias(
                 "react",
                 request_to_import_mapping(
                     app_dir,
@@ -829,6 +879,54 @@ async fn insert_next_server_special_aliases(
         (_, ServerContextType::Middleware) => {}
     }
 
+    // see https://github.com/vercel/next.js/blob/8013ef7372fc545d49dbd060461224ceb563b454/packages/next/src/build/webpack-config.ts#L1449-L1531
+    match ty {
+        ServerContextType::Pages { .. }
+        | ServerContextType::PagesData { .. }
+        | ServerContextType::AppSSR { .. } => {
+            insert_exact_alias_map(
+                import_map,
+                project_path,
+                indexmap! {
+                    "server-only" => "next/dist/compiled/server-only/index".to_string(),
+                    "client-only" => "next/dist/compiled/client-only/index".to_string(),
+                    "next/dist/compiled/server-only" => "next/dist/compiled/server-only/index".to_string(),
+                    "next/dist/compiled/client-only" => "next/dist/compiled/client-only/index".to_string(),
+                },
+            );
+        }
+        // TODO: should include `ServerContextType::PagesApi` routes, but that type doesn't exist.
+        ServerContextType::AppRSC { .. }
+        | ServerContextType::AppRoute { .. }
+        | ServerContextType::Middleware => {
+            insert_exact_alias_map(
+                import_map,
+                project_path,
+                indexmap! {
+                    "server-only" => "next/dist/compiled/server-only/empty".to_string(),
+                    "client-only" => "next/dist/compiled/client-only/error".to_string(),
+                    "next/dist/compiled/server-only" => "next/dist/compiled/server-only/empty".to_string(),
+                    "next/dist/compiled/client-only" => "next/dist/compiled/client-only/error".to_string(),
+                },
+            );
+        }
+    }
+
+    // Potential the bundle introduced into middleware and api can be poisoned by
+    // client-only but not being used, so we disabled the `client-only` erroring
+    // on these layers. `server-only` is still available.
+    if ty == ServerContextType::Middleware {
+        insert_exact_alias_map(
+            import_map,
+            project_path,
+            indexmap! {
+                "client-only" => "next/dist/compiled/client-only/index".to_string(),
+                "next/dist/compiled/client-only" => "next/dist/compiled/client-only/index".to_string(),
+                "next/dist/compiled/client-only/error" => "next/dist/compiled/client-only/index".to_string(),
+            },
+        );
+    }
+
     import_map.insert_exact_alias(
         "@vercel/og",
         external_if_node(
@@ -844,8 +942,32 @@ pub fn mdx_import_source_file() -> String {
     format!("{VIRTUAL_PACKAGE_NAME}/mdx-import-source")
 }
 
+// Insert aliases for Next.js stubs of fetch, object-assign, and url
+// Keep in sync with getOptimizedModuleAliases in webpack-config.ts
+async fn insert_optimized_module_aliases(
+    import_map: &mut ImportMap,
+    project_path: Vc<FileSystemPath>,
+) -> Result<()> {
+    insert_exact_alias_map(
+        import_map,
+        project_path,
+        indexmap! {
+            "unfetch" => "next/dist/build/polyfills/fetch/index.js".to_string(),
+            "isomorphic-unfetch" => "next/dist/build/polyfills/fetch/index.js".to_string(),
+            "whatwg-fetch" => "next/dist/build/polyfills/fetch/whatwg-fetch.js".to_string(),
+            "object-assign" => "next/dist/build/polyfills/object-assign.js".to_string(),
+            "object.assign/auto" => "next/dist/build/polyfills/object.assign/auto.js".to_string(),
+            "object.assign/implementation" => "next/dist/build/polyfills/object.assign/implementation.js".to_string(),
+            "object.assign/polyfill" => "next/dist/build/polyfills/object.assign/polyfill.js".to_string(),
+            "object.assign/shim" => "next/dist/build/polyfills/object.assign/shim.js".to_string(),
+            "url" => "next/dist/compiled/native-url".to_string(),
+        },
+    );
+    Ok(())
+}
+
 // Make sure to not add any external requests here.
-pub async fn insert_next_shared_aliases(
+async fn insert_next_shared_aliases(
     import_map: &mut ImportMap,
     project_path: Vc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,
@@ -1019,6 +1141,27 @@ fn export_value_to_import_mapping(
             )
             .cell()
         })
+    }
+}
+
+fn insert_exact_alias_map(
+    import_map: &mut ImportMap,
+    project_path: Vc<FileSystemPath>,
+    map: IndexMap<&'static str, String>,
+) {
+    for (pattern, request) in map {
+        import_map.insert_exact_alias(pattern, request_to_import_mapping(project_path, &request));
+    }
+}
+
+fn insert_wildcard_alias_map(
+    import_map: &mut ImportMap,
+    project_path: Vc<FileSystemPath>,
+    map: IndexMap<&'static str, String>,
+) {
+    for (pattern, request) in map {
+        import_map
+            .insert_wildcard_alias(pattern, request_to_import_mapping(project_path, &request));
     }
 }
 

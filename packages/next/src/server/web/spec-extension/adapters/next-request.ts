@@ -7,6 +7,33 @@ import { getRequestMeta } from '../../../request-meta'
 import { fromNodeOutgoingHttpHeaders } from '../../utils'
 import { NextRequest } from '../request'
 
+export const ResponseAbortedName = 'ResponseAborted'
+export class ResponseAborted extends Error {
+  public readonly name = ResponseAbortedName
+}
+
+/**
+ * Creates an AbortController tied to the closing of a ServerResponse (or other
+ * appropriate Writable).
+ *
+ * If the `close` event is fired before the `finish` event, then we'll send the
+ * `abort` signal.
+ */
+export function createAbortController(response: Writable): AbortController {
+  const controller = new AbortController()
+
+  // If `finish` fires first, then `res.end()` has been called and the close is
+  // just us finishing the stream on our side. If `close` fires first, then we
+  // know the client disconnected before we finished.
+  response.once('close', () => {
+    if (response.writableFinished) return
+
+    controller.abort(new ResponseAborted())
+  })
+
+  return controller
+}
+
 /**
  * Creates an AbortSignal tied to the closing of a ServerResponse (or other
  * appropriate Writable).
@@ -15,26 +42,14 @@ import { NextRequest } from '../request'
  * the `abort` event will not fire if to data has been fully read (because that
  * will "close" the readable stream and nothing fires after that).
  */
-export function signalFromNodeResponse(response: Writable) {
+export function signalFromNodeResponse(response: Writable): AbortSignal {
   const { errored, destroyed } = response
-  if (errored || destroyed) return AbortSignal.abort(errored)
-
-  const controller = new AbortController()
-  // If `finish` fires first, then `res.end()` has been called and the close is
-  // just us finishing the stream on our side. If `close` fires first, then we
-  // know the client disconnected before we finished.
-  function onClose() {
-    controller.abort()
-    // eslint-disable-next-line @typescript-eslint/no-use-before-define
-    response.off('finish', onFinish)
+  if (errored || destroyed) {
+    return AbortSignal.abort(errored ?? new ResponseAborted())
   }
-  function onFinish() {
-    response.off('close', onClose)
-  }
-  response.once('close', onClose)
-  response.once('finish', onFinish)
 
-  return controller.signal
+  const { signal } = createAbortController(response)
+  return signal
 }
 
 export class NextRequestAdapter {

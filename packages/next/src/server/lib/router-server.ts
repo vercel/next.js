@@ -3,10 +3,8 @@ import type { WorkerRequestHandler, WorkerUpgradeHandler } from './types'
 import type { DevBundler } from './router-utils/setup-dev-bundler'
 import type { NextUrlWithParsedQuery } from '../request-meta'
 // This is required before other imports to ensure the require hook is setup.
-import '../node-polyfill-fetch'
 import '../node-environment'
 import '../require-hook'
-import '../../lib/polyfill-promise-with-resolvers'
 
 import url from 'url'
 import path from 'path'
@@ -18,7 +16,7 @@ import { DecodeError } from '../../shared/lib/utils'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import { setupFsCheck } from './router-utils/filesystem'
 import { proxyRequest } from './router-utils/proxy-request'
-import { isAbortError, pipeReadable } from '../pipe-readable'
+import { isAbortError, pipeToNodeResponse } from '../pipe-readable'
 import { getResolveRoutes } from './router-utils/resolve-routes'
 import { getRequestMeta } from '../request-meta'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
@@ -33,6 +31,7 @@ import {
   PERMANENT_REDIRECT_STATUS,
 } from '../../shared/lib/constants'
 import { DevBundlerService } from './dev-bundler-service'
+import type { TLSSocket } from 'tls'
 
 const debug = setupDebug('next:router-server:main')
 
@@ -222,6 +221,17 @@ export async function initialize(opts: {
         'x-middleware-invoke': '',
         'x-invoke-path': invokePath,
         'x-invoke-query': encodeURIComponent(JSON.stringify(parsedUrl.query)),
+        'x-forwarded-host':
+          req.headers['x-forwarded-host'] ?? req.headers.host ?? opts.hostname,
+        'x-forwarded-port':
+          req.headers['x-forwarded-port'] ?? opts.port.toString(),
+        'x-forwarded-proto':
+          req.headers['x-forwarded-proto'] ??
+          (req.socket as TLSSocket).encrypted
+            ? 'https'
+            : 'http',
+        'x-forwarded-for':
+          req.headers['x-forwarded-for'] ?? req.socket.remoteAddress,
         ...(additionalInvokeHeaders || {}),
       }
       Object.assign(req.headers, invokeHeaders)
@@ -352,7 +362,7 @@ export async function initialize(opts: {
       // handle middleware body response
       if (bodyStream) {
         res.statusCode = statusCode || 200
-        return await pipeReadable(bodyStream, res)
+        return await pipeToNodeResponse(bodyStream, res)
       }
 
       if (finished && parsedUrl.protocol) {

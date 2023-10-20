@@ -4,11 +4,8 @@ import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import type { ActionManifest } from './webpack/plugins/flight-client-entry-plugin'
-import type {
-  ExportAppOptions,
-  ExportAppWorker,
-  ExportPageInput,
-} from '../export/types'
+import type { ExportAppOptions, ExportAppWorker } from '../export/types'
+import type { Revalidate } from '../server/lib/revalidate'
 
 import '../lib/setup-exception-listeners'
 
@@ -169,7 +166,7 @@ interface DataRouteRouteInfo {
 export interface SsgRoute
   extends ExperimentalBypassForInfo,
     DataRouteRouteInfo {
-  initialRevalidateSeconds: number | false
+  initialRevalidateSeconds: Revalidate
   srcRoute: string | null
   initialStatus?: number
   initialHeaders?: Record<string, string>
@@ -941,7 +938,7 @@ export default async function build(
                 ? path.relative(distDir, incrementalCacheHandlerPath)
                 : undefined,
 
-              isExperimentalCompile: true,
+              isExperimentalCompile: isCompile,
             },
           },
           appDir: dir,
@@ -1208,17 +1205,9 @@ export default async function build(
       ) {
         let infoPrinted = false
 
-        return Worker.create<
-          Pick<
-            typeof import('./worker'),
-            | 'hasCustomGetInitialProps'
-            | 'isPageStatic'
-            | 'getDefinedNamedExports'
-            | 'exportPage'
-          >,
-          [ExportPageInput]
-        >(staticWorkerPath, {
+        return new Worker(staticWorkerPath, {
           timeout: timeout * 1000,
+          logger: Log,
           onRestart: (method, [arg], attempts) => {
             if (method === 'exportPage') {
               const pagePath = arg.path
@@ -1264,7 +1253,14 @@ export default async function build(
             'getDefinedNamedExports',
             'exportPage',
           ],
-        })
+        }) as Worker &
+          Pick<
+            typeof import('./worker'),
+            | 'hasCustomGetInitialProps'
+            | 'isPageStatic'
+            | 'getDefinedNamedExports'
+            | 'exportPage'
+          >
       }
 
       let CacheHandler: any

@@ -1,7 +1,6 @@
 /* eslint-env jest */
 
 import cheerio from 'cheerio'
-import 'flat-map-polyfill'
 import { readdir, readFile, remove } from 'fs-extra'
 import {
   File,
@@ -103,9 +102,9 @@ describe('SCSS Support', () => {
 
       const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
       expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
-        Object {
+        {
           "mappings": "AAEE,uBACE,SAHE,CAON,cACE,2CAAA",
-          "sourcesContent": Array [
+          "sourcesContent": [
             "$var: red;
         .redText {
           ::placeholder {

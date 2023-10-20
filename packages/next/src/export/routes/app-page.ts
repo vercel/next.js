@@ -49,10 +49,7 @@ export async function generatePrefetchRsc(
     renderOpts
   )
 
-  prefetchRenderResult.pipe(res)
-  await res.hasStreamed
-
-  const prefetchRscData = Buffer.concat(res.buffers)
+  const prefetchRscData = await prefetchRenderResult.toUnchunkedString(true)
 
   if ((renderOpts as any).store.staticPrefetchBailout) return
 
@@ -107,7 +104,7 @@ export async function exportAppPage(
     const html = result.toUnchunkedString()
     const { metadata } = result
     const flightData = metadata.pageData
-    const revalidate = metadata.revalidate
+    const revalidate = metadata.revalidate ?? false
 
     if (revalidate === 0) {
       if (isDynamicError) {

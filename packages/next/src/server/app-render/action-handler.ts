@@ -45,19 +45,20 @@ function nodeToWebReadableStream(nodeReadable: import('stream').Readable) {
       return Readable.toWeb(nodeReadable)
     }
 
+    const iterator = nodeReadable[Symbol.asyncIterator]()
+
     return new ReadableStream({
-      start(controller) {
-        nodeReadable.on('data', (chunk) => {
-          controller.enqueue(chunk)
-        })
+      pull: async (controller) => {
+        const { value, done } = await iterator.next()
 
-        nodeReadable.on('end', () => {
+        if (done) {
           controller.close()
-        })
-
-        nodeReadable.on('error', (error) => {
-          controller.error(error)
-        })
+        } else {
+          controller.enqueue(value)
+        }
+      },
+      cancel: () => {
+        iterator.return?.()
       },
     })
   } else {
@@ -101,7 +102,7 @@ function getForwardedHeaders(
     Array.isArray(rawSetCookies) ? rawSetCookies : [rawSetCookies]
   ).map((setCookie) => {
     // remove the suffixes like 'HttpOnly' and 'SameSite'
-    const [cookie] = `${setCookie}`.split(';')
+    const [cookie] = `${setCookie}`.split(';', 1)
     return cookie
   })
 
@@ -286,6 +287,49 @@ export async function handleAction({
     return
   }
 
+  const originHostname =
+    typeof req.headers['origin'] === 'string'
+      ? new URL(req.headers['origin']).host
+      : undefined
+  const host = req.headers['x-forwarded-host'] || req.headers['host']
+
+  // This is to prevent CSRF attacks. If `x-forwarded-host` is set, we need to
+  // ensure that the request is coming from the same host.
+  if (!originHostname) {
+    // This might be an old browser that doesn't send `host` header. We ignore
+    // this case.
+    console.warn(
+      'Missing `origin` header from a forwarded Server Actions request.'
+    )
+  } else if (!host || originHostname !== host) {
+    // This is an attack. We should not proceed the action.
+    console.error(
+      '`x-forwarded-host` and `host` headers do not match `origin` header from a forwarded Server Actions request. Aborting the action.'
+    )
+
+    const error = new Error('Invalid Server Actions request.')
+
+    if (isFetchAction) {
+      res.statusCode = 500
+      await Promise.all(staticGenerationStore.pendingRevalidates || [])
+      const promise = Promise.reject(error)
+      try {
+        await promise
+      } catch {}
+
+      return {
+        type: 'done',
+        result: await generateFlight(ctx, {
+          actionResult: promise,
+          // if the page was not revalidated, we can skip the rendering the flight tree
+          skipFlight: !staticGenerationStore.pathWasRevalidated,
+        }),
+      }
+    }
+
+    throw error
+  }
+
   // ensure we avoid caching server actions unexpectedly
   res.setHeader(
     'Cache-Control',
@@ -379,10 +423,10 @@ export async function handleAction({
           } else {
             // React doesn't yet publish a busboy version of decodeAction
             // so we polyfill the parsing of FormData.
-            const UndiciRequest = require('next/dist/compiled/undici').Request
-            const fakeRequest = new UndiciRequest('http://localhost', {
+            const fakeRequest = new Request('http://localhost', {
               method: 'POST',
-              headers: { 'Content-Type': req.headers['content-type'] },
+              // @ts-expect-error
+              headers: { 'Content-Type': contentType },
               body: nodeToWebReadableStream(req),
               duplex: 'half',
             })

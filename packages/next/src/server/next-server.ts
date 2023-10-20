@@ -1,10 +1,8 @@
 import './node-environment'
 import './require-hook'
-import './node-polyfill-fetch'
 import './node-polyfill-form'
 import './node-polyfill-web-streams'
 import './node-polyfill-crypto'
-import '../lib/polyfill-promise-with-resolvers'
 
 import type { TLSSocket } from 'tls'
 import type { CacheFs } from '../shared/lib/utils'
@@ -92,7 +90,8 @@ import { NextNodeServerSpan } from './lib/trace/constants'
 import { nodeFs } from './lib/node-fs-methods'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { invokeRequest } from './lib/server-ipc/invoke-request'
-import { pipeReadable } from './pipe-readable'
+import { filterReqHeaders, ipcForbiddenHeaders } from './lib/server-ipc/utils'
+import { pipeToNodeResponse } from './pipe-readable'
 import { createRequestResponseMocks } from './lib/mock-request'
 import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 import { signalFromNodeResponse } from './web/spec-extension/adapters/next-request'
@@ -549,17 +548,18 @@ export default class NextNodeServer extends BaseServer {
               signal: signalFromNodeResponse(res.originalResponse),
             }
           )
-          const nodeOutgoingHttpHeaders = toNodeOutgoingHttpHeaders(
-            invokeRes.headers
+          const filteredResHeaders = filterReqHeaders(
+            toNodeOutgoingHttpHeaders(invokeRes.headers),
+            ipcForbiddenHeaders
           )
 
-          for (const key of Object.keys(nodeOutgoingHttpHeaders)) {
-            newRes.setHeader(key, nodeOutgoingHttpHeaders[key] || '')
+          for (const key of Object.keys(filteredResHeaders)) {
+            newRes.setHeader(key, filteredResHeaders[key] || '')
           }
           newRes.statusCode = invokeRes.status || 200
 
           if (invokeRes.body) {
-            await pipeReadable(invokeRes.body, newRes)
+            await pipeToNodeResponse(invokeRes.body, newRes)
           } else {
             res.send()
           }
@@ -688,7 +688,8 @@ export default class NextNodeServer extends BaseServer {
         return {
           components,
           query: {
-            ...(components.getStaticProps
+            ...(!this.renderOpts.isExperimentalCompile &&
+            components.getStaticProps
               ? ({
                   amp: query.amp,
                   __nextDataReq: query.__nextDataReq,
@@ -1022,9 +1023,14 @@ export default class NextNodeServer extends BaseServer {
   }
 
   private makeRequestHandler(): NodeRequestHandler {
-    // This is just optimization to fire prepare as soon as possible
-    // It will be properly awaited later
-    void this.prepare()
+    // This is just optimization to fire prepare as soon as possible. It will be
+    // properly awaited later. We add the catch here to ensure that it does not
+    // cause a unhandled promise rejection. The promise rejection wil be
+    // handled later on via the `await` when the request handler is called.
+    this.prepare().catch((err) => {
+      console.error('Failed to prepare server', err)
+    })
+
     const handler = super.getRequestHandler()
     return (req, res, parsedUrl) => {
       const normalizedReq = this.normalizeReq(req)
@@ -1650,7 +1656,7 @@ export default class NextNodeServer extends BaseServer {
 
         const { originalResponse } = res as NodeNextResponse
         if (result.response.body) {
-          await pipeReadable(result.response.body, originalResponse)
+          await pipeToNodeResponse(result.response.body, originalResponse)
         } else {
           originalResponse.end()
         }
@@ -1879,7 +1885,7 @@ export default class NextNodeServer extends BaseServer {
 
     const nodeResStream = (params.res as NodeNextResponse).originalResponse
     if (result.response.body) {
-      await pipeReadable(result.response.body, nodeResStream)
+      await pipeToNodeResponse(result.response.body, nodeResStream)
     } else {
       nodeResStream.end()
     }

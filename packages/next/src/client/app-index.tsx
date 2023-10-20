@@ -299,7 +299,7 @@ export function hydrate() {
     React.startTransition(() =>
       (ReactDOMClient as any).hydrateRoot(appElement, reactEl, {
         ...options,
-        experimental_formState: initialFormStateData,
+        formState: initialFormStateData,
       })
     )
   }

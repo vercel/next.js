@@ -179,18 +179,16 @@ export async function loadBindings(): Promise<Binding> {
     return pendingBindings
   }
 
-  if (process.platform === 'darwin') {
-    // rust needs stdout to be blocking, otherwise it will throw an error (on macOS at least) when writing a lot of data (logs) to it
-    // see https://github.com/napi-rs/napi-rs/issues/1630
-    // and https://github.com/nodejs/node/blob/main/doc/api/process.md#a-note-on-process-io
-    if (process.stdout._handle != null) {
-      // @ts-ignore
-      process.stdout._handle.setBlocking(true)
-    }
-    if (process.stderr._handle != null) {
-      // @ts-ignore
-      process.stderr._handle.setBlocking(true)
-    }
+  // rust needs stdout to be blocking, otherwise it will throw an error (on macOS at least) when writing a lot of data (logs) to it
+  // see https://github.com/napi-rs/napi-rs/issues/1630
+  // and https://github.com/nodejs/node/blob/main/doc/api/process.md#a-note-on-process-io
+  if (process.stdout._handle != null) {
+    // @ts-ignore
+    process.stdout._handle.setBlocking(true)
+  }
+  if (process.stderr._handle != null) {
+    // @ts-ignore
+    process.stderr._handle.setBlocking(true)
   }
 
   pendingBindings = new Promise(async (resolve, _reject) => {
@@ -521,6 +519,13 @@ export interface HmrIdentifiers {
   identifiers: string[]
 }
 
+export interface StackFrame {
+  file: string
+  methodName: string | null
+  line: number
+  column: number | null
+}
+
 export interface UpdateInfo {
   duration: number
   tasks: number
@@ -542,6 +547,8 @@ export interface Project {
   hmrIdentifiersSubscribe(): AsyncIterableIterator<
     TurbopackResult<HmrIdentifiers>
   >
+  getSourceForAsset(filePath: string): Promise<string | null>
+  traceSource(stackFrame: StackFrame): Promise<StackFrame | null>
   updateInfoSubscribe(): AsyncIterableIterator<TurbopackResult<UpdateInfo>>
 }
 
@@ -916,6 +923,14 @@ function bindingToApi(binding: any, _wasm: boolean) {
           binding.projectHmrIdentifiersSubscribe(this._nativeProject, callback)
       )
       return subscription
+    }
+
+    traceSource(stackFrame: StackFrame): Promise<StackFrame | null> {
+      return binding.projectTraceSource(this._nativeProject, stackFrame)
+    }
+
+    getSourceForAsset(filePath: string): Promise<string | null> {
+      return binding.projectGetSourceForAsset(this._nativeProject, filePath)
     }
 
     updateInfoSubscribe() {

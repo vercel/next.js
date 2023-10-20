@@ -1,6 +1,5 @@
 /* eslint-env jest */
 
-import 'flat-map-polyfill'
 import { readdir, readFile, remove } from 'fs-extra'
 import { nextBuild } from 'next-test-utils'
 import { join } from 'path'
@@ -49,7 +48,7 @@ describe('SCSS Support loader handling', () => {
           )
           .sort()
       ).toMatchInlineSnapshot(`
-        Array [
+        [
           "dark.svg",
           "dark2.svg",
           "light.svg",
@@ -101,7 +100,7 @@ describe('SCSS Support loader handling', () => {
           )
           .sort()
       ).toMatchInlineSnapshot(`
-        Array [
+        [
           "darka.svg",
           "darkb.svg",
           "light.svg",
@@ -151,7 +150,7 @@ describe('SCSS Support loader handling', () => {
           )
           .sort()
       ).toMatchInlineSnapshot(`
-        Array [
+        [
           "dark.svg",
           "dark2.svg",
           "light.svg",
@@ -201,7 +200,7 @@ describe('SCSS Support loader handling', () => {
           )
           .sort()
       ).toMatchInlineSnapshot(`
-        Array [
+        [
           "dark.svg",
           "dark2.svg",
           "light.svg",

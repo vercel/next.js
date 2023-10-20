@@ -281,6 +281,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .record(z.string(), z.array(z.string()))
           .optional(),
         ppr: z.boolean().optional(),
+        taint: z.boolean().optional(),
         proxyTimeout: z.number().gte(0).optional(),
         serverComponentsExternalPackages: z.array(z.string()).optional(),
         scrollRestoration: z.boolean().optional(),

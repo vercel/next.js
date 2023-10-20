@@ -892,9 +892,10 @@
     "runtimeError": false
   },
   "test/development/acceptance-app/ReactRefreshRegression.test.ts": {
-    "passed": [],
+    "passed": [
+      "ReactRefreshRegression app can fast refresh a page with static generation"
+    ],
     "failed": [
-      "ReactRefreshRegression app can fast refresh a page with static generation",
       "ReactRefreshRegression app custom loader mdx should have Fast Refresh enabled",
       "ReactRefreshRegression app shows an overlay for anonymous function server-side error",
       "ReactRefreshRegression app shows an overlay for server-side error in client component",
@@ -917,13 +918,10 @@
       "ReactRefreshRequire app can continue hot updates after module-level errors with module.exports",
       "ReactRefreshRequire app can replace a module before it is loaded",
       "ReactRefreshRequire app does not accumulate stale exports over time",
-      "ReactRefreshRequire app propagates a hot update to closest accepted module",
-      "ReactRefreshRequire app propagates hot update to all inverse dependencies",
       "ReactRefreshRequire app provides fresh value for ES6 default import in parents",
       "ReactRefreshRequire app provides fresh value for ES6 named import in parents",
       "ReactRefreshRequire app provides fresh value for exports.* in parents",
       "ReactRefreshRequire app provides fresh value for module.exports in parents",
-      "ReactRefreshRequire app re-runs accepted modules",
       "ReactRefreshRequire app runs dependencies before dependents",
       "ReactRefreshRequire app stops update propagation after module-level errors"
     ],
@@ -931,7 +929,11 @@
     "pending": [
       "ReactRefreshRequire app propagates a module that stops accepting in next version"
     ],
-    "flakey": [],
+    "flakey": [
+      "ReactRefreshRequire app propagates a hot update to closest accepted module",
+      "ReactRefreshRequire app propagates hot update to all inverse dependencies",
+      "ReactRefreshRequire app re-runs accepted modules"
+    ],
     "runtimeError": false
   },
   "test/development/acceptance-app/app-hmr-changes.test.ts": {
@@ -1229,6 +1231,7 @@
       "ReactRefreshRequire can continue hot updates after module-level errors with module.exports",
       "ReactRefreshRequire can replace a module before it is loaded",
       "ReactRefreshRequire does not accumulate stale exports over time",
+      "ReactRefreshRequire propagates a module that stops accepting in next version",
       "ReactRefreshRequire provides fresh value for ES6 default import in parents",
       "ReactRefreshRequire provides fresh value for ES6 named import in parents",
       "ReactRefreshRequire provides fresh value for exports.* in parents",
@@ -1236,9 +1239,7 @@
       "ReactRefreshRequire runs dependencies before dependents",
       "ReactRefreshRequire stops update propagation after module-level errors"
     ],
-    "failed": [
-      "ReactRefreshRequire propagates a module that stops accepting in next version"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [
       "ReactRefreshRequire propagates a hot update to closest accepted module",
@@ -1381,9 +1382,10 @@
       "optimizePackageImports should not break \"use client\" directive in optimized packages"
     ],
     "failed": [
+      "optimizePackageImports app - should optimize recursive wildcard export mapping",
       "optimizePackageImports app - should render the icons correctly without creating all the modules",
+      "optimizePackageImports pages - should optimize recursive wildcard export mapping",
       "optimizePackageImports pages - should render the icons correctly without creating all the modules",
-      "optimizePackageImports should reuse the transformed barrel meta file from SWC",
       "optimizePackageImports should support visx"
     ],
     "pending": [],
@@ -1431,6 +1433,7 @@
   "test/development/basic/hmr.test.ts": {
     "passed": [
       "basic HMR, basePath: \"\" Error Recovery should not continously poll a custom error page",
+      "basic HMR, basePath: \"\" Error Recovery should show the error on all pages",
       "basic HMR, basePath: \"\" Hot Module Reloading editing a page should detect the changes and display it",
       "basic HMR, basePath: \"\" Hot Module Reloading editing a page should not reload unrelated pages",
       "basic HMR, basePath: \"\" Hot Module Reloading editing a page should update styles correctly",
@@ -1462,7 +1465,6 @@
       "basic HMR, basePath: \"\" Error Recovery should recover from 404 after a page has been added with dynamic segments",
       "basic HMR, basePath: \"\" Error Recovery should recover from errors in getInitialProps in client",
       "basic HMR, basePath: \"\" Error Recovery should recover from errors in the render function",
-      "basic HMR, basePath: \"\" Error Recovery should show the error on all pages",
       "basic HMR, basePath: \"\" Full reload should warn about full reload in cli output - anonymous page function",
       "basic HMR, basePath: \"\" Full reload should warn about full reload in cli output - runtime-error",
       "basic HMR, basePath: \"\" Hot Module Reloading delete a page and add it back should load the page properly",
@@ -1605,6 +1607,7 @@
     "passed": [
       "next.rs api should allow to write app Node.js page to disk",
       "next.rs api should allow to write app Node.js route to disk",
+      "next.rs api should allow to write app edge page to disk",
       "next.rs api should allow to write app edge route to disk",
       "next.rs api should allow to write pages Node.js api to disk",
       "next.rs api should allow to write pages Node.js page to disk",
@@ -2142,6 +2145,17 @@
   },
   "test/e2e/app-dir/actions/app-action.test.ts": {
     "passed": [
+      "app-dir action handling fetch actions should handle a fetch action initiated from a static page",
+      "app-dir action handling fetch actions should handle revalidatePath",
+      "app-dir action handling fetch actions should handle revalidateTag",
+      "app-dir action handling fetch actions should invalidate client cache on other routes when cookies.set is called",
+      "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
+      "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
+      "app-dir action handling fetch actions should revalidate when cookies.set is called",
+      "app-dir action handling fetch actions should revalidate when cookies.set is called in a client action",
+      "app-dir action handling should push new route when redirecting",
+      "app-dir action handling should support headers and cookies",
+      "app-dir action handling should support hoc auth wrappers",
       "app-dir action handling should support setting cookies in route handlers with the correct overrides"
     ],
     "failed": [
@@ -2152,28 +2166,17 @@
       "app-dir action handling Edge SSR should handle unicode search params",
       "app-dir action handling Edge SSR should return error response for hoc auth wrappers in edge runtime",
       "app-dir action handling HMR should support updating the action",
-      "app-dir action handling fetch actions should handle a fetch action initiated from a static page",
       "app-dir action handling fetch actions should handle redirect to a relative URL in a single pass",
       "app-dir action handling fetch actions should handle regular redirects",
-      "app-dir action handling fetch actions should handle revalidatePath",
-      "app-dir action handling fetch actions should handle revalidateTag",
-      "app-dir action handling fetch actions should invalidate client cache on other routes when cookies.set is called",
-      "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
-      "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
-      "app-dir action handling fetch actions should revalidate when cookies.set is called",
-      "app-dir action handling fetch actions should revalidate when cookies.set is called in a client action",
       "app-dir action handling fetch actions should store revalidation data in the prefetch cache",
       "app-dir action handling should bundle external libraries if they are on the action layer",
       "app-dir action handling should handle basic actions correctly",
       "app-dir action handling should not block navigation events while a server action is in flight",
       "app-dir action handling should only submit action once when resubmitting an action after navigation",
-      "app-dir action handling should push new route when redirecting",
       "app-dir action handling should support .bind",
       "app-dir action handling should support chained .bind",
       "app-dir action handling should support formData and redirect",
-      "app-dir action handling should support headers and cookies",
       "app-dir action handling should support headers in client imported actions",
-      "app-dir action handling should support hoc auth wrappers",
       "app-dir action handling should support importing actions in client components",
       "app-dir action handling should support importing the same action module instance in both server and action layers",
       "app-dir action handling should support next/dynamic with ssr: false",
@@ -2212,12 +2215,12 @@
   "test/e2e/app-dir/app-basepath/index.test.ts": {
     "passed": [
       "app dir - basepath should prefix redirect() with basePath",
+      "app dir - basepath should render usePathname without the basePath",
       "app dir - basepath should support Link with basePath prefixed",
       "app dir - basepath should support `basePath`"
     ],
     "failed": [
-      "app dir - basepath should prefix metadata og image with basePath",
-      "app dir - basepath should render usePathname without the basePath"
+      "app dir - basepath should prefix metadata og image with basePath"
     ],
     "pending": [],
     "flakey": [],
@@ -2248,7 +2251,7 @@
   },
   "test/e2e/app-dir/app-css-pageextensions/index.test.ts": {
     "passed": [
-      "app dir css with pageextensions css support with pageextensions page in app directory with pageextention, css should work should support global css inside layout"
+      "app dir - css with pageextensions css support with pageextensions page in app directory with pageextention, css should work should support global css inside layout"
     ],
     "failed": [],
     "pending": [],
@@ -2257,54 +2260,54 @@
   },
   "test/e2e/app-dir/app-css/index.test.ts": {
     "passed": [
-      "app dir css HMR should not break HMR when CSS is imported in a server component",
-      "app dir css HMR should support HMR for CSS imports in client components",
-      "app dir css Suspensey CSS should suspend on CSS imports if its slow on client navigation",
-      "app dir css css support client components should support css modules inside client components",
-      "app dir css css support client components should support css modules inside client page",
-      "app dir css css support client layouts should support css modules inside client layouts",
-      "app dir css css support client layouts should support global css inside client layouts",
-      "app dir css css support client pages should support css modules inside client pages",
-      "app dir css css support client pages should support global css inside client pages",
-      "app dir css css support css ordering should have inner layers take precedence over outer layers",
-      "app dir css css support page extensions should include css imported in MDX pages",
-      "app dir css css support server layouts should support css modules inside server layouts",
-      "app dir css css support server pages should not contain pages css in app dir page",
-      "app dir css css support server pages should support css modules inside server pages",
-      "app dir css css support server pages should support global css inside server pages",
-      "app dir css css support should not affect css orders during HMR",
-      "app dir css css support special entries should include css imported in client not-found.js",
-      "app dir css css support special entries should include css imported in client template.js",
-      "app dir css css support special entries should include css imported in error.js",
-      "app dir css css support special entries should include css imported in root not-found.js",
-      "app dir css css support special entries should include css imported in server not-found.js",
-      "app dir css css support special entries should include css imported in server template.js",
-      "app dir css css support special entries should include root layout css for root not-found.js",
-      "app dir css sass support client layouts should support global sass/scss inside client layouts",
-      "app dir css sass support client layouts should support sass/scss modules inside client layouts",
-      "app dir css sass support client pages should support global sass/scss inside client pages",
-      "app dir css sass support client pages should support sass/scss modules inside client pages",
-      "app dir css sass support server layouts should support global sass/scss inside server layouts",
-      "app dir css sass support server layouts should support sass/scss modules inside server layouts",
-      "app dir css sass support server pages should support global sass/scss inside server pages",
-      "app dir css sass support server pages should support sass/scss modules inside server pages"
+      "app dir - css HMR should not break HMR when CSS is imported in a server component",
+      "app dir - css HMR should support HMR for CSS imports in client components",
+      "app dir - css Suspensey CSS should suspend on CSS imports if its slow on client navigation",
+      "app dir - css css support client components should support css modules inside client components",
+      "app dir - css css support client components should support css modules inside client page",
+      "app dir - css css support client layouts should support css modules inside client layouts",
+      "app dir - css css support client layouts should support global css inside client layouts",
+      "app dir - css css support client pages should support css modules inside client pages",
+      "app dir - css css support client pages should support global css inside client pages",
+      "app dir - css css support css ordering should have inner layers take precedence over outer layers",
+      "app dir - css css support page extensions should include css imported in MDX pages",
+      "app dir - css css support server layouts should support css modules inside server layouts",
+      "app dir - css css support server layouts should support external css imports",
+      "app dir - css css support server pages should not contain pages css in app dir page",
+      "app dir - css css support server pages should support css modules inside server pages",
+      "app dir - css css support server pages should support global css inside server pages",
+      "app dir - css css support should not affect css orders during HMR",
+      "app dir - css css support special entries should include css imported in client not-found.js",
+      "app dir - css css support special entries should include css imported in client template.js",
+      "app dir - css css support special entries should include css imported in error.js",
+      "app dir - css css support special entries should include css imported in root not-found.js",
+      "app dir - css css support special entries should include css imported in server not-found.js",
+      "app dir - css css support special entries should include css imported in server template.js",
+      "app dir - css css support special entries should include root layout css for root not-found.js",
+      "app dir - css sass support client layouts should support global sass/scss inside client layouts",
+      "app dir - css sass support client layouts should support sass/scss modules inside client layouts",
+      "app dir - css sass support client pages should support global sass/scss inside client pages",
+      "app dir - css sass support client pages should support sass/scss modules inside client pages",
+      "app dir - css sass support server layouts should support global sass/scss inside server layouts",
+      "app dir - css sass support server layouts should support sass/scss modules inside server layouts",
+      "app dir - css sass support server pages should support global sass/scss inside server pages",
+      "app dir - css sass support server pages should support sass/scss modules inside server pages"
     ],
     "failed": [
-      "app dir css HMR should not create duplicate link tags during HMR",
-      "app dir css HMR should support HMR for CSS imports in server components",
-      "app dir css HMR should support HMR with sass/scss",
-      "app dir css css support chunks should bundle css resources into chunks",
-      "app dir css css support multiple entries should deduplicate styles on the module level",
-      "app dir css css support multiple entries should only include the same style once in the flight data",
-      "app dir css css support server layouts should support external css imports",
-      "app dir css css support should not preload styles twice during HMR",
-      "app dir css css support should reload @import styles during HMR",
-      "app dir css css support special entries should include css imported in loading.js"
+      "app dir - css HMR should not create duplicate link tags during HMR",
+      "app dir - css HMR should support HMR for CSS imports in server components",
+      "app dir - css HMR should support HMR with sass/scss",
+      "app dir - css css support chunks should bundle css resources into chunks",
+      "app dir - css css support multiple entries should deduplicate styles on the module level",
+      "app dir - css css support multiple entries should only include the same style once in the flight data",
+      "app dir - css css support should not preload styles twice during HMR",
+      "app dir - css css support should reload @import styles during HMR",
+      "app dir - css css support special entries should include css imported in loading.js"
     ],
     "pending": [
-      "app dir css css support multiple entries should only inject the same style once if used by different layers",
-      "app dir css css support multiple entries should only load chunks for the css module that is used by the specific entrypoint",
-      "app dir css css support server layouts should support global css inside server layouts"
+      "app dir - css css support multiple entries should only inject the same style once if used by different layers",
+      "app dir - css css support multiple entries should only load chunks for the css module that is used by the specific entrypoint",
+      "app dir - css css support server layouts should support global css inside server layouts"
     ],
     "flakey": [],
     "runtimeError": false
@@ -2326,6 +2329,7 @@
       "app-dir edge SSR should handle /index routes correctly",
       "app-dir edge SSR should handle edge only routes",
       "app-dir edge SSR should handle edge rsc hmr",
+      "app-dir edge SSR should resolve client component without error",
       "app-dir edge SSR should retrieve cookies in a server component in the edge runtime",
       "app-dir edge SSR should warn about the re-export of a pages runtime/preferredRegion config"
     ],
@@ -2370,13 +2374,9 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/app-middleware/app-middleware.test.ts": {
-    "passed": ["app dir middleware without pages dir Updates headers"],
-    "failed": [
-      "app dir middleware with middleware in src dir works without crashing when using requestAsyncStorage",
-      "app-dir with middleware Mutate request headers for Edge Functions Adds new headers",
-      "app-dir with middleware Mutate request headers for Edge Functions Deletes headers",
+    "passed": [
+      "app dir - middleware without pages dir Updates headers",
       "app-dir with middleware Mutate request headers for Edge Functions Supports draft mode",
-      "app-dir with middleware Mutate request headers for Edge Functions Updates headers",
       "app-dir with middleware Mutate request headers for Serverless Functions Adds new headers",
       "app-dir with middleware Mutate request headers for Serverless Functions Deletes headers",
       "app-dir with middleware Mutate request headers for Serverless Functions Supports draft mode",
@@ -2386,6 +2386,12 @@
       "app-dir with middleware Mutate request headers for next/headers Supports draft mode",
       "app-dir with middleware Mutate request headers for next/headers Updates headers",
       "app-dir with middleware should filter correctly after middleware rewrite"
+    ],
+    "failed": [
+      "app dir - middleware with middleware in src dir works without crashing when using requestAsyncStorage",
+      "app-dir with middleware Mutate request headers for Edge Functions Adds new headers",
+      "app-dir with middleware Mutate request headers for Edge Functions Deletes headers",
+      "app-dir with middleware Mutate request headers for Edge Functions Updates headers"
     ],
     "pending": [],
     "flakey": [],
@@ -2406,7 +2412,7 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/app-prefetch/prefetching.test.ts": {
-    "passed": ["app dir prefetching should skip next dev for now"],
+    "passed": ["app dir - prefetching should skip next dev for now"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -2744,7 +2750,7 @@
   },
   "test/e2e/app-dir/app-validation/validation.test.ts": {
     "passed": [
-      "app dir validation should error when passing invalid router state tree"
+      "app dir - validation should error when passing invalid router state tree"
     ],
     "failed": [],
     "pending": [],
@@ -2760,117 +2766,117 @@
   },
   "test/e2e/app-dir/app/index.test.ts": {
     "passed": [
-      "app dir <Link /> should allow linking from app page to pages page",
-      "app dir <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page",
-      "app dir <Link /> should push to external url",
-      "app dir <Link /> should replace to external url",
-      "app dir bootstrap scripts should only bootstrap with one script, prinitializing the rest",
-      "app dir data fetch with response over 16KB with chunked encoding should load page when fetching a large amount of data",
-      "app dir error component should display error digest for error in server component with default error boundary",
-      "app dir error component should trigger error component when an error happens during rendering",
-      "app dir error component should trigger error component when an error happens during server components rendering",
-      "app dir error component should use default error boundary for prod and overlay for dev when no error component specified",
-      "app dir known bugs should handle as on next/link",
-      "app dir known bugs should handle next/link back to initially loaded page",
-      "app dir known bugs should handle router.refresh without resetting state",
-      "app dir known bugs should not do additional pushState when already on the page",
-      "app dir known bugs should not share flight data between requests",
-      "app dir known bugs should support React cache client component",
-      "app dir known bugs should support React cache client component client-navigation",
-      "app dir known bugs should support React cache middleware overriding headers",
-      "app dir known bugs should support React cache server component",
-      "app dir known bugs should support React cache server component client-navigation",
-      "app dir known bugs should support React fetch instrumentation server component",
-      "app dir known bugs should support React fetch instrumentation server component client-navigation",
-      "app dir next/script should insert preload tags for beforeInteractive and afterInteractive scripts",
-      "app dir next/script should load stylesheets for next/scripts",
-      "app dir next/script should support next/script and render in correct order",
-      "app dir searchParams prop client component should have the correct search params",
-      "app dir searchParams prop client component should have the correct search params on middleware rewrite",
-      "app dir searchParams prop client component should have the correct search params on rewrite",
-      "app dir searchParams prop server component should have the correct search params",
-      "app dir searchParams prop server component should have the correct search params on middleware rewrite",
-      "app dir searchParams prop server component should have the correct search params on rewrite",
-      "app dir server components Loading should render loading.js in browser for slow layout",
-      "app dir server components Loading should render loading.js in browser for slow layout and page",
-      "app dir server components Loading should render loading.js in initial html for slow layout",
-      "app dir server components Loading should render loading.js in initial html for slow layout and page",
-      "app dir server components catch-all routes should handle catch-all segments link",
-      "app dir server components catch-all routes should handle optional catch-all segments link",
-      "app dir server components catch-all routes should handle optional segments",
-      "app dir server components catch-all routes should handle optional segments root",
-      "app dir server components catch-all routes should handle required segments",
-      "app dir server components catch-all routes should handle required segments root as not found",
-      "app dir server components client components should have consistent query and params handling",
-      "app dir server components dynamic routes should only pass params that apply to the layout",
-      "app dir server components middleware should strip internal query parameters from requests to middleware for redirect",
-      "app dir server components middleware should strip internal query parameters from requests to middleware for rewrite",
-      "app dir server components next/router should support router.back and router.forward",
-      "app dir server components should include client component layout with server component route should include it client-side",
-      "app dir server components should include client component layout with server component route should include it server-side",
-      "app dir server components should not serve .client.js as a path",
-      "app dir server components should not serve .server.js as a path",
-      "app dir server components should serve client component should serve client-side",
-      "app dir server components should serve client component should serve server-side",
-      "app dir server components should serve shared component",
-      "app dir should ensure the </body></html> suffix is at the end of the stream",
-      "app dir should handle hash in initial url",
-      "app dir should have correct searchParams and params (client)",
-      "app dir should have correct searchParams and params (server)",
-      "app dir should include layouts when no direct parent layout",
-      "app dir should include parent document when no direct parent layout",
-      "app dir should match redirects in pages correctly $path",
-      "app dir should not apply client router filter on shallow",
-      "app dir should not create new root layout when nested (optional)",
-      "app dir should not have duplicate config warnings",
-      "app dir should not include parent when not in parent directory",
-      "app dir should not serve when layout is provided but no folder index",
-      "app dir should return the `vary` header from pages for flight requests",
-      "app dir should serve /index as separate page",
-      "app dir should serve dynamic route from pages",
-      "app dir should serve from pages",
-      "app dir should serve from public",
-      "app dir should serve page as a segment name correctly",
-      "app dir should use new root layout when provided",
-      "app dir should use text/x-component for flight",
-      "app dir template component should render the template that holds state in a client component and reset on navigation"
+      "app dir - basic <Link /> should allow linking from app page to pages page",
+      "app dir - basic <Link /> should be soft for back navigation",
+      "app dir - basic <Link /> should be soft for forward navigation",
+      "app dir - basic <Link /> should hard push",
+      "app dir - basic <Link /> should hard replace",
+      "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page",
+      "app dir - basic <Link /> should push to external url",
+      "app dir - basic <Link /> should replace to external url",
+      "app dir - basic <Link /> should soft push",
+      "app dir - basic HMR should HMR correctly for client component",
+      "app dir - basic HMR should HMR correctly for server component",
+      "app dir - basic bootstrap scripts should only bootstrap with one script, prinitializing the rest",
+      "app dir - basic bootstrap scripts should successfully bootstrap even when using CSP",
+      "app dir - basic data fetch with response over 16KB with chunked encoding should load page when fetching a large amount of data",
+      "app dir - basic error component should display error digest for error in server component with default error boundary",
+      "app dir - basic error component should trigger error component when an error happens during rendering",
+      "app dir - basic error component should trigger error component when an error happens during server components rendering",
+      "app dir - basic error component should use default error boundary for prod and overlay for dev when no error component specified",
+      "app dir - basic known bugs should handle as on next/link",
+      "app dir - basic known bugs should handle next/link back to initially loaded page",
+      "app dir - basic known bugs should handle router.refresh without resetting state",
+      "app dir - basic known bugs should not do additional pushState when already on the page",
+      "app dir - basic known bugs should not share flight data between requests",
+      "app dir - basic known bugs should support React cache client component",
+      "app dir - basic known bugs should support React cache client component client-navigation",
+      "app dir - basic known bugs should support React cache middleware overriding headers",
+      "app dir - basic known bugs should support React cache server component",
+      "app dir - basic known bugs should support React cache server component client-navigation",
+      "app dir - basic known bugs should support React fetch instrumentation server component",
+      "app dir - basic known bugs should support React fetch instrumentation server component client-navigation",
+      "app dir - basic next/script should insert preload tags for beforeInteractive and afterInteractive scripts",
+      "app dir - basic next/script should load stylesheets for next/scripts",
+      "app dir - basic next/script should support next/script and render in correct order",
+      "app dir - basic searchParams prop client component should have the correct search params",
+      "app dir - basic searchParams prop client component should have the correct search params on middleware rewrite",
+      "app dir - basic searchParams prop client component should have the correct search params on rewrite",
+      "app dir - basic searchParams prop server component should have the correct search params",
+      "app dir - basic searchParams prop server component should have the correct search params on middleware rewrite",
+      "app dir - basic searchParams prop server component should have the correct search params on rewrite",
+      "app dir - basic server components Loading should render loading.js in browser for slow layout",
+      "app dir - basic server components Loading should render loading.js in browser for slow layout and page",
+      "app dir - basic server components Loading should render loading.js in initial html for slow layout",
+      "app dir - basic server components Loading should render loading.js in initial html for slow layout and page",
+      "app dir - basic server components catch-all routes should handle catch-all segments link",
+      "app dir - basic server components catch-all routes should handle optional catch-all segments link",
+      "app dir - basic server components catch-all routes should handle optional segments",
+      "app dir - basic server components catch-all routes should handle optional segments root",
+      "app dir - basic server components catch-all routes should handle required segments",
+      "app dir - basic server components catch-all routes should handle required segments root as not found",
+      "app dir - basic server components client components should have consistent query and params handling",
+      "app dir - basic server components dynamic routes should only pass params that apply to the layout",
+      "app dir - basic server components middleware should strip internal query parameters from requests to middleware for redirect",
+      "app dir - basic server components middleware should strip internal query parameters from requests to middleware for rewrite",
+      "app dir - basic server components next/router should support router.back and router.forward",
+      "app dir - basic server components should include client component layout with server component route should include it client-side",
+      "app dir - basic server components should include client component layout with server component route should include it server-side",
+      "app dir - basic server components should not serve .client.js as a path",
+      "app dir - basic server components should not serve .server.js as a path",
+      "app dir - basic server components should serve client component should serve client-side",
+      "app dir - basic server components should serve client component should serve server-side",
+      "app dir - basic server components should serve shared component",
+      "app dir - basic should ensure the </body></html> suffix is at the end of the stream",
+      "app dir - basic should handle hash in initial url",
+      "app dir - basic should have correct searchParams and params (client)",
+      "app dir - basic should have correct searchParams and params (server)",
+      "app dir - basic should include layouts when no direct parent layout",
+      "app dir - basic should include parent document when no direct parent layout",
+      "app dir - basic should match redirects in pages correctly $path",
+      "app dir - basic should not apply client router filter on shallow",
+      "app dir - basic should not create new root layout when nested (optional)",
+      "app dir - basic should not have duplicate config warnings",
+      "app dir - basic should not include parent when not in parent directory",
+      "app dir - basic should not serve when layout is provided but no folder index",
+      "app dir - basic should return the `vary` header from pages for flight requests",
+      "app dir - basic should serve /index as separate page",
+      "app dir - basic should serve dynamic route from pages",
+      "app dir - basic should serve from pages",
+      "app dir - basic should serve from public",
+      "app dir - basic should serve page as a segment name correctly",
+      "app dir - basic should use new root layout when provided",
+      "app dir - basic should use text/x-component for flight",
+      "app dir - basic template component should render the template that holds state in a client component and reset on navigation"
     ],
     "failed": [
-      "app dir <Link /> should be soft for back navigation",
-      "app dir <Link /> should be soft for forward navigation",
-      "app dir <Link /> should hard push",
-      "app dir <Link /> should hard replace",
-      "app dir <Link /> should soft push",
-      "app dir HMR should HMR correctly for client component",
-      "app dir HMR should HMR correctly for server component",
-      "app dir bootstrap scripts should fail to bootstrap when using CSP in Dev due to eval",
-      "app dir rewrites should support rewrites on client-side navigation",
-      "app dir rewrites should support rewrites on client-side navigation from pages to app with existing pages path",
-      "app dir rewrites should support rewrites on initial load",
-      "app dir server components Loading should render loading.js in browser for slow page",
-      "app dir server components Loading should render loading.js in initial html for slow page",
-      "app dir should encode chunk path correctly",
-      "app dir should include document html and body",
-      "app dir should not share edge workers",
-      "app dir should pass props from getServerSideProps in root layout",
-      "app dir should return the `vary` header from edge runtime",
-      "app dir should serve dynamic parameter",
-      "app dir should serve from app",
-      "app dir should serve nested parent",
-      "app dir should serve polyfills for browsers that do not support modules",
-      "app dir should use text/x-component for flight with edge runtime",
-      "app dir should work for catch-all edge page"
+      "app dir - basic rewrites should support rewrites on client-side navigation",
+      "app dir - basic rewrites should support rewrites on client-side navigation from pages to app with existing pages path",
+      "app dir - basic rewrites should support rewrites on initial load",
+      "app dir - basic server components Loading should render loading.js in browser for slow page",
+      "app dir - basic server components Loading should render loading.js in initial html for slow page",
+      "app dir - basic should encode chunk path correctly",
+      "app dir - basic should include document html and body",
+      "app dir - basic should not share edge workers",
+      "app dir - basic should pass props from getServerSideProps in root layout",
+      "app dir - basic should return the `vary` header from edge runtime",
+      "app dir - basic should serve dynamic parameter",
+      "app dir - basic should serve from app",
+      "app dir - basic should serve nested parent",
+      "app dir - basic should serve polyfills for browsers that do not support modules",
+      "app dir - basic should use text/x-component for flight with edge runtime",
+      "app dir - basic should work for catch-all edge page"
     ],
     "pending": [
-      "app dir <Link /> should soft replace",
-      "app dir HMR should HMR correctly when changing the component type",
-      "app dir known bugs should support React fetch instrumentation client component",
-      "app dir known bugs should support React fetch instrumentation client component client-navigation",
-      "app dir should handle css imports in next/dynamic correctly",
-      "app dir should match partial parameters",
-      "app dir should not include parent when not in parent directory with route in directory",
-      "app dir should not rerender layout when navigating between routes in the same layout",
-      "app dir template component should render the template that is a server component and rerender on navigation"
+      "app dir - basic <Link /> should soft replace",
+      "app dir - basic HMR should HMR correctly when changing the component type",
+      "app dir - basic known bugs should support React fetch instrumentation client component",
+      "app dir - basic known bugs should support React fetch instrumentation client component client-navigation",
+      "app dir - basic should handle css imports in next/dynamic correctly",
+      "app dir - basic should match partial parameters",
+      "app dir - basic should not include parent when not in parent directory with route in directory",
+      "app dir - basic should not rerender layout when navigating between routes in the same layout",
+      "app dir - basic template component should render the template that is a server component and rerender on navigation"
     ],
     "flakey": [],
     "runtimeError": false
@@ -3076,6 +3082,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/externals/externals.test.ts": {
+    "passed": [
+      "externals-app should have externals for those in config.experimental.serverComponentsExternalPackages",
+      "externals-app uses externals for predefined list in server-external-packages.json"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/front-redirect-issue/front-redirect-issue.test.ts": {
     "passed": ["app dir - front redirect issue should redirect"],
     "failed": [],
@@ -3171,10 +3187,10 @@
   },
   "test/e2e/app-dir/import/import.test.ts": {
     "passed": [
-      "app dir imports we can import all components from .js",
-      "app dir imports we can import all components from .jsx",
-      "app dir imports we can import all components from .ts",
-      "app dir imports we can import all components from .tsx"
+      "app dir - imports we can import all components from .js",
+      "app dir - imports we can import all components from .jsx",
+      "app dir - imports we can import all components from .ts",
+      "app dir - imports we can import all components from .tsx"
     ],
     "failed": [],
     "pending": [],
@@ -3318,6 +3334,9 @@
       "app dir - metadata basic should support title template",
       "app dir - metadata basic should support verification tags",
       "app dir - metadata basic should use parent layout title when no title is defined in page",
+      "app dir - metadata file based icons should handle updates to the file icon name and order",
+      "app dir - metadata file based icons should not render if image file is not specified",
+      "app dir - metadata file based icons should render icon and apple touch icon meta if their images are specified",
       "app dir - metadata icons should merge icons from layout if no static icons files are specified",
       "app dir - metadata icons should not hoist meta[itemProp] to head",
       "app dir - metadata icons should support basic complex descriptor icons field",
@@ -3332,6 +3351,7 @@
       "app dir - metadata react cache should have same title and page value when navigating",
       "app dir - metadata should not effect metadata images convention like files under pages directory",
       "app dir - metadata static routes should have /favicon.ico as route",
+      "app dir - metadata static routes should have icons as route",
       "app dir - metadata static routes should support sitemap.xml under every routes",
       "app dir - metadata static routes should support static manifest.webmanifest",
       "app dir - metadata twitter should render twitter card summary when image is not present",
@@ -3341,13 +3361,9 @@
     ],
     "failed": [
       "app dir - metadata basic should support other basic tags (edge)",
-      "app dir - metadata file based icons should handle hmr updates to the file icon",
-      "app dir - metadata file based icons should not render if image file is not specified",
-      "app dir - metadata file based icons should render icon and apple touch icon meta if their images are specified",
       "app dir - metadata icons should support root level of favicon.ico",
       "app dir - metadata navigation should render root not-found with default metadata",
       "app dir - metadata opengraph should pick up opengraph-image and twitter-image as static metadata files",
-      "app dir - metadata static routes should have icons as route",
       "app dir - metadata static routes should support root dir robots.txt"
     ],
     "pending": [],
@@ -3378,6 +3394,7 @@
       "app dir - navigation not-found should trigger not-found while streaming",
       "app dir - navigation query string should handle unicode search params",
       "app dir - navigation query string should set query correctly",
+      "app dir - navigation query string useParams identity between renders should be stable in app",
       "app dir - navigation redirect components should redirect client-side",
       "app dir - navigation redirect components should redirect in a client component",
       "app dir - navigation redirect components should redirect in a server component",
@@ -3395,7 +3412,9 @@
       "app dir - navigation relative hashes and queries should work with a query-only href",
       "app dir - navigation relative hashes and queries should work with both relative hashes and queries"
     ],
-    "failed": [],
+    "failed": [
+      "app dir - navigation query string useParams identity between renders should be stable in pages"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3412,18 +3431,18 @@
   "test/e2e/app-dir/next-font/next-font.test.ts": {
     "passed": [],
     "failed": [
-      "app app dir next-font Dev errors should recover on font loader error",
-      "app app dir next-font computed styles should have correct styles at /",
-      "app app dir next-font computed styles should have correct styles at /client",
-      "app app dir next-font import values should have correct values at /",
-      "app app dir next-font import values should have correct values at /client",
-      "app app dir next-font navigation should not have duplicate preload tags on navigation",
-      "app-old app dir next-font Dev errors should recover on font loader error",
-      "app-old app dir next-font computed styles should have correct styles at /",
-      "app-old app dir next-font computed styles should have correct styles at /client",
-      "app-old app dir next-font import values should have correct values at /",
-      "app-old app dir next-font import values should have correct values at /client",
-      "app-old app dir next-font navigation should not have duplicate preload tags on navigation"
+      "app app dir - next-font Dev errors should recover on font loader error",
+      "app app dir - next-font computed styles should have correct styles at /",
+      "app app dir - next-font computed styles should have correct styles at /client",
+      "app app dir - next-font import values should have correct values at /",
+      "app app dir - next-font import values should have correct values at /client",
+      "app app dir - next-font navigation should not have duplicate preload tags on navigation",
+      "app-old app dir - next-font Dev errors should recover on font loader error",
+      "app-old app dir - next-font computed styles should have correct styles at /",
+      "app-old app dir - next-font computed styles should have correct styles at /client",
+      "app-old app dir - next-font import values should have correct values at /",
+      "app-old app dir - next-font import values should have correct values at /client",
+      "app-old app dir - next-font navigation should not have duplicate preload tags on navigation"
     ],
     "pending": [],
     "flakey": [],
@@ -3431,7 +3450,7 @@
   },
   "test/e2e/app-dir/next-image/next-image-https.test.ts": {
     "passed": [
-      "app dir next-image (with https) only runs on CI as it requires administrator privileges"
+      "app dir - next-image (with https) only runs on CI as it requires administrator privileges"
     ],
     "failed": [],
     "pending": [],
@@ -3447,19 +3466,19 @@
   },
   "test/e2e/app-dir/next-image/next-image.test.ts": {
     "passed": [
-      "app dir next-image image content should render images nested under page dir on /nested route",
-      "app dir next-image image content should render images on /client route",
-      "app dir next-image image content should render legacy images under /legacy route"
+      "app dir - next-image image content should render images nested under page dir on /nested route",
+      "app dir - next-image image content should render images on /client route",
+      "app dir - next-image image content should render legacy images under /legacy route"
     ],
     "failed": [
-      "app dir next-image browser content should render images nested under page dir on /nested route",
-      "app dir next-image browser content should render images on / route",
-      "app dir next-image browser content should render images on /client route",
-      "app dir next-image image content should render images on / route",
-      "app dir next-image image content should render legacy images in edge runtime on /legacy-edge-runtime route",
-      "app dir next-image ssr content should render images nested under page dir on /nested route",
-      "app dir next-image ssr content should render images on / route",
-      "app dir next-image ssr content should render images on /client route"
+      "app dir - next-image browser content should render images nested under page dir on /nested route",
+      "app dir - next-image browser content should render images on / route",
+      "app dir - next-image browser content should render images on /client route",
+      "app dir - next-image image content should render images on / route",
+      "app dir - next-image image content should render legacy images in edge runtime on /legacy-edge-runtime route",
+      "app dir - next-image ssr content should render images nested under page dir on /nested route",
+      "app dir - next-image ssr content should render images on / route",
+      "app dir - next-image ssr content should render images on /client route"
     ],
     "pending": [],
     "flakey": [],
@@ -3880,6 +3899,13 @@
     "passed": [
       "with-exported-function-config should have correct values in function config manifest"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/x-forwarded-headers/x-forwarded-headers.test.ts": {
+    "passed": ["x-forwarded-headers should include x-forwarded-* headers"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -4703,6 +4729,7 @@
   },
   "test/e2e/middleware-general/test/index.test.ts": {
     "passed": [
+      "Middleware Runtime with i18n allows shallow linking with middleware",
       "Middleware Runtime with i18n allows to access env variables",
       "Middleware Runtime with i18n hard-navigates when the data request failed",
       "Middleware Runtime with i18n should accept a URL instance for fetch",
@@ -4714,6 +4741,9 @@
       "Middleware Runtime with i18n should have correct dynamic route params for middleware rewrite to dynamic route",
       "Middleware Runtime with i18n should have correct dynamic route params on client-transition to dynamic route",
       "Middleware Runtime with i18n should have correct query values for rewrite to ssg page",
+      "Middleware Runtime with i18n should have correct route params for chained rewrite from middleware to config rewrite",
+      "Middleware Runtime with i18n should have correct route params for rewrite from config dynamic route",
+      "Middleware Runtime with i18n should have correct route params for rewrite from config non-dynamic route",
       "Middleware Runtime with i18n should have init header for NextResponse.redirect",
       "Middleware Runtime with i18n should keep non data requests in their original shape",
       "Middleware Runtime with i18n should normalize data requests into page requests",
@@ -4735,6 +4765,7 @@
       "Middleware Runtime with i18n should warn when using NextResponse.redirect with a relative URL",
       "Middleware Runtime with i18n should warn when using Response.redirect with a relative URL",
       "Middleware Runtime with i18n should work with notFound: true correctly",
+      "Middleware Runtime without i18n allows shallow linking with middleware",
       "Middleware Runtime without i18n allows to access env variables",
       "Middleware Runtime without i18n hard-navigates when the data request failed",
       "Middleware Runtime without i18n should accept a URL instance for fetch",
@@ -4746,6 +4777,9 @@
       "Middleware Runtime without i18n should have correct dynamic route params for middleware rewrite to dynamic route",
       "Middleware Runtime without i18n should have correct dynamic route params on client-transition to dynamic route",
       "Middleware Runtime without i18n should have correct query values for rewrite to ssg page",
+      "Middleware Runtime without i18n should have correct route params for chained rewrite from middleware to config rewrite",
+      "Middleware Runtime without i18n should have correct route params for rewrite from config dynamic route",
+      "Middleware Runtime without i18n should have correct route params for rewrite from config non-dynamic route",
       "Middleware Runtime without i18n should keep non data requests in their original shape",
       "Middleware Runtime without i18n should normalize data requests into page requests",
       "Middleware Runtime without i18n should only contain middleware route in dev middleware manifest",
@@ -4766,18 +4800,10 @@
       "Middleware Runtime without i18n should work with notFound: true correctly"
     ],
     "failed": [
-      "Middleware Runtime with i18n allows shallow linking with middleware",
       "Middleware Runtime with i18n passes search params with rewrites",
       "Middleware Runtime with i18n refreshes the page when middleware changes ",
-      "Middleware Runtime with i18n should have correct route params for chained rewrite from middleware to config rewrite",
-      "Middleware Runtime with i18n should have correct route params for rewrite from config dynamic route",
-      "Middleware Runtime with i18n should have correct route params for rewrite from config non-dynamic route",
-      "Middleware Runtime without i18n allows shallow linking with middleware",
       "Middleware Runtime without i18n passes search params with rewrites",
       "Middleware Runtime without i18n refreshes the page when middleware changes ",
-      "Middleware Runtime without i18n should have correct route params for chained rewrite from middleware to config rewrite",
-      "Middleware Runtime without i18n should have correct route params for rewrite from config dynamic route",
-      "Middleware Runtime without i18n should have correct route params for rewrite from config non-dynamic route",
       "Middleware Runtime without i18n should have init header for NextResponse.redirect"
     ],
     "pending": [],
@@ -4914,6 +4940,8 @@
       "Middleware Rewrite should add a cookie and rewrite to a/b test",
       "Middleware Rewrite should allow to opt-out prefetch caching",
       "Middleware Rewrite should allow to rewrite keeping the locale in pathname",
+      "Middleware Rewrite should allow to rewrite to a `afterFiles` rewrite config",
+      "Middleware Rewrite should allow to rewrite to a `beforeFiles` rewrite config",
       "Middleware Rewrite should allow to rewrite to a different locale",
       "Middleware Rewrite should allow to switch locales",
       "Middleware Rewrite should behave consistently on recursive rewrites",
@@ -4924,6 +4952,7 @@
       "Middleware Rewrite should handle shallow navigation correctly (dynamic page)",
       "Middleware Rewrite should handle shallow navigation correctly (non-dynamic page)",
       "Middleware Rewrite should handle static dynamic rewrite from middleware correctly",
+      "Middleware Rewrite should handle static rewrite from next.config.js correctly",
       "Middleware Rewrite should hard navigate on 404 for data request",
       "Middleware Rewrite should have correct query info for dynamic route after query hydration",
       "Middleware Rewrite should not call middleware with shallow push",
@@ -4945,11 +4974,7 @@
       "Middleware Rewrite should rewrite without hard navigation",
       "Middleware Rewrite support colons in path"
     ],
-    "failed": [
-      "Middleware Rewrite should allow to rewrite to a `afterFiles` rewrite config",
-      "Middleware Rewrite should allow to rewrite to a `beforeFiles` rewrite config",
-      "Middleware Rewrite should handle static rewrite from next.config.js correctly"
-    ],
+    "failed": [],
     "pending": [
       "Middleware Rewrite includes the locale in rewrites by default"
     ],
@@ -4967,9 +4992,14 @@
   },
   "test/e2e/middleware-trailing-slash/test/index.test.ts": {
     "passed": [
+      "Middleware Runtime trailing slash allows shallow linking with middleware",
       "Middleware Runtime trailing slash should add a rewrite header on data requests for rewrites",
       "Middleware Runtime trailing slash should have correct dynamic route params for middleware rewrite to dynamic route",
       "Middleware Runtime trailing slash should have correct dynamic route params on client-transition to dynamic route",
+      "Middleware Runtime trailing slash should have correct route params for chained rewrite from middleware to config rewrite",
+      "Middleware Runtime trailing slash should have correct route params for rewrite from config dynamic route",
+      "Middleware Runtime trailing slash should have correct route params for rewrite from config non-dynamic route",
+      "Middleware Runtime trailing slash should have init header for NextResponse.redirect",
       "Middleware Runtime trailing slash should keep non data requests in their original shape",
       "Middleware Runtime trailing slash should normalize data requests into page requests",
       "Middleware Runtime trailing slash should redirect the same for direct visit and client-transition",
@@ -4986,13 +5016,8 @@
       "Middleware Runtime trailing slash without .html extension should work when requesting the page directly"
     ],
     "failed": [
-      "Middleware Runtime trailing slash allows shallow linking with middleware",
       "Middleware Runtime trailing slash refreshes the page when middleware changes ",
-      "Middleware Runtime trailing slash should have correct query values for rewrite to ssg page",
-      "Middleware Runtime trailing slash should have correct route params for chained rewrite from middleware to config rewrite",
-      "Middleware Runtime trailing slash should have correct route params for rewrite from config dynamic route",
-      "Middleware Runtime trailing slash should have correct route params for rewrite from config non-dynamic route",
-      "Middleware Runtime trailing slash should have init header for NextResponse.redirect"
+      "Middleware Runtime trailing slash should have correct query values for rewrite to ssg page"
     ],
     "pending": [],
     "flakey": [],
@@ -5337,6 +5362,7 @@
       "Prerender should navigate to dynamic page with brackets in param as string",
       "Prerender should never show fallback for page not in getStaticPaths when blocking",
       "Prerender should not contain headers already sent error",
+      "Prerender should not error when rewriting to fallback dynamic SSG page",
       "Prerender should not fail to update incremental cache",
       "Prerender should not fallback before invalid JSON is returned from getStaticProps when blocking fallback",
       "Prerender should not have attempted sending invalid payload",
@@ -5371,9 +5397,7 @@
       "Prerender should support prerendered catchall-explicit route (nested)",
       "Prerender should support prerendered catchall-explicit route (single)"
     ],
-    "failed": [
-      "Prerender should not error when rewriting to fallback dynamic SSG page"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5409,12 +5433,12 @@
   },
   "test/e2e/skip-trailing-slash-redirect/index.test.ts": {
     "passed": [
-      "skip-trailing-slash-redirect app dir should navigate client side correctly",
-      "skip-trailing-slash-redirect app dir should not apply trailing slash redirect (with slash)",
-      "skip-trailing-slash-redirect app dir should not apply trailing slash redirect (without slash)",
-      "skip-trailing-slash-redirect app dir should preserve original trailing slashes to links on client",
-      "skip-trailing-slash-redirect app dir should respond to dynamic route correctly",
-      "skip-trailing-slash-redirect app dir should respond to index correctly",
+      "skip-trailing-slash-redirect app dir - skip trailing slash redirect should navigate client side correctly",
+      "skip-trailing-slash-redirect app dir - skip trailing slash redirect should not apply trailing slash redirect (with slash)",
+      "skip-trailing-slash-redirect app dir - skip trailing slash redirect should not apply trailing slash redirect (without slash)",
+      "skip-trailing-slash-redirect app dir - skip trailing slash redirect should preserve original trailing slashes to links on client",
+      "skip-trailing-slash-redirect app dir - skip trailing slash redirect should respond to dynamic route correctly",
+      "skip-trailing-slash-redirect app dir - skip trailing slash redirect should respond to index correctly",
       "skip-trailing-slash-redirect pages dir should navigate client side correctly",
       "skip-trailing-slash-redirect pages dir should not apply trailing slash redirect (with slash)",
       "skip-trailing-slash-redirect pages dir should not apply trailing slash redirect (without slash)",
@@ -6040,11 +6064,11 @@
     "passed": [],
     "failed": [],
     "pending": [
-      "app dir with output export (next dev / next build) production mode should correctly emit exported assets to config.distDir",
-      "app dir with output export (next dev / next build) production mode should error when \"next export -o <dir>\" is used with config",
-      "app dir with output export (next dev / next build) production mode should error when no config.output detected for next export",
-      "app dir with output export (next dev / next build) production mode should throw when exportPathMap configured",
-      "app dir with output export (next dev / next build) production mode should warn about \"next export\" is no longer needed with config"
+      "app dir - with output export (next dev / next build) production mode should correctly emit exported assets to config.distDir",
+      "app dir - with output export (next dev / next build) production mode should error when \"next export -o <dir>\" is used with config",
+      "app dir - with output export (next dev / next build) production mode should error when no config.output detected for next export",
+      "app dir - with output export (next dev / next build) production mode should throw when exportPathMap configured",
+      "app dir - with output export (next dev / next build) production mode should warn about \"next export\" is no longer needed with config"
     ],
     "flakey": [],
     "runtimeError": false
@@ -6120,8 +6144,8 @@
     "passed": [],
     "failed": [],
     "pending": [
-      "app dir with output export (next start) production mode should error during next start with output export",
-      "app dir with output export (next start) production mode should warn during next start with output standalone"
+      "app dir - with output export (next start) production mode should error during next start with output export",
+      "app dir - with output export (next start) production mode should warn during next start with output standalone"
     ],
     "flakey": [],
     "runtimeError": false
@@ -6612,9 +6636,7 @@
       "Config Experimental Warning should show warning with config from object with experimental",
       "Config Experimental Warning should show warning with config from object with experimental and multiple keys"
     ],
-    "failed": [
-      "Config Experimental Warning should show warning for dropped experimental.appDir option"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7156,13 +7178,12 @@
   },
   "test/integration/custom-routes-i18n/test/index.test.js": {
     "passed": [
+      "Custom routes i18n dev mode should navigate on the client with rewrites correctly",
       "Custom routes i18n dev mode should respond to default locale redirects correctly",
       "Custom routes i18n dev mode should rewrite correctly",
       "Custom routes i18n dev mode should rewrite index routes correctly"
     ],
-    "failed": [
-      "Custom routes i18n dev mode should navigate on the client with rewrites correctly"
-    ],
+    "failed": [],
     "pending": [
       "Custom routes i18n production mode should navigate on the client with rewrites correctly",
       "Custom routes i18n production mode should respond to default locale redirects correctly",
@@ -7188,6 +7209,8 @@
       "Custom routes dev mode should handle api rewrite with param successfully",
       "Custom routes dev mode should handle api rewrite with un-named param successfully",
       "Custom routes dev mode should handle basic api rewrite successfully",
+      "Custom routes dev mode should handle beforeFiles rewrite to dynamic route correctly",
+      "Custom routes dev mode should handle beforeFiles rewrite to partly dynamic route correctly",
       "Custom routes dev mode should handle chained redirects successfully",
       "Custom routes dev mode should handle chained rewrites successfully",
       "Custom routes dev mode should handle encoded value in the pathname correctly",
@@ -7224,6 +7247,7 @@
       "Custom routes dev mode should match has query redirect correctly",
       "Custom routes dev mode should match has query redirect with duplicate query key",
       "Custom routes dev mode should match has query rewrite correctly",
+      "Custom routes dev mode should match has rewrite correctly before files",
       "Custom routes dev mode should match missing cookie headers correctly",
       "Custom routes dev mode should match missing cookie redirect correctly",
       "Custom routes dev mode should match missing cookie rewrite correctly",
@@ -7242,8 +7266,10 @@
       "Custom routes dev mode should not pass non captured has value for rewrite correctly",
       "Custom routes dev mode should not rewrite for _next/data route when a match is found",
       "Custom routes dev mode should overwrite param values correctly",
+      "Custom routes dev mode should parse params correctly for rewrite to auto-export dynamic page",
       "Custom routes dev mode should pass captured has value for rewrite correctly",
       "Custom routes dev mode should pass has segment for rewrite correctly",
+      "Custom routes dev mode should provide params correctly for rewrite to auto-export non-dynamic page",
       "Custom routes dev mode should redirect successfully with catchall",
       "Custom routes dev mode should redirect successfully with permanent: false",
       "Custom routes dev mode should redirect successfully with provided statusCode",
@@ -7251,6 +7277,7 @@
       "Custom routes dev mode should redirect with URL in query correctly non-encoded",
       "Custom routes dev mode should redirect with hash successfully",
       "Custom routes dev mode should redirect with params successfully",
+      "Custom routes dev mode should resolveHref correctly navigating through history",
       "Custom routes dev mode should rewrite with params successfully",
       "Custom routes dev mode should server static files through a rewrite",
       "Custom routes dev mode should successfully rewrite a WebSocket request",
@@ -7263,6 +7290,8 @@
       "Custom routes dev mode should support unnamed parameters correctly",
       "Custom routes dev mode should work successfully on the client",
       "Custom routes dev mode should work with rewrite when manually specifying href/as",
+      "Custom routes dev mode should work with rewrite when only specifying href",
+      "Custom routes dev mode should work with rewrite when only specifying href and ends in dynamic route",
       "Custom routes dev mode show allow redirect to override the page",
       "Custom routes no-op rewrite should not error for no-op rewrite and auto export dynamic route",
       "Custom routes should load custom routes when only one type is used dev mode should work with just headers",
@@ -7270,15 +7299,7 @@
       "Custom routes should load custom routes when only one type is used dev mode should work with just rewrites"
     ],
     "failed": [
-      "Custom routes dev mode should handle beforeFiles rewrite to dynamic route correctly",
-      "Custom routes dev mode should handle beforeFiles rewrite to partly dynamic route correctly",
-      "Custom routes dev mode should handle external beforeFiles rewrite correctly",
-      "Custom routes dev mode should match has rewrite correctly before files",
-      "Custom routes dev mode should parse params correctly for rewrite to auto-export dynamic page",
-      "Custom routes dev mode should provide params correctly for rewrite to auto-export non-dynamic page",
-      "Custom routes dev mode should resolveHref correctly navigating through history",
-      "Custom routes dev mode should work with rewrite when only specifying href",
-      "Custom routes dev mode should work with rewrite when only specifying href and ends in dynamic route"
+      "Custom routes dev mode should handle external beforeFiles rewrite correctly"
     ],
     "pending": [
       "Custom routes export production mode should not show warning for custom routes when next export on Vercel",
@@ -8586,6 +8607,15 @@
       "Handle ESM externals with esmExternals: true production mode should render the ssr page",
       "Handle ESM externals with esmExternals: true production mode should render the static page"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/externals-pages-bundle/test/externals.test.js": {
+    "passed": [
+      "default should use externals for unvendored node_modules reachable from the project"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -10223,11 +10253,10 @@
   },
   "test/integration/gssp-redirect-with-rewrites/test/index.test.js": {
     "passed": [
-      "getServerSideProps redirects should fallback to browser navigation for an unknown URL"
-    ],
-    "failed": [
+      "getServerSideProps redirects should fallback to browser navigation for an unknown URL",
       "getServerSideProps redirects should use a client-side navigation for a rewritten URL"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10243,6 +10272,7 @@
       "GS(S)P Redirect Support dev mode should apply redirect when fallback GSP page is visited directly (external domain)",
       "GS(S)P Redirect Support dev mode should apply redirect when fallback GSP page is visited directly (external)",
       "GS(S)P Redirect Support dev mode should apply redirect when fallback GSP page is visited directly (internal dynamic)",
+      "GS(S)P Redirect Support dev mode should apply redirect when fallback GSP page is visited directly (internal normal)",
       "GS(S)P Redirect Support dev mode should apply redirect when fallback GSSP page is visited directly (external domain)",
       "GS(S)P Redirect Support dev mode should apply redirect when fallback blocking GSP page is visited directly (internal dynamic)",
       "GS(S)P Redirect Support dev mode should apply redirect when fallback blocking GSP page is visited directly (internal dynamic) second visit",
@@ -10256,9 +10286,7 @@
       "GS(S)P Redirect Support dev mode should not replace history of the origin page when GSSP page is navigated to client-side (external)",
       "GS(S)P Redirect Support dev mode should not replace history of the origin page when GSSP page is navigated to client-side (internal normal)"
     ],
-    "failed": [
-      "GS(S)P Redirect Support dev mode should apply redirect when fallback GSP page is visited directly (internal normal)"
-    ],
+    "failed": [],
     "pending": [
       "GS(S)P Redirect Support production mode should apply permanent redirect when visited directly for GSSP page",
       "GS(S)P Redirect Support production mode should apply redirect when GSP page is navigated to client-side (external)",
@@ -10589,11 +10617,10 @@
   },
   "test/integration/i18n-support-index-rewrite/test/index.test.js": {
     "passed": [
+      "Custom routes i18n support index rewrite dev mode should handle index rewrite on client correctly",
       "Custom routes i18n support index rewrite dev mode should rewrite index route correctly"
     ],
-    "failed": [
-      "Custom routes i18n support index rewrite dev mode should handle index rewrite on client correctly"
-    ],
+    "failed": [],
     "pending": [
       "Custom routes i18n support index rewrite production mode should handle index rewrite on client correctly",
       "Custom routes i18n support index rewrite production mode should rewrite index route correctly"
@@ -11141,6 +11168,7 @@
       "with outdated sharp Production Mode Server support with next.config.js should fail when w is not a number",
       "with outdated sharp Production Mode Server support with next.config.js should fail when width is not in next.config.js",
       "with outdated sharp Production Mode Server support with next.config.js should handle concurrent requests",
+      "with outdated sharp Production Mode Server support with next.config.js should handle custom sharp usage",
       "with outdated sharp Production Mode Server support with next.config.js should handle non-ascii characters in image url",
       "with outdated sharp Production Mode Server support with next.config.js should have sharp outdated warning",
       "with outdated sharp Production Mode Server support with next.config.js should maintain animated gif",
@@ -11359,6 +11387,7 @@
       "with latest sharp Production Mode Server support with next.config.js should fail when w is not a number",
       "with latest sharp Production Mode Server support with next.config.js should fail when width is not in next.config.js",
       "with latest sharp Production Mode Server support with next.config.js should handle concurrent requests",
+      "with latest sharp Production Mode Server support with next.config.js should handle custom sharp usage",
       "with latest sharp Production Mode Server support with next.config.js should handle non-ascii characters in image url",
       "with latest sharp Production Mode Server support with next.config.js should maintain animated gif",
       "with latest sharp Production Mode Server support with next.config.js should maintain animated png",
@@ -13647,10 +13676,10 @@
     "runtimeError": false
   },
   "test/integration/rewrite-with-browser-history/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "rewrites persist with browser history actions dev mode back-button should go back to rewritten path successfully"
     ],
+    "failed": [],
     "pending": [
       "rewrites persist with browser history actions production mode back-button should go back to rewritten path successfully"
     ],
@@ -13688,11 +13717,11 @@
     "runtimeError": false
   },
   "test/integration/rewrites-has-condition/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "rewrites has condition dev mode should navigate to a has rewrite without error",
       "rewrites has condition dev mode should navigate to a simple rewrite without error"
     ],
+    "failed": [],
     "pending": [
       "rewrites has condition production mode should navigate to a has rewrite without error",
       "rewrites has condition production mode should navigate to a simple rewrite without error"
@@ -13701,11 +13730,11 @@
     "runtimeError": false
   },
   "test/integration/rewrites-manual-href-as/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "rewrites manual href/as dev mode should allow manual href/as on dynamic page",
       "rewrites manual href/as dev mode should allow manual href/as on index page"
     ],
+    "failed": [],
     "pending": [
       "rewrites manual href/as production mode should allow manual href/as on dynamic page",
       "rewrites manual href/as production mode should allow manual href/as on index page"
@@ -13923,22 +13952,22 @@
   },
   "test/integration/scroll-back-restoration/test/index.test.js": {
     "passed": [
-      "Scroll Restoration Support dev mode should restore the scroll position on navigating back"
+      "Scroll Back Restoration Support dev mode should restore the scroll position on navigating back"
     ],
     "failed": [],
     "pending": [
-      "Scroll Restoration Support production mode should restore the scroll position on navigating back"
+      "Scroll Back Restoration Support production mode should restore the scroll position on navigating back"
     ],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/scroll-forward-restoration/test/index.test.js": {
-    "passed": [],
-    "failed": [
-      "Scroll Restoration Support dev mode should restore the scroll position on navigating forward"
+    "passed": [
+      "Scroll Forward Restoration Support dev mode should restore the scroll position on navigating forward"
     ],
+    "failed": [],
     "pending": [
-      "Scroll Restoration Support production mode should restore the scroll position on navigating forward"
+      "Scroll Forward Restoration Support production mode should restore the scroll position on navigating forward"
     ],
     "flakey": [],
     "runtimeError": false
@@ -14516,6 +14545,7 @@
       "tsconfig.json verifier allows you to set node16 module mode",
       "tsconfig.json verifier allows you to set node16 moduleResolution mode",
       "tsconfig.json verifier allows you to set target mode",
+      "tsconfig.json verifier allows you to set verbatimModuleSyntax true via extends without adding isolatedModules",
       "tsconfig.json verifier allows you to set verbatimModuleSyntax true without adding isolatedModules",
       "tsconfig.json verifier creates compilerOptions when you extend another config"
     ],
@@ -14600,9 +14630,10 @@
   },
   "test/integration/typescript-hmr/test/index.test.js": {
     "passed": [
-      "TypeScript HMR delete a page and add it back should detect the changes to typescript pages and display it"
+      "TypeScript HMR delete a page and add it back should detect the changes to typescript pages and display it",
+      "TypeScript HMR should ignore type errors in development"
     ],
-    "failed": ["TypeScript HMR should ignore type errors in development"],
+    "failed": [],
     "pending": ["TypeScript HMR should recover from a type error"],
     "flakey": [],
     "runtimeError": false

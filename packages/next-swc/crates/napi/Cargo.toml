@@ -75,6 +75,7 @@ turbopack-binding = { workspace = true, features = [
   "__turbopack",
   "__turbopack_ecmascript_hmr_protocol",
 ] }
+url = {workspace = true}
 
 [target.'cfg(not(all(target_os = "linux", target_env = "musl", target_arch = "aarch64")))'.dependencies]
 turbopack-binding = { workspace = true, features = ["__turbo_tasks_malloc"] }

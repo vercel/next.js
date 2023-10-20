@@ -12,6 +12,7 @@ import type { NextUrlWithParsedQuery } from '../../request-meta'
 import url from 'url'
 import setupDebug from 'next/dist/compiled/debug'
 import { getCloneableBody } from '../../body-streams'
+import { filterReqHeaders, ipcForbiddenHeaders } from '../server-ipc/utils'
 import { stringifyQuery } from '../../server-route-utils'
 import { formatHostname } from '../format-hostname'
 import { toNodeOutgoingHttpHeaders } from '../../web/utils'
@@ -115,7 +116,7 @@ export function getResolveRoutes(
     let parsedUrl = url.parse(req.url || '', true) as NextUrlWithParsedQuery
     let didRewrite = false
 
-    const urlParts = (req.url || '').split('?')
+    const urlParts = (req.url || '').split('?', 1)
     const urlNoQuery = urlParts[0]
 
     // this normalizes repeated slashes in the path e.g. hello//world ->
@@ -457,7 +458,7 @@ export function getResolveRoutes(
               const { res: mockedRes } = await createRequestResponseMocks({
                 url: req.url || '/',
                 method: req.method || 'GET',
-                headers: invokeHeaders,
+                headers: filterReqHeaders(invokeHeaders, ipcForbiddenHeaders),
                 resWriter(chunk) {
                   readableController.enqueue(Buffer.from(chunk))
                   return true
@@ -560,7 +561,7 @@ export function getResolveRoutes(
             delete middlewareHeaders['x-middleware-next']
 
             for (const [key, value] of Object.entries({
-              ...middlewareHeaders,
+              ...filterReqHeaders(middlewareHeaders, ipcForbiddenHeaders),
             })) {
               if (
                 [
