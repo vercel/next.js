@@ -339,10 +339,11 @@ export default async function build(
   runLint = true,
   noMangling = false,
   appDirOnly = false,
-  turboNextBuild = false,
+  a = false,
   turboNextBuildRoot = null,
   buildMode: 'default' | 'experimental-compile' | 'experimental-generate'
 ): Promise<void> {
+  const turboNextBuild = false
   const isCompile = buildMode === 'experimental-compile'
   const isGenerate = buildMode === 'experimental-generate'
 
