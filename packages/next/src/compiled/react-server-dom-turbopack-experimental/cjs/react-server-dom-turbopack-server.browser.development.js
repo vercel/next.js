@@ -1173,6 +1173,8 @@ function isArray(a) {
   return isArrayImpl(a);
 }
 
+var getPrototypeOf = Object.getPrototypeOf;
+
 // in case they error.
 
 var jsxPropsParents = new WeakMap();
@@ -1191,7 +1193,7 @@ function isObjectPrototype(object) {
   // still just a plain simple object.
 
 
-  if (Object.getPrototypeOf(object)) {
+  if (getPrototypeOf(object)) {
     return false;
   }
 
@@ -1207,7 +1209,7 @@ function isObjectPrototype(object) {
 }
 
 function isSimpleObject(object) {
-  if (!isObjectPrototype(Object.getPrototypeOf(object))) {
+  if (!isObjectPrototype(getPrototypeOf(object))) {
     return false;
   }
 
@@ -1534,6 +1536,20 @@ function getOrCreateServerContext(globalName) {
   return ContextRegistry[globalName];
 }
 
+var ReactSharedServerInternals = // $FlowFixMe: It's defined in the one we resolve to.
+React.__SECRET_SERVER_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
+
+if (!ReactSharedServerInternals) {
+  throw new Error('The "react" package in this environment is not configured correctly. ' + 'The "react-server" condition must be enabled in any environment that ' + 'runs React Server Components.');
+}
+
+// Turns a TypedArray or ArrayBuffer into a string that can be used for comparison
+// in a Map to see if the bytes are the same.
+function binaryToComparableString(view) {
+  return String.fromCharCode.apply(String, new Uint8Array(view.buffer, view.byteOffset, view.byteLength));
+}
+
+var ObjectPrototype = Object.prototype;
 var stringify = JSON.stringify; // Serializable values
 // Thenable<ReactClientValue>
 
@@ -1541,8 +1557,37 @@ var PENDING$1 = 0;
 var COMPLETED = 1;
 var ABORTED = 3;
 var ERRORED$1 = 4;
+var TaintRegistryObjects = ReactSharedServerInternals.TaintRegistryObjects,
+    TaintRegistryValues = ReactSharedServerInternals.TaintRegistryValues,
+    TaintRegistryByteLengths = ReactSharedServerInternals.TaintRegistryByteLengths,
+    TaintRegistryPendingRequests = ReactSharedServerInternals.TaintRegistryPendingRequests,
+    ReactCurrentCache = ReactSharedServerInternals.ReactCurrentCache;
 var ReactCurrentDispatcher = ReactSharedInternals.ReactCurrentDispatcher;
-var ReactCurrentCache = ReactSharedInternals.ReactCurrentCache;
+
+function throwTaintViolation(message) {
+  // eslint-disable-next-line react-internal/prod-error-codes
+  throw new Error(message);
+}
+
+function cleanupTaintQueue(request) {
+  var cleanupQueue = request.taintCleanupQueue;
+  TaintRegistryPendingRequests.delete(cleanupQueue);
+
+  for (var i = 0; i < cleanupQueue.length; i++) {
+    var entryValue = cleanupQueue[i];
+    var entry = TaintRegistryValues.get(entryValue);
+
+    if (entry !== undefined) {
+      if (entry.count === 1) {
+        TaintRegistryValues.delete(entryValue);
+      } else {
+        entry.count--;
+      }
+    }
+  }
+
+  cleanupQueue.length = 0;
+}
 
 function defaultErrorHandler(error) {
   console['error'](error); // Don't transform to our wrapper
@@ -1563,6 +1608,12 @@ function createRequest(model, bundlerConfig, onError, context, identifierPrefix,
   ReactCurrentCache.current = DefaultCacheDispatcher;
   var abortSet = new Set();
   var pingedTasks = [];
+  var cleanupQueue = [];
+
+  {
+    TaintRegistryPendingRequests.add(cleanupQueue);
+  }
+
   var hints = createHints();
   var request = {
     status: OPEN,
@@ -1586,6 +1637,7 @@ function createRequest(model, bundlerConfig, onError, context, identifierPrefix,
     writtenProviders: new Map(),
     identifierPrefix: identifierPrefix || '',
     identifierCount: 1,
+    taintCleanupQueue: cleanupQueue,
     onError: onError === undefined ? defaultErrorHandler : onError,
     onPostpone: onPostpone === undefined ? defaultPostponeHandler : onPostpone,
     // $FlowFixMe[missing-this-annot]
@@ -2053,6 +2105,18 @@ function serializeSet(request, set) {
 }
 
 function serializeTypedArray(request, tag, typedArray) {
+  {
+    if (TaintRegistryByteLengths.has(typedArray.byteLength)) {
+      // If we have had any tainted values of this length, we check
+      // to see if these bytes matches any entries in the registry.
+      var tainted = TaintRegistryValues.get(binaryToComparableString(typedArray));
+
+      if (tainted !== undefined) {
+        throwTaintViolation(tainted.message);
+      }
+    }
+  }
+
   request.pendingChunks += 2;
   var bufferId = request.nextChunkId++; // TODO: Convert to little endian if that's not the server default.
 
@@ -2187,6 +2251,14 @@ function resolveModelToJSON(request, parent, key, value) {
   }
 
   if (typeof value === 'object') {
+    {
+      var tainted = TaintRegistryObjects.get(value);
+
+      if (tainted !== undefined) {
+        throwTaintViolation(tainted);
+      }
+    }
+
     if (isClientReference(value)) {
       return serializeClientReference(request, parent, key, value); // $FlowFixMe[method-unbinding]
     } else if (typeof value.then === 'function') {
@@ -2216,6 +2288,11 @@ function resolveModelToJSON(request, parent, key, value) {
       }
 
       return undefined;
+    }
+
+    if (isArray(value)) {
+      // $FlowFixMe[incompatible-return]
+      return value;
     }
 
     if (value instanceof Map) {
@@ -2292,27 +2369,29 @@ function resolveModelToJSON(request, parent, key, value) {
       }
     }
 
-    if (!isArray(value)) {
-      var iteratorFn = getIteratorFn(value);
+    var iteratorFn = getIteratorFn(value);
 
-      if (iteratorFn) {
-        return Array.from(value);
-      }
+    if (iteratorFn) {
+      return Array.from(value);
+    } // Verify that this is a simple plain object.
+
+
+    var proto = getPrototypeOf(value);
+
+    if (proto !== ObjectPrototype && (proto === null || getPrototypeOf(proto) !== null)) {
+      throw new Error('Only plain objects, and a few built-ins, can be passed to Client Components ' + 'from Server Components. Classes or null prototypes are not supported.');
     }
 
     {
-      if (value !== null && !isArray(value)) {
-        // Verify that this is a simple plain object.
-        if (objectName(value) !== 'Object') {
-          error('Only plain objects can be passed to Client Components from Server Components. ' + '%s objects are not supported.%s', objectName(value), describeObjectForErrorMessage(parent, key));
-        } else if (!isSimpleObject(value)) {
-          error('Only plain objects can be passed to Client Components from Server Components. ' + 'Classes or other objects with methods are not supported.%s', describeObjectForErrorMessage(parent, key));
-        } else if (Object.getOwnPropertySymbols) {
-          var symbols = Object.getOwnPropertySymbols(value);
+      if (objectName(value) !== 'Object') {
+        error('Only plain objects can be passed to Client Components from Server Components. ' + '%s objects are not supported.%s', objectName(value), describeObjectForErrorMessage(parent, key));
+      } else if (!isSimpleObject(value)) {
+        error('Only plain objects can be passed to Client Components from Server Components. ' + 'Classes or other objects with methods are not supported.%s', describeObjectForErrorMessage(parent, key));
+      } else if (Object.getOwnPropertySymbols) {
+        var symbols = Object.getOwnPropertySymbols(value);
 
-          if (symbols.length > 0) {
-            error('Only plain objects can be passed to Client Components from Server Components. ' + 'Objects with symbol properties like %s are not supported.%s', symbols[0].description, describeObjectForErrorMessage(parent, key));
-          }
+        if (symbols.length > 0) {
+          error('Only plain objects can be passed to Client Components from Server Components. ' + 'Objects with symbol properties like %s are not supported.%s', symbols[0].description, describeObjectForErrorMessage(parent, key));
         }
       }
     } // $FlowFixMe[incompatible-return]
@@ -2322,7 +2401,15 @@ function resolveModelToJSON(request, parent, key, value) {
   }
 
   if (typeof value === 'string') {
-    // TODO: Maybe too clever. If we support URL there's no similar trick.
+    {
+      var _tainted = TaintRegistryValues.get(value);
+
+      if (_tainted !== undefined) {
+        throwTaintViolation(_tainted.message);
+      }
+    } // TODO: Maybe too clever. If we support URL there's no similar trick.
+
+
     if (value[value.length - 1] === 'Z') {
       // Possibly a Date, whose toJSON automatically calls toISOString
       // $FlowFixMe[incompatible-use]
@@ -2356,6 +2443,14 @@ function resolveModelToJSON(request, parent, key, value) {
   }
 
   if (typeof value === 'function') {
+    {
+      var _tainted2 = TaintRegistryObjects.get(value);
+
+      if (_tainted2 !== undefined) {
+        throwTaintViolation(_tainted2);
+      }
+    }
+
     if (isClientReference(value)) {
       return serializeClientReference(request, parent, key, value);
     }
@@ -2395,6 +2490,14 @@ function resolveModelToJSON(request, parent, key, value) {
   }
 
   if (typeof value === 'bigint') {
+    {
+      var _tainted3 = TaintRegistryValues.get(value);
+
+      if (_tainted3 !== undefined) {
+        throwTaintViolation(_tainted3.message);
+      }
+    }
+
     return serializeBigInt(value);
   }
 
@@ -2419,7 +2522,11 @@ function logRecoverableError(request, error) {
 }
 
 function fatalError(request, error) {
-  // This is called outside error handling code such as if an error happens in React internals.
+  {
+    cleanupTaintQueue(request);
+  } // This is called outside error handling code such as if an error happens in React internals.
+
+
   if (request.destination !== null) {
     request.status = CLOSED;
     closeWithError(request.destination, error);
@@ -2715,6 +2822,10 @@ function flushCompletedChunks(request, destination) {
 
   if (request.pendingChunks === 0) {
     // We're done.
+    {
+      cleanupTaintQueue(request);
+    }
+
     close$1(destination);
   }
 }

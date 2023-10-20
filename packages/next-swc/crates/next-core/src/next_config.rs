@@ -486,6 +486,7 @@ pub struct ExperimentalConfig {
     /// Using this feature will enable the `react@experimental` for the `app`
     /// directory.
     ppr: Option<bool>,
+    taint: Option<bool>,
     proxy_timeout: Option<f64>,
     /// Allows adjusting body parser size limit for server actions.
     server_actions_body_size_limit: Option<SizeLimit>,

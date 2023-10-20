@@ -6,6 +6,7 @@ import type {
   WrittenEndpoint,
   ServerClientChange,
   Issue,
+  Project,
 } from '../../../build/swc'
 import type { Socket } from 'net'
 import type { FilesystemDynamicRoute } from './filesystem'
@@ -78,6 +79,7 @@ import {
   PAGES_MANIFEST,
   PHASE_DEVELOPMENT_SERVER,
   SERVER_REFERENCE_MANIFEST,
+  REACT_LOADABLE_MANIFEST,
 } from '../../../shared/lib/constants'
 
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
@@ -96,6 +98,10 @@ import {
   getSourceById,
   parseStack,
 } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
+import {
+  getOverlayMiddleware,
+  createOriginalStackFrame as createOriginalTurboStackFrame,
+} from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware-turbopack'
 import { mkdir, readFile, writeFile, rename, unlink } from 'fs/promises'
 import { PageNotFoundError } from '../../../shared/lib/utils'
 import {
@@ -117,6 +123,7 @@ import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route
 import { clearModuleContext } from '../render-server'
 import type { ActionManifest } from '../../../build/webpack/plugins/flight-client-entry-plugin'
 import { denormalizePagePath } from '../../../shared/lib/page-path/denormalize-page-path'
+import type { LoadableManifest } from '../../load-components'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -198,6 +205,7 @@ async function startWatcher(opts: SetupOpts) {
   } = {}
 
   let hotReloader: NextJsHotReloaderInterface
+  let project: Project | undefined
 
   if (opts.turbo) {
     const { loadBindings } =
@@ -221,7 +229,7 @@ async function startWatcher(opts: SetupOpts) {
       opts.fsChecker.rewrites.beforeFiles.length > 0 ||
       opts.fsChecker.rewrites.fallback.length > 0
 
-    const project = await bindings.turbo.createProject({
+    project = await bindings.turbo.createProject({
       projectPath: dir,
       rootPath: opts.nextConfig.experimental.outputFileTracingRoot || dir,
       nextConfig: opts.nextConfig,
@@ -503,6 +511,7 @@ async function startWatcher(opts: SetupOpts) {
       ws,
       Map<string, AsyncIterator<any>>
     >()
+    const loadbleManifests = new Map<string, LoadableManifest>()
     const clients = new Set<ws>()
 
     async function loadMiddlewareManifest(
@@ -557,6 +566,16 @@ async function startWatcher(opts: SetupOpts) {
           pageName,
           'app'
         )
+      )
+    }
+
+    async function loadLoadableManifest(
+      pageName: string,
+      type: 'app' | 'pages' = 'pages'
+    ): Promise<void> {
+      loadbleManifests.set(
+        pageName,
+        await loadPartialManifest(REACT_LOADABLE_MANIFEST, pageName, type)
       )
     }
 
@@ -694,6 +713,14 @@ async function startWatcher(opts: SetupOpts) {
         mergeActionIds(manifest.edge, m.edge)
       }
 
+      return manifest
+    }
+
+    function mergeLoadableManifests(manifests: Iterable<LoadableManifest>) {
+      const manifest: LoadableManifest = {}
+      for (const m of manifests) {
+        Object.assign(manifest, m)
+      }
       return manifest
     }
 
@@ -866,13 +893,14 @@ async function startWatcher(opts: SetupOpts) {
       )
     }
 
-    async function writeOtherManifests(): Promise<void> {
-      const loadableManifestPath = path.join(
-        distDir,
-        'react-loadable-manifest.json'
-      )
+    async function writeLoadableManifest(): Promise<void> {
+      const loadableManifest = mergeLoadableManifests(loadbleManifests.values())
+      const loadableManifestPath = path.join(distDir, REACT_LOADABLE_MANIFEST)
       deleteCache(loadableManifestPath)
-      await writeFileAtomic(loadableManifestPath, JSON.stringify({}, null, 2))
+      await writeFileAtomic(
+        loadableManifestPath,
+        JSON.stringify(loadableManifest, null, 2)
+      )
     }
 
     async function subscribeToHmrEvents(id: string, client: ws) {
@@ -883,7 +911,7 @@ async function startWatcher(opts: SetupOpts) {
       }
       if (mapping.has(id)) return
 
-      const subscription = project.hmrEvents(id)
+      const subscription = project!.hmrEvents(id)
       mapping.set(id, subscription)
 
       // The subscription will always emit once, which is the initial
@@ -1052,15 +1080,16 @@ async function startWatcher(opts: SetupOpts) {
     await writeAppPathsManifest()
     await writeMiddlewareManifest()
     await writeActionManifest()
-    await writeOtherManifests()
     await writeFontManifest()
+    await writeLoadableManifest()
 
+    const overlayMiddleware = getOverlayMiddleware(project)
     const turbopackHotReloader: NextJsHotReloaderInterface = {
       turbopackProject: project,
       activeWebpackConfigs: undefined,
       serverStats: null,
       edgeServerStats: null,
-      async run(req, _res, _parsedUrl) {
+      async run(req, res, _parsedUrl) {
         // intercept page chunks request and ensure them with turbopack
         if (req.url?.startsWith('/_next/static/chunks/pages/')) {
           const params = matchNextPageBundleRequest(req.url)
@@ -1081,6 +1110,9 @@ async function startWatcher(opts: SetupOpts) {
               .catch(console.error)
           }
         }
+
+        await overlayMiddleware(req, res)
+
         // Request was not finished.
         return { finished: undefined }
       },
@@ -1220,7 +1252,7 @@ async function startWatcher(opts: SetupOpts) {
           await writeFallbackBuildManifest()
           await writePagesManifest()
           await writeMiddlewareManifest()
-          await writeOtherManifests()
+          await writeLoadableManifest()
 
           return
         }
@@ -1329,12 +1361,13 @@ async function startWatcher(opts: SetupOpts) {
             } else {
               middlewareManifests.delete(page)
             }
+            await loadLoadableManifest(page, 'pages')
 
             await writeBuildManifest(opts.fsChecker.rewrites)
             await writeFallbackBuildManifest()
             await writePagesManifest()
             await writeMiddlewareManifest()
-            await writeOtherManifests()
+            await writeLoadableManifest()
 
             processIssues(page, page, writtenEndpoint)
 
@@ -1358,10 +1391,11 @@ async function startWatcher(opts: SetupOpts) {
             } else {
               middlewareManifests.delete(page)
             }
+            await loadLoadableManifest(page, 'pages')
 
             await writePagesManifest()
             await writeMiddlewareManifest()
-            await writeOtherManifests()
+            await writeLoadableManifest()
 
             processIssues(page, page, writtenEndpoint)
 
@@ -1395,7 +1429,7 @@ async function startWatcher(opts: SetupOpts) {
             await writeAppPathsManifest()
             await writeMiddlewareManifest()
             await writeActionManifest()
-            await writeOtherManifests()
+            await writeLoadableManifest()
 
             processIssues(page, page, writtenEndpoint, true)
 
@@ -1420,7 +1454,7 @@ async function startWatcher(opts: SetupOpts) {
             await writeAppPathsManifest()
             await writeMiddlewareManifest()
             await writeMiddlewareManifest()
-            await writeOtherManifests()
+            await writeLoadableManifest()
 
             processIssues(page, page, writtenEndpoint, true)
 
@@ -2153,47 +2187,59 @@ async function startWatcher(opts: SetupOpts) {
             !file?.includes('<anonymous>')
         )
 
+        let originalFrame, isEdgeCompiler
         if (frame?.lineNumber && frame?.file) {
-          const moduleId = frame.file!.replace(
-            /^(webpack-internal:\/\/\/|file:\/\/)/,
-            ''
-          )
-          const modulePath = frame.file.replace(
-            /^(webpack-internal:\/\/\/|file:\/\/)(\(.*\)\/)?/,
-            ''
-          )
+          if (opts.turbo) {
+            try {
+              originalFrame = await createOriginalTurboStackFrame(
+                project!,
+                frame
+              )
+            } catch {}
+          } else {
+            const moduleId = frame.file!.replace(
+              /^(webpack-internal:\/\/\/|file:\/\/)/,
+              ''
+            )
+            const modulePath = frame.file.replace(
+              /^(webpack-internal:\/\/\/|file:\/\/)(\(.*\)\/)?/,
+              ''
+            )
 
-          const src = getErrorSource(err as Error)
-          const isEdgeCompiler = src === COMPILER_NAMES.edgeServer
-          const compilation = (
-            isEdgeCompiler
-              ? hotReloader.edgeServerStats?.compilation
-              : hotReloader.serverStats?.compilation
-          )!
+            const src = getErrorSource(err as Error)
+            isEdgeCompiler = src === COMPILER_NAMES.edgeServer
+            const compilation = (
+              isEdgeCompiler
+                ? hotReloader.edgeServerStats?.compilation
+                : hotReloader.serverStats?.compilation
+            )!
 
-          const source = await getSourceById(
-            !!frame.file?.startsWith(path.sep) ||
-              !!frame.file?.startsWith('file:'),
-            moduleId,
-            compilation
-          )
+            const source = await getSourceById(
+              !!frame.file?.startsWith(path.sep) ||
+                !!frame.file?.startsWith('file:'),
+              moduleId,
+              compilation
+            )
 
-          const originalFrame = await createOriginalStackFrame({
-            line: frame.lineNumber,
-            column: frame.column,
-            source,
-            frame,
-            moduleId,
-            modulePath,
-            rootDirectory: opts.dir,
-            errorMessage: err.message,
-            serverCompilation: isEdgeCompiler
-              ? undefined
-              : hotReloader.serverStats?.compilation,
-            edgeCompilation: isEdgeCompiler
-              ? hotReloader.edgeServerStats?.compilation
-              : undefined,
-          }).catch(() => {})
+            try {
+              originalFrame = await createOriginalStackFrame({
+                line: frame.lineNumber,
+                column: frame.column,
+                source,
+                frame,
+                moduleId,
+                modulePath,
+                rootDirectory: opts.dir,
+                errorMessage: err.message,
+                serverCompilation: isEdgeCompiler
+                  ? undefined
+                  : hotReloader.serverStats?.compilation,
+                edgeCompilation: isEdgeCompiler
+                  ? hotReloader.edgeServerStats?.compilation
+                  : undefined,
+              })
+            } catch {}
+          }
 
           if (originalFrame) {
             const { originalCodeFrame, originalStackFrame } = originalFrame

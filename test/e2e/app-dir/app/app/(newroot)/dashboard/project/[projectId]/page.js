@@ -1,6 +1,6 @@
 import { use } from 'react'
 
-function getData({ params }) {
+async function getData({ params }) {
   return {
     now: Date.now(),
     params,
