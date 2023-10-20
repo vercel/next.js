@@ -4,10 +4,10 @@ use anyhow::Result;
 use turbo_tasks::{ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
-use super::Issue;
+use super::{Issue, OptionIssueSource};
 use crate::{
     error::PrettyPrintError,
-    issue::{IssueSeverity, OptionIssueSource},
+    issue::{IssueSeverity, IssueSource},
     resolve::{options::ResolveOptions, parse::Request},
 };
 
@@ -19,7 +19,7 @@ pub struct ResolvingIssue {
     pub file_path: Vc<FileSystemPath>,
     pub resolve_options: Vc<ResolveOptions>,
     pub error_message: Option<String>,
-    pub source: Vc<OptionIssueSource>,
+    pub source: Option<Vc<IssueSource>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -102,7 +102,7 @@ impl Issue for ResolvingIssue {
 
     #[turbo_tasks::function]
     fn source(&self) -> Vc<OptionIssueSource> {
-        self.source
+        Vc::cell(self.source)
     }
 
     // TODO add sub_issue for a description of resolve_options

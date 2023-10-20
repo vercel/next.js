@@ -7,7 +7,7 @@ use turbo_tasks_fs::DirectoryContent;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     ident::AssetIdent,
-    issue::{IssueSeverity, OptionIssueSource},
+    issue::IssueSeverity,
     module::Module,
     raw_module::RawModule,
     reference::{ModuleReference, ModuleReferences},
@@ -180,12 +180,7 @@ impl CompilerReference {
 impl ModuleReference for CompilerReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        cjs_resolve(
-            self.origin,
-            self.request,
-            OptionIssueSource::none(),
-            IssueSeverity::Error.cell(),
-        )
+        cjs_resolve(self.origin, self.request, None, IssueSeverity::Error.cell())
     }
 }
 
@@ -252,12 +247,7 @@ impl TsNodeRequireReference {
 impl ModuleReference for TsNodeRequireReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        cjs_resolve(
-            self.origin,
-            self.request,
-            OptionIssueSource::none(),
-            IssueSeverity::Error.cell(),
-        )
+        cjs_resolve(self.origin, self.request, None, IssueSeverity::Error.cell())
     }
 }
 

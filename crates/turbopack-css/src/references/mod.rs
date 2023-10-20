@@ -12,7 +12,7 @@ use swc_core::{
 };
 use turbo_tasks::{Value, Vc};
 use turbopack_core::{
-    issue::{IssueSeverity, IssueSource, OptionIssueSource},
+    issue::{IssueSeverity, IssueSource},
     reference::{ModuleReference, ModuleReferences},
     reference_type::{CssReferenceSubType, ReferenceType},
     resolve::{
@@ -177,7 +177,7 @@ pub async fn css_resolve(
     origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
     ty: Value<CssReferenceSubType>,
-    issue_source: Vc<OptionIssueSource>,
+    issue_source: Option<Vc<IssueSource>>,
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = Value::new(ReferenceType::Css(ty.into_value()));
     let options = origin.resolve_options(ty.clone());

@@ -6,7 +6,7 @@ use swc_core::{
 use turbo_tasks::{Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::ChunkableModuleReference,
-    issue::{IssueSource, OptionIssueSource},
+    issue::IssueSource,
     reference::ModuleReference,
     resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
 };
@@ -54,7 +54,7 @@ impl ModuleReference for CjsAssetReference {
         cjs_resolve(
             self.origin,
             self.request,
-            OptionIssueSource::some(self.issue_source),
+            Some(self.issue_source),
             try_to_severity(self.in_try),
         )
     }
@@ -111,7 +111,7 @@ impl ModuleReference for CjsRequireAssetReference {
         cjs_resolve(
             self.origin,
             self.request,
-            OptionIssueSource::some(self.issue_source),
+            Some(self.issue_source),
             try_to_severity(self.in_try),
         )
     }
@@ -145,7 +145,7 @@ impl CodeGenerateable for CjsRequireAssetReference {
             cjs_resolve(
                 self.origin,
                 self.request,
-                OptionIssueSource::some(self.issue_source),
+                Some(self.issue_source),
                 try_to_severity(self.in_try),
             ),
             Value::new(Cjs),
@@ -235,7 +235,7 @@ impl ModuleReference for CjsRequireResolveAssetReference {
         cjs_resolve(
             self.origin,
             self.request,
-            OptionIssueSource::some(self.issue_source),
+            Some(self.issue_source),
             try_to_severity(self.in_try),
         )
     }
@@ -269,7 +269,7 @@ impl CodeGenerateable for CjsRequireResolveAssetReference {
             cjs_resolve(
                 self.origin,
                 self.request,
-                OptionIssueSource::some(self.issue_source),
+                Some(self.issue_source),
                 try_to_severity(self.in_try),
             ),
             Value::new(Cjs),

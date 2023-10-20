@@ -119,7 +119,7 @@ pub trait Issue {
     /// should point at the offending character. Displayed to the user alongside
     /// the title/description.
     fn source(self: Vc<Self>) -> Vc<OptionIssueSource> {
-        OptionIssueSource::none()
+        Vc::cell(None)
     }
 
     fn sub_issues(self: Vc<Self>) -> Vc<Issues> {
@@ -448,19 +448,6 @@ impl IssueSource {
 
 #[turbo_tasks::value(transparent)]
 pub struct OptionIssueSource(Option<Vc<IssueSource>>);
-
-#[turbo_tasks::value_impl]
-impl OptionIssueSource {
-    #[turbo_tasks::function]
-    pub fn some(source: Vc<IssueSource>) -> Vc<Self> {
-        Vc::cell(Some(source))
-    }
-
-    #[turbo_tasks::function]
-    pub fn none() -> Vc<Self> {
-        Vc::cell(None)
-    }
-}
 
 #[turbo_tasks::value(serialization = "none")]
 #[derive(Clone, Debug)]

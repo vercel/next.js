@@ -12,7 +12,7 @@ use swc_core::{
 use turbo_tasks::{Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
-    issue::{IssueSource, OptionIssueSource},
+    issue::IssueSource,
     reference::ModuleReference,
     reference_type::CssReferenceSubType,
     resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
@@ -218,7 +218,7 @@ impl ModuleReference for ImportAssetReference {
             self.origin,
             self.request,
             Value::new(CssReferenceSubType::AtImport),
-            OptionIssueSource::some(self.issue_source),
+            Some(self.issue_source),
         )
     }
 }

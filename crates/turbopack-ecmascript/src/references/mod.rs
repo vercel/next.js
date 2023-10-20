@@ -51,7 +51,7 @@ use turbo_tasks_fs::{FileJsonContent, FileSystemPath};
 use turbopack_core::{
     compile_time_info::{CompileTimeInfo, FreeVarReference},
     error::PrettyPrintError,
-    issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, IssueSource, OptionIssueSource},
+    issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, IssueSource},
     module::Module,
     reference::{ModuleReference, ModuleReferences, SourceMapReference},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
@@ -1190,7 +1190,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 options.include_subdirs,
                 Vc::cell(options.filter),
                 Vc::cell(ast_path.to_vec()),
-                OptionIssueSource::some(issue_source(source, span)),
+                Some(issue_source(source, span)),
                 in_try,
             ));
         }
@@ -2100,12 +2100,7 @@ async fn require_resolve_visitor(
     Ok(if args.len() == 1 {
         let pat = js_value_to_pattern(&args[0]);
         let request = Request::parse(Value::new(pat.clone()));
-        let resolved = cjs_resolve(
-            origin,
-            request,
-            OptionIssueSource::none(),
-            try_to_severity(in_try),
-        );
+        let resolved = cjs_resolve(origin, request, None, try_to_severity(in_try));
         let mut values = resolved
             .primary_modules()
             .await?
@@ -2167,7 +2162,7 @@ async fn require_context_visitor(
         dir,
         options.include_subdirs,
         Vc::cell(options.filter),
-        OptionIssueSource::none(),
+        None,
         try_to_severity(in_try),
     );
 

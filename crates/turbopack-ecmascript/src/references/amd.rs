@@ -15,7 +15,7 @@ use turbo_tasks::{
 };
 use turbopack_core::{
     chunk::ChunkableModuleReference,
-    issue::{IssueSource, OptionIssueSource},
+    issue::IssueSource,
     reference::ModuleReference,
     resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
 };
@@ -63,7 +63,7 @@ impl ModuleReference for AmdDefineAssetReference {
         cjs_resolve(
             self.origin,
             self.request,
-            OptionIssueSource::some(self.issue_source),
+            Some(self.issue_source),
             try_to_severity(self.in_try),
         )
     }
@@ -156,7 +156,7 @@ impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
                                 cjs_resolve(
                                     self.origin,
                                     *request,
-                                    OptionIssueSource::some(self.issue_source),
+                                    Some(self.issue_source),
                                     try_to_severity(self.in_try),
                                 ),
                                 Value::new(Cjs),
