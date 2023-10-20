@@ -37,6 +37,7 @@ use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::Arc};
 use auto_cjs::contains_cjs;
 use either::Either;
 use fxhash::FxHashSet;
+use next_transform_dynamic::{next_dynamic, NextDynamicMode};
 use next_transform_font::next_font_loaders;
 use serde::Deserialize;
 use turbopack_binding::swc::{
@@ -58,7 +59,6 @@ mod auto_cjs;
 pub mod cjs_optimizer;
 pub mod disallow_re_export_all_in_page;
 pub mod named_import_transform;
-pub mod next_dynamic;
 pub mod next_ssg;
 pub mod optimize_barrel;
 pub mod optimize_server_react;
@@ -226,7 +226,7 @@ where
             !opts.disable_next_ssg
         ),
         amp_attributes::amp_attributes(),
-        next_dynamic::next_dynamic(
+        next_dynamic(
             opts.is_development,
             opts.is_server,
             match &opts.server_components {
@@ -238,6 +238,7 @@ where
                 },
                 _ => false,
             },
+            NextDynamicMode::Webpack,
             file.name.clone(),
             opts.pages_dir.clone()
         ),

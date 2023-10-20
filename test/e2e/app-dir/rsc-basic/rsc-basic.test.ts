@@ -46,7 +46,7 @@ createNextDescribe(
             clientReferenceManifest.clientModules
           )
           clientModulesNames.every((name) => {
-            const [, key] = name.split('#')
+            const [, key] = name.split('#', 2)
             return key === undefined || key === '' || key === 'default'
           })
 
@@ -591,7 +591,7 @@ createNextDescribe(
     }
 
     describe('react@experimental', () => {
-      it.each([{ flag: 'ppr' }, { flag: 'serverActions' }])(
+      it.each([{ flag: 'ppr' }, { flag: 'serverActions' }, { flag: 'taint' }])(
         'should opt into the react@experimental when enabling $flag',
         async ({ flag }) => {
           await next.stop()

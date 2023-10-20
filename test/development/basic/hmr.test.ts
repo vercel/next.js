@@ -662,7 +662,7 @@ describe.each([[''], ['/docs']])(
                       " 1 of 1 unhandled error
                       Server Error
 
-                      Error: The default export is not a React Component in page: \\"/hmr/about5\\"
+                      Error: The default export is not a React Component in page: "/hmr/about5"
 
                       This error happened while generating the page. Any console logs will be displayed in the terminal window."
                   `)
@@ -765,7 +765,7 @@ describe.each([[''], ['/docs']])(
                       " 1 of 1 unhandled error
                       Server Error
 
-                      Error: The default export is not a React Component in page: \\"/hmr/about7\\"
+                      Error: The default export is not a React Component in page: "/hmr/about7"
 
                       This error happened while generating the page. Any console logs will be displayed in the terminal window."
                   `)

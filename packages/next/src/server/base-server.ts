@@ -230,6 +230,7 @@ type BaseRenderOpts = {
   distDir: string
   runtime?: ServerRuntime
   serverComponents?: boolean
+  enableTainting?: boolean
   crossOrigin?: 'anonymous' | 'use-credentials' | '' | undefined
   supportsDynamicHTML?: boolean
   isBot?: boolean
@@ -478,6 +479,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       domainLocales: this.nextConfig.i18n?.domains,
       distDir: this.distDir,
       serverComponents,
+      enableTainting: this.nextConfig.experimental.taint,
       crossOrigin: this.nextConfig.crossOrigin
         ? this.nextConfig.crossOrigin
         : undefined,
@@ -579,7 +581,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     if (this.i18nProvider) {
       // Remove the port from the hostname if present.
-      const hostname = req?.headers.host?.split(':')[0].toLowerCase()
+      const hostname = req?.headers.host?.split(':', 1)[0].toLowerCase()
 
       const domainLocale = this.i18nProvider.detectDomainLocale(hostname)
       const defaultLocale =
@@ -792,7 +794,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         return origSetHeader(name, val)
       }
 
-      const urlParts = (req.url || '').split('?')
+      const urlParts = (req.url || '').split('?', 1)
       const urlNoQuery = urlParts[0]
 
       // this normalizes repeated slashes in the path e.g. hello//world ->

@@ -10,7 +10,6 @@ import type { NextUrlWithParsedQuery } from './request-meta'
 import type { WorkerRequestHandler, WorkerUpgradeHandler } from './lib/types'
 
 import './require-hook'
-import './node-polyfill-fetch'
 import './node-polyfill-crypto'
 
 import type { default as Server } from './next-server'

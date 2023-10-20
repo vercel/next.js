@@ -22,32 +22,6 @@ var ReactCurrentDispatcher$1 = {
 };
 
 /**
- * Keeps track of the current Cache dispatcher.
- */
-var ReactCurrentCache = {
-  current: null
-};
-
-/**
- * Keeps track of the current batch's configuration such as how long an update
- * should suspend for if it needs to.
- */
-var ReactCurrentBatchConfig = {
-  transition: null
-};
-
-var ReactCurrentActQueue = {
-  current: null,
-  // Used to reproduce behavior of `batchedUpdates` in legacy mode.
-  isBatchingLegacy: false,
-  didScheduleLegacyUpdate: false,
-  // Tracks whether something called `use` during the current batch of work.
-  // Determines whether we should yield to microtasks to unwrap already resolved
-  // promises without suspending.
-  didUsePromise: false
-};
-
-/**
  * Keeps track of the current owner.
  *
  * The current owner is the component who should own any components that are
@@ -109,22 +83,13 @@ var enableLegacyHidden = false; // Enables unstable_avoidThisFallback feature in
 
 var enableDebugTracing = false; // Track which Fiber(s) schedule render work.
 
-var ContextRegistry$1 = {};
-
 var ReactSharedInternals = {
   ReactCurrentDispatcher: ReactCurrentDispatcher$1,
-  ReactCurrentCache: ReactCurrentCache,
-  ReactCurrentBatchConfig: ReactCurrentBatchConfig,
   ReactCurrentOwner: ReactCurrentOwner
 };
 
 {
   ReactSharedInternals.ReactDebugCurrentFrame = ReactDebugCurrentFrame$1;
-  ReactSharedInternals.ReactCurrentActQueue = ReactCurrentActQueue;
-}
-
-{
-  ReactSharedInternals.ContextRegistry = ContextRegistry$1;
 }
 
 // by calls to these methods by a Babel plugin.
@@ -181,6 +146,13 @@ function printWarning(level, format, args) {
 }
 
 var assign = Object.assign;
+
+/**
+ * Keeps track of the current Cache dispatcher.
+ */
+var ReactCurrentCache = {
+  current: null
+};
 
 function createFetchCache() {
   return new Map();
@@ -305,7 +277,11 @@ function generateCacheKey(request) {
   }
 }
 
-var ReactVersion = '18.3.0-canary-d900fadbf-20230929';
+var ReactServerSharedInternals = {
+  ReactCurrentCache: ReactCurrentCache
+};
+
+var ReactVersion = '18.3.0-canary-d803f519e-20231020';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -318,7 +294,6 @@ var REACT_STRICT_MODE_TYPE = Symbol.for('react.strict_mode');
 var REACT_PROFILER_TYPE = Symbol.for('react.profiler');
 var REACT_PROVIDER_TYPE = Symbol.for('react.provider');
 var REACT_CONTEXT_TYPE = Symbol.for('react.context');
-var REACT_SERVER_CONTEXT_TYPE = Symbol.for('react.server_context');
 var REACT_FORWARD_REF_TYPE = Symbol.for('react.forward_ref');
 var REACT_SUSPENSE_TYPE = Symbol.for('react.suspense');
 var REACT_SUSPENSE_LIST_TYPE = Symbol.for('react.suspense_list');
@@ -326,7 +301,6 @@ var REACT_MEMO_TYPE = Symbol.for('react.memo');
 var REACT_LAZY_TYPE = Symbol.for('react.lazy');
 var REACT_OFFSCREEN_TYPE = Symbol.for('react.offscreen');
 var REACT_CACHE_TYPE = Symbol.for('react.cache');
-var REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
 var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 var FAUX_ITERATOR_SYMBOL = '@@iterator';
 function getIteratorFn(maybeIterable) {
@@ -634,7 +608,7 @@ function testStringCoercion(value) {
 function checkKeyStringCoercion(value) {
   {
     if (willCoercionThrow(value)) {
-      error('The provided key is an unsupported type %s.' + ' This value must be coerced to a string before before using it here.', typeName(value));
+      error('The provided key is an unsupported type %s.' + ' This value must be coerced to a string before using it here.', typeName(value));
 
       return testStringCoercion(value); // throw (to help callers find troubleshooting comments)
     }
@@ -737,12 +711,6 @@ function getComponentNameFromType(type) {
           } catch (x) {
             return null;
           }
-        }
-
-      case REACT_SERVER_CONTEXT_TYPE:
-        {
-          var context2 = type;
-          return (context2.displayName || context2._globalName) + '.Provider';
         }
 
     }
@@ -2507,80 +2475,19 @@ function cloneElementWithValidation(element, props, children) {
   return newElement;
 }
 
-var ContextRegistry = ReactSharedInternals.ContextRegistry;
 function createServerContext(globalName, defaultValue) {
-
   {
-    error('Server Context is deprecated and will soon be removed. ' + 'It was never documented and we have found it not to be useful ' + 'enough to warrant the downside it imposes on all apps.');
+    throw new Error('Not implemented.');
   }
-
-  var wasDefined = true;
-
-  if (!ContextRegistry[globalName]) {
-    wasDefined = false;
-    var _context = {
-      $$typeof: REACT_SERVER_CONTEXT_TYPE,
-      // As a workaround to support multiple concurrent renderers, we categorize
-      // some renderers as primary and others as secondary. We only expect
-      // there to be two concurrent renderers at most: React Native (primary) and
-      // Fabric (secondary); React DOM (primary) and React ART (secondary).
-      // Secondary renderers store their context values on separate fields.
-      _currentValue: defaultValue,
-      _currentValue2: defaultValue,
-      _defaultValue: defaultValue,
-      // Used to track how many concurrent renderers this context currently
-      // supports within in a single renderer. Such as parallel server rendering.
-      _threadCount: 0,
-      // These are circular
-      Provider: null,
-      Consumer: null,
-      _globalName: globalName
-    };
-    _context.Provider = {
-      $$typeof: REACT_PROVIDER_TYPE,
-      _context: _context
-    };
-
-    {
-      var hasWarnedAboutUsingConsumer;
-      _context._currentRenderer = null;
-      _context._currentRenderer2 = null;
-      Object.defineProperties(_context, {
-        Consumer: {
-          get: function () {
-            if (!hasWarnedAboutUsingConsumer) {
-              error('Consumer pattern is not supported by ReactServerContext');
-
-              hasWarnedAboutUsingConsumer = true;
-            }
-
-            return null;
-          }
-        }
-      });
-    }
-
-    ContextRegistry[globalName] = _context;
-  }
-
-  var context = ContextRegistry[globalName];
-
-  if (context._defaultValue === REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED) {
-    context._defaultValue = defaultValue;
-
-    if (context._currentValue === REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED) {
-      context._currentValue = defaultValue;
-    }
-
-    if (context._currentValue2 === REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED) {
-      context._currentValue2 = defaultValue;
-    }
-  } else if (wasDefined) {
-    throw new Error("ServerContext: " + globalName + " already defined");
-  }
-
-  return context;
 }
+
+/**
+ * Keeps track of the current batch's configuration such as how long an update
+ * should suspend for if it needs to.
+ */
+var ReactCurrentBatchConfig = {
+  transition: null
+};
 
 function startTransition(scope, options) {
   var prevTransition = ReactCurrentBatchConfig.transition;
@@ -2626,6 +2533,7 @@ exports.Profiler = REACT_PROFILER_TYPE;
 exports.StrictMode = REACT_STRICT_MODE_TYPE;
 exports.Suspense = REACT_SUSPENSE_TYPE;
 exports.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = ReactSharedInternals;
+exports.__SECRET_SERVER_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = ReactServerSharedInternals;
 exports.cache = cache;
 exports.cloneElement = cloneElement;
 exports.createElement = createElement;

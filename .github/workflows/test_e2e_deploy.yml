@@ -10,14 +10,14 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     env:
       VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
       VERCEL_TEST_TEAM: vtest314-next-e2e-tests
       DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
       NAPI_CLI_VERSION: 2.16.2
       TURBO_VERSION: 1.10.9
-      NODE_MAINTENANCE_VERSION: 16
-      NODE_LTS_VERSION: 18
+      NODE_LTS_VERSION: 20
       CARGO_PROFILE_RELEASE_LTO: 'true'
       TURBO_TEAM: 'vercel'
       TURBO_REMOTE_ONLY: 'true'
@@ -50,7 +50,7 @@ jobs:
       - run: RESET_VC_PROJECT=true node scripts/reset-vercel-project.mjs
         name: Reset test project
 
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.35.1-jammy /bin/bash -c "cd /work && NODE_VERSION=${{ env.NODE_LTS_VERSION }} ./scripts/setup-node.sh && corepack enable > /dev/null && DATADOG_TRACE_NEXTJS_TEST=TRUE DATADOG_API_KEY=${DATADOG_API_KEY} DD_ENV=ci VERCEL_TEST_TOKEN=${{ secrets.VERCEL_TEST_TOKEN }} VERCEL_TEST_TEAM=vtest314-next-e2e-tests NEXT_TEST_JOB=1 NEXT_TEST_MODE=deploy TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} NEXT_TEST_CONTINUE_ON_ERROR=1 xvfb-run node run-tests.js --type e2e --timings -g ${{ matrix.group }}/2 -c 2 >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.35.1-jammy /bin/bash -c "cd /work && NODE_VERSION=${{ env.NODE_LTS_VERSION }} ./scripts/setup-node.sh && corepack enable > /dev/null && DATADOG_TRACE_NEXTJS_TEST=TRUE DATADOG_API_KEY=${DATADOG_API_KEY} DD_ENV=ci VERCEL_TEST_TOKEN=${{ secrets.VERCEL_TEST_TOKEN }} VERCEL_TEST_TEAM=vtest314-next-e2e-tests NEXT_TEST_JOB=1 NEXT_TEST_MODE=deploy TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} NEXT_TEST_CONTINUE_ON_ERROR=1 xvfb-run node run-tests.js --type e2e --timings -g ${{ matrix.group }}/2 -c 1 >> /proc/1/fd/1"
         name: Run test/e2e (deploy)
 
       - name: Upload test trace
