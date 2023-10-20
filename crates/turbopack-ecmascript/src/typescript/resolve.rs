@@ -9,7 +9,7 @@ use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
     ident::AssetIdent,
-    issue::{Issue, IssueExt, IssueSeverity, OptionIssueSource},
+    issue::{Issue, IssueExt, IssueSeverity},
     reference::ModuleReference,
     reference_type::{ReferenceType, TypeScriptReferenceSubType},
     resolve::{
@@ -372,7 +372,7 @@ pub async fn type_resolve(
         origin.origin_path(),
         request,
         options,
-        OptionIssueSource::none(),
+        None,
         IssueSeverity::Error.cell(),
     )
     .await

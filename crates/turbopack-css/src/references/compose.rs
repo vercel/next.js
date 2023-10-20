@@ -2,7 +2,6 @@ use anyhow::Result;
 use turbo_tasks::{Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::ChunkableModuleReference,
-    issue::OptionIssueSource,
     reference::ModuleReference,
     reference_type::CssReferenceSubType,
     resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
@@ -38,7 +37,7 @@ impl ModuleReference for CssModuleComposeReference {
             // TODO: add real issue source, currently impossible because `CssClassName` doesn't
             // contain the source span
             // https://docs.rs/swc_css_modules/0.21.16/swc_css_modules/enum.CssClassName.html
-            OptionIssueSource::none(),
+            None,
         )
     }
 }

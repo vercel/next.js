@@ -6,7 +6,7 @@ use swc_core::{
 use turbo_tasks::{Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingType, ChunkingTypeOption},
-    issue::{IssueSource, OptionIssueSource},
+    issue::IssueSource,
     reference::ModuleReference,
     reference_type::EcmaScriptModulesReferenceSubType,
     resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
@@ -59,7 +59,7 @@ impl ModuleReference for EsmAsyncAssetReference {
             self.origin,
             self.request,
             Default::default(),
-            OptionIssueSource::some(self.issue_source),
+            Some(self.issue_source),
             try_to_severity(self.in_try),
         )
     }
@@ -99,7 +99,7 @@ impl CodeGenerateable for EsmAsyncAssetReference {
                 self.origin,
                 self.request,
                 Value::new(EcmaScriptModulesReferenceSubType::Undefined),
-                OptionIssueSource::some(self.issue_source).resolve().await?,
+                Some(self.issue_source),
                 try_to_severity(self.in_try),
             ),
             Value::new(EsmAsync),

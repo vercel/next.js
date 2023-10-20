@@ -52,7 +52,7 @@ pub use alias_map::{
 };
 pub use remap::{ResolveAliasMap, SubpathValue};
 
-use crate::issue::{IssueSeverity, OptionIssueSource};
+use crate::issue::{IssueSeverity, IssueSource};
 
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
@@ -1209,7 +1209,7 @@ async fn resolve_internal(
                      relative to the file you are importing from."
                         .to_string(),
                 ),
-                source: OptionIssueSource::none(),
+                source: None,
             }
             .cell()
             .emit();
@@ -1228,7 +1228,7 @@ async fn resolve_internal(
                 file_path: lookup_path,
                 resolve_options: options,
                 error_message: Some("windows imports are not implemented yet".to_string()),
-                source: OptionIssueSource::none(),
+                source: None,
             }
             .cell()
             .emit();
@@ -1275,7 +1275,7 @@ async fn resolve_internal(
                 file_path: lookup_path,
                 resolve_options: options,
                 error_message: None,
-                source: OptionIssueSource::none(),
+                source: None,
             }
             .cell()
             .emit();
@@ -1620,7 +1620,7 @@ async fn resolve_alias_field_result(
         request: Request::parse(Value::new(Pattern::Constant(issue_request.to_string()))),
         resolve_options,
         error_message: Some(format!("invalid alias field value: {}", result)),
-        source: OptionIssueSource::none(),
+        source: None,
     }
     .cell()
     .emit();
@@ -1791,7 +1791,7 @@ async fn resolve_package_internal_with_imports_field(
             request,
             resolve_options,
             error_message: None,
-            source: OptionIssueSource::none(),
+            source: None,
         }
         .cell()
         .emit();
@@ -1855,7 +1855,7 @@ pub async fn handle_resolve_error(
     origin_path: Vc<FileSystemPath>,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
-    source: Vc<OptionIssueSource>,
+    source: Option<Vc<IssueSource>>,
     severity: Vc<IssueSeverity>,
 ) -> Result<Vc<ModuleResolveResult>> {
     Ok(match result.is_unresolveable().await {

@@ -11,7 +11,7 @@ use turbopack_core::{
         ChunkItemExt, ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
         ChunkingTypeOption, ModuleId,
     },
-    issue::{IssueSeverity, OptionIssueSource},
+    issue::IssueSeverity,
     module::Module,
     reference::ModuleReference,
     reference_type::EcmaScriptModulesReferenceSubType,
@@ -162,7 +162,7 @@ impl ModuleReference for EsmAssetReference {
             self.get_origin().resolve().await?,
             self.request,
             ty,
-            OptionIssueSource::none(),
+            None,
             IssueSeverity::Error.cell(),
         ))
     }

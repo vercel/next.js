@@ -4,7 +4,7 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets},
     context::AssetContext,
-    issue::{IssueSeverity, OptionIssueSource},
+    issue::IssueSeverity,
     module::Module,
     resolve::{origin::PlainResolveOrigin, parse::Request},
     source::Source,
@@ -36,7 +36,7 @@ impl RuntimeEntry {
         let modules = cjs_resolve(
             Vc::upcast(PlainResolveOrigin::new(asset_context, path)),
             request,
-            OptionIssueSource::none(),
+            None,
             IssueSeverity::Error.cell(),
         )
         .primary_modules()
