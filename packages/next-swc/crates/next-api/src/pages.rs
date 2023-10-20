@@ -40,7 +40,10 @@ use turbopack_binding::{
         build::{BuildChunkingContext, EntryChunkGroupResult},
         core::{
             asset::AssetContent,
-            chunk::{availability_info::AvailabilityInfo, ChunkingContextExt, EvaluatableAssets},
+            chunk::{
+                availability_info::AvailabilityInfo, ChunkGroupResult, ChunkingContext,
+                ChunkingContextExt, EvaluatableAssets,
+            },
             context::AssetContext,
             file_source::FileSource,
             issue::IssueSeverity,
@@ -161,22 +164,26 @@ impl PagesProject {
             .await?;
         }
 
+        let app_endpoint = self.app_endpoint_internal().resolve().await?;
+
         let make_page_route = |pathname, original_name, path| Route::Page {
-            html_endpoint: Vc::upcast(PageEndpoint::new(
+            html_endpoint: Vc::upcast(PageEndpoint::new_with_depend_on(
                 PageEndpointType::Html,
                 self,
                 pathname,
                 original_name,
                 path,
                 pages_structure,
+                app_endpoint,
             )),
-            data_endpoint: Vc::upcast(PageEndpoint::new(
+            data_endpoint: Vc::upcast(PageEndpoint::new_with_depend_on(
                 PageEndpointType::Data,
                 self,
                 pathname,
                 original_name,
                 path,
                 pages_structure,
+                app_endpoint,
             )),
         };
 
@@ -192,7 +199,7 @@ impl PagesProject {
         self: Vc<Self>,
         item: Vc<PagesStructureItem>,
         ty: PageEndpointType,
-    ) -> Result<Vc<Box<dyn Endpoint>>> {
+    ) -> Result<Vc<PageEndpoint>> {
         let PagesStructureItem {
             next_router_path,
             project_path,
@@ -215,20 +222,31 @@ impl PagesProject {
 
     #[turbo_tasks::function]
     pub async fn document_endpoint(self: Vc<Self>) -> Result<Vc<Box<dyn Endpoint>>> {
-        Ok(self.to_endpoint(
+        Ok(Vc::upcast(self.to_endpoint(
             self.pages_structure().await?.document,
             PageEndpointType::SsrOnly,
-        ))
+        )))
     }
 
     #[turbo_tasks::function]
-    pub async fn app_endpoint(self: Vc<Self>) -> Result<Vc<Box<dyn Endpoint>>> {
+    async fn app_endpoint_internal(self: Vc<Self>) -> Result<Vc<PageEndpoint>> {
         Ok(self.to_endpoint(self.pages_structure().await?.app, PageEndpointType::Html))
     }
 
     #[turbo_tasks::function]
+    pub async fn app_endpoint(self: Vc<Self>) -> Result<Vc<Box<dyn Endpoint>>> {
+        Ok(Vc::upcast(self.to_endpoint(
+            self.pages_structure().await?.app,
+            PageEndpointType::Html,
+        )))
+    }
+
+    #[turbo_tasks::function]
     pub async fn error_endpoint(self: Vc<Self>) -> Result<Vc<Box<dyn Endpoint>>> {
-        Ok(self.to_endpoint(self.pages_structure().await?.error, PageEndpointType::Html))
+        Ok(Vc::upcast(self.to_endpoint(
+            self.pages_structure().await?.error,
+            PageEndpointType::Html,
+        )))
     }
 
     #[turbo_tasks::function]
@@ -533,6 +551,7 @@ struct PageEndpoint {
     original_name: Vc<String>,
     path: Vc<FileSystemPath>,
     pages_structure: Vc<PagesStructure>,
+    depend_on: Option<Vc<PageEndpoint>>,
 }
 
 #[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Debug, TaskInput, TraceRawVcs)]
@@ -561,6 +580,29 @@ impl PageEndpoint {
             original_name,
             path,
             pages_structure,
+            depend_on: None,
+        }
+        .cell()
+    }
+
+    #[turbo_tasks::function]
+    fn new_with_depend_on(
+        ty: PageEndpointType,
+        pages_project: Vc<PagesProject>,
+        pathname: Vc<String>,
+        original_name: Vc<String>,
+        path: Vc<FileSystemPath>,
+        pages_structure: Vc<PagesStructure>,
+        depend_on: Vc<PageEndpoint>,
+    ) -> Vc<Self> {
+        PageEndpoint {
+            ty,
+            pages_project,
+            pathname,
+            original_name,
+            path,
+            pages_structure,
+            depend_on: Some(depend_on),
         }
         .cell()
     }
@@ -572,7 +614,7 @@ impl PageEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn client_chunks(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
+    async fn client_chunks_chunk_group(self: Vc<Self>) -> Result<Vc<ChunkGroupResult>> {
         async move {
             let this = self.await?;
 
@@ -616,29 +658,51 @@ impl PageEndpoint {
 
             let client_chunking_context = this.pages_project.project().client_chunking_context();
 
-            let mut client_chunks = client_chunking_context
-                .evaluated_chunk_group_assets(
+            let availablility_info = if let Some(depend_on) = this.depend_on {
+                depend_on
+                    .client_chunks_chunk_group()
+                    .await?
+                    .availability_info
+            } else {
+                AvailabilityInfo::Root
+            };
+
+            let ChunkGroupResult {
+                assets,
+                availability_info,
+            } = *client_chunking_context
+                .evaluated_chunk_group(
                     client_module.ident(),
                     this.pages_project
                         .client_runtime_entries()
                         .with_entry(Vc::upcast(client_main_module))
                         .with_entry(Vc::upcast(client_module)),
-                    Value::new(AvailabilityInfo::Root),
+                    Value::new(availablility_info),
                 )
-                .await?
-                .clone_value();
+                .await?;
 
-            client_chunks.push(Vc::upcast(PageLoaderAsset::new(
+            let new_assets = assets.await?.clone_value();
+
+            new_assets.push(Vc::upcast(PageLoaderAsset::new(
                 this.pages_project.project().client_root(),
                 this.pathname,
                 self.client_relative_path(),
-                Vc::cell(client_chunks.clone()),
+                assets,
             )));
 
-            Ok(Vc::cell(client_chunks))
+            Ok(ChunkGroupResult {
+                assets: Vc::cell(new_assets),
+                availability_info,
+            }
+            .cell())
         }
         .instrument(tracing::info_span!("page client side rendering"))
         .await
+    }
+
+    #[turbo_tasks::function]
+    fn client_chunks(self: Vc<Self>) -> Vc<OutputAssets> {
+        self.client_chunks_chunk_group().await?.assets
     }
 
     #[turbo_tasks::function]
