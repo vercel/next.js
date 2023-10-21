@@ -1391,7 +1391,6 @@ export default async function getBaseWebpackConfig(
         'next-flight-client-entry-loader',
         'next-flight-action-entry-loader',
         'next-flight-client-module-loader',
-        'noop-loader',
         'empty-loader',
         'next-middleware-loader',
         'next-edge-function-loader',
@@ -1656,7 +1655,7 @@ export default async function getBaseWebpackConfig(
                 // Alias react for switching between default set and share subset.
                 oneOf: [
                   {
-                    exclude: [asyncStoragesRegex],
+                    exclude: asyncStoragesRegex,
                     issuerLayer: isWebpackServerLayer,
                     test: {
                       // Resolve it if it is a source code file, and it has NOT been
@@ -1732,7 +1731,7 @@ export default async function getBaseWebpackConfig(
                   {
                     test: codeCondition.test,
                     issuerLayer: isWebpackServerLayer,
-                    exclude: [asyncStoragesRegex],
+                    exclude: asyncStoragesRegex,
                     use: swcLoaderForServerLayer,
                   },
                   {
@@ -1748,7 +1747,7 @@ export default async function getBaseWebpackConfig(
                       WEBPACK_LAYERS.appPagesBrowser,
                       WEBPACK_LAYERS.serverSideRendering,
                     ],
-                    exclude: [codeCondition.exclude],
+                    exclude: codeCondition.exclude,
                     use: swcLoaderForClientLayer,
                     resolve: {
                       mainFields: getMainField('app', compilerType),
@@ -1902,7 +1901,7 @@ export default async function getBaseWebpackConfig(
           test: /[\\/]next[\\/]dist[\\/](esm[\\/])?server[\\/]og[\\/]image-response\.js/,
           sideEffects: false,
         },
-      ].filter(Boolean),
+      ],
     },
     plugins: [
       isNodeServer &&
