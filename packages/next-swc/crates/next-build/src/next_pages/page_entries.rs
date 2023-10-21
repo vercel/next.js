@@ -100,6 +100,7 @@ pub async fn get_page_entries(
         client_compile_time_info,
         client_module_options_context,
         client_resolve_options_context,
+        Vc::cell("client".to_string()),
     );
 
     let transitions = Vc::cell(
@@ -116,6 +117,7 @@ pub async fn get_page_entries(
         client_compile_time_info,
         client_module_options_context,
         client_resolve_options_context,
+        Vc::cell("client".to_string()),
     ));
 
     let client_runtime_entries = get_client_runtime_entries(
@@ -147,6 +149,7 @@ pub async fn get_page_entries(
         server_compile_time_info,
         ssr_module_options_context,
         ssr_resolve_options_context,
+        Vc::cell("ssr".to_string()),
     ));
 
     let ssr_runtime_entries = get_server_runtime_entries(ssr_ty, mode);
