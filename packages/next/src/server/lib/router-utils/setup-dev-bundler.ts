@@ -1945,6 +1945,7 @@ async function startWatcher(opts: SetupOpts) {
                 plugin.definitions.__NEXT_DEFINE_ENV
               ) {
                 const newDefine = getDefineEnv({
+                  isTurbopack: false,
                   allowedRevalidateHeaderKeys: undefined,
                   clientRouterFilters,
                   config: nextConfig,
