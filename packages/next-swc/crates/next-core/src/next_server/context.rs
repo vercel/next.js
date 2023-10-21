@@ -10,7 +10,6 @@ use turbopack_binding::{
     turbopack::{
         build::{BuildChunkingContext, MinifyType},
         core::{
-            compile_time_defines,
             compile_time_info::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReferences,
             },
@@ -193,64 +192,39 @@ pub async fn get_server_resolve_options_context(
     .cell())
 }
 
-fn defines(
-    mode: NextMode,
-    define_env: &IndexMap<String, String>,
-    server_actions: bool,
-) -> CompileTimeDefines {
-    let mut defines = compile_time_defines!(
-        process.turbopack = true,
-        process.env.NEXT_RUNTIME = "nodejs",
-        process.env.NODE_ENV = mode.node_env(),
-        process.env.TURBOPACK = true,
-        process.env.__NEXT_EXPERIMENTAL_REACT = server_actions,
-    );
+fn defines(define_env: &IndexMap<String, String>) -> CompileTimeDefines {
+    let mut defines = IndexMap::new();
 
     for (k, v) in define_env {
         defines
-            .0
-            .entry(k.split('.').map(|s| s.to_string()).collect())
+            .entry(k.split('.').map(|s| s.to_string()).collect::<Vec<String>>())
             .or_insert_with(|| CompileTimeDefineValue::JSON(v.clone()));
     }
 
-    defines
+    CompileTimeDefines(defines)
 }
 
 #[turbo_tasks::function]
-async fn next_server_defines(
-    mode: NextMode,
-    define_env: Vc<EnvMap>,
-    server_actions: Vc<bool>,
-) -> Result<Vc<CompileTimeDefines>> {
-    Ok(defines(mode, &*define_env.await?, *server_actions.await?).cell())
+async fn next_server_defines(define_env: Vc<EnvMap>) -> Result<Vc<CompileTimeDefines>> {
+    Ok(defines(&*define_env.await?).cell())
 }
 
 #[turbo_tasks::function]
-async fn next_server_free_vars(
-    mode: NextMode,
-    define_env: Vc<EnvMap>,
-    server_actions: Vc<bool>,
-) -> Result<Vc<FreeVarReferences>> {
-    Ok(free_var_references!(
-        ..defines(mode, &*define_env.await?, *server_actions.await?).into_iter()
-    )
-    .cell())
+async fn next_server_free_vars(define_env: Vc<EnvMap>) -> Result<Vc<FreeVarReferences>> {
+    Ok(free_var_references!(..defines(&*define_env.await?).into_iter()).cell())
 }
 
 #[turbo_tasks::function]
 pub async fn get_server_compile_time_info(
-    mode: NextMode,
     process_env: Vc<Box<dyn ProcessEnv>>,
     server_addr: Vc<ServerAddr>,
     define_env: Vc<EnvMap>,
-    next_config: Vc<NextConfig>,
 ) -> Vc<CompileTimeInfo> {
-    let server_actions = next_config.enable_server_actions();
     CompileTimeInfo::builder(Environment::new(Value::new(
         ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::current(process_env, server_addr)),
     )))
-    .defines(next_server_defines(mode, define_env, server_actions))
-    .free_var_references(next_server_free_vars(mode, define_env, server_actions))
+    .defines(next_server_defines(define_env))
+    .free_var_references(next_server_free_vars(define_env))
     .cell()
 }
 

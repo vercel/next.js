@@ -475,7 +475,6 @@ impl Project {
     #[turbo_tasks::function]
     pub(super) async fn client_compile_time_info(&self) -> Result<Vc<CompileTimeInfo>> {
         Ok(get_client_compile_time_info(
-            self.mode,
             self.browserslist_query.clone(),
             self.define_env.client(),
         ))
@@ -485,11 +484,9 @@ impl Project {
     pub(super) async fn server_compile_time_info(self: Vc<Self>) -> Result<Vc<CompileTimeInfo>> {
         let this = self.await?;
         Ok(get_server_compile_time_info(
-            this.mode,
             self.env(),
             self.server_addr(),
             this.define_env.nodejs(),
-            self.next_config(),
         ))
     }
 
@@ -497,7 +494,6 @@ impl Project {
     pub(super) async fn edge_compile_time_info(self: Vc<Self>) -> Result<Vc<CompileTimeInfo>> {
         let this = self.await?;
         Ok(get_edge_compile_time_info(
-            this.mode,
             self.project_path(),
             self.server_addr(),
             this.define_env.nodejs(),

@@ -1043,6 +1043,7 @@ export default async function build(
           root,
           distDir: config.distDir,
           defineEnv: createDefineEnv({
+            isTurbopack: turboNextBuild,
             allowedRevalidateHeaderKeys:
               config.experimental.allowedRevalidateHeaderKeys,
             clientRouterFilters: NextBuildContext.clientRouterFilters,

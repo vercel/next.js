@@ -237,6 +237,7 @@ async function startWatcher(opts: SetupOpts) {
       watch: true,
       env: process.env as Record<string, string>,
       defineEnv: createDefineEnv({
+        isTurbopack: true,
         allowedRevalidateHeaderKeys: undefined,
         clientRouterFilters: undefined,
         config: nextConfig,
@@ -1878,6 +1879,7 @@ async function startWatcher(opts: SetupOpts) {
 
           await hotReloader.turbopackProject.update({
             defineEnv: createDefineEnv({
+              isTurbopack: true,
               allowedRevalidateHeaderKeys: undefined,
               clientRouterFilters,
               config: nextConfig,
