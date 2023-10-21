@@ -1,0 +1,6 @@
+@import "modern-normalize";
+
+* {
+  border-width: 0;
+  border-style: solid;
+}
