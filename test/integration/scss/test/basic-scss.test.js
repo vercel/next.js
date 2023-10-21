@@ -100,24 +100,24 @@ describe('SCSS Support', () => {
 
         const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
         expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
-          {
-            "mappings": "AAEE,uBACE,SAHE,CAON,cACE,2CAAA",
-            "sourcesContent": [
-              "$var: red;
-          .redText {
-            ::placeholder {
-              color: $var;
-            }
-          }
-  
-          .flex-parsing {
-            flex: 0 0 calc(50% - var(--vertical-gutter));
-          }
-          ",
-            ],
-            "version": 3,
-          }
-        `)
+{
+  "mappings": "AAEE,uBACE,SAHE,CAON,cACE,2CAAA",
+  "sourcesContent": [
+    "$var: red;
+.redText {
+  ::placeholder {
+    color: $var;
+  }
+}
+
+.flex-parsing {
+  flex: 0 0 calc(50% - var(--vertical-gutter));
+}
+",
+  ],
+  "version": 3,
+}
+`)
       })
     })
 
