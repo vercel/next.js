@@ -338,7 +338,9 @@ impl EcmascriptModuleAsset {
     ) -> Result<Vc<EcmascriptModuleContent>> {
         let this = self.await?;
 
-        let parsed = parse(this.source, Value::new(this.ty), this.transforms);
+        let parsed = parse(this.source, Value::new(this.ty), this.transforms)
+            .resolve()
+            .await?;
 
         Ok(EcmascriptModuleContent::new(
             parsed,

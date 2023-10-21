@@ -68,7 +68,9 @@ pub async fn esm_resolve(
     issue_severity: Vc<IssueSeverity>,
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = Value::new(ReferenceType::EcmaScriptModules(ty.into_value()));
-    let options = apply_esm_specific_options(origin.resolve_options(ty.clone()));
+    let options = apply_esm_specific_options(origin.resolve_options(ty.clone()))
+        .resolve()
+        .await?;
     specific_resolve(origin, request, options, ty, issue_source, issue_severity).await
 }
 
@@ -81,7 +83,9 @@ pub async fn cjs_resolve(
 ) -> Result<Vc<ModuleResolveResult>> {
     // TODO pass CommonJsReferenceSubType
     let ty = Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined));
-    let options = apply_cjs_specific_options(origin.resolve_options(ty.clone()));
+    let options = apply_cjs_specific_options(origin.resolve_options(ty.clone()))
+        .resolve()
+        .await?;
     specific_resolve(origin, request, options, ty, issue_source, issue_severity).await
 }
 
