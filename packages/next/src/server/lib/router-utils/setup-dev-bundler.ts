@@ -348,11 +348,12 @@ async function startWatcher(opts: SetupOpts) {
         relevantIssues.add(formatted)
       }
 
-      for (const issue of oldSet.keys()) {
-        if (!newSet.has(issue)) {
-          console.error(`✅ ${displayName} fixed ${issue}`)
-        }
-      }
+      // TODO: Format these messages correctly.
+      // for (const issue of oldSet.keys()) {
+      //   if (!newSet.has(issue)) {
+      //     console.error(`✅ ${displayName} fixed ${issue}`)
+      //   }
+      // }
 
       if (relevantIssues.size && throwIssue) {
         throw new ModuleBuildError([...relevantIssues].join('\n\n'))
