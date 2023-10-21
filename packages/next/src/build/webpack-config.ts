@@ -17,6 +17,7 @@ import {
   RSC_ACTION_CLIENT_WRAPPER_ALIAS,
   RSC_ACTION_VALIDATE_ALIAS,
   WEBPACK_RESOURCE_QUERIES,
+  RSC_ACTION_ENCRYPTION_ALIAS,
 } from '../lib/constants'
 import type { WebpackLayerName } from '../lib/constants'
 import { isWebpackDefaultLayer, isWebpackServerLayer } from './utils'
@@ -481,7 +482,6 @@ export default async function getBaseWebpackConfig(
     rewrites.fallback.length > 0
 
   const hasAppDir = !!appDir
-  const hasServerComponents = hasAppDir
   const disableOptimizedLoading = true
   const enableTypedRoutes = !!config.experimental.typedRoutes && hasAppDir
   const bundledReactChannel = needsExperimentalReact(config)
@@ -534,7 +534,7 @@ export default async function getBaseWebpackConfig(
         pagesDir,
         cwd: dir,
         development: dev,
-        hasServerComponents,
+        hasServerComponents: hasAppDir,
         hasReactRefresh: dev && isClient,
         hasJsxRuntime: true,
       },
@@ -586,7 +586,7 @@ export default async function getBaseWebpackConfig(
       : getBabelLoader(),
   }
 
-  const swcLoaderForServerLayer = hasServerComponents
+  const swcLoaderForServerLayer = hasAppDir
     ? useSWCLoader
       ? [getSwcLoader({ isServerLayer: true, bundleTarget: 'server' })]
       : // When using Babel, we will have to add the SWC loader
@@ -632,11 +632,11 @@ export default async function getBaseWebpackConfig(
       // in the client layer.
       loader: 'next-flight-client-module-loader',
     },
-    ...(hasServerComponents
+    ...(hasAppDir
       ? useSWCLoader
         ? [
             getSwcLoader({
-              hasServerComponents,
+              hasServerComponents: hasAppDir,
               isServerLayer: false,
               bundleTarget: 'client',
             }),
@@ -659,7 +659,7 @@ export default async function getBaseWebpackConfig(
   // have RSC transpiler enabled, so syntax checks such as invalid imports won't
   // be performed.
   const loaderForAPIRoutes =
-    hasServerComponents && useSWCLoader
+    hasAppDir && useSWCLoader
       ? getSwcLoader({
           isServerLayer: false,
           bundleTarget: 'default',
@@ -901,6 +901,9 @@ export default async function getBaseWebpackConfig(
 
       [RSC_ACTION_PROXY_ALIAS]:
         'next/dist/build/webpack/loaders/next-flight-loader/action-proxy',
+
+      [RSC_ACTION_ENCRYPTION_ALIAS]:
+        'next/dist/server/app-render/action-encryption',
 
       ...(isClient || isEdgeServer
         ? {
@@ -1392,7 +1395,6 @@ export default async function getBaseWebpackConfig(
         'next-flight-client-entry-loader',
         'next-flight-action-entry-loader',
         'next-flight-client-module-loader',
-        'noop-loader',
         'empty-loader',
         'next-middleware-loader',
         'next-edge-function-loader',
@@ -1650,14 +1652,14 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
-        ...(hasServerComponents
+        ...(hasAppDir
           ? [
               {
                 // Alias react-dom for ReactDOM.preload usage.
                 // Alias react for switching between default set and share subset.
                 oneOf: [
                   {
-                    exclude: [asyncStoragesRegex],
+                    exclude: asyncStoragesRegex,
                     issuerLayer: isWebpackServerLayer,
                     test: {
                       // Resolve it if it is a source code file, and it has NOT been
@@ -1728,12 +1730,12 @@ export default async function getBaseWebpackConfig(
               issuerLayer: WEBPACK_LAYERS.middleware,
               use: swcLoaderForMiddlewareLayer,
             },
-            ...(hasServerComponents
+            ...(hasAppDir
               ? [
                   {
                     test: codeCondition.test,
                     issuerLayer: isWebpackServerLayer,
-                    exclude: [asyncStoragesRegex],
+                    exclude: asyncStoragesRegex,
                     use: swcLoaderForServerLayer,
                   },
                   {
@@ -1749,7 +1751,7 @@ export default async function getBaseWebpackConfig(
                       WEBPACK_LAYERS.appPagesBrowser,
                       WEBPACK_LAYERS.serverSideRendering,
                     ],
-                    exclude: [codeCondition.exclude],
+                    exclude: codeCondition.exclude,
                     use: swcLoaderForClientLayer,
                     resolve: {
                       mainFields: getMainField('app', compilerType),
@@ -1903,7 +1905,7 @@ export default async function getBaseWebpackConfig(
           test: /[\\/]next[\\/]dist[\\/](esm[\\/])?server[\\/]og[\\/]image-response\.js/,
           sideEffects: false,
         },
-      ].filter(Boolean),
+      ],
     },
     plugins: [
       isNodeServer &&
@@ -2002,7 +2004,7 @@ export default async function getBaseWebpackConfig(
             } = require('./webpack/plugins/nextjs-require-cache-hot-reloader')
             const devPlugins = [
               new NextJsRequireCacheHotReloader({
-                hasServerComponents,
+                hasServerComponents: hasAppDir,
               }),
             ]
 
@@ -2069,7 +2071,7 @@ export default async function getBaseWebpackConfig(
           },
         }),
       hasAppDir && isClient && new AppBuildManifestPlugin({ dev }),
-      hasServerComponents &&
+      hasAppDir &&
         (isClient
           ? new ClientReferenceManifestPlugin({
               dev,
@@ -2235,7 +2237,7 @@ export default async function getBaseWebpackConfig(
 
     // For Server Components, it's necessary to have provided exports collected
     // to generate the correct flight manifest.
-    if (!hasServerComponents) {
+    if (!hasAppDir) {
       webpack5Config.optimization.providedExports = false
     }
     webpack5Config.optimization.usedExports = false

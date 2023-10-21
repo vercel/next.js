@@ -172,7 +172,7 @@ async function exportPageImpl(
           dl.defaultLocale === locale || dl.locales?.includes(locale || '')
       )
     ) {
-      addRequestMeta(req, '__nextIsLocaleDomain', true)
+      addRequestMeta(req, 'isLocaleDomain', true)
     }
 
     envConfig.setConfig({
