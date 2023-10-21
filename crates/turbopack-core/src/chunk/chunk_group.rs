@@ -30,7 +30,7 @@ pub async fn make_chunk_group(
         forward_edges_inherit_async,
         local_back_edges_inherit_async,
         available_async_modules_back_edges_inherit_async,
-    } = chunk_content(chunking_context, entries, Value::new(availability_info)).await?;
+    } = chunk_content(chunking_context, entries, availability_info).await?;
 
     // Find all local chunk items that are self async
     let self_async_children = chunk_items
