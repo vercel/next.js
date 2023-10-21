@@ -450,7 +450,7 @@ export async function exportAppImpl(
       SERVER_DIRECTORY,
       SERVER_REFERENCE_MANIFEST + '.json'
     ))
-    if (options.isInvokedFromCli || isExportOutput) {
+    if (nextConfig.output === 'export') {
       if (
         Object.keys(serverActionsManifest.node).length > 0 ||
         Object.keys(serverActionsManifest.edge).length > 0
@@ -604,7 +604,7 @@ export async function exportAppImpl(
 
     // Warn if the user defines a path for an API page
     if (hasApiRoutes || hasMiddleware) {
-      if (!options.silent) {
+      if (nextConfig.output === 'export') {
         Log.warn(
           yellow(
             `Statically exporting a Next.js application via \`next export\` disables API routes and middleware.`
