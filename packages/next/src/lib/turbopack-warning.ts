@@ -45,6 +45,9 @@ const supportedTurbopackNextConfigOptions = [
   'webpack',
   'onDemandEntries',
   'experimental.cpus',
+  'serverRuntimeConfig',
+  'publicRuntimeConfig',
+  'exportPathMap',
 
   // Experimental options that affect compilation
   'experimental.swcPlugins',
@@ -64,8 +67,6 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.deploymentId',
 
   // Experimental options that don't affect compilation
-  'serverRuntimeConfig',
-  'publicRuntimeConfig',
   'experimental.proxyTimeout',
   'experimental.caseSensitiveRoutes',
   'experimental.workerThreads',

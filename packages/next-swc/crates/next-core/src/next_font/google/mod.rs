@@ -443,7 +443,8 @@ async fn get_mock_stylesheet(
         project_path: _,
         chunking_context,
     } = *execution_context.await?;
-    let context = node_evaluate_asset_context(execution_context, None, None);
+    let context =
+        node_evaluate_asset_context(execution_context, None, None, "next_font".to_string());
     let loader_path = mock_fs.root().join("loader.js".to_string());
     let mocked_response_asset = context.process(
         Vc::upcast(VirtualSource::new(

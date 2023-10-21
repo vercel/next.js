@@ -9,7 +9,6 @@ use turbopack_binding::{
     turbopack::{
         core::{
             changed::any_content_changed_of_module,
-            chunk::ChunkingContext,
             context::AssetContext,
             file_source::FileSource,
             ident::AssetIdent,
@@ -803,7 +802,12 @@ async fn load_next_config_and_custom_routes_internal(
     import_map.insert_exact_alias("styled-jsx", ImportMapping::External(None).into());
     import_map.insert_wildcard_alias("styled-jsx/", ImportMapping::External(None).into());
 
-    let context = node_evaluate_asset_context(execution_context, Some(import_map.cell()), None);
+    let context = node_evaluate_asset_context(
+        execution_context,
+        Some(import_map.cell()),
+        None,
+        "next_config".to_string(),
+    );
     let config_asset = config_file.map(FileSource::new);
 
     let config_changed = config_asset.map_or_else(Completion::immutable, |config_asset| {
@@ -825,7 +829,7 @@ async fn load_next_config_and_custom_routes_internal(
         env,
         config_asset.map_or_else(|| AssetIdent::from_path(project_path), |c| c.ident()),
         context,
-        chunking_context.with_layer("next_config".to_string()),
+        chunking_context,
         None,
         vec![],
         config_changed,
