@@ -3493,6 +3493,7 @@ dependencies = [
  "turbo-tasks",
  "turbopack-binding",
  "url",
+ "urlencoding",
 ]
 
 [[package]]
