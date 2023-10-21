@@ -66,6 +66,7 @@ import { makeGetServerInsertedHTML } from './make-get-server-inserted-html'
 import { walkTreeWithFlightRouterState } from './walk-tree-with-flight-router-state'
 import { createComponentTree } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
+import { setReferenceManifestsSingleton } from './action-encryption-utils'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -427,6 +428,34 @@ async function renderToHTMLOrFlightImpl(
 
   // TODO: fix this typescript
   const clientReferenceManifest = renderOpts.clientReferenceManifest!
+
+  const workerName = 'app' + renderOpts.page
+  const serverModuleMap: {
+    [id: string]: {
+      id: string
+      chunks: string[]
+      name: string
+    }
+  } = new Proxy(
+    {},
+    {
+      get: (_, id: string) => {
+        return {
+          id: serverActionsManifest[
+            process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
+          ][id].workers[workerName],
+          name: id,
+          chunks: [],
+        }
+      },
+    }
+  )
+
+  setReferenceManifestsSingleton({
+    clientReferenceManifest,
+    serverActionsManifest,
+    serverModuleMap,
+  })
 
   const capturedErrors: Error[] = []
   const allCapturedErrors: Error[] = []
@@ -866,8 +895,7 @@ async function renderToHTMLOrFlightImpl(
     req,
     res,
     ComponentMod,
-    page: renderOpts.page,
-    serverActionsManifest,
+    serverModuleMap,
     generateFlight,
     staticGenerationStore: staticGenerationStore,
     requestStore: requestStore,
