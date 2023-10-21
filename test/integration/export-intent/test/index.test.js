@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import { remove } from 'fs-extra'
-import { nextBuild, nextExport, nextExportDefault } from 'next-test-utils'
+import { nextBuild } from 'next-test-utils'
 import path, { join } from 'path'
 import fs from 'fs'
 
@@ -12,14 +12,15 @@ describe('Application Export Intent Output', () => {
     describe('Default Export', () => {
       const appDir = join(fixturesDir, 'default-export')
       const distDir = join(appDir, '.next')
+      const outDir = join(appDir, 'out')
 
       beforeAll(async () => {
         await remove(distDir)
+        await remove(outDir)
       })
 
       it('should build and export', async () => {
         await nextBuild(appDir)
-        await nextExportDefault(appDir)
       })
 
       it('should have the expected outputs for export', () => {
@@ -59,14 +60,15 @@ describe('Application Export Intent Output', () => {
       () => {
         const appDir = join(fixturesDir, 'custom-export')
         const distDir = join(appDir, '.next')
+        const outDir = join(appDir, 'out')
 
         beforeAll(async () => {
           await remove(distDir)
+          await remove(outDir)
         })
 
         it('should build and export', async () => {
           await nextBuild(appDir)
-          await nextExportDefault(appDir)
         })
 
         it('should have the expected outputs for export', () => {
@@ -107,14 +109,15 @@ describe('Application Export Intent Output', () => {
       () => {
         const appDir = join(fixturesDir, 'custom-out')
         const distDir = join(appDir, '.next')
+        const outDir = join(appDir, 'lel')
 
         beforeAll(async () => {
           await remove(distDir)
+          await remove(outDir)
         })
 
         it('should build and export', async () => {
           await nextBuild(appDir)
-          await nextExport(appDir, { outdir: join(appDir, 'lel') })
         })
 
         it('should have the expected outputs for export', () => {
@@ -155,14 +158,17 @@ describe('Application Export Intent Output', () => {
       () => {
         const appDir = join(fixturesDir, 'bad-export')
         const distDir = join(appDir, '.next')
+        const outDir = join(appDir, 'out')
 
         beforeAll(async () => {
           await remove(distDir)
+          await remove(outDir)
         })
 
         it('should build and export', async () => {
-          await nextBuild(appDir)
-          await nextExportDefault(appDir, { ignoreFail: true })
+          const result = await nextBuild(appDir, [], { stderr: true })
+          expect(result.stderr).toMatch('A.getInitialProps()')
+          expect(result.code).toBe(1)
         })
 
         it('should have the expected outputs for export', () => {
@@ -229,14 +235,6 @@ describe('Application Export Intent Output', () => {
           expect(() => {
             fs.readFileSync(join(distDir, 'export-detail.json'), 'utf8')
           }).toThrowError(/ENOENT/)
-        })
-
-        it('should export and create file', async () => {
-          await nextExportDefault(appDir)
-
-          expect(() => {
-            fs.readFileSync(join(distDir, 'export-detail.json'), 'utf8')
-          }).not.toThrow()
         })
 
         it('should build and clean up', async () => {
