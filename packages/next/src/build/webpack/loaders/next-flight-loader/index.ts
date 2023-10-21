@@ -39,12 +39,19 @@ export default function transformSource(
       // (hence you're on the actionBrowser layer), and you're trying to import a
       // client module again from it. This is not allowed because of cyclic module
       // graph.
-      this.callback(
-        new Error(
-          `You're importing a Client Component ("use client") from another Client Component imported Server Action file ("use server"). This is not allowed due to cyclic module graph between Server and Client.\nYou can work around it by defining and passing this Server Action from a Server Component into the Client Component via props.`
+
+      // We need to only error for user code, not for node_modules/Next.js internals.
+      // Things like `next/navigation` exports both `cookies()` and `useRouter()`
+      // and we shouldn't error for that. In the future we might want to find a way
+      // to only throw when it's used.
+      if (!this.resourcePath.includes('node_modules')) {
+        this.callback(
+          new Error(
+            `You're importing a Client Component ("use client") from another Client Component imported Server Action file ("use server"). This is not allowed due to cyclic module graph between Server and Client.\nYou can work around it by defining and passing this Server Action from a Server Component into the Client Component via props.`
+          )
         )
-      )
-      return
+        return
+      }
     }
 
     // It's tricky to detect the type of a client boundary, but we should always
