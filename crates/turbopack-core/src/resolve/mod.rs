@@ -2,11 +2,13 @@ use std::{
     borrow::Cow,
     collections::{BTreeMap, HashMap, HashSet},
     future::Future,
+    iter::once,
     pin::Pin,
 };
 
 use anyhow::{anyhow, bail, Result};
 use serde_json::Value as JsonValue;
+use tracing::Level;
 use turbo_tasks::{TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::{
     util::{normalize_path, normalize_request},
@@ -724,7 +726,7 @@ async fn type_exists(
     for path in result.symlinks.iter() {
         refs.push(Vc::upcast(FileSource::new(*path)));
     }
-    let path = result.path;
+    let path = result.path.resolve().await?;
     Ok(if *path.get_type().await? == ty {
         Some(path)
     } else {
@@ -1009,12 +1011,14 @@ pub async fn resolve(
     request: Vc<Request>,
     options: Vc<ResolveOptions>,
 ) -> Result<Vc<ResolveResult>> {
-    let raw_result = resolve_internal(lookup_path, request, options);
-    let result = handle_resolve_plugins(lookup_path, request, options, raw_result);
+    let raw_result = resolve_internal_inline(lookup_path, request, options)
+        .await?
+        .resolve()
+        .await?;
+    let result = handle_resolve_plugins(lookup_path, request, options, raw_result).await?;
     Ok(result)
 }
 
-#[turbo_tasks::function]
 async fn handle_resolve_plugins(
     lookup_path: Vc<FileSystemPath>,
     request: Vc<Request>,
@@ -1028,7 +1032,8 @@ async fn handle_resolve_plugins(
         options: Vc<ResolveOptions>,
     ) -> Result<Option<Vc<ResolveResult>>> {
         for plugin in &options.await?.plugins {
-            if *plugin.after_resolve_condition().matches(path).await? {
+            let after_resolve_condition = plugin.after_resolve_condition().resolve().await?;
+            if *after_resolve_condition.matches(path).await? {
                 if let Some(result) = *plugin.after_resolve(path, lookup_path, request).await? {
                     return Ok(Some(result));
                 }
@@ -1045,13 +1050,9 @@ async fn handle_resolve_plugins(
 
     for primary in result_value.primary.iter() {
         if let &ResolveResultItem::Source(source) = primary {
-            if let Some(new_result) = apply_plugins_to_path(
-                source.ident().path().resolve().await?,
-                lookup_path,
-                request,
-                options,
-            )
-            .await?
+            let path = source.ident().path().resolve().await?;
+            if let Some(new_result) =
+                apply_plugins_to_path(path, lookup_path, request, options).await?
             {
                 let new_result = new_result.await?;
                 changed = true;
@@ -1081,6 +1082,23 @@ async fn handle_resolve_plugins(
 
 #[turbo_tasks::function]
 async fn resolve_internal(
+    lookup_path: Vc<FileSystemPath>,
+    request: Vc<Request>,
+    options: Vc<ResolveOptions>,
+) -> Result<Vc<ResolveResult>> {
+    resolve_internal_inline(lookup_path, request, options).await
+}
+
+fn resolve_internal_boxed(
+    lookup_path: Vc<FileSystemPath>,
+    request: Vc<Request>,
+    options: Vc<ResolveOptions>,
+) -> Pin<Box<dyn Future<Output = Result<Vc<ResolveResult>>> + Send>> {
+    Box::pin(resolve_internal_inline(lookup_path, request, options))
+}
+
+#[tracing::instrument(level = Level::TRACE, skip_all)]
+async fn resolve_internal_inline(
     lookup_path: Vc<FileSystemPath>,
     request: Vc<Request>,
     options: Vc<ResolveOptions>,
@@ -1120,8 +1138,9 @@ async fn resolve_internal(
         Request::Alternatives { requests } => {
             let results = requests
                 .iter()
-                .map(|req| resolve_internal(lookup_path, *req, options))
-                .collect();
+                .map(|req| resolve_internal_boxed(lookup_path, *req, options))
+                .try_join()
+                .await?;
 
             merge_results(results)
         }
@@ -1148,7 +1167,7 @@ async fn resolve_internal(
                         );
                     }
                     PatternMatch::Directory(_, path) => {
-                        results.push(resolve_into_folder(*path, options, *query).await?);
+                        results.push(resolve_into_folder(*path, options, *query));
                     }
                 }
             }
@@ -1160,30 +1179,16 @@ async fn resolve_internal(
             query,
             force_in_lookup_dir,
         } => {
-            let mut requests = vec![Request::raw(
-                Value::new(path.clone()),
+            resolve_relative_request(
+                lookup_path,
+                request,
+                options,
+                options_value,
+                path,
                 *query,
                 *force_in_lookup_dir,
-            )];
-            for ext in options_value.extensions.iter() {
-                let mut path = path.clone();
-                path.push(ext.clone().into());
-                requests.push(Request::raw(Value::new(path), *query, *force_in_lookup_dir));
-            }
-
-            // This ensures the order of the requests (extensions) is
-            // preserved, `Pattern::Alternatives` inside a `Request::Raw` does not preserve
-            // the order
-            let mut results = Vec::new();
-            for request in requests {
-                results.push(resolve_internal(
-                    lookup_path,
-                    request.resolve().await?,
-                    options,
-                ));
-            }
-
-            merge_results(results)
+            )
+            .await?
         }
         Request::Module {
             module,
@@ -1214,11 +1219,12 @@ async fn resolve_internal(
             .cell()
             .emit();
 
-            resolve_internal(
+            resolve_internal_boxed(
                 lookup_path.root().resolve().await?,
                 relative.resolve().await?,
                 options,
             )
+            .await?
         }
         Request::Windows { path: _, query: _ } => {
             ResolvingIssue {
@@ -1305,6 +1311,7 @@ async fn resolve_internal(
     Ok(result)
 }
 
+#[turbo_tasks::function]
 async fn resolve_into_folder(
     package_path: Vc<FileSystemPath>,
     options: Vc<ResolveOptions>,
@@ -1323,11 +1330,8 @@ async fn resolve_into_folder(
                         )
                     })?;
                 let request = Request::parse(Value::new(str.into()));
-                return Ok(resolve_internal(
-                    package_path,
-                    request.resolve().await?,
-                    options,
-                ));
+                return resolve_internal_inline(package_path, request.resolve().await?, options)
+                    .await;
             }
             ResolveIntoPackage::MainField(name) => {
                 if let Some(package_json) = &*read_package_json(package_json_path).await? {
@@ -1335,7 +1339,9 @@ async fn resolve_into_folder(
                         let request =
                             Request::parse(Value::new(normalize_request(field_value).into()));
 
-                        let result = &*resolve_internal(package_path, request, options).await?;
+                        let result = &*resolve_internal_inline(package_path, request, options)
+                            .await?
+                            .await?;
                         // we are not that strict when a main field fails to resolve
                         // we continue to try other alternatives
                         if !result.is_unresolveable_ref() {
@@ -1374,6 +1380,57 @@ async fn resolve_into_folder(
     Ok(ResolveResult::unresolveable().into())
 }
 
+#[tracing::instrument(level = Level::TRACE, skip_all)]
+async fn resolve_relative_request(
+    lookup_path: Vc<FileSystemPath>,
+    request: Vc<Request>,
+    options: Vc<ResolveOptions>,
+    options_value: &ResolveOptions,
+    path: &Pattern,
+    query: Vc<String>,
+    force_in_lookup_dir: bool,
+) -> Result<Vc<ResolveResult>> {
+    let mut new_path = path.clone();
+    // Add the extensions as alternatives to the path
+    // read_matches keeps the order of alternatives intact
+    new_path.push(Pattern::Alternatives(
+        once(Pattern::Constant("".to_string()))
+            .chain(
+                options_value
+                    .extensions
+                    .iter()
+                    .map(|ext| Pattern::Constant(ext.clone())),
+            )
+            .collect(),
+    ));
+    new_path.normalize();
+
+    let mut results = Vec::new();
+    let matches = read_matches(
+        lookup_path,
+        "".to_string(),
+        force_in_lookup_dir,
+        Pattern::new(new_path).resolve().await?,
+    )
+    .await?;
+
+    for m in matches.iter() {
+        match m {
+            PatternMatch::File(_, path) => {
+                results.push(
+                    resolved(*path, lookup_path, request, options_value, options, query).await?,
+                );
+            }
+            PatternMatch::Directory(_, path) => {
+                results.push(resolve_into_folder(*path, options, query));
+            }
+        }
+    }
+
+    Ok(merge_results(results))
+}
+
+#[tracing::instrument(level = Level::TRACE, skip_all)]
 async fn resolve_module_request(
     lookup_path: Vc<FileSystemPath>,
     options: Vc<ResolveOptions>,
@@ -1392,7 +1449,7 @@ async fn resolve_module_request(
         };
 
         let FindContextFileResult::Found(package_json_path, refs) =
-            &*find_context_file(lookup_path, package_json()).await?
+            &*find_context_file(lookup_path, package_json().resolve().await?).await?
         else {
             continue;
         };
@@ -1445,28 +1502,50 @@ async fn resolve_module_request(
     }
 
     let mut results = vec![];
-    let is_match = path.is_match("");
-    let could_match_others = path.could_match_others("");
 
     // There may be more than one package with the same name. For instance, in a
     // TypeScript project, `compilerOptions.baseUrl` can declare a path where to
     // resolve packages. A request to "foo/bar" might resolve to either
     // "[baseUrl]/foo/bar" or "[baseUrl]/node_modules/foo/bar", and we'll need to
     // try both.
-    for package_path in &result.packages {
-        if is_match {
-            results.push(resolve_into_folder(*package_path, options, query).await?);
-        }
-        if !could_match_others {
-            continue;
-        }
+    for &package_path in &result.packages {
+        results.push(resolve_into_package(
+            Value::new(path.clone()),
+            package_path.resolve().await?,
+            query,
+            options,
+        ));
+    }
 
+    Ok(merge_results_with_affecting_sources(
+        results,
+        result.affecting_sources.clone(),
+    ))
+}
+
+#[turbo_tasks::function]
+async fn resolve_into_package(
+    path: Value<Pattern>,
+    package_path: Vc<FileSystemPath>,
+    query: Vc<String>,
+    options: Vc<ResolveOptions>,
+) -> Result<Vc<ResolveResult>> {
+    let path = path.into_value();
+    let options_value = options.await?;
+    let mut results = Vec::new();
+
+    let is_match = path.is_match("");
+    let could_match_others = path.could_match_others("");
+    if is_match {
+        results.push(resolve_into_folder(package_path, options, query));
+    }
+    if could_match_others {
         for resolve_into_package in options_value.into_package.iter() {
             match resolve_into_package {
                 ResolveIntoPackage::Default(_) | ResolveIntoPackage::MainField(_) => {
                     // doesn't affect packages with subpath
                     if path.is_match("/") {
-                        results.push(resolve_into_folder(*package_path, options, query).await?);
+                        results.push(resolve_into_folder(package_path, options, query));
                     }
                 }
                 ResolveIntoPackage::ExportsField {
@@ -1486,7 +1565,7 @@ async fn resolve_module_request(
 
                     results.push(
                         handle_exports_imports_field(
-                            *package_path,
+                            package_path,
                             package_json_path,
                             options,
                             exports_field,
@@ -1509,19 +1588,13 @@ async fn resolve_module_request(
         new_pat.push_front(".".to_string().into());
 
         let relative = Request::relative(Value::new(new_pat), query, true);
-        results.push(resolve_internal(
-            *package_path,
-            relative.resolve().await?,
-            options,
-        ));
+        results
+            .push(resolve_internal_inline(package_path, relative.resolve().await?, options).await?);
     }
-
-    Ok(merge_results_with_affecting_sources(
-        results,
-        result.affecting_sources.clone(),
-    ))
+    Ok(merge_results(results))
 }
 
+#[tracing::instrument(level = Level::TRACE, skip_all)]
 async fn resolve_import_map_result(
     result: &ImportMapResult,
     lookup_path: Vc<FileSystemPath>,
@@ -1588,6 +1661,7 @@ fn resolve_import_map_result_boxed<'a>(
     ))
 }
 
+#[tracing::instrument(level = Level::TRACE, skip_all)]
 async fn resolve_alias_field_result(
     result: &JsonValue,
     refs: Vec<Vc<Box<dyn Source>>>,
@@ -1628,6 +1702,7 @@ async fn resolve_alias_field_result(
     Ok(ResolveResult::unresolveable_with_affecting_sources(refs).cell())
 }
 
+#[tracing::instrument(level = Level::TRACE, skip_all)]
 async fn resolved(
     fs_path: Vc<FileSystemPath>,
     original_context: Vc<FileSystemPath>,
@@ -1756,7 +1831,7 @@ async fn handle_exports_imports_field(
     for path in results {
         if let Some(path) = normalize_path(path) {
             let request = Request::parse(Value::new(format!("./{}", path).into()));
-            resolved_results.push(resolve_internal(package_path, request, options));
+            resolved_results.push(resolve_internal_boxed(package_path, request, options).await?);
         }
     }
 
