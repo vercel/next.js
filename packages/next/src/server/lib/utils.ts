@@ -42,3 +42,23 @@ export function getPort(args: arg.Result<arg.Spec>): number {
 }
 
 export const RESTART_EXIT_CODE = 77
+
+export function checkNodeDebugType() {
+  let nodeDebugType = undefined
+
+  if (
+    process.execArgv.some((localArg) => localArg.startsWith('--inspect')) ||
+    process.env.NODE_OPTIONS?.match?.(/--inspect(=\S+)?( |$)/)
+  ) {
+    nodeDebugType = 'inspect'
+  }
+
+  if (
+    process.execArgv.some((localArg) => localArg.startsWith('--inspect-brk')) ||
+    process.env.NODE_OPTIONS?.match?.(/--inspect-brk(=\S+)?( |$)/)
+  ) {
+    nodeDebugType = 'inspect-brk'
+  }
+
+  return nodeDebugType
+}

@@ -29,14 +29,23 @@ impl NextDynamicTransition {
 #[turbo_tasks::value_impl]
 impl Transition for NextDynamicTransition {
     #[turbo_tasks::function]
+    fn process_layer(self: Vc<Self>, layer: Vc<String>) -> Vc<String> {
+        layer
+    }
+
+    #[turbo_tasks::function]
     async fn process(
-        &self,
+        self: Vc<Self>,
         source: Vc<Box<dyn Source>>,
         context: Vc<ModuleAssetContext>,
         _reference_type: Value<ReferenceType>,
     ) -> Result<Vc<Box<dyn Module>>> {
+        let context = self.process_context(context);
+
+        let this = self.await?;
+
         let client_module =
-            self.client_transition
+            this.client_transition
                 .process(source, context, Value::new(ReferenceType::Undefined));
 
         Ok(Vc::upcast(NextDynamicEntryModule::new(client_module)))
