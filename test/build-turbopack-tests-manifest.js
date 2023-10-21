@@ -116,6 +116,8 @@ async function updatePassingTests() {
       })
       const skips = SKIPPED_TEST_SUITES[filepath] ?? []
 
+      const skippedPassingNames = []
+
       let initializationFailed = false
       for (const testCase of testResult.assertionResults) {
         let { fullName, status } = testCase
@@ -129,6 +131,7 @@ async function updatePassingTests() {
           status = 'failed'
         }
         if (shouldSkip(fullName, skips)) {
+          if (status === 'passed') skippedPassingNames.push(fullName)
           status = 'flakey'
         }
 
@@ -137,6 +140,18 @@ async function updatePassingTests() {
           throw new Error(`unexpected status "${status}"`)
         }
         statusArray.push(fullName)
+      }
+
+      if (skippedPassingNames.length > 0) {
+        console.log(
+          `${filepath} has ${
+            skippedPassingNames.length
+          } passing tests that are marked as skipped: ${JSON.stringify(
+            skippedPassingNames,
+            0,
+            2
+          )}`
+        )
       }
     }
   }
