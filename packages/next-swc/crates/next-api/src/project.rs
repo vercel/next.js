@@ -34,7 +34,6 @@ use turbopack_binding::{
         build::BuildChunkingContext,
         core::{
             changed::content_changed,
-            chunk::ChunkingContext,
             compile_time_info::CompileTimeInfo,
             context::AssetContext,
             diagnostics::DiagnosticExt,
@@ -520,14 +519,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) fn app_client_chunking_context(
-        self: Vc<Self>,
-    ) -> Vc<Box<dyn EcmascriptChunkingContext>> {
-        self.client_chunking_context().with_layer("app".to_string())
-    }
-
-    #[turbo_tasks::function]
-    fn server_chunking_context(self: Vc<Self>) -> Vc<BuildChunkingContext> {
+    pub(super) fn server_chunking_context(self: Vc<Self>) -> Vc<BuildChunkingContext> {
         get_server_chunking_context(
             self.project_path(),
             self.node_root(),
@@ -538,7 +530,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    fn edge_chunking_context(self: Vc<Self>) -> Vc<Box<dyn EcmascriptChunkingContext>> {
+    pub(super) fn edge_chunking_context(self: Vc<Self>) -> Vc<Box<dyn EcmascriptChunkingContext>> {
         get_edge_chunking_context(
             self.project_path(),
             self.node_root(),
@@ -623,60 +615,6 @@ impl Project {
         emit_event("swcEmotion", emotion_enabled);
 
         Ok(Default::default())
-    }
-
-    #[turbo_tasks::function]
-    pub(super) fn ssr_chunking_context(self: Vc<Self>) -> Vc<BuildChunkingContext> {
-        self.server_chunking_context().with_layer("ssr".to_string())
-    }
-
-    #[turbo_tasks::function]
-    pub(super) fn app_ssr_chunking_context(self: Vc<Self>) -> Vc<BuildChunkingContext> {
-        self.server_chunking_context()
-            .with_layer("app ssr".to_string())
-    }
-
-    #[turbo_tasks::function]
-    pub(super) fn edge_ssr_chunking_context(
-        self: Vc<Self>,
-    ) -> Vc<Box<dyn EcmascriptChunkingContext>> {
-        self.edge_chunking_context()
-            .with_layer("edge ssr".to_string())
-    }
-
-    #[turbo_tasks::function]
-    pub(super) fn ssr_data_chunking_context(self: Vc<Self>) -> Vc<BuildChunkingContext> {
-        self.server_chunking_context()
-            .with_layer("ssr data".to_string())
-    }
-
-    #[turbo_tasks::function]
-    pub(super) fn edge_ssr_data_chunking_context(
-        self: Vc<Self>,
-    ) -> Vc<Box<dyn EcmascriptChunkingContext>> {
-        self.edge_chunking_context()
-            .with_layer("edge ssr data".to_string())
-    }
-
-    #[turbo_tasks::function]
-    pub(super) fn rsc_chunking_context(self: Vc<Self>) -> Vc<BuildChunkingContext> {
-        self.server_chunking_context().with_layer("rsc".to_string())
-    }
-
-    #[turbo_tasks::function]
-    pub(super) fn edge_rsc_chunking_context(
-        self: Vc<Self>,
-    ) -> Vc<Box<dyn EcmascriptChunkingContext>> {
-        self.edge_chunking_context()
-            .with_layer("edge rsc".to_string())
-    }
-
-    #[turbo_tasks::function]
-    pub(super) fn edge_middleware_chunking_context(
-        self: Vc<Self>,
-    ) -> Vc<Box<dyn EcmascriptChunkingContext>> {
-        self.edge_chunking_context()
-            .with_layer("middleware".to_string())
     }
 
     /// Scans the app/pages directories for entry points files (matching the
@@ -766,6 +704,7 @@ impl Project {
                 self.next_config(),
                 self.execution_context(),
             ),
+            Vc::cell("middleware".to_string()),
         ))
     }
 
