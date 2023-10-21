@@ -695,6 +695,7 @@ async function startWatcher(opts: SetupOpts) {
       const manifest: ActionManifest = {
         node: {},
         edge: {},
+        encryptionKey: '',
       }
 
       function mergeActionIds(
@@ -702,7 +703,10 @@ async function startWatcher(opts: SetupOpts) {
         other: ActionEntries
       ): void {
         for (const key in other) {
-          const action = (actionEntries[key] ??= { workers: {}, layer: {} })
+          const action = (actionEntries[key] ??= {
+            workers: {},
+            layer: {},
+          })
           Object.assign(action.workers, other[key].workers)
           Object.assign(action.layer, other[key].layer)
         }
@@ -711,6 +715,7 @@ async function startWatcher(opts: SetupOpts) {
       for (const m of manifests) {
         mergeActionIds(manifest.node, m.node)
         mergeActionIds(manifest.edge, m.edge)
+        manifest.encryptionKey = m.encryptionKey
       }
 
       return manifest
