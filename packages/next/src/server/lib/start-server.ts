@@ -85,6 +85,7 @@ export async function startServer({
   isExperimentalTestProxy,
   selfSignedCertificate,
 }: StartServerOptions): Promise<void> {
+  process.title = 'next-server'
   let handlersReady = () => {}
   let handlersError = () => {}
 
