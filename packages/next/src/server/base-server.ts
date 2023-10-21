@@ -686,7 +686,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
   public logError(err: Error): void {
     if (this.quiet) return
-    console.error(err)
+    Log.error(err)
   }
 
   public async handleRequest(
