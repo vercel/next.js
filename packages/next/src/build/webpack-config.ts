@@ -481,7 +481,6 @@ export default async function getBaseWebpackConfig(
     rewrites.fallback.length > 0
 
   const hasAppDir = !!appDir
-  const hasServerComponents = hasAppDir
   const disableOptimizedLoading = true
   const enableTypedRoutes = !!config.experimental.typedRoutes && hasAppDir
   const bundledReactChannel = needsExperimentalReact(config)
@@ -534,7 +533,7 @@ export default async function getBaseWebpackConfig(
         pagesDir,
         cwd: dir,
         development: dev,
-        hasServerComponents,
+        hasServerComponents: hasAppDir,
         hasReactRefresh: dev && isClient,
         hasJsxRuntime: true,
       },
@@ -586,7 +585,7 @@ export default async function getBaseWebpackConfig(
       : getBabelLoader(),
   }
 
-  const swcLoaderForServerLayer = hasServerComponents
+  const swcLoaderForServerLayer = hasAppDir
     ? useSWCLoader
       ? [getSwcLoader({ isServerLayer: true, bundleTarget: 'server' })]
       : // When using Babel, we will have to add the SWC loader
@@ -632,11 +631,11 @@ export default async function getBaseWebpackConfig(
       // in the client layer.
       loader: 'next-flight-client-module-loader',
     },
-    ...(hasServerComponents
+    ...(hasAppDir
       ? useSWCLoader
         ? [
             getSwcLoader({
-              hasServerComponents,
+              hasServerComponents: hasAppDir,
               isServerLayer: false,
               bundleTarget: 'client',
             }),
@@ -659,7 +658,7 @@ export default async function getBaseWebpackConfig(
   // have RSC transpiler enabled, so syntax checks such as invalid imports won't
   // be performed.
   const loaderForAPIRoutes =
-    hasServerComponents && useSWCLoader
+    hasAppDir && useSWCLoader
       ? getSwcLoader({
           isServerLayer: false,
           bundleTarget: 'default',
@@ -1650,7 +1649,7 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
-        ...(hasServerComponents
+        ...(hasAppDir
           ? [
               {
                 // Alias react-dom for ReactDOM.preload usage.
@@ -1728,7 +1727,7 @@ export default async function getBaseWebpackConfig(
               issuerLayer: WEBPACK_LAYERS.middleware,
               use: swcLoaderForMiddlewareLayer,
             },
-            ...(hasServerComponents
+            ...(hasAppDir
               ? [
                   {
                     test: codeCondition.test,
@@ -2002,7 +2001,7 @@ export default async function getBaseWebpackConfig(
             } = require('./webpack/plugins/nextjs-require-cache-hot-reloader')
             const devPlugins = [
               new NextJsRequireCacheHotReloader({
-                hasServerComponents,
+                hasServerComponents: hasAppDir,
               }),
             ]
 
@@ -2069,7 +2068,7 @@ export default async function getBaseWebpackConfig(
           },
         }),
       hasAppDir && isClient && new AppBuildManifestPlugin({ dev }),
-      hasServerComponents &&
+      hasAppDir &&
         (isClient
           ? new ClientReferenceManifestPlugin({
               dev,
@@ -2235,7 +2234,7 @@ export default async function getBaseWebpackConfig(
 
     // For Server Components, it's necessary to have provided exports collected
     // to generate the correct flight manifest.
-    if (!hasServerComponents) {
+    if (!hasAppDir) {
       webpack5Config.optimization.providedExports = false
     }
     webpack5Config.optimization.usedExports = false
