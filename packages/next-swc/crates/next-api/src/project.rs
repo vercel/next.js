@@ -269,13 +269,13 @@ impl ProjectContainer {
 pub struct Project {
     /// A root path from which all files must be nested under. Trying to access
     /// a file outside this root will fail. Think of this as a chroot.
-    pub root_path: String,
+    root_path: String,
 
     /// A path where to emit the build outputs. next.config.js's distDir.
     dist_dir: String,
 
     /// A path inside the root_path which contains the app/pages directories.
-    project_path: String,
+    pub project_path: String,
 
     /// Whether to watch the filesystem for file changes.
     watch: bool,
@@ -369,7 +369,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn node_fs(self: Vc<Self>) -> Result<Vc<Box<dyn FileSystem>>> {
+    pub async fn node_fs(self: Vc<Self>) -> Result<Vc<Box<dyn FileSystem>>> {
         let this = self.await?;
         let disk_fs = DiskFileSystem::new("node".to_string(), this.project_path.clone());
         disk_fs.await?.start_watching_with_invalidation_reason()?;

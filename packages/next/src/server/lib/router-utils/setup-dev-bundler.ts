@@ -696,6 +696,7 @@ async function startWatcher(opts: SetupOpts) {
       const manifest: ActionManifest = {
         node: {},
         edge: {},
+        encryptionKey: '',
       }
 
       function mergeActionIds(
@@ -703,7 +704,10 @@ async function startWatcher(opts: SetupOpts) {
         other: ActionEntries
       ): void {
         for (const key in other) {
-          const action = (actionEntries[key] ??= { workers: {}, layer: {} })
+          const action = (actionEntries[key] ??= {
+            workers: {},
+            layer: {},
+          })
           Object.assign(action.workers, other[key].workers)
           Object.assign(action.layer, other[key].layer)
         }
@@ -712,6 +716,7 @@ async function startWatcher(opts: SetupOpts) {
       for (const m of manifests) {
         mergeActionIds(manifest.node, m.node)
         mergeActionIds(manifest.edge, m.edge)
+        manifest.encryptionKey = m.encryptionKey
       }
 
       return manifest
@@ -2189,20 +2194,24 @@ async function startWatcher(opts: SetupOpts) {
         )
 
         let originalFrame, isEdgeCompiler
-        if (frame?.lineNumber && frame?.file) {
+        const frameFile = frame?.file
+        if (frame?.lineNumber && frameFile) {
           if (opts.turbo) {
             try {
-              originalFrame = await createOriginalTurboStackFrame(
-                project!,
-                frame
-              )
+              originalFrame = await createOriginalTurboStackFrame(project!, {
+                file: frameFile,
+                methodName: frame.methodName,
+                line: frame.lineNumber ?? 0,
+                column: frame.column,
+                isServer: true,
+              })
             } catch {}
           } else {
-            const moduleId = frame.file!.replace(
+            const moduleId = frameFile.replace(
               /^(webpack-internal:\/\/\/|file:\/\/)/,
               ''
             )
-            const modulePath = frame.file.replace(
+            const modulePath = frameFile.replace(
               /^(webpack-internal:\/\/\/|file:\/\/)(\(.*\)\/)?/,
               ''
             )
