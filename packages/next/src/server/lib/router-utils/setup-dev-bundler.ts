@@ -2193,20 +2193,24 @@ async function startWatcher(opts: SetupOpts) {
         )
 
         let originalFrame, isEdgeCompiler
-        if (frame?.lineNumber && frame?.file) {
+        const frameFile = frame?.file
+        if (frame?.lineNumber && frameFile) {
           if (opts.turbo) {
             try {
-              originalFrame = await createOriginalTurboStackFrame(
-                project!,
-                frame
-              )
+              originalFrame = await createOriginalTurboStackFrame(project!, {
+                file: frameFile,
+                methodName: frame.methodName,
+                line: frame.lineNumber ?? 0,
+                column: frame.column,
+                isServer: true,
+              })
             } catch {}
           } else {
-            const moduleId = frame.file!.replace(
+            const moduleId = frameFile.replace(
               /^(webpack-internal:\/\/\/|file:\/\/)/,
               ''
             )
-            const modulePath = frame.file.replace(
+            const modulePath = frameFile.replace(
               /^(webpack-internal:\/\/\/|file:\/\/)(\(.*\)\/)?/,
               ''
             )
