@@ -819,5 +819,13 @@ createNextDescribe(
         }
       )
     })
+
+    describe('encryption', () => {
+      it('should send encrypted values from the closed over closure', async () => {
+        const res = await next.fetch('/encryption')
+        const html = await res.text()
+        expect(html).not.toContain('qwerty123')
+      })
+    })
   }
 )
