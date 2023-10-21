@@ -25,10 +25,6 @@ describe('app-dir create root layout', () => {
                 path.join(__dirname, 'next.config.js')
               ),
             },
-            dependencies: {
-              react: 'latest',
-              'react-dom': 'latest',
-            },
           })
         })
         afterAll(() => next.destroy())
