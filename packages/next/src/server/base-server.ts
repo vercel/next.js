@@ -488,7 +488,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       enableTainting: this.nextConfig.experimental.taint,
       crossOrigin: this.nextConfig.crossOrigin
         ? this.nextConfig.crossOrigin
-        : undefined,
+        : '',
       largePageDataBytes: this.nextConfig.experimental.largePageDataBytes,
       // Only the `publicRuntimeConfig` key is exposed to the client side
       // It'll be rendered as part of __NEXT_DATA__ on the client side
@@ -2204,6 +2204,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         return null
       }
 
+      const isEtagResponse =
+        res.statusCode === 304 && this.nextConfig.generateEtags
+
       // We now have a valid HTML result that we can return to the user.
       return {
         value: {
@@ -2211,7 +2214,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           html: result,
           pageData: metadata.pageData,
           headers,
-          status: isAppPath ? res.statusCode : undefined,
+          status: isAppPath
+            ? isEtagResponse
+              ? 200
+              : res.statusCode
+            : undefined,
         },
         revalidate: metadata.revalidate,
       }
