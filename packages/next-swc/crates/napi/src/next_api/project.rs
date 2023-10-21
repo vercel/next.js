@@ -617,10 +617,11 @@ pub fn project_update_info_subscribe(
 #[derive(Debug)]
 #[napi(object)]
 pub struct StackFrame {
-    pub file: String,
-    pub method_name: Option<String>,
-    pub line: u32,
     pub column: Option<u32>,
+    pub file: String,
+    pub is_server: bool,
+    pub line: u32,
+    pub method_name: Option<String>,
 }
 
 #[napi]
@@ -633,7 +634,7 @@ pub async fn project_trace_source(
         .run_once(async move {
             let file = match Url::parse(&frame.file) {
                 Ok(url) => match url.scheme() {
-                    "file" => url.path().to_string(),
+                    "file" => urlencoding::decode(url.path())?.to_string(),
                     _ => bail!("Unknown url scheme"),
                 },
                 Err(_) => frame.file.to_string(),
@@ -641,8 +642,8 @@ pub async fn project_trace_source(
 
             let Some(chunk_base) = file.strip_prefix(
                 &(format!(
-                    "{}/{}",
-                    project.container.project().await?.root_path,
+                    "{}/{}/",
+                    project.container.project().await?.project_path,
                     project.container.project().dist_dir().await?
                 )),
             ) else {
@@ -650,32 +651,29 @@ pub async fn project_trace_source(
                 return Ok(None);
             };
 
-            let chunk_path = format!(
-                "{}{}",
+            let path = if frame.is_server {
+                project
+                    .container
+                    .project()
+                    .node_root()
+                    .join(chunk_base.to_owned())
+            } else {
                 project
                     .container
                     .project()
                     .client_relative_path()
-                    .await?
-                    .path,
-                chunk_base
-            );
-
-            let path = project
-                .container
-                .project()
-                .client_root()
-                .fs()
-                .root()
-                .join(chunk_path);
-
-            let Some(generatable): Option<Vc<Box<dyn GenerateSourceMap>>> =
-                Vc::try_resolve_sidecast(project.container.get_versioned_content(path)).await?
-            else {
-                return Ok(None);
+                    .join(chunk_base.to_owned())
             };
 
-            let map = generatable
+            let Some(versioned) = Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(
+                project.container.get_versioned_content(path),
+            )
+            .await?
+            else {
+                bail!("Could not GenerateSourceMap")
+            };
+
+            let map = versioned
                 .generate_source_map()
                 .await?
                 .context("Chunk is missing a sourcemap")?;
@@ -700,6 +698,7 @@ pub async fn project_trace_source(
                 method_name: token.name,
                 line: token.original_line as u32,
                 column: Some(token.original_column as u32),
+                is_server: frame.is_server,
             }))
         })
         .await
@@ -719,12 +718,14 @@ pub async fn project_get_source_for_asset(
                 .container
                 .project()
                 .project_path()
+                .fs()
+                .root()
                 .join(file_path.to_string())
                 .read()
                 .await?;
 
             let FileContent::Content(source_content) = source_content else {
-                return Ok(None);
+                bail!("Cannot find source for asset {}", file_path);
             };
 
             Ok(Some(source_content.content().to_str()?.to_string()))

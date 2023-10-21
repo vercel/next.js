@@ -660,7 +660,7 @@ export async function renderToHTMLImpl(
     renderOpts.defaultLocale,
     renderOpts.domainLocales,
     isPreview,
-    getRequestMeta(req, '__nextIsLocaleDomain')
+    getRequestMeta(req, 'isLocaleDomain')
   )
 
   const appRouter = adaptForAppRouterInstance(router)
@@ -1476,7 +1476,7 @@ export async function renderToHTMLImpl(
     docComponentsRendered,
     dangerousAsPath: router.asPath,
     canonicalBase:
-      !renderOpts.ampPath && getRequestMeta(req, '__nextStrippedLocale')
+      !renderOpts.ampPath && getRequestMeta(req, 'didStripLocale')
         ? `${renderOpts.canonicalBase || ''}/${renderOpts.locale}`
         : renderOpts.canonicalBase,
     ampPath,

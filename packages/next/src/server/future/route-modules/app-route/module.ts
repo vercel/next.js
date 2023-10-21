@@ -436,7 +436,7 @@ export class AppRouteRouteModule extends RouteModule<
       // // Relativize the url so it's relative to the base url. This is so the
       // // outgoing headers upstream can be relative.
       // const rewritePath = response.headers.get('x-middleware-rewrite')!
-      // const initUrl = getRequestMeta(req, '__NEXT_INIT_URL')!
+      // const initUrl = getRequestMeta(req, 'initURL')!
       // const { pathname } = parseUrl(relativizeURL(rewritePath, initUrl))
       // response.headers.set('x-middleware-rewrite', pathname)
     }
