@@ -23,8 +23,8 @@ import {
   SERVER_REFERENCE_MANIFEST,
 } from '../../../shared/lib/constants'
 import {
-  generateActionId,
   getActions,
+  generateActionId,
   isClientComponentEntryModule,
   isCSSMod,
   regexCSS,
@@ -33,6 +33,7 @@ import { traverseModules, forEachEntryModule } from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { getProxiedPluginState } from '../../build-context'
 import type { SizeLimit } from '../../../../types'
+import { generateRandomActionKeyRaw } from '../../../server/app-render/action-encryption-utils'
 
 interface Options {
   dev: boolean
@@ -43,18 +44,23 @@ interface Options {
 
 const PLUGIN_NAME = 'FlightClientEntryPlugin'
 
-export type ActionManifest = {
-  [key in 'node' | 'edge']: {
-    [actionId: string]: {
-      workers: {
-        [name: string]: string | number
-      }
-      // Record which layer the action is in (rsc or sc_action), in the specific entry.
-      layer: {
-        [name: string]: string
-      }
+type Actions = {
+  [actionId: string]: {
+    workers: {
+      [name: string]: string | number
+    }
+    // Record which layer the action is in (rsc or sc_action), in the specific entry.
+    layer: {
+      [name: string]: string
     }
   }
+}
+
+export type ActionManifest = {
+  // Assign a unique encryption key during production build.
+  encryptionKey: string
+  node: Actions
+  edge: Actions
 }
 
 const pluginState = getProxiedPluginState({
@@ -233,7 +239,7 @@ export class FlightClientEntryPlugin {
     })
 
     compiler.hooks.make.tap(PLUGIN_NAME, (compilation) => {
-      compilation.hooks.processAssets.tap(
+      compilation.hooks.processAssets.tapPromise(
         {
           name: PLUGIN_NAME,
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
@@ -856,7 +862,7 @@ export class FlightClientEntryPlugin {
     })
   }
 
-  createActionAssets(
+  async createActionAssets(
     compilation: webpack.Compilation,
     assets: webpack.Compilation['assets']
   ) {
@@ -915,6 +921,9 @@ export class FlightClientEntryPlugin {
       {
         node: serverActions,
         edge: edgeServerActions,
+
+        // Assign encryption
+        encryptionKey: await generateRandomActionKeyRaw(this.dev),
       },
       null,
       this.dev ? 2 : undefined

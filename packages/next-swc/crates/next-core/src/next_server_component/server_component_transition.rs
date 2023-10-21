@@ -29,6 +29,11 @@ impl NextServerComponentTransition {
 #[turbo_tasks::value_impl]
 impl Transition for NextServerComponentTransition {
     #[turbo_tasks::function]
+    fn process_layer(self: Vc<Self>, layer: Vc<String>) -> Vc<String> {
+        layer
+    }
+
+    #[turbo_tasks::function]
     async fn process_module(
         self: Vc<Self>,
         module: Vc<Box<dyn Module>>,
