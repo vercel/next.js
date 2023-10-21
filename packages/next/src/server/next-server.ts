@@ -15,17 +15,20 @@ import type { FetchEventResult } from './web/types'
 import type { PrerenderManifest } from '../build'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
-import type { PayloadOptions } from './send-payload'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
-import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { RouteMatch } from './future/route-matches/route-match'
+import type { IncomingMessage, ServerResponse } from 'http'
+import type { PagesAPIRouteModule } from './future/route-modules/pages-api/module'
+import type { UrlWithParsedQuery } from 'url'
+import type { ParsedUrlQuery } from 'querystring'
+import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
+import type { Revalidate } from './lib/revalidate'
 
 import fs from 'fs'
 import { join, resolve, isAbsolute } from 'path'
-import type { IncomingMessage, ServerResponse } from 'http'
-import type { PagesAPIRouteModule } from './future/route-modules/pages-api/module'
+import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import {
   PAGES_MANIFEST,
@@ -41,11 +44,8 @@ import {
   INTERNAL_HEADERS,
 } from '../shared/lib/constants'
 import { findDir } from '../lib/find-pages-dir'
-import type { UrlWithParsedQuery } from 'url'
 import { NodeNextRequest, NodeNextResponse } from './base-http/node'
 import { sendRenderResult } from './send-payload'
-import type { ParsedUrlQuery } from 'querystring'
-import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
 import { parseUrl } from '../shared/lib/router/utils/parse-url'
 import * as Log from '../build/output/log'
 
@@ -387,13 +387,17 @@ export default class NextNodeServer extends BaseServer {
       type: 'html' | 'json'
       generateEtags: boolean
       poweredByHeader: boolean
-      options?: PayloadOptions | undefined
+      revalidate: Revalidate | undefined
     }
   ): Promise<void> {
     return sendRenderResult({
       req: req.originalRequest,
       res: res.originalResponse,
-      ...options,
+      result: options.result,
+      type: options.type,
+      generateEtags: options.generateEtags,
+      poweredByHeader: options.poweredByHeader,
+      revalidate: options.revalidate,
     })
   }
 

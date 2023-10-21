@@ -21,7 +21,6 @@ import type { PreviewData, ServerRuntime, SizeLimit } from 'next/types'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { OutgoingHttpHeaders } from 'http2'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
-import type { PayloadOptions } from './send-payload'
 import type {
   ManifestRewriteRoute,
   ManifestRoute,
@@ -40,6 +39,7 @@ import type {
 } from './future/route-modules/app-route/module'
 import type { Server as HTTPServer } from 'http'
 import type { ImageConfigComplete } from '../shared/lib/image-config'
+import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { formatHostname } from './lib/format-hostname'
@@ -55,7 +55,7 @@ import {
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { checkIsOnDemandRevalidate } from './api-utils'
 import { setConfig } from '../shared/lib/runtime-config.external'
-import { setRevalidateHeaders } from './send-payload/revalidate-headers'
+import { formatRevalidate, type Revalidate } from './lib/revalidate'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage } from './utils'
 import { isBot } from '../shared/lib/router/utils/is-bot'
@@ -76,7 +76,6 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { getHostname } from '../shared/lib/get-hostname'
 import { parseUrl as parseUrlUtil } from '../shared/lib/router/utils/parse-url'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
-import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
 import {
   RSC,
   RSC_VARY_HEADER,
@@ -108,6 +107,7 @@ import {
   toNodeOutgoingHttpHeaders,
 } from './web/utils'
 import {
+  CACHE_ONE_YEAR,
   NEXT_CACHE_TAGS_HEADER,
   NEXT_QUERY_PARAM_PREFIX,
 } from '../lib/constants'
@@ -282,7 +282,7 @@ export class WrappedBuildError extends Error {
 type ResponsePayload = {
   type: 'html' | 'json' | 'rsc'
   body: RenderResult
-  revalidateOptions?: any
+  revalidate?: Revalidate
 }
 
 export default abstract class Server<ServerOptions extends Options = Options> {
@@ -343,7 +343,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       type: 'html' | 'json' | 'rsc'
       generateEtags: boolean
       poweredByHeader: boolean
-      options?: PayloadOptions
+      revalidate?: Revalidate
     }
   ): Promise<void>
 
@@ -1420,19 +1420,23 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       return
     }
     const { req, res } = ctx
-    const { body, type, revalidateOptions } = payload
+    const { body, type } = payload
+    let { revalidate } = payload
     if (!res.sent) {
       const { generateEtags, poweredByHeader, dev } = this.renderOpts
+
+      // In dev, we should not cache pages for any reason.
       if (dev) {
-        // In dev, we should not cache pages for any reason.
         res.setHeader('Cache-Control', 'no-store, must-revalidate')
+        revalidate = undefined
       }
+
       return this.sendRenderResult(req, res, {
         result: body,
         type,
         generateEtags,
         poweredByHeader,
-        options: revalidateOptions,
+        revalidate,
       })
     }
   }
@@ -2416,23 +2420,37 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       )
     }
 
-    const { revalidate, value: cachedData } = cacheEntry
-    const revalidateOptions: any =
-      typeof revalidate !== 'undefined' &&
+    const { value: cachedData } = cacheEntry
+
+    // Coerce the revalidate parameter from the render.
+    let revalidate: Revalidate | undefined
+    if (
+      typeof cacheEntry.revalidate !== 'undefined' &&
       (!this.renderOpts.dev || (hasServerProps && !isDataReq))
-        ? {
-            // When the page is 404 cache-control should not be added unless
-            // we are rendering the 404 page for notFound: true which should
-            // cache according to revalidate correctly
-            private: isPreviewMode || (is404Page && cachedData),
-            stateful: !isSSG,
-            revalidate,
-          }
-        : undefined
+    ) {
+      if (isPreviewMode || (is404Page && !isDataReq)) {
+        revalidate = 0
+      } else if (!isSSG) {
+        if (!res.getHeader('Cache-Control')) {
+          revalidate = 0
+        }
+      } else if (typeof cacheEntry.revalidate === 'number') {
+        if (cacheEntry.revalidate < 1) {
+          throw new Error(
+            `Invariant: invalid Cache-Control duration provided: ${cacheEntry.revalidate} < 1`
+          )
+        }
+
+        revalidate = cacheEntry.revalidate
+      } else if (typeof cacheEntry.revalidate === 'boolean') {
+        revalidate = CACHE_ONE_YEAR
+      }
+    }
+    cacheEntry.revalidate = revalidate
 
     if (!cachedData) {
-      if (revalidateOptions) {
-        setRevalidateHeaders(res, revalidateOptions)
+      if (cacheEntry.revalidate) {
+        res.setHeader('Cache-Control', formatRevalidate(cacheEntry.revalidate))
       }
       if (isDataReq) {
         res.statusCode = 404
@@ -2446,9 +2464,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         return null
       }
     } else if (cachedData.kind === 'REDIRECT') {
-      if (revalidateOptions) {
-        setRevalidateHeaders(res, revalidateOptions)
+      if (cacheEntry.revalidate) {
+        res.setHeader('Cache-Control', formatRevalidate(cacheEntry.revalidate))
       }
+
       if (isDataReq) {
         return {
           type: 'json',
@@ -2456,7 +2475,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             // @TODO: Handle flight data.
             JSON.stringify(cachedData.props)
           ),
-          revalidateOptions,
+          revalidate: cacheEntry.revalidate,
         }
       } else {
         await handleRedirect(cachedData.props)
@@ -2509,7 +2528,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           body: isDataReq
             ? RenderResult.fromStatic(cachedData.pageData as string)
             : cachedData.html,
-          revalidateOptions,
+          revalidate: cacheEntry.revalidate,
         }
       }
 
@@ -2518,7 +2537,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         body: isDataReq
           ? RenderResult.fromStatic(JSON.stringify(cachedData.pageData))
           : cachedData.html,
-        revalidateOptions,
+        revalidate: cacheEntry.revalidate,
       }
     }
   }
