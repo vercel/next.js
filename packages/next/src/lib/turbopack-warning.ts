@@ -1,6 +1,7 @@
+import type { NextConfig } from '../server/config-shared'
 import path from 'path'
 import loadConfig from '../server/config'
-import type { NextConfig } from '../server/config-shared'
+import * as Log from '../build/output/log'
 import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 
 const supportedTurbopackNextConfigOptions = [
@@ -300,8 +301,8 @@ export async function validateTurboNextConfig({
   if (unsupportedParts) {
     const pkgManager = getPkgManager(dir)
 
-    console.error(
-      `Error: You are using configuration and/or tools that are not yet\nsupported by Next.js v13 with Turbopack:\n${unsupportedParts}\n
+    Log.error(
+      `You are using configuration and/or tools that are not yet\nsupported by Next.js v13 with Turbopack:\n${unsupportedParts}\n
 If you cannot make the changes above, but still want to try out\nNext.js v13 with Turbopack, create the Next.js v13 playground app\nby running the following commands:
 
   ${bold(
@@ -316,12 +317,12 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
         `
     )
 
-    console.warn(feedbackMessage)
+    Log.warn(feedbackMessage)
 
     process.exit(1)
   }
 
-  console.log(feedbackMessage)
+  Log.info(feedbackMessage)
 
   return rawNextConfig
 }
