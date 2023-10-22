@@ -256,7 +256,9 @@ describe('accumulateMetadata', () => {
         const metadata = await accumulateMetadata(
           configuredMetadata.map((m) => [m, null])
         )
-        expect(metadata).toMatchObject(result)
+        // clone to avoid comparing URL objects
+        const clone = (v: any) => JSON.parse(JSON.stringify(v))
+        expect(clone(metadata)).toMatchObject(clone(result))
       })
     })
 
