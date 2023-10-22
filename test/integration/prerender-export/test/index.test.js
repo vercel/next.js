@@ -3,10 +3,6 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import {
-  check,
-  findPort,
-  killApp,
-  launchApp,
   nextBuild,
   renderViaHTTP,
   startStaticServer,
@@ -15,7 +11,7 @@ import {
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
-const nextConfigPath = join(appDir, 'next.config.js')
+let exportDir = join(appDir, 'out')
 let app
 let appPort
 let buildId
@@ -208,59 +204,41 @@ const navigateTest = (dev = false) => {
   })
 }
 
-describe('SSG Prerender', () => {
-  describe('dev mode getStaticPaths', () => {
-    beforeAll(async () => {
-      await fs.writeFile(
-        nextConfigPath,
-        // we set cpus to 1 so that we make sure the requests
-        // aren't being cached at the jest-worker level
-        `module.exports = { experimental: { cpus: 1 } }`
-      )
-      await fs.remove(join(appDir, '.next'))
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort, {
-        env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
+describe('SSG Prerender export', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    describe('export mode', () => {
+      beforeAll(async () => {
+        await fs.remove(join(appDir, '.next'))
+        await fs.remove(exportDir)
+        await nextBuild(appDir, undefined, { cwd: appDir })
+        app = await startStaticServer(exportDir)
+        appPort = app.address().port
+        buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
       })
-    })
-    afterAll(async () => {
-      try {
-        await fs.remove(nextConfigPath)
-        await killApp(app)
-      } catch (err) {
-        console.error(err)
-      }
-    })
 
-    it('should work with firebase import and getStaticPaths', async () => {
-      const html = await renderViaHTTP(appPort, '/blog/post-1')
-      expect(html).toContain('post-1')
-      expect(html).not.toContain('Error: Failed to load')
+      afterAll(async () => {
+        if (app) {
+          await stopApp(app)
+        }
+      })
 
-      const html2 = await renderViaHTTP(appPort, '/blog/post-1')
-      expect(html2).toContain('post-1')
-      expect(html2).not.toContain('Error: Failed to load')
-    })
+      it('should copy prerender files and honor exportTrailingSlash', async () => {
+        const routes = [
+          '/another',
+          '/something',
+          '/blog/post-1',
+          '/blog/post-2/comment-2',
+        ]
 
-    it('should not cache getStaticPaths errors', async () => {
-      const errMsg = /The `fallback` key must be returned from getStaticPaths/
-      await check(() => renderViaHTTP(appPort, '/blog/post-1'), /post-1/)
+        for (const route of routes) {
+          await fs.access(join(exportDir, `${route}/index.html`))
+          await fs.access(
+            join(exportDir, '_next/data', buildId, `${route}.json`)
+          )
+        }
+      })
 
-      const blogPage = join(appDir, 'pages/blog/[post]/index.js')
-      const origContent = await fs.readFile(blogPage, 'utf8')
-      await fs.writeFile(
-        blogPage,
-        origContent.replace('fallback: true,', '/* fallback: true, */')
-      )
-
-      try {
-        await check(() => renderViaHTTP(appPort, '/blog/post-1'), errMsg)
-
-        await fs.writeFile(blogPage, origContent)
-        await check(() => renderViaHTTP(appPort, '/blog/post-1'), /post-1/)
-      } finally {
-        await fs.writeFile(blogPage, origContent)
-      }
+      navigateTest()
     })
   })
 })
