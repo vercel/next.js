@@ -3,7 +3,7 @@ title: unstable_noStore
 description: API Reference for the unstable_noStore function.
 ---
 
-`unstable_noStore` can be used to opt out of static rendering and to indicate that a particular component should not be cached.
+`unstable_noStore` can be used to declaratievly opt out of static rendering and indicate a particular component should not be cached.
 
 ```jsx
 import { unstable_noStore as noStore } from 'next/cache';
@@ -18,8 +18,9 @@ export default async function Component() {
 > **Good to know**:
 >
 > - `unstable_noStore` is equivalent to `cache: 'no-store'` on a `fetch`
-> - `unstable_noStore` can be used both outside and inside [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache)
 > - `unstable_noStore` is preferred over `export const dynamic = 'force-dynamic'` as it is more granular and can be used on a per-component basis
+
+- Using `unstable_noStore` inside [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache) will not opt out of static generation. Instead, it will defer to the cache configuration to determine whether to cache the result or not.
 
 ## Usage
 
