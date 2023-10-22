@@ -14,6 +14,7 @@ createNextDescribe(
   'static export',
   {
     files: __dirname,
+    skipStart: true,
   },
   ({ next }) => {
     const nextConfigPath = 'next.config.js'
@@ -25,18 +26,14 @@ createNextDescribe(
     let portNoTrailSlash: number
 
     beforeAll(async () => {
-      await next.stop()
-
       const nextConfig = await next.readFile(nextConfigPath)
       await next.build()
 
       await next.patchFile(
         nextConfigPath,
-        nextConfig.replace(`trailingSlash: true`, `trailingSlash: false`)
-      )
-      await next.patchFile(
-        nextConfigPath,
-        nextConfig.replace(`distDir: 'out'`, `distDir: '${outNoTrailSlash}'`)
+        nextConfig
+          .replace(`trailingSlash: true`, `trailingSlash: false`)
+          .replace(`distDir: 'out'`, `distDir: '${outNoTrailSlash}'`)
       )
       await next.build()
       await next.patchFile(nextConfigPath, nextConfig)
@@ -65,6 +62,8 @@ createNextDescribe(
         nextConfigPath,
         nextConfig.replace(`distDir: 'out'`, `distDir: '${tmpOutDir}'`)
       )
+      await next.build()
+      await next.patchFile(nextConfigPath, nextConfig)
       await expect(next.readFile(tempfile)).rejects.toThrowError()
     })
 
@@ -107,17 +106,16 @@ createNextDescribe(
 
     describe('Dynamic routes export', () => {
       it('Should throw error not matched route', async () => {
+        const outdir = 'outDynamic'
         const nextConfig = await next.readFile(nextConfigPath)
         await next.patchFile(
           nextConfigPath,
-          nextConfig.replace('/blog/nextjs/comment/test', '/bad/path')
-        )
-        const outdir = 'outDynamic'
-        await next.patchFile(
-          nextConfigPath,
-          nextConfig.replace(`distDir: 'out'`, `distDir: '${outdir}'`)
+          nextConfig
+            .replace('/blog/nextjs/comment/test', '/bad/path')
+            .replace(`distDir: 'out'`, `distDir: '${outdir}'`)
         )
         const { cliOutput } = await next.build()
+        await next.patchFile(nextConfigPath, nextConfig)
 
         expect(cliOutput).toContain(
           'https://nextjs.org/docs/messages/export-path-mismatch'
@@ -474,15 +472,13 @@ createNextDescribe(
 
     describe('API routes export', () => {
       it('Should throw if a route is matched', async () => {
+        const outdir = 'outApi'
         const nextConfig = await next.readFile(nextConfigPath)
         await next.patchFile(
           nextConfigPath,
-          nextConfig.replace('// API route', `'/data': { page: '/api/data' },`)
-        )
-        const outdir = 'outApi'
-        await next.patchFile(
-          nextConfigPath,
-          nextConfig.replace(`distDir: 'out'`, `distDir: '${outdir}'`)
+          nextConfig
+            .replace('// API route', `'/data': { page: '/api/data' },`)
+            .replace(`distDir: 'out'`, `distDir: '${outdir}'`)
         )
         const { cliOutput } = await next.build()
         await next.patchFile(nextConfigPath, nextConfig)
@@ -498,15 +494,12 @@ createNextDescribe(
       const tmpOutdir = 'exportTrailingSlash-out'
       await next.patchFile(
         nextConfigPath,
-        nextConfig.replace(`trailingSlash: true`, `exportTrailingSlash: true`)
-      )
-      await next.patchFile(
-        nextConfigPath,
-        nextConfig.replace(`distDir: 'out'`, `distDir: '${tmpOutdir}'`)
+        nextConfig
+          .replace(`trailingSlash: true`, `exportTrailingSlash: true`)
+          .replace(`distDir: 'out'`, `distDir: '${tmpOutdir}'`)
       )
       await next.build()
       await next.patchFile(nextConfigPath, nextConfig)
-
       expect(await fileExist(path.join(tmpOutdir, '404/index.html'))).toBeTrue()
     })
   }
