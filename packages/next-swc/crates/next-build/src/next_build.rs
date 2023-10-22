@@ -20,6 +20,7 @@ use next_core::{
     },
     next_server::{get_server_chunking_context, get_server_compile_time_info},
     url_node::get_sorted_routes,
+    util::NextRuntime,
     {self},
 };
 use serde::Serialize;
@@ -340,7 +341,8 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
         &mut build_manifest,
         &mut app_paths_manifest,
         &mut all_chunks,
-        todo!(),
+        // TODO: add edge support
+        NextRuntime::NodeJs,
     )
     .await?;
 

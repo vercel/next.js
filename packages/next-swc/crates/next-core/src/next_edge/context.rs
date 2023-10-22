@@ -15,12 +15,11 @@ use turbopack_binding::{
         dev::DevChunkingContext,
         ecmascript::chunk::EcmascriptChunkingContext,
         node::{debug::should_debug, execution_context::ExecutionContext},
-        turbopack::{condition::ContextCondition, resolve_options_context::ResolveOptionsContext},
+        turbopack::resolve_options_context::ResolveOptionsContext,
     },
 };
 
 use crate::{
-    app_structure::find_app_dir,
     mode::NextMode,
     next_config::NextConfig,
     next_import_map::get_next_edge_import_map,
@@ -133,36 +132,6 @@ pub async fn get_edge_resolve_options_context(
         ],
         ..Default::default()
     };
-
-    // let mut rules = vec![];
-    //
-    // if let Some(app_dir) = *find_app_dir(project_path).await? {
-    //     let next_edge_ssr_import_map = get_next_edge_import_map(
-    //         project_path,
-    //         Value::new(ServerContextType::AppSSR { app_dir }),
-    //         mode,
-    //         next_config,
-    //         execution_context,
-    //     );
-    //
-    //     let ssr_resolve_options_context = ResolveOptionsContext {
-    //         import_map: Some(next_edge_ssr_import_map),
-    //         ..resolve_options_context.clone()
-    //     };
-    //
-    //     rules.push((
-    //         ContextCondition::InDirectory(
-    //
-    // "next/dist/esm/server/future/route-modules/app-page/module".to_string(),
-    //         ),
-    //         ssr_resolve_options_context.cell(),
-    //     ));
-    // }
-    //
-    // rules.push((
-    //     foreign_code_context_condition(next_config, project_path).await?,
-    //     resolve_options_context.clone().cell(),
-    // ));
 
     Ok(ResolveOptionsContext {
         enable_typescript: true,

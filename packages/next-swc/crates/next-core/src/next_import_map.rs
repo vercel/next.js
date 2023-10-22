@@ -314,7 +314,6 @@ pub async fn get_next_server_import_map(
         &mut import_map,
         project_path,
         ty,
-        mode,
         NextRuntime::NodeJs,
         next_config,
     )
@@ -423,7 +422,6 @@ pub async fn get_next_edge_import_map(
         &mut import_map,
         project_path,
         ty,
-        mode,
         NextRuntime::Edge,
         next_config,
     )
@@ -493,7 +491,6 @@ async fn insert_next_server_special_aliases(
     import_map: &mut ImportMap,
     project_path: Vc<FileSystemPath>,
     ty: ServerContextType,
-    mode: NextMode,
     runtime: NextRuntime,
     next_config: Vc<NextConfig>,
 ) -> Result<()> {

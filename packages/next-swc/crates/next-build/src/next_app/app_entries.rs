@@ -138,7 +138,6 @@ pub async fn get_app_entries(
         Vc::cell("ssr".to_string()),
     );
 
-    todo!();
     transitions.insert("next-ssr".to_string(), Vc::upcast(ssr_transition));
 
     const ECMASCRIPT_CLIENT_TRANSITION_NAME: &str = "next-ecmascript-client-reference";

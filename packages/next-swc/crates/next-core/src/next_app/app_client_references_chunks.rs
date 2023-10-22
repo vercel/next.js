@@ -3,7 +3,6 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, TryJoinIterExt, Vc};
 use turbopack_binding::turbopack::{
-    build::BuildChunkingContext,
     core::{chunk::ChunkingContextExt, output::OutputAssets},
     ecmascript::chunk::EcmascriptChunkingContext,
 };
