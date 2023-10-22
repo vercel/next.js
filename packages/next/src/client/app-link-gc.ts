@@ -13,7 +13,7 @@ export function linkGc() {
               if (link.dataset.precedence?.startsWith('next')) {
                 const href = link.getAttribute('href')
                 if (href) {
-                  const [resource, version] = href.split('?v=')
+                  const [resource, version] = href.split('?v=', 2)
                   if (version) {
                     const currentOrigin = window.location.origin
                     const allLinks = [
@@ -35,7 +35,7 @@ export function linkGc() {
                       if (otherLink.dataset.precedence?.startsWith('next')) {
                         const otherHref = otherLink.getAttribute('href')
                         if (otherHref) {
-                          const [, otherVersion] = otherHref.split('?v=')
+                          const [, otherVersion] = otherHref.split('?v=', 2)
                           if (!otherVersion || +otherVersion < +version) {
                             // Delay the removal of the stylesheet to avoid FOUC
                             // caused by `@font-face` rules, as they seem to be

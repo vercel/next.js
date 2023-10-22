@@ -64,31 +64,64 @@ export default function PostList({ posts }) {
 
 You can use [`usePathname()`](/docs/app/api-reference/functions/use-pathname) to determine if a link is active. For example, to add a class to the active link, you can check if the current `pathname` matches the `href` of the link:
 
-```jsx filename="app/ui/Navigation.js"
+```tsx filename="app/components/links.tsx" switcher
 'use client'
 
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 
-export function Navigation({ navLinks }) {
+export function Links() {
   const pathname = usePathname()
 
   return (
-    <>
-      {navLinks.map((link) => {
-        const isActive = pathname === link.href
-
-        return (
-          <Link
-            className={isActive ? 'text-blue' : 'text-black'}
-            href={link.href}
-            key={link.name}
-          >
-            {link.name}
+    <nav>
+      <ul>
+        <li>
+          <Link className={`link ${pathname === '/' ? 'active' : ''}`} href="/">
+            Home
           </Link>
-        )
-      })}
-    </>
+        </li>
+        <li>
+          <Link
+            className={`link ${pathname === '/about' ? 'active' : ''}`}
+            href="/about"
+          >
+            About
+          </Link>
+        </li>
+      </ul>
+    </nav>
+  )
+}
+```
+
+```jsx filename="app/components/links.js" switcher
+'use client'
+
+import { usePathname } from 'next/navigation'
+import Link from 'next/link'
+
+export function Links() {
+  const pathname = usePathname()
+
+  return (
+    <nav>
+      <ul>
+        <li>
+          <Link className={`link ${pathname === '/' ? 'active' : ''}`} href="/">
+            Home
+          </Link>
+        </li>
+        <li>
+          <Link
+            className={`link ${pathname === '/about' ? 'active' : ''}`}
+            href="/about"
+          >
+            About
+          </Link>
+        </li>
+      </ul>
+    </nav>
   )
 }
 ```

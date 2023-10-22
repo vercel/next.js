@@ -1,12 +1,14 @@
 use anyhow::Result;
+use indexmap::IndexMap;
 use turbo_tasks::{Value, Vc};
 use turbopack_binding::{
-    turbo::tasks_fs::FileSystemPath,
+    turbo::{tasks_env::EnvMap, tasks_fs::FileSystemPath},
     turbopack::{
         core::{
             compile_time_defines,
             compile_time_info::{
-                CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences,
+                CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReference,
+                FreeVarReferences,
             },
             environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment, ServerAddr},
             free_var_references,
@@ -31,26 +33,40 @@ use crate::{
     util::foreign_code_context_condition,
 };
 
-fn defines() -> CompileTimeDefines {
-    compile_time_defines!(
+fn defines(mode: NextMode, define_env: &IndexMap<String, String>) -> CompileTimeDefines {
+    let mut defines = compile_time_defines!(
         process.turbopack = true,
-        process.env.NODE_ENV = "development",
-        process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false,
-        process.env.NEXT_RUNTIME = "edge"
-    )
-    // TODO(WEB-937) there are more defines needed, see
-    // packages/next/src/build/webpack-config.ts
+        process.env.NEXT_RUNTIME = "edge",
+        process.env.NODE_ENV = mode.node_env(),
+        process.env.TURBOPACK = true,
+    );
+
+    for (k, v) in define_env {
+        defines
+            .0
+            .entry(k.split('.').map(|s| s.to_string()).collect())
+            .or_insert_with(|| CompileTimeDefineValue::JSON(v.clone()));
+    }
+
+    defines
 }
 
 #[turbo_tasks::function]
-fn next_edge_defines() -> Vc<CompileTimeDefines> {
-    defines().cell()
+async fn next_edge_defines(
+    mode: NextMode,
+    define_env: Vc<EnvMap>,
+) -> Result<Vc<CompileTimeDefines>> {
+    Ok(defines(mode, &*define_env.await?).cell())
 }
 
 #[turbo_tasks::function]
-fn next_edge_free_vars(project_path: Vc<FileSystemPath>) -> Vc<FreeVarReferences> {
-    free_var_references!(
-        ..defines().into_iter(),
+async fn next_edge_free_vars(
+    mode: NextMode,
+    project_path: Vc<FileSystemPath>,
+    define_env: Vc<EnvMap>,
+) -> Result<Vc<FreeVarReferences>> {
+    Ok(free_var_references!(
+        ..defines(mode, &*define_env.await?).into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
             request: "next/dist/compiled/buffer".to_string(),
             lookup_path: Some(project_path),
@@ -62,19 +78,21 @@ fn next_edge_free_vars(project_path: Vc<FileSystemPath>) -> Vc<FreeVarReferences
             export: Some("default".to_string()),
         },
     )
-    .cell()
+    .cell())
 }
 
 #[turbo_tasks::function]
 pub fn get_edge_compile_time_info(
+    mode: NextMode,
     project_path: Vc<FileSystemPath>,
     server_addr: Vc<ServerAddr>,
+    define_env: Vc<EnvMap>,
 ) -> Vc<CompileTimeInfo> {
     CompileTimeInfo::builder(Environment::new(Value::new(
         ExecutionEnvironment::EdgeWorker(EdgeWorkerEnvironment { server_addr }.into()),
     )))
-    .defines(next_edge_defines())
-    .free_var_references(next_edge_free_vars(project_path))
+    .defines(next_edge_defines(mode, define_env))
+    .free_var_references(next_edge_free_vars(mode, project_path, define_env))
     .cell()
 }
 

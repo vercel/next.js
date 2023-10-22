@@ -133,7 +133,6 @@ export {
   NextServerSpan,
   NextNodeServerSpan,
   StartServerSpan,
-  SpanTypes,
   RenderSpan,
   RouterSpan,
   AppRenderSpan,
@@ -141,3 +140,5 @@ export {
   AppRouteRouteHandlersSpan,
   ResolveMetadataSpan,
 }
+
+export type { SpanTypes }

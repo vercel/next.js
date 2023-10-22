@@ -1,5 +1,6 @@
 import type { OutgoingHttpHeaders } from 'http'
 import type RenderResult from '../render-result'
+import type { Revalidate } from '../lib/revalidate'
 
 export interface ResponseCacheBase {
   get(
@@ -93,7 +94,7 @@ export type ResponseCacheValue =
   | CachedRouteValue
 
 export type ResponseCacheEntry = {
-  revalidate?: number | false
+  revalidate?: Revalidate
   value: ResponseCacheValue | null
   isStale?: boolean | -1
   isMiss?: boolean
@@ -121,6 +122,6 @@ export interface IncrementalCache {
   set: (
     key: string,
     data: IncrementalCacheValue | null,
-    ctx: { revalidate: number | false }
+    ctx: { revalidate: Revalidate }
   ) => Promise<void>
 }

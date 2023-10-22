@@ -4,13 +4,12 @@ use turbo_tasks::{TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_binding::turbopack::{
     core::{
-        asset::AssetContent, chunk::ModuleId as TurbopackModuleId, output::OutputAsset,
+        asset::AssetContent,
+        chunk::{ChunkItemExt, ChunkableModule, ModuleId as TurbopackModuleId},
+        output::OutputAsset,
         virtual_output::VirtualOutputAsset,
     },
-    ecmascript::{
-        chunk::{EcmascriptChunkItemExt, EcmascriptChunkPlaceable, EcmascriptChunkingContext},
-        utils::StringifyJs,
-    },
+    ecmascript::{chunk::EcmascriptChunkingContext, utils::StringifyJs},
 };
 
 use super::{ClientReferenceManifest, ManifestNode, ManifestNodeEntry, ModuleId};
@@ -30,8 +29,15 @@ impl ClientReferenceManifest {
         client_references_chunks: Vc<ClientReferencesChunks>,
         client_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
         ssr_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        asset_prefix: Vc<Option<String>>,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
         let mut entry_manifest: ClientReferenceManifest = Default::default();
+        entry_manifest.module_loading.prefix = asset_prefix
+            .await?
+            .as_ref()
+            .map(|p| p.to_owned())
+            .unwrap_or_default();
+        entry_manifest.module_loading.cross_origin = None;
         let client_references_chunks = client_references_chunks.await?;
         let client_relative_path = client_relative_path.await?;
         let node_root_ref = node_root.await?;
@@ -64,7 +70,7 @@ impl ClientReferenceManifest {
                 let entry_css_files = entry_manifest
                     .entry_css_files
                     .entry(server_component_name.clone_value())
-                    .or_insert_with(Default::default);
+                    .or_default();
 
                 match app_client_reference_ty {
                     ClientReferenceType::CssClientReference(_) => {
@@ -72,7 +78,11 @@ impl ClientReferenceManifest {
                             client_chunks_paths
                                 .iter()
                                 .filter_map(|chunk_path| {
-                                    client_relative_path.get_path_to(chunk_path)
+                                    if chunk_path.extension_ref() == Some("css") {
+                                        client_relative_path.get_path_to(chunk_path)
+                                    } else {
+                                        None
+                                    }
                                 })
                                 .map(ToString::to_string),
                         );
@@ -106,12 +116,12 @@ impl ClientReferenceManifest {
 
                     let client_module_id = ecmascript_client_reference
                         .client_module
-                        .as_chunk_item(client_chunking_context)
+                        .as_chunk_item(Vc::upcast(client_chunking_context))
                         .id()
                         .await?;
                     let ssr_module_id = ecmascript_client_reference
                         .ssr_module
-                        .as_chunk_item(ssr_chunking_context)
+                        .as_chunk_item(Vc::upcast(ssr_chunking_context))
                         .id()
                         .await?;
 

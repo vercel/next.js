@@ -2,31 +2,37 @@
 
 import '../server/lib/cpu-profile'
 import type { StartServerOptions } from '../server/lib/start-server'
-import { getPort, printAndExit } from '../server/lib/utils'
+import {
+  RESTART_EXIT_CODE,
+  checkNodeDebugType,
+  getDebugPort,
+  getNodeOptionsWithoutInspect,
+  getPort,
+  printAndExit,
+} from '../server/lib/utils'
 import * as Log from '../build/output/log'
-import { CliCommand } from '../lib/commands'
+import type { CliCommand } from '../lib/commands'
 import { getProjectDir } from '../lib/get-project-dir'
 import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import path from 'path'
-import { NextConfigComplete } from '../server/config-shared'
+import type { NextConfigComplete } from '../server/config-shared'
 import { setGlobal, traceGlobals } from '../trace/shared'
 import { Telemetry } from '../telemetry/storage'
-import loadConfig, { getEnabledExperimentalFeatures } from '../server/config'
+import loadConfig from '../server/config'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { fileExists, FileType } from '../lib/file-exists'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
 import { createSelfSignedCertificate } from '../lib/mkcert'
+import type { SelfSignedCertificate } from '../lib/mkcert'
 import uploadTrace from '../trace/upload-trace'
-import { initialEnv, loadEnvConfig } from '@next/env'
+import { initialEnv } from '@next/env'
 import { trace } from '../trace'
 import { validateTurboNextConfig } from '../lib/turbopack-warning'
 import { fork } from 'child_process'
-import { RESTART_EXIT_CODE } from '../server/lib/setup-server-worker'
 import {
   getReservedPortExplanation,
   isPortIsReserved,
 } from '../lib/helpers/get-reserved-port'
-import { needsExperimentalReact } from '../lib/needs-experimental-react'
 
 let dir: string
 let child: undefined | ReturnType<typeof fork>
@@ -185,31 +191,7 @@ const nextDev: CliCommand = async (args) => {
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
 
-  const { loadedEnvFiles } = loadEnvConfig(dir, true, console, false)
-
-  let expFeatureInfo: string[] = []
-  config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
-    onLoadUserConfig(userConfig) {
-      const userNextConfigExperimental = getEnabledExperimentalFeatures(
-        userConfig.experimental
-      )
-      expFeatureInfo = userNextConfigExperimental.sort(
-        (a, b) => a.length - b.length
-      )
-    },
-  })
-
-  process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = needsExperimentalReact(config)
-    ? 'experimental'
-    : 'next'
-
-  // we need to reset env if we are going to create
-  // the worker process with the esm loader so that the
-  // initial env state is correct
-  let envInfo: string[] = []
-  if (loadedEnvFiles.length > 0) {
-    envInfo = loadedEnvFiles.map((f) => f.path)
-  }
+  config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
 
   const isExperimentalTestProxy = args['--experimental-test-proxy']
 
@@ -224,8 +206,6 @@ const nextDev: CliCommand = async (args) => {
     isDev: true,
     hostname: host,
     isExperimentalTestProxy,
-    envInfo,
-    expFeatureInfo,
   }
 
   if (args['--turbo']) {
@@ -233,8 +213,8 @@ const nextDev: CliCommand = async (args) => {
   }
 
   if (process.env.TURBOPACK) {
+    isTurboSession = true
     await validateTurboNextConfig({
-      isCustomTurbopack: !!process.env.__INTERNAL_CUSTOM_TURBOPACK_BINDINGS,
       ...devServerOptions,
       isDev: true,
     })
@@ -248,13 +228,27 @@ const nextDev: CliCommand = async (args) => {
   async function startServer(options: StartServerOptions) {
     return new Promise<void>((resolve) => {
       let resolved = false
+      const defaultEnv = (initialEnv || process.env) as typeof process.env
+
+      let NODE_OPTIONS = getNodeOptionsWithoutInspect()
+      let nodeDebugType = checkNodeDebugType()
+
+      if (nodeDebugType) {
+        NODE_OPTIONS = `${NODE_OPTIONS} --${nodeDebugType}=${
+          getDebugPort() + 1
+        }`
+      }
 
       child = fork(startServerPath, {
         stdio: 'inherit',
         env: {
-          ...((initialEnv || process.env) as typeof process.env),
+          ...defaultEnv,
           TURBOPACK: process.env.TURBOPACK,
           NEXT_PRIVATE_WORKER: '1',
+          NODE_EXTRA_CA_CERTS: options.selfSignedCertificate
+            ? options.selfSignedCertificate.rootCA
+            : defaultEnv.NODE_EXTRA_CA_CERTS,
+          NODE_OPTIONS,
         },
       })
 
@@ -288,15 +282,17 @@ const nextDev: CliCommand = async (args) => {
           'Self-signed certificates are currently an experimental feature, use at your own risk.'
         )
 
-        let certificate: { key: string; cert: string } | undefined
+        let certificate: SelfSignedCertificate | undefined
 
-        if (
-          args['--experimental-https-key'] &&
-          args['--experimental-https-cert']
-        ) {
+        const key = args['--experimental-https-key']
+        const cert = args['--experimental-https-cert']
+        const rootCA = args['--experimental-https-ca']
+
+        if (key && cert) {
           certificate = {
-            key: path.resolve(args['--experimental-https-key']),
-            cert: path.resolve(args['--experimental-https-cert']),
+            key: path.resolve(key),
+            cert: path.resolve(cert),
+            rootCA: rootCA ? path.resolve(rootCA) : undefined,
           }
         } else {
           certificate = await createSelfSignedCertificate(host)
@@ -321,5 +317,17 @@ const nextDev: CliCommand = async (args) => {
     await runDevServer(false)
   })
 }
+
+function cleanup() {
+  if (!child) {
+    return
+  }
+
+  child.kill('SIGTERM')
+}
+
+process.on('exit', cleanup)
+process.on('SIGINT', cleanup)
+process.on('SIGTERM', cleanup)
 
 export { nextDev }

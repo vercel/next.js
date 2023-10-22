@@ -168,6 +168,15 @@ pub struct Metadata {
     pub open_graph: Vec<MetadataWithAltItem>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sitemap: Option<MetadataItem>,
+    // The page indicates where the metadata is defined and captured.
+    // The steps for capturing metadata (get_directory_tree) and constructing
+    // LoaderTree (directory_tree_to_entrypoints) is separated,
+    // and child loader tree can trickle down metadata when clone / merge components calculates
+    // the actual path incorrectly with fillMetadataSegment.
+    //
+    // This is only being used for the static metadata files.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub base_page: Option<AppPage>,
 }
 
 impl Metadata {
@@ -178,12 +187,14 @@ impl Metadata {
             twitter,
             open_graph,
             sitemap,
+            base_page,
         } = self;
         icon.is_empty()
             && apple.is_empty()
             && twitter.is_empty()
             && open_graph.is_empty()
             && sitemap.is_none()
+            && base_page.is_none()
     }
 
     fn merge(a: &Self, b: &Self) -> Self {
@@ -198,6 +209,7 @@ impl Metadata {
                 .copied()
                 .collect(),
             sitemap: a.sitemap.or(b.sitemap),
+            base_page: a.base_page.as_ref().or(b.base_page.as_ref()).cloned(),
         }
     }
 }
@@ -473,7 +485,7 @@ pub enum Entrypoint {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct Entrypoints(IndexMap<String, Entrypoint>);
+pub struct Entrypoints(IndexMap<AppPath, Entrypoint>);
 
 fn is_parallel_route(name: &str) -> bool {
     name.starts_with('@')
@@ -505,7 +517,7 @@ async fn add_parallel_route(
 
 fn conflict_issue(
     app_dir: Vc<FileSystemPath>,
-    e: &OccupiedEntry<String, Entrypoint>,
+    e: &OccupiedEntry<AppPath, Entrypoint>,
     a: &str,
     b: &str,
     value_a: &AppPage,
@@ -532,13 +544,11 @@ fn conflict_issue(
 
 async fn add_app_page(
     app_dir: Vc<FileSystemPath>,
-    result: &mut IndexMap<String, Entrypoint>,
+    result: &mut IndexMap<AppPath, Entrypoint>,
     page: AppPage,
     loader_tree: Vc<LoaderTree>,
 ) -> Result<()> {
-    let pathname = AppPath::from(page.clone());
-
-    let mut e = match result.entry(format!("{pathname}")) {
+    let mut e = match result.entry(page.clone().into()) {
         Entry::Occupied(e) => e,
         Entry::Vacant(e) => {
             e.insert(Entrypoint::AppPage { page, loader_tree });
@@ -589,13 +599,11 @@ async fn add_app_page(
 
 fn add_app_route(
     app_dir: Vc<FileSystemPath>,
-    result: &mut IndexMap<String, Entrypoint>,
+    result: &mut IndexMap<AppPath, Entrypoint>,
     page: AppPage,
     path: Vc<FileSystemPath>,
 ) {
-    let pathname = AppPath::from(page.clone());
-
-    let e = match result.entry(format!("{pathname}")) {
+    let e = match result.entry(page.clone().into()) {
         Entry::Occupied(e) => e,
         Entry::Vacant(e) => {
             e.insert(Entrypoint::AppRoute { page, path });
@@ -632,13 +640,11 @@ fn add_app_route(
 
 fn add_app_metadata_route(
     app_dir: Vc<FileSystemPath>,
-    result: &mut IndexMap<String, Entrypoint>,
+    result: &mut IndexMap<AppPath, Entrypoint>,
     page: AppPage,
     metadata: MetadataItem,
 ) {
-    let pathname = AppPath::from(page.clone());
-
-    let e = match result.entry(format!("{pathname}")) {
+    let e = match result.entry(page.clone().into()) {
         Entry::Occupied(e) => e,
         Entry::Vacant(e) => {
             e.insert(Entrypoint::AppMetadata { page, metadata });
@@ -715,13 +721,46 @@ async fn directory_tree_to_entrypoints_internal(
     let subdirectories = &directory_tree.subdirectories;
     let components = directory_tree.components.await?;
 
+    // Capture the current page for the metadata to calculate segment relative to
+    // the corresponding page for the static metadata files.
+    /*
+    let metadata = Metadata {
+        base_page: Some(app_page.clone()),
+        ..components.metadata.clone()
+    }; */
+
+    let components = if components.metadata.base_page.is_some() {
+        components
+    } else {
+        (Components {
+            metadata: Metadata {
+                base_page: Some(app_page.clone()),
+                ..components.metadata.clone()
+            },
+            ..*components
+        })
+        .cell()
+        .await?
+    };
+
     let current_level_is_parallel_route = is_parallel_route(&directory_name);
 
     if let Some(page) = components.page {
+        // When resolving metadata with corresponding module
+        // (https://github.com/vercel/next.js/blob/aa1ee5995cdd92cc9a2236ce4b6aa2b67c9d32b2/packages/next/src/lib/metadata/resolve-metadata.ts#L340)
+        // layout takes precedence over page (https://github.com/vercel/next.js/blob/aa1ee5995cdd92cc9a2236ce4b6aa2b67c9d32b2/packages/next/src/server/lib/app-dir-module.ts#L22)
+        // If the component have layout and page both, do not attach same metadata to
+        // the page.
+        let metadata = if components.layout.is_some() {
+            Default::default()
+        } else {
+            components.metadata.clone()
+        };
+
         add_app_page(
             app_dir,
             &mut result,
-            app_page.clone().complete(PageType::Page)?,
+            app_page.complete(PageType::Page)?,
             if current_level_is_parallel_route {
                 LoaderTree {
                     page: app_page.clone(),
@@ -729,6 +768,7 @@ async fn directory_tree_to_entrypoints_internal(
                     parallel_routes: IndexMap::new(),
                     components: Components {
                         page: Some(page),
+                        metadata,
                         ..Default::default()
                     }
                     .cell(),
@@ -746,6 +786,7 @@ async fn directory_tree_to_entrypoints_internal(
                             parallel_routes: IndexMap::new(),
                             components: Components {
                                 page: Some(page),
+                                metadata,
                                 ..Default::default()
                             }
                             .cell(),
@@ -766,7 +807,7 @@ async fn directory_tree_to_entrypoints_internal(
         add_app_page(
             app_dir,
             &mut result,
-            app_page.clone().complete(PageType::Page)?,
+            app_page.complete(PageType::Page)?,
             if current_level_is_parallel_route {
                 LoaderTree {
                     page: app_page.clone(),
@@ -811,7 +852,7 @@ async fn directory_tree_to_entrypoints_internal(
         add_app_route(
             app_dir,
             &mut result,
-            app_page.clone().complete(PageType::Route)?,
+            app_page.complete(PageType::Route)?,
             route,
         );
     }
@@ -822,6 +863,7 @@ async fn directory_tree_to_entrypoints_internal(
         twitter,
         open_graph,
         sitemap,
+        base_page: _,
     } = &components.metadata;
 
     for meta in sitemap
@@ -927,8 +969,14 @@ async fn directory_tree_to_entrypoints_internal(
         let parallel_route_key = match_parallel_route(subdir_name);
 
         let mut app_page = app_page.clone();
+        let mut illegal_path = None;
         if parallel_route_key.is_none() {
-            app_page.push_str(subdir_name)?;
+            // When constructing the app_page fails (e. g. due to limitations of the order),
+            // we only want to emit the error when there are actual pages below that
+            // directory.
+            if let Err(e) = app_page.push_str(subdir_name) {
+                illegal_path = Some(e);
+            }
         }
 
         let map = directory_tree_to_entrypoints_internal(
@@ -939,6 +987,12 @@ async fn directory_tree_to_entrypoints_internal(
             app_page.clone(),
         )
         .await?;
+
+        if let Some(illegal_path) = illegal_path {
+            if !map.is_empty() {
+                return Err(illegal_path);
+            }
+        }
 
         for (_, entrypoint) in map.iter() {
             match *entrypoint {

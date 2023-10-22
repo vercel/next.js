@@ -4482,8 +4482,7 @@ describe('File Serving', () => {
 
     runTests(true)
   })
-
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       const { code } = await nextBuild(appDir)
 

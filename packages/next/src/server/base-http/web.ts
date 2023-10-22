@@ -1,11 +1,14 @@
 import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'http'
-import { toNodeOutgoingHttpHeaders } from '../web/utils'
+import type { FetchMetrics } from './index'
 
+import { toNodeOutgoingHttpHeaders } from '../web/utils'
 import { BaseNextRequest, BaseNextResponse } from './index'
+import { DetachedPromise } from '../../lib/detached-promise'
 
 export class WebNextRequest extends BaseNextRequest<ReadableStream | null> {
   public request: Request
   public headers: IncomingHttpHeaders
+  public fetchMetrics?: FetchMetrics
 
   constructor(request: Request) {
     const url = new URL(request.url)
@@ -31,26 +34,9 @@ export class WebNextRequest extends BaseNextRequest<ReadableStream | null> {
 export class WebNextResponse extends BaseNextResponse<WritableStream> {
   private headers = new Headers()
   private textBody: string | undefined = undefined
-  private _sent = false
-
-  private sendPromise = new Promise<void>((resolve) => {
-    this.sendResolve = resolve
-  })
-  private sendResolve?: () => void
-  private response = this.sendPromise.then(() => {
-    return new Response(this.textBody ?? this.transformStream.readable, {
-      headers: this.headers,
-      status: this.statusCode,
-      statusText: this.statusMessage,
-    })
-  })
 
   public statusCode: number | undefined
   public statusMessage: string | undefined
-
-  get sent() {
-    return this._sent
-  }
 
   constructor(public transformStream = new TransformStream()) {
     super(transformStream.writable)
@@ -98,12 +84,25 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
     return this
   }
 
-  send() {
-    this.sendResolve?.()
+  private readonly sendPromise = new DetachedPromise<void>()
+  private _sent = false
+  public send() {
+    this.sendPromise.resolve()
     this._sent = true
   }
 
-  toResponse() {
-    return this.response
+  get sent() {
+    return this._sent
+  }
+
+  public async toResponse() {
+    // If we haven't called `send` yet, wait for it to be called.
+    if (!this.sent) await this.sendPromise.promise
+
+    return new Response(this.textBody ?? this.transformStream.readable, {
+      headers: this.headers,
+      status: this.statusCode,
+      statusText: this.statusMessage,
+    })
   }
 }
