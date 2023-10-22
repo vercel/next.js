@@ -176,6 +176,7 @@ describe('next.rs api', () => {
       watch: true,
       serverAddr: `127.0.0.1:3000`,
       defineEnv: createDefineEnv({
+        isTurbopack: true,
         allowedRevalidateHeaderKeys: undefined,
         clientRouterFilters: undefined,
         config: nextConfig,
