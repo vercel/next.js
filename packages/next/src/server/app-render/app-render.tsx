@@ -20,7 +20,6 @@ import {
   renderToInitialFizzStream,
   createBufferedTransformStream,
   continueFizzStream,
-  streamToBufferedResult,
   cloneTransformStream,
 } from '../stream-utils/node-web-streams-helper'
 import { canSegmentBeOverridden } from '../../client/components/match-segments'
@@ -67,6 +66,7 @@ import { makeGetServerInsertedHTML } from './make-get-server-inserted-html'
 import { walkTreeWithFlightRouterState } from './walk-tree-with-flight-router-state'
 import { createComponentTree } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
+import { setReferenceManifestsSingleton } from './action-encryption-utils'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -85,9 +85,6 @@ type AppRenderBaseContext = {
   renderOpts: RenderOpts
 }
 
-// TODO-APP: improve type
-type ServerContext = [string, any]
-
 export type GenerateFlight = typeof generateFlight
 
 export type AppRenderContext = AppRenderBaseContext & {
@@ -104,7 +101,6 @@ export type AppRenderContext = AppRenderBaseContext & {
   pagePath: string
   clientReferenceManifest: ClientReferenceManifest
   assetPrefix: string
-  serverContexts: ServerContext[]
   flightDataRendererErrorHandler: ErrorHandler
   serverComponentsErrorHandler: ErrorHandler
   isNotFoundPath: boolean
@@ -290,7 +286,6 @@ async function generateFlight(
       : buildIdFlightDataPair,
     ctx.clientReferenceManifest.clientModules,
     {
-      context: ctx.serverContexts,
       onError: ctx.flightDataRendererErrorHandler,
     }
   ).pipeThrough(createBufferedTransformStream())
@@ -414,6 +409,7 @@ async function renderToHTMLOrFlightImpl(
     buildId,
     appDirDevErrorLogger,
     assetPrefix = '',
+    enableTainting,
   } = renderOpts
 
   // We need to expose the bundled `require` API globally for
@@ -432,6 +428,34 @@ async function renderToHTMLOrFlightImpl(
 
   // TODO: fix this typescript
   const clientReferenceManifest = renderOpts.clientReferenceManifest!
+
+  const workerName = 'app' + renderOpts.page
+  const serverModuleMap: {
+    [id: string]: {
+      id: string
+      chunks: string[]
+      name: string
+    }
+  } = new Proxy(
+    {},
+    {
+      get: (_, id: string) => {
+        return {
+          id: serverActionsManifest[
+            process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
+          ][id].workers[workerName],
+          name: id,
+          chunks: [],
+        }
+      },
+    }
+  )
+
+  setReferenceManifestsSingleton({
+    clientReferenceManifest,
+    serverActionsManifest,
+    serverModuleMap,
+  })
 
   const capturedErrors: Error[] = []
   const allCapturedErrors: Error[] = []
@@ -482,7 +506,15 @@ async function renderToHTMLOrFlightImpl(
     AppRouter,
     GlobalError,
     tree: loaderTree,
+    taintObjectReference,
   } = ComponentMod
+
+  if (enableTainting) {
+    taintObjectReference(
+      'Do not pass process.env to client components since it will leak sensitive data',
+      process.env
+    )
+  }
 
   const { staticGenerationStore, requestStore } = baseCtx
   const { urlPathname } = staticGenerationStore
@@ -526,15 +558,6 @@ async function renderToHTMLOrFlightImpl(
   const searchParamsProps = { searchParams: providedSearchParams }
 
   /**
-   * Server Context is specifically only available in Server Components.
-   * It has to hold values that can't change while rendering from the common layout down.
-   * An example of this would be that `headers` are available but `searchParams` are not because that'd mean we have to render from the root layout down on all requests.
-   */
-  const serverContexts: Array<[string, any]> = [
-    ['WORKAROUND', null], // TODO-APP: First value has a bug currently where the value is not set on the second request: https://github.com/facebook/react/issues/24849
-  ]
-
-  /**
    * Dynamic parameters. E.g. when you visit `/dashboard/vercel` which is rendered by `/dashboard/[slug]` the value will be {"slug": "vercel"}.
    */
   const params = renderOpts.params ?? {}
@@ -561,7 +584,6 @@ async function renderToHTMLOrFlightImpl(
     assetPrefix,
     flightDataRendererErrorHandler,
     serverComponentsErrorHandler,
-    serverContexts,
     isNotFoundPath,
     res,
   }
@@ -580,7 +602,6 @@ async function renderToHTMLOrFlightImpl(
   const serverComponentsRenderOpts = {
     inlinedDataTransformStream: new TransformStream<Uint8Array, Uint8Array>(),
     clientReferenceManifest,
-    serverContexts,
     formState: null,
   }
 
@@ -688,7 +709,7 @@ async function renderToHTMLOrFlightImpl(
             nonce,
             // Include hydration scripts in the HTML
             bootstrapScripts: [bootstrapScript],
-            experimental_formState: formState,
+            formState,
           },
         })
 
@@ -744,6 +765,9 @@ async function renderToHTMLOrFlightImpl(
         }
 
         const is404 = res.statusCode === 404
+        if (!is404 && !hasRedirectError) {
+          res.statusCode = 500
+        }
 
         // Preserve the existing RSC inline chunks from the page rendering.
         // To avoid the same stream being operated twice, clone the origin stream for error rendering.
@@ -838,7 +862,7 @@ async function renderToHTMLOrFlightImpl(
               nonce,
               // Include hydration scripts in the HTML
               bootstrapScripts: [errorBootstrapScript],
-              experimental_formState: formState,
+              formState,
             },
           })
 
@@ -871,8 +895,7 @@ async function renderToHTMLOrFlightImpl(
     req,
     res,
     ComponentMod,
-    page: renderOpts.page,
-    serverActionsManifest,
+    serverModuleMap,
     generateFlight,
     staticGenerationStore: staticGenerationStore,
     requestStore: requestStore,
@@ -921,7 +944,7 @@ async function renderToHTMLOrFlightImpl(
   })
 
   if (staticGenerationStore.isStaticGeneration) {
-    const htmlResult = await streamToBufferedResult(renderResult)
+    const htmlResult = await renderResult.toUnchunkedString(true)
 
     // if we encountered any unexpected errors during build
     // we fail the prerendering phase and the build
@@ -931,9 +954,9 @@ async function renderToHTMLOrFlightImpl(
 
     // TODO-APP: derive this from same pass to prevent additional
     // render during static generation
-    const stringifiedFlightPayload = await streamToBufferedResult(
+    const stringifiedFlightPayload = await (
       await generateFlight(ctx)
-    )
+    ).toUnchunkedString(true)
 
     if (staticGenerationStore.forceStatic === false) {
       staticGenerationStore.revalidate = 0

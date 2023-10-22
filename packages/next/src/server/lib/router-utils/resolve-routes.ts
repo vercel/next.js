@@ -35,8 +35,6 @@ import {
 } from '../../../shared/lib/router/utils/prepare-destination'
 import { createRequestResponseMocks } from '../mock-request'
 
-import '../../node-polyfill-web-streams'
-
 const debug = setupDebug('next:router-server:resolve-routes')
 
 export function getResolveRoutes(
@@ -116,7 +114,7 @@ export function getResolveRoutes(
     let parsedUrl = url.parse(req.url || '', true) as NextUrlWithParsedQuery
     let didRewrite = false
 
-    const urlParts = (req.url || '').split('?')
+    const urlParts = (req.url || '').split('?', 1)
     const urlNoQuery = urlParts[0]
 
     // this normalizes repeated slashes in the path e.g. hello//world ->
@@ -148,12 +146,12 @@ export function getResolveRoutes(
         }${req.url}`
       : req.url || ''
 
-    addRequestMeta(req, '__NEXT_INIT_URL', initUrl)
-    addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
-    addRequestMeta(req, '_protocol', protocol)
+    addRequestMeta(req, 'initURL', initUrl)
+    addRequestMeta(req, 'initQuery', { ...parsedUrl.query })
+    addRequestMeta(req, 'initProtocol', protocol)
 
     if (!isUpgradeReq) {
-      addRequestMeta(req, '__NEXT_CLONABLE_BODY', getCloneableBody(req))
+      addRequestMeta(req, 'clonableBody', getCloneableBody(req))
     }
 
     const maybeAddTrailingSlash = (pathname: string) => {

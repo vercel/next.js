@@ -45,7 +45,7 @@ createNextDescribe(
       await browser.elementByCss('#cookie').click()
       await check(async () => {
         const res = (await browser.elementByCss('h1').text()) || ''
-        const id = res.split(':')
+        const id = res.split(':', 2)
         return id[0] === id[1] && id[0] ? 'same' : 'different'
       }, 'same')
 
@@ -59,7 +59,7 @@ createNextDescribe(
       await browser.elementByCss('#setCookie').click()
       await check(async () => {
         const res = (await browser.elementByCss('h1').text()) || ''
-        const id = res.split(':')
+        const id = res.split(':', 3)
         return id[0] === id[1] && id[0] === id[2] && id[0]
           ? 'same'
           : 'different'
@@ -134,7 +134,7 @@ createNextDescribe(
 
       await check(() => {
         return browser.eval('window.location.pathname + window.location.search')
-      }, '/header?name=test&constructor=FormData&hidden-info=hi')
+      }, '/header?name=test&constructor=_FormData&hidden-info=hi')
     })
 
     it('should support .bind', async () => {
@@ -797,6 +797,14 @@ createNextDescribe(
           }, 'success')
         }
       )
+    })
+
+    describe('encryption', () => {
+      it('should send encrypted values from the closed over closure', async () => {
+        const res = await next.fetch('/encryption')
+        const html = await res.text()
+        expect(html).not.toContain('qwerty123')
+      })
     })
   }
 )

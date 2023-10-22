@@ -37,16 +37,6 @@ With Server Actions, you don't need to manually create API endpoints. Instead, y
 
 Server Actions can be defined in Server Components or called from Client Components. Defining the action in a Server Component allows the form to function without JavaScript, providing progressive enhancement.
 
-Enable Server Actions in your `next.config.js` file:
-
-```js filename="next.config.js"
-module.exports = {
-  experimental: {
-    serverActions: true,
-  },
-}
-```
-
 > **Good to know:**
 >
 > - Forms calling Server Actions from Server Components can function without JavaScript.
@@ -377,7 +367,7 @@ For example, the following submit button:
 ```tsx filename="app/submit-button.tsx" switcher
 'use client'
 
-import { experimental_useFormStatus as useFormStatus } from 'react-dom'
+import { useFormStatus } from 'react-dom'
 
 export function SubmitButton() {
   const { pending } = useFormStatus()
@@ -393,7 +383,7 @@ export function SubmitButton() {
 ```jsx filename="app/submit-button.jsx" switcher
 'use client'
 
-import { experimental_useFormStatus as useFormStatus } from 'react-dom'
+import { useFormStatus } from 'react-dom'
 
 export function SubmitButton() {
   const { pending } = useFormStatus()
@@ -557,8 +547,7 @@ Then, from a Client Component, you can read this value and display an error mess
 ```tsx filename="app/add-form.tsx" switcher
 'use client'
 
-import { experimental_useFormState as useFormState } from 'react-dom'
-import { experimental_useFormStatus as useFormStatus } from 'react-dom'
+import { useFormState, useFormStatus } from 'react-dom'
 import { createTodo } from '@/app/actions'
 
 const initialState = {
@@ -594,8 +583,7 @@ export function AddForm() {
 ```jsx filename="app/add-form.jsx" switcher
 'use client'
 
-import { experimental_useFormState as useFormState } from 'react-dom'
-import { experimental_useFormStatus as useFormStatus } from 'react-dom'
+import { useFormState, useFormStatus } from 'react-dom'
 import { createTodo } from '@/app/actions'
 
 const initialState = {

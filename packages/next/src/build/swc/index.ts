@@ -519,6 +519,14 @@ export interface HmrIdentifiers {
   identifiers: string[]
 }
 
+interface TurbopackStackFrame {
+  column: number | null
+  file: string
+  isServer: boolean
+  line: number
+  methodName: string | null
+}
+
 export interface UpdateInfo {
   duration: number
   tasks: number
@@ -540,6 +548,10 @@ export interface Project {
   hmrIdentifiersSubscribe(): AsyncIterableIterator<
     TurbopackResult<HmrIdentifiers>
   >
+  getSourceForAsset(filePath: string): Promise<string | null>
+  traceSource(
+    stackFrame: TurbopackStackFrame
+  ): Promise<TurbopackStackFrame | null>
   updateInfoSubscribe(): AsyncIterableIterator<TurbopackResult<UpdateInfo>>
 }
 
@@ -914,6 +926,16 @@ function bindingToApi(binding: any, _wasm: boolean) {
           binding.projectHmrIdentifiersSubscribe(this._nativeProject, callback)
       )
       return subscription
+    }
+
+    traceSource(
+      stackFrame: TurbopackStackFrame
+    ): Promise<TurbopackStackFrame | null> {
+      return binding.projectTraceSource(this._nativeProject, stackFrame)
+    }
+
+    getSourceForAsset(filePath: string): Promise<string | null> {
+      return binding.projectGetSourceForAsset(this._nativeProject, filePath)
     }
 
     updateInfoSubscribe() {
