@@ -488,12 +488,12 @@ pub struct ExperimentalConfig {
     taint: Option<bool>,
     proxy_timeout: Option<f64>,
     /// Allows adjusting body parser size limit for server actions.
-    server_actions_body_size_limit: Option<SizeLimit>,
+    pub server_actions_body_size_limit: Option<SizeLimit>,
     /// enables the minification of server code.
     server_minification: Option<bool>,
     /// Enables source maps generation for the server production bundle.
     server_source_maps: Option<bool>,
-    sri: Option<serde_json::Value>,
+    pub sri: Option<SubResourceIntegrity>,
     swc_minify: Option<bool>,
     swc_trace_profiling: Option<bool>,
     /// @internal Used by the Next.js internals only.
@@ -510,8 +510,14 @@ pub struct ExperimentalConfig {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(rename_all = "camelCase")]
+pub struct SubResourceIntegrity {
+    pub algorithm: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(untagged)]
-enum SizeLimit {
+pub enum SizeLimit {
     Number(f64),
     WithUnit(String),
 }

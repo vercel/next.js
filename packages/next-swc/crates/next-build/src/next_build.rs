@@ -310,7 +310,8 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
     let app_client_references_chunks = get_app_client_references_chunks(
         app_client_reference_tys,
         client_chunking_context,
-        server_chunking_context,
+        // TODO
+        Vc::upcast(server_chunking_context),
     );
     let app_client_references_chunks_ref = app_client_references_chunks.await?;
 
@@ -339,6 +340,7 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
         &mut build_manifest,
         &mut app_paths_manifest,
         &mut all_chunks,
+        todo!(),
     )
     .await?;
 

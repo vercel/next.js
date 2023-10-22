@@ -1,5 +1,5 @@
 import type { LoaderTree } from '../../server/lib/app-dir-module'
-
+;('TURBOPACK { transition: next-ssr }')
 import { AppPageRouteModule } from '../../server/future/route-modules/app-page/module.compiled'
 import { RouteKind } from '../../server/future/route-kind'
 

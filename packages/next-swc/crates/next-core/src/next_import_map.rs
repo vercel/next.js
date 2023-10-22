@@ -21,6 +21,7 @@ use turbopack_binding::{
 };
 
 use crate::{
+    app_structure::find_app_dir,
     embed_js::{next_js_fs, VIRTUAL_PACKAGE_NAME},
     mode::NextMode,
     next_client::context::ClientContextType,
@@ -535,7 +536,9 @@ async fn insert_next_server_special_aliases(
         }
         ServerContextType::PagesData { .. } => {}
         // the logic closely follows the one in createRSCAliases in webpack-config.ts
-        ServerContextType::AppSSR { app_dir } => {
+        ServerContextType::AppSSR { app_dir }
+        | ServerContextType::AppRSC { app_dir, .. }
+        | ServerContextType::AppRoute { app_dir } => {
             import_map.insert_exact_alias(
                 "@opentelemetry/api",
                 // TODO(WEB-625) this actually need to prefer the local version of
@@ -550,28 +553,13 @@ async fn insert_next_server_special_aliases(
                 "styled-jsx/",
                 request_to_import_mapping(get_next_package(app_dir), "styled-jsx/*"),
             );
-
-            rsc_aliases(import_map, project_path, ty, runtime, next_config).await?;
-        }
-        ServerContextType::AppRSC { app_dir, .. } | ServerContextType::AppRoute { app_dir } => {
-            import_map.insert_exact_alias(
-                "@opentelemetry/api",
-                // TODO(WEB-625) this actually need to prefer the local version of
-                // @opentelemetry/api
-                request_to_import_mapping(app_dir, "next/dist/compiled/@opentelemetry/api"),
-            );
-            import_map.insert_exact_alias(
-                "styled-jsx",
-                request_to_import_mapping(get_next_package(app_dir), "styled-jsx"),
-            );
-            import_map.insert_wildcard_alias(
-                "styled-jsx/",
-                request_to_import_mapping(get_next_package(app_dir), "styled-jsx/*"),
-            );
-
-            rsc_aliases(import_map, project_path, ty, runtime, next_config).await?;
         }
         ServerContextType::Middleware => {}
+    }
+
+    let app_dir = &*find_app_dir(project_path).await?;
+    if app_dir.is_some() {
+        rsc_aliases(import_map, project_path, ty, runtime, next_config).await?;
     }
 
     // see https://github.com/vercel/next.js/blob/8013ef7372fc545d49dbd060461224ceb563b454/packages/next/src/build/webpack-config.ts#L1449-L1531
@@ -689,7 +677,7 @@ async fn rsc_aliases(
     }
 
     if runtime == NextRuntime::Edge {
-        if let ServerContextType::AppRSC { .. } = ty {
+        if matches!(ty, ServerContextType::AppRSC { .. }) {
             alias["react"] = format!("next/dist/compiled/react{react_channel}/react.shared-subset");
         }
         // Use server rendering stub for RSC and SSR
@@ -698,11 +686,7 @@ async fn rsc_aliases(
             format!("next/dist/compiled/react-dom{react_channel}/server-rendering-stub");
     }
 
-    insert_exact_alias_map(
-        import_map,
-        project_path,
-        alias,
-    );
+    insert_exact_alias_map(import_map, project_path, alias);
 
     Ok(())
 }

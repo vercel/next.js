@@ -16,6 +16,7 @@ use super::{ClientReferenceManifest, ManifestNode, ManifestNodeEntry, ModuleId};
 use crate::{
     next_app::ClientReferencesChunks,
     next_client_reference::{ClientReferenceType, ClientReferences},
+    util::NextRuntime,
 };
 
 #[turbo_tasks::value_impl]
@@ -30,6 +31,7 @@ impl ClientReferenceManifest {
         client_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
         ssr_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
         asset_prefix: Vc<Option<String>>,
+        runtime: NextRuntime,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
         let mut entry_manifest: ClientReferenceManifest = Default::default();
         entry_manifest.module_loading.prefix = asset_prefix
@@ -171,15 +173,28 @@ impl ClientReferenceManifest {
                         ManifestNodeEntry {
                             name: "*".to_string(),
                             id: (&*ssr_module_id).into(),
-                            chunks: ssr_chunks_paths.clone(),
+                            chunks: if runtime == NextRuntime::Edge {
+                                vec![]
+                            } else {
+                                ssr_chunks_paths.clone()
+                            },
                             // TODO(WEB-434)
                             r#async: false,
                         },
                     );
 
-                    entry_manifest
-                        .ssr_module_mapping
-                        .insert((&*client_module_id).into(), ssr_manifest_node);
+                    match runtime {
+                        NextRuntime::NodeJs => {
+                            entry_manifest
+                                .ssr_module_mapping
+                                .insert((&*client_module_id).into(), ssr_manifest_node.clone());
+                        }
+                        NextRuntime::Edge => {
+                            entry_manifest
+                                .edge_ssr_module_mapping
+                                .insert((&*client_module_id).into(), ssr_manifest_node);
+                        }
+                    }
                 }
             }
         }

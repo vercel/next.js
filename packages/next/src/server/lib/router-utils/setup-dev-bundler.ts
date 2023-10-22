@@ -80,6 +80,8 @@ import {
   PHASE_DEVELOPMENT_SERVER,
   SERVER_REFERENCE_MANIFEST,
   REACT_LOADABLE_MANIFEST,
+  MIDDLEWARE_REACT_LOADABLE_MANIFEST,
+  MIDDLEWARE_BUILD_MANIFEST,
 } from '../../../shared/lib/constants'
 
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
@@ -795,10 +797,20 @@ async function startWatcher(opts: SetupOpts) {
     ): Promise<void> {
       const buildManifest = mergeBuildManifests(buildManifests.values())
       const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
+      const middlewareBuildManifestPath = path.join(
+        distDir,
+        'server',
+        `${MIDDLEWARE_BUILD_MANIFEST}.js`
+      )
       deleteCache(buildManifestPath)
+      deleteCache(middlewareBuildManifestPath)
       await writeFileAtomic(
         buildManifestPath,
         JSON.stringify(buildManifest, null, 2)
+      )
+      await writeFileAtomic(
+        middlewareBuildManifestPath,
+        `self.__BUILD_MANIFEST=${JSON.stringify(buildManifest)}`
       )
 
       const content: ClientBuildManifest = {
@@ -921,34 +933,50 @@ async function startWatcher(opts: SetupOpts) {
     async function writeFontManifest(): Promise<void> {
       // TODO: turbopack should write the correct
       // version of this
-      const fontManifestPath = path.join(
+      const fontManifest = {
+        pages: {},
+        app: {},
+        appUsingSizeAdjust: false,
+        pagesUsingSizeAdjust: false,
+      }
+
+      const json = JSON.stringify(fontManifest, null, 2)
+      const fontManifestJsonPath = path.join(
         distDir,
         'server',
-        NEXT_FONT_MANIFEST + '.json'
+        `${NEXT_FONT_MANIFEST}.json`
       )
-      deleteCache(fontManifestPath)
+      const fontManifestJsPath = path.join(
+        distDir,
+        'server',
+        `${NEXT_FONT_MANIFEST}.js`
+      )
+      deleteCache(fontManifestJsonPath)
+      deleteCache(fontManifestJsPath)
+      await writeFileAtomic(fontManifestJsonPath, json)
       await writeFileAtomic(
-        fontManifestPath,
-        JSON.stringify(
-          {
-            pages: {},
-            app: {},
-            appUsingSizeAdjust: false,
-            pagesUsingSizeAdjust: false,
-          },
-          null,
-          2
-        )
+        fontManifestJsPath,
+        `self.__NEXT_FONT_MANIFEST=${JSON.stringify(json)}`
       )
     }
 
     async function writeLoadableManifest(): Promise<void> {
       const loadableManifest = mergeLoadableManifests(loadbleManifests.values())
       const loadableManifestPath = path.join(distDir, REACT_LOADABLE_MANIFEST)
+      const middlewareloadableManifestPath = path.join(
+        distDir,
+        'server',
+        `${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`
+      )
+
+      const json = JSON.stringify(loadableManifest, null, 2)
+
       deleteCache(loadableManifestPath)
+      deleteCache(middlewareloadableManifestPath)
+      await writeFileAtomic(loadableManifestPath, json)
       await writeFileAtomic(
-        loadableManifestPath,
-        JSON.stringify(loadableManifest, null, 2)
+        middlewareloadableManifestPath,
+        `self.__REACT_LOADABLE_MANIFEST=${JSON.stringify(json)}`
       )
     }
 
