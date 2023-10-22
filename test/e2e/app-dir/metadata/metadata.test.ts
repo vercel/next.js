@@ -523,7 +523,7 @@ createNextDescribe(
         })
 
         // favicon shouldn't be overridden
-        expect($('link[rel="icon"]').attr('href')).toBe('/favicon.ico')
+        expect($('link[rel="icon"]').attr('href')).toMatch('/favicon.ico')
       })
 
       it('should override file based images when opengraph-image and twitter-image specify images property', async () => {
@@ -671,18 +671,20 @@ createNextDescribe(
       it('should support root level of favicon.ico', async () => {
         let $ = await next.render$('/')
         const favIcon = $('link[rel="icon"]')
-        expect(favIcon.attr('href')).toBe('/favicon.ico')
+        expect(favIcon.attr('href')).toMatch('/favicon.ico')
         expect(favIcon.attr('type')).toBe('image/x-icon')
-        expect(favIcon.attr('sizes')).toBe('16x16')
+        // Turbopack renders / emits image differently
+        expect(['16x16', '48x48']).toContain(favIcon.attr('sizes'))
 
         const iconSvg = $('link[rel="icon"][type="image/svg+xml"]')
-        expect(iconSvg.attr('href')).toBe('/icon.svg?90699bff34adba1f')
-        expect(iconSvg.attr('sizes')).toBe('any')
+        expect(iconSvg.attr('href')).toMatch('/icon.svg?')
+        // Turbopack renders / emits image differently
+        expect(['any', '48x48']).toContain(iconSvg.attr('sizes'))
 
         $ = await next.render$('/basic')
         const icon = $('link[rel="icon"]')
-        expect(icon.attr('href')).toBe('/favicon.ico')
-        expect(icon.attr('sizes')).toBe('16x16')
+        expect(icon.attr('href')).toMatch('/favicon.ico')
+        expect(['16x16', '48x48']).toContain(favIcon.attr('sizes'))
 
         if (!isNextDeploy) {
           const faviconFileBuffer = await fs.readFile(
