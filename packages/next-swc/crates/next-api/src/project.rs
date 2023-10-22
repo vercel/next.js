@@ -496,7 +496,7 @@ impl Project {
         Ok(get_edge_compile_time_info(
             self.project_path(),
             self.server_addr(),
-            this.define_env.nodejs(),
+            this.define_env.edge(),
         ))
     }
 
