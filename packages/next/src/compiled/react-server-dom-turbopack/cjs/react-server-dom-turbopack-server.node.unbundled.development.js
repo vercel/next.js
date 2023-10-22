@@ -729,12 +729,14 @@ var requestStorage = new async_hooks.AsyncLocalStorage();
 // The Symbol used to tag the ReactElement-like types.
 var REACT_ELEMENT_TYPE = Symbol.for('react.element');
 var REACT_FRAGMENT_TYPE = Symbol.for('react.fragment');
+var REACT_PROVIDER_TYPE = Symbol.for('react.provider');
 var REACT_SERVER_CONTEXT_TYPE = Symbol.for('react.server_context');
 var REACT_FORWARD_REF_TYPE = Symbol.for('react.forward_ref');
 var REACT_SUSPENSE_TYPE = Symbol.for('react.suspense');
 var REACT_SUSPENSE_LIST_TYPE = Symbol.for('react.suspense_list');
 var REACT_MEMO_TYPE = Symbol.for('react.memo');
 var REACT_LAZY_TYPE = Symbol.for('react.lazy');
+var REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
 var REACT_MEMO_CACHE_SENTINEL = Symbol.for('react.memo_cache_sentinel');
 var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 var FAUX_ITERATOR_SYMBOL = '@@iterator';
@@ -752,6 +754,12 @@ function getIteratorFn(maybeIterable) {
   return null;
 }
 
+var rendererSigil;
+
+{
+  // Use this to detect multiple renderers using the same context
+  rendererSigil = {};
+} // Used to store the parent path of all context overrides in a shared linked list.
 // Forming a reverse tree.
 // The structure of a context snapshot is an implementation of this file.
 // Currently, it's implemented as tracking the current active node.
@@ -883,6 +891,52 @@ function switchContext(newSnapshot) {
 
     currentActiveSnapshot = next;
   }
+}
+function pushProvider(context, nextValue) {
+  var prevValue;
+
+  {
+    prevValue = context._currentValue;
+    context._currentValue = nextValue;
+
+    {
+      if (context._currentRenderer !== undefined && context._currentRenderer !== null && context._currentRenderer !== rendererSigil) {
+        error('Detected multiple renderers concurrently rendering the ' + 'same context provider. This is currently unsupported.');
+      }
+
+      context._currentRenderer = rendererSigil;
+    }
+  }
+
+  var prevNode = currentActiveSnapshot;
+  var newNode = {
+    parent: prevNode,
+    depth: prevNode === null ? 0 : prevNode.depth + 1,
+    context: context,
+    parentValue: prevValue,
+    value: nextValue
+  };
+  currentActiveSnapshot = newNode;
+  return newNode;
+}
+function popProvider() {
+  var prevSnapshot = currentActiveSnapshot;
+
+  if (prevSnapshot === null) {
+    throw new Error('Tried to pop a Context at the root of the app. This is a bug in React.');
+  }
+
+  {
+    var value = prevSnapshot.parentValue;
+
+    if (value === REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED) {
+      prevSnapshot.context._currentValue = prevSnapshot.context._defaultValue;
+    } else {
+      prevSnapshot.context._currentValue = value;
+    }
+  }
+
+  return currentActiveSnapshot = prevSnapshot.parent;
 }
 function getActiveContext() {
   return currentActiveSnapshot;
@@ -1486,6 +1540,57 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
   return '\n  ' + str;
 }
 
+var ContextRegistry = ReactSharedInternals.ContextRegistry;
+function getOrCreateServerContext(globalName) {
+  if (!ContextRegistry[globalName]) {
+    var context = {
+      $$typeof: REACT_SERVER_CONTEXT_TYPE,
+      // As a workaround to support multiple concurrent renderers, we categorize
+      // some renderers as primary and others as secondary. We only expect
+      // there to be two concurrent renderers at most: React Native (primary) and
+      // Fabric (secondary); React DOM (primary) and React ART (secondary).
+      // Secondary renderers store their context values on separate fields.
+      _currentValue: REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED,
+      _currentValue2: REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED,
+      _defaultValue: REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED,
+      // Used to track how many concurrent renderers this context currently
+      // supports within in a single renderer. Such as parallel server rendering.
+      _threadCount: 0,
+      // These are circular
+      Provider: null,
+      Consumer: null,
+      _globalName: globalName
+    };
+    context.Provider = {
+      $$typeof: REACT_PROVIDER_TYPE,
+      _context: context
+    };
+
+    {
+      var hasWarnedAboutUsingConsumer;
+      context._currentRenderer = null;
+      context._currentRenderer2 = null;
+      Object.defineProperties(context, {
+        Consumer: {
+          get: function () {
+            if (!hasWarnedAboutUsingConsumer) {
+              error('Consumer pattern is not supported by ReactServerContext');
+
+              hasWarnedAboutUsingConsumer = true;
+            }
+
+            return null;
+          }
+        }
+      });
+    }
+
+    ContextRegistry[globalName] = context;
+  }
+
+  return ContextRegistry[globalName];
+}
+
 var ReactSharedServerInternals = // $FlowFixMe: It's defined in the one we resolve to.
 React.__SECRET_SERVER_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -1546,7 +1651,6 @@ function createRequest(model, bundlerConfig, onError, context, identifierPrefix,
     writtenClientReferences: new Map(),
     writtenServerReferences: new Map(),
     writtenProviders: new Map(),
-    writtenObjects: new WeakMap(),
     identifierPrefix: identifierPrefix || '',
     identifierCount: 1,
     taintCleanupQueue: cleanupQueue,
@@ -1558,7 +1662,7 @@ function createRequest(model, bundlerConfig, onError, context, identifierPrefix,
     }
   };
   request.pendingChunks++;
-  var rootContext = createRootContext();
+  var rootContext = createRootContext(context);
   var rootTask = createTask(request, model, rootContext, abortSet);
   pingedTasks.push(rootTask);
   return request;
@@ -1576,8 +1680,10 @@ function resolveRequest() {
 }
 
 function createRootContext(reqContext) {
-  return importServerContexts();
+  return importServerContexts(reqContext);
 }
+
+var POP = {};
 
 function serializeThenable(request, thenable) {
   request.pendingChunks++;
@@ -1798,6 +1904,32 @@ function attemptResolveElement(request, type, key, ref, props, prevThenableState
         {
           return attemptResolveElement(request, type.type, key, ref, props, prevThenableState);
         }
+
+      case REACT_PROVIDER_TYPE:
+        {
+          pushProvider(type._context, props.value);
+
+          {
+            var extraKeys = Object.keys(props).filter(function (value) {
+              if (value === 'children' || value === 'value') {
+                return false;
+              }
+
+              return true;
+            });
+
+            if (extraKeys.length !== 0) {
+              error('ServerContext can only have a value prop and children. Found: %s', JSON.stringify(extraKeys));
+            }
+          }
+
+          return [REACT_ELEMENT_TYPE, type, key, // Rely on __popProvider being serialized last to pop the provider.
+          {
+            value: props.value,
+            children: props.children,
+            __pop: POP
+          }];
+        }
     }
   }
 
@@ -1850,6 +1982,10 @@ function serializeServerReferenceID(id) {
 
 function serializeSymbolReference(name) {
   return '$S' + name;
+}
+
+function serializeProviderReference(name) {
+  return '$P' + name;
 }
 
 function serializeNumber(number) {
@@ -1940,9 +2076,10 @@ function serializeClientReference(request, parent, key, clientReference) {
 
 function outlineModel(request, value) {
   request.pendingChunks++;
-  var newTask = createTask(request, value, getActiveContext(), request.abortableTasks);
-  retryTask(request, newTask);
-  return newTask.id;
+  var outlinedId = request.nextChunkId++; // We assume that this object doesn't suspend, but a child might.
+
+  emitModelChunk(request, outlinedId, value);
+  return outlinedId;
 }
 
 function serializeServerReference(request, parent, key, serverReference) {
@@ -1975,44 +2112,12 @@ function serializeLargeTextString(request, text) {
 }
 
 function serializeMap(request, map) {
-  var entries = Array.from(map);
-
-  for (var i = 0; i < entries.length; i++) {
-    var key = entries[i][0];
-
-    if (typeof key === 'object' && key !== null) {
-      var writtenObjects = request.writtenObjects;
-      var existingId = writtenObjects.get(key);
-
-      if (existingId === undefined) {
-        // Mark all object keys as seen so that they're always outlined.
-        writtenObjects.set(key, -1);
-      }
-    }
-  }
-
-  var id = outlineModel(request, entries);
+  var id = outlineModel(request, Array.from(map));
   return '$Q' + id.toString(16);
 }
 
 function serializeSet(request, set) {
-  var entries = Array.from(set);
-
-  for (var i = 0; i < entries.length; i++) {
-    var key = entries[i];
-
-    if (typeof key === 'object' && key !== null) {
-      var writtenObjects = request.writtenObjects;
-      var existingId = writtenObjects.get(key);
-
-      if (existingId === undefined) {
-        // Mark all object keys as seen so that they're always outlined.
-        writtenObjects.set(key, -1);
-      }
-    }
-  }
-
-  var id = outlineModel(request, entries);
+  var id = outlineModel(request, Array.from(set));
   return '$W' + id.toString(16);
 }
 
@@ -2025,7 +2130,9 @@ function escapeStringValue(value) {
     return value;
   }
 }
-var modelRoot = false;
+
+var insideContextProps = null;
+var isInsideContextValue = false;
 
 function resolveModelToJSON(request, parent, key, value) {
   // Make sure that `parent[key]` wasn't JSONified before `value` was passed to us
@@ -2054,37 +2161,29 @@ function resolveModelToJSON(request, parent, key, value) {
       return '$';
   }
 
+  {
+    if (parent[0] === REACT_ELEMENT_TYPE && parent[1] && parent[1].$$typeof === REACT_PROVIDER_TYPE && key === '3') {
+      insideContextProps = value;
+    } else if (insideContextProps === parent && key === 'value') {
+      isInsideContextValue = true;
+    } else if (insideContextProps === parent && key === 'children') {
+      isInsideContextValue = false;
+    }
+  } // Resolve Server Components.
+
 
   while (typeof value === 'object' && value !== null && (value.$$typeof === REACT_ELEMENT_TYPE || value.$$typeof === REACT_LAZY_TYPE)) {
+    {
+      if (isInsideContextValue) {
+        error('React elements are not allowed in ServerContext');
+      }
+    }
 
     try {
       switch (value.$$typeof) {
         case REACT_ELEMENT_TYPE:
           {
-            var writtenObjects = request.writtenObjects;
-            var existingId = writtenObjects.get(value);
-
-            if (existingId !== undefined) {
-              if (existingId === -1) {
-                // Seen but not yet outlined.
-                var newId = outlineModel(request, value);
-                return serializeByValueID(newId);
-              } else if (modelRoot === value) {
-                // This is the ID we're currently emitting so we need to write it
-                // once but if we discover it again, we refer to it by id.
-                modelRoot = null;
-              } else {
-                // We've already emitted this as an outlined object, so we can
-                // just refer to that by its existing ID.
-                return serializeByValueID(existingId);
-              }
-            } else {
-              // This is the first time we've seen this object. We may never see it again
-              // so we'll inline it. Mark it as seen. If we see it again, we'll outline.
-              writtenObjects.set(value, -1);
-            } // TODO: Concatenate keys of parents onto children.
-
-
+            // TODO: Concatenate keys of parents onto children.
             var element = value; // Attempt to render the Server Component.
 
             value = attemptResolveElement(request, element.type, element.key, element.ref, element.props, null);
@@ -2138,54 +2237,34 @@ function resolveModelToJSON(request, parent, key, value) {
   if (typeof value === 'object') {
 
     if (isClientReference(value)) {
-      return serializeClientReference(request, parent, key, value);
-    }
-
-    var _writtenObjects = request.writtenObjects;
-
-    var _existingId = _writtenObjects.get(value); // $FlowFixMe[method-unbinding]
-
-
-    if (typeof value.then === 'function') {
-      if (_existingId !== undefined) {
-        if (modelRoot === value) {
-          // This is the ID we're currently emitting so we need to write it
-          // once but if we discover it again, we refer to it by id.
-          modelRoot = null;
-        } else {
-          // We've seen this promise before, so we can just refer to the same result.
-          return serializePromiseID(_existingId);
-        }
-      } // We assume that any object with a .then property is a "Thenable" type,
+      return serializeClientReference(request, parent, key, value); // $FlowFixMe[method-unbinding]
+    } else if (typeof value.then === 'function') {
+      // We assume that any object with a .then property is a "Thenable" type,
       // or a Promise type. Either of which can be represented by a Promise.
-
-
       var promiseId = serializeThenable(request, value);
-
-      _writtenObjects.set(value, promiseId);
-
       return serializePromiseID(promiseId);
-    }
+    } else if (value.$$typeof === REACT_PROVIDER_TYPE) {
+      var providerKey = value._context._globalName;
+      var writtenProviders = request.writtenProviders;
+      var providerId = writtenProviders.get(key);
 
-    if (_existingId !== undefined) {
-      if (_existingId === -1) {
-        // Seen but not yet outlined.
-        var _newId = outlineModel(request, value);
-
-        return serializeByValueID(_newId);
-      } else if (modelRoot === value) {
-        // This is the ID we're currently emitting so we need to write it
-        // once but if we discover it again, we refer to it by id.
-        modelRoot = null;
-      } else {
-        // We've already emitted this as an outlined object, so we can
-        // just refer to that by its existing ID.
-        return serializeByValueID(_existingId);
+      if (providerId === undefined) {
+        request.pendingChunks++;
+        providerId = request.nextChunkId++;
+        writtenProviders.set(providerKey, providerId);
+        emitProviderChunk(request, providerId, providerKey);
       }
-    } else {
-      // This is the first time we've seen this object. We may never see it again
-      // so we'll inline it. Mark it as seen. If we see it again, we'll outline.
-      _writtenObjects.set(value, -1);
+
+      return serializeByValueID(providerId);
+    } else if (value === POP) {
+      popProvider();
+
+      {
+        insideContextProps = null;
+        isInsideContextValue = false;
+      }
+
+      return undefined;
     }
 
     if (isArray(value)) {
@@ -2286,11 +2365,10 @@ function resolveModelToJSON(request, parent, key, value) {
 
   if (typeof value === 'symbol') {
     var writtenSymbols = request.writtenSymbols;
+    var existingId = writtenSymbols.get(value);
 
-    var _existingId2 = writtenSymbols.get(value);
-
-    if (_existingId2 !== undefined) {
-      return serializeByValueID(_existingId2);
+    if (existingId !== undefined) {
+      return serializeByValueID(existingId);
     } // $FlowFixMe[incompatible-type] `description` might be undefined
 
 
@@ -2394,12 +2472,14 @@ function emitSymbolChunk(request, id, name) {
   request.completedImportChunks.push(processedChunk);
 }
 
-function emitModelChunk(request, id, model) {
-  // Track the root so we know that we have to emit this object even though it
-  // already has an ID. This is needed because we might see this object twice
-  // in the same toJSON if it is cyclic.
-  modelRoot = model; // $FlowFixMe[incompatible-type] stringify can return null
+function emitProviderChunk(request, id, contextName) {
+  var contextReference = serializeProviderReference(contextName);
+  var processedChunk = encodeReferenceChunk(request, id, contextReference);
+  request.completedRegularChunks.push(processedChunk);
+}
 
+function emitModelChunk(request, id, model) {
+  // $FlowFixMe[incompatible-type] stringify can return null
   var json = stringify(model, request.toJSON);
   var row = id.toString(16) + ':' + json + '\n';
   var processedChunk = stringToChunk(row);
@@ -2418,8 +2498,7 @@ function retryTask(request, task) {
     var value = task.model;
 
     if (typeof value === 'object' && value !== null && value.$$typeof === REACT_ELEMENT_TYPE) {
-      request.writtenObjects.set(value, task.id); // TODO: Concatenate keys of parents onto children.
-
+      // TODO: Concatenate keys of parents onto children.
       var element = value; // When retrying a component, reuse the thenableState from the
       // previous attempt.
 
@@ -2436,17 +2515,11 @@ function retryTask(request, task) {
       // until the next time something suspends and retries.
 
       while (typeof value === 'object' && value !== null && value.$$typeof === REACT_ELEMENT_TYPE) {
-        request.writtenObjects.set(value, task.id); // TODO: Concatenate keys of parents onto children.
-
+        // TODO: Concatenate keys of parents onto children.
         var nextElement = value;
         task.model = value;
         value = attemptResolveElement(request, nextElement.type, nextElement.key, nextElement.ref, nextElement.props, null);
       }
-    } // Track that this object is outlined and has an id.
-
-
-    if (typeof value === 'object' && value !== null) {
-      request.writtenObjects.set(value, task.id);
     }
 
     emitModelChunk(request, task.id, value);
@@ -2683,6 +2756,22 @@ function abort(request, reason) {
 }
 
 function importServerContexts(contexts) {
+  if (contexts) {
+    var prevContext = getActiveContext();
+    switchContext(rootContextSnapshot);
+
+    for (var i = 0; i < contexts.length; i++) {
+      var _contexts$i = contexts[i],
+          name = _contexts$i[0],
+          value = _contexts$i[1];
+      var context = getOrCreateServerContext(name);
+      pushProvider(context, value);
+    }
+
+    var importedContext = getActiveContext();
+    switchContext(prevContext);
+    return importedContext;
+  }
 
   return rootContextSnapshot;
 }

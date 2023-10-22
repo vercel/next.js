@@ -17,7 +17,7 @@ if (process.env.NODE_ENV !== "production") {
 var React = require("next/dist/compiled/react-experimental");
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-experimental-d803f519e-20231020';
+var ReactVersion = '18.3.0-experimental-a41957507-20231017';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -11256,10 +11256,7 @@ function flushCompletedQueues(request, destination) {
         } // We're done.
 
 
-        close(destination); // We need to stop flowing now because we do not want any async contexts which might call
-        // float methods to initiate any flushes after this point
-
-        stopFlowing(request);
+        close(destination);
       }
   }
 }
@@ -11279,17 +11276,10 @@ function enqueueFlush(request) {
   request.pingedTasks.length === 0 && // If there is no destination there is nothing we can flush to. A flush will
   // happen when we start flowing again
   request.destination !== null) {
+    var destination = request.destination;
     request.flushScheduled = true;
     scheduleWork(function () {
-      // We need to existence check destination again here because it might go away
-      // in between the enqueueFlush call and the work execution
-      var destination = request.destination;
-
-      if (destination) {
-        flushCompletedQueues(request, destination);
-      } else {
-        request.flushScheduled = false;
-      }
+      return flushCompletedQueues(request, destination);
     });
   }
 }
@@ -11319,9 +11309,6 @@ function startFlowing(request, destination) {
     fatalError(request, error);
   }
 }
-function stopFlowing(request) {
-  request.destination = null;
-} // This is called to early terminate a request. It puts all pending boundaries in client rendered state.
 
 function abort(request, reason) {
   try {
