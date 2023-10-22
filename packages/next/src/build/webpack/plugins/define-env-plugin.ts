@@ -92,7 +92,7 @@ export function getDefineEnv({
     // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
     'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production'),
     'process.env.NEXT_RUNTIME': JSON.stringify(
-      isEdgeServer ? 'edge' : isNodeServer ? 'nodejs' : undefined
+      isEdgeServer ? 'edge' : isNodeServer ? 'nodejs' : ''
     ),
     'process.env.NEXT_MINIMAL': JSON.stringify(''),
     'process.env.__NEXT_ACTIONS_DEPLOYMENT_ID': JSON.stringify(
