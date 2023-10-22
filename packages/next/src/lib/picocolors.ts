@@ -79,3 +79,32 @@ export const bgBlue = enabled ? formatter('\x1b[44m', '\x1b[49m') : String
 export const bgMagenta = enabled ? formatter('\x1b[45m', '\x1b[49m') : String
 export const bgCyan = enabled ? formatter('\x1b[46m', '\x1b[49m') : String
 export const bgWhite = enabled ? formatter('\x1b[47m', '\x1b[49m') : String
+
+const linearGradientText = (
+  text: string,
+  startColor: number[],
+  endColor: number[]
+) => {
+  let gradient = ''
+
+  for (let i = 0; i < text.length; i++) {
+    const r = Math.floor(
+      startColor[0] + (i / (text.length - 1)) * (endColor[0] - startColor[0])
+    )
+    const g = Math.floor(
+      startColor[1] + (i / (text.length - 1)) * (endColor[1] - startColor[1])
+    )
+    const b = Math.floor(
+      startColor[2] + (i / (text.length - 1)) * (endColor[2] - startColor[2])
+    )
+
+    const color = `\x1b[38;2;${r};${g};${b}m` // ANSI escape code for setting text color
+    const reset = '\x1b[0m' // ANSI escape code to reset text color
+
+    gradient += color + text[i] + reset
+  }
+
+  return gradient
+}
+
+export const linearGradient = enabled ? linearGradientText : String

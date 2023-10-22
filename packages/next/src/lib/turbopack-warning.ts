@@ -171,27 +171,10 @@ export async function validateTurboNextConfig({
     require('../build/get-babel-config-file') as typeof import('../build/get-babel-config-file')
   const { defaultConfig } =
     require('../server/config-shared') as typeof import('../server/config-shared')
-  const { bold, cyan, dim, red, underline, yellow } =
+  const { bold, cyan, red, underline, yellow } =
     require('../lib/picocolors') as typeof import('../lib/picocolors')
   const { interopDefault } =
     require('../lib/interop-default') as typeof import('../lib/interop-default')
-
-  // To regenerate the TURBOPACK gradient require('gradient-string')('blue', 'red')('>>> TURBOPACK')
-  const isTTY = process.stdout.isTTY
-
-  const turbopackGradient = `${bold(
-    isTTY
-      ? '\x1B[38;2;0;0;255m>\x1B[39m\x1B[38;2;23;0;232m>\x1B[39m\x1B[38;2;46;0;209m>\x1B[39m \x1B[38;2;70;0;185mT\x1B[39m\x1B[38;2;93;0;162mU\x1B[39m\x1B[38;2;116;0;139mR\x1B[39m\x1B[38;2;139;0;116mB\x1B[39m\x1B[38;2;162;0;93mO\x1B[39m\x1B[38;2;185;0;70mP\x1B[39m\x1B[38;2;209;0;46mA\x1B[39m\x1B[38;2;232;0;23mC\x1B[39m\x1B[38;2;255;0;0mK\x1B[39m'
-      : '>>> TURBOPACK'
-  )} ${dim('(beta)')}\n\n`
-
-  let thankYouMessage =
-    [
-      'Thank you for trying Next.js v13 with Turbopack! As a reminder',
-      'Turbopack is currently in beta and not yet ready for production.',
-      'We appreciate your ongoing support as we work to make it ready',
-      'for everyone.',
-    ].join('\n') + '\n\n'
 
   let unsupportedParts = ''
   let babelrc = await getBabelConfigFile(dir)
@@ -277,12 +260,6 @@ export async function validateTurboNextConfig({
   } catch (e) {
     console.error('Unexpected error occurred while checking config', e)
   }
-
-  const hasWarningOrError = babelrc || unsupportedConfig.length
-  if (!hasWarningOrError) {
-    thankYouMessage = dim(thankYouMessage)
-  }
-  console.log(turbopackGradient + thankYouMessage)
 
   let feedbackMessage = `Learn more about Next.js v13 and Turbopack: ${underline(
     'https://nextjs.link/with-turbopack'
