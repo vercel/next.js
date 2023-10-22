@@ -1948,6 +1948,7 @@ export default async function getBaseWebpackConfig(
           ...(isClient && { process: [require.resolve('process')] }),
         }),
       getDefineEnvPlugin({
+        isTurbopack: false,
         allowedRevalidateHeaderKeys,
         clientRouterFilters,
         config,
