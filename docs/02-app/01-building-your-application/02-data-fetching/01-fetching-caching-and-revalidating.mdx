@@ -204,27 +204,7 @@ In cases where you're using a third-party library that doesn't support or expose
 
 Whether the data is cached or not will depend on whether the route segment is [statically or dynamically rendered](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies). If the segment is static (default), the output of the request will be cached and revalidated as part of the route segment. If the segment is dynamic, the output of the request will _not_ be cached and will be re-fetched on every request when the segment is rendered.
 
-You can also use the experimental `unstable_cache` API:
-
-```jsx
-import { unstable_cache } from 'next/cache'
-
-export default async function Page() {
-  const cachedData = await unstable_cache(
-    async () => {
-      const data = await db.query('...')
-      return data
-    },
-    ['cache-key'],
-    {
-      tags: ['a', 'b', 'c'],
-      revalidate: 10,
-    }
-  )()
-}
-```
-
-> **Warning**: This API is unstable and may change in the future. We will provide migration documentation as this API stabilizes.
+You can also use the experimental [`unstable_cache` API](/docs/app/api-reference/functions/unstable_cache).
 
 ### Example
 
