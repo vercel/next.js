@@ -7,6 +7,7 @@ import { validateAMP } from 'amp-test-utils'
 import {
   nextBuild,
   renderViaHTTP,
+  File,
   findPort,
   launchApp,
   killApp,
@@ -14,6 +15,7 @@ import {
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
+const nextConfig = new File(join(appDir, 'next.config.js'))
 let builtServerPagesDir
 let appPort
 let app
@@ -123,9 +125,12 @@ describe('AMP SSG Support', () => {
         let buildId
 
         beforeAll(async () => {
+          nextConfig.write(`module.exports = { output: 'export' }`)
           await nextBuild(appDir)
           buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
         })
+
+        afterAll(() => nextConfig.delete())
 
         it('should have copied SSG files correctly', async () => {
           const outFile = (file) => join(appDir, 'out', file)
