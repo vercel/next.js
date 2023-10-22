@@ -1,6 +1,7 @@
 import path from 'path'
+import * as Log from '../build/output/log'
 import { promises as fs } from 'fs'
-import { bold, green } from './picocolors'
+import { bold } from './picocolors'
 import { APP_DIR_ALIAS } from './constants'
 
 const globOrig =
@@ -123,14 +124,12 @@ export async function verifyRootLayout({
       )
       await fs.writeFile(rootLayoutPath, getRootLayout(hasTsConfig))
 
-      console.log(
-        green(
-          `\nYour page ${bold(
-            `app/${normalizedPagePath}`
-          )} did not have a root layout. We created ${bold(
-            `app${rootLayoutPath.replace(appDir, '')}`
-          )} for you.`
-        ) + '\n'
+      Log.warn(
+        `Your page ${bold(
+          `app/${normalizedPagePath}`
+        )} did not have a root layout. We created ${bold(
+          `app${rootLayoutPath.replace(appDir, '')}`
+        )} for you.`
       )
 
       // Created root layout

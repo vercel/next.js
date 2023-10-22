@@ -63,8 +63,6 @@ export async function initialize(opts: {
   experimentalTestProxy?: boolean
   experimentalHttpsServer?: boolean
 }): Promise<[WorkerRequestHandler, WorkerUpgradeHandler]> {
-  process.title = 'next-router-worker'
-
   if (!process.env.NODE_ENV) {
     // @ts-ignore not readonly
     process.env.NODE_ENV = opts.dev ? 'development' : 'production'
@@ -371,7 +369,7 @@ export async function initialize(opts: {
           res,
           parsedUrl,
           undefined,
-          getRequestMeta(req, '__NEXT_CLONABLE_BODY')?.cloneBodyStream(),
+          getRequestMeta(req, 'clonableBody')?.cloneBodyStream(),
           config.experimental.proxyTimeout
         )
       }
