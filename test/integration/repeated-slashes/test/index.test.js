@@ -443,11 +443,9 @@ describe('404 handling', () => {
     ;(process.env.TURBOPACK ? describe.skip : describe)(
       'production mode',
       () => {
-        beforeAll(async () => {
-          await nextBuild(appDir, [], nextOpts)
-        })
         describe('next start', () => {
           beforeAll(async () => {
+            await nextBuild(appDir, [], nextOpts)
             appPort = await findPort()
             app = await nextStart(appDir, appPort, nextOpts)
           })
@@ -467,7 +465,7 @@ describe('404 handling', () => {
           })
           afterAll(async () => {
             await stopApp(app)
-            nextConfig.delete()
+            nextConfig.restore()
           })
 
           runTests({
