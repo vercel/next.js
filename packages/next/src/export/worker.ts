@@ -7,11 +7,7 @@ import type {
   WorkerRenderOpts,
 } from './types'
 
-// Polyfill fetch for the export worker.
-import '../server/node-polyfill-fetch'
-import '../server/node-polyfill-web-streams'
 import '../server/node-environment'
-import '../lib/polyfill-promise-with-resolvers'
 
 process.env.NEXT_IS_EXPORT_WORKER = 'true'
 
@@ -176,7 +172,7 @@ async function exportPageImpl(
           dl.defaultLocale === locale || dl.locales?.includes(locale || '')
       )
     ) {
-      addRequestMeta(req, '__nextIsLocaleDomain', true)
+      addRequestMeta(req, 'isLocaleDomain', true)
     }
 
     envConfig.setConfig({

@@ -17,7 +17,7 @@ if (process.env.NODE_ENV !== "production") {
 var React = require("next/dist/compiled/react-experimental");
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-experimental-09fbee89d-20231013';
+var ReactVersion = '18.3.0-experimental-d803f519e-20231020';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -338,7 +338,7 @@ function testStringCoercion(value) {
 function checkAttributeStringCoercion(value, attributeName) {
   {
     if (willCoercionThrow(value)) {
-      error('The provided `%s` attribute is an unsupported type %s.' + ' This value must be coerced to a string before before using it here.', attributeName, typeName(value));
+      error('The provided `%s` attribute is an unsupported type %s.' + ' This value must be coerced to a string before using it here.', attributeName, typeName(value));
 
       return testStringCoercion(value); // throw (to help callers find troubleshooting comments)
     }
@@ -347,7 +347,7 @@ function checkAttributeStringCoercion(value, attributeName) {
 function checkCSSPropertyStringCoercion(value, propName) {
   {
     if (willCoercionThrow(value)) {
-      error('The provided `%s` CSS property is an unsupported type %s.' + ' This value must be coerced to a string before before using it here.', propName, typeName(value));
+      error('The provided `%s` CSS property is an unsupported type %s.' + ' This value must be coerced to a string before using it here.', propName, typeName(value));
 
       return testStringCoercion(value); // throw (to help callers find troubleshooting comments)
     }
@@ -356,7 +356,7 @@ function checkCSSPropertyStringCoercion(value, propName) {
 function checkHtmlStringCoercion(value) {
   {
     if (willCoercionThrow(value)) {
-      error('The provided HTML markup uses a value of unsupported type %s.' + ' This value must be coerced to a string before before using it here.', typeName(value));
+      error('The provided HTML markup uses a value of unsupported type %s.' + ' This value must be coerced to a string before using it here.', typeName(value));
 
       return testStringCoercion(value); // throw (to help callers find troubleshooting comments)
     }
@@ -11312,7 +11312,10 @@ function flushCompletedQueues(request, destination) {
         } // We're done.
 
 
-        close(destination);
+        close(destination); // We need to stop flowing now because we do not want any async contexts which might call
+        // float methods to initiate any flushes after this point
+
+        stopFlowing(request);
       } else {
       completeWriting(destination);
     }
@@ -11334,10 +11337,17 @@ function enqueueFlush(request) {
   request.pingedTasks.length === 0 && // If there is no destination there is nothing we can flush to. A flush will
   // happen when we start flowing again
   request.destination !== null) {
-    var destination = request.destination;
     request.flushScheduled = true;
     scheduleWork(function () {
-      return flushCompletedQueues(request, destination);
+      // We need to existence check destination again here because it might go away
+      // in between the enqueueFlush call and the work execution
+      var destination = request.destination;
+
+      if (destination) {
+        flushCompletedQueues(request, destination);
+      } else {
+        request.flushScheduled = false;
+      }
     });
   }
 }
@@ -11458,7 +11468,7 @@ function renderToReadableStream(children, options) {
         },
         cancel: function (reason) {
           stopFlowing(request);
-          abort(request);
+          abort(request, reason);
         }
       }, // $FlowFixMe[prop-missing] size() methods are not allowed on byte streams.
       {
@@ -11516,7 +11526,7 @@ function resume(children, postponedState, options) {
         },
         cancel: function (reason) {
           stopFlowing(request);
-          abort(request);
+          abort(request, reason);
         }
       }, // $FlowFixMe[prop-missing] size() methods are not allowed on byte streams.
       {
@@ -11568,7 +11578,7 @@ function prerender(children, options) {
         },
         cancel: function (reason) {
           stopFlowing(request);
-          abort(request);
+          abort(request, reason);
         }
       }, // $FlowFixMe[prop-missing] size() methods are not allowed on byte streams.
       {

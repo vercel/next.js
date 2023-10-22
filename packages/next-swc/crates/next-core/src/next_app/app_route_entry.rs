@@ -73,6 +73,7 @@ pub async fn get_app_route_entry(
         indexmap! {
             "nextConfigOutput" => "\"\"".to_string(),
         },
+        indexmap! {},
     )
     .await?;
 

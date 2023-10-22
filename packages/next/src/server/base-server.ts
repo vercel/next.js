@@ -136,6 +136,12 @@ export interface MiddlewareRoutingItem {
   matchers?: MiddlewareMatcher[]
 }
 
+export type RouteHandler = (
+  req: BaseNextRequest,
+  res: BaseNextResponse,
+  parsedUrl: NextUrlWithParsedQuery
+) => PromiseLike<boolean> | boolean
+
 /**
  * The normalized route manifest is the same as the route manifest, but with
  * the rewrites normalized to the object shape that the router expects.
@@ -230,6 +236,7 @@ type BaseRenderOpts = {
   distDir: string
   runtime?: ServerRuntime
   serverComponents?: boolean
+  enableTainting?: boolean
   crossOrigin?: 'anonymous' | 'use-credentials' | '' | undefined
   supportsDynamicHTML?: boolean
   isBot?: boolean
@@ -478,6 +485,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       domainLocales: this.nextConfig.i18n?.domains,
       distDir: this.distDir,
       serverComponents,
+      enableTainting: this.nextConfig.experimental.taint,
       crossOrigin: this.nextConfig.crossOrigin
         ? this.nextConfig.crossOrigin
         : undefined,
@@ -519,17 +527,17 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     return this.matchers.reload()
   }
 
-  protected async handleNextDataRequest(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
-    parsedUrl: NextUrlWithParsedQuery
-  ): Promise<{ finished: boolean }> {
+  protected handleNextDataRequest: RouteHandler = async (
+    req,
+    res,
+    parsedUrl
+  ) => {
     const middleware = this.getMiddleware()
     const params = matchNextDataPathname(parsedUrl.pathname)
 
     // ignore for non-next data URLs
     if (!params || !params.path) {
-      return { finished: false }
+      return false
     }
 
     if (params.path[0] !== this.buildId) {
@@ -538,12 +546,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         process.env.NEXT_RUNTIME !== 'edge' &&
         req.headers['x-middleware-invoke']
       ) {
-        return { finished: false }
+        return false
       }
 
       // Make sure to 404 if the buildId isn't correct
       await this.render404(req, res, parsedUrl)
-      return { finished: true }
+      return true
     }
 
     // remove buildId from URL
@@ -554,9 +562,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // show 404 if it doesn't end with .json
     if (typeof lastParam !== 'string' || !lastParam.endsWith('.json')) {
       await this.render404(req, res, parsedUrl)
-      return {
-        finished: true,
-      }
+      return true
     }
 
     // re-create page's pathname
@@ -579,7 +585,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     if (this.i18nProvider) {
       // Remove the port from the hostname if present.
-      const hostname = req?.headers.host?.split(':')[0].toLowerCase()
+      const hostname = req?.headers.host?.split(':', 1)[0].toLowerCase()
 
       const domainLocale = this.i18nProvider.detectDomainLocale(hostname)
       const defaultLocale =
@@ -608,38 +614,26 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       if (!localePathResult.detectedLocale && !middleware) {
         parsedUrl.query.__nextLocale = defaultLocale
         await this.render404(req, res, parsedUrl)
-        return { finished: true }
+        return true
       }
     }
 
     parsedUrl.pathname = pathname
     parsedUrl.query.__nextDataReq = '1'
 
-    return { finished: false }
+    return false
   }
 
-  protected async handleNextImageRequest(
-    _req: BaseNextRequest,
-    _res: BaseNextResponse,
-    _parsedUrl: NextUrlWithParsedQuery
-  ): Promise<{ finished: boolean }> {
-    return { finished: false }
+  protected handleNextImageRequest: RouteHandler = () => {
+    return false
   }
 
-  protected async handleCatchallRenderRequest(
-    _req: BaseNextRequest,
-    _res: BaseNextResponse,
-    _parsedUrl: NextUrlWithParsedQuery
-  ): Promise<{ finished: boolean }> {
-    return { finished: false }
+  protected handleCatchallRenderRequest: RouteHandler = () => {
+    return false
   }
 
-  protected async handleCatchallMiddlewareRequest(
-    _req: BaseNextRequest,
-    _res: BaseNextResponse,
-    _parsedUrl: NextUrlWithParsedQuery
-  ): Promise<{ finished: boolean }> {
-    return { finished: false }
+  protected handleCatchallMiddlewareRequest: RouteHandler = () => {
+    return false
   }
 
   protected getRouteMatchers(): RouteMatcherManager {
@@ -692,7 +686,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
   public logError(err: Error): void {
     if (this.quiet) return
-    console.error(err)
+    Log.error(err)
   }
 
   public async handleRequest(
@@ -769,7 +763,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           return
         }
         if (name.toLowerCase() === 'set-cookie') {
-          const middlewareValue = getRequestMeta(req, '_nextMiddlewareCookie')
+          const middlewareValue = getRequestMeta(req, 'middlewareCookie')
 
           if (
             !middlewareValue ||
@@ -792,7 +786,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         return origSetHeader(name, val)
       }
 
-      const urlParts = (req.url || '').split('?')
+      const urlParts = (req.url || '').split('?', 1)
       const urlNoQuery = urlParts[0]
 
       // this normalizes repeated slashes in the path e.g. hello//world ->
@@ -853,7 +847,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       if (pathnameInfo.basePath) {
         req.url = removePathPrefix(req.url!, this.nextConfig.basePath)
-        addRequestMeta(req, '_nextHadBasePath', true)
       }
 
       const useMatchedPathHeader =
@@ -956,9 +949,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           const rewriteParamKeys = Object.keys(rewriteParams)
           const didRewrite = pathnameBeforeRewrite !== parsedUrl.pathname
 
-          if (didRewrite) {
-            addRequestMeta(req, '_nextRewroteUrl', parsedUrl.pathname!)
-            addRequestMeta(req, '_nextDidRewrite', true)
+          if (didRewrite && parsedUrl.pathname) {
+            addRequestMeta(req, 'rewroteURL', parsedUrl.pathname)
           }
           const routeParamKeys = new Set<string>()
 
@@ -1070,15 +1062,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           parsedUrl.pathname = matchedPath
           url.pathname = parsedUrl.pathname
 
-          const normalizeResult = await this.handleNextDataRequest(
-            req,
-            res,
-            parsedUrl
-          )
-
-          if (normalizeResult.finished) {
-            return
-          }
+          const finished = await this.handleNextDataRequest(req, res, parsedUrl)
+          if (finished) return
         } catch (err) {
           if (err instanceof DecodeError || err instanceof NormalizeError) {
             res.statusCode = 400
@@ -1118,11 +1103,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
       }
 
-      addRequestMeta(req, '__nextIsLocaleDomain', Boolean(domainLocale))
+      addRequestMeta(req, 'isLocaleDomain', Boolean(domainLocale))
 
       if (pathnameInfo.locale) {
         req.url = formatUrl(url)
-        addRequestMeta(req, '__nextStrippedLocale', true)
+        addRequestMeta(req, 'didStripLocale', true)
       }
 
       // If we aren't in minimal mode or there is no locale in the query
@@ -1145,13 +1130,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // cache can be leveraged locally
       if (
         !(this.serverOptions as any).webServerConfig &&
-        !getRequestMeta(req, '_nextIncrementalCache')
+        !getRequestMeta(req, 'incrementalCache')
       ) {
         let protocol: 'http:' | 'https:' = 'https:'
 
         try {
           const parsedFullUrl = new URL(
-            getRequestMeta(req, '__NEXT_INIT_URL') || '/',
+            getRequestMeta(req, 'initURL') || '/',
             'http://n'
           )
           protocol = parsedFullUrl.protocol as 'https:' | 'http:'
@@ -1163,7 +1148,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             | 'http'
             | 'https',
         })
-        addRequestMeta(req, '_nextIncrementalCache', incrementalCache)
+        addRequestMeta(req, 'incrementalCache', incrementalCache)
         ;(globalThis as any).__incrementalCache = incrementalCache
       }
 
@@ -1215,8 +1200,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
         if (parsedUrl.pathname !== parsedMatchedPath.pathname) {
           parsedUrl.pathname = parsedMatchedPath.pathname
-          addRequestMeta(req, '_nextRewroteUrl', invokePathnameInfo.pathname)
-          addRequestMeta(req, '_nextDidRewrite', true)
+          addRequestMeta(req, 'rewroteURL', invokePathnameInfo.pathname)
         }
         const normalizeResult = normalizeLocalePath(
           removePathPrefix(parsedUrl.pathname, this.nextConfig.basePath || ''),
@@ -1242,26 +1226,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           )
         }
 
-        if (parsedUrl.pathname.startsWith('/_next/image')) {
-          const imageResult = await this.handleNextImageRequest(
-            req,
-            res,
-            parsedUrl
-          )
+        // Try to handle this as a `/_next/image` request.
+        let finished = await this.handleNextImageRequest(req, res, parsedUrl)
+        if (finished) return
 
-          if (imageResult.finished) {
-            return
-          }
-        }
-        const nextDataResult = await this.handleNextDataRequest(
-          req,
-          res,
-          parsedUrl
-        )
+        // Try to handle the request as a `/_next/data` request.
+        finished = await this.handleNextDataRequest(req, res, parsedUrl)
+        if (finished) return
 
-        if (nextDataResult.finished) {
-          return
-        }
         await this.handleCatchallRenderRequest(req, res, parsedUrl)
         return
       }
@@ -1270,35 +1242,26 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         process.env.NEXT_RUNTIME !== 'edge' &&
         req.headers['x-middleware-invoke']
       ) {
-        const nextDataResult = await this.handleNextDataRequest(
+        let finished = await this.handleNextDataRequest(req, res, parsedUrl)
+        if (finished) return
+
+        finished = await this.handleCatchallMiddlewareRequest(
           req,
           res,
           parsedUrl
         )
+        if (finished) return
 
-        if (nextDataResult.finished) {
-          return
+        const err = new Error()
+        ;(err as any).result = {
+          response: new Response(null, {
+            headers: {
+              'x-middleware-next': '1',
+            },
+          }),
         }
-        const result = await this.handleCatchallMiddlewareRequest(
-          req,
-          res,
-          parsedUrl
-        )
-
-        if (result.finished) {
-          return
-        } else {
-          const err = new Error()
-          ;(err as any).result = {
-            response: new Response(null, {
-              headers: {
-                'x-middleware-next': '1',
-              },
-            }),
-          }
-          ;(err as any).bubble = true
-          throw err
-        }
+        ;(err as any).bubble = true
+        throw err
       }
 
       // ensure we strip the basePath when not using an invoke header
@@ -1623,8 +1586,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // and we need to look up the path by the rewritten path
     let urlPathname = parseUrl(req.url || '').pathname || '/'
 
-    let resolvedUrlPathname =
-      getRequestMeta(req, '_nextRewroteUrl') || urlPathname
+    let resolvedUrlPathname = getRequestMeta(req, 'rewroteURL') || urlPathname
 
     let staticPaths: string[] | undefined
 
@@ -1951,7 +1913,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     try {
       const parsedFullUrl = new URL(
-        getRequestMeta(req, '__NEXT_INIT_URL') || '/',
+        getRequestMeta(req, 'initURL') || '/',
         'http://n'
       )
       protocol = parsedFullUrl.protocol as 'https:' | 'http:'
@@ -2684,9 +2646,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               page,
               url: ctx.req.url,
               matchedPath: ctx.req.headers['x-matched-path'],
-              initUrl: getRequestMeta(ctx.req, '__NEXT_INIT_URL'),
-              didRewrite: getRequestMeta(ctx.req, '_nextDidRewrite'),
-              rewroteUrl: getRequestMeta(ctx.req, '_nextRewroteUrl'),
+              initUrl: getRequestMeta(ctx.req, 'initURL'),
+              didRewrite: !!getRequestMeta(ctx.req, 'rewroteURL'),
+              rewroteUrl: getRequestMeta(ctx.req, 'rewroteURL'),
             },
             null,
             2
@@ -2955,12 +2917,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // If the page has a route module, use it for the new match. If it doesn't
       // have a route module, remove the match.
       if (result.components.routeModule) {
-        addRequestMeta(ctx.req, '_nextMatch', {
+        addRequestMeta(ctx.req, 'match', {
           definition: result.components.routeModule.definition,
           params: undefined,
         })
       } else {
-        removeRequestMeta(ctx.req, '_nextMatch')
+        removeRequestMeta(ctx.req, 'match')
       }
 
       try {
@@ -2993,7 +2955,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       if (fallbackComponents) {
         // There was an error, so use it's definition from the route module
         // to add the match to the request.
-        addRequestMeta(ctx.req, '_nextMatch', {
+        addRequestMeta(ctx.req, 'match', {
           definition: fallbackComponents.routeModule!.definition,
           params: undefined,
         })

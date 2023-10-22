@@ -20,7 +20,6 @@ import {
   renderToInitialFizzStream,
   createBufferedTransformStream,
   continueFizzStream,
-  streamToBufferedResult,
   cloneTransformStream,
 } from '../stream-utils/node-web-streams-helper'
 import { canSegmentBeOverridden } from '../../client/components/match-segments'
@@ -67,6 +66,7 @@ import { makeGetServerInsertedHTML } from './make-get-server-inserted-html'
 import { walkTreeWithFlightRouterState } from './walk-tree-with-flight-router-state'
 import { createComponentTree } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
+import { setReferenceManifestsSingleton } from './action-encryption-utils'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -409,6 +409,7 @@ async function renderToHTMLOrFlightImpl(
     buildId,
     appDirDevErrorLogger,
     assetPrefix = '',
+    enableTainting,
   } = renderOpts
 
   // We need to expose the bundled `require` API globally for
@@ -427,6 +428,34 @@ async function renderToHTMLOrFlightImpl(
 
   // TODO: fix this typescript
   const clientReferenceManifest = renderOpts.clientReferenceManifest!
+
+  const workerName = 'app' + renderOpts.page
+  const serverModuleMap: {
+    [id: string]: {
+      id: string
+      chunks: string[]
+      name: string
+    }
+  } = new Proxy(
+    {},
+    {
+      get: (_, id: string) => {
+        return {
+          id: serverActionsManifest[
+            process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
+          ][id].workers[workerName],
+          name: id,
+          chunks: [],
+        }
+      },
+    }
+  )
+
+  setReferenceManifestsSingleton({
+    clientReferenceManifest,
+    serverActionsManifest,
+    serverModuleMap,
+  })
 
   const capturedErrors: Error[] = []
   const allCapturedErrors: Error[] = []
@@ -477,7 +506,15 @@ async function renderToHTMLOrFlightImpl(
     AppRouter,
     GlobalError,
     tree: loaderTree,
+    taintObjectReference,
   } = ComponentMod
+
+  if (enableTainting) {
+    taintObjectReference(
+      'Do not pass process.env to client components since it will leak sensitive data',
+      process.env
+    )
+  }
 
   const { staticGenerationStore, requestStore } = baseCtx
   const { urlPathname } = staticGenerationStore
@@ -728,6 +765,9 @@ async function renderToHTMLOrFlightImpl(
         }
 
         const is404 = res.statusCode === 404
+        if (!is404 && !hasRedirectError) {
+          res.statusCode = 500
+        }
 
         // Preserve the existing RSC inline chunks from the page rendering.
         // To avoid the same stream being operated twice, clone the origin stream for error rendering.
@@ -855,8 +895,7 @@ async function renderToHTMLOrFlightImpl(
     req,
     res,
     ComponentMod,
-    page: renderOpts.page,
-    serverActionsManifest,
+    serverModuleMap,
     generateFlight,
     staticGenerationStore: staticGenerationStore,
     requestStore: requestStore,
@@ -905,7 +944,7 @@ async function renderToHTMLOrFlightImpl(
   })
 
   if (staticGenerationStore.isStaticGeneration) {
-    const htmlResult = await streamToBufferedResult(renderResult)
+    const htmlResult = await renderResult.toUnchunkedString(true)
 
     // if we encountered any unexpected errors during build
     // we fail the prerendering phase and the build
@@ -915,9 +954,9 @@ async function renderToHTMLOrFlightImpl(
 
     // TODO-APP: derive this from same pass to prevent additional
     // render during static generation
-    const stringifiedFlightPayload = await streamToBufferedResult(
+    const stringifiedFlightPayload = await (
       await generateFlight(ctx)
-    )
+    ).toUnchunkedString(true)
 
     if (staticGenerationStore.forceStatic === false) {
       staticGenerationStore.revalidate = 0

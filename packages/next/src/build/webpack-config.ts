@@ -17,6 +17,7 @@ import {
   RSC_ACTION_CLIENT_WRAPPER_ALIAS,
   RSC_ACTION_VALIDATE_ALIAS,
   WEBPACK_RESOURCE_QUERIES,
+  RSC_ACTION_ENCRYPTION_ALIAS,
 } from '../lib/constants'
 import type { WebpackLayerName } from '../lib/constants'
 import { isWebpackDefaultLayer, isWebpackServerLayer } from './utils'
@@ -74,6 +75,11 @@ import { needsExperimentalReact } from '../lib/needs-experimental-react'
 import { getDefineEnvPlugin } from './webpack/plugins/define-env-plugin'
 import type { SWCLoaderOptions } from './webpack/loaders/next-swc-loader'
 import { isResourceInPackages, makeExternalHandler } from './handle-externals'
+import {
+  getMainField,
+  edgeConditionNames,
+} from './webpack-config-rules/resolve'
+import { OptionalPeerDependencyResolverPlugin } from './webpack/plugins/optional-peer-dependency-resolve-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -103,21 +109,6 @@ const babelIncludeRegexes: RegExp[] = [
 
 const asyncStoragesRegex =
   /next[\\/]dist[\\/](esm[\\/])?client[\\/]components[\\/](static-generation-async-storage|action-async-storage|request-async-storage)/
-
-// exports.<conditionName>
-const edgeConditionNames = [
-  'edge-light',
-  'worker',
-  // inherits the default conditions
-  '...',
-]
-
-// packageJson.<mainField>
-const mainFieldsPerCompiler: Record<CompilerNameValues, string[]> = {
-  [COMPILER_NAMES.server]: ['main', 'module'],
-  [COMPILER_NAMES.client]: ['browser', 'module', 'main'],
-  [COMPILER_NAMES.edgeServer]: edgeConditionNames,
-}
 
 // Support for NODE_PATH
 const nodePathList = (process.env.NODE_PATH || '')
@@ -491,10 +482,8 @@ export default async function getBaseWebpackConfig(
     rewrites.fallback.length > 0
 
   const hasAppDir = !!appDir
-  const hasServerComponents = hasAppDir
   const disableOptimizedLoading = true
   const enableTypedRoutes = !!config.experimental.typedRoutes && hasAppDir
-  const useServerActions = !!config.experimental.serverActions && hasAppDir
   const bundledReactChannel = needsExperimentalReact(config)
     ? '-experimental'
     : ''
@@ -545,7 +534,7 @@ export default async function getBaseWebpackConfig(
         pagesDir,
         cwd: dir,
         development: dev,
-        hasServerComponents,
+        hasServerComponents: hasAppDir,
         hasReactRefresh: dev && isClient,
         hasJsxRuntime: true,
       },
@@ -597,7 +586,7 @@ export default async function getBaseWebpackConfig(
       : getBabelLoader(),
   }
 
-  const swcLoaderForServerLayer = hasServerComponents
+  const swcLoaderForServerLayer = hasAppDir
     ? useSWCLoader
       ? [getSwcLoader({ isServerLayer: true, bundleTarget: 'server' })]
       : // When using Babel, we will have to add the SWC loader
@@ -643,11 +632,11 @@ export default async function getBaseWebpackConfig(
       // in the client layer.
       loader: 'next-flight-client-module-loader',
     },
-    ...(hasServerComponents
+    ...(hasAppDir
       ? useSWCLoader
         ? [
             getSwcLoader({
-              hasServerComponents,
+              hasServerComponents: hasAppDir,
               isServerLayer: false,
               bundleTarget: 'client',
             }),
@@ -670,7 +659,7 @@ export default async function getBaseWebpackConfig(
   // have RSC transpiler enabled, so syntax checks such as invalid imports won't
   // be performed.
   const loaderForAPIRoutes =
-    hasServerComponents && useSWCLoader
+    hasAppDir && useSWCLoader
       ? getSwcLoader({
           isServerLayer: false,
           bundleTarget: 'default',
@@ -811,7 +800,7 @@ export default async function getBaseWebpackConfig(
     ],
     alias: {
       // Alias 3rd party @vercel/og package to vendored og image package to reduce bundle size
-      '@vercel/og': 'next/dist/server/web/spec-extension/image-response',
+      '@vercel/og': 'next/dist/server/og/image-response',
 
       // Alias next/dist imports to next/dist/esm assets,
       // let this alias hit before `next` alias.
@@ -827,6 +816,8 @@ export default async function getBaseWebpackConfig(
             // Alias the usage of next public APIs
             [path.join(NEXT_PROJECT_ROOT, 'server')]:
               'next/dist/esm/server/web/exports/index',
+            [path.join(NEXT_PROJECT_ROOT, 'og')]:
+              'next/dist/esm/server/og/image-response',
             [path.join(NEXT_PROJECT_ROOT_DIST, 'client', 'link')]:
               'next/dist/esm/client/link',
             [path.join(
@@ -911,6 +902,9 @@ export default async function getBaseWebpackConfig(
       [RSC_ACTION_PROXY_ALIAS]:
         'next/dist/build/webpack/loaders/next-flight-loader/action-proxy',
 
+      [RSC_ACTION_ENCRYPTION_ALIAS]:
+        'next/dist/server/app-render/action-encryption',
+
       ...(isClient || isEdgeServer
         ? {
             [clientResolveRewrites]: hasRewrites
@@ -934,11 +928,14 @@ export default async function getBaseWebpackConfig(
           },
         }
       : undefined),
-    mainFields: mainFieldsPerCompiler[compilerType],
+    // default main fields use pages dir ones, and customize app router ones in loaders.
+    mainFields: getMainField('pages', compilerType),
     ...(isEdgeServer && {
       conditionNames: edgeConditionNames,
     }),
-    plugins: [],
+    plugins: [
+      isNodeServer ? new OptionalPeerDependencyResolverPlugin() : undefined,
+    ].filter(Boolean) as webpack.ResolvePluginInstance[],
   }
 
   const terserOptions: any = {
@@ -1042,7 +1039,6 @@ export default async function getBaseWebpackConfig(
     config,
     optOutBundlingPackageRegex,
     dir,
-    hasAppDir,
   })
 
   const shouldIncludeExternalDirs =
@@ -1399,7 +1395,6 @@ export default async function getBaseWebpackConfig(
         'next-flight-client-entry-loader',
         'next-flight-action-entry-loader',
         'next-flight-client-module-loader',
-        'noop-loader',
         'empty-loader',
         'next-middleware-loader',
         'next-edge-function-loader',
@@ -1613,6 +1608,7 @@ export default async function getBaseWebpackConfig(
                   ],
                 },
                 resolve: {
+                  mainFields: getMainField('app', compilerType),
                   conditionNames: reactServerCondition,
                   // If missing the alias override here, the default alias will be used which aliases
                   // react to the direct file path, not the package name. In that case the condition
@@ -1656,14 +1652,14 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
-        ...(hasServerComponents
+        ...(hasAppDir
           ? [
               {
                 // Alias react-dom for ReactDOM.preload usage.
                 // Alias react for switching between default set and share subset.
                 oneOf: [
                   {
-                    exclude: [asyncStoragesRegex],
+                    exclude: asyncStoragesRegex,
                     issuerLayer: isWebpackServerLayer,
                     test: {
                       // Resolve it if it is a source code file, and it has NOT been
@@ -1734,12 +1730,12 @@ export default async function getBaseWebpackConfig(
               issuerLayer: WEBPACK_LAYERS.middleware,
               use: swcLoaderForMiddlewareLayer,
             },
-            ...(hasServerComponents
+            ...(hasAppDir
               ? [
                   {
                     test: codeCondition.test,
                     issuerLayer: isWebpackServerLayer,
-                    exclude: [asyncStoragesRegex],
+                    exclude: asyncStoragesRegex,
                     use: swcLoaderForServerLayer,
                   },
                   {
@@ -1755,8 +1751,11 @@ export default async function getBaseWebpackConfig(
                       WEBPACK_LAYERS.appPagesBrowser,
                       WEBPACK_LAYERS.serverSideRendering,
                     ],
-                    exclude: [codeCondition.exclude],
+                    exclude: codeCondition.exclude,
                     use: swcLoaderForClientLayer,
+                    resolve: {
+                      mainFields: getMainField('app', compilerType),
+                    },
                   },
                 ]
               : []),
@@ -1903,10 +1902,10 @@ export default async function getBaseWebpackConfig(
         {
           // Mark `image-response.js` as side-effects free to make sure we can
           // tree-shake it if not used.
-          test: /[\\/]next[\\/]dist[\\/](esm[\\/])?server[\\/]web[\\/]exports[\\/]image-response\.js/,
+          test: /[\\/]next[\\/]dist[\\/](esm[\\/])?server[\\/]og[\\/]image-response\.js/,
           sideEffects: false,
         },
-      ].filter(Boolean),
+      ],
     },
     plugins: [
       isNodeServer &&
@@ -2005,7 +2004,7 @@ export default async function getBaseWebpackConfig(
             } = require('./webpack/plugins/nextjs-require-cache-hot-reloader')
             const devPlugins = [
               new NextJsRequireCacheHotReloader({
-                hasServerComponents,
+                hasServerComponents: hasAppDir,
               }),
             ]
 
@@ -2072,7 +2071,7 @@ export default async function getBaseWebpackConfig(
           },
         }),
       hasAppDir && isClient && new AppBuildManifestPlugin({ dev }),
-      hasServerComponents &&
+      hasAppDir &&
         (isClient
           ? new ClientReferenceManifestPlugin({
               dev,
@@ -2082,7 +2081,6 @@ export default async function getBaseWebpackConfig(
               appDir,
               dev,
               isEdgeServer,
-              useServerActions,
             })),
       hasAppDir &&
         !isClient &&
@@ -2239,7 +2237,7 @@ export default async function getBaseWebpackConfig(
 
     // For Server Components, it's necessary to have provided exports collected
     // to generate the correct flight manifest.
-    if (!hasServerComponents) {
+    if (!hasAppDir) {
       webpack5Config.optimization.providedExports = false
     }
     webpack5Config.optimization.usedExports = false
@@ -2257,7 +2255,6 @@ export default async function getBaseWebpackConfig(
     optimizeCss: config.experimental.optimizeCss,
     nextScriptWorkers: config.experimental.nextScriptWorkers,
     scrollRestoration: config.experimental.scrollRestoration,
-    serverActions: config.experimental.serverActions,
     typedRoutes: config.experimental.typedRoutes,
     basePath: config.basePath,
     excludeDefaultMomentLocales: config.excludeDefaultMomentLocales,

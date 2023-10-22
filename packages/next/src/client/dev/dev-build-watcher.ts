@@ -16,7 +16,7 @@ export default function initializeBuildWatcher(
   position = 'bottom-right'
 ) {
   const shadowHost = document.createElement('div')
-  const [verticalProperty, horizontalProperty] = position.split('-') as [
+  const [verticalProperty, horizontalProperty] = position.split('-', 2) as [
     VerticalPosition,
     HorizonalPosition
   ]
