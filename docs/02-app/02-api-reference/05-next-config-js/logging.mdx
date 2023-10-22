@@ -12,8 +12,9 @@ Currently, `logging` only applies to data fetching using the `fetch` API. It doe
 ```js filename="next.config.js"
 module.exports = {
   logging: {
-    level: 'verbose',
-    fullUrl: true,
+    fetches: {
+      fullUrl: true,
+    },
   },
 }
 ```
