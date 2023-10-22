@@ -443,14 +443,12 @@ impl Visit<ChunkContentGraphNode, ()> for ChunkContentVisit {
                     ChunkGraphNodeToReferences::ChunkItem(item)
                 }
                 _ => {
-                    return Ok(vec![].into_iter());
+                    return Ok(None.into_iter().flatten());
                 }
             };
 
-            let nodes = graph_node_to_referenced_nodes(node, chunk_content_context)
-                .await?
-                .clone_value();
-            Ok(nodes.into_iter())
+            let nodes = graph_node_to_referenced_nodes(node, chunk_content_context).await?;
+            Ok(Some(nodes.into_iter().cloned()).into_iter().flatten())
         }
     }
 
