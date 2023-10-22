@@ -28,14 +28,17 @@ createNextDescribe(
       await next.stop()
 
       const nextConfig = await next.readFile(nextConfigPath)
-      await next.export({ outdir })
+      await next.build()
 
       await next.patchFile(
         nextConfigPath,
         nextConfig.replace(`trailingSlash: true`, `trailingSlash: false`)
       )
+      await next.patchFile(
+        nextConfigPath,
+        nextConfig.replace(`distDir: 'out'`, `distDir: '${outNoTrailSlash}'`)
+      )
       await next.build()
-      await next.export({ outdir: outNoTrailSlash })
       await next.patchFile(nextConfigPath, nextConfig)
 
       server = await startStaticServer(path.join(next.testDir, outdir))
@@ -57,7 +60,11 @@ createNextDescribe(
       const tmpOutDir = 'tmpOutDir'
       const tempfile = path.join(tmpOutDir, 'temp.txt')
       await next.patchFile(tempfile, 'test')
-      await next.export({ outdir: tmpOutDir })
+      const nextConfig = await next.readFile(nextConfigPath)
+      await next.patchFile(
+        nextConfigPath,
+        nextConfig.replace(`distDir: 'out'`, `distDir: '${tmpOutDir}'`)
+      )
       await expect(next.readFile(tempfile)).rejects.toThrowError()
     })
 
@@ -106,7 +113,11 @@ createNextDescribe(
           nextConfig.replace('/blog/nextjs/comment/test', '/bad/path')
         )
         const outdir = 'outDynamic'
-        const { cliOutput } = await next.export({ outdir })
+        await next.patchFile(
+          nextConfigPath,
+          nextConfig.replace(`distDir: 'out'`, `distDir: '${outdir}'`)
+        )
+        const { cliOutput } = await next.build()
 
         expect(cliOutput).toContain(
           'https://nextjs.org/docs/messages/export-path-mismatch'
@@ -469,7 +480,11 @@ createNextDescribe(
           nextConfig.replace('// API route', `'/data': { page: '/api/data' },`)
         )
         const outdir = 'outApi'
-        const { cliOutput } = await next.export({ outdir })
+        await next.patchFile(
+          nextConfigPath,
+          nextConfig.replace(`distDir: 'out'`, `distDir: '${outdir}'`)
+        )
+        const { cliOutput } = await next.build()
         await next.patchFile(nextConfigPath, nextConfig)
 
         expect(cliOutput).toContain(
@@ -485,8 +500,11 @@ createNextDescribe(
         nextConfigPath,
         nextConfig.replace(`trailingSlash: true`, `exportTrailingSlash: true`)
       )
+      await next.patchFile(
+        nextConfigPath,
+        nextConfig.replace(`distDir: 'out'`, `distDir: '${tmpOutdir}'`)
+      )
       await next.build()
-      await next.export({ outdir: tmpOutdir })
       await next.patchFile(nextConfigPath, nextConfig)
 
       expect(await fileExist(path.join(tmpOutdir, '404/index.html'))).toBeTrue()
