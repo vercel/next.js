@@ -38,7 +38,14 @@ fn defines(define_env: &IndexMap<String, String>) -> CompileTimeDefines {
     for (k, v) in define_env {
         defines
             .entry(k.split('.').map(|s| s.to_string()).collect::<Vec<String>>())
-            .or_insert_with(|| CompileTimeDefineValue::JSON(v.clone()));
+            .or_insert_with(|| {
+                let val = serde_json::from_str(v);
+                match val {
+                    Ok(serde_json::Value::Bool(v)) => CompileTimeDefineValue::Bool(v),
+                    Ok(serde_json::Value::String(v)) => CompileTimeDefineValue::String(v),
+                    _ => CompileTimeDefineValue::JSON(v.clone()),
+                }
+            });
     }
 
     CompileTimeDefines(defines)
