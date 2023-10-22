@@ -24,6 +24,30 @@ Replacing `<transform>` and `<path>` with appropriate values.
 
 ## Next.js Codemods
 
+### 14
+
+#### Migrating from `next/server` to `next/og`
+
+##### `next-og-import`
+
+```bash filename="Terminal"
+npx @next/codemod@latest next-og-import .
+```
+
+This codemod moves transforms imports from `next/server` to `next/og` for usage of [Dynamic OG Image Generation](/docs/app/building-your-application/optimizing/metadata#dynamic-image-generation).
+
+For example:
+
+```js
+import { ImageResponse } from 'next/server'
+```
+
+Transforms into:
+
+```js
+import { ImageResponse } from 'next/og'
+```
+
 ### 13.2
 
 #### Use Built-in Font
