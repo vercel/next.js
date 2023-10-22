@@ -99,9 +99,9 @@ const linearGradientText = (
     )
 
     const color = `\x1b[38;2;${r};${g};${b}m` // ANSI escape code for setting text color
-    const reset = '\x1b[0m' // ANSI escape code to reset text color
+    const resetChar = '\x1b[0m' // ANSI escape code to reset text color
 
-    gradient += color + text[i] + reset
+    gradient += color + text[i] + resetChar
   }
 
   return gradient

@@ -19,9 +19,7 @@ describe('turbopack unsupported features log', () => {
       })
 
       try {
-        expect(output).toContain(
-          'Thank you for trying Next.js v13 with Turbopack!'
-        )
+        expect(output).toContain('(turbo)')
         expect(output).not.toContain(
           'You are using configuration and/or tools that are not yet'
         )
@@ -46,9 +44,7 @@ describe('turbopack unsupported features log', () => {
       })
 
       try {
-        expect(output).toContain(
-          'Thank you for trying Next.js v13 with Turbopack!'
-        )
+        expect(output).toContain('(turbo)')
         expect(output).not.toContain(
           'You are using configuration and/or tools that are not yet'
         )
@@ -81,9 +77,7 @@ describe('turbopack unsupported features log', () => {
       })
 
       try {
-        expect(output).toContain(
-          'Thank you for trying Next.js v13 with Turbopack!'
-        )
+        expect(output).toContain('(turbo)')
         expect(output).toContain(
           'You are using configuration and/or tools that are not yet'
         )
