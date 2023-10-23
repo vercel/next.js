@@ -928,6 +928,10 @@ impl PageEndpoint {
                 }
                 server_assets.extend(files_value.iter().copied());
 
+                // the next-edge-ssr-loader templates expect the manifests to be stored in
+                // global variables defined in these files
+                //
+                // they are created in `setup-dev-bundler.ts`
                 let mut file_paths_from_root = vec![
                     "server/server-reference-manifest.js".to_string(),
                     "server/middleware-build-manifest.js".to_string(),

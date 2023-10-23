@@ -546,6 +546,8 @@ impl AppEndpoint {
 
         let mut server_assets = vec![];
         let mut client_assets = vec![];
+        /// assets to add to the middleware manifest (to be loaded in the edge
+        /// runtime).
         let mut middleware_assets = vec![];
 
         let app_entry = app_entry.await?;
@@ -704,6 +706,9 @@ impl AppEndpoint {
             if runtime == NextRuntime::Edge {
                 middleware_assets.push(entry_manifest);
 
+                // as the edge runtime doesn't support chunk loading we need to add all client
+                // references to the middleware manifest so they get loaded during runtime
+                // initialization
                 let client_references_chunks = &*client_references_chunks.await?;
 
                 for (ty, chunks) in client_references_chunks {
@@ -843,6 +848,10 @@ impl AppEndpoint {
                 );
                 server_assets.extend(files.await?.iter().copied());
 
+                // the next-edge-ssr-loader templates expect the manifests to be stored in
+                // global variables defined in these files
+                //
+                // they are created in `setup-dev-bundler.ts`
                 let mut file_paths_from_root = vec![
                     "server/server-reference-manifest.js".to_string(),
                     "server/middleware-build-manifest.js".to_string(),

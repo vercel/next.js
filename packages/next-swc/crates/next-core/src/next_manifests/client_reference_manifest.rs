@@ -174,6 +174,9 @@ impl ClientReferenceManifest {
                             name: "*".to_string(),
                             id: (&*ssr_module_id).into(),
                             chunks: if runtime == NextRuntime::Edge {
+                                // the chunks get added to the middleware-manifest.json instead of
+                                // this file because the edge runtime doesn't support dynamically
+                                // loading chunks.
                                 vec![]
                             } else {
                                 ssr_chunks_paths.clone()
