@@ -601,13 +601,6 @@ export default async function getBaseWebpackConfig(
       } satisfies ClientEntries)
     : undefined
 
-  // tell webpack where to look for _app and _document
-  // using aliases to allow falling back to the default
-  // version when removed or not present
-  const clientResolveRewrites = require.resolve(
-    '../shared/lib/router/utils/resolve-rewrites'
-  )
-
   const resolveConfig: webpack.Configuration['resolve'] = {
     // Disable .mjs for node_modules bundling
     extensions: isNodeServer
@@ -619,18 +612,15 @@ export default async function getBaseWebpackConfig(
       ...nodePathList, // Support for NODE_PATH environment variable
     ],
     alias: createWebpackAliases({
-      dev,
-      pageExtensions,
+      isClient,
       isEdgeServer,
+      isNodeServer,
+      dev,
       config,
       pagesDir,
       appDir,
       dir,
-      distDir,
-      isClient,
       reactProductionProfiling,
-      isNodeServer,
-      clientResolveRewrites,
       hasRewrites,
     }),
     ...(isClient || isEdgeServer
