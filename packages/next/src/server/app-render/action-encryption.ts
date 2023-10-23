@@ -34,7 +34,9 @@ async function decodeActionBoundArg(actionId: string, arg: string) {
     )
   }
 
-  const [ivPrefix, payload] = arg.split(':', 2)
+  // Get the payload and iv from the arg. 18 bytes * 8/6 = 24 chars in base64.
+  const ivPrefix = arg.slice(0, 24)
+  const payload = arg.slice(24)
   if (payload === undefined) {
     throw new Error('Invalid Server Action payload.')
   }
@@ -56,7 +58,7 @@ async function encodeActionBoundArg(actionId: string, arg: string) {
   }
 
   // Get some random bytes for iv.
-  const randomBytes = new Uint16Array(8)
+  const randomBytes = new Uint8Array(18)
   crypto.getRandomValues(randomBytes)
   const ivPrefix = btoa(arrayBufferToString(randomBytes.buffer))
 
@@ -65,7 +67,7 @@ async function encodeActionBoundArg(actionId: string, arg: string) {
     SALT_PREFIX + ivPrefix + actionId,
     stringToUint8Array(arg)
   )
-  return ivPrefix + ':' + btoa(arrayBufferToString(encoded))
+  return ivPrefix + btoa(arrayBufferToString(encoded))
 }
 
 // Encrypts the action's bound args into a string.
