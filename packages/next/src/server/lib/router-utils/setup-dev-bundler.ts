@@ -373,10 +373,15 @@ async function startWatcher(opts: SetupOpts) {
         // We ignore source maps
         if (p.endsWith('.map')) continue
         let key = `${id}:${p}`
-        const previousHash = serverPathState.get(key)
-        if (previousHash && previousHash !== contentHash) {
+        const localHash = serverPathState.get(key)
+        const globaHash = serverPathState.get(p)
+        if (
+          (localHash && localHash !== contentHash) ||
+          (globaHash && globaHash !== contentHash)
+        ) {
           hasChange = true
           serverPathState.set(key, contentHash)
+          serverPathState.set(p, contentHash)
         }
       }
 
