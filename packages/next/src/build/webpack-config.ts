@@ -612,6 +612,7 @@ export default async function getBaseWebpackConfig(
       ...nodePathList, // Support for NODE_PATH environment variable
     ],
     alias: createWebpackAliases({
+      distDir,
       isClient,
       isEdgeServer,
       isNodeServer,
