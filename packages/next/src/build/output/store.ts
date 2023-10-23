@@ -8,6 +8,8 @@ import {
 } from '../swc'
 import * as Log from './log'
 
+const MAX_LOG_SKIP_DURATION = 500 // 500ms
+
 export type OutputState =
   | { bootstrap: true; appUrl: string | null; bindAddr: string | null }
   | ({ bootstrap: false; appUrl: string | null; bindAddr: string | null } & (
@@ -49,6 +51,7 @@ function hasStoreChanged(nextStore: OutputState) {
 
 let startTime = 0
 let trigger = '' // default, use empty string for trigger
+let loadingLogTimer: NodeJS.Timeout | null = null
 
 store.subscribe((state) => {
   if (!hasStoreChanged(state)) {
@@ -63,7 +66,12 @@ store.subscribe((state) => {
     if (state.trigger) {
       trigger = state.trigger
       if (trigger !== 'initial') {
-        Log.wait(`Compiling ${trigger} ...`)
+        if (!loadingLogTimer) {
+          // Only log compiling if compiled is not finished in 3 seconds
+          loadingLogTimer = setTimeout(() => {
+            Log.wait(`Compiling ${trigger} ...`)
+          }, MAX_LOG_SKIP_DURATION)
+        }
       }
     }
     if (startTime === 0) {
@@ -132,6 +140,10 @@ store.subscribe((state) => {
   if (trigger === 'initial') {
     trigger = ''
   } else {
+    if (loadingLogTimer) {
+      clearTimeout(loadingLogTimer)
+      loadingLogTimer = null
+    }
     Log.event(
       `Compiled${trigger ? ' ' + trigger : ''}${timeMessage}${modulesMessage}`
     )

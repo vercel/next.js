@@ -9,14 +9,12 @@ export function logStartInfo({
   appUrl,
   envInfo,
   expFeatureInfo,
-  formatDurationText,
   maxExperimentalFeatures,
 }: {
   networkUrl: string | null
   appUrl: string | null
   envInfo?: string[]
   expFeatureInfo?: string[]
-  formatDurationText: string | null
   maxExperimentalFeatures?: number
 }) {
   Log.bootstrap(
@@ -50,9 +48,6 @@ export function logStartInfo({
 
   // New line after the bootstrap info
   Log.info('')
-  if (formatDurationText) {
-    Log.event(`Ready in ${formatDurationText}`)
-  }
 }
 
 export async function getStartServerInfo(dir: string): Promise<{
