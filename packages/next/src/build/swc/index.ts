@@ -420,6 +420,7 @@ export interface DefineEnv {
 }
 
 export function createDefineEnv({
+  isTurbopack,
   allowedRevalidateHeaderKeys,
   clientRouterFilters,
   config,
@@ -442,6 +443,7 @@ export function createDefineEnv({
   for (const variant of Object.keys(defineEnv) as (keyof typeof defineEnv)[]) {
     defineEnv[variant] = rustifyEnv(
       getDefineEnv({
+        isTurbopack,
         allowedRevalidateHeaderKeys,
         clientRouterFilters,
         config,
