@@ -113,7 +113,9 @@ export function createBufferedTransformStream(): TransformStream<
 
     flush() {
       if (pendingFlush) {
-        return pendingFlush
+        return pendingFlush.then(() => {
+          pendingFlush = null
+        })
       }
     },
   })
@@ -227,7 +229,10 @@ function createDeferredSuffixStream(
       }
     },
     flush(controller) {
-      if (suffixFlushTask) return suffixFlushTask
+      if (suffixFlushTask)
+        return suffixFlushTask.then(() => {
+          suffixFlushTask = null
+        })
       if (!suffixFlushed) {
         suffixFlushed = true
         controller.enqueue(encoder.encode(suffix))
@@ -282,7 +287,9 @@ function createMergedTransformStream(
       // If the data stream promise is defined, then return it as its completion
       // will be the completion of the stream.
       if (dataStreamFinished) {
-        return dataStreamFinished.promise
+        return dataStreamFinished.promise.then(() => {
+          dataStreamFinished = null
+        })
       }
     },
   })

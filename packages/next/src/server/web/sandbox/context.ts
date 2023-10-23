@@ -25,6 +25,49 @@ import AssertImplementation from 'node:assert'
 import UtilImplementation from 'node:util'
 import AsyncHooksImplementation from 'node:async_hooks'
 
+class IntervalsHandler {
+  private intervals: NodeJS.Timeout[] = []
+
+  set(callback: (...args: any[]) => void, ms: number, ...args: any[]) {
+    const interval = setInterval(callback, ms, ...args)
+    this.intervals.push(interval)
+    return interval
+  }
+
+  clear(interval: NodeJS.Timeout) {
+    clearInterval(interval)
+    this.intervals = this.intervals.filter((i) => i !== interval)
+  }
+
+  clearAll() {
+    this.intervals.forEach(clearInterval)
+    this.intervals = []
+  }
+}
+
+class TimeoutHandlers {
+  private timeouts: NodeJS.Timeout[] = []
+
+  set(callback: (...args: any[]) => void, ms: number, ...args: any[]) {
+    const timeout = setTimeout(callback, ms, ...args)
+    this.timeouts.push(timeout)
+    return timeout
+  }
+
+  clear(timeout: NodeJS.Timeout) {
+    clearTimeout(timeout)
+
+    this.timeouts = this.timeouts.filter((i) => i !== timeout)
+  }
+
+  clearAll() {
+    this.timeouts.forEach(clearTimeout)
+    this.timeouts = []
+  }
+}
+
+export const intervalsHandler = new IntervalsHandler()
+export const timeoutsHandler = new TimeoutHandlers()
 interface ModuleContext {
   runtime: EdgeRuntime
   paths: Map<string, string>
@@ -46,6 +89,8 @@ const pendingModuleCaches = new Map<string, Promise<ModuleContext>>()
  * case, removes the context from the cache.
  */
 export async function clearModuleContext(path: string) {
+  intervalsHandler.clearAll()
+  timeoutsHandler.clearAll()
   const handleContext = (
     key: string,
     cache: ReturnType<(typeof moduleContexts)['get']>,
@@ -377,6 +422,18 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
       Object.assign(context, wasm)
 
       context.AsyncLocalStorage = AsyncLocalStorage
+
+      context.setInterval = (callback: (...args: any[]) => void, ms: number) =>
+        intervalsHandler.set(callback, ms)
+
+      context.clearInterval = (interval: NodeJS.Timeout) =>
+        intervalsHandler.clear(interval)
+
+      context.setTimeout = (callback: (...args: any[]) => void, ms: number) =>
+        timeoutsHandler.set(callback, ms)
+
+      context.clearTimeout = (timeout: NodeJS.Timeout) =>
+        timeoutsHandler.clear(timeout)
 
       return context
     },
