@@ -39,9 +39,10 @@ describe('RSCPathnameNormalizer', () => {
     it('should strip the `.rsc` extension from the pathname when it matches', () => {
       const normalizer = new RSCPathnameNormalizer(true)
       const pathnames = ['/foo.rsc', '/foo/bar.rsc', '/fooo/bar.rsc']
+      const expected = ['/foo', '/foo/bar', '/fooo/bar']
       for (const pathname of pathnames) {
         expect(normalizer.normalize(pathname)).toBe(
-          pathname.substring(0, pathname.length - '.rsc'.length)
+          expected[pathnames.indexOf(pathname)]
         )
       }
     })
