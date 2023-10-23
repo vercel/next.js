@@ -45,7 +45,7 @@ export class Worker {
             // we don't pass down NODE_OPTIONS as it can
             // extra memory usage
             NODE_OPTIONS: getNodeOptionsWithoutInspect()
-              .replace(/--max-old-space-size=[\d]{1,}/, '')
+              .replace(/--max-old-space-size=\d+/, '')
               .trim(),
           } as any,
         },

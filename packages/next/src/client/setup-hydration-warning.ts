@@ -10,7 +10,7 @@ if (!window._nextSetupHydrationWarning) {
     const isHydrateError = args.some(
       (arg) =>
         typeof arg === 'string' &&
-        arg.match(/(hydration|content does not match|did not match)/i)
+        /(hydration|content does not match|did not match)/i.test(arg)
     )
     if (isHydrateError) {
       args = [

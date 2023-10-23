@@ -129,7 +129,7 @@ function formatMessage(
   }
 
   // Add helpful message for users trying to use Sass for the first time
-  if (lines[1] && lines[1].match(/Cannot find module.+sass/)) {
+  if (lines[1] && /Cannot find module.+sass/.test(lines[1])) {
     // ./file.module.scss (<<loader info>>) => ./file.module.scss
     const firstLine = lines[0].split('!')
     lines[0] = firstLine[firstLine.length - 1]
@@ -144,7 +144,7 @@ function formatMessage(
     hadMissingSassError = true
   } else if (
     hadMissingSassError &&
-    message.match(/(sass-loader|resolve-url-loader: CSS error)/)
+    /(sass-loader|resolve-url-loader: CSS error)/.test(message)
   ) {
     // dispose of unhelpful stack trace following missing sass module
     lines = []

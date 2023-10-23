@@ -34,7 +34,7 @@ const IPv6Reg = new RegExp(
     `(?:${v6Seg}:){2}(?:(:${v6Seg}){0,3}:${v4Str}|(:${v6Seg}){1,5}|:)|` +
     `(?:${v6Seg}:){1}(?:(:${v6Seg}){0,4}:${v4Str}|(:${v6Seg}){1,6}|:)|` +
     `(?::((?::${v6Seg}){0,5}:${v4Str}|(?::${v6Seg}){1,7}|:))` +
-    ')(%[0-9a-zA-Z-.:]{1,})?$'
+    ')(%[0-9a-zA-Z-.:]+)?$'
 )
 
 export function isIPv6(s: string) {

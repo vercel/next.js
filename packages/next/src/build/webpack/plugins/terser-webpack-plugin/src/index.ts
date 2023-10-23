@@ -101,8 +101,8 @@ export class TerserPlugin {
             // don't minify _middleware as it can break in some cases
             // and doesn't provide too much of a benefit as it's server-side
             if (
-              name.match(
-                /(edge-runtime-webpack\.js|edge-chunks|middleware\.js$)/
+              /(edge-runtime-webpack\.js|edge-chunks|middleware\.js$)/.test(
+                name
               )
             ) {
               return false

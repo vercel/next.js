@@ -1063,8 +1063,8 @@ var supports = void 0
 
 // https://www.w3.org/TR/html5/infrastructure.html#rules-for-parsing-integers
 // NOTE: all browsers agree to allow trailing spaces as well
-var validIntegerPatternNoTrailing = /^\s*(-|\+)?[0-9]+\s*$/
-var validIntegerPatternWithTrailing = /^\s*(-|\+)?[0-9]+.*$/
+var validIntegerPatternNoTrailing = /^\s*(-|\+)?\d+\s*$/
+var validIntegerPatternWithTrailing = /^\s*(-|\+)?\d+.*$/
 
 function isValidTabindex(context) {
   if (!supports) {

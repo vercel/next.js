@@ -12,16 +12,11 @@ export type NextFlightClientEntryLoaderOptions = {
 }
 
 export default function transformSource(this: any) {
-  let { modules, server }: NextFlightClientEntryLoaderOptions =
+  const { modules, server }: NextFlightClientEntryLoaderOptions =
     this.getOptions()
+
   const isServer = server === 'true'
-
-  if (!Array.isArray(modules)) {
-    modules = modules ? [modules] : []
-  }
-
-  const requests = modules as string[]
-  const code = requests
+  const code = modules
     // Filter out CSS files in the SSR compilation
     .filter((request) => (isServer ? !regexCSS.test(request) : true))
     .map(

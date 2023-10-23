@@ -27,8 +27,7 @@ const NextServerCSSLoader: webpack.LoaderDefinitionFunction<NextServerCSSLoaderO
             "No 'cssModules' option was found for the next-flight-css-loader plugin."
           )
         )
-        isCSSModule =
-          this.resourcePath.match(/\.module\.(css|sass|scss)$/) !== null
+        isCSSModule = /\.module\.(css|sass|scss)$/.test(this.resourcePath)
       }
       const checksum = crypto
         .createHash('sha1')

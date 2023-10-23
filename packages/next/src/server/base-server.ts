@@ -793,7 +793,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // hello/world or backslashes to forward slashes, this does not
       // handle trailing slash as that is handled the same as a next.config.js
       // redirect
-      if (urlNoQuery?.match(/(\\|\/\/)/)) {
+      if (urlNoQuery && /(\\|\/\/)/.test(urlNoQuery)) {
         const cleanUrl = normalizeRepeatedSlashes(req.url!)
         res.redirect(cleanUrl, 308).body(cleanUrl).send()
         return
@@ -858,7 +858,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           if (this.hasAppDir) {
             // ensure /index path is normalized for prerender
             // in minimal mode
-            if (req.url.match(/^\/index($|\?)/)) {
+            if (/^\/index($|\?)/.test(req.url)) {
               req.url = req.url.replace(/^\/index/, '/')
             }
             parsedUrl.pathname =
@@ -1471,8 +1471,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       !internalRender &&
       !this.minimalMode &&
       !query.__nextDataReq &&
-      (req.url?.match(/^\/_next\//) ||
-        (this.hasStaticDir && req.url!.match(/^\/static\//)))
+      ((req.url && /^\/_next\//.test(req.url)) ||
+        (this.hasStaticDir && /^\/static\//.test(req.url!)))
     ) {
       return this.handleRequest(req, res, parsedUrl)
     }

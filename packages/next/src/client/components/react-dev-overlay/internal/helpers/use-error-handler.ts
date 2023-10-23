@@ -12,10 +12,7 @@ export const RuntimeErrorHandler = {
 }
 
 function isHydrationError(error: Error): boolean {
-  return (
-    error.message.match(/(hydration|content does not match|did not match)/i) !=
-    null
-  )
+  return /(hydration|content does not match|did not match)/i.test(error.message)
 }
 
 if (typeof window !== 'undefined') {

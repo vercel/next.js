@@ -118,7 +118,7 @@ function buildManifest(
             chunk.files.forEach((file: string) => {
               if (
                 (file.endsWith('.js') || file.endsWith('.css')) &&
-                file.match(/^static\/(chunks|css)\//)
+                /^static\/(chunks|css)\//.test(file)
               ) {
                 files.add(file)
               }

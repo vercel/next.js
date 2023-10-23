@@ -201,7 +201,7 @@ export class JsConfigPathsPlugin implements webpack.ResolvePluginInstance {
           const moduleName = request.request
 
           // Exclude node_modules from paths support (speeds up resolving)
-          if (request.path.match(NODE_MODULES_REGEX)) {
+          if (NODE_MODULES_REGEX.test(request.path)) {
             log('skipping request as it is inside node_modules %s', moduleName)
             return callback()
           }

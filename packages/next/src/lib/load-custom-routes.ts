@@ -297,7 +297,7 @@ export function checkCustomRoutes(
         invalidParts.push('`destination` is not a string')
       } else if (
         type === 'rewrite' &&
-        !_route.destination.match(/^(\/|https:\/\/|http:\/\/)/)
+        !/^(\/|https:\/\/|http:\/\/)/.test(_route.destination)
       ) {
         invalidParts.push(
           '`destination` does not start with `/`, `http://`, or `https://`'
@@ -362,7 +362,7 @@ export function checkCustomRoutes(
         for (const token of sourceTokens) {
           if (typeof token === 'object' && typeof token.name === 'number') {
             const unnamedIndex = new RegExp(`:${token.name}(?!\\d)`)
-            if ((route as Rewrite).destination.match(unnamedIndex)) {
+            if (unnamedIndex.test((route as Rewrite).destination)) {
               unnamedInDest.add(`:${token.name}`)
             }
           }

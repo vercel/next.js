@@ -328,12 +328,10 @@ export function getMiddlewareMatchers(
     const isRoot = source === '/'
 
     if (i18n?.locales && r.locale !== false) {
-      source = `/:nextInternalLocale((?!_next/)[^/.]{1,})${
-        isRoot ? '' : source
-      }`
+      source = `/:nextInternalLocale((?!_next/)[^/.]+)${isRoot ? '' : source}`
     }
 
-    source = `/:nextData(_next/data/[^/]{1,})?${source}${
+    source = `/:nextData(_next/data/[^/]+)?${source}${
       isRoot
         ? `(${nextConfig.i18n ? '|\\.json|' : ''}/?index|/?index\\.json)?`
         : '(.json)?'

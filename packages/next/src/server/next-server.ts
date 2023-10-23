@@ -1578,17 +1578,14 @@ export default class NextNodeServer extends BaseServer {
   ) => {
     const isMiddlewareInvoke = req.headers['x-middleware-invoke']
 
-    const handleFinished = (finished: boolean = false) => {
-      if (isMiddlewareInvoke && !finished) {
-        res.setHeader('x-middleware-invoke', '1')
-        res.body('').send()
-        return true
-      }
-      return finished
-    }
-
     if (!isMiddlewareInvoke) {
       return false
+    }
+
+    const handleFinished = () => {
+      res.setHeader('x-middleware-invoke', '1')
+      res.body('').send()
+      return true
     }
 
     const middleware = this.getMiddleware()
