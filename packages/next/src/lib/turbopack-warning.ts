@@ -262,7 +262,7 @@ export async function validateTurboNextConfig({
     Log.error('Unexpected error occurred while checking config', e)
   }
 
-  let feedbackMessage = `Learn more about Next.js v13 and Turbopack: ${underline(
+  let feedbackMessage = `Learn more about Next.js and Turbopack: ${underline(
     'https://nextjs.link/with-turbopack'
   )}\n`
 
@@ -300,8 +300,8 @@ export async function validateTurboNextConfig({
     const pkgManager = getPkgManager(dir)
 
     Log.error(
-      `You are using configuration and/or tools that are not yet\nsupported by Next.js v13 with Turbopack:\n${unsupportedParts}\n
-If you cannot make the changes above, but still want to try out\nNext.js v13 with Turbopack, create the Next.js v13 playground app\nby running the following commands:
+      `You are using configuration and/or tools that are not yet\nsupported by Next.js with Turbopack:\n${unsupportedParts}\n
+If you cannot make the changes above, but still want to try out\nNext.js with Turbopack, create the Next.js playground app\nby running the following commands:
 
   ${bold(
     cyan(
