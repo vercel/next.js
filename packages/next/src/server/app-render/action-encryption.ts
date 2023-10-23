@@ -23,6 +23,9 @@ import {
   stringToUint8Array,
 } from './action-encryption-utils'
 
+const PAYLOAD_PREFIX = 'next:'
+const SALT_PREFIX = '__next_action__'
+
 async function decodeActionBoundArg(actionId: string, arg: string) {
   const key = await getActionEncryptionKey()
   if (typeof key === 'undefined') {
@@ -31,10 +34,15 @@ async function decodeActionBoundArg(actionId: string, arg: string) {
     )
   }
 
+  const [ivPrefix, payload] = arg.split(':', 2)
+  if (payload === undefined) {
+    throw new Error('Invalid Server Action payload.')
+  }
+
   const decoded = await decrypt(
     key,
-    '__next_action__' + actionId,
-    stringToUint8Array(atob(arg))
+    SALT_PREFIX + ivPrefix + actionId,
+    stringToUint8Array(atob(payload))
   )
   return arrayBufferToString(decoded)
 }
@@ -47,12 +55,17 @@ async function encodeActionBoundArg(actionId: string, arg: string) {
     )
   }
 
+  // Get some random bytes for iv.
+  const randomBytes = new Uint16Array(8)
+  crypto.getRandomValues(randomBytes)
+  const ivPrefix = btoa(arrayBufferToString(randomBytes.buffer))
+
   const encoded = await encrypt(
     key,
-    '__next_action__' + actionId,
+    SALT_PREFIX + ivPrefix + actionId,
     stringToUint8Array(arg)
   )
-  return btoa(arrayBufferToString(encoded))
+  return ivPrefix + ':' + btoa(arrayBufferToString(encoded))
 }
 
 // Encrypts the action's bound args into a string.
@@ -65,7 +78,12 @@ export async function encryptActionBoundArgs(actionId: string, args: any[]) {
   )
 
   // Encrypt the serialized string with the action id as the salt.
-  const encryped = await encodeActionBoundArg(actionId, serialized)
+  // Add a prefix to later ensure that the payload is correctly decrypted, similar
+  // to a checksum.
+  const encryped = await encodeActionBoundArg(
+    actionId,
+    PAYLOAD_PREFIX + serialized
+  )
 
   return encryped
 }
@@ -76,7 +94,13 @@ export async function decryptActionBoundArgs(
   encryped: Promise<string>
 ) {
   // Decrypt the serialized string with the action id as the salt.
-  const decryped = await decodeActionBoundArg(actionId, await encryped)
+  let decryped = await decodeActionBoundArg(actionId, await encryped)
+
+  if (!decryped.startsWith(PAYLOAD_PREFIX)) {
+    throw new Error('Invalid Server Action payload: failed to decrypt.')
+  } else {
+    decryped = decryped.slice(PAYLOAD_PREFIX.length)
+  }
 
   // Using Flight to deserialize the args from the string.
   const deserialized = await createFromReadableStream(
