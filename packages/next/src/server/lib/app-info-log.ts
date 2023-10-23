@@ -14,13 +14,19 @@ export function logStartInfo({
 }: {
   networkUrl: string | null
   appUrl: string | null
-  formatDurationText: string | null
-  maxExperimentalFeatures?: number
   envInfo?: string[]
   expFeatureInfo?: string[]
+  formatDurationText: string | null
+  maxExperimentalFeatures?: number
 }) {
   Log.bootstrap(
-    bold(purple(`${Log.prefixes.ready} Next.js ${process.env.__NEXT_VERSION}`))
+    bold(
+      purple(
+        `${Log.prefixes.ready} Next.js ${process.env.__NEXT_VERSION}${
+          process.env.TURBOPACK ? ' (turbo)' : ''
+        }`
+      )
+    )
   )
   if (appUrl) {
     Log.bootstrap(`- Local:        ${appUrl}`)
