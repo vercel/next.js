@@ -130,6 +130,8 @@ interface Metadata extends DeprecatedMetadataFields {
   /**
    * The theme color for the document.
    * @example
+   * @deprecated
+   *
    * ```tsx
    * "#000000"
    * <meta name="theme-color" content="#000000" />
@@ -150,6 +152,8 @@ interface Metadata extends DeprecatedMetadataFields {
   /**
    * The color scheme for the document.
    * @example
+   * @deprecated
+   *
    * ```tsx
    * "dark"
    * <meta name="color-scheme" content="dark" />
@@ -160,6 +164,8 @@ interface Metadata extends DeprecatedMetadataFields {
   /**
    * The viewport setting for the document.
    * @example
+   * @deprecated
+   *
    * ```tsx
    * "width=device-width, initial-scale=1"
    * <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -472,8 +478,17 @@ interface ResolvedMetadata extends DeprecatedMetadataFields {
   // if you provide an array it will be flattened into a single tag with comma separation
   keywords: null | Array<string>
   referrer: null | ReferrerEnum
+  /**
+   * @deprecated
+   */
   themeColor: null | ThemeColorDescriptor[]
+  /**
+   * @deprecated
+   */
   colorScheme: null | ColorSchemeEnum
+  /**
+   * @deprecated
+   */
   viewport: null | string
   creator: null | string
   publisher: null | string
@@ -577,4 +592,68 @@ declare namespace MetadataRoute {
   export type Manifest = ManifestFile
 }
 
-export type { Metadata, ResolvedMetadata, ResolvingMetadata, MetadataRoute }
+type ScreenMetadata = {
+  /**
+   * The theme color for the document.
+   * @example
+   *
+   * ```tsx
+   * "#000000"
+   * <meta name="theme-color" content="#000000" />
+   *
+   * { media: "(prefers-color-scheme: dark)", color: "#000000" }
+   * <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
+   *
+   * [
+   *  { media: "(prefers-color-scheme: dark)", color: "#000000" },
+   *  { media: "(prefers-color-scheme: light)", color: "#ffffff" }
+   * ]
+   * <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
+   * <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+   * ```
+   */
+  themeColor?: null | string | ThemeColorDescriptor | ThemeColorDescriptor[]
+
+  /**
+   * The color scheme for the document.
+   * @example
+   *
+   * ```tsx
+   * "dark"
+   * <meta name="color-scheme" content="dark" />
+   * ```
+   */
+  colorScheme?: null | ColorSchemeEnum
+
+  /**
+   * The viewport setting for the document.
+   * @example
+   *
+   * ```tsx
+   * "width=device-width, initial-scale=1"
+   * <meta name="viewport" content="width=device-width, initial-scale=1" />
+   *
+   * { width: "device-width", initialScale: 1 }
+   * <meta name="viewport" content="width=device-width, initial-scale=1" />
+   * ```
+   */
+  viewport?: null | string | Viewport
+}
+
+type ResolvingScreenMetadata = Promise<ScreenMetadata>
+
+type ResolvedScreenMetadata = {
+  themeColor: null | ThemeColorDescriptor[]
+  colorScheme: null | ColorSchemeEnum
+  viewport: null | string
+}
+
+export type {
+  Metadata,
+  ResolvedMetadata,
+  ResolvingMetadata,
+  MetadataRoute,
+  ScreenMetadata,
+  ResolvingScreenMetadata,
+  ResolvedScreenMetadata,
+}

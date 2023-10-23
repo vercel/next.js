@@ -1,9 +1,17 @@
 import { accumulateMetadata as originAccumulateMetadata } from './resolve-metadata'
-import type { MetadataItems } from './resolve-metadata'
+import type { MetadataItems as FullMetadataItems } from './resolve-metadata'
 import type { Metadata } from './types/metadata-interface'
 
+type FullMetadataItem = FullMetadataItems[number]
+type MetadataItems = [FullMetadataItem[0], FullMetadataItem[1]][]
+
 function accumulateMetadata(metadataItems: MetadataItems) {
-  return originAccumulateMetadata(metadataItems, {
+  const fullMetadataItems: FullMetadataItems = metadataItems.map((item) => [
+    item[0],
+    item[1],
+    null,
+  ])
+  return originAccumulateMetadata(fullMetadataItems, {
     pathname: '/test',
   })
 }

@@ -1,7 +1,30 @@
-import type { ResolvedMetadata } from '../types/metadata-interface'
+import type {
+  ResolvedMetadata,
+  ResolvedScreenMetadata,
+} from '../types/metadata-interface'
 
 import React from 'react'
 import { Meta, MetaFilter, MultiMeta } from './meta'
+
+export function ScreenMetadata({
+  screenMetadata,
+}: {
+  screenMetadata: ResolvedScreenMetadata
+}) {
+  return MetaFilter([
+    Meta({ name: 'viewport', content: screenMetadata.viewport }),
+    ...(screenMetadata.themeColor
+      ? screenMetadata.themeColor.map((themeColor) =>
+          Meta({
+            name: 'theme-color',
+            content: themeColor.color,
+            media: themeColor.media,
+          })
+        )
+      : []),
+    Meta({ name: 'color-scheme', content: screenMetadata.colorScheme }),
+  ])
+}
 
 export function BasicMetadata({ metadata }: { metadata: ResolvedMetadata }) {
   return MetaFilter([
@@ -25,17 +48,6 @@ export function BasicMetadata({ metadata }: { metadata: ResolvedMetadata }) {
     Meta({ name: 'generator', content: metadata.generator }),
     Meta({ name: 'keywords', content: metadata.keywords?.join(',') }),
     Meta({ name: 'referrer', content: metadata.referrer }),
-    ...(metadata.themeColor
-      ? metadata.themeColor.map((themeColor) =>
-          Meta({
-            name: 'theme-color',
-            content: themeColor.color,
-            media: themeColor.media,
-          })
-        )
-      : []),
-    Meta({ name: 'color-scheme', content: metadata.colorScheme }),
-    Meta({ name: 'viewport', content: metadata.viewport }),
     Meta({ name: 'creator', content: metadata.creator }),
     Meta({ name: 'publisher', content: metadata.publisher }),
     Meta({ name: 'robots', content: metadata.robots?.basic }),

@@ -99,6 +99,7 @@ enum AppRouteRouteHandlersSpan {
 
 enum ResolveMetadataSpan {
   generateMetadata = 'ResolveMetadata.generateMetadata',
+  generateScreenMetadata = 'ResolveMetadata.generateScreenMetadata',
 }
 
 type SpanTypes =
