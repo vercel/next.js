@@ -445,6 +445,9 @@ pub struct ExperimentalConfig {
     /// Enables server actions. Using this feature will enable the
     /// `react@experimental` for the `app` directory. @see https://nextjs.org/docs/app/api-reference/functions/server-actions
     server_actions: Option<bool>,
+    /// Allows adjusting body parser size limit for server actions.
+    pub server_actions_body_size_limit: Option<SizeLimit>,
+    pub sri: Option<SubResourceIntegrity>,
 
     // ---
     // UNSUPPORTED
@@ -487,13 +490,10 @@ pub struct ExperimentalConfig {
     ppr: Option<bool>,
     taint: Option<bool>,
     proxy_timeout: Option<f64>,
-    /// Allows adjusting body parser size limit for server actions.
-    pub server_actions_body_size_limit: Option<SizeLimit>,
     /// enables the minification of server code.
     server_minification: Option<bool>,
     /// Enables source maps generation for the server production bundle.
     server_source_maps: Option<bool>,
-    pub sri: Option<SubResourceIntegrity>,
     swc_minify: Option<bool>,
     swc_trace_profiling: Option<bool>,
     /// @internal Used by the Next.js internals only.
