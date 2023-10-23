@@ -2,13 +2,18 @@ use turbopack_binding::swc::core::{
     common::{errors::HANDLER, util::take::Take},
     ecma::{
         ast::{CallExpr, Callee, Expr, Module},
-        visit::{noop_visit_mut_type, VisitMut, VisitMutWith},
+        visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
     },
 };
 
 use crate::import_analyzer::ImportMap;
 
-pub struct PureTransform {
+pub fn pure_magic() -> impl VisitMut + Fold {
+    as_folder(PureTransform::default())
+}
+
+#[derive(Default)]
+struct PureTransform {
     imports: ImportMap,
 }
 

@@ -190,6 +190,7 @@ where
     };
 
     chain!(
+        pure::pure_magic(),
         disallow_re_export_all_in_page::disallow_re_export_all_in_page(opts.is_page_file),
         match &opts.server_components {
             Some(config) if config.truthy() =>
