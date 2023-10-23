@@ -507,7 +507,6 @@ export default async function build(
       logStartInfo({
         networkUrl: null,
         appUrl: null,
-        formatDurationText: null,
         envInfo,
         expFeatureInfo,
       })
