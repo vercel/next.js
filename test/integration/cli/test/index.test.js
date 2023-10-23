@@ -359,7 +359,6 @@ describe('CLI Usage', () => {
         ['buidl', 'build'],
         ['buill', 'build'],
         ['biild', 'build'],
-        ['exporr', 'export'],
         ['starr', 'start'],
         ['dee', 'dev'],
       ]
@@ -756,37 +755,12 @@ describe('CLI Usage', () => {
     test('--help', async () => {
       const help = await runNextCommand(['export', '--help'], {
         stdout: true,
-      })
-      expect(help.stdout).toMatch(/Exports a static version of the application/)
-    })
-
-    test('-h', async () => {
-      const help = await runNextCommand(['export', '-h'], {
-        stdout: true,
-      })
-      expect(help.stdout).toMatch(/Exports a static version of the application/)
-    })
-
-    test('should warn when unknown argument provided', async () => {
-      const { stderr } = await runNextCommand(['export', '--random'], {
         stderr: true,
       })
-      expect(stderr).toEqual('Unknown or unexpected option: --random\n')
-    })
-    test('should not throw UnhandledPromiseRejectionWarning', async () => {
-      const { stderr } = await runNextCommand(['export', '--random'], {
-        stderr: true,
-      })
-      expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
-    })
-
-    test('invalid directory', async () => {
-      const output = await runNextCommand(['export', 'non-existent'], {
-        stderr: true,
-      })
-      expect(output.stderr).toContain(
-        'Invalid project directory provided, no such directory'
+      expect(help.stderr).toMatch(
+        'The "next export" command has been removed in favor of "output: export" in next.config.js'
       )
+      expect(help.code).toBe(1)
     })
   })
 
