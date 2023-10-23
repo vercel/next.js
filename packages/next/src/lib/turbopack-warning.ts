@@ -67,6 +67,8 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.deploymentId',
 
   // Experimental options that don't affect compilation
+  'experimental.ppr',
+  'experimental.taint',
   'experimental.proxyTimeout',
   'experimental.caseSensitiveRoutes',
   'experimental.workerThreads',
