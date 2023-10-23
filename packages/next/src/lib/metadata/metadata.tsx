@@ -70,7 +70,7 @@ export function createMetadataComponents({
     const errorMetadataItem: [null, null, null] = [null, null, null]
     const errorConvention = errorType === 'redirect' ? undefined : errorType
 
-    const [resolvedScreenMetadata, resolvedMetadata, resolvedError] =
+    const [resolvedError, resolvedMetadata, resolvedScreenMetadata] =
       await resolveMetadata({
         tree,
         parentParams: {},
@@ -92,9 +92,9 @@ export function createMetadataComponents({
       // for not-found error: resolve not-found metadata
       if (!errorType && isNotFoundError(resolvedError)) {
         const [
-          notFoundScreenMetadata,
-          notFoundMetadata,
           notFoundMetadataError,
+          notFoundMetadata,
+          notFoundScreenMetadata,
         ] = await resolveMetadata({
           tree,
           parentParams: {},

@@ -293,6 +293,7 @@ async function getDefinedMetadata(
     return null
   }
   if (typeof mod.generateMetadata === 'function') {
+    console.log('mod.generateMetadata', mod.generateMetadata.toString())
     const { route } = tracingProps
     return (parent: ResolvingMetadata) =>
       getTracer().trace(
@@ -384,7 +385,6 @@ export async function collectMetadata({
   const metadataExport = mod
     ? await getDefinedMetadata(mod, props, { route })
     : null
-
   const screenMetadataExport = mod
     ? await getDefinedScreenMetadata(mod, props, { route })
     : null
@@ -397,11 +397,16 @@ export async function collectMetadata({
 
   if (hasErrorConventionComponent && errorConvention) {
     const errorMod = await getComponentTypeModule(tree, errorConvention)
+    const errorScreenMetadataExport = errorMod
+      ? await getDefinedScreenMetadata(errorMod, props, { route })
+      : null
     const errorMetadataExport = errorMod
       ? await getDefinedMetadata(errorMod, props, { route })
       : null
+
     errorMetadataItem[0] = errorMetadataExport
     errorMetadataItem[1] = staticFilesMetadata
+    errorMetadataItem[2] = errorScreenMetadataExport
   }
 }
 
@@ -543,7 +548,7 @@ async function getMetadataFromExport<Data, ResolvedData>(
   resolvedMetadata: ResolvedData,
   metadataResults: (Data | Promise<Data>)[]
 ) {
-  function createMetadataExportPreloading(
+  function collectMetadataExportPreloading(
     results: (Data | Promise<Data>)[],
     dynamicMetadataExportFn: DataResolver<Data, ResolvedData>,
     resolvers: ((value: ResolvedData) => void)[]
@@ -565,8 +570,7 @@ async function getMetadataFromExport<Data, ResolvedData>(
         const preloadMetadataExport = getPreloadMetadataExport(metadataItems[j]) // metadataItems[j][0]
         // call each `generateMetadata function concurrently and stash their resolver
         if (typeof preloadMetadataExport === 'function') {
-          preloadMetadataExport
-          createMetadataExportPreloading(
+          collectMetadataExportPreloading(
             metadataResults,
             preloadMetadataExport as DataResolver<Data, ResolvedData>,
             metadataResolvers
@@ -597,6 +601,8 @@ async function getMetadataFromExport<Data, ResolvedData>(
     metadata = metadataExport
   }
 
+  console.log('metadata', metadata)
+
   return metadata
 }
 
@@ -620,9 +626,8 @@ export async function accumulateMetadata(
   let metadataResolvingIndex = 0
   for (let i = 0; i < metadataItems.length; i++) {
     const staticFilesMetadata = metadataItems[i][1]
-    let metadata: Metadata | null = null
 
-    metadata = await getMetadataFromExport<Metadata, ResolvedMetadata>(
+    const metadata = await getMetadataFromExport<Metadata, ResolvedMetadata>(
       (metadataItem) => metadataItem[0],
       metadataResolvers,
       metadataItems,
@@ -665,8 +670,10 @@ export async function accumulateScreenMetadata(
 
   let screenMetadataResolvingIndex = 0
   for (let i = 0; i < metadataItems.length; i++) {
-    let screenMetadata: ScreenMetadata | null = null
-    screenMetadata = await getMetadataFromExport(
+    const screenMetadata = await getMetadataFromExport<
+      ScreenMetadata,
+      ResolvedScreenMetadata
+    >(
       (metadataItem) => metadataItem[2],
       screenMetadataResolvers,
       metadataItems,
@@ -705,7 +712,7 @@ export async function resolveMetadata({
   searchParams: { [key: string]: any }
   errorConvention: 'not-found' | undefined
   metadataContext: MetadataContext
-}): Promise<[ResolvedScreenMetadata, ResolvedMetadata, any]> {
+}): Promise<[any, ResolvedMetadata, ResolvedScreenMetadata]> {
   const resolvedMetadataItems = await resolveMetadataItems({
     tree,
     parentParams,
@@ -722,7 +729,8 @@ export async function resolveMetadata({
     screenMetadata = await accumulateScreenMetadata(resolvedMetadataItems)
     metadata = await accumulateMetadata(resolvedMetadataItems, metadataContext)
   } catch (err: any) {
+    console.log('screenMetadata', screenMetadata, 'err', err)
     error = err
   }
-  return [screenMetadata, metadata, error]
+  return [error, metadata, screenMetadata]
 }
