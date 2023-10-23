@@ -150,8 +150,10 @@ async fn wrap_edge_page(
 
     // TODO(WEB-1824): add build support
     let build_id = "development";
-    let is_server_component = true;
     let dev = true;
+
+    // TODO: check if it's a client component
+    let is_server_component = true;
 
     let server_actions_body_size_limit = &next_config.experimental.server_actions_body_size_limit;
     let sri_enabled = !dev
