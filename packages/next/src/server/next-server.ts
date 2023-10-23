@@ -769,6 +769,7 @@ export default class NextNodeServer extends BaseServer {
         await this.render404(req, res)
         return true
       }
+
       const paramsResult = ImageOptimizerCache.validateParams(
         (req as NodeNextRequest).originalRequest,
         parsedUrl.query,
@@ -781,6 +782,7 @@ export default class NextNodeServer extends BaseServer {
         res.body(paramsResult.errorMessage).send()
         return true
       }
+
       const cacheKey = ImageOptimizerCache.getCacheKey(paramsResult)
 
       try {
@@ -816,6 +818,7 @@ export default class NextNodeServer extends BaseServer {
             'invariant did not get entry from image response cache'
           )
         }
+
         sendResponse(
           (req as NodeNextRequest).originalRequest,
           (res as NodeNextResponse).originalResponse,
@@ -828,6 +831,7 @@ export default class NextNodeServer extends BaseServer {
           cacheEntry.revalidate || 0,
           Boolean(this.renderOpts.dev)
         )
+        return true
       } catch (err) {
         if (err instanceof ImageError) {
           res.statusCode = err.statusCode
@@ -836,7 +840,6 @@ export default class NextNodeServer extends BaseServer {
         }
         throw err
       }
-      return true
     }
   }
 
@@ -1031,9 +1034,9 @@ export default class NextNodeServer extends BaseServer {
       const normalizedReq = this.normalizeReq(req)
       const normalizedRes = this.normalizeRes(res)
 
-      const enabledVerboseLogging =
-        this.nextConfig.experimental.logging?.level === 'verbose'
-      const shouldTruncateUrl = !this.nextConfig.experimental.logging?.fullUrl
+      const loggingFetchesConfig = this.nextConfig.logging?.fetches
+      const enabledVerboseLogging = !!loggingFetchesConfig
+      const shouldTruncateUrl = loggingFetchesConfig?.fullUrl
 
       if (this.renderOpts.dev) {
         const { bold, green, yellow, red, gray, white } =

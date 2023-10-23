@@ -95,7 +95,6 @@ export type ExportWorker = (
 
 export interface ExportAppOptions {
   outdir: string
-  isInvokedFromCli: boolean
   hasAppDir: boolean
   silent?: boolean
   threads?: number
