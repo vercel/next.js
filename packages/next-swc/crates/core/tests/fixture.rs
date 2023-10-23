@@ -8,6 +8,7 @@ use next_swc::{
     optimize_barrel::optimize_barrel,
     optimize_server_react::optimize_server_react,
     page_config::page_config_test,
+    pure::pure_magic,
     react_server_components::server_components,
     server_actions::{
         server_actions, {self},
@@ -570,4 +571,24 @@ where
     T: DeserializeOwned,
 {
     serde_json::from_str(s).expect("failed to deserialize")
+}
+
+#[fixture("tests/fixture/pure/**/input.js")]
+fn pure(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|tr| {
+            let unresolved_mark = Mark::new();
+            let top_level_mark = Mark::new();
+
+            chain!(
+                resolver(unresolved_mark, top_level_mark, false),
+                pure_magic(tr.comments.clone())
+            )
+        },
+        &input,
+        &output,
+        Default::default(),
+    );
 }
