@@ -9,6 +9,7 @@ import type { SelfSignedCertificate } from '../../lib/mkcert'
 import type { WorkerRequestHandler, WorkerUpgradeHandler } from './types'
 
 import fs from 'fs'
+import v8 from 'v8'
 import path from 'path'
 import http from 'http'
 import https from 'https'
@@ -20,7 +21,8 @@ import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
 import { CONFIG_FILES } from '../../shared/lib/constants'
 import { getStartServerInfo, logStartInfo } from './app-info-log'
-import v8 from 'v8'
+import { validateTurboNextConfig } from '../../lib/turbopack-warning'
+
 const debug = setupDebug('next:start-server')
 
 export interface StartServerOptions {
@@ -74,17 +76,21 @@ export async function getRequestHandlers({
   })
 }
 
-export async function startServer({
-  dir,
-  port,
-  isDev,
-  hostname,
-  minimalMode,
-  allowRetry,
-  keepAliveTimeout,
-  isExperimentalTestProxy,
-  selfSignedCertificate,
-}: StartServerOptions): Promise<void> {
+export async function startServer(
+  serverOptions: StartServerOptions
+): Promise<void> {
+  const {
+    dir,
+    isDev,
+    hostname,
+    minimalMode,
+    allowRetry,
+    keepAliveTimeout,
+    isExperimentalTestProxy,
+    selfSignedCertificate,
+  } = serverOptions
+  let { port } = serverOptions
+
   process.title = 'next-server'
   let handlersReady = () => {}
   let handlersError = () => {}
@@ -292,6 +298,12 @@ export async function startServer({
           formatDurationText,
           maxExperimentalFeatures: 3,
         })
+        if (process.env.TURBOPACK) {
+          await validateTurboNextConfig({
+            ...serverOptions,
+            isDev: true,
+          })
+        }
       } catch (err) {
         // fatal error if we can't setup
         handlersError()

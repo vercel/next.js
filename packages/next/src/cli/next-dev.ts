@@ -28,7 +28,6 @@ import type { SelfSignedCertificate } from '../lib/mkcert'
 import uploadTrace from '../trace/upload-trace'
 import { initialEnv } from '@next/env'
 import { trace } from '../trace'
-import { validateTurboNextConfig } from '../lib/turbopack-warning'
 import { fork } from 'child_process'
 import {
   getReservedPortExplanation,
@@ -214,13 +213,7 @@ const nextDev: CliCommand = async (args) => {
     process.env.TURBOPACK = '1'
   }
 
-  if (process.env.TURBOPACK) {
-    isTurboSession = true
-    await validateTurboNextConfig({
-      ...devServerOptions,
-      isDev: true,
-    })
-  }
+  isTurboSession = !!process.env.TURBOPACK
 
   const distDir = path.join(dir, config.distDir ?? '.next')
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
