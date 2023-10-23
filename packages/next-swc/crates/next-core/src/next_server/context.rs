@@ -18,7 +18,9 @@ use turbopack_binding::{
             resolve::{parse::Request, pattern::Pattern},
         },
         ecmascript::TransformPlugin,
-        ecmascript_plugin::transform::directives::client::ClientDirectiveTransformer,
+        ecmascript_plugin::transform::directives::{
+            client::ClientDirectiveTransformer, server::ServerDirectiveTransformer,
+        },
         node::execution_context::ExecutionContext,
         turbopack::{
             condition::ContextCondition,
@@ -289,6 +291,12 @@ pub async fn get_server_module_options_context(
     let styled_components_transform_plugin =
         *get_styled_components_transform_plugin(next_config).await?;
     let styled_jsx_transform_plugin = *get_styled_jsx_transform_plugin().await?;
+    let server_directive_transform_plugin =
+        Some(Vc::cell(Box::new(ServerDirectiveTransformer::new(
+            // ServerDirective is not implemented yet and always reports an issue.
+            // We don't have to pass a valid transition name yet, but the API is prepared.
+            &Vc::cell("TODO".to_string()),
+        )) as _));
 
     // ModuleOptionsContext related options
     let tsconfig = get_typescript_transform_options(project_path);
@@ -387,6 +395,7 @@ pub async fn get_server_module_options_context(
             let mut base_source_transforms: Vec<Vc<TransformPlugin>> = vec![
                 styled_components_transform_plugin,
                 styled_jsx_transform_plugin,
+                server_directive_transform_plugin,
             ]
             .into_iter()
             .flatten()
@@ -460,11 +469,13 @@ pub async fn get_server_module_options_context(
             ecmascript_client_reference_transition_name,
             ..
         } => {
-            let mut base_source_transforms: Vec<Vc<TransformPlugin>> =
-                vec![styled_components_transform_plugin]
-                    .into_iter()
-                    .flatten()
-                    .collect();
+            let mut base_source_transforms: Vec<Vc<TransformPlugin>> = vec![
+                styled_components_transform_plugin,
+                server_directive_transform_plugin,
+            ]
+            .into_iter()
+            .flatten()
+            .collect();
 
             if let Some(ecmascript_client_reference_transition_name) =
                 ecmascript_client_reference_transition_name
