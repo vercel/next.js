@@ -16,14 +16,9 @@ const originModules = [
   require.resolve('next/dist/compiled/next-server/app-route.runtime.dev.js'),
   require.resolve('next/dist/compiled/next-server/pages.runtime.dev.js'),
   require.resolve('next/dist/compiled/next-server/pages-api.runtime.dev.js'),
-  require.resolve('next/dist/compiled/react-server-dom-webpack/server.edge.js'),
 ]
 
-const RUNTIME_NAMES = [
-  'webpack-runtime',
-  'webpack-api-runtime',
-  'edge-runtime-webpack',
-]
+const RUNTIME_NAMES = ['webpack-runtime', 'webpack-api-runtime']
 
 function deleteFromRequireCache(filePath: string) {
   try {
@@ -58,13 +53,6 @@ export function deleteAppClientCache() {
   deleteFromRequireCache(
     require.resolve(
       'next/dist/compiled/next-server/app-page-experimental.runtime.dev.js'
-    )
-  )
-  deleteFromRequireCache(
-    require.resolve(
-      require.resolve(
-        'next/dist/compiled/react-server-dom-webpack/server.edge.js'
-      )
     )
   )
 }
