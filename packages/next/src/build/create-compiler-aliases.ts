@@ -295,9 +295,6 @@ export function createRSCAliases(
     alias[
       'react-dom$'
     ] = `next/dist/compiled/react-dom${bundledReactChannel}/profiling`
-    alias[
-      'scheduler/tracing'
-    ] = `next/dist/compiled/scheduler${bundledReactChannel}/tracing-profiling`
   }
 
   alias[
@@ -364,7 +361,6 @@ function getBarrelOptimizationAliases(packages: string[]) {
 function getReactProfilingInProduction() {
   return {
     'react-dom$': 'react-dom/profiling',
-    'scheduler/tracing': 'scheduler/tracing-profiling',
   }
 }
 export function createServerComponentsNoopAliases() {
