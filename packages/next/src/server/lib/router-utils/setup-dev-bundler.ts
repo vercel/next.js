@@ -1265,8 +1265,8 @@ async function startWatcher(opts: SetupOpts) {
         let page = definition?.pathname ?? inputPage
 
         if (page === '/_error') {
+          let finishBuilding = startBuilding(page)
           try {
-            startBuilding(page)
             if (globalEntries.app) {
               const writtenEndpoint = await processResult(
                 '_app',
@@ -1305,7 +1305,7 @@ async function startWatcher(opts: SetupOpts) {
             await writeMiddlewareManifest()
             await writeLoadableManifest()
           } finally {
-            finishBuilding(page)
+            finishBuilding()
           }
           return
         }
@@ -1327,7 +1327,6 @@ async function startWatcher(opts: SetupOpts) {
           throw new PageNotFoundError(`route not found ${page}`)
         }
 
-        let buildingKey = page
         let suffix
         switch (route.type) {
           case 'app-page':
@@ -1344,10 +1343,10 @@ async function startWatcher(opts: SetupOpts) {
             throw new Error('Unexpected route type ' + route.type)
         }
 
-        buildingKey = `${page}${
+        const buildingKey = `${page}${
           !page.endsWith('/') && suffix.length > 0 ? '/' : ''
         }${suffix}`
-        let finishBuilding: (() => {}) | undefined = undefined
+        let finishBuilding: (() => void) | undefined = undefined
 
         try {
           switch (route.type) {
@@ -1515,11 +1514,13 @@ async function startWatcher(opts: SetupOpts) {
               break
             }
             default: {
-              throw new Error(`unknown route type ${route.type} for ${page}`)
+              throw new Error(
+                `unknown route type ${(route as any).type} for ${page}`
+              )
             }
           }
         } finally {
-          if (finishBuilding) finishBuilding(buildingKey)
+          if (finishBuilding) finishBuilding()
         }
       },
     }
