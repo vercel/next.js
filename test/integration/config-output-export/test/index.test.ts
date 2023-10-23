@@ -71,7 +71,7 @@ describe('config-output-export', () => {
         rewrites: [{ source: '/from', destination: '/to' }],
       })
       expect(stderr).toContain(
-        'Specified "rewrites" cannot be used with "output: export".'
+        'Specified "rewrites" will not automatically work with "output: export".'
       )
     })
 
@@ -81,7 +81,7 @@ describe('config-output-export', () => {
         redirects: [{ source: '/from', destination: '/to', permanent: true }],
       })
       expect(stderr).toContain(
-        'Specified "redirects" cannot be used with "output: export".'
+        'Specified "redirects" will not automatically work with "output: export".'
       )
     })
 
@@ -96,7 +96,7 @@ describe('config-output-export', () => {
         ],
       })
       expect(stderr).toContain(
-        'Specified "headers" cannot be used with "output: export".'
+        'Specified "headers" will not automatically work with "output: export".'
       )
     })
   })
@@ -116,7 +116,7 @@ describe('config-output-export', () => {
         rewrites: [{ source: '/from', destination: '/to' }],
       })
       expect(stderr).not.toContain(
-        'Specified "rewrites" cannot be used with "output: export".'
+        'Specified "rewrites" will not automatically work with "output: export".'
       )
     })
 
@@ -126,7 +126,7 @@ describe('config-output-export', () => {
         redirects: [{ source: '/from', destination: '/to', permanent: true }],
       })
       expect(stderr).not.toContain(
-        'Specified "redirects" cannot be used with "output: export".'
+        'Specified "redirects" will not automatically work with "output: export".'
       )
     })
 
@@ -141,7 +141,7 @@ describe('config-output-export', () => {
         ],
       })
       expect(stderr).not.toContain(
-        'Specified "headers" cannot be used with "output: export".'
+        'Specified "headers" will not automatically work with "output: export".'
       )
     })
   })
