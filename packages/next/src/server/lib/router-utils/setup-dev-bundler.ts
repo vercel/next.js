@@ -382,6 +382,13 @@ async function startWatcher(opts: SetupOpts) {
           hasChange = true
           serverPathState.set(key, contentHash)
           serverPathState.set(p, contentHash)
+        } else {
+          if (!localHash) {
+            serverPathState.set(key, contentHash)
+          }
+          if (!globaHash) {
+            serverPathState.set(p, contentHash)
+          }
         }
       }
 
