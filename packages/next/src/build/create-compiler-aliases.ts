@@ -19,6 +19,10 @@ import {
 } from './webpack-config'
 import { WEBPACK_LAYERS } from '../lib/constants'
 
+interface CompilerAliases {
+  [alias: string]: string
+}
+
 export function createWebpackAliases({
   dev,
   pageExtensions,
@@ -47,14 +51,7 @@ export function createWebpackAliases({
   isNodeServer: boolean
   clientResolveRewrites: string
   hasRewrites: boolean
-}):
-  | {
-      alias: string | false | string[]
-      name: string
-      onlyModule?: boolean | undefined
-    }[]
-  | { [index: string]: string | false | string[] }
-  | undefined {
+}): CompilerAliases {
   const customAppAliases: { [key: string]: string[] } = {}
   const customDocumentAliases: { [key: string]: string[] } = {}
 
@@ -211,9 +208,9 @@ export function createWebpackAliases({
   }
 }
 
-export function createServerOnlyClientOnlyAliases(isServer: boolean): {
-  [aliasPath: string]: string
-} {
+export function createServerOnlyClientOnlyAliases(
+  isServer: boolean
+): CompilerAliases {
   return isServer
     ? {
         'server-only$': 'next/dist/compiled/server-only/empty',
@@ -244,7 +241,7 @@ export function createRSCAliases(
     isEdgeServer: boolean
     reactProductionProfiling: boolean
   }
-) {
+): CompilerAliases {
   let alias: Record<string, string> = {
     react$: `next/dist/compiled/react${bundledReactChannel}`,
     'react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}`,
@@ -309,7 +306,7 @@ export function createRSCAliases(
 
 // Insert aliases for Next.js stubs of fetch, object-assign, and url
 // Keep in sync with insert_optimized_module_aliases in import_map.rs
-export function getOptimizedModuleAliases(): { [pkg: string]: string } {
+export function getOptimizedModuleAliases(): CompilerAliases {
   return {
     unfetch: require.resolve('next/dist/build/polyfills/fetch/index.js'),
     'isomorphic-unfetch': require.resolve(
@@ -338,7 +335,7 @@ export function getOptimizedModuleAliases(): { [pkg: string]: string } {
 }
 
 // Alias these modules to be resolved with "module" if possible.
-function getBarrelOptimizationAliases(packages: string[]) {
+function getBarrelOptimizationAliases(packages: string[]): CompilerAliases {
   const aliases: { [pkg: string]: string } = {}
   const mainFields = ['module', 'main']
 
@@ -361,12 +358,12 @@ function getBarrelOptimizationAliases(packages: string[]) {
 
   return aliases
 }
-function getReactProfilingInProduction() {
+function getReactProfilingInProduction(): CompilerAliases {
   return {
     'react-dom$': 'react-dom/profiling',
   }
 }
-export function createServerComponentsNoopAliases() {
+export function createServerComponentsNoopAliases(): CompilerAliases {
   return {
     [require.resolve('next/head')]: require.resolve(
       'next/dist/client/components/noop-head'
