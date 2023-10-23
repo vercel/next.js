@@ -1,5 +1,5 @@
 use turbopack_binding::swc::core::{
-    common::{errors::HANDLER, util::take::Take},
+    common::{comments::Comments, errors::HANDLER, util::take::Take, Spanned},
     ecma::{
         ast::{CallExpr, Callee, Expr, Module},
         visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
@@ -8,16 +8,28 @@ use turbopack_binding::swc::core::{
 
 use crate::import_analyzer::ImportMap;
 
-pub fn pure_magic() -> impl VisitMut + Fold {
-    as_folder(PureTransform::default())
+pub fn pure_magic<C>(comments: C) -> impl VisitMut + Fold
+where
+    C: Comments,
+{
+    as_folder(PureTransform {
+        imports: Default::default(),
+        comments,
+    })
 }
 
-#[derive(Default)]
-struct PureTransform {
+struct PureTransform<C>
+where
+    C: Comments,
+{
     imports: ImportMap,
+    comments: C,
 }
 
-impl VisitMut for PureTransform {
+impl<C> VisitMut for PureTransform<C>
+where
+    C: Comments,
+{
     fn visit_mut_expr(&mut self, e: &mut Expr) {
         e.visit_mut_children_with(self);
 
@@ -42,6 +54,8 @@ impl VisitMut for PureTransform {
             }
 
             *e = *args[0].expr.take();
+
+            self.comments.add_pure_comment(e.span().lo);
         }
     }
 
