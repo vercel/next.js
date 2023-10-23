@@ -1,4 +1,5 @@
-import type { SchedulerFn } from '../server/lib/schedule-on-next-tick'
+import type { SchedulerFn } from './scheduler'
+
 import { DetachedPromise } from './detached-promise'
 
 type CacheKeyFn<K, C extends string | number | null> = (

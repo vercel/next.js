@@ -2,10 +2,10 @@
 
 import { promises } from 'fs'
 import { join } from 'path'
-import { validateAMP } from 'amp-test-utils'
-import { File, nextBuild, nextExport, runNextCommand } from 'next-test-utils'
+import { File, nextBuild, runNextCommand } from 'next-test-utils'
+import { existsSync } from 'fs-extra'
 
-const { access, readFile } = promises
+const { access } = promises
 const appDir = join(__dirname, '../')
 const outDir = join(appDir, 'out')
 const nextConfig = new File(join(appDir, 'next.config.js'))
@@ -19,7 +19,6 @@ describe('AMP Validation on Export', () => {
         stdout: true,
         stderr: true,
       })
-      await nextExport(appDir, { outdir: outDir }, { ignoreFail: true })
       buildOutput = stdout + stderr
     })
 
@@ -27,16 +26,7 @@ describe('AMP Validation on Export', () => {
       expect(buildOutput).toMatch(
         /error.*The mandatory attribute 'height' is missing in tag 'amp-video'\./
       )
-    })
-
-    it('should export AMP pages', async () => {
-      const toCheck = ['first', 'second', 'third.amp']
-      await Promise.all(
-        toCheck.map(async (page) => {
-          const content = await readFile(join(outDir, `${page}.html`))
-          await validateAMP(content.toString())
-        })
-      )
+      expect(existsSync(outDir)).toBeFalse()
     })
 
     // this is now an error instead of a warning

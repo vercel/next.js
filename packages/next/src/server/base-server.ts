@@ -21,7 +21,6 @@ import type { PreviewData, ServerRuntime, SizeLimit } from 'next/types'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { OutgoingHttpHeaders } from 'http2'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
-import type { PayloadOptions } from './send-payload'
 import type {
   ManifestRewriteRoute,
   ManifestRoute,
@@ -39,6 +38,8 @@ import type {
   AppRouteRouteModule,
 } from './future/route-modules/app-route/module'
 import type { Server as HTTPServer } from 'http'
+import type { ImageConfigComplete } from '../shared/lib/image-config'
+import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { formatHostname } from './lib/format-hostname'
@@ -54,8 +55,7 @@ import {
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { checkIsOnDemandRevalidate } from './api-utils'
 import { setConfig } from '../shared/lib/runtime-config.external'
-
-import { setRevalidateHeaders } from './send-payload/revalidate-headers'
+import { formatRevalidate, type Revalidate } from './lib/revalidate'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage } from './utils'
 import { isBot } from '../shared/lib/router/utils/is-bot'
@@ -71,17 +71,11 @@ import {
   getRequestMeta,
   removeRequestMeta,
 } from './request-meta'
-
-import type { ImageConfigComplete } from '../shared/lib/image-config'
 import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
-import {
-  normalizeAppPath,
-  normalizeRscPath,
-} from '../shared/lib/router/utils/app-paths'
+import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { getHostname } from '../shared/lib/get-hostname'
 import { parseUrl as parseUrlUtil } from '../shared/lib/router/utils/parse-url'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
-import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
 import {
   RSC,
   RSC_VARY_HEADER,
@@ -113,6 +107,7 @@ import {
   toNodeOutgoingHttpHeaders,
 } from './web/utils'
 import {
+  CACHE_ONE_YEAR,
   NEXT_CACHE_TAGS_HEADER,
   NEXT_QUERY_PARAM_PREFIX,
 } from '../lib/constants'
@@ -124,6 +119,7 @@ import {
 import { matchNextDataPathname } from './lib/match-next-data-pathname'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
 import { stripInternalHeaders } from './internal-utils'
+import { RSCPathnameNormalizer } from './future/normalizers/request/rsc'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -140,7 +136,7 @@ export type RouteHandler = (
   req: BaseNextRequest,
   res: BaseNextResponse,
   parsedUrl: NextUrlWithParsedQuery
-) => PromiseLike<boolean> | boolean
+) => PromiseLike<boolean | void> | boolean | void
 
 /**
  * The normalized route manifest is the same as the route manifest, but with
@@ -286,7 +282,7 @@ export class WrappedBuildError extends Error {
 type ResponsePayload = {
   type: 'html' | 'json' | 'rsc'
   body: RenderResult
-  revalidateOptions?: any
+  revalidate?: Revalidate
 }
 
 export default abstract class Server<ServerOptions extends Options = Options> {
@@ -347,7 +343,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       type: 'html' | 'json' | 'rsc'
       generateEtags: boolean
       poweredByHeader: boolean
-      options?: PayloadOptions
+      revalidate?: Revalidate
     }
   ): Promise<void>
 
@@ -386,6 +382,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   public readonly matchers: RouteMatcherManager
   protected readonly i18nProvider?: I18NProvider
   protected readonly localeNormalizer?: LocaleRouteNormalizer
+
+  protected readonly normalizers: {
+    readonly rsc: RSCPathnameNormalizer
+  }
 
   public constructor(options: ServerOptions) {
     const {
@@ -449,6 +449,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       minimalMode || !!process.env.NEXT_PRIVATE_MINIMAL_MODE
 
     this.hasAppDir = this.getHasAppDir(dev)
+
+    this.normalizers = {
+      rsc: new RSCPathnameNormalizer(this.hasAppDir),
+    }
+
     const serverComponents = this.hasAppDir
 
     this.nextFontManifest = this.getNextFontManifest()
@@ -527,11 +532,29 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     return this.matchers.reload()
   }
 
-  protected handleNextDataRequest: RouteHandler = async (
-    req,
-    res,
-    parsedUrl
-  ) => {
+  private handleRSCRequest: RouteHandler = (req, _res, parsedUrl) => {
+    if (
+      !parsedUrl.pathname ||
+      !this.normalizers.rsc.match(parsedUrl.pathname)
+    ) {
+      return
+    }
+
+    parsedUrl.query.__nextDataReq = '1'
+    parsedUrl.pathname = this.normalizers.rsc.normalize(
+      parsedUrl.pathname,
+      true
+    )
+
+    // Update the URL.
+    if (req.url) {
+      const parsed = parseUrl(req.url)
+      parsed.pathname = parsedUrl.pathname
+      req.url = formatUrl(parsed)
+    }
+  }
+
+  private handleNextDataRequest: RouteHandler = async (req, res, parsedUrl) => {
     const middleware = this.getMiddleware()
     const params = matchNextDataPathname(parsedUrl.pathname)
 
@@ -624,17 +647,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     return false
   }
 
-  protected handleNextImageRequest: RouteHandler = () => {
-    return false
-  }
-
-  protected handleCatchallRenderRequest: RouteHandler = () => {
-    return false
-  }
-
-  protected handleCatchallMiddlewareRequest: RouteHandler = () => {
-    return false
-  }
+  protected handleNextImageRequest: RouteHandler = () => {}
+  protected handleCatchallRenderRequest: RouteHandler = () => {}
+  protected handleCatchallMiddlewareRequest: RouteHandler = () => {}
 
   protected getRouteMatchers(): RouteMatcherManager {
     // Create a new manifest loader that get's the manifests from the server.
@@ -801,7 +816,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       // Parse url if parsedUrl not provided
       if (!parsedUrl || typeof parsedUrl !== 'object') {
+        if (!req.url) {
+          throw new Error('Invariant: url can not be undefined')
+        }
+
         parsedUrl = parseUrl(req.url!, true)
+      }
+
+      if (!parsedUrl.pathname) {
+        throw new Error("Invariant: pathname can't be empty")
       }
 
       // Parse the querystring ourselves if the user doesn't handle querystring parsing
@@ -810,23 +833,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           new URLSearchParams(parsedUrl.query)
         )
       }
-      // in minimal mode we detect RSC revalidate if the .rsc
-      // path is requested
-      if (this.minimalMode) {
-        if (req.url.endsWith('.rsc')) {
-          parsedUrl.query.__nextDataReq = '1'
-        } else if (req.headers['x-now-route-matches']) {
-          for (const param of FLIGHT_PARAMETERS) {
-            delete req.headers[param.toString().toLowerCase()]
-          }
+
+      let finished = await this.handleRSCRequest(req, res, parsedUrl)
+      if (finished) return
+
+      if (this.minimalMode && req.headers['x-now-route-matches']) {
+        for (const param of FLIGHT_PARAMETERS) {
+          delete req.headers[param.toString().toLowerCase()]
         }
       }
-
-      req.url = normalizeRscPath(req.url, this.hasAppDir)
-      parsedUrl.pathname = normalizeRscPath(
-        parsedUrl.pathname || '',
-        this.hasAppDir
-      )
 
       this.attachRequestMeta(req, parsedUrl)
 
@@ -866,11 +881,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           }
           // x-matched-path is the source of truth, it tells what page
           // should be rendered because we don't process rewrites in minimalMode
-          let matchedPath = normalizeRscPath(
-            new URL(req.headers['x-matched-path'] as string, 'http://localhost')
-              .pathname,
-            this.hasAppDir
+          let { pathname: matchedPath } = new URL(
+            req.headers['x-matched-path'] as string,
+            'http://localhost'
           )
+
+          if (this.normalizers.rsc.match(matchedPath)) {
+            matchedPath = this.normalizers.rsc.normalize(matchedPath, true)
+          }
 
           let urlPathname = new URL(req.url, 'http://localhost').pathname
 
@@ -1062,7 +1080,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           parsedUrl.pathname = matchedPath
           url.pathname = parsedUrl.pathname
 
-          const finished = await this.handleNextDataRequest(req, res, parsedUrl)
+          finished = await this.handle(req, res, parsedUrl)
           if (finished) return
         } catch (err) {
           if (err instanceof DecodeError || err instanceof NormalizeError) {
@@ -1226,12 +1244,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           )
         }
 
-        // Try to handle this as a `/_next/image` request.
-        let finished = await this.handleNextImageRequest(req, res, parsedUrl)
-        if (finished) return
-
-        // Try to handle the request as a `/_next/data` request.
-        finished = await this.handleNextDataRequest(req, res, parsedUrl)
+        finished = await this.handle(req, res, parsedUrl)
         if (finished) return
 
         await this.handleCatchallRenderRequest(req, res, parsedUrl)
@@ -1242,7 +1255,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         process.env.NEXT_RUNTIME !== 'edge' &&
         req.headers['x-middleware-invoke']
       ) {
-        let finished = await this.handleNextDataRequest(req, res, parsedUrl)
+        finished = await this.handle(req, res, parsedUrl)
         if (finished) return
 
         finished = await this.handleCatchallMiddlewareRequest(
@@ -1264,8 +1277,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         throw err
       }
 
+      // This wasn't a request via the matched path or the invoke path, so
+      // prepare for a legacy run by removing the base path.
+
       // ensure we strip the basePath when not using an invoke header
-      if (!(useMatchedPathHeader || useInvokePath) && pathnameInfo.basePath) {
+      if (!useMatchedPathHeader && pathnameInfo.basePath) {
         parsedUrl.pathname = removePathPrefix(
           parsedUrl.pathname,
           pathnameInfo.basePath
@@ -1294,6 +1310,19 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       this.logError(getProperError(err))
       res.statusCode = 500
       res.body('Internal Server Error').send()
+    }
+  }
+
+  protected handle: RouteHandler = async (req, res, url) => {
+    let finished = await this.handleNextImageRequest(req, res, url)
+    if (finished) return true
+
+    finished = await this.handleNextDataRequest(req, res, url)
+    if (finished) return true
+
+    if (this.minimalMode && this.hasAppDir) {
+      finished = await this.handleRSCRequest(req, res, url)
+      if (finished) return true
     }
   }
 
@@ -1391,19 +1420,23 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       return
     }
     const { req, res } = ctx
-    const { body, type, revalidateOptions } = payload
+    const { body, type } = payload
+    let { revalidate } = payload
     if (!res.sent) {
       const { generateEtags, poweredByHeader, dev } = this.renderOpts
+
+      // In dev, we should not cache pages for any reason.
       if (dev) {
-        // In dev, we should not cache pages for any reason.
         res.setHeader('Cache-Control', 'no-store, must-revalidate')
+        revalidate = undefined
       }
+
       return this.sendRenderResult(req, res, {
         result: body,
         type,
         generateEtags,
         poweredByHeader,
-        options: revalidateOptions,
+        revalidate,
       })
     }
   }
@@ -2387,23 +2420,37 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       )
     }
 
-    const { revalidate, value: cachedData } = cacheEntry
-    const revalidateOptions: any =
-      typeof revalidate !== 'undefined' &&
+    const { value: cachedData } = cacheEntry
+
+    // Coerce the revalidate parameter from the render.
+    let revalidate: Revalidate | undefined
+    if (
+      typeof cacheEntry.revalidate !== 'undefined' &&
       (!this.renderOpts.dev || (hasServerProps && !isDataReq))
-        ? {
-            // When the page is 404 cache-control should not be added unless
-            // we are rendering the 404 page for notFound: true which should
-            // cache according to revalidate correctly
-            private: isPreviewMode || (is404Page && cachedData),
-            stateful: !isSSG,
-            revalidate,
-          }
-        : undefined
+    ) {
+      if (isPreviewMode || (is404Page && !isDataReq)) {
+        revalidate = 0
+      } else if (!isSSG) {
+        if (!res.getHeader('Cache-Control')) {
+          revalidate = 0
+        }
+      } else if (typeof cacheEntry.revalidate === 'number') {
+        if (cacheEntry.revalidate < 1) {
+          throw new Error(
+            `Invariant: invalid Cache-Control duration provided: ${cacheEntry.revalidate} < 1`
+          )
+        }
+
+        revalidate = cacheEntry.revalidate
+      } else if (typeof cacheEntry.revalidate === 'boolean') {
+        revalidate = CACHE_ONE_YEAR
+      }
+    }
+    cacheEntry.revalidate = revalidate
 
     if (!cachedData) {
-      if (revalidateOptions) {
-        setRevalidateHeaders(res, revalidateOptions)
+      if (cacheEntry.revalidate) {
+        res.setHeader('Cache-Control', formatRevalidate(cacheEntry.revalidate))
       }
       if (isDataReq) {
         res.statusCode = 404
@@ -2417,9 +2464,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         return null
       }
     } else if (cachedData.kind === 'REDIRECT') {
-      if (revalidateOptions) {
-        setRevalidateHeaders(res, revalidateOptions)
+      if (cacheEntry.revalidate) {
+        res.setHeader('Cache-Control', formatRevalidate(cacheEntry.revalidate))
       }
+
       if (isDataReq) {
         return {
           type: 'json',
@@ -2427,7 +2475,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             // @TODO: Handle flight data.
             JSON.stringify(cachedData.props)
           ),
-          revalidateOptions,
+          revalidate: cacheEntry.revalidate,
         }
       } else {
         await handleRedirect(cachedData.props)
@@ -2480,7 +2528,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           body: isDataReq
             ? RenderResult.fromStatic(cachedData.pageData as string)
             : cachedData.html,
-          revalidateOptions,
+          revalidate: cacheEntry.revalidate,
         }
       }
 
@@ -2489,7 +2537,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         body: isDataReq
           ? RenderResult.fromStatic(JSON.stringify(cachedData.pageData))
           : cachedData.html,
-        revalidateOptions,
+        revalidate: cacheEntry.revalidate,
       }
     }
   }

@@ -19,45 +19,44 @@ import {
 } from './webpack-config'
 import { WEBPACK_LAYERS } from '../lib/constants'
 
+interface CompilerAliases {
+  [alias: string]: string | string[]
+}
+
 export function createWebpackAliases({
-  dev,
-  pageExtensions,
+  isClient,
   isEdgeServer,
+  isNodeServer,
+  dev,
   config,
   pagesDir,
   appDir,
   dir,
-  distDir,
-  isClient,
   reactProductionProfiling,
-  isNodeServer,
-  clientResolveRewrites,
   hasRewrites,
 }: {
-  dev: boolean
-  pageExtensions: string[]
+  isClient: boolean
   isEdgeServer: boolean
+  isNodeServer: boolean
+  dev: boolean
   config: NextConfigComplete
   pagesDir: string | undefined
   appDir: string | undefined
   dir: string
-  distDir: string
-  isClient: boolean
   reactProductionProfiling: boolean
-  isNodeServer: boolean
-  clientResolveRewrites: string
   hasRewrites: boolean
-}):
-  | {
-      alias: string | false | string[]
-      name: string
-      onlyModule?: boolean | undefined
-    }[]
-  | { [index: string]: string | false | string[] }
-  | undefined {
-  const customAppAliases: { [key: string]: string[] } = {}
-  const customDocumentAliases: { [key: string]: string[] } = {}
+}): CompilerAliases {
+  const distDir = path.join(dir, config.distDir)
+  const pageExtensions = config.pageExtensions
+  const clientResolveRewrites = require.resolve(
+    '../shared/lib/router/utils/resolve-rewrites'
+  )
+  const customAppAliases: CompilerAliases = {}
+  const customDocumentAliases: CompilerAliases = {}
 
+  // tell webpack where to look for _app and _document
+  // using aliases to allow falling back to the default
+  // version when removed or not present
   if (dev) {
     const nextDistPath = 'next/dist/' + (isEdgeServer ? 'esm/' : '')
     customAppAliases[`${PAGES_DIR_ALIAS}/_app`] = [
@@ -211,9 +210,9 @@ export function createWebpackAliases({
   }
 }
 
-export function createServerOnlyClientOnlyAliases(isServer: boolean): {
-  [aliasPath: string]: string
-} {
+export function createServerOnlyClientOnlyAliases(
+  isServer: boolean
+): CompilerAliases {
   return isServer
     ? {
         'server-only$': 'next/dist/compiled/server-only/empty',
@@ -244,7 +243,7 @@ export function createRSCAliases(
     isEdgeServer: boolean
     reactProductionProfiling: boolean
   }
-) {
+): CompilerAliases {
   let alias: Record<string, string> = {
     react$: `next/dist/compiled/react${bundledReactChannel}`,
     'react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}`,
@@ -309,7 +308,7 @@ export function createRSCAliases(
 
 // Insert aliases for Next.js stubs of fetch, object-assign, and url
 // Keep in sync with insert_optimized_module_aliases in import_map.rs
-export function getOptimizedModuleAliases(): { [pkg: string]: string } {
+export function getOptimizedModuleAliases(): CompilerAliases {
   return {
     unfetch: require.resolve('next/dist/build/polyfills/fetch/index.js'),
     'isomorphic-unfetch': require.resolve(
@@ -338,7 +337,7 @@ export function getOptimizedModuleAliases(): { [pkg: string]: string } {
 }
 
 // Alias these modules to be resolved with "module" if possible.
-function getBarrelOptimizationAliases(packages: string[]) {
+function getBarrelOptimizationAliases(packages: string[]): CompilerAliases {
   const aliases: { [pkg: string]: string } = {}
   const mainFields = ['module', 'main']
 
@@ -361,12 +360,12 @@ function getBarrelOptimizationAliases(packages: string[]) {
 
   return aliases
 }
-function getReactProfilingInProduction() {
+function getReactProfilingInProduction(): CompilerAliases {
   return {
     'react-dom$': 'react-dom/profiling',
   }
 }
-export function createServerComponentsNoopAliases() {
+export function createServerComponentsNoopAliases(): CompilerAliases {
   return {
     [require.resolve('next/head')]: require.resolve(
       'next/dist/client/components/noop-head'

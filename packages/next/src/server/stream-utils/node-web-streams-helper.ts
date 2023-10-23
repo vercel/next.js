@@ -5,9 +5,7 @@ import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
 import { createDecodeTransformStream } from './encode-decode'
 import { DetachedPromise } from '../../lib/detached-promise'
-
-const queueTask =
-  process.env.NEXT_RUNTIME === 'edge' ? globalThis.setTimeout : setImmediate
+import { scheduleImmediate } from '../../lib/scheduler'
 
 export type ReactReadableStream = ReadableStream<Uint8Array> & {
   allReady?: Promise<void> | undefined
@@ -84,37 +82,46 @@ export function createBufferedTransformStream(): TransformStream<
   Uint8Array,
   Uint8Array
 > {
-  let bufferedBytes: Uint8Array = new Uint8Array()
-  let pendingFlush: Promise<void> | null = null
+  let buffer: Uint8Array = new Uint8Array()
+  let pending: DetachedPromise<void> | undefined
 
-  const flushBuffer = (controller: TransformStreamDefaultController) => {
-    if (!pendingFlush) {
-      pendingFlush = new Promise((resolve) => {
-        queueTask(() => {
-          controller.enqueue(bufferedBytes)
-          bufferedBytes = new Uint8Array()
-          pendingFlush = null
-          resolve()
-        })
-      })
-    }
+  const flush = (controller: TransformStreamDefaultController) => {
+    // If we already have a pending flush, then return early.
+    if (pending) return
+
+    const detached = new DetachedPromise<void>()
+    pending = detached
+
+    scheduleImmediate(() => {
+      try {
+        controller.enqueue(buffer)
+        buffer = new Uint8Array()
+      } catch {
+        // If an error occurs while enqueuing it can't be due to this
+        // transformers fault. It's likely due to the controller being
+        // errored due to the stream being cancelled.
+      } finally {
+        pending = undefined
+        detached.resolve()
+      }
+    })
   }
 
   return new TransformStream({
     transform(chunk, controller) {
-      const newBufferedBytes = new Uint8Array(
-        bufferedBytes.length + chunk.byteLength
-      )
-      newBufferedBytes.set(bufferedBytes)
-      newBufferedBytes.set(chunk, bufferedBytes.length)
-      bufferedBytes = newBufferedBytes
-      flushBuffer(controller)
-    },
+      // Combine the previous buffer with the new chunk.
+      const combined = new Uint8Array(buffer.length + chunk.byteLength)
+      combined.set(buffer)
+      combined.set(chunk, buffer.length)
+      buffer = combined
 
+      // Flush the buffer to the controller.
+      flush(controller)
+    },
     flush() {
-      if (pendingFlush) {
-        return pendingFlush
-      }
+      if (!pending) return
+
+      return pending.promise
     },
   })
 }
@@ -186,7 +193,7 @@ function createHeadInsertionTransformStream(
       if (!inserted) {
         controller.enqueue(chunk)
       } else {
-        queueTask(() => {
+        scheduleImmediate(() => {
           freezing = false
         })
       }
@@ -206,32 +213,46 @@ function createHeadInsertionTransformStream(
 function createDeferredSuffixStream(
   suffix: string
 ): TransformStream<Uint8Array, Uint8Array> {
-  let suffixFlushed = false
-  let suffixFlushTask: Promise<void> | null = null
+  let flushed = false
+  let pending: DetachedPromise<void> | undefined
+
   const encoder = new TextEncoder()
+
+  const flush = (controller: TransformStreamDefaultController) => {
+    const detached = new DetachedPromise<void>()
+    pending = detached
+
+    scheduleImmediate(() => {
+      try {
+        controller.enqueue(encoder.encode(suffix))
+      } catch {
+        // If an error occurs while enqueuing it can't be due to this
+        // transformers fault. It's likely due to the controller being
+        // errored due to the stream being cancelled.
+      } finally {
+        pending = undefined
+        detached.resolve()
+      }
+    })
+  }
 
   return new TransformStream({
     transform(chunk, controller) {
       controller.enqueue(chunk)
-      if (!suffixFlushed) {
-        suffixFlushed = true
-        suffixFlushTask = new Promise((res) => {
-          // NOTE: streaming flush
-          // Enqueue suffix part before the major chunks are enqueued so that
-          // suffix won't be flushed too early to interrupt the data stream
-          queueTask(() => {
-            controller.enqueue(encoder.encode(suffix))
-            res()
-          })
-        })
-      }
+
+      // If we've already flushed, we're done.
+      if (flushed) return
+
+      // Schedule the flush to happen.
+      flushed = true
+      flush(controller)
     },
     flush(controller) {
-      if (suffixFlushTask) return suffixFlushTask
-      if (!suffixFlushed) {
-        suffixFlushed = true
-        controller.enqueue(encoder.encode(suffix))
-      }
+      if (pending) return pending.promise
+      if (flushed) return
+
+      // Flush now.
+      controller.enqueue(encoder.encode(suffix))
     },
   })
 }
@@ -239,51 +260,59 @@ function createDeferredSuffixStream(
 // Merge two streams into one. Ensure the final transform stream is closed
 // when both are finished.
 function createMergedTransformStream(
-  dataStream: ReadableStream<Uint8Array>
+  stream: ReadableStream<Uint8Array>
 ): TransformStream<Uint8Array, Uint8Array> {
-  let dataStreamFinished: DetachedPromise<void> | null = null
+  let started = false
+  let pending: DetachedPromise<void> | null = null
+
+  const start = (controller: TransformStreamDefaultController) => {
+    const reader = stream.getReader()
+
+    // NOTE: streaming flush
+    // We are buffering here for the inlined data stream because the
+    // "shell" stream might be chunkenized again by the underlying stream
+    // implementation, e.g. with a specific high-water mark. To ensure it's
+    // the safe timing to pipe the data stream, this extra tick is
+    // necessary.
+    const detached = new DetachedPromise<void>()
+    pending = detached
+
+    // We use `setTimeout/setImmediate` here to ensure that it's inserted after
+    // flushing the shell. Note that this implementation might get stale if impl
+    // details of Fizz change in the future.
+    scheduleImmediate(async () => {
+      try {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) return
+
+          controller.enqueue(value)
+        }
+      } catch (err) {
+        controller.error(err)
+      } finally {
+        detached.resolve()
+      }
+    })
+  }
 
   return new TransformStream({
     transform(chunk, controller) {
       controller.enqueue(chunk)
 
-      if (!dataStreamFinished) {
-        const dataStreamReader = dataStream.getReader()
+      // Start the streaming if it hasn't already been started yet.
+      if (started) return
+      started = true
 
-        // NOTE: streaming flush
-        // We are buffering here for the inlined data stream because the
-        // "shell" stream might be chunkenized again by the underlying stream
-        // implementation, e.g. with a specific high-water mark. To ensure it's
-        // the safe timing to pipe the data stream, this extra tick is
-        // necessary.
-        const promise = new DetachedPromise<void>()
-        dataStreamFinished = promise
-
-        // We use `setTimeout` here to ensure that it's inserted after flushing
-        // the shell. Note that this implementation might get stale if impl
-        // details of Fizz change in the future.
-        queueTask(async () => {
-          try {
-            while (true) {
-              const { done, value } = await dataStreamReader.read()
-              if (done) return promise.resolve()
-
-              controller.enqueue(value)
-            }
-          } catch (err) {
-            controller.error(err)
-          }
-
-          promise.resolve()
-        })
-      }
+      start(controller)
     },
     flush() {
       // If the data stream promise is defined, then return it as its completion
       // will be the completion of the stream.
-      if (dataStreamFinished) {
-        return dataStreamFinished.promise
-      }
+      if (!pending) return
+      if (!started) return
+
+      return pending.promise
     },
   })
 }

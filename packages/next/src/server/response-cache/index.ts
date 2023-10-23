@@ -7,7 +7,7 @@ import type {
 
 import RenderResult from '../render-result'
 import { Batcher } from '../../lib/batcher'
-import { scheduleOnNextTick } from '../lib/schedule-on-next-tick'
+import { scheduleOnNextTick } from '../../lib/scheduler'
 
 export * from './types'
 
