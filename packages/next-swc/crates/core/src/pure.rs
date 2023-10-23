@@ -26,7 +26,7 @@ where
     comments: C,
 }
 
-const MODULE: &str = "next/dist/";
+const MODULE: &str = "next/dist/build/swc/helpers";
 const FN_NAME: &str = "__nextjs_pure";
 
 impl<C> VisitMut for PureTransform<C>
