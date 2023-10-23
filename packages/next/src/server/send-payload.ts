@@ -1,18 +1,12 @@
 import type { IncomingMessage, ServerResponse } from 'http'
-import type RenderResult from '../render-result'
+import type RenderResult from './render-result'
+import type { Revalidate } from './lib/revalidate'
 
-import { isResSent } from '../../shared/lib/utils'
-import { generateETag } from '../lib/etag'
+import { isResSent } from '../shared/lib/utils'
+import { generateETag } from './lib/etag'
 import fresh from 'next/dist/compiled/fresh'
-import { setRevalidateHeaders } from './revalidate-headers'
-import { RSC_CONTENT_TYPE_HEADER } from '../../client/components/app-router-headers'
-
-export type PayloadOptions =
-  | { private: true }
-  | { private: boolean; stateful: true }
-  | { private: boolean; stateful: false; revalidate: number | false }
-
-export { setRevalidateHeaders }
+import { formatRevalidate } from './lib/revalidate'
+import { RSC_CONTENT_TYPE_HEADER } from '../client/components/app-router-headers'
 
 export function sendEtagResponse(
   req: IncomingMessage,
@@ -45,7 +39,7 @@ export async function sendRenderResult({
   type,
   generateEtags,
   poweredByHeader,
-  options,
+  revalidate,
 }: {
   req: IncomingMessage
   res: ServerResponse
@@ -53,7 +47,7 @@ export async function sendRenderResult({
   type: 'html' | 'json' | 'rsc'
   generateEtags: boolean
   poweredByHeader: boolean
-  options?: PayloadOptions
+  revalidate: Revalidate | undefined
 }): Promise<void> {
   if (isResSent(res)) {
     return
@@ -63,8 +57,8 @@ export async function sendRenderResult({
     res.setHeader('X-Powered-By', 'Next.js')
   }
 
-  if (options != null) {
-    setRevalidateHeaders(res, options)
+  if (typeof revalidate !== 'undefined') {
+    res.setHeader('Cache-Control', formatRevalidate(revalidate))
   }
 
   const payload = result.isDynamic ? null : result.toUnchunkedString()
