@@ -24,6 +24,7 @@ import EventsImplementation from 'node:events'
 import AssertImplementation from 'node:assert'
 import UtilImplementation from 'node:util'
 import AsyncHooksImplementation from 'node:async_hooks'
+import { intervalsManager, timeoutsManager } from './resource-managers'
 
 interface ModuleContext {
   runtime: EdgeRuntime
@@ -44,8 +45,14 @@ const pendingModuleCaches = new Map<string, Promise<ModuleContext>>()
  * For a given path a context, this function checks if there is any module
  * context that contains the path with an older content and, if that's the
  * case, removes the context from the cache.
+ *
+ * This function also clears all intervals and timeouts created by the
+ * module context.
  */
 export async function clearModuleContext(path: string) {
+  intervalsManager.removeAll()
+  timeoutsManager.removeAll()
+
   const handleContext = (
     key: string,
     cache: ReturnType<(typeof moduleContexts)['get']>,
@@ -377,6 +384,22 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
       Object.assign(context, wasm)
 
       context.AsyncLocalStorage = AsyncLocalStorage
+
+      // @ts-ignore the timeouts have weird types in the edge runtime
+      context.setInterval = (...args: Parameters<typeof setInterval>) =>
+        intervalsManager.add(args)
+
+      // @ts-ignore the timeouts have weird types in the edge runtime
+      context.clearInterval = (interval: number) =>
+        intervalsManager.remove(interval)
+
+      // @ts-ignore the timeouts have weird types in the edge runtime
+      context.setTimeout = (...args: Parameters<typeof setTimeout>) =>
+        timeoutsManager.add(args)
+
+      // @ts-ignore the timeouts have weird types in the edge runtime
+      context.clearTimeout = (timeout: number) =>
+        timeoutsManager.remove(timeout)
 
       return context
     },

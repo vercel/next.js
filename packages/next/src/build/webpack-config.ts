@@ -7,18 +7,7 @@ import path from 'path'
 import semver from 'next/dist/compiled/semver'
 
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
-import {
-  DOT_NEXT_ALIAS,
-  PAGES_DIR_ALIAS,
-  ROOT_DIR_ALIAS,
-  APP_DIR_ALIAS,
-  WEBPACK_LAYERS,
-  RSC_ACTION_PROXY_ALIAS,
-  RSC_ACTION_CLIENT_WRAPPER_ALIAS,
-  RSC_ACTION_VALIDATE_ALIAS,
-  WEBPACK_RESOURCE_QUERIES,
-  RSC_ACTION_ENCRYPTION_ALIAS,
-} from '../lib/constants'
+import { WEBPACK_LAYERS, WEBPACK_RESOURCE_QUERIES } from '../lib/constants'
 import type { WebpackLayerName } from '../lib/constants'
 import { isWebpackDefaultLayer, isWebpackServerLayer } from './utils'
 import type { CustomRoutes } from '../lib/load-custom-routes.js'
@@ -70,7 +59,6 @@ import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plu
 import { getSupportedBrowsers } from './utils'
 import { MemoryWithGcCachePlugin } from './webpack/plugins/memory-with-gc-cache-plugin'
 import { getBabelConfigFile } from './get-babel-config-file'
-import { defaultOverrides } from '../server/require-hook'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 import { getDefineEnvPlugin } from './webpack/plugins/define-env-plugin'
 import type { SWCLoaderOptions } from './webpack/loaders/next-swc-loader'
@@ -80,6 +68,10 @@ import {
   edgeConditionNames,
 } from './webpack-config-rules/resolve'
 import { OptionalPeerDependencyResolverPlugin } from './webpack/plugins/optional-peer-dependency-resolve-plugin'
+import { createWebpackAliases } from './create-compiler-aliases'
+import { createServerOnlyClientOnlyAliases } from './create-compiler-aliases'
+import { createRSCAliases } from './create-compiler-aliases'
+import { createServerComponentsNoopAliases } from './create-compiler-aliases'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -89,8 +81,8 @@ type ClientEntries = {
 const EXTERNAL_PACKAGES =
   require('../lib/server-external-packages.json') as string[]
 
-const NEXT_PROJECT_ROOT = path.join(__dirname, '..', '..')
-const NEXT_PROJECT_ROOT_DIST = path.join(NEXT_PROJECT_ROOT, 'dist')
+export const NEXT_PROJECT_ROOT = path.join(__dirname, '..', '..')
+export const NEXT_PROJECT_ROOT_DIST = path.join(NEXT_PROJECT_ROOT, 'dist')
 const NEXT_PROJECT_ROOT_DIST_CLIENT = path.join(
   NEXT_PROJECT_ROOT_DIST,
   'client'
@@ -133,89 +125,6 @@ function isModuleCSS(module: { type: string }) {
   )
 }
 
-function getReactProfilingInProduction() {
-  return {
-    'react-dom$': 'react-dom/profiling',
-    'scheduler/tracing': 'scheduler/tracing-profiling',
-  }
-}
-
-function createRSCAliases(
-  bundledReactChannel: string,
-  opts: {
-    layer: WebpackLayerName
-    isEdgeServer: boolean
-    reactProductionProfiling: boolean
-    reactServerCondition?: boolean
-  }
-) {
-  let alias: Record<string, string> = {
-    react$: `next/dist/compiled/react${bundledReactChannel}`,
-    'react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}`,
-    'react/jsx-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-runtime`,
-    'react/jsx-dev-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime`,
-    'react-dom/client$': `next/dist/compiled/react-dom${bundledReactChannel}/client`,
-    'react-dom/server$': `next/dist/compiled/react-dom${bundledReactChannel}/server`,
-    'react-dom/server.edge$': `next/dist/compiled/react-dom${bundledReactChannel}/server.edge`,
-    'react-dom/server.browser$': `next/dist/compiled/react-dom${bundledReactChannel}/server.browser`,
-    'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client`,
-    'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.edge`,
-    'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.edge`,
-    'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.node`,
-  }
-
-  if (!opts.isEdgeServer) {
-    if (opts.layer === WEBPACK_LAYERS.serverSideRendering) {
-      alias = {
-        ...alias,
-        'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-jsx-runtime`,
-        'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-jsx-dev-runtime`,
-        react$: `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react`,
-        'react-dom$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom`,
-        'react-server-dom-webpack/client.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-client-edge`,
-      }
-    } else if (opts.layer === WEBPACK_LAYERS.reactServerComponents) {
-      alias = {
-        ...alias,
-        'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-jsx-runtime`,
-        'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-jsx-dev-runtime`,
-        react$: `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react`,
-        'react-dom$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom`,
-        'react-server-dom-webpack/server.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-server-edge`,
-        'react-server-dom-webpack/server.node$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-server-node`,
-      }
-    }
-  }
-
-  if (opts.isEdgeServer) {
-    if (opts.layer === WEBPACK_LAYERS.reactServerComponents) {
-      alias[
-        'react$'
-      ] = `next/dist/compiled/react${bundledReactChannel}/react.shared-subset`
-    }
-    // Use server rendering stub for RSC and SSR
-    // x-ref: https://github.com/facebook/react/pull/25436
-    alias[
-      'react-dom$'
-    ] = `next/dist/compiled/react-dom${bundledReactChannel}/server-rendering-stub`
-  }
-
-  if (opts.reactProductionProfiling) {
-    alias[
-      'react-dom$'
-    ] = `next/dist/compiled/react-dom${bundledReactChannel}/profiling`
-    alias[
-      'scheduler/tracing'
-    ] = `next/dist/compiled/scheduler${bundledReactChannel}/tracing-profiling`
-  }
-
-  alias[
-    '@vercel/turbopack-ecmascript-runtime/dev/client/hmr-client.ts'
-  ] = `next/dist/client/dev/noop-turbopack-hmr`
-
-  return alias
-}
-
 const devtoolRevertWarning = execOnce(
   (devtool: webpack.Configuration['devtool']) => {
     console.warn(
@@ -229,61 +138,6 @@ const devtoolRevertWarning = execOnce(
 
 let loggedSwcDisabled = false
 let loggedIgnoredCompilerOptions = false
-
-// Insert aliases for Next.js stubs of fetch, object-assign, and url
-// Keep in sync with insert_optimized_module_aliases in import_map.rs
-function getOptimizedModuleAliases(): { [pkg: string]: string } {
-  return {
-    unfetch: require.resolve('next/dist/build/polyfills/fetch/index.js'),
-    'isomorphic-unfetch': require.resolve(
-      'next/dist/build/polyfills/fetch/index.js'
-    ),
-    'whatwg-fetch': require.resolve(
-      'next/dist/build/polyfills/fetch/whatwg-fetch.js'
-    ),
-    'object-assign': require.resolve(
-      'next/dist/build/polyfills/object-assign.js'
-    ),
-    'object.assign/auto': require.resolve(
-      'next/dist/build/polyfills/object.assign/auto.js'
-    ),
-    'object.assign/implementation': require.resolve(
-      'next/dist/build/polyfills/object.assign/implementation.js'
-    ),
-    'object.assign/polyfill': require.resolve(
-      'next/dist/build/polyfills/object.assign/polyfill.js'
-    ),
-    'object.assign/shim': require.resolve(
-      'next/dist/build/polyfills/object.assign/shim.js'
-    ),
-    url: require.resolve('next/dist/compiled/native-url'),
-  }
-}
-
-// Alias these modules to be resolved with "module" if possible.
-function getBarrelOptimizationAliases(packages: string[]) {
-  const aliases: { [pkg: string]: string } = {}
-  const mainFields = ['module', 'main']
-
-  for (const pkg of packages) {
-    try {
-      const descriptionFileData = require(`${pkg}/package.json`)
-      const descriptionFilePath = require.resolve(`${pkg}/package.json`)
-
-      for (const field of mainFields) {
-        if (descriptionFileData.hasOwnProperty(field)) {
-          aliases[pkg + '$'] = path.join(
-            path.dirname(descriptionFilePath),
-            descriptionFileData[field]
-          )
-          break
-        }
-      }
-    } catch {}
-  }
-
-  return aliases
-}
 
 export function attachReactRefresh(
   webpackConfig: webpack.Configuration,
@@ -395,7 +249,7 @@ function getOpenTelemetryVersion(): string | null {
   }
 }
 
-function hasExternalOtelApiPackage(): boolean {
+export function hasExternalOtelApiPackage(): boolean {
   const opentelemetryVersion = getOpenTelemetryVersion()
   if (!opentelemetryVersion) {
     return false
@@ -747,49 +601,6 @@ export default async function getBaseWebpackConfig(
       } satisfies ClientEntries)
     : undefined
 
-  // tell webpack where to look for _app and _document
-  // using aliases to allow falling back to the default
-  // version when removed or not present
-  const clientResolveRewrites = require.resolve(
-    '../shared/lib/router/utils/resolve-rewrites'
-  )
-
-  const customAppAliases: { [key: string]: string[] } = {}
-  const customErrorAlias: { [key: string]: string[] } = {}
-  const customDocumentAliases: { [key: string]: string[] } = {}
-  const customRootAliases: { [key: string]: string[] } = {}
-
-  if (dev) {
-    const nextDistPath = 'next/dist/' + (isEdgeServer ? 'esm/' : '')
-    customAppAliases[`${PAGES_DIR_ALIAS}/_app`] = [
-      ...(pagesDir
-        ? pageExtensions.reduce((prev, ext) => {
-            prev.push(path.join(pagesDir, `_app.${ext}`))
-            return prev
-          }, [] as string[])
-        : []),
-      `${nextDistPath}pages/_app.js`,
-    ]
-    customAppAliases[`${PAGES_DIR_ALIAS}/_error`] = [
-      ...(pagesDir
-        ? pageExtensions.reduce((prev, ext) => {
-            prev.push(path.join(pagesDir, `_error.${ext}`))
-            return prev
-          }, [] as string[])
-        : []),
-      `${nextDistPath}pages/_error.js`,
-    ]
-    customDocumentAliases[`${PAGES_DIR_ALIAS}/_document`] = [
-      ...(pagesDir
-        ? pageExtensions.reduce((prev, ext) => {
-            prev.push(path.join(pagesDir, `_document.${ext}`))
-            return prev
-          }, [] as string[])
-        : []),
-      `${nextDistPath}pages/_document.js`,
-    ]
-  }
-
   const resolveConfig: webpack.Configuration['resolve'] = {
     // Disable .mjs for node_modules bundling
     extensions: isNodeServer
@@ -800,129 +611,18 @@ export default async function getBaseWebpackConfig(
       'node_modules',
       ...nodePathList, // Support for NODE_PATH environment variable
     ],
-    alias: {
-      // Alias 3rd party @vercel/og package to vendored og image package to reduce bundle size
-      '@vercel/og': 'next/dist/server/og/image-response',
-
-      // Alias next/dist imports to next/dist/esm assets,
-      // let this alias hit before `next` alias.
-      ...(isEdgeServer
-        ? {
-            'next/dist/build': 'next/dist/esm/build',
-            'next/dist/client': 'next/dist/esm/client',
-            'next/dist/shared': 'next/dist/esm/shared',
-            'next/dist/pages': 'next/dist/esm/pages',
-            'next/dist/lib': 'next/dist/esm/lib',
-            'next/dist/server': 'next/dist/esm/server',
-
-            // Alias the usage of next public APIs
-            [path.join(NEXT_PROJECT_ROOT, 'server')]:
-              'next/dist/esm/server/web/exports/index',
-            [path.join(NEXT_PROJECT_ROOT, 'og')]:
-              'next/dist/esm/server/og/image-response',
-            [path.join(NEXT_PROJECT_ROOT_DIST, 'client', 'link')]:
-              'next/dist/esm/client/link',
-            [path.join(
-              NEXT_PROJECT_ROOT,
-              'dist',
-              'shared',
-              'lib',
-              'image-external'
-            )]: 'next/dist/esm/shared/lib/image-external',
-            [path.join(NEXT_PROJECT_ROOT_DIST, 'client', 'script')]:
-              'next/dist/esm/client/script',
-            [path.join(NEXT_PROJECT_ROOT_DIST, 'client', 'router')]:
-              'next/dist/esm/client/router',
-            [path.join(NEXT_PROJECT_ROOT_DIST, 'shared', 'lib', 'head')]:
-              'next/dist/esm/shared/lib/head',
-            [path.join(NEXT_PROJECT_ROOT_DIST, 'shared', 'lib', 'dynamic')]:
-              'next/dist/esm/shared/lib/dynamic',
-            [path.join(NEXT_PROJECT_ROOT_DIST, 'pages', '_document')]:
-              'next/dist/esm/pages/_document',
-            [path.join(NEXT_PROJECT_ROOT_DIST, 'pages', '_app')]:
-              'next/dist/esm/pages/_app',
-            [path.join(
-              NEXT_PROJECT_ROOT_DIST,
-              'client',
-              'components',
-              'navigation'
-            )]: 'next/dist/esm/client/components/navigation',
-            [path.join(
-              NEXT_PROJECT_ROOT_DIST,
-              'client',
-              'components',
-              'headers'
-            )]: 'next/dist/esm/client/components/headers',
-          }
-        : undefined),
-
-      // For RSC server bundle
-      ...(!hasExternalOtelApiPackage() && {
-        '@opentelemetry/api': 'next/dist/compiled/@opentelemetry/api',
-      }),
-
-      ...(config.images.loaderFile
-        ? {
-            'next/dist/shared/lib/image-loader': config.images.loaderFile,
-            ...(isEdgeServer && {
-              'next/dist/esm/shared/lib/image-loader': config.images.loaderFile,
-            }),
-          }
-        : undefined),
-
-      next: NEXT_PROJECT_ROOT,
-
-      'styled-jsx/style$': defaultOverrides['styled-jsx/style'],
-      'styled-jsx$': defaultOverrides['styled-jsx'],
-
-      ...customAppAliases,
-      ...customErrorAlias,
-      ...customDocumentAliases,
-      ...customRootAliases,
-
-      ...(pagesDir ? { [PAGES_DIR_ALIAS]: pagesDir } : {}),
-      ...(appDir ? { [APP_DIR_ALIAS]: appDir } : {}),
-      [ROOT_DIR_ALIAS]: dir,
-      [DOT_NEXT_ALIAS]: distDir,
-      ...(isClient || isEdgeServer ? getOptimizedModuleAliases() : {}),
-      ...(reactProductionProfiling ? getReactProfilingInProduction() : {}),
-
-      // For Node server, we need to re-alias the package imports to prefer to
-      // resolve to the ESM export.
-      ...(isNodeServer
-        ? getBarrelOptimizationAliases(
-            config.experimental.optimizePackageImports || []
-          )
-        : {}),
-
-      [RSC_ACTION_VALIDATE_ALIAS]:
-        'next/dist/build/webpack/loaders/next-flight-loader/action-validate',
-
-      [RSC_ACTION_CLIENT_WRAPPER_ALIAS]:
-        'next/dist/build/webpack/loaders/next-flight-loader/action-client-wrapper',
-
-      [RSC_ACTION_PROXY_ALIAS]:
-        'next/dist/build/webpack/loaders/next-flight-loader/action-proxy',
-
-      [RSC_ACTION_ENCRYPTION_ALIAS]:
-        'next/dist/server/app-render/action-encryption',
-
-      ...(isClient || isEdgeServer
-        ? {
-            [clientResolveRewrites]: hasRewrites
-              ? clientResolveRewrites
-              : // With webpack 5 an alias can be pointed to false to noop
-                false,
-          }
-        : {}),
-
-      '@swc/helpers/_': path.join(
-        path.dirname(require.resolve('@swc/helpers/package.json')),
-        '_'
-      ),
-
-      setimmediate: 'next/dist/compiled/setimmediate',
-    },
+    alias: createWebpackAliases({
+      isClient,
+      isEdgeServer,
+      isNodeServer,
+      dev,
+      config,
+      pagesDir,
+      appDir,
+      dir,
+      reactProductionProfiling,
+      hasRewrites,
+    }),
     ...(isClient || isEdgeServer
       ? {
           fallback: {
@@ -1466,14 +1166,7 @@ export default async function getBaseWebpackConfig(
           },
           resolve: {
             // Error on client-only but allow server-only
-            alias: {
-              'server-only$': 'next/dist/compiled/server-only/empty',
-              'client-only$': 'next/dist/compiled/client-only/error',
-              'next/dist/compiled/server-only$':
-                'next/dist/compiled/server-only/empty',
-              'next/dist/compiled/client-only$':
-                'next/dist/compiled/client-only/error',
-            },
+            alias: createServerOnlyClientOnlyAliases(true),
           },
         },
         {
@@ -1485,14 +1178,7 @@ export default async function getBaseWebpackConfig(
           },
           resolve: {
             // Error on server-only but allow client-only
-            alias: {
-              'server-only$': 'next/dist/compiled/server-only/index',
-              'client-only$': 'next/dist/compiled/client-only/index',
-              'next/dist/compiled/client-only$':
-                'next/dist/compiled/client-only/index',
-              'next/dist/compiled/server-only':
-                'next/dist/compiled/server-only/index',
-            },
+            alias: createServerOnlyClientOnlyAliases(false),
           },
         },
         // Detect server-only / client-only imports and error in build time
@@ -1581,16 +1267,7 @@ export default async function getBaseWebpackConfig(
                   ],
                 },
                 resolve: {
-                  alias: {
-                    // Alias next/head component to noop for RSC
-                    [require.resolve('next/head')]: require.resolve(
-                      'next/dist/client/components/noop-head'
-                    ),
-                    // Alias next/dynamic
-                    [require.resolve('next/dynamic')]: require.resolve(
-                      'next/dist/shared/lib/app-dynamic'
-                    ),
-                  },
+                  alias: createServerComponentsNoopAliases(),
                 },
               },
             ]
@@ -1616,7 +1293,6 @@ export default async function getBaseWebpackConfig(
                   // react to the direct file path, not the package name. In that case the condition
                   // will be ignored completely.
                   alias: createRSCAliases(bundledReactChannel, {
-                    reactServerCondition: true,
                     // No server components profiling
                     reactProductionProfiling,
                     layer: WEBPACK_LAYERS.reactServerComponents,
@@ -1677,7 +1353,6 @@ export default async function getBaseWebpackConfig(
                       // It needs `conditionNames` here to require the proper asset,
                       // when react is acting as dependency of compiled/react-dom.
                       alias: createRSCAliases(bundledReactChannel, {
-                        reactServerCondition: true,
                         reactProductionProfiling,
                         layer: WEBPACK_LAYERS.reactServerComponents,
                         isEdgeServer,
@@ -1689,7 +1364,6 @@ export default async function getBaseWebpackConfig(
                     issuerLayer: WEBPACK_LAYERS.serverSideRendering,
                     resolve: {
                       alias: createRSCAliases(bundledReactChannel, {
-                        reactServerCondition: false,
                         reactProductionProfiling,
                         layer: WEBPACK_LAYERS.serverSideRendering,
                         isEdgeServer,
@@ -1703,12 +1377,7 @@ export default async function getBaseWebpackConfig(
                 issuerLayer: WEBPACK_LAYERS.appPagesBrowser,
                 resolve: {
                   alias: createRSCAliases(bundledReactChannel, {
-                    // Only alias server rendering stub in client SSR layer.
-                    // reactSharedSubset: false,
-                    // reactDomServerRenderingStub: false,
-                    reactServerCondition: false,
                     reactProductionProfiling,
-                    // browser: isClient,
                     layer: WEBPACK_LAYERS.appPagesBrowser,
                     isEdgeServer,
                   }),
