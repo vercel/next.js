@@ -8,9 +8,7 @@ export async function retry<T>(
   return await asyncRetry(fn, {
     retries,
     onRetry(e, attempt) {
-      console.error(
-        (e as Error).message + `\n\nRetrying ${attempt}/${retries}...`
-      )
+      console.error(e.message + `\n\nRetrying ${attempt}/${retries}...`)
     },
     minTimeout: 100,
   })
