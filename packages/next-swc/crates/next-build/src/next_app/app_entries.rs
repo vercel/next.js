@@ -194,7 +194,7 @@ pub async fn get_app_entries(
             Ok(match entrypoint {
                 Entrypoint::AppPage { page, loader_tree } => get_app_page_entry(
                     rsc_context,
-                    // TODO add edge support
+                    // TODO(WEB-1824): add edge support
                     rsc_context,
                     *loader_tree,
                     page.clone(),
@@ -203,7 +203,7 @@ pub async fn get_app_entries(
                 ),
                 Entrypoint::AppRoute { page, path } => get_app_route_entry(
                     rsc_context,
-                    // TODO add edge support
+                    // TODO(WEB-1824): add edge support
                     rsc_context,
                     Vc::upcast(FileSource::new(*path)),
                     page.clone(),
@@ -211,7 +211,7 @@ pub async fn get_app_entries(
                 ),
                 Entrypoint::AppMetadata { page, metadata } => get_app_metadata_route_entry(
                     rsc_context,
-                    // TODO add edge support
+                    // TODO(WEB-1824): add edge support
                     rsc_context,
                     project_root,
                     page.clone(),
