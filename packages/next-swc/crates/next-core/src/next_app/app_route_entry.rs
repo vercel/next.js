@@ -31,13 +31,7 @@ pub async fn get_app_route_entry(
     page: AppPage,
     project_root: Vc<FileSystemPath>,
 ) -> Result<Vc<AppEntry>> {
-    let config = parse_segment_config_from_source(
-        nodejs_context.process(
-            source,
-            Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),
-        ),
-        source,
-    );
+    let config = parse_segment_config_from_source(source);
     let is_edge = matches!(config.await?.runtime, Some(NextRuntime::Edge));
     let context = if is_edge {
         edge_context
