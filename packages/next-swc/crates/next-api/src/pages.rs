@@ -612,6 +612,7 @@ impl PageEndpoint {
                 self.source(),
                 this.original_name,
                 config.runtime,
+                this.pages_project.project().next_config(),
             );
 
             let mut evaluatable_assets = edge_runtime_entries.await?.clone_value();
@@ -645,6 +646,7 @@ impl PageEndpoint {
                 self.source(),
                 this.original_name,
                 config.runtime,
+                this.pages_project.project().next_config(),
             );
 
             let asset_path = get_asset_path_from_pathname(&this.pathname.await?, ".js");
@@ -926,8 +928,15 @@ impl PageEndpoint {
                 }
                 server_assets.extend(files_value.iter().copied());
 
+                let mut file_paths_from_root = vec![
+                    "server/server-reference-manifest.js".to_string(),
+                    "server/middleware-build-manifest.js".to_string(),
+                    "server/middleware-react-loadable-manifest.js".to_string(),
+                    "server/next-font-manifest.js".to_string(),
+                ];
+
                 let node_root_value = node_root.await?;
-                let files_paths_from_root: Vec<String> = files_value
+                let middleware_paths_from_root: Vec<String> = files_value
                     .iter()
                     .map(move |&file| {
                         let node_root_value = node_root_value.clone();
@@ -940,6 +949,8 @@ impl PageEndpoint {
                     .try_flat_join()
                     .await?;
 
+                file_paths_from_root.extend(middleware_paths_from_root);
+
                 let pathname = this.pathname.await?;
                 let named_regex = get_named_middleware_regex(&pathname);
                 let matchers = MiddlewareMatcher {
@@ -949,7 +960,7 @@ impl PageEndpoint {
                 };
                 let original_name = this.original_name.await?;
                 let edge_function_definition = EdgeFunctionDefinition {
-                    files: files_paths_from_root,
+                    files: file_paths_from_root,
                     name: pathname.to_string(),
                     page: original_name.to_string(),
                     regions: None,
