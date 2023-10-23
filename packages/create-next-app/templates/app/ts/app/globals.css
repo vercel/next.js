@@ -1,3 +1,14 @@
+/**
+ * Ensure the viewport is always filled.
+ */
+html,
+body,
+#__next,
+main {
+  width: 100%;
+  min-height: 100vh;
+}
+
 :root {
   --max-width: 1100px;
   --border-radius: 12px;

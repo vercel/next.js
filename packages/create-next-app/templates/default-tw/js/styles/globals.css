@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/**
+ * Ensure the viewport is always filled.
+ */
+html,
+body,
+#__next,
+main {
+  width: 100%;
+  min-height: 100vh;
+}
+
 :root {
   --foreground-rgb: 0, 0, 0;
   --background-start-rgb: 214, 219, 220;
