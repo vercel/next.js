@@ -5,10 +5,6 @@ import type {
 } from '../../../build/webpack/plugins/middleware-plugin'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
 import { AsyncLocalStorage } from 'async_hooks'
-// import {
-//   decorateServerError,
-//   getServerError,
-// } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
 import {
   COMPILER_NAMES,
   EDGE_UNSUPPORTED_NODE_APIS,
