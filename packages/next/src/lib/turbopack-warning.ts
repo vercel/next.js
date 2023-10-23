@@ -182,7 +182,7 @@ export async function validateTurboNextConfig({
   if (babelrc) babelrc = path.basename(babelrc)
 
   let hasWebpack = false
-  let hasTurbo = false
+  let hasTurbo = !!process.env.TURBOPACK
 
   let unsupportedConfig: string[] = []
   let rawNextConfig: NextConfig = {}
@@ -259,7 +259,7 @@ export async function validateTurboNextConfig({
       }
     }
   } catch (e) {
-    console.error('Unexpected error occurred while checking config', e)
+    Log.error('Unexpected error occurred while checking config', e)
   }
 
   let feedbackMessage = `Learn more about Next.js v13 and Turbopack: ${underline(
@@ -267,16 +267,16 @@ export async function validateTurboNextConfig({
   )}\n`
 
   if (hasWebpack && !hasTurbo) {
-    console.warn(
-      `\n${yellow(
-        'Warning:'
-      )} Webpack is configured while Turbopack is not, which may cause problems.\n
-  ${`See instructions if you need to configure Turbopack:\n  https://turbo.build/pack/docs/features/customizing-turbopack\n`}`
+    Log.warn(
+      `Webpack is configured while Turbopack is not, which may cause problems.`
+    )
+    Log.warn(
+      `See instructions if you need to configure Turbopack:\n  https://turbo.build/pack/docs/features/customizing-turbopack\n`
     )
   }
 
   if (babelrc) {
-    unsupportedParts += `\n- Babel detected (${cyan(
+    unsupportedParts += `Babel detected (${cyan(
       babelrc
     )})\n  Babel is not yet supported. To use Turbopack at the moment,\n  you'll need to remove your usage of Babel.`
   }
@@ -285,10 +285,8 @@ export async function validateTurboNextConfig({
     unsupportedConfig.length === 1 &&
     unsupportedConfig[0] === 'experimental.optimizePackageImports'
   ) {
-    console.warn(
-      `\n${yellow('Warning:')} ${cyan(
-        'experimental.optimizePackageImports'
-      )} is not yet supported by Turbopack and will be ignored.`
+    Log.warn(
+      `'experimental.optimizePackageImports' is not yet supported by Turbopack and will be ignored.`
     )
   } else if (unsupportedConfig.length) {
     unsupportedParts += `\n\n- Unsupported Next.js configuration option(s) (${cyan(

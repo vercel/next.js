@@ -1,6 +1,6 @@
 import { loadEnvConfig } from '@next/env'
 import * as Log from '../../build/output/log'
-import { bold, linearGradient, purple } from '../../lib/picocolors'
+import { bold, purple } from '../../lib/picocolors'
 import { PHASE_DEVELOPMENT_SERVER } from '../../shared/lib/constants'
 import loadConfig, { getEnabledExperimentalFeatures } from '../config'
 
@@ -19,12 +19,9 @@ export function logStartInfo({
   formatDurationText: string | null
   maxExperimentalFeatures?: number
 }) {
-  const colorFormat = process.env.TURBOPACK
-    ? (text: string) => linearGradient(text, [0, 0, 255], [255, 0, 0])
-    : purple
   Log.bootstrap(
     bold(
-      colorFormat(
+      purple(
         `${Log.prefixes.ready} Next.js ${process.env.__NEXT_VERSION}${
           process.env.TURBOPACK ? ' (turbo)' : ''
         }`
