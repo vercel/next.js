@@ -2438,7 +2438,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     } else if (cachedData.kind === 'ROUTE') {
       const headers = { ...cachedData.headers }
 
-      if (!(this.minimalMode && isSSG)) {
+      if (
+        !(
+          (this.minimalMode || this.nextConfig.output === 'standalone') &&
+          isSSG
+        )
+      ) {
         delete headers[NEXT_CACHE_TAGS_HEADER]
       }
 
@@ -2454,7 +2459,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     } else {
       if (isAppPath) {
         if (
-          this.minimalMode &&
+          (this.minimalMode || this.nextConfig.output === 'standalone') &&
           isSSG &&
           cachedData.headers?.[NEXT_CACHE_TAGS_HEADER]
         ) {
