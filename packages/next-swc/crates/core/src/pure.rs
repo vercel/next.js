@@ -26,6 +26,8 @@ where
     comments: C,
 }
 
+const MODULE: &str = "next";
+
 impl<C> VisitMut for PureTransform<C>
 where
     C: Comments,
@@ -40,7 +42,7 @@ where
             ..
         }) = e
         {
-            if !self.imports.is_import(callee, "@next/magic", "markAsPure") {
+            if !self.imports.is_import(callee, MODULE, "markAsPure") {
                 return;
             }
 
@@ -67,7 +69,7 @@ where
 
     fn visit_mut_module_item(&mut self, m: &mut ModuleItem) {
         if let ModuleItem::ModuleDecl(ModuleDecl::Import(import)) = m {
-            if import.src.value == "@next/matic" {
+            if import.src.value == MODULE {
                 *m = ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
                 return;
             }
