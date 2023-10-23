@@ -507,7 +507,6 @@ export default async function build(
       logStartInfo({
         networkUrl: null,
         appUrl: null,
-        formatDurationText: null,
         envInfo,
         expFeatureInfo,
       })
@@ -2149,7 +2148,6 @@ export default async function build(
           }
 
           const exportOptions: ExportAppOptions = {
-            isInvokedFromCli: false,
             nextConfig: exportConfig,
             hasAppDir,
             silent: false,
@@ -2835,7 +2833,6 @@ export default async function build(
         )
 
         const options: ExportAppOptions = {
-          isInvokedFromCli: false,
           buildExport: false,
           nextConfig: config,
           hasAppDir,

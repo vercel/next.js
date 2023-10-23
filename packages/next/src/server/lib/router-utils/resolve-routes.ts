@@ -10,6 +10,7 @@ import type { UnwrapPromise } from '../../../lib/coalesced-function'
 import type { NextUrlWithParsedQuery } from '../../request-meta'
 
 import url from 'url'
+import path from 'node:path'
 import setupDebug from 'next/dist/compiled/debug'
 import { getCloneableBody } from '../../body-streams'
 import { filterReqHeaders, ipcForbiddenHeaders } from '../server-ipc/utils'
@@ -26,6 +27,8 @@ import { pathHasPrefix } from '../../../shared/lib/router/utils/path-has-prefix'
 import { detectDomainLocale } from '../../../shared/lib/i18n/detect-domain-locale'
 import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-path'
 import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-prefix'
+import { NextDataPathnameNormalizer } from '../../future/normalizers/request/next-data'
+import { BasePathPathnameNormalizer } from '../../future/normalizers/request/base-path'
 
 import { addRequestMeta } from '../../request-meta'
 import {
@@ -289,6 +292,11 @@ export function getResolveRoutes(
       }
     }
 
+    const normalizers = {
+      basePath: new BasePathPathnameNormalizer(config.basePath),
+      data: new NextDataPathnameNormalizer(fsChecker.buildId),
+    }
+
     async function handleRoute(
       route: (typeof routes)[0]
     ): Promise<UnwrapPromise<ReturnType<typeof resolveRoutes>> | void> {
@@ -354,33 +362,28 @@ export function getResolveRoutes(
           }
         }
 
-        if (route.name === 'middleware_next_data') {
+        if (route.name === 'middleware_next_data' && parsedUrl.pathname) {
           if (fsChecker.getMiddlewareMatchers()?.length) {
-            const nextDataPrefix = addPathPrefix(
-              `/_next/data/${fsChecker.buildId}/`,
-              config.basePath
-            )
+            let normalized = parsedUrl.pathname
 
-            if (
-              parsedUrl.pathname?.startsWith(nextDataPrefix) &&
-              parsedUrl.pathname.endsWith('.json')
-            ) {
+            // Remove the base path if it exists.
+            const hadBasePath = normalizers.basePath.match(parsedUrl.pathname)
+            if (hadBasePath) {
+              normalized = normalizers.basePath.normalize(normalized, true)
+            }
+
+            if (normalizers.data.match(normalized)) {
               parsedUrl.query.__nextDataReq = '1'
-              parsedUrl.pathname = parsedUrl.pathname.substring(
-                nextDataPrefix.length - 1
-              )
-              parsedUrl.pathname = parsedUrl.pathname.substring(
-                0,
-                parsedUrl.pathname.length - '.json'.length
-              )
-              parsedUrl.pathname = addPathPrefix(
-                parsedUrl.pathname || '',
-                config.basePath
-              )
-              parsedUrl.pathname =
-                parsedUrl.pathname === '/index' ? '/' : parsedUrl.pathname
+              normalized = normalizers.data.normalize(normalized, true)
 
-              parsedUrl.pathname = maybeAddTrailingSlash(parsedUrl.pathname)
+              if (hadBasePath) {
+                normalized = path.posix.join(config.basePath, normalized)
+              }
+
+              // Re-add the trailing slash (if required).
+              normalized = maybeAddTrailingSlash(normalized)
+
+              parsedUrl.pathname = normalized
             }
           }
         }

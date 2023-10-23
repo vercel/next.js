@@ -39,6 +39,7 @@ import {
 } from '../../../shared/lib/constants'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
+import { RSCPathnameNormalizer } from '../../future/normalizers/request/rsc'
 
 export type FsOutput = {
   type:
@@ -367,6 +368,12 @@ export async function setupFsCheck(opts: {
 
   let ensureFn: (item: FsOutput) => Promise<void> | undefined
 
+  const normalizers = {
+    // Because we can't know if the app directory is enabled or not at this
+    // stage, we assume that it is.
+    rsc: new RSCPathnameNormalizer(true),
+  }
+
   return {
     headers,
     rewrites,
@@ -402,10 +409,10 @@ export async function setupFsCheck(opts: {
         return lruResult
       }
 
-      // handle minimal mode case with .rsc output path (this is
-      // mostly for testings)
-      if (opts.minimalMode && itemPath.endsWith('.rsc')) {
-        itemPath = itemPath.substring(0, itemPath.length - '.rsc'.length)
+      // Handle minimal mode case with .rsc output path (this is
+      // mostly for testing).
+      if (opts.minimalMode && normalizers.rsc.match(itemPath)) {
+        itemPath = normalizers.rsc.normalize(itemPath, true)
       }
 
       const { basePath } = opts.config

@@ -38,6 +38,7 @@ import type { PagesModule } from './future/route-modules/pages/module'
 import type { ComponentsEnhancer } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
 import type { Revalidate } from './lib/revalidate'
+import type { COMPILER_NAMES } from '../shared/lib/constants'
 
 import React from 'react'
 import ReactDOMServer from 'react-dom/server.browser'
@@ -51,9 +52,7 @@ import {
   SERVER_PROPS_SSG_CONFLICT,
   SSG_GET_INITIAL_PROPS_CONFLICT,
   UNSTABLE_REVALIDATE_RENAME_ERROR,
-  CACHE_ONE_YEAR,
 } from '../lib/constants'
-import type { COMPILER_NAMES } from '../shared/lib/constants'
 import {
   NEXT_BUILTIN_DOCUMENT,
   SERVER_PROPS_ID,
@@ -105,7 +104,7 @@ import {
 import { getTracer } from './lib/trace/tracer'
 import { RenderSpan } from './lib/trace/constants'
 import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
-import { setRevalidateHeaders } from './send-payload'
+import { formatRevalidate } from './lib/revalidate'
 
 let tryGetPreviewData: typeof import('./api-utils/node/try-get-preview-data').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -510,11 +509,7 @@ export async function renderToHTMLImpl(
   // ensure we set cache header so it's not rendered on-demand
   // every request
   if (isAutoExport && !dev && isExperimentalCompile) {
-    setRevalidateHeaders(res, {
-      revalidate: CACHE_ONE_YEAR,
-      private: false,
-      stateful: false,
-    })
+    res.setHeader('Cache-Control', formatRevalidate(false))
     isAutoExport = false
   }
 

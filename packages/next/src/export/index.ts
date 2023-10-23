@@ -222,31 +222,6 @@ export async function exportAppImpl(
       .traceAsyncFn(() => loadConfig(PHASE_EXPORT, dir)))
 
   const distDir = join(dir, nextConfig.distDir)
-  const isExportOutput = nextConfig.output === 'export'
-
-  // Running 'next export'
-  if (options.isInvokedFromCli) {
-    if (isExportOutput) {
-      if (options.hasOutdirFromCli) {
-        throw new ExportError(
-          '"next export -o <dir>" cannot be used when "output: export" is configured in next.config.js. Instead add "distDir" in next.config.js https://nextjs.org/docs/advanced-features/static-html-export'
-        )
-      }
-      Log.warn(
-        '"next export" is no longer needed when "output: export" is configured in next.config.js https://nextjs.org/docs/advanced-features/static-html-export'
-      )
-      return null
-    }
-    if (existsSync(join(distDir, 'server', 'app'))) {
-      throw new ExportError(
-        '"next export" does not work with App Router. Please use "output: export" in next.config.js https://nextjs.org/docs/advanced-features/static-html-export'
-      )
-    }
-    Log.warn(
-      '"next export" is deprecated in favor of "output: export" in next.config.js https://nextjs.org/docs/advanced-features/static-html-export'
-    )
-  }
-
   const telemetry = options.buildExport ? null : new Telemetry({ distDir })
 
   if (telemetry) {
@@ -475,7 +450,7 @@ export async function exportAppImpl(
       SERVER_DIRECTORY,
       SERVER_REFERENCE_MANIFEST + '.json'
     ))
-    if (options.isInvokedFromCli || isExportOutput) {
+    if (nextConfig.output === 'export') {
       if (
         Object.keys(serverActionsManifest.node).length > 0 ||
         Object.keys(serverActionsManifest.edge).length > 0
@@ -629,7 +604,7 @@ export async function exportAppImpl(
 
     // Warn if the user defines a path for an API page
     if (hasApiRoutes || hasMiddleware) {
-      if (!options.silent) {
+      if (nextConfig.output === 'export') {
         Log.warn(
           yellow(
             `Statically exporting a Next.js application via \`next export\` disables API routes and middleware.`
