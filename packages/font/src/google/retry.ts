@@ -1,4 +1,3 @@
-// eslint-disable-next-line import/no-extraneous-dependencies
 import asyncRetry from 'async-retry'
 
 export async function retry<T>(
