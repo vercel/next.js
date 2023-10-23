@@ -1289,7 +1289,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             if !args.is_empty() {
                 let mut show_dynamic_warning = false;
                 let pat = js_value_to_pattern(&args[0]);
-                if pat.is_match("node") && args.len() >= 2 {
+                if pat.is_match_ignore_dynamic("node") && args.len() >= 2 {
                     let first_arg =
                         JsValue::member(Box::new(args[1].clone()), Box::new(0_f64.into()));
                     let first_arg = state.link_value(first_arg, in_try).await?;
