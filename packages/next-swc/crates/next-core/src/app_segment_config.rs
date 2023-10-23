@@ -11,7 +11,6 @@ use turbo_tasks::{trace::TraceRawVcs, TryJoinIterExt, ValueDefault, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_binding::turbopack::{
     core::{
-        context::AssetContext,
         file_source::FileSource,
         ident::AssetIdent,
         issue::{Issue, IssueExt, IssueSeverity, IssueSource, OptionIssueSource},
@@ -410,7 +409,7 @@ pub async fn parse_segment_config_from_loader_tree(
         .parallel_routes
         .values()
         .copied()
-        .map(|tree| parse_segment_config_from_loader_tree(tree))
+        .map(parse_segment_config_from_loader_tree)
         .try_join()
         .await?;
     for tree in parallel_configs {
