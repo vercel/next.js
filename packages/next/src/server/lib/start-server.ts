@@ -20,7 +20,7 @@ import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
 import { CONFIG_FILES } from '../../shared/lib/constants'
 import { getStartServerInfo, logStartInfo } from './app-info-log'
-
+import v8 from 'v8'
 const debug = setupDebug('next:start-server')
 
 export interface StartServerOptions {
@@ -136,6 +136,18 @@ export async function startServer({
       res.end('Internal Server Error')
       Log.error(`Failed to handle request for ${req.url}`)
       console.error(err)
+    } finally {
+      if (isDev) {
+        if (
+          v8.getHeapStatistics().used_heap_size >
+          0.8 * v8.getHeapStatistics().heap_size_limit
+        ) {
+          Log.warn(
+            `Server is approaching the used memory threshold, restarting...`
+          )
+          process.exit(RESTART_EXIT_CODE)
+        }
+      }
     }
   }
 
