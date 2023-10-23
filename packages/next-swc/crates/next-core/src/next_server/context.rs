@@ -443,6 +443,16 @@ pub async fn get_server_module_options_context(
                 ..module_options_context.clone()
             };
 
+            // Get the jsx transform options for the `client` side.
+            // This matches to the behavior of existing webpack config, if issuer layer is
+            // ssr or pages-browser (client bundle for the browser)
+            // applies client specific swc transforms.
+            //
+            // This enables correct emotion transform and other hydration between server and
+            // client bundles. ref: https://github.com/vercel/next.js/blob/4bbf9b6c70d2aa4237defe2bebfa790cdb7e334e/packages/next/src/build/webpack-config.ts#L1421-L1426
+            let jsx_runtime_options =
+                get_jsx_transform_options(project_path, mode, None, false, next_config);
+
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
                 enable_postcss_transform,
