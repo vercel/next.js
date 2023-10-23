@@ -1,6 +1,10 @@
 import { createNextDescribe } from 'e2e-utils'
 
-for (const type of ['with-mdx-rs', 'without-mdx-rs']) {
+for (const type of [
+  'with-mdx-rs',
+  // only mdx-rs should work with turbopack
+  ...(process.env.TURBOPACK ? [] : ['without-mdx-rs']),
+]) {
   createNextDescribe(
     `mdx ${type}`,
     {
