@@ -1,4 +1,3 @@
-import React from 'react'
 import { DynamicServerError } from './hooks-server-context'
 import { staticGenerationAsyncStorage } from './static-generation-async-storage.external'
 
@@ -55,13 +54,14 @@ export const staticGenerationBailout: StaticGenerationBailout = (
       link: 'https://nextjs.org/docs/messages/dynamic-server-error',
     })
 
-    if (
-      staticGenerationStore?.experimental.ppr &&
+    if (staticGenerationStore?.experimental.ppr) {
+      const React = require('react') as typeof import('react')
+
       // App Route's cannot be postponed, so we only postpone if it's a page.
-      typeof React.unstable_postpone === 'function'
-    ) {
-      // This throws a postpone error similar to the below error.
-      React.unstable_postpone(message)
+      if (typeof React.unstable_postpone === 'function') {
+        // This throws a postpone error similar to the below error.
+        React.unstable_postpone(message)
+      }
     }
 
     const err = new DynamicServerError(message)

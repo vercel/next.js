@@ -1,6 +1,3 @@
-import { prerender } from 'react-dom/static.edge'
-import { resume, renderToReadableStream } from 'react-dom/server.edge'
-
 type StreamOptions = {
   onError?: (error: Error) => void
   nonce?: string
@@ -22,28 +19,38 @@ export interface Renderer {
 }
 
 class StaticRenderer implements Renderer {
+  private readonly prerender = require('react-dom/static.edge')
+    .prerender as typeof import('react-dom/static.edge')['prerender']
+
   public async render(children: JSX.Element, streamOptions: StreamOptions) {
-    const { prelude, postponed } = await prerender(children, streamOptions)
+    const { prelude, postponed } = await this.prerender(children, streamOptions)
+
     return { stream: prelude, postponed }
   }
 }
 
 class StaticResumeRenderer implements Renderer {
+  private readonly resume = require('react-dom/server.edge')
+    .resume as typeof import('react-dom/server.edge')['resume']
+
   constructor(private readonly postponed: object) {}
 
   public async render(children: JSX.Element, streamOptions: StreamOptions) {
-    const stream = await resume(children, this.postponed, streamOptions)
+    const stream = await this.resume(children, this.postponed, streamOptions)
 
     return { stream }
   }
 }
 
 export class ServerRenderer implements Renderer {
+  private readonly renderToReadableStream = require('react-dom/server.edge')
+    .renderToReadableStream as typeof import('react-dom/server.edge')['renderToReadableStream']
+
   public async render(
     children: JSX.Element,
     options: StreamOptions
   ): Promise<RenderResult> {
-    const stream = await renderToReadableStream(children, options)
+    const stream = await this.renderToReadableStream(children, options)
     return { stream }
   }
 }
