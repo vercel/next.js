@@ -402,7 +402,6 @@ fn parse_config_value(
 #[turbo_tasks::function]
 pub async fn parse_segment_config_from_loader_tree(
     loader_tree: Vc<LoaderTree>,
-    context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<NextSegmentConfig>> {
     let loader_tree = loader_tree.await?;
     let components = loader_tree.components.await?;
@@ -411,7 +410,7 @@ pub async fn parse_segment_config_from_loader_tree(
         .parallel_routes
         .values()
         .copied()
-        .map(|tree| parse_segment_config_from_loader_tree(tree, context))
+        .map(|tree| parse_segment_config_from_loader_tree(tree))
         .try_join()
         .await?;
     for tree in parallel_configs {
