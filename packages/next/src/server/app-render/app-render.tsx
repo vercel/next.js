@@ -617,6 +617,7 @@ async function renderToHTMLOrFlightImpl(
     formState: null,
     ComponentMod,
     serverComponentsErrorHandler,
+    nonce,
   }
 
   const validateRootLayout = dev
