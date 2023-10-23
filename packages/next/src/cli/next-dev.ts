@@ -2,7 +2,15 @@
 
 import '../server/lib/cpu-profile'
 import type { StartServerOptions } from '../server/lib/start-server'
-import { RESTART_EXIT_CODE, getPort, printAndExit } from '../server/lib/utils'
+import {
+  RESTART_EXIT_CODE,
+  checkNodeDebugType,
+  getDebugPort,
+  getMaxOldSpaceSize,
+  getNodeOptionsWithoutInspect,
+  getPort,
+  printAndExit,
+} from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import type { CliCommand } from '../lib/commands'
 import { getProjectDir } from '../lib/get-project-dir'
@@ -20,12 +28,12 @@ import type { SelfSignedCertificate } from '../lib/mkcert'
 import uploadTrace from '../trace/upload-trace'
 import { initialEnv } from '@next/env'
 import { trace } from '../trace'
-import { validateTurboNextConfig } from '../lib/turbopack-warning'
 import { fork } from 'child_process'
 import {
   getReservedPortExplanation,
   isPortIsReserved,
 } from '../lib/helpers/get-reserved-port'
+import os from 'os'
 
 let dir: string
 let child: undefined | ReturnType<typeof fork>
@@ -205,13 +213,7 @@ const nextDev: CliCommand = async (args) => {
     process.env.TURBOPACK = '1'
   }
 
-  if (process.env.TURBOPACK) {
-    isTurboSession = true
-    await validateTurboNextConfig({
-      ...devServerOptions,
-      isDev: true,
-    })
-  }
+  isTurboSession = !!process.env.TURBOPACK
 
   const distDir = path.join(dir, config.distDir ?? '.next')
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
@@ -223,6 +225,25 @@ const nextDev: CliCommand = async (args) => {
       let resolved = false
       const defaultEnv = (initialEnv || process.env) as typeof process.env
 
+      let NODE_OPTIONS = getNodeOptionsWithoutInspect()
+      let nodeDebugType = checkNodeDebugType()
+
+      const maxOldSpaceSize = getMaxOldSpaceSize()
+
+      if (!maxOldSpaceSize && !process.env.NEXT_DISABLE_MEM_OVERRIDE) {
+        const totalMem = os.totalmem()
+        const totalMemInMB = Math.floor(totalMem / 1024 / 1024)
+        NODE_OPTIONS = `${NODE_OPTIONS} --max-old-space-size=${Math.floor(
+          totalMemInMB * 0.5
+        )}`
+      }
+
+      if (nodeDebugType) {
+        NODE_OPTIONS = `${NODE_OPTIONS} --${nodeDebugType}=${
+          getDebugPort() + 1
+        }`
+      }
+
       child = fork(startServerPath, {
         stdio: 'inherit',
         env: {
@@ -232,6 +253,7 @@ const nextDev: CliCommand = async (args) => {
           NODE_EXTRA_CA_CERTS: options.selfSignedCertificate
             ? options.selfSignedCertificate.rootCA
             : defaultEnv.NODE_EXTRA_CA_CERTS,
+          NODE_OPTIONS,
         },
       })
 
