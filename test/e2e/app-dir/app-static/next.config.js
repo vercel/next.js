@@ -4,7 +4,6 @@ module.exports = {
     logging: {
       level: 'verbose',
     },
-    serverActions: true,
     incrementalCacheHandlerPath: process.env.CUSTOM_CACHE_HANDLER,
   },
 

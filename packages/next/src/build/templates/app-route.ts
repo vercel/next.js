@@ -1,5 +1,3 @@
-import '../../server/node-polyfill-headers'
-
 import {
   AppRouteRouteModule,
   type AppRouteRouteModuleOptions,

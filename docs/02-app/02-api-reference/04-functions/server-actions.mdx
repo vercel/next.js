@@ -15,16 +15,6 @@ Next.js integrates with React Actions to provide a built-in solution for [server
 
 ## Convention
 
-You can enable Server Actions in your Next.js project by enabling the **experimental** `serverActions` flag.
-
-```js filename="next.config.js"
-module.exports = {
-  experimental: {
-    serverActions: true,
-  },
-}
-```
-
 Server Actions can be defined in two places:
 
 - Inside the component that uses it (Server Components only).
@@ -157,7 +147,6 @@ However, you can configure this limit using the `serverActionsBodySizeLimit` opt
 ```js filename="next.config.js"
 module.exports = {
   experimental: {
-    serverActions: true,
     serverActionsBodySizeLimit: '2mb',
   },
 }
