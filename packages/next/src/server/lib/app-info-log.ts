@@ -20,22 +20,22 @@ export function logStartInfo({
   Log.bootstrap(
     bold(
       purple(
-        `${Log.prefixes.ready} Next.js ${process.env.__NEXT_VERSION}${
+        ` ${Log.prefixes.ready} Next.js ${process.env.__NEXT_VERSION}${
           process.env.TURBOPACK ? ' (turbo)' : ''
         }`
       )
     )
   )
   if (appUrl) {
-    Log.bootstrap(`- Local:        ${appUrl}`)
+    Log.bootstrap(` - Local:        ${appUrl}`)
   }
   if (networkUrl) {
-    Log.bootstrap(`- Network:      ${networkUrl}`)
+    Log.bootstrap(` - Network:      ${networkUrl}`)
   }
-  if (envInfo?.length) Log.bootstrap(`- Environments: ${envInfo.join(', ')}`)
+  if (envInfo?.length) Log.bootstrap(` - Environments: ${envInfo.join(', ')}`)
 
   if (expFeatureInfo?.length) {
-    Log.bootstrap(`- Experiments (use at your own risk):`)
+    Log.bootstrap(` - Experiments (use at your own risk):`)
     // only show maximum 3 flags
     for (const exp of expFeatureInfo.slice(0, maxExperimentalFeatures)) {
       Log.bootstrap(`   · ${exp}`)
