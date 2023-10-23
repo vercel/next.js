@@ -691,6 +691,7 @@ impl Project {
                 Value::new(ServerContextType::Middleware),
                 NextMode::Development,
                 self.next_config(),
+                None,
             ),
             get_edge_resolve_options_context(
                 self.project_path(),

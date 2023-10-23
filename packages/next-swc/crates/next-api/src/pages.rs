@@ -280,6 +280,7 @@ impl PagesProject {
             }),
             this.mode,
             self.project().next_config(),
+            None,
         ))
     }
 
@@ -363,6 +364,7 @@ impl PagesProject {
             }),
             this.mode,
             self.project().next_config(),
+            None,
         ))
     }
 
@@ -377,6 +379,7 @@ impl PagesProject {
             }),
             this.mode,
             self.project().next_config(),
+            None,
         ))
     }
 

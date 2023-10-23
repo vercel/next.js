@@ -99,6 +99,7 @@ impl AppProject {
 }
 
 const ECMASCRIPT_CLIENT_TRANSITION_NAME: &str = "next-ecmascript-client-reference";
+const ECMASCRIPT_SERVER_TRANSITION_NAME: &str = "next-ecmascript-server-reference";
 
 #[turbo_tasks::value_impl]
 impl AppProject {
@@ -142,6 +143,7 @@ impl AppProject {
             Value::new(self.client_ty()),
             this.mode,
             self.project().next_config(),
+            Some(self.server_transition_name()),
         ))
     }
 
@@ -163,6 +165,11 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
+    fn server_transition_name(self: Vc<Self>) -> Vc<String> {
+        Vc::cell(ECMASCRIPT_SERVER_TRANSITION_NAME.to_string())
+    }
+
+    #[turbo_tasks::function]
     fn client_transition(self: Vc<Self>) -> Vc<ContextTransition> {
         ContextTransition::new(
             self.project().client_compile_time_info(),
@@ -181,6 +188,7 @@ impl AppProject {
             Value::new(self.rsc_ty()),
             this.mode,
             self.project().next_config(),
+            Some(self.server_transition_name()),
         ))
     }
 
@@ -213,6 +221,13 @@ impl AppProject {
         let transitions = [
             (
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.to_string(),
+                Vc::upcast(NextEcmascriptClientReferenceTransition::new(
+                    self.client_transition(),
+                    self.ssr_transition(),
+                )),
+            ),
+            (
+                ECMASCRIPT_SERVER_TRANSITION_NAME.to_string(),
                 Vc::upcast(NextEcmascriptClientReferenceTransition::new(
                     self.client_transition(),
                     self.ssr_transition(),
@@ -285,6 +300,7 @@ impl AppProject {
             Value::new(self.ssr_ty()),
             this.mode,
             self.project().next_config(),
+            Some(self.server_transition_name()),
         ))
     }
 

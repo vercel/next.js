@@ -244,6 +244,7 @@ pub async fn get_server_module_options_context(
     ty: Value<ServerContextType>,
     mode: NextMode,
     next_config: Vc<NextConfig>,
+    server_transition_name: Option<Vc<String>>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let custom_rules = get_next_server_transforms_rules(next_config, ty.into_value(), mode).await?;
     let internal_custom_rules = get_next_server_internal_transforms_rules(ty.into_value()).await?;
@@ -291,12 +292,8 @@ pub async fn get_server_module_options_context(
     let styled_components_transform_plugin =
         *get_styled_components_transform_plugin(next_config).await?;
     let styled_jsx_transform_plugin = *get_styled_jsx_transform_plugin().await?;
-    let server_directive_transform_plugin =
-        Some(Vc::cell(Box::new(ServerDirectiveTransformer::new(
-            // ServerDirective is not implemented yet and always reports an issue.
-            // We don't have to pass a valid transition name yet, but the API is prepared.
-            &Vc::cell("TODO".to_string()),
-        )) as _));
+    let server_directive_transform_plugin = server_transition_name
+        .map(|name| Vc::cell(Box::new(ServerDirectiveTransformer::new(name)) as _));
 
     // ModuleOptionsContext related options
     let tsconfig = get_typescript_transform_options(project_path);

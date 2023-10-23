@@ -40,6 +40,9 @@ use turbopack_binding::{
     },
 };
 
+const ECMASCRIPT_CLIENT_TRANSITION_NAME: &str = "next-ecmascript-client-reference";
+const ECMASCRIPT_SERVER_TRANSITION_NAME: &str = "next-ecmascript-server-reference";
+
 #[turbo_tasks::value]
 pub struct AppEntries {
     /// All app entries.
@@ -98,6 +101,7 @@ pub async fn get_app_entries(
         client_ty,
         mode,
         next_config,
+        Some(Vc::cell(ECMASCRIPT_SERVER_TRANSITION_NAME.to_string())),
     );
 
     let client_resolve_options_context = get_client_resolve_options_context(
@@ -123,12 +127,14 @@ pub async fn get_app_entries(
         execution_context,
     );
 
+    let server_transition_name = Vc::cell(ECMASCRIPT_SERVER_TRANSITION_NAME.to_string());
     let ssr_module_options_context = get_server_module_options_context(
         project_root,
         execution_context,
         ssr_ty,
         mode,
         next_config,
+        Some(server_transition_name),
     );
 
     let ssr_transition = ContextTransition::new(
@@ -140,8 +146,6 @@ pub async fn get_app_entries(
 
     transitions.insert("next-ssr".to_string(), Vc::upcast(ssr_transition));
 
-    const ECMASCRIPT_CLIENT_TRANSITION_NAME: &str = "next-ecmascript-client-reference";
-
     transitions.insert(
         ECMASCRIPT_CLIENT_TRANSITION_NAME.to_string(),
         Vc::upcast(NextEcmascriptClientReferenceTransition::new(
@@ -149,6 +153,14 @@ pub async fn get_app_entries(
             ssr_transition,
         )),
     );
+    // TODO:
+    // transitions.insert(
+    // ECMASCRIPT_SERVER_TRANSITION_NAME.to_string(),
+    // Vc::upcast(NextEcmascriptClientReferenceTransition::new(
+    // client_transition,
+    // ssr_transition,
+    // )),
+    // );
 
     let client_ty = Value::new(ClientContextType::App { app_dir });
     transitions.insert(
@@ -170,6 +182,7 @@ pub async fn get_app_entries(
         rsc_ty,
         mode,
         next_config,
+        Some(server_transition_name),
     );
     let rsc_resolve_options_context = get_server_resolve_options_context(
         project_root,

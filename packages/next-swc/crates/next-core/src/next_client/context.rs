@@ -181,6 +181,7 @@ pub async fn get_client_module_options_context(
     ty: Value<ClientContextType>,
     mode: NextMode,
     next_config: Vc<NextConfig>,
+    server_transition_name: Option<Vc<String>>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let custom_rules = get_next_client_transforms_rules(next_config, ty.into_value(), mode).await?;
     let resolve_options_context =
@@ -244,11 +245,8 @@ pub async fn get_client_module_options_context(
         *get_emotion_transform_plugin(next_config).await?,
         *get_styled_components_transform_plugin(next_config).await?,
         *get_styled_jsx_transform_plugin().await?,
-        Some(Vc::cell(Box::new(ServerDirectiveTransformer::new(
-            // ServerDirective is not implemented yet and always reports an issue.
-            // We don't have to pass a valid transition name yet, but the API is prepared.
-            &Vc::cell("TODO".to_string()),
-        )) as _)),
+        server_transition_name
+            .map(|name| Vc::cell(Box::new(ServerDirectiveTransformer::new(name)) as _)),
     ]
     .into_iter()
     .flatten()
