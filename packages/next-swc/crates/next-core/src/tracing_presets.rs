@@ -7,7 +7,9 @@ pub static TRACING_NEXT_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
     [
         &TRACING_OVERVIEW_TARGETS[..],
         &[
-            "next_dev=trace",
+            "next_swc_napi=trace",
+            "wasm=trace",
+            "next_swc=trace",
             "next_core=trace",
             "next_font=trace",
             "turbopack_node=trace",
@@ -19,6 +21,7 @@ pub static TRACING_NEXT_TURBOPACK_TARGETS: Lazy<Vec<&str>> =
     Lazy::new(|| [&TRACING_NEXT_TARGETS[..], &TRACING_TURBOPACK_TARGETS[..]].concat());
 pub static TRACING_NEXT_TURBO_TASKS_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
     [
+        &TRACING_NEXT_TARGETS[..],
         &TRACING_TURBOPACK_TARGETS[..],
         &TRACING_TURBO_TASKS_TARGETS[..],
     ]
