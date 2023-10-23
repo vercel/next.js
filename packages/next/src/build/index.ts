@@ -1043,6 +1043,7 @@ export default async function build(
           root,
           distDir: config.distDir,
           defineEnv: createDefineEnv({
+            isTurbopack: turboNextBuild,
             allowedRevalidateHeaderKeys:
               config.experimental.allowedRevalidateHeaderKeys,
             clientRouterFilters: NextBuildContext.clientRouterFilters,
@@ -2148,7 +2149,6 @@ export default async function build(
           }
 
           const exportOptions: ExportAppOptions = {
-            isInvokedFromCli: false,
             nextConfig: exportConfig,
             hasAppDir,
             silent: false,
@@ -2834,7 +2834,6 @@ export default async function build(
         )
 
         const options: ExportAppOptions = {
-          isInvokedFromCli: false,
           buildExport: false,
           nextConfig: config,
           hasAppDir,

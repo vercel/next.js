@@ -10,7 +10,7 @@ import { relativizeURL } from '../../shared/lib/router/utils/relativize-url'
 import { waitUntilSymbol } from './spec-extension/fetch-event'
 import { NextURL } from './next-url'
 import { stripInternalSearchParams } from '../internal-utils'
-import { normalizeRscPath } from '../../shared/lib/router/utils/app-paths'
+import { normalizeRscURL } from '../../shared/lib/router/utils/app-paths'
 import {
   NEXT_ROUTER_PREFETCH,
   NEXT_ROUTER_STATE_TREE,
@@ -72,7 +72,7 @@ export async function adapter(
       ? JSON.parse(self.__PRERENDER_MANIFEST)
       : undefined
 
-  params.request.url = normalizeRscPath(params.request.url, true)
+  params.request.url = normalizeRscURL(params.request.url)
 
   const requestUrl = new NextURL(params.request.url, {
     headers: params.request.headers,
