@@ -1337,6 +1337,7 @@ export async function renderToHTMLImpl(
             return renderToString(styledJsxInsertedHTML())
           },
           serverInsertedHTMLToHead: false,
+          validateRootLayout: undefined,
         })
       }
     )

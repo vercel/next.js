@@ -18,6 +18,7 @@ export function makeGetServerInsertedHTML({
   hasPostponed: boolean
 }) {
   let flushedErrorMetaTagsUntilIndex = 0
+  // If the render had postponed, then we have already flushed the polyfills.
   let polyfillsFlushed = hasPostponed
 
   return async function getServerInsertedHTML(serverCapturedErrors: Error[]) {

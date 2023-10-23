@@ -8,4 +8,5 @@ export const isDynamicUsageError = (err: any) =>
   isNotFoundError(err) ||
   err.digest === NEXT_DYNAMIC_NO_SSR_CODE ||
   isRedirectError(err) ||
+  // TODO: (wyattjoh) remove once we bump react
   err.$$typeof === Symbol.for('react.postpone')

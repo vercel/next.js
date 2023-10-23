@@ -26,6 +26,8 @@ import {
   renderToInitialFizzStream,
   continueFizzStream,
   cloneTransformStream,
+  type ContinueStreamOptions,
+  continuePostponedFizzStream,
 } from '../stream-utils/node-web-streams-helper'
 import { canSegmentBeOverridden } from '../../client/components/match-segments'
 import { stripInternalQueries } from '../internal-utils'
@@ -596,7 +598,7 @@ async function renderToHTMLOrFlightImpl(
   const hasPostponed = typeof renderOpts.postponed === 'string'
 
   let stringifiedFlightPayloadPromise =
-    (hasPostponed && !isStaticGeneration) || isStaticGeneration
+    isStaticGeneration || hasPostponed
       ? generateFlight(ctx)
           .then((renderResult) => renderResult.toUnchunkedString(true))
           .catch(() => null)
@@ -738,7 +740,7 @@ async function renderToHTMLOrFlightImpl(
           return stream
         }
 
-        return await continueFizzStream(stream, {
+        const options: ContinueStreamOptions = {
           inlinedDataStream:
             serverComponentsRenderOpts.inlinedDataTransformStream.readable,
           generateStaticHTML:
@@ -752,8 +754,15 @@ async function renderToHTMLOrFlightImpl(
             !postponed && !renderOpts.postponed
               ? validateRootLayout
               : undefined,
-          postponed: renderOpts.postponed ? 'resume' : undefined,
-        })
+          // App Render doesn't need to inject any additional suffixes.
+          suffix: undefined,
+        }
+
+        if (renderOpts.postponed) {
+          return continuePostponedFizzStream(stream, options)
+        }
+
+        return continueFizzStream(stream, options)
       } catch (err: any) {
         if (
           err.code === 'NEXT_STATIC_GEN_BAILOUT' ||
@@ -916,6 +925,7 @@ async function renderToHTMLOrFlightImpl(
             getServerInsertedHTML: () => getServerInsertedHTML([]),
             serverInsertedHTMLToHead: true,
             validateRootLayout,
+            suffix: undefined,
           })
         } catch (finalErr: any) {
           if (

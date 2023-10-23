@@ -60,6 +60,7 @@ export const staticGenerationBailout: StaticGenerationBailout = (
       // App Route's cannot be postponed, so we only postpone if it's a page.
       typeof React.unstable_postpone === 'function'
     ) {
+      // This throws a postpone error similar to the below error.
       React.unstable_postpone(message)
     }
 
