@@ -1,3 +1,15 @@
+use turbopack_binding::swc::core::{
+    atoms::JsWord,
+    common::collections::{AHashMap, AHashSet},
+    ecma::{
+        ast::{
+            Expr, Id, ImportDecl, ImportNamedSpecifier, ImportSpecifier, MemberExpr, MemberProp,
+            Module, ModuleExportName,
+        },
+        visit::{noop_visit_type, Visit, VisitWith},
+    },
+};
+
 #[derive(Debug, Default)]
 pub(crate) struct ImportMap {
     /// Map from module name to (module path, exported symbol)
@@ -8,6 +20,7 @@ pub(crate) struct ImportMap {
     imported_modules: AHashSet<JsWord>,
 }
 
+#[allow(unused)]
 impl ImportMap {
     pub fn is_module_imported(&mut self, module: &JsWord) -> bool {
         self.imported_modules.contains(module)
