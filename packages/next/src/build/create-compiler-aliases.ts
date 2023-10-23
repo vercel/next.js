@@ -235,11 +235,14 @@ export function createServerOnlyClientOnlyAliases(isServer: boolean): {
 
 export function createRSCAliases(
   bundledReactChannel: string,
-  opts: {
+  {
+    layer,
+    isEdgeServer,
+    reactProductionProfiling,
+  }: {
     layer: WebpackLayerName
     isEdgeServer: boolean
     reactProductionProfiling: boolean
-    reactServerCondition?: boolean
   }
 ) {
   let alias: Record<string, string> = {
@@ -257,29 +260,29 @@ export function createRSCAliases(
     'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.node`,
   }
 
-  if (!opts.isEdgeServer) {
-    if (opts.layer === WEBPACK_LAYERS.serverSideRendering) {
+  if (!isEdgeServer) {
+    if (layer === WEBPACK_LAYERS.serverSideRendering) {
       alias = Object.assign(alias, {
-        'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-jsx-runtime`,
-        'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-jsx-dev-runtime`,
-        react$: `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react`,
-        'react-dom$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom`,
-        'react-server-dom-webpack/client.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-client-edge`,
+        'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-jsx-runtime`,
+        'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-jsx-dev-runtime`,
+        react$: `next/dist/server/future/route-modules/app-page/vendored/${layer}/react`,
+        'react-dom$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-dom`,
+        'react-server-dom-webpack/client.edge$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-server-dom-webpack-client-edge`,
       })
-    } else if (opts.layer === WEBPACK_LAYERS.reactServerComponents) {
+    } else if (layer === WEBPACK_LAYERS.reactServerComponents) {
       alias = Object.assign(alias, {
-        'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-jsx-runtime`,
-        'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-jsx-dev-runtime`,
-        react$: `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react`,
-        'react-dom$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom`,
-        'react-server-dom-webpack/server.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-server-edge`,
-        'react-server-dom-webpack/server.node$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-server-node`,
+        'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-jsx-runtime`,
+        'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-jsx-dev-runtime`,
+        react$: `next/dist/server/future/route-modules/app-page/vendored/${layer}/react`,
+        'react-dom$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-dom`,
+        'react-server-dom-webpack/server.edge$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-server-dom-webpack-server-edge`,
+        'react-server-dom-webpack/server.node$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-server-dom-webpack-server-node`,
       })
     }
   }
 
-  if (opts.isEdgeServer) {
-    if (opts.layer === WEBPACK_LAYERS.reactServerComponents) {
+  if (isEdgeServer) {
+    if (layer === WEBPACK_LAYERS.reactServerComponents) {
       alias[
         'react$'
       ] = `next/dist/compiled/react${bundledReactChannel}/react.shared-subset`
@@ -291,7 +294,7 @@ export function createRSCAliases(
     ] = `next/dist/compiled/react-dom${bundledReactChannel}/server-rendering-stub`
   }
 
-  if (opts.reactProductionProfiling) {
+  if (reactProductionProfiling) {
     alias[
       'react-dom$'
     ] = `next/dist/compiled/react-dom${bundledReactChannel}/profiling`
