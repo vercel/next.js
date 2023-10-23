@@ -26,7 +26,8 @@ where
     comments: C,
 }
 
-const MODULE: &str = "next";
+const MODULE: &str = "next/dist/";
+const FN_NAME: &str = "__nextjs_pure";
 
 impl<C> VisitMut for PureTransform<C>
 where
@@ -42,7 +43,7 @@ where
             ..
         }) = e
         {
-            if !self.imports.is_import(callee, MODULE, "markAsPure") {
+            if !self.imports.is_import(callee, MODULE, FN_NAME) {
                 return;
             }
 
