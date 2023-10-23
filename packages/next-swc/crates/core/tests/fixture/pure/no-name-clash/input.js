@@ -1,4 +1,4 @@
-import {markAsPure} from 'not-next-magic'
+import {__nextjs_pure} from 'not-next-magic'
 
 
-markAsPure(console.log("test!"))
+__nextjs_pure(console.log("test!"))
