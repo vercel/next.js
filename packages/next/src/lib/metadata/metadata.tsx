@@ -91,17 +91,21 @@ export function createMetadataComponents({
       // They'll be saved for flight data, when hydrates, it will replaces the SSR'd metadata with this.
       // for not-found error: resolve not-found metadata
       if (!errorType && isNotFoundError(resolvedError)) {
-        const [, notFoundMetadata, notFoundMetadataError] =
-          await resolveMetadata({
-            tree,
-            parentParams: {},
-            metadataItems: [],
-            errorMetadataItem,
-            searchParams,
-            getDynamicParamFromSegment,
-            errorConvention: 'not-found',
-            metadataContext,
-          })
+        const [
+          notFoundScreenMetadata,
+          notFoundMetadata,
+          notFoundMetadataError,
+        ] = await resolveMetadata({
+          tree,
+          parentParams: {},
+          metadataItems: [],
+          errorMetadataItem,
+          searchParams,
+          getDynamicParamFromSegment,
+          errorConvention: 'not-found',
+          metadataContext,
+        })
+        screenMetadata = notFoundScreenMetadata
         metadata = notFoundMetadata
         error = notFoundMetadataError || error
       }
