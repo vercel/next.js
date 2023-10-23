@@ -420,6 +420,7 @@ async function startWatcher(opts: SetupOpts) {
 
     const buildingIds = new Set()
     const readyIds = new Set()
+
     function startBuilding(id: string, forceRebuild: boolean = false) {
       if (!forceRebuild && readyIds.has(id)) {
         return () => {}
@@ -1502,16 +1503,16 @@ async function startWatcher(opts: SetupOpts) {
 
               const type = writtenEndpoint?.type
 
-            if (type === 'edge') {
-              await loadMiddlewareManifest(page, 'app')
-            } else {
-              middlewareManifests.delete(page)
-            }
+              if (type === 'edge') {
+                await loadMiddlewareManifest(page, 'app')
+              } else {
+                middlewareManifests.delete(page)
+              }
 
-            await loadAppBuildManifest(page)
-            await loadBuildManifest(page, 'app')
-            await loadAppPathManifest(page, 'app')
-            await loadActionManifest(page)
+              await loadAppBuildManifest(page)
+              await loadBuildManifest(page, 'app')
+              await loadAppPathManifest(page, 'app')
+              await loadActionManifest(page)
 
               await writeAppBuildManifest()
               await writeBuildManifest(opts.fsChecker.rewrites)

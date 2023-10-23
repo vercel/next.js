@@ -152,7 +152,7 @@ async fn wrap_edge_page(
     let build_id = "development";
     let dev = true;
 
-    // TODO: check if it's a client component
+    // TODO(timneutkens): remove this
     let is_server_component = true;
 
     let server_actions_body_size_limit = &next_config.experimental.server_actions_body_size_limit;
