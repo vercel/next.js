@@ -71,6 +71,7 @@ export default function SignUpUserSteps() {
             href="https://supabase.com/dashboard/project/_/editor"
             className="font-bold hover:underline text-foreground/80"
             target="_blank"
+            rel="noreferrer"
           >
             Table Editor
           </a>{' '}
@@ -81,6 +82,7 @@ export default function SignUpUserSteps() {
             href="https://supabase.com/dashboard/project/_/sql/new"
             className="font-bold hover:underline text-foreground/80"
             target="_blank"
+            rel="noreferrer"
           >
             SQL Editor
           </a>{' '}
