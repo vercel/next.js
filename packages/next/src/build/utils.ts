@@ -629,9 +629,9 @@ export async function printTreeView(
   }
 
   pageInfos.set('/404', {
-    ...(pageInfos.get('/404') || pageInfos.get('/_error')),
-    static: useStaticPages404,
-  } as any)
+    ...(pageInfos.get('/404') || pageInfos.get('/_error'))!,
+    isStatic: useStaticPages404,
+  })
 
   // If there's no app /_notFound page present, then the 404 is still using the pages/404
   if (!lists.pages.includes('/404') && !lists.app?.includes('/_not-found')) {
