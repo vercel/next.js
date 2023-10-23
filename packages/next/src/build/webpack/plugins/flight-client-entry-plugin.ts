@@ -23,8 +23,8 @@ import {
   SERVER_REFERENCE_MANIFEST,
 } from '../../../shared/lib/constants'
 import {
-  generateActionId,
   getActions,
+  generateActionId,
   isClientComponentEntryModule,
   isCSSMod,
   regexCSS,
@@ -33,29 +33,35 @@ import { traverseModules, forEachEntryModule } from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { getProxiedPluginState } from '../../build-context'
 import type { SizeLimit } from '../../../../types'
+import semver from 'next/dist/compiled/semver'
+import { generateRandomActionKeyRaw } from '../../../server/app-render/action-encryption-utils'
 
 interface Options {
   dev: boolean
   appDir: string
   isEdgeServer: boolean
-  useServerActions: boolean
   serverActionsBodySizeLimit?: SizeLimit
 }
 
 const PLUGIN_NAME = 'FlightClientEntryPlugin'
 
-export type ActionManifest = {
-  [key in 'node' | 'edge']: {
-    [actionId: string]: {
-      workers: {
-        [name: string]: string | number
-      }
-      // Record which layer the action is in (rsc or sc_action), in the specific entry.
-      layer: {
-        [name: string]: string
-      }
+type Actions = {
+  [actionId: string]: {
+    workers: {
+      [name: string]: string | number
+    }
+    // Record which layer the action is in (rsc or sc_action), in the specific entry.
+    layer: {
+      [name: string]: string
     }
   }
+}
+
+export type ActionManifest = {
+  // Assign a unique encryption key during production build.
+  encryptionKey: string
+  node: Actions
+  edge: Actions
 }
 
 const pluginState = getProxiedPluginState({
@@ -154,7 +160,6 @@ export class FlightClientEntryPlugin {
   dev: boolean
   appDir: string
   isEdgeServer: boolean
-  useServerActions: boolean
   serverActionsBodySizeLimit?: SizeLimit
   assetPrefix: string
 
@@ -162,7 +167,6 @@ export class FlightClientEntryPlugin {
     this.dev = options.dev
     this.appDir = options.appDir
     this.isEdgeServer = options.isEdgeServer
-    this.useServerActions = options.useServerActions
     this.serverActionsBodySizeLimit = options.serverActionsBodySizeLimit
     this.assetPrefix = !this.dev && !this.isEdgeServer ? '../' : ''
   }
@@ -236,7 +240,7 @@ export class FlightClientEntryPlugin {
     })
 
     compiler.hooks.make.tap(PLUGIN_NAME, (compilation) => {
-      compilation.hooks.processAssets.tap(
+      compilation.hooks.processAssets.tapPromise(
         {
           name: PLUGIN_NAME,
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
@@ -387,78 +391,73 @@ export class FlightClientEntryPlugin {
       )
     }
 
-    if (this.useServerActions) {
-      compilation.hooks.finishModules.tapPromise(PLUGIN_NAME, () => {
-        const addedClientActionEntryList: Promise<any>[] = []
-        const actionMapsPerClientEntry: Record<
-          string,
-          Map<string, string[]>
-        > = {}
+    compilation.hooks.finishModules.tapPromise(PLUGIN_NAME, () => {
+      const addedClientActionEntryList: Promise<any>[] = []
+      const actionMapsPerClientEntry: Record<string, Map<string, string[]>> = {}
 
-        // We need to create extra action entries that are created from the
-        // client layer.
-        // Start from each entry's created SSR dependency from our previous step.
-        for (const [name, ssrEntryDepdendencies] of Object.entries(
-          createdSSRDependenciesForEntry
-        )) {
-          // Collect from all entries, e.g. layout.js, page.js, loading.js, ...
-          // add agregate them.
-          const actionEntryImports = this.collectClientActionsFromDependencies({
-            compilation,
-            dependencies: ssrEntryDepdendencies,
-          })
+      // We need to create extra action entries that are created from the
+      // client layer.
+      // Start from each entry's created SSR dependency from our previous step.
+      for (const [name, ssrEntryDepdendencies] of Object.entries(
+        createdSSRDependenciesForEntry
+      )) {
+        // Collect from all entries, e.g. layout.js, page.js, loading.js, ...
+        // add agregate them.
+        const actionEntryImports = this.collectClientActionsFromDependencies({
+          compilation,
+          dependencies: ssrEntryDepdendencies,
+        })
 
-          if (actionEntryImports.size > 0) {
-            if (!actionMapsPerClientEntry[name]) {
-              actionMapsPerClientEntry[name] = new Map()
+        if (actionEntryImports.size > 0) {
+          if (!actionMapsPerClientEntry[name]) {
+            actionMapsPerClientEntry[name] = new Map()
+          }
+          actionMapsPerClientEntry[name] = new Map([
+            ...actionMapsPerClientEntry[name],
+            ...actionEntryImports,
+          ])
+        }
+      }
+
+      for (const [name, actionEntryImports] of Object.entries(
+        actionMapsPerClientEntry
+      )) {
+        // If an action method is already created in the server layer, we don't
+        // need to create it again in the action layer.
+        // This is to avoid duplicate action instances and make sure the module
+        // state is shared.
+        let remainingClientImportedActions = false
+        const remainingActionEntryImports = new Map<string, string[]>()
+        for (const [dep, actionNames] of actionEntryImports) {
+          const remainingActionNames = []
+          for (const actionName of actionNames) {
+            const id = name + '@' + dep + '@' + actionName
+            if (!createdActions.has(id)) {
+              remainingActionNames.push(actionName)
             }
-            actionMapsPerClientEntry[name] = new Map([
-              ...actionMapsPerClientEntry[name],
-              ...actionEntryImports,
-            ])
+          }
+          if (remainingActionNames.length > 0) {
+            remainingActionEntryImports.set(dep, remainingActionNames)
+            remainingClientImportedActions = true
           }
         }
 
-        for (const [name, actionEntryImports] of Object.entries(
-          actionMapsPerClientEntry
-        )) {
-          // If an action method is already created in the server layer, we don't
-          // need to create it again in the action layer.
-          // This is to avoid duplicate action instances and make sure the module
-          // state is shared.
-          let remainingClientImportedActions = false
-          const remainingActionEntryImports = new Map<string, string[]>()
-          for (const [dep, actionNames] of actionEntryImports) {
-            const remainingActionNames = []
-            for (const actionName of actionNames) {
-              const id = name + '@' + dep + '@' + actionName
-              if (!createdActions.has(id)) {
-                remainingActionNames.push(actionName)
-              }
-            }
-            if (remainingActionNames.length > 0) {
-              remainingActionEntryImports.set(dep, remainingActionNames)
-              remainingClientImportedActions = true
-            }
-          }
-
-          if (remainingClientImportedActions) {
-            addedClientActionEntryList.push(
-              this.injectActionEntry({
-                compiler,
-                compilation,
-                actions: remainingActionEntryImports,
-                entryName: name,
-                bundlePath: name,
-                fromClient: true,
-              })
-            )
-          }
+        if (remainingClientImportedActions) {
+          addedClientActionEntryList.push(
+            this.injectActionEntry({
+              compiler,
+              compilation,
+              actions: remainingActionEntryImports,
+              entryName: name,
+              bundlePath: name,
+              fromClient: true,
+            })
+          )
         }
+      }
 
-        return Promise.all(addedClientActionEntryList)
-      })
-    }
+      return Promise.all(addedClientActionEntryList)
+    })
 
     // Invalidate in development to trigger recompilation
     const invalidator = getInvalidator(compiler.outputPath)
@@ -792,6 +791,18 @@ export class FlightClientEntryPlugin {
     fromClient?: boolean
   }) {
     const actionsArray = Array.from(actions.entries())
+
+    // Node < 18.11 does not have sufficient support for FormData
+    if (actionsArray.length > 0 && semver.lt(process.version, '18.11.0')) {
+      compilation.errors.push(
+        new compilation.compiler.webpack.WebpackError(
+          'Your version of Node does not support server actions. Please upgrade to Node 18.11 or higher.'
+        )
+      )
+
+      return Promise.resolve()
+    }
+
     const actionLoader = `next-flight-action-entry-loader?${stringify({
       actions: JSON.stringify(actionsArray),
       __client_imported__: fromClient,
@@ -864,67 +875,68 @@ export class FlightClientEntryPlugin {
     })
   }
 
-  createActionAssets(
+  async createActionAssets(
     compilation: webpack.Compilation,
     assets: webpack.Compilation['assets']
   ) {
     const serverActions: ActionManifest['node'] = {}
     const edgeServerActions: ActionManifest['edge'] = {}
 
-    if (this.useServerActions) {
-      traverseModules(compilation, (mod, _chunk, chunkGroup, modId) => {
-        // Go through all action entries and record the module ID for each entry.
-        if (
-          chunkGroup.name &&
-          mod.request &&
-          /next-flight-action-entry-loader/.test(mod.request)
-        ) {
-          const fromClient = /&__client_imported__=true/.test(mod.request)
+    traverseModules(compilation, (mod, _chunk, chunkGroup, modId) => {
+      // Go through all action entries and record the module ID for each entry.
+      if (
+        chunkGroup.name &&
+        mod.request &&
+        /next-flight-action-entry-loader/.test(mod.request)
+      ) {
+        const fromClient = /&__client_imported__=true/.test(mod.request)
 
-          const mapping = this.isEdgeServer
-            ? pluginState.actionModEdgeServerId
-            : pluginState.actionModServerId
+        const mapping = this.isEdgeServer
+          ? pluginState.actionModEdgeServerId
+          : pluginState.actionModServerId
 
-          if (!mapping[chunkGroup.name]) {
-            mapping[chunkGroup.name] = {}
-          }
-          mapping[chunkGroup.name][fromClient ? 'client' : 'server'] = modId
+        if (!mapping[chunkGroup.name]) {
+          mapping[chunkGroup.name] = {}
         }
-      })
-
-      for (let id in pluginState.serverActions) {
-        const action = pluginState.serverActions[id]
-        for (let name in action.workers) {
-          const modId =
-            pluginState.actionModServerId[name][
-              action.layer[name] === WEBPACK_LAYERS.actionBrowser
-                ? 'client'
-                : 'server'
-            ]
-          action.workers[name] = modId!
-        }
-        serverActions[id] = action
+        mapping[chunkGroup.name][fromClient ? 'client' : 'server'] = modId
       }
+    })
 
-      for (let id in pluginState.edgeServerActions) {
-        const action = pluginState.edgeServerActions[id]
-        for (let name in action.workers) {
-          const modId =
-            pluginState.actionModEdgeServerId[name][
-              action.layer[name] === WEBPACK_LAYERS.actionBrowser
-                ? 'client'
-                : 'server'
-            ]
-          action.workers[name] = modId!
-        }
-        edgeServerActions[id] = action
+    for (let id in pluginState.serverActions) {
+      const action = pluginState.serverActions[id]
+      for (let name in action.workers) {
+        const modId =
+          pluginState.actionModServerId[name][
+            action.layer[name] === WEBPACK_LAYERS.actionBrowser
+              ? 'client'
+              : 'server'
+          ]
+        action.workers[name] = modId!
       }
+      serverActions[id] = action
+    }
+
+    for (let id in pluginState.edgeServerActions) {
+      const action = pluginState.edgeServerActions[id]
+      for (let name in action.workers) {
+        const modId =
+          pluginState.actionModEdgeServerId[name][
+            action.layer[name] === WEBPACK_LAYERS.actionBrowser
+              ? 'client'
+              : 'server'
+          ]
+        action.workers[name] = modId!
+      }
+      edgeServerActions[id] = action
     }
 
     const json = JSON.stringify(
       {
         node: serverActions,
         edge: edgeServerActions,
+
+        // Assign encryption
+        encryptionKey: await generateRandomActionKeyRaw(this.dev),
       },
       null,
       this.dev ? 2 : undefined

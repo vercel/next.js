@@ -154,6 +154,7 @@ import { nodeFs } from '../server/lib/node-fs-methods'
 import { collectBuildTraces } from './collect-build-traces'
 import type { BuildTraceContext } from './webpack/plugins/next-trace-entrypoints-plugin'
 import { formatManifest } from './manifests/formatter/format-manifest'
+import { getStartServerInfo, logStartInfo } from '../server/lib/app-info-log'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -501,6 +502,15 @@ export default async function build(
           return this
         },
       } as any
+
+      const { envInfo, expFeatureInfo } = await getStartServerInfo(dir)
+      logStartInfo({
+        networkUrl: null,
+        appUrl: null,
+        formatDurationText: null,
+        envInfo,
+        expFeatureInfo,
+      })
 
       if (!isGenerate) {
         buildSpinner = createSpinner('Creating an optimized production build')
@@ -1033,6 +1043,7 @@ export default async function build(
           root,
           distDir: config.distDir,
           defineEnv: createDefineEnv({
+            isTurbopack: turboNextBuild,
             allowedRevalidateHeaderKeys:
               config.experimental.allowedRevalidateHeaderKeys,
             clientRouterFilters: NextBuildContext.clientRouterFilters,

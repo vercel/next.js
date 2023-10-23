@@ -28,7 +28,7 @@ describe('Application Export Intent Output', () => {
             fs.readFileSync(join(distDir, 'export-marker.json'), 'utf8')
           )
         ).toMatchInlineSnapshot(`
-        Object {
+        {
           "exportTrailingSlash": false,
           "hasExportPathMap": false,
           "isNextImageImported": false,
@@ -43,7 +43,7 @@ describe('Application Export Intent Output', () => {
           ...detail,
           outDirectory: path.basename(detail.outDirectory),
         }).toMatchInlineSnapshot(`
-        Object {
+        {
           "outDirectory": "out",
           "success": true,
           "version": 1,
@@ -75,7 +75,7 @@ describe('Application Export Intent Output', () => {
               fs.readFileSync(join(distDir, 'export-marker.json'), 'utf8')
             )
           ).toMatchInlineSnapshot(`
-        Object {
+        {
           "exportTrailingSlash": false,
           "hasExportPathMap": true,
           "isNextImageImported": false,
@@ -90,7 +90,7 @@ describe('Application Export Intent Output', () => {
             ...detail,
             outDirectory: path.basename(detail.outDirectory),
           }).toMatchInlineSnapshot(`
-        Object {
+        {
           "outDirectory": "out",
           "success": true,
           "version": 1,
@@ -123,7 +123,7 @@ describe('Application Export Intent Output', () => {
               fs.readFileSync(join(distDir, 'export-marker.json'), 'utf8')
             )
           ).toMatchInlineSnapshot(`
-        Object {
+        {
           "exportTrailingSlash": true,
           "hasExportPathMap": false,
           "isNextImageImported": false,
@@ -138,7 +138,7 @@ describe('Application Export Intent Output', () => {
             ...detail,
             outDirectory: path.basename(detail.outDirectory),
           }).toMatchInlineSnapshot(`
-        Object {
+        {
           "outDirectory": "lel",
           "success": true,
           "version": 1,
@@ -171,7 +171,7 @@ describe('Application Export Intent Output', () => {
               fs.readFileSync(join(distDir, 'export-marker.json'), 'utf8')
             )
           ).toMatchInlineSnapshot(`
-        Object {
+        {
           "exportTrailingSlash": false,
           "hasExportPathMap": false,
           "isNextImageImported": false,
@@ -186,7 +186,7 @@ describe('Application Export Intent Output', () => {
             ...detail,
             outDirectory: path.basename(detail.outDirectory),
           }).toMatchInlineSnapshot(`
-        Object {
+        {
           "outDirectory": "out",
           "success": false,
           "version": 1,
@@ -218,7 +218,7 @@ describe('Application Export Intent Output', () => {
               fs.readFileSync(join(distDir, 'export-marker.json'), 'utf8')
             )
           ).toMatchInlineSnapshot(`
-        Object {
+        {
           "exportTrailingSlash": false,
           "hasExportPathMap": false,
           "isNextImageImported": false,

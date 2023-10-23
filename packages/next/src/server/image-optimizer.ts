@@ -3,7 +3,6 @@ import { promises } from 'fs'
 import { cpus } from 'os'
 import type { IncomingMessage, ServerResponse } from 'http'
 import { mediaType } from 'next/dist/compiled/@hapi/accept'
-import { bold, yellow } from '../lib/picocolors'
 import contentDisposition from 'next/dist/compiled/content-disposition'
 import { getOrientation, Orientation } from 'next/dist/compiled/get-orientation'
 import imageSizeOf from 'next/dist/compiled/image-size'
@@ -28,6 +27,7 @@ import type {
 } from './response-cache'
 import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
+import * as Log from '../build/output/log'
 
 type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
 
@@ -168,6 +168,12 @@ export class ImageOptimizerCache {
     const remotePatterns = nextConfig.images?.remotePatterns || []
     const { url, w, q } = query
     let href: string
+
+    if (domains.length > 0) {
+      Log.warnOnce(
+        'The "images.domains" configuration is deprecated. Please use "images.remotePatterns" configuration instead.'
+      )
+    }
 
     if (!url) {
       return { errorMessage: '"url" parameter is required' }
@@ -348,7 +354,7 @@ export class ImageOptimizerCache {
         value.etag
       )
     } catch (err) {
-      console.error(`Failed to write image to cache ${cacheKey}`, err)
+      Log.error(`Failed to write image to cache ${cacheKey}`, err)
     }
   }
 }
@@ -438,9 +444,8 @@ export async function optimizeImage({
           chromaSubsampling: '4:2:0', // same as webp
         })
       } else {
-        console.warn(
-          yellow(bold('Warning: ')) +
-            `Your installed version of the 'sharp' package does not support AVIF images. Run 'npm i sharp@latest' to upgrade to the latest version.\n` +
+        Log.warnOnce(
+          `Your installed version of the 'sharp' package does not support AVIF images. Run 'npm i sharp@latest' to upgrade to the latest version.\n` +
             'Read more: https://nextjs.org/docs/messages/sharp-version-avif'
         )
         transformer.webp({ quality })
@@ -450,23 +455,22 @@ export async function optimizeImage({
     } else if (contentType === PNG) {
       transformer.png({ quality })
     } else if (contentType === JPEG) {
-      transformer.jpeg({ quality })
+      transformer.jpeg({ quality, progressive: true })
     }
 
     optimizedBuffer = await transformer.toBuffer()
     // End sharp transformation logic
   } else {
     if (showSharpMissingWarning && nextConfigOutput === 'standalone') {
-      console.error(
+      Log.error(
         `Error: 'sharp' is required to be installed in standalone mode for the image optimization to function correctly. Read more at: https://nextjs.org/docs/messages/sharp-missing-in-production`
       )
       throw new ImageError(500, 'Internal Server Error')
     }
     // Show sharp warning in production once
     if (showSharpMissingWarning) {
-      console.warn(
-        yellow(bold('Warning: ')) +
-          `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended. Run 'npm i sharp', and Next.js will use it automatically for Image Optimization.\n` +
+      Log.warnOnce(
+        `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended. Run 'npm i sharp', and Next.js will use it automatically for Image Optimization.\n` +
           'Read more: https://nextjs.org/docs/messages/sharp-missing-in-production'
       )
       showSharpMissingWarning = false
@@ -533,11 +537,7 @@ export async function imageOptimizer(
     const upstreamRes = await fetch(href)
 
     if (!upstreamRes.ok) {
-      console.error(
-        'upstream image response failed for',
-        href,
-        upstreamRes.status
-      )
+      Log.error('upstream image response failed for', href, upstreamRes.status)
       throw new ImageError(
         upstreamRes.status,
         '"url" parameter is valid but upstream response is invalid'
@@ -562,7 +562,7 @@ export async function imageOptimizer(
       await mocked.res.hasStreamed
 
       if (!mocked.res.statusCode) {
-        console.error('image response failed for', href, mocked.res.statusCode)
+        Log.error('image response failed for', href, mocked.res.statusCode)
         throw new ImageError(
           mocked.res.statusCode,
           '"url" parameter is valid but internal response is invalid'
@@ -576,7 +576,7 @@ export async function imageOptimizer(
       const cacheControl = mocked.res.getHeader('Cache-Control')
       maxAge = cacheControl ? getMaxAge(cacheControl) : 0
     } catch (err) {
-      console.error('upstream image response failed for', href, err)
+      Log.error('upstream image response failed for', href, err)
       throw new ImageError(
         500,
         '"url" parameter is valid but upstream response is invalid'
@@ -591,7 +591,7 @@ export async function imageOptimizer(
       upstreamType.startsWith('image/svg') &&
       !nextConfig.images.dangerouslyAllowSVG
     ) {
-      console.error(
+      Log.error(
         `The requested resource "${href}" has type "${upstreamType}" but dangerouslyAllowSVG is disabled`
       )
       throw new ImageError(
@@ -607,7 +607,7 @@ export async function imageOptimizer(
       return { buffer: upstreamBuffer, contentType: upstreamType, maxAge }
     }
     if (!upstreamType.startsWith('image/') || upstreamType.includes(',')) {
-      console.error(
+      Log.error(
         "The requested resource isn't a valid image for",
         href,
         'received',

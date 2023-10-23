@@ -44,7 +44,6 @@ export async function resolveExternal(
   context: string,
   request: string,
   isEsmRequested: boolean,
-  hasAppDir: boolean,
   getResolve: (
     options: any
   ) => (
@@ -66,11 +65,7 @@ export async function resolveExternal(
 
   let preferEsmOptions =
     esmExternals && isEsmRequested ? [true, false] : [false]
-  // Disable esm resolving for app/ and pages/ so for esm package using under pages/
-  // won't load react through esm loader
-  if (hasAppDir) {
-    preferEsmOptions = [false]
-  }
+
   for (const preferEsm of preferEsmOptions) {
     const resolve = getResolve(
       preferEsm ? esmResolveOptions : nodeResolveOptions
@@ -135,12 +130,10 @@ export function makeExternalHandler({
   config,
   optOutBundlingPackageRegex,
   dir,
-  hasAppDir,
 }: {
   config: NextConfigComplete
   optOutBundlingPackageRegex: RegExp
   dir: string
-  hasAppDir: boolean
 }) {
   let resolvedExternalPackageDirs: Map<string, string>
   const looseEsmExternals = config.experimental?.esmExternals === 'loose'
@@ -293,7 +286,6 @@ export function makeExternalHandler({
       context,
       request,
       isEsmRequested,
-      hasAppDir,
       getResolve,
       isLocal ? resolveNextExternal : undefined
     )
@@ -353,7 +345,6 @@ export function makeExternalHandler({
           config.experimental.esmExternals,
           context,
           pkg + '/package.json',
-          hasAppDir,
           isEsmRequested,
           getResolve,
           isLocal ? resolveNextExternal : undefined

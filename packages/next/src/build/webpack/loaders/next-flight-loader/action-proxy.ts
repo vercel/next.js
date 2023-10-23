@@ -2,7 +2,7 @@ const SERVER_REFERENCE_TAG = Symbol.for('react.server.reference')
 
 export function createActionProxy(
   id: string,
-  bound: null | any[],
+  boundArgsFromClosure: null | any[],
   action: any,
   originalAction?: any
 ) {
@@ -40,7 +40,7 @@ export function createActionProxy(
       value: id,
     },
     $$bound: {
-      value: bound,
+      value: boundArgsFromClosure,
     },
     bind: {
       value: bindImpl,

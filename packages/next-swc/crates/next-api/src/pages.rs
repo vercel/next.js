@@ -42,7 +42,7 @@ use turbopack_binding::{
             chunk::{availability_info::AvailabilityInfo, ChunkingContext, EvaluatableAssets},
             context::AssetContext,
             file_source::FileSource,
-            issue::{IssueSeverity, OptionIssueSource},
+            issue::IssueSeverity,
             module::Module,
             output::{OutputAsset, OutputAssets},
             reference_type::{
@@ -264,6 +264,7 @@ impl PagesProject {
             self.project().client_compile_time_info(),
             self.client_module_options_context(),
             self.client_resolve_options_context(),
+            Vc::cell("client".to_string()),
         )
     }
 
@@ -303,6 +304,7 @@ impl PagesProject {
             self.project().client_compile_time_info(),
             self.client_module_options_context(),
             self.client_resolve_options_context(),
+            Vc::cell("client".to_string()),
         ))
     }
 
@@ -313,6 +315,7 @@ impl PagesProject {
             self.project().server_compile_time_info(),
             self.ssr_module_options_context(),
             self.ssr_resolve_options_context(),
+            Vc::cell("ssr".to_string()),
         )
     }
 
@@ -323,6 +326,7 @@ impl PagesProject {
             self.project().server_compile_time_info(),
             self.ssr_data_module_options_context(),
             self.ssr_resolve_options_context(),
+            Vc::cell("ssr_data".to_string()),
         )
     }
 
@@ -333,6 +337,7 @@ impl PagesProject {
             self.project().edge_compile_time_info(),
             self.ssr_module_options_context(),
             self.edge_ssr_resolve_options_context(),
+            Vc::cell("edge_ssr".to_string()),
         )
     }
 
@@ -343,6 +348,7 @@ impl PagesProject {
             self.project().edge_compile_time_info(),
             self.ssr_data_module_options_context(),
             self.edge_ssr_resolve_options_context(),
+            Vc::cell("edge_ssr_data".to_string()),
         )
     }
 
@@ -539,7 +545,7 @@ impl PageEndpoint {
                 "next/dist/client/next-dev-turbopack.js".to_string(),
             ))),
             Value::new(EcmaScriptModulesReferenceSubType::Undefined),
-            OptionIssueSource::none(),
+            None,
             IssueSeverity::Error.cell(),
         )
         .first_module()
@@ -677,8 +683,8 @@ impl PageEndpoint {
             this.pages_project.project().project_path(),
             this.pages_project.ssr_module_context(),
             this.pages_project.edge_ssr_module_context(),
-            this.pages_project.project().ssr_chunking_context(),
-            this.pages_project.project().edge_ssr_chunking_context(),
+            this.pages_project.project().server_chunking_context(),
+            this.pages_project.project().edge_chunking_context(),
             this.pages_project.ssr_runtime_entries(),
             this.pages_project.edge_ssr_runtime_entries(),
         ))
@@ -696,10 +702,8 @@ impl PageEndpoint {
             this.pages_project.project().project_path(),
             this.pages_project.ssr_data_module_context(),
             this.pages_project.edge_ssr_data_module_context(),
-            this.pages_project.project().ssr_data_chunking_context(),
-            this.pages_project
-                .project()
-                .edge_ssr_data_chunking_context(),
+            this.pages_project.project().server_chunking_context(),
+            this.pages_project.project().edge_chunking_context(),
             this.pages_project.ssr_data_runtime_entries(),
             this.pages_project.edge_ssr_data_runtime_entries(),
         ))
@@ -717,8 +721,8 @@ impl PageEndpoint {
             this.pages_project.project().project_path(),
             this.pages_project.ssr_module_context(),
             this.pages_project.edge_ssr_module_context(),
-            this.pages_project.project().ssr_chunking_context(),
-            this.pages_project.project().edge_ssr_chunking_context(),
+            this.pages_project.project().server_chunking_context(),
+            this.pages_project.project().edge_chunking_context(),
             this.pages_project.ssr_runtime_entries(),
             this.pages_project.edge_ssr_runtime_entries(),
         ))
