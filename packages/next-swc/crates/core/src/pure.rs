@@ -1,7 +1,7 @@
 use turbopack_binding::swc::core::{
-    common::{comments::Comments, errors::HANDLER, util::take::Take, Spanned},
+    common::{comments::Comments, errors::HANDLER, util::take::Take, Spanned, DUMMY_SP},
     ecma::{
-        ast::{CallExpr, Callee, Expr, Module},
+        ast::{CallExpr, Callee, EmptyStmt, Expr, Module, ModuleDecl, ModuleItem, Stmt},
         visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
     },
 };
@@ -61,6 +61,17 @@ where
 
     fn visit_mut_module(&mut self, m: &mut Module) {
         self.imports = ImportMap::analyze(m);
+
+        m.visit_mut_children_with(self);
+    }
+
+    fn visit_mut_module_item(&mut self, m: &mut ModuleItem) {
+        if let ModuleItem::ModuleDecl(ModuleDecl::Import(import)) = m {
+            if import.src.value == "@next/matic" {
+                *m = ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
+                return;
+            }
+        }
 
         m.visit_mut_children_with(self);
     }
