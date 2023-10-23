@@ -24,50 +24,8 @@ import EventsImplementation from 'node:events'
 import AssertImplementation from 'node:assert'
 import UtilImplementation from 'node:util'
 import AsyncHooksImplementation from 'node:async_hooks'
+import { intervalsManager, timeoutsManager } from './resource-managers'
 
-class IntervalsHandler {
-  private intervals: NodeJS.Timeout[] = []
-
-  set(callback: (...args: any[]) => void, ms: number, ...args: any[]) {
-    const interval = setInterval(callback, ms, ...args)
-    this.intervals.push(interval)
-    return interval
-  }
-
-  clear(interval: NodeJS.Timeout) {
-    clearInterval(interval)
-    this.intervals = this.intervals.filter((i) => i !== interval)
-  }
-
-  clearAll() {
-    this.intervals.forEach(clearInterval)
-    this.intervals = []
-  }
-}
-
-class TimeoutHandlers {
-  private timeouts: NodeJS.Timeout[] = []
-
-  set(callback: (...args: any[]) => void, ms: number, ...args: any[]) {
-    const timeout = setTimeout(callback, ms, ...args)
-    this.timeouts.push(timeout)
-    return timeout
-  }
-
-  clear(timeout: NodeJS.Timeout) {
-    clearTimeout(timeout)
-
-    this.timeouts = this.timeouts.filter((i) => i !== timeout)
-  }
-
-  clearAll() {
-    this.timeouts.forEach(clearTimeout)
-    this.timeouts = []
-  }
-}
-
-export const intervalsHandler = new IntervalsHandler()
-export const timeoutsHandler = new TimeoutHandlers()
 interface ModuleContext {
   runtime: EdgeRuntime
   paths: Map<string, string>
@@ -87,10 +45,14 @@ const pendingModuleCaches = new Map<string, Promise<ModuleContext>>()
  * For a given path a context, this function checks if there is any module
  * context that contains the path with an older content and, if that's the
  * case, removes the context from the cache.
+ *
+ * This function also clears all intervals and timeouts created by the
+ * module context.
  */
 export async function clearModuleContext(path: string) {
-  intervalsHandler.clearAll()
-  timeoutsHandler.clearAll()
+  intervalsManager.removeAll()
+  timeoutsManager.removeAll()
+
   const handleContext = (
     key: string,
     cache: ReturnType<(typeof moduleContexts)['get']>,
@@ -423,17 +385,21 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
 
       context.AsyncLocalStorage = AsyncLocalStorage
 
-      context.setInterval = (callback: (...args: any[]) => void, ms: number) =>
-        intervalsHandler.set(callback, ms)
+      // @ts-ignore the timeouts have weird types in the edge runtime
+      context.setInterval = (...args: Parameters<typeof setInterval>) =>
+        intervalsManager.add(args)
 
+      // @ts-ignore the timeouts have weird types in the edge runtime
       context.clearInterval = (interval: NodeJS.Timeout) =>
-        intervalsHandler.clear(interval)
+        intervalsManager.remove(interval)
 
-      context.setTimeout = (callback: (...args: any[]) => void, ms: number) =>
-        timeoutsHandler.set(callback, ms)
+      // @ts-ignore the timeouts have weird types in the edge runtime
+      context.setTimeout = (...args: Parameters<typeof setTimeout>) =>
+        timeoutsManager.add(args)
 
+      // @ts-ignore the timeouts have weird types in the edge runtime
       context.clearTimeout = (timeout: NodeJS.Timeout) =>
-        timeoutsHandler.clear(timeout)
+        timeoutsManager.remove(timeout)
 
       return context
     },
