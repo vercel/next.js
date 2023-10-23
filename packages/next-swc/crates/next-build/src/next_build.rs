@@ -134,16 +134,11 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
 
     let client_define_env = Vc::cell(options.define_env.client.iter().cloned().collect());
     let client_compile_time_info =
-        get_client_compile_time_info(mode, browserslist_query, client_define_env);
+        get_client_compile_time_info(browserslist_query, client_define_env);
 
     let server_define_env = Vc::cell(options.define_env.nodejs.iter().cloned().collect());
-    let server_compile_time_info = get_server_compile_time_info(
-        mode,
-        env,
-        ServerAddr::empty(),
-        server_define_env,
-        next_config,
-    );
+    let server_compile_time_info =
+        get_server_compile_time_info(env, ServerAddr::empty(), server_define_env);
 
     // TODO(alexkirsz) Pages should build their own routes, outside of a FS.
     let next_router_fs = Vc::upcast::<Box<dyn FileSystem>>(VirtualFileSystem::new());

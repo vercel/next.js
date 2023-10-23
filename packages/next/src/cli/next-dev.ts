@@ -6,6 +6,7 @@ import {
   RESTART_EXIT_CODE,
   checkNodeDebugType,
   getDebugPort,
+  getMaxOldSpaceSize,
   getNodeOptionsWithoutInspect,
   getPort,
   printAndExit,
@@ -33,6 +34,7 @@ import {
   getReservedPortExplanation,
   isPortIsReserved,
 } from '../lib/helpers/get-reserved-port'
+import os from 'os'
 
 let dir: string
 let child: undefined | ReturnType<typeof fork>
@@ -232,6 +234,16 @@ const nextDev: CliCommand = async (args) => {
 
       let NODE_OPTIONS = getNodeOptionsWithoutInspect()
       let nodeDebugType = checkNodeDebugType()
+
+      const maxOldSpaceSize = getMaxOldSpaceSize()
+
+      if (!maxOldSpaceSize && !process.env.NEXT_DISABLE_MEM_OVERRIDE) {
+        const totalMem = os.totalmem()
+        const totalMemInMB = Math.floor(totalMem / 1024 / 1024)
+        NODE_OPTIONS = `${NODE_OPTIONS} --max-old-space-size=${Math.floor(
+          totalMemInMB * 0.5
+        )}`
+      }
 
       if (nodeDebugType) {
         NODE_OPTIONS = `${NODE_OPTIONS} --${nodeDebugType}=${
