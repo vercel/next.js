@@ -270,6 +270,8 @@ export async function collectBuildTraces({
         '**/node_modules/webpack5/**/*',
         '**/next/dist/server/lib/squoosh/**/*.wasm',
         '**/next/dist/server/lib/route-resolver*',
+        'next/dist/compiled/@next/react-dev-overlay/dist/**/*',
+        'next/dist/compiled/semver/semver/**/*.js',
         '**/next/dist/pages/**/*',
         ...(ciEnvironment.hasNextSupport
           ? [
