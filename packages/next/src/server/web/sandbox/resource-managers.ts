@@ -22,27 +22,29 @@ abstract class ResourceManager<T, K> {
 }
 
 class IntervalsManager extends ResourceManager<
-  NodeJS.Timeout,
+  number,
   Parameters<typeof setInterval>
 > {
-  create(setIntervalParameters: Parameters<typeof setInterval>) {
-    return setInterval(...setIntervalParameters)
+  create(args: Parameters<typeof setInterval>) {
+    // TODO: use the edge runtime provided `setInterval` instead
+    return setInterval(...args)[Symbol.toPrimitive]()
   }
 
-  destroy(interval: NodeJS.Timeout) {
+  destroy(interval: number) {
     clearInterval(interval)
   }
 }
 
 class TimeoutsManager extends ResourceManager<
-  NodeJS.Timeout,
+  number,
   Parameters<typeof setTimeout>
 > {
-  create(setTimeoutParameters: Parameters<typeof setTimeout>) {
-    return setTimeout(...setTimeoutParameters)
+  create(args: Parameters<typeof setTimeout>) {
+    // TODO: use the edge runtime provided `setTimeout` instead
+    return setTimeout(...args)[Symbol.toPrimitive]()
   }
 
-  destroy(timeout: NodeJS.Timeout) {
+  destroy(timeout: number) {
     clearTimeout(timeout)
   }
 }
