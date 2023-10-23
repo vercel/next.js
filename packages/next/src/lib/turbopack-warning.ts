@@ -172,7 +172,7 @@ export async function validateTurboNextConfig({
     require('../build/get-babel-config-file') as typeof import('../build/get-babel-config-file')
   const { defaultConfig } =
     require('../server/config-shared') as typeof import('../server/config-shared')
-  const { bold, cyan, red, underline, yellow } =
+  const { bold, cyan, red, underline } =
     require('../lib/picocolors') as typeof import('../lib/picocolors')
   const { interopDefault } =
     require('../lib/interop-default') as typeof import('../lib/interop-default')
