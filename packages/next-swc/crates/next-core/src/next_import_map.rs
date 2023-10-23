@@ -339,6 +339,20 @@ pub async fn get_next_server_import_map(
             );
             import_map.insert_exact_alias("react-server-dom-webpack/server.node", mapping);
             import_map.insert_exact_alias("react-server-dom-turbopack/server.node", mapping);
+            import_map.insert_exact_alias(
+                "react-dom",
+                request_to_import_mapping(
+                    project_path,
+                    &format!("next/dist/compiled/react-dom{react_flavor}"),
+                ),
+            );
+            import_map.insert_wildcard_alias(
+                "react-dom/",
+                request_to_import_mapping(
+                    project_path,
+                    &format!("next/dist/compiled/react-dom{react_flavor}/*"),
+                ),
+            );
         }
         ServerContextType::Middleware => {}
     }
