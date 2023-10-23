@@ -24,37 +24,39 @@ interface CompilerAliases {
 }
 
 export function createWebpackAliases({
-  dev,
-  pageExtensions,
+  isClient,
   isEdgeServer,
+  isNodeServer,
+  dev,
   config,
   pagesDir,
   appDir,
   dir,
-  distDir,
-  isClient,
   reactProductionProfiling,
-  isNodeServer,
-  clientResolveRewrites,
   hasRewrites,
 }: {
-  dev: boolean
-  pageExtensions: string[]
+  isClient: boolean
   isEdgeServer: boolean
+  isNodeServer: boolean
+  dev: boolean
   config: NextConfigComplete
   pagesDir: string | undefined
   appDir: string | undefined
   dir: string
-  distDir: string
-  isClient: boolean
   reactProductionProfiling: boolean
-  isNodeServer: boolean
-  clientResolveRewrites: string
   hasRewrites: boolean
 }): CompilerAliases {
+  const distDir = path.join(dir, config.distDir)
+  const pageExtensions = config.pageExtensions
+  const clientResolveRewrites = require.resolve(
+    '../shared/lib/router/utils/resolve-rewrites'
+  )
   const customAppAliases: CompilerAliases = {}
   const customDocumentAliases: CompilerAliases = {}
 
+  // tell webpack where to look for _app and _document
+  // using aliases to allow falling back to the default
+  // version when removed or not present
   if (dev) {
     const nextDistPath = 'next/dist/' + (isEdgeServer ? 'esm/' : '')
     customAppAliases[`${PAGES_DIR_ALIAS}/_app`] = [
