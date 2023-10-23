@@ -1,4 +1,4 @@
-import markAsPure from '@next/magic'
+import {markAsPure} from '@next/magic'
 
 
 markAsPure(console.log("test!"))
