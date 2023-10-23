@@ -24,10 +24,7 @@ createNextDescribe(
         'next.config.js',
         `
       module.exports = {
-        output: 'export',
-        experimental: {
-          serverActions: true,
-        },
+        output: 'export'
       }
       `
       )

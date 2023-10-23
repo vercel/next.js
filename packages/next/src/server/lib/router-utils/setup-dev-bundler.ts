@@ -237,6 +237,7 @@ async function startWatcher(opts: SetupOpts) {
       watch: true,
       env: process.env as Record<string, string>,
       defineEnv: createDefineEnv({
+        isTurbopack: true,
         allowedRevalidateHeaderKeys: undefined,
         clientRouterFilters: undefined,
         config: nextConfig,
@@ -348,11 +349,12 @@ async function startWatcher(opts: SetupOpts) {
         relevantIssues.add(formatted)
       }
 
-      for (const issue of oldSet.keys()) {
-        if (!newSet.has(issue)) {
-          console.error(`✅ ${displayName} fixed ${issue}`)
-        }
-      }
+      // TODO: Format these messages correctly.
+      // for (const issue of oldSet.keys()) {
+      //   if (!newSet.has(issue)) {
+      //     console.error(`✅ ${displayName} fixed ${issue}`)
+      //   }
+      // }
 
       if (relevantIssues.size && throwIssue) {
         throw new ModuleBuildError([...relevantIssues].join('\n\n'))
@@ -695,6 +697,7 @@ async function startWatcher(opts: SetupOpts) {
       const manifest: ActionManifest = {
         node: {},
         edge: {},
+        encryptionKey: '',
       }
 
       function mergeActionIds(
@@ -702,7 +705,10 @@ async function startWatcher(opts: SetupOpts) {
         other: ActionEntries
       ): void {
         for (const key in other) {
-          const action = (actionEntries[key] ??= { workers: {}, layer: {} })
+          const action = (actionEntries[key] ??= {
+            workers: {},
+            layer: {},
+          })
           Object.assign(action.workers, other[key].workers)
           Object.assign(action.layer, other[key].layer)
         }
@@ -711,6 +717,7 @@ async function startWatcher(opts: SetupOpts) {
       for (const m of manifests) {
         mergeActionIds(manifest.node, m.node)
         mergeActionIds(manifest.edge, m.edge)
+        manifest.encryptionKey = m.encryptionKey
       }
 
       return manifest
@@ -1872,6 +1879,7 @@ async function startWatcher(opts: SetupOpts) {
 
           await hotReloader.turbopackProject.update({
             defineEnv: createDefineEnv({
+              isTurbopack: true,
               allowedRevalidateHeaderKeys: undefined,
               clientRouterFilters,
               config: nextConfig,
@@ -1937,6 +1945,7 @@ async function startWatcher(opts: SetupOpts) {
                 plugin.definitions.__NEXT_DEFINE_ENV
               ) {
                 const newDefine = getDefineEnv({
+                  isTurbopack: false,
                   allowedRevalidateHeaderKeys: undefined,
                   clientRouterFilters,
                   config: nextConfig,
@@ -2188,20 +2197,24 @@ async function startWatcher(opts: SetupOpts) {
         )
 
         let originalFrame, isEdgeCompiler
-        if (frame?.lineNumber && frame?.file) {
+        const frameFile = frame?.file
+        if (frame?.lineNumber && frameFile) {
           if (opts.turbo) {
             try {
-              originalFrame = await createOriginalTurboStackFrame(
-                project!,
-                frame
-              )
+              originalFrame = await createOriginalTurboStackFrame(project!, {
+                file: frameFile,
+                methodName: frame.methodName,
+                line: frame.lineNumber ?? 0,
+                column: frame.column,
+                isServer: true,
+              })
             } catch {}
           } else {
-            const moduleId = frame.file!.replace(
+            const moduleId = frameFile.replace(
               /^(webpack-internal:\/\/\/|file:\/\/)/,
               ''
             )
-            const modulePath = frame.file.replace(
+            const modulePath = frameFile.replace(
               /^(webpack-internal:\/\/\/|file:\/\/)(\(.*\)\/)?/,
               ''
             )

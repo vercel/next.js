@@ -5,6 +5,5 @@ module.exports = {
     logging: {
       level: 'verbose',
     },
-    serverActions: true,
   },
 }
