@@ -21,7 +21,6 @@ use turbopack_binding::{
 };
 
 use crate::{
-    app_structure::find_app_dir,
     embed_js::{next_js_fs, VIRTUAL_PACKAGE_NAME},
     mode::NextMode,
     next_client::context::ClientContextType,
@@ -550,13 +549,10 @@ async fn insert_next_server_special_aliases(
                 "styled-jsx/",
                 request_to_import_mapping(get_next_package(app_dir), "styled-jsx/*"),
             );
+
+            rsc_aliases(import_map, project_path, ty, runtime, next_config).await?;
         }
         ServerContextType::Middleware => {}
-    }
-
-    let app_dir = &*find_app_dir(project_path).await?;
-    if app_dir.is_some() {
-        rsc_aliases(import_map, project_path, ty, runtime, next_config).await?;
     }
 
     // see https://github.com/vercel/next.js/blob/8013ef7372fc545d49dbd060461224ceb563b454/packages/next/src/build/webpack-config.ts#L1449-L1531
