@@ -21,7 +21,6 @@ export default function Home() {
     })
 
     socket.on('newIncomingMessage', (msg) => {
-      console.log('New message in client', msg)
       setValue(msg)
     })
   }
@@ -29,6 +28,8 @@ export default function Home() {
   const sendMessageHandler = async (e) => {
     if (!socket) return
     const value = e.target.value
+
+    setValue(value)
     socket.emit('createdMessage', value)
   }
 
