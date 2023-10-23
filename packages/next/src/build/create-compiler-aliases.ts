@@ -20,7 +20,7 @@ import {
 import { WEBPACK_LAYERS } from '../lib/constants'
 
 interface CompilerAliases {
-  [alias: string]: string
+  [alias: string]: string | string[]
 }
 
 export function createWebpackAliases({
@@ -52,8 +52,8 @@ export function createWebpackAliases({
   clientResolveRewrites: string
   hasRewrites: boolean
 }): CompilerAliases {
-  const customAppAliases: { [key: string]: string[] } = {}
-  const customDocumentAliases: { [key: string]: string[] } = {}
+  const customAppAliases: CompilerAliases = {}
+  const customDocumentAliases: CompilerAliases = {}
 
   if (dev) {
     const nextDistPath = 'next/dist/' + (isEdgeServer ? 'esm/' : '')
