@@ -148,7 +148,7 @@ async fn wrap_edge_page(
 
     let next_config = &*next_config.await?;
 
-    // TODO
+    // TODO(WEB-1824): add build support
     let build_id = "development";
     let is_server_component = true;
     let dev = true;
