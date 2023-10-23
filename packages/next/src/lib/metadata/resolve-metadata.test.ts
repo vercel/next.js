@@ -8,6 +8,23 @@ function accumulateMetadata(metadataItems: MetadataItems) {
   })
 }
 
+function mapUrlsToStrings(obj: any) {
+  if (typeof obj === 'object') {
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        if (obj[key] instanceof URL) {
+          // If the property is a URL instance, convert it to a string
+          obj[key] = obj[key].href
+        } else if (typeof obj[key] === 'object') {
+          // Recursively process nested objects
+          obj[key] = mapUrlsToStrings(obj[key])
+        }
+      }
+    }
+  }
+  return obj
+}
+
 describe('accumulateMetadata', () => {
   describe('typing', () => {
     it('should support both sync and async metadata', async () => {
@@ -192,12 +209,14 @@ describe('accumulateMetadata', () => {
         ],
       ]
       const metadata = await accumulateMetadata(metadataItems)
-      expect(metadata).toMatchObject({
-        metadataBase: new URL('http://test.com/base'),
-        itunes: {
-          appArgument: new URL('http://test.com/base/test/native/app'),
-        },
-      })
+      expect(mapUrlsToStrings(metadata)).toMatchObject(
+        mapUrlsToStrings({
+          metadataBase: new URL('http://test.com/base'),
+          itunes: {
+            appArgument: new URL('http://test.com/base/test/native/app'),
+          },
+        })
+      )
     })
   })
 
@@ -217,11 +236,13 @@ describe('accumulateMetadata', () => {
             {
               openGraph: {
                 type: 'music.song',
-                images: new URL('https://test3.com'),
+                images: new URL('https://test-og-3.com'),
               },
             },
           ],
-          { openGraph: { images: [new URL('https://test3.com')] } },
+          {
+            openGraph: { images: [{ url: new URL('https://test-og-3.com') }] },
+          },
         ],
         [
           [
@@ -256,9 +277,9 @@ describe('accumulateMetadata', () => {
         const metadata = await accumulateMetadata(
           configuredMetadata.map((m) => [m, null])
         )
-        // clone to avoid comparing URL objects
-        const clone = (v: any) => JSON.parse(JSON.stringify(v))
-        expect(clone(metadata)).toMatchObject(clone(result))
+        expect(mapUrlsToStrings(metadata)).toMatchObject(
+          mapUrlsToStrings(result)
+        )
       })
     })
 
@@ -351,12 +372,14 @@ describe('accumulateMetadata', () => {
         ],
       ]
       const metadata = await accumulateMetadata(metadataItems)
-      expect(metadata).toMatchObject({
-        metadataBase: new URL('http://test.com/base'),
-        openGraph: {
-          url: new URL('http://test.com/base/test/abc'),
-        },
-      })
+      expect(mapUrlsToStrings(metadata)).toMatchObject(
+        mapUrlsToStrings({
+          metadataBase: new URL('http://test.com/base'),
+          openGraph: {
+            url: new URL('http://test.com/base/test/abc'),
+          },
+        })
+      )
     })
 
     it('should override openGraph or twitter images when current layer specifies social images properties', async () => {
