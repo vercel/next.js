@@ -9,7 +9,7 @@ describe('get-page-static-infos', () => {
         {
           originalSource: '/middleware/path',
           regexp:
-            '^(?:\\/(_next\\/data\\/[^/]{1,}))?\\/middleware\\/path(.json)?[\\/#\\?]?$',
+            '^(?:\\/(_next\\/data\\/[^/]+))?\\/middleware\\/path(.json)?[\\/#\\?]?$',
         },
       ]
       const result = getMiddlewareMatchers(matchers, { i18n: undefined })
@@ -22,7 +22,7 @@ describe('get-page-static-infos', () => {
         {
           originalSource: '/middleware/path',
           regexp:
-            '^(?:\\/(_next\\/data\\/[^/]{1,}))?\\/middleware\\/path(.json)?[\\/#\\?]?$',
+            '^(?:\\/(_next\\/data\\/[^/]+))?\\/middleware\\/path(.json)?[\\/#\\?]?$',
         },
         {
           originalSource: '/middleware/another-path',
