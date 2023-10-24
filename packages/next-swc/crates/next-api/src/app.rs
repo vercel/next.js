@@ -546,8 +546,7 @@ impl AppEndpoint {
 
         let mut server_assets = vec![];
         let mut client_assets = vec![];
-        /// assets to add to the middleware manifest (to be loaded in the edge
-        /// runtime).
+        // assets to add to the middleware manifest (to be loaded in the edge runtime).
         let mut middleware_assets = vec![];
 
         let app_entry = app_entry.await?;
