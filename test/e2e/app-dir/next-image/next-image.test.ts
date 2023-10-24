@@ -55,10 +55,9 @@ createNextDescribe(
         expect(root.attr('src')).toMatch(
           /\/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.([^.]+)\.png&w=828&q=85/
         )
-        expect([
-          '/_next/image?url=%2Fassets%2Ftest.308c602d.png&w=640&q=85 1x, /_next/image?url=%2Fassets%2Ftest.308c602d.png&w=828&q=85 2x',
-          '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=640&q=85 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=828&q=85 2x',
-        ]).toPartiallyContain(root.attr('srcset'))
+        expect(root.attr('srcset')).toMatch(
+          /\/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.([^.]+)\.png&w=640&q=85 1x, \/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.([^.]+)\.png&w=828&q=85 2x/
+        )
 
         const layout = $('#app-client-layout')
         expect(layout.attr('src')).toMatch(
