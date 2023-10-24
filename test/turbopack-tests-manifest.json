@@ -13408,14 +13408,15 @@
       "Basics default setting with react 18 dev should contain dynamicIds in next data for dynamic imports",
       "Basics default setting with react 18 dev should only render once in SSR",
       "Basics default setting with react 18 dev useId() values should match on hydration",
-      "Concurrent mode in the experimental-edge runtime dev <RouteAnnouncer /> should not have the initial route announced",
       "Concurrent mode in the experimental-edge runtime dev flushes styled-jsx styles as the page renders",
       "Concurrent mode in the experimental-edge runtime dev should not have invalid config warning",
       "Concurrent mode in the nodejs runtime dev <RouteAnnouncer /> should not have the initial route announced",
       "Concurrent mode in the nodejs runtime dev flushes styled-jsx styles as the page renders",
       "Concurrent mode in the nodejs runtime dev should not have invalid config warning"
     ],
-    "failed": [],
+    "failed": [
+      "Concurrent mode in the experimental-edge runtime dev <RouteAnnouncer /> should not have the initial route announced"
+    ],
     "pending": [
       "Basics production mode default setting with react 18 prod hydrates correctly for normal page",
       "Basics production mode default setting with react 18 prod no warnings for image related link props",
