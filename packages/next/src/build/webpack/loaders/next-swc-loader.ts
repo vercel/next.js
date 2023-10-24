@@ -42,9 +42,8 @@ export interface SWCLoaderOptions {
   jsConfig: any
   supportedBrowsers: string[] | undefined
   swcCacheDir: string
-  bundleTarget: BundleType
-  hasServerComponents?: boolean
-  isServerLayer: boolean
+  serverComponents?: boolean
+  isReactServerLayer?: boolean
 }
 
 async function loaderTransform(
@@ -68,9 +67,9 @@ async function loaderTransform(
     jsConfig,
     supportedBrowsers,
     swcCacheDir,
-    hasServerComponents,
-    isServerLayer,
-    bundleTarget,
+    serverComponents,
+    isReactServerLayer,
+    // bundleTarget,
   } = loaderOptions
   const isPageFile = filename.startsWith(pagesDir)
   const relativeFilePathFromRoot = path.relative(rootDir, filename)
@@ -92,9 +91,9 @@ async function loaderTransform(
     supportedBrowsers,
     swcCacheDir,
     relativeFilePathFromRoot,
-    hasServerComponents,
-    isServerLayer,
-    bundleTarget,
+    serverComponents,
+    isReactServerLayer,
+    // bundleTarget,
   })
 
   const programmaticOptions = {
