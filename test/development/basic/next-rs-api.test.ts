@@ -561,4 +561,56 @@ describe('next.rs api', () => {
         }
       })
   }
+
+  it('should allow to make many HMR updates', async () => {
+    console.log('start')
+    await new Promise((r) => setTimeout(r, 1000))
+    const entrypointsSubscribtion = project.entrypointsSubscribe()
+    const entrypoints: TurbopackResult<Entrypoints> = (
+      await entrypointsSubscribtion.next()
+    ).value
+    const route = entrypoints.routes.get('/')
+    entrypointsSubscribtion.return()
+
+    if (route.type !== 'page') throw new Error('unknown route type')
+    await route.htmlEndpoint.writeToDisk()
+
+    const result = await project.hmrIdentifiersSubscribe().next()
+    expect(result.done).toBe(false)
+    const identifiers = result.value.identifiers
+
+    const subscriptions = identifiers.map((identifier) =>
+      project.hmrEvents(identifier)
+    )
+    await Promise.all(
+      subscriptions.map(async (subscription) => {
+        const result = await subscription.next()
+        expect(result.done).toBe(false)
+        expect(result.value).toHaveProperty('resource', expect.toBeObject())
+        expect(result.value).toHaveProperty('type', 'issues')
+        expect(result.value).toHaveProperty('diagnostics', expect.toBeEmpty())
+      })
+    )
+    const merged = raceIterators(subscriptions)
+
+    const file = 'pages/index.js'
+    let currentContent = await next.readFile(file)
+    let nextContent = pagesIndexCode('hello world2')
+
+    const count = process.env.CI ? 300 : 1000
+    for (let i = 0; i < count; i++) {
+      await next.patchFileFast(file, nextContent)
+      const content = currentContent
+      currentContent = nextContent
+      nextContent = content
+
+      while (true) {
+        const { value, done } = await merged.next()
+        expect(done).toBe(false)
+        if (value.type === 'partial') {
+          break
+        }
+      }
+    }
+  }, 300000)
 })
