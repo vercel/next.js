@@ -94,6 +94,7 @@ pub async fn get_next_client_import_map(
         ClientContextType::App { app_dir } => {
             let react_flavor = if *next_config.enable_server_actions().await?
                 || *next_config.enable_ppr().await?
+                || *next_config.enable_taint().await?
             {
                 "-experimental"
             } else {
@@ -646,7 +647,8 @@ async fn rsc_aliases(
 ) -> Result<()> {
     let server_actions = *next_config.enable_server_actions().await?;
     let ppr = *next_config.enable_ppr().await?;
-    let react_channel = if server_actions || ppr {
+    let taint = *next_config.enable_taint().await?;
+    let react_channel = if server_actions || ppr || taint {
         "-experimental"
     } else {
         ""
