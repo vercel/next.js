@@ -8,7 +8,7 @@ use turbopack_binding::swc::core::{
 
 use crate::import_analyzer::ImportMap;
 
-pub fn pure_magic<C>(comments: C) -> impl VisitMut + Fold
+pub fn pure_magic<C>(comments: C) -> impl Fold
 where
     C: Comments,
 {
