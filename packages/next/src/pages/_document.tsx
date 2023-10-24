@@ -106,25 +106,36 @@ function AmpStyles({
   if (!styles) return null
 
   // try to parse styles from fragment for backwards compat
-  const curStyles: React.ReactElement[] = Array.isArray(styles)
-    ? (styles as React.ReactElement[])
-    : []
-  if (
+  const curStyles: React.ReactElement[] = []
+
+  const findStyles = (style: React.ReactNode) => {
+    const hasStyles = (el: React.ReactElement) => {
+      return el?.props?.dangerouslySetInnerHTML?.__html
+    }
+
+    if (React.isValidElement(style) && hasStyles(style)) {
+      curStyles.push(style)
+    }
+
     // @ts-ignore Property 'props' does not exist on type ReactElement
-    styles.props &&
-    // @ts-ignore Property 'props' does not exist on type ReactElement
-    Array.isArray(styles.props.children)
-  ) {
-    const hasStyles = (el: React.ReactElement) =>
-      el?.props?.dangerouslySetInnerHTML?.__html
-    // @ts-ignore Property 'props' does not exist on type ReactElement
-    styles.props.children.forEach((child: React.ReactElement) => {
-      if (Array.isArray(child)) {
-        child.forEach((el) => hasStyles(el) && curStyles.push(el))
-      } else if (hasStyles(child)) {
-        curStyles.push(child)
-      }
+    if (Array.isArray(style.props.children)) {
+      // @ts-ignore Property 'props' does not exist on type ReactElement
+      style.props.children.forEach((child: React.ReactElement) => {
+        if (Array.isArray(child)) {
+          child.forEach((el) => hasStyles(el) && curStyles.push(el))
+        } else if (hasStyles(child)) {
+          curStyles.push(child)
+        }
+      })
+    }
+  }
+
+  if (Array.isArray(styles)) {
+    styles.forEach((style) => {
+      findStyles(style)
     })
+  } else {
+    findStyles(styles)
   }
 
   /* Add custom styles before AMP styles to prevent accidental overrides */
@@ -670,36 +681,52 @@ export class Head extends React.Component<HeadProps> {
     this.context.docComponentsRendered.Head = true
 
     let { head } = this.context
+    let ampStyles: React.ReactElement[] = []
     let cssPreloads: Array<JSX.Element> = []
     let otherHeadElements: Array<JSX.Element> = []
     if (head) {
-      head.forEach((c) => {
-        let metaTag
-
-        if (this.context.strictNextHead) {
-          metaTag = React.createElement('meta', {
-            name: 'next-head',
-            content: '1',
-          })
-        }
-
-        if (
-          c &&
-          c.type === 'link' &&
-          c.props['rel'] === 'preload' &&
-          c.props['as'] === 'style'
-        ) {
-          metaTag && cssPreloads.push(metaTag)
-          cssPreloads.push(c)
-        } else {
-          if (c) {
-            if (metaTag && (c.type !== 'meta' || !c.props['charSet'])) {
-              otherHeadElements.push(metaTag)
+      head
+        .filter((c) => {
+          if (
+            c?.type === 'style' &&
+            Object(c.props).hasOwnProperty('amp-custom')
+          ) {
+            const { children = '', ...props } = c.props
+            if (!props?.dangerouslySetInnerHTML) {
+              props.dangerouslySetInnerHTML = { __html: children }
             }
-            otherHeadElements.push(c)
+            ampStyles.push(React.cloneElement(c, { ...props }))
+            return false
           }
-        }
-      })
+          return true
+        })
+        .forEach((c) => {
+          let metaTag
+
+          if (this.context.strictNextHead) {
+            metaTag = React.createElement('meta', {
+              name: 'next-head',
+              content: '1',
+            })
+          }
+
+          if (
+            c &&
+            c.type === 'link' &&
+            c.props['rel'] === 'preload' &&
+            c.props['as'] === 'style'
+          ) {
+            metaTag && cssPreloads.push(metaTag)
+            cssPreloads.push(c)
+          } else {
+            if (c) {
+              if (metaTag && (c.type !== 'meta' || !c.props['charSet'])) {
+                otherHeadElements.push(metaTag)
+              }
+              otherHeadElements.push(c)
+            }
+          }
+        })
       head = cssPreloads.concat(otherHeadElements)
     }
     let children: React.ReactNode[] = React.Children.toArray(
@@ -866,7 +893,12 @@ export class Head extends React.Component<HeadProps> {
               as="script"
               href="https://cdn.ampproject.org/v0.js"
             />
-            <AmpStyles styles={styles} />
+            <AmpStyles
+              styles={[
+                ...ampStyles,
+                ...(Array.isArray(styles) ? styles : [styles]),
+              ]}
+            />
             <style
               amp-boilerplate=""
               dangerouslySetInnerHTML={{
