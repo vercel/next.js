@@ -54,6 +54,33 @@ export default async function Page() {
     }
   )()
 
+  const cacheInner = unstable_cache(
+    async () => {
+      console.log('calling cacheInner')
+      const data = await fetch(
+        'https://next-data-api-endpoint.vercel.app/api/random?something',
+        {
+          next: { revalidate: 15, tags: ['thankyounext'] },
+        }
+      ).then((res) => res.text())
+      return data
+    },
+    [],
+    { revalidate: 360 }
+  )
+
+  const cacheOuter = unstable_cache(
+    () => {
+      console.log('cacheOuter')
+      return cacheInner()
+    },
+    [],
+    {
+      revalidate: 1000,
+      tags: ['thankyounext'],
+    }
+  )()
+
   return (
     <>
       <p id="page">/variable-revalidate/revalidate-360</p>
@@ -65,6 +92,7 @@ export default async function Page() {
         revalidate 10 (tags: thankyounext): {JSON.stringify(cachedData)}
       </p>
       <p id="now">{Date.now()}</p>
+      <p id="nested-cache">nested cache: {cacheOuter}</p>
     </>
   )
 }

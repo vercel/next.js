@@ -222,6 +222,7 @@ createNextDescribe(
           const $ = cheerio.load(html)
           const initLayoutData = $('#layout-data').text()
           const initPageData = $('#page-data').text()
+          const initNestedCacheData = $('#nested-cache').text()
 
           const routeHandlerRes = await next.fetch(
             '/route-handler/revalidate-360'
@@ -254,6 +255,7 @@ createNextDescribe(
             const new$ = cheerio.load(newHtml)
             const newLayoutData = new$('#layout-data').text()
             const newPageData = new$('#page-data').text()
+            const newNestedCacheData = new$('#nested-cache').text()
 
             const newRouteHandlerRes = await next.fetch(
               '/route-handler/revalidate-360'
@@ -271,6 +273,7 @@ createNextDescribe(
             expect(newEdgeRouteHandlerData).toBeTruthy()
             expect(newLayoutData).not.toBe(initLayoutData)
             expect(newPageData).not.toBe(initPageData)
+            expect(newNestedCacheData).not.toBe(initNestedCacheData)
             expect(newRouteHandlerData).not.toEqual(initRouteHandlerData)
             expect(newEdgeRouteHandlerData).not.toEqual(initEdgeRouteHandlerRes)
             return 'success'
