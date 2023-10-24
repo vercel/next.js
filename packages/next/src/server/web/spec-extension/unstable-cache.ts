@@ -82,6 +82,9 @@ export function unstable_cache<T extends Callback>(
         const cacheKey = await incrementalCache?.fetchCacheKey(joinedKey)
         const cacheEntry =
           cacheKey &&
+          // when we are nested inside of other unstable_cache's
+          // we should bypass cache similar to fetches
+          store?.fetchCache !== 'force-no-store' &&
           !(
             store?.isOnDemandRevalidate || incrementalCache.isOnDemandRevalidate
           ) &&
