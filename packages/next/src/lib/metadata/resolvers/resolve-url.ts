@@ -74,7 +74,7 @@ function resolveUrl(
 // Resolve with `pathname` if `url` is a relative path.
 function resolveRelativeUrl(url: string | URL, pathname: string): string | URL {
   if (typeof url === 'string' && url.startsWith('./')) {
-    return path.resolve(pathname, url)
+    return path.posix.resolve(pathname, url)
   }
   return url
 }
