@@ -188,6 +188,7 @@ jobs:
 
       - name: Upload bundle analyzer artifacts
         uses: actions/upload-artifact@v3
+        if: ${{ inputs.skipInstallBuild != 'yes' && inputs.skipNativeBuild != 'yes' }}
         with:
           name: webpack bundle analysis stats
           path: packages/next/dist/compiled/next-server/report.*.html
