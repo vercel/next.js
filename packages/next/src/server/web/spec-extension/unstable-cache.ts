@@ -77,7 +77,7 @@ export function unstable_cache<T extends Callback>(
             }
           }
         }
-        const implicitTags = addImplicitTags(store)
+        const implicitTags = store ? addImplicitTags(store) : []
 
         const cacheKey = await incrementalCache?.fetchCacheKey(joinedKey)
         const cacheEntry =
