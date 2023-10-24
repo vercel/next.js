@@ -1062,8 +1062,18 @@ export default async function build(
       let buildTraceContext: undefined | BuildTraceContext
       let buildTracesPromise: Promise<any> | undefined = undefined
 
+      // if the option is set, we respect it, otherwise we check if the user
+      // has a custom webpack config and disable the build worker by default.
+      const useBuildWorker = config.webpackBuildWorker || !config.webpack
+
+      if (config.webpack && config.webpackBuildWorker === undefined) {
+        Log.warn(
+          'Custom webpack configuration is detected. When using a custom webpack configuration, the Webpack build worker is disabled by default. To force enable it, set the "webpackBuildWorker" option to "true".'
+        )
+      }
+
       if (!isGenerate) {
-        if (isCompile && config.experimental.webpackBuildWorker) {
+        if (isCompile && useBuildWorker) {
           let durationInSeconds = 0
 
           await webpackBuild(true, ['server']).then((res) => {

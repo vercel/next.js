@@ -283,11 +283,6 @@ export interface ExperimentalConfig {
   typedRoutes?: boolean
 
   /**
-   * This option is to enable running the Webpack build in a worker thread.
-   */
-  webpackBuildWorker?: boolean
-
-  /**
    *
    */
   instrumentationHook?: boolean
@@ -665,6 +660,15 @@ export interface NextConfig extends Record<string, any> {
   }
 
   /**
+   * Run the Webpack build in a separate process to optimize memory usage during build.
+   * Valid values are:
+   * - `false`: Disable the Webpack build worker
+   * - `true`: Enable the Webpack build worker
+   * - `undefined`: Enable the Webpack build worker only if the webpack config is not customized
+   */
+  webpackBuildWorker?: boolean
+
+  /**
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
    */
   experimental?: ExperimentalConfig
@@ -722,6 +726,7 @@ export const defaultConfig: NextConfig = {
   swcMinify: true,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
+  webpackBuildWorker: undefined,
   experimental: {
     serverMinification: true,
     serverSourceMaps: false,
@@ -772,7 +777,6 @@ export const defaultConfig: NextConfig = {
     typedRoutes: false,
     instrumentationHook: false,
     bundlePagesExternals: false,
-    webpackBuildWorker: true,
   },
 }
 

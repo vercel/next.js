@@ -49,6 +49,7 @@ const supportedTurbopackNextConfigOptions = [
   'serverRuntimeConfig',
   'publicRuntimeConfig',
   'exportPathMap',
+  'webpackBuildWorker',
 
   // Experimental options that affect compilation
   'experimental.swcPlugins',
@@ -81,7 +82,6 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.serverActionsBodySizeLimit',
   'experimental.memoryBasedWorkersCount',
   'experimental.clientRouterFilterRedirects',
-  'experimental.webpackBuildWorker',
   'experimental.appDocumentPreloading',
   'experimental.incrementalCacheHandlerPath',
   'experimental.amp',
