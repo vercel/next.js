@@ -28,6 +28,8 @@ export abstract class BaseNextRequest<Body = any> {
 
   constructor(public method: string, public url: string, public body: Body) {}
 
+  abstract parseBody(limit: string | number): Promise<any>
+
   // Utils implemented using the abstract methods above
 
   public get cookies() {

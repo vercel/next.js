@@ -210,17 +210,15 @@ async function postProcessHTML(
     process.env.NEXT_RUNTIME !== 'edge' && renderOpts.optimizeFonts
       ? async (html: string) => {
           const getFontDefinition = (url: string) => {
-            if (!renderOpts.fontManifest) {
-              return ''
+            if (renderOpts.fontManifest) {
+              const { getFontDefinitionFromManifest } =
+                require('./font-utils') as typeof import('./font-utils')
+              return getFontDefinitionFromManifest!(
+                url,
+                renderOpts.fontManifest
+              )
             }
-            return (
-              renderOpts.fontManifest.find((font) => {
-                if (font && font.url === url) {
-                  return true
-                }
-                return false
-              })?.content || ''
-            )
+            return ''
           }
           return await processHTML(
             html,

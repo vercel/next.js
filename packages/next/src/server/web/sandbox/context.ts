@@ -6,6 +6,10 @@ import type {
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
 import { AsyncLocalStorage } from 'async_hooks'
 import {
+  decorateServerError,
+  getServerError,
+} from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
+import {
   COMPILER_NAMES,
   EDGE_UNSUPPORTED_NODE_APIS,
 } from '../../../shared/lib/constants'
@@ -26,18 +30,6 @@ interface ModuleContext {
   runtime: EdgeRuntime
   paths: Map<string, string>
   warnedEvals: Set<string>
-}
-
-let getServerError: typeof import('next/dist/compiled/@next/react-dev-overlay/dist/middleware').getServerError
-let decorateServerError: typeof import('next/dist/compiled/@next/react-dev-overlay/dist/middleware').decorateServerError
-
-if (process.env.NODE_ENV === 'development') {
-  const middleware = require('next/dist/compiled/@next/react-dev-overlay/dist/middleware')
-  getServerError = middleware.getServerError
-  decorateServerError = middleware.decorateServerError
-} else {
-  getServerError = (error: Error, _: string) => error
-  decorateServerError = (error: Error, _: string) => error
 }
 
 /**
