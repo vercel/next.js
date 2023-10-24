@@ -1,6 +1,5 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import * as path from 'path'
@@ -8,7 +7,6 @@ import {
   renderViaHTTP,
   findPort,
   launchApp,
-  nextBuild,
   killApp,
   File,
 } from 'next-test-utils'
