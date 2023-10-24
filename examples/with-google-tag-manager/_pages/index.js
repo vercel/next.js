@@ -1,6 +1,6 @@
 import { EventButton } from './components/EventButton'
 
-export default function Home() {
+export default function Page() {
   return (
     <div>
       <EventButton />
