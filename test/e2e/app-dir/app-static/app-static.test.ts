@@ -1677,23 +1677,26 @@ createNextDescribe(
         )
       })
 
-      it('should correctly error and not update cache for ISR', async () => {
-        await next.patchFile('app/isr-error-handling/error.txt', 'yes')
+      // build cache not leveraged for custom cache handler so not seeded
+      if (!process.env.CUSTOM_CACHE_HANDLER) {
+        it('should correctly error and not update cache for ISR', async () => {
+          await next.patchFile('app/isr-error-handling/error.txt', 'yes')
 
-        for (let i = 0; i < 3; i++) {
-          const res = await next.fetch('/isr-error-handling')
-          const html = await res.text()
-          const $ = cheerio.load(html)
-          const now = $('#now').text()
+          for (let i = 0; i < 3; i++) {
+            const res = await next.fetch('/isr-error-handling')
+            const html = await res.text()
+            const $ = cheerio.load(html)
+            const now = $('#now').text()
 
-          expect(res.status).toBe(200)
-          expect(now).toBeTruthy()
+            expect(res.status).toBe(200)
+            expect(now).toBeTruthy()
 
-          // wait revalidate period
-          await waitFor(3000)
-        }
-        expect(next.cliOutput).toContain('intentional error')
-      })
+            // wait revalidate period
+            await waitFor(3000)
+          }
+          expect(next.cliOutput).toContain('intentional error')
+        })
+      }
     }
 
     it.each([
