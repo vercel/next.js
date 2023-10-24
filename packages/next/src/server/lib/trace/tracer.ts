@@ -174,6 +174,9 @@ class NextTracerImpl implements NextTracer {
   }
 
   public withPropagatedContext<T>(req: BaseNextRequest, fn: () => T): T {
+    if (context.active() !== ROOT_CONTEXT) {
+      return fn()
+    }
     const remoteContext = propagation.extract(ROOT_CONTEXT, req.headers)
     return context.with(remoteContext, fn)
   }
