@@ -3078,10 +3078,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/emotion-js/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app dir - emotion-js should render emotion-js css with compiler.emotion option correctly"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
