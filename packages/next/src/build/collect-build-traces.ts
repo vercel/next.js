@@ -268,16 +268,16 @@ export async function collectBuildTraces({
         isStandalone ? null : '**/next/dist/compiled/jest-worker/**/*',
         '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
         '**/node_modules/webpack5/**/*',
-        '**/next/dist/server/lib/squoosh/**/*.wasm',
         '**/next/dist/server/lib/route-resolver*',
         'next/dist/compiled/@next/react-dev-overlay/dist/**/*',
         'next/dist/compiled/semver/semver/**/*.js',
-        '**/next/dist/pages/**/*',
+
         ...(ciEnvironment.hasNextSupport
           ? [
               // only ignore image-optimizer code when
               // this is being handled outside of next-server
               '**/next/dist/server/image-optimizer.js',
+              '**/next/dist/server/lib/squoosh/**/*.wasm',
             ]
           : []),
 
@@ -294,7 +294,7 @@ export async function collectBuildTraces({
         ...sharedIgnores,
         '**/*.d.ts',
         '**/*.map',
-
+        '**/next/dist/pages/**/*',
         ...(ciEnvironment.hasNextSupport ? ['**/node_modules/sharp/**/*'] : []),
       ].filter(nonNullable)
 
