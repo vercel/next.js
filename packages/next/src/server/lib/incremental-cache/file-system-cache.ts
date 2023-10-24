@@ -1,4 +1,4 @@
-import type { OutgoingHttpHeaders } from 'http'
+import type { RouteMetadata } from '../../../export/routes/types'
 import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
 import type { CacheFs } from '../../../shared/lib/utils'
 import type { CachedFetchValue } from '../../response-cache'
@@ -197,7 +197,7 @@ export default class FileSystemCache implements CacheHandler {
                 )
               )
 
-          let meta: { status?: number; headers?: OutgoingHttpHeaders } = {}
+          let meta: RouteMetadata | undefined
 
           if (isAppPath) {
             try {
@@ -216,8 +216,9 @@ export default class FileSystemCache implements CacheHandler {
               kind: 'PAGE',
               html: fileData,
               pageData,
-              headers: meta.headers,
-              status: meta.status,
+              postponed: meta?.postponed,
+              headers: meta?.headers,
+              status: meta?.status,
             },
           }
         }
@@ -281,7 +282,7 @@ export default class FileSystemCache implements CacheHandler {
       }
     }
 
-    return data || null
+    return data ?? null
   }
 
   public async set(
@@ -304,9 +305,16 @@ export default class FileSystemCache implements CacheHandler {
       })
       await this.fs.mkdir(path.dirname(filePath))
       await this.fs.writeFile(filePath, data.body)
+
+      const meta: RouteMetadata = {
+        headers: data.headers,
+        status: data.status,
+        postponed: undefined,
+      }
+
       await this.fs.writeFile(
         filePath.replace(/\.body$/, '.meta'),
-        JSON.stringify({ headers: data.headers, status: data.status })
+        JSON.stringify(meta, null, 2)
       )
       return
     }
@@ -331,12 +339,15 @@ export default class FileSystemCache implements CacheHandler {
       )
 
       if (data.headers || data.status) {
+        const meta: RouteMetadata = {
+          headers: data.headers,
+          status: data.status,
+          postponed: data.postponed,
+        }
+
         await this.fs.writeFile(
           htmlPath.replace(/\.html$/, '.meta'),
-          JSON.stringify({
-            headers: data.headers,
-            status: data.status,
-          })
+          JSON.stringify(meta)
         )
       }
     } else if (data?.kind === 'FETCH') {

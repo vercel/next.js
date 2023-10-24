@@ -339,11 +339,7 @@ export class NextInstance {
   public async build(): Promise<{ exitCode?: number; cliOutput?: string }> {
     throw new Error('Not implemented')
   }
-  public async export(args?: {
-    outdir?: string
-  }): Promise<{ exitCode?: number; cliOutput?: string }> {
-    throw new Error('Not implemented')
-  }
+
   public async setup(parentSpan: Span): Promise<void> {}
   public async start(useDirArg: boolean = false): Promise<void> {}
   public async stop(): Promise<void> {
@@ -468,6 +464,10 @@ export class NextInstance {
     if (newFile) {
       await this.handleDevWatchDelayAfterChange(filename)
     }
+  }
+  public async patchFileFast(filename: string, content: string) {
+    const outputPath = path.join(this.testDir, filename)
+    await fs.writeFile(outputPath, content)
   }
   public async renameFile(filename: string, newFilename: string) {
     await this.handleDevWatchDelayBeforeChange(filename)

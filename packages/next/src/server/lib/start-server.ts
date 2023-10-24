@@ -9,6 +9,7 @@ import type { SelfSignedCertificate } from '../../lib/mkcert'
 import type { WorkerRequestHandler, WorkerUpgradeHandler } from './types'
 
 import fs from 'fs'
+import v8 from 'v8'
 import path from 'path'
 import http from 'http'
 import https from 'https'
@@ -20,6 +21,7 @@ import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
 import { CONFIG_FILES } from '../../shared/lib/constants'
 import { getStartServerInfo, logStartInfo } from './app-info-log'
+import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 
 const debug = setupDebug('next:start-server')
 
@@ -74,17 +76,21 @@ export async function getRequestHandlers({
   })
 }
 
-export async function startServer({
-  dir,
-  port,
-  isDev,
-  hostname,
-  minimalMode,
-  allowRetry,
-  keepAliveTimeout,
-  isExperimentalTestProxy,
-  selfSignedCertificate,
-}: StartServerOptions): Promise<void> {
+export async function startServer(
+  serverOptions: StartServerOptions
+): Promise<void> {
+  const {
+    dir,
+    isDev,
+    hostname,
+    minimalMode,
+    allowRetry,
+    keepAliveTimeout,
+    isExperimentalTestProxy,
+    selfSignedCertificate,
+  } = serverOptions
+  let { port } = serverOptions
+
   process.title = 'next-server'
   let handlersReady = () => {}
   let handlersError = () => {}
@@ -136,6 +142,18 @@ export async function startServer({
       res.end('Internal Server Error')
       Log.error(`Failed to handle request for ${req.url}`)
       console.error(err)
+    } finally {
+      if (isDev) {
+        if (
+          v8.getHeapStatistics().used_heap_size >
+          0.8 * v8.getHeapStatistics().heap_size_limit
+        ) {
+          Log.warn(
+            `Server is approaching the used memory threshold, restarting...`
+          )
+          process.exit(RESTART_EXIT_CODE)
+        }
+      }
     }
   }
 
@@ -217,6 +235,22 @@ export async function startServer({
       // expose the main port to render workers
       process.env.PORT = port + ''
 
+      // Only load env and config in dev to for logging purposes
+      let envInfo: string[] | undefined
+      let expFeatureInfo: string[] | undefined
+      if (isDev) {
+        const startServerInfo = await getStartServerInfo(dir)
+        envInfo = startServerInfo.envInfo
+        expFeatureInfo = startServerInfo.expFeatureInfo
+      }
+      logStartInfo({
+        networkUrl,
+        appUrl,
+        envInfo,
+        expFeatureInfo,
+        maxExperimentalFeatures: 3,
+      })
+
       try {
         const cleanup = (code: number | null) => {
           debug('start-server process cleanup')
@@ -257,29 +291,20 @@ export async function startServer({
             'next-start-end'
           ).duration
 
+        handlersReady()
         const formatDurationText =
           startServerProcessDuration > 2000
             ? `${Math.round(startServerProcessDuration / 100) / 10}s`
             : `${Math.round(startServerProcessDuration)}ms`
 
-        handlersReady()
+        Log.event(`Ready in ${formatDurationText}`)
 
-        // Only load env and config in dev to for logging purposes
-        let envInfo: string[] | undefined
-        let expFeatureInfo: string[] | undefined
-        if (isDev) {
-          const startServerInfo = await getStartServerInfo(dir)
-          envInfo = startServerInfo.envInfo
-          expFeatureInfo = startServerInfo.expFeatureInfo
+        if (process.env.TURBOPACK) {
+          await validateTurboNextConfig({
+            ...serverOptions,
+            isDev: true,
+          })
         }
-        logStartInfo({
-          networkUrl,
-          appUrl,
-          envInfo,
-          expFeatureInfo,
-          formatDurationText,
-          maxExperimentalFeatures: 3,
-        })
       } catch (err) {
         // fatal error if we can't setup
         handlersError()

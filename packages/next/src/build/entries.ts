@@ -591,6 +591,7 @@ export async function createEntrypoints(
         page,
       })
 
+      // TODO(timneutkens): remove this
       const isServerComponent =
         isInsideAppDir && staticInfo.rsc !== RSC_MODULE_TYPES.client
 
