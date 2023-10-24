@@ -256,10 +256,7 @@ describe('accumulateMetadata', () => {
         const metadata = await accumulateMetadata(
           configuredMetadata.map((m) => [m, null])
         )
-        const metadataHref = metadata?.openGraph?.images[0]?.url?.href
-        const resultHref = result?.openGraph?.images[0]?.url?.href
-        console.log({ metadataHref, resultHref })
-        expect(metadataHref).toEqual(resultHref)
+        expect(metadata).toMatchObject(result)
       })
     })
 
