@@ -58,6 +58,7 @@ impl EcmascriptChunkItemContent {
                     // These things are not available in ESM
                     module: true,
                     exports: true,
+                    require: true,
                     this: true,
                     ..Default::default()
                 }
@@ -99,6 +100,9 @@ impl EcmascriptChunkItemContent {
         }
         if this.options.exports {
             args.push("e: exports");
+        }
+        if this.options.require {
+            args.push("t: require");
         }
         if this.options.wasm {
             args.push("w: __turbopack_wasm__");
@@ -149,6 +153,9 @@ pub struct EcmascriptChunkItemOptions {
     /// Whether this chunk item's module factory should include an `exports`
     /// argument.
     pub exports: bool,
+    /// Whether this chunk item's module factory should include a `require`
+    /// argument.
+    pub require: bool,
     /// Whether this chunk item's module factory should include a
     /// `__turbopack_external_require__` argument.
     pub externals: bool,

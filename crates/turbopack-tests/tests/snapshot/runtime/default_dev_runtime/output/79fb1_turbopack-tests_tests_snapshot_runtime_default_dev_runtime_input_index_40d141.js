@@ -124,6 +124,11 @@ function esmImport(sourceModule, id) {
     const raw = module.exports;
     return module.namespaceObject = interopEsm(raw, {}, raw.__esModule);
 }
+// Add a simple runtime require so that environments without one can still pass
+// `typeof require` CommonJS checks so that exports are correctly registered.
+const runtimeRequire = typeof require === "function" ? require : function require1() {
+    throw new Error("Unexpected use of runtime require");
+};
 function commonJsRequire(sourceModule, id) {
     const module = getOrInstantiateModuleFromParent(id, sourceModule);
     if (module.error) throw module.error;
@@ -470,6 +475,7 @@ function instantiateModule(id, source) {
                 a: asyncModule.bind(null, module),
                 e: module.exports,
                 r: commonJsRequire.bind(null, module),
+                t: runtimeRequire,
                 f: requireContext.bind(null, module),
                 i: esmImport.bind(null, module),
                 s: esmExport.bind(null, module, module.exports),
