@@ -38,9 +38,10 @@ interface CachedPageValue {
   // this needs to be a RenderResult so since renderResponse
   // expects that type instead of a string
   html: RenderResult
+  postponed: string | undefined
   pageData: Object
-  status?: number
-  headers?: OutgoingHttpHeaders
+  status: number | undefined
+  headers: OutgoingHttpHeaders | undefined
 }
 
 export interface CachedRouteValue {
@@ -67,8 +68,9 @@ interface IncrementalCachedPageValue {
   // the string value
   html: string
   pageData: Object
-  headers?: OutgoingHttpHeaders
-  status?: number
+  postponed: string | undefined
+  headers: OutgoingHttpHeaders | undefined
+  status: number | undefined
 }
 
 export type IncrementalCacheEntry = {
