@@ -240,10 +240,8 @@ async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap
         comments, program, ..
     } = &*ecmascript_asset.parse().await?
     else {
-        bail!(
-            "failed to parse action module '{id}'",
-            id = module.ident().to_string().await?
-        );
+        // The file might be be parse-able, but this is reported separately.
+        return Ok(OptionActionMap::none());
     };
 
     let Some(actions) = parse_server_actions(program, comments.clone()) else {
