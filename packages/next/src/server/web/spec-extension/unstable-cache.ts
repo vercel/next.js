@@ -51,7 +51,9 @@ export function unstable_cache<T extends Callback>(
     return staticGenerationAsyncStorage.run(
       {
         ...store,
-        fetchCache: 'only-no-store',
+        // force any nested fetches to bypass cache so they revalidate
+        // when the unstable_cache call is revalidated
+        fetchCache: 'force-no-store',
         urlPathname: store?.urlPathname || '/',
         isUnstableCacheCallback: true,
         isStaticGeneration: store?.isStaticGeneration === true,
