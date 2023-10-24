@@ -9,7 +9,7 @@ import type {
   ItunesApp,
   ResolvedAppleWebApp,
   ResolvedAppLinks,
-  Viewport,
+  ViewportMeta,
 } from './extra-types'
 import type {
   DeprecatedMetadataFields,
@@ -172,7 +172,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * <meta name="viewport" content="width=device-width, initial-scale=1" />
    * ```
    */
-  viewport?: null | Viewport
+  viewport?: null | ViewportMeta
 
   /**
    * The creator of the document.
@@ -487,7 +487,7 @@ interface ResolvedMetadata extends DeprecatedMetadataFields {
   /**
    * @deprecated
    */
-  viewport: null | Viewport
+  viewport: null | ViewportMeta
   creator: null | string
   publisher: null | string
 
@@ -590,7 +590,7 @@ declare namespace MetadataRoute {
   export type Manifest = ManifestFile
 }
 
-type ScreenMetadata = {
+interface Viewport extends ViewportMeta {
   /**
    * The theme color for the document.
    * @example
@@ -635,15 +635,14 @@ type ScreenMetadata = {
    * <meta name="viewport" content="width=device-width, initial-scale=1" />
    * ```
    */
-  viewport?: null | Viewport
+  // viewport?: null | ViewportMeta
 }
 
-type ResolvingScreenMetadata = Promise<ScreenMetadata>
+type ResolvingViewport = Promise<Viewport>
 
-type ResolvedScreenMetadata = {
+interface ResolvedViewport extends ViewportMeta {
   themeColor: null | ThemeColorDescriptor[]
   colorScheme: null | ColorSchemeEnum
-  viewport: null | Viewport
 }
 
 export type {
@@ -651,7 +650,7 @@ export type {
   ResolvedMetadata,
   ResolvingMetadata,
   MetadataRoute,
-  ScreenMetadata,
-  ResolvingScreenMetadata,
-  ResolvedScreenMetadata,
+  Viewport,
+  ResolvingViewport,
+  ResolvedViewport,
 }

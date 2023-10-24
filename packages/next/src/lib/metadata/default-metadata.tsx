@@ -1,14 +1,14 @@
 import type {
   ResolvedMetadata,
-  ResolvedScreenMetadata,
+  ResolvedViewport,
 } from './types/metadata-interface'
 
-export function createDefaultScreenMetadata(): ResolvedScreenMetadata {
+export function createDefaultViewport(): ResolvedViewport {
   return {
-    viewport: {
-      width: 'device-width',
-      initialScale: 1,
-    },
+    // name=viewport
+    width: 'device-width',
+    initialScale: 1,
+    // visual metadata
     themeColor: null,
     colorScheme: null,
   }

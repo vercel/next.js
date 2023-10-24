@@ -7,7 +7,7 @@ import {
   FormatDetectionMeta,
   ItunesMeta,
   BasicMeta,
-  ScreenMeta,
+  ViewportMeta,
   VerificationMeta,
 } from './generate/basic'
 import { AlternatesMetadata } from './generate/alternate'
@@ -21,11 +21,11 @@ import { resolveMetadata } from './resolve-metadata'
 import { MetaFilter } from './generate/meta'
 import type {
   ResolvedMetadata,
-  ResolvedScreenMetadata,
+  ResolvedViewport,
 } from './types/metadata-interface'
 import {
   createDefaultMetadata,
-  createDefaultScreenMetadata,
+  createDefaultViewport,
 } from './default-metadata'
 import { isNotFoundError } from '../../client/components/not-found'
 
@@ -62,15 +62,14 @@ export function createMetadataComponents({
 
   async function MetadataTree() {
     const defaultMetadata = createDefaultMetadata()
-    const defaultScreenMetadata = createDefaultScreenMetadata()
+    const defaultViewport = createDefaultViewport()
     let metadata: ResolvedMetadata | undefined = defaultMetadata
-    let screenMetadata: ResolvedScreenMetadata | undefined =
-      defaultScreenMetadata
+    let viewport: ResolvedViewport | undefined = defaultViewport
     let error: any
     const errorMetadataItem: [null, null, null] = [null, null, null]
     const errorConvention = errorType === 'redirect' ? undefined : errorType
 
-    const [resolvedError, resolvedMetadata, resolvedScreenMetadata] =
+    const [resolvedError, resolvedMetadata, resolvedViewport] =
       await resolveMetadata({
         tree,
         parentParams: {},
@@ -82,7 +81,7 @@ export function createMetadataComponents({
         metadataContext,
       })
     if (!resolvedError) {
-      screenMetadata = resolvedScreenMetadata
+      viewport = resolvedViewport
       metadata = resolvedMetadata
       resolve(undefined)
     } else {
@@ -91,21 +90,18 @@ export function createMetadataComponents({
       // They'll be saved for flight data, when hydrates, it will replaces the SSR'd metadata with this.
       // for not-found error: resolve not-found metadata
       if (!errorType && isNotFoundError(resolvedError)) {
-        const [
-          notFoundMetadataError,
-          notFoundMetadata,
-          notFoundScreenMetadata,
-        ] = await resolveMetadata({
-          tree,
-          parentParams: {},
-          metadataItems: [],
-          errorMetadataItem,
-          searchParams,
-          getDynamicParamFromSegment,
-          errorConvention: 'not-found',
-          metadataContext,
-        })
-        screenMetadata = notFoundScreenMetadata
+        const [notFoundMetadataError, notFoundMetadata, notFoundViewport] =
+          await resolveMetadata({
+            tree,
+            parentParams: {},
+            metadataItems: [],
+            errorMetadataItem,
+            searchParams,
+            getDynamicParamFromSegment,
+            errorConvention: 'not-found',
+            metadataContext,
+          })
+        viewport = notFoundViewport
         metadata = notFoundMetadata
         error = notFoundMetadataError || error
       }
@@ -113,7 +109,7 @@ export function createMetadataComponents({
     }
 
     const elements = MetaFilter([
-      ScreenMeta({ screenMetadata }),
+      ViewportMeta({ viewport: viewport }),
       BasicMeta({ metadata }),
       AlternatesMetadata({ alternates: metadata.alternates }),
       ItunesMeta({ itunes: metadata.itunes }),

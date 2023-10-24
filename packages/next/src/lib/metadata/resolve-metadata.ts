@@ -1,10 +1,10 @@
 import type {
   Metadata,
   ResolvedMetadata,
-  ResolvedScreenMetadata,
+  ResolvedViewport,
   ResolvingMetadata,
-  ResolvingScreenMetadata,
-  ScreenMetadata,
+  ResolvingViewport,
+  Viewport,
 } from './types/metadata-interface'
 import type { MetadataImageModule } from '../../build/webpack/loaders/metadata/types'
 import type { GetDynamicParamFromSegment } from '../../server/app-render/app-render'
@@ -15,7 +15,7 @@ import type { MetadataContext } from './types/resolvers'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 import {
   createDefaultMetadata,
-  createDefaultScreenMetadata,
+  createDefaultViewport,
 } from './default-metadata'
 import { resolveOpenGraph, resolveTwitter } from './resolvers/resolve-opengraph'
 import { resolveTitle } from './resolvers/resolve-title'
@@ -39,20 +39,21 @@ import { resolveIcons } from './resolvers/resolve-icons'
 import { getTracer } from '../../server/lib/trace/tracer'
 import { ResolveMetadataSpan } from '../../server/lib/trace/constants'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/constants'
+import * as Log from '../../build/output/log'
 
 type StaticMetadata = Awaited<ReturnType<typeof resolveStaticMetadata>>
 
 type MetadataResolver = (
   parent: ResolvingMetadata
 ) => Metadata | Promise<Metadata>
-type ScreenMetadataResolver = (
-  parent: ResolvingScreenMetadata
-) => ScreenMetadata | Promise<ScreenMetadata>
+type ViewportResolver = (
+  parent: ResolvingViewport
+) => Viewport | Promise<Viewport>
 
 export type MetadataItems = [
   Metadata | MetadataResolver | null,
   StaticMetadata,
-  ScreenMetadata | ScreenMetadataResolver | null
+  Viewport | ViewportResolver | null
 ][]
 
 type TitleTemplates = {
@@ -127,7 +128,7 @@ function mergeStaticMetadata(
 }
 
 // Merge the source metadata into the resolved target metadata.
-function merge({
+function mergeMetadata({
   source,
   target,
   staticFilesMetadata,
@@ -139,7 +140,7 @@ function merge({
   staticFilesMetadata: StaticMetadata
   titleTemplates: TitleTemplates
   metadataContext: MetadataContext
-}) {
+}): void {
   // If there's override metadata, prefer it otherwise fallback to the default metadata.
   const metadataBase =
     typeof source?.metadataBase !== 'undefined'
@@ -224,8 +225,7 @@ function merge({
       case 'category':
       case 'classification':
       case 'referrer':
-      case 'viewport':
-      case 'colorScheme':
+
       case 'formatDetection':
       case 'manifest':
         // @ts-ignore TODO: support inferring
@@ -237,12 +237,19 @@ function merge({
       case 'metadataBase':
         target.metadataBase = metadataBase
         break
-      case 'themeColor': {
-        target.themeColor = resolveThemeColor(source.themeColor)
+
+      default: {
+        if (
+          key === 'viewport' ||
+          key === 'themeColor' ||
+          key === 'colorScheme'
+        ) {
+          Log.warn(
+            `Unsupported metadata ${key} is configured in metadata export. Please move it to viewport export instead.`
+          )
+        }
         break
       }
-      default:
-        break
     }
   }
   mergeStaticMetadata(
@@ -254,29 +261,58 @@ function merge({
   )
 }
 
-async function getDefinedScreenMetadata(
+function mergeViewport({
+  target,
+  source,
+}: {
+  target: ResolvedViewport
+  source: Viewport | null
+}): void {
+  if (!source) return
+  for (const key_ in source) {
+    const key = key_ as keyof Viewport
+
+    switch (key) {
+      case 'themeColor': {
+        target.themeColor = resolveThemeColor(source.themeColor)
+        break
+      }
+      case 'colorScheme':
+        target.colorScheme = source.colorScheme || null
+        break
+      default:
+        if (typeof source[key] !== 'undefined') {
+          // @ts-ignore viewport properties
+          target[key] = source[key]
+        }
+        break
+    }
+  }
+}
+
+async function getDefinedViewport(
   mod: any,
   props: any,
   tracingProps: { route: string }
-): Promise<ScreenMetadata | ScreenMetadataResolver | null> {
+): Promise<Viewport | ViewportResolver | null> {
   if (isClientReference(mod)) {
     return null
   }
-  if (typeof mod.generateScreenMetadata === 'function') {
+  if (typeof mod.generateViewport === 'function') {
     const { route } = tracingProps
-    return (parent: ResolvingScreenMetadata) =>
+    return (parent: ResolvingViewport) =>
       getTracer().trace(
-        ResolveMetadataSpan.generateScreenMetadata,
+        ResolveMetadataSpan.generateViewport,
         {
-          spanName: `generateScreenMetadata ${route}`,
+          spanName: `generateViewport ${route}`,
           attributes: {
             'next.page': route,
           },
         },
-        () => mod.generateScreenMetadata(props, parent)
+        () => mod.generateViewport(props, parent)
       )
   }
-  return mod.screenMetadata || null
+  return mod.viewport || null
 }
 
 async function getDefinedMetadata(
@@ -382,20 +418,16 @@ export async function collectMetadata({
     ? await getDefinedMetadata(mod, props, { route })
     : null
 
-  const screenMetadataExport = mod
-    ? await getDefinedScreenMetadata(mod, props, { route })
+  const viewportExport = mod
+    ? await getDefinedViewport(mod, props, { route })
     : null
 
-  metadataItems.push([
-    metadataExport,
-    staticFilesMetadata,
-    screenMetadataExport,
-  ])
+  metadataItems.push([metadataExport, staticFilesMetadata, viewportExport])
 
   if (hasErrorConventionComponent && errorConvention) {
     const errorMod = await getComponentTypeModule(tree, errorConvention)
-    const errorScreenMetadataExport = errorMod
-      ? await getDefinedScreenMetadata(errorMod, props, { route })
+    const errorViewportExport = errorMod
+      ? await getDefinedViewport(errorMod, props, { route })
       : null
     const errorMetadataExport = errorMod
       ? await getDefinedMetadata(errorMod, props, { route })
@@ -403,7 +435,7 @@ export async function collectMetadata({
 
     errorMetadataItem[0] = errorMetadataExport
     errorMetadataItem[1] = staticFilesMetadata
-    errorMetadataItem[2] = errorScreenMetadataExport
+    errorMetadataItem[2] = errorViewportExport
   }
 }
 
@@ -638,7 +670,7 @@ export async function accumulateMetadata(
       metadataResults
     )
 
-    merge({
+    mergeMetadata({
       target: resolvedMetadata,
       source: metadata,
       metadataContext,
@@ -660,37 +692,32 @@ export async function accumulateMetadata(
   return postProcessMetadata(resolvedMetadata, titleTemplates)
 }
 
-export async function accumulateScreenMetadata(
+export async function accumulateViewport(
   metadataItems: MetadataItems
-): Promise<ResolvedScreenMetadata> {
-  const resolvedScreenMetadata: ResolvedScreenMetadata =
-    createDefaultScreenMetadata()
+): Promise<ResolvedViewport> {
+  const resolvedViewport: ResolvedViewport = createDefaultViewport()
 
-  const screenMetadataResults: (ScreenMetadata | Promise<ScreenMetadata>)[] = []
+  const viewportResults: (Viewport | Promise<Viewport>)[] = []
   const dynamicMetadataResolvers = {
     resolvers: [],
     resolvingIndex: 0,
   }
   for (let i = 0; i < metadataItems.length; i++) {
-    const screenMetadata = await getMetadataFromExport<
-      ScreenMetadata,
-      ResolvedScreenMetadata
-    >(
+    const viewport = await getMetadataFromExport<Viewport, ResolvedViewport>(
       (metadataItem) => metadataItem[2],
       dynamicMetadataResolvers,
       metadataItems,
       i,
-      resolvedScreenMetadata,
-      screenMetadataResults
+      resolvedViewport,
+      viewportResults
     )
 
-    merge({
-      // @ts-ignore
-      target: resolvedScreenMetadata,
-      source: screenMetadata,
+    mergeViewport({
+      target: resolvedViewport,
+      source: viewport,
     })
   }
-  return resolvedScreenMetadata
+  return resolvedViewport
 }
 
 export async function resolveMetadata({
@@ -713,7 +740,7 @@ export async function resolveMetadata({
   searchParams: { [key: string]: any }
   errorConvention: 'not-found' | undefined
   metadataContext: MetadataContext
-}): Promise<[any, ResolvedMetadata, ResolvedScreenMetadata]> {
+}): Promise<[any, ResolvedMetadata, ResolvedViewport]> {
   const resolvedMetadataItems = await resolveMetadataItems({
     tree,
     parentParams,
@@ -725,12 +752,12 @@ export async function resolveMetadata({
   })
   let error
   let metadata: ResolvedMetadata = createDefaultMetadata()
-  let screenMetadata: ResolvedScreenMetadata = createDefaultScreenMetadata()
+  let viewport: ResolvedViewport = createDefaultViewport()
   try {
-    screenMetadata = await accumulateScreenMetadata(resolvedMetadataItems)
+    viewport = await accumulateViewport(resolvedMetadataItems)
     metadata = await accumulateMetadata(resolvedMetadataItems, metadataContext)
   } catch (err: any) {
     error = err
   }
-  return [error, metadata, screenMetadata]
+  return [error, metadata, viewport]
 }

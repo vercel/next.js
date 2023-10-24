@@ -1,42 +1,38 @@
 import type {
   ResolvedMetadata,
-  ResolvedScreenMetadata,
-  ScreenMetadata,
+  ResolvedViewport,
+  Viewport,
 } from '../types/metadata-interface'
+import type { ViewportMeta } from '../types/extra-types'
 
 import React from 'react'
 import { Meta, MetaFilter, MultiMeta } from './meta'
-import { ViewPortKeys } from '../constants'
-import type { Viewport } from '../types/extra-types'
+import { ViewportMetaKeys } from '../constants'
 
-function renderViewport(viewport: ScreenMetadata['viewport']) {
+// convert viewport object to string for viewport meta tag
+function resolveViewportLayout(viewport: Viewport) {
   let resolved: string | null = null
 
   if (viewport && typeof viewport === 'object') {
     resolved = ''
-    for (const viewportKey_ in ViewPortKeys) {
-      const viewportKey = viewportKey_ as keyof Viewport
+    for (const viewportKey_ in ViewportMetaKeys) {
+      const viewportKey = viewportKey_ as keyof ViewportMeta
       if (viewportKey in viewport) {
         let value = viewport[viewportKey]
         if (typeof value === 'boolean') value = value ? 'yes' : 'no'
         if (resolved) resolved += ', '
-        resolved += `${ViewPortKeys[viewportKey]}=${value}`
+        resolved += `${ViewportMetaKeys[viewportKey]}=${value}`
       }
     }
   }
   return resolved
 }
 
-export function ScreenMeta({
-  screenMetadata,
-}: {
-  screenMetadata: ResolvedScreenMetadata
-}) {
-  const viewport = renderViewport(screenMetadata.viewport)
+export function ViewportMeta({ viewport }: { viewport: ResolvedViewport }) {
   return MetaFilter([
-    Meta({ name: 'viewport', content: viewport }),
-    ...(screenMetadata.themeColor
-      ? screenMetadata.themeColor.map((themeColor) =>
+    Meta({ name: 'viewport', content: resolveViewportLayout(viewport) }),
+    ...(viewport.themeColor
+      ? viewport.themeColor.map((themeColor) =>
           Meta({
             name: 'theme-color',
             content: themeColor.color,
@@ -44,7 +40,7 @@ export function ScreenMeta({
           })
         )
       : []),
-    Meta({ name: 'color-scheme', content: screenMetadata.colorScheme }),
+    Meta({ name: 'color-scheme', content: viewport.colorScheme }),
   ])
 }
 

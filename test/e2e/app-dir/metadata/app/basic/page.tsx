@@ -36,13 +36,13 @@ export const metadata: Metadata = {
   },
 }
 
-export const screenMetadata = {
-  themeColor: { color: 'cyan', media: '(prefers-color-scheme: dark)' },
+export const viewport = {
+  // viewport meta tag
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  interactiveWidget: 'resizes-visual',
+  // visual meta tags
   colorScheme: 'dark',
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 1,
-    interactiveWidget: 'resizes-visual',
-  },
+  themeColor: { color: 'cyan', media: '(prefers-color-scheme: dark)' },
 }
