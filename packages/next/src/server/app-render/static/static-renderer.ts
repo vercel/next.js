@@ -19,8 +19,10 @@ export interface Renderer {
 }
 
 class StaticRenderer implements Renderer {
-  private readonly prerender = require('react-dom/static.edge')
-    .prerender as typeof import('react-dom/static.edge')['prerender']
+  // this is for tree shaking. Couldn't find a better way to do it for some reason
+  private readonly prerender = (process.env.__NEXT_EXPERIMENTAL_REACT
+    ? require('react-dom/static.edge').prerender
+    : null) as typeof import('react-dom/static.edge')['prerender']
 
   public async render(children: JSX.Element, streamOptions: StreamOptions) {
     const { prelude, postponed } = await this.prerender(children, streamOptions)
