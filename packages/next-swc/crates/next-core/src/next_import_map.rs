@@ -558,9 +558,7 @@ async fn insert_next_server_special_aliases(
 
     // see https://github.com/vercel/next.js/blob/8013ef7372fc545d49dbd060461224ceb563b454/packages/next/src/build/webpack-config.ts#L1449-L1531
     match ty {
-        ServerContextType::Pages { .. }
-        | ServerContextType::PagesData { .. }
-        | ServerContextType::AppSSR { .. } => {
+        ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
             insert_exact_alias_map(
                 import_map,
                 project_path,
@@ -575,6 +573,7 @@ async fn insert_next_server_special_aliases(
         // TODO: should include `ServerContextType::PagesApi` routes, but that type doesn't exist.
         ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. }
+        | ServerContextType::AppSSR { .. }
         | ServerContextType::Middleware => {
             insert_exact_alias_map(
                 import_map,
