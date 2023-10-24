@@ -772,6 +772,7 @@ export const defaultConfig: NextConfig = {
     typedRoutes: false,
     instrumentationHook: false,
     bundlePagesExternals: false,
+    webpackBuildWorker: true,
   },
 }
 
