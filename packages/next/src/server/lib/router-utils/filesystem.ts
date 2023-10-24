@@ -26,9 +26,7 @@ import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
 import { pathHasPrefix } from '../../../shared/lib/router/utils/path-has-prefix'
 import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-path'
 import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-prefix'
-
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
-
 import {
   APP_PATH_ROUTES_MANIFEST,
   BUILD_ID_FILE,
@@ -40,6 +38,7 @@ import {
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
 import { RSCPathnameNormalizer } from '../../future/normalizers/request/rsc'
+import { PostponedPathnameNormalizer } from '../../future/normalizers/request/postponed'
 
 export type FsOutput = {
   type:
@@ -372,6 +371,7 @@ export async function setupFsCheck(opts: {
     // Because we can't know if the app directory is enabled or not at this
     // stage, we assume that it is.
     rsc: new RSCPathnameNormalizer(true),
+    postponed: new PostponedPathnameNormalizer(opts.config.experimental.ppr),
   }
 
   return {
@@ -409,18 +409,22 @@ export async function setupFsCheck(opts: {
         return lruResult
       }
 
-      // Handle minimal mode case with .rsc output path (this is
-      // mostly for testing).
-      if (opts.minimalMode && normalizers.rsc.match(itemPath)) {
-        itemPath = normalizers.rsc.normalize(itemPath, true)
-      }
-
       const { basePath } = opts.config
 
       if (basePath && !pathHasPrefix(itemPath, basePath)) {
         return null
       }
       itemPath = removePathPrefix(itemPath, basePath) || '/'
+
+      // Simulate minimal mode requests by normalizing RSC and postponed
+      // requests.
+      if (opts.minimalMode) {
+        if (normalizers.rsc.match(itemPath)) {
+          itemPath = normalizers.rsc.normalize(itemPath, true)
+        } else if (normalizers.postponed.match(itemPath)) {
+          itemPath = normalizers.postponed.normalize(itemPath, true)
+        }
+      }
 
       if (itemPath !== '/' && itemPath.endsWith('/')) {
         itemPath = itemPath.substring(0, itemPath.length - 1)
