@@ -1,7 +1,7 @@
-import type { ViewportMeta } from './types/extra-types'
+import type { ViewportLayout } from './types/extra-types'
 import type { Icons } from './types/metadata-types'
 
-export const ViewportMetaKeys: { [k in keyof ViewportMeta]: string } = {
+export const ViewportMetaKeys: { [k in keyof ViewportLayout]: string } = {
   width: 'width',
   height: 'height',
   initialScale: 'initial-scale',

@@ -225,7 +225,6 @@ function mergeMetadata({
       case 'category':
       case 'classification':
       case 'referrer':
-
       case 'formatDetection':
       case 'manifest':
         // @ts-ignore TODO: support inferring

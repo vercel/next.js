@@ -3,7 +3,7 @@ import type {
   ResolvedViewport,
   Viewport,
 } from '../types/metadata-interface'
-import type { ViewportMeta } from '../types/extra-types'
+import type { ViewportLayout } from '../types/extra-types'
 
 import React from 'react'
 import { Meta, MetaFilter, MultiMeta } from './meta'
@@ -16,7 +16,7 @@ function resolveViewportLayout(viewport: Viewport) {
   if (viewport && typeof viewport === 'object') {
     resolved = ''
     for (const viewportKey_ in ViewportMetaKeys) {
-      const viewportKey = viewportKey_ as keyof ViewportMeta
+      const viewportKey = viewportKey_ as keyof ViewportLayout
       if (viewportKey in viewport) {
         let value = viewport[viewportKey]
         if (typeof value === 'boolean') value = value ? 'yes' : 'no'
