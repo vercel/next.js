@@ -171,7 +171,7 @@ describe('Config Experimental Warning', () => {
     expect(stdout).toMatch(' · instrumentationHook')
   })
 
-  it.only('should show unrecognized experimental features in warning but not in start log experiments section', async () => {
+  it('should show unrecognized experimental features in warning but not in start log experiments section', async () => {
     configFile.write(`
       module.exports = {
         experimental: {
