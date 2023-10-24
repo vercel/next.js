@@ -830,10 +830,6 @@ impl AppEndpoint {
                     NextRuntime::Edge,
                     Vc::upcast(this.app_project.edge_rsc_module_context()),
                     Vc::upcast(chunking_context),
-                    this.app_project
-                        .project()
-                        .next_config()
-                        .enable_server_actions(),
                 )
                 .await?;
                 server_assets.push(manifest);
@@ -984,10 +980,6 @@ impl AppEndpoint {
                     NextRuntime::NodeJs,
                     Vc::upcast(this.app_project.rsc_module_context()),
                     Vc::upcast(this.app_project.project().server_chunking_context()),
-                    this.app_project
-                        .project()
-                        .next_config()
-                        .enable_server_actions(),
                 )
                 .await?;
                 server_assets.push(manifest);
