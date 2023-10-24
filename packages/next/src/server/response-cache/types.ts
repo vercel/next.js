@@ -102,9 +102,13 @@ export type ResponseCacheEntry = {
   isMiss?: boolean
 }
 
+/**
+ * @param hasResolved whether the responseGenerator has resolved it's promise
+ * @param previousCacheEntry the previous cache entry if it exists or the current
+ */
 export type ResponseGenerator = (
   hasResolved: boolean,
-  cacheEntry?: IncrementalCacheItem
+  previousCacheEntry?: IncrementalCacheItem
 ) => Promise<ResponseCacheEntry | null>
 
 export type IncrementalCacheItem = {

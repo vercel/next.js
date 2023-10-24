@@ -122,7 +122,7 @@ export interface NodeRequestHandler {
     req: IncomingMessage | BaseNextRequest,
     res: ServerResponse | BaseNextResponse,
     parsedUrl?: NextUrlWithParsedQuery | undefined
-  ): Promise<void>
+  ): Promise<void> | void
 }
 
 const MiddlewareMatcherCache = new WeakMap<
