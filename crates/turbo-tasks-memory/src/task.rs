@@ -388,8 +388,7 @@ enum TaskStateType {
     InProgress {
         event: Event,
         count_as_finished: bool,
-        /// Children that need to be disconnected once leaving this state
-        outdated_children: TaskIdSet,
+        /// Collectibles that need to be disconnected once leaving this state
         outdated_collectibles: MaybeCollectibles,
     },
 
@@ -657,7 +656,9 @@ impl Task {
         backend: &MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> Option<TaskExecutionSpec> {
+        let aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
         let future;
+        let remove_job;
         let mut state = self.full_state_mut();
         match state.state_type {
             Done { .. } | InProgress { .. } | InProgressDirty { .. } => {
@@ -665,13 +666,17 @@ impl Task {
                 return None;
             }
             Scheduled { ref mut event } => {
-                let event = event.take();
+                let event: Event = event.take();
                 let outdated_children = take(&mut state.children);
+                remove_job = Some(
+                    state
+                        .aggregation_leaf
+                        .remove_children_job(&aggregation_context, outdated_children),
+                );
                 let outdated_collectibles = take(&mut state.collectibles);
                 state.state_type = InProgress {
                     event,
                     count_as_finished: false,
-                    outdated_children,
                     outdated_collectibles,
                 };
                 state.stats.increment_executions();
@@ -685,6 +690,9 @@ impl Task {
             }
         };
         future = self.make_execution_future(state, backend, turbo_tasks);
+        if let Some(remove_job) = remove_job {
+            remove_job();
+        }
         Some(TaskExecutionSpec { future })
     }
 
@@ -755,7 +763,6 @@ impl Task {
         };
         let TaskStateType::InProgress {
             ref mut count_as_finished,
-            ref mut outdated_children,
             ref mut outdated_collectibles,
             ..
         } = state.state_type
@@ -768,7 +775,6 @@ impl Task {
         *count_as_finished = true;
         let mut aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
         {
-            let outdated_children = take(outdated_children);
             let outdated_collectibles = outdated_collectibles.take_collectibles();
 
             let mut change = TaskChange {
@@ -785,12 +791,8 @@ impl Task {
             let change_job = state
                 .aggregation_leaf
                 .change_job(&aggregation_context, change);
-            let remove_job = state
-                .aggregation_leaf
-                .remove_children_job(&aggregation_context, outdated_children);
             drop(state);
             change_job();
-            remove_job();
         }
         aggregation_context.apply_queued_updates();
     }
@@ -857,7 +859,6 @@ impl Task {
         let mut schedule_task = false;
         {
             let mut change_job = None;
-            let mut remove_job = None;
             let mut dependencies = DEPENDENCIES_TO_TRACK.with(|deps| deps.take());
             {
                 let mut state = self.full_state_mut();
@@ -869,11 +870,9 @@ impl Task {
                     InProgress {
                         ref mut event,
                         count_as_finished,
-                        ref mut outdated_children,
                         ref mut outdated_collectibles,
                     } => {
                         let event = event.take();
-                        let outdated_children = take(outdated_children);
                         let outdated_collectibles = outdated_collectibles.take_collectibles();
                         let mut dependencies = take(&mut dependencies);
                         // This will stay here for longer, so make sure to not consume too much
@@ -903,13 +902,6 @@ impl Task {
                                     .change_job(&aggregation_context, change),
                             );
                         }
-                        if !outdated_children.is_empty() {
-                            remove_job = Some(
-                                state
-                                    .aggregation_leaf
-                                    .remove_children_job(&aggregation_context, outdated_children),
-                            );
-                        }
                         event.notify(usize::MAX);
                     }
                     InProgressDirty { ref mut event } => {
@@ -929,9 +921,6 @@ impl Task {
                 self.clear_dependencies(dependencies, backend, turbo_tasks);
             }
             if let Some(job) = change_job {
-                job();
-            }
-            if let Some(job) = remove_job {
                 job();
             }
         }
@@ -1073,11 +1062,9 @@ impl Task {
                 InProgress {
                     ref mut event,
                     count_as_finished,
-                    ref mut outdated_children,
                     ref mut outdated_collectibles,
                 } => {
                     let event = event.take();
-                    let outdated_children = take(outdated_children);
                     let outdated_collectibles = outdated_collectibles.take_collectibles();
                     let mut change_job = None;
                     if count_as_finished {
@@ -1098,15 +1085,11 @@ impl Task {
                                 .change_job(&aggregation_context, change),
                         );
                     }
-                    let remove_job = state
-                        .aggregation_leaf
-                        .remove_children_job(&aggregation_context, outdated_children);
                     state.state_type = InProgressDirty { event };
                     drop(state);
                     if let Some(job) = change_job {
                         job();
                     }
-                    remove_job();
                 }
             }
 
