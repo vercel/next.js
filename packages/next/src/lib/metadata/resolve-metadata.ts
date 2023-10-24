@@ -293,7 +293,6 @@ async function getDefinedMetadata(
     return null
   }
   if (typeof mod.generateMetadata === 'function') {
-    console.log('mod.generateMetadata', mod.generateMetadata.toString())
     const { route } = tracingProps
     return (parent: ResolvingMetadata) =>
       getTracer().trace(
@@ -385,6 +384,7 @@ export async function collectMetadata({
   const metadataExport = mod
     ? await getDefinedMetadata(mod, props, { route })
     : null
+
   const screenMetadataExport = mod
     ? await getDefinedScreenMetadata(mod, props, { route })
     : null
@@ -457,7 +457,6 @@ export async function resolveMetadataItems({
   await collectMetadata({
     tree,
     metadataItems,
-    // screenMetadataItems,
     errorMetadataItem,
     errorConvention,
     props: layerProps,
@@ -537,57 +536,65 @@ type DataResolver<Data, ResolvedData> = (
   parent: Promise<ResolvedData>
 ) => Data | Promise<Data>
 
+function collectMetadataExportPreloading<Data, ResolvedData>(
+  results: (Data | Promise<Data>)[],
+  dynamicMetadataExportFn: DataResolver<Data, ResolvedData>,
+  resolvers: ((value: ResolvedData) => void)[]
+) {
+  results.push(
+    dynamicMetadataExportFn(
+      new Promise<any>((resolve) => {
+        resolvers.push(resolve)
+      })
+    )
+  )
+}
+
 async function getMetadataFromExport<Data, ResolvedData>(
   getPreloadMetadataExport: (
     metadataItem: NonNullable<MetadataItems[number]>
   ) => Data | DataResolver<Data, ResolvedData> | null,
-  metadataResolvers: ((value: ResolvedData) => void)[],
+  dynamicMetadataResolveState: {
+    resolvers: ((value: ResolvedData) => void)[]
+    resolvingIndex: number
+  },
   metadataItems: MetadataItems,
   currentIndex: number,
-  resolvingIndex: number,
   resolvedMetadata: ResolvedData,
   metadataResults: (Data | Promise<Data>)[]
 ) {
-  function collectMetadataExportPreloading(
-    results: (Data | Promise<Data>)[],
-    dynamicMetadataExportFn: DataResolver<Data, ResolvedData>,
-    resolvers: ((value: ResolvedData) => void)[]
-  ) {
-    results.push(
-      dynamicMetadataExportFn(
-        new Promise<any>((resolve) => {
-          resolvers.push(resolve)
-        })
-      )
-    )
-  }
-
   const metadataExport = getPreloadMetadataExport(metadataItems[currentIndex])
+  const dynamicMetadataResolvers = dynamicMetadataResolveState.resolvers
   let metadata: Data | null = null
   if (typeof metadataExport === 'function') {
-    if (!metadataResolvers.length) {
+    // Only preload at the beginning when resolves are empty
+    if (!dynamicMetadataResolvers.length) {
       for (let j = currentIndex; j < metadataItems.length; j++) {
         const preloadMetadataExport = getPreloadMetadataExport(metadataItems[j]) // metadataItems[j][0]
         // call each `generateMetadata function concurrently and stash their resolver
         if (typeof preloadMetadataExport === 'function') {
-          collectMetadataExportPreloading(
+          collectMetadataExportPreloading<Data, ResolvedData>(
             metadataResults,
             preloadMetadataExport as DataResolver<Data, ResolvedData>,
-            metadataResolvers
+            dynamicMetadataResolvers
           )
         }
       }
     }
 
-    const resolveParent = metadataResolvers[resolvingIndex]
-    const metadataResult = metadataResults[resolvingIndex++]
+    const resolveParent =
+      dynamicMetadataResolvers[dynamicMetadataResolveState.resolvingIndex]
+    const metadataResult =
+      metadataResults[dynamicMetadataResolveState.resolvingIndex++]
 
     // In dev we clone and freeze to prevent relying on mutating resolvedMetadata directly.
     // In prod we just pass resolvedMetadata through without any copying.
 
     const currentResolvedMetadata = //: ResolvedMetadata | ResolvedScreenMetadata =
       process.env.NODE_ENV === 'development'
-        ? Object.freeze(structuredClone(resolvedMetadata))
+        ? Object.freeze(
+            require('./clone-metadata').cloneMetadata(resolvedMetadata)
+          )
         : resolvedMetadata
 
     // This resolve should unblock the generateMetadata function if it awaited the parent
@@ -601,8 +608,6 @@ async function getMetadataFromExport<Data, ResolvedData>(
     metadata = metadataExport
   }
 
-  console.log('metadata', metadata)
-
   return metadata
 }
 
@@ -611,7 +616,6 @@ export async function accumulateMetadata(
   metadataContext: MetadataContext
 ): Promise<ResolvedMetadata> {
   const resolvedMetadata = createDefaultMetadata()
-  const metadataResolvers: ((value: ResolvedMetadata) => void)[] = []
   const metadataResults: (Metadata | Promise<Metadata>)[] = []
 
   let titleTemplates: TitleTemplates = {
@@ -622,17 +626,18 @@ export async function accumulateMetadata(
 
   // Loop over all metadata items again, merging synchronously any static object exports,
   // awaiting any static promise exports, and resolving parent metadata and awaiting any generated metadata
-
-  let metadataResolvingIndex = 0
+  const dynamicMetadataResolvers = {
+    resolvers: [],
+    resolvingIndex: 0,
+  }
   for (let i = 0; i < metadataItems.length; i++) {
     const staticFilesMetadata = metadataItems[i][1]
 
     const metadata = await getMetadataFromExport<Metadata, ResolvedMetadata>(
       (metadataItem) => metadataItem[0],
-      metadataResolvers,
+      dynamicMetadataResolvers,
       metadataItems,
       i,
-      metadataResolvingIndex,
       resolvedMetadata,
       metadataResults
     )
@@ -664,21 +669,21 @@ export async function accumulateScreenMetadata(
 ): Promise<ResolvedScreenMetadata> {
   const resolvedScreenMetadata: ResolvedScreenMetadata =
     createDefaultScreenMetadata()
-  const screenMetadataResolvers: ((value: ResolvedScreenMetadata) => void)[] =
-    []
-  const screenMetadataResults: (ScreenMetadata | Promise<ScreenMetadata>)[] = []
 
-  let screenMetadataResolvingIndex = 0
+  const screenMetadataResults: (ScreenMetadata | Promise<ScreenMetadata>)[] = []
+  const dynamicMetadataResolvers = {
+    resolvers: [],
+    resolvingIndex: 0,
+  }
   for (let i = 0; i < metadataItems.length; i++) {
     const screenMetadata = await getMetadataFromExport<
       ScreenMetadata,
       ResolvedScreenMetadata
     >(
       (metadataItem) => metadataItem[2],
-      screenMetadataResolvers,
+      dynamicMetadataResolvers,
       metadataItems,
       i,
-      screenMetadataResolvingIndex,
       resolvedScreenMetadata,
       screenMetadataResults
     )
@@ -729,7 +734,6 @@ export async function resolveMetadata({
     screenMetadata = await accumulateScreenMetadata(resolvedMetadataItems)
     metadata = await accumulateMetadata(resolvedMetadataItems, metadataContext)
   } catch (err: any) {
-    console.log('screenMetadata', screenMetadata, 'err', err)
     error = err
   }
   return [error, metadata, screenMetadata]
