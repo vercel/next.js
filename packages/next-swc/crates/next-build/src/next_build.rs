@@ -20,6 +20,7 @@ use next_core::{
     },
     next_server::{get_server_chunking_context, get_server_compile_time_info},
     url_node::get_sorted_routes,
+    util::NextRuntime,
     {self},
 };
 use serde::Serialize;
@@ -310,7 +311,8 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
     let app_client_references_chunks = get_app_client_references_chunks(
         app_client_reference_tys,
         client_chunking_context,
-        server_chunking_context,
+        // TODO(WEB-1824): add edge support
+        Vc::upcast(server_chunking_context),
     );
     let app_client_references_chunks_ref = app_client_references_chunks.await?;
 
@@ -339,6 +341,8 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
         &mut build_manifest,
         &mut app_paths_manifest,
         &mut all_chunks,
+        // TODO(WEB-1824): add edge support
+        NextRuntime::NodeJs,
     )
     .await?;
 

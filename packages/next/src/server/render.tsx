@@ -1327,18 +1327,17 @@ export async function renderToHTMLImpl(
     const createBodyResult = getTracer().wrap(
       RenderSpan.createBodyResult,
       (initialStream: ReactReadableStream, suffix?: string) => {
-        // this must be called inside bodyResult so appWrappers is
-        // up to date when `wrapApp` is called
-        const getServerInsertedHTML = async (): Promise<string> => {
-          return renderToString(styledJsxInsertedHTML())
-        }
-
         return continueFizzStream(initialStream, {
           suffix,
           inlinedDataStream: serverComponentsInlinedTransformStream?.readable,
           generateStaticHTML: true,
-          getServerInsertedHTML,
+          // this must be called inside bodyResult so appWrappers is
+          // up to date when `wrapApp` is called
+          getServerInsertedHTML: () => {
+            return renderToString(styledJsxInsertedHTML())
+          },
           serverInsertedHTMLToHead: false,
+          validateRootLayout: undefined,
         })
       }
     )
@@ -1553,16 +1552,18 @@ export async function renderToHTMLImpl(
     prefix += '<!-- __NEXT_DATA__ -->'
   }
 
-  const streams = [
-    streamFromString(prefix),
-    await documentResult.bodyResult(renderTargetSuffix),
-  ]
+  const content = await streamToString(
+    chainStreams(
+      streamFromString(prefix),
+      await documentResult.bodyResult(renderTargetSuffix)
+    )
+  )
 
-  const postOptimize = (html: string) =>
-    postProcessHTML(pathname, html, renderOpts, { inAmpMode, hybridAmp })
+  const optimizedHtml = await postProcessHTML(pathname, content, renderOpts, {
+    inAmpMode,
+    hybridAmp,
+  })
 
-  const html = await streamToString(chainStreams(streams))
-  const optimizedHtml = await postOptimize(html)
   return new RenderResult(optimizedHtml, renderResultMeta)
 }
 
