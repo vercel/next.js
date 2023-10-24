@@ -21,6 +21,10 @@ on:
         required: false
         description: 'whether to skip building native modules'
         type: string
+      uploadAnalyzerArtifacts:
+        required: false
+        description: 'whether to upload analyzer artifacts'
+        type: string
       skipForDocsOnly:
         required: false
         description: 'skip for docs only changes'
@@ -188,7 +192,7 @@ jobs:
 
       - name: Upload bundle analyzer artifacts
         uses: actions/upload-artifact@v3
-        if: ${{ inputs.skipInstallBuild != 'yes' && inputs.skipNativeBuild != 'yes' }}
+        if: ${{ inputs.uploadAnalyzerArtifacts == 'yes' }}
         with:
           name: webpack bundle analysis stats
           path: packages/next/dist/compiled/next-server/report.*.html
