@@ -602,8 +602,9 @@ export async function initialize(opts: {
       if (parsedUrl.protocol) {
         return await proxyRequest(req, socket as any, parsedUrl, head)
       }
-      // no match close socket
-      socket.end()
+
+      // If there's no matched output, we don't handle the request as user's
+      // custom WS server may be listening on the same path.
     } catch (err) {
       console.error('Error handling upgrade request', err)
       socket.end()

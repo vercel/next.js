@@ -45,7 +45,9 @@ createNextDescribe(
       'app/default-cache/page.js': new FileRef(
         path.join(__dirname, 'app/default-cache/page.js')
       ),
-      'next.config.js': `module.exports = { experimental: { logging: { level: 'verbose', fullUrl: true } } }`,
+      'next.config.js': `module.exports = {
+          logging: { fetches: { fullUrl: true } }
+        }`,
     },
   },
   ({ next, isNextDev }) => {

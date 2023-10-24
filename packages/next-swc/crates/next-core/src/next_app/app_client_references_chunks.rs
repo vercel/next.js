@@ -3,7 +3,6 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, TryJoinIterExt, Vc};
 use turbopack_binding::turbopack::{
-    build::BuildChunkingContext,
     core::{chunk::ChunkingContextExt, output::OutputAssets},
     ecmascript::chunk::EcmascriptChunkingContext,
 };
@@ -32,7 +31,7 @@ pub struct ClientReferencesChunks(IndexMap<ClientReferenceType, ClientReferenceC
 pub async fn get_app_client_references_chunks(
     app_client_reference_types: Vc<ClientReferenceTypes>,
     client_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
-    ssr_chunking_context: Vc<BuildChunkingContext>,
+    ssr_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
 ) -> Result<Vc<ClientReferencesChunks>> {
     let app_client_references_chunks: IndexMap<_, _> = app_client_reference_types
         .await?
