@@ -54,6 +54,11 @@ for (const type of [
             'rgb(255, 0, 0)'
           )
         })
+
+        it('should allow importing client components', async () => {
+          const $ = await next.render$('/')
+          expect($('h2').text()).toBe('This is a client component')
+        })
       })
 
       describe('pages directory', () => {

@@ -311,7 +311,11 @@ export function patchFetch({
         }
 
         if (isOnlyNoStore) {
-          if (_cache === 'force-cache' || revalidate === 0) {
+          if (
+            _cache === 'force-cache' ||
+            (typeof revalidate !== 'undefined' &&
+              (revalidate === false || revalidate > 0))
+          ) {
             throw new Error(
               `cache: 'force-cache' used on fetch for ${fetchUrl} with 'export const fetchCache = 'only-no-store'`
             )
