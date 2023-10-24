@@ -95,15 +95,18 @@ export default function (context, { env }) {
 
   it('should render 500 error correctly', async () => {
     const errPaths = ['/err', '/err/render']
-    const promises = errPaths.map(async (pagePath) => {
-      const html = await renderViaHTTP(context.appPort, pagePath)
-      if (env === 'dev') {
-        // In dev mode it should show the error popup.
-        expect(html).toContain('Error: oops')
-      } else {
-        expect(html).toContain('custom-500-page')
+
+    const promises = [...errPaths, ...errPaths, ...errPaths].map(
+      async (pagePath) => {
+        const html = await renderViaHTTP(context.appPort, pagePath)
+        if (env === 'dev') {
+          // In dev mode it should show the error popup.
+          expect(html).toContain('Error: oops')
+        } else {
+          expect(html).toContain('custom-500-page')
+        }
       }
-    })
+    )
     await Promise.all(promises)
   })
 
