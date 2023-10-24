@@ -27,7 +27,7 @@ function renderViewport(viewport: ScreenMetadata['viewport']) {
   return resolved
 }
 
-export function ScreenMetadata({
+export function ScreenMeta({
   screenMetadata,
 }: {
   screenMetadata: ResolvedScreenMetadata
@@ -48,7 +48,7 @@ export function ScreenMetadata({
   ])
 }
 
-export function BasicMetadata({ metadata }: { metadata: ResolvedMetadata }) {
+export function BasicMeta({ metadata }: { metadata: ResolvedMetadata }) {
   return MetaFilter([
     <meta charSet="utf-8" />,
     metadata.title !== null && metadata.title.absolute ? (

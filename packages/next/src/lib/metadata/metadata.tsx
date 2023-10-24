@@ -6,9 +6,9 @@ import {
   AppleWebAppMeta,
   FormatDetectionMeta,
   ItunesMeta,
-  BasicMetadata,
+  BasicMeta,
+  ScreenMeta,
   VerificationMeta,
-  ScreenMetadata,
 } from './generate/basic'
 import { AlternatesMetadata } from './generate/alternate'
 import {
@@ -113,8 +113,8 @@ export function createMetadataComponents({
     }
 
     const elements = MetaFilter([
-      ScreenMetadata({ screenMetadata }),
-      BasicMetadata({ metadata }),
+      ScreenMeta({ screenMetadata }),
+      BasicMeta({ metadata }),
       AlternatesMetadata({ alternates: metadata.alternates }),
       ItunesMeta({ itunes: metadata.itunes }),
       FormatDetectionMeta({ formatDetection: metadata.formatDetection }),
