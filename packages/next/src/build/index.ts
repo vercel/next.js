@@ -1604,6 +1604,9 @@ export default async function build(
                             isPPR = workerResult.isPPR
                             isSSG = true
                             isStatic = true
+
+                            appStaticPaths.set(originalAppPath, [])
+                            appStaticPathsEncoded.set(originalAppPath, [])
                           }
 
                           if (
