@@ -465,6 +465,10 @@ export class NextInstance {
       await this.handleDevWatchDelayAfterChange(filename)
     }
   }
+  public async patchFileFast(filename: string, content: string) {
+    const outputPath = path.join(this.testDir, filename)
+    await fs.writeFile(outputPath, content)
+  }
   public async renameFile(filename: string, newFilename: string) {
     await this.handleDevWatchDelayBeforeChange(filename)
 
