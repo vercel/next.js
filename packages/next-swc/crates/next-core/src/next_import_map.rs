@@ -92,14 +92,12 @@ pub async fn get_next_client_import_map(
             );
         }
         ClientContextType::App { app_dir } => {
-            let react_flavor = if *next_config.enable_server_actions().await?
-                || *next_config.enable_ppr().await?
-                || *next_config.enable_taint().await?
-            {
-                "-experimental"
-            } else {
-                ""
-            };
+            let react_flavor =
+                if *next_config.enable_ppr().await? || *next_config.enable_taint().await? {
+                    "-experimental"
+                } else {
+                    ""
+                };
 
             import_map.insert_exact_alias(
                 "react",
@@ -645,14 +643,9 @@ async fn rsc_aliases(
     runtime: NextRuntime,
     next_config: Vc<NextConfig>,
 ) -> Result<()> {
-    let server_actions = *next_config.enable_server_actions().await?;
     let ppr = *next_config.enable_ppr().await?;
     let taint = *next_config.enable_taint().await?;
-    let react_channel = if server_actions || ppr || taint {
-        "-experimental"
-    } else {
-        ""
-    };
+    let react_channel = if ppr || taint { "-experimental" } else { "" };
 
     let mut alias = indexmap! {
         "react" => format!("next/dist/compiled/react{react_channel}"),
