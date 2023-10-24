@@ -18,7 +18,7 @@ use turbopack_binding::{
                 availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext,
                 EvaluatableAssets,
             },
-            issue::{IssueSeverity, OptionIssueSource},
+            issue::IssueSeverity,
             module::Module,
             output::OutputAssets,
             reference::primary_referenced_modules,
@@ -202,7 +202,7 @@ async fn build_dynamic_imports_map_for_module(
             )),
             Request::parse(Value::new(Pattern::Constant(import.to_string()))),
             Value::new(EcmaScriptModulesReferenceSubType::Undefined),
-            OptionIssueSource::none(),
+            None,
             IssueSeverity::Error.cell(),
         )
         .first_module()

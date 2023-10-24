@@ -222,40 +222,6 @@ export async function exportAppImpl(
       .traceAsyncFn(() => loadConfig(PHASE_EXPORT, dir)))
 
   const distDir = join(dir, nextConfig.distDir)
-  const isExportOutput = nextConfig.output === 'export'
-
-  // Running 'next export'
-  if (options.isInvokedFromCli) {
-    if (isExportOutput) {
-      if (options.hasOutdirFromCli) {
-        throw new ExportError(
-          '"next export -o <dir>" cannot be used when "output: export" is configured in next.config.js. Instead add "distDir" in next.config.js https://nextjs.org/docs/advanced-features/static-html-export'
-        )
-      }
-      Log.warn(
-        '"next export" is no longer needed when "output: export" is configured in next.config.js https://nextjs.org/docs/advanced-features/static-html-export'
-      )
-      return null
-    }
-    if (existsSync(join(distDir, 'server', 'app'))) {
-      throw new ExportError(
-        '"next export" does not work with App Router. Please use "output: export" in next.config.js https://nextjs.org/docs/advanced-features/static-html-export'
-      )
-    }
-    Log.warn(
-      '"next export" is deprecated in favor of "output: export" in next.config.js https://nextjs.org/docs/advanced-features/static-html-export'
-    )
-  }
-
-  // Running 'next export' or output is set to 'export'
-  if (options.isInvokedFromCli || isExportOutput) {
-    if (nextConfig.experimental.serverActions) {
-      throw new ExportError(
-        `Server Actions are not supported with static export.`
-      )
-    }
-  }
-
   const telemetry = options.buildExport ? null : new Telemetry({ distDir })
 
   if (telemetry) {
@@ -477,6 +443,25 @@ export async function exportAppImpl(
     }
   }
 
+  let serverActionsManifest
+  if (options.hasAppDir) {
+    serverActionsManifest = require(join(
+      distDir,
+      SERVER_DIRECTORY,
+      SERVER_REFERENCE_MANIFEST + '.json'
+    ))
+    if (nextConfig.output === 'export') {
+      if (
+        Object.keys(serverActionsManifest.node).length > 0 ||
+        Object.keys(serverActionsManifest.edge).length > 0
+      ) {
+        throw new ExportError(
+          `Server Actions are not supported with static export.`
+        )
+      }
+    }
+  }
+
   // Start the rendering process
   const renderOpts: WorkerRenderOptsPartial = {
     previewProps: prerenderManifest?.preview,
@@ -513,15 +498,12 @@ export async function exportAppImpl(
     images: nextConfig.images,
     ...(options.hasAppDir
       ? {
-          serverActionsManifest: require(join(
-            distDir,
-            SERVER_DIRECTORY,
-            SERVER_REFERENCE_MANIFEST + '.json'
-          )),
+          serverActionsManifest,
         }
       : {}),
     strictNextHead: !!nextConfig.experimental.strictNextHead,
     deploymentId: nextConfig.experimental.deploymentId,
+    ppr: nextConfig.experimental.ppr === true,
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -623,7 +605,7 @@ export async function exportAppImpl(
 
     // Warn if the user defines a path for an API page
     if (hasApiRoutes || hasMiddleware) {
-      if (!options.silent) {
+      if (nextConfig.output === 'export') {
         Log.warn(
           yellow(
             `Statically exporting a Next.js application via \`next export\` disables API routes and middleware.`

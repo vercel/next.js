@@ -3,7 +3,6 @@ import type { WorkerRequestHandler, WorkerUpgradeHandler } from './types'
 import type { DevBundler } from './router-utils/setup-dev-bundler'
 import type { NextUrlWithParsedQuery } from '../request-meta'
 // This is required before other imports to ensure the require hook is setup.
-import '../node-polyfill-fetch'
 import '../node-environment'
 import '../require-hook'
 
@@ -64,8 +63,6 @@ export async function initialize(opts: {
   experimentalTestProxy?: boolean
   experimentalHttpsServer?: boolean
 }): Promise<[WorkerRequestHandler, WorkerUpgradeHandler]> {
-  process.title = 'next-router-worker'
-
   if (!process.env.NODE_ENV) {
     // @ts-ignore not readonly
     process.env.NODE_ENV = opts.dev ? 'development' : 'production'
@@ -372,7 +369,7 @@ export async function initialize(opts: {
           res,
           parsedUrl,
           undefined,
-          getRequestMeta(req, '__NEXT_CLONABLE_BODY')?.cloneBodyStream(),
+          getRequestMeta(req, 'clonableBody')?.cloneBodyStream(),
           config.experimental.proxyTimeout
         )
       }
@@ -605,8 +602,9 @@ export async function initialize(opts: {
       if (parsedUrl.protocol) {
         return await proxyRequest(req, socket as any, parsedUrl, head)
       }
-      // no match close socket
-      socket.end()
+
+      // If there's no matched output, we don't handle the request as user's
+      // custom WS server may be listening on the same path.
     } catch (err) {
       console.error('Error handling upgrade request', err)
       socket.end()

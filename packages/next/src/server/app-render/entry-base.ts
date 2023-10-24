@@ -23,6 +23,8 @@ import {
   preconnect,
 } from '../../server/app-render/rsc/preloads'
 
+import { taintObjectReference } from '../../server/app-render/rsc/taint'
+
 const { NotFoundBoundary } =
   require('next/dist/client/components/not-found-boundary') as typeof import('../../client/components/not-found-boundary')
 
@@ -39,6 +41,7 @@ export {
   preloadStyle,
   preloadFont,
   preconnect,
+  taintObjectReference,
   StaticGenerationSearchParamsBailoutProvider,
   NotFoundBoundary,
 }
