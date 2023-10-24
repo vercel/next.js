@@ -1,9 +1,11 @@
 use anyhow::Result;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, TryJoinIterExt, Vc};
+use turbo_tasks::{
+    debug::ValueDebugFormat, trace::TraceRawVcs, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+};
 use turbopack_binding::turbopack::{
-    core::{chunk::ChunkingContextExt, output::OutputAssets},
+    core::{chunk::ChunkingContextExt, module::Module, output::OutputAssets},
     ecmascript::chunk::EcmascriptChunkingContext,
 };
 
@@ -69,4 +71,26 @@ pub async fn get_app_client_references_chunks(
         .collect();
 
     Ok(Vc::cell(app_client_references_chunks))
+}
+
+#[turbo_tasks::function]
+pub async fn get_app_server_reference_modules(
+    app_client_reference_types: Vc<ClientReferenceTypes>,
+) -> Result<Vc<Vec<Vc<Box<dyn Module>>>>> {
+    Ok(Vc::cell(
+        app_client_reference_types
+            .await?
+            .iter()
+            .map(|client_reference_ty| async move {
+                Ok(match client_reference_ty {
+                    ClientReferenceType::EcmascriptClientReference(ecmascript_client_reference) => {
+                        let ecmascript_client_reference_ref = ecmascript_client_reference.await?;
+                        Some(Vc::upcast(ecmascript_client_reference_ref.ssr_module))
+                    }
+                    _ => None,
+                })
+            })
+            .try_flat_join()
+            .await?,
+    ))
 }

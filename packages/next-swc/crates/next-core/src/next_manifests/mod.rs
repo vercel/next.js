@@ -4,7 +4,8 @@ pub(crate) mod client_reference_manifest;
 
 use std::collections::HashMap;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use turbo_tasks::{trace::TraceRawVcs, TaskInput};
 
 use crate::next_config::Rewrites;
 
@@ -183,7 +184,20 @@ pub enum ActionManifestWorkerEntry {
     Number(f64),
 }
 
-#[derive(Serialize, Debug)]
+#[derive(
+    Debug,
+    Copy,
+    Clone,
+    Hash,
+    Eq,
+    PartialEq,
+    Ord,
+    PartialOrd,
+    TaskInput,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+)]
 #[serde(rename_all = "camelCase")]
 pub enum ActionLayer {
     Rsc,
