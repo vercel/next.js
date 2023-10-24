@@ -260,6 +260,9 @@ export function createRSCAliases(
     'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.edge`,
     'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.edge`,
     'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.node`,
+    // optimisations to ignore the legacy build of react-dom/server
+    './cjs/react-dom-server-legacy.browser.production.min.js': `next/dist/build/noop-react-dom-server-legacy`,
+    './cjs/react-dom-server-legacy.browser.development.js': `next/dist/build/noop-react-dom-server-legacy`,
   }
 
   if (!isEdgeServer) {
