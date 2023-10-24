@@ -1656,6 +1656,24 @@ createNextDescribe(
           'Static generation failed due to dynamic usage on /ssr-auto/cache-no-store, reason: no-store fetch'
         )
       })
+
+      it('should correctly error and not update cache for ISR', async () => {
+        await next.patchFile('app/isr-error-handling/error.txt', 'yes')
+
+        for (let i = 0; i < 3; i++) {
+          const res = await next.fetch('/isr-error-handling')
+          const html = await res.text()
+          const $ = cheerio.load(html)
+          const now = $('#now').text()
+
+          expect(res.status).toBe(200)
+          expect(now).toBeTruthy()
+
+          // wait revalidate period
+          await waitFor(3000)
+        }
+        expect(next.cliOutput).toContain('intentional error')
+      })
     }
 
     it.each([
