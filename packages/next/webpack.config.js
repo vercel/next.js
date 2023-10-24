@@ -181,6 +181,19 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
             bundleType
           ),
           openAnalyzer: false,
+          ...(process.env.CI
+            ? {
+                analyzerMode: 'static',
+                reportFilename: path.join(
+                  __dirname,
+                  `dist/compiled/next-server/report.${dev ? 'dev' : 'prod'}-${
+                    turbo ? 'turbo' : 'webpack'
+                  }-${
+                    experimental ? 'experimental' : 'stable'
+                  }-${bundleType}.html`
+                ),
+              }
+            : {}),
         }),
     ].filter(Boolean),
     stats: {

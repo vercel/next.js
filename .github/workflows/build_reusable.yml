@@ -166,7 +166,7 @@ jobs:
       - run: pnpm install
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
-      - run: pnpm build
+      - run: ANALYZE=1 pnpm build
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
       - run: pnpm playwright install-deps
@@ -185,6 +185,12 @@ jobs:
         with:
           name: turbo run summary
           path: .turbo/runs
+
+      - name: Upload bundle analyzer artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: webpack bundle analysis stats
+          path: packages/next/dist/compiled/next-server/report.*.html
 
       - name: Upload test reports artifact
         uses: actions/upload-artifact@v3
