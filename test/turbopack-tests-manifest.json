@@ -3501,17 +3501,17 @@
     "passed": [
       "app dir - next-image image content should render images nested under page dir on /nested route",
       "app dir - next-image image content should render images on /client route",
-      "app dir - next-image image content should render legacy images under /legacy route"
-    ],
-    "failed": [
+      "app dir - next-image image content should render legacy images under /legacy route",
       "app dir - next-image browser content should render images nested under page dir on /nested route",
       "app dir - next-image browser content should render images on / route",
       "app dir - next-image browser content should render images on /client route",
-      "app dir - next-image image content should render images on / route",
-      "app dir - next-image image content should render legacy images in edge runtime on /legacy-edge-runtime route",
       "app dir - next-image ssr content should render images nested under page dir on /nested route",
       "app dir - next-image ssr content should render images on / route",
       "app dir - next-image ssr content should render images on /client route"
+    ],
+    "failed": [
+      "app dir - next-image image content should render images on / route",
+      "app dir - next-image image content should render legacy images in edge runtime on /legacy-edge-runtime route"
     ],
     "pending": [],
     "flakey": [],
