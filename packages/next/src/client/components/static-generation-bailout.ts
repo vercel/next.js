@@ -36,7 +36,7 @@ export const staticGenerationBailout: StaticGenerationBailout = (
     )
   }
 
-  if (staticGenerationStore) {
+  if (staticGenerationStore && !staticGenerationStore?.experimental.ppr) {
     staticGenerationStore.revalidate = 0
 
     if (!opts?.dynamic) {
@@ -47,14 +47,24 @@ export const staticGenerationBailout: StaticGenerationBailout = (
   }
 
   if (staticGenerationStore?.isStaticGeneration) {
-    const err = new DynamicServerError(
-      formatErrorMessage(reason, {
-        ...opts,
-        // this error should be caught by Next to bail out of static generation
-        // in case it's uncaught, this link provides some additional context as to why
-        link: 'https://nextjs.org/docs/messages/dynamic-server-error',
-      })
-    )
+    const message = formatErrorMessage(reason, {
+      ...opts,
+      // this error should be caught by Next to bail out of static generation
+      // in case it's uncaught, this link provides some additional context as to why
+      link: 'https://nextjs.org/docs/messages/dynamic-server-error',
+    })
+
+    if (staticGenerationStore?.experimental.ppr) {
+      const React = require('react') as typeof import('react')
+
+      // App Route's cannot be postponed, so we only postpone if it's a page.
+      if (typeof React.unstable_postpone === 'function') {
+        // This throws a postpone error similar to the below error.
+        React.unstable_postpone(message)
+      }
+    }
+
+    const err = new DynamicServerError(message)
     staticGenerationStore.dynamicUsageDescription = reason
     staticGenerationStore.dynamicUsageStack = err.stack
 

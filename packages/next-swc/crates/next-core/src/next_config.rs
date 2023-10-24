@@ -748,6 +748,11 @@ impl NextConfig {
             self.await?.experimental.server_actions.unwrap_or(false),
         ))
     }
+
+    #[turbo_tasks::function]
+    pub async fn enable_ppr(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(self.await?.experimental.ppr.unwrap_or(false)))
+    }
 }
 
 fn next_configs() -> Vc<Vec<String>> {

@@ -1,6 +1,5 @@
 import type { FlightRouterState } from '../app-render/types'
 
-import { nonNullable } from '../../lib/non-nullable'
 import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
 import { createDecodeTransformStream } from './encode-decode'
@@ -31,7 +30,7 @@ export function cloneTransformStream(source: TransformStream) {
 }
 
 export function chainStreams<T>(
-  streams: ReadableStream<T>[]
+  ...streams: ReadableStream<T>[]
 ): ReadableStream<T> {
   const { readable, writable } = new TransformStream()
 
@@ -428,6 +427,36 @@ export function createRootLayoutValidatorStream(
   })
 }
 
+function chainTransformers<T>(
+  readable: ReadableStream<T>,
+  transformers: ReadonlyArray<TransformStream<T, T> | null>
+): ReadableStream<T> {
+  let stream = readable
+  for (const transformer of transformers) {
+    if (!transformer) continue
+
+    stream = stream.pipeThrough(transformer)
+  }
+  return stream
+}
+
+export type ContinueStreamOptions = {
+  inlinedDataStream: ReadableStream<Uint8Array> | undefined
+  generateStaticHTML: boolean
+  getServerInsertedHTML: (() => Promise<string>) | undefined
+  serverInsertedHTMLToHead: boolean
+  validateRootLayout:
+    | {
+        assetPrefix: string | undefined
+        getTree: () => FlightRouterState
+      }
+    | undefined
+  /**
+   * Suffix to inject after the buffered data, but before the close tags.
+   */
+  suffix: string | undefined
+}
+
 export async function continueFizzStream(
   renderStream: ReactReadableStream,
   {
@@ -437,29 +466,20 @@ export async function continueFizzStream(
     getServerInsertedHTML,
     serverInsertedHTMLToHead,
     validateRootLayout,
-  }: {
-    inlinedDataStream?: ReadableStream<Uint8Array>
-    generateStaticHTML: boolean
-    getServerInsertedHTML?: () => Promise<string>
-    serverInsertedHTMLToHead: boolean
-    validateRootLayout?: {
-      assetPrefix?: string
-      getTree: () => FlightRouterState
-    }
-    // Suffix to inject after the buffered data, but before the close tags.
-    suffix?: string
-  }
+  }: ContinueStreamOptions
 ): Promise<ReadableStream<Uint8Array>> {
   const closeTag = '</body></html>'
 
   // Suffix itself might contain close tags at the end, so we need to split it.
   const suffixUnclosed = suffix ? suffix.split(closeTag, 1)[0] : null
 
-  if (generateStaticHTML) {
+  // If we're generating static HTML and there's an `allReady` promise on the
+  // stream, we need to wait for it to resolve before continuing.
+  if (generateStaticHTML && 'allReady' in renderStream) {
     await renderStream.allReady
   }
 
-  const transforms: Array<TransformStream<Uint8Array, Uint8Array>> = [
+  return chainTransformers(renderStream, [
     // Buffer everything to avoid flushing too frequently
     createBufferedTransformStream(),
 
@@ -477,7 +497,7 @@ export async function continueFizzStream(
     inlinedDataStream ? createMergedTransformStream(inlinedDataStream) : null,
 
     // Close tags should always be deferred to the end
-    closeTag && createMoveSuffixStream(closeTag),
+    createMoveSuffixStream(closeTag),
 
     // Special head insertions
     // TODO-APP: Insert server side html to end of head in app layout rendering, to avoid
@@ -492,10 +512,47 @@ export async function continueFizzStream(
           validateRootLayout.getTree
         )
       : null,
-  ].filter(nonNullable)
+  ])
+}
 
-  return transforms.reduce(
-    (readable, transform) => readable.pipeThrough(transform),
-    renderStream
-  )
+type ContinuePostponedStreamOptions = Pick<
+  ContinueStreamOptions,
+  | 'inlinedDataStream'
+  | 'generateStaticHTML'
+  | 'getServerInsertedHTML'
+  | 'serverInsertedHTMLToHead'
+>
+
+export async function continuePostponedFizzStream(
+  renderStream: ReactReadableStream,
+  {
+    inlinedDataStream,
+    generateStaticHTML,
+    getServerInsertedHTML,
+    serverInsertedHTMLToHead,
+  }: ContinuePostponedStreamOptions
+) {
+  const closeTag = '</body></html>'
+
+  // If we're generating static HTML and there's an `allReady` promise on the
+  // stream, we need to wait for it to resolve before continuing.
+  if (generateStaticHTML && 'allReady' in renderStream) {
+    await renderStream.allReady
+  }
+
+  return chainTransformers(renderStream, [
+    // Buffer everything to avoid flushing too frequently
+    createBufferedTransformStream(),
+
+    // Insert generated tags to head
+    getServerInsertedHTML && !serverInsertedHTMLToHead
+      ? createInsertedHTMLStream(getServerInsertedHTML)
+      : null,
+
+    // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
+    inlinedDataStream ? createMergedTransformStream(inlinedDataStream) : null,
+
+    // Close tags should always be deferred to the end
+    createMoveSuffixStream(closeTag),
+  ])
 }

@@ -92,7 +92,9 @@ pub async fn get_next_client_import_map(
             );
         }
         ClientContextType::App { app_dir } => {
-            let react_flavor = if *next_config.enable_server_actions().await? {
+            let react_flavor = if *next_config.enable_server_actions().await?
+                || *next_config.enable_ppr().await?
+            {
                 "-experimental"
             } else {
                 ""
@@ -117,6 +119,27 @@ pub async fn get_next_client_import_map(
                 request_to_import_mapping(
                     app_dir,
                     &format!("next/dist/compiled/react-dom{react_flavor}"),
+                ),
+            );
+            import_map.insert_exact_alias(
+                "react-dom/static",
+                request_to_import_mapping(
+                    app_dir,
+                    "next/dist/compiled/react-dom-experimental/static",
+                ),
+            );
+            import_map.insert_exact_alias(
+                "react-dom/static.edge",
+                request_to_import_mapping(
+                    app_dir,
+                    "next/dist/compiled/react-dom-experimental/static.edge",
+                ),
+            );
+            import_map.insert_exact_alias(
+                "react-dom/static.browser",
+                request_to_import_mapping(
+                    app_dir,
+                    "next/dist/compiled/react-dom-experimental/static.browser",
                 ),
             );
             import_map.insert_wildcard_alias(
@@ -622,7 +645,12 @@ async fn rsc_aliases(
     next_config: Vc<NextConfig>,
 ) -> Result<()> {
     let server_actions = *next_config.enable_server_actions().await?;
-    let react_channel = if server_actions { "-experimental" } else { "" };
+    let ppr = *next_config.enable_ppr().await?;
+    let react_channel = if server_actions || ppr {
+        "-experimental"
+    } else {
+        ""
+    };
 
     let mut alias = indexmap! {
         "react" => format!("next/dist/compiled/react{react_channel}"),
@@ -630,6 +658,9 @@ async fn rsc_aliases(
         "react/jsx-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-runtime"),
         "react/jsx-dev-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-dev-runtime"),
         "react-dom/client" => format!("next/dist/compiled/react-dom{react_channel}/client"),
+        "react-dom/static" => format!("next/dist/compiled/react-dom-experimental/static"),
+        "react-dom/static.edge" => format!("next/dist/compiled/react-dom-experimental/static.edge"),
+        "react-dom/static.browser" => format!("next/dist/compiled/react-dom-experimental/static.browser"),
         "react-dom/server" => format!("next/dist/compiled/react-dom{react_channel}/server"),
         "react-dom/server.edge" => format!("next/dist/compiled/react-dom{react_channel}/server.edge"),
         "react-dom/server.browser" => format!("next/dist/compiled/react-dom{react_channel}/server.browser"),
