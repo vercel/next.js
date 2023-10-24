@@ -22,10 +22,29 @@ export default async function Page() {
       const fetchedRandom = await fetch(
         'https://next-data-api-endpoint.vercel.app/api/random'
       ).then((res) => res.json())
+
+      const fetchedRandomNoStore = await fetch(
+        'https://next-data-api-endpoint.vercel.app/api/random',
+        {
+          cache: 'no-store',
+        }
+      ).then((res) => res.json())
+
+      const fetchedRandomRevalidateZero = await fetch(
+        'https://next-data-api-endpoint.vercel.app/api/random',
+        {
+          next: {
+            revalidate: 0,
+          },
+        }
+      ).then((res) => res.json())
+
       return {
         now: Date.now(),
         random: Math.random(),
         fetchedRandom,
+        fetchedRandomNoStore,
+        fetchedRandomRevalidateZero,
       }
     },
     ['random'],
