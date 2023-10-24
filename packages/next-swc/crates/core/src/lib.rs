@@ -190,7 +190,6 @@ where
     };
 
     chain!(
-        pure::pure_magic(comments.clone()),
         disallow_re_export_all_in_page::disallow_re_export_all_in_page(opts.is_page_file),
         match &opts.server_components {
             Some(config) if config.truthy() =>
@@ -313,7 +312,7 @@ where
             Some(config) => Either::Left(server_actions::server_actions(
                 &file.name,
                 config.clone(),
-                comments,
+                comments.clone(),
             )),
             None => Either::Right(noop()),
         },
@@ -323,6 +322,7 @@ where
             },
             None => Either::Right(noop()),
         },
+        pure::pure_magic(comments),
     )
 }
 
