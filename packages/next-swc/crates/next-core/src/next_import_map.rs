@@ -299,34 +299,6 @@ pub async fn get_next_server_import_map(
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. } => {
             import_map.insert_exact_alias(
-                "private-next-rsc-action-proxy",
-                request_to_import_mapping(
-                    project_path,
-                    "next/dist/build/webpack/loaders/next-flight-loader/action-proxy",
-                ),
-            );
-            import_map.insert_exact_alias(
-                "private-next-rsc-action-client-wrapper",
-                request_to_import_mapping(
-                    project_path,
-                    "next/dist/build/webpack/loaders/next-flight-loader/action-client-wrapper",
-                ),
-            );
-            import_map.insert_exact_alias(
-                "private-next-rsc-action-validate",
-                request_to_import_mapping(
-                    project_path,
-                    "next/dist/build/webpack/loaders/next-flight-loader/action-validate",
-                ),
-            );
-            import_map.insert_exact_alias(
-                "private-next-rsc-action-encryption",
-                request_to_import_mapping(
-                    project_path,
-                    "next/dist/server/app-render/action-encryption",
-                ),
-            );
-            import_map.insert_exact_alias(
                 "next/head",
                 request_to_import_mapping(project_path, "next/dist/client/components/noop-head"),
             );
@@ -833,6 +805,35 @@ async fn insert_next_shared_aliases(
     import_map.insert_exact_alias(
         "setimmediate",
         request_to_import_mapping(project_path, "next/dist/compiled/setimmediate"),
+    );
+
+    import_map.insert_exact_alias(
+        "private-next-rsc-action-proxy",
+        request_to_import_mapping(
+            project_path,
+            "next/dist/build/webpack/loaders/next-flight-loader/action-proxy",
+        ),
+    );
+    import_map.insert_exact_alias(
+        "private-next-rsc-action-client-wrapper",
+        request_to_import_mapping(
+            project_path,
+            "next/dist/build/webpack/loaders/next-flight-loader/action-client-wrapper",
+        ),
+    );
+    import_map.insert_exact_alias(
+        "private-next-rsc-action-validate",
+        request_to_import_mapping(
+            project_path,
+            "next/dist/build/webpack/loaders/next-flight-loader/action-validate",
+        ),
+    );
+    import_map.insert_exact_alias(
+        "private-next-rsc-action-encryption",
+        request_to_import_mapping(
+            project_path,
+            "next/dist/server/app-render/action-encryption",
+        ),
     );
 
     insert_turbopack_dev_alias(import_map);
