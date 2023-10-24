@@ -31,8 +31,9 @@ describe('Middleware Runtime', () => {
           ),
         },
         nextConfig: {
-          webpackBuildWorker: true,
-          experimental: {},
+          experimental: {
+            webpackBuildWorker: true,
+          },
           ...(i18n
             ? {
                 i18n: {

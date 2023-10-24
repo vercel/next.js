@@ -1064,11 +1064,15 @@ export default async function build(
 
       // if the option is set, we respect it, otherwise we check if the user
       // has a custom webpack config and disable the build worker by default.
-      const useBuildWorker = config.webpackBuildWorker || !config.webpack
+      const useBuildWorker =
+        config.experimental.webpackBuildWorker || !config.webpack
 
-      if (config.webpack && config.webpackBuildWorker === undefined) {
+      if (
+        config.webpack &&
+        config.experimental.webpackBuildWorker === undefined
+      ) {
         Log.warn(
-          'Custom webpack configuration is detected. When using a custom webpack configuration, the Webpack build worker is disabled by default. To force enable it, set the "webpackBuildWorker" option to "true".'
+          'Custom webpack configuration is detected. When using a custom webpack configuration, the Webpack build worker is disabled by default. To force enable it, set the "experimental.webpackBuildWorker" option to "true". Read more: https://nextjs.org/docs/messages/webpack-build-worker-opt-out'
         )
       }
 

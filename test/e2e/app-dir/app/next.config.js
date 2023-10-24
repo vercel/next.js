@@ -1,8 +1,8 @@
 module.exports = {
   experimental: {
     clientRouterFilterRedirects: true,
+    webpackBuildWorker: true,
   },
-  webpackBuildWorker: true,
   // output: 'standalone',
   rewrites: async () => {
     return {

@@ -75,8 +75,8 @@ describe('build-spinners', () => {
           filename: 'next.config.js',
           content: `
         module.exports = {
-          webpackBuildWorker: true,
           experimental: {
+            webpackBuildWorker: true,
           }
         }
       `,
@@ -91,8 +91,8 @@ describe('build-spinners', () => {
           filename: 'next.config.js',
           content: `
         module.exports = {
-          webpackBuildWorker: true,
           experimental: {
+            webpackBuildWorker: true,
           }
         }
       `,

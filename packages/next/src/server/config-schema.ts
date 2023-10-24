@@ -224,7 +224,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       })
       .optional(),
     excludeDefaultMomentLocales: z.boolean().optional(),
-    webpackBuildWorker: z.boolean().optional(),
     experimental: z
       .strictObject({
         appDocumentPreloading: z.boolean().optional(),
@@ -314,6 +313,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .optional(),
         mdxRs: z.boolean().optional(),
         typedRoutes: z.boolean().optional(),
+        webpackBuildWorker: z.boolean().optional(),
         turbo: z
           .object({
             loaders: z.record(z.string(), z.array(zTurboLoaderItem)).optional(),

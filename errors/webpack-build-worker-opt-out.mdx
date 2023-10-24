@@ -1,0 +1,13 @@
+---
+title: Webpack Build Worker automatic opt-out
+---
+
+## ``
+
+#### Why This Error Occurred
+
+The Next.js config contained a custom webpack configuration, as a result, the Webpack build worker was disabled.
+
+#### Possible Ways to Fix It
+
+You can force enable the option via setting &#x60;config.experimental.webpackBuildWorker: true&#x60; in the config.
