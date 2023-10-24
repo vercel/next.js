@@ -35,6 +35,63 @@ page. By default, it fetches the original inline script after hydration occurs o
 
 <AppOnly>
 
+To load Google Tag Manager for all routes, include the component directly in your root layout:
+
+```tsx filename="app/layout.tsx" switcher
+import { GoogleTagManager } from '@next/third-parties/google'
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en">
+      <body>{children}</body>
+      <GoogleTagManager gtmId="GTM-XYZ" />
+    </html>
+  )
+}
+```
+
+```jsx filename="app/layout.js" switcher
+import { GoogleTagManager } from '@next/third-parties/google'
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body>{children}</body>
+      <GoogleTagManager gtmId="GTM-XYZ" />
+    </html>
+  )
+}
+```
+
+</AppOnly>
+
+<PagesOnly>
+
+To load Google Tag Manager for all routes, include the component directly in your custom `_app`:
+
+```jsx filename="pages/_app.js"
+import { GoogleTagManager } from '@next/third-parties/google'
+
+export default function MyApp({ Component, pageProps }) {
+  return (
+    <>
+      <Component {...pageProps} />
+      <GoogleTagManager gtmId="GTM-XYZ" />
+    </>
+  )
+}
+```
+
+</PagesOnly>
+
+To load Google Tag Manager for a single route, include the comopnent in your page file:
+
+<AppOnly>
+
 ```jsx filename="app/page.js"
 import { GoogleTagManager } from '@next/third-parties/google'
 
@@ -59,19 +116,20 @@ export default function Page() {
 
 #### Sending Events
 
-The `sendGTMEvent` function can be used to track user interactions on your page by sending events using the `dataLayer` object.
+The `sendGTMEvent` function can be used to track user interactions on your page by sending events
+using the `dataLayer` object. For this function to work, the `<GoogleTagManager />` component must be
+included in either a parent layout, page, or component, or directly in the same file.
 
 <AppOnly>
 
 ```jsx filename="app/page.js"
 'use client'
 
-import { GoogleTagManager, sendGTMEvent } from '@next/third-parties/google'
+import { sendGTMEvent } from '@next/third-parties/google'
 
-export default function Page() {
+export function EventButton() {
   return (
     <div>
-      <GoogleTagManager gtmId="GTM-XYZ" />
       <button
         onClick={() => sendGTMEvent({ event: 'buttonClicked', value: 'xyz' })}
       >
@@ -87,12 +145,11 @@ export default function Page() {
 <PagesOnly>
 
 ```jsx filename="pages/index.js"
-import { GoogleTagManager, sendGTMEvent } from '@next/third-parties/google'
+import { sendGTMEvent } from '@next/third-parties/google'
 
-export default function Page() {
+export function EventButton() {
   return (
     <div>
-      <GoogleTagManager gtmId="GTM-XYZ" />
       <button
         onClick={() => sendGTMEvent({ event: 'buttonClicked', value: 'xyz' })}
       >
@@ -106,7 +163,8 @@ export default function Page() {
 </PagesOnly>
 
 Refer to the [Tag Manager](https://developers.google.com/tag-platform/tag-manager/datalayer)
-documentation to learn about the variables and events that can be passed into the function.
+documentation to learn about the different variables and events that can be passed into the
+function.
 
 #### Options
 
