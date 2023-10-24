@@ -6,7 +6,6 @@ import type {
 } from 'http'
 import type { WebNextRequest } from '../base-http/web'
 import type { SizeLimit } from '../../../types'
-import type { ApiError } from '../api-utils'
 
 import {
   ACTION,
@@ -408,21 +407,23 @@ export async function handleAction({
             return
           }
         } else {
-          const { parseBody } =
-            require('../api-utils/node/parse-body') as typeof import('../api-utils/node/parse-body')
+          const chunks = []
 
-          let actionData
-          try {
-            actionData =
-              (await parseBody(req, serverActionsBodySizeLimit ?? '1mb')) || ''
-          } catch (e: any) {
-            if (e && (e as ApiError).statusCode === 413) {
-              // Exceeded the size limit
-              e.message =
-                e.message +
-                '\nTo configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/server-actions#size-limitation'
-            }
-            throw e
+          for await (const chunk of req) {
+            chunks.push(Buffer.from(chunk))
+          }
+
+          const actionData = Buffer.concat(chunks).toString('utf-8')
+
+          const limit = require('next/dist/compiled/bytes').parse(
+            serverActionsBodySizeLimit ?? '1mb'
+          )
+
+          if (actionData.length > limit) {
+            throw new Error(
+              `Body exceeded ${limit} limit.
+To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/server-actions#size-limitation`
+            )
           }
 
           if (isURLEncodedAction) {
