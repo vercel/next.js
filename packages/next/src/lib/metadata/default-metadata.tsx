@@ -5,7 +5,10 @@ import type {
 
 export function createDefaultScreenMetadata(): ResolvedScreenMetadata {
   return {
-    viewport: 'width=device-width, initial-scale=1',
+    viewport: {
+      width: 'device-width',
+      initialScale: 1,
+    },
     themeColor: null,
     colorScheme: null,
   }

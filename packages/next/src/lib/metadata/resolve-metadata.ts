@@ -33,7 +33,6 @@ import {
   resolveRobots,
   resolveThemeColor,
   resolveVerification,
-  resolveViewport,
   resolveItunes,
 } from './resolvers/resolve-basics'
 import { resolveIcons } from './resolvers/resolve-icons'
@@ -182,10 +181,7 @@ function merge({
       case 'verification':
         target.verification = resolveVerification(source.verification)
         break
-      case 'viewport': {
-        target.viewport = resolveViewport(source.viewport)
-        break
-      }
+
       case 'icons': {
         target.icons = resolveIcons(source.icons)
         break
@@ -198,10 +194,6 @@ function merge({
         break
       case 'robots': {
         target.robots = resolveRobots(source.robots)
-        break
-      }
-      case 'themeColor': {
-        target.themeColor = resolveThemeColor(source.themeColor)
         break
       }
       case 'archives':
@@ -232,7 +224,7 @@ function merge({
       case 'category':
       case 'classification':
       case 'referrer':
-      case 'colorScheme':
+
       case 'formatDetection':
       case 'manifest':
         // @ts-ignore TODO: support inferring
@@ -244,6 +236,13 @@ function merge({
       case 'metadataBase':
         target.metadataBase = metadataBase
         break
+      // screen metadata
+      case 'viewport':
+      case 'colorScheme':
+      case 'themeColor': {
+        target.themeColor = resolveThemeColor(source.themeColor)
+        break
+      }
       default:
         break
     }
@@ -589,8 +588,7 @@ async function getMetadataFromExport<Data, ResolvedData>(
 
     // In dev we clone and freeze to prevent relying on mutating resolvedMetadata directly.
     // In prod we just pass resolvedMetadata through without any copying.
-
-    const currentResolvedMetadata = //: ResolvedMetadata | ResolvedScreenMetadata =
+    const currentResolvedMetadata =
       process.env.NODE_ENV === 'development'
         ? Object.freeze(
             require('./clone-metadata').cloneMetadata(resolvedMetadata)

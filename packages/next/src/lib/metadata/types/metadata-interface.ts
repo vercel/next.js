@@ -167,14 +167,12 @@ interface Metadata extends DeprecatedMetadataFields {
    * @deprecated
    *
    * ```tsx
-   * "width=device-width, initial-scale=1"
-   * <meta name="viewport" content="width=device-width, initial-scale=1" />
    *
    * { width: "device-width", initialScale: 1 }
    * <meta name="viewport" content="width=device-width, initial-scale=1" />
    * ```
    */
-  viewport?: null | string | Viewport
+  viewport?: null | Viewport
 
   /**
    * The creator of the document.
@@ -489,7 +487,7 @@ interface ResolvedMetadata extends DeprecatedMetadataFields {
   /**
    * @deprecated
    */
-  viewport: null | string
+  viewport: null | Viewport
   creator: null | string
   publisher: null | string
 
@@ -637,7 +635,7 @@ type ScreenMetadata = {
    * <meta name="viewport" content="width=device-width, initial-scale=1" />
    * ```
    */
-  viewport?: null | string | Viewport
+  viewport?: null | Viewport
 }
 
 type ResolvingScreenMetadata = Promise<ScreenMetadata>
@@ -645,7 +643,7 @@ type ResolvingScreenMetadata = Promise<ScreenMetadata>
 type ResolvedScreenMetadata = {
   themeColor: null | ThemeColorDescriptor[]
   colorScheme: null | ColorSchemeEnum
-  viewport: null | string
+  viewport: null | Viewport
 }
 
 export type {

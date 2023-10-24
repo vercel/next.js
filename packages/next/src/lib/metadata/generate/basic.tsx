@@ -1,18 +1,40 @@
 import type {
   ResolvedMetadata,
   ResolvedScreenMetadata,
+  ScreenMetadata,
 } from '../types/metadata-interface'
 
 import React from 'react'
 import { Meta, MetaFilter, MultiMeta } from './meta'
+import { ViewPortKeys } from '../constants'
+import type { Viewport } from '../types/extra-types'
+
+function renderViewport(viewport: ScreenMetadata['viewport']) {
+  let resolved: string | null = null
+
+  if (viewport && typeof viewport === 'object') {
+    resolved = ''
+    for (const viewportKey_ in ViewPortKeys) {
+      const viewportKey = viewportKey_ as keyof Viewport
+      if (viewportKey in viewport) {
+        let value = viewport[viewportKey]
+        if (typeof value === 'boolean') value = value ? 'yes' : 'no'
+        if (resolved) resolved += ', '
+        resolved += `${ViewPortKeys[viewportKey]}=${value}`
+      }
+    }
+  }
+  return resolved
+}
 
 export function ScreenMetadata({
   screenMetadata,
 }: {
   screenMetadata: ResolvedScreenMetadata
 }) {
+  const viewport = renderViewport(screenMetadata.viewport)
   return MetaFilter([
-    Meta({ name: 'viewport', content: screenMetadata.viewport }),
+    Meta({ name: 'viewport', content: viewport }),
     ...(screenMetadata.themeColor
       ? screenMetadata.themeColor.map((themeColor) =>
           Meta({

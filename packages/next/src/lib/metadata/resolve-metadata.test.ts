@@ -513,19 +513,6 @@ describe('accumulateMetadata', () => {
   })
 
   describe('viewport', () => {
-    it('should support string viewport', async () => {
-      const metadataItems: MetadataItems = [
-        [
-          { viewport: 'width=device-width, initial-scale=1, shrink-to-fit=no' },
-          null,
-        ],
-      ]
-      const metadata = await accumulateMetadata(metadataItems)
-      expect(metadata).toMatchObject({
-        viewport: 'width=device-width, initial-scale=1, shrink-to-fit=no',
-      })
-    })
-
     it('should support viewport descriptors', async () => {
       const metadataItems: MetadataItems = [
         [
