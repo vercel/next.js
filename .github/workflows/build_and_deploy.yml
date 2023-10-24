@@ -438,6 +438,8 @@ jobs:
       - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
       - run: ./scripts/publish-native.js
       - run: ./scripts/publish-release.js
+        env:
+          RELEASE_BOT_GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
 
   deployExamples:
     name: Deploy examples
